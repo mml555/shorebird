@@ -91,21 +91,41 @@ reports at all for this fixture, is reporting the fixture's *direct* dynamic
 call site, not the tear-off path.
 
 Reading that as tear-off evidence would attribute one site's freeze to a
-different site, so the ten frozen-cache checks are **withheld** for this row
-(51 checks instead of 53) and the eight tear-off arm checks carry it instead.
+different site, so the ten frozen-cache checks are **withheld** for this row and the eight
+tear-off arm checks plus two closure-identity checks carry it instead.
 The withholding is explicit in the harness (`NO_SITE_EVIDENCE`), not silent.
 
-Also not proven directly: that the pre-captured Closure's function pointer is
-unchanged across installs. What is proven is that the install path writes only
-the descriptor and cell fields — the registry identity dump shows the
-declaration Function, trampoline, trampoline entry, cell and release body all
-unmoved — and that the closure's behaviour changed, which is only consistent
-with the indirection in §2.
+~~Also not proven directly: that the pre-captured Closure's function pointer is
+unchanged across installs.~~ **Closed in §4a.**
+
+## 4a. Closure identity, measured (closes the §4 inference)
+
+The remaining inference in this row was that the pre-captured Closure still
+holds the same implicit closure function. It is now measured:
+
+```
+closure.hash.0 = closure.hash.v2 = closure.hash.v3 = 614483848
+closure.eq.0   = closure.eq.v2   = closure.eq.v3   = true
+pre.alpha.0/v2/v3 = OLD:20 / NEW:30 / NEW2:17
+```
+
+`identityHashCode` lives in the object header, so a stable value means this is
+the same Closure OBJECT across both installs, not a re-allocated one. Dart
+defines two instance-method tear-offs as equal when they share a receiver and
+the same function, so the pre-install closure still comparing equal to one torn
+off after each install says the implicit closure function did not change.
+
+Same object, same function, same receiver — and a different result at each
+stage. The cell is the only thing that moved.
+
+**What this is not:** a direct read of the Closure's function field out of the
+VM. It is language-level, and it is the strongest statement available from
+inside the program. Stated so it is not mistaken for a pointer comparison.
 
 ## 5. Falsification
 
 Six rows now, and the judge is fed corrupted evidence rather than trusted:
-**31 mutations, 0 undetected.** The tear-off additions include the forbidden
+**34 mutations, 0 undetected.** The tear-off additions include the forbidden
 state for this surface — *install reports success while a closure captured
 before it silently keeps running the old body* — at both v2 and v3, for both
 arms, plus tear-off disagreeing with direct dispatch and the unrelated
@@ -120,7 +140,7 @@ declaration moving in either arm.
 | setter | setter | MegamorphicCache via dyn-forwarder | PASS (53) |
 | operator | `operator +` | MegamorphicCache via dyn-forwarder | PASS (53) |
 | callable | `call()` | MegamorphicCache via dyn-forwarder | PASS (53) |
-| tearoff | tear-off pre & post | Closure -> implicit closure fn -> cell | PASS (51) |
+| tearoff | tear-off pre & post | Closure -> implicit closure fn -> cell | PASS (53) |
 
 ## 7. Not claimed
 

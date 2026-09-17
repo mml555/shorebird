@@ -153,9 +153,22 @@ TEAROFF_MUTATIONS = [
      {'pre.beta.after': 'CHANGED'}),
     ('unrelated declaration changed in the post arm',
      {'post.beta.after': 'CHANGED'}),
+    # The closure-identity probe replaced an inference; if corrupting it does
+    # not fail, it replaced the inference with nothing.
+    ('pre-captured closure was re-allocated at v3',
+     {'closure.hash.v3': '999999999'}),
+    ('pre-captured closure no longer equals a fresh tear-off at v2',
+     {'closure.eq.v2': 'false'}),
+    ('closure identity absent from the evidence',
+     {'closure.hash.v2': None}),
 ]
 for name, patch in TEAROFF_MUTATIONS:
-    k2 = dict(to_kv); k2.update(patch)
+    k2 = dict(to_kv)
+    for pk, pv in patch.items():
+        if pv is None:
+            k2.pop(pk, None)
+        else:
+            k2[pk] = pv
     assert k2 != to_kv, f'mutation changed nothing: {name}'
     _, f2 = judge(to_stages, to_beta, k2)
     ok = len(f2) > 0

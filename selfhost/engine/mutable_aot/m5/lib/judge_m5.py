@@ -125,6 +125,16 @@ def judge(stages, beta, kv, site_report=None):
             == kv.get('post.beta.after'),
             f"{kv.get('pre.beta.0')}/{kv.get('pre.beta.after')}/{kv.get('post.beta.after')}")
 
+    if 'closure.hash.0' in kv:
+        h = [kv.get('closure.hash.0'), kv.get('closure.hash.v2'),
+             kv.get('closure.hash.v3')]
+        chk('pre-captured closure is the same object throughout',
+            len(set(h)) == 1 and h[0] not in (None, ''), str(h))
+        e = [kv.get('closure.eq.0'), kv.get('closure.eq.v2'),
+             kv.get('closure.eq.v3')]
+        chk('pre-captured closure still equals a freshly torn-off one',
+            e == ['true', 'true', 'true'], str(e))
+
     # The warmed dispatch structure itself. Behaviour and registry identities
     # can both look right while the cache was quietly relinked underneath, so
     # the site is read back at each stage and every field compared.

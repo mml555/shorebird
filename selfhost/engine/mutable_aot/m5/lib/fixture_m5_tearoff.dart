@@ -147,6 +147,23 @@ void main(List<String> args) {
   // semantics are the open question.
   final Function preAlpha = tear(receivers[0]);
   final Function preBeta = tear(receivers[1]);
+  // CLOSURE IDENTITY, measured rather than inferred.
+  //
+  // Two separate facts, and they are different:
+  //   closure.hash.*  -- identityHashCode is stored in the object header, so
+  //                      a stable value means this is the same Closure OBJECT
+  //                      across the installs, not a re-allocated one.
+  //   closure.eq.*    -- Dart defines two instance-method tear-offs as equal
+  //                      when they share a receiver AND the same function. So
+  //                      a pre-install closure comparing equal to one torn off
+  //                      after the install says the implicit closure function
+  //                      did not change.
+  //
+  // What this is NOT: a direct read of the Closure's function field out of the
+  // VM. It is the strongest statement available from inside the program, and
+  // it is language-level.
+  _emit('closure.hash.0', identityHashCode(preAlpha));
+  _emit('closure.eq.0', preAlpha == tear(receivers[0]));
   _emit('pre.alpha.0', callTorn(preAlpha, input));
   _emit('pre.beta.0', callTorn(preBeta, input));
   // Standard matrix keys, bound to the PRE closure on purpose: it is the arm
@@ -163,6 +180,8 @@ void main(List<String> args) {
   // A closure torn off AFTER the replacement. This one is unambiguous.
   _emit('post.alpha.v2', callTorn(tear(receivers[0]), input));
   _emit('direct.alpha.v2', (receivers[0] as dynamic).v(input) as String);
+  _emit('closure.hash.v2', identityHashCode(preAlpha));
+  _emit('closure.eq.v2', preAlpha == tear(receivers[0]));
   _emit('version.v2', _version(_c('$_lib::$_decl')));
   _emit('site.afterV2', _look());
   if (dumpDir.isNotEmpty) _dump(_c('$dumpDir/registry_v2.json'));
@@ -172,6 +191,8 @@ void main(List<String> args) {
   _emit('alpha.v3', callTorn(preAlpha, input));
   _emit('post.alpha.v3', callTorn(tear(receivers[0]), input));
   _emit('direct.alpha.v3', (receivers[0] as dynamic).v(input) as String);
+  _emit('closure.hash.v3', identityHashCode(preAlpha));
+  _emit('closure.eq.v3', preAlpha == tear(receivers[0]));
   _emit('version.v3', _version(_c('$_lib::$_decl')));
   _emit('site.afterV3', _look());
 
