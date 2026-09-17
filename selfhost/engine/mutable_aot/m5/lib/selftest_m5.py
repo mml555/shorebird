@@ -132,6 +132,38 @@ for name, bad_site in SITE_MUTATIONS:
     if not ok:
         bad += 1
 
-total = len([m for _, m in MUTATIONS if callable(m)]) + len(SITE_MUTATIONS)
+# ---- tear-off arms, falsified against the tear-off row's own evidence ----
+to = json.load(open(os.path.join(SCRATCH, 'evidence_tearoff.json')))
+to_stages, to_beta, to_kv = to['stages'], to['beta'], to['kv']
+_, to_fails = judge(to_stages, to_beta, to_kv)
+assert not to_fails, to_fails
+
+TEAROFF_MUTATIONS = [
+    # The forbidden state for this surface: install succeeds, but a closure
+    # captured before it silently keeps running the old body.
+    ('tearoff_pre stale at v2 while install succeeded',
+     {'pre.alpha.v2': to_kv['pre.alpha.0'], 'alpha.v2': to_kv['pre.alpha.0']}),
+    ('tearoff_pre stale at v3', {'pre.alpha.v3': to_kv['pre.alpha.v2'],
+                                 'alpha.v3': to_kv['pre.alpha.v2']}),
+    ('tearoff_post stale at v2', {'post.alpha.v2': to_kv['pre.alpha.0']}),
+    ('tearoff_post stale at v3', {'post.alpha.v3': to_kv['pre.alpha.v2']}),
+    ('tearoff disagrees with direct dispatch',
+     {'direct.alpha.v2': 'SOMETHING-ELSE'}),
+    ('unrelated declaration changed in the pre arm',
+     {'pre.beta.after': 'CHANGED'}),
+    ('unrelated declaration changed in the post arm',
+     {'post.beta.after': 'CHANGED'}),
+]
+for name, patch in TEAROFF_MUTATIONS:
+    k2 = dict(to_kv); k2.update(patch)
+    assert k2 != to_kv, f'mutation changed nothing: {name}'
+    _, f2 = judge(to_stages, to_beta, k2)
+    ok = len(f2) > 0
+    print(f'  {"DETECTED" if ok else "MISSED  "}  {name}')
+    if not ok:
+        bad += 1
+
+total = (len([m for _, m in MUTATIONS if callable(m)]) + len(SITE_MUTATIONS)
+         + len(TEAROFF_MUTATIONS))
 print(f'\n{total} mutations, {bad} undetected')
 raise SystemExit(1 if bad else 0)

@@ -25,7 +25,14 @@ SUBJECTS = [
     ('setter',   'fixture_m5_setter.dart',   'm5setter',   'cls:Alpha::set:v',       'cls:Beta::set:v'),
     ('operator', 'fixture_m5_operator.dart', 'm5operator', 'cls:Alpha::op:+',        'cls:Beta::op:+'),
     ('callable', 'fixture_m5_callable.dart', 'm5callable', 'cls:Alpha::method:call', 'cls:Beta::method:call'),
+    ('tearoff',  'fixture_m5_tearoff.dart',  'm5tearoff',  'cls:Alpha::method:v',    'cls:Beta::method:v'),
 ]
+# The tear-off call site is a CLOSURE call, not a receiver dispatch, so the
+# megamorphic inspector reports on the fixture's direct dynamic call instead.
+# Reading that as tear-off evidence would be attributing one site's freeze to
+# a different site, so the cache checks are withheld for this row and the
+# tear-off arms carry it instead.
+NO_SITE_EVIDENCE = {'tearoff'}
 
 FROZEN = ['id_declaration_function', 'id_declaration_current_code',
           'id_trampoline_code', 'id_trampoline_entry', 'id_dispatch_cell',
@@ -111,6 +118,8 @@ for tag, fixture, pkg, subj, other in SUBJECTS:
     json.dump({'stages': stages, 'beta': beta, 'kv': kv,
                'site_report': site_report},
               open(os.path.join(SCRATCH, f'evidence_{tag}.json'), 'w'), indent=1)
+    if tag in NO_SITE_EVIDENCE:
+        site_report = None
     n_checks, fails = judge(stages, beta, kv, site_report)
     verdict = 'PASS' if not fails else 'FAIL'
     results.append((tag, verdict, fails))

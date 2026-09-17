@@ -91,6 +91,40 @@ def judge(stages, beta, kv, site_report=None):
                 len(set(vals)) == 1, str(vals))
     else:
         chk('unrelated declaration present in dumps', False, 'missing')
+    # Tear-off arms, when the fixture provides them. Stated as their own
+    # checks rather than folded into the behaviour sequence: a closure
+    # captured BEFORE the install is existing live state, and whether it
+    # follows the replacement is the whole question for this surface.
+    if 'pre.alpha.0' in kv:
+        chk('tearoff_pre baseline is OLD',
+            kv.get('pre.alpha.0', '').startswith('OLD'), kv.get('pre.alpha.0'))
+        chk('tearoff_pre follows v2',
+            kv.get('pre.alpha.v2', '').startswith('NEW')
+            and not kv.get('pre.alpha.v2', '').startswith('NEW2'),
+            kv.get('pre.alpha.v2'))
+        chk('tearoff_pre follows v3',
+            kv.get('pre.alpha.v3', '').startswith('NEW2'),
+            kv.get('pre.alpha.v3'))
+        chk('tearoff_post follows v2',
+            kv.get('post.alpha.v2', '').startswith('NEW')
+            and not kv.get('post.alpha.v2', '').startswith('NEW2'),
+            kv.get('post.alpha.v2'))
+        chk('tearoff_post follows v3',
+            kv.get('post.alpha.v3', '').startswith('NEW2'),
+            kv.get('post.alpha.v3'))
+        chk('tearoff agrees with direct dispatch at v2',
+            kv.get('pre.alpha.v2') == kv.get('direct.alpha.v2')
+            == kv.get('post.alpha.v2'),
+            f"{kv.get('pre.alpha.v2')}/{kv.get('post.alpha.v2')}/{kv.get('direct.alpha.v2')}")
+        chk('tearoff agrees with direct dispatch at v3',
+            kv.get('pre.alpha.v3') == kv.get('direct.alpha.v3')
+            == kv.get('post.alpha.v3'),
+            f"{kv.get('pre.alpha.v3')}/{kv.get('post.alpha.v3')}/{kv.get('direct.alpha.v3')}")
+        chk('tearoff unrelated declaration unchanged, both arms',
+            kv.get('pre.beta.0') == kv.get('pre.beta.after')
+            == kv.get('post.beta.after'),
+            f"{kv.get('pre.beta.0')}/{kv.get('pre.beta.after')}/{kv.get('post.beta.after')}")
+
     # The warmed dispatch structure itself. Behaviour and registry identities
     # can both look right while the cache was quietly relinked underneath, so
     # the site is read back at each stage and every field compared.
