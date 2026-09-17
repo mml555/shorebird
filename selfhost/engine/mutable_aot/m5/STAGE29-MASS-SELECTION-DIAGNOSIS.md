@@ -90,8 +90,49 @@ later rather than landing on it, because a trace's last line reports where
 **instrumentation** stops, not where **execution** stops. Every claim of
 location here rests on a BEGIN/END pair, not on a final line.
 
-## 5. Next step
+## 5. Bracketing completed: the prepare phase runs to the end
 
-Bracket the program-snapshot pass between `PrepareForSerialization` and the
-first cluster fill — the trace loop, cluster construction and the alloc pass —
-using the same BEGIN/END discipline.
+Marker counts settle which pass dies:
+
+```
+POST BEGIN PrepareInstructions  2      (both passes)
+POST END   PrepareInstructions  1      (pass 1 only)
+PREP bd.8 / bd.9                2 each (both passes reach scope exit)
+PASS END TraceLoop              2      (trace completes in both)
+```
+
+Pass 2 reaches `bd.9 scope_exited` — so the block's destructors
+(`pc_mapping`, `writer_commands`, `stack_maps`, `stack_maps_info`) all ran —
+and never reaches `POST END` in the caller. Between those two points there are
+no statements left: `#endif`, a closing brace, and the return.
+
+`MallocWriteStream::Steal` nulls `buffer_` and the destructor is
+`free(nullptr)`, so the double-free theory is dead too.
+
+**Marker bisection is therefore exhausted**: the interval no longer contains
+code.
+
+## 6. The crash class is different from what bisection assumed
+
+The macOS crash report:
+
+```
+type:    EXC_BAD_ACCESS
+subtype: EXC_ARM_DA_ALIGN at 0x617a696c61697265 -> 0x0000696c61697265
+         (possible pointer authentication failure)
+faulting frame:  ?   <no symbol>  +115914211684965
+```
+
+The program counter is unsymbolized at a nonsense offset. That is not a
+statement dereferencing a bad value — it is **control transferred through a
+bogus pointer**. Dart's own handler prints no stack; the frames above the
+fault are only `segv_handler` → `abort`.
+
+This reframes everything above: with a corrupted PC, "the last marker printed"
+bounds when the corruption became fatal, **not where it was created**. The
+value is deterministic for a given kernel (identical `si_addr` across every
+run), so it is reproducible rather than random.
+
+The remaining work is a memory-corruption / lifetime investigation, not a
+declaration bisect — the Case B branch of the ruling. Chasing it further with
+markers would keep producing intervals that contain no code.
