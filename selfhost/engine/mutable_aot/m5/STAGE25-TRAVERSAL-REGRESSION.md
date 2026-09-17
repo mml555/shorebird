@@ -74,9 +74,11 @@ getter    PASS_LEAF_ONLY     operator  PASS
 non-leaf rows: setter, operator, callable, tearoff
 ```
 
-This is also a standing note on the two established slices: neither
-`ARM64_AOT_INSTANCE_STAGE_REPLACEMENT_VERTICAL_SLICE` nor
-`ARM64_AOT_INSTANCE_GETTER_VERTICAL_SLICE` exercises static-call binding at all.
+Scope of that, stated precisely: `PASS_LEAF_ONLY` means those two programs do
+not carry the **static-call-binding** claim, because their bodies contain no
+static calls to bind. It does **not** weaken their previously established
+replacement and routing evidence, which is about a different property and
+stands unchanged.
 
 ## 4. Status
 
