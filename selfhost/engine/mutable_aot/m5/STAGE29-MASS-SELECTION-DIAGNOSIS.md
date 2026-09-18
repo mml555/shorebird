@@ -1,7 +1,21 @@
 # STAGE29 — mass-selection serialization crash: diagnosis in progress
 
 Fork `f75071133cf` (clean), stamped.
-`REALAPP_MASS_SELECTION_SERIALIZATION = BLOCKED`. Root cause **not yet
+`REALAPP_MAOT_SELECTION_PRECOMPILER = BLOCKED`
+(renamed from `REALAPP_MASS_SELECTION_SERIALIZATION`: the failing configuration
+does not require trampoline installation at all, so naming it "serialization of
+trampolines" misdescribed it).
+
+```
+trigger:                 MAOT_SELECT_ALL_NON_SDK=1
+trampoline installation: not required
+population threshold:    not required; reproduces at N=1
+manifestation:           corrupted control transfer during/after
+                         PrepareInstructions, pass 2
+```
+
+The synthetic 512-trampoline result (`ARM64_AOT_SYNTHETIC_POPULATION_512`)
+remains valid and is not affected by this rename. Root cause **not yet
 reached**; this records what is established and what was refuted.
 
 ## 1. One coherent population (step 1/2 of the execution order)
