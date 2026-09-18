@@ -44,9 +44,13 @@ MAOT semantic disabled.
 Per selected declaration that is `9.10 MB / 1,598 ≈ 5,700 bytes` of data.
 
 That figure is large enough to be interesting on its own: a declaration id
-string, a dispatch cell and a descriptor entry should not cost kilobytes. Note
-also that D selects **more** declarations (1,853) and is **smaller** (22.33 MB)
-than B (1,598 / 22.53 MB), so the cost is **not linear in the selected count**.
+string, a dispatch cell and a descriptor entry should not cost kilobytes.
+
+Arm D selects **more** declarations (1,853) and is **smaller** (22.33 MB) than
+B (1,598 / 22.53 MB). That proves **count alone does not determine the cost**;
+it does not establish a non-linear scaling law, since composition could explain
+it just as well. Until the dominant objects are named, the honest description
+is **high and population/composition-dependent**.
 
 **The specific structure responsible is not identified.** Section attribution
 is as far as this matrix goes; naming the objects inside `.rodata` needs
@@ -70,5 +74,6 @@ Inlining restriction as driver      REFUTED (negative)
 Lost optimisation as driver         REFUTED (.text flat)
 Retention as driver                 REFUTED (identical sets)
 Responsible structure               NOT YET IDENTIFIED
-Cost per selected declaration       ~5,700 bytes, non-linear in count
+Cost per selected declaration       ~5,700 bytes; count alone insufficient,
+                                    composition not yet separated
 ```
