@@ -84,8 +84,12 @@ def report(tag, dill, install, ktime):
     if inst is not None:
         print('  installed=%d  distinct=%d  %s' % (inst, dist,
               'MATCH' if inst==dist else 'IDENTITY COLLAPSE'))
-        print('  installed vs eligible: %s' % ('MATCH' if inst==elig else
-              'MISMATCH (installed=%d eligible=%d)'%(inst,elig)))
+        # NOT a mismatch to flag: every selected declaration receives a
+        # trampoline, while `eligible` counts the subset that can additionally
+        # accept a replacement. Labelling the normal state "MISMATCH" was a
+        # harness bug that would have manufactured a stop condition.
+        print('  installed=%d (all selected)  eligible=%d  refused=%d'
+              % (inst, elig, inst - elig))
     if trav: print('  %s' % trav[0])
     q=subprocess.run([os.path.join(OUT,'dartaotruntime'),aot,'--version'],
         capture_output=True,text=True,timeout=300,
