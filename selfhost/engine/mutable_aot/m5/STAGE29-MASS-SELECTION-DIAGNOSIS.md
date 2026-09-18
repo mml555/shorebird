@@ -1,3 +1,10 @@
+> **CONTAMINATED — crash conclusions withdrawn (STAGE31).** The failure this
+> document investigates was caused by unconditional diagnostic work introduced
+> during STAGE20, not by Mutable-AOT selection or serialization semantics.
+> `REALAPP_MAOT_SELECTION_PRECOMPILER = WITHDRAWN`. What remains valid here is
+> methodological: the bracketing discipline, the refuted hypotheses, and the
+> record of how a trace's last line was repeatedly mistaken for a failure site.
+
 # STAGE29 — mass-selection serialization crash: diagnosis in progress
 
 Fork `f75071133cf` (clean), stamped.
