@@ -104,6 +104,19 @@ later rather than landing on it, because a trace's last line reports where
 **instrumentation** stops, not where **execution** stops. Every claim of
 location here rests on a BEGIN/END pair, not on a final line.
 
+> **CORRECTED BY STAGE30.** This section's claim that "relocation completes"
+> holds only for the production/LTO build. Read it as:
+>
+> ```
+> production/LTO build : failure becomes fatal AFTER the relocation markers
+> ASan/no-LTO build    : failure becomes fatal INSIDE ScanCallTargets
+> ```
+>
+> The correct interpretation is that corruption exists before or during
+> relocation and its exact manifestation depends on build layout. The marker
+> evidence below is accurate for the production build and is not a general
+> claim about where the defect lives.
+
 ## 5. Bracketing completed: the prepare phase runs to the end
 
 Marker counts settle which pass dies:
