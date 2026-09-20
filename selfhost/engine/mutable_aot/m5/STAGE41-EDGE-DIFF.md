@@ -109,10 +109,10 @@ exist as a real function, and the calls in its body become real calls.** All
 caller — and all 175 appear in arm C, which has no call indirection and
 therefore no release edge.
 
-Of the 159 the production arm reaches through a release edge, **159 are also
-present in arm C**, reached there by an ordinary static call table edge (158)
-or a dispatch-table selector (1). The release edge introduces **0**
-declarations that the other arms lack.
+Of the 159 the production arm reaches through a release edge, **all 159 are
+also present in arm C**, reached there by an ordinary static call table edge
+(156) or by a static call table edge and a dispatch-table selector together
+(3). The release edge introduces **0** declarations that the other arms lack.
 
 ## 4. What the release edge actually does
 
