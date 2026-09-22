@@ -45,6 +45,11 @@ SOURCES=(
   # a four-entry list there reported every run as stale.
   pkg/vm/lib/metadata/maot_declaration_id.dart
   pkg/vm/lib/transformations/type_flow/transformer.dart
+  # Selection itself lives here too: which declarations are mutable, and the
+  # package-ownership policy that decides it. Editing this changes the
+  # measured population without changing a byte of the binary, which is
+  # exactly the staleness this record exists to catch.
+  pkg/vm/lib/transformations/type_flow/maot_selection.dart
   pkg/vm/lib/transformations/pragma.dart
   pkg/vm/lib/modular/target/vm.dart
 )
