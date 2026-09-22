@@ -75,13 +75,28 @@ dart2wasm              93  4.9%
 analysis_server       289  3.5%
 ```
 
-Two categories only, across 12,479 selected declarations:
+Three denominators, stated separately because an earlier version of this
+section conflated them and printed a refusal total that does not exist:
 
 ```
-12,458   "the dispatch cell has no seeded global-pool entry, so the call site
-          cannot name the same cell the trampoline does"
-     4   "a constant result was inferred for a mutable call, so the caller
-          would use the release answer without ..."
+selected_declarations   12,479   the population
+refused_declarations       466   selected but not installable
+escape_records           1,140   optimizer_escapes summed over selected
+                                 declarations; a declaration can carry more
+                                 than one
+```
+
+**Correction.** This section previously read "12,458 of 12,462 refusals".
+Neither number is a refusal count: 12,479 is the *selected* population and
+12,462 was a miscount of it. The refused population is 466.
+
+Refused declarations by first recorded reason:
+
+```
+462   "the dispatch cell has no seeded global-pool entry, so the call site
+       cannot name the same cell the trampoline does"
+  4   "a constant result was inferred for a mutable call, so the caller
+       would use the release answer without ..."
 ```
 
 **The constant-inference refusal is new to this population** — 1 in
@@ -90,6 +105,23 @@ before. That is #68's P1 escape firing for the first time outside a fixture,
 and it is fail-closed: those four declarations are refused rather than shipped
 as installable. Reported here rather than absorbed into the size fit; no
 action taken, the policy is frozen.
+
+They are **four distinct declarations**, not four records on fewer
+declarations, and their identities are kept here so the set can be watched if
+it grows:
+
+```
+optimizer_escapes  lowered sites  declaration
+                1              3  lib:package:dart2wasm/dynamic_modules.dart::
+                                  cls:ConstantCanonicalizer::method:_equalsForValueType@package:dart2wasm/dynamic_modules.dart
+                2              4  lib:package:analysis_server/src/protocol_server.dart::fn:getColorHexString
+                1              5  lib:package:analysis_server/src/protocol_server.dart::fn:getReturnTypeString
+                1              3  lib:package:analysis_server/src/handler/legacy/completion_utils.dart::
+                                  fn:_getDeclaringType@package:analysis_server/src/handler/legacy/completion_utils.dart
+```
+
+`getColorHexString` carries two escape records; the constant-result one is the
+first recorded. The other three carry one each.
 
 The dominant category is the fail-closed pool-entry check, at 1.5–4.9% of
 selected declarations. It does not correlate with application class.
