@@ -6,11 +6,19 @@ Methodology, as approved:
     drift hits both arms equally;
   * every raw repetition is kept, in execution order;
   * a paired C/A delta is computed per repetition;
-  * an A-vs-A noise floor is measured on the same machine in the same shape;
-  * no repetition is discarded without a mechanically identified interruption,
-    and the detector is stated rather than applied silently;
-  * results are reported per workload. A regression in a hot workload is not
-    cancelled by a quiet one.
+  * an A-vs-A noise floor is measured in the same shape, in the same run;
+  * results are reported per workload -- a regression in a hot workload is
+    never cancelled by a quiet one.
+
+Harness conditions, which are NOT result filters:
+  * the machine must be quiet on TWO consecutive preflight observations
+    before the first timed sample, so a run cannot begin in the wake of a
+    large build while caches and thermals are still settling;
+  * if a competitor appears during a workload, that WHOLE workload is
+    invalidated and must be rerun from the beginning. Individual repetitions
+    are never dropped.
+
+Usage:  runtime_m5.py [workload ...]      default: all
 """
 import json, os, shutil, statistics, subprocess, sys, time
 
@@ -28,79 +36,130 @@ PKGNAME = 'm5bench'
 FIXTURE = 'fixture_m5_bench.dart'
 
 REPS = int(os.environ.get('M5_N', '11'))
+LOAD_CEILING = float(os.environ.get('M5_LOAD_CEILING', '2.5'))
+PREFLIGHT_GAP = int(os.environ.get('M5_PREFLIGHT_GAP', '60'))
+# Processes that mean another lane is building. dartaotruntime is absent on
+# purpose: that is this harness's own workload.
+COMPETITORS = ('gen_snapshot', 'ninja', 'flutter_tools', 'frontend_server',
+               'dart2wasm.snapshot', 'xcodebuild', 'clang++')
 
 
-def load_avg():
-    return os.getloadavg()[0]
+def competitors():
+    found = []
+    for pat in COMPETITORS:
+        r = subprocess.run(['pgrep', '-f', pat], capture_output=True,
+                           text=True)
+        if r.returncode == 0:
+            n = len(r.stdout.strip().splitlines())
+            if n:
+                found.append('%s x%d' % (pat, n))
+    return found
+
+
+def observe():
+    l1, l5, l15 = os.getloadavg()
+    return dict(t=time.strftime('%H:%M:%S'), l1=l1, l5=l5, l15=l15,
+                comp=competitors())
+
+
+def ok(o):
+    return o['l1'] <= LOAD_CEILING and not o['comp']
+
+
+def preflight():
+    """Two consecutive clean observations, both recorded with the evidence."""
+    obs = []
+    for i in range(2):
+        if i:
+            time.sleep(PREFLIGHT_GAP)
+        o = observe()
+        obs.append(o)
+        print('   preflight %d at %s: load %.2f / %.2f / %.2f  competitors: %s'
+              % (i + 1, o['t'], o['l1'], o['l5'], o['l15'],
+                 ', '.join(o['comp']) if o['comp'] else 'none'))
+        if not ok(o):
+            print('\nREFUSING TO MEASURE: the machine is not quiet '
+                  '(ceiling %.2f, two consecutive clean observations '
+                  'required).' % LOAD_CEILING)
+            print('A contaminated timing result is worse than no timing '
+                  'result.')
+            sys.exit(2)
+    print('   two consecutive clean observations %ds apart; proceeding'
+          % PREFLIGHT_GAP)
+    return obs
 
 
 def timed(cmd, env):
-    """One sample: wall ms, plus the load average before and after, which is
-    the mechanical interruption detector. Nothing is dropped here."""
-    l0 = load_avg()
     t0 = time.perf_counter()
     r = subprocess.run(cmd, capture_output=True, timeout=7200, env=env)
-    ms = (time.perf_counter() - t0) * 1000.0
-    return dict(ms=ms, rc=r.returncode, load_before=l0, load_after=load_avg())
-
-
-def paired(name, cmd_a, cmd_c, env, n=REPS, cmd_a2=None):
-    """Interleave A and C within each repetition; also A vs A' for the floor."""
-    rows = []
-    for i in range(n):
-        a = timed(cmd_a, env)
-        c = timed(cmd_c, env)
-        a2 = timed(cmd_a2 or cmd_a, env)
-        rows.append(dict(i=i, a=a, c=c, a2=a2))
-    return dict(name=name, rows=rows)
+    return dict(ms=(time.perf_counter() - t0) * 1000.0, rc=r.returncode,
+                out=r.stdout.decode('utf8', 'replace'))
 
 
 def med(v):
     return statistics.median(v)
 
 
-def report(res, selected=None, sites=None):
+def run_paired(name, cmd_a, cmd_c, cmd_a2, env, n):
+    """A, C, A' interleaved per repetition. Watches for competitors."""
+    rows, watch = [], []
+    for i in range(n):
+        watch.append(observe())
+        a = timed(cmd_a, env)
+        c = timed(cmd_c, env)
+        a2 = timed(cmd_a2, env)
+        rows.append(dict(i=i, a=a, c=c, a2=a2))
+    watch.append(observe())
+    dirty = [o for o in watch if not ok(o)]
+    return dict(name=name, rows=rows, watch=watch, dirty=dirty)
+
+
+def report_paired(res, extra=None):
+    print('\n--- %s ---' % res['name'])
+    if extra:
+        print('    %s' % extra)
     rows = res['rows']
     A = [r['a']['ms'] for r in rows]
     C = [r['c']['ms'] for r in rows]
     A2 = [r['a2']['ms'] for r in rows]
-    bad = [r['i'] for r in rows
-           if r['a']['rc'] or r['c']['rc'] or r['a2']['rc']]
-    print('\n--- %s ---' % res['name'])
-    if selected is not None:
-        print('    selected declarations = %d ; with >=1 lowered site = %s'
-              % (selected, sites))
     print('    %-4s %12s %12s %12s %12s %10s'
           % ('rep', 'A ms', 'C ms', "A' ms", 'C-A ms', 'C/A'))
     for r in rows:
         print('    %-4d %12.2f %12.2f %12.2f %12.2f %10.4f'
               % (r['i'], r['a']['ms'], r['c']['ms'], r['a2']['ms'],
-                 r['c']['ms'] - r['a']['ms'],
-                 r['c']['ms'] / r['a']['ms']))
-    mA, mC, mA2 = med(A), med(C), med(A2)
-    print('    median   A %.2f   C %.2f   A\' %.2f ms' % (mA, mC, mA2))
-    print('    spread   A %.2f-%.2f   C %.2f-%.2f   (min-max)'
-          % (min(A), max(A), min(C), max(C)))
-    print('    IQR      A %.2f   C %.2f'
-          % (statistics.quantiles(A, n=4)[2] - statistics.quantiles(A, n=4)[0],
-             statistics.quantiles(C, n=4)[2] - statistics.quantiles(C, n=4)[0])
-          if len(A) >= 4 else '')
+                 r['c']['ms'] - r['a']['ms'], r['c']['ms'] / r['a']['ms']))
+    if res['dirty']:
+        print('    *** WORKLOAD INVALIDATED: a competitor appeared during the '
+              'run ***')
+        for o in res['dirty']:
+            print('        %s load %.2f competitors: %s'
+                  % (o['t'], o['l1'], ', '.join(o['comp']) or 'none'))
+        print('    The whole workload must be rerun from the beginning. No '
+              'repetition was dropped and no number above is quoted.')
+        return
     pair = [(r['c']['ms'] - r['a']['ms']) / r['a']['ms'] * 100.0 for r in rows]
     floor = [(r['a2']['ms'] - r['a']['ms']) / r['a']['ms'] * 100.0
              for r in rows]
+    q = statistics.quantiles
+    print('    median   A %.2f   C %.2f   A\' %.2f ms' % (med(A), med(C),
+                                                          med(A2)))
+    print('    min-max  A %.2f-%.2f   C %.2f-%.2f' % (min(A), max(A),
+                                                      min(C), max(C)))
+    if len(A) >= 4:
+        print('    IQR      A %.2f   C %.2f'
+              % (q(A, n=4)[2] - q(A, n=4)[0], q(C, n=4)[2] - q(C, n=4)[0]))
     print('    paired  C vs A   median %+.2f%%   min %+.2f%%   max %+.2f%%'
           % (med(pair), min(pair), max(pair)))
     print("    paired  A' vs A  median %+.2f%%   min %+.2f%%   max %+.2f%%"
-          "   <- NOISE FLOOR" % (med(floor), min(floor), max(floor)))
+          '   <- NOISE FLOOR' % (med(floor), min(floor), max(floor)))
     nf = max(abs(min(floor)), abs(max(floor)))
-    ef = abs(med(pair))
-    print('    verdict  effect %.2f%% vs noise envelope %.2f%%  ->  %s'
-          % (ef, nf,
-             'SEPARATES' if ef > nf else 'INSIDE THE NOISE, not quotable'))
-    loads = [max(r[k]['load_after'] for k in ('a', 'c', 'a2')) for r in rows]
-    print('    load average during the run: %.2f - %.2f' % (min(loads),
-                                                            max(loads)))
-    print('    non-zero exit codes: %s' % (bad if bad else 'none'))
+    print('    verdict  |effect| %.2f%% vs noise envelope %.2f%%  ->  %s'
+          % (abs(med(pair)), nf,
+             'SEPARATES' if abs(med(pair)) > nf
+             else 'INSIDE THE NOISE, not quotable'))
+    print('    non-zero exits: %s'
+          % ([r['i'] for r in rows
+              if r['a']['rc'] or r['c']['rc'] or r['a2']['rc']] or 'none'))
     print('    repetitions discarded: none')
 
 
@@ -123,19 +182,21 @@ def build_fixture():
         d = os.path.join(WD, 'bench.%s.dill' % tag)
         if not os.path.exists(d):
             r = subprocess.run(
-                [DART, '--packages=%s' % os.path.join(FORK, '.dart_tool/package_config.json'),
-                 os.path.join(FORK, 'pkg/vm/bin/gen_kernel.dart'), '--platform',
-                 os.path.join(OUT, 'vm_platform_product.dill'), '--aot',
-                 '--packages', os.path.join(tool, 'package_config.json'),
-                 '-o', d, 'package:%s/%s' % (PKGNAME, FIXTURE)],
+                [DART, '--packages=%s' % os.path.join(
+                    FORK, '.dart_tool/package_config.json'),
+                 os.path.join(FORK, 'pkg/vm/bin/gen_kernel.dart'),
+                 '--platform', os.path.join(OUT, 'vm_platform_product.dill'),
+                 '--aot', '--packages',
+                 os.path.join(tool, 'package_config.json'), '-o', d,
+                 'package:%s/%s' % (PKGNAME, FIXTURE)],
                 capture_output=True, text=True, timeout=1800)
             assert r.returncode == 0, r.stderr[-1200:]
         out[tag] = d
     aots = {}
-    for name, dill, extra in (
-            ('A', out['base'], []),
-            ('C', out['pol'], ['--maot_disable_retention_roots',
-                               '--maot_install_trampolines'])):
+    for name, dill, extra in (('A', out['base'], []),
+                              ('C', out['pol'],
+                               ['--maot_disable_retention_roots',
+                                '--maot_install_trampolines'])):
         p = os.path.join(WD, 'bench_%s.aot' % name)
         if not os.path.exists(p):
             r = subprocess.run(
@@ -148,118 +209,125 @@ def build_fixture():
     return aots
 
 
-# The rig is shared. A timing result taken under someone else's build is not
-# a slower result, it is a meaningless one -- this lane has already had to
-# withdraw a set of time percentages for exactly that reason. The harness
-# refuses rather than producing a number it would have to caveat.
-LOAD_CEILING = float(os.environ.get('M5_LOAD_CEILING', '2.5'))
+def selected_profile(app):
+    rp = os.path.join(POP, '%s.C.reg.json' % app)
+    if not os.path.exists(rp):
+        return ''
+    j = json.load(open(rp))
+    ents = j.get('entries', j if isinstance(j, list) else [])
+    s = [e for e in ents if e.get('selected')]
+    w = sum(1 for e in s if (e.get('indirect_call_sites_emitted') or 0) > 0)
+    return ('selected %d, of which %d have >=1 #67-lowered site, %d reached '
+            'only through the trampoline' % (len(s), w, len(s) - w))
 
 
-def require_quiet():
-    l1, l5, l15 = os.getloadavg()
-    busy = []
-    for pat in ('gen_snapshot', 'ninja', 'flutter_tools', 'frontend_server',
-                'dart2wasm'):
-        r = subprocess.run(['pgrep', '-fl', pat], capture_output=True,
-                           text=True)
-        if r.returncode == 0:
-            busy.append('%s (%d)' % (pat, len(r.stdout.strip().splitlines())))
-    print('load average %.2f / %.2f / %.2f   ceiling %.2f' %
-          (l1, l5, l15, LOAD_CEILING))
-    if busy:
-        print('competing build processes: %s' % ', '.join(busy))
-    if l1 > LOAD_CEILING or busy:
-        print('\nREFUSING TO MEASURE: the machine is not quiet.')
-        print('A contaminated timing result is worse than no timing result.')
-        sys.exit(2)
-    print('machine is quiet; proceeding')
-
-
-def main():
-    env = dict(os.environ, MAOT_NAMESPACE=NS)
-    rt = os.path.join(OUT, 'dartaotruntime')
-    require_quiet()
-    print('repetitions per workload: %d' % REPS)
-
-    # ---- 1. the intrinsic cost: a hot mutable instance call ----
-    aots = build_fixture()
+def wl_hot(env, rt, aots):
     print('\n=== WORKLOAD: hot mutable instance-call loop (synthetic) ===')
-    print('    in-process ns/call, hot = mutable (cell-indirect in C), '
-          'cold = identical non-mutable method in the same process')
+    print('    in-process ns/call; hot = mutable (cell-indirect in C), '
+          'cold = an identical non-mutable method in the same process')
     henv = dict(env, M5_REPS='7', M5_ITERS='20000000')
-    print('    %-4s %10s %10s %10s %10s %10s %10s'
-          % ('rep', 'A hot', 'A cold', 'C hot', 'C cold', 'A ratio', 'C ratio'))
+    watch = []
     ratios = {'A': [], 'C': []}
+    raw = []
+    print('    %-4s %10s %10s %10s %10s %10s %10s'
+          % ('rep', 'A hot', 'A cold', 'C hot', 'C cold', 'A ratio',
+             'C ratio'))
     for i in range(REPS):
+        watch.append(observe())
         got = {}
         for arm in ('A', 'C'):
-            r = subprocess.run([rt, aots[arm]], capture_output=True, text=True,
-                               timeout=7200, env=henv)
+            r = subprocess.run([rt, aots[arm]], capture_output=True,
+                               text=True, timeout=7200, env=henv)
             assert r.returncode == 0, r.stderr[-400:]
             kv = dict(l.split('=', 1) for l in r.stdout.splitlines()
                       if '=' in l)
             got[arm] = kv
             ratios[arm].append(float(kv['ratio']))
+        raw.append(got)
         print('    %-4d %10s %10s %10s %10s %10s %10s'
               % (i, got['A']['hot.ns'], got['A']['cold.ns'],
                  got['C']['hot.ns'], got['C']['cold.ns'],
                  got['A']['ratio'], got['C']['ratio']))
+    watch.append(observe())
+    dirty = [o for o in watch if not ok(o)]
+    if dirty:
+        print('    *** WORKLOAD INVALIDATED: competitor during the run ***')
+        for o in dirty:
+            print('        %s load %.2f %s' % (o['t'], o['l1'],
+                                               ', '.join(o['comp'])))
+        return
     ra, rc = med(ratios['A']), med(ratios['C'])
     print('    median hot/cold ratio   A %.4f   C %.4f' % (ra, rc))
-    print('    spread ratio            A %.4f-%.4f   C %.4f-%.4f'
-          % (min(ratios['A']), max(ratios['A']),
-             min(ratios['C']), max(ratios['C'])))
+    print('    ratio min-max           A %.4f-%.4f   C %.4f-%.4f'
+          % (min(ratios['A']), max(ratios['A']), min(ratios['C']),
+             max(ratios['C'])))
     print('    C ratio / A ratio = %.4f  ->  the indirection costs %+.2f%% '
           'on this call' % (rc / ra, (rc / ra - 1) * 100.0))
-    print('    arm A ratio range is the noise floor for this statistic: '
-          '%+.2f%%' % ((max(ratios['A']) / min(ratios['A']) - 1) * 100.0))
+    print('    noise floor: arm A ratio spread over the same run = %.2f%%'
+          % ((max(ratios['A']) / min(ratios['A']) - 1) * 100.0))
+    print('    absolute: C hot - C cold = %+.4f ns/call'
+          % (float(raw[len(raw) // 2]['C']['hot.ns'])
+             - float(raw[len(raw) // 2]['C']['cold.ns'])))
+    print('    repetitions discarded: none')
 
-    # ---- 2. startup, per application ----
+
+def main():
+    want = set(sys.argv[1:])
+    env = dict(os.environ, MAOT_NAMESPACE=NS)
+    rt = os.path.join(OUT, 'dartaotruntime')
+    # Build before preflight: this harness's own gen_snapshot must not be
+    # mistaken for another lane's.
+    aots = build_fixture()
+    print('=== PREFLIGHT ===')
+    preflight()
+    print('repetitions per workload: %d' % REPS)
+
+    if not want or 'hot' in want:
+        wl_hot(env, rt, aots)
+
     print('\n=== WORKLOAD: startup (process launch + snapshot load) ===')
     for app in ('smith', 'nst', 'gen_kernel', 'dart2wasm', 'analysis_server'):
+        key = 'startup:%s' % app
+        if want and key not in want and 'startup' not in want:
+            continue
         a = os.path.join(POP, '%s.A.aot' % app)
         c = os.path.join(POP, '%s.C.aot' % app)
         if not (os.path.exists(a) and os.path.exists(c)):
             continue
-        sel = None
-        rp = os.path.join(POP, '%s.C.reg.json' % app)
-        if os.path.exists(rp):
-            j = json.load(open(rp))
-            ents = j.get('entries', j if isinstance(j, list) else [])
-            s = [e for e in ents if e.get('selected')]
-            sel = len(s)
-            sites = sum(1 for e in s
-                        if (e.get('indirect_call_sites_emitted') or 0) > 0)
-        report(paired('startup: %s' % app, [rt, a, '--help'],
-                      [rt, c, '--help'], env), sel, sites)
+        report_paired(run_paired(key, [rt, a, '--help'], [rt, c, '--help'],
+                                 [rt, a, '--help'], env, REPS),
+                      selected_profile(app))
 
-    # ---- 3. real application workloads ----
     print('\n=== WORKLOAD: application work ===')
     src = os.path.join(WD, 'work.dart')
     open(src, 'w').write("void main(){print('ok');}\n")
     gk = {k: os.path.join(POP, 'gen_kernel.%s.aot' % k) for k in 'AC'}
-    if all(os.path.exists(v) for v in gk.values()):
+    if (not want or 'work:gen_kernel' in want or 'work' in want) and \
+            all(os.path.exists(v) for v in gk.values()):
         def job(aot, tag):
             return [rt, aot, '--platform',
                     os.path.join(OUT, 'vm_platform_product.dill'), '--aot',
                     '--packages',
                     os.path.join(FORK, '.dart_tool/package_config.json'),
                     '-o', os.path.join(WD, 'w_%s.dill' % tag), src]
-        report(paired('gen_kernel compiles a file',
-                      job(gk['A'], 'a'), job(gk['C'], 'c'), env,
-                      n=max(5, REPS // 2), cmd_a2=job(gk['A'], 'a2')))
+        report_paired(run_paired('work: gen_kernel compiles a file',
+                                 job(gk['A'], 'a'), job(gk['C'], 'c'),
+                                 job(gk['A'], 'a2'), env, max(5, REPS // 2)),
+                      selected_profile('gen_kernel'))
     d2w = {k: os.path.join(POP, 'dart2wasm.%s.aot' % k) for k in 'AC'}
-    if all(os.path.exists(v) for v in d2w.values()):
+    if (not want or 'work:dart2wasm' in want or 'work' in want) and \
+            all(os.path.exists(v) for v in d2w.values()):
         def wjob(aot, tag):
             return [rt, aot, '--platform',
                     os.path.join(OUT, 'vm_platform_product.dill'),
                     '--packages',
                     os.path.join(FORK, '.dart_tool/package_config.json'),
                     src, os.path.join(WD, 'w_%s.wasm' % tag)]
-        report(paired('dart2wasm compiles a file',
-                      wjob(d2w['A'], 'a'), wjob(d2w['C'], 'c'), env,
-                      n=max(5, REPS // 2), cmd_a2=wjob(d2w['A'], 'a2')))
-    print('\nmachine load average at end: %.2f' % load_avg())
+        report_paired(run_paired('work: dart2wasm compiles a file',
+                                 wjob(d2w['A'], 'a'), wjob(d2w['C'], 'c'),
+                                 wjob(d2w['A'], 'a2'), env, max(5, REPS // 2)),
+                      selected_profile('dart2wasm'))
+    print('\nfinal observation: %s' % observe())
 
 
 main()
