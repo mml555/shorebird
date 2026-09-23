@@ -100,66 +100,92 @@ def med(v):
     return statistics.median(v)
 
 
-def run_paired(name, cmd_a, cmd_c, cmd_a2, env, n):
-    """A, C, A' interleaved per repetition. Watches for competitors."""
+def run_balanced(name, cmd_a, cmd_c, env, n):
+    """Balanced A/C order: rep 0 runs A then C, rep 1 runs C then A, and so on.
+
+    The fixed A, C, A' order used in the first attempt gave the third position
+    a systematic penalty -- the A'-vs-A median was positive in all four startup
+    workloads -- so part of every C-vs-A delta was position rather than arm.
+    Balancing removes the bias instead of correcting for it afterwards.
+    """
+    if n % 2:
+        n += 1  # even, so each arm gets the first position equally often
     rows, watch = [], []
     for i in range(n):
         watch.append(observe())
-        a = timed(cmd_a, env)
-        c = timed(cmd_c, env)
-        a2 = timed(cmd_a2, env)
-        rows.append(dict(i=i, a=a, c=c, a2=a2))
+        order = ('A', 'C') if i % 2 == 0 else ('C', 'A')
+        cmds = {'A': cmd_a, 'C': cmd_c}
+        got = {}
+        for arm in order:
+            got[arm] = timed(cmds[arm], env)
+        rows.append(dict(i=i, order='->'.join(order), a=got['A'], c=got['C']))
     watch.append(observe())
-    dirty = [o for o in watch if not ok(o)]
-    return dict(name=name, rows=rows, watch=watch, dirty=dirty)
+    return dict(name=name, rows=rows, watch=watch,
+                dirty=[o for o in watch if not ok(o)], kind='effect')
 
 
-def report_paired(res, extra=None):
-    print('\n--- %s ---' % res['name'])
-    if extra:
-        print('    %s' % extra)
+def run_floor(name, cmd_a, env, n):
+    """The noise floor, in the same balanced shape, with A on both sides."""
+    res = run_balanced(name, cmd_a, cmd_a, env, n)
+    res['kind'] = 'floor'
+    return res
+
+
+def summarize(res):
     rows = res['rows']
     A = [r['a']['ms'] for r in rows]
     C = [r['c']['ms'] for r in rows]
-    A2 = [r['a2']['ms'] for r in rows]
-    print('    %-4s %12s %12s %12s %12s %10s'
-          % ('rep', 'A ms', 'C ms', "A' ms", 'C-A ms', 'C/A'))
-    for r in rows:
-        print('    %-4d %12.2f %12.2f %12.2f %12.2f %10.4f'
-              % (r['i'], r['a']['ms'], r['c']['ms'], r['a2']['ms'],
-                 r['c']['ms'] - r['a']['ms'], r['c']['ms'] / r['a']['ms']))
-    if res['dirty']:
-        print('    *** WORKLOAD INVALIDATED: a competitor appeared during the '
-              'run ***')
-        for o in res['dirty']:
-            print('        %s load %.2f competitors: %s'
-                  % (o['t'], o['l1'], ', '.join(o['comp']) or 'none'))
-        print('    The whole workload must be rerun from the beginning. No '
-              'repetition was dropped and no number above is quoted.')
-        return
     pair = [(r['c']['ms'] - r['a']['ms']) / r['a']['ms'] * 100.0 for r in rows]
-    floor = [(r['a2']['ms'] - r['a']['ms']) / r['a']['ms'] * 100.0
-             for r in rows]
-    q = statistics.quantiles
-    print('    median   A %.2f   C %.2f   A\' %.2f ms' % (med(A), med(C),
-                                                          med(A2)))
-    print('    min-max  A %.2f-%.2f   C %.2f-%.2f' % (min(A), max(A),
-                                                      min(C), max(C)))
-    if len(A) >= 4:
-        print('    IQR      A %.2f   C %.2f'
-              % (q(A, n=4)[2] - q(A, n=4)[0], q(C, n=4)[2] - q(C, n=4)[0]))
-    print('    paired  C vs A   median %+.2f%%   min %+.2f%%   max %+.2f%%'
-          % (med(pair), min(pair), max(pair)))
-    print("    paired  A' vs A  median %+.2f%%   min %+.2f%%   max %+.2f%%"
-          '   <- NOISE FLOOR' % (med(floor), min(floor), max(floor)))
-    nf = max(abs(min(floor)), abs(max(floor)))
-    print('    verdict  |effect| %.2f%% vs noise envelope %.2f%%  ->  %s'
-          % (abs(med(pair)), nf,
-             'SEPARATES' if abs(med(pair)) > nf
-             else 'INSIDE THE NOISE, not quotable'))
-    print('    non-zero exits: %s'
-          % ([r['i'] for r in rows
-              if r['a']['rc'] or r['c']['rc'] or r['a2']['rc']] or 'none'))
+    bad = [r['i'] for r in rows if r['a']['rc'] or r['c']['rc']]
+    return A, C, pair, bad
+
+
+def report_balanced(name, eff, floor, extra=None):
+    print('\n--- %s ---' % name)
+    if extra:
+        print('    %s' % extra)
+    for res, lab in ((eff, 'effect  A vs C'), (floor, 'floor   A vs A')):
+        A, C, pair, bad = summarize(res)
+        print('    %s' % lab)
+        print('    %-4s %-8s %12s %12s %12s %10s'
+              % ('rep', 'order', 'first ms', 'second ms', 'delta ms', 'ratio'))
+        for r in res['rows']:
+            first, second = ((r['a'], r['c']) if r['order'].startswith('A')
+                             else (r['c'], r['a']))
+            print('    %-4d %-8s %12.2f %12.2f %12.2f %10.4f'
+                  % (r['i'], r['order'], first['ms'], second['ms'],
+                     r['c']['ms'] - r['a']['ms'],
+                     r['c']['ms'] / r['a']['ms']))
+        if bad:
+            print('    *** COMMAND VALIDITY FAILURE: non-zero exit in reps %s'
+                  ' ***' % bad)
+        print('    median   %s %.2f ms   %s %.2f ms'
+              % ('A' if res is eff else 'A1', med(A),
+                 'C' if res is eff else 'A2', med(C)))
+        print('    paired   median %+.2f%%   min %+.2f%%   max %+.2f%%'
+              % (med(pair), min(pair), max(pair)))
+    if eff['dirty'] or floor['dirty']:
+        print('    *** WORKLOAD INVALIDATED: a competitor appeared ***')
+        for o in eff['dirty'] + floor['dirty']:
+            print('        %s load %.2f %s' % (o['t'], o['l1'],
+                                               ', '.join(o['comp']) or ''))
+        print('    Rerun the whole workload. No repetition dropped, nothing'
+              ' quoted.')
+        return
+    _, _, ep, ebad = summarize(eff)
+    _, _, fp, fbad = summarize(floor)
+    if ebad or fbad:
+        print('    VERDICT: command validity failure -- not a performance'
+              ' result')
+        return
+    env_pct = max(abs(min(fp)), abs(max(fp)))
+    print('    EFFECT  C vs A  median %+.2f%%' % med(ep))
+    print('    FLOOR   A vs A  median %+.2f%%   envelope %.2f%%'
+          % (med(fp), env_pct))
+    print('    VERDICT: %s'
+          % ('separates -- |%.2f%%| exceeds the %.2f%% envelope'
+             % (med(ep), env_pct) if abs(med(ep)) > env_pct
+             else 'inside the noise, not quotable'))
     print('    repetitions discarded: none')
 
 
@@ -285,8 +311,32 @@ def main():
     if not want or 'hot' in want:
         wl_hot(env, rt, aots)
 
+    # ---- startup: only invocations that are valid, exit 0 and terminate ----
+    #
+    # The first attempt timed `--help` everywhere. smith and dart2wasm reject
+    # it and exited non-zero, so those rows timed an argument-parser failure,
+    # and analysis_server never returned at all because it is a server waiting
+    # on stdin. Each command below was probed for exit status and termination
+    # before being used.
+    STARTUP = {
+        'smith': [os.path.join(FORK, 'tools/bots/test_matrix.json')],
+        'nst': ['--help'],
+        'gen_kernel': ['--help'],
+    }
+    NOT_MEASURABLE = {
+        'dart2wasm': 'no supported invocation exits 0 without compiling: -h '
+                     'and --help print correct usage but exit 64. Covered by '
+                     'the work workload instead.',
+        'analysis_server': 'a server; it enters its stdio event loop and never '
+                           'returns. --help, --version, --sdk and '
+                           '--protocol were all probed; none terminates with '
+                           'status 0.',
+    }
     print('\n=== WORKLOAD: startup (process launch + snapshot load) ===')
-    for app in ('smith', 'nst', 'gen_kernel', 'dart2wasm', 'analysis_server'):
+    for app, why in NOT_MEASURABLE.items():
+        print('\n--- startup: %s ---\n    NOT MEASURABLE WITH THIS HARNESS: %s'
+              % (app, why))
+    for app, args in STARTUP.items():
         key = 'startup:%s' % app
         if want and key not in want and 'startup' not in want:
             continue
@@ -294,39 +344,63 @@ def main():
         c = os.path.join(POP, '%s.C.aot' % app)
         if not (os.path.exists(a) and os.path.exists(c)):
             continue
-        report_paired(run_paired(key, [rt, a, '--help'], [rt, c, '--help'],
-                                 [rt, a, '--help'], env, REPS),
-                      selected_profile(app))
+        ca, cc = [rt, a] + args, [rt, c] + args
+        # Same semantic result under both arms, checked before timing.
+        oa = subprocess.run(ca, capture_output=True, env=env, timeout=600)
+        oc = subprocess.run(cc, capture_output=True, env=env, timeout=600)
+        same = (oa.returncode == oc.returncode == 0 and oa.stdout == oc.stdout)
+        print('\n--- %s ---' % key)
+        print('    command: %s' % ' '.join(args))
+        print('    A and C agree: rc %d/%d, %d/%d bytes of stdout, identical: '
+              '%s' % (oa.returncode, oc.returncode, len(oa.stdout),
+                      len(oc.stdout), same))
+        if not same:
+            print('    SKIPPED: the arms do not produce the same result, so a '
+                  'timing comparison would not be like for like.')
+            continue
+        eff = run_balanced(key, ca, cc, env, REPS)
+        floor = run_floor(key, ca, env, REPS)
+        report_balanced(key, eff, floor, selected_profile(app))
 
+    # ---- real application work ----
     print('\n=== WORKLOAD: application work ===')
     src = os.path.join(WD, 'work.dart')
     open(src, 'w').write("void main(){print('ok');}\n")
-    gk = {k: os.path.join(POP, 'gen_kernel.%s.aot' % k) for k in 'AC'}
-    if (not want or 'work:gen_kernel' in want or 'work' in want) and \
-            all(os.path.exists(v) for v in gk.values()):
-        def job(aot, tag):
-            return [rt, aot, '--platform',
-                    os.path.join(OUT, 'vm_platform_product.dill'), '--aot',
-                    '--packages',
-                    os.path.join(FORK, '.dart_tool/package_config.json'),
-                    '-o', os.path.join(WD, 'w_%s.dill' % tag), src]
-        report_paired(run_paired('work: gen_kernel compiles a file',
-                                 job(gk['A'], 'a'), job(gk['C'], 'c'),
-                                 job(gk['A'], 'a2'), env, max(5, REPS // 2)),
-                      selected_profile('gen_kernel'))
-    d2w = {k: os.path.join(POP, 'dart2wasm.%s.aot' % k) for k in 'AC'}
-    if (not want or 'work:dart2wasm' in want or 'work' in want) and \
-            all(os.path.exists(v) for v in d2w.values()):
-        def wjob(aot, tag):
-            return [rt, aot, '--platform',
-                    os.path.join(OUT, 'vm_platform_product.dill'),
-                    '--packages',
-                    os.path.join(FORK, '.dart_tool/package_config.json'),
-                    src, os.path.join(WD, 'w_%s.wasm' % tag)]
-        report_paired(run_paired('work: dart2wasm compiles a file',
-                                 wjob(d2w['A'], 'a'), wjob(d2w['C'], 'c'),
-                                 wjob(d2w['A'], 'a2'), env, max(5, REPS // 2)),
-                      selected_profile('dart2wasm'))
+    def gk_job(aot, tag):
+        return [rt, aot, '--platform',
+                os.path.join(OUT, 'vm_platform_product.dill'), '--aot',
+                '--packages',
+                os.path.join(FORK, '.dart_tool/package_config.json'),
+                '-o', os.path.join(WD, 'w_%s.dill' % tag), src]
+    def d2w_job(aot, tag):
+        return [rt, aot, '--packages',
+                os.path.join(FORK, '.dart_tool/package_config.json'),
+                src, os.path.join(WD, 'w_%s.wasm' % tag)]
+    for app, mk in (('gen_kernel', gk_job), ('dart2wasm', d2w_job)):
+        key = 'work:%s' % app
+        if want and key not in want and 'work' not in want:
+            continue
+        a = os.path.join(POP, '%s.A.aot' % app)
+        c = os.path.join(POP, '%s.C.aot' % app)
+        if not (os.path.exists(a) and os.path.exists(c)):
+            continue
+        ca, cc = mk(a, 'a'), mk(c, 'c')
+        oa = subprocess.run(ca, capture_output=True, env=env, timeout=3600)
+        oc = subprocess.run(cc, capture_output=True, env=env, timeout=3600)
+        same = oa.returncode == oc.returncode == 0
+        print('\n--- %s ---' % key)
+        print('    A and C agree: rc %d/%d -> %s' % (oa.returncode,
+                                                     oc.returncode, same))
+        if not same:
+            print('    SKIPPED: %s' % (oa.stderr.decode('utf8', 'replace')
+                                       [-300:] or oc.stderr.decode(
+                                           'utf8', 'replace')[-300:]))
+            continue
+        n = max(6, REPS // 2)
+        eff = run_balanced(key, ca, cc, env, n)
+        floor = run_floor(key, ca, env, n)
+        report_balanced(key, eff, floor, selected_profile(app))
+
     print('\nfinal observation: %s' % observe())
 
 
