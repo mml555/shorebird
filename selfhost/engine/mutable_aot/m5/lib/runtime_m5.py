@@ -120,7 +120,14 @@ def run_balanced(name, cmd_a, cmd_c, env, n, batch=0):
             else (lambda c: sample_once(c, env)))
     rows, watch = [], []
     for i in range(n):
-        watch.append(observe())
+        o = observe()
+        watch.append(o)
+        if not ok(o):
+            # Abort the moment a competing build is seen. The whole workload is
+            # invalidated either way, so finishing the remaining samples only
+            # spends ten minutes to reach the same verdict -- and on this rig
+            # the builds arrive often enough for that to matter.
+            break
         order = ('A', 'C') if i % 2 == 0 else ('C', 'A')
         cmds = {'A': cmd_a, 'C': cmd_c}
         got = {}
@@ -128,13 +135,15 @@ def run_balanced(name, cmd_a, cmd_c, env, n, batch=0):
             ms, rcs = take(cmds[arm])
             got[arm] = dict(ms=ms, rcs=rcs)
         rows.append(dict(i=i, order='->'.join(order), a=got['A'], c=got['C'],
-                         load=watch[-1]['l1']))
+                         load=o['l1']))
     watch.append(observe())
     return dict(name=name, rows=rows, watch=watch,
                 dirty=[o for o in watch if not ok(o)], batch=batch)
 
 
 def summarize(res):
+    if not res['rows']:
+        return [], [], [], []
     A = [r['a']['ms'] for r in res['rows']]
     C = [r['c']['ms'] for r in res['rows']]
     pair = [(r['c']['ms'] - r['a']['ms']) / r['a']['ms'] * 100.0
@@ -163,9 +172,16 @@ def report_balanced(name, eff, floor, extra=None):
         if bad:
             print('    *** COMMAND VALIDITY FAILURE: non-zero exit in samples '
                   '%s ***' % bad)
+        if not A:
+            print('    no samples completed before the workload was '
+                  'invalidated')
+            continue
         print('    median   %s %.2f   %s %.2f ms' % (n1, med(A), n2, med(C)))
         print('    paired   median %+.2f%%   min %+.2f%%   max %+.2f%%'
               % (med(pair), min(pair), max(pair)))
+        pos = sum(1 for v in pair if v > 0)
+        print('    direction %d of %d pairs positive, %d negative'
+              % (pos, len(pair), len(pair) - pos))
     if eff['dirty'] or floor['dirty']:
         print('    *** WORKLOAD INVALIDATED: a competing build appeared ***')
         for o in eff['dirty'] + floor['dirty']:
