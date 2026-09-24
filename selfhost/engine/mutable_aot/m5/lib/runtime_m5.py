@@ -33,6 +33,8 @@ POP = os.path.join(BASE, 'pop')
 WD = os.path.join(BASE, 'runtime')
 os.makedirs(WD, exist_ok=True)
 PKGNAME = 'm5bench'
+D2W_PLATFORM = ('/opt/homebrew/share/flutter/bin/cache/dart-sdk/lib/'
+                '_internal/dart2wasm_platform.dill')
 FIXTURE = 'fixture_m5_bench.dart'
 
 REPS = int(os.environ.get('M5_N', '11'))
@@ -373,8 +375,11 @@ def main():
                 os.path.join(FORK, '.dart_tool/package_config.json'),
                 '-o', os.path.join(WD, 'w_%s.dill' % tag), src]
     def d2w_job(aot, tag):
-        return [rt, aot, '--packages',
-                os.path.join(FORK, '.dart_tool/package_config.json'),
+        # --platform is required and is the WASM platform dill, not the VM one.
+        # Omitting it made both arms exit 64 and the workload was skipped.
+        return [rt, aot, '--platform=%s' % D2W_PLATFORM,
+                '--packages=%s' % os.path.join(
+                    FORK, '.dart_tool/package_config.json'),
                 src, os.path.join(WD, 'w_%s.wasm' % tag)]
     for app, mk in (('gen_kernel', gk_job), ('dart2wasm', d2w_job)):
         key = 'work:%s' % app
