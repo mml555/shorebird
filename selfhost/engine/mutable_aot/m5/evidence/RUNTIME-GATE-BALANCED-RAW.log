@@ -1,0 +1,182 @@
+launching gate at load=7.13 14:23:55
+=== PREFLIGHT ===
+   preflight 1 at 14:23:55: load 7.13 / 17.73 / 31.91  competitors: none
+   preflight 2 at 14:24:55: load 3.46 / 14.74 / 29.82  competitors: none
+   two consecutive clean observations 60s apart; proceeding
+repetitions per workload: 12
+
+=== WORKLOAD: startup (process launch + snapshot load) ===
+
+--- startup: dart2wasm ---
+    NOT MEASURABLE WITH THIS HARNESS: no supported invocation exits 0 without compiling: -h and --help print correct usage but exit 64. Covered by the work workload instead.
+
+--- startup: analysis_server ---
+    NOT MEASURABLE WITH THIS HARNESS: a server; it enters its stdio event loop and never returns. --help, --version, --sdk and --protocol were all probed; none terminates with status 0.
+
+--- startup:smith ---
+    command: /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart/tools/bots/test_matrix.json
+    A and C agree: rc 0/0, 192596/192596 bytes of stdout, identical: True
+
+--- startup:smith ---
+    selected 51, of which 34 have >=1 #67-lowered site, 17 reached only through the trampoline
+    effect  A vs C
+    rep  order        first ms    second ms     delta ms      ratio
+    0    A->C            38.63        40.95         2.32     1.0602
+    1    C->A            40.26        40.29        -0.03     0.9993
+    2    A->C            39.10        41.39         2.30     1.0587
+    3    C->A            41.20        39.58         1.62     1.0410
+    4    A->C            38.55        41.42         2.87     1.0746
+    5    C->A            46.13        39.32         6.81     1.1733
+    6    A->C            37.61        41.59         3.97     1.1056
+    7    C->A            40.59        39.58         1.00     1.0253
+    8    A->C            40.33        42.99         2.66     1.0661
+    9    C->A            40.81        40.14         0.66     1.0165
+    10   A->C            40.82        44.69         3.87     1.0947
+    11   C->A            40.35        40.30         0.05     1.0014
+    median   A 39.58 ms   C 41.29 ms
+    paired   median +5.94%   min -0.07%   max +17.33%
+    floor   A vs A
+    rep  order        first ms    second ms     delta ms      ratio
+    0    A->C            38.51        38.50        -0.01     0.9999
+    1    C->A            43.66        43.81        -0.15     0.9967
+    2    A->C            38.23        39.10         0.87     1.0226
+    3    C->A            39.97        39.45         0.52     1.0132
+    4    A->C            39.65        41.63         1.98     1.0500
+    5    C->A            39.30        39.98        -0.68     0.9829
+    6    A->C            38.88        39.35         0.47     1.0121
+    7    C->A            40.10        41.00        -0.90     0.9781
+    8    A->C            39.22        42.91         3.69     1.0940
+    9    C->A            38.52        38.75        -0.23     0.9940
+    10   A->C            37.98        39.61         1.63     1.0430
+    11   C->A            41.26        41.03         0.24     1.0058
+    median   A1 39.33 ms   A2 39.79 ms
+    paired   median +0.90%   min -2.19%   max +9.40%
+    EFFECT  C vs A  median +5.94%
+    FLOOR   A vs A  median +0.90%   envelope 9.40%
+    VERDICT: inside the noise, not quotable
+    repetitions discarded: none
+
+--- startup:nst ---
+    command: --help
+    A and C agree: rc 0/0, 181/181 bytes of stdout, identical: True
+
+--- startup:nst ---
+    selected 396, of which 288 have >=1 #67-lowered site, 108 reached only through the trampoline
+    effect  A vs C
+    rep  order        first ms    second ms     delta ms      ratio
+    0    A->C            15.08        16.66         1.58     1.1046
+    1    C->A            15.49        17.43        -1.94     0.8885
+    2    A->C            15.04        16.89         1.86     1.1234
+    3    C->A            15.87        16.06        -0.19     0.9885
+    4    A->C            14.93        17.36         2.43     1.1630
+    5    C->A            15.23        19.11        -3.87     0.7972
+    6    A->C            14.85        17.74         2.89     1.1945
+    7    C->A            15.19        17.37        -2.18     0.8743
+    8    A->C            15.61        18.79         3.17     1.2032
+    9    C->A            15.31        17.38        -2.07     0.8809
+    10   A->C            15.33        16.30         0.96     1.0628
+    11   C->A            16.25        20.23        -3.98     0.8034
+    median   A 15.83 ms   C 16.27 ms
+    paired   median +2.56%   min -20.28%   max +20.32%
+    floor   A vs A
+    rep  order        first ms    second ms     delta ms      ratio
+    0    A->C            15.56        17.10         1.54     1.0993
+    1    C->A            15.36        18.21        -2.85     0.8437
+    2    A->C            15.35        18.43         3.07     1.2002
+    3    C->A            16.20        20.49        -4.28     0.7910
+    4    A->C            15.15        18.13         2.98     1.1963
+    5    C->A            16.06        17.93        -1.87     0.8957
+    6    A->C            16.68        18.16         1.48     1.0887
+    7    C->A            16.96        16.38         0.58     1.0357
+    8    A->C            15.97        17.42         1.45     1.0909
+    9    C->A            15.55        19.09        -3.53     0.8150
+    10   A->C            16.42        19.32         2.91     1.1770
+    11   C->A            16.13        16.35        -0.21     0.9869
+    median   A1 16.40 ms   A2 17.03 ms
+    paired   median +6.22%   min -20.90%   max +20.02%
+    EFFECT  C vs A  median +2.56%
+    FLOOR   A vs A  median +6.22%   envelope 20.90%
+    VERDICT: inside the noise, not quotable
+    repetitions discarded: none
+
+--- startup:gen_kernel ---
+    command: --help
+    A and C agree: rc 0/0, 4711/4711 bytes of stdout, identical: True
+
+--- startup:gen_kernel ---
+    selected 1853, of which 1110 have >=1 #67-lowered site, 743 reached only through the trampoline
+    effect  A vs C
+    rep  order        first ms    second ms     delta ms      ratio
+    0    A->C            20.01        21.57         1.56     1.0782
+    1    C->A            26.04        21.84         4.20     1.1924
+    2    A->C            18.62        21.73         3.11     1.1669
+    3    C->A            19.55        20.20        -0.65     0.9679
+    4    A->C            19.47        20.78         1.31     1.0671
+    5    C->A            21.21        22.38        -1.17     0.9479
+    6    A->C            18.25        21.75         3.50     1.1920
+    7    C->A            22.01        22.83        -0.82     0.9640
+    8    A->C            20.53        24.65         4.12     1.2006
+    9    C->A            34.05        25.23         8.83     1.3499
+    10   A->C            21.99        24.47         2.48     1.1128
+    11   C->A            19.36        21.06        -1.71     0.9189
+    median   A 20.80 ms   C 21.74 ms
+    paired   median +9.55%   min -8.11%   max +34.99%
+    floor   A vs A
+    rep  order        first ms    second ms     delta ms      ratio
+    0    A->C            19.58        22.02         2.44     1.1247
+    1    C->A            18.56        20.11        -1.56     0.9226
+    2    A->C            21.11        21.96         0.86     1.0405
+    3    C->A            18.66        20.52        -1.86     0.9095
+    4    A->C            22.48        23.63         1.16     1.0515
+    5    C->A            19.57        20.87        -1.30     0.9377
+    6    A->C            19.07        20.78         1.70     1.0894
+    7    C->A            18.77        21.14        -2.37     0.8879
+    8    A->C            19.09        20.32         1.23     1.0644
+    9    C->A            18.74        21.39        -2.65     0.8761
+    10   A->C            19.12        19.83         0.71     1.0372
+    11   C->A            19.40        24.15        -4.75     0.8033
+    median   A1 20.70 ms   A2 19.70 ms
+    paired   median -1.25%   min -19.67%   max +12.47%
+    EFFECT  C vs A  median +9.55%
+    FLOOR   A vs A  median -1.25%   envelope 19.67%
+    VERDICT: inside the noise, not quotable
+    repetitions discarded: none
+
+=== WORKLOAD: application work ===
+
+--- work:gen_kernel ---
+    A and C agree: rc 0/0 -> True
+
+--- work:gen_kernel ---
+    selected 1853, of which 1110 have >=1 #67-lowered site, 743 reached only through the trampoline
+    effect  A vs C
+    rep  order        first ms    second ms     delta ms      ratio
+    0    A->C           335.61       310.52       -25.09     0.9253
+    1    C->A           323.76       317.65         6.11     1.0192
+    2    A->C           304.28       317.85        13.56     1.0446
+    3    C->A           317.52       295.25        22.26     1.0754
+    4    A->C           309.05       316.06         7.01     1.0227
+    5    C->A           309.00       303.91         5.09     1.0167
+    median   A 306.67 ms   C 316.79 ms
+    paired   median +2.10%   min -7.47%   max +7.54%
+    floor   A vs A
+    rep  order        first ms    second ms     delta ms      ratio
+    0    A->C           299.35       300.58         1.23     1.0041
+    1    C->A           305.83       306.63        -0.80     0.9974
+    2    A->C           302.80       302.59        -0.21     0.9993
+    3    C->A           306.87       300.83         6.04     1.0201
+    4    A->C           308.04       312.23         4.18     1.0136
+    5    C->A           303.21       300.69         2.53     1.0084
+    median   A1 301.81 ms   A2 304.52 ms
+    paired   median +0.63%   min -0.26%   max +2.01%
+    EFFECT  C vs A  median +2.10%
+    FLOOR   A vs A  median +0.63%   envelope 2.01%
+    VERDICT: separates -- |2.10%| exceeds the 2.01% envelope
+    repetitions discarded: none
+
+--- work:dart2wasm ---
+    A and C agree: rc 64/64 -> False
+    SKIPPED: 
+
+final observation: {'t': '14:25:27', 'l1': 4.439453125, 'l5': 13.89306640625, 'l15': 28.9921875, 'comp': []}
+GATE EXIT=0

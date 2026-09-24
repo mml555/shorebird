@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
 """The runtime gate: A vs C, per workload, never averaged across workloads.
 
-Methodology, as approved:
-  * A and C are INTERLEAVED inside each repetition, so thermal and frequency
-    drift hits both arms equally;
-  * every raw repetition is kept, in execution order;
-  * a paired C/A delta is computed per repetition;
-  * an A-vs-A noise floor is measured in the same shape, in the same run;
-  * results are reported per workload -- a regression in a hot workload is
-    never cancelled by a quiet one.
+Design, as authorized after the first two attempts falsified parts of it:
 
-Harness conditions, which are NOT result filters:
-  * the machine must be quiet on TWO consecutive preflight observations
-    before the first timed sample, so a run cannot begin in the wake of a
-    large build while caches and thermals are still settling;
-  * if a competitor appears during a workload, that WHOLE workload is
-    invalidated and must be rerun from the beginning. Individual repetitions
-    are never dropped.
+  * balanced arm order -- samples alternate A,C and C,A, so each arm takes the
+    first position equally often. The fixed A,C,A' order gave position three a
+    systematic penalty large enough to swamp the effect being measured;
+  * an A-vs-A floor measured in the SAME balanced shape, in the same run. This,
+    not the load average, is the measurement-quality gate;
+  * the fixed 2.5 load ceiling is RETIRED. Load is recorded with every sample
+    as context. It was a poor proxy: a low-load run produced 15-35% floors
+    because the design was biased, while a load-7 run produced a 2% floor once
+    the design was fixed;
+  * startup samples BATCH N consecutive launches, because a single 15-40 ms
+    launch cannot be resolved on this host -- the balanced floors were still
+    9-21% once the ordering bias was removed.
+
+Still fail-closed, with no result quoted:
+  * a competing build process at any observation,
+  * a non-zero exit from any invocation,
+  * the two arms not producing identical output,
+  * a workload interrupted part way.
+
+Nothing is ever discarded: every sample is printed in execution order.
 
 Usage:  runtime_m5.py [workload ...]      default: all
 """
@@ -33,17 +39,16 @@ POP = os.path.join(BASE, 'pop')
 WD = os.path.join(BASE, 'runtime')
 os.makedirs(WD, exist_ok=True)
 PKGNAME = 'm5bench'
+FIXTURE = 'fixture_m5_bench.dart'
 D2W_PLATFORM = ('/opt/homebrew/share/flutter/bin/cache/dart-sdk/lib/'
                 '_internal/dart2wasm_platform.dill')
-FIXTURE = 'fixture_m5_bench.dart'
 
-REPS = int(os.environ.get('M5_N', '11'))
-LOAD_CEILING = float(os.environ.get('M5_LOAD_CEILING', '2.5'))
+WORK_SAMPLES = int(os.environ.get('M5_WORK_N', '20'))
+STARTUP_SAMPLES = int(os.environ.get('M5_STARTUP_N', '12'))
+STARTUP_BATCH = int(os.environ.get('M5_BATCH', '100'))
 PREFLIGHT_GAP = int(os.environ.get('M5_PREFLIGHT_GAP', '60'))
-# Processes that mean another lane is building. dartaotruntime is absent on
-# purpose: that is this harness's own workload.
 COMPETITORS = ('gen_snapshot', 'ninja', 'flutter_tools', 'frontend_server',
-               'dart2wasm.snapshot', 'xcodebuild', 'clang++')
+               'xcodebuild', 'clang++')
 
 
 def competitors():
@@ -51,10 +56,8 @@ def competitors():
     for pat in COMPETITORS:
         r = subprocess.run(['pgrep', '-f', pat], capture_output=True,
                            text=True)
-        if r.returncode == 0:
-            n = len(r.stdout.strip().splitlines())
-            if n:
-                found.append('%s x%d' % (pat, n))
+        if r.returncode == 0 and r.stdout.strip():
+            found.append('%s x%d' % (pat, len(r.stdout.strip().splitlines())))
     return found
 
 
@@ -65,11 +68,11 @@ def observe():
 
 
 def ok(o):
-    return o['l1'] <= LOAD_CEILING and not o['comp']
+    """Load is CONTEXT, not a gate. A competing build still is a gate."""
+    return not o['comp']
 
 
 def preflight():
-    """Two consecutive clean observations, both recorded with the evidence."""
     obs = []
     for i in range(2):
         if i:
@@ -80,38 +83,41 @@ def preflight():
               % (i + 1, o['t'], o['l1'], o['l5'], o['l15'],
                  ', '.join(o['comp']) if o['comp'] else 'none'))
         if not ok(o):
-            print('\nREFUSING TO MEASURE: the machine is not quiet '
-                  '(ceiling %.2f, two consecutive clean observations '
-                  'required).' % LOAD_CEILING)
-            print('A contaminated timing result is worse than no timing '
-                  'result.')
+            print('\nREFUSING TO MEASURE: a competing build is running.')
             sys.exit(2)
-    print('   two consecutive clean observations %ds apart; proceeding'
-          % PREFLIGHT_GAP)
+    print('   two clean observations %ds apart; load is recorded as context, '
+          'not as a gate' % PREFLIGHT_GAP)
     return obs
-
-
-def timed(cmd, env):
-    t0 = time.perf_counter()
-    r = subprocess.run(cmd, capture_output=True, timeout=7200, env=env)
-    return dict(ms=(time.perf_counter() - t0) * 1000.0, rc=r.returncode,
-                out=r.stdout.decode('utf8', 'replace'))
 
 
 def med(v):
     return statistics.median(v)
 
 
-def run_balanced(name, cmd_a, cmd_c, env, n):
-    """Balanced A/C order: rep 0 runs A then C, rep 1 runs C then A, and so on.
+def sample_once(cmd, env):
+    t0 = time.perf_counter()
+    r = subprocess.run(cmd, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=7200, env=env)
+    return (time.perf_counter() - t0) * 1000.0, [r.returncode]
 
-    The fixed A, C, A' order used in the first attempt gave the third position
-    a systematic penalty -- the A'-vs-A median was positive in all four startup
-    workloads -- so part of every C-vs-A delta was position rather than arm.
-    Balancing removes the bias instead of correcting for it afterwards.
-    """
+
+def sample_batch(cmd, env, n):
+    """One sample is N consecutive launches, so per-launch jitter is small
+    relative to the aggregate. Every launch's exit status is kept."""
+    rcs = []
+    t0 = time.perf_counter()
+    for _ in range(n):
+        r = subprocess.run(cmd, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=7200, env=env)
+        rcs.append(r.returncode)
+    return (time.perf_counter() - t0) * 1000.0, rcs
+
+
+def run_balanced(name, cmd_a, cmd_c, env, n, batch=0):
     if n % 2:
-        n += 1  # even, so each arm gets the first position equally often
+        n += 1
+    take = ((lambda c: sample_batch(c, env, batch)) if batch
+            else (lambda c: sample_once(c, env)))
     rows, watch = [], []
     for i in range(n):
         watch.append(observe())
@@ -119,26 +125,22 @@ def run_balanced(name, cmd_a, cmd_c, env, n):
         cmds = {'A': cmd_a, 'C': cmd_c}
         got = {}
         for arm in order:
-            got[arm] = timed(cmds[arm], env)
-        rows.append(dict(i=i, order='->'.join(order), a=got['A'], c=got['C']))
+            ms, rcs = take(cmds[arm])
+            got[arm] = dict(ms=ms, rcs=rcs)
+        rows.append(dict(i=i, order='->'.join(order), a=got['A'], c=got['C'],
+                         load=watch[-1]['l1']))
     watch.append(observe())
     return dict(name=name, rows=rows, watch=watch,
-                dirty=[o for o in watch if not ok(o)], kind='effect')
-
-
-def run_floor(name, cmd_a, env, n):
-    """The noise floor, in the same balanced shape, with A on both sides."""
-    res = run_balanced(name, cmd_a, cmd_a, env, n)
-    res['kind'] = 'floor'
-    return res
+                dirty=[o for o in watch if not ok(o)], batch=batch)
 
 
 def summarize(res):
-    rows = res['rows']
-    A = [r['a']['ms'] for r in rows]
-    C = [r['c']['ms'] for r in rows]
-    pair = [(r['c']['ms'] - r['a']['ms']) / r['a']['ms'] * 100.0 for r in rows]
-    bad = [r['i'] for r in rows if r['a']['rc'] or r['c']['rc']]
+    A = [r['a']['ms'] for r in res['rows']]
+    C = [r['c']['ms'] for r in res['rows']]
+    pair = [(r['c']['ms'] - r['a']['ms']) / r['a']['ms'] * 100.0
+            for r in res['rows']]
+    bad = [r['i'] for r in res['rows']
+           if any(r['a']['rcs']) or any(r['c']['rcs'])]
     return A, C, pair, bad
 
 
@@ -146,95 +148,46 @@ def report_balanced(name, eff, floor, extra=None):
     print('\n--- %s ---' % name)
     if extra:
         print('    %s' % extra)
-    for res, lab in ((eff, 'effect  A vs C'), (floor, 'floor   A vs A')):
+    if eff['batch']:
+        print('    each sample is %d consecutive launches' % eff['batch'])
+    for res, lab, n1, n2 in ((eff, 'effect  A vs C', 'A', 'C'),
+                             (floor, 'floor   A vs A', 'A1', 'A2')):
         A, C, pair, bad = summarize(res)
         print('    %s' % lab)
-        print('    %-4s %-8s %12s %12s %12s %10s'
-              % ('rep', 'order', 'first ms', 'second ms', 'delta ms', 'ratio'))
+        print('    %-4s %-8s %12s %12s %10s %8s'
+              % ('n', 'order', '%s ms' % n1, '%s ms' % n2, 'ratio', 'load'))
         for r in res['rows']:
-            first, second = ((r['a'], r['c']) if r['order'].startswith('A')
-                             else (r['c'], r['a']))
-            print('    %-4d %-8s %12.2f %12.2f %12.2f %10.4f'
-                  % (r['i'], r['order'], first['ms'], second['ms'],
-                     r['c']['ms'] - r['a']['ms'],
-                     r['c']['ms'] / r['a']['ms']))
+            print('    %-4d %-8s %12.2f %12.2f %10.4f %8.1f'
+                  % (r['i'], r['order'], r['a']['ms'], r['c']['ms'],
+                     r['c']['ms'] / r['a']['ms'], r['load']))
         if bad:
-            print('    *** COMMAND VALIDITY FAILURE: non-zero exit in reps %s'
-                  ' ***' % bad)
-        print('    median   %s %.2f ms   %s %.2f ms'
-              % ('A' if res is eff else 'A1', med(A),
-                 'C' if res is eff else 'A2', med(C)))
+            print('    *** COMMAND VALIDITY FAILURE: non-zero exit in samples '
+                  '%s ***' % bad)
+        print('    median   %s %.2f   %s %.2f ms' % (n1, med(A), n2, med(C)))
         print('    paired   median %+.2f%%   min %+.2f%%   max %+.2f%%'
               % (med(pair), min(pair), max(pair)))
     if eff['dirty'] or floor['dirty']:
-        print('    *** WORKLOAD INVALIDATED: a competitor appeared ***')
+        print('    *** WORKLOAD INVALIDATED: a competing build appeared ***')
         for o in eff['dirty'] + floor['dirty']:
-            print('        %s load %.2f %s' % (o['t'], o['l1'],
-                                               ', '.join(o['comp']) or ''))
-        print('    Rerun the whole workload. No repetition dropped, nothing'
-              ' quoted.')
+            print('        %s %s' % (o['t'], ', '.join(o['comp'])))
+        print('    Rerun the whole workload. Nothing dropped, nothing quoted.')
         return
     _, _, ep, ebad = summarize(eff)
     _, _, fp, fbad = summarize(floor)
     if ebad or fbad:
-        print('    VERDICT: command validity failure -- not a performance'
-              ' result')
+        print('    VERDICT: command validity failure -- not a performance '
+              'result')
         return
     env_pct = max(abs(min(fp)), abs(max(fp)))
-    print('    EFFECT  C vs A  median %+.2f%%' % med(ep))
-    print('    FLOOR   A vs A  median %+.2f%%   envelope %.2f%%'
+    print('    EFFECT  C vs A  median %+.2f%%  (min %+.2f%%, max %+.2f%%)'
+          % (med(ep), min(ep), max(ep)))
+    print('    FLOOR   A vs A  median %+.2f%%  envelope %.2f%%'
           % (med(fp), env_pct))
     print('    VERDICT: %s'
           % ('separates -- |%.2f%%| exceeds the %.2f%% envelope'
              % (med(ep), env_pct) if abs(med(ep)) > env_pct
              else 'inside the noise, not quotable'))
-    print('    repetitions discarded: none')
-
-
-def build_fixture():
-    root = os.path.join(WD, 'pkg')
-    lib = os.path.join(root, 'lib')
-    os.makedirs(lib, exist_ok=True)
-    shutil.copy(os.path.join(M5, FIXTURE), os.path.join(lib, FIXTURE))
-    tool = os.path.join(root, '.dart_tool')
-    os.makedirs(tool, exist_ok=True)
-    json.dump({'configVersion': 2, 'packages': [
-        {'name': PKGNAME, 'rootUri': 'file://%s/' % root,
-         'packageUri': 'lib/', 'languageVersion': '3.9'}]},
-        open(os.path.join(tool, 'package_config.json'), 'w'))
-    out = {}
-    for tag, envx in (('base', {}),
-                      ('pol', {'MAOT_SELECT_ALL_NON_SDK': '1',
-                               'MAOT_SELECT_URI_PREFIX':
-                                   'package:%s/' % PKGNAME})):
-        d = os.path.join(WD, 'bench.%s.dill' % tag)
-        if not os.path.exists(d):
-            r = subprocess.run(
-                [DART, '--packages=%s' % os.path.join(
-                    FORK, '.dart_tool/package_config.json'),
-                 os.path.join(FORK, 'pkg/vm/bin/gen_kernel.dart'),
-                 '--platform', os.path.join(OUT, 'vm_platform_product.dill'),
-                 '--aot', '--packages',
-                 os.path.join(tool, 'package_config.json'), '-o', d,
-                 'package:%s/%s' % (PKGNAME, FIXTURE)],
-                capture_output=True, text=True, timeout=1800)
-            assert r.returncode == 0, r.stderr[-1200:]
-        out[tag] = d
-    aots = {}
-    for name, dill, extra in (('A', out['base'], []),
-                              ('C', out['pol'],
-                               ['--maot_disable_retention_roots',
-                                '--maot_install_trampolines'])):
-        p = os.path.join(WD, 'bench_%s.aot' % name)
-        if not os.path.exists(p):
-            r = subprocess.run(
-                [os.path.join(OUT, 'gen_snapshot'),
-                 '--snapshot_kind=app-aot-elf', '--elf=%s' % p,
-                 '--maot_namespace=%s' % NS] + extra + [dill],
-                capture_output=True, text=True, timeout=3600)
-            assert r.returncode == 0, r.stderr[-800:]
-        aots[name] = p
-    return aots
+    print('    samples discarded: none')
 
 
 def selected_profile(app):
@@ -249,92 +202,38 @@ def selected_profile(app):
             'only through the trampoline' % (len(s), w, len(s) - w))
 
 
-def wl_hot(env, rt, aots):
-    print('\n=== WORKLOAD: hot mutable instance-call loop (synthetic) ===')
-    print('    in-process ns/call; hot = mutable (cell-indirect in C), '
-          'cold = an identical non-mutable method in the same process')
-    henv = dict(env, M5_REPS='7', M5_ITERS='20000000')
-    watch = []
-    ratios = {'A': [], 'C': []}
-    raw = []
-    print('    %-4s %10s %10s %10s %10s %10s %10s'
-          % ('rep', 'A hot', 'A cold', 'C hot', 'C cold', 'A ratio',
-             'C ratio'))
-    for i in range(REPS):
-        watch.append(observe())
-        got = {}
-        for arm in ('A', 'C'):
-            r = subprocess.run([rt, aots[arm]], capture_output=True,
-                               text=True, timeout=7200, env=henv)
-            assert r.returncode == 0, r.stderr[-400:]
-            kv = dict(l.split('=', 1) for l in r.stdout.splitlines()
-                      if '=' in l)
-            got[arm] = kv
-            ratios[arm].append(float(kv['ratio']))
-        raw.append(got)
-        print('    %-4d %10s %10s %10s %10s %10s %10s'
-              % (i, got['A']['hot.ns'], got['A']['cold.ns'],
-                 got['C']['hot.ns'], got['C']['cold.ns'],
-                 got['A']['ratio'], got['C']['ratio']))
-    watch.append(observe())
-    dirty = [o for o in watch if not ok(o)]
-    if dirty:
-        print('    *** WORKLOAD INVALIDATED: competitor during the run ***')
-        for o in dirty:
-            print('        %s load %.2f %s' % (o['t'], o['l1'],
-                                               ', '.join(o['comp'])))
-        return
-    ra, rc = med(ratios['A']), med(ratios['C'])
-    print('    median hot/cold ratio   A %.4f   C %.4f' % (ra, rc))
-    print('    ratio min-max           A %.4f-%.4f   C %.4f-%.4f'
-          % (min(ratios['A']), max(ratios['A']), min(ratios['C']),
-             max(ratios['C'])))
-    print('    C ratio / A ratio = %.4f  ->  the indirection costs %+.2f%% '
-          'on this call' % (rc / ra, (rc / ra - 1) * 100.0))
-    print('    noise floor: arm A ratio spread over the same run = %.2f%%'
-          % ((max(ratios['A']) / min(ratios['A']) - 1) * 100.0))
-    print('    absolute: C hot - C cold = %+.4f ns/call'
-          % (float(raw[len(raw) // 2]['C']['hot.ns'])
-             - float(raw[len(raw) // 2]['C']['cold.ns'])))
-    print('    repetitions discarded: none')
+def agree(ca, cc, env, timeout=3600):
+    oa = subprocess.run(ca, capture_output=True, env=env, timeout=timeout)
+    oc = subprocess.run(cc, capture_output=True, env=env, timeout=timeout)
+    same = oa.returncode == oc.returncode == 0 and oa.stdout == oc.stdout
+    print('    A and C agree: rc %d/%d, %d/%d bytes of stdout, identical: %s'
+          % (oa.returncode, oc.returncode, len(oa.stdout), len(oc.stdout),
+             same))
+    return same
 
 
 def main():
     want = set(sys.argv[1:])
     env = dict(os.environ, MAOT_NAMESPACE=NS)
     rt = os.path.join(OUT, 'dartaotruntime')
-    # Build before preflight: this harness's own gen_snapshot must not be
-    # mistaken for another lane's.
-    aots = build_fixture()
     print('=== PREFLIGHT ===')
     preflight()
-    print('repetitions per workload: %d' % REPS)
+    print('work samples %d, startup samples %d x %d launches'
+          % (WORK_SAMPLES, STARTUP_SAMPLES, STARTUP_BATCH))
 
-    if not want or 'hot' in want:
-        wl_hot(env, rt, aots)
-
-    # ---- startup: only invocations that are valid, exit 0 and terminate ----
-    #
-    # The first attempt timed `--help` everywhere. smith and dart2wasm reject
-    # it and exited non-zero, so those rows timed an argument-parser failure,
-    # and analysis_server never returned at all because it is a server waiting
-    # on stdin. Each command below was probed for exit status and termination
-    # before being used.
     STARTUP = {
         'smith': [os.path.join(FORK, 'tools/bots/test_matrix.json')],
         'nst': ['--help'],
         'gen_kernel': ['--help'],
     }
     NOT_MEASURABLE = {
-        'dart2wasm': 'no supported invocation exits 0 without compiling: -h '
-                     'and --help print correct usage but exit 64. Covered by '
-                     'the work workload instead.',
-        'analysis_server': 'a server; it enters its stdio event loop and never '
-                           'returns. --help, --version, --sdk and '
-                           '--protocol were all probed; none terminates with '
-                           'status 0.',
+        'dart2wasm': 'no supported invocation exits 0 without compiling; '
+                     'covered by the work workload',
+        'analysis_server': 'a server -- enters its stdio event loop and never '
+                           'returns; --help, --version, --sdk and --protocol '
+                           'were all probed',
     }
-    print('\n=== WORKLOAD: startup (process launch + snapshot load) ===')
+    print('\n=== WORKLOAD: startup, batched ===')
     for app, why in NOT_MEASURABLE.items():
         print('\n--- startup: %s ---\n    NOT MEASURABLE WITH THIS HARNESS: %s'
               % (app, why))
@@ -342,69 +241,50 @@ def main():
         key = 'startup:%s' % app
         if want and key not in want and 'startup' not in want:
             continue
-        a = os.path.join(POP, '%s.A.aot' % app)
-        c = os.path.join(POP, '%s.C.aot' % app)
+        a, c = (os.path.join(POP, '%s.%s.aot' % (app, x)) for x in 'AC')
         if not (os.path.exists(a) and os.path.exists(c)):
             continue
         ca, cc = [rt, a] + args, [rt, c] + args
-        # Same semantic result under both arms, checked before timing.
-        oa = subprocess.run(ca, capture_output=True, env=env, timeout=600)
-        oc = subprocess.run(cc, capture_output=True, env=env, timeout=600)
-        same = (oa.returncode == oc.returncode == 0 and oa.stdout == oc.stdout)
-        print('\n--- %s ---' % key)
-        print('    command: %s' % ' '.join(args))
-        print('    A and C agree: rc %d/%d, %d/%d bytes of stdout, identical: '
-              '%s' % (oa.returncode, oc.returncode, len(oa.stdout),
-                      len(oc.stdout), same))
-        if not same:
-            print('    SKIPPED: the arms do not produce the same result, so a '
-                  'timing comparison would not be like for like.')
+        print('\n--- %s ---\n    command: %s' % (key, ' '.join(args)))
+        if not agree(ca, cc, env):
+            print('    SKIPPED: the arms do not produce the same result.')
             continue
-        eff = run_balanced(key, ca, cc, env, REPS)
-        floor = run_floor(key, ca, env, REPS)
-        report_balanced(key, eff, floor, selected_profile(app))
+        eff = run_balanced(key, ca, cc, env, STARTUP_SAMPLES, STARTUP_BATCH)
+        flo = run_balanced(key, ca, ca, env, STARTUP_SAMPLES, STARTUP_BATCH)
+        report_balanced(key, eff, flo, selected_profile(app))
 
-    # ---- real application work ----
     print('\n=== WORKLOAD: application work ===')
     src = os.path.join(WD, 'work.dart')
     open(src, 'w').write("void main(){print('ok');}\n")
+    pkgs = os.path.join(FORK, '.dart_tool/package_config.json')
+
     def gk_job(aot, tag):
         return [rt, aot, '--platform',
                 os.path.join(OUT, 'vm_platform_product.dill'), '--aot',
-                '--packages',
-                os.path.join(FORK, '.dart_tool/package_config.json'),
-                '-o', os.path.join(WD, 'w_%s.dill' % tag), src]
+                '--packages', pkgs, '-o',
+                os.path.join(WD, 'w_%s.dill' % tag), src]
+
     def d2w_job(aot, tag):
         # --platform is required and is the WASM platform dill, not the VM one.
-        # Omitting it made both arms exit 64 and the workload was skipped.
         return [rt, aot, '--platform=%s' % D2W_PLATFORM,
-                '--packages=%s' % os.path.join(
-                    FORK, '.dart_tool/package_config.json'),
-                src, os.path.join(WD, 'w_%s.wasm' % tag)]
+                '--packages=%s' % pkgs, src,
+                os.path.join(WD, 'w_%s.wasm' % tag)]
+
     for app, mk in (('gen_kernel', gk_job), ('dart2wasm', d2w_job)):
         key = 'work:%s' % app
         if want and key not in want and 'work' not in want:
             continue
-        a = os.path.join(POP, '%s.A.aot' % app)
-        c = os.path.join(POP, '%s.C.aot' % app)
+        a, c = (os.path.join(POP, '%s.%s.aot' % (app, x)) for x in 'AC')
         if not (os.path.exists(a) and os.path.exists(c)):
             continue
         ca, cc = mk(a, 'a'), mk(c, 'c')
-        oa = subprocess.run(ca, capture_output=True, env=env, timeout=3600)
-        oc = subprocess.run(cc, capture_output=True, env=env, timeout=3600)
-        same = oa.returncode == oc.returncode == 0
         print('\n--- %s ---' % key)
-        print('    A and C agree: rc %d/%d -> %s' % (oa.returncode,
-                                                     oc.returncode, same))
-        if not same:
-            print('    SKIPPED: %s' % (oa.stderr.decode('utf8', 'replace')
-                                       [-300:] or oc.stderr.decode(
-                                           'utf8', 'replace')[-300:]))
+        if not agree(ca, cc, env):
+            print('    SKIPPED: the arms do not produce the same result.')
             continue
-        n = max(6, REPS // 2)
-        eff = run_balanced(key, ca, cc, env, n)
-        floor = run_floor(key, ca, env, n)
-        report_balanced(key, eff, floor, selected_profile(app))
+        eff = run_balanced(key, ca, cc, env, WORK_SAMPLES)
+        flo = run_balanced(key, ca, ca, env, WORK_SAMPLES)
+        report_balanced(key, eff, flo, selected_profile(app))
 
     print('\nfinal observation: %s' % observe())
 
