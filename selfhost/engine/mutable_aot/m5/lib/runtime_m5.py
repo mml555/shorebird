@@ -113,32 +113,61 @@ def sample_batch(cmd, env, n):
     return (time.perf_counter() - t0) * 1000.0, rcs
 
 
-def run_balanced(name, cmd_a, cmd_c, env, n, batch=0):
+def run_interleaved(name, cmd_a, cmd_c, env, n, batch=0):
+    """One rotation yields BOTH an effect pair and a floor pair.
+
+    Running the effect as one block and the floor as another let the two be
+    taken under different machine conditions -- in the first valid dataset the
+    gen_kernel startup effect block ran at load 140-168 and its floor block at
+    115-138, which is precisely why that separation could not be trusted. Here
+    each rotation contributes one A-vs-C pair and one A-vs-A pair seconds
+    apart, so both see the same temporal and load distribution.
+
+    Four positions per rotation, cycling so that neither the arm order nor the
+    effect/floor order is confounded with position:
+
+        r%4==0   A C | A A      effect first, A then C
+        r%4==1   C A | A A      effect first, C then A
+        r%4==2   A A | A C      floor  first, A then C
+        r%4==3   A A | C A      floor  first, C then A
+    """
     if n % 2:
         n += 1
     take = ((lambda c: sample_batch(c, env, batch)) if batch
             else (lambda c: sample_once(c, env)))
-    rows, watch = [], []
+    LAYOUT = {
+        0: (('A', 'C'), ('A', 'A'), 'eff-first A->C'),
+        1: (('C', 'A'), ('A', 'A'), 'eff-first C->A'),
+        2: (('A', 'A'), ('A', 'C'), 'floor-first A->C'),
+        3: (('A', 'A'), ('C', 'A'), 'floor-first C->A'),
+    }
+    eff_rows, flo_rows, watch = [], [], []
     for i in range(n):
         o = observe()
         watch.append(o)
         if not ok(o):
-            # Abort the moment a competing build is seen. The whole workload is
-            # invalidated either way, so finishing the remaining samples only
-            # spends ten minutes to reach the same verdict -- and on this rig
-            # the builds arrive often enough for that to matter.
             break
-        order = ('A', 'C') if i % 2 == 0 else ('C', 'A')
+        first, second, label = LAYOUT[i % 4]
         cmds = {'A': cmd_a, 'C': cmd_c}
-        got = {}
-        for arm in order:
-            ms, rcs = take(cmds[arm])
-            got[arm] = dict(ms=ms, rcs=rcs)
-        rows.append(dict(i=i, order='->'.join(order), a=got['A'], c=got['C'],
-                         load=o['l1']))
+        res = []
+        for group in (first, second):
+            g = []
+            for arm in group:
+                ms, rcs = take(cmds[arm])
+                g.append(dict(arm=arm, ms=ms, rcs=rcs))
+            res.append(g)
+        eff_group, flo_group = ((res[0], res[1]) if i % 4 < 2
+                                else (res[1], res[0]))
+        ea = next(x for x in eff_group if x['arm'] == 'A')
+        ec = next(x for x in eff_group if x['arm'] == 'C')
+        eff_rows.append(dict(i=i, order=label, a=ea, c=ec, load=o['l1']))
+        flo_rows.append(dict(i=i, order=label, a=flo_group[0],
+                             c=flo_group[1], load=o['l1']))
     watch.append(observe())
-    return dict(name=name, rows=rows, watch=watch,
-                dirty=[o for o in watch if not ok(o)], batch=batch)
+    dirty = [o for o in watch if not ok(o)]
+    mk = lambda rows: dict(name=name, rows=rows, watch=watch, dirty=dirty,
+                           batch=batch)
+    return mk(eff_rows), mk(flo_rows)
 
 
 def summarize(res):
@@ -160,7 +189,8 @@ def report_balanced(name, eff, floor, extra=None):
     if eff['batch']:
         print('    each sample is %d consecutive launches' % eff['batch'])
     for res, lab, n1, n2 in ((eff, 'effect  A vs C', 'A', 'C'),
-                             (floor, 'floor   A vs A', 'A1', 'A2')):
+                             (floor, 'floor   A vs A (same rotation)',
+                              'A1', 'A2')):
         A, C, pair, bad = summarize(res)
         print('    %s' % lab)
         print('    %-4s %-8s %12s %12s %10s %8s'
@@ -265,8 +295,8 @@ def main():
         if not agree(ca, cc, env):
             print('    SKIPPED: the arms do not produce the same result.')
             continue
-        eff = run_balanced(key, ca, cc, env, STARTUP_SAMPLES, STARTUP_BATCH)
-        flo = run_balanced(key, ca, ca, env, STARTUP_SAMPLES, STARTUP_BATCH)
+        eff, flo = run_interleaved(key, ca, cc, env, STARTUP_SAMPLES,
+                                   STARTUP_BATCH)
         report_balanced(key, eff, flo, selected_profile(app))
 
     print('\n=== WORKLOAD: application work ===')
@@ -298,8 +328,7 @@ def main():
         if not agree(ca, cc, env):
             print('    SKIPPED: the arms do not produce the same result.')
             continue
-        eff = run_balanced(key, ca, cc, env, WORK_SAMPLES)
-        flo = run_balanced(key, ca, ca, env, WORK_SAMPLES)
+        eff, flo = run_interleaved(key, ca, cc, env, WORK_SAMPLES)
         report_balanced(key, eff, flo, selected_profile(app))
 
     print('\nfinal observation: %s' % observe())
