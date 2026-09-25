@@ -1,0 +1,229 @@
+=== PREFLIGHT ===
+   preflight 1 at 00:30:33: load 12.79 / 7.37 / 5.58  competitors: none
+   preflight 2 at 00:31:33: load 7.28 / 6.80 / 5.49  competitors: none
+   two clean observations 60s apart; load is recorded as context, not as a gate
+work samples 20, startup samples 12 x 100 launches
+
+=== WORKLOAD: startup, batched ===
+
+--- startup: dart2wasm ---
+    NOT MEASURABLE WITH THIS HARNESS: no supported invocation exits 0 without compiling; covered by the work workload
+
+--- startup: analysis_server ---
+    NOT MEASURABLE WITH THIS HARNESS: a server -- enters its stdio event loop and never returns; --help, --version, --sdk and --protocol were all probed
+
+--- startup:nst ---
+    command: --help
+    A and C agree: rc 0/0, 181/181 bytes of stdout, identical: True
+
+--- startup:nst ---
+    selected 396, of which 288 have >=1 #67-lowered site, 108 reached only through the trampoline
+    each sample is 100 consecutive launches
+    effect  A vs C
+    n    order            A ms         C ms      ratio     load
+    0    eff-first A->C      2381.41      2178.74     0.9149      7.3
+    1    eff-first C->A      2110.78      2141.04     1.0143     14.1
+    2    floor-first A->C      2211.75      2089.88     0.9449     34.6
+    3    floor-first C->A      2256.39      2189.56     0.9704     57.7
+    4    eff-first A->C      2166.47      2182.31     1.0073     80.0
+    5    eff-first C->A      2166.59      2227.63     1.0282     93.2
+    6    floor-first A->C      2027.07      2222.66     1.0965     97.6
+    7    floor-first C->A      2243.62      2109.63     0.9403    109.1
+    8    eff-first A->C      2269.39      2292.39     1.0101    112.5
+    9    eff-first C->A      2189.54      2588.57     1.1822    120.3
+    10   floor-first A->C      2390.14      2150.77     0.8999    134.0
+    11   floor-first C->A      2513.67      2175.25     0.8654    164.7
+    median   A 2227.69   C 2180.52 ms
+    paired   median -1.12%   min -13.46%   max +18.22%
+    direction 6 of 12 pairs positive, 6 negative
+    floor   A vs A (same rotation)
+    n    order           A1 ms        A2 ms      ratio     load
+    0    eff-first A->C      2148.00      2033.25     0.9466      7.3
+    1    eff-first C->A      2235.88      2117.08     0.9469     14.1
+    2    floor-first A->C      2102.56      2143.34     1.0194     34.6
+    3    floor-first C->A      2172.48      2251.78     1.0365     57.7
+    4    eff-first A->C      2139.70      2212.05     1.0338     80.0
+    5    eff-first C->A      2061.51      2175.49     1.0553     93.2
+    6    floor-first A->C      2259.84      2070.41     0.9162     97.6
+    7    floor-first C->A      2181.86      2150.59     0.9857    109.1
+    8    eff-first A->C      2116.92      2500.07     1.1810    112.5
+    9    eff-first C->A      2228.60      2310.58     1.0368    120.3
+    10   floor-first A->C      3640.51      3129.02     0.8595    134.0
+    11   floor-first C->A      2443.20      2331.06     0.9541    164.7
+    median   A1 2177.17   A2 2193.77 ms
+    paired   median +0.25%   min -14.05%   max +18.10%
+    direction 6 of 12 pairs positive, 6 negative
+    EFFECT  C vs A  median -1.12%  (min -13.46%, max +18.22%)
+    FLOOR   A vs A  median +0.25%  envelope 18.10%
+    VERDICT: inside the noise, not quotable
+    samples discarded: none
+
+--- startup:gen_kernel ---
+    command: --help
+    A and C agree: rc 0/0, 4711/4711 bytes of stdout, identical: True
+
+--- startup:gen_kernel ---
+    selected 1853, of which 1110 have >=1 #67-lowered site, 743 reached only through the trampoline
+    each sample is 100 consecutive launches
+    effect  A vs C
+    n    order            A ms         C ms      ratio     load
+    0    eff-first A->C      4435.45      3557.95     0.8022    180.1
+    1    eff-first C->A      3496.61      3707.99     1.0605    200.4
+    2    floor-first A->C      3257.22      3377.72     1.0370    199.7
+    3    floor-first C->A      3211.74      3311.85     1.0312    192.2
+    4    eff-first A->C      3134.80      3252.67     1.0376    180.4
+    5    eff-first C->A      3791.94      3903.75     1.0295    173.0
+    6    floor-first A->C      3720.71      3780.30     1.0160    166.3
+    7    floor-first C->A      3855.22      3766.18     0.9769    163.2
+    8    eff-first A->C      3865.14      3752.78     0.9709    169.1
+    9    eff-first C->A      4564.68      3794.83     0.8313    182.8
+    10   floor-first A->C      3510.23      3690.20     1.0513    183.8
+    11   floor-first C->A      3572.89      3769.75     1.0551    179.8
+    median   A 3646.80   C 3730.39 ms
+    paired   median +3.03%   min -19.78%   max +6.05%
+    direction 8 of 12 pairs positive, 4 negative
+    floor   A vs A (same rotation)
+    n    order           A1 ms        A2 ms      ratio     load
+    0    eff-first A->C      4352.26      3453.23     0.7934    180.1
+    1    eff-first C->A      3705.94      3402.91     0.9182    200.4
+    2    floor-first A->C      3271.29      3269.44     0.9994    199.7
+    3    floor-first C->A      3322.84      3035.19     0.9134    192.2
+    4    eff-first A->C      3571.20      4864.93     1.3623    180.4
+    5    eff-first C->A      3697.38      3776.56     1.0214    173.0
+    6    floor-first A->C      3735.86      3567.33     0.9549    166.3
+    7    floor-first C->A      3382.85      3365.33     0.9948    163.2
+    8    eff-first A->C      3744.68      3600.75     0.9616    169.1
+    9    eff-first C->A      3478.09      3621.41     1.0412    182.8
+    10   floor-first A->C      3867.26      3523.82     0.9112    183.8
+    11   floor-first C->A      3830.21      3764.60     0.9829    179.8
+    median   A1 3701.66   A2 3545.58 ms
+    paired   median -2.78%   min -20.66%   max +36.23%
+    direction 3 of 12 pairs positive, 9 negative
+    EFFECT  C vs A  median +3.03%  (min -19.78%, max +6.05%)
+    FLOOR   A vs A  median -2.78%  envelope 36.23%
+    VERDICT: inside the noise, not quotable
+    samples discarded: none
+
+=== WORKLOAD: application work ===
+
+--- work:gen_kernel ---
+    A and C agree: rc 0/0, 0/0 bytes of stdout, identical: True
+
+--- work:gen_kernel ---
+    selected 1853, of which 1110 have >=1 #67-lowered site, 743 reached only through the trampoline
+    effect  A vs C
+    n    order            A ms         C ms      ratio     load
+    0    eff-first A->C       347.89       335.59     0.9646    160.2
+    1    eff-first C->A       337.82       345.42     1.0225    160.2
+    2    floor-first A->C       343.56       339.39     0.9879    160.2
+    3    floor-first C->A       343.42       342.94     0.9986    154.6
+    4    eff-first A->C       343.61       332.80     0.9685    154.6
+    5    eff-first C->A       459.02       344.78     0.7511    154.6
+    6    floor-first A->C       337.45       337.92     1.0014    145.5
+    7    floor-first C->A       337.78       341.64     1.0114    145.5
+    8    eff-first A->C       381.00       339.29     0.8905    145.5
+    9    eff-first C->A       336.26       341.21     1.0147    141.7
+    10   floor-first A->C       336.10       340.16     1.0121    141.7
+    11   floor-first C->A       333.91       345.01     1.0332    141.7
+    12   eff-first A->C       388.11       344.85     0.8885    141.7
+    13   eff-first C->A       345.74       335.99     0.9718    132.9
+    14   floor-first A->C       347.11       342.88     0.9878    132.9
+    15   floor-first C->A       337.17       347.34     1.0302    132.9
+    16   eff-first A->C       344.21       339.95     0.9876    123.6
+    17   eff-first C->A       329.56       339.54     1.0303    123.6
+    18   floor-first A->C       346.55       342.40     0.9880    123.6
+    19   floor-first C->A       345.34       337.39     0.9770    115.1
+    median   A 343.58   C 340.68 ms
+    paired   median -1.20%   min -24.89%   max +3.32%
+    direction 8 of 20 pairs positive, 12 negative
+    floor   A vs A (same rotation)
+    n    order           A1 ms        A2 ms      ratio     load
+    0    eff-first A->C       339.85       341.93     1.0061    160.2
+    1    eff-first C->A       343.37       343.77     1.0012    160.2
+    2    floor-first A->C       342.64       341.02     0.9953    160.2
+    3    floor-first C->A       346.44       343.86     0.9925    154.6
+    4    eff-first A->C       333.82       332.95     0.9974    154.6
+    5    eff-first C->A       346.22       340.11     0.9824    154.6
+    6    floor-first A->C       341.71       342.24     1.0015    145.5
+    7    floor-first C->A       344.11       344.92     1.0024    145.5
+    8    eff-first A->C       346.50       343.76     0.9921    145.5
+    9    eff-first C->A       337.72       340.80     1.0091    141.7
+    10   floor-first A->C       348.09       346.19     0.9945    141.7
+    11   floor-first C->A       344.13       346.54     1.0070    141.7
+    12   eff-first A->C       339.02       339.48     1.0014    141.7
+    13   eff-first C->A       341.99       342.53     1.0016    132.9
+    14   floor-first A->C       336.74       346.05     1.0276    132.9
+    15   floor-first C->A       337.08       340.02     1.0087    132.9
+    16   eff-first A->C       339.65       346.65     1.0206    123.6
+    17   eff-first C->A       342.51       343.32     1.0024    123.6
+    18   floor-first A->C       339.72       346.57     1.0202    123.6
+    19   floor-first C->A       341.64       344.22     1.0075    115.1
+    median   A1 341.85   A2 343.54 ms
+    paired   median +0.20%   min -1.76%   max +2.76%
+    direction 14 of 20 pairs positive, 6 negative
+    EFFECT  C vs A  median -1.20%  (min -24.89%, max +3.32%)
+    FLOOR   A vs A  median +0.20%  envelope 2.76%
+    VERDICT: inside the noise, not quotable
+    samples discarded: none
+
+--- work:dart2wasm ---
+    A and C agree: rc 0/0, 0/0 bytes of stdout, identical: True
+
+--- work:dart2wasm ---
+    selected 1906, of which 1309 have >=1 #67-lowered site, 597 reached only through the trampoline
+    effect  A vs C
+    n    order            A ms         C ms      ratio     load
+    0    eff-first A->C       395.58       391.52     0.9898    115.1
+    1    eff-first C->A       392.62       389.53     0.9921    107.0
+    2    floor-first A->C       346.22       396.02     1.1438    107.0
+    3    floor-first C->A       389.13       391.50     1.0061    107.0
+    4    eff-first A->C       397.85       391.62     0.9843     99.0
+    5    eff-first C->A       390.46       447.02     1.1448     99.0
+    6    floor-first A->C       397.12       388.45     0.9782     99.0
+    7    floor-first C->A       394.26       341.63     0.8665     94.0
+    8    eff-first A->C       395.58       392.87     0.9932     94.0
+    9    eff-first C->A       395.86       400.87     1.0126     94.0
+    10   floor-first A->C       393.60       396.85     1.0083     86.8
+    11   floor-first C->A       346.24       394.97     1.1407     86.8
+    12   eff-first A->C       390.99       396.05     1.0129     86.8
+    13   eff-first C->A       341.29       393.22     1.1521     80.0
+    14   floor-first A->C       343.10       349.29     1.0180     80.0
+    15   floor-first C->A       391.80       343.64     0.8771     80.0
+    16   eff-first A->C       393.10       416.83     1.0604     82.1
+    17   eff-first C->A       515.79       396.03     0.7678     82.1
+    18   floor-first A->C       398.66       400.66     1.0050     82.1
+    19   floor-first C->A       387.26       384.01     0.9916     76.1
+    median   A 392.86   C 393.05 ms
+    paired   median +0.56%   min -23.22%   max +15.21%
+    direction 11 of 20 pairs positive, 9 negative
+    floor   A vs A (same rotation)
+    n    order           A1 ms        A2 ms      ratio     load
+    0    eff-first A->C       345.84       386.11     1.1164    115.1
+    1    eff-first C->A       394.19       397.24     1.0078    107.0
+    2    floor-first A->C       340.05       336.31     0.9890    107.0
+    3    floor-first C->A       395.67       394.66     0.9974    107.0
+    4    eff-first A->C       395.31       388.14     0.9819     99.0
+    5    eff-first C->A       398.69       449.45     1.1273     99.0
+    6    floor-first A->C       392.68       441.13     1.1234     99.0
+    7    floor-first C->A       395.03       341.31     0.8640     94.0
+    8    eff-first A->C       409.25       397.64     0.9716     94.0
+    9    eff-first C->A       396.28       392.99     0.9917     94.0
+    10   floor-first A->C       391.08       386.35     0.9879     86.8
+    11   floor-first C->A       399.50       393.14     0.9841     86.8
+    12   eff-first A->C       338.06       394.00     1.1655     86.8
+    13   eff-first C->A       340.47       338.60     0.9945     80.0
+    14   floor-first A->C       340.92       393.04     1.1529     80.0
+    15   floor-first C->A       389.63       390.07     1.0011     80.0
+    16   eff-first A->C       403.70       394.65     0.9776     82.1
+    17   eff-first C->A       439.09       388.94     0.8858     82.1
+    18   floor-first A->C       442.52       387.56     0.8758     82.1
+    19   floor-first C->A       393.60       460.20     1.1692     76.1
+    median   A1 394.61   A2 393.02 ms
+    paired   median -0.69%   min -13.60%   max +16.92%
+    direction 8 of 20 pairs positive, 12 negative
+    EFFECT  C vs A  median +0.56%  (min -23.22%, max +15.21%)
+    FLOOR   A vs A  median -0.69%  envelope 16.92%
+    VERDICT: inside the noise, not quotable
+    samples discarded: none
+
+final observation: {'t': '00:37:31', 'l1': 76.1240234375, 'l5': 97.3681640625, 'l15': 54.09130859375, 'comp': []}
