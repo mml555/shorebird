@@ -4,6 +4,36 @@
 cspell:words pubspec erickzanardo xcframeworks cupertino codesign codecov rkishan appbundle proto tlsv kingdomseed Peetee Aditya serde bipatch GLES lipo
  -->
 
+## 1.6.115+selfhost.2 (unreleased)
+
+Fork build of upstream 1.6.115 carrying a **backport** of the compatible
+upstream 1.6.116–1.6.123 CLI surface. The toolchain is unchanged: Flutter
+3.44.8 (`a4a3c0d1`), engine `69f9831c`, Dart 3.12. This is **not** upstream
+1.6.123, and does not claim compatibility with it. The per-commit matrix is in
+[`selfhost/upstream/BACKPORT-1.6.123.md`](selfhost/upstream/BACKPORT-1.6.123.md).
+
+- New commands, all backed by the self-hosted server:
+  - `shorebird patches rollback` rolls a patch back on every channel where it
+    is live; devices are told to revert.
+  - `shorebird apps list`, `apps rename`, `apps transfer`.
+  - `shorebird channels list`, `channels create`, `channels delete`. Deletes
+    are soft on the server, and `stable`/`beta`/`staging` are permanent.
+- `shorebird patches rollforward` is present but **intentionally unsupported**:
+  a rolled-back patch stays withdrawn, and the command fails with the server's
+  explanation.
+- `shorebird apps delete` is present, but the server does not implement app
+  deletion. It currently fails without deleting anything, pending a decision.
+- `--flutter-version=fvm` and `=system` resolve to a version, then build with
+  Shorebird's fork at that version, subject to the same toolchain checks.
+- Fixes: signing-flag mistakes are usage errors naming the flag; a missing
+  `libapp.so` and legacy `flutter.jar` plugin references are diagnosed; layered
+  icons and asset-catalog toolchain versions no longer show as changed assets;
+  clearer link-failure and iOS patcher errors; pubspec comments survive `init`;
+  build traces time the Flutter clone and precache.
+- Not taken: `account whoami` plan level (`/plan` is not implemented),
+  upstream billing, and the Flutter precache stamp (`1ef0831dd`, deferred: it
+  conflicts with the fork's unconditional platform-scoped hydration).
+
 ## 1.6.115+selfhost.1 (July 29, 2026)
 
 Fork build of upstream 1.6.115. Carries the fork's CLI changes (per-platform

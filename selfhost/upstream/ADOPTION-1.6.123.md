@@ -62,6 +62,10 @@ release-scoped by path. Any alias has to decide how `releaseId` maps onto our
 
 ## 2. CLI-only — adoptable with no server work
 
+> **Superseded by [`BACKPORT-1.6.123.md`](BACKPORT-1.6.123.md)**, which audits
+> all 42 commits. The list below says "nine" but has ten entries, and it
+> missed `119406bba`, `e8741c31f` and `a86dbc12a`.
+
 Nine, in rough descending usefulness:
 
 ```
@@ -168,6 +172,13 @@ this pass does not do.
 ---
 
 ## 4. Pin promotion is governed separately
+
+> **Ruling (PM, 2026-09-25): not now.** Promoting to 1.6.123 means Flutter
+> 3.44.8 → 3.47, engine `69f9831c` → `c663a268`, Dart 3.12 → 3.13, and a rebase
+> of Route B, the iOS cells, M5 and the updater fork. That is an engine
+> programme, parked in `ROADMAP.md`. The CLI surface was **backported** to
+> `1.6.115+selfhost.2` instead; see [`BACKPORT-1.6.123.md`](BACKPORT-1.6.123.md).
+> The section below describes the process that programme will follow.
 
 `selfhost/compatibility.yaml` records `cli_version: 1.6.115+selfhost.1` and
 states a revision is unsupported until the compatibility suite passes **and**
@@ -279,4 +290,6 @@ delete, restore, transfer).
 2. ~~Endpoints #4/#5/#6 app and channel management~~ — done under the §5 rule.
 3. ~~Decide §3~~ — ruled (c); rollforward refused with 501.
 4. Skip #3 `GET /plan` and both `stripe_api` commits.
-5. §2 CLI fixes behind a governed pin promotion.
+5. ~~§2 CLI fixes behind a governed pin promotion~~ — premise was false;
+   backported to `1.6.115+selfhost.2` without a promotion
+   ([`BACKPORT-1.6.123.md`](BACKPORT-1.6.123.md)).

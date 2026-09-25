@@ -475,7 +475,13 @@ reason, not forgotten:
 * **`TPOOL_AMBIGUOUS`**;
 * pragma experiments;
 * desktop platforms;
-* a broad **Flutter bump** — cost already measured
+* a broad **Flutter bump**, now a named programme: **Flutter 3.47 / engine
+  `c663a268` / Dart 3.13 rebase and recertification** (upstream 1.6.123's
+  toolchain). Scope: Route B, Mutable-AOT, iOS engine/signing, updater
+  integration and the complete toolchain closure per
+  [`TOOLCHAIN_PROMOTION.md`](TOOLCHAIN_PROMOTION.md). Cost already measured
   ([`UPSTREAM_INTEGRATION.md`](UPSTREAM_INTEGRATION.md)); do it after any
-  hybrid-dependent measurement, since `SNAPSHOT_HASH` moves;
+  hybrid-dependent measurement, since `SNAPSHOT_HASH` moves. It must never happen
+  implicitly to get CLI commands: that need was met by backporting to
+  `1.6.115+selfhost.2` ([`upstream/BACKPORT-1.6.123.md`](upstream/BACKPORT-1.6.123.md));
 * obscure Dart constructs, until P3 says they matter.
