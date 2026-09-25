@@ -25,7 +25,7 @@ Exact contracts, read from upstream `code_push_client.dart`.
 | 2 | `POST .../patches/{patchId}/rollforward` | empty body | 200 = changed, 304 = already active | **intentionally unsupported** — 501, see §3 |
 | 3 | `GET /api/v1/plan` | — | `{"level": "free"\|"pro"\|"business"\|"enterprise"}`, nullable | absent |
 | 4 | `PATCH /api/v1/apps/{appId}` | `{"name": "<displayName>"}` | 2xx | absent |
-| 5 | `POST /api/v1/organizations/{organizationId}/apps` | `{"app_id": "<appId>"}` | 2xx | absent |
+| 5 | `POST /api/v1/organizations/{organizationId}/apps` | `{"app_id": "<appId>"}` | 2xx | absent — this is a **transfer** of an existing app, see §5 |
 | 6 | `DELETE /api/v1/apps/{appId}/channels/{channelId}` | — | 2xx | absent |
 
 ### The good news on rollback
@@ -179,11 +179,87 @@ So 1.6.115 → 1.6.123 is a **governed promotion, not a merge**, independent of
 the endpoint work above. The endpoint work can proceed without it; adopting
 the CLI-only fixes in §2 cannot.
 
-## Recommended order
+## 5. Authorization rule for app and channel management
+
+### Correction: #5 transfers an app, it does not create one
+
+Upstream's client calls it `transferApp`. It backs `shorebird apps transfer`,
+and its docstring reads: *"Move the app with the provided [appId] into
+[organizationId]. Requires permission to transfer apps in both the source and
+destination organizations."* It changes which org **owns** an existing app,
+and with it who can reach the app through org membership. Earlier drafts of
+this survey called it "create app under organization". App creation already
+exists as `POST /api/v1/apps` with `organization_id`.
+
+### The rule
+
+> A mutation that changes an app's identity, structure or ownership requires
+> an **owner or admin role at every scope it changes**. A collaborator grant is
+> scoped to one app, so it counts at app scope and never at org scope.
+
+What each scope means, using the predicates the server already has:
+
+| Scope | Predicate | Who passes |
+|---|---|---|
+| app | `userIsAppAdmin` (`_authorizeAppAdmin`) | owner/admin of the owning org, or an owner/admin collaborator on the app |
+| org | `userIsOrgAdmin` | owner/admin member of that org |
+
+Applied to the three endpoints:
+
+| Endpoint | Scopes it changes | Requirement |
+|---|---|---|
+| #4 `PATCH /apps/{app}` rename | app | app admin |
+| #6 `DELETE /apps/{app}/channels/{channel}` | app | app admin |
+| #5 `POST /organizations/{org}/apps` transfer | source org **and** destination org | org admin of both; an app-admin collaborator is **not** enough |
+
+Why this and not the existing `_authorizeApp`: that gate is app *access*,
+which any org member or any `developer` collaborator passes, and it is what
+lets them ship. These three are not shipping:
+
+* a rename changes what every collaborator sees;
+* a channel delete stops devices on that channel receiving patches;
+* a transfer moves the app out from under the old org's members.
+
+That is the same line `userIsAppAdmin` already draws for managing
+collaborators.
+
+Consequences of applying it consistently:
+
+* **Asymmetry with channel create, on purpose.** `POST .../channels` stays at
+  app access, because creating a channel changes nothing a device sees until a
+  patch is promoted to it. Deleting one is destructive, so it is gated at
+  admin.
+* **Transfer is orgs-only.** An owner collaborator on an app cannot move it
+  into their own org. Otherwise a collaborator grant could be turned into
+  ownership.
+* **Refusals are 403** with a message naming the role required, matching
+  `_authorizeAppAdmin`. Ids that do not belong to the app in the path stay
+  404 (`_ownedChannel`). Every refusal writes a `refused` audit event, like
+  every other mutation.
+
+### Open questions before implementation
+
+1. **Transfer vs. the destination org's email-domain allowlist.** Existing
+   collaborators move with the app. `_requireEmailAllowedInOrg` governs
+   *adding* people, not moving existing grants. Decide whether a transfer into
+   a restricted org is refused while it carries non-conforming collaborators.
+2. **Channel delete vs. our schema.** `channel_patches.channel_id` references
+   `channels(id)` with no cascade, so a hard delete fails for any channel that
+   ever had a patch promoted to it. Cascading would erase deployment history
+   *and* the rollback signal: patch-check for an unknown channel returns no
+   `rolled_back_patch_numbers`, so devices still running a rolled-back patch
+   would never be told to revert. The candidates are a soft delete (a migration,
+   patch-check answers as today for deleted channels), or refusing to delete a
+   channel with any promotion history. Upstream also treats
+   stable/beta/staging as permanent, which the CLI enforces. The server should
+   refuse those too.
+
+
 
 1. ~~Endpoint #1 `rollback`~~ — done.
-2. Endpoints #4/#5/#6 app and channel management — additive, no state-machine
-   change. Define the authorization rule once, then apply it to all three.
+2. Endpoints #4/#5/#6 app and channel management — rule defined in §5. #4 is
+   ready to implement. #5 (transfer) and #6 (channel delete) each carry an
+   open question.
 3. ~~Decide §3~~ — ruled (c); rollforward refused with 501.
 4. Skip #3 `GET /plan` and both `stripe_api` commits.
 5. §2 CLI fixes behind a governed pin promotion.
