@@ -91,3 +91,46 @@ production `StageReplacement`.
    neither lldb nor the 290k-line syslog. The fixture writes a progressive
    trace file instead, and runs in `main()` before `runApp` so a UI that
    never appears cannot hide the result.
+
+## Provenance bookkeeping
+
+```
+fork revision                 5878283d55e   (clean tree 12193b5ef74)
+
+Flutter.framework  sha256     c9c7f3e875d78e4ef988a48c0b3504e7310bc4a65d3a184ad2a9a8e9c8a3327a
+gen_snapshot       sha256     0ee1501c3d0e08324a9b94dc8d201685a9e4e5fadc97196145c5866d50c8c2cf
+   out/ios_release/clang_arm64/gen_snapshot, built 2026-09-25 from the fork
+App.framework/App  sha256     371f4ae81b9fd35743482c04383b831b75cdc9f910648a30ce98f1e741c2a050
+   as signed inside Runner.app  e2c479753882b2f7f4825bb5ef1ee440636289422a5d8fb1822b22f2d2c191e0
+```
+
+Snapshot configuration string embedded in the shipped App.framework:
+
+```
+a017f0159cc650151f56047aad3763ee
+product no-code_comments no-dwarf_stack_traces_mode dedup_instructions
+no-asan no-msan no-tsan no-shared_data arm64 ios no-compressed-pointers
+```
+
+Both halves match the runtime: the version hash `a017f0159cc650151f56047aad3763ee`
+is the same one embedded in Flutter.framework, and the target configuration
+reads `arm64 ios`, not `arm64 macos`.
+
+### Excluded artifact
+
+`out/maot_host/gen_snapshot` and everything generated from it are marked:
+
+> **incompatible test artifact — macOS target stamp; not part of passing R2
+> evidence.**
+
+It is MAOT-capable and built from the same fork, but it stamps snapshots
+`arm64 macos` and the device VM rejected it outright. It appears in this
+record only as the failure that produced the permanent rule below.
+
+### Permanent rule taken from this failure
+
+> A snapshot is compatible only when BOTH the version hash AND the target
+> configuration string match the runtime. The hash alone is insufficient: it
+> is a property of the Dart sources, while the configuration is a property of
+> the build target, and the same sources built for a different target produce
+> a matching hash with an incompatible configuration.
