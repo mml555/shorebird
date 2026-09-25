@@ -1,5 +1,11 @@
 # R2 Android — Phase B: production API visibility FAILS
 
+> **Superseded in part by `PHASE-B-PRODUCTION-ENTRY.md`** (same commit series):
+> check 3 is now COMPLETE (`arm64 android` both sides), the export count is
+> **eight** not seven, the linker causal claim is narrowed, and the blocker is
+> restated — the real gap is that Mutable-AOT has no patch-ingestion path, not
+> that a symbol is unexported. Evidence below stands; those conclusions move.
+
 Checks 1–3 pass. Check 4 fails, and the cause is an explicit engine export
 policy, not a Mutable-AOT defect and not the visibility attributes.
 
@@ -103,10 +109,12 @@ ldflags = -Wl,--version-script=../../flutter/shell/platform/android/android_expo
 ```
 
 Every symbol not named here is `local`, which is why **all 115** `Dart_*`
-symbols are unexported, not just the Mutable-AOT ones. Being local and
-unreferenced, and with `--icf=all`, the entry points are then discarded
-entirely, which is why they are missing from `.symtab` too while the
-internally-referenced `MaotRegistry::` methods survive.
+symbols are unexported, not just the Mutable-AOT ones.
+
+The proven claim stops there: **`android_exports.lst` excludes the wrappers
+from the public dynamic ABI, and the final link subsequently contains no
+surviving `Dart_Maot*` wrappers.** Which later linker pass removed them is not
+established here and is not attributed to `--icf=all`.
 
 ### Why iOS behaved differently
 
@@ -121,7 +129,7 @@ difference, not a difference in the Mutable-AOT code.**
 
 ## The decision this needs
 
-`android_exports.lst` already carries seven `shorebird_*` entries, so adding a
+`android_exports.lst` already carries eight `shorebird_*` entries, so adding a
 platform's entry points to this list is an established pattern here — the
 direct analogue of iOS's pre-existing `_Dart_RouteBActivatePatchTraced`.
 
