@@ -443,6 +443,54 @@ void main() {
       expect(e['track'], 'stable');
       expect((jsonDecode(e['detail']! as String) as Map)['rollback'], isTrue);
     });
+
+    test(
+      'upstream rollback is a patch.withdraw, and so is its repeat',
+      () async {
+        final s = await seedApp();
+        final p = await jsonOf(
+          await send(
+            'POST',
+            '/api/v1/apps/${s.appId}/patches',
+            bearer: _bootstrapKey,
+            json: {'release_id': s.releaseId},
+          ),
+        );
+        await uploadPatchArtifact(s.appId, p['id'] as int);
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches/promote',
+          bearer: _bootstrapKey,
+          json: {'patch_id': p['id'], 'channel_id': s.channelId},
+        );
+        final path =
+            '/api/v1/apps/${s.appId}/releases/${s.releaseId}'
+            '/patches/${p['id']}/rollback';
+        expect(
+          (await send('POST', path, bearer: _bootstrapKey)).statusCode,
+          200,
+        );
+        expect(
+          (await send('POST', path, bearer: _bootstrapKey)).statusCode,
+          304,
+        );
+
+        final rows = await requestEvents('patch.withdraw');
+        expect(rows, hasLength(2));
+        for (final e in rows) {
+          expect(e['result'], 'success');
+          expect(e['route'], contains('/rollback'));
+          expect(e['patch_id'], p['id']);
+          expect(e['patch_number'], p['number']);
+          expect(e['release_id'], s.releaseId);
+        }
+        final changed = rows
+            .map((e) => (jsonDecode(e['detail']! as String) as Map)['changed'])
+            .toList();
+        expect(changed, unorderedEquals([true, false]));
+        expect(rows.where((e) => e['track'] == 'stable'), hasLength(1));
+      },
+    );
   });
 
   // -------------------------------------------------------------------------

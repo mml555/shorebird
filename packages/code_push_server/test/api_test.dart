@@ -3101,6 +3101,177 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // Upstream 1.6.123's release-scoped rollback, over the same withdrawal the
+  // /admin route performs. Rollforward is deliberately refused.
+  group('upstream rollback / rollforward', () {
+    late ({String appId, int releaseId, int channelId}) s;
+    late int patchId;
+
+    setUp(() async {
+      s = await seedApp();
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': s.releaseId},
+        ),
+      );
+      patchId = p['id'] as int;
+      await uploadPatchArtifact(s.appId, patchId);
+    });
+
+    Future<void> promote(int channelId) => send(
+      'POST',
+      '/api/v1/apps/${s.appId}/patches/promote',
+      bearer: _bootstrapKey,
+      json: {'patch_id': patchId, 'channel_id': channelId},
+    );
+
+    Future<Response> rollback({int? releaseId, String? bearer}) => send(
+      'POST',
+      '/api/v1/apps/${s.appId}/releases/${releaseId ?? s.releaseId}'
+          '/patches/$patchId/rollback',
+      bearer: bearer ?? _bootstrapKey,
+    );
+
+    Future<Map<String, dynamic>> check([String channel = 'stable']) async =>
+        jsonOf(
+          await send(
+            'POST',
+            '/api/v1/patches/check',
+            json: {
+              'app_id': s.appId,
+              'release_version': '1.0.0',
+              'platform': 'android',
+              'arch': 'aarch64',
+              'channel': channel,
+            },
+          ),
+        );
+
+    test('rolls back, and devices are told to revert', () async {
+      await promote(s.channelId);
+      expect((await check())['patch_available'], isTrue);
+
+      final r = await rollback();
+      expect(r.statusCode, HttpStatus.ok);
+      expect((await jsonOf(r))['channels'], ['stable']);
+
+      final c = await check();
+      expect(c['patch_available'], isFalse);
+      expect(c['rolled_back_patch_numbers'], [1]);
+      final listed = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/${s.appId}/releases/${s.releaseId}/patches',
+          bearer: _bootstrapKey,
+        ),
+      );
+      expect(
+        ((listed['patches'] as List).single as Map)['is_rolled_back'],
+        isTrue,
+      );
+    });
+
+    test('a repeat is 304, not a conflict', () async {
+      await promote(s.channelId);
+      expect((await rollback()).statusCode, HttpStatus.ok);
+      final again = await rollback();
+      expect(again.statusCode, HttpStatus.notModified);
+      expect(await again.readAsString(), isEmpty);
+    });
+
+    test('names no channel, so it rolls back on every active one', () async {
+      final beta = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/channels',
+          bearer: _bootstrapKey,
+          json: {'channel': 'beta'},
+        ),
+      );
+      await promote(s.channelId);
+      await promote(beta['id'] as int);
+
+      final r = await rollback();
+      expect(r.statusCode, HttpStatus.ok);
+      expect(
+        (await jsonOf(r))['channels'],
+        unorderedEquals(['stable', 'beta']),
+      );
+      expect((await check('stable'))['rolled_back_patch_numbers'], [1]);
+      expect((await check('beta'))['rolled_back_patch_numbers'], [1]);
+    });
+
+    test('a never-promoted patch is a conflict', () async {
+      expect((await rollback()).statusCode, HttpStatus.conflict);
+    });
+
+    test('a superseded patch is a conflict: withdrawal is terminal', () async {
+      await promote(s.channelId);
+      await send(
+        'POST',
+        '/admin/apps/${s.appId}/patches/$patchId/withdraw?channel=stable',
+        bearer: _bootstrapKey,
+      );
+      expect((await rollback()).statusCode, HttpStatus.conflict);
+      expect((await check())['rolled_back_patch_numbers'], isEmpty);
+    });
+
+    test('the patch must belong to the release in the path', () async {
+      await promote(s.channelId);
+      final other = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/releases',
+          bearer: _bootstrapKey,
+          json: {'version': '2.0.0'},
+        ),
+      );
+      final r = await rollback(releaseId: (other['release'] as Map)['id']);
+      expect(r.statusCode, HttpStatus.notFound);
+      expect((await check())['patch_available'], isTrue);
+    });
+
+    test('another tenant cannot roll it back', () async {
+      await promote(s.channelId);
+      final attacker = await otherTenant();
+      expect(
+        (await rollback(bearer: attacker.key)).statusCode,
+        HttpStatus.forbidden,
+      );
+      // Their own app id paired with our patch id.
+      final r = await send(
+        'POST',
+        '/api/v1/apps/${attacker.appId}/releases/${s.releaseId}'
+            '/patches/$patchId/rollback',
+        bearer: attacker.key,
+      );
+      expect(r.statusCode, HttpStatus.notFound);
+      expect((await check())['patch_available'], isTrue);
+    });
+
+    test('rollforward fails clearly and changes nothing', () async {
+      await promote(s.channelId);
+      await rollback();
+      final r = await send(
+        'POST',
+        '/api/v1/apps/${s.appId}/releases/${s.releaseId}'
+            '/patches/$patchId/rollforward',
+        bearer: _bootstrapKey,
+      );
+      expect(r.statusCode, HttpStatus.notImplemented);
+      final body = await jsonOf(r);
+      expect(body['code'], 'unsupported');
+      expect(body['message'], contains('not supported'));
+      final c = await check();
+      expect(c['patch_available'], isFalse);
+      expect(c['rolled_back_patch_numbers'], [1]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Release/patch notes. The wire contract always carried `notes` on both DTOs
   // and the CLI's `releases info` / `patches info` already print it, but the
   // server hardcoded null on every response, so the field could never be used.

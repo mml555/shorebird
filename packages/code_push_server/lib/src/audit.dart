@@ -11,7 +11,8 @@ import 'package:crypto/crypto.dart';
 /// is refused by authorization cannot leave a `success` behind. See
 /// [AuditResult.fromStatus].
 enum AuditResult {
-  /// The server answered 2xx/3xx: the mutation was applied.
+  /// The server answered 2xx/3xx: the mutation was applied, or (304) was
+  /// already in effect.
   success,
 
   /// The server answered 4xx: the mutation was declined (bad request,
@@ -229,6 +230,22 @@ AuditRoute? classifyMutation(String method, List<String> segments) {
         'POST /api/v1/apps/{app}/releases/{release}/artifacts',
         appId: appId,
         releaseId: id(rest[1]),
+      );
+    }
+    // The same mutation as `/admin/.../withdraw?rollback=true`, so the same
+    // operation: one query for "who pulled this patch" covers both routes.
+    // `rollforward` is not classified — it is always refused and mutates
+    // nothing.
+    if (rest.length == 5 &&
+        rest[2] == 'patches' &&
+        rest[4] == 'rollback' &&
+        method == 'POST') {
+      return AuditRoute(
+        'patch.withdraw',
+        'POST /api/v1/apps/{app}/releases/{release}/patches/{patch}/rollback',
+        appId: appId,
+        releaseId: id(rest[1]),
+        patchId: id(rest[3]),
       );
     }
     return null;

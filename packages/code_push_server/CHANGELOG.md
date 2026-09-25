@@ -10,6 +10,14 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Upstream 1.6.123 `shorebird patches rollback` works against this server.**
+  `POST /api/v1/apps/{app}/releases/{release}/patches/{patch}/rollback` rolls
+  the patch back on every channel where it is active (the same withdrawal as
+  `/admin/.../withdraw?rollback=true`), answers 304 when it is already rolled
+  back, and is audited as `patch.withdraw`. `.../rollforward` is intentionally
+  unsupported and answers `501 unsupported`: a rolled-back patch stays
+  withdrawn permanently.
+
 - **Control-plane mutations are auditable.** Every mutating patch-lifecycle
   request — `app.create`, `release.create`/`update`, release and patch artifact
   registration, `artifact.upload`, `patch.create`/`update`/`promote`/

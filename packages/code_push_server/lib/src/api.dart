@@ -891,6 +891,29 @@ class Api {
           m == 'GET') {
         return _getReleasePatches(appId, _pathId(rest[1], 'release id'));
       }
+      // Upstream 1.6.123 `shorebird patches rollback` / `rollforward`.
+      if (rest.length == 5 &&
+          rest[0] == 'releases' &&
+          rest[2] == 'patches' &&
+          m == 'POST') {
+        final releaseId = _pathId(rest[1], 'release id');
+        final patchId = _pathId(rest[3], 'patch id');
+        if (rest[4] == 'rollback') {
+          return _rollbackPatch(req, appId, releaseId, patchId);
+        }
+        if (rest[4] == 'rollforward') {
+          // Intentionally unsupported: withdrawal is terminal here
+          // (`_channelPatchNext`), and upstream's rollforward reactivates a
+          // rolled-back patch. See selfhost/upstream/ADOPTION-1.6.123.md §3.
+          throw DomainException(
+            HttpStatus.notImplemented,
+            'unsupported',
+            'Rollforward is not supported by this self-hosted server: a '
+                'rolled-back patch is withdrawn permanently. Publish a new '
+                'patch instead.',
+          );
+        }
+      }
     }
 
     return _err(
@@ -1603,6 +1626,51 @@ class Api {
   ///
   /// Same null-means-unchanged / empty-means-clear semantics as the release
   /// endpoint. Returns the patch so a caller can confirm what was stored.
+  /// Upstream's release-scoped rollback. It names no channel, so it rolls the
+  /// patch back on every channel where it is active — the same mutation as
+  /// `/admin/.../withdraw?rollback=true`, applied to each.
+  ///
+  /// 200 when anything changed; 304 when the patch is already rolled back and
+  /// active nowhere, which upstream's CLI reads as "nothing to do". A patch
+  /// that was never promoted, or was only superseded, is a 409: withdrawal is
+  /// terminal, so a superseded row cannot be re-marked as rolled back.
+  Future<Response> _rollbackPatch(
+    Request req,
+    String appId,
+    int releaseId,
+    int patchId,
+  ) async {
+    final patch = await _ownedPatch(appId, patchId);
+    if (patch.releaseId != releaseId) {
+      throw notFound('No patch $patchId on release $releaseId');
+    }
+    _audit(req)?.note(releaseId: releaseId, patchNumber: patch.number);
+    final channelIds = await repo.rollbackActive(patchId);
+    if (channelIds.isEmpty) {
+      if (await repo.patchRolledBack(patchId)) {
+        _audit(req)?.note(detail: {'rollback': true, 'changed': false});
+        return Response.notModified();
+      }
+      throw conflict(
+        'Patch $patchId is not active on any channel, so there is nothing '
+        'to roll back',
+      );
+    }
+    final channels = [
+      for (final id in channelIds) (await repo.channelById(id))!.name,
+    ];
+    _audit(req)?.note(
+      track: channels.length == 1 ? channels.single : null,
+      detail: {'rollback': true, 'changed': true, 'channels': channels},
+    );
+    return _json({
+      'withdrawn': true,
+      'patch_id': patchId,
+      'rolled_back': true,
+      'channels': channels,
+    });
+  }
+
   Future<Response> _updatePatch(Request req, String appId, int patchId) async {
     final body = await _jsonBody(req);
     final patch = await _ownedPatch(appId, patchId);

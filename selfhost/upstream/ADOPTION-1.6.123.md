@@ -21,8 +21,8 @@ Exact contracts, read from upstream `code_push_client.dart`.
 
 | # | Endpoint | Request | Response | Our server |
 |---|---|---|---|---|
-| 1 | `POST /api/v1/apps/{appId}/releases/{releaseId}/patches/{patchId}/rollback` | empty body | 200 = changed, **304 = already rolled back** | semantics exist, **route shape differs** |
-| 2 | `POST .../patches/{patchId}/rollforward` | empty body | 200 = changed, 304 = already active | **blocked — see §3** |
+| 1 | `POST /api/v1/apps/{appId}/releases/{releaseId}/patches/{patchId}/rollback` | empty body | 200 = changed, **304 = already rolled back** | **implemented** — rolls back on every active channel; see below |
+| 2 | `POST .../patches/{patchId}/rollforward` | empty body | 200 = changed, 304 = already active | **intentionally unsupported** — 501, see §3 |
 | 3 | `GET /api/v1/plan` | — | `{"level": "free"\|"pro"\|"business"\|"enterprise"}`, nullable | absent |
 | 4 | `PATCH /api/v1/apps/{appId}` | `{"name": "<displayName>"}` | 2xx | absent |
 | 5 | `POST /api/v1/organizations/{organizationId}/apps` | `{"app_id": "<appId>"}` | 2xx | absent |
@@ -121,12 +121,49 @@ requires one of:
   `active` with the flag set, matching upstream's shape more closely; or
 * **(c)** decline `rollforward` and keep withdrawal terminal.
 
-**This is a product decision about the control plane's safety model and is not
-being made here.** Making a deliberately terminal state non-terminal is
+**This was a product decision about the control plane's safety model, not an
+upstream-sync call.** Making a deliberately terminal state non-terminal is
 exactly the kind of change that should not arrive as a side effect of an
 upstream sync. (a) is smallest; (b) is closest to upstream and the largest
 change; (c) costs nothing and leaves `shorebird patches rollforward` failing
 against a self-hosted server.
+
+### Ruling (PM, 2026-09-25): (c)
+
+> Self-hosted rollforward: intentionally unsupported. Withdrawn patches remain
+> terminal. `shorebird patches rollforward` must fail clearly against the
+> self-hosted server.
+
+Both (a) and (b) change the state-machine contract only to match a newly
+exposed upstream CLI capability, and there is no product requirement that
+justifies reopening that invariant. Upstream semantics are not partially
+emulated. The route exists only to refuse: `501 unsupported`, with a message
+saying to publish a new patch instead, and it mutates nothing, so it writes no
+audit event.
+
+### Rollback as implemented
+
+`POST /api/v1/apps/{app}/releases/{release}/patches/{patch}/rollback` is
+`repo.withdraw(rollback: true)` applied to **every channel where the patch
+is active**, because upstream's route names no channel. It runs as one
+`UPDATE … RETURNING`, so of two concurrent callers only one can claim the
+change.
+
+| Patch state | Response |
+|---|---|
+| active on ≥1 channel | 200, body lists the channels it rolled back |
+| already rolled back, active nowhere | 304 |
+| never promoted, or only superseded (withdrawn, not rolled back) | 409 |
+| not on the release in the path, or on another app | 404 |
+
+Auditing uses the same `patch.withdraw` operation as the `/admin` route, with
+`detail.changed` telling a 304 apart from a real change.
+
+**Known limitation:** after patch 2 is promoted over patch 1, patch 1 is
+withdrawn but *not* rolled back, and `shorebird patches rollback
+--patch-number 1` returns 409. That is the existing `/admin` behaviour too:
+marking a withdrawn row as rolled back would change a terminal row, which
+this pass does not do.
 
 ---
 
@@ -144,9 +181,9 @@ the CLI-only fixes in §2 cannot.
 
 ## Recommended order
 
-1. Endpoint #1 `rollback` — cheapest, model already present.
+1. ~~Endpoint #1 `rollback`~~ — done.
 2. Endpoints #4/#5/#6 app and channel management — additive, no state-machine
-   change, but a new authorization surface to design.
-3. Decide §3 before touching `rollforward`.
+   change. Define the authorization rule once, then apply it to all three.
+3. ~~Decide §3~~ — ruled (c); rollforward refused with 501.
 4. Skip #3 `GET /plan` and both `stripe_api` commits.
 5. §2 CLI fixes behind a governed pin promotion.

@@ -1571,6 +1571,24 @@ class Repository {
     },
   );
 
+  /// [withdraw] with `rollback: true` on every channel where [patchId] is
+  /// active, for the release-scoped upstream rollback route, which names no
+  /// channel. One statement, so a concurrent caller cannot also claim the
+  /// change: the loser sees no rows. Returns the channel ids it rolled back;
+  /// empty means nothing was active.
+  Future<List<int>> rollbackActive(int patchId) async {
+    final r = await _q(
+      'UPDATE channel_patches SET status = @w, withdrawn_at = now(), rolled_back = true '
+      'WHERE patch_id = @p AND status = @a RETURNING channel_id',
+      {
+        'w': ChannelPatchStatus.withdrawn.name,
+        'p': patchId,
+        'a': ChannelPatchStatus.active.name,
+      },
+    );
+    return r.map((m) => _int(m['channel_id'])).toList();
+  }
+
   Future<List<int>> rolledBackPatchNumbers(int channelId, int releaseId) async {
     final r = await _q(
       'SELECT p.number AS n FROM channel_patches cp JOIN patches p ON p.id = cp.patch_id '
