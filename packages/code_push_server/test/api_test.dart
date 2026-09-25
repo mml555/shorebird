@@ -3272,6 +3272,319 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // Upstream 1.6.123 app rename, app transfer and channel delete, under the one
+  // rule in selfhost/upstream/ADOPTION-1.6.123.md §5: admin at every scope the
+  // mutation changes, and a collaborator grant never counts at org scope.
+  group('app and channel management', () {
+    late ({String appId, int releaseId, int channelId}) s;
+
+    setUp(() async => s = await seedApp());
+
+    /// A user holding [role] in org [orgId], via a real invitation.
+    Future<({int id, String key})> member(
+      String email,
+      String role, {
+      int orgId = 1,
+    }) async {
+      final u = await repo.upsertUser(email, email);
+      final token = await repo.createInvitation(orgId, email, role);
+      await repo.acceptInvitation(token, u.id, orgId, role);
+      return (id: u.id, key: await repo.createApiKey(u.id));
+    }
+
+    /// A user who is only a collaborator on the seeded app.
+    Future<({int id, String key})> collaborator(
+      String email,
+      String role,
+    ) async {
+      final u = await repo.upsertUser(email, email);
+      await repo.addCollaborator(s.appId, u.id, role);
+      return (id: u.id, key: await repo.createApiKey(u.id));
+    }
+
+    group('rename', () {
+      Future<Response> rename(String name, {String bearer = _bootstrapKey}) =>
+          send(
+            'PATCH',
+            '/api/v1/apps/${s.appId}',
+            bearer: bearer,
+            json: {'name': name},
+          );
+
+      Future<String> displayName() async {
+        final r = await jsonOf(
+          await send('GET', '/api/v1/apps', bearer: _bootstrapKey),
+        );
+        return ((r['apps'] as List).single as Map)['display_name'] as String;
+      }
+
+      test('an org owner can rename', () async {
+        expect((await rename('Renamed')).statusCode, HttpStatus.noContent);
+        expect(await displayName(), 'Renamed');
+      });
+
+      test('an admin collaborator can rename', () async {
+        final c = await collaborator('admin@example.test', 'admin');
+        expect(
+          (await rename('Renamed', bearer: c.key)).statusCode,
+          HttpStatus.noContent,
+        );
+      });
+
+      test('a developer, member or collaborator, cannot', () async {
+        final dev = await member('dev@example.test', 'developer');
+        final collab = await collaborator('collab@example.test', 'developer');
+        for (final key in [dev.key, collab.key]) {
+          expect(
+            (await rename('Nope', bearer: key)).statusCode,
+            HttpStatus.forbidden,
+          );
+        }
+        expect(await displayName(), 'app');
+      });
+
+      test('an empty name is rejected', () async {
+        expect((await rename('  ')).statusCode, HttpStatus.badRequest);
+      });
+    });
+
+    group('channel delete', () {
+      late int patchId;
+      late int qaId;
+
+      setUp(() async {
+        final p = await jsonOf(
+          await send(
+            'POST',
+            '/api/v1/apps/${s.appId}/patches',
+            bearer: _bootstrapKey,
+            json: {'release_id': s.releaseId},
+          ),
+        );
+        patchId = p['id'] as int;
+        await uploadPatchArtifact(s.appId, patchId);
+        qaId =
+            (await jsonOf(
+                  await send(
+                    'POST',
+                    '/api/v1/apps/${s.appId}/channels',
+                    bearer: _bootstrapKey,
+                    json: {'channel': 'qa'},
+                  ),
+                ))['id']
+                as int;
+      });
+
+      Future<Response> promote(int channelId) => send(
+        'POST',
+        '/api/v1/apps/${s.appId}/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': patchId, 'channel_id': channelId},
+      );
+
+      Future<Response> delete(int channelId, {String bearer = _bootstrapKey}) =>
+          send(
+            'DELETE',
+            '/api/v1/apps/${s.appId}/channels/$channelId',
+            bearer: bearer,
+          );
+
+      Future<Map<String, dynamic>> check(String channel) async => jsonOf(
+        await send(
+          'POST',
+          '/api/v1/patches/check',
+          json: {
+            'app_id': s.appId,
+            'release_version': '1.0.0',
+            'platform': 'android',
+            'arch': 'aarch64',
+            'channel': channel,
+          },
+        ),
+      );
+
+      Future<List<Object?>> channelNames() async {
+        final r = await send(
+          'GET',
+          '/api/v1/apps/${s.appId}/channels',
+          bearer: _bootstrapKey,
+        );
+        return [
+          for (final c in jsonDecode(await r.readAsString()) as List)
+            (c as Map)['name'],
+        ];
+      }
+
+      test('stops serving and disappears from listings', () async {
+        await promote(qaId);
+        expect((await check('qa'))['patch_available'], isTrue);
+
+        expect((await delete(qaId)).statusCode, HttpStatus.noContent);
+        expect(await channelNames(), isNot(contains('qa')));
+        expect((await check('qa'))['patch_available'], isFalse);
+        expect((await promote(qaId)).statusCode, HttpStatus.notFound);
+        expect((await delete(qaId)).statusCode, HttpStatus.notFound);
+
+        final listed = await jsonOf(
+          await send(
+            'GET',
+            '/api/v1/apps/${s.appId}/releases/${s.releaseId}/patches',
+            bearer: _bootstrapKey,
+          ),
+        );
+        expect(((listed['patches'] as List).single as Map)['channel'], isNull);
+      });
+
+      test('a later rollback still reaches its devices', () async {
+        await promote(qaId);
+        await delete(qaId);
+        final rb = await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/releases/${s.releaseId}'
+              '/patches/$patchId/rollback',
+          bearer: _bootstrapKey,
+        );
+        expect(rb.statusCode, HttpStatus.ok);
+        expect((await jsonOf(rb))['channels'], ['qa']);
+        final c = await check('qa');
+        expect(c['patch_available'], isFalse);
+        expect(c['rolled_back_patch_numbers'], [1]);
+      });
+
+      test('recreating the name restores it, serving nothing', () async {
+        await promote(qaId);
+        await delete(qaId);
+        final again = await jsonOf(
+          await send(
+            'POST',
+            '/api/v1/apps/${s.appId}/channels',
+            bearer: _bootstrapKey,
+            json: {'channel': 'qa'},
+          ),
+        );
+        expect(again['id'], qaId);
+        expect(await channelNames(), contains('qa'));
+        expect((await check('qa'))['patch_available'], isFalse);
+        expect((await promote(qaId)).statusCode, HttpStatus.noContent);
+        expect((await check('qa'))['patch_available'], isTrue);
+      });
+
+      test('built-in tracks are permanent', () async {
+        expect((await delete(s.channelId)).statusCode, HttpStatus.conflict);
+        expect(await channelNames(), contains('stable'));
+      });
+
+      test('a developer cannot delete; an admin collaborator can', () async {
+        final dev = await collaborator('dev@example.test', 'developer');
+        expect(
+          (await delete(qaId, bearer: dev.key)).statusCode,
+          HttpStatus.forbidden,
+        );
+        final admin = await collaborator('admin@example.test', 'admin');
+        expect(
+          (await delete(qaId, bearer: admin.key)).statusCode,
+          HttpStatus.noContent,
+        );
+      });
+
+      test('another app\'s channel id is not found', () async {
+        final other = await seedApp('other');
+        final r = await send(
+          'DELETE',
+          '/api/v1/apps/${other.appId}/channels/$qaId',
+          bearer: _bootstrapKey,
+        );
+        expect(r.statusCode, HttpStatus.notFound);
+        expect(await channelNames(), contains('qa'));
+      });
+    });
+
+    group('transfer', () {
+      /// A second org, owned by someone else, with the bootstrap user added
+      /// at [bootstrapRole] (or not at all).
+      Future<int> otherOrg({String? bootstrapRole = 'admin'}) async {
+        final owner = await repo.upsertUser('carol@corp.test', 'Carol');
+        final orgId = (await repo.memberships(owner.id)).first.orgId;
+        if (bootstrapRole != null) {
+          final token = await repo.createInvitation(
+            orgId,
+            'owner@self-host.local',
+            bootstrapRole,
+          );
+          await repo.acceptInvitation(token, 1, orgId, bootstrapRole);
+        }
+        return orgId;
+      }
+
+      Future<Response> transfer(int orgId, {String bearer = _bootstrapKey}) =>
+          send(
+            'POST',
+            '/api/v1/organizations/$orgId/apps',
+            bearer: bearer,
+            json: {'app_id': s.appId},
+          );
+
+      test('an admin of both orgs can move the app', () async {
+        final orgId = await otherOrg();
+        expect((await transfer(orgId)).statusCode, HttpStatus.noContent);
+        expect(await repo.appOrgId(s.appId), orgId);
+      });
+
+      test('admin of the source alone is not enough', () async {
+        for (final role in [null, 'developer']) {
+          final orgId = await otherOrg(bootstrapRole: role);
+          expect(
+            (await transfer(orgId)).statusCode,
+            HttpStatus.forbidden,
+            reason: '$role',
+          );
+          expect(await repo.appOrgId(s.appId), 1);
+        }
+      });
+
+      test('an owner collaborator cannot move it into their own org', () async {
+        // The escalation the rule exists to stop: an app-scoped grant turned
+        // into ownership.
+        final c = await collaborator('mallory@evil.test', 'owner');
+        final theirOrg = (await repo.memberships(c.id)).first.orgId;
+        expect(
+          (await transfer(theirOrg, bearer: c.key)).statusCode,
+          HttpStatus.forbidden,
+        );
+        expect(await repo.appOrgId(s.appId), 1);
+      });
+
+      test('no access to the app is forbidden', () async {
+        final t = await otherTenant();
+        final orgId = (await repo.memberships(t.userId)).first.orgId;
+        expect(
+          (await transfer(orgId, bearer: t.key)).statusCode,
+          HttpStatus.forbidden,
+        );
+      });
+
+      test('refused while collaborators fall outside the allowlist', () async {
+        final orgId = await otherOrg();
+        await repo.setOrgAllowedDomains(orgId, ['corp.test']);
+        final c = await collaborator('dev@example.test', 'developer');
+
+        final r = await transfer(orgId);
+        expect(r.statusCode, HttpStatus.conflict);
+        expect((await jsonOf(r))['message'], contains('dev@example.test'));
+        expect(await repo.appOrgId(s.appId), 1);
+
+        await repo.removeCollaborator(s.appId, c.id);
+        expect((await transfer(orgId)).statusCode, HttpStatus.noContent);
+      });
+
+      test('into its own org is a no-op', () async {
+        expect((await transfer(1)).statusCode, HttpStatus.noContent);
+        expect(await repo.appOrgId(s.appId), 1);
+      });
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Release/patch notes. The wire contract always carried `notes` on both DTOs
   // and the CLI's `releases info` / `patches info` already print it, but the
   // server hardcoded null on every response, so the field could never be used.

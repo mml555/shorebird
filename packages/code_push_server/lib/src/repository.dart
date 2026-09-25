@@ -89,10 +89,14 @@ class PatchRow {
 }
 
 class ChannelRow {
-  ChannelRow(this.id, this.appId, this.name);
+  ChannelRow(this.id, this.appId, this.name, {this.deleted = false});
   final int id;
   final String appId;
   final String name;
+
+  /// Soft-deleted: hidden from listings and promotion, but patch-check still
+  /// answers for it so devices on it keep receiving rollback signals.
+  final bool deleted;
 }
 
 class ChannelPatchRow {
@@ -494,6 +498,17 @@ class Repository {
         'CREATE INDEX IF NOT EXISTS audit_log_org ON audit_log(org_id, id)',
         'CREATE INDEX IF NOT EXISTS audit_log_target '
             'ON audit_log(target_kind, target, id)',
+      ],
+    ),
+    (
+      13,
+      [
+        // Channel delete is a SOFT delete. `channel_patches` references
+        // `channels(id)`, and cascading would erase deployment history along
+        // with the rollback signal: devices still on a deleted channel could
+        // never again be told to revert a patch. See
+        // selfhost/upstream/ADOPTION-1.6.123.md §5.
+        'ALTER TABLE channels ADD COLUMN deleted_at TIMESTAMPTZ',
       ],
     ),
   ];
@@ -1081,6 +1096,18 @@ class Repository {
     );
   }
 
+  Future<void> renameApp(String appId, String displayName) => _q(
+    'UPDATE apps SET display_name = @d, updated_at = now() WHERE app_id = @a',
+    {'a': appId, 'd': displayName},
+  );
+
+  /// Moves [appId] into [orgId]. Access through org membership follows the
+  /// app; `app_collaborators` grants are per-app and move with it.
+  Future<void> transferApp(String appId, int orgId) => _q(
+    'UPDATE apps SET org_id = @o, updated_at = now() WHERE app_id = @a',
+    {'a': appId, 'o': orgId},
+  );
+
   /// Apps visible to [orgIds] (org ownership); if [orgIds] is null, all apps.
   Future<List<AppRow>> apps({List<int>? orgIds}) async {
     final List<Map<String, Object?>> r;
@@ -1298,10 +1325,12 @@ class Repository {
   );
 
   /// Per-channel deployment state for [patchId]: `{channel, status, rollout,
-  /// rolled_back}` per row (newest promotion first). Empty = not promoted.
+  /// rolled_back, channel_deleted}` per row (newest promotion first).
+  /// Empty = not promoted.
   Future<List<Map<String, Object?>>> patchDeployments(int patchId) async {
     final r = await _q(
-      'SELECT c.name AS channel, cp.status, cp.rollout, cp.rolled_back '
+      'SELECT c.name AS channel, c.deleted_at, cp.status, cp.rollout, '
+      'cp.rolled_back '
       'FROM channel_patches cp JOIN channels c ON c.id = cp.channel_id '
       'WHERE cp.patch_id = @p ORDER BY cp.promoted_at DESC',
       {'p': patchId},
@@ -1313,6 +1342,7 @@ class Repository {
             'status': m['status'],
             'rollout': _int(m['rollout']),
             'rolled_back': asDbBool(m['rolled_back']),
+            'channel_deleted': m['deleted_at'] != null,
           },
         )
         .toList();
@@ -1358,43 +1388,77 @@ class Repository {
     return ChannelRow(_int(r.first['id']), appId, name);
   }
 
-  Future<ChannelRow?> channel(String appId, String name) async {
+  ChannelRow _chFrom(Map<String, Object?> m) => ChannelRow(
+    _int(m['id']),
+    m['app_id'] as String,
+    m['name'] as String,
+    deleted: m['deleted_at'] != null,
+  );
+
+  /// The channel named [name] on [appId]. A soft-deleted channel is returned
+  /// only with [includeDeleted]: patch-check needs it, so devices on it still
+  /// learn about rollbacks, and channel create needs it to restore rather than
+  /// collide with `UNIQUE(app_id, name)`.
+  Future<ChannelRow?> channel(
+    String appId,
+    String name, {
+    bool includeDeleted = false,
+  }) async {
     final r = await _q(
-      'SELECT * FROM channels WHERE app_id = @a AND name = @n',
+      'SELECT * FROM channels WHERE app_id = @a AND name = @n'
+      '${includeDeleted ? '' : ' AND deleted_at IS NULL'}',
       {'a': appId, 'n': name},
     );
-    if (r.isEmpty) return null;
-    final m = r.first;
-    return ChannelRow(
-      _int(m['id']),
-      m['app_id'] as String,
-      m['name'] as String,
-    );
+    return r.isEmpty ? null : _chFrom(r.first);
   }
 
-  Future<ChannelRow?> channelById(int id) async {
-    final r = await _q('SELECT * FROM channels WHERE id = @id', {'id': id});
-    if (r.isEmpty) return null;
-    final m = r.first;
-    return ChannelRow(
-      _int(m['id']),
-      m['app_id'] as String,
-      m['name'] as String,
+  Future<ChannelRow?> channelById(int id, {bool includeDeleted = false}) async {
+    final r = await _q(
+      'SELECT * FROM channels WHERE id = @id'
+      '${includeDeleted ? '' : ' AND deleted_at IS NULL'}',
+      {'id': id},
     );
+    return r.isEmpty ? null : _chFrom(r.first);
   }
 
+  /// Live channels on [appId]; soft-deleted ones are not listed.
   Future<List<ChannelRow>> channels(String appId) async {
-    final r = await _q('SELECT * FROM channels WHERE app_id = @a ORDER BY id', {
-      'a': appId,
-    });
-    return r.map((m) {
-      return ChannelRow(
-        _int(m['id']),
-        m['app_id'] as String,
-        m['name'] as String,
-      );
-    }).toList();
+    final r = await _q(
+      'SELECT * FROM channels WHERE app_id = @a AND deleted_at IS NULL '
+      'ORDER BY id',
+      {'a': appId},
+    );
+    return r.map(_chFrom).toList();
   }
+
+  /// Soft-deletes [channelId]. Its `channel_patches` rows are left exactly as
+  /// they are, so a later rollback of a patch that was live here still marks
+  /// this channel and still reaches its devices through patch-check.
+  Future<void> deleteChannel(int channelId) => _q(
+    'UPDATE channels SET deleted_at = now() '
+    'WHERE id = @id AND deleted_at IS NULL',
+    {'id': channelId},
+  );
+
+  /// Restores a soft-deleted channel when its name is created again. Devices
+  /// know a channel only by name, so this is the same channel to them. Whatever
+  /// was active at deletion is withdrawn first (superseded, not rolled back),
+  /// so a restored channel serves nothing until something is promoted to it.
+  Future<ChannelRow> restoreChannel(ChannelRow channel) => _db.tx((s) async {
+    await s.query(
+      'UPDATE channel_patches SET status = @w, withdrawn_at = now() '
+      'WHERE channel_id = @c AND status = @a',
+      {
+        'w': ChannelPatchStatus.withdrawn.name,
+        'a': ChannelPatchStatus.active.name,
+        'c': channel.id,
+      },
+    );
+    await s.query('UPDATE channels SET deleted_at = NULL WHERE id = @c', {
+      'c': channel.id,
+    });
+    return ChannelRow(channel.id, channel.appId, channel.name);
+  });
 
   // ---- ChannelPatches ----
 

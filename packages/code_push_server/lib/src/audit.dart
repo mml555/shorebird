@@ -196,6 +196,23 @@ AuditRoute? classifyMutation(String method, List<String> segments) {
     );
   }
 
+  if (seg.length == 2 && seg[0] == 'apps' && method == 'PATCH') {
+    return AuditRoute('app.update', 'PATCH /api/v1/apps/{app}', appId: seg[1]);
+  }
+
+  // Moves an app between orgs. The app id is in the body, so the handler
+  // notes it; the destination org is the path's.
+  if (seg.length == 3 &&
+      seg[0] == 'organizations' &&
+      seg[2] == 'apps' &&
+      method == 'POST') {
+    return AuditRoute(
+      'app.transfer',
+      'POST /api/v1/organizations/{org}/apps',
+      orgId: id(seg[1]),
+    );
+  }
+
   if (seg.length < 3 || seg[0] != 'apps') return null;
   final appId = seg[1];
   final rest = seg.sublist(2);
@@ -204,6 +221,13 @@ AuditRoute? classifyMutation(String method, List<String> segments) {
     return AuditRoute(
       'channel.create',
       'POST /api/v1/apps/{app}/channels',
+      appId: appId,
+    );
+  }
+  if (rest[0] == 'channels' && rest.length == 2 && method == 'DELETE') {
+    return AuditRoute(
+      'channel.delete',
+      'DELETE /api/v1/apps/{app}/channels/{channel}',
       appId: appId,
     );
   }

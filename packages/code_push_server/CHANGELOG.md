@@ -10,6 +10,18 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Upstream 1.6.123 `apps rename`, `apps transfer` and `channels delete`.**
+  `PATCH /api/v1/apps/{app}`, `POST /api/v1/organizations/{org}/apps` and
+  `DELETE /api/v1/apps/{app}/channels/{channel}`, all under one rule: admin at
+  every scope the mutation changes. Rename and channel delete need an app
+  admin. Transfer needs an owner/admin of both orgs; a collaborator grant never
+  counts at org scope. A transfer is refused while the app has collaborators
+  outside the destination org's email-domain allowlist. Channel delete is a
+  soft delete (migration 13): the channel stops serving patches but its devices
+  still receive rollbacks, recreating the name restores it empty, and
+  `stable`/`beta`/`staging` cannot be deleted. Audited as `app.update`,
+  `app.transfer` and `channel.delete`.
+
 - **Upstream 1.6.123 `shorebird patches rollback` works against this server.**
   `POST /api/v1/apps/{app}/releases/{release}/patches/{patch}/rollback` rolls
   the patch back on every channel where it is active (the same withdrawal as

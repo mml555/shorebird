@@ -734,6 +734,12 @@ class Api {
     if (seg.length == 1 && seg[0] == 'organizations' && m == 'GET') {
       return _organizations(req);
     }
+    if (seg.length == 3 &&
+        seg[0] == 'organizations' &&
+        seg[2] == 'apps' &&
+        m == 'POST') {
+      return _transferApp(req, _pathId(seg[1], 'organization id'));
+    }
     if (seg.length == 2 && seg[0] == 'users' && seg[1] == 'me' && m == 'GET') {
       return _usersMe(req);
     }
@@ -775,9 +781,13 @@ class Api {
       final appId = seg[1];
       await _authorizeApp(req, appId);
       final rest = seg.sublist(2);
+      if (rest.isEmpty && m == 'PATCH') return _renameApp(req, appId);
       if (rest.length == 1 && rest[0] == 'channels') {
         if (m == 'GET') return _getChannels(appId);
         if (m == 'POST') return _createChannel(req, appId);
+      }
+      if (rest.length == 2 && rest[0] == 'channels' && m == 'DELETE') {
+        return _deleteChannel(req, appId, _pathId(rest[1], 'channel id'));
       }
       if (rest.length == 1 && rest[0] == 'metrics' && m == 'GET') {
         return _metrics(appId);
@@ -1362,13 +1372,21 @@ class Api {
     }
   }
 
-  /// Authorizes the caller to administer [appId] (manage collaborators).
-  Future<void> _authorizeAppAdmin(Request req, String appId) async {
+  /// Authorizes the caller to administer [appId]: an owner/admin of the owning
+  /// org, or an owner/admin collaborator. The app-scope half of the rule in
+  /// selfhost/upstream/ADOPTION-1.6.123.md §5 — anything that changes an app's
+  /// identity, structure or ownership needs admin at every scope it changes.
+  /// [what] names the action in the refusal.
+  Future<void> _authorizeAppAdmin(
+    Request req,
+    String appId, {
+    String what = 'Managing collaborators',
+  }) async {
     if (!await repo.userIsAppAdmin(_uid(req), appId)) {
       throw DomainException(
         HttpStatus.forbidden,
         'forbidden',
-        'Managing collaborators on $appId requires an admin role',
+        '$what on $appId requires an admin role',
       );
     }
   }
@@ -1657,7 +1675,8 @@ class Api {
       );
     }
     final channels = [
-      for (final id in channelIds) (await repo.channelById(id))!.name,
+      for (final id in channelIds)
+        (await repo.channelById(id, includeDeleted: true))!.name,
     ];
     _audit(req)?.note(
       track: channels.length == 1 ? channels.single : null,
@@ -1889,11 +1908,100 @@ class Api {
   Future<Response> _createChannel(Request req, String appId) async {
     final body = await _jsonBody(req);
     final name = _stringField(body, 'channel');
-    final channel =
-        await repo.channel(appId, name) ??
-        await repo.createChannel(appId, name);
-    _audit(req)?.note(track: channel.name, detail: {'channel_id': channel.id});
+    final existing = await repo.channel(appId, name, includeDeleted: true);
+    final channel = existing == null
+        ? await repo.createChannel(appId, name)
+        : existing.deleted
+        ? await repo.restoreChannel(existing)
+        : existing;
+    _audit(req)?.note(
+      track: channel.name,
+      detail: {
+        'channel_id': channel.id,
+        if (existing?.deleted ?? false) 'restored': true,
+      },
+    );
     return _json({'id': channel.id, 'app_id': appId, 'name': channel.name});
+  }
+
+  /// The built-in tracks. Upstream's CLI refuses to delete them; the server
+  /// refuses too, so a direct API call cannot either. `stable` is also what
+  /// patch-check falls back to when a device names no channel.
+  static const Set<String> _permanentChannels = {'stable', 'beta', 'staging'};
+
+  /// Upstream 1.6.123 `shorebird channels delete`. A soft delete, for the
+  /// reasons on migration 13: devices stop receiving patches, but still
+  /// receive rollbacks. App-admin, per ADOPTION-1.6.123.md §5.
+  Future<Response> _deleteChannel(
+    Request req,
+    String appId,
+    int channelId,
+  ) async {
+    await _authorizeAppAdmin(req, appId, what: 'Deleting a channel');
+    final channel = await _ownedChannel(appId, channelId);
+    _audit(req)?.note(track: channel.name, detail: {'channel_id': channel.id});
+    if (_permanentChannels.contains(channel.name)) {
+      throw conflict('The ${channel.name} channel is permanent');
+    }
+    await repo.deleteChannel(channel.id);
+    return Response(HttpStatus.noContent);
+  }
+
+  /// Upstream 1.6.123 `shorebird apps rename`. App-admin, per
+  /// ADOPTION-1.6.123.md §5: a rename changes what every collaborator sees.
+  Future<Response> _renameApp(Request req, String appId) async {
+    await _authorizeAppAdmin(req, appId, what: 'Renaming an app');
+    final body = await _jsonBody(req);
+    final name = _stringField(body, 'name').trim();
+    if (name.isEmpty) throw badRequest('name must not be empty');
+    _audit(req)?.note(detail: {'display_name': name});
+    await repo.renameApp(appId, name);
+    return Response(HttpStatus.noContent);
+  }
+
+  /// Upstream 1.6.123 `shorebird apps transfer`: moves an existing app into
+  /// [orgId]. Org-admin of BOTH orgs, per ADOPTION-1.6.123.md §5 — a
+  /// collaborator grant is app-scoped and never confers org authority, or an
+  /// owner collaborator could move a company's app into their own org.
+  ///
+  /// Refused with 409 while the app carries collaborators the destination's
+  /// email-domain allowlist would not admit: a transfer must not become a way
+  /// around that policy.
+  Future<Response> _transferApp(Request req, int orgId) async {
+    final body = await _jsonBody(req);
+    final appId = _stringField(body, 'app_id');
+    _audit(req)?.note(appId: appId, orgId: orgId);
+    await _authorizeApp(req, appId);
+    final fromOrgId = (await repo.appOrgId(appId))!;
+    _audit(req)?.note(detail: {'from_org_id': fromOrgId, 'to_org_id': orgId});
+    final uid = _uid(req);
+    if (!await repo.userIsOrgAdmin(uid, fromOrgId) ||
+        !await repo.userIsOrgAdmin(uid, orgId)) {
+      throw DomainException(
+        HttpStatus.forbidden,
+        'forbidden',
+        'Transferring an app requires an owner/admin role in both the source '
+            'and destination organizations',
+      );
+    }
+    if (fromOrgId == orgId) return Response(HttpStatus.noContent);
+    final domains = await repo.orgAllowedDomains(orgId);
+    if (domains.isNotEmpty) {
+      final outside = [
+        for (final c in await repo.appCollaborators(appId))
+          if (!emailAllowedByDomains(c['email']! as String, domains))
+            c['email']! as String,
+      ];
+      if (outside.isNotEmpty) {
+        throw conflict(
+          'Organization $orgId only admits addresses at '
+          '${domains.join(', ')}; remove these collaborators first: '
+          '${outside.join(', ')}',
+        );
+      }
+    }
+    await repo.transferApp(appId, orgId);
+    return Response(HttpStatus.noContent);
   }
 
   Future<Response> _metrics(String appId) async {
@@ -1911,7 +2019,8 @@ class Api {
   static String? _currentTrack(List<Map<String, Object?>> deployments) {
     for (final d in deployments) {
       if (d['status'] == ChannelPatchStatus.active.name &&
-          d['rolled_back'] != true) {
+          d['rolled_back'] != true &&
+          d['channel_deleted'] != true) {
         return d['channel'] as String?;
       }
     }
@@ -2366,13 +2475,20 @@ class Api {
     }
     final release = await repo.releaseByVersion(appId, version);
     if (release == null) return _json(resp());
-    final channel = await repo.channel(appId, channelName);
+    final channel = await repo.channel(
+      appId,
+      channelName,
+      includeDeleted: true,
+    );
     if (channel == null) return _json(resp());
 
     final rolledBack = await repo.rolledBackPatchNumbers(
       channel.id,
       release.id,
     );
+    // A deleted channel offers nothing, but must keep telling its devices
+    // which patches to revert — the reason channel delete is soft.
+    if (channel.deleted) return _json(resp(rolledBack: rolledBack));
 
     // Platform-scoped: a channel can hold one active patch per platform, so an
     // Android device must not be handed the newest patch when that patch is

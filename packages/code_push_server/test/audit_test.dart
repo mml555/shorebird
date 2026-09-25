@@ -225,6 +225,14 @@ void main() {
         ('PUT', '/api/v1/uploads/tok', 'artifact.upload'),
         ('POST', '/admin/apps/a1/patches/3/withdraw', 'patch.withdraw'),
         ('POST', '/admin/apps/a1/patches/3/rollout', 'patch.rollout'),
+        (
+          'POST',
+          '/api/v1/apps/a1/releases/7/patches/3/rollback',
+          'patch.withdraw',
+        ),
+        ('PATCH', '/api/v1/apps/a1', 'app.update'),
+        ('POST', '/api/v1/organizations/4/apps', 'app.transfer'),
+        ('DELETE', '/api/v1/apps/a1/channels/9', 'channel.delete'),
       ];
       for (final (method, path, operation) in cases) {
         expect(
@@ -491,6 +499,65 @@ void main() {
         expect(rows.where((e) => e['track'] == 'stable'), hasLength(1));
       },
     );
+  });
+
+  // -------------------------------------------------------------------------
+  group('app and channel management', () {
+    test('rename, channel delete and transfer are attributable', () async {
+      final s = await seedApp();
+      await send(
+        'PATCH',
+        '/api/v1/apps/${s.appId}',
+        bearer: _bootstrapKey,
+        json: {'name': 'Renamed'},
+      );
+      final qa = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/channels',
+          bearer: _bootstrapKey,
+          json: {'channel': 'qa'},
+        ),
+      );
+      await send(
+        'DELETE',
+        '/api/v1/apps/${s.appId}/channels/${qa['id']}',
+        bearer: _bootstrapKey,
+      );
+      // Refused: the bootstrap user is not a member of this org.
+      final carol = await repo.upsertUser('carol@corp.test', 'Carol');
+      final orgId = (await repo.memberships(carol.id)).first.orgId;
+      final t = await send(
+        'POST',
+        '/api/v1/organizations/$orgId/apps',
+        bearer: _bootstrapKey,
+        json: {'app_id': s.appId},
+      );
+      expect(t.statusCode, 403);
+
+      final update = (await requestEvents('app.update')).single;
+      expect(update['result'], 'success');
+      expect(update['app_id'], s.appId);
+      expect(
+        (jsonDecode(update['detail']! as String) as Map)['display_name'],
+        'Renamed',
+      );
+
+      final del = (await requestEvents('channel.delete')).single;
+      expect(del['result'], 'success');
+      expect(del['app_id'], s.appId);
+      expect(del['track'], 'qa');
+
+      final transfer = (await requestEvents('app.transfer')).single;
+      expect(transfer['result'], 'refused');
+      expect(transfer['http_status'], 403);
+      expect(transfer['app_id'], s.appId);
+      expect(transfer['org_id'], orgId);
+      expect(
+        (jsonDecode(transfer['detail']! as String) as Map)['from_org_id'],
+        1,
+      );
+    });
   });
 
   // -------------------------------------------------------------------------

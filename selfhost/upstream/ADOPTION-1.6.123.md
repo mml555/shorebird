@@ -24,9 +24,9 @@ Exact contracts, read from upstream `code_push_client.dart`.
 | 1 | `POST /api/v1/apps/{appId}/releases/{releaseId}/patches/{patchId}/rollback` | empty body | 200 = changed, **304 = already rolled back** | **implemented** — rolls back on every active channel; see below |
 | 2 | `POST .../patches/{patchId}/rollforward` | empty body | 200 = changed, 304 = already active | **intentionally unsupported** — 501, see §3 |
 | 3 | `GET /api/v1/plan` | — | `{"level": "free"\|"pro"\|"business"\|"enterprise"}`, nullable | absent |
-| 4 | `PATCH /api/v1/apps/{appId}` | `{"name": "<displayName>"}` | 2xx | absent |
-| 5 | `POST /api/v1/organizations/{organizationId}/apps` | `{"app_id": "<appId>"}` | 2xx | absent — this is a **transfer** of an existing app, see §5 |
-| 6 | `DELETE /api/v1/apps/{appId}/channels/{channelId}` | — | 2xx | absent |
+| 4 | `PATCH /api/v1/apps/{appId}` | `{"name": "<displayName>"}` | 2xx | **implemented**, §5 |
+| 5 | `POST /api/v1/organizations/{organizationId}/apps` | `{"app_id": "<appId>"}` | 2xx | **implemented** — this is a **transfer** of an existing app, see §5 |
+| 6 | `DELETE /api/v1/apps/{appId}/channels/{channelId}` | — | 2xx | **implemented** (soft delete), §5 |
 
 ### The good news on rollback
 
@@ -237,29 +237,46 @@ Consequences of applying it consistently:
   404 (`_ownedChannel`). Every refusal writes a `refused` audit event, like
   every other mutation.
 
-### Open questions before implementation
+### Rulings (PM, 2026-09-25) and what was built
 
-1. **Transfer vs. the destination org's email-domain allowlist.** Existing
-   collaborators move with the app. `_requireEmailAllowedInOrg` governs
-   *adding* people, not moving existing grants. Decide whether a transfer into
-   a restricted org is refused while it carries non-conforming collaborators.
-2. **Channel delete vs. our schema.** `channel_patches.channel_id` references
-   `channels(id)` with no cascade, so a hard delete fails for any channel that
-   ever had a patch promoted to it. Cascading would erase deployment history
-   *and* the rollback signal: patch-check for an unknown channel returns no
-   `rolled_back_patch_numbers`, so devices still running a rolled-back patch
-   would never be told to revert. The candidates are a soft delete (a migration,
-   patch-check answers as today for deleted channels), or refusing to delete a
-   channel with any promotion history. Upstream also treats
-   stable/beta/staging as permanent, which the CLI enforces. The server should
-   refuse those too.
+1. **Transfer is built**, org admin of both orgs. It is **refused (409) while
+   the app carries collaborators outside the destination's email-domain
+   allowlist**, and the refusal names them. A transfer must not be a way around
+   that policy. Transferring into the org that already owns the app is a 204
+   no-op.
+2. **Channel delete is a soft delete** (migration 13, `channels.deleted_at`).
+   A hard delete fails on the `channel_patches` foreign key, and cascading
+   would erase the rollback signal.
+   * `channel_patches` rows are left untouched, so a rollback issued *after*
+     the delete still marks the deleted channel and reaches its devices.
+   * Patch-check on a deleted channel offers no patch but still returns
+     `rolled_back_patch_numbers`.
+   * A deleted channel is hidden from `GET .../channels`, cannot be promoted
+     to or deleted again (404), and no longer counts as a patch's current
+     track.
+   * Creating the same name again **restores the same row**, because devices
+     know a channel only by name. Whatever was active at deletion is withdrawn
+     first (superseded, not rolled back), so a restored channel serves nothing
+     until something is promoted to it.
+   * `stable`, `beta` and `staging` are permanent and refused with 409, as
+     upstream's CLI already does.
+3. **Rename** takes upstream's `{"name": ...}` and sets `display_name`. It is
+   app admin, and an empty name is a 400.
 
+Audit: `app.update`, `app.transfer` (destination org, app id and
+`from_org_id`/`to_org_id` noted) and `channel.delete`. Refusals record as
+`refused` like every other mutation.
 
+Verified by the unit suite and by a scratch run of the HTTP flow against a
+throwaway Postgres 16 container (migration 13, `UPDATE … RETURNING`, soft
+delete, restore, transfer).
+
+---
+
+## Recommended order
 
 1. ~~Endpoint #1 `rollback`~~ — done.
-2. Endpoints #4/#5/#6 app and channel management — rule defined in §5. #4 is
-   ready to implement. #5 (transfer) and #6 (channel delete) each carry an
-   open question.
+2. ~~Endpoints #4/#5/#6 app and channel management~~ — done under the §5 rule.
 3. ~~Decide §3~~ — ruled (c); rollforward refused with 501.
 4. Skip #3 `GET /plan` and both `stripe_api` commits.
 5. §2 CLI fixes behind a governed pin promotion.
