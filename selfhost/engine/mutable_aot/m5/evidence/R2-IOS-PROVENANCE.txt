@@ -122,3 +122,49 @@ shorebird_use_interpreter = false
 # hashes are the primary record. dart_version in args.gn is stale build
 # metadata and is non-authoritative. The presence of the post-2026-09-11
 # Dart_Maot* APIs is a consistency check, not the provenance itself.
+
+# ===== APP ARTIFACT CHAIN, 2026-09-25T05:55:56Z =====
+# app kernel      25593864 bytes, built with MAOT_SELECT_ALL_NON_SDK=1
+#                 MAOT_SELECT_URI_PREFIX=package:maot_smoke/ against
+#                 ios_release/flutter_patched_sdk/platform_strong.dill, --target=flutter
+# snapshot.S      18018047 bytes, from out/maot_host/gen_snapshot
+#                 --snapshot_kind=app-aot-assembly --maot_disable_retention_roots
+#                 --maot_install_trampolines
+# App.framework   4686256 bytes, arm64, minos 13.0
+#                 sha256 c858624bba87fd6766e03b54bcfe181e503fc88f9c40caca010d028f7bd7c774
+#
+# SELECTION IS NON-VACUOUS (checked before packaging, not after):
+#   18 declarations selected in package:maot_smoke/
+#   cls:Hot::method:v   installable=True  optimizer_escapes=0
+#                       indirect_call_sites_emitted=1
+#                       id_trampoline_code=4556929473
+#                       abi k2;p1/1;n;r;t0;recv;onogen;b
+#                       cc  cc1;fixed2;regs0;nofactory;argstt;rett
+#
+# NEGATIVE CONTROL IS GENUINELY INCOMPATIBLE:
+#   cls:BadArity::method:v  abi k2;p2/2;...  cc cc1;fixed3;...
+#   Both the ABI and the calling convention differ from Hot, and
+#   StageReplacement compares both with String::Equals, so installing it
+#   onto Hot must be refused. Had either matched, the control would prove
+#   nothing.
+#
+# RUNNER.APP FRAMEWORK SWAP:
+#   Flutter  stock  9219584 B, 0 Dart_Maot exports
+#            MAOT  19195160 B, 12 Dart_Maot exports, sha c9c7f3e875d78e4e...
+#   App      stock  3367328 B
+#            MAOT   4686256 B, arm64, minos 13.0
+#
+# ===== BLOCKED: CODESIGNING INFRASTRUCTURE =====
+# xcodebuild -allowProvisioningUpdates DEVELOPMENT_TEAM=4QRJV2Y9VQ:
+#   error: No Accounts: Add a new account in Accounts settings.
+#   error: No profiles for 'dev.shorebird.maot.maotSmoke' were found.
+#
+# The two installed profiles are App Store DISTRIBUTION profiles with zero
+# provisioned devices, for com.ShidduchCard and com.jewgoapp.biz. Neither can
+# install on a development device, and with no Apple ID signed into Xcode,
+# automatic provisioning cannot create one.
+#
+# This is an infrastructure blocker, not a Mutable-AOT result. Everything up
+# to and including the signed-artifact boundary is complete and verified:
+# engine, exports, device compatibility, snapshot generation, selection
+# non-vacuity, negative-control validity, and framework substitution.
