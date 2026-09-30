@@ -1,0 +1,14 @@
+# TLS listener for the mirror. Mount this as /etc/caddy/tls_listen.caddy and
+# mount the certs from selfhost/cdn/tls/ to enable https.
+#
+# Requires selfhost/cdn/tls/generate.sh to have been run: Caddy will refuse to
+# start if these files are absent.
+#
+# TLS 1.2 is kept because the JVM Gradle runs on may negotiate it; 1.3 alone is
+# fine for Dart but has caused handshake failures on older JDKs. Caddy's default
+# protocol set includes both.
+
+https://:8443 {
+	tls /etc/caddy/tls/fullchain.crt /etc/caddy/tls/server.key
+	import mirror_site
+}

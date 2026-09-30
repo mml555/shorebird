@@ -1,0 +1,9 @@
+# Certificates and keys are per-deployment. A committed private key is a
+# committed private key, and a shared CA is worse than no CA.
+ca.crt
+ca.key
+ca.srl
+server.crt
+server.key
+fullchain.crt
+openssl.cnf
