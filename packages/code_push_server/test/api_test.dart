@@ -398,6 +398,209 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
+  group('release artifact registration and activation', () {
+    // WAS: re-registering an already-uploaded release artifact was always a 409,
+    // and activating a platform only checked that the artifacts *present* were
+    // verified. Together those stranded release 2.0.0+1785465879 (2026-07-30):
+    // the run was killed with iOS `xcarchive` registered and `runner` +
+    // `ios_supplement` missing, every retry died re-sending `xcarchive` before
+    // reaching them, and no DELETE route exists to clear it.
+    const bd = 'BOUNDARY';
+    const abcSha =
+        'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
+
+    String field(String n, String v) =>
+        '--$bd\r\ncontent-disposition: form-data; name="$n"\r\n\r\n$v\r\n';
+
+    Future<Response> register(
+      String appId,
+      int releaseId, {
+      required String arch,
+      required String platform,
+      String hash = abcSha,
+    }) => send(
+      'POST',
+      '/api/v1/apps/$appId/releases/$releaseId/artifacts',
+      bearer: _bootstrapKey,
+      headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+      body:
+          '${field('arch', arch)}${field('platform', platform)}'
+          '${field('hash', hash)}${field('size', '3')}--$bd--\r\n',
+    );
+
+    /// Registers and uploads, leaving the artifact `verified`. Release artifacts
+    /// have their hash checked (unlike patch artifacts), so the bytes must hash
+    /// to [abcSha].
+    Future<void> upload(
+      String appId,
+      int releaseId, {
+      required String arch,
+      required String platform,
+    }) async {
+      final reg = await jsonOf(
+        await register(appId, releaseId, arch: arch, platform: platform),
+      );
+      final token = (reg['url'] as String).split('/').last;
+      final up = await send(
+        'POST',
+        '/api/v1/uploads/$token',
+        bearer: _bootstrapKey,
+        headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+        body:
+            '--$bd\r\ncontent-disposition: form-data; name="file"; '
+            'filename="a"\r\n\r\nabc\r\n--$bd--\r\n',
+      );
+      expect(up.statusCode, HttpStatus.noContent);
+    }
+
+    Future<Response> activate(String appId, int releaseId, String platform) =>
+        send(
+          'PATCH',
+          '/api/v1/apps/$appId/releases/$releaseId',
+          bearer: _bootstrapKey,
+          json: {'status': 'active', 'platform': platform},
+        );
+
+    test('a byte-identical re-upload is idempotent, not a conflict', () async {
+      final app = await seedApp();
+      final first = await jsonOf(
+        await register(
+          app.appId,
+          app.releaseId,
+          arch: 'xcarchive',
+          platform: 'ios',
+        ),
+      );
+      final again = await register(
+        app.appId,
+        app.releaseId,
+        arch: 'xcarchive',
+        platform: 'ios',
+      );
+      expect(again.statusCode, HttpStatus.ok);
+      // Same registration, not a duplicate row — the retry can carry on to the
+      // artifacts it still owes.
+      expect((await jsonOf(again))['id'], first['id']);
+    });
+
+    test('a rebuilt artifact supersedes the stale one while incomplete', () async {
+      // The real rescue path: `shorebird release` rebuilds on every retry, so the
+      // retry's bytes differ from what landed before the interruption. Matching
+      // on hash alone would 409 the exact case this exists to fix.
+      final app = await seedApp();
+      await upload(
+        app.appId,
+        app.releaseId,
+        arch: 'xcarchive',
+        platform: 'ios',
+      );
+      final rebuilt = await register(
+        app.appId,
+        app.releaseId,
+        arch: 'xcarchive',
+        platform: 'ios',
+        hash: 'f' * 64,
+      );
+      expect(rebuilt.statusCode, HttpStatus.ok);
+      // A fresh registration, not the superseded one.
+      expect((await jsonOf(rebuilt))['hash'], 'f' * 64);
+    });
+
+    test('a differing hash is refused once the release is ready', () async {
+      // From `ready` on, the release artifacts are what installed apps run and
+      // what patches link against; swapping one would invalidate those patches.
+      final app = await seedApp();
+      for (final arch in ['xcarchive', 'runner', 'ios_supplement']) {
+        await upload(app.appId, app.releaseId, arch: arch, platform: 'ios');
+      }
+      expect(
+        (await activate(app.appId, app.releaseId, 'ios')).statusCode,
+        HttpStatus.noContent,
+      );
+      final after = await register(
+        app.appId,
+        app.releaseId,
+        arch: 'xcarchive',
+        platform: 'ios',
+        hash: 'f' * 64,
+      );
+      expect(after.statusCode, HttpStatus.conflict);
+      expect(await after.readAsString(), contains('already registered'));
+    });
+
+    test('an unobfuscated single-ABI Android release activates', () async {
+      // The set this check was built from was induced from a biased sample —
+      // every Android release the server had seen was obfuscated and single-ABI
+      // — so it demanded android_supplement (which only exists with
+      // --obfuscate) plus arm and x86_64 (which only exist for a multi-ABI
+      // build). That made this perfectly ordinary release impossible to
+      // activate, and it is how a real release against our own engine failed.
+      final app = await seedApp();
+      for (final arch in ['aab', 'aarch64']) {
+        await upload(app.appId, app.releaseId, arch: arch, platform: 'android');
+      }
+      final r = await activate(app.appId, app.releaseId, 'android');
+      expect(r.statusCode, HttpStatus.noContent);
+    });
+
+    test('an Android release with no code artifact is refused', () async {
+      // The "at least one of" half: an aab alone would activate a release no
+      // patch could ever be built against.
+      final app = await seedApp();
+      await upload(app.appId, app.releaseId, arch: 'aab', platform: 'android');
+      final r = await activate(app.appId, app.releaseId, 'android');
+      expect(r.statusCode, HttpStatus.conflict);
+      expect(await r.readAsString(), contains('no code artifact'));
+    });
+
+    test(
+      'a platform cannot be activated with an incomplete artifact set',
+      () async {
+        final app = await seedApp();
+        // Exactly the state the killed run left behind: one verified xcarchive.
+        await upload(
+          app.appId,
+          app.releaseId,
+          arch: 'xcarchive',
+          platform: 'ios',
+        );
+        final r = await activate(app.appId, app.releaseId, 'ios');
+        expect(r.statusCode, HttpStatus.conflict);
+        final body = await r.readAsString();
+        expect(body, contains('missing artifacts'));
+        expect(body, contains('ios_supplement'));
+        expect(body, contains('runner'));
+      },
+    );
+
+    test(
+      'a platform activates once its full artifact set is present',
+      () async {
+        final app = await seedApp();
+        for (final arch in ['xcarchive', 'runner', 'ios_supplement']) {
+          await upload(app.appId, app.releaseId, arch: arch, platform: 'ios');
+        }
+        expect(
+          (await activate(app.appId, app.releaseId, 'ios')).statusCode,
+          HttpStatus.noContent,
+        );
+      },
+    );
+
+    test('an unknown platform is not gated on an artifact list', () async {
+      // macOS et al must not be blocked by a required set this server has never
+      // learned; better a late-closed hole than a target that cannot ship.
+      final app = await seedApp();
+      await upload(app.appId, app.releaseId, arch: 'arm64', platform: 'macos');
+      expect(
+        (await activate(app.appId, app.releaseId, 'macos')).statusCode,
+        HttpStatus.noContent,
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
   group('cross-tenant isolation', () {
     // WAS: `_authorizeApp` checked the app in the PATH, but release_id,
     // patch_id and channel_id came from the body unchecked — so pairing your
@@ -783,6 +986,222 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  group('assets-only patches', () {
+    late String appId;
+    late int patchId;
+    late int channelId;
+
+    /// Promotes a patch carrying [arch] artifacts and nothing else.
+    Future<void> seedPatchWith(List<String> arches) async {
+      final s = await seedApp();
+      appId = s.appId;
+      channelId = s.channelId;
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': s.releaseId},
+        ),
+      );
+      patchId = p['id'] as int;
+      for (final arch in arches) {
+        await uploadPatchArtifact(appId, patchId, arch: arch);
+      }
+      await send(
+        'POST',
+        '/api/v1/apps/$appId/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': patchId, 'channel_id': channelId},
+      );
+    }
+
+    Future<Map<String, dynamic>> check({List<String>? kinds}) async => jsonOf(
+      await send(
+        'POST',
+        '/api/v1/patches/check',
+        json: {
+          'app_id': appId,
+          'release_version': '1.0.0',
+          'platform': 'android',
+          'arch': 'aarch64',
+          if (kinds != null) 'supported_patch_kinds': kinds,
+        },
+      ),
+    );
+
+    test('a code patch reports its kind', () async {
+      await seedPatchWith(['aarch64']);
+      final r = await check(kinds: [codePatchKind, assetsPatchKind]);
+      expect(r['patch_available'], isTrue);
+      expect((r['patch'] as Map)['kind'], equals(codePatchKind));
+    });
+
+    test('kind is present even for a client that asked for nothing', () async {
+      // So a client never has to infer the kind from an absent field.
+      await seedPatchWith(['aarch64']);
+      final r = await check();
+      expect((r['patch'] as Map)['kind'], equals(codePatchKind));
+    });
+
+    test(
+      'an assets-only patch is served to a client that supports it',
+      () async {
+        await seedPatchWith([assetsArch]);
+        final r = await check(kinds: [codePatchKind, assetsPatchKind]);
+        expect(r['patch_available'], isTrue);
+        final patch = r['patch'] as Map;
+        expect(patch['kind'], equals(assetsPatchKind));
+        expect(patch['download_url'], isA<String>());
+      },
+    );
+
+    test('an assets-only patch is withheld from a stock updater', () async {
+      // The compatibility gate, and the reason this is negotiated rather than
+      // just announced. A stock updater would try to inflate the asset archive
+      // as a binary diff, fail, and tombstone the patch as permanently bad for
+      // the whole release — so it must never be offered one.
+      await seedPatchWith([assetsArch]);
+      expect((await check())['patch_available'], isFalse);
+      expect((await check(kinds: [codePatchKind]))['patch_available'], isFalse);
+    });
+
+    test('code wins when a patch carries both', () async {
+      await seedPatchWith(['aarch64', assetsArch]);
+      final r = await check(kinds: [codePatchKind, assetsPatchKind]);
+      // The code artifact is what the updater must apply; the bundle rides
+      // alongside and is fetched separately via /patches/assets.
+      expect((r['patch'] as Map)['kind'], equals(codePatchKind));
+    });
+
+    test(
+      'an incapable client falls back to the superseded code patch',
+      () async {
+        // The hazard this exists to close: promoting an assets-only patch
+        // withdraws the code patch, and a stock updater offered nothing would
+        // silently lose a patch it was already entitled to.
+        await seedPatchWith(['aarch64']);
+        final codePatchId = patchId;
+
+        // A second, assets-only patch supersedes it.
+        final p = await jsonOf(
+          await send(
+            'POST',
+            '/api/v1/apps/$appId/patches',
+            bearer: _bootstrapKey,
+            json: {'release_id': 1},
+          ),
+        );
+        final assetsPatchId = p['id'] as int;
+        await uploadPatchArtifact(appId, assetsPatchId, arch: assetsArch);
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches/promote',
+          bearer: _bootstrapKey,
+          json: {'patch_id': assetsPatchId, 'channel_id': channelId},
+        );
+
+        // Capable client: the new assets patch.
+        final capable = await check(kinds: [codePatchKind, assetsPatchKind]);
+        expect((capable['patch'] as Map)['kind'], equals(assetsPatchKind));
+
+        // Stock client: the superseded code patch, not nothing.
+        final stock = await check();
+        expect(stock['patch_available'], isTrue);
+        final patch = stock['patch'] as Map;
+        expect(patch['kind'], equals(codePatchKind));
+        expect(patch['number'], equals(1));
+        expect(codePatchId, isNot(assetsPatchId));
+      },
+    );
+
+    test('a rolled-back patch is never offered as a fallback', () async {
+      // Superseded means "replaced"; rolled back means "pulled deliberately".
+      // Conflating them would resurrect a patch someone withdrew for cause.
+      await seedPatchWith(['aarch64']);
+      final rb = await send(
+        'POST',
+        '/admin/apps/$appId/patches/$patchId/withdraw?rollback=true',
+        bearer: _bootstrapKey,
+      );
+      expect(rb.statusCode, anyOf(HttpStatus.ok, HttpStatus.noContent));
+
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': 1},
+        ),
+      );
+      final assetsPatchId = p['id'] as int;
+      await uploadPatchArtifact(appId, assetsPatchId, arch: assetsArch);
+      await send(
+        'POST',
+        '/api/v1/apps/$appId/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': assetsPatchId, 'channel_id': channelId},
+      );
+
+      expect((await check())['patch_available'], isFalse);
+    });
+
+    test('the fallback still respects the client patch number', () async {
+      // A client already on the code patch must not be handed it again.
+      await seedPatchWith(['aarch64']);
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': 1},
+        ),
+      );
+      final assetsPatchId = p['id'] as int;
+      await uploadPatchArtifact(appId, assetsPatchId, arch: assetsArch);
+      await send(
+        'POST',
+        '/api/v1/apps/$appId/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': assetsPatchId, 'channel_id': channelId},
+      );
+
+      final r = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/patches/check',
+          json: {
+            'app_id': appId,
+            'release_version': '1.0.0',
+            'platform': 'android',
+            'arch': 'aarch64',
+            'current_patch_number': 1,
+          },
+        ),
+      );
+      expect(r['patch_available'], isFalse);
+    });
+
+    test('a malformed capability list is treated as no support', () async {
+      await seedPatchWith([assetsArch]);
+      final r = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/patches/check',
+          json: {
+            'app_id': appId,
+            'release_version': '1.0.0',
+            'platform': 'android',
+            'arch': 'aarch64',
+            'supported_patch_kinds': 'assets',
+          },
+        ),
+      );
+      // Fails closed: a wrong-typed capability must not be read as consent.
+      expect(r['patch_available'], isFalse);
+    });
+  });
+
   group('diagnostics speedtest', () {
     test('serves exactly the size the CLI verifies', () async {
       // NetworkChecker rejects any length other than 16000000.
@@ -1742,6 +2161,365 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // Zero-config crash reporting. Boot-crash rollback already exists; what was
+  // missing is the stack trace that explains why. Intake must be as forgiving as
+  // possible — the client posting it is, by definition, an app that just died.
+  group('crash reporting', () {
+    late String appId;
+
+    Future<Response> report(Object? body, {String? rawBody}) => send(
+      'POST',
+      '/api/v1/crashes',
+      json: rawBody == null ? body : null,
+      body: rawBody,
+    );
+
+    Future<List<dynamic>> listCrashes({String query = ''}) async =>
+        (await jsonOf(
+              await send(
+                'GET',
+                '/api/v1/apps/$appId/crashes$query',
+                bearer: _bootstrapKey,
+              ),
+            ))['crashes']
+            as List<dynamic>;
+
+    setUp(() async {
+      appId = (await seedApp()).appId;
+    });
+
+    Map<String, Object?> crash({
+      String? client = 'device-1',
+      String version = '1.0.0',
+      int patch = 1,
+      String stack = 'main.dart:1\nfoo.dart:2',
+      String kind = 'FlutterError',
+    }) => {
+      'app_id': appId,
+      'client_id': client,
+      'release_version': version,
+      'patch_number': patch,
+      'platform': 'android',
+      'arch': 'aarch64',
+      'kind': kind,
+      'message': 'boom',
+      'stack': stack,
+      'timestamp': 1700000000,
+    };
+
+    test('stores a report and reads it back', () async {
+      expect((await jsonOf(await report(crash())))['stored'], isTrue);
+      final list = await listCrashes();
+      expect(list, hasLength(1));
+      final c = list.single as Map<String, dynamic>;
+      expect(c['release_version'], '1.0.0');
+      expect(c['patch_number'], 1);
+      expect(c['arch'], 'aarch64');
+      expect(c['kind'], 'FlutterError');
+      expect(c['stack'], contains('foo.dart:2'));
+      // Normalized regardless of backend, and parseable.
+      expect(() => DateTime.parse(c['received_at'] as String), returnsNormally);
+    });
+
+    test('a crash loop collapses to one row', () async {
+      for (var i = 0; i < 5; i++) {
+        await report(crash());
+      }
+      expect(await listCrashes(), hasLength(1));
+      // Second post reports stored:false rather than erroring.
+      expect((await jsonOf(await report(crash())))['stored'], isFalse);
+    });
+
+    test('a genuinely different stack is kept', () async {
+      await report(crash());
+      await report(crash(stack: 'other.dart:9'));
+      expect(await listCrashes(), hasLength(2));
+    });
+
+    test('narrows by release version and patch number', () async {
+      await report(crash());
+      await report(crash(version: '2.0.0', patch: 7, stack: 'a.dart:1'));
+      expect(await listCrashes(query: '?release_version=2.0.0'), hasLength(1));
+      expect(await listCrashes(query: '?patch_number=7'), hasLength(1));
+      expect(await listCrashes(query: '?patch_number=999'), isEmpty);
+    });
+
+    test('accepts a nested {crash: {...}} envelope', () async {
+      expect(
+        (await jsonOf(await report({'crash': crash()})))['stored'],
+        isTrue,
+      );
+      expect(await listCrashes(), hasLength(1));
+    });
+
+    test('garbage never fails the reporter', () async {
+      // An app in a crash loop must not also be fighting 4xx/5xx.
+      for (final r in [
+        await report(null, rawBody: 'not json at all'),
+        await report(<String, Object?>{}),
+        await report({'app_id': 12345}),
+        await report(null, rawBody: ''),
+      ]) {
+        expect(r.statusCode, HttpStatus.ok);
+        expect((await jsonOf(r))['stored'], anyOf(isTrue, isFalse));
+      }
+    });
+
+    test('needs no bearer token', () async {
+      final r = await send('POST', '/api/v1/crashes', json: crash());
+      expect(r.statusCode, HttpStatus.ok);
+    });
+
+    test('another tenant cannot read this app\'s crashes', () async {
+      await report(crash());
+      final other = await otherTenant();
+      final r = await send(
+        'GET',
+        '/api/v1/apps/$appId/crashes',
+        bearer: other.key,
+      );
+      expect(r.statusCode, anyOf(HttpStatus.notFound, HttpStatus.forbidden));
+    });
+
+    // Symbolication is read-time and opt-in. Ingest must never depend on it:
+    // symbols are often uploaded after a crash has already arrived, and
+    // resolving costs a fetch + unzip + DWARF parse per distinct patch.
+    group('symbolication', () {
+      test('is absent unless asked for', () async {
+        await report(crash());
+
+        final crashes = await listCrashes();
+
+        // Default response shape must be unchanged for existing callers.
+        expect(crashes.single, isNot(contains('stack_symbolicated')));
+      });
+
+      test('is present but null when no symbols were retained', () async {
+        await report(crash());
+
+        final crashes = await listCrashes(query: '?symbolicate=true');
+
+        // The key appears so a caller can tell "not resolvable" from "not
+        // requested", and the raw stack is always still there.
+        final report0 = crashes.single as Map<String, dynamic>;
+        expect(report0, contains('stack_symbolicated'));
+        expect(report0['stack_symbolicated'], isNull);
+        expect(report0['stack'], equals('main.dart:1\nfoo.dart:2'));
+      });
+
+      test('is null for a crash carrying no patch number', () async {
+        // A crash against an unpatched release has no patch, so no retained
+        // symbol set can exist for it.
+        await report({...crash(), 'patch_number': null});
+
+        final crashes = await listCrashes(query: '?symbolicate=true');
+
+        expect(
+          (crashes.single as Map<String, dynamic>)['stack_symbolicated'],
+          isNull,
+        );
+      });
+
+      test('does not fail the request when symbols are unusable', () async {
+        await report(crash());
+
+        final r = await send(
+          'GET',
+          '/api/v1/apps/$appId/crashes?symbolicate=true',
+          bearer: _bootstrapKey,
+        );
+
+        // Unsymbolicated crashes are still worth reading; an unresolvable
+        // symbol set must never turn the list endpoint into an error.
+        expect(r.statusCode, HttpStatus.ok);
+      });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Asset support in patches. The bundle rides along as an ordinary patch
+  // artifact tagged `arch: assets`, and app-side Dart fetches it from
+  // /patches/assets. The native updater is never involved, which is what keeps
+  // the feature off the engine-build critical path (and working on iOS).
+  group('patch asset bundles', () {
+    late String appId;
+    late int releaseId;
+    late int patchNumber;
+    late int patchId;
+
+    /// A promoted patch, so the app under test is running it.
+    Future<void> seedPromotedPatch({bool withAssets = true}) async {
+      final s = await seedApp();
+      appId = s.appId;
+      releaseId = s.releaseId;
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': releaseId},
+        ),
+      );
+      patchId = p['id'] as int;
+      patchNumber = p['number'] as int;
+      // The code artifact the updater consumes...
+      await uploadPatchArtifact(appId, patchId);
+      // ...and the asset bundle, which needs NO new upload path: `arch` is
+      // free-form on artifact registration, so this is the existing endpoint.
+      if (withAssets) {
+        await uploadPatchArtifact(appId, patchId, arch: assetsArch);
+      }
+      await send(
+        'POST',
+        '/api/v1/apps/$appId/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': patchId, 'channel_id': s.channelId},
+      );
+    }
+
+    Future<Map<String, dynamic>> ask({
+      String? app,
+      String version = '1.0.0',
+      String platform = 'android',
+      Object? number,
+    }) async => jsonOf(
+      await send(
+        'POST',
+        '/api/v1/patches/assets',
+        json: {
+          'app_id': app ?? appId,
+          'release_version': version,
+          'platform': platform,
+          'patch_number': number ?? patchNumber,
+        },
+      ),
+    );
+
+    test('serves a signed url for the named patch', () async {
+      await seedPromotedPatch();
+      final r = await ask();
+      expect(r['assets_available'], isTrue);
+      final assets = r['assets'] as Map<String, dynamic>;
+      expect(assets['url'], isA<String>());
+      expect(assets['hash'], isA<String>());
+      expect(assets['size'], isA<int>());
+      // Signed and expiring, exactly like the patch download url.
+      final u = Uri.parse(assets['url'] as String);
+      expect(u.path, startsWith('/download/'));
+      expect(u.queryParameters, contains('exp'));
+      expect(u.queryParameters, contains('sig'));
+    });
+
+    test('the url actually downloads the bundle', () async {
+      await seedPromotedPatch();
+      final u = Uri.parse(((await ask())['assets'] as Map)['url'] as String);
+      // The signature lives in the query, so the path alone is not enough.
+      final got = await send('GET', '${u.path}?${u.query}');
+      expect(got.statusCode, HttpStatus.ok);
+      expect(await got.readAsString(), 'abc');
+    });
+
+    test('a patch without an asset bundle reports none', () async {
+      await seedPromotedPatch(withAssets: false);
+      expect((await ask())['assets_available'], isFalse);
+    });
+
+    test('will not hand a client another patch number\'s assets', () async {
+      await seedPromotedPatch();
+      // The app believes it is running a patch that does not exist here.
+      expect((await ask(number: patchNumber + 1))['assets_available'], isFalse);
+      expect((await ask(number: 0))['assets_available'], isFalse);
+    });
+
+    test('stops serving assets once the patch is rolled back', () async {
+      await seedPromotedPatch();
+      expect((await ask())['assets_available'], isTrue);
+      final r = await send(
+        'POST',
+        '/admin/apps/$appId/patches/$patchId/withdraw?rollback=true',
+        bearer: _bootstrapKey,
+      );
+      expect(r.statusCode, anyOf(HttpStatus.ok, HttpStatus.noContent));
+      // A rollback reverts devices to the previous code. Continuing to serve
+      // this patch's assets would pair new assets with old code.
+      expect((await ask())['assets_available'], isFalse);
+    });
+
+    test(
+      'a plain withdraw keeps serving, because devices still run it',
+      () async {
+        // Withdrawing without rollback only stops OFFERING the patch to new
+        // devices; anything already running it stays on it. Those devices must
+        // keep getting their assets, or a withdraw would silently strip assets
+        // from a fleet that is still executing the patched code.
+        await seedPromotedPatch();
+        final r = await send(
+          'POST',
+          '/admin/apps/$appId/patches/$patchId/withdraw',
+          bearer: _bootstrapKey,
+        );
+        expect(r.statusCode, anyOf(HttpStatus.ok, HttpStatus.noContent));
+        expect((await ask())['assets_available'], isTrue);
+      },
+    );
+
+    test('another app cannot fish for this app\'s bundle', () async {
+      await seedPromotedPatch();
+      final other = await otherTenant();
+      expect((await ask(app: other.appId))['assets_available'], isFalse);
+    });
+
+    test('unknown release version reports none', () async {
+      await seedPromotedPatch();
+      expect((await ask(version: '9.9.9'))['assets_available'], isFalse);
+    });
+
+    test('a platform with no bundle reports none', () async {
+      await seedPromotedPatch();
+      expect((await ask(platform: 'ios'))['assets_available'], isFalse);
+    });
+
+    test('malformed bodies answer none rather than erroring', () async {
+      await seedPromotedPatch();
+      // App code polls this on launch; a 500 here would be a crash path for a
+      // purely additive feature.
+      for (final body in <Map<String, Object?>>[
+        {},
+        {'app_id': appId},
+        {'app_id': appId, 'release_version': '1.0.0', 'platform': 'android'},
+        {
+          'app_id': appId,
+          'release_version': '1.0.0',
+          'platform': 'android',
+          'patch_number': 'not-an-int',
+        },
+      ]) {
+        final r = await send('POST', '/api/v1/patches/assets', json: body);
+        expect(r.statusCode, HttpStatus.ok);
+        expect((await jsonOf(r))['assets_available'], isFalse);
+      }
+    });
+
+    test(
+      'needs no bearer token, like the rest of the device surface',
+      () async {
+        await seedPromotedPatch();
+        final r = await send(
+          'POST',
+          '/api/v1/patches/assets',
+          json: {
+            'app_id': appId,
+            'release_version': '1.0.0',
+            'platform': 'android',
+            'patch_number': patchNumber,
+          },
+        );
+        expect(r.statusCode, HttpStatus.ok);
+      },
+    );
+  });
+
+  // -------------------------------------------------------------------------
   // Build provenance. The CLI attaches a `metadata` blob to every release
   // status update and patch creation; the server used to discard it entirely.
   group('build metadata capture', () {
@@ -2163,6 +2941,116 @@ void main() {
       },
     );
 
+    // The named tracks §6 lists by name. The code path is generic — channels are
+    // get-or-create by name (`api.dart:1550` `_createChannel`) — and the test
+    // above already drives one non-stable channel, so what this adds is COVERAGE
+    // OF THE NAMED ROWS, not a new capability. Recorded that way deliberately:
+    // §6 has twice retracted a claim in this area, once for reading a negative
+    // grep as absent work and once for inferring "permanently stable-only" from
+    // a real omission.
+    //
+    // The second half is the one worth having. Supersession is scoped by
+    // `WHERE channel_id = @c AND status = @a AND patch_id <> @p`
+    // (`repository.dart:1205`), so promoting onto one track must not disturb
+    // another — and because a patch can be live on two tracks at once, the verb
+    // is ADD, not move. If this half ever fails, stop and re-read the query
+    // rather than editing the expectation.
+    test(
+      'named tracks are independent, and promotion adds rather than moves',
+      () async {
+        final s = await seedApp();
+        final appId = s.appId;
+
+        Future<int> readyPatch() async {
+          final p = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/apps/$appId/patches',
+              bearer: _bootstrapKey,
+              json: {'release_id': s.releaseId},
+            ),
+          );
+          final id = p['id'] as int;
+          await uploadPatchArtifact(appId, id);
+          return id;
+        }
+
+        Future<int> channel(String name) async {
+          final c = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/apps/$appId/channels',
+              bearer: _bootstrapKey,
+              json: {'channel': name},
+            ),
+          );
+          return c['id'] as int;
+        }
+
+        Future<void> promote(int patchId, int channelId) async {
+          final r = await send(
+            'POST',
+            '/api/v1/apps/$appId/patches/promote',
+            bearer: _bootstrapKey,
+            json: {'patch_id': patchId, 'channel_id': channelId},
+          );
+          expect(r.statusCode, HttpStatus.noContent);
+        }
+
+        /// What a device on [track] is told to install. `client_id` varies per
+        /// track because `eligibleForRollout` buckets on it (`rollout.dart:19`)
+        /// and fails closed without one.
+        Future<int?> check(String track) async {
+          final r = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/patches/check',
+              json: {
+                'app_id': appId,
+                'release_version': '1.0.0',
+                'platform': 'android',
+                'arch': 'aarch64',
+                'channel': track,
+                'client_id': 'device-on-$track',
+                'patch_number': 0,
+              },
+            ),
+          );
+          final patch = r['patch'];
+          return patch == null ? null : (patch as Map)['number'] as int?;
+        }
+
+        final beta = await channel('beta');
+        final staging = await channel('staging');
+        final patch1 = await readyPatch();
+        final patch2 = await readyPatch();
+        final patch3 = await readyPatch();
+
+        // Three named tracks, three different patches, all live at once.
+        await promote(patch1, beta);
+        await promote(patch2, staging);
+        await promote(patch3, s.channelId);
+
+        expect(await check('beta'), 1);
+        expect(await check('staging'), 2);
+        expect(await check('stable'), 3);
+
+        // A device asking for a track nobody promoted onto gets nothing — not
+        // stable's patch by accident, which is the failure that would make every
+        // assertion above meaningless.
+        expect(await check('canary'), isNull);
+
+        // Promote staging's patch onto beta as well. Two things must hold: beta
+        // supersedes its OWN previous patch, and staging keeps serving patch2
+        // because the same patch is now live on two tracks simultaneously.
+        await promote(patch2, beta);
+
+        expect(await check('beta'), 2);
+        expect(await check('staging'), 2);
+        expect(await check('stable'), 3);
+      },
+    );
+
     // The `channel` field is what `shorebird patches list` prints as the track
     // and `patches info` shows as "Track:". It was hardcoded null, so a patch
     // promoted seconds earlier still displayed "[no track]".
@@ -2389,6 +3277,72 @@ void main() {
       );
       expect(r.statusCode, isIn([HttpStatus.forbidden, HttpStatus.notFound]));
       expect((await patchFromList(patchId))['notes'], isNull);
+    });
+  });
+
+  // The request log used to record `req.url.path` only. That is right for every
+  // path but one: the air-gap fixture's beacon carries its whole payload in the
+  // query string, so a path-only line silently discarded the value the device
+  // gates read back — `GET /selfhost-beacon/state -> 403` and nothing else.
+  group('loggedRequestPath', () {
+    test(
+      'logs the query for the fixture beacon, whose query IS the payload',
+      () {
+        expect(
+          loggedRequestPath(
+            Uri.parse('selfhost-beacon/state?release=V1&param=PARAM-ARG'),
+          ),
+          'selfhost-beacon/state?release=V1&param=PARAM-ARG',
+        );
+      },
+    );
+
+    test(
+      'does NOT log the query for any other path — it carries user data',
+      () {
+        // The admin surface really does take an email in the query. Logging
+        // queries wholesale would put personal data in a shipped log.
+        expect(
+          loggedRequestPath(Uri.parse('api/v1/admin/users?email=a@b.example')),
+          'api/v1/admin/users',
+        );
+        // Nor does a lookalike prefix opt in.
+        expect(
+          loggedRequestPath(Uri.parse('selfhost-beacons-evil?param=x')),
+          'selfhost-beacons-evil',
+        );
+      },
+    );
+
+    test('leaves probe paths byte-identical, so they stay unlogged', () {
+      // Observability._isProbe compares the WHOLE string; a suffix here would
+      // start flooding the log at the scrape interval.
+      for (final p in ['healthz', 'readyz', 'metrics']) {
+        expect(loggedRequestPath(Uri.parse(p)), p);
+      }
+    });
+
+    test('cannot be used to forge a second log line', () {
+      // Uri percent-encodes the newline before we ever see it, so the encoding
+      // is what actually holds here; the sanitizer inside loggedRequestPath is
+      // a second line of defense for a query string that did not come from Uri.
+      // Either way the property a log parser depends on is the same: one
+      // request cannot produce two lines.
+      final forged = loggedRequestPath(
+        Uri.parse(
+          'selfhost-beacon/state',
+        ).replace(query: 'param=a\nGET /admin -> 200 (0ms)'),
+      );
+      expect(forged, isNot(contains('\n')));
+      expect(forged, contains('%0A'));
+    });
+
+    test('clips an unbounded query', () {
+      final long = loggedRequestPath(
+        Uri.parse('selfhost-beacon/state?param=${'x' * 900}'),
+      );
+      expect(long.length, lessThan(600));
+      expect(long, endsWith('(clipped)'));
     });
   });
 }

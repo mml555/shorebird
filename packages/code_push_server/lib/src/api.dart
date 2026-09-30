@@ -1,3 +1,4 @@
+// cspell:words bidiff
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -13,9 +14,46 @@ import 'package:code_push_server/src/observability.dart';
 import 'package:code_push_server/src/repository.dart';
 import 'package:code_push_server/src/rollout.dart';
 import 'package:code_push_server/src/signing.dart';
+import 'package:code_push_server/src/symbolication.dart';
 import 'package:crypto/crypto.dart';
 import 'package:mime/mime.dart';
 import 'package:shelf/shelf.dart';
+
+/// The path of [url] as it should appear in the request log.
+///
+/// Ordinarily the path ALONE. Query strings on this API carry user data — the
+/// admin surface takes `?email=`, for one — so logging them wholesale would put
+/// personal data into a log that is shipped, tailed, and pasted into issues.
+///
+/// The air-gap fixture's beacon is the deliberate exception, and it is the
+/// reason this function exists. That beacon is a plain unauthenticated GET
+/// whose QUERY STRING *is* the payload: the device fixture reports its rendered
+/// state by asking for `/selfhost-beacon/state?release=…&param=…`, no endpoint
+/// is served (the 403 is the expected response), and the acceptance harness
+/// reads the values back out of this log line. Logging only the path made every
+/// beacon-based device assertion unrunnable — the value arrived and was thrown
+/// away one layer above where it was needed.
+///
+/// Two properties this must keep, because a log line is parsed by machines:
+///   * the query is CLIPPED, so an unbounded URL cannot write an unbounded line;
+///   * bytes outside printable ASCII become `?`, so a caller cannot inject a
+///     newline and forge a second log line. Percent-encoding normally prevents
+///     that on its own; this does not rely on it.
+String loggedRequestPath(Uri url) {
+  const beaconPrefix = 'selfhost-beacon/';
+  const maxQuery = 512;
+
+  final path = url.path;
+  final query = url.query;
+  if (query.isEmpty || !path.startsWith(beaconPrefix)) return path;
+
+  final safe = query
+      .replaceAll(RegExp(r'[^\x20-\x7E]'), '?')
+      .replaceAll('"', '%22');
+  return safe.length > maxQuery
+      ? '$path?${safe.substring(0, maxQuery)}(clipped)'
+      : '$path?$safe';
+}
 
 /// The client's network identity: the socket [remoteIp], or a hop from
 /// `X-Forwarded-For` when [isTrustedProxy] says the peer is one of our own
@@ -93,6 +131,43 @@ String rateLimitKey({String? auth, required String ip}) {
   return 'ip:$ip';
 }
 
+/// Artifacts a release must carry, per platform, before that platform may be
+/// activated.
+///
+/// Derived from every release this server has accepted (ids 1-6 as of
+/// 2026-07-31): Android has always registered exactly these five and iOS exactly
+/// these three. A platform absent from this map is not gated — see the
+/// completeness check in `_updateRelease` for why unknown targets are left alone.
+const _requiredArchs = <String, Set<String>>{
+  // Android requires only the bundle. Everything else is conditional on how the
+  // release was built, which the previous set got wrong by inducting from a
+  // biased sample — every Android release this server had seen at the time was
+  // both obfuscated and single-ABI:
+  //
+  //   * `android_supplement` exists only when `--obfuscate` is passed. It is the
+  //     obfuscation map's home (see `assembleSupplementDirectory`), and the CLI
+  //     does not even create the directory otherwise. Requiring it made a
+  //     non-obfuscated Android release impossible to activate.
+  //   * `arm` / `x86_64` exist only for a multi-ABI release. A
+  //     `--target-platform android-arm64` build produces `aarch64` alone.
+  //
+  // Nor does Android *need* the supplement to be patchable: it applies a bidiff
+  // against the release snapshot and never links, which is what the supplement
+  // serves.
+  'android': {'aab'},
+  'ios': {'xcarchive', 'runner', 'ios_supplement'},
+};
+
+/// Platforms that must ship at least one executable-code artifact.
+///
+/// Separate from [_requiredArchs] because the requirement is "one of these",
+/// not "all of these" — the ABI set depends on `--target-platform`. Without it
+/// an Android release holding only an `aab` would activate, and no patch could
+/// ever be built against it.
+const _requiredAnyArchs = <String, Set<String>>{
+  'android': {'aarch64', 'arm', 'x86_64'},
+};
+
 /// The HTTP surface: the Shorebird CLI/updater wire contract (translated to the
 /// internal domain here), an OAuth auth service (`shorebird login`), and an
 /// authenticated /admin surface (rollout, withdraw/rollback, provisioning).
@@ -101,6 +176,7 @@ class Api {
     : oauth = OAuthService(config.jwtIssuer, keyJson: signingKeyJson),
       _signer = UrlSigner(config.urlSigningSecret),
       _analytics = Analytics(repo.db),
+      _symbolizer = Symbolizer(store: store),
       obs = Observability(json: config.logFormat == 'json');
 
   final Repository repo;
@@ -109,6 +185,7 @@ class Api {
   final OAuthService oauth;
   final UrlSigner _signer;
   final Analytics _analytics;
+  final Symbolizer _symbolizer;
 
   /// Structured logging + Prometheus metrics (exposed at `GET /metrics`).
   final Observability obs;
@@ -175,7 +252,7 @@ class Api {
           sw.stop();
           obs.request(
             req.method,
-            req.url.path,
+            loggedRequestPath(req.url),
             res.statusCode,
             sw.elapsedMilliseconds,
           );
@@ -290,9 +367,14 @@ class Api {
       return true;
     }
     final tail = seg.first == 'api' && seg.length > 2 ? seg.sublist(2) : seg;
+    // The device surface carries no bearer: apps in the wild only know their
+    // app_id. `assets` joins it for the same reason — it is asked by app-side
+    // Dart on launch, which has no credential either, and it answers only for a
+    // patch number the caller already names.
+    if (tail.length == 1 && tail[0] == 'crashes') return true;
     return tail.length == 2 &&
         tail[0] == 'patches' &&
-        (tail[1] == 'check' || tail[1] == 'events');
+        (tail[1] == 'check' || tail[1] == 'events' || tail[1] == 'assets');
   }
 
   Middleware _auth() =>
@@ -452,6 +534,10 @@ class Api {
     if (devTail.length == 2 && devTail[0] == 'patches' && m == 'POST') {
       if (devTail[1] == 'check') return _patchesCheck(req);
       if (devTail[1] == 'events') return _patchesEvents(req);
+      if (devTail[1] == 'assets') return _patchesAssets(req);
+    }
+    if (devTail.length == 1 && devTail[0] == 'crashes' && m == 'POST') {
+      return _crashesReport(req);
     }
 
     if (seg.isNotEmpty && seg[0] == 'admin') return _admin(req, seg.sublist(1));
@@ -603,6 +689,9 @@ class Api {
       // info` prints it. Mirrors the shape of the release PATCH above.
       if (rest.length == 2 && rest[0] == 'patches' && m == 'PATCH') {
         return _updatePatch(req, appId, _pathId(rest[1], 'patch id'));
+      }
+      if (rest.length == 1 && rest[0] == 'crashes' && m == 'GET') {
+        return _getCrashes(req, appId);
       }
       if (rest.length == 1 && rest[0] == 'releases') {
         if (m == 'POST') return _createRelease(req, appId);
@@ -1211,6 +1300,33 @@ class Api {
             'Release $releaseId ($platform) has unverified artifacts',
           );
         }
+        // `allVerified` only asserts that whatever is *present* is verified — not
+        // that the platform's expected set is complete. An interrupted upload can
+        // leave iOS holding a lone verified `xcarchive`, which sails through this
+        // gate and publishes a release no patch can ever be built against (the
+        // linker needs `runner` + `ios_supplement`). The failure then surfaces at
+        // patch time, far from the cause.
+        //
+        // Unknown platforms are deliberately unchecked: gating a target this
+        // server hasn't learned the artifact set for would break it outright,
+        // which is worse than the hole being closed late.
+        final present = live.map((a) => a.arch).toSet();
+        final missing = _requiredArchs[platform]?.difference(present);
+        if (missing != null && missing.isNotEmpty) {
+          throw conflict(
+            'Release $releaseId ($platform) is missing artifacts: '
+            '${(missing.toList()..sort()).join(', ')}',
+          );
+        }
+        // "At least one of" — the ABI set varies with --target-platform, so the
+        // check is that *some* code shipped, not which.
+        final anyOf = _requiredAnyArchs[platform];
+        if (anyOf != null && anyOf.intersection(present).isEmpty) {
+          throw conflict(
+            'Release $releaseId ($platform) has no code artifact: expected at '
+            'least one of ${(anyOf.toList()..sort()).join(', ')}',
+          );
+        }
         if (release.lifecycle != ReleaseLifecycle.ready) {
           await repo.setReleaseLifecycle(releaseId, ReleaseLifecycle.ready);
           await repo.audit(
@@ -1329,9 +1445,50 @@ class Api {
     final arch = _requiredField(fields, 'arch');
     final platform = _requiredField(fields, 'platform');
     final hash = _requiredField(fields, 'hash');
-    if (await repo.existingArtifact('release', releaseId, arch, platform) !=
-        null) {
-      throw conflict('Artifact already registered for $arch/$platform');
+    final existing = await repo.existingArtifact(
+      'release',
+      releaseId,
+      arch,
+      platform,
+    );
+    if (existing != null) {
+      // Idempotent re-upload. `shorebird release` uploads a platform's artifacts
+      // in a fixed order and has no resume: an interrupted run re-sends the ones
+      // that already landed. 409ing on those aborts the retry *before* it reaches
+      // the artifacts that are actually missing, which strands the release
+      // permanently — this API exposes no DELETE, so nothing can clear the
+      // blocker. Observed 2026-07-30 on release 2.0.0+1785465879, killed
+      // mid-upload with `xcarchive` registered and `runner` + `ios_supplement`
+      // missing; every retry died on `xcarchive` and iOS was unrecoverable.
+      //
+      // A byte-identical re-upload carries no new information, so return the
+      // existing registration and let the run continue to what it still owes.
+      if (existing.hash == hash) {
+        return _json(_registerJson(existing, releaseKey: true));
+      }
+      // A *differing* hash while the release is still incomplete is a rebuild,
+      // not a collision. `shorebird release` rebuilds on every invocation, so a
+      // retry after an interruption arrives with fresh bytes — matching on hash
+      // alone would 409 exactly the case this is meant to rescue. Supersede the
+      // stale row (the lookup above skips `failed`) so the retry can register and
+      // go on to the artifacts that are missing.
+      //
+      // Once the release is `ready` its artifacts are what installed apps
+      // actually run, and patches are linked against them. Replacing one then
+      // would silently invalidate every patch built from it, so from `ready`
+      // onward a differing hash stays a hard conflict.
+      if (release.lifecycle == ReleaseLifecycle.draft ||
+          release.lifecycle == ReleaseLifecycle.uploading) {
+        await repo.setArtifactStatus(existing.id, ArtifactStatus.failed);
+        await repo.audit(
+          'artifact.superseded',
+          actor: '${_uid(req)}',
+          target: '${existing.id}',
+          detail: 'release $releaseId $platform/$arch re-registered on retry',
+        );
+      } else {
+        throw conflict('Artifact already registered for $arch/$platform');
+      }
     }
     if (release.lifecycle == ReleaseLifecycle.draft) {
       await repo.setReleaseLifecycle(releaseId, ReleaseLifecycle.uploading);
@@ -1885,9 +2042,53 @@ class Api {
       return _json(resp(rolledBack: rolledBack));
     }
 
-    final artifact = await repo.patchArtifact(patch.id, arch, platform);
+    // Capability negotiation, and it has to be negotiation rather than a bare
+    // response field. An assets-only patch has no code artifact, so a stock
+    // updater handed one would try to inflate an asset archive as a binary diff
+    // against the release snapshot, fail, and tombstone the patch as
+    // permanently bad — it would never retry it for that release. Clients that
+    // understand the kind say so; everyone else is only ever offered code.
+    // Read the same tolerant way as every other field here: a wrong-typed
+    // capability yields "no support", never a 500 the device has to interpret.
+    final rawKinds = body['supported_patch_kinds'];
+    final supportedKinds = <String>{
+      if (rawKinds is List) ...rawKinds.whereType<String>(),
+    };
+
+    var kind = codePatchKind;
+    var artifact = await repo.patchArtifact(patch.id, arch, platform);
+    if (artifact == null && supportedKinds.contains(assetsPatchKind)) {
+      // No code for this arch. That is what an assets-only patch looks like,
+      // so fall back to its bundle rather than reporting "no patch".
+      artifact = await repo.patchArtifact(patch.id, assetsArch, platform);
+      kind = assetsPatchKind;
+    }
+
     if (artifact == null || artifact.status != ArtifactStatus.verified) {
-      return _json(resp(rolledBack: rolledBack));
+      // The active patch is unusable by *this* client — overwhelmingly because
+      // it is assets-only and the client is a stock updater. Offering nothing
+      // would strip a patch the device was already entitled to: a fresh install
+      // would run unpatched code that the previous patch had fixed, silently.
+      //
+      // So fall back to the newest superseded patch this client *can* take.
+      // Superseded is not the same as withdrawn-for-cause: those patches were
+      // replaced, not pulled, and `supersededChannelPatches` excludes anything
+      // rolled back. Each client class therefore runs the best patch available
+      // to it, which is why different clients can legitimately sit on different
+      // patch numbers.
+      return _json(
+        await _fallbackPatchResponse(
+          channelId: channel.id,
+          releaseId: release.id,
+          appId: appId,
+          arch: arch,
+          platform: platform,
+          clientId: clientId,
+          clientPatch: clientPatch,
+          rolledBack: rolledBack,
+          resp: resp,
+        ),
+      );
     }
     return _json(
       resp(
@@ -1896,9 +2097,310 @@ class Api {
           'download_url': _signedUrl(artifact.token),
           'hash': artifact.hash,
           'hash_signature': artifact.hashSignature,
+          // Always present, including for code, so a client never has to infer
+          // the kind from an absent field.
+          'kind': kind,
         },
         rolledBack: rolledBack,
       ),
+    );
+  }
+
+  /// The newest superseded patch this client can install, or "no patch".
+  ///
+  /// Only reached when the active patch cannot be served to the caller. Applies
+  /// the same gates as the active path — same release, `ready`, newer than the
+  /// client's, eligible under that patch's own rollout — because a fallback that
+  /// skipped them would be a way to receive a patch the rollout excluded.
+  ///
+  /// Deliberately code-only: an assets patch that could not be served is one the
+  /// client said it cannot install, so trying another of the same kind would
+  /// fail the same way.
+  Future<Map<String, Object?>> _fallbackPatchResponse({
+    required int channelId,
+    required int releaseId,
+    required String appId,
+    required String arch,
+    required String platform,
+    required String? clientId,
+    required int clientPatch,
+    required List<int> rolledBack,
+    required Map<String, Object?> Function({
+      Map<String, Object?>? patch,
+      List<int> rolledBack,
+    })
+    resp,
+  }) async {
+    final candidates = await repo.supersededChannelPatches(
+      channelId,
+      platform: platform,
+    );
+    for (final candidate in candidates) {
+      final patch = await repo.patch(candidate.patchId);
+      if (patch == null ||
+          patch.releaseId != releaseId ||
+          patch.status != PatchStatus.ready ||
+          patch.number <= clientPatch) {
+        continue;
+      }
+      if (!eligibleForRollout(
+        appId: appId,
+        channelId: channelId,
+        patchId: patch.id,
+        rollout: candidate.rollout,
+        clientId: clientId,
+      )) {
+        continue;
+      }
+      final artifact = await repo.patchArtifact(patch.id, arch, platform);
+      if (artifact == null || artifact.status != ArtifactStatus.verified) {
+        continue;
+      }
+      return resp(
+        patch: {
+          'number': patch.number,
+          'download_url': _signedUrl(artifact.token),
+          'hash': artifact.hash,
+          'hash_signature': artifact.hashSignature,
+          'kind': codePatchKind,
+        },
+        rolledBack: rolledBack,
+      );
+    }
+    return resp(rolledBack: rolledBack);
+  }
+
+  /// `POST /patches/assets` — device-facing lookup for a patch's **asset
+  /// bundle**, the payload behind asset support in patches.
+  ///
+  /// Why this exists as its own endpoint rather than a field on
+  /// `patches/check`: that response is consumed by the native updater, which is
+  /// the stock upstream binary and knows nothing about assets. The app-side Dart
+  /// code never sees it. So the app asks here instead, and the updater stays
+  /// untouched — which is what keeps this feature off the engine-build critical
+  /// path and therefore working on iOS as well as Android.
+  ///
+  /// Same posture as `patches/check`: unauthenticated, scoped by `app_id`, and
+  /// handing back a signed, expiring URL. It deliberately requires the caller to
+  /// name a `patch_number` and only answers for that patch, so a client cannot
+  /// be handed assets belonging to a patch it is not running.
+  ///
+  /// Body: `{app_id, release_version, platform, patch_number}`.
+  /// Reply: `{assets_available, assets: {url, hash, size} | null}`.
+  Future<Response> _patchesAssets(Request req) async {
+    final body = await _jsonBody(req);
+    String? str(String key) {
+      final v = body[key];
+      return v is String ? v : null;
+    }
+
+    final appId = str('app_id');
+    final version = str('release_version');
+    final platform = str('platform');
+    final number = body['patch_number'];
+
+    Map<String, Object?> resp({Map<String, Object?>? assets}) => {
+      'assets_available': assets != null,
+      'assets': assets,
+    };
+
+    // Malformed or unknown input answers "nothing here" rather than erroring:
+    // this is polled by app code on launch, and a hard failure would be a
+    // needless crash path for a purely additive feature.
+    if (appId == null ||
+        version == null ||
+        platform == null ||
+        number is! int) {
+      return _json(resp());
+    }
+    final release = await repo.releaseByVersion(appId, version);
+    if (release == null) return _json(resp());
+
+    final patches = await repo.patchesForRelease(release.id);
+    PatchRow? patch;
+    for (final p in patches) {
+      if (p.number == number) {
+        patch = p;
+        break;
+      }
+    }
+    if (patch == null) return _json(resp());
+
+    // Withdrawn/rolled-back patches must not keep serving their assets, or an
+    // app that rolled back would go on using the newer bundle against older
+    // code.
+    if (await repo.patchRolledBack(patch.id)) return _json(resp());
+
+    final artifact = await repo.patchArtifact(patch.id, assetsArch, platform);
+    if (artifact == null || artifact.status != ArtifactStatus.verified) {
+      return _json(resp());
+    }
+    return _json(
+      resp(
+        assets: {
+          'url': _signedUrl(artifact.token),
+          'hash': artifact.hash,
+          'size': artifact.size,
+        },
+      ),
+    );
+  }
+
+  /// `POST /crashes` — device-facing crash ingestion.
+  ///
+  /// Shorebird already detects a boot crash and rolls the patch back, but the
+  /// stack trace explaining *why* never leaves the device: the CLI only emits
+  /// symbols for third-party crash tools. This is the intake for that, so a
+  /// self-hosted deployment gets crash visibility without bolting on a
+  /// third-party SDK.
+  ///
+  /// Same posture as `patches/check` and `patches/events`: unauthenticated,
+  /// `app_id`-scoped, and tolerant of anything malformed — a crashing app must
+  /// never be made worse by its own reporter. Always answers 200 with
+  /// `{stored: bool}`; `false` means the report deduped, which is the normal
+  /// outcome for a retrying reporter or a crash loop.
+  Future<Response> _crashesReport(Request req) async {
+    final raw = await _readText(req);
+    obs.info('crashes/report', {'bytes': raw.length});
+    try {
+      final decoded = jsonDecode(raw);
+      final m = decoded is Map ? decoded : const {};
+      final body = m['crash'] is Map ? m['crash'] as Map : m;
+      String? str(String k) => body[k] is String ? body[k] as String : null;
+      int? integer(String k) => body[k] is int ? body[k] as int : null;
+
+      final appId = str('app_id');
+      final clientId = str('client_id');
+      final releaseVersion = str('release_version');
+      final patchNumber = integer('patch_number');
+      final stack = str('stack') ?? str('stack_trace');
+      final ts = integer('timestamp') ?? integer('ts');
+
+      // Dedupe on identity + the stack itself, so a loop collapses to one row
+      // while genuinely different crashes from the same build still land.
+      final dedupe = [
+        clientId,
+        appId,
+        releaseVersion,
+        patchNumber,
+        str('kind'),
+        // A whole stack makes an unwieldy key; its hash is enough.
+        if (stack != null) sha256.convert(utf8.encode(stack)).toString(),
+        ts,
+      ].join('|');
+
+      final stored = await repo.insertCrashReport(
+        raw: raw,
+        dedupeKey: dedupe,
+        appId: appId,
+        clientId: clientId,
+        releaseVersion: releaseVersion,
+        patchNumber: patchNumber,
+        platform: str('platform'),
+        arch: str('arch'),
+        kind: str('kind'),
+        message: str('message'),
+        stack: stack,
+        ts: ts,
+      );
+      return _json({'stored': stored});
+    } on Object catch (e) {
+      // Deliberately swallowed. An app in a crash loop retrying a malformed
+      // report should not also be fighting 4xx/5xx responses.
+      obs.info('crashes/report rejected', {'error': '$e'});
+      return _json({'stored': false});
+    }
+  }
+
+  /// `GET /api/v1/apps/{appId}/crashes` — authenticated read for the console.
+  ///
+  /// `release_version` and `patch_number` narrow to the tuple a retained symbol
+  /// set would be keyed by, which is how symbolication will find its inputs.
+  Future<Response> _getCrashes(Request req, String appId) async {
+    await _authorizeApp(req, appId);
+    final q = req.url.queryParameters;
+    final reports = await repo.crashReports(
+      appId,
+      releaseVersion: q['release_version'],
+      patchNumber: int.tryParse(q['patch_number'] ?? ''),
+      limit: int.tryParse(q['limit'] ?? '') ?? 100,
+    );
+
+    // Opt-in, because resolving means fetching, unzipping and DWARF-parsing a
+    // symbol set per distinct patch in the page — fine for one crash, too slow
+    // to impose on a list view that only wants counts and messages. Off by
+    // default also keeps this response byte-identical to before.
+    final wantSymbols = q['symbolicate'] == 'true';
+
+    return _json({
+      'crashes': [
+        for (final r in reports)
+          {
+            'id': r['id'],
+            'client_id': r['client_id'],
+            'release_version': r['release_version'],
+            'patch_number': r['patch_number'],
+            'platform': r['platform'],
+            'arch': r['arch'],
+            'kind': r['kind'],
+            'message': r['message'],
+            'stack': r['stack'],
+            if (wantSymbols)
+              'stack_symbolicated': await _symbolicatedStack(appId, r),
+            'ts': r['ts'],
+            // Postgres hands back a DateTime here, SQLite a String. Normalize
+            // so the wire shape does not depend on the backend.
+            'received_at': r['received_at'] is DateTime
+                ? (r['received_at']! as DateTime).toUtc().toIso8601String()
+                : '${r['received_at']}',
+          },
+      ],
+    });
+  }
+
+  /// The symbolicated form of one crash report's stack, or `null` when it
+  /// cannot be resolved.
+  ///
+  /// Null is a normal outcome, not an error: a crash against a release (no
+  /// patch number) has no retained symbol set, a patch built without
+  /// `--split-debug-info` retained none, and symbols may simply not have been
+  /// uploaded yet. The raw `stack` is always present alongside this, so the
+  /// caller loses nothing when it is null.
+  Future<String?> _symbolicatedStack(
+    String appId,
+    Map<String, Object?> report,
+  ) async {
+    final stack = report['stack'];
+    final version = report['release_version'];
+    final number = report['patch_number'];
+    if (stack is! String || stack.isEmpty) return null;
+    if (version is! String || number is! int) return null;
+
+    final platform = report['platform'];
+    if (platform is! String) return null;
+
+    final release = await repo.releaseByVersion(appId, version);
+    if (release == null) return null;
+
+    final patches = await repo.patchesForRelease(release.id);
+    PatchRow? patch;
+    for (final p in patches) {
+      if (p.number == number) {
+        patch = p;
+        break;
+      }
+    }
+    if (patch == null) return null;
+
+    final symbols = await repo.patchArtifact(patch.id, symbolsArch, platform);
+    if (symbols == null || symbols.status != ArtifactStatus.verified) {
+      return null;
+    }
+
+    return _symbolizer.symbolicate(
+      stack: stack,
+      symbols: symbols,
+      arch: report['arch'] is String ? report['arch']! as String : null,
     );
   }
 

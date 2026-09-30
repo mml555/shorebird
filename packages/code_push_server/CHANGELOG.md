@@ -1,8 +1,142 @@
+<!-- cspell:words ungated -->
+
 # Changelog
 
 All notable changes to `code_push_server` are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## Unreleased
+
+### Added
+
+- **Assets-only patches.** `patches/check` can now serve a patch whose payload
+  is an asset bundle and nothing else, which is what lets the engine's asset
+  overlay ship on platforms where shipping *code* needs the AOT linker — there
+  is nothing to link or interpret. The response always carries a `kind`
+  (`code` | `assets`).
+
+  Gated behind a `supported_patch_kinds` capability in the request rather than
+  simply announced, because the failure mode is sticky: a stock updater handed
+  an assets-only patch would try to inflate the archive as a binary diff, fail,
+  and tombstone the patch as permanently bad for that release. Silence means
+  code-only, and a wrong-typed capability is read as no support.
+
+  A patch carrying both a code artifact and a bundle still reports `code`; the
+  bundle continues to be fetched separately via `patches/assets`.
+
+### Fixed
+
+- **An interrupted release is recoverable.** Registering a release artifact used
+  to conflict unconditionally on a second attempt, which made a killed
+  `shorebird release` terminal: the CLI rebuilds and re-uploads a platform's
+  artifacts in a fixed order, so the retry died re-sending the one that already
+  landed and never reached the ones still missing — and this API has no `DELETE`
+  to clear the way.
+
+  Found the hard way on 2026-07-30. Cutting `2.0.0+1785465879` was killed
+  mid-upload with iOS `xcarchive` registered and `runner` + `ios_supplement`
+  missing. The release sat at `{android: active, ios: draft}` and no invocation
+  could finish it.
+
+  A byte-identical re-upload now returns the existing registration. A *differing*
+  hash while the release is still `draft`/`uploading` supersedes the stale row
+  (marked `failed`, which the duplicate lookup skips) and is audited as
+  `artifact.superseded` — matching on hash alone would have missed the real case,
+  since a rebuild never reproduces the previous bytes. From `ready` onward a
+  differing hash stays a hard conflict: those artifacts are what installed apps
+  run and what patches are linked against, so swapping one would silently
+  invalidate every patch built from it.
+
+- **A platform can no longer be activated with an incomplete artifact set.** The
+  gate asserted that every artifact *present* was verified, not that the expected
+  set was complete, so a lone verified `xcarchive` would activate an iOS release
+  that no patch could ever be linked against — surfacing at patch time, far from
+  the cause. Now compared against a per-platform required set.
+
+  Platforms absent from that set are deliberately ungated. Blocking a target
+  whose artifact list this server has never learned would stop it shipping
+  outright, which is worse than closing the hole late.
+
+- **A client that cannot install the active patch is now offered the newest one
+  it can**, instead of nothing.
+
+  Found by promoting a real assets-only patch: promotion withdrew the release's
+  code patch, and because a stock updater cannot be offered an assets patch,
+  `patches/check` returned `patch_available: false` for it. A device already
+  running the code patch kept it, but a fresh install would have run unpatched
+  code that the previous patch had fixed — silently, with nothing in the rollout
+  to show it.
+
+  The fallback walks superseded patches newest-first and applies every gate the
+  active path applies: same release, `ready`, newer than the client's, and
+  eligible under that patch's own rollout — a fallback that skipped those would
+  be a way to receive a patch a rollout excluded. Rolled-back patches are never
+  candidates: superseded means *replaced*, rolled back means *pulled for cause*,
+  and conflating them would resurrect a patch someone deliberately withdrew.
+
+  Consequence worth understanding: client classes can now legitimately sit on
+  different patch numbers, each running the newest patch it supports. That is
+  intended. It follows from a device being able to boot only one patch, which
+  makes an assets-only patch and a code patch alternatives rather than additive.
+
+## 1.3.0 — 2026-07-29
+
+### Added
+
+- **Patch asset bundles are stored and served**, so a patch can change assets —
+  images, fonts, JSON — and not only Dart code. The bundle rides along as an
+  ordinary patch artifact tagged `arch: assets`, which needed no schema change
+  and no new upload path, because `arch` is free-form end to end.
+  - `POST /patches/assets` — device-facing and unauthenticated, like the rest of
+    the device surface: an app in the wild knows only its `app_id`. Takes
+    `{app_id, release_version, platform, patch_number}` and answers
+    `{assets_available, assets: {url, hash, size}}` with a signed download URL.
+  - Malformed or unknown input answers "nothing here" rather than erroring. This
+    is polled on launch by app code, and a hard failure would be a needless
+    crash path for a purely additive feature.
+  - A **rolled-back patch stops serving its assets**, or an app that had reverted
+    would keep using the newer bundle against older code.
+
+  The native updater is never involved, which is what keeps this off the
+  engine-build critical path — and therefore working on iOS as well as Android.
+
+- **Crash reports are ingested, retained, and symbolicated** (schema migration
+  **v8**), so a self-hosted deployment gets crash visibility without a
+  third-party SDK. Boot-crash rollback already existed; the stack trace
+  explaining *why* never left the device.
+  - `POST /crashes` — device-facing and unauthenticated. It always answers
+    `200 {stored: bool}` and swallows malformed input **on purpose**: the client
+    is an app that just died, and making it fight 4xx/5xx is a second failure on
+    top of the first. A test named `garbage never fails the reporter` guards it.
+  - `GET /api/v1/apps/{appId}/crashes` — authed, filterable by
+    `release_version` / `patch_number`.
+  - `?symbolicate=true` adds `stack_symbolicated` beside the raw `stack`,
+    resolving the trace against the debug symbols the CLI retains for that patch
+    (`arch: symbols`).
+
+  Symbolication is pure Dart: what the CLI retains is Dart's own
+  `--split-debug-info` output, which is what `flutter symbolize` reads through
+  `package:native_stack_traces`, and that package handles both the ELF form
+  (Android) and the Mach-O form (Apple). So one implementation covers every
+  platform inside this Linux container — no `llvm-symbolizer`, no `atos`, no Mac
+  worker. Those would only matter for native Objective-C/C++ frames out of a
+  dSYM, which a Dart crash handler does not produce.
+
+  Notable choices:
+  - **Read-time, never ingest-time.** Ingest must stay unfailable, and symbols
+    are routinely uploaded *after* a crash has already arrived, so resolving at
+    ingest would permanently miss.
+  - **Opt-in.** Resolving costs a fetch, unzip and DWARF parse per distinct patch
+    in the page, so the default response is unchanged for existing callers.
+  - **Never guesses the symbol file.** Arch matching is on the
+    `-<token>.symbols` suffix rather than a substring: `arm` is a prefix of
+    `arm64`, so a substring match would hand arm64 symbols to an arm32 crash and
+    resolve every frame to a wrong address — a failure that looks like success.
+    Given several candidates and no arch match it resolves nothing.
+
+  Verified end to end against a physical Android device: a crash thrown from
+  patched code resolved to exact function names and line numbers.
 
 ## 1.2.0 — 2026-07-29
 
