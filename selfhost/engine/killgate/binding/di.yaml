@@ -1,0 +1,19 @@
+# cspell:words dynmod
+# Arm 2's dynamic interface: what the patch bytecode may touch of the host,
+# expressed the way a real Track E release would ship it. gen_kernel's
+# annotator turns `callable` into @pragma('dyn-module:callable'), which the VM
+# treats identically to vm:entry-point (runtime/vm/object.cc
+# FindEntryPointPragma) — i.e. this is the designed retention mechanism.
+#
+# Library URIs must be the CFE-indexed (package:) URI, not file: — see
+# ../../dynmod/di.yaml for the failure mode when this is wrong.
+callable:
+  - library: 'package:dynamic_modules/target_binding.dart'
+    member: 'hostSuffix'
+  - library: 'package:dynamic_modules/target_binding.dart'
+    member: 'greet'
+  # The SDK symbol under test. Whether the annotator accepts a platform
+  # library at all is part of the experiment — if it refuses, that is a
+  # finding (SDK retention needs a different mechanism), not a harness bug.
+  - library: 'dart:core'
+    member: 'print'
