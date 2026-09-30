@@ -1,0 +1,7 @@
+# Template. selfhost/scripts/prepare_airgap_fixture.sh writes the real
+# shorebird.yaml from this shape.
+#
+# app_id is NOT committed because it is server-generated: POST /api/v1/apps
+# ignores a requested id, so it differs per control-plane instance.
+app_id: REPLACE-ME
+base_url: http://localhost:18080
