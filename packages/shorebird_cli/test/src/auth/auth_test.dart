@@ -150,6 +150,40 @@ void main() {
             );
           });
         });
+
+        test('names both deployments when self-hosted', () {
+          // Reached by logging in against Shorebird's hosted service and then
+          // pointing the CLI at a self-hosted control plane: the stored
+          // credential's `iss` no longer matches the configured issuer. The
+          // bare "Unknown jwt issuer" gives no hint that the fix is
+          // CREDENTIALS rather than configuration. Found by running the real
+          // binary against a live control plane, not by a unit test.
+          when(
+            () => shorebirdEnv.hostedUri,
+          ).thenReturn(Uri.parse('http://localhost:18080'));
+          when(
+            () => shorebirdEnv.jwtIssuer,
+          ).thenReturn('http://localhost:18080');
+          when(() => payload.iss).thenReturn('https://auth.shorebird.dev');
+
+          runWithOverrides(() {
+            expect(
+              () => jwt.authProvider,
+              throwsA(
+                isA<Exception>().having(
+                  (e) => e.toString(),
+                  'message',
+                  allOf(
+                    contains('issued by https://auth.shorebird.dev'),
+                    contains('expects http://localhost:18080'),
+                    contains(shorebirdTokenEnvVar),
+                    contains('POST /admin/users'),
+                  ),
+                ),
+              ),
+            );
+          });
+        });
       });
     });
   });
@@ -391,6 +425,32 @@ void main() {
               ),
             ).called(1);
             verify(() => logger.detail('Exception: error.')).called(1);
+          });
+          test('advises an API key rather than a login '
+              'when the control plane is self-hosted', () async {
+            // "Log out and log in again" presumes there is something to log in
+            // TO. A self-hosted control plane may run in self-consent mode with
+            // no browser flow configured at all, so the recoverable path is
+            // SHOREBIRD_TOKEN, not `shorebird login`. The sibling test above
+            // pins the upstream wording, so reverting the helper fails exactly
+            // one of the two.
+            final hostedUri = Uri.parse('http://localhost:18080');
+            when(() => shorebirdEnv.hostedUri).thenReturn(hostedUri);
+
+            await expectLater(
+              () => runWithOverrides(
+                () => client.get(Uri.parse('https://example.com')),
+              ),
+              exitsWithCode(ExitCode.software),
+            );
+
+            final advice =
+                verify(() => logger.info(captureAny())).captured.single
+                    as String;
+            expect(advice, contains('self-hosted ($hostedUri)'));
+            expect(advice, contains(shorebirdTokenEnvVar));
+            expect(advice, contains('POST /admin/users'));
+            expect(advice, isNot(contains('shorebird logout')));
           });
         });
 
@@ -982,6 +1042,42 @@ void main() {
             '[env] $shorebirdTokenEnvVar parsed as legacy CiToken',
           ),
         ).called(1);
+      });
+
+      test('points at the SELF-HOSTED control plane, not console.shorebird.dev, '
+          'when a hosted URL is configured', () async {
+        // The upstream wording is actively misleading on a self-hosted rig:
+        // there is no console.shorebird.dev in that deployment, so the operator
+        // is sent to infrastructure that does not exist for them. The control
+        // plane is its own identity provider and issues sb_api_ keys itself.
+        //
+        // The sibling test above pins the UPSTREAM wording with hostedUri null,
+        // so the two together are what make this discriminating: revert the
+        // helper and exactly one of them fails.
+        final hostedUri = Uri.parse('http://localhost:18080');
+        when(() => shorebirdEnv.hostedUri).thenReturn(hostedUri);
+        when(() => httpClient.send(any())).thenAnswer(
+          (_) async =>
+              http.StreamedResponse(const Stream.empty(), HttpStatus.ok),
+        );
+        when(() => platform.environment).thenReturn(<String, String>{
+          shorebirdTokenEnvVar: ciToken.toBase64(),
+        });
+        auth = buildAuth();
+        expect(auth.client, isA<AuthenticatedClient>());
+
+        final warning =
+            verify(() => logger.warn(captureAny())).captured.single as String;
+        expect(warning, contains('self-hosted ($hostedUri)'));
+        expect(warning, contains('POST /admin/users'));
+        expect(
+          warning,
+          contains('There is no console.shorebird.dev here.'),
+        );
+        expect(
+          warning,
+          isNot(contains('Create an API key at https://console.shorebird.dev')),
+        );
       });
 
       test(

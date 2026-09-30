@@ -25,6 +25,7 @@ class BuildEnvironmentMetadata extends Equatable {
     required this.shorebirdYaml,
     required this.usesShorebirdCodePushPackage,
     this.xcodeVersion,
+    this.engineRevision,
   });
 
   /// coverage:ignore-start
@@ -38,6 +39,7 @@ class BuildEnvironmentMetadata extends Equatable {
     ShorebirdYaml shorebirdYaml = const ShorebirdYaml(appId: '123'),
     bool usesShorebirdCodePushPackage = false,
     String? xcodeVersion = '15.0',
+    String? engineRevision = 'test-engine-revision',
   }) => BuildEnvironmentMetadata(
     flutterRevision: flutterRevision,
     shorebirdVersion: shorebirdVersion,
@@ -46,6 +48,7 @@ class BuildEnvironmentMetadata extends Equatable {
     shorebirdYaml: shorebirdYaml,
     usesShorebirdCodePushPackage: usesShorebirdCodePushPackage,
     xcodeVersion: xcodeVersion,
+    engineRevision: engineRevision,
   );
   // coverage:ignore-end
 
@@ -66,6 +69,7 @@ class BuildEnvironmentMetadata extends Equatable {
     ShorebirdYaml? shorebirdYaml,
     bool? usesShorebirdCodePushPackage,
     String? xcodeVersion,
+    String? engineRevision,
   }) => BuildEnvironmentMetadata(
     flutterRevision: flutterRevision ?? this.flutterRevision,
     shorebirdVersion: shorebirdVersion ?? this.shorebirdVersion,
@@ -76,6 +80,7 @@ class BuildEnvironmentMetadata extends Equatable {
     usesShorebirdCodePushPackage:
         usesShorebirdCodePushPackage ?? this.usesShorebirdCodePushPackage,
     xcodeVersion: xcodeVersion ?? this.xcodeVersion,
+    engineRevision: engineRevision ?? this.engineRevision,
   );
 
   /// The revision of Flutter used to run the command.
@@ -118,6 +123,19 @@ class BuildEnvironmentMetadata extends Equatable {
   /// `shorebird preview` mechanism changed entirely between Xcode 14 and 15.
   final String? xcodeVersion;
 
+  /// The Shorebird ENGINE revision used to build this release or patch — for a
+  /// self-hosted fork, the Route B cell address.
+  ///
+  /// Reason: without it the control plane cannot say WHICH engine produced a
+  /// release. `flutterRevision` does not answer that: two different engine
+  /// cells can share one Flutter revision and differ in capability, so a
+  /// release audited from the server alone was previously indistinguishable
+  /// from one built by a different engine entirely. The shipped artifact
+  /// records this; until now the authoritative server-side record did not.
+  ///
+  /// Nullable so records written before this field existed still deserialize.
+  final String? engineRevision;
+
   @override
   List<Object?> get props => [
     flutterRevision,
@@ -127,5 +145,6 @@ class BuildEnvironmentMetadata extends Equatable {
     shorebirdYaml,
     usesShorebirdCodePushPackage,
     xcodeVersion,
+    engineRevision,
   ];
 }
