@@ -1,0 +1,109 @@
+diff --git a/engine/src/flutter/shell/common/shorebird/shorebird.cc b/engine/src/flutter/shell/common/shorebird/shorebird.cc
+index 51e1257..fe2dc49 100644
+--- a/engine/src/flutter/shell/common/shorebird/shorebird.cc
++++ b/engine/src/flutter/shell/common/shorebird/shorebird.cc
+@@ -14,6 +14,7 @@
+ #include "flutter/fml/message_loop.h"
+ #include "flutter/fml/native_library.h"
+ #include "flutter/fml/paths.h"
++#include "third_party/dart/runtime/include/dart_api.h"
+ #include "flutter/lib/ui/plugins/callback_cache.h"
+ #include "flutter/runtime/dart_snapshot.h"
+ #include "flutter/runtime/dart_vm.h"
+@@ -138,6 +139,84 @@ std::string GetValueFromYaml(const std::string& yaml, const std::string& key) {
+   return "";
+ }
+ 
++// Route B (selfhost), SEAM 6: activate a patch after the root isolate exists
++// and before main runs.
++//
++// TEST-ONLY WIRING for the seam-6 kill gate. The payload path and target are
++// fixed here rather than coming from the updater, so this proves the ACTIVATION
++// TIMING in isolation before delivery is built. The lifecycle keeps deciding
++// WHICH patch is active; the engine only decides HOW a Route B patch becomes
++// live -- that ownership split is why this is a separate hook rather than a
++// change to ConfigureShorebird.
++//
++// Existing callback is CHAINED, never replaced: root_isolate_create_callback is
++// a general extension point (fuchsia and the embedder API both set it), and
++// silently consuming another subsystem's hook would be a nasty regression to
++// debug.
++void InstallRouteBActivationHook(Settings& settings) {
++  // Trigger by FILE PRESENCE, not environment.
++  //
++  // The first attempt used SHOREBIRD_ROUTEB_* env vars and the hook never
++  // fired: ios-deploy --envs did not reach the launched process, so getenv
++  // returned null and the whole chain was silently skipped. That is a test
++  // TRANSPORT failure rather than anything about activation, and swapping the
++  // trigger changes only how the engine RECEIVES configuration, not how a
++  // patch becomes live.
++  //
++  // Env is still honoured when present, because on hosts where it does work it
++  // is the more convenient switch.
++  //
++  // TEST-ONLY. In 4b this whole block is replaced by the lifecycle-selected
++  // SBRBPTCH path, and library/target come from the container's own target
++  // records rather than being hard-coded here.
++  std::string path;
++  std::string uri;
++  std::string target;
++
++  const char* env_payload = std::getenv("SHOREBIRD_ROUTEB_PAYLOAD");
++  const char* env_library = std::getenv("SHOREBIRD_ROUTEB_LIBRARY");
++  const char* env_target = std::getenv("SHOREBIRD_ROUTEB_TARGET");
++  if (env_payload != nullptr && env_library != nullptr &&
++      env_target != nullptr) {
++    path = env_payload;
++    uri = env_library;
++    target = env_target;
++  } else if (!settings.assets_path.empty()) {
++    // A deliberately unusual asset name, so no ordinary app can trip this.
++    const std::string candidate =
++        settings.assets_path + "/assets/routeb_patch.bytecode";
++    if (!fml::IsFile(candidate)) {
++      // Inert for ordinary apps and releases. Not an error: the overwhelmingly
++      // common case is no Route B patch at all, and it must cost nothing.
++      return;
++    }
++    path = candidate;
++    uri = "package:airgap_probe/main.dart";
++    target = "routeBValue";
++  } else {
++    return;
++  }
++  auto existing = settings.root_isolate_create_callback;
++
++  settings.root_isolate_create_callback =
++      [existing, path, uri, target](const DartIsolate& isolate) {
++        if (existing) {
++          existing(isolate);
++        }
++        FML_LOG(ERROR) << "ROUTEB: pre-main hook entered";
++        auto mapping = fml::FileMapping::CreateReadOnly(path);
++        if (!mapping || mapping->GetSize() == 0) {
++          FML_LOG(ERROR) << "ROUTEB: cannot read payload at " << path;
++          return;
++        }
++        const bool ok = Dart_RouteBActivatePatch(
++            mapping->GetMapping(), static_cast<intptr_t>(mapping->GetSize()),
++            uri.c_str(), target.c_str());
++        FML_LOG(ERROR) << "ROUTEB: activation " << (ok ? "complete" : "FAILED")
++                       << ", entering main";
++      };
++}
++
+ /// Whether an active patch path points at a payload containing Dart code.
+ ///
+ /// Keyed on `.vmcode` because that is exactly how
+@@ -340,6 +419,11 @@ void ConfigureShorebird(std::string code_cache_path,
+         << "Shorebird auto_update disabled, not checking for updates.";
+   }
+ 
++  // SEAM 6: the lifecycle above has decided WHICH patch is active. Arming the
++  // pre-main hook here keeps that ownership intact -- activation happens later,
++  // once the root isolate exists, because Route B needs live Function objects
++  // and this runs before the engine has started.
++  InstallRouteBActivationHook(settings);
+ }
+ 
+ void* FileCallbacksImpl::Open() {

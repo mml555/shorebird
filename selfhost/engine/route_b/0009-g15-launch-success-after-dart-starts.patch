@@ -1,0 +1,61 @@
+diff --git a/engine/src/flutter/shell/common/shell.cc b/engine/src/flutter/shell/common/shell.cc
+index 25b0b2c8a3..167d943868 100644
+--- a/engine/src/flutter/shell/common/shell.cc
++++ b/engine/src/flutter/shell/common/shell.cc
+@@ -524,17 +524,21 @@ Shell::Shell(DartVMRef vm,
+       is_gpu_disabled_sync_switch_(new fml::SyncSwitch(is_gpu_disabled)),
+       weak_factory_gpu_(nullptr),
+       weak_factory_(this) {
+-  // Report launch outcome to the Shorebird updater for crash recovery.
+-  // If the VM failed to start, we report failure so the updater can roll
+-  // back the patch. These calls are guarded inside Updater to execute at
+-  // most once per process — only the first Shell's outcome is reported.
+-  // In add-to-app, subsequent engines are silently ignored since they
+-  // boot from the same snapshot that was already reported on.
+-  // On unsupported platforms, NoOpUpdater handles these calls gracefully.
++  // Report launch FAILURE only. A null VM means Dart can never run, so the
++  // patch must be backed out and there is nothing later to wait for.
++  //
++  // SUCCESS IS NOT REPORTED HERE, and that is the point of G15. This is the
++  // Shell CONSTRUCTOR: the root isolate does not exist yet, so "the VM object
++  // was created" says nothing about whether the patch works. Banking success
++  // here means a Dart-phase failure caused by a patch can never back it out —
++  // success was already recorded before the patch had any opportunity to fail.
++  //
++  // Success now fires in Shell::RunEngine, once Engine::Run reports that the
++  // root isolate launched from the (patched) snapshot. See the comment there.
++  // These calls remain guarded inside Updater to execute at most once per
++  // process, and NoOpUpdater handles them gracefully on unsupported platforms.
+   if (!vm_) {
+     shorebird::Updater::Instance().ReportLaunchFailure();
+-  } else {
+-    shorebird::Updater::Instance().ReportLaunchSuccess();
+   }
+   FML_CHECK(!settings.enable_software_rendering || !settings.enable_impeller)
+       << "Software rendering is incompatible with Impeller.";
+@@ -813,6 +817,25 @@ void Shell::RunEngine(
+               FML_LOG(ERROR) << "Could not launch engine with configuration.";
+             }
+ 
++            // G15: the launch outcome is decided HERE, not in the Shell
++            // constructor. Engine::Run creates the root isolate from the
++            // (patched) snapshot and invokes the entrypoint, so a patch that
++            // breaks snapshot load, isolate spawn, or the first interpretation
++            // of a replaced body reports Failure — and gets backed out.
++            //
++            // This is the EARLIEST SUFFICIENT point, deliberately, not the
++            // latest safe one. Waiting for the first frame would prove more
++            // than is needed and would widen the window to the whole of
++            // startup, during which an ordinary process death — the user
++            // swiping the app away, the iOS launch watchdog, jetsam — would
++            // leave the boot breadcrumb set and tombstone a PERFECTLY GOOD
++            // patch on the next init. Here the window is milliseconds.
++            if (run_result == flutter::Engine::RunStatus::Failure) {
++              shorebird::Updater::Instance().ReportLaunchFailure();
++            } else {
++              shorebird::Updater::Instance().ReportLaunchSuccess();
++            }
++
+             result(run_result);
+           }));
+ }
