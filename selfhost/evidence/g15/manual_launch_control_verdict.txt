@@ -1,0 +1,125 @@
+MANUAL-LAUNCH CONTROL — VERDICT, 2026-08-17
+=============================================
+
+Precommitted in manual_launch_control_precommit.md before the taps. That table is
+not edited here.
+
+THE RESULT
+----------
+
+**RELEASE 91'S ORIGINAL APP, ORIGINAL SIGNATURE, ORIGINAL ENGINE, PATCH 59'S
+EXACT BYTES, LAUNCHED BY HAND — RENDERS `OLD-kill`. THREE TIMES.**
+
+    operator report (six manual taps, no debugger, no launcher tool)
+      1: white/died          2: blue — OLD-kill
+      3: white/died          4: blue — OLD-kill
+      5: white/died          6: blue — OLD-kill
+
+Per the precommitted table, second row: *"`arm2_verdict`'s configuration no
+longer reproduces at all. That is a larger and different finding — about the
+device, the OS, or the control plane — and needs its own investigation. It would
+NOT implicate the launch method."*
+
+**THE LAUNCH METHOD IS EXONERATED.** It was the leading discriminator going in;
+it is not the cause. By-hand tapping produces the same `OLD-kill` as
+`idevicedebug`.
+
+THE BRACKET — stronger than any previous run in this cycle
+------------------------------------------------------------
+| requirement | observed |
+|---|---|
+| patch `Installed` throughout | `Installed` at the end. **`Bad` is terminal — a tombstoned patch never returns to `Installed`** — so `Installed` afterwards proves `Installed` throughout. Never tombstoned |
+| patch active on the observed launches | **7 activations**, each a DISTINCT process (7 distinct `fn=` pointers; ASLR differs per launch) |
+| attach succeeded | all 7: `rc=0 attach_entered=1 attach_returned=1 bc_pre=0 bc_post=1 interp_post=1 uep_post_is_interpret_call=1` |
+| the right snapshot was running | embedder report: `running=e8665b59fa7f39338006007fd00cc28e` — **exactly release 91's `LC_UUID`**, on every launch |
+| the patch applied | `applied 1/1 targets` × 7; **zero** `REFUSED`/`wrong-release`/`unreadable` |
+| the payload was correct | `dlc.vmcode` (709 B) contains `NEW-kill` and `routeBValue`. **The bytes that reached the device carry the replacement value** |
+| lifecycle | `last_booted_patch: 1`, `boot_attempt_count: 0`, no unfinished breadcrumb — boots completed and banked success |
+
+**Attribution of the blue screens.** Release 91 has no launch id, and
+`arm2_verdict` documents that pulling files can itself relaunch the app — which is
+why there are 7 activations against 6 taps. So a tap-by-tap mapping is not
+recoverable. It is not needed: **patch activation is unconditional once
+`Installed` with `next_boot_patch: 1`** — every boot activates it. Only launches
+preceding the download could lack it, and with 7 activations across the sequence
+at most the earliest could. **Taps 4 and 6 therefore had the patch active beyond
+question**, and both rendered `OLD-kill`.
+
+WHAT ARM 2 CLAIMED, AND WHICH HALF REPRODUCES
+-----------------------------------------------
+This must be split precisely, because `arm2_verdict.txt` was careful about the
+distinction and deserves to be read as it was written.
+
+* **Arm 2's actual PASS — "a good patch killed before success is banked is NOT
+  tombstoned" — REPRODUCES.** Three kill launches occurred today and the patch is
+  still `Installed`, with `boot_attempt_count: 0`. `0009`/`0010` did their job.
+  That claim stands.
+* **Arm 2's `NEW-kill` SCREEN does NOT reproduce.**
+
+And `arm2_verdict` itself flagged the evidentiary status of that screen:
+
+    "The screenshot at /tmp/ks_arm2_F.png is white and does NOT show tap 4:
+     pulling the state files relaunched the app after the taps. The screen
+     observation is the operator's report; the state files are the corroboration."
+
+Its device-state corroboration supports **not-tombstoned**, which is what it
+claimed. It was never corroboration for the rendered VALUE. So the conflict is
+between an **unphotographed operator report from 2026-08-14** and today's run,
+bracketed by 7 traces, 7 report entries, a verified payload and a monotonic
+`Installed` state.
+
+**This does not establish that the earlier report was mistaken.** It establishes
+that the two observations conflict and that the newer one is far better
+evidenced. Candidate readings, none tested:
+
+* the 2026-08-14 screens were misread;
+* something outside the frozen specimen changed since — device, iOS, or the
+  control plane's served bytes;
+* the configuration is genuinely nondeterministic across boots.
+
+THE CONSEQUENCE FOR THE WHOLE INVESTIGATION
+---------------------------------------------
+**The premise "release 91 worked" is now in question, and that premise anchored
+everything.** The 91-vs-95 contrast is what defined arm A as a regression and what
+every structural probe was built to explain. If release 91 does not render
+`NEW-kill` under its own original configuration, then there may be **no
+working/failing contrast to explain** — and arm A's `OLD-kill` would be Route B's
+ordinary behavior for this target rather than a regression from a working state.
+
+That reframing is a LEAD, not a conclusion. It needs its own investigation.
+
+**What survives untouched, and is in fact strengthened:**
+
+* **The fold refutation and the inlining refutation both stand.** Each showed that
+  releases 91 and 95/96 SHARE a structure (consumption shape; `TPOOL_ABSENT`).
+  Behavioral sameness is consistent with structural sameness — simpler than the
+  contrast they were originally read against.
+* **Claim 1 unchanged**: instrument established; **positive locator not yet
+  proven**.
+* **Arm A: INCONCLUSIVE**, and no longer "engine-lineage-localized" — that phrase
+  died with the withdrawn attribution and is not revived here.
+* The tombstone/counter lane is untouched and unread. Note only that today's
+  lifecycle data is clean and would serve it well.
+
+WHAT THIS DOES NOT CLAIM
+------------------------
+* NOT that Route B never worked. It says this specimen does not render `NEW-kill`
+  today under the configuration recorded as working.
+* NOT a mechanism for `OLD-kill`.
+* NOT that the control plane served different bytes in August. The payload
+  delivered today is verified to carry `NEW-kill`; what was served on 2026-08-14
+  was not preserved and cannot now be compared.
+* NOT that the earlier operator report was wrong — see above.
+
+THE NEXT QUESTION, and it is no longer a bisect
+-------------------------------------------------
+The method bisect the previous plan called for (reintroduce debugger attachment,
+then re-signing, then hybridisation) is **moot**: the untouched original already
+fails, so there is no working baseline to bisect away from.
+
+The live question is instead: **has this specimen EVER rendered `NEW-kill` under
+evidence stronger than an operator's real-time report?** Every `NEW-kill` in the
+record traces to unphotographed screen observations. A search of the evidence tree
+for a photographed or file-corroborated `NEW-kill` — for ANY release, any target —
+would settle whether Route B's end-to-end effect has ever been captured, and that
+question now precedes any further mechanism work.

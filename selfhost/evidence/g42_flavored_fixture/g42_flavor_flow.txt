@@ -1,0 +1,88 @@
+G4.2 — the flavor flow probe, before and after the patch-side fix
+=================================================================
+
+Produced by  selfhost/engine/route_b/probes/g42_flavor_flow.sh
+Cell         4df8f9b6139b67d2cfe9f6aa8212372cade36278
+Engine donor 11e5695710275f829ef1e4a45636d39454ca1769
+Flutter      c15ef6379403a0a55531a058bdb2c8e55bc05c98
+Analyzer     analysisVersion 8  (supportedRouteBAnalysisVersion = 8,
+             packages/shorebird_cli/lib/src/route_b_coverage.dart:44)
+Tree         dc732dbb (probe run BEFORE), this commit (probe run AFTER)
+Date         2026-08-13
+Order        selfhost/plans/H2-flavored-ios-fixture.md, steps 5 and 6 only
+
+WHY THERE ARE TWO COUNTS, AND WHY THE FIRST ONE MATTERS
+-------------------------------------------------------
+`25f8a3b8` threaded the flavor into Route B's release kernels and TOUCHED NO
+PROBE. Row 4 of this probe existed to assert the gap that commit closed — it
+checked that `route_b_release_kernels.dart` "does not mention flavor at all" —
+so from `25f8a3b8` onward the probe was asserting a bug that no longer existed
+and failing for the right reason with the wrong meaning.
+
+  BEFORE (measured on dc732dbb, before any edit in this commit)
+      flavor flow: 11 passed, 1 failed
+      FAIL  the kernel forwarder does not mention flavor at all:
+            got 'mentions-flavor', want 'no-flavor'
+
+  AFTER (this commit)
+      flavor flow: 13 passed, 0 failed
+
+The count moved 12 -> 13 checks because the single inverted row became two: one
+per half of the flow. Nothing was deleted.
+
+THIS CORRECTS A RECORDED NUMBER
+-------------------------------
+PARITY §4 records `12/12` for this probe. That is a PRE-`25f8a3b8` run and was
+already stale when it was written down; the honest pre-fix number on this tree
+was 11/12. A correction needs evidence exactly as much as the original claim
+did, so both runs are recorded here rather than the new one replacing the old.
+
+WHAT THE TWO NEW ROWS PIN
+-------------------------
+4a  the kernel forwarder synthesises FLUTTER_APP_FLAVOR
+    route_b_release_kernels.dart:133-134 — `forwarded.add('-DFLUTTER_APP_FLAVOR=$flavor')`
+    Without it the prepass that generates the retention interface, and the
+    import kernel a patch binds against, describe a DIFFERENT program than the
+    one shipped.
+
+4b  the patch side compares with the resolved flavor
+    ios_patcher.dart — `flavor: _resolvedFlavor` into
+    `RouteBBuildConfig.fromBuildArgs`. This is the half fixed in this commit.
+
+THE PATCH-SIDE BUG, AND ITS NEGATIVE CONTROL
+--------------------------------------------
+`--flavor` never arrives through the build args: `forwardedArgs` carries only
+`--dart-define=` and `--enable-experiment=`, and the CLI passes flavor to
+`buildIpa` as a separate parameter. So `_verifyBuildConfigAgrees` synthesised NO
+FLUTTER_APP_FLAVOR for the patch while a flavored release records a real one,
+and the arm it refused was the MATCHING one.
+
+Negative control, run by reverting only `flavor: _resolvedFlavor` and re-running
+the new tests — 1 passed, 3 failed, with the bug reproduced verbatim:
+
+    FLUTTER_APP_FLAVOR: "foo" in the release, absent in this patch
+    release fingerprint: f920e6ca6887128a
+    patch fingerprint:   494a8de866b142b6
+
+The one test that passes either way is "refuses an UNFLAVORED patch of a
+flavored release" — it asserts behavior that was already correct, and it is kept
+because it bounds the fix rather than demonstrating it. The three that flip are
+the discriminating ones. The fix was restored immediately and the full suite is
+green at 75/75.
+
+STATUS THIS EARNS
+-----------------
+BUILT, and nothing more. Every arm here is a HOST arm:
+
+  * `g42_flavor_flow.sh` 13/13 — source facts grep-verified against the pinned
+    Flutter, plus one measurement (rows 5a-5c) showing the define changes the
+    emitted program, that two flavors are two programs, and that the value is
+    baked in rather than looked up.
+  * `dart test test/src/commands/patch/ios_patcher_test.dart` 75/75, four of
+    them new and three of them discriminating.
+
+NOT PROVEN, and not close to it. There is still no flavored iOS fixture, so
+`--flavor` cannot BUILD in this repo and NO device arm of G4.2 is constructible.
+That is the remaining half of H2 (its steps 1-4, 7 and 9) and it is untouched by
+this commit. PROVEN needs a flavored Route B release plus a same-flavor patch
+executing on R1 — the G4.2/G4.3 device order's work, not this one's.

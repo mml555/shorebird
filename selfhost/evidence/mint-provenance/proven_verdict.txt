@@ -1,0 +1,119 @@
+mint provenance generator — PROVEN
+==================================
+2026-08-17. Product: selfhost/engine/route_b/mint_route_b_cell.sh (provenance_comment)
+Prior rows: generator_verdict.txt (probe, 16/16), production_path_verdict.txt (BUILT)
+
+THIS IS ITS OWN CLAIM. It shares a cycle with two device claims and cites
+NEITHER, and neither cites this. The cycle is an economy, not a shared evidence
+pool.
+
+WHAT production_path_verdict.txt REQUIRED, AND WHETHER IT HAPPENED
+-------------------------------------------------------------------
+Its "WHAT WOULD FINISH IT" named four conditions. All four, in order:
+
+  1. a REAL new-cell publication, not a scratch destination      YES
+  2. read the emitted ancestry block BEFORE advancing anything   YES
+  3. recompute the installed cell against its donor independently
+     and require them to MATCH                                   YES — see below
+  4. a genuinely NEW address, not a re-derivation of an existing one
+                                                                 YES — 50bdae36…
+                                                                 appears 0× in
+                                                                 HEAD's map
+
+IDENTITY
+--------
+cell     50bdae36f6dafbe1da17852a42e119518e8e5cf4
+donor    cd137db6aea4c76f41903a872b91afb8ac799626
+inputs   --ios-artifacts sha256 4711841f…  (participates in the address)
+         FLUTTER_PLATFORM platform_strong.dill 757d09d7…  (inherited, see below)
+
+WHAT THE GENERATOR CLAIMED, IN ITS OWN WORDS
+---------------------------------------------
+    ANCESTRY, MEASURED against donor cd137db6… at mint time —
+    1 of 11 artifacts differ:
+      CHANGED ios-release/artifacts.zip — sha256 4711841f… (donor 443faeb2…)
+    Donor cd137db6… supplied the other 10, byte-for-byte.
+
+WHAT AN INDEPENDENT RECOMPUTATION FOUND
+-----------------------------------------
+Both installed cell directories digested file-by-file by hand, NOT by re-running
+the generator and not by reading its count:
+
+    new cell   11 files
+    donor      11 files
+    diff       exactly one line:
+      443faeb2ea1632a6a243ef7f7847a1381e66ae41c885be94a3bf581a87f86bbd  ./ios-release/artifacts.zip   (donor)
+      4711841f08e212c78adf6b2c93434c349dbc6dc4882f46484769bce625deba06  ./ios-release/artifacts.zip   (new)
+
+**The generator's sentence is TRUE, digest for digest, count for count.** The
+artifact it names as CHANGED is the only one that changed; the 10 it credits to
+the donor are byte-identical.
+
+WHY THIS RUN IS DISCRIMINATING AND NOT MERELY GREEN
+-----------------------------------------------------
+The generator has now made a truthful claim about a shape THE OLD LOGIC WOULD
+ALSO HAVE GOT RIGHT — `--ios-artifacts` was passed and the iOS zip is indeed what
+changed. Taken alone that is a weak observation, and it is recorded as one.
+
+What makes it evidence is the pairing with the arms already banked. The probe
+(generator_verdict.txt, 16/16) established the fixed generator truthful on the
+shapes the flag-branch CANNOT see, and required the frozen pre-fix wording to be
+CAUGHT on exactly those — a control that fails everything discriminates nothing,
+so legacy was also required to pass B and D. This run adds what a probe cannot:
+the product's own function, on a real publication, against a real donor, with the
+claim checked by a recomputation the generator had no part in.
+
+A NEW ANCESTRY SHAPE, AND ONE STILL UNOBSERVED
+------------------------------------------------
+production_path_verdict.txt's real run hit "2 of 11 differ". This one hit
+"1 of 11" — a distinct branch, and the first real mint in which the platform dill
+was INHERITED rather than substituted. That matters because the dill substitution
+is precisely what the old logic could not express, and its ABSENCE here is now
+also measured rather than assumed: the donor's delivered dill was extracted from
+its published flutter_patched_sdk_product.zip and compared against ours —
+757d09d7… both sides, identical.
+
+STILL UNOBSERVED on a real mint, and left explicitly so: the ALL-IDENTICAL branch,
+and the ADDED / ABSENT branches. Those remain probe-only against synthetic
+fixtures.
+
+AN INDEPENDENT GUARD FIRED IN THE SAME RUN, and it is not this claim's evidence
+--------------------------------------------------------------------------------
+The first mint attempt was REFUSED:
+
+    ERROR: platform dill MISMATCH — the address would certify a dill the build never gets.
+        address computed over : 9f5a5f75…   (published_sdk, STALE)
+        zip would deliver     : 757d09d7…
+
+`FLUTTER_PLATFORM` defaults to a `published_sdk` copy that was three cells out of
+date. Because the dill participates in the address, the refused run would have
+minted `6a4199b1…` — a different address, certifying a dill no build receives.
+That is the `hooks_delivery_verdict.txt` drift, caught before publication rather
+than after.
+
+Recorded here because it happened here, NOT as support for this claim: it is a
+different mechanism (an address precondition) from the ancestry generator, and
+the audit's "served platform dill is the one the address was computed over" is
+what closes it. Conflating them would be the same error this document exists to
+avoid.
+
+AUDIT
+-----
+`audit_route_b_compiler.sh --hash 50bdae36…` — AUDIT CLEAN, 20/20, including
+"published ios-release/artifacts.zip matches ios_artifacts_sha256" and "served
+platform dill is the one the address was computed over".
+
+VERDICT
+-------
+**PROVEN.** The generator emits a MEASURED ancestry claim on the real product
+path, and that claim survived an independent recomputation on a genuinely new
+address.
+
+WHAT THIS DOES NOT CLAIM
+------------------------
+* NOT that 87130ae8's understated map entry is fixed. It is untouched and still
+  awaits regeneration.
+* NOT anything about arm A, `OLD-kill`, or the 0012/0013 instrumentation. This
+  cycle's device claims are scored in their own files and neither is supported by
+  this one.
+* NOT that every ancestry branch is field-exercised — three named above are not.

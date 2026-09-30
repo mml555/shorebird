@@ -1,0 +1,59 @@
+H2 step 7 — does --flavor reach the COMPILER? (host only, no control plane, no device)
+======================================================================================
+date: 2026-08-14   fixture: selfhost/fixtures/flavored_app   Flutter: c15ef637 (3.44.8)
+built with: flutter build ios --release [--flavor X] --no-codesign
+
+| arm                          | marker in shipped App | CFBundleIdentifier             |
+|------------------------------|-----------------------|--------------------------------|
+| --flavor foo                 | V1/Foo                | dev.selfhost.flavoredProbe.foo |
+| --flavor bar                 | V1/Bar                | dev.selfhost.flavoredProbe.bar |
+| none (pubspec default-flavor)| V1/Foo                | dev.selfhost.flavoredProbe.foo |
+
+All three arms PASS: the flavor reaches the compiler, each flavor selects its own
+Xcode configuration and bundle id, and `default-flavor: foo` reaches BOTH the
+compiler and the configuration selection with no command-line token.
+
+FINDING 1 — THE PLAN'S CHECK IS WRONG IN CASE, AND FAILS FAVOURABLY.
+H2 step 7 says `grep -c 'V1/foo'`. That returns 0 for every arm, which reads as
+"the flavor never reached the compiler" while the flavor demonstrably did. The
+marker is `V1/Foo`. Anyone running the step as written would record a false
+negative on a working fixture.
+
+FINDING 2 — AND THE CAUSE IS NOT COSMETIC. On iOS, FLUTTER_APP_FLAVOR is parsed
+from the XCODE CONFIGURATION, explicitly not from the FLAVOR environment
+variable:
+
+  common.dart:_addFlavorToDartDefines
+    "For iOS and macOS projects, parse the flavor from the configuration, do not
+     get from the FLAVOR environment variable. This is because when built from
+     Xcode, the scheme/flavor can be changed through the UI and is not reflected
+     in the environment variable."
+    flavor = await xcodeProject.parseFlavorFromConfiguration(environment);
+
+  xcode_project.dart:385-388
+    for (final String schemeName in info.schemes) {
+      if (schemeName.toLowerCase() == parsedScheme.toLowerCase()) {
+        return schemeName;          // the SCHEME's own casing
+      }
+    }
+
+Measured corroboration: ios/Flutter/Generated.xcconfig carries FLAVOR=foo
+(lowercase) for the same build whose shipped kernel contains V1/Foo.
+
+CONSEQUENCE FOR ROUTE B, stated as a finding and NOT fixed here.
+route_b_release_kernels.dart:134 threads `-DFLUTTER_APP_FLAVOR=$flavor` where
+$flavor is RouteBBuildConfig.resolveFlavor(...) — the CLI token / pubspec
+default-flavor, i.e. `foo`. The SHIPPED release kernel receives `Foo`. So for iOS
+with conventionally capitalized schemes — which is what Flutter's own generator
+and the overlay both produce — the prepass and import kernel are compiled with a
+DIFFERENT value of `appFlavor` than the release that ships.
+
+That is the same shape as the defect PARITY:2056 records this work as closing:
+"retention and binding could be computed against a different Dart program than
+the one that shipped." 25f8a3b8 closed the KEY (the define is now threaded); the
+VALUE is still divergent on iOS.
+
+Scope, honestly: this bites where flavor affects program STRUCTURE (a branch on
+appFlavor selecting different call sites), not merely where it appears in a
+string. It is not demonstrated to break a specific app here. It IS demonstrated
+that the two kernels disagree.

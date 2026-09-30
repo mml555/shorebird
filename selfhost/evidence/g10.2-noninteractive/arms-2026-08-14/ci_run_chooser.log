@@ -1,0 +1,8 @@
+Starting Fetching apps...
+Done Fetching apps
+Starting Fetching releases...
+Done Fetching releases
+Input was required for the following prompt but the CLI is running in a non-interactive context:
+  Which release would you like to patch?
+
+Hint: Pass --release-version=<version> to patch a specific release without prompting.

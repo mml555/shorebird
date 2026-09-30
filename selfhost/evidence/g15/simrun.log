@@ -1,0 +1,6 @@
+Xcode build done.                                            8.0s
+Flutter run key commands.
+flutter: G15-ENGINE engine=one isolate=main entrypoint=main flutter_view=1
+flutter: G15-MARKER engine=one path=/Users/mendell/Library/Developer/CoreSimulator/Devices/4AA3B2BF-446F-4D0C-A12D-52D98926C7CE/data/Containers/Data/Application/3710A37E-D98B-4BCC-B89C-B2D53CDA23B8/tmp/g15-engine-one.marker
+flutter: G15-ENGINE engine=two isolate=engineTwoMain entrypoint=engineTwoMain flutter_view=1
+flutter: G15-MARKER engine=two path=/Users/mendell/Library/Developer/CoreSimulator/Devices/4AA3B2BF-446F-4D0C-A12D-52D98926C7CE/data/Containers/Data/Application/3710A37E-D98B-4BCC-B89C-B2D53CDA23B8/tmp/g15-engine-two.marker

@@ -1,0 +1,30 @@
+engine hash: 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+cell:        macos-ios
+overlay:     /Users/mendell/shorebird/selfhost/cdn/overlay
+
+owned-built:       14
+owned-mirrored:    0
+compat-mirrored:   1
+denied:            4
+missing-required:  5
+also:              unprotected=2
+
+findings:
+  MISSING-REQUIRED  flutter_infra_release/flutter/40eaa0ef6cb6485833bf2e10ac97224ca82cbf25/sky_engine.zip
+                    Dart source of dart:ui; publish ours even when byte-identical to stock
+  UNPROTECTED       flutter_infra_release/flutter/40eaa0ef6cb6485833bf2e10ac97224ca82cbf25/sky_engine.zip
+                    owned by policy but @must_be_local does not match it: a miss serves STOCK bytes from the pinned hash instead of 404ing
+                    FIX ORDER: publish the bytes FIRST, then add the path to @must_be_local. Protecting an absent artifact 404s every build against this hash.
+  MISSING-REQUIRED  flutter_infra_release/flutter/40eaa0ef6cb6485833bf2e10ac97224ca82cbf25/flutter_gpu.zip
+                    second getPackageDirs() entry; same class as sky_engine
+  UNPROTECTED       flutter_infra_release/flutter/40eaa0ef6cb6485833bf2e10ac97224ca82cbf25/flutter_gpu.zip
+                    owned by policy but @must_be_local does not match it: a miss serves STOCK bytes from the pinned hash instead of 404ing
+                    FIX ORDER: publish the bytes FIRST, then add the path to @must_be_local. Protecting an absent artifact 404s every build against this hash.
+  MISSING-REQUIRED  download.shorebird.dev/shorebird/40eaa0ef6cb6485833bf2e10ac97224ca82cbf25/artifacts_manifest.yaml
+                    must describe OUR hash; see audit_overlay.sh --emit-manifest
+  MISSING-REQUIRED  download.shorebird.dev/shorebird/40eaa0ef6cb6485833bf2e10ac97224ca82cbf25/patch-darwin-x64.zip
+                    cross-compiled, Rosetta-verified
+  MISSING-REQUIRED  download.shorebird.dev/shorebird/40eaa0ef6cb6485833bf2e10ac97224ca82cbf25/patch-linux-x64.zip
+                    built on the Linux box
+
+AUDIT FAILED for 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25 (macos-ios)

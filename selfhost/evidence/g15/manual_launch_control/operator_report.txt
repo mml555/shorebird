@@ -1,0 +1,11 @@
+Six manual taps, KillswitchProbe, iPhone 7 / iOS 15.8.8 (8cb4bc98…), 2026-08-17.
+Launched by tapping the home-screen icon ONLY. No debugger, no launcher tool.
+
+  1: white/died
+  2: blue — OLD-kill
+  3: white/died
+  4: blue — OLD-kill
+  5: white/died
+  6: blue — OLD-kill
+
+Reported by the operator holding the device.

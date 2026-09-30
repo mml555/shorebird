@@ -1,0 +1,39 @@
+SSD backup reclaim — 2026-08-14
+===============================
+
+GOAL: remove disk pressure on the Azure build host (20.120.104.70:13549).
+
+THE PREMISE INVERTED. media_manifest.json declares:
+    "root": "/Volumes/build/media"
+so the external SSD is the SOURCE and the VPS held a copy made FROM it.
+"Move the backup onto the SSD" was already true. The only available
+action was to delete the redundant VPS copy.
+
+VERIFIED BEFORE DELETING (all three, in this order):
+  manifest        : 2055 files, 550986215476 bytes (551.0 GB), errorCount 0
+  SSD complete    : 2055/2055 present at exact size, 0 missing, 0 extra
+  SSD bits good   : 61 files / 19.4 GB md5-verified, 0 mismatches
+  box unique files: 0   <-- the check that licensed the delete
+                    (box was a strict subset: 2051/2055, 0 size mismatches)
+
+DELETED (exact paths, no globs -- a glob would have swept the meta dirs):
+  /data/ssd-backup        346G
+  /mnt/spare/ssd-backup   168G
+
+KEPT:
+  /data/ssd-backup-meta        1.2M
+  /mnt/spare/ssd-backup-meta   1.2M
+  /Volumes/build/media/.manifest/  <- NEW: the surviving copy now carries
+     its own per-file md5s, so it is verifiable without the VPS.
+
+BEFORE                                AFTER
+  /data       503G  448G   31G  94%     /data       503G  102G  376G  22%
+  /mnt/spare  216G  178G   28G  87%     /mnt/spare  216G  9.9G  195G   5%
+
+gclient sync (~40-60 GB, src/third_party still absent) was BLOCKED at 31 GB.
+Now 376 GB free -> UNBLOCKED. The >=80 GB precondition stays in ENGINE_BUILD.md.
+
+RE-VERIFIED AFTER THE DELETE:
+  SSD 2055/2055 present at exact size, 0 missing, 0 size-mismatch.
+  A check that runs only beforehand cannot catch a mistake made by the
+  operation it authorised.

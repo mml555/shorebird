@@ -1,0 +1,57 @@
+release        : 28
+preserved from : build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+preserved at   : 2026-08-13T02:19:22Z
+LC_UUID        : 736415b1f1c63867bf07892a94e0bbf4
+patchable      : 7,141  (1,775 per MB)
+size           : 4219056 bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect 736415b1f1c63867bf07892a94e0bbf4
+
+The working archive is NOT a substitute: Try logging out with shorebird logout and logging in again.
+
+If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+
+You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+/Users/mendell/Library/Application Support/shorebird/logs/1786587562168_shorebird.log re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.
+
+DEVICE RESULT — release 28, engine ffdec413 (first iOS-in-address cell)
+  gates    : 5/5 diagnostic gate (donor 8797612e), shipped engine carries v=2,
+             patchable 7,141 / 1,775 per MB, LC_UUID 736415b1 asserted both ways,
+             audit verified published zip == ios_artifacts_sha256
+  patch    : String value(RouteBThing self) => 'NEW-CTL';
+  app      : NEW-SET, code patch 1 (unchanged)
+
+CLASSIFIER: exit 3 — IDENTITY UNDECIDED. NO ATTRIBUTION MADE.
+
+  caller_resolved      = 1     (routeBValue WAS resolved)
+  caller_pool_functions = -1   (UNSET -- the scan never ran)
+  caller_pool_matches  = -1
+  Function fields moved correctly again:
+    fn_ep  0x10a0ddca8 -> 0x10a00c044
+    fn_uep 0x10a0ddca8 -> 0x10a00c044 == same-run InterpretCall
+  patched Function object 0x10aebdfc1
+
+THE DEFECT, precisely. The scan is guarded by
+
+    if (!caller.IsNull() && caller.HasCode()) { ...scan... }
+
+so `caller_resolved=1` with the counters still UNSET means Function::HasCode()
+returned FALSE for routeBValue. The pool was never walked. Nothing about caller
+identity was measured.
+
+WHY THE -1 SENTINEL EARNED ITS KEEP. Had those counters initialised to 0, this run
+would have read as "the caller's pool contains 0 Functions, 0 matching the patched
+one" -- an identity MISMATCH, the exact conclusion the whole experiment was built
+to test, produced by a skipped code path. The classifier refused instead, and named
+the gap.
+
+THE FIX, for the next run and not guessed at now:
+  * do not gate the scan on HasCode(). Read the caller's code the way the trace
+    already reads the target's (CurrentCode()), and if it is null record THAT.
+  * add a distinct field for "why the scan did not run" -- resolved-but-no-code,
+    null pool, and empty pool are three different states and currently collapse
+    into one unset counter.
+  * only then re-run; the release/engine/gate chain is unchanged and reusable.

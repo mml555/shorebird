@@ -1,0 +1,108 @@
+classifier    : f0c19701   (trace schema v4)
+target        : package:airgap_probe/main.dart _ProbeBodyState.privateClassValue
+rc            : 0   attach_entered=1 attach_returned=1
+function      : 0x106c562a1
+
+G3.6c + G3.6d — A METHOD ON A PRIVATE CLASS, PATCHED ON DEVICE
+
+  release body  : DateTime.now()... ? 'OLD-pc' : 'X'      (non-foldable)
+  patch body    : String privateClassValue() => 'NEW-PC';
+  lowered to    : String privateClassValue(dynamic self) => 'NEW-PC';
+  baseline      : private class OLD-pc, code patch none
+  after patch 1 : private class NEW-PC, code patch 1
+  container     : 781 bytes, packed for release 0ac0b80e...
+
+  `_ProbeBodyState` is PRIVATE and extends Flutter's `State`. That shape is why
+  privacy is the measured blocker rather than an academic one: `State` subclasses
+  are private by convention, so a patch that cannot reach a private class cannot
+  reach most real Flutter code.
+
+TWO WALLS, EACH VERIFIED BY ITS OWN ARTIFACT RATHER THAN BY THE HOST PROBE
+
+  G3.6c, compile half  : patch1.replacement.dart carries `dynamic self` — the
+                         producer lowered the receiver without naming the private
+                         class, which is exactly what G3.6c added.
+  G3.6d, runtime half  : dynamic_interface.yaml — the interface THIS RELEASE
+                         shipped — carries `class: '_ProbeBodyState'` (11 private
+                         class items). Retention is therefore a property of the
+                         release, not an inference from a host run.
+
+  The host probe's negative control already showed that stripping the `class:`
+  items makes the identical lowering fail, so the pair is a real conjunction and
+  not one feature counted twice.
+
+ADMISSIBLE, OFFSET-INDEPENDENT EVIDENCE (Function layer)
+  has_bytecode            0  -> 1        bytecode size 7
+  is_interpreted          0  -> 1        release Code size 120
+  entry_point_            0x102d326d8    -> 0x102c08044
+  unchecked_entry_point_  0x102d326d8    -> 0x102c08044
+  same-run InterpretCall  : 0x102c08044
+  uep_post_is_interpret_call = 1
+  classifier exit 0: "unchecked_entry_point_ DID move to InterpretCall"
+
+POOL IDENTITY: NOT REQUESTED, and that is the instrument behaving correctly.
+  pool_status=0 (NOT_REQUESTED), pool_offset=0x0, counters at their UNSET sentinel.
+  The diagnostic embedder's hardcoded offset is keyed to `RouteBThing.value`, so for
+  this target it requested nothing rather than reading a slot that means nothing.
+  Compare release 31, where the same hardcoded offset WAS applied to a moved call
+  site and produced a false IDENTITY MISMATCH that the admissibility rule voided.
+  Here there is nothing to void: not-requested never became a zero.
+
+A SPECIFICITY CONTROL, UNPLANNED BUT REAL
+  `route B value` stayed at OLD-rel across the same launches. One patch, one
+  declared target, one changed value — the other Route B target on the same screen
+  was untouched, so this is not "something changed" but "the named thing changed".
+
+GATES BEFORE INTERPRETATION
+  assert_diagnostic_engine 881e4129 3/3; CLI's own _verifyPatchableRelease 7144
+  sites (1775/MiB); assert_result_consumed --at 0xc08c8 CONSUMED (the exact call
+  site, named by address after --symbol found three in the caller, one of which is
+  a void setState that legitimately discards); assert_installed_release exit 0 at
+  all three launches, App sha256 identical each time.
+
+screenshots   : selfhost/engine/route_b/evidence/r32_1_baseline_OLD-pc.png
+                selfhost/engine/route_b/evidence/r32_2_patched_NEW-PC.png
+
+============================================================
+PATCH 2 — A PRIVATE GETTER CALL, ON A PRIVATE CLASS, AND THE RESULT IS RUNTIME DATA
+
+  patch body    : String privateClassValue() => _codePatch;
+  lowered to    : String privateClassValue(dynamic self) => self._codePatch;
+  after patch 2 : private class row shows 2, code patch 2
+  container     : 851 bytes, bytecode size 19 (patch 1's was 7)
+
+  `_codePatch` is a PRIVATE GETTER on the PRIVATE class `_ProbeBodyState`, and it
+  returns `widget.runtime.patchNumber?.toString() ?? 'none'`.
+
+WHY THIS IS A STRONGER PROOF THAN A LITERAL WOULD HAVE BEEN
+
+  The displayed `2` is not a constant anywhere. It is the live updater's patch
+  number, reached by the interpreted body traversing the app's own object graph --
+  self -> widget -> runtime -> patchNumber -> toString(). So this run proves more
+  than "a private getter resolved": interpreted replacement bytecode called into the
+  release's live objects and formatted a runtime value.
+
+  It also cannot be confused with either neighbouring state: the release body
+  returns 'OLD-pc' and patch 1 returned 'NEW-PC', so `2` is reachable from neither.
+
+WHAT IT CLOSES
+
+  G3.6e was device-proven for a private FIELD read (release 31 patch 2). A field is
+  named BARE in the interface and `precompiler.cc` synthesises its implicit accessors;
+  a getter is a Procedure keyed `get:_name` and takes a different path to
+  PruneDictionaries. That keying is listed in G3.6d's table as emitted and annotated,
+  and until this run it had never executed on a device.
+
+  patch2.capabilities.json records the grants under policy p2 with refused=0:
+    _ProbeBodyState#get:_assetsPatch, _ProbeBodyState#get:_codePatch
+  privateInstanceCallable=11, privateClassesConstructible=1.
+
+  STILL NOT DEVICE-PROVEN: a private METHOD call taking arguments. A getter is a
+  Procedure, so the same resolution and keying path is exercised, but "the same path
+  is very likely" is not the same claim as a measurement.
+
+  Function layer: bc 0->1, interpreted 0->1, both entry points 0x1015ba6d8 ->
+  0x101490044 = the same-run InterpretCall stub, uep_post_is_interpret_call=1.
+  Pool identity NOT_REQUESTED for this selector, as with patch 1.
+
+screenshot    : selfhost/engine/route_b/evidence/r32_3_patched_private_getter.png

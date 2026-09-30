@@ -1,0 +1,294 @@
+H2 step 7 — SUPPLEMENT to h2_step7_host_arms.txt. Host only: no device, no
+control plane, no shorebird invocation, no build run for this file.
+=============================================================================
+date: 2026-08-14
+
+WHAT THIS FILE IS, AND WHAT IT IS NOT.
+
+`h2_step7_host_arms.txt` (commit f7a9ef9f) is CANONICAL for step 7's verdict:
+three arms, the flavor reaches the compiler, and the define arrives spelled as
+the SCHEME name (`Foo`) rather than the CLI token (`foo`). None of that is
+restated here, and nothing here changes it.
+
+This file records four things that record does not carry, each of which would
+otherwise cost a re-run:
+
+  1. THE INSTRUMENT. The obvious spelling of the `strings` check undercounts by
+     half, silently.
+  2. THE NEGATIVE COLUMNS. The canonical table records the marker each arm
+     HAS. The false-green cases are about what an arm must NOT have.
+  3. THE BUNDLE PATH. The plan tells the operator to look at a path that does
+     not exist, and the single real path is shared by every arm.
+  4. THE CONSUMPTION GATE. It has not passed on this fixture, it cannot pass as
+     currently invoked, and the reason is structural rather than missing input.
+
+Two of these correct earlier text of my own; those corrections are marked.
+
+IDENTITY. Flutter pin c15ef6379403a0a55531a058bdb2c8e55bc05c98 (3.44.8 / Dart
+3.12.2, selfhost/compatibility.yaml:11). Xcode 26.6 (17F113). No engine build,
+no cell, no device, no `analysisVersion`-bearing surface is involved here, so
+those identity fields are deliberately absent rather than copied forward.
+
+MEASURED ON: the artifacts left in the shared tree by f7a9ef9f's own step-7
+run — build/ios/Release-Foo-iphoneos/, build/ios/Release-Bar-iphoneos/, and
+build/ios/iphoneos/. Reading them is the whole method: no build was run for
+this file, so nothing here can be a different build than the one recorded.
+(build/ios/iphoneos/Runner.app/Frameworks/App.framework/App is byte-identical
+to Release-Foo-iphoneos's — sha256 5a484108553bf183… — i.e. the final bundle is
+the foo arm's product.)
+
+
+1. THE INSTRUMENT: `grep -c`, NOT `grep -xc`
+--------------------------------------------------------------------------
+
+  strings -n 4 <App> | grep -c 'V1/Foo'      ->  2      <- the instrument
+  strings -n 4 <App> | grep -xc 'V1/Foo'     ->  1      <- undercounts by half
+
+`flavorState()` is written with two branches (lib/main.dart:51-53):
+
+    String flavorState() => DateTime.now().millisecondsSinceEpoch >= 0
+        ? 'V1/${appFlavor ?? "none"}'
+        : 'V1/${appFlavor ?? "none"}!';
+
+so the binary carries BOTH `V1/Foo` and `V1/Foo!`. `grep -x` matches whole lines
+only and therefore drops the `!` branch. The two constants are the evidence that
+the interpolation was constant-folded at all — an arm that reported 1 could not
+distinguish "folded, one branch" from "the second branch was optimised away",
+and that distinction is what makes the `strings` reading an instrument.
+
+CORRECTION, and this is why the section exists: an earlier version of my own
+evidence stated its matrix was taken with `strings -n 4 | grep -xc` while
+reporting the count 2. Re-run, that command returns 1. The numbers were taken
+with plain `grep -c`; the DOCUMENTED command was wrong, not the table. Anyone
+re-running the stated command would have got a number contradicting the
+evidence it appeared in.
+
+  $ strings -n 4 build/ios/Release-Foo-iphoneos/Runner.app/Frameworks/App.framework/App \
+      | grep 'V1/' | sort | uniq -c
+        1 V1/Foo
+        1 V1/Foo!
+
+
+2. THE FULL MATRIX, INCLUDING THE COLUMNS THAT MUST BE ZERO
+--------------------------------------------------------------------------
+
+Counts are `strings -n 4 <App> | grep -c <pattern>`. Re-taken 2026-08-14 on the
+artifacts named above.
+
+  | arm     | V1/Foo | V1/Bar | V1/foo | V1/bar | V1/none | FLAVORED-FIXTURE-V1 |
+  |---------|--------|--------|--------|--------|---------|---------------------|
+  | foo     |   2    |   0    |   0    |   0    |    0    |          1          |
+  | bar     |   0    |   2    |   0    |   0    |    0    |          1          |
+  | default |   2    |   0    |   0    |   0    |    0    |          1          |
+
+  foo and bar rows: re-measured today, directly, on Release-Foo-iphoneos and
+  Release-Bar-iphoneos.
+  default row: CARRIED FORWARD from the two step-7 runs (mine and f7a9ef9f's),
+  which agree. Its artifact is not separately preserved — the no-token arm
+  resolves `flavor = cliFlavor ?? defaultFlavor` to `foo` and so lands on the
+  same configuration and the same path as the foo arm. Not re-measured today,
+  and marked as such rather than folded into the rows that were.
+
+WHAT THE ZERO COLUMNS BUY, since a column of zeros looks like padding:
+
+  V1/none = 0    is the FALSE GREEN this order exists to catch. A build that
+                 succeeds, selects the flavored configuration, gets its own
+                 bundle id, and ships `V1/none` has resolved the SCHEME while
+                 the define never reached Dart. Every Xcode-axis observable in
+                 the canonical table would still read green in that world. This
+                 column is the only one that separates the two axes.
+
+  V1/Bar = 0     in the foo arm (and V1/Foo = 0 in the bar arm) is what makes
+                 the pair a DIFFERENTIAL rather than two independent passes.
+                 Presence of the expected marker is compatible with a binary
+                 that carries every flavor's constant.
+
+  V1/foo = 0     everywhere is Finding 1 of the canonical file stated as a
+                 measurement instead of a mechanism.
+
+  FLAVORED-FIXTURE-V1 = 1 in every arm: the release-state marker and the flavor
+                 marker are two separate readings, and neither moved when the
+                 other did.
+
+CORRECTION: an earlier version of my evidence offered `strings`' default 4-char
+minimum as a contributing reason the lowercase `V1/foo` counts zero. It is not
+a factor at all — `V1/foo` is SIX characters, well over the minimum, and the
+runs above pass `-n 4` explicitly. The cause is capitalisation, alone.
+
+
+3. THE BUNDLE PATH IS `Runner.app`, FOR EVERY ARM
+--------------------------------------------------------------------------
+
+MEASURED (three times across two sessions, and again today by listing the tree
+f7a9ef9f's run left behind):
+
+  build/ios/iphoneos/Runner.app                 CFBundleExecutable = Runner
+  build/ios/Release-Foo-iphoneos/Runner.app     CFBundleIdentifier = …Probe.foo
+  build/ios/Release-Bar-iphoneos/Runner.app     CFBundleIdentifier = …Probe.bar
+
+  There is no `flavored_probe_foo.app` and no `flavored_probe_bar.app` anywhere
+  in the build tree — not in the final directory and not in the per-configuration
+  ones.
+
+THE PLAN IS WRONG HERE, AND IT IS THE KIND OF WRONG THAT MANUFACTURES A RED.
+`selfhost/plans/H2-flavored-ios-fixture.md:159-174` — the paragraph headed
+"Step 7's paths are now wrong, and this is the load-bearing consequence" —
+states that the arms are at `flavored_probe_foo.app` / `flavored_probe_bar.app`
+because the committed xcconfigs set `PRODUCT_NAME`, and concludes that "two
+flavors also no longer collide at a single Runner.app, which is the G10.1
+stale-ipa class of misattribution". Both halves are false:
+
+  * `PRODUCT_NAME = "$(TARGET_NAME)"` is written in the pbxproj itself, 18 times
+    (9 configurations x 2 native targets; see ios_overlay/BASELINE.txt for the
+    count and the command), and a build setting in the pbxproj BEATS the
+    xcconfig that configuration includes. The xcconfigs' PRODUCT_NAME and
+    DISPLAY_NAME lines are INERT. `PRODUCT_BUNDLE_IDENTIFIER` behaves the other
+    way round only because derive_overlay.py:128 deletes the pbxproj's copy.
+
+  * So the arms DO collide at a single path, and the stale-bundle separation
+    that paragraph banks does not exist. The separation the arms actually had
+    came from deleting the build output first (`rm -rf build .dart_tool/
+    flutter_build` before every arm). Anyone re-running them must do the same;
+    an arm that fails silently leaves the PREVIOUS arm's bundle sitting at the
+    path this arm is about to be measured at.
+
+  * Co-installing two flavors ON A DEVICE is unaffected: that is keyed to
+    CFBundleIdentifier, which IS distinct per flavor (measured above).
+
+The same paragraph (:172-174) says a version that would "leave PRODUCT_NAME
+alone, keep the paths stable, accept that consecutive flavor builds overwrite
+each other" was written and then REVERTED in favour of the committed overlay.
+Measured, the committed overlay behaves exactly like the reverted alternative:
+the revert changed which file the setting is written in, not which setting wins.
+
+A note on how this was nearly propagated: my own first draft of step 7's runner
+printed, on every successful run, an epilogue telling the operator to inspect
+`build/ios/iphoneos/flavored_probe_foo.app` and asserting the bundle path is
+per-arm. That text contradicted the finding in the same commit, and would have
+sent every future operator to a path that has never existed. It is deleted, not
+softened. The canonical runner (f7a9ef9f) never carried it.
+
+
+4. THE CONSUMPTION GATE: STILL NOT MEASURED, AND NOT FOR THE REASON I GAVE
+--------------------------------------------------------------------------
+
+`assert_result_consumed.sh` answers "does the caller USE what the patchable call
+returns?" and its own header says consumption is a PRECONDITION to be read
+before any device result. On this fixture it has not passed. Three invocations,
+all re-run 2026-08-14 against a scratch copy of the foo arm's bundle:
+
+  a) default locator
+     assert_result_consumed.sh <Runner.app>
+       patchable sites : 577 in the whole binary
+       locator         : fixture signature (three field initialisers, then a call)
+       located         : 0        RESULT: NOT LOCATED     exit 2
+
+     Expected: the `--fixture-signature` locator is shaped for airgap_probe's
+     `routeBValue()` — three field-initialiser stores at +0x7/+0xf/+0x17, the
+     shape of `RouteBThing().value()`. `flavorState()` is a top-level function
+     with no receiver and allocates nothing, so it cannot match by construction.
+
+  b) the symbol route, WHICH MY EARLIER EVIDENCE WRONGLY CALLED UNAVAILABLE
+     assert_result_consumed.sh <Runner.app> --symbol flavorState \
+         --symbols <App.framework.dSYM>/Contents/Resources/DWARF/App
+       locator : symbol flavorState at 0xc4b98-0xc4c10 (resolved in the dSYM)
+       located : 0              RESULT: NOT LOCATED     exit 2
+
+     CORRECTION. I previously recorded that this route was unavailable because
+     `flutter build ios --no-codesign` emits no dSYM, citing the absence of
+     `build/ios/iphoneos/*.dSYM`. That was a negative grep in one directory read
+     as a fact about the build. The dSYMs exist — they are emitted next to the
+     per-configuration output, at `build/ios/Release-Foo-iphoneos/
+     App.framework.dSYM` and `Runner.app.dSYM` (and the Bar equivalents) — and
+     `nm` finds `flavorState` in them:
+
+       00000000000c4b98 t flavorState
+       00000000000c4c10 t flavorState (#2)
+
+     The locator resolves. The result is still NOT LOCATED, for a better reason.
+
+  c) the two call sites, named directly
+     `--symbol` selects patchable sites INSIDE the named function.
+
+     CORRECTED 2026-08-14, by disassembling the byte range the gate itself
+     reports (0xc4b98-0xc4c10). This read "`flavorState` is a leaf: it folds a
+     constant and returns, and contains no call", and that is FALSE. The body
+     holds FOUR direct branches — c4bb0 `bl 0xb6998`, c4bc8 `bl 0xe7a88`, c4be8
+     `bl 0xe7a54`, c4c08 `bl 0x1c3824` — so it calls out (DateTime.now via
+     c4bc8/c4be8) and selects between two pool constants at c4bf0/c4bf8. It is
+     neither a leaf nor a pure constant fold.
+
+     THE CONCLUSION SURVIVES AND IS BETTER SUPPORTED, which is why the sentence
+     is corrected rather than the section withdrawn: those internal calls are
+     all DIRECT `bl`, so they too fall outside the `ldur`+`blr` inventory at
+     assert_result_consumed.sh:450-457. The reason `--symbol` located 0 sites is
+     the instruction FORM, not an absence of calls.
+
+     Recorded because of where the error sat: under a heading promising
+     measurement, in a file whose own lesson is that a stated instrument must
+     reproduce its stated numbers. The claim was reasoned rather than
+     disassembled, and it read as measured.
+
+     Its CALLERS are what a consumption question is about, and they are two
+     direct branches found by disassembly:
+
+       c4b20: bl 0xc4b98
+       c4c28: bl 0xc4b98
+
+     Both were passed to the gate as `--at 0xc4b20` / `--at 0xc4c28`. Both:
+     NOT LOCATED, exit 2 — and this is structural, not a tuning problem. The
+     script's site inventory (assert_result_consumed.sh:450-457) admits only an
+     `ldur` of an entry point followed by `blr`, i.e. the INDIRECT pool-load
+     dispatch that Route B's patching redirects. A direct `bl` is not in the
+     inventory at all, so no locator can name one.
+
+  WHAT IS KNOWN, AND AT WHAT STRENGTH. Read by hand at 0xc4b20, the return value
+  IS consumed — `bl 0xc4b98` is immediately followed by `stur x0, [x2, #0x1f]`,
+  storing the result into a field, which matches `final v = flavorState();`
+  … `setState(...)` at lib/main.dart:93-95. That is a HAND READING of four
+  instructions. It is NOT the gate's verdict, it is not the gate's negative
+  control, and it may not be recorded as exit 0. The gate's answer on this
+  fixture remains MEASUREMENT INCOMPLETE.
+
+  SO THIS IS OWED, and it is owed more precisely than before. Closing it needs
+  ONE of: a locator that can name a direct-`bl` call site, or a fixture whose
+  observable is reached through the indirect dispatch the gate inventories. It
+  is NOT closed by finding a dSYM — that part is now done and it did not help.
+  Until one of those lands, no device arm on this fixture may be read as
+  evidence about patch delivery: a folded call site makes the UI blind, and
+  nothing downstream can distinguish "the interpreter never ran" from "it ran
+  and its answer was discarded".
+
+
+5. A CACHE ARTIFACT THAT LOOKED LIKE STRONG EVIDENCE
+--------------------------------------------------------------------------
+
+Observed during my step-7 run, and worth carrying because it points the wrong
+way: the no-token `default` arm, run WARM straight after the `bar` arm,
+finished in 5.2s and produced an `App` BYTE-IDENTICAL to the earlier warm `foo`
+arm. Byte-identity across two differently-invoked arms reads as very strong
+evidence that they compile the same program. It is not evidence at all — it is
+a build-cache hit. Re-run cold (`rm -rf build .dart_tool/flutter_build`), the
+same arm produced a DIFFERENT sha with the SAME `V1/Foo` constant.
+
+TWO RULES FOLLOW, and combined with §3 they are the difference between a
+measurement and an accident:
+
+  * AOT snapshots are not byte-reproducible across clean builds. sha EQUALITY
+    between arms is a cache artifact; sha INEQUALITY is not a finding either.
+    The string constant is the instrument; a sha is only an identity for the
+    specific bytes that were measured.
+  * Every arm must be run cold, because all arms write one path (§3). A warm
+    arm can be measured as a fresh one and a failed arm leaves its predecessor
+    behind.
+
+
+CEILING
+--------------------------------------------------------------------------
+
+NO STATUS is earned by this file. It runs no arm and builds nothing: it reads
+artifacts another session's step-7 run produced, corrects the instrument that
+documents them, and records one gate that has not passed. Step 7's BUILT belongs
+to f7a9ef9f. PROVEN needs a flavored Route B release and a same-flavor patch
+executing on device — the G4.2 device order's work — and §4 says that order may
+not treat consumption as established when it gets there.

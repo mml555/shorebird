@@ -1,0 +1,45 @@
+native launch
+native engine
+dart hlfmpsavi3 dart-main-entered
+dart hlfmpsavi3 boot-probe-returned:boot-ok
+dart hlfmpsavi3 arm:kill
+native launch
+native engine
+dart hlfmrmap2x dart-main-entered
+dart hlfmrmap2x boot-probe-returned:boot-ok
+dart hlfmrmap2x arm:render
+dart hlfmrmap2x first-frame
+native launch
+native engine
+dart hlfn4lb016 dart-main-entered
+dart hlfn4lb016 boot-probe-returned:boot-ok
+dart hlfn4lb016 arm:kill
+native launch
+native engine
+dart hlfn5gt0tb dart-main-entered
+dart hlfn5gt0tb boot-probe-returned:boot-ok
+dart hlfn5gt0tb arm:render
+dart hlfn5gt0tb first-frame
+native launch
+native engine
+dart hlfn874cua dart-main-entered
+dart hlfn874cua boot-probe-returned:boot-ok
+dart hlfn874cua arm:kill
+native launch
+native engine
+dart hlfn90ouek dart-main-entered
+dart hlfn90ouek boot-probe-returned:boot-ok
+dart hlfn90ouek arm:render
+dart hlfn90ouek first-frame
+native launch
+native engine
+dart hlfr5zu049 dart-main-entered
+dart hlfr5zu049 boot-probe-returned:boot-ok
+dart hlfr5zu049 arm:render
+dart hlfr5zu049 first-frame
+native launch
+native engine
+dart hlfr7vj9g1 dart-main-entered
+dart hlfr7vj9g1 boot-probe-returned:boot-ok
+dart hlfr7vj9g1 arm:render
+dart hlfr7vj9g1 first-frame
