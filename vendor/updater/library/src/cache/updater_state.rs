@@ -409,7 +409,11 @@ impl UpdaterState {
 
     fn patch_info(&self, n: usize) -> PatchInfo {
         PatchInfo {
-            path: self.lifecycle.installed_artifact_path(n),
+            // Resolved, not assumed: this path becomes the engine's
+            // `active_path`, and for an assets-only patch it must point at the
+            // assets artifact so the engine derives the right patch directory
+            // while declining to load it as a snapshot.
+            path: self.lifecycle.resolved_artifact_path(n),
             number: n,
         }
     }
