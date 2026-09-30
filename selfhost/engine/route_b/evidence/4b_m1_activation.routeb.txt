@@ -1,0 +1,8 @@
+hook entered
+parsed, targets=1, built-for=3527f0133aaf33819a49d9953973f050
+running=3527f0133aaf33819a49d9953973f050
+applied 1/1 targets, entering main
+hook entered
+parsed, targets=1, built-for=3527f0133aaf33819a49d9953973f050
+running=3527f0133aaf33819a49d9953973f050
+applied 1/1 targets, entering main

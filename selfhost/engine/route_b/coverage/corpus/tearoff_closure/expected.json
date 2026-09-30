@@ -1,0 +1,16 @@
+{
+  "note": "A torn-off function and a body containing a closure. Both stay representable; the enclosing top-level members are what a patch replaces, and a closure is part of its enclosing body rather than a target of its own.",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#tornOff",
+    "package:corpus/main.dart#withClosure"
+  ],
+  "patchable": [
+    "package:corpus/main.dart#tornOff",
+    "package:corpus/main.dart#withClosure"
+  ],
+  "conditional": [],
+  "unreachable": [],
+  "added": [],
+  "rejectionReasons": []
+}

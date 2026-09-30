@@ -1,0 +1,19 @@
+{
+  "note": "The get:/set: mangling, on private members. Note the split: the top-level private getter is static-shaped and representable, while the class's accessors are instance members and land in conditional. A real app caught this when bare names were emitted and gen_kernel refused the whole app.",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#Holder.get:_value",
+    "package:corpus/main.dart#Holder.set:_value",
+    "package:corpus/main.dart#get:_topLevel"
+  ],
+  "patchable": [
+    "package:corpus/main.dart#get:_topLevel"
+  ],
+  "conditional": [
+    "package:corpus/main.dart#Holder.get:_value",
+    "package:corpus/main.dart#Holder.set:_value"
+  ],
+  "unreachable": [],
+  "added": [],
+  "rejectionReasons": []
+}
