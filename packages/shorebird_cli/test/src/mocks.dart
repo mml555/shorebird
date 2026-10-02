@@ -23,16 +23,22 @@ import 'package:shorebird_cli/src/code_signer.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/config/config.dart';
+import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
 import 'package:shorebird_cli/src/executables/devicectl/apple_device.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
+import 'package:shorebird_cli/src/gen_snapshot_probe.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/network_checker.dart';
 import 'package:shorebird_cli/src/os/os.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/pubspec_editor.dart';
+import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
+import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_producer.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_android_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_cli_command_runner.dart';
@@ -83,6 +89,8 @@ class MockCache extends Mock implements Cache {}
 
 class MockChecksumChecker extends Mock implements ChecksumChecker {}
 
+class MockDartSdkCompatibility extends Mock implements DartSdkCompatibility {}
+
 class MockCodePushClient extends Mock implements CodePushClient {}
 
 class MockCodePushClientWrapper extends Mock implements CodePushClientWrapper {}
@@ -106,6 +114,8 @@ class MockFile extends Mock implements File {}
 class MockFileSetDiff extends Mock implements FileSetDiff {}
 
 class MockFlavorValidator extends Mock implements FlavorValidator {}
+
+class MockGenSnapshotProbe extends Mock implements GenSnapshotProbe {}
 
 class MockGit extends Mock implements Git {}
 
@@ -163,6 +173,17 @@ class MockRelease extends Mock implements Release {}
 class MockReleaser extends Mock implements Releaser {}
 
 class MockReleaseArtifact extends Mock implements ReleaseArtifact {}
+
+class MockRouteBCompilerResolver extends Mock
+    implements RouteBCompilerResolver {}
+
+class MockRouteBCoverageAnalyzer extends Mock
+    implements RouteBCoverageAnalyzer {}
+
+class MockRouteBProducer extends Mock implements RouteBProducer {}
+
+class MockRouteBReleaseKernelBuilder extends Mock
+    implements RouteBReleaseKernelBuilder {}
 
 class MockShorebirdAndroidArtifacts extends Mock
     implements ShorebirdAndroidArtifacts {}

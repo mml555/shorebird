@@ -1,0 +1,55 @@
+diff --git a/engine/src/flutter/common/config.gni b/engine/src/flutter/common/config.gni
+index 35ec1c7e05..21d36cd580 100644
+--- a/engine/src/flutter/common/config.gni
++++ b/engine/src/flutter/common/config.gni
+@@ -17,6 +17,24 @@ declare_args() {
+   # Whether to use a prebuilt Dart SDK instead of building one.
+   flutter_prebuilt_dart_sdk = false
+ 
++  # Whether the iOS-style patch loader (interpreted .vmcode snapshots) is
++  # compiled in. Defaults to upstream behavior: on for iOS, off everywhere else.
++  #
++  # SELFHOST: settable so we can build an iOS engine against VANILLA Dart. The
++  # interpreter path in runtime/shorebird/patch_cache.cc calls two things that
++  # exist only in Shorebird's PRIVATE Dart fork:
++  #   * Shorebird_ReadLinkHeader() — parses the linker header prefixing a
++  #     .vmcode file; no such symbol in vanilla Dart.
++  #   * Dart_LoadELF() with an 8th file-mode argument (dart::bin::kReadOnly);
++  #     vanilla's Dart_LoadELF takes 7 (runtime/bin/elf_loader.h:40).
++  # With this false, iOS compiles and links against vanilla Dart. What is lost
++  # is exactly iOS *code* patches, which we cannot produce anyway without our
++  # own AOT linker. Assets-only patches are unaffected: shorebird.cc sets
++  # settings.shorebird_patch_assets_path outside every interpreter gate, and the
++  # non-interpreter branch already guards the library-path swap with
++  # PatchCarriesCode() for precisely the assets-only case.
++  shorebird_use_interpreter = is_ios
++
+   # Whether to build host-side development artifacts.
+   flutter_build_engine_artifacts = true
+ 
+@@ -71,7 +89,7 @@ if (is_android || is_ios || is_linux || is_mac || is_win) {
+   feature_defines_list += [ "SHOREBIRD_PLATFORM_SUPPORTED=1" ]
+ }
+ 
+-if (is_ios) {
++if (shorebird_use_interpreter) {
+   feature_defines_list += [ "SHOREBIRD_USE_INTERPRETER=1" ]
+ }
+ 
+diff --git a/engine/src/flutter/runtime/BUILD.gn b/engine/src/flutter/runtime/BUILD.gn
+index 259ad3b4b6..178c52d89d 100644
+--- a/engine/src/flutter/runtime/BUILD.gn
++++ b/engine/src/flutter/runtime/BUILD.gn
+@@ -120,7 +120,11 @@ source_set("runtime") {
+     "//flutter/txt",
+   ]
+ 
+-  if (is_ios) {
++  # SELFHOST: follow shorebird_use_interpreter rather than is_ios. patch_cache.cc
++  # is the only thing in the tree that needs Shorebird's private Dart fork, and
++  # dart_snapshot.cc already includes its header under the same #if, so gating the
++  # dep here is what lets an iOS engine build against vanilla Dart.
++  if (shorebird_use_interpreter) {
+     deps += [ "//flutter/runtime/shorebird:patch_cache" ]
+   }
+ }

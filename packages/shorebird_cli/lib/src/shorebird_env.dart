@@ -258,18 +258,53 @@ class ShorebirdEnv {
   }
 
   /// The base URL for the Shorebird auth service. Can be overridden with the
-  /// `AUTH_SERVICE_URL` environment variable. Defaults to
-  /// `https://auth.shorebird.dev`.
+  /// `AUTH_SERVICE_URL` environment variable.
+  ///
+  /// When the CLI is pointed at a SELF-HOSTED control plane (see [hostedUri])
+  /// this defaults to that control plane, because a self-hosted deployment
+  /// brokers its own login: it serves `/login` and `/token` at its base URL,
+  /// which is exactly the pair the loopback flow uses. Defaulting to
+  /// `auth.shorebird.dev` there cannot work — upstream will never issue a token
+  /// our server accepts — and it fails in a way that reads as "you are logged
+  /// out" rather than "the CLI is talking to the wrong host".
+  ///
+  /// Otherwise defaults to `https://auth.shorebird.dev`.
   Uri get authServiceUri => Uri.parse(
-    platform.environment['AUTH_SERVICE_URL'] ?? 'https://auth.shorebird.dev',
+    platform.environment['AUTH_SERVICE_URL'] ??
+        _selfHostedBaseUrl ??
+        'https://auth.shorebird.dev',
   );
 
   /// The expected JWT issuer for Shorebird-issued tokens. Can be overridden
-  /// with the `SHOREBIRD_JWT_ISSUER` environment variable. Defaults to
-  /// `https://auth.shorebird.dev`.
+  /// with the `SHOREBIRD_JWT_ISSUER` environment variable.
+  ///
+  /// Defaults to the self-hosted control plane when one is configured, matching
+  /// that server's OWN default: `code_push_server` issues tokens whose `iss` is
+  /// `SHOREBIRD_JWT_ISSUER ?? JWT_ISSUER ?? PUBLIC_BASE_URL`. An operator who
+  /// sets a custom issuer server-side sets this variable too, which still wins.
+  ///
+  /// Otherwise defaults to `https://auth.shorebird.dev`.
   String get jwtIssuer =>
       platform.environment['SHOREBIRD_JWT_ISSUER'] ??
+      _selfHostedBaseUrl ??
       'https://auth.shorebird.dev';
+
+  /// [hostedUri] as a base URL string with any trailing slash removed, or
+  /// `null` when not self-hosted.
+  ///
+  /// The trailing slash matters and is not cosmetic: [jwtIssuer] is compared
+  /// for EXACT string equality against the `iss` claim, so a `base_url` written
+  /// as `http://host:18080/` would fail to match a server issuing
+  /// `http://host:18080` — a mismatch that surfaces as an unexplained auth
+  /// failure rather than as a configuration error.
+  String? get _selfHostedBaseUrl {
+    final uri = hostedUri;
+    if (uri == null) return null;
+    final asString = uri.toString();
+    return asString.endsWith('/')
+        ? asString.substring(0, asString.length - 1)
+        : asString;
+  }
 
   /// The base URL for the Shorebird code push server that overrides the default
   /// used by [CodePushClient]. If none is provided, [CodePushClient] will use

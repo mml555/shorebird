@@ -1,0 +1,216 @@
+Route B (selfhost) G15 -- arm the activation hook BEFORE the `!init_result`
+early return, so a SECOND FlutterEngine in one process is armed too.
+
+THE SEVERE HALF OF G15, and the filed diagnosis was right about the effect and
+wrong about the mechanism. PARITY §14b said "the hook is armed once per process;
+engine two never arms it". Nothing is armed once per process. Arming is attempted
+on every ConfigureShorebird call -- but it sat BELOW an early return whose
+condition is "the updater initialized", and the updater deliberately refuses to
+initialize twice:
+
+  third_party/updater/library/src/config.rs, set_config():
+      if config.is_some() {
+        bail!("Updater already initialized, ignoring second shorebird_init call.");
+      }
+
+...a case whose own comment says it "happens regularly with apps that use Firebase
+Messaging". So for engine two, shorebird_init returns false BY DESIGN,
+RealUpdater::Init returns false, `if (!init_result) return;` fires, and
+InstallRouteBActivationHook is never reached. Engine two's root isolate then runs
+the ORIGINAL AOT code while engine one runs the patch: two Flutter engines in one
+process executing different program versions, with no error, no log and no
+user-visible failure. Add-to-app hosts create engines lazily and sometimes more
+than once, so this is a mainstream configuration rather than a corner.
+
+THE FIX IS A MOVE, NOT A REDESIGN, and it is safe in both directions:
+  * second call          the updater is already initialized from the first, so the
+                         patch resolution above ran normally and route_b_path is
+                         correct. (route_b_path is declared at function scope, well
+                         above both positions.)
+  * genuine init failure NextBootPatchPath yields nothing, route_b_path is empty,
+                         and InstallRouteBActivationHook returns inert -- which is
+                         its documented contract and is now pinned by a test.
+
+The auto-update thread start stays below the guard, where it belongs: starting two
+update threads in one process is exactly what that early return is for.
+
+PRECEDENT, directly above the changed line: shorebird_report_launch_start was moved
+out of ConfigureShorebird for the same class of reason -- "This fixes issues with
+FlutterEngineGroup and other cases where ConfigureShorebird() is called but no
+Shell is created". Launch reporting was fixed for multi-engine; the Route B arming
+was left behind the guard.
+
+ALSO IN THIS PATCH: InstallRouteBActivationHook is declared in shorebird.h
+("Exposed for testing", following GetValueFromYaml's precedent) and three tests
+pin the arming contract, where there was previously no coverage at all:
+inert on an empty path, armed for a patch path even when the file does not exist
+(the container is opened later, from the callback), and an existing callback
+CHAINED rather than replaced.
+
+VERIFICATION STATE, stated exactly:
+  * shorebird.cc and the test translation unit both COMPILE
+    (obj/.../shorebird.shorebird.o and
+     obj/.../shorebird_unittests.shorebird_unittests.o, 1/1 each).
+  * The tests are NOT RUN. `shorebird_unittests` cannot LINK in the Route B tree
+    because it also compiles patch_cache_unittests.cc, whose subject calls
+    Shorebird_ReadLinkHeader -- a symbol that exists only in Shorebird's PRIVATE
+    Dart fork, which this vanilla-Dart tree does not have. That is a pre-existing
+    property of the target, not of this change, and it is the same trap
+    build_ios_release.sh documents for shorebird_use_interpreter.
+    To run them: build shorebird_unittests in the SHIPPING iOS tree, or add a test
+    target that excludes patch_cache_unittests.cc.
+  * The ordering itself is therefore verified by source and by compile, NOT by a
+    passing test, and the two-engine behaviour is NOT yet verified on a device.
+    That gate needs a mint.
+
+Applies on top of the Route B engine series.
+---
+--- a/shell/common/shorebird/shorebird.cc
++++ b/shell/common/shorebird/shorebird.cc
+@@ -627,6 +627,43 @@
+   // actually loaded. This fixes issues with FlutterEngineGroup and other cases
+   // where ConfigureShorebird() is called but no Shell is created.
+ 
++  // SEAM 6: the lifecycle above has decided WHICH patch is active, and the
++  // content sniff decided whether it is a Route B container. Arming the hook
++  // here keeps that ownership intact -- activation happens later, once the root
++  // isolate exists, because Route B needs live Function objects and this runs
++  // before the engine has started.
++  //
++  // G15: THIS MUST STAY ABOVE THE `!init_result` RETURN, and the reason is the
++  // second engine in one process.
++  //
++  // `Updater::Init` is `shorebird_init`, and a SECOND call in the same process
++  // deliberately fails: `config.rs` bails with "Updater already initialized,
++  // ignoring second shorebird_init call", a case its own comment says "happens
++  // regularly with apps that use Firebase Messaging". So for engine two,
++  // init_result is false by design.
++  //
++  // While this call sat BELOW the early return, that meant engine two never had
++  // the activation callback installed at all -- its root isolate ran the
++  // ORIGINAL AOT code while engine one ran the patch. Two Flutter engines in one
++  // process executing different program versions, with no error, no log and no
++  // user-visible failure. Add-to-app hosts create engines lazily and sometimes
++  // more than once, so that is a mainstream configuration.
++  //
++  // Arming here is safe in BOTH directions, which is what makes this a move and
++  // not a redesign:
++  //   * second call  -- the updater is already initialized from the first, so
++  //                     the patch resolution above ran normally and
++  //                     `route_b_path` is correct.
++  //   * genuine init failure -- `NextBootPatchPath` yields nothing, so
++  //                     `route_b_path` is empty and
++  //                     `InstallRouteBActivationHook` returns inert.
++  //
++  // Note the precedent directly above: `shorebird_report_launch_start` was moved
++  // out of here for the same class of reason ("FlutterEngineGroup and other cases
++  // where ConfigureShorebird() is called but no Shell is created"). The launch
++  // reporting was fixed for multi-engine; the Route B arming was left behind the
++  // guard.
++  InstallRouteBActivationHook(settings, route_b_path);
+ 
+   if (!init_result) {
+     return;
+@@ -639,13 +676,6 @@
+     FML_LOG(INFO)
+         << "Shorebird auto_update disabled, not checking for updates.";
+   }
+-
+-  // SEAM 6: the lifecycle above has decided WHICH patch is active, and the
+-  // content sniff decided whether it is a Route B container. Arming the hook
+-  // here keeps that ownership intact -- activation happens later, once the root
+-  // isolate exists, because Route B needs live Function objects and this runs
+-  // before the engine has started.
+-  InstallRouteBActivationHook(settings, route_b_path);
+ }
+ 
+ void* FileCallbacksImpl::Open() {
+--- a/shell/common/shorebird/shorebird.h
++++ b/shell/common/shorebird/shorebird.h
+@@ -54,6 +54,22 @@
+ /// Exposed for testing.
+ std::string GetValueFromYaml(const std::string& yaml, const std::string& key);
+ 
++/// Arms Route B activation on `settings`: installs a root_isolate_create_callback
++/// that applies the container at `path` once the root isolate exists.
++///
++/// Inert when `path` is empty -- the overwhelmingly common case is no Route B
++/// patch at all, and it must cost nothing. CHAINS any existing callback rather
++/// than replacing one.
++///
++/// Exposed for testing. `ConfigureShorebird` itself is not directly unit-testable:
++/// it opens with FML_CHECK(DartSnapshot::VMSnapshotFromSettings(settings)), which
++/// aborts in a test binary with no AOT snapshot linked, which is why nothing tests
++/// it today. So the arming CONTRACT is pinned here. G15's ordering requirement --
++/// arm BEFORE the `!init_result` early return, so a second engine in one process
++/// is armed too -- rests on the argument recorded at that call site, not on these
++/// tests.
++void InstallRouteBActivationHook(Settings& settings, const std::string& path);
++
+ /// The directory holding the `flutter_assets` overlay shipped alongside an
+ /// active patch, given that patch's own file path, or "" when
+ /// `active_patch_path` is empty.
+--- a/shell/common/shorebird/shorebird_unittests.cc
++++ b/shell/common/shorebird/shorebird_unittests.cc
+@@ -1,5 +1,61 @@
+ #include "flutter/shell/common/shorebird/shorebird.h"
+ 
++#include "flutter/fml/file.h"
++#include "flutter/fml/paths.h"
++#include "gtest/gtest.h"
++
++namespace flutter {
++namespace testing {
++
++// --- G15: the Route B activation arming contract ----------------------------
++//
++// Zero coverage existed here before 2026-08-13, which is how the severe half of
++// G15 stayed a filed claim for as long as it did: a second FlutterEngine in one
++// process never had this callback installed, so it ran the ORIGINAL AOT code
++// while engine one ran the patch -- two engines, two program versions, no error
++// and no log.
++//
++// The cause was an ORDERING one and it is fixed in shorebird.cc, not here:
++// `Updater::Init` is `shorebird_init`, whose second call in a process
++// deliberately fails ("Updater already initialized, ignoring second
++// shorebird_init call" -- a case the updater's own comment says happens
++// regularly with Firebase Messaging), and the arming call used to sit BELOW the
++// resulting `if (!init_result) return;`. ConfigureShorebird cannot be reached
++// from a unit test -- it opens with an FML_CHECK on the VM snapshot -- so these
++// tests pin the arming unit's contract, which is what the ordering fix relies on
++// being true.
++TEST(Shorebird, RouteBArmingIsInertWithoutAPatch) {
++  Settings settings;
++  ASSERT_EQ(settings.root_isolate_create_callback, nullptr);
++  InstallRouteBActivationHook(settings, "");
++  // Not merely "does not crash": a callback installed here would run on every
++  // app that has no Route B patch, which is nearly all of them.
++  EXPECT_EQ(settings.root_isolate_create_callback, nullptr);
++}
++
++TEST(Shorebird, RouteBArmingInstallsACallbackForAPatch) {
++  Settings settings;
++  InstallRouteBActivationHook(settings, "/nonexistent/dlc.vmcode");
++  // The path is not read here -- arming happens before the engine starts and the
++  // container is opened later, from the callback. A missing file must therefore
++  // still arm, and fail (reporting) at activation time rather than silently
++  // skipping activation now.
++  EXPECT_NE(settings.root_isolate_create_callback, nullptr);
++}
++
++TEST(Shorebird, RouteBArmingChainsAnExistingCallback) {
++  Settings settings;
++  int existing_calls = 0;
++  settings.root_isolate_create_callback = [&existing_calls](const auto&) {
++    existing_calls++;
++  };
++  InstallRouteBActivationHook(settings, "/nonexistent/dlc.vmcode");
++  EXPECT_NE(settings.root_isolate_create_callback, nullptr);
++  // Replacing rather than chaining would silently disable whatever the embedder
++  // installed -- an observer, a service-protocol hook -- and the symptom would
++  // appear nowhere near Route B.
++  EXPECT_EQ(existing_calls, 0);
++}
+ TEST(Shorebird, GetValueFromYamlValueExists) {
+   std::string yaml = "appid: com.example.app\nversion: 1.0.0\n";
+   std::string key = "appid";

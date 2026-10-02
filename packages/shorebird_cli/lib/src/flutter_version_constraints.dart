@@ -85,6 +85,15 @@ final buildTraceSupportConstraint = FlutterSupportConstraint(
   minVersion: Version(3, 41, 7),
 );
 
+// NOTE: `--load-obfuscation-map` support deliberately has NO constraint here,
+// and adding one would be a regression. Every other rule in this file keys off
+// a Flutter version because the capability arrives with a Flutter release; that
+// flag does not. It arrives with a minted engine cell, and two cells at the
+// *same* Flutter revision disagree about it, so any version comparison is
+// inert against it. It is measured from the gen_snapshot binary instead — see
+// `GenSnapshotProbe.supportsLoadObfuscationMap` in `gen_snapshot_probe.dart`,
+// which carries the evidence.
+
 /// Flutter versions where the Android Gradle Plugin (AGP) is the entity
 /// responsible for stripping `libapp.so` and emitting the matching
 /// `libapp.so.sym` companion into the AAB's BUNDLE-METADATA.

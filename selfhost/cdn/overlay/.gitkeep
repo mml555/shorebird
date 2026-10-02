@@ -1,0 +1,4 @@
+# Overlay root for locally built experimental engines. Mounted read-only into
+# the cdn-cache container at /overlay. Populated by
+# selfhost/engine/overlay_publish.sh; its contents are gitignored (they are
+# multi-hundred-MB build outputs).

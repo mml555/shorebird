@@ -1,0 +1,57 @@
+release        : 27
+preserved from : build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+preserved at   : 2026-08-13T01:50:27Z
+LC_UUID        : 51feb14200d93346966dbd014be53279
+patchable      : 7,141  (1,775 per MB)
+size           : 4219056 bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect 51feb14200d93346966dbd014be53279
+
+The working archive is NOT a substitute: Try logging out with shorebird logout and logging in again.
+
+If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+
+You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+/Users/mendell/Library/Application Support/shorebird/logs/1786585827787_shorebird.log re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.
+
+DEVICE RESULT — v2 trace, public control patch, 2026-08-12
+  engine   : 4288817249400e62ab2f136a913251f35ee86f0f (trace v2)
+  gates    : assert_diagnostic_engine 5/5 (donor 724655b2), cache carries v=2
+             specifically (v1 count 0), patchable 7,141 / 1,775 per MB,
+             LC_UUID 51feb142... asserted both ways, release bytes preserved
+  patch    : String value(RouteBThing self) => 'NEW-CTL';
+  app      : NEW-SET, code patch: 1   (unchanged, again)
+
+CLASSIFIER VERDICT: exit 0 — DECIDED, the field DID move.
+
+  Function::entry_point_            0x109dddca8 -> 0x109d0c044
+  Function::unchecked_entry_point_  0x109dddca8 -> 0x109d0c044
+  Code                              0x10abbcd81 -> 0x107295cb1
+  Code::EntryPoint                  0x109dddca8 -> 0x109d0c044
+  Code::UncheckedEntryPoint         0x109dddca8 -> 0x109d0c044
+  same-run InterpretCall            0x109d0c044
+  Function object                   0x10acbdfc1
+  caller identity                   NOT MEASURED (no caller supplied)
+
+So AttachBytecode moved the EXACT field the kUnchecked call instruction reads, to
+the InterpretCall stub, in the same run. Measured this time at the Function layer,
+not through a Code accessor. The v1 contradiction was not a measurement artefact
+after all -- it is real, and now correctly attributed.
+
+A SECOND FACT WORTH KEEPING. Pre-attach, fn_uep == fn_ep == 0x109dddca8: this
+Function's unchecked entry point EQUALS its normal entry, even though the dSYM
+emits a distinct `value (#2)` 12 bytes on. Code::UncheckedEntryPoint agrees. That
+matches UntaggedCode's own comment -- "unchecked_entry_point_ will refer to the
+same position as entry_point_" when no argument type checks are needed -- so it is
+expected VM state, NOT the anomaly v1 appeared to show.
+
+WHAT THIS ELIMINATES: branch 1 (field did not move) is dead. The transition is
+correct at both layers.
+
+WHAT REMAINS, and it is now the only candidate left standing: the caller does not
+consult THIS Function object. The trace carries function_ptr 0x10acbdfc1, so the
+next run needs only the caller-side pool pointer to compare against it -- the VM
+support for that is already built and simply not wired to a caller name.

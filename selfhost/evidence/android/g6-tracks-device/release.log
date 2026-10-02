@@ -1,0 +1,56 @@
+Starting Fetching apps...
+Done Fetching apps
+Building Android app bundle with Flutter 3.44.8 (c15ef63794)
+Flutter assets will be downloaded from http://localhost:8085. Make sure you trust this source!
+Resolving dependencies...
+Downloading packages...
++ ffi 2.2.0
+  matcher 0.12.19 (0.12.20 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.18.0 (1.19.0 available)
++ shorebird_code_push 2.0.7 from path /data/shorebird-engine/cli-under-test/vendor/updater/shorebird_code_push
+  test_api 0.7.11 (0.7.13 available)
+  vector_math 2.2.0 (2.4.2 available)
+Changed 2 dependencies!
+5 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Running Gradle task 'bundleRelease'...                          
+Flutter assets will be downloaded from http://localhost:8085. Make sure you trust this source!
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 1096 bytes (99.9% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Running Gradle task 'bundleRelease'...                             34.2s
+Shorebird build trace written to /data/shorebird-engine/trackprobe_app/build/shorebird/debug/build-trace-android.json. View at https://ui.perfetto.dev
+libapp.so.sym or libapp.so.dbg not present when checking final appbundle for debug symbols. Play Console will not receive Dart crash symbols for this build. To enable, remove `packaging.jniLibs.keepDebugSymbols.add("**/libapp.so")` from android/app/build.gradle.kts.
+✓ Built build/app/outputs/bundle/release/app-release.aab (46.7MB)
+Starting Determining release version...
+Done Release version: 4.0.0+1
+Starting Fetching releases...
+Done Fetching releases
+
+🚀 Ready to create a new release!
+
+📱 App: trackprobe_app (9fb5eebb-b9a7-b86e-72a8-e12074e34382)
+📦 Release Version: 4.0.0+1
+🕹️  Platform: android
+🐦 Flutter Version: 3.44.8 (c15ef63794)
+
+Starting Fetching releases...
+Done Fetching releases
+Starting Creating release...
+Done Creating release
+Starting Updating release status...
+Done Updating release status
+Starting Uploading artifacts...
+Done Uploading artifacts
+Starting Uploading supplement artifacts...
+Done Uploading supplement artifacts
+Starting Updating release status...
+Done Updating release status
+
+✅ Published Release 4.0.0+1!
+Your next step is to upload the app bundle to the Play Store:
+/data/shorebird-engine/trackprobe_app/build/app/outputs/bundle/release/app-release.aab
+
+For information on uploading to the Play Store, see:
+https://support.google.com/googleplay/android-developer/answer/9859152?hl=en
+
+To create a patch for this release, run shorebird patch --platforms=android --release-version=4.0.0+1

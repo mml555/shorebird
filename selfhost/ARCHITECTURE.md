@@ -54,7 +54,19 @@ everything above them is written once against an interface.
 
 ## Data model
 
-Postgres/SQLite tables (created idempotently by migration 1, `repository.dart`):
+Postgres/SQLite tables (`repository.dart`). **Corrected 2026-08-13:** this said
+"created idempotently by migration 1" and listed 19 tables. The schema has **22
+across 8 migrations** — the three below were missing, and `crash_reports` backs a
+whole documented API surface (`POST /api/v1/crashes`, `GET /api/v1/apps/{id}/crashes`
+with symbolication), so a reader sizing a database or writing a backup script from
+this section came up short:
+
+| table | migration | backs |
+|---|---|---|
+| `invitations` | 2 | org collaborator invites (console **Team** tab) |
+| `idp_states` | 4 | the OAuth/IdP authorize-callback state handshake |
+| `crash_reports` | 8 | crash reporting + symbolication |
+
 
 | Table | Holds |
 |---|---|
@@ -86,8 +98,14 @@ transitions raise a `409`.
   non-failed artifact `verified` — finalize is **fail-closed**.
 - **Patch:** `draft → uploading → ready → invalidated`, plus `ready → uploading`
   (re-open for multi-arch registration). Promote requires `ready`.
-- **ChannelPatch (deployment):** `active → withdrawn`. Promoting supersedes any
-  other active patch on the channel in one transaction (exactly one active).
+- **ChannelPatch (deployment):** `active → withdrawn`. Promoting supersedes a
+  prior active patch in one transaction **per platform, not per channel**
+  (corrected 2026-08-13 — this said "exactly one active"). `promote` withdraws
+  the prior patch only when it has no platform outside the incoming patch's
+  platform set, so a channel legitimately holds several active `channel_patches`
+  at once, one per platform. "Exactly one active per channel" is precisely the
+  invariant the code deliberately does NOT enforce — an Android promote must not
+  silently withdraw the live iOS patch.
 
 ## Request lifecycle (`api.dart`)
 
@@ -102,9 +120,14 @@ A shelf `Pipeline` wraps the router:
    never the raw path — so they neither leak app ids nor explode the series
    count. Health/metrics probes are counted but not logged.
 2. **rate limit** — fixed window (`memory`, or `postgres` shared across
-   replicas), keyed by bearer for authenticated requests and by client IP
-   (`X-Forwarded-For` behind a proxy) for unauthenticated device requests, so
-   one device can't exhaust the fleet's window. Over-limit → `429`.
+   replicas). **Every request is charged against TWO buckets, not one**
+   (corrected 2026-08-13 — this described an either/or split by auth state):
+   a per-IP ceiling (`host:<ip>`, `RATE_LIMIT_IP_PER_MINUTE`, default 10x) plus a
+   principal bucket (`auth:<hash>` when a bearer is present, else `ip:<ip>`,
+   `RATE_LIMIT_PER_MINUTE`). The IP ceiling applies to authenticated traffic too,
+   deliberately: a bearer is caller-supplied and unvalidated at that point in the
+   pipeline, so a bucket keyed only on it could be rotated out of. Over-limit →
+   `429`.
 3. **auth** — resolves the bearer to a `userId` in `req.context`. Public routes
    (health, console, download, OAuth, device) bypass it. API key → its user (the
    bootstrap key → user 1); JWT → its `sub`/email.

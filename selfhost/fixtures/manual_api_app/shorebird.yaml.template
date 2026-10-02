@@ -1,0 +1,10 @@
+# Template. The real shorebird.yaml is generated per control-plane instance,
+# because app_id is server-generated (POST /api/v1/apps ignores a requested id).
+#
+# auto_update: false is the WHOLE POINT of this fixture. G8's claim is that a
+# Dart caller drives the update via checkForUpdate()/update(); if the runtime
+# may apply a patch on its own, a patch number appearing on screen proves
+# nothing about those calls.
+app_id: REPLACE-ME
+auto_update: false
+base_url: http://localhost:18081

@@ -598,6 +598,201 @@ void main() {
       });
     });
 
+    group('extractAndroidFlutterAssetsFromAab', () {
+      test('extracts the tree relative to flutter_assets', () async {
+        final aab = File(
+          p.join('test', 'fixtures', 'aabs', 'changed_asset.aab'),
+        );
+
+        final dir = await ArtifactManager.extractAndroidFlutterAssetsFromAab(
+          aab,
+        );
+
+        expect(dir, isNotNull);
+        // Entries must be relative to flutter_assets/, not the AAB root: the
+        // bundle is unpacked over an asset root, so AssetManifest.bin has to
+        // land at the top level.
+        expect(
+          File(p.join(dir!.path, 'AssetManifest.bin')).existsSync(),
+          isTrue,
+        );
+        expect(
+          File(p.join(dir.path, 'assets', 'asset.json')).existsSync(),
+          isTrue,
+        );
+        expect(
+          Directory(p.join(dir.path, 'base')).existsSync(),
+          isFalse,
+          reason: 'the base/assets/flutter_assets prefix must be stripped',
+        );
+      });
+
+      test('preserves contents byte for byte', () async {
+        final aab = File(
+          p.join('test', 'fixtures', 'aabs', 'changed_asset.aab'),
+        );
+
+        final dir = await ArtifactManager.extractAndroidFlutterAssetsFromAab(
+          aab,
+        );
+
+        expect(
+          File(p.join(dir!.path, 'assets', 'asset.json')).lengthSync(),
+          equals(15),
+        );
+      });
+
+      test('is null when the aab has no flutter_assets', () async {
+        final aab = File(
+          p.join(Directory.systemTemp.createTempSync().path, 'a.aab'),
+        );
+        // A valid but asset-free zip.
+        final encoder = ZipFileEncoder()..create(aab.path);
+        await encoder.addFile(
+          File(p.join(Directory.systemTemp.createTempSync().path, 'other.txt'))
+            ..writeAsStringSync('not an asset'),
+        );
+        await encoder.close();
+
+        await expectLater(
+          ArtifactManager.extractAndroidFlutterAssetsFromAab(aab),
+          completion(isNull),
+        );
+      });
+    });
+
+    group('findFlutterAssetsDirectory', () {
+      late Directory bundle;
+
+      Directory make(String relativePath) =>
+          Directory(p.join(bundle.path, relativePath))
+            ..createSync(recursive: true);
+
+      setUp(() {
+        bundle = Directory.systemTemp.createTempSync();
+      });
+
+      test('finds the iOS layout', () {
+        final assets = make(
+          p.join('Frameworks', 'App.framework', 'flutter_assets'),
+        );
+
+        expect(
+          ArtifactManager.findFlutterAssetsDirectory(bundle)?.path,
+          equals(assets.path),
+        );
+      });
+
+      test('finds the real macOS layout', () {
+        // Verified against a real `flutter build macos` bundle: the true path
+        // carries a Versions/A component, and `App.framework/Resources` is
+        // only a symlink to it. An earlier version of this test asserted the
+        // symlink path and passed without that path ever existing.
+        final assets = make(
+          p.join(
+            'Contents',
+            'Frameworks',
+            'App.framework',
+            'Versions',
+            'A',
+            'Resources',
+            'flutter_assets',
+          ),
+        );
+
+        expect(
+          ArtifactManager.findFlutterAssetsDirectory(bundle)?.path,
+          equals(assets.path),
+        );
+      });
+
+      test('does not hang on a symlink cycle', () {
+        // macOS frameworks are a web of symlinks, and an embedded framework
+        // could contain a cycle. Following links would loop forever here and
+        // hang `shorebird patch` with no output at all.
+        final nested = make(p.join('Contents', 'Frameworks', 'Loop'));
+        Link(
+          p.join(nested.path, 'back'),
+        ).createSync(p.join(bundle.path, 'Contents'));
+        final assets = make(
+          p.join('Contents', 'Frameworks', 'App.framework', 'flutter_assets'),
+        );
+
+        expect(
+          ArtifactManager.findFlutterAssetsDirectory(bundle)?.path,
+          equals(assets.path),
+        );
+      });
+
+      test('ignores a flutter_assets reachable only through a symlink', () {
+        // The canonical directory is what should be zipped; resolving through a
+        // link would work but records a path that is not the real one.
+        final real = make(
+          p.join(
+            'Contents',
+            'Frameworks',
+            'App.framework',
+            'Versions',
+            'A',
+            'Resources',
+            'flutter_assets',
+          ),
+        );
+        Link(
+          p.join(
+            bundle.path,
+            'Contents',
+            'Frameworks',
+            'App.framework',
+            'Resources',
+          ),
+        ).createSync(p.join('Versions', 'A', 'Resources'));
+
+        expect(
+          ArtifactManager.findFlutterAssetsDirectory(bundle)?.path,
+          equals(real.path),
+        );
+      });
+
+      test('prefers the shallowest match over a nested plugin copy', () {
+        // A plugin framework can vendor its own flutter_assets; the app's own
+        // assets are always shallower, and shipping the plugin's would be
+        // wrong.
+        make(
+          p.join(
+            'Frameworks',
+            'SomePlugin.framework',
+            'Frameworks',
+            'App.framework',
+            'flutter_assets',
+          ),
+        );
+        final appAssets = make(
+          p.join('Frameworks', 'App.framework', 'flutter_assets'),
+        );
+
+        expect(
+          ArtifactManager.findFlutterAssetsDirectory(bundle)?.path,
+          equals(appAssets.path),
+        );
+      });
+
+      test('is null when the bundle has no flutter_assets', () {
+        make(p.join('Frameworks', 'App.framework'));
+
+        expect(ArtifactManager.findFlutterAssetsDirectory(bundle), isNull);
+      });
+
+      test('is null when the bundle does not exist', () {
+        expect(
+          ArtifactManager.findFlutterAssetsDirectory(
+            Directory(p.join(bundle.path, 'absent')),
+          ),
+          isNull,
+        );
+      });
+    });
+
     group('androidArchsDirectoryFromAab', () {
       late Directory projectRoot;
       final aab = File(p.join('test', 'fixtures', 'aabs', 'changed_asset.aab'));

@@ -36,7 +36,16 @@ please reach out to us over <a href='https://discord.com/invite/shorebird'>Disco
 """;
 
 /// A [Handler] that proxies artifact requests to the correct location.
-Handler artifactProxyHandler({required ArtifactManifestClient client}) {
+///
+/// [storageBaseUrl] is where redirects point (defaults to Google Cloud
+/// Storage). A self-hosted deployment overrides it via `STORAGE_BASE_URL` so
+/// even the redirect Locations never name upstream. In the CDN topology the
+/// cache in front of this proxy rewrites Locations anyway, so this is
+/// defense-in-depth.
+Handler artifactProxyHandler({
+  required ArtifactManifestClient client,
+  String storageBaseUrl = 'https://storage.googleapis.com',
+}) {
   return (Request request) async {
     final path = request.url.path;
     if (path.isEmpty) {
@@ -80,6 +89,7 @@ Handler artifactProxyHandler({required ArtifactManifestClient client}) {
           artifactPath: normalizedPath,
           engine: shorebirdEngineRevision,
           bucket: manifest.storageBucket,
+          storageBaseUrl: storageBaseUrl,
         );
         print('Shorebird engine artifact detected, forwarding to: $location');
         return Response.found(location);
@@ -88,6 +98,7 @@ Handler artifactProxyHandler({required ArtifactManifestClient client}) {
       final location = getFlutterArtifactLocation(
         artifactPath: normalizedPath,
         engine: manifest.flutterEngineRevision,
+        storageBaseUrl: storageBaseUrl,
       );
       print('Flutter artifact detected, forwarding to: $location');
       return Response.found(location);
@@ -101,7 +112,10 @@ Handler artifactProxyHandler({required ArtifactManifestClient client}) {
       return Response.notFound('Unrecognized artifact path: $path');
     }
 
-    final location = getFlutterArtifactLocation(artifactPath: path);
+    final location = getFlutterArtifactLocation(
+      artifactPath: path,
+      storageBaseUrl: storageBaseUrl,
+    );
     print('Flutter artifact detected, forwarding to: $location');
     return Response.found(location);
   };
@@ -112,12 +126,13 @@ Handler artifactProxyHandler({required ArtifactManifestClient client}) {
 String getFlutterArtifactLocation({
   required String artifactPath,
   String? engine,
+  String storageBaseUrl = 'https://storage.googleapis.com',
 }) {
   final adjustedPath = engine != null
       ? artifactPath.replaceAll(r'$engine', engine)
       : artifactPath;
 
-  return 'https://storage.googleapis.com/$adjustedPath';
+  return '$storageBaseUrl/$adjustedPath';
 }
 
 /// Returns the location of the artifact at [artifactPath] using the
@@ -126,7 +141,8 @@ String getShorebirdArtifactLocation({
   required String artifactPath,
   required String engine,
   required String bucket,
+  String storageBaseUrl = 'https://storage.googleapis.com',
 }) {
   final adjustedPath = artifactPath.replaceAll(r'$engine', engine);
-  return 'https://storage.googleapis.com/$bucket/$adjustedPath';
+  return '$storageBaseUrl/$bucket/$adjustedPath';
 }

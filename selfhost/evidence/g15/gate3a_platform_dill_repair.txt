@@ -1,0 +1,86 @@
+G15 GATE 3a — THE PLATFORM-DILL REPAIR: WHAT THE BUILD MEASURED, 2026-08-14
+===========================================================================
+
+Gate 3 established that the dill an app build downloads comes from R4, not from
+the tree that owns the engine. The plan was to build R3's host toolchain WITHOUT
+dynamic modules so the dill could be published from R3. That build was run. It
+produced two results, and the second makes the first mostly unnecessary.
+
+RESULT 1 — R3's ROUTE B DART PATCH DOES NOT COMPILE WITHOUT DYNAMIC MODULES
+---------------------------------------------------------------------------
+First attempt, 1m18s in:
+
+  runtime/lib/object.cc:969:14: error: unused function 'RouteBFunctionField'
+      [-Werror,-Wunused-function]
+
+`RouteBFunctionField` is defined at :969, OUTSIDE the
+`#if defined(DART_DYNAMIC_MODULES)` block that opens at :1054 and contains its
+only four callers (:1129, :1131, :1163, :1165). With `dart_dynamic_modules=false`
+the callers compile out, the helper does not, and `-Werror` stops the build.
+
+This is a latent defect in the Route B Dart instrumentation, not a build-config
+mistake: it means the tree only ever compiled in ONE of its two supported
+configurations, and nobody had tried the other. Fixed by guarding the helper with
+the same `#if`. The durable copy in `instrumentation/` (`lib_object.cc.snapshot`
+and `dart-lib-object.fulldiff.patch`) is refreshed with it, since `object.cc` is
+not a member of `dart_patches.sh`'s `PATCHES` series and that directory is where
+this file's changes are kept.
+
+Second attempt: **1458/1458 targets, `flutter_patched_sdk_product.zip` produced.**
+
+RESULT 2 — THE PLATFORM DILL IS dm-INVARIANT IN R3, SO NO NEW BUILD WAS NEEDED
+-------------------------------------------------------------------------------
+                                                  platform_strong.dill
+  R3 out/host_release_arm64        (dm=true)      9f5a5f75…  attach x8
+  R3 out/host_release_arm64_nodm   (dm=false)     9f5a5f75…  attach x8   <-- NEW
+  R3 out/ios_release               (dm=true)      9f5a5f75…  attach x8
+  R3 published_sdk/                               9f5a5f75…  attach x8
+  R4 out/host_release_arm64_nodm   (dm=false)     55e02ed8…  attach x0   PUBLISHED
+
+Both zips carry byte-identical members (`platform_strong.dill` `9f5a5f75…`,
+`vm_outline_strong.dill` `386c035a…`); the zip files themselves differ only in
+archive metadata.
+
+So `dart_dynamic_modules` does not change R3's platform dill at all. The
+difference that matters is the TREE — R4's Dart carries **zero**
+`attachBytecodeToFunction` in `internal_patch.dart`, R3's carries four in source
+and eight in the built dill.
+
+CONSEQUENCE, and it simplifies the repair
+------------------------------------------
+`9f5a5f75…` is ALREADY the dill the cell address is computed over
+(`mint_route_b_cell.sh:31` — `FLUTTER_PLATFORM` defaults to
+`R3/published_sdk/.../platform_strong.dill`). So publishing
+`R3/out/host_release_arm64/zip_archives/flutter_patched_sdk_product.zip` makes
+audit check `4b` pass **without changing a single cell-identity input**. The
+repair is a one-variable change to `publish_ios_overlay.sh`, not a re-derivation
+of any address.
+
+The nodm build was still worth running: it is what proved the dm-invariance
+rather than assuming it, and it is what surfaced the `-Werror` defect. But it is
+NOT a prerequisite for the publication fix.
+
+STILL OPEN, AND DELIBERATELY NOT TAKEN HERE
+--------------------------------------------
+1. `zip_archives/dart-sdk-darwin-arm64.zip` FAILED in the nodm build:
+
+     FileNotFoundError: '//out/host_release_arm64_nodm/gen/flutter/build/
+                         archives/dart_sdk_entitlements.txt'
+
+   A malformed `//`-rooted path out of `dart_sdk_archive`. The 138 MB zip sitting
+   in that directory is from the FAILED step and **must not be published** — it is
+   a partial artifact with a plausible size, which is exactly the shape of thing
+   that gets published by accident.
+
+2. Whether `dart-sdk-darwin-arm64.zip` needs to move to R3 at all.
+   `publish_ios_overlay.sh`'s comment states the chain of version locks
+   (`frontend_server_aot` ← `dartaotruntime` ← platform dill) and concludes "all
+   three come from our tree or none of this is ours". Publishing the dill from R3
+   while `dart-sdk` stays R4's satisfies check `4b` but leaves that stated
+   invariant half-met. Whether the invariant is real or defensive is not settled
+   by anything measured here, and it should not be guessed at: the failing arm is
+   cheap to observe (a release build either AOTs or dies with "Wrong full
+   snapshot version" / "Unexpected tag 4 (Field)").
+
+3. No cell has been minted and nothing has been published. The overlay,
+   `experimental_hashes.map` and every existing cell are byte-unchanged.

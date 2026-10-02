@@ -1,0 +1,56 @@
+G10.2 — PROVEN. A CI-shaped non-interactive patch, running on hardware.
+=======================================================================
+2026-08-14. Device R2: CPH2551 `3f72a543`, wired USB, `adb reverse tcp:18081`.
+
+  release 1.7.0+1 (registered bytes)   CODEPATCH-V3   patch: null
+  after the patch applied              CODEPATCH-V4   patch: 3
+
+THE DISCRIMINATOR IS THE CODE MARKER, NOT THE NUMBER. V3 -> V4 is compiled Dart
+that can only have come from the patch. Precommitted outcome 9 warns that a
+patch NUMBER alone may be readCurrentPatch rather than patched code executing —
+which is exactly why the harness's own patch 2 was useless here: it was built
+from source identical to its release, so it was a code NO-OP. Patch 3 was made
+code-changing on purpose.
+
+THE PATCH CAME FROM THE CI-SHAPED INVOCATION, not a convenience build:
+  shorebird --json patch android --no-confirm --release-version 1.7.0+1
+  stdin </dev/null, stdout redirected, no CI vars set, against cps-android
+  exit 0, "Published Patch 3", interactive_prompt_required: 0
+(ci_shaped_patch.log)
+
+-----------------------------------------------------------------------
+THE TRAP THIS RUN WALKED INTO, AND HOW IT WAS CAUGHT
+-----------------------------------------------------------------------
+`shorebird patch android` RE-RUNS `flutter build appbundle`, so after a patch
+build, build/app/outputs/bundle/release/app-release.aab is the PATCH build, not
+the release. I extracted an APK from it and installed that. The screen read
+
+    CODEPATCH-V4 patch: null
+
+which is incoherent — V4 is patch source, and no patch was applied. Looking at
+the SCREEN is what caught it; every automated check up to that point was green.
+
+Sizes confirm it after the fact:
+    local post-patch aab   47,400,670 bytes
+    registered release aab 47,400,740 bytes
+
+This is the Android twin of the iOS archive trap that `launch_release_bytes.sh`
+exists to prevent (`shorebird patch ios` re-archives over build/ios/archive).
+**There is no Android equivalent of that guard.** The fix used here: download the
+release artifact from the CONTROL PLANE and extract the APK from those bytes.
+Note the download URL is SIGNED AND EXPIRES — a stale one returns 55 bytes of
+{"code":"forbidden","message":"Invalid or expired URL"}, which is small enough
+to be mistaken for an empty artifact rather than an auth failure.
+
+IDENTITY OF WHAT RAN
+  app_id            5653c73c-ef89-77bf-1c8b-ef51cad30035
+  release           1.7.0+1 (id 7), aab sha-size 47,400,740 bytes from the CP
+  patch             3, published by the --json non-interactive invocation
+  APK               universal, bundletool from the REGISTERED aab, 50,272,630 B
+  device            CPH2551 3f72a543, clean install (uninstall then install)
+  control plane     cps-android :18081 via adb reverse
+  CLI under test    5a95c303 on R12, analysisVersion 8
+
+WHAT THIS DOES NOT CLAIM: nothing about iOS, nothing about G4.2's flavor arms,
+and nothing about auto-update timing — the patch was applied across an explicit
+relaunch, which is the documented model.

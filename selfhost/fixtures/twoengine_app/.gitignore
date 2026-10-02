@@ -1,0 +1,14 @@
+/ios/
+/android/
+/shorebird.yaml
+/.generated/
+/build/
+/.dart_tool/
+/test/
+/analysis_options.yaml
+/.idea/
+/.metadata
+/twoengine_probe.iml
+.flutter-plugins
+.flutter-plugins-dependencies
+.DS_Store

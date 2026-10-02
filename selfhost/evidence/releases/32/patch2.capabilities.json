@@ -1,0 +1,36 @@
+{
+  "policy": "p2",
+  "policyDescription": "all app-private members and classes",
+  "privateEnumerationSource": "private-dill (non-AOT)",
+  "appLibraries": 1,
+  "counts": {
+    "privateTopLevelCallable": 0,
+    "privateStaticsCallable": 0,
+    "privateInstanceCallable": 11,
+    "privateClassesConstructible": 1,
+    "implicitlyConstructible": 1,
+    "refused": 0
+  },
+  "privateTopLevelCallable": [],
+  "privateStaticsCallable": [],
+  "privateInstanceCallable": [
+    "package:airgap_probe/main.dart#RouteBThing#_secret",
+    "package:airgap_probe/main.dart#_ProbeBodyState#get:_assetsPatch",
+    "package:airgap_probe/main.dart#_ProbeBodyState#get:_codePatch",
+    "package:airgap_probe/main.dart#_ProbeBodyState#_routeBRead",
+    "package:airgap_probe/main.dart#_ProbeBodyState#_load",
+    "package:airgap_probe/main.dart#_ProbeBodyState#_beacon",
+    "package:airgap_probe/main.dart#_ProbeBodyState#_row",
+    "package:airgap_probe/main.dart#_ProbeBodyState#_asset",
+    "package:airgap_probe/main.dart#_ProbeBodyState#_rbBaseline",
+    "package:airgap_probe/main.dart#_ProbeBodyState#_rbNote",
+    "package:airgap_probe/main.dart#_ProbeBodyState#_rbPrivateClass"
+  ],
+  "privateClassesConstructible": [
+    "package:airgap_probe/main.dart#_ProbeBodyState"
+  ],
+  "implicitlyConstructible": [
+    "package:airgap_probe/main.dart#_ProbeBodyState.new"
+  ],
+  "refused": []
+}

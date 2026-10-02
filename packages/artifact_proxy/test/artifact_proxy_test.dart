@@ -87,6 +87,27 @@ void main() {
       verify(() => client.getManifest(shorebirdEngineRevision)).called(1);
     });
 
+    test('redirects point at storageBaseUrl when provided', () async {
+      const mirror = 'https://mirror.example.com';
+      handler = artifactProxyHandler(client: client, storageBaseUrl: mirror);
+
+      // Shorebird-overridden artifact.
+      const overriddenPath =
+          'flutter_infra_release/flutter/$shorebirdEngineRevision/android-x64-release/artifacts.zip';
+      expect(
+        await handler(buildRequest(overriddenPath)),
+        isRedirectTo('$mirror/${manifest.storageBucket}/$overriddenPath'),
+      );
+
+      // Plain Flutter artifact.
+      const flutterPath =
+          'flutter_infra_release/flutter/fonts/3012db47f3130e62f7cc0beabff968a33cbec8d8/fonts.zip';
+      expect(
+        await handler(buildRequest(flutterPath)),
+        isRedirectTo('$mirror/$flutterPath'),
+      );
+    });
+
     test('should proxy to Flutter artifacts '
         'when an engine revision is detected with no override', () async {
       const path =

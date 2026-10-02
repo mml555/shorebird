@@ -43,6 +43,43 @@ void main() {
       });
     });
 
+    group('allowAssetDiffs', () {
+      Patcher patcher({required bool flagPassed, required bool assetsOnly}) {
+        final argResults = MockArgResults();
+        when(() => argResults['allow-asset-diffs']).thenReturn(flagPassed);
+        return _TestPatcher(
+          argParser: MockArgParser(),
+          argResults: argResults,
+          flavor: null,
+          target: null,
+        )..assetsOnly = assetsOnly;
+      }
+
+      test('is false when neither the flag nor assetsOnly is set', () {
+        expect(
+          patcher(flagPassed: false, assetsOnly: false).allowAssetDiffs,
+          isFalse,
+        );
+      });
+
+      test('is true when the flag is passed', () {
+        expect(
+          patcher(flagPassed: true, assetsOnly: false).allowAssetDiffs,
+          isTrue,
+        );
+      });
+
+      test('is implied by assetsOnly', () {
+        // Asset changes are an assets-only patch's entire payload, so the diff
+        // check must not warn about them and stop for confirmation — a prompt
+        // that cannot be answered under --no-confirm or in CI.
+        expect(
+          patcher(flagPassed: false, assetsOnly: true).allowAssetDiffs,
+          isTrue,
+        );
+      });
+    });
+
     group('supplementaryReleaseArtifactArch', () {
       test('defaults to null', () {
         expect(
@@ -54,6 +91,102 @@ void main() {
           ).supplementaryReleaseArtifactArch,
           isNull,
         );
+      });
+    });
+
+    group('assetsDirectory', () {
+      test('defaults to null', () async {
+        await expectLater(
+          _TestPatcher(
+            argParser: MockArgParser(),
+            argResults: MockArgResults(),
+            flavor: null,
+            target: null,
+          ).assetsDirectory(),
+          completion(isNull),
+        );
+      });
+    });
+
+    group('debugSymbolsDirectory', () {
+      late Directory tempDir;
+      late ArgParser argParser;
+      late ArgResults argResults;
+
+      /// A patcher whose --split-debug-info resolves to [path], or to nothing
+      /// when [path] is null.
+      _TestPatcher patcherFor({
+        String? path,
+        List<String> extraBuildArgs = const [],
+      }) {
+        when(() => argResults.wasParsed(any())).thenReturn(path != null);
+        when(
+          () => argResults[CommonArguments.splitDebugInfoArg.name],
+        ).thenReturn(path);
+        return _TestPatcher(
+          argParser: argParser,
+          argResults: argResults,
+          flavor: null,
+          target: null,
+        )..extraBuildArgs = extraBuildArgs;
+      }
+
+      setUp(() {
+        tempDir = Directory.systemTemp.createTempSync();
+        argParser = MockArgParser();
+        argResults = MockArgResults();
+        when(() => argParser.options).thenReturn({});
+        when(() => argResults.rest).thenReturn([]);
+      });
+
+      test('is null when --split-debug-info was not passed', () async {
+        await expectLater(
+          patcherFor().debugSymbolsDirectory(),
+          completion(isNull),
+        );
+      });
+
+      test('is null when the directory does not exist', () async {
+        await expectLater(
+          patcherFor(
+            path: p.join(tempDir.path, 'absent'),
+          ).debugSymbolsDirectory(),
+          completion(isNull),
+        );
+      });
+
+      test('is null when the build emitted no symbols', () async {
+        await expectLater(
+          patcherFor(path: tempDir.path).debugSymbolsDirectory(),
+          completion(isNull),
+        );
+      });
+
+      test('is the directory when the build emitted symbols', () async {
+        File(p.join(tempDir.path, 'app.android-arm64.symbols'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('symbols');
+
+        final result = await patcherFor(
+          path: tempDir.path,
+        ).debugSymbolsDirectory();
+
+        expect(result?.path, equals(tempDir.path));
+      });
+
+      test('falls back to the path the patch command injected', () async {
+        // Flutter requires --split-debug-info alongside --obfuscate, so the
+        // patch command adds the flag itself. Symbols exist even though the
+        // user never passed it.
+        File(p.join(tempDir.path, 'app.android-arm64.symbols'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('symbols');
+
+        final result = await patcherFor(
+          extraBuildArgs: ['--split-debug-info=${tempDir.path}'],
+        ).debugSymbolsDirectory();
+
+        expect(result?.path, equals(tempDir.path));
       });
     });
 

@@ -1,0 +1,18 @@
+release        : 24.0.0+1
+LC_UUID        : a022fbd1eb823211965599e0890d72b7
+patchable      : 7,141  (1,775 per MB) -- PASSED verify_patchable_release.sh
+identity       : PASSED assert_installed_release.sh at install time
+
+App BYTES ARE NOT HERE, and that is the whole reason this directory now exists.
+Release 24 was cut and installed before preserve_release_evidence.sh existed, and
+the first patch build re-archived over build/ios/archive -- so the release's own
+binary was gone by the time the second patch needed to compare against it.
+
+What survives is the measurement, not the material: both preconditions were
+verified against the release bytes at install time, and every launch afterwards
+used --noinstall, so nothing reinstalled over it. That makes the identity claim
+for release 24 sound but UNRE-CHECKABLE. Recorded as such rather than presented
+as evidence of the same quality as a preserved binary.
+
+From release 25 on, preserve_release_evidence.sh copies the App aside at install
+time and this file carries the bytes beside the hash.

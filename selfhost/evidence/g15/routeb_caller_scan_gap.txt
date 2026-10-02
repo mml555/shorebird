@@ -1,0 +1,118 @@
+ROUTE B — WHY caller_scan_status=0 AND pool_index=-1: THE EMBEDDER NEVER ASKS
+==============================================================================
+
+Source-level, 2026-08-16. No build, no device. Answers the narrow question:
+*why do those sentinels survive a successful resolve-and-attach?*
+
+THE ANSWER: 0 MEANS "NOT REQUESTED", NOT "TRIED AND FAILED"
+------------------------------------------------------------
+`third_party/dart/runtime/include/dart_route_b_trace.h`:
+
+    #define DART_ROUTE_B_SCAN_NOT_REQUESTED           0
+    #define DART_ROUTE_B_SCAN_CALLER_UNRESOLVED       1
+    #define DART_ROUTE_B_SCAN_CALLER_RESOLVED_NO_CODE 2
+    #define DART_ROUTE_B_SCAN_NULL_POOL               3
+    #define DART_ROUTE_B_SCAN_EMPTY_POOL              4
+    #define DART_ROUTE_B_SCAN_SCANNED                 5
+
+    #define DART_ROUTE_B_POOL_NOT_REQUESTED   0
+    #define DART_ROUTE_B_POOL_NULL            1
+    #define DART_ROUTE_B_POOL_INDEX_OUT_OF_RANGE 2
+    #define DART_ROUTE_B_POOL_ENTRY_NOT_TAGGED   3
+    #define DART_ROUTE_B_POOL_ENTRY_NOT_FUNCTION 4
+    #define DART_ROUTE_B_POOL_READ               5
+
+    #define DART_ROUTE_B_TRACE_UNSET (-1)
+
+Our trace read `caller_scan_status=0 pool_status=0 pool_index=-1`. That is
+**NOT_REQUESTED / NOT_REQUESTED / UNSET** — the scan was never attempted.
+
+**THE TAXONOMY THE INSTRUMENT WAS ASKED FOR ALREADY EXISTS.** Every state named
+— not attempted, caller not found, caller found with no Code, no object pool,
+empty pool, scanned — is already a distinct first-class value, and `object.cc`
+sets one on every branch. It even records *why* it does not gate on `HasCode()`:
+*"That gate is what silently skipped release 28's scan, and replacing it with
+another predicate would repeat the mistake in a new costume."*
+
+So the runtime is not the gap.
+
+THE GAP IS ONE HARD-CODED `if` IN THE EMBEDDER
+------------------------------------------------
+`shell/common/shorebird/shorebird.cc:367-374`, inside the per-target loop:
+
+    // DIAGNOSTIC-ONLY: the call-site pool offset for one known site.
+    // From release 26's disassembly of routeBValue's kUnchecked call:
+    //   add x0, x27, #0xd, lsl #12 ; ldr x0, [x0, #0x4a8]  -> 0xd4a8
+    // ...
+    // Remove with the investigation.
+    int64_t pool_offset = 0;
+    if (target.selector == "RouteBThing.value") {
+      pool_offset = 0xd4a8;
+    }
+    const int32_t result = Dart_RouteBActivatePatchTraced(
+        ..., &trace, nullptr, pool_offset);
+
+And the runtime gates on exactly those two arguments (`object.cc:1190`, `:1226`):
+
+    if (pool_offset != 0) { ...pool read... }
+    if (caller_name != nullptr) { ...caller scan... }
+
+So:
+
+* **`caller_name` is `nullptr` for EVERY target, always.** The caller scan has
+  never run for any specimen. Its six statuses have never been exercised in the
+  field.
+* **`pool_offset` is 0 for every selector except the literal string
+  `"RouteBThing.value"`** — a DIFFERENT fixture's target — with an offset
+  measured from **release 26**.
+
+`killswitch_probe`'s target is `routeBValue`, so both are unset and the sentinels
+survive. The observation is fully explained, and it is not a failure of the scan.
+
+TWO CONSEQUENCES BEYOND ARM A
+-------------------------------
+**1. A live landmine.** `0xd4a8` is a constant from release 26's disassembly,
+still compiled in. Any future specimen whose selector happens to be
+`RouteBThing.value` will read pool index `IndexFromOffset(0xd4a8)` **of whatever
+release is running**, and report `POOL_READ` with `pool_entry_equals_target=0` or
+`ENTRY_NOT_FUNCTION` — a confident wrong answer. `assert_result_consumed.sh`'s own
+docs warn of exactly this: *"a stale one silently reads a different pool entry."*
+The comment says "Remove with the investigation"; the investigation moved on and
+the constant did not.
+
+**2. `--pool-offset` has a consumer and no producer.** The probe was built to
+accept the offset the trace supplies. The trace can only supply it when the
+embedder passes one, and the embedder passes one for a single hard-coded string.
+That is the instrumentation gap in one sentence.
+
+THE FIX WORTH BUILDING, AND IT IS NOT "PASS A CALLER NAME"
+------------------------------------------------------------
+A caller NAME cannot be auto-derived: the patch container carries the TARGET's
+library and selector, not its callers, and a target may have many.
+
+But the lookup is invertible, and the runtime already has both halves. The
+existing code does *offset → entry*:
+
+    const intptr_t idx = ObjectPool::IndexFromOffset(pool_offset);
+    ... pool.ObjectAt(idx) ... entry.ptr() == target.ptr()
+
+The measurement actually wanted is *target → offset*: scan the global object pool
+once for `entry.ptr() == target.ptr()` and report the index and its offset. That
+needs no caller name, no hard-coded constant, and no per-fixture special case —
+it works for every specimen, and it turns `pool_index`/`pool_offset` into
+measurements rather than echoes of an argument.
+
+It also makes the existing `pool_offset != 0` path what it should be: a CHECK
+(does the caller's named slot hold the target?) rather than the only source of
+the number.
+
+**Not built here.** This is the source answer the question asked for; building it
+is an engine change and belongs in its own claim, with the stale `0xd4a8`
+constant removed in the same patch rather than left for a third investigation to
+trip over.
+
+WHAT THIS DOES NOT SAY
+-----------------------
+It does not explain arm A's `OLD-kill`. It explains only why the trace could not
+help identify the call site. Arm A remains INCONCLUSIVE with its target
+unchanged, and `routeBValue`'s consumption remains UNMEASURED.

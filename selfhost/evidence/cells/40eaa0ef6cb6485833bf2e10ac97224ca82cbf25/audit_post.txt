@@ -1,0 +1,15 @@
+engine hash: 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+cell:        macos-ios
+overlay:     /Users/mendell/shorebird/selfhost/cdn/overlay
+
+owned-built:       14
+owned-mirrored:    0
+compat-mirrored:   1
+denied:            4
+missing-required:  1
+
+findings:
+  MISSING-REQUIRED  download.shorebird.dev/shorebird/40eaa0ef6cb6485833bf2e10ac97224ca82cbf25/patch-linux-x64.zip
+                    built on the Linux box
+
+AUDIT FAILED for 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25 (macos-ios)

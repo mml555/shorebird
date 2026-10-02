@@ -1,0 +1,86 @@
+G15 GATE 5 — THE BASELINE CUT: VERDICT, 2026-08-16
+===================================================
+
+Precommitted in `gate5_baseline_precommit.md` (062e7276, amended three times, all
+before the cut). That file is not edited here.
+
+RESULT: **row 1 of the outcome table — the release PERSISTED.**
+
+THE FOUR STEPS, AS PRECOMMITTED
+--------------------------------
+    PRE-CUT     max_release=94   max_audit=178
+
+    STEP 1  content read, pre-restart
+            releases   id 95, version 1.0.6+1, 2026-08-16T04:06:54.907Z
+            audit_log  id 179, actor 1, release.ready, target 95
+            artifacts  3 rows for release 95
+            counts     max_release=95  max_audit=179
+
+    STEP 2  docker restart cps-ios   -> Pid=79966, healthy
+
+    STEP 3  content RE-read, post-restart
+            releases   id 95, 1.0.6+1  — PRESENT, same timestamp
+            audit_log  id 179          — PRESENT
+            counts     max_release=95  max_audit=179
+
+    STEP 4  classify: outcome row 1
+
+Both the release row and its matching audit row survive a reopen, so this is
+"committed", not "visible to a connection that had not been reopened" — which is
+the distinction the added reopen step exists to make and which a single content
+read could not have made.
+
+WHAT THIS DOES AND DOES NOT DO TO THE CLI HYPOTHESIS
+------------------------------------------------------
+**The CLI hypothesis is WEAKENED. It is NOT cleared** — and that was precommitted
+in exactly this direction, before the result was known, precisely because a
+persisted release is the flattering outcome.
+
+A write on CLI `98f84c17` persisted. That is one write on one path. The vanished
+population was four operations; this is one. Clearing the hypothesis on it would
+be the same error as promoting the frozen `mtime`, or the OAuth/`API_KEY` split —
+both of which this project made or nearly made within the last day.
+
+One honest weakening of my own A/B: rule 1 was amended before the cut to the
+documented `SHOREBIRD_TOKEN` path, because the user-OAuth refresh is dead on this
+plane (`400 invalid_grant`). So this cut is actor 1 via API key, while the
+vanished writes were on the newer CLI by other means. The CLI revision is still
+the only variable that tracks across the whole population — but this particular
+cut does not isolate it as cleanly as the original design intended, and that is
+recorded rather than glossed.
+
+**The durability question therefore remains OPEN.** What is now established is
+narrower and sufficient for the gate: *this* baseline is durable, verified by
+content across a restart.
+
+THE BASELINE IS FIT FOR THE THREE-ARM GATE
+--------------------------------------------
+Checked on the artifact the plane actually stored, not on the local build:
+
+    release 95 / killswitch_probe 1.0.6+1
+    engine __TEXT,__text  b3178e9e…   = the seam engine (cell cd137db6)
+    App.framework carries  dart-main-entered, boot-probe-returned,
+                           first-frame, boot-ok
+
+So the shipped baseline carries BOTH halves of patch `0011` and the repaired
+fixture receipt. The rig that produced it consumed `cd137db6` — verified before
+the cut on the CONSUMED artifacts (`ios-release` Flutter present, `__text`
+`b3178e9e…`, dill `757d09d7…` with `_g15ReportLaunchSuccess` ×5), which is the
+`isRouteBEngine` trap closed rather than assumed.
+
+STATE
+-----
+* control plane: release **95**, audit **179**, three artifacts. Verified twice.
+* `~/.shorebird`: stamped `cd137db6…`, warm. Still claimed.
+* fixture: `1.0.6+1` released; bump before cutting another.
+* device: **untouched**. No arm has run.
+
+NEXT, AND THE GATE'S OWN RULES STILL BIND
+-------------------------------------------
+The three arms may now proceed against release 95. Every patch published for them
+gets the same treatment: publish success is provisional, content-read the
+`patches` and `audit_log` rows, and **if one vanishes, preserve it** rather than
+reaching for auth or CLI state. The deliberate `injectedDefines` refusal arm is
+also still owed, and its trigger must be a `fromEnvironment` constructor written
+literally in the replacement body — a const reference resolves through the import
+kernel and would prove nothing.

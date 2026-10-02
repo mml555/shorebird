@@ -12,6 +12,7 @@ import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/logging/shorebird_logger.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
@@ -27,6 +28,10 @@ class MacosReleaser extends Releaser with AppleReleaserMixin {
     required super.flavor,
     required super.target,
   });
+
+  @override
+  ShorebirdArtifact? get ddGenSnapshotArtifact =>
+      ShorebirdArtifact.genSnapshotMacosArm64;
 
   /// Whether to codesign the release.
   bool get codesign => argResults['codesign'] == true;

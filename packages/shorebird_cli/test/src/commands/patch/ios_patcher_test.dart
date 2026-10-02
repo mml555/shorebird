@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:args/args.dart';
+import 'package:crypto/crypto.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
@@ -25,6 +28,14 @@ import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b_capabilities.dart';
+import 'package:shorebird_cli/src/route_b_compiler.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
+import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
+import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_producer.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
+import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -40,6 +51,15 @@ import '../../fakes.dart';
 import '../../helpers.dart';
 import '../../matchers.dart';
 import '../../mocks.dart';
+
+/// A stand-in path for fallback values mocktail only needs to type-check.
+const _nowhere = _NowhereFile();
+
+class _NowhereFile implements File {
+  const _NowhereFile();
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   group(IosPatcher, () {
@@ -60,6 +80,10 @@ void main() {
     late OperatingSystemInterface operatingSystemInterface;
     late PatchDiffChecker patchDiffChecker;
     late Progress progress;
+    late RouteBCompilerResolver routeBCompilerResolver;
+    late RouteBCoverageAnalyzer routeBCoverageAnalyzer;
+    late RouteBProducer routeBProducer;
+    late RouteBReleaseKernelBuilder routeBReleaseKernelBuilder;
     late ShorebirdArtifacts shorebirdArtifacts;
     late ShorebirdProcess shorebirdProcess;
     late ShorebirdEnv shorebirdEnv;
@@ -84,6 +108,12 @@ void main() {
           osInterfaceRef.overrideWith(() => operatingSystemInterface),
           patchDiffCheckerRef.overrideWith(() => patchDiffChecker),
           processRef.overrideWith(() => shorebirdProcess),
+          routeBCompilerResolverRef.overrideWith(() => routeBCompilerResolver),
+          routeBCoverageAnalyzerRef.overrideWith(() => routeBCoverageAnalyzer),
+          routeBProducerRef.overrideWith(() => routeBProducer),
+          routeBReleaseKernelBuilderRef.overrideWith(
+            () => routeBReleaseKernelBuilder,
+          ),
           shorebirdArtifactsRef.overrideWith(() => shorebirdArtifacts),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
@@ -101,6 +131,33 @@ void main() {
       registerFallbackValue(ReleasePlatform.ios);
       registerFallbackValue(ShorebirdArtifact.genSnapshotIos);
       registerFallbackValue(Uri.parse('https://example.com'));
+      registerFallbackValue(
+        RouteBCoverage.fromJson(
+          jsonEncode({
+            'analysisVersion': supportedRouteBAnalysisVersion,
+            'verdict': 'accept',
+            'changed': <String>[],
+            'added': <String>[],
+            'removed': <String>[],
+            'patchable': <String>[],
+            'conditional': <String>[],
+            'rejections': <Object>[],
+            'refusalSummary': null,
+          }),
+        ),
+      );
+      registerFallbackValue(
+        const RouteBCompiler(
+          runtime: _nowhere,
+          compilerSnapshot: _nowhere,
+          platformDill: _nowhere,
+          analyzer: _nowhere,
+          frontend: _nowhere,
+          interfaceGenerator: _nowhere,
+          flutterPlatformDill: _nowhere,
+          provenance: '',
+        ),
+      );
     });
 
     setUp(() {
@@ -119,6 +176,10 @@ void main() {
       patchDiffChecker = MockPatchDiffChecker();
       progress = MockProgress();
       projectRoot = Directory.systemTemp.createTempSync();
+      routeBCompilerResolver = MockRouteBCompilerResolver();
+      routeBCoverageAnalyzer = MockRouteBCoverageAnalyzer();
+      routeBProducer = MockRouteBProducer();
+      routeBReleaseKernelBuilder = MockRouteBReleaseKernelBuilder();
       logger = MockShorebirdLogger();
       shorebirdArtifacts = MockShorebirdArtifacts();
       shorebirdProcess = MockShorebirdProcess();
@@ -1048,6 +1109,1087 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
           ),
         ).thenReturn(projectRoot);
         when(() => engineConfig.localEngine).thenReturn(null);
+
+        // Route B: the patcher asks whether the cached iOS engine carries the
+        // interpreter, to decide whether a code patch even makes sense. An
+        // empty temp dir has no engine, so the default is "stock engine" —
+        // the existing linker behaviour every pre-existing test expects.
+        when(
+          () => shorebirdEnv.flutterDirectory,
+        ).thenReturn(Directory.systemTemp.createTempSync('flutter'));
+      });
+
+      // Route B (selfhost). On an engine that can run iOS Dart code push, a
+      // code patch is only meaningful against a release built with patchable
+      // call sites. This refusal is deliberately DISTINCT from "this patch
+      // cannot be represented": the remediation is a new release, not
+      // different Dart, and collapsing them sends people to debug the wrong
+      // half.
+      group('when the engine supports iOS Dart code push', () {
+        // Two different engines under the same Flutter revision, which is the
+        // situation this fork is actually in: fifteen engine hashes are
+        // published under `c15ef637`, so nothing about the release's Flutter
+        // revision distinguishes them.
+        const releaseEngineRevision =
+            'aaaaaaaa1111aaaaaaaa2222aaaaaaaa3333aaaa';
+        const ambientEngineRevision =
+            'bbbbbbbb1111bbbbbbbb2222bbbbbbbb3333bbbb';
+
+        late Directory flutterDir;
+        late Directory supplementDirectory;
+
+        void writeReleaseProvenance({
+          required String engineRevision,
+          bool withKernel = true,
+          bool corruptKernel = false,
+          String? capabilityManifest,
+          RouteBBuildConfig? buildConfig,
+        }) {
+          final artifacts = <String, String>{};
+          if (capabilityManifest != null) {
+            final manifest = File(
+              p.join(
+                supplementDirectory.path,
+                routeBCapabilityManifestFileName,
+              ),
+            )..writeAsStringSync(capabilityManifest);
+            artifacts[routeBCapabilityManifestFileName] = sha256
+                .convert(manifest.readAsBytesSync())
+                .toString();
+          }
+          if (withKernel) {
+            for (final name in [
+              routeBReleaseKernelFileName,
+              routeBReleaseImportKernelFileName,
+            ]) {
+              final kernel = File(p.join(supplementDirectory.path, name))
+                ..writeAsStringSync('KERNEL-$name');
+              artifacts[name] = sha256
+                  .convert(kernel.readAsBytesSync())
+                  .toString();
+            }
+            if (corruptKernel) {
+              // The bytes the release recorded and the bytes it uploaded are
+              // different claims; the supplement is a second network call and
+              // can genuinely arrive truncated.
+              File(
+                p.join(
+                  supplementDirectory.path,
+                  routeBReleaseKernelFileName,
+                ),
+              ).writeAsStringSync('TRUNCATED');
+            }
+          }
+          writeRouteBReleaseProvenance(
+            supplementDirectory,
+            RouteBReleaseProvenance(
+              engineRevision: engineRevision,
+              flutterRevision: 'cccccccc1111cccccccc2222cccccccc3333cccc',
+              patchableCallSites: 4000,
+              patchableCallSitesPerMiB: 1788,
+              artifacts: artifacts,
+              buildConfig: buildConfig,
+            ),
+          );
+        }
+
+        /// A minimal Mach-O carrying an LC_UUID and [sites] patchable call
+        /// pairs, so both the patchability scan and the build-ID read work on
+        /// the same bytes they do in production.
+        void writeReleaseAppBinary({required int sites}) {
+          const headerWords = 6; // 24-byte LC_UUID after a 32-byte header
+          final words = Uint32List(1024 * 32)
+            ..fillRange(0, 1024 * 32, 0xD503201F);
+          final header = ByteData.sublistView(words)
+            ..setUint32(0, 0xfeedfacf, Endian.little)
+            ..setUint32(16, 1, Endian.little) // ncmds
+            ..setUint32(32, 0x1b, Endian.little) // LC_UUID
+            ..setUint32(36, 24, Endian.little); // cmdsize
+          for (var i = 0; i < 16; i++) {
+            header.setUint8(40 + i, i + 1);
+          }
+          for (var i = 0; i < sites; i++) {
+            final at = (headerWords + 8) + i * 4;
+            words[at] = 0xF840701E; // ldur lr, [r0, #7]
+            words[at + 1] = 0xD63F03C0; // blr lr
+          }
+          File(
+              p.join(projectRoot.path, 'Frameworks', 'App.framework', 'App'),
+            )
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(words.buffer.asUint8List());
+        }
+
+        setUp(() {
+          flutterDir = Directory.systemTemp.createTempSync('flutter');
+          File(
+              p.join(
+                flutterDir.path,
+                'bin',
+                'cache',
+                'artifacts',
+                'engine',
+                'ios-release',
+                'Flutter.xcframework',
+                'ios-arm64',
+                'Flutter.framework',
+                'Flutter',
+              ),
+            )
+            ..createSync(recursive: true)
+            ..writeAsStringSync('...InterpretCall...');
+          when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDir);
+
+          supplementDirectory = Directory.systemTemp.createTempSync(
+            'supplement',
+          );
+          when(
+            () => shorebirdEnv.shorebirdEngineRevision,
+          ).thenReturn(releaseEngineRevision);
+          when(
+            () => routeBReleaseKernelBuilder.agreesWith(
+              compiler: any(named: 'compiler'),
+              importKernel: any(named: 'importKernel'),
+              aotKernel: any(named: 'aotKernel'),
+            ),
+          ).thenReturn(true);
+          when(
+            () => routeBCoverageAnalyzer.analyze(
+              compiler: any(named: 'compiler'),
+              baseDill: any(named: 'baseDill'),
+              patchedDill: any(named: 'patchedDill'),
+              includePrefixes: any(named: 'includePrefixes'),
+            ),
+          ).thenReturn(
+            RouteBCoverage.fromJson(
+              jsonEncode({
+                'analysisVersion': supportedRouteBAnalysisVersion,
+                'verdict': 'accept',
+                'changed': ['package:app/main.dart#routeBValue'],
+                'added': <String>[],
+                'removed': <String>[],
+                'patchable': ['package:app/main.dart#routeBValue'],
+                'conditional': <String>[],
+                'rejections': <Object>[],
+                'refusalSummary': null,
+              }),
+            ),
+          );
+          // The SAME differ every other platform uses. Route B passes it a
+          // one-byte synthetic base, which was verified byte-for-byte against
+          // the reference route_b_artifact tool.
+          when(
+            () => artifactManager.createDiff(
+              releaseArtifactPath: any(named: 'releaseArtifactPath'),
+              patchArtifactPath: any(named: 'patchArtifactPath'),
+            ),
+          ).thenAnswer((_) async {
+            final diff = File(p.join(projectRoot.path, 'route_b.artifact'))
+              ..createSync(recursive: true)
+              ..writeAsBytesSync(List<int>.filled(64, 7));
+            return diff.path;
+          });
+          // Stands in for compile+pack; the real bytes are gated by
+          // host_equivalence.sh against the reference packer.
+          when(
+            () => routeBProducer.produce(
+              compiler: any(named: 'compiler'),
+              coverage: any(named: 'coverage'),
+              importKernel: any(named: 'importKernel'),
+              releaseBuildId: any(named: 'releaseBuildId'),
+              workingDirectory: any(named: 'workingDirectory'),
+              projectRoot: any(named: 'projectRoot'),
+              capabilities: any(named: 'capabilities'),
+            ),
+          ).thenAnswer(
+            (invocation) => Uint8List.fromList(
+              utf8.encode(
+                'SBRBPTCH-for-${invocation.namedArguments[#releaseBuildId]}',
+              ),
+            ),
+          );
+          // The patch build's own kernel, which coverage diffs against the
+          // release's.
+          File(p.join(projectRoot.path, 'build', 'app.dill'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync('PATCH-KERNEL');
+          when(
+            () => routeBCompilerResolver.resolve(
+              engineRevision: any(named: 'engineRevision'),
+            ),
+          ).thenAnswer(
+            (_) async => RouteBCompiler(
+              runtime: File(p.join(flutterDir.path, 'dartaotruntime')),
+              compilerSnapshot: File(
+                p.join(flutterDir.path, 'dart2bytecode.aot'),
+              ),
+              platformDill: File(p.join(flutterDir.path, 'vm_platform.dill')),
+              analyzer: File(p.join(flutterDir.path, 'route_b_analyze.aot')),
+              frontend: File(
+                p.join(flutterDir.path, 'route_b_gen_kernel.aot'),
+              ),
+              interfaceGenerator: File(
+                p.join(flutterDir.path, 'route_b_gen_dynamic_interface.aot'),
+              ),
+              flutterPlatformDill: File(
+                p.join(flutterDir.path, 'flutter_platform_strong.dill'),
+              ),
+              provenance: 'engine revision  : $releaseEngineRevision',
+            ),
+          );
+        });
+
+        group('when the release was not built with patchable calls', () {
+          setUp(() => writeReleaseAppBinary(sites: 2));
+
+          test('refuses, naming the release as the thing to fix', () async {
+            await expectLater(
+              () => runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                ),
+              ),
+              exitsWithCode(ExitCode.software),
+            );
+
+            verify(
+              () => logger.err(
+                any(
+                  that: allOf(
+                    contains('was not built with Route B patchable call sites'),
+                    contains('Create a new release'),
+                  ),
+                ),
+              ),
+            ).called(1);
+          });
+        });
+
+        group('when the release IS patchable', () {
+          setUp(() => writeReleaseAppBinary(sites: 4000));
+
+          test(
+            'refuses a release that does not record its engine',
+            () async {
+              // A release cut before provenance existed is
+              // RELEASE-INCOMPATIBLE, not "tooling unavailable": there is no
+              // way to learn which of the engines published under this Flutter
+              // revision built it, and guessing from the environment is the
+              // failure the record exists to prevent.
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verifyNever(
+                () => routeBCompilerResolver.resolve(
+                  engineRevision: any(named: 'engineRevision'),
+                ),
+              );
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains('does not record which engine built it'),
+                      contains('Nothing was uploaded'),
+                    ),
+                  ),
+                ),
+              ).called(1);
+            },
+          );
+
+          group('when the release records a FLAVOR', () {
+            // G4.2. `--flavor` never reaches the configuration comparison
+            // through the build args: `forwardedArgs` carries only
+            // `--dart-define=` and `--enable-experiment=`, and the CLI passes
+            // flavor to `buildIpa` as a separate parameter. So the patch side
+            // synthesized no FLUTTER_APP_FLAVOR at all, and the arm that got
+            // refused was the MATCHING one.
+            //
+            // Flutter reduces `--flavor foo` to exactly one compiler fact, the
+            // FLUTTER_APP_FLAVOR define, which is why the release side records
+            // it in `effectiveDefines` rather than as a second fingerprint
+            // field.
+            RouteBBuildConfig flavored(String? flavor) => RouteBBuildConfig(
+              rawArgs: [if (flavor != null) '--flavor=$flavor'],
+              effectiveDefines: {
+                if (flavor != null) 'FLUTTER_APP_FLAVOR': flavor,
+              },
+            );
+
+            /// A patcher invoked with `--flavor $flavor`, which the shared
+            /// `patcher` cannot express: it is built with `flavor: null`.
+            IosPatcher patcherWithFlavor(String? flavor) => IosPatcher(
+              argParser: argParser,
+              argResults: argResults,
+              flavor: flavor,
+              target: null,
+            );
+
+            Future<void> runPatch(IosPatcher subject) async {
+              try {
+                await runWithOverrides(
+                  () => subject.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                );
+              } on Object {
+                // Only the configuration check is under test here. Whether the
+                // stages after it complete is the subject of other tests, and
+                // failing there must not read as a flavor result.
+              }
+            }
+
+            setUp(() {
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                buildConfig: flavored('foo'),
+              );
+              when(() => shorebirdEnv.getPubspecYaml()).thenReturn(null);
+            });
+
+            test('accepts a patch built with the SAME flavor', () async {
+              // The regression test for the fix. Before it, this case was
+              // refused, reporting FLUTTER_APP_FLAVOR "absent in this patch"
+              // for a patch whose program had the identical flavor.
+              await runPatch(patcherWithFlavor('foo'));
+
+              verifyNever(
+                () => logger.err(any(that: contains('Dart defines differ'))),
+              );
+              verify(
+                () => logger.detail(
+                  any(
+                    that: contains('build configuration matches the release'),
+                  ),
+                ),
+              ).called(1);
+            });
+
+            test('refuses a patch built with a DIFFERENT flavor', () async {
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcherWithFlavor('bar').createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.usage),
+              );
+
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains('Dart defines differ'),
+                      contains(
+                        'FLUTTER_APP_FLAVOR: "foo" in the release, '
+                        '"bar" in this patch',
+                      ),
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
+
+            test('refuses an UNFLAVORED patch of a flavored release', () async {
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcherWithFlavor(null).createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.usage),
+              );
+
+              verify(
+                () => logger.err(
+                  any(
+                    that: contains(
+                      'FLUTTER_APP_FLAVOR: "foo" in the release, '
+                      'absent in this patch',
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
+
+            test(
+              'accepts a patch flavored ONLY by pubspec default-flavor',
+              () async {
+                // The path with no command-line token to notice: a release can
+                // be flavored entirely by `default-flavor`, and reading the flag
+                // alone would record "no flavor" for it.
+                final pubspec = MockPubspec();
+                when(
+                  () => pubspec.flutter,
+                ).thenReturn({'default-flavor': 'foo'});
+                when(() => shorebirdEnv.getPubspecYaml()).thenReturn(pubspec);
+
+                await runPatch(patcherWithFlavor(null));
+
+                verifyNever(
+                  () => logger.err(any(that: contains('Dart defines differ'))),
+                );
+                verify(
+                  () => logger.detail(
+                    any(
+                      that: contains('build configuration matches the release'),
+                    ),
+                  ),
+                ).called(1);
+              },
+            );
+          });
+
+          group('when the release records its engine', () {
+            setUp(() {
+              writeReleaseProvenance(engineRevision: releaseEngineRevision);
+            });
+
+            test(
+              'resolves the compiler for the RELEASE engine, not the '
+              'environment',
+              () async {
+                // The whole point. This machine is set up with a DIFFERENT
+                // engine, and fifteen engine hashes share one Flutter
+                // revision, so an environment-relative lookup would validate a
+                // cell whose every hash matched and whose lineage was wrong.
+                when(
+                  () => shorebirdEnv.shorebirdEngineRevision,
+                ).thenReturn(ambientEngineRevision);
+
+                await runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                );
+
+                verify(
+                  () => routeBCompilerResolver.resolve(
+                    engineRevision: releaseEngineRevision,
+                  ),
+                ).called(1);
+                verifyNever(
+                  () => routeBCompilerResolver.resolve(
+                    engineRevision: ambientEngineRevision,
+                  ),
+                );
+                // AND IT NO LONGER WARNS. The mismatch used to print a warning
+                // here on the argument that the failure had not been shown; it
+                // was demonstrated on device on 2026-08-12 (release ee001fd7,
+                // frontend 69f9831c: patch published, `code patch: 1`, app
+                // running the release's code), so it is now refused in
+                // patch_command before anything is built or uploaded.
+                //
+                // Asserted as an absence because a warning printed beside a
+                // refusal reads as though the mismatch were a matter of degree
+                // — and because reaching this code at all means the refusal did
+                // not fire, which is what the patch_command tests cover.
+                verifyNever(
+                  () => logger.warn(
+                    any(
+                      that: allOf(
+                        contains(releaseEngineRevision),
+                        contains(ambientEngineRevision),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+
+            test('refuses a release that uploaded no kernel', () async {
+              // Coverage diffs the patch against the release's OWN kernel.
+              // Without it there is nothing to compare, and regenerating one
+              // from source at patch time would answer a different question.
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                withKernel: false,
+              );
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verifyNever(
+                () => routeBCompilerResolver.resolve(
+                  engineRevision: any(named: 'engineRevision'),
+                ),
+              );
+              verify(
+                () => logger.err(
+                  any(
+                    that: contains(
+                      'did not upload the kernel it was compiled from',
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
+
+            test('refuses a kernel that does not match its hash', () async {
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                corruptKernel: true,
+              );
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains('do not match what it recorded'),
+                      contains(routeBReleaseKernelFileName),
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
+
+            test('refuses a release whose provenance is unreadable', () async {
+              File(
+                p.join(supplementDirectory.path, 'route_b.json'),
+              ).writeAsStringSync('{not json');
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verifyNever(
+                () => routeBCompilerResolver.resolve(
+                  engineRevision: any(named: 'engineRevision'),
+                ),
+              );
+              verify(
+                () => logger.err(
+                  any(that: contains('provenance could not be read')),
+                ),
+              ).called(1);
+            });
+
+            test(
+              'reports an unpublished cell as tooling unavailable',
+              () async {
+                when(
+                  () => routeBCompilerResolver.resolve(
+                    engineRevision: any(named: 'engineRevision'),
+                  ),
+                ).thenThrow(
+                  RouteBCompilerException(
+                    RouteBCompilerProblem.unavailable,
+                    'has not been published for engine x',
+                  ),
+                );
+
+                await expectLater(
+                  () => runWithOverrides(
+                    () => patcher.createPatchArtifacts(
+                      appId: appId,
+                      releaseId: releaseId,
+                      releaseArtifact: releaseArtifactFile,
+                      supplementDirectory: supplementDirectory,
+                    ),
+                  ),
+                  exitsWithCode(ExitCode.software),
+                );
+
+                verify(
+                  () => logger.err(
+                    any(that: contains('has not been published for engine x')),
+                  ),
+                ).called(1);
+              },
+            );
+
+            test('reports a corrupt cell as tooling invalid', () async {
+              when(
+                () => routeBCompilerResolver.resolve(
+                  engineRevision: any(named: 'engineRevision'),
+                ),
+              ).thenThrow(
+                RouteBCompilerException(
+                  RouteBCompilerProblem.invalid,
+                  'failed validation: the bundle is missing dartaotruntime',
+                ),
+              );
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verify(
+                () => logger.err(
+                  any(
+                    that: contains(
+                      'the bundle is missing dartaotruntime',
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
+
+            test('reports an unreachable host as a download failure', () async {
+              // Neither "unavailable" nor "invalid": an unreachable host says
+              // nothing about the cell, and filing it under either would send
+              // someone to republish tooling that is fine.
+              when(
+                () => routeBCompilerResolver.resolve(
+                  engineRevision: any(named: 'engineRevision'),
+                ),
+              ).thenThrow(
+                RouteBCompilerDownloadException('Could not reach https://x'),
+              );
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verify(
+                () => logger.err(
+                  any(that: contains('Could not reach https://x')),
+                ),
+              ).called(1);
+            });
+
+            test('refuses when the release kernels disagree', () async {
+              // Two files that exist and hash correctly are not the same claim
+              // as two lowerings of one program. The producer must never
+              // compile against an import kernel describing something else.
+              when(
+                () => routeBReleaseKernelBuilder.agreesWith(
+                  compiler: any(named: 'compiler'),
+                  importKernel: any(named: 'importKernel'),
+                  aotKernel: any(named: 'aotKernel'),
+                ),
+              ).thenReturn(false);
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verifyNever(
+                () => routeBCoverageAnalyzer.analyze(
+                  compiler: any(named: 'compiler'),
+                  baseDill: any(named: 'baseDill'),
+                  patchedDill: any(named: 'patchedDill'),
+                  includePrefixes: any(named: 'includePrefixes'),
+                ),
+              );
+              verify(
+                () => logger.err(
+                  any(that: contains('do not describe the same program')),
+                ),
+              ).called(1);
+            });
+
+            test('analyzes coverage against the RELEASE kernel', () async {
+              await runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              );
+
+              final captured = verify(
+                () => routeBCoverageAnalyzer.analyze(
+                  compiler: any(named: 'compiler'),
+                  baseDill: captureAny(named: 'baseDill'),
+                  patchedDill: captureAny(named: 'patchedDill'),
+                  includePrefixes: any(named: 'includePrefixes'),
+                ),
+              ).captured;
+              expect(
+                (captured[0] as File).path,
+                p.join(supplementDirectory.path, routeBReleaseKernelFileName),
+              );
+              expect(
+                (captured[1] as File).path,
+                p.join(projectRoot.path, 'build', 'app.dill'),
+              );
+            });
+
+            test('refuses the WHOLE patch on any rejection', () async {
+              // 4 changed, 3 representable, 1 not. Shipping the 3 would leave
+              // the app running some functions from the patch and some from
+              // the release.
+              when(
+                () => routeBCoverageAnalyzer.analyze(
+                  compiler: any(named: 'compiler'),
+                  baseDill: any(named: 'baseDill'),
+                  patchedDill: any(named: 'patchedDill'),
+                  includePrefixes: any(named: 'includePrefixes'),
+                ),
+              ).thenReturn(
+                RouteBCoverage.fromJson(
+                  jsonEncode({
+                    'analysisVersion': supportedRouteBAnalysisVersion,
+                    'verdict': 'reject',
+                    'changed': ['a#alpha', 'a#beta', 'a#gamma', 'a#Shape.d'],
+                    'added': <String>[],
+                    'removed': <String>[],
+                    'patchable': ['a#alpha', 'a#beta', 'a#gamma'],
+                    'conditional': <String>[],
+                    'rejections': [
+                      {
+                        'target': 'a#Shape.d',
+                        'category': 'unreachable',
+                        'reason':
+                            'abstract; call sites dispatch to '
+                            'implementations',
+                      },
+                    ],
+                    'refusalSummary': '1 changed member(s) are not reachable',
+                  }),
+                ),
+              );
+
+              await expectLater(
+                () => runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                exitsWithCode(ExitCode.software),
+              );
+
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains('1 of 4 changed members'),
+                      contains('a#Shape.d'),
+                      contains('abstract; call sites dispatch'),
+                      contains('The whole patch is refused'),
+                    ),
+                  ),
+                ),
+              ).called(1);
+            });
+
+            test(
+              'refuses an inert patch rather than shipping a no-op',
+              () async {
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: any(named: 'includePrefixes'),
+                  ),
+                ).thenReturn(
+                  RouteBCoverage.fromJson(
+                    jsonEncode({
+                      'analysisVersion': supportedRouteBAnalysisVersion,
+                      'verdict': 'inert',
+                      'changed': <String>[],
+                      'added': <String>[],
+                      'removed': <String>[],
+                      'patchable': <String>[],
+                      'conditional': <String>[],
+                      'rejections': <Object>[],
+                      'refusalSummary': null,
+                    }),
+                  ),
+                );
+
+                await expectLater(
+                  () => runWithOverrides(
+                    () => patcher.createPatchArtifacts(
+                      appId: appId,
+                      releaseId: releaseId,
+                      releaseArtifact: releaseArtifactFile,
+                      supplementDirectory: supplementDirectory,
+                    ),
+                  ),
+                  exitsWithCode(ExitCode.software),
+                );
+
+                verify(
+                  () => logger.err(
+                    any(that: contains('would install and change nothing')),
+                  ),
+                ).called(1);
+              },
+            );
+
+            test(
+              'stamps the container with the shipped release identity',
+              () async {
+                await runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                );
+
+                // The LC_UUID written into the fixture App binary (bytes 1..16),
+                // which is what OS::GetAppBuildId reports on device. Read from
+                // the shipped bytes, so re-signing cannot change it.
+                final buildId =
+                    verify(
+                          () => routeBProducer.produce(
+                            compiler: any(named: 'compiler'),
+                            coverage: any(named: 'coverage'),
+                            importKernel: any(named: 'importKernel'),
+                            releaseBuildId: captureAny(named: 'releaseBuildId'),
+                            workingDirectory: any(named: 'workingDirectory'),
+                            projectRoot: any(named: 'projectRoot'),
+                            capabilities: any(named: 'capabilities'),
+                          ),
+                        ).captured.single
+                        as String;
+                expect(buildId, '0102030405060708090a0b0c0d0e0f10');
+              },
+            );
+
+            test('hands the producer the release\'s own capability set', () {
+              // The producer decides a private reference against THIS, so the
+              // manifest has to arrive from the release's hash-verified
+              // artifact. Reading it anywhere else -- regenerating it, or
+              // trusting the policy name -- would let a patch reference a member
+              // this release never retained.
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                capabilityManifest: jsonEncode({
+                  'policy': 'p2',
+                  'privateInstanceCallable': ['package:app/main.dart#_S#_c'],
+                  'privateClassesConstructible': ['package:app/main.dart#_S'],
+                }),
+              );
+
+              return runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              ).then((_) {
+                final capabilities =
+                    verify(
+                          () => routeBProducer.produce(
+                            compiler: any(named: 'compiler'),
+                            coverage: any(named: 'coverage'),
+                            importKernel: any(named: 'importKernel'),
+                            releaseBuildId: any(named: 'releaseBuildId'),
+                            workingDirectory: any(named: 'workingDirectory'),
+                            projectRoot: any(named: 'projectRoot'),
+                            capabilities: captureAny(named: 'capabilities'),
+                          ),
+                        ).captured.single
+                        as RouteBCapabilities?;
+                expect(capabilities, isNotNull);
+                expect(capabilities!.policy, 'p2');
+                expect(
+                  capabilities.refuseInstanceMember(
+                    library: 'package:app/main.dart',
+                    className: '_S',
+                    member: '_c',
+                  ),
+                  isNull,
+                );
+              });
+            });
+
+            test('passes no capability set when the release recorded none', () {
+              // A release cut before manifests existed. Null is not an empty
+              // grant: the producer refuses a private reference for want of
+              // evidence, and everything that worked before still works.
+              return runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              ).then((_) {
+                final capabilities =
+                    verify(
+                          () => routeBProducer.produce(
+                            compiler: any(named: 'compiler'),
+                            coverage: any(named: 'coverage'),
+                            importKernel: any(named: 'importKernel'),
+                            releaseBuildId: any(named: 'releaseBuildId'),
+                            workingDirectory: any(named: 'workingDirectory'),
+                            projectRoot: any(named: 'projectRoot'),
+                            capabilities: captureAny(named: 'capabilities'),
+                          ),
+                        ).captured.single
+                        as RouteBCapabilities?;
+                expect(capabilities, isNull);
+              });
+            });
+
+            test('ships the container through the normal artifact path', () async {
+              // A Route B release must never reach the private-linker path.
+              // That fallback cannot work here and would quietly leave the old
+              // architecture as the default for exactly the releases that
+              // moved off it.
+              final bundles = await runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              );
+
+              verifyNever(
+                () => apple.runLinker(
+                  kernelFile: any(named: 'kernelFile'),
+                  releaseArtifact: any(named: 'releaseArtifact'),
+                  splitDebugInfoArgs: any(named: 'splitDebugInfoArgs'),
+                  aotOutputFile: any(named: 'aotOutputFile'),
+                  vmCodeFile: any(named: 'vmCodeFile'),
+                ),
+              );
+
+              // Diffed against a ONE-BYTE synthetic base, not the release: the
+              // updater's base on iOS is the four Dart blobs, which a container
+              // has nothing in common with and which the producer cannot
+              // reproduce without a Shorebird-fork tool.
+              final base =
+                  verify(
+                        () => artifactManager.createDiff(
+                          releaseArtifactPath: captureAny(
+                            named: 'releaseArtifactPath',
+                          ),
+                          patchArtifactPath: any(named: 'patchArtifactPath'),
+                        ),
+                      ).captured.single
+                      as String;
+              expect(File(base).readAsBytesSync(), [0]);
+
+              // hash from the CONTAINER, size from the ARTIFACT: check_hash()
+              // on device runs against the inflated result.
+              final bundle = bundles[Arch.arm64]!;
+              expect(
+                bundle.hash,
+                sha256
+                    .convert(
+                      utf8.encode(
+                        'SBRBPTCH-for-0102030405060708090a0b0c0d0e0f10',
+                      ),
+                    )
+                    .toString(),
+              );
+              expect(bundle.size, 64);
+            });
+          });
+        });
+
+        group('when assets-only', () {
+          setUp(() {
+            writeReleaseAppBinary(sites: 2);
+            patcher.assetsOnly = true;
+            // The assets-only path still reads the AOT output it would have
+            // uploaded; the fixture does not create it by default.
+            File(p.join(projectRoot.path, 'build', 'out.aot'))
+              ..createSync(recursive: true)
+              ..writeAsBytesSync(List<int>.filled(64, 0));
+          });
+
+          test('does not check patchability', () async {
+            // An assets-only patch carries no Dart, so patchable call sites
+            // are irrelevant to it and refusing would be wrong.
+            await runWithOverrides(
+              () => patcher.createPatchArtifacts(
+                appId: appId,
+                releaseId: releaseId,
+                releaseArtifact: releaseArtifactFile,
+              ),
+            );
+
+            verifyNever(
+              () => logger.err(
+                any(
+                  that: contains(
+                    'was not built with Route B patchable call sites',
+                  ),
+                ),
+              ),
+            );
+          });
+        });
       });
 
       group('when patch .xcarchive does not exist', () {
@@ -1159,6 +2301,51 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
               artifact: ShorebirdArtifact.genSnapshotIos,
             ),
           ).thenReturn(genSnapshotFile.path);
+        });
+
+        group('when the patch is assets-only', () {
+          setUp(() {
+            patcher.assetsOnly = true;
+            setUpProjectRootArtifacts();
+          });
+
+          test('does not invoke the linker', () async {
+            await runWithOverrides(
+              () => patcher.createPatchArtifacts(
+                appId: appId,
+                releaseId: releaseId,
+                releaseArtifact: releaseArtifactFile,
+              ),
+            );
+
+            // The revision DOES support the linker — this group's setUp makes
+            // usesLinker true — so this asserts assetsOnly is what suppresses
+            // it. Linking is the only step needing aot-tools.dill, so skipping
+            // it is what lets an assets-only iOS patch be built without
+            // Shorebird's AOT linker.
+            verifyNever(
+              () => apple.runLinker(
+                kernelFile: any(named: 'kernelFile'),
+                aotOutputFile: any(named: 'aotOutputFile'),
+                releaseArtifact: any(named: 'releaseArtifact'),
+                splitDebugInfoArgs: any(named: 'splitDebugInfoArgs'),
+                vmCodeFile: any(named: 'vmCodeFile'),
+              ),
+            );
+          });
+
+          test('leaves link percentage unset', () async {
+            await runWithOverrides(
+              () => patcher.createPatchArtifacts(
+                appId: appId,
+                releaseId: releaseId,
+                releaseArtifact: releaseArtifactFile,
+              ),
+            );
+
+            // Nothing was linked, so reporting a percentage would be a fiction.
+            expect(patcher.linkPercentage, isNull);
+          });
         });
 
         group('when linking fails', () {
@@ -1514,6 +2701,76 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
             );
           },
         );
+      });
+    });
+
+    group('assetsDirectory', () {
+      late Directory xcarchive;
+      late Directory app;
+
+      setUp(() {
+        xcarchive = Directory.systemTemp.createTempSync();
+        app = Directory(p.join(xcarchive.path, 'Products', 'Runner.app'))
+          ..createSync(recursive: true);
+        when(
+          () => artifactManager.getXcarchiveDirectory(),
+        ).thenReturn(xcarchive);
+        when(
+          () => artifactManager.getIosAppDirectory(
+            xcarchiveDirectory: any(named: 'xcarchiveDirectory'),
+          ),
+        ).thenReturn(app);
+      });
+
+      test('is null when no xcarchive was built', () async {
+        when(() => artifactManager.getXcarchiveDirectory()).thenReturn(null);
+
+        await expectLater(
+          runWithOverrides(patcher.assetsDirectory),
+          completion(isNull),
+        );
+      });
+
+      test('is null when the xcarchive has no .app', () async {
+        when(
+          () => artifactManager.getIosAppDirectory(
+            xcarchiveDirectory: any(named: 'xcarchiveDirectory'),
+          ),
+        ).thenReturn(null);
+
+        await expectLater(
+          runWithOverrides(patcher.assetsDirectory),
+          completion(isNull),
+        );
+      });
+
+      test('is null when the .app has no flutter_assets', () async {
+        await expectLater(
+          runWithOverrides(patcher.assetsDirectory),
+          completion(isNull),
+        );
+      });
+
+      test('finds flutter_assets inside the built .app', () async {
+        final assets = Directory(
+          p.join(app.path, 'Frameworks', 'App.framework', 'flutter_assets'),
+        )..createSync(recursive: true);
+
+        final result = await runWithOverrides(patcher.assetsDirectory);
+
+        expect(result?.path, equals(assets.path));
+      });
+
+      test('reads the patch xcarchive, not the downloaded release', () async {
+        Directory(
+          p.join(app.path, 'Frameworks', 'App.framework', 'flutter_assets'),
+        ).createSync(recursive: true);
+
+        await runWithOverrides(patcher.assetsDirectory);
+
+        // getXcarchiveDirectory() is the locally built archive; resolving
+        // against the release archive would ship the release's assets.
+        verify(() => artifactManager.getXcarchiveDirectory()).called(1);
       });
     });
 

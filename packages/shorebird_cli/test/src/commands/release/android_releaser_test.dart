@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -8,6 +9,7 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:pub_semver/pub_semver.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
+import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
 import 'package:shorebird_cli/src/commands/release/android_releaser.dart';
@@ -423,6 +425,92 @@ To change the version of this release, change your app's version in your pubspec
 
         expect(buildArgs, isEmpty);
       });
+    });
+
+    group('recordEffectiveBuildConfig', () {
+      late Directory supplementDir;
+
+      File configFile() =>
+          File(p.join(supplementDir.path, Releaser.buildConfigFileName));
+
+      setUp(() {
+        final projectRoot = Directory.systemTemp.createTempSync();
+        supplementDir = Directory(
+          p.join(projectRoot.path, 'build', 'android', 'shorebird'),
+        );
+        when(
+          () => artifactManager.getReleaseSupplementDirectory(
+            platformSubdir: any(named: 'platformSubdir'),
+            create: any(named: 'create'),
+          ),
+        ).thenAnswer((invocation) {
+          final create =
+              invocation.namedArguments[const Symbol('create')] as bool;
+          if (!supplementDir.existsSync()) {
+            if (!create) return null;
+            supplementDir.createSync(recursive: true);
+          }
+          return supplementDir;
+        });
+        when(() => argResults['artifact']).thenReturn('aab');
+        when(
+          () => artifactBuilder.buildAppBundle(
+            flavor: any(named: 'flavor'),
+            target: any(named: 'target'),
+            targetPlatforms: any(named: 'targetPlatforms'),
+            args: any(named: 'args'),
+            base64PublicKey: any(named: 'base64PublicKey'),
+          ),
+        ).thenAnswer((_) async => File(''));
+      });
+
+      // THE EXPLICIT CONTRACT GUARD. An ordinary release -- no obfuscation, no
+      // flavor, no defines -- MUST still record a config. If it did not, the
+      // supplement would exist only for special builds and a patch against a
+      // plain release would have nothing to compare with, which is the state
+      // that let a wrong-flavor patch ship. This test exists so that choice is
+      // deliberate rather than a side effect of the emission condition.
+      test(
+        'an unobfuscated, no-special-config release still records one',
+        () async {
+          await runWithOverrides(() => androidReleaser.buildReleaseArtifacts());
+
+          expect(configFile().existsSync(), isTrue);
+          final decoded =
+              jsonDecode(configFile().readAsStringSync())
+                  as Map<String, dynamic>;
+          expect(decoded, contains('buildConfig'));
+          expect(
+            decoded['buildConfig'],
+            isNotNull,
+            reason: 'a plain release IS fingerprintable',
+          );
+          expect(decoded, isNot(contains('unfingerprintableReason')));
+        },
+      );
+
+      // The third state, kept distinguishable from "absent" on purpose:
+      // --dart-define-from-file makes the effective define set undeterminable,
+      // so the record says so instead of omitting itself.
+      test(
+        'an unfingerprintable release records buildConfig: null and why',
+        () async {
+          // forwardedArgs is an EXTENSION over `rest`, so it cannot be
+          // stubbed directly -- inject through the source it reads.
+          when(
+            () => argResults.rest,
+          ).thenReturn(['--dart-define-from-file=env.json']);
+
+          await runWithOverrides(() => androidReleaser.buildReleaseArtifacts());
+
+          expect(configFile().existsSync(), isTrue);
+          final decoded =
+              jsonDecode(configFile().readAsStringSync())
+                  as Map<String, dynamic>;
+          expect(decoded['buildConfig'], isNull);
+          expect(decoded['unfingerprintableReason'], isNotNull);
+        },
+      );
     });
 
     group('buildReleaseArtifacts', () {

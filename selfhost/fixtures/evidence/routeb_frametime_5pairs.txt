@@ -1,0 +1,11 @@
+pair1 control FRAMEBENCH n=600 build p50=2331 p95=4193 raster p50=2268 p95=3036 total p50=5845 p95=9589 janky=0
+pair1 routeb  FRAMEBENCH n=600 build p50=2439 p95=4711 raster p50=2245 p95=3172 total p50=5823 p95=9834 janky=0
+pair2 routeb  FRAMEBENCH n=600 build p50=1342 p95=2610 raster p50=1608 p95=2186 total p50=3704 p95=6005 janky=0
+pair2 control FRAMEBENCH n=600 build p50=2272 p95=4210 raster p50=2257 p95=3223 total p50=5800 p95=9857 janky=0
+pair3 control FRAMEBENCH n=600 build p50=2299 p95=4573 raster p50=2308 p95=3181 total p50=5833 p95=9790 janky=0
+pair3 routeb  FRAMEBENCH n=600 build p50=2360 p95=4633 raster p50=2248 p95=3170 total p50=5887 p95=9785 janky=0
+pair4 routeb  FRAMEBENCH n=600 build p50=2406 p95=4720 raster p50=2248 p95=3146 total p50=5897 p95=9721 janky=0
+pair4 control FRAMEBENCH n=600 build p50=2342 p95=4306 raster p50=2296 p95=3093 total p50=5884 p95=9639 janky=0
+pair5 control FRAMEBENCH n=600 build p50=2366 p95=4258 raster p50=2257 p95=3172 total p50=5870 p95=9770 janky=0
+pair5 routeb  FRAMEBENCH n=600 build p50=2455 p95=4668 raster p50=2261 p95=3171 total p50=5897 p95=9895 janky=0
+DONE

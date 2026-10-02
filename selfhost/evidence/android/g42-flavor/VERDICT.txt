@@ -1,0 +1,58 @@
+G4.2 Lane B — the Android flavor arms. 2026-08-14, R2 = CPH2551 3f72a543.
+==========================================================================
+Fixture: selfhost-built `flavorprobe` on R12 (NEW; no flavored Android fixture
+existed anywhere before today). Two flavors on one dimension, Kotlin DSL,
+own version counter 2.0.0+1, app_id cd447816-… .
+
+B4 — SAME FLAVOR, RELEASE -> PATCH -> DEVICE.  **PROVEN.**
+  release --flavor foo (2.0.0+1)   FLAVORPROBE-V1   flavor: foo
+  patch   --flavor foo (patch 1)   FLAVORPROBE-V2   flavor: foo
+Two independent readings on purpose: the MARKER proves patched code executed,
+the FLAVOR proves the configuration survived. The APK came from the REGISTERED
+release artifact downloaded from the control plane, not from the local build
+tree — `shorebird patch android` re-runs `flutter build appbundle` and
+overwrites it, which is the trap G10.2 recorded hours earlier.
+
+Note for iOS readers: `flavor: foo` is LOWERCASE here. Android takes the CLI
+token; only darwin takes the Xcode-configuration route (common.dart), which is
+why iOS shows `Foo`. Same fixture shape, different value, by design.
+
+B5 — WRONG FLAVOR. **The arm's stated meaning is FALSE for Android.**
+PARITY's table says:
+    release --flavor foo, patch --flavor bar | REFUSED |
+    "the fingerprint compares effective configuration"
+Measured, in two arms that isolate the cause:
+
+  two app_ids (the realistic shape B5 specifies)
+      exit 70  `Release not found: "2.0.0+1"`
+      -> refused by APP_ID RESOLUTION (shorebird_yaml.dart:69-72), i.e. the
+         bar flavor routed to a different app that has no such release.
+         This says NOTHING about configuration.
+
+  ONE app_id (control, so routing cannot be the cause)
+      exit 0   `Published Patch 2`
+      -> NOTHING refused. A bar-flavored patch was published against a
+         foo release.
+
+  and then on the DEVICE, the foo app (dev.selfhost.flavorprobe.foo) applied it:
+      FLAVORPROBE-V2   flavor: bar          <- screenshot 3
+
+So on Android a wrong-flavor patch is not fingerprinted, not refused, and runs.
+It changes the app's own flavor identity at runtime. This is consistent with the
+source: `grep -c RouteBBuildConfig android_patcher.dart` -> 0, and
+RouteBBuildConfig appears only in iOS/Route B files. Configuration comparison is
+an iOS/Route B mechanism; the Android path has none.
+
+WHY THE TWO-APP_ID REFUSAL MUST NOT BE BANKED AS THE ARM PASSING: it is a
+refusal for the wrong reason, and the plan warned about exactly this shape —
+"a wrong-reason refusal in the mismatch arm reads exactly like the right one."
+Only the one-app_id control distinguishes them, which is why it was run.
+
+STATE LEFT BEHIND
+  cps-android: app cd447816 has release 2.0.0+1, patches 1 (foo) and 2 (bar).
+  Patch 2 is the MISMATCHED one and is promoted to stable — any device on this
+  app will take it. A second app e2a01f22 was registered for the two-app_id arm
+  and has no releases.
+  Device: dev.selfhost.flavorprobe.foo installed, currently running patch 2 and
+  displaying `flavor: bar`.
+  G10.2's specimen (rbtest, release 1.7.0+1 + patch 3) was NOT touched.
