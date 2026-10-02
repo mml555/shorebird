@@ -1,0 +1,102 @@
+G15 ARM A — SITE IDENTITY: NOT DERIVABLE FROM PRESERVED BYTES, 2026-08-16
+==========================================================================
+
+Outcome 4 of the four precommitted for this step: **the target's pool slot could
+not be derived, so it is kept explicitly UNMEASURED rather than falling back to
+the ambiguous scan.** Host-only; no device run.
+
+WHAT WAS TRIED, AND WHY EACH FAILED
+------------------------------------
+1. **Direct-branch search.** If `routeBValue` were called by a plain `bl <addr>`,
+   the entry-point redirection Route B performs could not take effect. Searched
+   both full disassemblies for a branch to the symbol's code address:
+
+       release 95, routeBValue at 0xe9ff4    -> 0 branches
+       release 91, routeBValue at 0x1c62e4   -> 0 branches
+
+   **Symmetric, so it discriminates nothing** — but it does retire one mechanism
+   for both: neither release bypasses the Function's entry point with a static
+   branch.
+
+2. **`analyze_snapshot_arm64`** (from the cell's own `ios-release` artifacts):
+   refuses the shipped `App`, because it `dlopen`s the argument and an iOS
+   dylib cannot load on macOS — *"incompatible platform (have 'iOS', need
+   'macOS')"*. It wants a loadable snapshot, which the preserved artifacts do not
+   contain.
+
+3. **`route_b_analyze.aot`** (from the compiler cell): operates on KERNEL dills
+   (`--base-dill`/`--patched-dill`), not on an AOT binary. Wrong layer for a pool
+   offset.
+
+4. **The `ios_supplement` artifact**, which is the richest preserved metadata
+   (`App.ct.link`, `App.dispatch_table.json`, `App.field_table.json`,
+   `route_b.json`, `release_app.dill`, …): **contains no per-target pool data and
+   no occurrence of `routeBValue` at all.** `route_b.json` carries aggregate
+   counts only.
+
+So the slot is not recoverable from what was preserved, with the tools this
+project ships. That is the precommitted outcome 4, and the consequence is that
+**consumption is neither retired nor confirmed for this target** — the ambiguous
+scan is not promoted to a verdict.
+
+WHAT THE ATTEMPT PRODUCED ANYWAY — TWO MEASURED FACTS
+-------------------------------------------------------
+**A. Gross code generation is essentially unchanged between the two releases.**
+From each release's own `route_b.json`:
+
+    release 91   engine 80e493e4   patchableCallSites 5836   1802.1 / MiB
+    release 95   engine cd137db6   patchableCallSites 5880   1806.9 / MiB
+
+A +44 difference on ~5,850 sites, with density flat. The seam added code to
+`dart:ui`; nothing here looks like a lowering change that would delete a call
+site. **This does not prove the target's site survives** — an aggregate cannot
+speak for one target — but it does argue against a wholesale codegen shift.
+
+**B. The compiler-input delta is now NAMED, concretely, from the releases' own
+records** — which is what the site comparison was meant to help choose between:
+
+    release 91   buildConfig: rawArgs, effectiveDefines(0), obfuscate, fingerprint
+    release 95   buildConfig: rawArgs, effectiveDefines(0), obfuscate,
+                              injectedDefines(6), fingerprint
+                 injectedDefines = FLUTTER_CHANNEL, FLUTTER_DART_VERSION,
+                                   FLUTTER_ENGINE_REVISION,
+                                   FLUTTER_FRAMEWORK_REVISION, FLUTTER_GIT_URL,
+                                   FLUTTER_VERSION
+
+**`rawArgs` is byte-identical between them.** So the difference in compiler inputs
+between the working and failing releases is exactly: the engine/cell, the rebuilt
+platform dill, and **six `-D` defines that release 91 was not compiled with**.
+
+That is stated as a DELTA, not a cause. Nothing here shows those defines change
+inlining or dispatch for this target, and asserting it would be the same move as
+the fold story that was just refuted.
+
+STATE OF THE QUESTION
+----------------------
+    replacement bytecode contains NEW-kill        VERIFIED
+    Route B attaches, entry -> InterpretCall      VERIFIED
+    static-branch bypass                          RULED OUT (both releases)
+    call-site result consumption                  NOT DISCRIMINATING (91 == 95)
+    target's own call site identified             **NOT MEASURABLE from preserved
+                                                  bytes**
+    release 95 renders OLD-kill                   OBSERVED
+
+**Arm A remains inconclusive and its target remains unchanged**, since nothing
+has established a defect in the target.
+
+WHAT WOULD ACTUALLY SETTLE IT
+------------------------------
+Deriving the slot needs something the preserved artifacts lack. The cheapest
+honest routes, in order:
+
+1. **Re-cut a release with `--extra-gen-snapshot-options` that emits a snapshot
+   the analyzer can load** (an `app-aot-elf` alongside the iOS build), so
+   `analyze_snapshot` can map pool offsets to Functions. Host-only, one build.
+2. **Ask the device instead of the file.** `caller_scan_status=0` and
+   `pool_index=-1` in the `.routeb.trace` mean Route B's own caller scan did not
+   resolve the slot at run time. Why it returned 0 is itself a source-level
+   question in `route_b_patch.cc`, and answering it would give the field a value
+   on every future arm rather than only this one.
+
+Route 2 is the better spend: it fixes the instrument rather than working around
+it, and `pool_offset` is exactly the field `--pool-offset` was built to consume.

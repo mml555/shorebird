@@ -4,9 +4,16 @@
 > embedded SQLite + local-disk artifacts — `./setup.sh`, back up one volume,
 > done (see `README.md`). This runbook is the **scale profile**: multiple
 > stateless replicas behind Caddy TLS, backed by Postgres + S3/MinIO. Reach for
-> it when you outgrow one node or want a managed database. `./setup.sh --domain
-> <host>` sets it up for you; the rest of this doc is the manual/operational
-> detail.
+> it when you outgrow one node or want a managed database. `./setup.sh --scale --domain
+> <host>` sets it up for you — **`--scale` is required, and corrected
+> 2026-08-13**: this line said `--domain <host>` alone, which selects the
+> SINGLE-container stack (`docker-compose.yaml` + `docker-compose.tls.yaml`,
+> embedded SQLite + local-disk artifacts) plus a Caddy TLS overlay. Only
+> `--scale` selects `docker-compose.prod.yaml`, and it refuses to run without a
+> domain. An operator following the old line got TLS and believed they had
+> Postgres + S3; the `.env` it writes contains neither `DATABASE_URL` nor
+> `S3_ENDPOINT`. `setup.sh:6-7` states both forms. The rest of this doc is the
+> manual/operational detail.
 
 A self-hosted Shorebird code-push control plane: a stateless Dart (shelf)
 server backed by Postgres (metadata) and MinIO (artifact object storage),

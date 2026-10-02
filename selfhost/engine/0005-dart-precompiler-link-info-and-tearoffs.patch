@@ -1,0 +1,137 @@
+# cspell:words precompiler tearoff selfhost Closurization Werror charp libdart mislink unbuildable
+#
+# Accept the six print_*_table_link_*_to flags flutter_tools passes on every
+# Apple target, writing a self-describing stub. A vanilla gen_snapshot rejects
+# them outright and exits 255, which makes every iOS release unbuildable.
+#
+# The has_tearoff_uses bypass that used to be item 2 here is GONE as of
+# 2026-08-05 — see selfhost/TFA_ROOT_CAUSE.md.
+diff --git a/runtime/vm/compiler/aot/precompiler.cc b/runtime/vm/compiler/aot/precompiler.cc
+index a1501f76..4bf56443 100644
+--- a/runtime/vm/compiler/aot/precompiler.cc
++++ b/runtime/vm/compiler/aot/precompiler.cc
+@@ -79,6 +79,82 @@ DEFINE_FLAG(charp,
+             nullptr,
+             "Print reasons for retaining objects to the given file");
+ 
++// SELFHOST: Shorebird's private Dart fork defines these six, and their
++// flutter_tools passes ALL of them on every iOS/macOS AOT build —
++// packages/flutter_tools/lib/src/base/build.dart, gated only on
++// `usesLinker = (platform == ios || darwin)`. A vanilla gen_snapshot rejects
++// them outright ("Setting VM flags failed: Unrecognized flags: ...") and exits
++// 255, which makes EVERY iOS release unbuildable on vanilla Dart — not merely
++// un-patchable. Registering them is what lets an iOS release build at all.
++//
++// Upstream they dump the class/field/dispatch table layout so a later patch can
++// be linked against the same layout. We have no linker yet (UPSTREAM_INDEPENDENCE
++// item 7), so we accept the flags and write a file that is deliberately NOT link
++// info: a real linker fed this must fail loudly rather than quietly mislink
++// against a plausible-looking empty table. Writing *something* matters because
++// the release flow collects these paths as "supplement" artifacts.
++//
++DEFINE_FLAG(charp,
++            print_class_table_link_info_to,
++            nullptr,
++            "SELFHOST stub: accepted for flutter_tools compatibility");
++DEFINE_FLAG(charp,
++            print_class_table_link_debug_info_to,
++            nullptr,
++            "SELFHOST stub: accepted for flutter_tools compatibility");
++DEFINE_FLAG(charp,
++            print_field_table_link_info_to,
++            nullptr,
++            "SELFHOST stub: accepted for flutter_tools compatibility");
++DEFINE_FLAG(charp,
++            print_field_table_link_debug_info_to,
++            nullptr,
++            "SELFHOST stub: accepted for flutter_tools compatibility");
++DEFINE_FLAG(charp,
++            print_dispatch_table_link_info_to,
++            nullptr,
++            "SELFHOST stub: accepted for flutter_tools compatibility");
++DEFINE_FLAG(charp,
++            print_dispatch_table_link_debug_info_to,
++            nullptr,
++            "SELFHOST stub: accepted for flutter_tools compatibility");
++
++namespace {
++// Writes a self-describing marker to `filename`, chosen so nothing can mistake
++// it for real link info: it is not a table, and any parser expecting one rejects
++// it.
++// [[maybe_unused]]: this file is also compiled into the JIT compiler variant
++// (libdart_compiler_jit), where the call site below sits inside a
++// DART_PRECOMPILER guard and disappears. Without this, -Werror=unused-function
++// breaks any host build that compiles the JIT variant — which the iOS-only
++// build does not, so it compiles clean there and fails later somewhere else.
++[[maybe_unused]] void WriteSelfhostLinkInfoStub(const char* filename,
++                                                const char* which) {
++  auto file_open = Dart::file_open_callback();
++  auto file_write = Dart::file_write_callback();
++  auto file_close = Dart::file_close_callback();
++  if ((file_open == nullptr) || (file_write == nullptr) ||
++      (file_close == nullptr)) {
++    OS::PrintErr("warning: Could not access file callbacks.\n");
++    return;
++  }
++  void* file = file_open(filename, /*write=*/true);
++  if (file == nullptr) {
++    OS::PrintErr("warning: Failed to write link info stub: %s\n", filename);
++    return;
++  }
++  char buffer[512];
++  const intptr_t len = Utils::SNPrint(
++      buffer, sizeof(buffer),
++      "{\"selfhost_link_info\":\"unimplemented\",\"table\":\"%s\","
++      "\"note\":\"No AOT linker in this build; not link info.\"}\n",
++      which);
++  file_write(buffer, len, file);
++  file_close(file);
++}
++
++}  // namespace
++
+ DECLARE_FLAG(bool, print_flow_graph);
+ DECLARE_FLAG(bool, print_flow_graph_optimized);
+ DECLARE_FLAG(bool, trace_compiler);
+@@ -475,6 +551,26 @@ void Precompiler::DoCompileAll() {
+         IG->class_table()->PrintObjectLayout(FLAG_print_object_layout_to);
+       }
+ 
++      // SELFHOST: satisfy the six link-info paths flutter_tools always passes on
++      // Apple targets. See the flag declarations above for why these are stubs.
++      struct {
++        const char* path;
++        const char* which;
++      } selfhost_link_info[] = {
++          {FLAG_print_class_table_link_info_to, "class_table"},
++          {FLAG_print_class_table_link_debug_info_to, "class_table_debug"},
++          {FLAG_print_field_table_link_info_to, "field_table"},
++          {FLAG_print_field_table_link_debug_info_to, "field_table_debug"},
++          {FLAG_print_dispatch_table_link_info_to, "dispatch_table"},
++          {FLAG_print_dispatch_table_link_debug_info_to,
++           "dispatch_table_debug"},
++      };
++      for (const auto& entry : selfhost_link_info) {
++        if (entry.path != nullptr) {
++          WriteSelfhostLinkInfoStub(entry.path, entry.which);
++        }
++      }
++
+       ClassFinalizer::SortClasses();
+ 
+       // Collects type usage information which allows us to decide when/how to
+@@ -1734,9 +1830,12 @@ void Precompiler::CheckForNewDynamicFunctions() {
+             metadata = kernel::ProcedureAttributesOf(function, Z);
+             found_metadata = true;
+ 
++            // SELFHOST: upstream, has_tearoff_uses gate included. Dropping it
++            // was how we survived a dill whose tear-off flags were not real —
++            // see selfhost/TFA_ROOT_CAUSE.md. Correct again once the frontend
++            // comes from this same tree.
+             if (metadata.has_tearoff_uses) {
+-              // Closurization.
+-              // Function is foo and somewhere get:foo is called.
++              // Closurization: function is foo and somewhere get:foo is called.
+               function2 = function.ImplicitClosureFunction();
+               AddFunction(function2, RetainReasons::kImplicitClosure);
+ 

@@ -1,0 +1,44 @@
+# The INJECTED-DEFINE fixture. See README.md in this directory.
+#
+# `G4.1c`'s discriminating specimen, and it exists because the integration arm
+# could not be one. Release 40 of `airgap_app` proved the corrected CLI still
+# traverses the real release -> patch path, and could prove nothing else: that
+# fixture reads none of Flutter's injected defines, so its kernels are
+# byte-identical with and without them and a green release cannot observe the
+# fix.
+#
+# A THIRD fixture rather than a branch added to `airgap_app`, for the reason
+# `flavored_app`'s pubspec already records: `R6` carries the phone-and-release
+# counter, and `airgap_app`'s `value()` is load-bearing for six other arms whose
+# invariants a new conditional would silently perturb.
+#
+# The version here is NOT the airgap counter. Nothing here is wired to
+# `airgap_acceptance.sh`, so bumping it burns no release integer on cps-ios —
+# but a release cut from it does consume one, so bump before a release run and
+# never during host arms.
+name: injected_define_probe
+description: Fixture for G4.1c — a reachable program whose behaviour depends on a Flutter-injected define.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+# NO code_push_runtime and NO dynamic_modules, for the same measured reason
+# `flavored_app` gives: both have native sides, so a Podfile appears and
+# `pod install` runs. This fixture's arms are decided on a VALUE, not on a patch
+# NUMBER, so the runtime's assetsPatchNumber/patchNumber split buys nothing here
+# and costs a CocoaPods dependency.
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    # Required: the CLI refuses to build without shorebird.yaml declared as an
+    # asset, because the updater reads app_id and base_url from the bundled copy
+    # at runtime. It is GENERATED from shorebird.yaml.template.
+    - shorebird.yaml

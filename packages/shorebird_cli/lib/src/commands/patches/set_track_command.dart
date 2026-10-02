@@ -34,7 +34,11 @@ class SetTrackCommand extends ShorebirdCommand {
       ..addOption(
         'track',
         help:
-            'The deployment track to move the patch to '
+            // "add", not "move": promotion is channel-scoped, so a patch stays
+            // live on the tracks it was already on. `repository.dart:1205`
+            // supersedes only `WHERE channel_id = @c`, and
+            // `api_test.dart`'s "named tracks are independent" pins it.
+            'The deployment track to add the patch to '
             '("stable", "beta", "staging", or any custom track name '
             'up to ${CommonArguments.trackNameMaxLength} characters).',
         mandatory: true,

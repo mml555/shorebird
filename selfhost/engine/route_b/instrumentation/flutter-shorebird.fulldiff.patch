@@ -1,0 +1,476 @@
+diff --git a/engine/src/flutter/shell/common/shorebird/shorebird.cc b/engine/src/flutter/shell/common/shorebird/shorebird.cc
+index a539528d9d..f8fc04aec7 100644
+--- a/engine/src/flutter/shell/common/shorebird/shorebird.cc
++++ b/engine/src/flutter/shell/common/shorebird/shorebird.cc
+@@ -4,6 +4,7 @@
+ #include <cstddef>
+ #include <memory>
+ #include <optional>
++#include <sstream>
+ #include <utility>
+ #include <vector>
+ 
+@@ -14,10 +15,15 @@
+ #include "flutter/fml/message_loop.h"
+ #include "flutter/fml/native_library.h"
+ #include "flutter/fml/paths.h"
++#include "third_party/dart/runtime/include/dart_api.h"
++// The Route B post-attach trace record. A separate header from dart_api.h so
++// that file needs no edit -- see the header for why that matters.
++#include "third_party/dart/runtime/include/dart_route_b_trace.h"
+ #include "flutter/lib/ui/plugins/callback_cache.h"
+ #include "flutter/runtime/dart_snapshot.h"
+ #include "flutter/runtime/dart_vm.h"
+ #include "flutter/shell/common/shell.h"
++#include "flutter/shell/common/shorebird/route_b_patch.h"
+ #include "flutter/shell/common/shorebird/snapshots_data_handle.h"
+ #include "flutter/shell/common/shorebird/updater.h"
+ #include "flutter/shell/common/switches.h"
+@@ -45,7 +51,26 @@ extern "C" __attribute__((weak)) unsigned long getauxval(unsigned long type) {
+ }
+ #endif
+ 
+-#if SHOREBIRD_USE_INTERPRETER
++// Whether this build needs the base snapshot bytes available to the updater.
++//
++// SHOREBIRD_USE_INTERPRETER used to stand in for "is iOS", because upstream has
++// no iOS configuration where it is false. Route B is exactly that
++// configuration, and the two capabilities are not the same thing:
++//
++//   iOS patch installation needs base snapshot bytes   (inflate reads them)
++//   iOS must use Shorebird's private interpreter       (a different question)
++//
++// The updater's `patch_base()` is `file_provider.open()` on iOS and nothing
++// else, so with the flag off there was no base reader at all and every install
++// failed inside inflate() before it read a byte. Keyed on the platform, which
++// is what the requirement actually is.
++#if defined(FML_OS_IOS) || SHOREBIRD_USE_INTERPRETER
++#define SHOREBIRD_NEEDS_BASE_SNAPSHOT 1
++#else
++#define SHOREBIRD_NEEDS_BASE_SNAPSHOT 0
++#endif
++
++#if SHOREBIRD_NEEDS_BASE_SNAPSHOT
+ // Global references to the base (unpatched) snapshots from the App.framework.
+ // These are process-global because:
+ // 1. The Shorebird updater library is a process-global singleton with its own
+@@ -90,12 +115,18 @@ void SetBaseSnapshot(Settings& settings) {
+                 << (vm_data_size + iso_data_size + vm_insns_size +
+                     iso_insns_size);
+ 
++#if SHOREBIRD_USE_INTERPRETER
++  // Private-fork API: it hands the base snapshots to Shorebird's own
++  // interpreter. Deliberately still behind the interpreter flag — Route B needs
++  // the mappings held alive for the updater's base reader, and nothing else
++  // here.
+   Shorebird_SetBaseSnapshots(isolate_snapshot->GetDataMapping(),
+                              isolate_snapshot->GetInstructionsMapping(),
+                              vm_snapshot->GetDataMapping(),
+                              vm_snapshot->GetInstructionsMapping());
+-}
+ #endif  // SHOREBIRD_USE_INTERPRETER
++}
++#endif  // SHOREBIRD_NEEDS_BASE_SNAPSHOT
+ 
+ class FileCallbacksImpl {
+  public:
+@@ -138,6 +169,274 @@ std::string GetValueFromYaml(const std::string& yaml, const std::string& key) {
+   return "";
+ }
+ 
++// Route B (selfhost), SEAM 6: activate a patch after the root isolate exists
++// and before main runs.
++//
++// The lifecycle keeps deciding WHICH patch is active; the engine only decides
++// HOW a Route B patch becomes live. That ownership split is why this is a
++// separate hook armed from the tail of ConfigureShorebird rather than more code
++// inside it, and it is why the path handed in here is the one
++// NextBootPatchPath() already chose.
++//
++// TIMING. root_isolate_create_callback fires at dart_isolate.cc:163, inside a
++// tonic::DartState::Scope: after the isolate exists and its libraries are
++// loaded, and before RunFromLibrary/InvokeMainEntrypoint at :174. Route B needs
++// live Function objects so it cannot run earlier, and must precede user Dart so
++// it cannot run later. That one-line window is the whole seam.
++//
++// FAIL CLOSED. Every refusal leaves the program pristine and returns, so the
++// app boots on unpatched AOT. A Route B patch that cannot be applied must never
++// be the difference between running and not running.
++//
++// Existing callback is CHAINED, never replaced: root_isolate_create_callback is
++// a general extension point (fuchsia and the embedder API both set it), and
++// silently consuming another subsystem's hook would be a nasty regression to
++// debug.
++// The pre-main hook's outcome, written next to the artifact.
++//
++// WHY A FILE. The taxonomy exists so a refusal names its own cause, and on this
++// rig that is worthless without a channel: no engine log line of ANY kind
++// reaches idevicesyslog for a --noninteractive launch, Flutter's own included,
++// because stderr is not routed there. The first 4b device run refused and left
++// nothing to read -- exactly the failure the taxonomy was built to prevent, one
++// level up.
++//
++// Written beside the installed artifact, inside the app's own container, so
++// `ios-deploy --download` can retrieve it. Best-effort: a diagnostic that can
++// fail the boot it is diagnosing is worse than no diagnostic.
++void RouteBReport(const std::string& artifact_path, const std::string& line) {
++  FML_LOG(ERROR) << "ROUTEB: " << line;
++  const std::string report_path = artifact_path + ".routeb";
++  FILE* f = fopen(report_path.c_str(), "a");
++  if (f == nullptr) {
++    return;
++  }
++  fprintf(f, "%s\n", line.c_str());
++  fclose(f);
++}
++
++// The post-attach trace, in its OWN file.
++//
++// Deliberately not appended to `.routeb`. That file carries byte-for-byte
++// committed evidence (`selfhost/engine/route_b/evidence/`) and ABSENCE semantics
++// other probes read as "never armed", so adding lines to it would put this
++// diagnostic in tension with both. A sibling path is discovered the same way by
++// `ios-deploy --download` and costs nothing.
++//
++// No `FML_LOG` mirror either: device logs are not reliably capturable, which is
++// the whole reason this is a file, and duplicating it there invites reading the
++// log instead of the record.
++void RouteBTraceWrite(const std::string& artifact_path,
++                      const std::string& line) {
++  const std::string trace_path = artifact_path + ".routeb.trace";
++  FILE* f = fopen(trace_path.c_str(), "a");
++  if (f == nullptr) {
++    return;
++  }
++  fprintf(f, "%s\n", line.c_str());
++  fclose(f);
++}
++
++// Pure, so it is unit-testable on host with a hand-filled struct — no device, no
++// engine, no patch.
++//
++// EVERY FIELD IS PRINTED, including the ones that agree with expectation. The
++// lesson of `applied 1/1` is that a summary hides the thing you did not think to
++// ask about, so this records values and leaves the conclusion to the reader.
++std::string FormatRouteBTrace(const Dart_RouteBTrace& t,
++                              const std::string& library,
++                              const std::string& selector,
++                              size_t payload_length) {
++  std::ostringstream o;
++  o << "rbtrace v=4"
++    << " lib=" << library
++    << " sel=" << selector
++    << " paylen=" << payload_length
++    << " rc=" << t.result
++    << " attach_entered=" << t.attach_entered
++    << " attach_returned=" << t.attach_returned
++    << " bc_pre=" << t.has_bytecode_pre
++    << " bc_post=" << t.has_bytecode_post
++    << " interp_pre=" << t.is_interpreted_pre
++    << " interp_post=" << t.is_interpreted_post
++    << " bc_size=" << t.bytecode_size
++    << " code_pre_size=" << t.code_pre_size
++    << " uep_post_is_interpret_call=" << t.entry_point_post_is_interpret_call
++    << " caller_scan_status=" << t.caller_scan_status
++    << " pool_status=" << t.pool_status
++    << " pool_index=" << t.pool_index
++    << " pool_length=" << t.pool_length
++    << " pool_entry_is_function=" << t.pool_entry_is_function
++    << " pool_entry_equals_target=" << t.pool_entry_equals_target
++    << " caller_resolved=" << t.caller_resolved
++    << " caller_pool_fns=" << t.caller_pool_functions
++    << " caller_pool_matches=" << t.caller_pool_matches_target;
++  // TWO LAYERS, LABELLED AS SUCH. v1 printed Code values under `uep_*` and the
++  // resulting mismatch read as a genuine VM anomaly for an entire investigation.
++  o << std::hex << std::showbase
++    << " fn=" << t.function_ptr
++    << " fn_ep_pre=" << t.fn_entry_point_pre
++    << " fn_ep_post=" << t.fn_entry_point_post
++    << " fn_uep_pre=" << t.fn_unchecked_entry_point_pre
++    << " fn_uep_post=" << t.fn_unchecked_entry_point_post
++    << " code_pre=" << t.code_pre
++    << " code_post=" << t.code_post
++    << " code_ep_pre=" << t.code_entry_point_pre
++    << " code_ep_post=" << t.code_entry_point_post
++    << " code_uep_pre=" << t.code_unchecked_entry_point_pre
++    << " code_uep_post=" << t.code_unchecked_entry_point_post
++    << " interpret_call_ep=" << t.interpret_call_entry_point
++    << " caller_pool_other_fn=" << t.caller_pool_other_fn
++    << " pool_offset=" << t.pool_offset
++    << " pool_entry_ptr=" << t.pool_entry_ptr;
++  return o.str();
++}
++
++void InstallRouteBActivationHook(Settings& settings, const std::string& path) {
++  if (path.empty()) {
++    // Inert. The overwhelmingly common case is no Route B patch at all, and it
++    // must cost nothing.
++    return;
++  }
++  auto existing = settings.root_isolate_create_callback;
++
++  settings.root_isolate_create_callback =
++      [existing, path](const DartIsolate& isolate) {
++        if (existing) {
++          existing(isolate);
++        }
++        RouteBReport(path, "hook entered");
++
++        auto mapping = fml::FileMapping::CreateReadOnly(path);
++        if (!mapping || mapping->GetSize() == 0) {
++          RouteBReport(path, "REFUSED (unreadable)");
++          return;
++        }
++
++        route_b::Container container;
++        std::string error;
++        const auto status = route_b::Parse(mapping->GetMapping(),
++                                           mapping->GetSize(), &container,
++                                           &error);
++        if (status != route_b::ContainerStatus::kOk) {
++          RouteBReport(path, std::string("REFUSED (") +
++                                 route_b::StatusName(status) + "): " + error);
++          return;
++        }
++        RouteBReport(path, "parsed, targets=" +
++                               std::to_string(container.targets.size()) +
++                               ", built-for=" + container.release_build_id);
++
++        // RELEASE IDENTITY BEFORE TARGET RESOLUTION. Patch bytecode is compiled
++        // against one release's kernel, so applying it elsewhere is undefined
++        // rather than merely unsupported. Checking it here means a stale
++        // payload says "wrong release" instead of degrading into a target or
++        // attach failure three steps later -- which is the single most
++        // expensive diagnostic confusion this project has had.
++        char* running = Dart_RouteBReleaseBuildId();
++        if (running == nullptr) {
++          // No identity is not "any identity". Refuse.
++          RouteBReport(path,
++                       "REFUSED (no-release-identity): this snapshot carries "
++                       "no build ID");
++          return;
++        }
++        const std::string running_id(running);
++        ::free(running);
++        RouteBReport(path, "running=" + running_id);
++        if (running_id != container.release_build_id) {
++          RouteBReport(path, std::string("REFUSED (") +
++                                 route_b::StatusName(
++                                     route_b::ContainerStatus::kWrongRelease) +
++                                 "): built for " +
++                                 container.release_build_id + ", running " +
++                                 running_id);
++          return;
++        }
++
++        int applied = 0;
++        for (const auto& target : container.targets) {
++          Dart_RouteBTrace trace;
++          // DIAGNOSTIC-ONLY: the call-site pool offset for one known site.
++          //
++          // From release 26's disassembly of routeBValue's kUnchecked call:
++          //   add x0, x27, #0xd, lsl #12 ; ldr x0, [x0, #0x4a8]  -> 0xd4a8
++          // A preserved, measured offset -- a stronger identifier than a caller
++          // NAME, which is why the caller name is gone from this experiment.
++          //
++          // Remove with the investigation.
++          int64_t pool_offset = 0;
++          if (target.selector == "RouteBThing.value") {
++            pool_offset = 0xd4a8;
++          }
++          const int32_t result = Dart_RouteBActivatePatchTraced(
++              target.bytecode, static_cast<intptr_t>(target.length),
++              target.library.c_str(), target.selector.c_str(), &trace,
++              nullptr, pool_offset);
++          // FOR EVERY TARGET, SUCCESS INCLUDED. The success path below `continue`s,
++          // so until now a target that "worked" contributed nothing but the
++          // applied N/N tally — which is exactly how `applied 1/1` came to be the
++          // entire story for four device runs.
++          RouteBTraceWrite(path, FormatRouteBTrace(trace, target.library,
++                                                   target.selector,
++                                                   target.length));
++          if (result == Dart_RouteB_Ok) {
++            applied++;
++            continue;
++          }
++          // Named, not numbered. A code nobody can read is a bool with extra
++          // steps.
++          const char* reason = "unknown";
++          switch (result) {
++            case Dart_RouteB_NoIsolate: reason = "no-isolate"; break;
++            case Dart_RouteB_EmptyPayload: reason = "empty-payload"; break;
++            case Dart_RouteB_InvalidBytecode: reason = "invalid-bytecode"; break;
++            case Dart_RouteB_TargetMissing: reason = "target-missing"; break;
++            case Dart_RouteB_AlreadyInterpreted:
++              reason = "already-interpreted";
++              break;
++            case Dart_RouteB_AttachFailed: reason = "attach-failed"; break;
++            case Dart_RouteB_Unsupported: reason = "unsupported-build"; break;
++            case Dart_RouteB_OutOfMemory: reason = "out-of-memory"; break;
++            default: break;
++          }
++          RouteBReport(path, "target " + target.selector + " in " +
++                                 target.library + " REFUSED (" + reason + ")");
++        }
++        RouteBReport(path, "applied " + std::to_string(applied) + "/" +
++                               std::to_string(container.targets.size()) +
++                               " targets, entering main");
++      };
++}
++
++/// Whether an active patch path points at a payload containing Dart code.
++///
++/// Keyed on `.vmcode` because that is exactly how
++/// `runtime/shorebird/patch_cache.cc`'s `TryLoadFromPatch` decides whether to
++/// read a snapshot out of the patch. The two must agree: if this said "code"
++/// where `TryLoadFromPatch` said "not code", the loader would be left pointing
++/// at a file the VM declines to read and the app would fail to boot with no
++/// snapshot at all.
++///
++/// Duplicated rather than shared because the two live in different GN targets,
++/// the same reason `patch_cache.cc` duplicates the snapshot symbol names.
++bool PatchCarriesCode(const std::string& active_patch_path) {
++  return active_patch_path.find(".vmcode") != std::string::npos;
++}
++
++std::string PatchAssetsPathForPatch(const std::string& active_patch_path) {
++  if (active_patch_path.empty()) {
++    return "";
++  }
++  auto patch_dir = fml::paths::GetDirectoryName(active_patch_path);
++  if (patch_dir.empty()) {
++    return "";
++  }
++  // Named for what it is: the same tree shape the CLI zips out of a build, so
++  // an overlay can be unpacked here verbatim.
++  return fml::paths::JoinPaths({patch_dir, "flutter_assets"});
++}
++
+ /// Newer api, used by Desktop implementations.
+ /// Does not directly manipulate Settings.
+ // TODO(eseidel): Consolidate this with the other ConfigureShorebird() API.
+@@ -256,26 +555,69 @@ void ConfigureShorebird(std::string code_cache_path,
+   // package:shorebird_code_push.
+   // https://github.com/shorebirdtech/shorebird/issues/950
+ 
+-  // We only set the base snapshot on iOS for now.
+-#if SHOREBIRD_USE_INTERPRETER
++  // iOS only: the updater's inflate() reads the base through the file
++  // callbacks, so this has to happen before any install can succeed. Not gated
++  // on the interpreter flag — see SHOREBIRD_NEEDS_BASE_SNAPSHOT.
++#if SHOREBIRD_NEEDS_BASE_SNAPSHOT
+   SetBaseSnapshot(settings);
+ #endif
+ 
+   shorebird::Updater::Instance().ValidateNextBootPatch();
+   std::string active_path = shorebird::Updater::Instance().NextBootPatchPath();
++
++  // The Route B container this boot will activate, if the active artifact is
++  // one. Empty otherwise, which leaves the hook inert.
++  std::string route_b_path;
++
+   if (!active_path.empty()) {
+     FML_LOG(INFO) << "Shorebird updater: active path: " << active_path;
+ 
++    // Assets shipped with this patch, if any. Recorded unconditionally; whether
++    // the directory exists is decided in RunConfiguration, where an absent one
++    // is simply not pushed.
++    settings.shorebird_patch_assets_path = PatchAssetsPathForPatch(active_path);
++
++    // WHAT THIS ARTIFACT IS, decided by its BYTES.
++    //
++    // The lifecycle installs every code artifact as `patches/{N}/dlc.vmcode`
++    // regardless of content, so the filename carries no information and
++    // PatchCarriesCode() -- which keys on `.vmcode` -- says "code" for a Route
++    // B container too. Handing one to the VM as the app's only library path is
++    // not a degraded patch, it is a failure to boot. So the sniff has to happen
++    // BEFORE application_library_paths is touched, and it is a boot-safety
++    // invariant rather than tidiness.
++    const bool is_route_b =
++        route_b::SniffFile(active_path) == route_b::ContainerStatus::kOk;
++
++    if (is_route_b) {
++      // A Route B container must never reach the VM snapshot loader. It is not
++      // a snapshot; it is bytecode plus a header, applied later by the pre-main
++      // hook once an isolate exists to apply it to.
++      FML_LOG(INFO) << "Shorebird updater: active patch is a Route B container";
++      route_b_path = active_path;
++    } else {
+ #if SHOREBIRD_USE_INTERPRETER
+-    // On iOS we add the patch to the front of the list instead of clearing
+-    // the list, to allow dart_snapshot.cc to still find the base snapshot
+-    // for the vm isolate.
+-    settings.application_library_paths.insert(
+-        settings.application_library_paths.begin(), active_path);
++      // On iOS we add the patch to the front of the list instead of clearing
++      // the list, to allow dart_snapshot.cc to still find the base snapshot
++      // for the vm isolate.
++      settings.application_library_paths.insert(
++          settings.application_library_paths.begin(), active_path);
+ #else
+-    settings.application_library_paths.clear();
+-    settings.application_library_paths.emplace_back(active_path);
++      // Only a patch that actually carries code may displace the app's own
++      // library. An assets-only patch has no snapshot in it, so clearing the
++      // list would leave the loader with a single path holding nothing loadable
++      // and the app would fail to boot — while the asset overlay above, which
++      // is the whole point of such a patch, needs no library path at all.
++      //
++      // Note the asymmetry with the iOS branch above: iOS *inserts* and so
++      // keeps the base reachable for free, which is why this guard is only
++      // needed here.
++      if (PatchCarriesCode(active_path)) {
++        settings.application_library_paths.clear();
++        settings.application_library_paths.emplace_back(active_path);
++      }
+ #endif
++    }
+   } else {
+     FML_LOG(INFO) << "Shorebird updater: no active patch.";
+   }
+@@ -296,20 +638,39 @@ void ConfigureShorebird(std::string code_cache_path,
+     FML_LOG(INFO)
+         << "Shorebird auto_update disabled, not checking for updates.";
+   }
++
++  // SEAM 6: the lifecycle above has decided WHICH patch is active, and the
++  // content sniff decided whether it is a Route B container. Arming the hook
++  // here keeps that ownership intact -- activation happens later, once the root
++  // isolate exists, because Route B needs live Function objects and this runs
++  // before the engine has started.
++  InstallRouteBActivationHook(settings, route_b_path);
+ }
+ 
+ void* FileCallbacksImpl::Open() {
+-#if SHOREBIRD_USE_INTERPRETER
++#if SHOREBIRD_NEEDS_BASE_SNAPSHOT
++  // iOS patches are generated from just the Dart parts of the snapshot,
++  // excluding the Mach-O headers, which carry dates and paths that change on
++  // every build. SnapshotsDataHandle presents those four blobs as one seekable
++  // stream, which is what the diff was computed against.
++  if (!vm_snapshot || !isolate_snapshot) {
++    // Init order regression rather than a supported state: ConfigureShorebird
++    // calls SetBaseSnapshot before anything can ask for a base. Returning null
++    // surfaces as "CFile open failed" inside install, which is a confusing
++    // place to read this from, so say it here too.
++    FML_LOG(ERROR) << "[shorebird] base snapshot requested before it was set; "
++                      "patch installation will fail";
++    return nullptr;
++  }
+   return SnapshotsDataHandle::createForSnapshots(*vm_snapshot,
+                                                  *isolate_snapshot)
+       .release();
+ #else
+-  // SnapshotsDataHandle exists on all platforms (for testing) but is only used
+-  // on iOS. iOS patches are generated from just the Dart parts of the snapshot,
+-  // excluding the Mach-O specific headers which contain dates and paths that
+-  // make them change on every build.
++  // SnapshotsDataHandle exists on all platforms (for testing) but the updater
++  // only asks for a base through these callbacks on iOS; Android opens
++  // libapp.so directly.
+   return nullptr;
+-#endif  // SHOREBIRD_USE_INTERPRETER
++#endif  // SHOREBIRD_NEEDS_BASE_SNAPSHOT
+ }
+ 
+ uintptr_t FileCallbacksImpl::Read(void* file,

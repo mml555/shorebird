@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:args/args.dart';
 import 'package:collection/collection.dart';
@@ -13,16 +14,21 @@ import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
+import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
+import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/deployment_track.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
+import 'package:shorebird_cli/src/gen_snapshot_probe.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
@@ -124,7 +130,9 @@ void main() {
     late ArtifactBuilder artifactBuilder;
     late ArtifactManager artifactManager;
     late Cache cache;
+    late DartSdkCompatibility dartSdkCompatibility;
     late CodePushClientWrapper codePushClientWrapper;
+    late GenSnapshotProbe genSnapshotProbe;
     late ShorebirdLogger logger;
     late Patcher patcher;
     late Progress progress;
@@ -145,7 +153,11 @@ void main() {
             () => BuildTraceSession(commandStartedAt: DateTime(2023)),
           ),
           cacheRef.overrideWith(() => cache),
+          dartSdkCompatibilityRef.overrideWith(
+            () => dartSdkCompatibility,
+          ),
           codePushClientWrapperRef.overrideWith(() => codePushClientWrapper),
+          genSnapshotProbeRef.overrideWith(() => genSnapshotProbe),
           loggerRef.overrideWith(() => logger),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
@@ -181,7 +193,9 @@ void main() {
       when(artifactBuilder.writeBuildTraceSummary).thenReturn(null);
       artifactManager = MockArtifactManager();
       cache = MockCache();
+      dartSdkCompatibility = MockDartSdkCompatibility();
       codePushClientWrapper = MockCodePushClientWrapper();
+      genSnapshotProbe = MockGenSnapshotProbe();
       logger = MockShorebirdLogger();
       progress = MockProgress();
       patcher = MockPatcher();
@@ -199,6 +213,14 @@ void main() {
         () => argResults['track'],
       ).thenReturn(DeploymentTrack.stable.channel);
       when(() => argResults.wasParsed(any())).thenReturn(true);
+      // wasParsed(any()) is stubbed true above, so ForwardedArgs._flagNamed
+      // goes on to cast `this['obfuscate'] as bool`. patch_command now reads
+      // forwardedArgs to compute the patch's effective configuration, so this
+      // flag has to have a value or every test that reaches that point throws
+      // "Null is not a subtype of bool".
+      when(() => argResults[CommonArguments.obfuscateArg.name]).thenReturn(
+        false,
+      );
       when(() => argResults.wasParsed('staging')).thenReturn(false);
       when(
         () => argResults.wasParsed(CommonArguments.privateKeyArg.name),
@@ -250,6 +272,7 @@ void main() {
           metadata: any(named: 'metadata'),
           track: any(named: 'track'),
           patchArtifactBundles: any(named: 'patchArtifactBundles'),
+          sidecars: any(named: 'sidecars'),
         ),
       ).thenAnswer((_) async {});
       when(
@@ -305,6 +328,9 @@ void main() {
       ).thenAnswer((_) async => File(''));
       when(() => patcher.releaseType).thenReturn(ReleaseType.android);
       when(() => patcher.primaryReleaseArtifactArch).thenReturn('aab');
+      // Neither sidecar by default: no --assets, no --split-debug-info.
+      when(patcher.assetsDirectory).thenAnswer((_) async => null);
+      when(patcher.debugSymbolsDirectory).thenAnswer((_) async => null);
       when(
         () => patcher.createPatchArtifacts(
           appId: any(named: 'appId'),
@@ -334,6 +360,9 @@ void main() {
 
       when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(shorebirdYaml);
       when(() => shorebirdEnv.flutterRevision).thenReturn(flutterRevision);
+      when(
+        () => shorebirdEnv.shorebirdEngineRevision,
+      ).thenReturn('test-engine-revision');
       when(
         () => shorebirdEnv.copyWith(
           flutterRevisionOverride: any(named: 'flutterRevisionOverride'),
@@ -393,6 +422,50 @@ void main() {
       });
     });
 
+    group('--assets', () {
+      test('is an opt-in flag', () {
+        final parser = PatchCommand().argParser;
+
+        expect(parser.options['assets']!.isFlag, isTrue);
+        expect(parser.options['assets']!.negatable, isFalse);
+        expect(parser.parse([])['assets'], isFalse);
+        expect(parser.parse(['--assets'])['assets'], isTrue);
+      });
+    });
+
+    group('--assets-only', () {
+      test('is an opt-in flag', () {
+        final parser = PatchCommand().argParser;
+
+        expect(parser.options['assets-only']!.isFlag, isTrue);
+        expect(parser.options['assets-only']!.negatable, isFalse);
+        expect(parser.parse([])['assets-only'], isFalse);
+        expect(parser.parse(['--assets-only'])['assets-only'], isTrue);
+      });
+
+      test('implies --assets', () {
+        // A patch with neither code nor assets would carry nothing at all, so
+        // requiring both flags together would only trip people up.
+        final args = MockArgResults();
+        when(() => args['assets']).thenReturn(false);
+        when(() => args['assets-only']).thenReturn(true);
+        final command = PatchCommand()..testArgResults = args;
+
+        expect(command.assetsOnly, isTrue);
+        expect(command.includeAssets, isTrue);
+      });
+
+      test('does not imply the reverse', () {
+        final args = MockArgResults();
+        when(() => args['assets']).thenReturn(true);
+        when(() => args['assets-only']).thenReturn(false);
+        final command = PatchCommand()..testArgResults = args;
+
+        expect(command.includeAssets, isTrue);
+        expect(command.assetsOnly, isFalse);
+      });
+    });
+
     group('createPatch', () {
       test('publishes the patch', () async {
         await runWithOverrides(() => command.createPatch([patcher]));
@@ -406,8 +479,110 @@ void main() {
             patchArtifactBundles: {
               ReleasePlatform.android: patchArtifactBundles,
             },
+            sidecars: any(named: 'sidecars'),
           ),
         ).called(1);
+      });
+
+      group('sidecars', () {
+        /// Runs a patch and returns the sidecars it published for Android.
+        Future<PatchSidecars> publishedSidecars() async {
+          await runWithOverrides(() => command.createPatch([patcher]));
+          final captured =
+              verify(
+                    () => codePushClientWrapper.publishPatch(
+                      appId: any(named: 'appId'),
+                      releaseId: any(named: 'releaseId'),
+                      metadata: any(named: 'metadata'),
+                      track: any(named: 'track'),
+                      patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                      sidecars: captureAny(named: 'sidecars'),
+                    ),
+                  ).captured.single
+                  as Map<ReleasePlatform, PatchSidecars>;
+          return captured[ReleasePlatform.android]!;
+        }
+
+        /// A directory holding one file, so zipping it produces something.
+        Directory populatedDir() {
+          final dir = Directory.systemTemp.createTempSync();
+          File(p.join(dir.path, 'contents'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync('contents');
+          return dir;
+        }
+
+        group('assets', () {
+          test('are not packaged without --assets', () async {
+            expect((await publishedSidecars()).assets, isNull);
+            // Opt-in means the AAB is never even decoded for assets.
+            verifyNever(patcher.assetsDirectory);
+          });
+
+          group('with --assets', () {
+            setUp(() {
+              when(() => argResults['assets']).thenReturn(true);
+            });
+
+            test('are packaged when the platform resolves them', () async {
+              when(
+                patcher.assetsDirectory,
+              ).thenAnswer((_) async => populatedDir());
+
+              final assets = (await publishedSidecars()).assets;
+
+              expect(assets, isNotNull);
+              expect(assets!.existsSync(), isTrue);
+              expect(p.basename(assets.path), equals('assets.zip'));
+            });
+
+            test('warn and are skipped when the platform resolves '
+                'nothing', () async {
+              when(patcher.assetsDirectory).thenAnswer((_) async => null);
+
+              expect((await publishedSidecars()).assets, isNull);
+              verify(
+                () => logger.warn(
+                  any(that: contains('no assets could be resolved')),
+                ),
+              ).called(1);
+            });
+
+            test('do not fail the patch when packaging fails', () async {
+              // An empty directory that gets removed before it can be zipped.
+              final vanished = Directory.systemTemp.createTempSync()
+                ..deleteSync();
+              when(patcher.assetsDirectory).thenAnswer((_) async => vanished);
+
+              // publishedSidecars() only returns if the patch published, so
+              // this asserts both that the bundle is missing and that its
+              // absence did not take the patch down with it.
+              expect((await publishedSidecars()).assets, isNull);
+              verify(
+                () => logger.warn(any(that: contains('Failed to package'))),
+              ).called(1);
+            });
+          });
+        });
+
+        group('symbols', () {
+          test('are not packaged when the build emitted none', () async {
+            expect((await publishedSidecars()).symbols, isNull);
+          });
+
+          test('are retained with no flag of their own', () async {
+            // --split-debug-info is the opt-in: if the build produced symbols,
+            // the user already asked for them.
+            when(
+              patcher.debugSymbolsDirectory,
+            ).thenAnswer((_) async => populatedDir());
+
+            final symbols = (await publishedSidecars()).symbols;
+
+            expect(symbols, isNotNull);
+            expect(p.basename(symbols!.path), equals('symbols.zip'));
+          });
+        });
       });
 
       group('flavor validation', () {
@@ -547,6 +722,219 @@ void main() {
           },
         );
 
+        // ------------------------------------------------------------------
+        // A2 — effective build-configuration compatibility.
+        //
+        // ONE app_id THROUGHOUT. This whole file drives a single `appId`, so a
+        // refusal here can never come from app routing. That matters: on real
+        // hardware a two-app_id shorebird.yaml produced a REFUSAL FOR THE WRONG
+        // REASON ("Release not found", from getAppId(flavor:) resolving `bar`
+        // to a different app), which reads exactly like the right one. The
+        // wrong-flavor arm is only meaningful when routing cannot satisfy it.
+        // ------------------------------------------------------------------
+        group('effective build-configuration compatibility', () {
+          /// Makes the RELEASE's supplement record the effective config of a
+          /// build made with [releaseFlavor]. Written through extractZip,
+          /// which is where the real supplement lands.
+          setUp(() {
+            // The outer harness stubs wasParsed(any()) -> true, so
+            // ForwardedArgs._argsNamed emits `--dart-define-from-file=null`
+            // for every unstubbed option. That makes the PATCH's own config
+            // unfingerprintable, and enforcement then (correctly) declines to
+            // compare -- which would mask the mismatch this group exists to
+            // catch. Give these options an honest "not parsed".
+            for (final name in [
+              CommonArguments.dartDefineArg.name,
+              CommonArguments.dartDefineFromFileArg.name,
+              CommonArguments.buildNameArg.name,
+              CommonArguments.buildNumberArg.name,
+              CommonArguments.splitDebugInfoArg.name,
+              CommonArguments.exportMethodArg.name,
+              CommonArguments.exportOptionsPlistArg.name,
+            ]) {
+              when(() => argResults.wasParsed(name)).thenReturn(false);
+            }
+          });
+
+          void releaseRecordsFlavor(String releaseFlavor) {
+            when(
+              () => patcher.supplementaryReleaseArtifactArch,
+            ).thenReturn('supplement');
+            when(
+              () => artifactManager.extractZip(
+                zipFile: any(named: 'zipFile'),
+                outputDirectory: any(named: 'outputDirectory'),
+              ),
+            ).thenAnswer((invocation) async {
+              final out =
+                  invocation.namedArguments[const Symbol('outputDirectory')]
+                      as Directory;
+              out.createSync(recursive: true);
+              final config = RouteBBuildConfig.fromBuildArgs(
+                const [],
+                flavor: releaseFlavor,
+              );
+              File(
+                p.join(out.path, Releaser.buildConfigFileName),
+              ).writeAsStringSync(
+                jsonEncode({'buildConfig': config!.toJson()}),
+              );
+            });
+          }
+
+          /// Makes the RELEASE's record say "unfingerprintable" -- the shape
+          /// `Releaser.recordEffectiveBuildConfig` writes when the release
+          /// itself used `--dart-define-from-file`.
+          void releaseRecordsUnfingerprintable() {
+            when(
+              () => patcher.supplementaryReleaseArtifactArch,
+            ).thenReturn('supplement');
+            when(
+              () => artifactManager.extractZip(
+                zipFile: any(named: 'zipFile'),
+                outputDirectory: any(named: 'outputDirectory'),
+              ),
+            ).thenAnswer((invocation) async {
+              final out =
+                  invocation.namedArguments[const Symbol('outputDirectory')]
+                      as Directory;
+              out.createSync(recursive: true);
+              File(
+                p.join(out.path, Releaser.buildConfigFileName),
+              ).writeAsStringSync(
+                jsonEncode({
+                  'buildConfig': null,
+                  'unfingerprintableReason':
+                      'built with --dart-define-from-file',
+                }),
+              );
+            });
+          }
+
+          // RED UNTIL ENFORCEMENT LANDS. Today the patch proceeds and
+          // buildPatchArtifact IS called, so this fails — which is the point of
+          // writing it before the fix.
+          //
+          // The assertion is deliberately NOT "the command exited non-zero".
+          // The contract is that the refusal happens BEFORE any patch artifact
+          // is produced, so the observable is that the build was never
+          // attempted. A refusal after the build would satisfy an exit-code
+          // assertion while violating the invariant.
+          test(
+            'refuses a patch whose effective config differs from the release, '
+            'before buildPatchArtifact is called',
+            () async {
+              releaseRecordsFlavor('foo');
+              when(() => argResults['flavor']).thenReturn('bar');
+
+              await expectLater(
+                runWithOverrides(() => command.createPatch([patcher])),
+                throwsA(isA<ProcessExit>()),
+              );
+
+              // The refusal is necessary but NOT sufficient: the contract is
+              // that it happens before anything is produced.
+              verifyNever(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              );
+            },
+          );
+
+          // THE CONTROL, at the same level. It must pass BOTH before and after
+          // enforcement: the fix must refuse a mismatch without becoming
+          // "refuse everything". If this ever goes red, the canonical form is
+          // reading something it should not — most likely raw --flavor instead
+          // of the synthesized FLUTTER_APP_FLAVOR define.
+          test(
+            'a matching effective config crosses the compatibility boundary',
+            () async {
+              releaseRecordsFlavor('foo');
+              when(() => argResults['flavor']).thenReturn('foo');
+
+              await runWithOverrides(() => command.createPatch([patcher]));
+
+              verify(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              ).called(1);
+            },
+          );
+
+          // ------------------------------------------------------------------
+          // THE ASYMMETRIC CASE. Two things can make a comparison impossible,
+          // and they are not the same thing:
+          //
+          //   the RELEASE was built with --dart-define-from-file
+          //       -> nothing to compare, permanently, and re-releasing does not
+          //          help. Warn and proceed. Covered by the control below.
+          //
+          //   the PATCH is invoked with --dart-define-from-file, against a
+          //   release whose configuration IS known
+          //       -> the release's config is in hand; the patch simply declines
+          //          to state its own. That is a user-controllable opt-out of
+          //          the whole check, and it opts out in precisely the case
+          //          where a mismatch is most likely -- a patch pulling defines
+          //          from a file the release never had.
+          //
+          // RED UNTIL THE FIX: today the second case warns and proceeds, so
+          // buildPatchArtifact IS called and this fails.
+          // ------------------------------------------------------------------
+          test(
+            'refuses when the release IS fingerprintable but the patch is not, '
+            'before buildPatchArtifact is called',
+            () async {
+              releaseRecordsFlavor('foo');
+              when(() => argResults['flavor']).thenReturn('foo');
+              // the patch, and only the patch, becomes unfingerprintable
+              when(
+                () => argResults.wasParsed(
+                  CommonArguments.dartDefineFromFileArg.name,
+                ),
+              ).thenReturn(true);
+              when(
+                () => argResults[CommonArguments.dartDefineFromFileArg.name],
+              ).thenReturn(['defines.json']);
+
+              await expectLater(
+                runWithOverrides(() => command.createPatch([patcher])),
+                throwsA(isA<ProcessExit>()),
+              );
+
+              // Same contract as the mismatch arm: the refusal is necessary
+              // but not sufficient -- it must precede any artifact.
+              verifyNever(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              );
+            },
+          );
+
+          // THE CONTROL FOR THE OTHER NULL. A release that itself cannot be
+          // fingerprinted must STILL be patchable -- there is nothing to
+          // compare and re-releasing cannot help, so refusing would strand it
+          // forever. This must stay green across the fix; if it goes red, the
+          // fix collapsed the two null states back into one.
+          test(
+            'still patches when the RELEASE is the unfingerprintable one',
+            () async {
+              releaseRecordsUnfingerprintable();
+              when(() => argResults['flavor']).thenReturn('foo');
+
+              await runWithOverrides(() => command.createPatch([patcher]));
+
+              verify(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              ).called(1);
+            },
+          );
+        });
+
         group('when a supplemental release artifact exists', () {
           setUp(() {
             when(
@@ -600,13 +988,228 @@ void main() {
             });
           });
 
+          group('Route B engine identity', () {
+            // The hashes from the run that turned this warning into a refusal.
+            const releaseEngine = 'ee001fd78fcd5e78e976d35284bd13e1caffff63';
+            const stockEngine = '69f9831c360d9152862ec3897c67fb09ae843f3b';
+
+            /// A supplement that marks this as a Route B release built by
+            /// [engine]. Written through extractZip, which is where the real
+            /// supplement lands.
+            void routeBSupplement(String engine) {
+              when(
+                () => artifactManager.extractZip(
+                  zipFile: any(named: 'zipFile'),
+                  outputDirectory: any(named: 'outputDirectory'),
+                ),
+              ).thenAnswer((invocation) async {
+                final out =
+                    invocation.namedArguments[#outputDirectory] as Directory;
+                File(
+                  p.join(out.path, routeBProvenanceFileName),
+                ).writeAsStringSync(
+                  '{"engineRevision": "$engine", '
+                  '"flutterRevision": "$flutterRevision"}',
+                );
+              });
+            }
+
+            test('refuses the mismatch, and uploads nothing', () async {
+              // THE REPRODUCTION, at the command level. On device this exact
+              // pairing produced a patch that installed, promoted, reported
+              // itself active, and changed nothing.
+              routeBSupplement(releaseEngine);
+              when(
+                () => shorebirdEnv.shorebirdEngineRevision,
+              ).thenReturn(stockEngine);
+
+              await expectLater(
+                runWithOverrides(() => command.createPatch([patcher])),
+                throwsA(
+                  isA<ProcessExit>().having(
+                    (e) => e.exitCode,
+                    'exitCode',
+                    ExitCode.software.code,
+                  ),
+                ),
+              );
+
+              verify(
+                () => logger.err(
+                  any(
+                    that: allOf(
+                      contains(releaseEngine),
+                      contains(stockEngine),
+                      contains('Nothing was uploaded'),
+                    ),
+                  ),
+                ),
+              ).called(1);
+              // NOTHING UPLOADED is the load-bearing half. A refusal that still
+              // published would be the same defect wearing a message.
+              verifyNever(
+                () => codePushClientWrapper.publishPatch(
+                  appId: any(named: 'appId'),
+                  releaseId: any(named: 'releaseId'),
+                  track: any(named: 'track'),
+                  patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                  metadata: any(named: 'metadata'),
+                ),
+              );
+            });
+
+            test('refuses BEFORE the patch is built', () async {
+              // Ordering is the point: a refusal after the build still costs a
+              // full compile, and — worse — the build is what restamps the
+              // cache, so a late-only check reports the drift it caused.
+              routeBSupplement(releaseEngine);
+              when(
+                () => shorebirdEnv.shorebirdEngineRevision,
+              ).thenReturn(stockEngine);
+
+              await expectLater(
+                runWithOverrides(() => command.createPatch([patcher])),
+                throwsA(isA<ProcessExit>()),
+              );
+
+              verifyNever(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              );
+            });
+
+            test('catches a stamp that drifts DURING the build', () async {
+              // THE REASON THERE ARE TWO CHECKS. On the real run the stamps
+              // agreed when the command started and the Flutter build rewrote
+              // `bin/internal/engine.version` to the hash it downloaded — so a
+              // single up-front check passes and the kernel is still produced by
+              // the wrong frontend.
+              routeBSupplement(releaseEngine);
+              var reads = 0;
+              when(() => shorebirdEnv.shorebirdEngineRevision).thenAnswer((_) {
+                // First read is the pre-build gate; everything after it is
+                // post-build, which is where the drift shows up.
+                reads++;
+                return reads == 1 ? releaseEngine : stockEngine;
+              });
+
+              await expectLater(
+                runWithOverrides(() => command.createPatch([patcher])),
+                throwsA(isA<ProcessExit>()),
+              );
+
+              // The build DID run — proving the first gate passed and the second
+              // one is what fired.
+              verify(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              ).called(1);
+              verify(
+                () => logger.err(
+                  any(that: contains('rewrote its own cache stamp')),
+                ),
+              ).called(1);
+              verifyNever(
+                () => codePushClientWrapper.publishPatch(
+                  appId: any(named: 'appId'),
+                  releaseId: any(named: 'releaseId'),
+                  track: any(named: 'track'),
+                  patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                  metadata: any(named: 'metadata'),
+                ),
+              );
+            });
+
+            test('the control: matching hashes continue normally', () async {
+              // A gate that refused everything would pass the tests above. The
+              // normal path has to be asserted in the same breath.
+              routeBSupplement(releaseEngine);
+              when(
+                () => shorebirdEnv.shorebirdEngineRevision,
+              ).thenReturn(releaseEngine);
+
+              await runWithOverrides(() => command.createPatch([patcher]));
+
+              verify(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              ).called(1);
+            });
+
+            test('a release that is not Route B is unaffected', () async {
+              // The invariant is Route B's. Extending it to every release would
+              // invent a constraint this evidence does not support — and would
+              // break every ordinary patch cut on a machine whose engine stamp
+              // has moved for unrelated reasons.
+              when(
+                () => shorebirdEnv.shorebirdEngineRevision,
+              ).thenReturn(stockEngine);
+
+              await runWithOverrides(() => command.createPatch([patcher]));
+
+              verify(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              ).called(1);
+            });
+          });
+
           group('when the supplement contains an obfuscation map', () {
+            // The release's Flutter revision MUST differ from the locally
+            // pinned one (`flutterRevision`, which is what
+            // `shorebirdEnv.flutterRevision` returns until the `copyWith`
+            // near the end of createPatch). Reusing one constant for both
+            // makes `verify(... flutterRevision: X)` unable to tell the two
+            // sources apart, so a gate that read the LOCAL pin — a real bug,
+            // since the pin is still local at that point in createPatch —
+            // would pass the test. Keep these distinct.
+            const obfuscatedReleaseFlutterRevision =
+                'release-pinned-revision-not-the-local-one';
+            final obfuscatedRelease = Release(
+              id: release.id,
+              appId: appId,
+              version: releaseVersion,
+              flutterRevision: obfuscatedReleaseFlutterRevision,
+              flutterVersion: flutterVersion,
+              displayName: '1.2.3+1',
+              platformStatuses: const {releasePlatform: ReleaseStatus.active},
+              createdAt: DateTime(2023),
+              updatedAt: DateTime(2023),
+            );
+
             // Wire up extractZip to actually write the obfuscation_map.json
             // so PatchCommand's `if (obfuscationMapFile != null)` block
-            // fires. The flutter-version gating that drops --strip on
-            // Android 3.44+ depends on `release.flutterRevision` resolving
-            // to a Version, so we mock that per-test.
+            // fires.
             setUp(() {
+              expect(
+                obfuscatedRelease.flutterRevision,
+                isNot(flutterRevision),
+                reason:
+                    '''the release revision and the local pin must be distinguishable''',
+              );
+              when(
+                () => codePushClientWrapper.getRelease(
+                  appId: any(named: 'appId'),
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              ).thenAnswer((_) async => obfuscatedRelease);
+              when(
+                () => codePushClientWrapper.getReleases(
+                  appId: any(named: 'appId'),
+                ),
+              ).thenAnswer((_) async => [obfuscatedRelease]);
+              when(
+                () => logger.chooseOne<Release>(
+                  any(),
+                  choices: any(named: 'choices'),
+                  display: any(named: 'display'),
+                  hint: any(named: 'hint'),
+                ),
+              ).thenReturn(obfuscatedRelease);
               when(
                 () => artifactManager.extractZip(
                   zipFile: any(named: 'zipFile'),
@@ -619,6 +1222,18 @@ void main() {
                   p.join(outputDirectory.path, 'obfuscation_map.json'),
                 ).writeAsStringSync('{}');
               });
+              when(
+                () => genSnapshotProbe.supportsLoadObfuscationMap(
+                  flutterRevision: any(named: 'flutterRevision'),
+                  platform: any(named: 'platform'),
+                ),
+              ).thenAnswer((_) async => GenSnapshotFlagSupport.present);
+              when(
+                () => genSnapshotProbe.resolveGenSnapshots(
+                  flutterRevision: any(named: 'flutterRevision'),
+                  platform: any(named: 'platform'),
+                ),
+              ).thenReturn([File('/path/to/gen_snapshot')]);
             });
 
             test(
@@ -666,6 +1281,147 @@ void main() {
                   captured,
                   isNot(contains('--extra-gen-snapshot-options=--strip')),
                 );
+              },
+            );
+
+            group(
+              '''when the release's gen_snapshot does not carry --load-obfuscation-map''',
+              () {
+                setUp(() {
+                  when(
+                    () => genSnapshotProbe.supportsLoadObfuscationMap(
+                      flutterRevision: any(named: 'flutterRevision'),
+                      platform: any(named: 'platform'),
+                    ),
+                  ).thenAnswer((_) async => GenSnapshotFlagSupport.absent);
+                  // Stubbed so that, absent the capability check, the patch
+                  // would build and upload normally: these tests must fail
+                  // because the CLI failed to refuse, not because a
+                  // downstream mock was missing.
+                  when(
+                    () => shorebirdFlutter.shouldPreStripLibappInGenSnapshot(
+                      platform: any(named: 'platform'),
+                      flutterRevision: any(named: 'flutterRevision'),
+                    ),
+                  ).thenAnswer((_) async => true);
+                });
+
+                test('logs the real cause and exits before building', () async {
+                  await expectLater(
+                    () =>
+                        runWithOverrides(() => command.createPatch([patcher])),
+                    exitsWithCode(ExitCode.software),
+                  );
+
+                  final message =
+                      verify(() => logger.err(captureAny())).captured.last
+                          as String;
+                  expect(
+                    message,
+                    contains(
+                      '''does not carry the --load-obfuscation-map flag''',
+                    ),
+                  );
+                  expect(
+                    message,
+                    contains(obfuscatedRelease.flutterRevision),
+                  );
+                  // The message must name the binary that was interrogated,
+                  // not a version floor: the reader needs to know which
+                  // gen_snapshot answered.
+                  expect(message, contains('/path/to/gen_snapshot'));
+                  expect(
+                    message,
+                    contains('an engine capability, not a Flutter version'),
+                  );
+
+                  // The whole point of the check is to fail before the build:
+                  // gen_snapshot would otherwise exit 255 for every arch.
+                  verifyNever(() => patcher.extraBuildArgs = any());
+                  verifyNever(
+                    () => patcher.createPatchArtifacts(
+                      appId: any(named: 'appId'),
+                      releaseId: any(named: 'releaseId'),
+                      releaseArtifact: any(named: 'releaseArtifact'),
+                      supplementDirectory: any(named: 'supplementDirectory'),
+                    ),
+                  );
+                });
+
+                test(
+                  '''is probed for the release's Flutter revision, not the local pin''',
+                  () async {
+                    await expectLater(
+                      () => runWithOverrides(
+                        () => command.createPatch([patcher]),
+                      ),
+                      exitsWithCode(ExitCode.software),
+                    );
+
+                    // Distinct values, so this cannot pass if the
+                    // implementation reads shorebirdEnv.flutterRevision.
+                    verify(
+                      () => genSnapshotProbe.supportsLoadObfuscationMap(
+                        flutterRevision: obfuscatedReleaseFlutterRevision,
+                        platform: releasePlatform,
+                      ),
+                    ).called(1);
+                    verifyNever(
+                      () => genSnapshotProbe.supportsLoadObfuscationMap(
+                        flutterRevision: flutterRevision,
+                        platform: any(named: 'platform'),
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+
+            group(
+              '''when gen_snapshot support cannot be determined''',
+              () {
+                setUp(() {
+                  when(
+                    () => genSnapshotProbe.supportsLoadObfuscationMap(
+                      flutterRevision: any(named: 'flutterRevision'),
+                      platform: any(named: 'platform'),
+                    ),
+                  ).thenAnswer(
+                    (_) async => GenSnapshotFlagSupport.indeterminate,
+                  );
+                  when(
+                    () => shorebirdFlutter.shouldPreStripLibappInGenSnapshot(
+                      platform: any(named: 'platform'),
+                      flutterRevision: any(named: 'flutterRevision'),
+                    ),
+                  ).thenAnswer((_) async => true);
+                });
+
+                test('warns and proceeds with the patch', () async {
+                  await runWithOverrides(() => command.createPatch([patcher]));
+
+                  final message =
+                      verify(() => logger.warn(captureAny())).captured.last
+                          as String;
+                  expect(
+                    message,
+                    contains(
+                      '''Could not verify that gen_snapshot supports --load-obfuscation-map''',
+                    ),
+                  );
+                  expect(
+                    message,
+                    contains(obfuscatedRelease.flutterRevision),
+                  );
+                  verify(
+                    () => patcher.createPatchArtifacts(
+                      appId: appId,
+                      releaseId: obfuscatedRelease.id,
+                      releaseArtifact: any(named: 'releaseArtifact'),
+                      supplementDirectory: any(named: 'supplementDirectory'),
+                    ),
+                  ).called(1);
+                });
               },
             );
           });
@@ -1153,6 +1909,31 @@ void main() {
       });
     });
 
+    group('when the Dart SDK does not match the engine', () {
+      setUp(() {
+        when(() => dartSdkCompatibility.validate()).thenThrow(
+          DartSdkMismatchException(
+            engineRevision: '70974f81',
+            expectedDartSdkRevision: '6b58bb3a',
+            actualDartSdkRevision: 'db98bdaa',
+            flutterDirectory: '/flutter',
+            shorebirdRoot: '/shorebird',
+          ),
+        );
+      });
+
+      test('fails with the remediation instead of building', () async {
+        await expectLater(
+          () => runWithOverrides(command.run),
+          exitsWithCode(ExitCode.config),
+        );
+        verify(
+          () => logger.err(any(that: contains('bin/internal/engine.version'))),
+        ).called(1);
+        verifyNever(() => patcher.buildPatchArtifact());
+      });
+    });
+
     group('when release version is specified', () {
       setUp(() {
         when(() => argResults['release-version']).thenReturn(releaseVersion);
@@ -1201,6 +1982,7 @@ void main() {
             ),
             patchArtifactBundles: any(named: 'patchArtifactBundles'),
             track: DeploymentTrack.stable,
+            sidecars: any(named: 'sidecars'),
           ),
         ]);
       });
@@ -1408,6 +2190,7 @@ void main() {
               metadata: any(named: 'metadata'),
               patchArtifactBundles: any(named: 'patchArtifactBundles'),
               track: DeploymentTrack.stable,
+              sidecars: any(named: 'sidecars'),
             ),
           ]);
 
@@ -1560,6 +2343,7 @@ void main() {
                   ),
                   patchArtifactBundles: any(named: 'patchArtifactBundles'),
                   track: any(named: 'track'),
+                  sidecars: any(named: 'sidecars'),
                 ),
               ]);
             },
@@ -1610,6 +2394,7 @@ void main() {
             metadata: any(named: 'metadata'),
             patchArtifactBundles: any(named: 'patchArtifactBundles'),
             track: DeploymentTrack.stable,
+            sidecars: any(named: 'sidecars'),
           ),
         );
       });
@@ -1781,6 +2566,58 @@ Please re-run the release command for this version or create a new release.'''),
           verify(() => logger.info('Exiting.')).called(1);
         });
       });
+
+      // The two groups above use thenThrow, which raises SYNCHRONOUSLY at call
+      // time -- inside the try, where the catch clauses see it. The real
+      // Patcher.assertUnpatchableDiffs is async and signals failure by
+      // completing its Future with an error, which a `return` without `await`
+      // hands to the caller before the try can observe it.
+      //
+      // So these two groups reproduce the async path the production code
+      // actually takes. They FAIL against a bare `return patcher.assert...`
+      // and pass against `return await`, which is what makes them a test of the
+      // await rather than of the catch clause.
+      group('when the failure is an async rejection', () {
+        group('and the user cancels', () {
+          setUp(() {
+            when(
+              () => patcher.assertUnpatchableDiffs(
+                releaseArtifact: any(named: 'releaseArtifact'),
+                releaseArchive: any(named: 'releaseArchive'),
+                patchArchive: any(named: 'patchArchive'),
+              ),
+            ).thenAnswer((_) async => throw UserCancelledException());
+          });
+
+          test('exits with code 0', () async {
+            await expectLater(
+              () => runWithOverrides(command.run),
+              exitsWithCode(ExitCode.success),
+            );
+          });
+        });
+
+        group('and the diff is unpatchable', () {
+          setUp(() {
+            when(
+              () => patcher.assertUnpatchableDiffs(
+                releaseArtifact: any(named: 'releaseArtifact'),
+                releaseArchive: any(named: 'releaseArchive'),
+                patchArchive: any(named: 'patchArchive'),
+              ),
+            ).thenAnswer((_) async => throw UnpatchableChangeException());
+          });
+
+          test('logs and exits with code 70', () async {
+            await expectLater(
+              () => runWithOverrides(command.run),
+              exitsWithCode(ExitCode.software),
+            );
+
+            verify(() => logger.info('Exiting.')).called(1);
+          });
+        });
+      });
     });
 
     group('when patching to the staging track', () {
@@ -1801,6 +2638,7 @@ Please re-run the release command for this version or create a new release.'''),
             metadata: any(named: 'metadata'),
             patchArtifactBundles: any(named: 'patchArtifactBundles'),
             track: DeploymentTrack.staging,
+            sidecars: any(named: 'sidecars'),
           ),
         ).called(1);
       });
@@ -1847,6 +2685,7 @@ Please re-run the release command for this version or create a new release.'''),
               ),
               patchArtifactBundles: any(named: 'patchArtifactBundles'),
               track: any(named: 'track'),
+              sidecars: any(named: 'sidecars'),
             ),
           );
         });
@@ -1874,6 +2713,7 @@ Please re-run the release command for this version or create a new release.'''),
               ),
               patchArtifactBundles: any(named: 'patchArtifactBundles'),
               track: any(named: 'track'),
+              sidecars: any(named: 'sidecars'),
             ),
           );
         });
@@ -1893,6 +2733,7 @@ Please re-run the release command for this version or create a new release.'''),
             metadata: any(named: 'metadata'),
             track: any(named: 'track'),
             patchArtifactBundles: any(named: 'patchArtifactBundles'),
+            sidecars: any(named: 'sidecars'),
           ),
         );
       }
@@ -1909,6 +2750,8 @@ Please re-run the release command for this version or create a new release.'''),
         when(() => iosPatcher.linkPercentage).thenReturn(null);
         when(() => iosPatcher.assertArgsAreValid()).thenAnswer((_) async {});
         when(() => iosPatcher.assertPreconditions()).thenAnswer((_) async {});
+        when(iosPatcher.assetsDirectory).thenAnswer((_) async => null);
+        when(iosPatcher.debugSymbolsDirectory).thenAnswer((_) async => null);
         when(
           () => iosPatcher.buildPatchArtifact(
             releaseVersion: any(named: 'releaseVersion'),
@@ -1994,6 +2837,7 @@ Please re-run the release command for this version or create a new release.'''),
               ReleasePlatform.android: patchArtifactBundles,
               ReleasePlatform.ios: patchArtifactBundles,
             },
+            sidecars: any(named: 'sidecars'),
           ),
         ).called(1);
       });
@@ -2009,6 +2853,7 @@ Please re-run the release command for this version or create a new release.'''),
                     metadata: captureAny(named: 'metadata'),
                     track: any(named: 'track'),
                     patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                    sidecars: any(named: 'sidecars'),
                   ),
                 ).captured.single
                 as Map<String, dynamic>;
@@ -2138,6 +2983,7 @@ Please re-run the release command for this version or create a new release.'''),
               metadata: any(named: 'metadata'),
               track: any(named: 'track'),
               patchArtifactBundles: any(named: 'patchArtifactBundles'),
+              sidecars: any(named: 'sidecars'),
             ),
           ).called(1);
         });

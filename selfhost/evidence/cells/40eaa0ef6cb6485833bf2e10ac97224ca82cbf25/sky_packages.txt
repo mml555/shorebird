@@ -1,0 +1,23 @@
+# sky_engine / flutter_gpu provenance for 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+# Written by selfhost/engine/publish_sky_packages.sh
+# 'content_matches: yes' with 'zip_bytes_match: no' is the EXPECTED
+# result — zip byte identity moves with mtimes and entry order.
+
+artifact:          sky_engine.zip
+engine_hash:       40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+local_sha256:      b4af65f932a83b92283b3ca85224f376ef98faa2425dc783c7c328474ed2bf08
+stock_sha256:      92434d1ccb235115373276715cfdb9b0e3c7d5b2b231744dd75e0ec93197b335
+stock_source:      69f9831c360d9152862ec3897c67fb09ae843f3b
+zip_bytes_match:   no
+content_matches:   no
+built_from:        packaged from directory: /Volumes/build/route-b/flutter/engine/src/out/ios_release/gen/dart-pkg/sky_engine
+
+artifact:          flutter_gpu.zip
+engine_hash:       40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+local_sha256:      da967073ac82f0e2189e9070daf833ccdd61cba315d3260a5d35e256118d5fac
+stock_sha256:      6f5d21625d1bcd348cc8c9fe5b0724727224f9fad67cd29f863f2a1372d98a0c
+stock_source:      69f9831c360d9152862ec3897c67fb09ae843f3b
+zip_bytes_match:   no
+content_matches:   yes
+built_from:        packaged from directory: /Volumes/build/route-b/flutter/engine/src/flutter/lib/gpu
+

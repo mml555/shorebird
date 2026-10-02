@@ -1,0 +1,333 @@
+# cspell:words nutsdb epath mabi mfile mext sbucket sfile
+#
+# Self-hosted Shorebird CDN cache (Caddy).
+#
+# Purpose: mirror the build-time artifacts that the Shorebird CLI + the vended
+# Flutter tool would otherwise fetch from download.shorebird.dev / GCS, so that
+# after one warm-up build every artifact is served from local disk. It also
+# serves LOCALLY BUILT experimental engines from an overlay (see below).
+#
+# Topology (see selfhost/CDN_INDEPENDENCE.md):
+#   client -> [this Caddy] -> /overlay (local experimental build) if present
+#                          -> artifact_proxy -> 302 to storage.googleapis.com
+#                          -> (rewritten) /gcs/... back through this Caddy -> GCS (cached)
+#
+# Flow A (Flutter engine): FLUTTER_STORAGE_BASE_URL -> this Caddy.
+# Flow B (CLI cache: patch/aot-tools): SHOREBIRD_STORAGE_BASE_URL -> this Caddy,
+#   SHOREBIRD_STORAGE_BUCKET=download.shorebird.dev (requires the cache.dart
+#   patch documented in CDN_INDEPENDENCE.md §6).
+#
+# ---------------------------------------------------------------------------
+# EXPERIMENTAL ENGINE OVERLAY
+#
+# An engine we build ourselves gets its own 40-hex engine hash so it can never
+# be confused with, or overwrite, the supported pin in
+# selfhost/compatibility.yaml. But only a handful of artifacts actually differ.
+# For an experimental hash:
+#   1. serve the file from /overlay if it is there (that is our build), else
+#   2. if the path is one the overlay OWNS -> 404, loudly. Never substitute
+#      stock bytes for an artifact we were supposed to have rebuilt.
+#   3. otherwise rewrite the hash to the pinned revision and serve it the normal
+#      way — from the already-warm cache.
+#
+# `experimental_hashes.map` (written by selfhost/engine/overlay_publish.sh) is
+# what makes a hash "experimental": it maps <expHash> -> <pinnedHash>. A hash
+# not in that file behaves exactly as it did before this overlay existed.
+# ---------------------------------------------------------------------------
+{
+	auto_https off
+	admin off
+
+	# Cache before respond (which itself precedes reverse_proxy in Caddy's
+	# default directive order) so /gcs/ and Flow B store final bytes on disk —
+	# and so SEALED mode's `respond` refusal cannot preempt a cache HIT: a warm
+	# sealed mirror must keep serving cached bytes.
+	order cache before respond
+
+	cache {
+		# Immutable, revision-scoped artifacts: safe to cache long-term.
+		# bypass_response ignores upstream Cache-Control (GCS often sends
+		# max-age=3600) so our ttl wins — same idea as nginx's
+		# proxy_cache_valid 200 365d.
+		mode bypass_response
+		ttl 8760h
+		stale 168h
+		nuts {
+			path /var/cache/caddy/cdn
+		}
+		# Successful artifact responses are immutable. Handlers below override
+		# Cache-Control on 404 so unpublished paths only stick for one minute.
+		default_cache_control "public, max-age=31536000, immutable"
+		log_level error
+	}
+}
+
+# Shared site logic — mounted on :8080 always, and on :8443 when TLS is enabled
+# (see tls/listen-*.caddy).
+(mirror_site) {
+	# Engine hash carried by the request path, whatever flow it belongs to.
+	map {http.request.uri.path} {engine_hash} {
+		~^/flutter_infra_release/flutter/([0-9a-f]{40})/ "${1}"
+		~^/download\.flutter\.io/io/flutter/[^/]+/1\.0\.0-([0-9a-f]{40})/ "${1}"
+		~^/[^/]+/shorebird/([0-9a-f]{40})/ "${1}"
+		default ""
+	}
+
+	# Experimental hash -> the pinned hash its non-rebuilt artifacts come from.
+	# Empty for every ordinary revision (byte-identical to the pre-overlay mirror).
+	map {engine_hash} {stock_engine_hash} {
+		default ""
+		import /etc/caddy/experimental_hashes.map
+	}
+
+	# Ownership only bites for an EXPERIMENTAL hash. Without this, an ordinary
+	# pinned-revision request for an arm64 artifact would 404 instead of passing
+	# through to the mirror — i.e. the overlay would break the plain cache.
+	#
+	# Keep the path list in sync with what selfhost/engine/overlay_publish.sh
+	# copies, and with selfhost/cdn/artifact_policy.conf, which is the written
+	# ownership policy. selfhost/cdn/audit_overlay.sh checks all three agree.
+	#
+	# DO NOT "FIX" THE MISSING $ ANCHOR AFTER android-arm64-release/ —
+	# the darwin-x64.zip and windows-x64.zip 404s are INTENTIONAL.
+	#
+	# `android-arm64-release/` in the alternation below has no `$` anchor, so it
+	# matches every file under that prefix, including the darwin-x64 and
+	# windows-x64 HOST GEN_SNAPSHOTS. Those are `denied` in
+	# artifact_policy.conf: not part of the supported build matrix, so a
+	# custom-engine request must FAIL rather than fall through to stock.
+	# Pairing a stock host compiler with our engine is the fork mix
+	# dart_sdk_compatibility.dart exists to refuse, and it compiles cleanly
+	# before failing on the device — so "it built" would prove nothing.
+	# Anchoring the prefix would silently re-enable that fallback. Leave it.
+	#
+	# (This comment previously claimed those two were "deliberately NOT owned",
+	# which was the opposite of what the regex does. Behavior was right, comment
+	# was wrong. Flow B's patch-windows-x64.zip IS genuinely unowned and does
+	# fall through — recorded gap, no Windows builder.)
+	#
+	# sky_engine.zip and flutter_gpu.zip are NOT protected in THIS matcher, and the
+	# reason is that protection here is GLOBAL:
+	#
+	#   the alternation matches [0-9a-f]{40}, i.e. ANY mapped hash. Adding
+	#   sky_engine.zip here protects it for every mapped hash at once, and any hash
+	#   that does not have the bytes would start 404ing it and fail every build.
+	#
+	# They ARE protected, per hash, in @must_be_local_pkgs below — as of 2026-08-13
+	# for 70974f81, 760e3fab and 881e4129. (This block previously read "NOT owned,
+	# and deliberately so for now", which stopped being true once that per-cell
+	# matcher existed and would have talked the next reader out of protecting them
+	# at all. Corrected in place.)
+	#
+	# The ORDER still holds and is the part worth keeping: publish for a hash FIRST,
+	# then protect it. `selfhost/cdn/audit_overlay.sh` prints exactly which hashes
+	# are still missing an artifact, and says NOT SAFE TO PROTECT YET until they
+	# have it.
+	#
+	# Flow B IS owned for experimental hashes: the patch differ zips are built by
+	# selfhost/engine/publish_patch_tool.sh, artifacts_manifest.yaml is written
+	# by overlay_publish.sh, and aot-tools.dill is owned precisely so a fork-hash
+	# request 404s LOUDLY instead of silently serving the pinned linker the fork
+	# engine cannot use (the CLI treats it as optional and warns).
+	#
+	# font-subset.zip is owned for a reason worth remembering: it carries
+	# const_finder.dart.snapshot, and it extracts into the SAME cache directory
+	# as artifacts.zip. Unowned, it fell through to the pinned revision and the
+	# STOCK const_finder overwrote the fork one, so every release died with
+	# "ConstFinder failure: Can't load Kernel binary: Invalid SDK hash" — a
+	# silent cross-toolchain mix that cost a full warm run to find
+	# (2026-08-06). Published by selfhost/engine/publish_font_subset.sh.
+	#
+	# ONLY darwin-arm64/font-subset.zip is owned, because darwin-arm64 is the
+	# only host toolchain we build (we publish dart-sdk-darwin-arm64.zip and
+	# nothing else). Owning the linux/windows variants would 404 the Linux
+	# build host's own font-subset fetch, where falling through to the pinned
+	# revision is CORRECT — that host runs a stock Dart SDK, so it needs the
+	# stock const_finder. Every mapped hash publishes this file: ours where
+	# the host toolchain is ours, a verbatim copy of the pinned one where it
+	# is not, so ownership never has to guess.
+	#
+	# route-b-compiler-*.zip is hash-generic on purpose, and it is the one entry
+	# where falling through would be actively dangerous rather than merely wrong.
+	# The CLI resolves the compiler cell by the RELEASE's engine hash precisely so a
+	# patch is compiled by the same lineage that built the release
+	# (route_b_compiler_cache.dart). Serving the PINNED hash's cell on a miss would
+	# hand a patch build a different engine's compiler, silently — the
+	# mixed-provenance failure whose signature is a message that names neither tree.
+	# A 404 makes the CLI say "no compiler cell for engine X", which is the truth.
+	# Upstream publishes no such artifact, so protecting it globally cannot 404 a
+	# fetch that would otherwise legitimately succeed.
+	#
+	# Caddy allows only one path_regexp per named matcher, so ownership is one
+	# alternation. expression is AND'd with it.
+	@must_be_local {
+		expression `{stock_engine_hash} != ""`
+		path_regexp ^/(flutter_infra_release/flutter/[0-9a-f]{40}/(android-arm64-release/|ios-release/|(linux|darwin|windows)-(x64|arm64)/artifacts\.zip$|darwin-arm64/font-subset\.zip$|flutter_patched_sdk_product\.zip$|flutter_patched_sdk\.zip$|dart-sdk-[a-z0-9-]+\.zip$|engine_stamp\.json$)|download\.flutter\.io/io/flutter/|[^/]+/shorebird/[0-9a-f]{40}/(patch-(darwin-arm64|darwin-x64|linux-x64)\.zip$|aot-tools\.dill$|artifacts_manifest\.yaml$|route-b-compiler-[a-z0-9-]+\.zip$))
+	}
+
+	# ---- Per-cell ownership -------------------------------------------------
+	# Artifacts owned for SPECIFIC supported cells, with the hashes spelled out
+	# on purpose. @must_be_local above matches [0-9a-f]{40}, i.e. ANY mapped
+	# hash, which is right for artifacts every hash publishes — and wrong for
+	# these.
+	#
+	#   sky_engine.zip / flutter_gpu.zip   both supported cells
+	#   linux-x64/font-subset.zip          760e3fab ONLY
+	#
+	# The last one is scoped to a single hash for the reason the darwin-arm64
+	# note above gives: it carries const_finder, and only a hash that publishes
+	# OUR linux host toolchain may serve OUR const_finder. A Linux build against
+	# any other hash runs a stock Dart SDK and needs the STOCK const_finder, so
+	# falling through is correct there — owning it globally would 404 a fetch
+	# that is currently right.
+	#
+	# We own them per CELL, from each cell's own tree (they are engine-revision
+	# namespaced, and copying one hash's copy to another would be exactly the
+	# borrowing this whole policy exists to prevent). The superseded, Track E
+	# and diagnostic hashes therefore do not have them and never will, so a
+	# hash-generic matcher would 404 those builds instead of letting them fall
+	# through to stock — which for an unsupported cell is the correct outcome.
+	#
+	# 881e4129 (the Route B diagnostic engine) was added 2026-08-13 after
+	# publish_sky_packages.sh ran for it, and it is the first hash where these bytes
+	# are MEASURABLY not stock: its tree carries killgate
+	# 0001-attach-bytecode-native.patch, so sky_engine.zip differs from stock in
+	# sky_engine/lib/_internal/vm/lib/internal_patch.dart and
+	# sky_engine/lib/internal/internal.dart -- the two files that patch edits. Until
+	# it was published and protected, every build against this hash fetched STOCK
+	# Dart SDK patch sources while we believed we were serving ours. The comment in
+	# publish_sky_packages.sh predicted exactly this case; the diff is kept beside
+	# the zip as sky_engine.content-diff.txt.
+	#
+	# ADD A HASH HERE ONLY AFTER publish_sky_packages.sh has run for it.
+	# selfhost/cdn/audit_overlay.sh reads BOTH matchers and will say NOT SAFE TO
+	# PROTECT YET if you get the order wrong.
+	@must_be_local_pkgs {
+		expression `{stock_engine_hash} != ""`
+		path_regexp ^/flutter_infra_release/flutter/((70974f811d448da19a927c581678ef1dbd33605c|760e3fabffbf31b4e86919a0ef47d6ce5f182991|881e4129ce06e8d61019e0ed892f3be7c039763e|4df8f9b6139b67d2cfe9f6aa8212372cade36278|40eaa0ef6cb6485833bf2e10ac97224ca82cbf25)/(sky_engine|flutter_gpu)\.zip|760e3fabffbf31b4e86919a0ef47d6ce5f182991/linux-x64/font-subset\.zip)$
+	}
+
+	@has_stock expression `{stock_engine_hash} != ""`
+
+	root * /overlay
+
+	route {
+		# ---- Cached mirror of Google Cloud Storage --------------------------
+		@gcs path /gcs/*
+		handle @gcs {
+			uri strip_prefix /gcs
+			cache
+			# Enabled or sealed via the docker-compose mount (upstream/*.caddy).
+			import /etc/caddy/upstream_gcs.caddy
+		}
+
+		# ---- Overlay: experimental builds straight off disk -----------------
+		@overlay_hit {
+			file {
+				try_files {path}
+			}
+		}
+		handle @overlay_hit {
+			header X-Overlay hit
+			header X-Engine-Hash {engine_hash}
+			file_server
+		}
+
+		# Loud failure: owned by the overlay but absent.
+		handle @must_be_local {
+			respond "overlay miss on owned artifact" 404
+		}
+		handle @must_be_local_pkgs {
+			respond "overlay miss on owned artifact (sky package, supported cell)" 404
+		}
+
+		# ---- Flow A: Flutter engine artifacts -------------------------------
+		# Do not cache the 302 itself; the bytes are cached at /gcs/.
+		@engine path_regexp engine ^/flutter_infra_release/flutter/([0-9a-f]{40})/(.*)$
+		handle @engine {
+			handle @has_stock {
+				rewrite * /flutter_infra_release/flutter/{stock_engine_hash}/{re.engine.2}
+				reverse_proxy artifact-proxy:8080 {
+					header_up Host {host}
+					header_down Location https://storage.googleapis.com/ /gcs/
+					header_down Location http://storage.googleapis.com/ /gcs/
+				}
+			}
+			handle {
+				reverse_proxy artifact-proxy:8080 {
+					header_up Host {host}
+					header_down Location https://storage.googleapis.com/ /gcs/
+					header_down Location http://storage.googleapis.com/ /gcs/
+				}
+			}
+		}
+
+		# ---- Flow A (Maven) -------------------------------------------------
+		@maven path_regexp maven ^/download\.flutter\.io/io/flutter/([^/]+)/1\.0\.0-([0-9a-f]{40})/([^/]+)-1\.0\.0-[0-9a-f]{40}\.([A-Za-z0-9.\-]+)$
+		handle @maven {
+			handle @has_stock {
+				rewrite * /download.flutter.io/io/flutter/{re.maven.1}/1.0.0-{stock_engine_hash}/{re.maven.3}-1.0.0-{stock_engine_hash}.{re.maven.4}
+				reverse_proxy artifact-proxy:8080 {
+					header_up Host {host}
+					header_down Location https://storage.googleapis.com/ /gcs/
+					header_down Location http://storage.googleapis.com/ /gcs/
+				}
+			}
+			handle {
+				reverse_proxy artifact-proxy:8080 {
+					header_up Host {host}
+					header_down Location https://storage.googleapis.com/ /gcs/
+					header_down Location http://storage.googleapis.com/ /gcs/
+				}
+			}
+		}
+
+		# ---- Flow A fallback ------------------------------------------------
+		@engine_misc path_regexp ^/(flutter_infra_release|download\.flutter\.io)/
+		handle @engine_misc {
+			reverse_proxy artifact-proxy:8080 {
+				header_up Host {host}
+				header_down Location https://storage.googleapis.com/ /gcs/
+				header_down Location http://storage.googleapis.com/ /gcs/
+			}
+		}
+
+		# ---- Flow B: CLI cache artifacts ------------------------------------
+		@shorebird path_regexp shorebird ^/([^/]+)/shorebird/([0-9a-f]{40})/(.*)$
+		handle @shorebird {
+			handle @has_stock {
+				rewrite * /{re.shorebird.1}/shorebird/{stock_engine_hash}/{re.shorebird.3}
+				cache
+				# Enabled or sealed via the docker-compose mount (upstream/*.caddy).
+				import /etc/caddy/upstream_gcs.caddy
+			}
+			handle {
+				cache
+				# Enabled or sealed via the docker-compose mount (upstream/*.caddy).
+				import /etc/caddy/upstream_gcs.caddy
+			}
+		}
+
+		# ---- Raw GCS passthrough --------------------------------------------
+		handle {
+			cache
+			# Enabled or sealed via the docker-compose mount (upstream/*.caddy).
+			import /etc/caddy/upstream_gcs.caddy
+		}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+
+http://:8080 {
+	import mirror_site
+}
+
+# Optional HTTPS on :8443. docker-compose mounts either listen-enabled.caddy or
+# listen-disabled.caddy here. Needed because Gradle 8+ rejects insecure Maven
+# repositories, which is what FLUTTER_STORAGE_BASE_URL becomes during an Android
+# release build.
+import /etc/caddy/tls_listen.caddy

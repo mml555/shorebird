@@ -1,0 +1,117 @@
+`routeBValue` REPAIR — MECHANISM CONFIRMED, 2026-08-17
+=======================================================
+
+Precommitted in routebvalue_repair_precommit.md, INCLUDING its scoring rule,
+before the fixture was edited. Neither table is edited here.
+
+THE RESULT — first row of the precommitted table
+--------------------------------------------------
+
+**`route B value: NEW-kill`**, launch `hlfr7vj9g1`, on the target that drove this
+entire investigation.
+
+    screen_NEW-kill_hlfr7vj9g1.png   release 1.0.8+1 (control-plane id 99, preserved as 99), patch 1
+
+THE FULL CHAIN, EVERY LINK MEASURED ON ONE TARGET
+---------------------------------------------------
+| link | BEFORE (rel 95/96, foldable body) | AFTER (rel 99, opaque body) |
+|---|---|---|
+| release body | `=> 'OLD-kill'` (constant) | `DateTime.now()… == -1 ? 'UNREACHABLE-KILL' : 'OLD-kill'` |
+| compiled size | `0xe9ff4-0xea000` = **12 B** stub | `0xea090-0xea110` = **128 B** real code |
+| static call site | **NOT LOCATED** — 0 surviving | **1 site @`0xea0b4`, CONSUMED** |
+| pool scan | **`TPOOL_ABSENT`** matches=0 | **`TPOOL_UNIQUE`** matches=1 idx **4211** |
+| attach | `rc=0 bc_post=1 uep=1` | `rc=0 bc_post=1 uep=1` (unchanged) |
+| **screen** | **`OLD-kill`** | **`NEW-kill`** |
+
+**`ABSENT → UNIQUE` happened exactly as predicted**, and the attach was already
+succeeding on both sides — so the variable was never attachment.
+
+    foldable release body -> call substituted -> ABSENT -> attach OK -> OLD renders
+    opaque   release body -> call survives    -> UNIQUE -> attach OK -> PATCHED renders
+
+This converts a correlation across specimens into a **repair-and-restore on the
+single target that failed for the whole investigation.** One line of body, nothing
+else: same name, same signature, same caller in `build()`, same release-visible
+`OLD-kill`, same patched `NEW-kill`, no pragmas added, boot/killswitch/receipt
+machinery untouched.
+
+ADMISSIBILITY — all five met
+------------------------------
+1. **screen with patch `Installed`** — `Installed` before AND after. `Bad` is
+   terminal, so `Installed` afterwards proves `Installed` throughout;
+2. **trace delta 0 → 1** on this launch; `rc=0`, `bc_post=1`,
+   `uep_post_is_interpret_call=1`;
+3. **receipt, same launch id**: `dart hlfr7vj9g1 dart-main-entered` →
+   `boot-probe-returned:boot-ok` → `arm:render` → **`first-frame`**. The screen
+   carries `launch hlfr7vj9g1`, so screen and receipt are tied by the fixture's
+   own id rather than by assumption;
+4. release preserved (LC_UUID `b68032dfeb8e33a2a5405ab4a875d539`, asserted against
+   the installed bundle); patch container verified to carry `NEW-kill`;
+5. **static pre-check passed BEFORE the device run** (`static_precheck.txt`).
+
+Controls: `boot: boot-ok` unchanged on the same screen; `pointers.json` shows
+`last_booted_patch: 1`, `boot_attempt_count: 0`, `currently_booting_patch: null`;
+`queued_events: []`.
+
+=============================================================================
+ARM A — SCORED UNDER THE PRECOMMITTED RULE, AND **NOT** REWRITTEN
+=============================================================================
+
+`gate5_arms_precommit.md` was read BEFORE this run and **contains no provision for
+fixture repair.** Per the rule fixed in advance:
+
+* **ORIGINAL ARM A REMAINS INCONCLUSIVE.** Its specimen was `routeBValue() =>
+  'OLD-kill'`, and that specimen is not what ran here. It is not re-scored, not
+  retroactively passed, and its verdict files are not edited.
+* **THIS IS ARM A'S CONFIRMING SUCCESSOR**, recorded here and nowhere else.
+
+Stated plainly because the coincidence is easy to over-read: this run's
+observations **do** match arm A's precommitted PASS row — receipt reaches
+`first-frame`, screen shows `NEW-kill`, `last_booted_patch: 1`,
+`boot_attempt_count: 0`, `queued_events: []`. **That is not a PASS of arm A**,
+because the release body was repaired. It is a PASS-EQUIVALENT observation on a
+REPAIRED SPECIMEN, and the distinction is the whole reason the rule was fixed
+before the run rather than after seeing this.
+
+**Mechanism confirmation never required arm A's PASS, and does not claim it.**
+
+WHAT IS NOW ESTABLISHED
+------------------------
+**The "attaches but the old value executes" phenomenon is explained and is
+repairable.** A target whose body is compile-time foldable has its result
+substituted at every call site; no call reaches the `Function`; nothing references
+it in the object pool; Route B attaches to it perfectly and nobody ever calls it.
+Give the same target an opaque body and the call survives, the pool reference
+appears, and the patched value renders.
+
+Demonstrated twice, on two fixtures, in two directions:
+* **synthetically**, on a matched pair in `airgap_probe` (`foldability_verdict.txt`)
+  — `OLD-CONST` / `NEW-OPAQUE` side by side;
+* **by repair**, on `killswitch_probe`'s own long-failing target (this file).
+
+HISTORY RECONCILED
+-------------------
+`gate5_armA_fold_refuted.txt` rejected this family on 2026-08-16 because release
+91 "worked" while showing the same shape. `manual_launch_control_verdict.txt`
+withdrew that baseline, and the two experiments since have supplied the positive
+evidence the hypothesis never had. **That refutation was correct on its evidence
+and wrong in its conclusion — the faulty part was the objection, not the
+hypothesis.**
+
+And the mechanism was documented in `airgap_probe` from the beginning
+(`lib/main.dart:52-56`), discovered on the HOST: *"a literal is constant-folded by
+the type-flow analysis even under vm:never-inline… the gate then reports a working
+mechanism as OLD."* It was never connected to the device failure until now.
+
+WHAT THIS DOES NOT CLAIM
+------------------------
+* NOT that arm A passed — see above. **Arm A: INCONCLUSIVE.**
+* NOT that foldability is the only route to this phenomenon.
+* NOT that pool presence is causally prior to the missing call site; they are two
+  views of one substitution and this run cannot order them.
+* NOT anything about `killswitch_probe`'s boot/tombstone behaviour, which was
+  untouched and belongs to its own lane.
+* Standing: Route B iOS end-to-end **PROVEN** (eight specimens); target kind
+  **REFUTED**; foldability **ISOLATED**; release-91 `NEW-kill` **contradicted**;
+  Claim 1 **instrument established and positive locator proven**, `AMBIGUOUS`
+  still unexercised.

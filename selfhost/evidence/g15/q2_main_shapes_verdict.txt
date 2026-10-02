@@ -1,0 +1,88 @@
+G15 Q2 — THE SEVEN SHAPES, MEASURED: VERDICT, 2026-08-15
+=========================================================
+
+Precommitted in `q2_success_policy_precommit.md` (062e7276), which is not edited
+here. Probe: `engine/route_b/probes/q2_main_shapes.dart`, run on the pinned
+Flutter's Dart SDK 3.12.2. No engine build, no cell consumed, no device.
+
+MEASURED
+--------
+  S1 void main, runApp, returns          SYNC RETURN (Null) — completion immediate
+  S2 async main, await then runApp       FUTURE COMPLETED with a value
+  S3 async main, throws after await      FUTURE ERROR (StateError)
+  S4 void main, throws before runApp     SYNC THROW at the boundary, no value
+  S5 main handles its own error in a zone SYNC RETURN (Null)
+  S6 main sets onError (return shape)    SYNC RETURN (Null)
+  S7 async main, runApp then awaits      NO COMPLETION within 250ms
+
+THE PREDICTIONS HELD, INCLUDING WHERE THEY PREDICTED FAILURE
+-------------------------------------------------------------
+Policy **A** (return/completion) banks correctly on S1, S2, S5, S6; reports
+POSITIVE FAILURE on S3 and S4; and does not bank on S7.
+
+**A's fatal cell is S7 and only S7.** The precommit named that cell in advance
+and nothing else moved.
+
+THE CONTRACT IS NOT FALSIFIED, WHICH WAS THE REAL RISK
+--------------------------------------------------------
+The precommit stated: *"If measurement shows A also fails S1, S2, S5 or S6 — i.e.
+the return/completion signal is not observable in an ordinary shape — then the
+settled implementation contract is wrong and gate 4 reopens, not just Q2."*
+
+That did not happen. The return/completion signal is observable in every ordinary
+shape, so:
+
+  * capturing the discarded `Object?` is sufficient to distinguish sync
+    completion, async success and async failure;
+  * gate 4 does NOT reopen;
+  * Q2 remains the only architectural choice, exactly as scoped.
+
+TWO RESULTS WORTH MORE THAN THE TABLE
+---------------------------------------
+**S5 — an app that handles its own error looks IDENTICAL to a clean boot at the
+boundary.** `runZonedGuarded` inside `main` swallows the error, and the seam sees
+a plain synchronous return. That is CORRECT and it is load-bearing: the seam will
+not false-fail an app that deals with its own errors, and it does not need any
+logic to distinguish "handled by the app" from "never threw". A seam that tried
+to see those errors would be reaching below its own boundary into application
+business.
+
+**S4 — the synchronous throw is caught AT the boundary**, with no value returned,
+confirming that the lexical `try`/`catch` position in the contract is the right
+one for the sync case. Note the limit: this shows the CATCH WORKS in ordinary Dart
+semantics. It does NOT show ordering against `PlatformDispatcher.onError`, which
+the precommit put out of scope for any host run.
+
+WHAT REMAINS UNMEASURED, AND IS NOT TO BE REPORTED OTHERWISE
+--------------------------------------------------------------
+* **`onError` ordering.** Needs an instrumented engine — i.e. the seam itself. The
+  source argument in `runmain_seam_matrix.txt` (`onError` fires only for
+  *unhandled* errors; a lexical `catch` preempts that classification; no zone
+  wraps the entrypoint because `RawReceivePort` does not work with Zones) stands
+  on its own and remains a SOURCE argument.
+* **S7 is a bounded observation.** "Did not complete within 250ms" is not "never
+  completes". The distinction is not pedantic — it is the same distinction the
+  seam itself must honour, since treating *not yet completed* as *failed* would
+  tombstone every slow boot.
+* **Policy B and C's condition — first frame — is not measured here at all.** This
+  probe cannot rasterize.
+* Run on the host Dart VM rather than inside the engine's root isolate. Return
+  shape is core language semantics and identical in both, but it was not observed
+  in situ.
+
+WHAT THIS DECIDES, AND WHAT IT LEAVES OPEN
+--------------------------------------------
+DECIDED: the implementation contract is sound and sufficient for six of seven
+shapes. A pure return/completion policy is viable for every shape except a `main`
+that never completes.
+
+OPEN, and still the only architectural choice: whether to adopt **A** and accept
+that S7-shaped apps are never banked (a false backout after two boots, via
+`0010`'s counter), or **C** (earliest-of A-or-first-frame), or **D** (A plus a
+non-timer liveness condition). The precommit expects **C** and records why, along
+with each candidate's disqualifier — including that a TIMEOUT is inadmissible for
+D, because it converts a slow-but-good boot into a tombstoned patch.
+
+Choosing between C and D needs one thing this probe cannot supply: whether a
+first-frame signal is reachable from the seam without widening the false-backout
+window `0010` closed. That is the next question, and it is still source-level.

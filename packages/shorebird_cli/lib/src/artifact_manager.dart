@@ -322,6 +322,94 @@ class ArtifactManager {
     return outDir;
   }
 
+  /// Extracts every `base/assets/flutter_assets/**` entry from [aab] into a
+  /// fresh temporary directory, laid out relative to `flutter_assets/` (so
+  /// `AssetManifest.bin` lands at the root), and returns it. Returns `null` if
+  /// the bundle carries no `flutter_assets` tree.
+  ///
+  /// The AAB is the authoritative source: these are the bytes the release
+  /// would have shipped, already through Flutter's asset pipeline. Reading an
+  /// intermediate build directory instead would risk picking up assets from a
+  /// different variant.
+  ///
+  /// The decode runs in a separate isolate to avoid blocking progress
+  /// animations while reading a potentially large bundle.
+  static Future<Directory?> extractAndroidFlutterAssetsFromAab(
+    File aab,
+  ) async {
+    final outDir = Directory.systemTemp.createTempSync('shorebird_aab_assets');
+    final aabPath = aab.path;
+    final outPath = outDir.path;
+    final extracted = await Isolate.run(() {
+      final assetEntry = RegExp(r'^base/assets/flutter_assets/(.+)$');
+      final inputStream = InputFileStream(aabPath);
+      final archive = ZipDecoder().decodeStream(inputStream);
+      var count = 0;
+      // Entry contents are decompressed lazily from the input stream, so only
+      // close it once every asset has been written out.
+      for (final file in archive.files) {
+        if (!file.isFile) continue;
+        final match = assetEntry.firstMatch(file.name);
+        if (match == null) continue;
+        final relativePath = match.group(1)!;
+        File(p.join(outPath, relativePath))
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(file.content as List<int>);
+        count++;
+      }
+      inputStream.closeSync();
+      return count;
+    });
+
+    if (extracted == 0) {
+      outDir.deleteSync(recursive: true);
+      return null;
+    }
+    return outDir;
+  }
+
+  /// Finds the `flutter_assets` directory inside a built app bundle, or `null`
+  /// if the bundle has none.
+  ///
+  /// Searched rather than hardcoded because the location differs per Apple
+  /// platform and has moved between Flutter versions. Observed in real builds:
+  /// - iOS: `Frameworks/App.framework/flutter_assets`
+  /// - macOS: `Contents/Frameworks/App.framework/Versions/A/Resources/flutter_assets`
+  ///
+  /// **Symlinks are not followed.** A macOS framework is a web of them —
+  /// `App.framework/Resources` → `Versions/Current/Resources` and
+  /// `Versions/Current` → `A` — so following links would walk the same tree
+  /// twice and, worse, could loop forever on a cycle in any embedded framework,
+  /// hanging `shorebird patch` with no output. Walking only real directories
+  /// makes a cycle impossible and lands on the canonical path.
+  ///
+  /// Returns the shallowest match, so a copy nested inside an embedded plugin
+  /// framework can never win over the app's own assets.
+  static Directory? findFlutterAssetsDirectory(Directory bundleRoot) {
+    if (!bundleRoot.existsSync()) return null;
+
+    // Breadth-first so depth decides ties, not directory listing order.
+    final queue = <Directory>[bundleRoot];
+    while (queue.isNotEmpty) {
+      final dir = queue.removeAt(0);
+      final List<Directory> children;
+      try {
+        children = dir
+            .listSync(followLinks: false)
+            .whereType<Directory>()
+            .toList();
+      } on FileSystemException {
+        // Unreadable subtree: skip it rather than fail the whole search.
+        continue;
+      }
+      for (final child in children) {
+        if (p.basename(child.path) == 'flutter_assets') return child;
+      }
+      queue.addAll(children);
+    }
+    return null;
+  }
+
   /// The directory containing the compiled macOS .app file, if it exists.
   Directory? getMacOSAppDirectory({String? flavor}) {
     final projectRoot = shorebirdEnv.getShorebirdProjectRoot()!;

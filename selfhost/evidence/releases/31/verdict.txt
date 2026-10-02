@@ -1,0 +1,84 @@
+classifier    : f0c19701   (trace schema v4)
+target        : package:airgap_probe/main.dart RouteBThing.value
+rc            : 0   attach_entered=1 attach_returned=1
+function      : 0x105cbdf21
+
+THE UI DECIDED THIS RUN, AND THE TRACE CORROBORATES IT
+  release body  : DateTime.now()... ? 'OLD-rel' : '${helper()}${tagged('ARG')}$label'
+  patch body    : String value() => 'NEW-CTL';
+  baseline      : route B value OLD-rel, code patch none
+  after patch 1 : route B value NEW-CTL, code patch 1
+  same bytes    : App sha256 573bb7964e02a5569dc74fbf58c520ad and LC_UUID
+                  49bfcd9b754934029e64ae632a66e34c installed at ALL THREE launches,
+                  asserted each time. The binary that showed OLD-rel is the binary
+                  that showed NEW-CTL; the only variable was the patch.
+
+ADMISSIBLE, OFFSET-INDEPENDENT EVIDENCE (Function layer)
+  has_bytecode            0  -> 1
+  is_interpreted          0  -> 1
+  bytecode size           7      release Code size 328
+  entry_point_            0x105331ca8    -> 0x105260044
+  unchecked_entry_point_  0x105331ca8    -> 0x105260044
+  same-run InterpretCall  : 0x105260044
+  uep_post_is_interpret_call = 1
+
+  So: bytecode attached, the Function became interpreted, BOTH entry points moved
+  to this run's InterpretCall stub, the post-attach call reached that path, and
+  the replacement body's return value reached the UI.
+
+============================================================
+POOL IDENTITY: NOT MEASURED — INADMISSIBLE BY PRECOMMITTED RULE
+
+  derived offset (release 31's own preserved bytes) : 0xd4a0
+  engine instrument's hardcoded offset              : 0xd4a8
+  they DIFFER, so every pool field below is void:
+
+    pool_status=5 pool_index=6803 of 15433 pool_entry_is_function=1
+    pool_entry_equals_target=0 pool_entry_ptr=0x105cd5d01
+
+  The classifier, fed the stale offset, returns exit 1:
+  "IDENTITY MISMATCH ... CAUSE FOUND: two positively identified Function
+  objects, not equal" -- 0x105cd5d01 vs the patched 0x105cbdf21.
+
+  THAT VERDICT IS FALSE AND IS NOT EVIDENCE. Index 6803 in release 31 holds a
+  DIFFERENT Function than in release 30, because the fixture body changed and the
+  call site's pool slot moved one entry. The stale read landed on a valid
+  Function, which is why the classifier's own "two positively identified
+  Functions" safeguard could not catch it: its local checks were all satisfied by
+  a wrong input. Only the external rule -- derived offset must equal the
+  hardcoded one -- knew the measurement was invalid.
+
+  Recorded in PARITY.md ("Release 31 identity admissibility") and committed in
+  6248a951, one day BEFORE the number that triggers it existed. First use, and it
+  blocked a real false attribution on a run where the patch demonstrably worked.
+
+  Object identity remains settled by RELEASE 30 on its own frozen bytes. Release
+  30 is the identity specimen; release 31 is the execution specimen. Do not
+  reinterpret release 31's pool fields.
+
+============================================================
+PATCH 2 — THE PRIVATE MEMBER, G3.6b's ORIGINAL QUESTION, ON HARDWARE
+
+  patch body    : String value() => _secret;
+  after patch 2 : route B value NEW-PRIV, code patch 2
+  container     : 826 bytes, packed for release 49bfcd9b...
+  same bytes    : identical App sha256 and LC_UUID, asserted at both launches
+
+  `_secret` is a PRIVATE field the release NEVER READS. Its presence in the
+  release cannot come from use, so the whole G3.6b chain had to hold for this to
+  execute: P2 enumeration from the non-AOT kernel retained it, the manifest
+  recorded the grant, the producer accepted the reference against that manifest,
+  the CFE resolved the private name in the target library, and the interpreter
+  read the field off the real receiver.
+
+  Function layer, admissible and offset-independent:
+    has_bytecode 0 -> 1, is_interpreted 0 -> 1, bytecode size 10
+    entry_point_ / unchecked_entry_point_  0x105dddca8 -> 0x105d0c044
+    same-run InterpretCall 0x105d0c044, uep_post_is_interpret_call = 1
+
+  Pool fields: NOT MEASURED, same stale-offset rule as patch 1
+  (pool_offset=0xd4a8 vs derived 0xd4a0; pool_entry_equals_target=0 is void).
+
+screenshots   : selfhost/engine/route_b/evidence/r31_1_baseline_OLD-rel.png
+                selfhost/engine/route_b/evidence/r31_2_patched_NEW-CTL.png
+                selfhost/engine/route_b/evidence/r31_3_patched_NEW-PRIV.png

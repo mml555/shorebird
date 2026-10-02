@@ -1,0 +1,6 @@
+# Default: no TLS listener. The mirror serves plain http only, exactly as before.
+#
+# Mounted at /etc/caddy/tls_listen.caddy by docker-compose.cdn.yaml. Switch to
+# listen-enabled.caddy (and generate certs) to add https. Kept as two files rather
+# than one conditional because an ssl certificate pointing at a missing file
+# makes Caddy refuse to start.

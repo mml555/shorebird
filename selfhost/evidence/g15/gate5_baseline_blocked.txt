@@ -1,0 +1,86 @@
+G15 GATE 5 — THE BASELINE CUT: BLOCKED BEFORE THE EXPERIMENT, 2026-08-15
+=========================================================================
+
+THE CUT DID NOT HAPPEN. No release was created, nothing was published, and the
+precommitted four-step protocol was never entered. **This is not one of the four
+precommitted outcomes** — it is a failure upstream of all of them — so per the
+stop rule it is reported rather than worked around.
+
+WHAT WAS COMPLETED, AND VERIFIED
+---------------------------------
+Every gate before the cut passed, and each was checked rather than assumed:
+
+  stamp switched by CLEARING, not by writing a stamp
+      `bin/cache/{artifacts,dart-sdk,downloads}` and `*.stamp` removed, then
+      `engine.version` = cd137db6aea4c76f41903a872b91afb8ac799626
+  warm from the mirror                                  exit 0
+  ios-release Flutter binary EXISTS                     YES
+      (the `isRouteBEngine` trap: absent means the release silently takes the
+       non-Route-B path and still reports success)
+  CONSUMED engine __TEXT,__text                         b3178e9e…  = the seam engine
+  CONSUMED platform dill                                757d09d7…
+  `_g15ReportLaunchSuccess` in the CONSUMED dill        5
+
+So the rig genuinely consumes patch `0011`'s seam, both halves, confirmed on the
+artifacts the build would use rather than on the published ones.
+
+WHERE IT STOPPED
+----------------
+`shorebird release ios`, ordinary user-OAuth path, exit 70:
+
+    [HTTP] POST http://10.0.0.7:18080/token
+    ShorebirdAuthException: Token refresh failed (400):
+        {"code":"invalid_grant","message":"Invalid code/refresh token"}
+
+Note what IS working: `AUTH_SERVICE_URL` sent the refresh to the SELF-HOSTED
+plane, not to `auth.shorebird.dev`. That half of the earlier fix holds. The
+server received the refresh and rejected the token.
+
+AN OBSERVATION, EXPLICITLY NOT A DIAGNOSIS
+-------------------------------------------
+`refresh_tokens` holds **2** rows, newest `2026-08-14T23:27:36.361Z` — about one
+minute before release 93 (`23:28:35Z`), i.e. minted during the gate-2 session
+when refresh last succeeded. Nothing newer exists server-side.
+
+The client is presenting a token this server does not accept. That is CONSISTENT
+with a rotation whose server-side write did not persist — which would make this
+the same defect as the vanished releases, showing up in the auth path. **It is
+also consistent with several mundane explanations** (an ordinary rotation the
+client failed to store, an expiry policy, a token superseded by the other row).
+Counts and timestamps cannot separate them, and no token values were read.
+
+Recorded as a lead with its confounds named, in the same shape the CLI
+correlation is recorded — because this project has twice today promoted an
+agreeable observation to a mechanism.
+
+WHY NO RE-LOGIN WAS PERFORMED
+------------------------------
+1. **The stop rule.** The result does not fit a precommitted outcome, so the
+   instruction is to stop, not to improvise a path to a green.
+2. **The current auth state may BE the evidence.** If the rejection is caused by
+   the rollback defect, re-authenticating destroys the clearest live symptom of
+   it. That is the same reasoning as the precommit's rule 4 — preserve a vanish,
+   do not change auth state first — applied one layer up.
+3. **The credential is shared.** The other lane's user has already set the shape:
+   a re-login is its own auth experiment, with exclusive ownership and before/after
+   content verification, not a step inside someone else's gate.
+
+STATE ON STOPPING — NOTHING TOUCHED THAT NEED NOT HAVE BEEN
+-------------------------------------------------------------
+* control plane: **unchanged**. `max release 94`, `max audit 178`, byte-for-byte
+  the pre-cut state. The failure was before the first write.
+* `~/.shorebird`: **still stamped `cd137db6…` and warm**, claimed in §17. To
+  restore: stamp `40eaa0ef…`, clear `bin/cache/{artifacts,dart-sdk,downloads}`
+  and `*.stamp`, re-warm. **Restoring costs a full refetch**, so it is left in
+  place while the experiment is paused rather than cycled twice.
+* fixture: `pubspec.yaml` bumped to **`1.0.6+1`**, unreleased. Releases
+  `1.0.0+1`…`1.0.5+1` exist; `1.0.6+1` is free to use when the cut resumes.
+* cells, overlay, device: **untouched**. No device work was started, per the stop
+  rule.
+
+WHAT WOULD UNBLOCK IT
+----------------------
+A working credential on the self-hosted plane, obtained as its own experiment
+rather than as a step here — and, if the rejection turns out to be the rollback
+defect surfacing in the auth path, that is a considerably more valuable finding
+than the baseline cut it is blocking.

@@ -114,6 +114,11 @@ Please comment and upvote ${link(uri: Uri.parse('https://github.com/shorebirdtec
     final buildArgs = [...argResults.forwardedArgs];
     addSplitDebugInfoDefault(buildArgs);
     await addObfuscationMapArgs(buildArgs);
+    // Recorded from the SAME buildArgs this release is about to compile with,
+    // at the one moment they are unambiguously this release's — after the
+    // split-debug-info and obfuscation defaults have been folded in, before the
+    // build consumes them. A patch is later compared against this.
+    recordEffectiveBuildConfig(buildArgs);
     final aab = await artifactBuilder.buildAppBundle(
       flavor: flavor,
       target: target,

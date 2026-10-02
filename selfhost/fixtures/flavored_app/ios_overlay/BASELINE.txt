@@ -1,0 +1,108 @@
+# The iOS overlay's baseline, and what applying it produces.
+#
+# Recorded because the overlay is a COMMITTED project.pbxproj gated by a sha
+# rather than scripted surgery (the `xcodeproj` ruby gem is not importable on
+# this host -- see derive_overlay.py's module docstring). A gate is only as good
+# as the record of what it gates: BASELINE.project.pbxproj.sha256 is 65 bytes of
+# hex and says nothing about WHICH generator produced that hex, so on a Flutter
+# bump there is nothing to compare the new value against. This file is that
+# record. It is prose, not an input -- prepare_flavored_fixture.sh reads only
+# the .sha256 file.
+
+flutter_revision:   c15ef6379403a0a55531a058bdb2c8e55bc05c98   # 3.44.8 / Dart 3.12.2
+                                                              # (selfhost/compatibility.yaml:11)
+generator_command:  flutter create --platforms=ios,android \
+                      --project-name flavored_probe --org dev.selfhost .
+
+pre_overlay_sha256:   18152845ff6073752b926099b37b738d0415b49575fe11be1bdca3f7c1997387
+post_overlay_sha256:  3681ff26006e10efe0af0fcb1b113fd55115a9532a6ed0e007bbbaf52b2d2296
+
+# pre_overlay_sha256 is the value in BASELINE.project.pbxproj.sha256, which
+# prepare_flavored_fixture.sh gates the GENERATED tree against. post_overlay is
+# this directory's own Runner.xcodeproj/project.pbxproj; the script recognises it
+# too, so re-running on a warm tree is idempotent rather than a refusal.
+#
+# Both re-verified 2026-08-14 against the shared tree:
+#   shasum -a 256 ios_overlay/Runner.xcodeproj/project.pbxproj  -> post_overlay
+#   shasum -a 256 ios/Runner.xcodeproj/project.pbxproj          -> post_overlay
+#     (the live tree is OVERLAID, which is the second of the gate's three states)
+
+configurations_added:   Debug-Foo   Release-Foo   Profile-Foo
+                        Debug-Bar   Release-Bar   Profile-Bar
+                        (each added to ALL THREE configuration lists: the
+                         PBXProject, the Runner target, and the RunnerTests
+                         target -- the flavored schemes carry a TestAction that
+                         names RunnerTests, and a target missing the named
+                         configuration is an xcodebuild error, not a fallback)
+
+schemes_added:          Foo   Bar          (shared, in xcshareddata/xcschemes)
+scheme_kept:            Runner             (the unflavored control build)
+
+xcconfigs_added:        Flutter/Foo.xcconfig   Flutter/Bar.xcconfig
+
+# VERIFIED against a tree materialized by selfhost/scripts/prepare_flavored_fixture.sh:
+#
+#   xcodebuild -list -project ios/Runner.xcodeproj
+#     Build Configurations: Debug Release Profile Debug-Foo Debug-Bar
+#                           Release-Foo Release-Bar Profile-Foo Profile-Bar
+#     Schemes:              Bar FlutterFramework
+#                           FlutterGeneratedPluginSwiftPackage Foo Runner
+#
+# WHAT THE XCCONFIGS ACTUALLY CONTROL, measured rather than assumed:
+#
+#   PRODUCT_BUNDLE_IDENTIFIER   EFFECTIVE. derive_overlay.py:128 deletes the
+#                               pbxproj's own setting on the Runner target's
+#                               flavored configurations (one `re.sub`, count=1,
+#                               per cloned block), so the xcconfig wins.
+#                               Confirmed on the built artifacts: Info.plist
+#                               CFBundleIdentifier is dev.selfhost.flavoredProbe
+#                               .foo under build/ios/Release-Foo-iphoneos and
+#                               .bar under build/ios/Release-Bar-iphoneos.
+#
+#   PRODUCT_NAME, DISPLAY_NAME  INERT. `PRODUCT_NAME = "$(TARGET_NAME)"` is
+#                               still written in the pbxproj and a pbxproj
+#                               setting beats the xcconfig that configuration
+#                               includes. COUNTED 2026-08-14, because this line
+#                               sits under a heading promising measurement:
+#
+#                                 grep -c 'PRODUCT_NAME = "$(TARGET_NAME)";' \
+#                                   ios_overlay/Runner.xcodeproj/project.pbxproj
+#                                 -> 18
+#
+#                               18 = 9 configurations x 2 NATIVE TARGETS. Every
+#                               occurrence is that exact form (`grep -o
+#                               'PRODUCT_NAME = .*;' | sort | uniq -c` reports a
+#                               single distinct value, 18 times). The Runner and
+#                               RunnerTests targets carry 9 each; the PBXProject-
+#                               level configuration list carries none, which is
+#                               why the count is 18 and not 27.
+#
+#                               CONSEQUENCE: the built bundle is Runner.app for
+#                               EVERY flavor -- in the per-configuration
+#                               directory (build/ios/Release-Foo-iphoneos/
+#                               Runner.app) and in the final one
+#                               (build/ios/iphoneos/Runner.app) alike, with
+#                               CFBundleExecutable = Runner in both. There is no
+#                               flavored_probe_foo.app anywhere in the build
+#                               tree. Consecutive flavor builds therefore
+#                               overwrite one another at ONE path: delete the
+#                               build output between arms. See
+#                               evidence/g42_flavored_fixture/h2_step7_supplement.txt.
+#
+# THE DEFINE THE SHIPPED APP RECEIVES IS THE SCHEME NAME, capitalised: `Foo`,
+# not `foo`. That follows from the scheme names recorded above --
+# xcode_project.dart parses the configuration, matches the scheme
+# case-insensitively, and returns the scheme's own spelling. It is the single
+# most consequential fact this overlay determines, and the derivation is in
+# evidence/g42_flavored_fixture/h2_step7_host_arms.txt (Findings 1 and 2).
+#
+# A MISMATCH AT THE GATE IS "NOT APPLICABLE", NOT "UNRUN". If a Flutter bump
+# changes the generated pbxproj, re-derive and record the new pair:
+#     ios_overlay/derive_overlay.py \
+#         ios/Runner.xcodeproj/project.pbxproj \
+#         ios_overlay/Runner.xcodeproj/project.pbxproj
+# then update BASELINE.project.pbxproj.sha256 and this file together. Re-count
+# the PRODUCT_NAME occurrences at the same time: if a future derive_overlay.py
+# starts deleting PRODUCT_NAME the way it deletes PRODUCT_BUNDLE_IDENTIFIER, the
+# bundle paths above become per-flavor and every "delete the build output
+# between arms" instruction in this fixture's evidence stops being necessary.

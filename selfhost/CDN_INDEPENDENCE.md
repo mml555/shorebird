@@ -143,13 +143,13 @@ Two complementary pieces, matching the two flows.
 `artifact_proxy` already implements the exact stock-vs-shorebird routing
 `download.shorebird.dev` does. Deploy it (§/cdn/`docker-compose.cdn.yaml`) and
 point Flow A at it. Because it emits `302`s to `storage.googleapis.com`, put a
-caching reverse proxy (nginx) in front so that:
+caching reverse proxy (Caddy) in front so that:
 
-1. the client hits our nginx,
-2. nginx forwards the engine path to `artifact_proxy`,
+1. the client hits our Caddy,
+2. Caddy forwards the engine path to `artifact_proxy`,
 3. `artifact_proxy` returns a `302` to `storage.googleapis.com/…`,
-4. nginx **rewrites** that `Location` to a relative `/gcs/…` path so the client
-   re-enters *through nginx*, which then proxies **and caches** the real bytes
+4. Caddy **rewrites** that `Location` to a relative `/gcs/…` path so the client
+   re-enters *through Caddy*, which then proxies **and caches** the real bytes
    from GCS.
 
 After one warm build, every engine artifact for that engine revision is served
@@ -159,16 +159,16 @@ modified engine bytes (`download.shorebird.dev/shorebird/<rev>/…`), plus the
 manifest, since all three are just GCS objects the cache captures on first fetch.
 
 Wiring for Flow A still needs the entry redirect (§5): either patch A1–A3 to send
-`FLUTTER_STORAGE_BASE_URL` at our nginx, or DNS-override `download.shorebird.dev`.
+`FLUTTER_STORAGE_BASE_URL` at our Caddy, or DNS-override `download.shorebird.dev`.
 
 ### (b) Shorebird cache artifacts — patch `cache.dart` to point at the same cache
 
 Flow B can't be proxied without either changing where its URL points (source
 patch §6) or hijacking `storage.googleapis.com` (unacceptable). With the §6
-patch, set `SHOREBIRD_STORAGE_BASE_URL=http://<your-nginx>` and keep
+patch, set `SHOREBIRD_STORAGE_BASE_URL=http://<your-caddy>` and keep
 `SHOREBIRD_STORAGE_BUCKET=download.shorebird.dev`; the CLI then requests
-`http://<your-nginx>/download.shorebird.dev/shorebird/<rev>/patch-*.zip`, which
-nginx proxies+caches from `storage.googleapis.com/download.shorebird.dev/…`.
+`http://<your-caddy>/download.shorebird.dev/shorebird/<rev>/patch-*.zip`, which
+Caddy proxies+caches from `storage.googleapis.com/download.shorebird.dev/…`.
 Same cache, same offline guarantee after warm-up.
 
 ---
@@ -177,8 +177,8 @@ Same cache, same offline guarantee after warm-up.
 
 If you cannot patch A1–A3, intercept the hostname instead:
 
-- Add `download.shorebird.dev  <your-nginx-ip>` to `/etc/hosts` (or LAN DNS).
-- Because Flutter requests `https://download.shorebird.dev`, your nginx must
+- Add `download.shorebird.dev  <your-caddy-ip>` to `/etc/hosts` (or LAN DNS).
+- Because Flutter requests `https://download.shorebird.dev`, your Caddy must
   present a TLS cert **for that hostname** that the build machine trusts
   (self-signed cert added to the system/Flutter trust store). Flutter/Dart will
   reject an untrusted cert, so this is the fiddly part.
@@ -261,10 +261,10 @@ accidentally by unrelated Flutter tooling in the environment.
 
 **Fully achievable with proxy/mirror + the §6 patch (no protocol changes):**
 
-- All Flutter engine artifacts (Flow A) via self-hosted `artifact_proxy` + nginx
+- All Flutter engine artifacts (Flow A) via self-hosted `artifact_proxy` + Caddy
   cache. `artifact_proxy` is first-party and already does the exact routing.
 - The Shorebird `patch` and `aot-tools.dill` artifacts (Flow B) via the same
-  nginx cache once the two `cache.dart` getters are env-driven.
+  Caddy cache once the two `cache.dart` getters are env-driven.
 - `bundletool.jar` is already off Shorebird infra (GitHub); optional to mirror.
 
 **Requires a CLI source change (small, low-risk, defaulted):**
@@ -280,7 +280,7 @@ accidentally by unrelated Flutter tooling in the environment.
 **What a self-hosted proxy does NOT remove by itself:** running `artifact_proxy`
 only relocates the *routing* host; the Shorebird-modified engine bytes and the
 `patch`/`aot-tools` bytes still originate in Shorebird's GCS bucket. Genuine
-independence needs the **mirror** (nginx cache, warmed once per engine revision),
+independence needs the **mirror** (Caddy cache, warmed once per engine revision),
 not just the proxy.
 
 **Bandwidth / storage implications of mirroring:**
@@ -292,15 +292,16 @@ not just the proxy.
   gen_snapshots + per-arch `artifacts.zip` + Android `.jar`/`.pom`s + iOS
   frameworks + web SDK + canvaskit + gradle-wrapper) is on the order of **a few
   GB**. Budget ~5–10 GB of cache per engine revision you intend to support; the
-  compose file sets a 20 GB cap (`max_size=20g`) to hold a couple of revisions.
+  compose file budgets host disk for a couple of revisions (the NutsDB
+  volume under `/var/cache/caddy/cdn`).
 - First build per revision pays the full download once (from GCS through your
   cache); every subsequent build on any machine pointed at the cache is served
-  locally. For a team, host the nginx cache centrally so the warm-up is paid once
+  locally. For a team, host the Caddy cache centrally so the warm-up is paid once
   org-wide.
 - The `patch`/`aot-tools`/manifest objects are tiny (KB–low-MB); negligible.
-- Range/partial-content requests: the provided nginx config caches full `200`
+- Range/partial-content requests: the provided Caddy config caches full `200`
   responses; if a Flutter version issues range requests for a large artifact,
-  enable nginx's `slice` module or let the first full fetch populate the cache.
+  let the first full fetch populate the cache.
   Noted as a caveat, not observed to block standard `flutter precache`.
 
 ---
@@ -308,8 +309,9 @@ not just the proxy.
 ## 8. Files in this deliverable
 
 - `selfhost/CDN_INDEPENDENCE.md` — this document.
-- `selfhost/cdn/docker-compose.cdn.yaml` — runs `artifact_proxy` + nginx cache.
-- `selfhost/cdn/nginx.conf` — caching reverse proxy that mirrors GCS and rewrites
+- `selfhost/cdn/docker-compose.cdn.yaml` — runs `artifact_proxy` + Caddy cache.
+- `selfhost/cdn/Caddyfile` — caching reverse proxy that mirrors GCS and rewrites
   the `artifact_proxy` redirects back through itself.
+- `selfhost/cdn/Dockerfile` — Caddy image with the HTTP cache-handler module.
 - `selfhost/cdn/README.md` — step-by-step wiring (env vars, patches, warm-up).
 </content>

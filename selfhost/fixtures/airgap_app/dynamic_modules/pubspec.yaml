@@ -1,0 +1,6 @@
+name: dynamic_modules
+description: Test-only Route B hook; the package name is what permits dart:_internal.
+version: 0.0.1
+publish_to: none
+environment:
+  sdk: ^3.9.0

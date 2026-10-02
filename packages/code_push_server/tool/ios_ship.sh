@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words iosdev
 #
 # One command to release (and optionally patch) an iOS app against a self-hosted
 # code_push_server, choosing the right signing path automatically:
@@ -23,6 +24,8 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/ios_signing.sh
 . "$HERE/lib/ios_signing.sh"
+# shellcheck source=lib/ios_device.sh
+. "$HERE/lib/ios_device.sh"
 
 ACTION="${1:-release}"
 APP_DIR="${APP_DIR:?set APP_DIR to the Flutter app directory}"
@@ -67,13 +70,14 @@ find_ipa()  { find build/ios/ipa -name '*.ipa' 2>/dev/null | head -1; }
 install_to_device() {
   [ -n "$DEVICE" ] || { echo "(no DEVICE set — skipping install)"; return 0; }
   local artifact="$1"
-  echo "installing $artifact -> $DEVICE"
-  if xcrun devicectl device install app --device "$DEVICE" "$artifact"; then
-    echo "installed"
-  else
-    ios::_err "devicectl install failed — install manually (Xcode ▸ Devices, or ios-deploy/ios-deploy)"
-    return 1
+  # Transport is chosen by the device's iOS version: devicectl is iOS 17+ only,
+  # and an older device is invisible to it rather than merely unsupported. See
+  # lib/ios_device.sh.
+  if iosdev::install "$DEVICE" "$artifact"; then
+    return 0
   fi
+  ios::_err "install failed — install manually (Xcode ▸ Devices, or ios-deploy)"
+  return 1
 }
 
 do_release() {

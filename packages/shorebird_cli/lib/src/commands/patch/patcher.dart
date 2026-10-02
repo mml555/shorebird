@@ -61,6 +61,17 @@ More info: ${troubleshootingUrl.toLink()}.
   /// patchers to pass obfuscation flags to gen_snapshot and the linker.
   String? obfuscationMapPath;
 
+  /// Whether this patch ships only assets, with no code. Set by the patch
+  /// command from `--assets-only`.
+  ///
+  /// Apple patchers use this to skip linking. The patch command replaces the
+  /// code bundles with an empty map before upload, so a linked `.vmcode` would
+  /// be built and then discarded. Skipping it is not merely an optimization:
+  /// linking is the only step that needs `aot-tools.dill`, which is Shorebird's
+  /// AOT linker and is not something we can build. So an assets-only patch is
+  /// the one iOS patch we can produce without it.
+  bool assetsOnly = false;
+
   /// Extra build arguments injected by the patch command. These are included
   /// in the Flutter build command args by patchers. Currently used to inject
   /// obfuscation flags when the release was built with obfuscation.
@@ -147,7 +158,17 @@ More info: ${troubleshootingUrl.toLink()}.
   }
 
   /// Whether to allow changes in assets (--allow-asset-diffs).
-  bool get allowAssetDiffs => argResults['allow-asset-diffs'] == true;
+  ///
+  /// Implied by [assetsOnly]. Asset changes are that patch's entire payload,
+  /// so warning "your app contains asset changes, which will not be included
+  /// in the patch" and then demanding an override is both false and
+  /// self-contradictory.
+  /// It was worse than cosmetic: the warning ends in a "Continue anyway?"
+  /// prompt, which has no answer in a non-interactive context, so
+  /// `--assets-only` failed outright in CI (and under `--no-confirm`) unless
+  /// `--allow-asset-diffs` was passed too.
+  bool get allowAssetDiffs =>
+      argResults['allow-asset-diffs'] == true || assetsOnly;
 
   /// Whether to allow changes in native code (--allow-native-diffs).
   bool get allowNativeDiffs => argResults['allow-native-diffs'] == true;
@@ -248,6 +269,51 @@ More info: ${troubleshootingUrl.toLink()}.
       argParser: argParser,
     );
   }
+
+  /// Where this build actually writes debug symbols, which is not always what
+  /// the user asked for: Flutter requires `--split-debug-info` alongside
+  /// `--obfuscate`, so the patch command injects the flag itself when it has
+  /// to enable obfuscation to match the release. Symbols exist in that case
+  /// even though [splitDebugInfoPath] is null.
+  String? get _effectiveSplitDebugInfoPath {
+    final explicit = splitDebugInfoPath;
+    if (explicit != null) return explicit;
+
+    const prefix = '--split-debug-info=';
+    for (final arg in extraBuildArgs) {
+      if (arg.startsWith(prefix)) return arg.substring(prefix.length);
+    }
+    return null;
+  }
+
+  /// The directory holding the debug symbols this patch's build produced, or
+  /// `null` if it produced none.
+  ///
+  /// Uniform across platforms because one flag decides it everywhere:
+  /// `--split-debug-info` is forwarded to `flutter build` on Android, and the
+  /// Apple patchers point gen_snapshot's `--save-debugging-info` at the same
+  /// directory. Nothing is produced — and so nothing is retained — unless the
+  /// build was asked for symbols.
+  Future<Directory?> debugSymbolsDirectory() async {
+    final path = _effectiveSplitDebugInfoPath;
+    if (path == null) return null;
+
+    final directory = Directory(path);
+    if (!directory.existsSync()) return null;
+    // An empty directory means the build declined to emit symbols; zipping it
+    // would retain nothing and cost an upload.
+    if (directory.listSync().isEmpty) return null;
+
+    return directory;
+  }
+
+  /// The `flutter_assets` tree this patch's build produced, or `null` if this
+  /// platform cannot supply one.
+  ///
+  /// Returns `null` by default so a patcher that has not implemented asset
+  /// lookup stays out of the asset path entirely rather than shipping an empty
+  /// or wrong overlay.
+  Future<Directory?> assetsDirectory() async => null;
 
   /// The path to the output file for the debug info.
   static File get debugInfoFile {

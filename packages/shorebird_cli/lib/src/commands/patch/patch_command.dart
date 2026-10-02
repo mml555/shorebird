@@ -1,21 +1,27 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:mason_logger/mason_logger.dart';
-import 'package:path/path.dart' as p;
 import 'package:meta/meta.dart';
+import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/archive/directory_archive.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
+import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
+import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/deployment_track.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/extensions/string.dart';
 import 'package:shorebird_cli/src/formatters/formatters.dart';
+import 'package:shorebird_cli/src/gen_snapshot_probe.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
@@ -23,6 +29,7 @@ import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_chooser.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_command.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
@@ -93,6 +100,8 @@ To target the latest release (e.g. the release that was most recently updated) u
         help: allowAssetDiffsHelpText,
         negatable: false,
       )
+      ..addFlag('assets', help: assetsHelpText, negatable: false)
+      ..addFlag('assets-only', help: assetsOnlyHelpText, negatable: false)
       ..addOption(
         'track',
         help: 'The track to publish the patch to.',
@@ -178,6 +187,16 @@ NOTE: this is ${styleBold.wrap('not')} recommended. Native code changes cannot b
 Patch even if asset diffs are detected.
 NOTE: this is ${styleBold.wrap('not')} recommended. Asset changes cannot be included in a patch can cause your app to behave unexpectedly.''';
 
+  /// Help text for the opt-in asset bundle upload.
+  static final assetsHelpText = '''
+Attach this patch's assets to it, so an app built against this control plane can pick them up.
+${styleBold.wrap('Experimental')}, and opt-in because it makes the patch larger. The native updater ignores the bundle; reading it requires app-side support.''';
+
+  /// Help text for publishing a patch that carries assets and no code.
+  static final assetsOnlyHelpText = '''
+Publish a patch containing only this patch's assets, with no Dart code.
+${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interpreted, which is what lets an asset change ship where a code change cannot. Requires an updater that advertises support; older updaters are never offered such a patch.''';
+
   late final ResolvePatcher _resolvePatcher;
 
   @override
@@ -204,6 +223,15 @@ NOTE: this is ${styleBold.wrap('not')} recommended. Asset changes cannot be incl
 
   /// Whether to allow changes in native code (--allow-native-diffs).
   bool get allowNativeDiffs => results['allow-native-diffs'] == true;
+
+  /// Whether to attach this patch's assets to it (--assets).
+  ///
+  /// Implied by [assetsOnly]: a patch with no code and no assets would carry
+  /// nothing at all.
+  bool get includeAssets => results['assets'] == true || assetsOnly;
+
+  /// Whether to publish a patch carrying assets and no code (--assets-only).
+  bool get assetsOnly => results['assets-only'] == true;
 
   /// Whether the patch is for the staging environment.
   bool get isStaging => track == DeploymentTrack.staging;
@@ -424,7 +452,18 @@ Building with Flutter $flutterVersionString to determine the release version...
       () async {
         await cache.updateAll();
 
+        // After updateAll, so the cache is populated, and before anything
+        // invokes Flutter. A frontend/backend mismatch here builds cleanly and
+        // fails on the device instead.
+        try {
+          dartSdkCompatibility.validate();
+        } on DartSdkMismatchException catch (error) {
+          logger.err('$error');
+          throw ProcessExit(ExitCode.config.code);
+        }
+
         final bundles = <ReleasePlatform, Map<Arch, PatchArtifactBundle>>{};
+        final sidecars = <ReleasePlatform, PatchSidecars>{};
         final platformMetadata =
             <ReleasePlatform, CreatePatchPlatformMetadata>{};
         // Shared by every platform: one invocation builds them all on one
@@ -450,10 +489,27 @@ Building with Flutter $flutterVersionString to determine the release version...
           );
           final releasePlatform = patcher.releaseType.releasePlatform;
           bundles[releasePlatform] = result.bundles;
+          sidecars[releasePlatform] = result.sidecars;
           platformMetadata[releasePlatform] = await patcher
               .updatedPlatformMetadata(result.metadata);
           environment = await patcher.updatedEnvironmentMetadata(environment);
         }
+
+        // Recorded AFTER the build, deliberately. The server otherwise cannot
+        // say which engine produced a patch — flutterRevision cannot, since two
+        // Route B cells can share one Flutter revision and differ in
+        // capability.
+        //
+        // It must not be read BEFORE the build: the engine-identity gate counts
+        // reads of `shorebirdEngineRevision` — the first is its pre-build check
+        // and later ones detect a stamp the Flutter build rewrote underneath it.
+        // An extra early read consumed that first check, so the gate compared
+        // the wrong pair and the drift test caught it. Reading here also records
+        // the engine that ACTUALLY produced these artifacts rather than the one
+        // present before the build.
+        environment = environment.copyWith(
+          engineRevision: shorebirdEnv.shorebirdEngineRevision,
+        );
 
         final dryRun = results['dry-run'] == true;
         if (dryRun) {
@@ -482,13 +538,36 @@ Building with Flutter $flutterVersionString to determine the release version...
           environment: environment,
         );
 
+        // An assets-only patch drops the code artifacts and ships the bundle
+        // alone. The build still ran: `flutter_assets` comes out of the built
+        // app, so there is no way to package assets without building. What
+        // changes is only what gets uploaded.
+        if (assetsOnly) {
+          final missing = sidecars.entries
+              .where((e) => e.value.assets == null)
+              .map((e) => e.key.name)
+              .toList();
+          if (missing.isNotEmpty) {
+            // Publishing here would create a patch carrying nothing, which
+            // devices would download and apply to no effect — a silent no-op
+            // is worse than a failed patch.
+            logger.err(
+              '''--assets-only was passed but no asset bundle could be packaged for: ${missing.join(', ')}.''',
+            );
+            throw ProcessExit(ExitCode.software.code);
+          }
+        }
+
         // One patch, every platform's artifacts, one promotion at the end.
         await codePushClientWrapper.publishPatch(
           appId: appId,
           releaseId: release.id,
           metadata: metadata.toJson(),
           track: track,
-          patchArtifactBundles: bundles,
+          patchArtifactBundles: assetsOnly
+              ? {for (final platform in bundles.keys) platform: const {}}
+              : bundles,
+          sidecars: sidecars,
         );
       },
       values: {shorebirdEnvRef.overrideWith(() => releaseFlutterShorebirdEnv)},
@@ -506,6 +585,7 @@ Building with Flutter $flutterVersionString to determine the release version...
     ({
       Map<Arch, PatchArtifactBundle> bundles,
       CreatePatchPlatformMetadata metadata,
+      PatchSidecars sidecars,
     })
   >
   _buildPlatformPatch({
@@ -561,6 +641,57 @@ Building with Flutter $flutterVersionString to determine the release version...
       }
     }
 
+    // Replaying the release's obfuscation map into the patch build requires a
+    // gen_snapshot that understands --load-obfuscation-map. A gen_snapshot
+    // without it aborts with "Unrecognized flags: load_obfuscation_map" (exit
+    // code 255) for every arch, deep inside the Flutter build. Refuse here
+    // instead: a rejected patch beats a confusing build failure, and dropping
+    // the map to build anyway would produce a patch obfuscated differently
+    // than the release, which is silently broken at runtime.
+    //
+    // The question is asked of the BINARY, not of a Flutter version, and the
+    // binary is the release's — `installRevision` above has already put the
+    // release's toolchain on disk, while `shorebirdEnv` is not switched over
+    // to it until the `copyWith` further down. A version gate here would be
+    // inert against the hazard it names; see
+    // GenSnapshotProbe.supportsLoadObfuscationMap for the two-cells /
+    // one-flutter-revision fact that makes that so.
+    if (obfuscationMapFile != null) {
+      final support = await genSnapshotProbe.supportsLoadObfuscationMap(
+        flutterRevision: release.flutterRevision,
+        platform: releasePlatform,
+      );
+      switch (support) {
+        case GenSnapshotFlagSupport.absent:
+          logger.err(
+            '''
+This release was built with obfuscation, but the gen_snapshot that would build the patch does not carry the --load-obfuscation-map flag, so the patch cannot reproduce the release's obfuscation.
+
+  Release Flutter revision: ${release.flutterRevision}
+  gen_snapshot: ${genSnapshotProbe.resolveGenSnapshots(flutterRevision: release.flutterRevision, platform: releasePlatform).map((f) => f.path).join('\n                ')}
+
+The flag is an engine capability, not a Flutter version: two engines built from the same Flutter revision can differ on it. Cut a new release with an engine whose gen_snapshot carries the flag, and patch that release instead.''',
+          );
+          throw ProcessExit(ExitCode.software.code);
+        case GenSnapshotFlagSupport.indeterminate:
+          // Deliberately fail OPEN, and only here. We could not read a
+          // gen_snapshot at all, so we know nothing — and refusing on
+          // no-evidence would break working setups whose layout we simply
+          // failed to enumerate (a --local-engine tree, an arch directory
+          // that is not precached yet). Proceeding costs nothing we were not
+          // already paying: gen_snapshot rejects unknown VM flags loudly
+          // rather than ignoring them, so the worst case is today's exit-255
+          // build failure, never a silently mis-obfuscated patch. The refusal
+          // above, by contrast, fires only on measured evidence.
+          logger.warn(
+            '''
+Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter revision ${release.flutterRevision}. If it does not, the patch build will fail with "Unrecognized flags: load_obfuscation_map".''',
+          );
+        case GenSnapshotFlagSupport.present:
+          break;
+      }
+    }
+
     // If the user explicitly passed --obfuscate but the release has no
     // obfuscation map, the patch would be obfuscated against a non-obfuscated
     // release, producing a broken patch.
@@ -580,7 +711,9 @@ Building with Flutter $flutterVersionString to determine the release version...
       );
     }
 
-    patcher.obfuscationMapPath = obfuscationMapFile?.path;
+    patcher
+      ..obfuscationMapPath = obfuscationMapFile?.path
+      ..assetsOnly = assetsOnly;
 
     // Build extra args to inject into the Flutter build command. These use
     // --extra-gen-snapshot-options= because they're passed through Flutter's
@@ -628,6 +761,49 @@ Building with Flutter $flutterVersionString to determine the release version...
         '--split-debug-info=${p.join('build', 'shorebird', 'symbols')}',
       );
     }
+    // Route B (selfhost): the patch must compile against the SAME retention
+    // interface the release did. Without it the release kernel is annotated and
+    // the patch kernel is not, they disagree about almost every member, and
+    // coverage refuses a one-line change — measured at 4,830 changed members
+    // for a single edited function.
+    //
+    // Read from the release's supplement, like the obfuscation map above, and
+    // gated on the file existing so no other platform ever sees the flag.
+    final retentionInterface = supplementDirectory == null
+        ? null
+        : File(p.join(supplementDirectory.path, routeBInterfaceFileName));
+    if (retentionInterface != null && retentionInterface.existsSync()) {
+      extraBuildArgs.add(
+        '--extra-front-end-options=--dynamic-interface=${retentionInterface.path}',
+      );
+    }
+
+    // THE ENGINE-IDENTITY INVARIANT, checked BEFORE the build so a refusal costs
+    // nothing: no kernel, no coverage, no bytecode, no artifact, no upload.
+    //
+    // Only for a Route B release. Every other release's patch is produced the
+    // way it always was, and a check that refused those would be inventing a
+    // constraint this evidence does not support.
+    if (supplementDirectory != null &&
+        hasRouteBReleaseProvenance(supplementDirectory)) {
+      _assertRouteBEngineIdentity(
+        supplementDirectory,
+        RouteBEngineCheck.beforeBuild,
+      );
+    }
+
+    // THE EFFECTIVE-CONFIGURATION INVARIANT, in the same place and for the
+    // same reason as the engine-identity check above: refuse BEFORE the build,
+    // so a mismatch costs nothing — no kernel, no artifact, no upload.
+    //
+    // Placed after `extraBuildArgs` is complete because the patch's effective
+    // configuration includes what this command injects (e.g. `--obfuscate`
+    // mirrored from the release), not merely what the user typed.
+    _assertBuildConfigAgrees(
+      supplementDirectory,
+      [...results.forwardedArgs, ...extraBuildArgs],
+    );
+
     patcher.extraBuildArgs = extraBuildArgs;
 
     // Set up build tracing before any flutter build / aot_tools /
@@ -653,6 +829,24 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
       );
     }
 
+    // AND AGAIN, because the build can restamp the cache underneath the first
+    // check. `shorebirdEngineRevision` re-reads `bin/internal/engine.version`
+    // from disk, so this sees the drift rather than a cached answer — and the
+    // drift is real: a build through a CDN that maps an experimental hash onto a
+    // stock one records the hash it actually downloaded.
+    //
+    // Still before coverage, bytecode and publication. The kernel exists by now
+    // and is thrown away, which is the correct trade: a wasted build costs
+    // minutes, and a patch that installs and does nothing costs a release cycle
+    // and the belief that the mechanism works.
+    if (supplementDirectory != null &&
+        hasRouteBReleaseProvenance(supplementDirectory)) {
+      _assertRouteBEngineIdentity(
+        supplementDirectory,
+        RouteBEngineCheck.afterBuild,
+      );
+    }
+
     final diffStatus = await assertUnpatchableDiffs(
       releaseArtifact: releaseArtifact,
       releaseArchive: releaseArchive,
@@ -673,6 +867,7 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
 
     return (
       bundles: patchArtifactBundles,
+      sidecars: await _packageSidecars(patcher),
       metadata: CreatePatchPlatformMetadata(
         hasAssetChanges: diffStatus.hasAssetChanges,
         hasNativeChanges: diffStatus.hasNativeChanges,
@@ -683,6 +878,167 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
         buildTraceSummary: buildTraceSession.summary?.toJson(),
       ),
     );
+  }
+
+  /// Zips whatever non-code payloads this platform's build produced.
+  ///
+  /// Both are packaged here rather than at upload time so that a multi-platform
+  /// patch stays all-or-nothing: [_buildPlatformPatch] deliberately uploads
+  /// nothing, and each platform's `flutter_assets` and symbol directories are
+  /// transient build output that the next platform's build may overwrite.
+  ///
+  /// Neither is fatal. A patch whose assets or symbols could not be packaged is
+  /// still a valid patch, so a failure here degrades to "not retained" and says
+  /// so, rather than throwing away a build that otherwise succeeded.
+
+  /// Refuses a patch whose EFFECTIVE build configuration differs from the
+  /// release's, before any patch artifact is produced.
+  ///
+  /// THE THREE STATES ARE NOT INTERCHANGEABLE, and each gets its own
+  /// diagnostic, because their remediations differ:
+  ///
+  ///   supplement/record absent  the release predates this contract. Nothing
+  ///                             to compare. Cut a new release to get the
+  ///                             check. NOT an error.
+  ///   `buildConfig: null`       the release's own configuration was
+  ///                             UNFINGERPRINTABLE (e.g.
+  ///                             `--dart-define-from-file`). Comparable to
+  ///                             nothing, permanently, and re-releasing will
+  ///                             not help. NOT an error.
+  ///   `buildConfig` object      comparable. A difference is refused here.
+  ///
+  /// Collapsing the first two into one message is how a reader concludes "cut
+  /// a new release" for a case where that cannot possibly help.
+  void _assertBuildConfigAgrees(
+    Directory? supplementDirectory,
+    List<String> patchArgs,
+  ) {
+    if (supplementDirectory == null) return;
+    final file = File(
+      p.join(supplementDirectory.path, Releaser.buildConfigFileName),
+    );
+    if (!file.existsSync()) {
+      logger.detail(
+        '''[build-config] the release records no build configuration; it predates this check. Cut a new release to enable it.''',
+      );
+      return;
+    }
+
+    final Map<String, dynamic> decoded;
+    try {
+      decoded = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+    } on Object catch (error) {
+      logger.detail('[build-config] unreadable record, skipping: $error');
+      return;
+    }
+
+    if (decoded['buildConfig'] == null) {
+      logger.warn(
+        '''This release's build configuration cannot be fingerprinted, so this patch's cannot be compared against it. That is permanent for this release: ${decoded['unfingerprintableReason'] ?? 'reason not recorded'}.''',
+      );
+      return;
+    }
+
+    final releaseConfig = RouteBBuildConfig.fromJson(
+      decoded['buildConfig'] as Map<String, dynamic>,
+    );
+    final patchConfig = RouteBBuildConfig.fromBuildArgs(
+      patchArgs,
+      flavor: RouteBBuildConfig.resolveFlavor(
+        cliFlavor: results['flavor'] as String?,
+        pubspecFlutterSection: shorebirdEnv.getPubspecYaml()?.flutter,
+      ),
+    );
+
+    // THE ASYMMETRY THAT MATTERS. Reaching here means the RELEASE's
+    // configuration is known -- it is `releaseConfig`, sitting right there --
+    // and only the PATCH declines to state its own. That is not the same
+    // predicament as the release-side null above, and it must not share its
+    // behaviour:
+    //
+    //   * the release-side null is nobody's choice and has no remedy. Refusing
+    //     it would strand that release forever, so it warns and proceeds.
+    //   * this one is a per-invocation choice, and it is reversible by the
+    //     person making it -- pass the defines the way the release did.
+    //
+    // Treating them alike made the whole check opt-out by one flag, and it
+    // opted out in precisely the case where a mismatch is MOST likely: a patch
+    // pulling defines from a file the release never had is a patch with
+    // different defines. "Cannot be determined" is not evidence of agreement.
+    if (patchConfig == null) {
+      logger
+        ..err(
+          '''This patch cannot be shown to match the release's build configuration.''',
+        )
+        ..info(
+          '''
+The release's configuration IS known (fingerprint ${releaseConfig.fingerprint}), but this patch was invoked with ${routeBUnfingerprintableOptions.join(', ')}, whose effective configuration cannot be determined from the command line.
+
+This is not the same as a release that cannot be fingerprinted -- that case is permanent and is allowed through. This one is yours to resolve: pass the same defines the release used, in a form that can be compared.''',
+        )
+        ..info(
+          '''
+Refusing before building: a patch built with a different configuration compiles a different program than the release it would replace.''',
+        );
+      throw ProcessExit(ExitCode.software.code);
+    }
+
+    if (releaseConfig.agreesWith(patchConfig)) return;
+
+    logger
+      ..err(
+        '''The patch's effective build configuration does not match the release's.''',
+      )
+      ..info(releaseConfig.describeDifference(patchConfig))
+      ..info(
+        '''
+Refusing before building: a patch built with a different configuration compiles a different program than the release it would replace.''',
+      );
+    throw ProcessExit(ExitCode.software.code);
+  }
+
+  Future<PatchSidecars> _packageSidecars(Patcher patcher) async {
+    final platformName = patcher.releaseType.releasePlatform.displayName;
+
+    File? assets;
+    if (includeAssets) {
+      final directory = await patcher.assetsDirectory();
+      if (directory == null) {
+        logger.warn(
+          '--assets was passed but no assets could be resolved for '
+          '$platformName. The patch will not carry an asset bundle.',
+        );
+      } else {
+        assets = await _tryZip(directory, name: 'assets', of: platformName);
+      }
+    }
+
+    // Not gated on a flag: symbols only exist when the build was already asked
+    // for them with --split-debug-info, which is the opt-in.
+    File? symbols;
+    if (await patcher.debugSymbolsDirectory() case final directory?) {
+      symbols = await _tryZip(directory, name: 'symbols', of: platformName);
+    }
+
+    return (assets: assets, symbols: symbols);
+  }
+
+  /// Zips [directory], or returns null and warns if that fails. [name] and [of]
+  /// name the payload and platform in that warning.
+  Future<File?> _tryZip(
+    Directory directory, {
+    required String name,
+    required String of,
+  }) async {
+    try {
+      return await directory.zipToTempFile(name: name);
+    } on Exception catch (error) {
+      logger.warn(
+        'Failed to package $of $name from ${directory.path} ($error). '
+        'They will not be retained with this patch.',
+      );
+      return null;
+    }
   }
 
   /// Prompts the user for the specific release to patch.
@@ -766,6 +1122,44 @@ Please re-run the release command for this version or create a new release.''');
     }
   }
 
+  /// Refuse a Route B patch whose kernel would come from a different engine
+  /// than the release's.
+  ///
+  /// A provenance/compatibility invariant, not a delivery one. Delivery did its
+  /// job in the run that motivated this: it downloaded, installed, promoted and
+  /// reported the patch. The defect was letting an incompatible artifact exist.
+  ///
+  /// A malformed sidecar is NOT a pass. `hasRouteBReleaseProvenance` already
+  /// said this is a Route B release, so an unreadable engine revision means the
+  /// invariant cannot be checked — and an unverifiable invariant is a refusal.
+  void _assertRouteBEngineIdentity(
+    Directory supplement,
+    RouteBEngineCheck check,
+  ) {
+    final String releaseEngine;
+    try {
+      final provenance = readRouteBReleaseProvenance(supplement);
+      if (provenance == null) return;
+      releaseEngine = provenance.engineRevision;
+    } on FormatException catch (error) {
+      logger.err('''
+This release's Route B provenance could not be read, so the engine it was built by cannot be established: ${error.message}
+
+A patch compiled against the wrong engine installs cleanly and does nothing, so
+this is refused rather than attempted. Nothing was uploaded.''');
+      throw ProcessExit(ExitCode.software.code);
+    }
+
+    final refusal = routeBEngineIdentityRefusal(
+      releaseEngineRevision: releaseEngine,
+      activeEngineRevision: shorebirdEnv.shorebirdEngineRevision,
+      check: check,
+    );
+    if (refusal == null) return;
+    logger.err(refusal);
+    throw ProcessExit(ExitCode.software.code);
+  }
+
   /// Ensures the diff between the release and patch archives is safe to patch.
   Future<DiffStatus> assertUnpatchableDiffs({
     required ReleaseArtifact releaseArtifact,
@@ -774,7 +1168,10 @@ Please re-run the release command for this version or create a new release.''');
     required Patcher patcher,
   }) async {
     try {
-      return patcher.assertUnpatchableDiffs(
+      // `await` is load-bearing, not stylistic: without it the Future is
+      // returned before it completes, so an async rejection reaches the caller
+      // instead of these clauses and neither ProcessExit translation happens.
+      return await patcher.assertUnpatchableDiffs(
         releaseArtifact: releaseArtifact,
         releaseArchive: releaseArchive,
         patchArchive: patchArchive,

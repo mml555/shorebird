@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
 import 'package:args/args.dart';
 import 'package:crypto/crypto.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -889,6 +890,76 @@ Looked in:
         expect(
           runWithOverrides(() => patcher.updatedPlatformMetadata(metadata)),
           completion(metadata),
+        );
+      });
+    });
+
+    group('assetsDirectory', () {
+      final aab = File(p.join('test', 'fixtures', 'aabs', 'changed_asset.aab'));
+
+      /// Runs a real [buildPatchArtifact] so the patcher caches [aab] as the
+      /// bundle this patch was built from, which is what assetsDirectory reads.
+      Future<void> buildFrom(File builtAab) async {
+        setUpProjectRootArtifacts();
+        when(
+          () => shorebirdFlutter.getVersion(),
+        ).thenAnswer((_) async => Version(3, 24, 2));
+        when(
+          () => shorebirdFlutter.getVersionAndRevision(),
+        ).thenAnswer((_) async => '3.24.2 (83305b5088)');
+        when(
+          () => artifactBuilder.buildAppBundle(
+            flavor: any(named: 'flavor'),
+            target: any(named: 'target'),
+            targetPlatforms: any(named: 'targetPlatforms'),
+            args: any(named: 'args'),
+            base64PublicKey: any(named: 'base64PublicKey'),
+            ddMaxBytes: any(named: 'ddMaxBytes'),
+          ),
+        ).thenAnswer((_) async => builtAab);
+        await runWithOverrides(patcher.buildPatchArtifact);
+      }
+
+      test('is null when no patch was built in this session', () async {
+        await expectLater(
+          runWithOverrides(patcher.assetsDirectory),
+          completion(isNull),
+        );
+      });
+
+      test('extracts flutter_assets from the built aab', () async {
+        await buildFrom(aab);
+
+        final result = await runWithOverrides(patcher.assetsDirectory);
+
+        expect(result, isNotNull);
+        expect(
+          File(p.join(result!.path, 'AssetManifest.bin')).existsSync(),
+          isTrue,
+        );
+      });
+
+      test('decodes the aab only once across repeated calls', () async {
+        await buildFrom(aab);
+
+        final first = await runWithOverrides(patcher.assetsDirectory);
+        final second = await runWithOverrides(patcher.assetsDirectory);
+
+        expect(first!.path, equals(second!.path));
+      });
+
+      test('is null when the built aab carries no assets', () async {
+        final emptyAab = File(
+          p.join(Directory.systemTemp.createTempSync().path, 'empty.aab'),
+        );
+        final encoder = ZipFileEncoder()..create(emptyAab.path);
+        await encoder.close();
+
+        await buildFrom(emptyAab);
+
+        await expectLater(
+          runWithOverrides(patcher.assetsDirectory),
+          completion(isNull),
         );
       });
     });
