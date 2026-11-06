@@ -553,97 +553,104 @@ void main() {
       expect((await repo.patchArtifacts(patchId)).single.hashSignature, 'YWJj');
     });
 
-    test('customer: assets needs a signature like code, symbols does not',
-        () async {
-      final appId = await newApp();
-      final id = await newRelease(appId);
-      await registerReleaseArtifact(appId, id, signing: {'mode': 'customer'});
-      final patchId = await newPatch(appId, id);
-      // Devices verify dlc.assets in Strict mode, so an unsigned assets
-      // artifact would become a patch that is tombstoned on the next boot.
-      final unsigned = await registerPatchArtifact(
-        appId,
-        patchId,
-        arch: 'assets',
-      );
-      expect(unsigned.statusCode, HttpStatus.badRequest);
-      expect(await unsigned.readAsString(), contains('hash_signature'));
-      expect(
-        (await registerPatchArtifact(appId, patchId)).statusCode,
-        HttpStatus.badRequest,
-      );
-      expect(
-        (await registerPatchArtifact(
+    test(
+      'customer: assets needs a signature like code, symbols does not',
+      () async {
+        final appId = await newApp();
+        final id = await newRelease(appId);
+        await registerReleaseArtifact(appId, id, signing: {'mode': 'customer'});
+        final patchId = await newPatch(appId, id);
+        // Devices verify dlc.assets in Strict mode, so an unsigned assets
+        // artifact would become a patch that is tombstoned on the next boot.
+        final unsigned = await registerPatchArtifact(
           appId,
           patchId,
           arch: 'assets',
-          hashSignature: 'YXNzZXRz',
-        )).statusCode,
-        HttpStatus.ok,
-      );
-      expect(
-        (await registerPatchArtifact(appId, patchId, arch: 'symbols'))
-            .statusCode,
-        HttpStatus.ok,
-      );
-      expect(
-        (await registerPatchArtifact(
-          appId,
-          patchId,
-          hashSignature: 'YWJj',
-        )).statusCode,
-        HttpStatus.ok,
-      );
-      final stored = {
-        for (final a in await repo.patchArtifacts(patchId))
-          a.arch: a.hashSignature,
-      };
-      expect(stored, {
-        'assets': 'YXNzZXRz',
-        'symbols': null,
-        'aarch64': 'YWJj',
-      });
-    });
-
-    test('managed: assets is server-signed like code, symbols is not',
-        () async {
-      final appId = await newApp();
-      final key = await signingKey(appId);
-      final id = await newRelease(appId);
-      await registerReleaseArtifact(
-        appId,
-        id,
-        signing: {'mode': 'managed', 'key_id': key['id']},
-      );
-      final patchId = await newPatch(appId, id);
-      const assetsHash = 'ab12';
-      for (final arch in ['assets', 'symbols']) {
-        final r = await registerPatchArtifact(
-          appId,
-          patchId,
-          arch: arch,
-          hash: assetsHash,
         );
-        expect(r.statusCode, HttpStatus.ok, reason: arch);
-      }
-      final stored = {
-        for (final a in await repo.patchArtifacts(patchId))
-          a.arch: a.hashSignature,
-      };
-      expect(stored['symbols'], isNull);
-      expect(stored['assets'], isNotNull);
-      final pub = JsonWebKey.fromJson(
-        _jwkFromPem(key['public_key_pem'] as String),
-      );
-      expect(
-        pub.verify(
-          utf8.encode(assetsHash),
-          base64.decode(stored['assets']!),
-          algorithm: 'RS256',
-        ),
-        isTrue,
-      );
-    });
+        expect(unsigned.statusCode, HttpStatus.badRequest);
+        expect(await unsigned.readAsString(), contains('hash_signature'));
+        expect(
+          (await registerPatchArtifact(appId, patchId)).statusCode,
+          HttpStatus.badRequest,
+        );
+        expect(
+          (await registerPatchArtifact(
+            appId,
+            patchId,
+            arch: 'assets',
+            hashSignature: 'YXNzZXRz',
+          )).statusCode,
+          HttpStatus.ok,
+        );
+        expect(
+          (await registerPatchArtifact(
+            appId,
+            patchId,
+            arch: 'symbols',
+          )).statusCode,
+          HttpStatus.ok,
+        );
+        expect(
+          (await registerPatchArtifact(
+            appId,
+            patchId,
+            hashSignature: 'YWJj',
+          )).statusCode,
+          HttpStatus.ok,
+        );
+        final stored = {
+          for (final a in await repo.patchArtifacts(patchId))
+            a.arch: a.hashSignature,
+        };
+        expect(stored, {
+          'assets': 'YXNzZXRz',
+          'symbols': null,
+          'aarch64': 'YWJj',
+        });
+      },
+    );
+
+    test(
+      'managed: assets is server-signed like code, symbols is not',
+      () async {
+        final appId = await newApp();
+        final key = await signingKey(appId);
+        final id = await newRelease(appId);
+        await registerReleaseArtifact(
+          appId,
+          id,
+          signing: {'mode': 'managed', 'key_id': key['id']},
+        );
+        final patchId = await newPatch(appId, id);
+        const assetsHash = 'ab12';
+        for (final arch in ['assets', 'symbols']) {
+          final r = await registerPatchArtifact(
+            appId,
+            patchId,
+            arch: arch,
+            hash: assetsHash,
+          );
+          expect(r.statusCode, HttpStatus.ok, reason: arch);
+        }
+        final stored = {
+          for (final a in await repo.patchArtifacts(patchId))
+            a.arch: a.hashSignature,
+        };
+        expect(stored['symbols'], isNull);
+        expect(stored['assets'], isNotNull);
+        final pub = JsonWebKey.fromJson(
+          _jwkFromPem(key['public_key_pem'] as String),
+        );
+        expect(
+          pub.verify(
+            utf8.encode(assetsHash),
+            base64.decode(stored['assets']!),
+            algorithm: 'RS256',
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test(
       'a release made before managed signing is never server-signed',
@@ -765,8 +772,7 @@ void main() {
       },
     );
 
-    test('DELETE refuses a release that ever had a promoted patch, unless '
-        'forced', () async {
+    test('DELETE refuses a release with a live patch, unless forced', () async {
       final appId = await newApp();
       final id = await newRelease(appId);
       await registerReleaseArtifact(appId, id);
@@ -820,6 +826,45 @@ void main() {
       expect(await repo.release(id), isNull);
       expect(await repo.patch(patchId), isNull);
     });
+
+    test(
+      'DELETE succeeds without force once the live patch is rolled back',
+      () async {
+        final appId = await newApp();
+        final id = await newRelease(appId);
+        await registerReleaseArtifact(appId, id);
+        final channel = await jsonOf(
+          await send(
+            'POST',
+            '/api/v1/apps/$appId/channels',
+            json: {'channel': 'stable'},
+          ),
+        );
+        final patchId = await newPatch(appId, id);
+        await registerPatchArtifact(appId, patchId);
+        final art = (await repo.patchArtifacts(patchId)).single;
+        await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
+        await repo.setPatchStatus(patchId, PatchStatus.ready);
+        await repo.setReleasePlatformStatus(id, 'android', 'active');
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/patches/promote',
+          json: {'patch_id': patchId, 'channel_id': channel['id']},
+        );
+        expect(
+          (await send('DELETE', '/api/v1/apps/$appId/releases/$id')).statusCode,
+          HttpStatus.conflict,
+        );
+
+        expect(await repo.rollbackActive(patchId), [channel['id']]);
+
+        expect(
+          (await send('DELETE', '/api/v1/apps/$appId/releases/$id')).statusCode,
+          HttpStatus.noContent,
+        );
+        expect(await repo.release(id), isNull);
+      },
+    );
 
     test('DELETE artifacts?platform= removes one platform only', () async {
       final appId = await newApp();

@@ -1472,13 +1472,15 @@ class Repository {
     return r.isNotEmpty;
   }
 
-  /// True if any patch of [releaseId] has ever been promoted to a channel,
-  /// whatever became of it since (withdrawn and rolled-back rows count).
-  Future<bool> releaseEverPromoted(int releaseId) async {
+  /// True if any patch of [releaseId] is live on a channel right now: a
+  /// `channel_patches` row still `active`. A rolled-back (or superseded) row
+  /// is `withdrawn`, so rolling a patch back is what unblocks deleting its
+  /// release.
+  Future<bool> releaseHasLivePatch(int releaseId) async {
     final r = await _q(
-      'SELECT 1 FROM channel_patches WHERE patch_id IN '
+      'SELECT 1 FROM channel_patches WHERE status = @a AND patch_id IN '
       '(SELECT id FROM patches WHERE release_id = @r) LIMIT 1',
-      {'r': releaseId},
+      {'r': releaseId, 'a': ChannelPatchStatus.active.name},
     );
     return r.isNotEmpty;
   }

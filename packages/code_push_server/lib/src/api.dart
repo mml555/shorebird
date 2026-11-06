@@ -2132,13 +2132,12 @@ class Api {
   /// platform's artifacts and every patch of it. App-admin, like deleting a
   /// channel: it stops serving every patch of the release, and cannot be undone.
   ///
-  /// Refused with 409 once any patch of the release has ever been promoted,
-  /// unless `?force=true`. Deleting takes the `channel_patches` rows with it,
-  /// and a device holding an installed patch learns about a rollback only from
-  /// those rows: it would never be told to drop the patch. A reused version
-  /// string would also restart patch numbering at 1 under the same release
-  /// version, colliding with what devices still have installed. Upstream's
-  /// client sends no `force`, so the message says what to do instead.
+  /// Refused with 409 while any patch of the release is live on a channel,
+  /// unless `?force=true`: deleting would silently stop serving it, and a
+  /// device holding it installed would never be told to drop it. Rolling the
+  /// patch back is the supported way out and unblocks deletion (a rolled-back
+  /// row is no longer live), which matters because upstream's client sends no
+  /// `force`, so the message says what to do instead.
   Future<Response> _deleteRelease(
     Request req,
     String appId,
@@ -2150,15 +2149,14 @@ class Api {
       'true',
       '1',
     }.contains(req.url.queryParameters['force']?.toLowerCase());
-    if (!force && await repo.releaseEverPromoted(releaseId)) {
+    if (!force && await repo.releaseHasLivePatch(releaseId)) {
       _audit(req)?.note(detail: {'version': release.version, 'force': false});
       throw conflict(
-        'Release ${release.version} has had patches promoted to devices, and '
-        'deleting it would discard the record devices need to be told to '
-        'uninstall them (and let patch numbers restart under this version). '
-        'Roll the patches back first (shorebird patches rollback) and let '
-        'devices check in, or, if you are sure, delete it through the console '
-        'or the API with ?force=true. The CLI cannot send force.',
+        'Release ${release.version} still has a patch live on a channel, and '
+        'deleting it would stop serving that patch to devices. Roll the live '
+        'patches back first (shorebird patches rollback); once none is live '
+        'the release can be deleted. Or, if you are sure, delete it through '
+        'the console or the API with ?force=true. The CLI cannot send force.',
       );
     }
     _audit(req)?.note(detail: {'version': release.version, 'force': force});
