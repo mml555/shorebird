@@ -177,7 +177,10 @@ class Api {
   Api(this.repo, this.store, this.config, {String? signingKeyJson})
     : oauth = OAuthService(config.jwtIssuer, keyJson: signingKeyJson),
       _signer = UrlSigner(config.urlSigningSecret),
-      _patchSigner = PatchSigner(config.patchSigningSecret),
+      _patchSigner = switch (config.patchSigningKeySecret) {
+        null => null,
+        final secret => PatchSigner(secret),
+      },
       _analytics = Analytics(repo.db),
       _symbolizer = Symbolizer(store: store),
       obs = Observability(json: config.logFormat == 'json');
@@ -187,7 +190,41 @@ class Api {
   final Config config;
   final OAuthService oauth;
   final UrlSigner _signer;
-  final PatchSigner _patchSigner;
+  final PatchSigner? _patchSigner;
+
+  /// The managed-signing key encryptor, or a 503 naming the variable that
+  /// enables it. Never falls back to another secret (see
+  /// [Config.patchSigningKeySecret]).
+  PatchSigner get _requirePatchSigner =>
+      _patchSigner ??
+      (throw DomainException(
+        503,
+        'signing_not_configured',
+        'Managed patch signing is not configured on this server: set '
+            'PATCH_SIGNING_KEY_SECRET (openssl rand -hex 32), back it up, and '
+            'never rotate it without re-wrapping the stored keys.',
+      ));
+
+  /// Boot-time check that a stored managed signing key decrypts under the
+  /// configured secret. Returns a problem to refuse to start with, or null
+  /// when there is no key yet or the one tried decrypts.
+  Future<String?> checkPatchSigningKeys() async {
+    final stored = await repo.anySigningKey();
+    if (stored == null) return null;
+    final signer = _patchSigner;
+    if (signer == null) {
+      return 'PATCH_SIGNING_KEY_SECRET is not set, but this database holds '
+          'managed patch-signing keys encrypted under it. Set it to the value '
+          'they were created with.';
+    }
+    if (await signer.canDecrypt(stored.privateKeyEncrypted)) return null;
+    return 'PATCH_SIGNING_KEY_SECRET does not decrypt the stored managed '
+        'patch-signing key (id ${stored.id}). It was changed, or the key was '
+        'created under another secret (an older build fell back to '
+        'URL_SIGNING_SECRET). Restore the original value; rotating it strands '
+        'every key.';
+  }
+
   final Analytics _analytics;
   final Symbolizer _symbolizer;
 
@@ -1682,7 +1719,7 @@ class Api {
     if (orgId == null) throw notFound('App not found');
     var key = await repo.signingKeyForOrg(orgId);
     if (key == null) {
-      final fresh = _patchSigner.generate();
+      final fresh = _requirePatchSigner.generate();
       key = await repo.insertSigningKeyIfAbsent(
         orgId,
         fresh.publicKeyPem,
@@ -2219,7 +2256,7 @@ class Api {
         if (key == null) {
           throw conflict('The release\'s signing key no longer exists.');
         }
-        return _patchSigner.signHash(key.privateKeyEncrypted, hash);
+        return _requirePatchSigner.signHash(key.privateKeyEncrypted, hash);
       case 'customer':
         if (supplied == null) {
           throw badRequest(

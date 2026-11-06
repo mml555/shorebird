@@ -1929,6 +1929,12 @@ class Repository {
     return r.isEmpty ? null : _signingKeyFrom(r.first);
   }
 
+  /// Any one stored key, for the boot-time trial decrypt.
+  Future<SigningKeyRow?> anySigningKey() async {
+    final r = await _q('SELECT * FROM signing_keys ORDER BY id LIMIT 1', {});
+    return r.isEmpty ? null : _signingKeyFrom(r.first);
+  }
+
   Future<SigningKeyRow?> signingKeyForOrg(int orgId) async {
     final r = await _q('SELECT * FROM signing_keys WHERE org_id = @o', {
       'o': orgId,

@@ -610,9 +610,12 @@ role:
   org share it; a transferred app keeps using the key its releases embed (the
   artifact records the key id).
 - **Storage:** the private key is a JWE (`dir` + `A256GCM`) of the private JWK.
-  It is encrypted under `PATCH_SIGNING_KEY_SECRET` (optional, at least 32
-  characters; falls back to `URL_SIGNING_SECRET`). It is never logged or
-  returned by any route. Changing the secret makes existing keys unreadable.
+  It is encrypted under `PATCH_SIGNING_KEY_SECRET` (required in production, at
+  least 32 characters; never derived from `URL_SIGNING_SECRET`; the JWE header
+  carries `kid` `v1`). Unset, this route answers 503 naming the variable. It is
+  never logged or returned by any route. Changing the secret makes existing
+  keys unreadable, and the server refuses to boot if a stored key does not
+  decrypt.
 - **Registration:** a release artifact may carry `signing={mode,key_id?}`. Per
   platform, the release's mode is read back from its artifacts (`platforms`
   `signing_mode`, artifact `signing`).

@@ -66,6 +66,11 @@ Future<void> main() async {
     () => OAuthService.keyToJson(OAuthService.generateKey()),
   );
   final api = Api(repo, store, config, signingKeyJson: signingKeyJson);
+  final signingProblem = await api.checkPatchSigningKeys();
+  if (signingProblem != null) {
+    stderr.writeln('FATAL: $signingProblem');
+    exit(78); // EX_CONFIG
+  }
 
   final server = await shelf_io.serve(
     api.handler,

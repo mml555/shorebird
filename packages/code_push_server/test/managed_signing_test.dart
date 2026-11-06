@@ -799,27 +799,84 @@ void main() {
     });
   });
 
+  group('key-encryption secret', () {
+    test('the JWE header carries a key version', () async {
+      final k = PatchSigner('a' * 40).generate();
+      final header =
+          jsonDecode(
+                utf8.decode(
+                  base64Url.decode(
+                    base64Url.normalize(k.privateKeyEncrypted.split('.').first),
+                  ),
+                ),
+              )
+              as Map<String, dynamic>;
+      expect(header['kid'], PatchSigner.currentKeyVersion);
+      expect(header['alg'], 'dir');
+      expect(header['enc'], 'A256GCM');
+    });
+
+    test('signing-key answers 503 naming the variable when unset', () async {
+      final bare = Api(
+        repo,
+        await ArtifactStore.open(config),
+        sqliteConfig(tmp.path, patchSigningKeySecret: null),
+      );
+      final app = await newApp();
+      final r = await bare.handler(
+        Request(
+          'GET',
+          Uri.parse('http://localhost:8080/api/v1/apps/$app/signing-key'),
+          headers: {HttpHeaders.authorizationHeader: 'Bearer $_key'},
+        ),
+      );
+      expect(r.statusCode, HttpStatus.serviceUnavailable);
+      expect(await r.readAsString(), contains('PATCH_SIGNING_KEY_SECRET'));
+      // And nothing was stored under some fallback.
+      expect(await repo.anySigningKey(), isNull);
+    });
+
+    test('boot check: ok with no key, ok with the right secret, refuses a '
+        'wrong or missing one', () async {
+      expect(await api.checkPatchSigningKeys(), isNull);
+      await signingKey(await newApp());
+      expect(await api.checkPatchSigningKeys(), isNull);
+
+      Future<Api> withSecret(String? secret) async => Api(
+        repo,
+        await ArtifactStore.open(config),
+        sqliteConfig(tmp.path, patchSigningKeySecret: secret),
+      );
+      final wrong = await (await withSecret('z' * 40)).checkPatchSigningKeys();
+      expect(wrong, contains('PATCH_SIGNING_KEY_SECRET does not decrypt'));
+      final missing = await (await withSecret(null)).checkPatchSigningKeys();
+      expect(missing, contains('PATCH_SIGNING_KEY_SECRET is not set'));
+    });
+  });
+
   group('Config', () {
     List<String> problems(String? secret) => sqliteConfig(
       tmp.path,
       patchSigningKeySecret: secret,
     ).validate().where((p) => p.contains('PATCH_SIGNING')).toList();
 
-    test('unset falls back to URL_SIGNING_SECRET', () {
-      final c = sqliteConfig(tmp.path);
+    test('unset never falls back to URL_SIGNING_SECRET', () async {
+      // Optional outside production (managed signing is just unavailable)...
       expect(problems(null), isEmpty);
-      expect(c.patchSigningSecret, c.urlSigningSecret);
+      // ...required in production, naming the variable.
+      final prod = sqliteConfig(
+        tmp.path,
+        production: true,
+        patchSigningKeySecret: null,
+      ).validate().where((p) => p.contains('PATCH_SIGNING_KEY_SECRET'));
+      expect(prod, hasLength(1));
+      expect(prod.single, contains('required in production'));
     });
 
     test('a set secret must be long enough and not reused', () {
       expect(problems('a' * 40), isEmpty);
       expect(problems('short'), hasLength(1));
       expect(problems('x' * 40), isEmpty);
-      final reused = sqliteConfig(
-        tmp.path,
-        patchSigningKeySecret: 'sb_api_selfhost_dev' * 2,
-      );
-      expect(reused.patchSigningSecret, startsWith('sb_api_selfhost_dev'));
     });
   });
 }

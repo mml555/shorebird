@@ -49,6 +49,7 @@ Store backups encrypted, wherever you store passwords.
 | item | measured effect of changing it |
 |---|---|
 | `URL_SIGNING_SECRET` | every already-issued download URL stops working. Measured: a URL issued under the old secret returned 200, returned **403** after rotation, and a re-issued URL returned 200. Devices recover on their next `patches/check`; anything holding a URL does not. |
+| `PATCH_SIGNING_KEY_SECRET` | **never rotate, and back it up with the database.** It encrypts every managed patch-signing private key, and shipped apps embed the matching public keys, so a lost or changed value strands those keys permanently: the releases built with them can never receive another signed patch. Not derived from any other secret. The server trial-decrypts a stored key at boot and refuses to start, naming the variable, on a mismatch. Rotation needs the keys re-wrapped first (the JWE `kid` header exists for that). |
 | `PUBLIC_BASE_URL` / `SHOREBIRD_JWT_ISSUER` | baked into the download URLs the server hands devices and into JWT issuance. Changing it points devices somewhere else. |
 | the image the backup was taken under — **and its continued availability** | **enforced, not advice.** The manifest records `server_image` and `server_image_id`, and restore enforces the **digest**, not the tag — one reference republished over a different build is refused. A mismatch means: restoring a pre-upgrade backup with the successor still selected does not roll anything back, it migrates the restored database straight forward again. Pass `--allow-image-change` (single) / `ALLOW_IMAGE_CHANGE=1` (scale) for the deliberate case. Certified by UPGRADE-ROLLBACK-1. Refusing the wrong build only helps while the right one is still obtainable, so every published release also keeps a `:source-<commit>` reference that nothing in normal publishing moves — certified by SERVER-IMAGE-PROVENANCE-1. |
 
@@ -64,7 +65,7 @@ Store backups encrypted, wherever you store passwords.
 
 | item | note |
 |---|---|
-| `.env` | the stack will not boot without `API_KEY` and `URL_SIGNING_SECRET`; both are `:?` required. Back it up **separately and encrypted** — putting it in the data backup would merely move the secret, not protect it. |
+| `.env` | the stack will not boot without `API_KEY` and `URL_SIGNING_SECRET`; both are `:?` required, and production also requires `PATCH_SIGNING_KEY_SECRET`, which can never be regenerated (see above). Back it up **separately and encrypted** — putting it in the data backup would merely move the secret, not protect it. |
 | the container image tag | `ghcr.io/mml555/code-push-server:<tag>` |
 | Docker, volumes, compose files, host, DNS, firewall | described by the compose files, captured by none of them |
 | a private CA, if you use one | Caddy's own CA store is not in either profile's backup |

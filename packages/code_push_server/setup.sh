@@ -289,6 +289,15 @@ lan_ip() {
 # --- generate .env once -----------------------------------------------------
 if [[ -f .env ]]; then
   say "Using existing .env (delete it to regenerate)."
+  # PATCH_SIGNING_KEY_SECRET is required and is never derived from another
+  # secret. An .env from before it existed gets a fresh one. If this database
+  # already holds managed signing keys wrapped under the old URL_SIGNING_SECRET
+  # fallback, the server refuses to boot and names the variable: that older
+  # arrangement was unreleased, and there is no migration.
+  if ! grep -qE '^PATCH_SIGNING_KEY_SECRET=.' .env; then
+    printf 'PATCH_SIGNING_KEY_SECRET=%s\n' "$(gen)" >> .env
+    ok "Added PATCH_SIGNING_KEY_SECRET to .env. BACK IT UP: it encrypts the managed signing keys and can never be rotated without re-wrapping them."
+  fi
 elif [[ "$MODE" == scale ]]; then
   say "Generating .env with fresh secrets (scale: Postgres + S3/MinIO)…"
   : "${EMAIL:=admin@$DOMAIN}"; DBPW="$(gen)"; MINPW="$(gen)"

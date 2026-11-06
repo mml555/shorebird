@@ -42,9 +42,10 @@ services:
       SHOREBIRD_JWT_ISSUER: "${PUBLIC_BASE_URL:-http://localhost:8080}"
       API_KEY: "${API_KEY:?run ./setup.sh, or set API_KEY to a random value}"
       URL_SIGNING_SECRET: "${URL_SIGNING_SECRET:?run ./setup.sh, or set URL_SIGNING_SECRET to a random value}"
-      # Encrypts managed patch-signing private keys at rest. Optional: unset,
-      # the server falls back to URL_SIGNING_SECRET. Never change it once a
-      # release has been built with a managed key.
+      # Encrypts managed patch-signing private keys at rest. Never derived
+      # from another secret: unset, managed signing answers 503 naming this
+      # variable (and PRODUCTION=true refuses to boot). Back it up, and never
+      # change it once a release has been built with a managed key.
       PATCH_SIGNING_KEY_SECRET: "${PATCH_SIGNING_KEY_SECRET:-}"
       LOGIN_EMAIL: "${LOGIN_EMAIL:-you@example.com}"
       # Set by setup.sh --domain (HTTPS): adds the production-only checks

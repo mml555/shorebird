@@ -8,6 +8,32 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed
+
+- **`PATCH_SIGNING_KEY_SECRET` is now required for managed signing, and no
+  longer falls back to `URL_SIGNING_SECRET`.** Rotating a secret operators
+  rotate for other reasons must never strand the stored signing keys. It is
+  required (boot refuses) when `PRODUCTION` is set; otherwise unset, `GET
+  /apps/{app}/signing-key` and managed patch signing answer 503 naming the
+  variable. At boot a stored key is trial-decrypted and the server refuses to
+  start, naming the variable, if it does not decrypt. New keys carry a `kid`
+  (`v1`) in the JWE header so a later rotation can add a second version.
+  **Breaking, deliberately clean:** the fallback only existed on the
+  unreleased 1.4.0 branch, so there is no migration. A database whose keys were
+  wrapped under the `URL_SIGNING_SECRET` fallback will not boot until you set
+  `PATCH_SIGNING_KEY_SECRET=<that URL_SIGNING_SECRET value>`; delete the
+  `signing_keys` rows instead only if no release was built with a managed key.
+  Back the secret up with the database.
+- `/login` now requires `code_challenge` (PKCE S256) with `redirect_uri`. The
+  legacy `continue` form still works without one.
+- Patch artifacts with arch `assets` or `symbols` need no `hash_signature` in
+  any signing mode, and are never server-signed (the CLI sends none).
+
+### Added
+
+- `GET /cli/login-result`: the page the 1.6.138 CLI sends the browser to after
+  a loopback login.
+
 ## 1.4.0 — 2026-11-06
 
 ### Added
@@ -29,16 +55,18 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     (RSASSA-PKCS1-v1_5 / SHA-256 over the hex hash string, the scheme the
     updater verifies); a client `hash_signature` is refused. A `customer`
     release requires one. Releases made before this change are never
-    server-signed. Private keys are stored as JWE under the new optional
-    `PATCH_SIGNING_KEY_SECRET` (min. 32 characters, falls back to
-    `URL_SIGNING_SECRET`) and are never returned or logged.
+    server-signed. Private keys are stored as JWE under the new
+    `PATCH_SIGNING_KEY_SECRET` (min. 32 characters; see Unreleased: it no
+    longer falls back to `URL_SIGNING_SECRET`) and are never returned or
+    logged.
   - **`DELETE /apps/{app}/releases/{release}`** and
     **`DELETE …/releases/{release}/artifacts?platform=`** (app admin; audited
     as `release.delete` / `release.artifact.delete`). The artifact store gains
     `delete`.
   - **Login**: `/login` accepts upstream's `redirect_uri` + `state` as well as
-    `continue`, and verifies PKCE S256 at `/token` (migration 15). A login with
-    no `code_challenge`, as an older CLI sends, redeems without a verifier.
+    `continue`, and verifies PKCE S256 at `/token` (migration 15). A `continue`
+    login with no `code_challenge`, as an older CLI sends, redeems without a
+    verifier; `redirect_uri` requires one (see Unreleased).
     `POST /revoke` (RFC 7009) backs `shorebird logout`.
 
 ### Added

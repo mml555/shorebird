@@ -201,9 +201,18 @@ class Config {
     // header and authenticate the caller as the seeded owner. To retire the
     // bootstrap key, set it to a fresh random value nobody holds.
     if (bootstrapApiKey.isEmpty) problems.add('API_KEY must not be empty');
-    // Optional, but a weak value is worse than none: it would encrypt every
-    // managed patch-signing private key under a guessable secret.
+    // Required in production, where managed signing must work and its keys
+    // must be recoverable; elsewhere unset just disables managed signing. A
+    // weak value is worse than none: it would encrypt every managed
+    // patch-signing private key under a guessable secret.
     final keySecret = patchSigningKeySecret;
+    if (keySecret == null && production) {
+      problems.add(
+        'PATCH_SIGNING_KEY_SECRET is required in production (it encrypts '
+        'managed patch-signing keys; openssl rand -hex 32, and back it up: '
+        'it can never be rotated without re-wrapping the stored keys)',
+      );
+    }
     if (keySecret != null) {
       if (keySecret.length < minPatchSigningKeySecretLength) {
         problems.add(
@@ -355,15 +364,17 @@ class Config {
   static const minPatchSigningKeySecretLength = 32;
 
   /// `PATCH_SIGNING_KEY_SECRET`: the secret that encrypts managed patch-signing
-  /// private keys at rest (AES-256-GCM, key derived from it). Optional so an
-  /// existing deployment keeps booting: when unset, [patchSigningSecret] falls
-  /// back to [urlSigningSecret]. Set it explicitly in production, and do not
-  /// change it afterwards: every stored key is encrypted under it, so a changed
-  /// value makes existing managed keys (and the patches they sign) unusable.
+  /// private keys at rest (AES-256-GCM, key derived from it).
+  ///
+  /// Never derived from another secret: `URL_SIGNING_SECRET` is rotated for
+  /// its own reasons, and rotating the key-encryption secret strands every
+  /// stored key for good (shipped apps embed the matching public keys). Unset,
+  /// managed signing is simply unavailable: `GET /apps/{id}/signing-key`
+  /// answers 503 naming this variable. [validate] makes it required in
+  /// production, and at boot a stored key that does not decrypt under it
+  /// refuses to start. Back it up with the database and never rotate it
+  /// without re-wrapping the stored keys.
   final String? patchSigningKeySecret;
-
-  /// The secret managed signing keys are actually encrypted under.
-  String get patchSigningSecret => patchSigningKeySecret ?? urlSigningSecret;
 
   /// True when [peerIp] — the socket peer, not anything it claims to be — is a
   /// proxy listed in [trustedProxies], and its `X-Forwarded-For` may therefore

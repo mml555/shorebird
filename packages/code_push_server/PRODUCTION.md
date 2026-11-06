@@ -52,7 +52,7 @@ openssl rand -hex 32
 You need fresh values for:
 
 - `URL_SIGNING_SECRET` — signs short-lived download URLs.
-- `PATCH_SIGNING_KEY_SECRET` — encrypts the managed patch-signing private keys at rest. Back it up with the database: without it every managed key is unreadable and its releases can no longer receive signed patches.
+- `PATCH_SIGNING_KEY_SECRET` — **required in production** (the server refuses to boot without it). Encrypts the managed patch-signing private keys at rest, and is never derived from `URL_SIGNING_SECRET`. Back it up with the database, and **never rotate it** without first re-wrapping the stored keys: shipped apps embed the matching public keys, so a lost or changed value strands every managed key for good. At boot the server trial-decrypts a stored key and refuses to start, naming this variable, if it does not decrypt.
 - `API_KEY` — bootstrap API key (rotate/remove once real users exist).
 - `POSTGRES_PASSWORD` (and the matching password inside `DATABASE_URL`).
 - `MINIO_ROOT_PASSWORD` (and the matching `S3_SECRET_KEY`).
@@ -175,7 +175,7 @@ it into a fresh stack requires you to supply, separately:
 
 | not backed up | why it matters |
 |---|---|
-| `.env` — `API_KEY`, `URL_SIGNING_SECRET`, `PATCH_SIGNING_KEY_SECRET`, DB and S3 credentials | the stack will not boot without them, and `URL_SIGNING_SECRET` must match or every previously-issued download URL breaks |
+| `.env` — `API_KEY`, `URL_SIGNING_SECRET`, `PATCH_SIGNING_KEY_SECRET`, DB and S3 credentials | the stack will not boot without them. `URL_SIGNING_SECRET` must match or every previously-issued download URL breaks, and `PATCH_SIGNING_KEY_SECRET` must match **forever** or every managed signing key is lost |
 | TLS material (Caddy's cert store) | reissued automatically on a reachable domain; a private CA is not |
 | the container image tag | a restore onto a newer image runs its migrations against the restored schema |
 | in-flight resumable upload chunks | staged in the server container's ephemeral filesystem; an interrupted upload does not survive |

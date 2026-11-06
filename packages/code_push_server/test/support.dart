@@ -1,5 +1,9 @@
 import 'package:code_push_server/src/config.dart';
 
+/// A key-encryption secret for tests that exercise managed signing. Pass
+/// `patchSigningKeySecret: null` to test the unconfigured server.
+const testPatchSigningKeySecret = 'test-patch-signing-key-secret-0123456789';
+
 /// A [Config] for an embedded SQLite + filesystem backend rooted at [dataDir].
 /// Shared by the backend integration tests (db_test, analytics_test).
 Config sqliteConfig(
@@ -10,7 +14,8 @@ Config sqliteConfig(
   bool rateLimitShared = false,
   String? loginEmail,
   bool idpEnabled = false,
-  String? patchSigningKeySecret,
+  bool production = false,
+  String? patchSigningKeySecret = testPatchSigningKeySecret,
 }) => Config(
   trustedProxies: trustedProxies,
   rateLimitIpPerMinute: rateLimitIpPerMinute,
@@ -41,7 +46,7 @@ Config sqliteConfig(
   idpAuthorizeUrl: idpEnabled ? 'https://idp.test/authorize' : '',
   idpTokenUrl: idpEnabled ? 'https://idp.test/token' : '',
   idpScopes: 'openid email',
-  production: false,
+  production: production,
   dbBackend: 'sqlite',
   storageBackend: 'file',
   dataDir: dataDir,

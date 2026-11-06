@@ -14,22 +14,33 @@ import 'package:jose/jose.dart';
 /// SHA-256 over the UTF-8 bytes of the patch's lowercase-hex SHA-256 string
 /// (not over the patch file), base64 (standard alphabet) encoded.
 class PatchSigner {
-  PatchSigner(String secret) : _cek = _deriveKey(secret);
+  PatchSigner(String secret)
+    : _ceks = {currentKeyVersion: _deriveKey(secret, currentKeyVersion)};
+
+  /// The key-encryption-key version written to every new key's JWE protected
+  /// header as `kid`. A future rotation adds `v2` to [_ceks] (derived from a
+  /// new secret) and keeps `v1` decrypting existing keys, so rotating never
+  /// strands a stored key the way replacing the one secret would.
+  static const currentKeyVersion = 'v1';
 
   /// Upstream accepts RSA keys of 2048 to 8192 bits; the smallest is generated
   /// because every device verifies each patch with it.
   static const int keyBits = 2048;
 
-  final JsonWebKey _cek;
+  final Map<String, JsonWebKey> _ceks;
 
-  static JsonWebKey _deriveKey(String secret) {
+  static JsonWebKey _deriveKey(String secret, String kid) {
     // Domain-separated, so the same secret used elsewhere (URL signing) never
     // yields the same key.
     final k = Hmac(
       sha256,
       utf8.encode(secret),
     ).convert(utf8.encode('code_push_server/patch-signing-key/v1')).bytes;
-    return JsonWebKey.fromJson({'kty': 'oct', 'k': base64Url.encode(k)});
+    return JsonWebKey.fromJson({
+      'kty': 'oct',
+      'kid': kid,
+      'k': base64Url.encode(k),
+    });
   }
 
   /// A freshly generated key pair. [privateKeyEncrypted] is a compact JWE
@@ -43,7 +54,8 @@ class PatchSigner {
     final builder = JsonWebEncryptionBuilder()
       ..stringContent = jsonEncode(jwk)
       ..encryptionAlgorithm = 'A256GCM'
-      ..addRecipient(_cek, algorithm: 'dir');
+      ..setProtectedHeader('kid', currentKeyVersion)
+      ..addRecipient(_ceks[currentKeyVersion]!, algorithm: 'dir');
     return (
       publicKeyPem: pem,
       privateKeyEncrypted: builder.build().toCompactSerialization(),
@@ -52,10 +64,30 @@ class PatchSigner {
 
   Future<JsonWebKey> _decrypt(String privateKeyEncrypted) async {
     final jwe = JsonWebEncryption.fromCompactSerialization(privateKeyEncrypted);
-    final payload = await jwe.getPayload(JsonWebKeyStore()..addKey(_cek));
+    // A key stored before `kid` existed was wrapped under what is now `v1`.
+    final kid = jwe.commonProtectedHeader.keyId ?? currentKeyVersion;
+    final cek = _ceks[kid];
+    if (cek == null) {
+      throw StateError('Signing key is wrapped under unknown key version $kid');
+    }
+    final payload = await jwe.getPayload(JsonWebKeyStore()..addKey(cek));
     return JsonWebKey.fromJson(
       jsonDecode(payload.stringContent) as Map<String, dynamic>,
     );
+  }
+
+  /// Whether [privateKeyEncrypted] decrypts under the configured secret.
+  /// Used at boot, so a wrong or missing `PATCH_SIGNING_KEY_SECRET` is caught
+  /// before the first patch fails to sign.
+  Future<bool> canDecrypt(String privateKeyEncrypted) async {
+    try {
+      await _decrypt(privateKeyEncrypted);
+      return true;
+      // Any failure (bad tag, malformed JWE, unknown kid) means unusable.
+      // ignore: avoid_catches_without_on_clauses
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Signs [hash] (the patch's hex SHA-256 string) and returns the base64
