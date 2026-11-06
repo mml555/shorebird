@@ -94,22 +94,23 @@ void main() {
       );
     });
 
-    test(
-      'retry and recovery in the SAME SECOND are both kept',
-      () async {
-        // THE REGRESSION THIS FILE EXISTS FOR. The dedupe key was
-        // client|app|release|patch|type|timestamp, so an ambiguous retry at init
-        // and the recovery from that same launch's success collided and the
-        // RECOVERY was silently dropped — biasing P(recovery | first ambiguity)
-        // downward, the exact number the threshold is judged on.
-        expect(await put('ambiguous_boot_retry', attempt: 1), isTrue);
-        expect(await put('recovered_after_ambiguity'), isTrue);
+    test('retry and recovery in the SAME SECOND are both kept', () async {
+      // THE REGRESSION THIS FILE EXISTS FOR. The dedupe key was
+      // client|app|release|patch|type|timestamp, so an ambiguous retry at init
+      // and the recovery from that same launch's success collided and the
+      // RECOVERY was silently dropped — biasing P(recovery | first ambiguity)
+      // downward, the exact number the threshold is judged on.
+      expect(await put('ambiguous_boot_retry', attempt: 1), isTrue);
+      expect(await put('recovered_after_ambiguity'), isTrue);
 
-        final m = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a);
-        expect(m.first['first_ambiguity'], 1);
-        expect(m.first['recovered'], 1, reason: 'recovery must not be deduped away');
-      },
-    );
+      final m = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a);
+      expect(m.first['first_ambiguity'], 1);
+      expect(
+        m.first['recovered'],
+        1,
+        reason: 'recovery must not be deduped away',
+      );
+    });
 
     test('a genuine duplicate is still rejected', () async {
       expect(await put('ambiguous_boot_retry', attempt: 1), isTrue);
@@ -128,8 +129,15 @@ void main() {
       await put('ambiguous_boot_retry', client: 'b', attempt: 2, ts: 2000);
       await put('retired_after_ambiguity', client: 'b', ts: 2000);
 
-      final m = (await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a)).first;
-      expect(m['first_ambiguity'], 2, reason: 'two devices hit a first ambiguity');
+      final m = (await repo.bootLifecycleMetrics(
+        'app',
+        epoch: PolicyEpoch.a,
+      )).first;
+      expect(
+        m['first_ambiguity'],
+        2,
+        reason: 'two devices hit a first ambiguity',
+      );
       expect(m['recovered'], 1);
       expect(m['second_ambiguity'], 1);
       expect(m['retired'], 1);
@@ -139,8 +147,15 @@ void main() {
     test('clients are counted once each, not per row', () async {
       await put('ambiguous_boot_retry', client: 'a', attempt: 1);
       await put('ambiguous_boot_retry', client: 'a', attempt: 1, ts: 2000);
-      final m = (await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a)).first;
-      expect(m['first_ambiguity'], 1, reason: 're-reporting must not inflate it');
+      final m = (await repo.bootLifecycleMetrics(
+        'app',
+        epoch: PolicyEpoch.a,
+      )).first;
+      expect(
+        m['first_ambiguity'],
+        1,
+        reason: 're-reporting must not inflate it',
+      );
     });
 
     test('an event with NO updater revision is ineligible', () async {
@@ -148,7 +163,8 @@ void main() {
       // carry the event-loss fixes, so it under-counts rather than fabricating.
       await repo.insertEvent(
         raw: '{}',
-        dedupeKey: 'norev|app|1.7.0+1|1|__patch_boot_lifecycle__|5|ambiguous_boot_retry',
+        dedupeKey:
+            'norev|app|1.7.0+1|1|__patch_boot_lifecycle__|5|ambiguous_boot_retry',
         appId: 'app',
         clientId: 'norev',
         type: '__patch_boot_lifecycle__',
@@ -158,7 +174,10 @@ void main() {
         outcome: 'ambiguous_boot_retry',
         ambiguousAttemptCount: 1,
       );
-      expect(await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a), isEmpty);
+      expect(
+        await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a),
+        isEmpty,
+      );
     });
 
     test('pre-epoch releases are excluded from the estimator', () async {
@@ -167,7 +186,8 @@ void main() {
       // zero rather than merely adding noise.
       await repo.insertEvent(
         raw: '{}',
-        dedupeKey: 'old|app|1.5.0+1|1|__patch_boot_lifecycle__|1|ambiguous_boot_retry',
+        dedupeKey:
+            'old|app|1.5.0+1|1|__patch_boot_lifecycle__|1|ambiguous_boot_retry',
         appId: 'app',
         clientId: 'old',
         type: '__patch_boot_lifecycle__',
@@ -186,7 +206,8 @@ void main() {
       // A post-epoch row is counted.
       await repo.insertEvent(
         raw: '{}',
-        dedupeKey: 'new|app|1.7.0+1|1|__patch_boot_lifecycle__|1|ambiguous_boot_retry',
+        dedupeKey:
+            'new|app|1.7.0+1|1|__patch_boot_lifecycle__|1|ambiguous_boot_retry',
         appId: 'app',
         clientId: 'new',
         type: '__patch_boot_lifecycle__',
@@ -218,7 +239,10 @@ void main() {
         ),
         isTrue,
       );
-      expect(await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a), isEmpty);
+      expect(
+        await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a),
+        isEmpty,
+      );
     });
 
     // ---- EPOCHS DO NOT POOL ----------------------------------------------
@@ -245,7 +269,11 @@ void main() {
       expect(b.first['first_ambiguity'], 1);
 
       final a = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a);
-      expect(a, isEmpty, reason: 'a closed epoch must not absorb later clients');
+      expect(
+        a,
+        isEmpty,
+        reason: 'a closed epoch must not absorb later clients',
+      );
     });
 
     test('the epochs PARTITION the rows rather than pooling them', () async {
@@ -289,7 +317,8 @@ void main() {
       expect(
         PolicyEpoch.values.every((e) => e.updaterRevisions.isNotEmpty),
         isTrue,
-        reason: 'an unactivated epoch now exists, so the guard is live again -- '
+        reason:
+            'an unactivated epoch now exists, so the guard is live again -- '
             'test it directly rather than removing it',
       );
     });
