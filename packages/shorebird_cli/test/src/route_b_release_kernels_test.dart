@@ -10,8 +10,10 @@ import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:test/test.dart';
 
 import 'mocks.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(RouteBReleaseKernelBuilder, () {
     group('forwardedArgs', () {
       test('translates dart-defines into gen_kernel -D flags', () {

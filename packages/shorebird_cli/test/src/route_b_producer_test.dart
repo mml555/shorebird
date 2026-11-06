@@ -14,9 +14,11 @@ import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:test/test.dart';
 
+import 'helpers.dart';
 import 'mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(RouteBProducer, () {
     late Directory cell;
     late Directory work;

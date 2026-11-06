@@ -29,10 +29,12 @@ import 'package:shorebird_cli/src/version.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
+import '../../helpers.dart';
 import '../../matchers.dart';
 import '../../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(IosFrameworkReleaser, () {
     late ArgResults argResults;
     late ArtifactBuilder artifactBuilder;
@@ -80,10 +82,17 @@ void main() {
 
     setUp(() {
       argResults = MockArgResults();
+      // Managed signing, the default, is covered in releaser_test.dart.
+      when(() => argResults['patch-signing']).thenReturn(false);
       artifactBuilder = MockArtifactBuilder();
       artifactManager = MockArtifactManager();
       codePushClientWrapper = MockCodePushClientWrapper();
       codeSigner = MockCodeSigner();
+      when(
+        () => codeSigner.canonicalPublicKeyPem(any()),
+      ).thenAnswer(
+        (invocation) => invocation.positionalArguments.single as String,
+      );
       doctor = MockDoctor();
       flavorValidator = MockFlavorValidator();
       operatingSystemInterface = MockOperatingSystemInterface();
@@ -97,6 +106,7 @@ void main() {
       xcodeBuild = MockXcodeBuild();
 
       when(() => argResults.rest).thenReturn([]);
+      when(() => argResults['codesign']).thenReturn(true);
       when(() => argResults.wasParsed(any())).thenReturn(false);
       when(() => argResults['flutter-version']).thenReturn('latest');
 
@@ -120,8 +130,8 @@ void main() {
     });
 
     group('minimumFlutterVersion', () {
-      test('is 3.22.2', () {
-        expect(iosFrameworkReleaser.minimumFlutterVersion, Version(3, 22, 2));
+      test('is 3.24.0', () {
+        expect(iosFrameworkReleaser.minimumFlutterVersion, Version(3, 24, 0));
       });
     });
 
@@ -131,23 +141,46 @@ void main() {
       });
     });
 
-    group('assertArgsAreValid', () {
-      group('when split-per-abi is true', () {
-        setUp(() {
-          when(() => argResults.wasParsed('release-version')).thenReturn(false);
-        });
-
-        test('exits with code 64', () async {
-          await expectLater(
-            () => runWithOverrides(iosFrameworkReleaser.assertArgsAreValid),
-            exitsWithCode(ExitCode.usage),
-          );
-        });
+    group('supplement', () {
+      test('uploads under the platform supplement names', () {
+        expect(iosFrameworkReleaser.supplementPlatformSubdir, equals('ios'));
+        expect(
+          iosFrameworkReleaser.supplementArtifactArch,
+          equals('ios_framework_supplement'),
+        );
       });
+    });
+
+    group('assertArgsAreValid', () {
+      for (final (description, value) in [
+        ('was not provided', null),
+        ('is blank', '  '),
+        ('is latest', 'latest'),
+      ]) {
+        group('when release-version $description', () {
+          setUp(() {
+            when(() => argResults['release-version']).thenReturn(value);
+          });
+
+          test('exits saying which version to pass', () async {
+            await expectLater(
+              () => runWithOverrides(iosFrameworkReleaser.assertArgsAreValid),
+              exitsWithError(
+                message:
+                    'An ios-framework release needs --release-version: the '
+                    'version of the iOS app that embeds this module.',
+                hint:
+                    'Run: shorebird release ios-framework '
+                    '--release-version=$releaseVersionExample',
+              ),
+            );
+          });
+        });
+      }
 
       group('when arguments are valid', () {
         setUp(() {
-          when(() => argResults.wasParsed('release-version')).thenReturn(true);
+          when(() => argResults['release-version']).thenReturn('1.0.0+1');
         });
 
         test('returns normally', () {
@@ -158,48 +191,9 @@ void main() {
         });
       });
 
-      group('when --obfuscate is passed', () {
-        setUp(() {
-          when(() => argResults.wasParsed('release-version')).thenReturn(true);
-          when(() => argResults['obfuscate']).thenReturn(true);
-          when(() => argResults.wasParsed('obfuscate')).thenReturn(true);
-          when(() => shorebirdEnv.flutterRevision).thenReturn('deadbeef');
-        });
-
-        group('when Flutter version supports obfuscation', () {
-          setUp(() {
-            when(
-              () => shorebirdFlutter.resolveFlutterVersion(any()),
-            ).thenAnswer((_) async => Version(3, 41, 2));
-          });
-
-          test('returns normally', () async {
-            await expectLater(
-              runWithOverrides(iosFrameworkReleaser.assertArgsAreValid),
-              completes,
-            );
-          });
-        });
-
-        group('when Flutter version does not support obfuscation', () {
-          setUp(() {
-            when(
-              () => shorebirdFlutter.resolveFlutterVersion(any()),
-            ).thenAnswer((_) async => Version(3, 27, 4));
-          });
-
-          test('logs error and exits', () async {
-            await expectLater(
-              () => runWithOverrides(iosFrameworkReleaser.assertArgsAreValid),
-              exitsWithCode(ExitCode.unavailable),
-            );
-          });
-        });
-      });
-
       group('when --obfuscate is not passed', () {
         setUp(() {
-          when(() => argResults.wasParsed('release-version')).thenReturn(true);
+          when(() => argResults['release-version']).thenReturn('1.0.0+1');
         });
 
         test('returns normally', () async {
@@ -220,30 +214,6 @@ void main() {
           () => shorebirdFlutter.resolveFlutterVersion(any()),
         ).thenAnswer((_) async => flutterVersion);
         when(flavorValidator.validate).thenAnswer((_) async => []);
-      });
-
-      group('when validation succeeds', () {
-        setUp(() {
-          when(
-            () => shorebirdValidator.validatePreconditions(
-              checkUserIsAuthenticated: any(named: 'checkUserIsAuthenticated'),
-              checkShorebirdInitialized: any(
-                named: 'checkShorebirdInitialized',
-              ),
-              validators: any(named: 'validators'),
-              supportedOperatingSystems: any(
-                named: 'supportedOperatingSystems',
-              ),
-            ),
-          ).thenAnswer((_) async {});
-        });
-
-        test('returns normally', () async {
-          await expectLater(
-            () => runWithOverrides(iosFrameworkReleaser.assertPreconditions),
-            returnsNormally,
-          );
-        });
       });
 
       group('when validation fails', () {
@@ -274,27 +244,9 @@ void main() {
               checkUserIsAuthenticated: true,
               checkShorebirdInitialized: true,
               validators: [flavorValidator],
-              supportedOperatingSystems: {Platform.macOS},
+              supportedOperatingSystems: {NativePlatform.macOS},
             ),
           ).called(1);
-        });
-      });
-
-      group('when specified flutter version is less than minimum', () {
-        setUp(() {
-          when(
-            () => shorebirdValidator.validatePreconditions(
-              checkUserIsAuthenticated: any(named: 'checkUserIsAuthenticated'),
-              checkShorebirdInitialized: any(
-                named: 'checkShorebirdInitialized',
-              ),
-              validators: any(named: 'validators'),
-              supportedOperatingSystems: any(
-                named: 'supportedOperatingSystems',
-              ),
-            ),
-          ).thenAnswer((_) async {});
-          when(() => argResults['flutter-version']).thenReturn('3.0.0');
         });
       });
     });
@@ -382,76 +334,16 @@ void main() {
         );
       });
 
-      group('when a public-key-cmd is provided', () {
-        const base64PublicKey = 'base64PublicKeyFromCmd';
-
+      group('when --no-codesign is passed', () {
         setUp(() {
-          when(
-            () => argResults[CommonArguments.publicKeyCmd.name],
-          ).thenReturn('get-key-cmd');
-          when(
-            () => argResults.wasParsed(CommonArguments.publicKeyCmd.name),
-          ).thenReturn(true);
-
-          when(
-            () => artifactBuilder.buildIosFramework(
-              args: any(named: 'args'),
-              base64PublicKey: any(named: 'base64PublicKey'),
-              ddMaxBytes: any(named: 'ddMaxBytes'),
-            ),
-          ).thenAnswer(
-            (_) async =>
-                AppleBuildResult(kernelFile: File('/path/to/app.dill')),
-          );
-
-          when(
-            () => codeSigner.runPublicKeyCmd(any()),
-          ).thenAnswer((_) async => 'pem-public-key');
-          when(
-            () => codeSigner.base64PublicKeyFromPem(any()),
-          ).thenReturn(base64PublicKey);
+          when(() => argResults['codesign']).thenReturn(false);
         });
 
-        test(
-          'runs public key cmd and forwards encoded key to '
-          'buildIosFramework',
-          () async {
-            await runWithOverrides(
-              () => iosFrameworkReleaser.buildReleaseArtifacts(),
-            );
-
-            verify(
-              () => codeSigner.runPublicKeyCmd('get-key-cmd'),
-            ).called(1);
-            verify(
-              () => codeSigner.base64PublicKeyFromPem('pem-public-key'),
-            ).called(1);
-            verify(
-              () => artifactBuilder.buildIosFramework(
-                args: any(named: 'args'),
-                base64PublicKey: base64PublicKey,
-              ),
-            ).called(1);
-          },
-        );
-      });
-
-      group('when stale build/ios/shorebird directory exists', () {
-        late Directory shorebirdSupplementDir;
-
-        setUp(() {
-          shorebirdSupplementDir = Directory(
-            p.join(projectRoot.path, 'build', 'ios', 'shorebird'),
-          )..createSync(recursive: true);
-          when(
-            () => artifactManager.getIosReleaseSupplementDirectory(),
-          ).thenReturn(shorebirdSupplementDir);
-        });
-
-        test('deletes the directory', () async {
-          expect(shorebirdSupplementDir.existsSync(), isTrue);
+        test('forwards --no-codesign to flutter', () async {
           await runWithOverrides(iosFrameworkReleaser.buildReleaseArtifacts);
-          expect(shorebirdSupplementDir.existsSync(), isFalse);
+          verify(
+            () => artifactBuilder.buildIosFramework(args: ['--no-codesign']),
+          ).called(1);
         });
       });
 
@@ -479,6 +371,65 @@ void main() {
 
         expect(xcframework.path, p.join(projectRoot.path, 'release'));
         verify(() => artifactBuilder.buildIosFramework(args: [])).called(1);
+      });
+
+      test(
+        'replaces each .xcframework from a previous release but keeps other '
+        'files in the release directory',
+        () async {
+          final releaseDir = p.join(projectRoot.path, 'release');
+          // Not empty, so renaming Flutter.xcframework onto it would fail if
+          // it were left in place.
+          final staleShorebirdFlutterMarker = File(
+            p.join(releaseDir, 'ShorebirdFlutter.xcframework', 'stale'),
+          )..createSync(recursive: true);
+          final stalePlugin = Directory(
+            p.join(releaseDir, 'RemovedPlugin.xcframework'),
+          )..createSync(recursive: true);
+          // What `shorebird release aar` writes to the same directory.
+          final aarFile = File(
+            p.join(releaseDir, 'com', 'example', 'flutter_release-1.0.aar'),
+          )..createSync(recursive: true);
+
+          await runWithOverrides(iosFrameworkReleaser.buildReleaseArtifacts);
+
+          expect(aarFile.existsSync(), isTrue);
+          expect(stalePlugin.existsSync(), isFalse);
+          expect(staleShorebirdFlutterMarker.existsSync(), isFalse);
+          expect(
+            Directory(
+              p.join(releaseDir, 'ShorebirdFlutter.xcframework'),
+            ).existsSync(),
+            isTrue,
+          );
+          expect(
+            Directory(p.join(releaseDir, 'Flutter.xcframework')).existsSync(),
+            isFalse,
+          );
+        },
+      );
+
+      test('forwards the target to buildIosFramework', () async {
+        when(
+          () => artifactBuilder.buildIosFramework(
+            target: any(named: 'target'),
+            args: any(named: 'args'),
+          ),
+        ).thenAnswer((_) async => AppleBuildResult(kernelFile: File('')));
+        iosFrameworkReleaser = IosFrameworkReleaser(
+          argResults: argResults,
+          flavor: null,
+          target: 'lib/main_prod.dart',
+        );
+
+        await runWithOverrides(iosFrameworkReleaser.buildReleaseArtifacts);
+
+        verify(
+          () => artifactBuilder.buildIosFramework(
+            target: 'lib/main_prod.dart',
+            args: [],
+          ),
+        ).called(1);
       });
 
       group('when --obfuscate is passed', () {
@@ -541,39 +492,6 @@ void main() {
             ),
           ).called(1);
         });
-
-        group('when obfuscation map is not generated', () {
-          setUp(() {
-            // Override to NOT create the map file.
-            when(
-              () => artifactBuilder.buildIosFramework(
-                args: any(named: 'args'),
-              ),
-            ).thenAnswer(
-              (_) async =>
-                  AppleBuildResult(kernelFile: File('/path/to/app.dill')),
-            );
-          });
-
-          test('logs error and exits', () async {
-            await expectLater(
-              () => runWithOverrides(
-                iosFrameworkReleaser.buildReleaseArtifacts,
-              ),
-              exitsWithCode(ExitCode.software),
-            );
-
-            verify(
-              () => logger.err(
-                any(
-                  that: contains(
-                    'Obfuscation was enabled but the obfuscation map was not',
-                  ),
-                ),
-              ),
-            ).called(1);
-          });
-        });
       });
     });
 
@@ -591,6 +509,16 @@ void main() {
         );
         expect(result, releaseVersion);
       });
+
+      test('trims surrounding whitespace', () async {
+        when(() => argResults['release-version']).thenReturn(' 1.0.0 ');
+        final result = await runWithOverrides(
+          () => iosFrameworkReleaser.getReleaseVersion(
+            releaseArtifactRoot: Directory(''),
+          ),
+        );
+        expect(result, equals('1.0.0'));
+      });
     });
 
     group('uploadReleaseArtifacts', () {
@@ -606,7 +534,7 @@ void main() {
         flutterRevision: flutterRevision,
         flutterVersion: flutterVersion,
         displayName: '1.2.3+1',
-        platformStatuses: const {},
+        platforms: const {},
         createdAt: DateTime(2023),
         updatedAt: DateTime(2023),
       );
@@ -704,9 +632,9 @@ Your next step is to add the .xcframework files found in the ${lightCyan.wrap(re
 
 To do this:
     1. Add the relative path to the ${lightCyan.wrap(relativeFrameworkDirectoryPath)} directory to your app's Framework Search Paths in your Xcode build settings.
-    2. Embed the App.xcframework and ShorebirdFlutter.framework in your Xcode project.
+    2. Embed the App.xcframework and ShorebirdFlutter.xcframework in your Xcode project.
 
-Instructions for these steps can be found at https://docs.flutter.dev/add-to-app/ios/project-setup#option-b---embed-frameworks-in-xcode.
+Instructions for these steps can be found at https://docs.shorebird.dev/code-push/guides/add-to-app/ios/#embed-the-flutter-module-in-your-ios-app.
 '''),
         );
       });

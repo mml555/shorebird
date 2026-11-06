@@ -14,8 +14,11 @@ enum ShorebirdArtifact {
   /// The iOS analyze_snapshot executable.
   analyzeSnapshotIos,
 
-  /// The macOS analyze_snapshot executable.
-  analyzeSnapshotMacOS,
+  /// The macOS analyze_snapshot executable that reads arm64 snapshots.
+  analyzeSnapshotMacosArm64,
+
+  /// The macOS analyze_snapshot executable that reads x64 snapshots.
+  analyzeSnapshotMacosX64,
 
   /// The aot_tools executable or kernel file.
   aotTools,
@@ -46,6 +49,28 @@ abstract class ShorebirdArtifacts {
   String getArtifactPath({required ShorebirdArtifact artifact});
 }
 
+/// Which optional Shorebird artifacts the current engine publishes.
+extension PublishedShorebirdArtifacts on ShorebirdArtifacts {
+  /// The path to [artifact], or null when the current engine doesn't
+  /// publish it.
+  String? publishedArtifactPath(ShorebirdArtifact artifact) {
+    final path = getArtifactPath(artifact: artifact);
+    return File(path).existsSync() ? path : null;
+  }
+
+  /// Whether patches to a macOS release built with the current engine still
+  /// install after the app is re-signed.
+  ///
+  /// Engines that publish the macOS analyze_snapshot executables apply
+  /// patches to just the Dart snapshot regions of the installed binary, which
+  /// re-signing doesn't change. Older engines apply patches to the whole
+  /// binary.
+  bool get macosPatchesSurviveResigning => [
+    ShorebirdArtifact.analyzeSnapshotMacosArm64,
+    ShorebirdArtifact.analyzeSnapshotMacosX64,
+  ].every((artifact) => publishedArtifactPath(artifact) != null);
+}
+
 /// {@template shorebird_cached_artifacts}
 /// A class that provides access to cached Shorebird artifacts.
 /// {@endtemplate}
@@ -58,8 +83,10 @@ class ShorebirdCachedArtifacts implements ShorebirdArtifacts {
     switch (artifact) {
       case ShorebirdArtifact.analyzeSnapshotIos:
         return _analyzeSnapshotIosFile.path;
-      case ShorebirdArtifact.analyzeSnapshotMacOS:
-        return _analyzeSnapshotMacosFile.path;
+      case ShorebirdArtifact.analyzeSnapshotMacosArm64:
+        return _analyzeSnapshotMacosFile('arm64').path;
+      case ShorebirdArtifact.analyzeSnapshotMacosX64:
+        return _analyzeSnapshotMacosFile('x64').path;
       case ShorebirdArtifact.aotTools:
         return _aotToolsFile.path;
       case ShorebirdArtifact.genSnapshotIos:
@@ -85,16 +112,13 @@ class ShorebirdCachedArtifacts implements ShorebirdArtifacts {
     );
   }
 
-  File get _analyzeSnapshotMacosFile {
+  File _analyzeSnapshotMacosFile(String targetArch) {
+    final fileName = AnalyzeSnapshotMacosArtifact.fileNameFor(targetArch);
     return File(
       p.join(
-        shorebirdEnv.flutterDirectory.path,
-        'bin',
-        'cache',
-        'artifacts',
-        'engine',
-        'darwin-x64-release',
-        'analyze_snapshot',
+        cache.getArtifactDirectory(fileName).path,
+        shorebirdEnv.shorebirdEngineRevision,
+        fileName,
       ),
     );
   }
@@ -178,8 +202,10 @@ class ShorebirdLocalEngineArtifacts implements ShorebirdArtifacts {
     switch (artifact) {
       case ShorebirdArtifact.analyzeSnapshotIos:
         return _analyzeSnapshotIosFile.path;
-      case ShorebirdArtifact.analyzeSnapshotMacOS:
-        return _analyzeSnapshotMacosFile.path;
+      case ShorebirdArtifact.analyzeSnapshotMacosArm64:
+        return _analyzeSnapshotMacosFile('arm64').path;
+      case ShorebirdArtifact.analyzeSnapshotMacosX64:
+        return _analyzeSnapshotMacosFile('x64').path;
       case ShorebirdArtifact.aotTools:
         return _aotToolsFile.path;
       case ShorebirdArtifact.genSnapshotIos:
@@ -203,14 +229,13 @@ class ShorebirdLocalEngineArtifacts implements ShorebirdArtifacts {
     );
   }
 
-  File get _analyzeSnapshotMacosFile {
+  File _analyzeSnapshotMacosFile(String targetArch) {
     return File(
       p.join(
         engineConfig.localEngineSrcPath!,
         'out',
         engineConfig.localEngine,
-        'clang_x64',
-        'analyze_snapshot',
+        'analyze_snapshot_$targetArch',
       ),
     );
   }

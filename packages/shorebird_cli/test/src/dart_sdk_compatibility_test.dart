@@ -8,8 +8,10 @@ import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:test/test.dart';
 
 import 'mocks.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(DartSdkCompatibility, () {
     // The iOS pairing from selfhost/cdn/experimental_hashes.map, at the
     // full length both files actually record.

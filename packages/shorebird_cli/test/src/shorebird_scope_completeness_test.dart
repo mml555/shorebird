@@ -19,14 +19,16 @@
 import 'dart:io';
 
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   test('every ref with a top-level getter is in shorebirdScopeValues', () {
-    final lib = Directory('lib/src');
+    final lib = Directory(packagePath('lib/src'));
     expect(lib.existsSync(), isTrue, reason: 'run from packages/shorebird_cli');
 
     final scope = File(
-      'lib/src/shorebird_scope.dart',
+      packagePath('lib/src/shorebird_scope.dart'),
     ).readAsStringSync();
 
     // A ref is "reachable through a top-level getter" when a file declares

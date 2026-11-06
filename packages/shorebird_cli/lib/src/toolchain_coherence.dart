@@ -156,70 +156,70 @@ class ToolchainCoherence {
     // Android build never invokes them, so their state says nothing about
     // whether an Android artifact can be trusted.
     if (_usesIosCompilers(platform)) {
-    // The iOS compilers must be Route B ones. Checked by looking for the flag
-    // NAME inside the binary, never by running it with `--version`: that
-    // exits 0 whatever flags precede it and once certified a stock binary as
-    // capable.
-    for (final mode in const ['ios', 'ios-profile', 'ios-release']) {
-      final gs = File(
-        p.join(
-          cache.path,
-          'artifacts',
-          'engine',
-          mode,
-          'gen_snapshot_arm64',
+      // The iOS compilers must be Route B ones. Checked by looking for the flag
+      // NAME inside the binary, never by running it with `--version`: that
+      // exits 0 whatever flags precede it and once certified a stock binary as
+      // capable.
+      for (final mode in const ['ios', 'ios-profile', 'ios-release']) {
+        final gs = File(
+          p.join(
+            cache.path,
+            'artifacts',
+            'engine',
+            mode,
+            'gen_snapshot_arm64',
+          ),
+        );
+        if (!gs.existsSync()) {
+          problems.add(
+            ToolchainCoherenceProblem(
+              code: ToolchainIncoherence.undeterminable,
+              detail: '${gs.path} is missing',
+            ),
+          );
+          continue;
+        }
+        if (!_containsFlagName(gs, 'patchable_static_calls')) {
+          problems.add(
+            ToolchainCoherenceProblem(
+              code: ToolchainIncoherence.genSnapshotNotPatchable,
+              detail:
+                  '$mode/gen_snapshot_arm64 does not support '
+                  'patchable_static_calls; a release built with it could not be '
+                  'patched',
+            ),
+          );
+        }
+      }
+
+      // AND THE CACHED ENGINE MUST BE THIS CELL'S ENGINE.
+      //
+      // Everything above this line can pass over the wrong engine, which is not
+      // hypothetical — it happened on 2026-08-27 activating cell 4792f0ec:
+      //
+      //   engine.version, engine.stamp, engine-dart-sdk.stamp
+      //                                        all named 4792f0ec
+      //   cached ios-release engine            ca7d2c0d's, a week old
+      //   gen_snapshot patchable_static_calls  present
+      //   verdict                              COHERENT
+      //
+      // The stamp comparisons read stamp CONTENTS, and a stamp asserts what the
+      // cache is CLAIMED to hold; `flutter --version` writes `engine.stamp` while
+      // fetching only HOST artifacts, so it can assert iOS bytes that never
+      // arrived. And `patchable_static_calls` is carried by EVERY Route B cell,
+      // so it separates Route B from stock and never this cell from its
+      // predecessor — a capability signal being read as an identity one.
+      //
+      // A release cut then would have been built against the previous runtime
+      // while every report named the new cell. So the engine bytes are compared
+      // against the ones this cell actually published.
+      problems.addAll(
+        _compareIosEngines(
+          flutterDirectory: flutterDirectory,
+          engineRevision: engineRevision,
+          publishedIosEngineDir: publishedIosEngineDir,
         ),
       );
-      if (!gs.existsSync()) {
-        problems.add(
-          ToolchainCoherenceProblem(
-            code: ToolchainIncoherence.undeterminable,
-            detail: '${gs.path} is missing',
-          ),
-        );
-        continue;
-      }
-      if (!_containsFlagName(gs, 'patchable_static_calls')) {
-        problems.add(
-          ToolchainCoherenceProblem(
-            code: ToolchainIncoherence.genSnapshotNotPatchable,
-            detail:
-                '$mode/gen_snapshot_arm64 does not support '
-                'patchable_static_calls; a release built with it could not be '
-                'patched',
-          ),
-        );
-      }
-    }
-
-    // AND THE CACHED ENGINE MUST BE THIS CELL'S ENGINE.
-    //
-    // Everything above this line can pass over the wrong engine, which is not
-    // hypothetical — it happened on 2026-08-27 activating cell 4792f0ec:
-    //
-    //   engine.version, engine.stamp, engine-dart-sdk.stamp
-    //                                        all named 4792f0ec
-    //   cached ios-release engine            ca7d2c0d's, a week old
-    //   gen_snapshot patchable_static_calls  present
-    //   verdict                              COHERENT
-    //
-    // The stamp comparisons read stamp CONTENTS, and a stamp asserts what the
-    // cache is CLAIMED to hold; `flutter --version` writes `engine.stamp` while
-    // fetching only HOST artifacts, so it can assert iOS bytes that never
-    // arrived. And `patchable_static_calls` is carried by EVERY Route B cell,
-    // so it separates Route B from stock and never this cell from its
-    // predecessor — a capability signal being read as an identity one.
-    //
-    // A release cut then would have been built against the previous runtime
-    // while every report named the new cell. So the engine bytes are compared
-    // against the ones this cell actually published.
-    problems.addAll(
-      _compareIosEngines(
-        flutterDirectory: flutterDirectory,
-        engineRevision: engineRevision,
-        publishedIosEngineDir: publishedIosEngineDir,
-      ),
-    );
     }
 
     if (publishedDartSdkZip != null) {
@@ -510,8 +510,9 @@ class ToolchainCoherence {
       engineRevision: engineRevision,
       platform: releasePlatform,
       publishedDartSdkZip: zipPath == null ? null : File(zipPath),
-      publishedIosEngineDir:
-          iosEngineDir == null ? null : Directory(iosEngineDir),
+      publishedIosEngineDir: iosEngineDir == null
+          ? null
+          : Directory(iosEngineDir),
     );
     if (problems.isEmpty) {
       logger.detail(
@@ -542,9 +543,7 @@ class ToolchainCoherence {
       );
     throw ProcessExit(ExitCode.config.code);
   }
-
 }
-
 
 /// Env var naming the published `dart-sdk-*.zip` for the active engine.
 ///

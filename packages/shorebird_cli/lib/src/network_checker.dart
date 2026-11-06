@@ -12,6 +12,8 @@ import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/formatters/formatters.dart';
 import 'package:shorebird_cli/src/http_client/http_client.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
+import 'package:shorebird_cli/src/shorebird_env.dart';
+import 'package:shorebird_cli/src/shorebird_web_console.dart';
 
 /// A reference to a [NetworkChecker] instance.
 final networkCheckerRef = create(NetworkChecker.new);
@@ -30,42 +32,79 @@ class NetworkCheckerException implements Exception {
   final String message;
 }
 
+/// {@template reachability_result}
+/// Whether a URL responded to an HTTP GET request.
+/// {@endtemplate}
+class ReachabilityResult {
+  /// {@macro reachability_result}
+  const ReachabilityResult({required this.url, this.error});
+
+  /// The URL that was checked.
+  final Uri url;
+
+  /// Why [url] could not be reached, or null if it responded.
+  final Object? error;
+
+  /// Whether [url] responded. Any HTTP response counts, whatever its status:
+  /// several of these hosts answer a bare GET with 404, and the check is only
+  /// whether the network lets us talk to them.
+  bool get reachable => error == null;
+
+  /// The JSON representation of this result.
+  Map<String, Object> toJson() => {'url': '$url', 'reachable': reachable};
+}
+
 /// {@template network_checker}
 /// Checks reachability of various Shorebird-related endpoints and logs the
 /// results.
 /// {@endtemplate}
 class NetworkChecker {
-  /// The URLs to check for network reachability.
+  /// The URLs to check for network reachability: the Shorebird API, auth
+  /// and download hosts as configured (an override such as
+  /// `SHOREBIRD_DOWNLOAD_URL` replaces the default it overrides), the console,
+  /// the bucket release and patch artifacts upload to and download from, and
+  /// the CDN apps download patches from. GitHub, which serves the Flutter
+  /// fork and bundletool, is not probed.
   ///
   /// The artifact-storage entry is RESOLVED rather than hard-coded, so on a
   /// self-hosted deployment `doctor` probes the origin the build will actually
-  /// use. Hard-coding upstream's got this wrong in both directions: it reported
-  /// a fault for an air-gapped stack that was working, and it stayed green
-  /// while the configured origin was unreachable — the one host whose
-  /// reachability the check exists to establish.
-  ///
-  /// The other entries are control-plane and auth endpoints, not artifact
-  /// storage, and are deliberately left alone: this is storage authority, not
-  /// general endpoint configuration.
-  static List<Uri> get urlsToCheck => [
-    'https://api.shorebird.dev',
-    'https://console.shorebird.dev',
-    'https://oauth2.googleapis.com',
-    ArtifactOrigin.shorebirdStorageBaseUrl(),
-    'https://cdn.shorebird.cloud',
-  ].map(Uri.parse).toList();
+  /// use (`SHOREBIRD_STORAGE_BASE_URL` / `SHOREBIRD_ARTIFACT_ORIGIN`).
+  List<Uri> get urlsToCheck => <Uri>{
+    shorebirdEnv.hostedUri ?? Uri.parse(productionEnvironment.hostedUrl),
+    shorebirdEnv.authServiceUri,
+    ShorebirdWebConsole.baseUri,
+    Uri.parse(shorebirdEnv.downloadUrl),
+    Uri.parse(ArtifactOrigin.shorebirdStorageBaseUrl()),
+    Uri.https('cdn.shorebird.cloud'),
+  }.toList();
 
-  /// Verify that each of [urlsToCheck] responds to an HTTP GET request.
+  /// Checks whether [url] responds to an HTTP GET request.
+  Future<ReachabilityResult> checkUrl(Uri url) async {
+    try {
+      await httpClient.get(url);
+      return ReachabilityResult(url: url);
+    } on Object catch (e) {
+      // A mistyped override, such as a URL with no scheme, makes the client
+      // throw an [ArgumentError]: report it as unreachable, not a crash.
+      return ReachabilityResult(url: url, error: e);
+    }
+  }
+
+  /// Checks each of [urlsToCheck] and returns the results, without logging.
+  Future<List<ReachabilityResult>> reachability() =>
+      Future.wait(urlsToCheck.map(checkUrl));
+
+  /// Verify that each of [urlsToCheck] responds to an HTTP GET request,
+  /// logging each result as it completes.
   Future<void> checkReachability() async {
     for (final url in urlsToCheck) {
       final progress = logger.progress('Checking reachability of $url');
-
-      try {
-        await httpClient.get(url);
+      final result = await checkUrl(url);
+      if (result.reachable) {
         progress.complete('$url ${lightGreen.wrap('OK')}');
-      } on Exception catch (e) {
+      } else {
         progress.fail('$url unreachable');
-        logger.detail('Failed to reach $url: $e');
+        logger.detail('Failed to reach $url: ${result.error}');
       }
     }
   }

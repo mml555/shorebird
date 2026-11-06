@@ -8,9 +8,6 @@ import 'package:collection/collection.dart';
 import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/archive_analysis/archive_analysis.dart';
 
-/// Thrown when an [ArchiveDiffer] fails to generate a [FileSetDiff].
-class DiffFailedException implements Exception {}
-
 /// {@template archive_differ}
 /// Computes content differences between two archives.
 /// {@endtemplate}
@@ -61,27 +58,18 @@ abstract class ArchiveDiffer {
 
   /// The subset of [fileSetDiff] that contains only changes that result from
   /// edited assets.
-  FileSetDiff assetsFileSetDiff(FileSetDiff fileSetDiff) => FileSetDiff(
-    addedPaths: fileSetDiff.addedPaths.where(isAssetFilePath).toSet(),
-    removedPaths: fileSetDiff.removedPaths.where(isAssetFilePath).toSet(),
-    changedPaths: fileSetDiff.changedPaths.where(isAssetFilePath).toSet(),
-  );
+  FileSetDiff assetsFileSetDiff(FileSetDiff fileSetDiff) =>
+      fileSetDiff.where(isAssetFilePath);
 
   /// The subset of [fileSetDiff] that contains only changes that result from
   /// edited Dart code.
-  FileSetDiff dartFileSetDiff(FileSetDiff fileSetDiff) => FileSetDiff(
-    addedPaths: fileSetDiff.addedPaths.where(isDartFilePath).toSet(),
-    removedPaths: fileSetDiff.removedPaths.where(isDartFilePath).toSet(),
-    changedPaths: fileSetDiff.changedPaths.where(isDartFilePath).toSet(),
-  );
+  FileSetDiff dartFileSetDiff(FileSetDiff fileSetDiff) =>
+      fileSetDiff.where(isDartFilePath);
 
   /// The subset of [fileSetDiff] that contains only changes that result from
   /// edited native code.
-  FileSetDiff nativeFileSetDiff(FileSetDiff fileSetDiff) => FileSetDiff(
-    addedPaths: fileSetDiff.addedPaths.where(isNativeFilePath).toSet(),
-    removedPaths: fileSetDiff.removedPaths.where(isNativeFilePath).toSet(),
-    changedPaths: fileSetDiff.changedPaths.where(isNativeFilePath).toSet(),
-  );
+  FileSetDiff nativeFileSetDiff(FileSetDiff fileSetDiff) =>
+      fileSetDiff.where(isNativeFilePath);
 
   /// The subset of [fileSetDiff] matching none of [isAssetFilePath],
   /// [isDartFilePath] or [isNativeFilePath].
@@ -187,12 +175,9 @@ abstract class ArchiveDiffer {
   /// Returns a map of file paths to their respective checksums.
   Future<PathHashes> fileHashes(File archive) async {
     return Isolate.run(() {
-      // Same handle contract as assetKeysReferencedByDart above: closed in
-      // `finally` so a malformed archive cannot leak it.
-      final stream = InputFileStream(archive.path);
+      final input = InputFileStream(archive.path);
       try {
-        final zipDirectory = ZipDirectory()..read(stream);
-
+        final zipDirectory = ZipDirectory()..read(input);
         return {
           for (final file in zipDirectory.fileHeaders)
             // Zip files contain an (optional) crc32 checksum for a file. IPAs
@@ -202,7 +187,7 @@ abstract class ArchiveDiffer {
             file.filename: file.crc32.toString(),
         };
       } finally {
-        stream.closeSync();
+        input.closeSync();
       }
     });
   }

@@ -10,9 +10,11 @@ import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:test/test.dart';
 
+import '../helpers.dart';
 import '../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(Gradlew, () {
     const javaHome = 'test_java_home';
 
@@ -218,18 +220,15 @@ BUILD FAILED in 3s
         const javaHome = 'test_java_home';
         when(() => result.stdout).thenReturn(
           File(
-            p.join('test', 'fixtures', 'gradle', 'gradle_app_tasks.txt'),
+            p.join(fixturesDirectory, 'gradle', 'gradle_app_tasks.txt'),
           ).readAsStringSync(),
         );
         await expectLater(
           runWithOverrides(() => gradlew.productFlavors(tempDir.path)),
           completion(
             equals({
-              'development',
               'developmentInternal',
-              'staging',
               'stagingInternal',
-              'production',
               'productionInternal',
             }),
           ),
@@ -245,6 +244,98 @@ BUILD FAILED in 3s
         ).called(1);
       }, testOn: 'linux || mac-os');
 
+      group('when there are several flavor dimensions', () {
+        test('extracts only full flavor combinations', () async {
+          final tempDir = setUpAppTempDir();
+          File(
+            p.join(tempDir.path, 'android', 'gradlew'),
+          ).createSync(recursive: true);
+          when(() => result.stdout).thenReturn(
+            File(
+              p.join(
+                fixturesDirectory,
+                'gradle',
+                'gradle_app_tasks_multi_dimension_flavors.txt',
+              ),
+            ).readAsStringSync(),
+          );
+          await expectLater(
+            runWithOverrides(() => gradlew.productFlavors(tempDir.path)),
+            completion(
+              equals({
+                'internalGlobal',
+                'internalPlayStore',
+                'internalLocal',
+                'stableGlobal',
+                'stablePlayStore',
+                'stableLocal',
+              }),
+            ),
+          );
+        }, testOn: 'linux || mac-os');
+      });
+
+      group('when a flavor name ends in Release', () {
+        test('extracts the flavor', () async {
+          final tempDir = setUpAppTempDir();
+          File(
+            p.join(tempDir.path, 'android', 'gradlew'),
+          ).createSync(recursive: true);
+          when(() => result.stdout).thenReturn('''
+assemblePreRelease - Assembles main outputs for all PreRelease variants.
+assemblePreReleaseDebug - Assembles main output for variant preReleaseDebug
+assemblePreReleaseRelease - Assembles main output for variant preReleaseRelease
+assembleRelease - Assembles main outputs for all Release variants.
+''');
+          await expectLater(
+            runWithOverrides(() => gradlew.productFlavors(tempDir.path)),
+            completion(equals({'preRelease'})),
+          );
+        }, testOn: 'linux || mac-os');
+      });
+
+      group('when a build type name ends in Release', () {
+        test('extracts only the flavors', () async {
+          final tempDir = setUpAppTempDir();
+          File(
+            p.join(tempDir.path, 'android', 'gradlew'),
+          ).createSync(recursive: true);
+          when(() => result.stdout).thenReturn('''
+assembleBenchmarkRelease - Assembles main outputs for all BenchmarkRelease variants.
+assembleDebug - Assembles main outputs for all Debug variants.
+assembleDev - Assembles main outputs for all Dev variants.
+assembleDevBenchmarkRelease - Assembles main output for variant devBenchmarkRelease
+assembleDevDebug - Assembles main output for variant devDebug
+assembleDevRelease - Assembles main output for variant devRelease
+assembleProd - Assembles main outputs for all Prod variants.
+assembleProdBenchmarkRelease - Assembles main output for variant prodBenchmarkRelease
+assembleProdDebug - Assembles main output for variant prodDebug
+assembleProdRelease - Assembles main output for variant prodRelease
+assembleRelease - Assembles main outputs for all Release variants.
+''');
+          await expectLater(
+            runWithOverrides(() => gradlew.productFlavors(tempDir.path)),
+            completion(equals({'dev', 'prod'})),
+          );
+        }, testOn: 'linux || mac-os');
+
+        test('extracts nothing when there are no flavors', () async {
+          final tempDir = setUpAppTempDir();
+          File(
+            p.join(tempDir.path, 'android', 'gradlew'),
+          ).createSync(recursive: true);
+          when(() => result.stdout).thenReturn('''
+assembleDebug - Assembles main outputs for all Debug variants.
+assembleQaRelease - Assembles main outputs for all QaRelease variants.
+assembleRelease - Assembles main outputs for all Release variants.
+''');
+          await expectLater(
+            runWithOverrides(() => gradlew.productFlavors(tempDir.path)),
+            completion(isEmpty),
+          );
+        }, testOn: 'linux || mac-os');
+      });
+
       group('when flavors are all upper case', () {
         test('extracts flavors', () async {
           final tempDir = setUpAppTempDir();
@@ -254,8 +345,7 @@ BUILD FAILED in 3s
           when(() => result.stdout).thenReturn(
             File(
               p.join(
-                'test',
-                'fixtures',
+                fixturesDirectory,
                 'gradle',
                 'gradle_app_tasks_upper_case_flavors.txt',
               ),
@@ -279,8 +369,7 @@ BUILD FAILED in 3s
             when(() => result.stdout).thenReturn(
               File(
                 p.join(
-                  'test',
-                  'fixtures',
+                  fixturesDirectory,
                   'gradle',
                   'gradle_app_tasks_mixed_case_flavors.txt',
                 ),
@@ -303,8 +392,7 @@ BUILD FAILED in 3s
           when(() => result.stdout).thenReturn(
             File(
               p.join(
-                'test',
-                'fixtures',
+                fixturesDirectory,
                 'gradle',
                 'gradle_app_tasks_numbers_upper_case_flavors.txt',
               ),
@@ -498,11 +586,19 @@ No daemons are running.
         });
       });
 
-      test('throws when the process exits with non-zero exit code', () async {
+      test('throws with the output when the process fails', () async {
         when(() => result.exitCode).thenReturn(1);
+        when(() => result.stdout).thenReturn('some stdout');
+        when(() => result.stderr).thenReturn('some stderr');
         await expectLater(
           runWithOverrides(() => gradlew.isDaemonAvailable(projectRoot.path)),
-          throwsA(isA<Exception>()),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'message',
+              contains('some stdout\nsome stderr'),
+            ),
+          ),
         );
       });
     }, testOn: 'linux || mac-os');

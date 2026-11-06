@@ -2,8 +2,10 @@ import 'package:shorebird_cli/src/config/config.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 import 'package:test/test.dart';
+import '../helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   const environment = BuildEnvironmentMetadata(
     flutterRevision: '853d13d954df3b6e9c2f07b72062f33c52a9a64b',
     operatingSystem: 'macos',
@@ -61,6 +63,7 @@ void main() {
     });
   });
 
+  useTempWorkingDirectory();
   group(CreatePatchMetadata, () {
     const androidMetadata = CreatePatchPlatformMetadata(
       hasAssetChanges: false,

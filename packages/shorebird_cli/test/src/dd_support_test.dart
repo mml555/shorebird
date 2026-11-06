@@ -10,8 +10,10 @@ import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:test/test.dart';
 
 import 'mocks.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(DdSupport, () {
     late String genSnapshotPath;
     late ShorebirdArtifacts shorebirdArtifacts;

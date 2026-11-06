@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 /// A stand-in for the published bundle. Real zips are not needed here — the
 /// resolver takes extraction as a parameter — so a directory tree keeps the
@@ -59,6 +60,7 @@ class _Bundle {
 }
 
 void main() {
+  useTempWorkingDirectory();
   group('resolveRouteBCompiler', () {
     late Directory tmp;
     late Directory cacheRoot;

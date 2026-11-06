@@ -14,6 +14,7 @@ import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:test/test.dart';
 
 import 'mocks.dart';
+import 'helpers.dart';
 
 /// P4.5 — THE PUBLICATION SAFETY GATE MATRIX.
 ///
@@ -39,10 +40,10 @@ import 'mocks.dart';
 /// Adding a row to [_gates] without wiring its arms fails the completeness test
 /// at the bottom, so the matrix cannot rot into a list of intentions.
 class _Gate {
-  const _Gate(this.id, this.what, {this.mandatory = true, this.ownedBy});
+  const _Gate(this.id, this.what, {this.ownedBy});
   final String id;
   final String what;
-  final bool mandatory;
+  bool get mandatory => true;
 
   /// A gate whose arms cannot run in THIS harness, with the test that owns it.
   ///
@@ -75,6 +76,8 @@ const _gates = <_Gate>[
 ];
 
 void main() {
+  useTempWorkingDirectory();
+
   /// Which gates actually ran all three arms. Filled in by the tests; asserted
   /// against [_gates] at the end.
   final exercised = <String, Set<String>>{};
@@ -166,19 +169,20 @@ void main() {
         'privateInstanceCallable': ['package:app/main.dart#_S#_secret'],
         'privateClassPublicMembers': ['package:app/main.dart#_S#value'],
       }),
-    )!;
+    );
 
-    RouteBSurvivalOracle survived({bool yes = true}) => (targets) => {
-      for (final t in targets)
-        t: RouteBSurvivalVerdict(
-          survival: yes
-              ? RouteBSurvival.survivingCallsite
-              : RouteBSurvival.noSurvivingCallsite,
-          instrumentResult: yes
-              ? 'ONE_OR_MORE_QUALIFYING_CALLSITES'
-              : 'ZERO_QUALIFYING_CALLSITES',
-        ),
-    };
+    RouteBSurvivalOracle survived({bool yes = true}) =>
+        (targets) => {
+          for (final t in targets)
+            t: RouteBSurvivalVerdict(
+              survival: yes
+                  ? RouteBSurvival.survivingCallsite
+                  : RouteBSurvival.noSurvivingCallsite,
+              instrumentResult: yes
+                  ? 'ONE_OR_MORE_QUALIFYING_CALLSITES'
+                  : 'ZERO_QUALIFYING_CALLSITES',
+            ),
+        };
 
     const sameShape = {
       'release': '<0>()->String',
@@ -298,7 +302,7 @@ void main() {
             'privateInstanceCallable': <String>[],
             'privateClassPublicMembers': ['package:app/main.dart#_S#value'],
           }),
-        )!;
+        );
         expect(
           () => publish(
             capabilities: ungranted,
@@ -441,7 +445,13 @@ void main() {
           config([
             '--dart-define=B=2',
             '--dart-define=A=1',
-          ]).agreesWith(config(['--dart-define=A=0', '--dart-define=A=1', '--dart-define=B=2'])),
+          ]).agreesWith(
+            config([
+              '--dart-define=A=0',
+              '--dart-define=A=1',
+              '--dart-define=B=2',
+            ]),
+          ),
           isTrue,
         );
         record('P5.CONFIG', 'positive');
@@ -530,7 +540,7 @@ void main() {
           // A pointer is only honest if it is checked. Read the file and require
           // the named test to be in it, so a rename cannot leave this matrix
           // pointing at nothing while still reporting complete.
-          final file = File(owner.file);
+          final file = File(packagePath(owner.file));
           if (!file.existsSync()) {
             missing.add('${gate.id}: ${owner.file} does not exist');
           } else if (!file.readAsStringSync().contains(owner.test)) {

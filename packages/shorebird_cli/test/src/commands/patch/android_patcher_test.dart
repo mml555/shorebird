@@ -38,6 +38,7 @@ import '../../matchers.dart';
 import '../../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(AndroidPatcher, () {
     late ArgParser argParser;
     late ArgResults argResults;
@@ -123,6 +124,11 @@ void main() {
       artifactManager = MockArtifactManager();
       codePushClientWrapper = MockCodePushClientWrapper();
       codeSigner = MockCodeSigner();
+      when(
+        () => codeSigner.canonicalPublicKeyPem(any()),
+      ).thenAnswer(
+        (invocation) => invocation.positionalArguments.single as String,
+      );
       doctor = MockDoctor();
       flavorValidator = MockFlavorValidator();
       patchDiffChecker = MockPatchDiffChecker();
@@ -144,6 +150,9 @@ void main() {
       when(
         () => shorebirdEnv.getShorebirdProjectRoot(),
       ).thenReturn(projectRoot);
+      when(
+        () => shorebirdEnv.flutterRevision,
+      ).thenReturn('83305b5088e6fe327fb3334a73ff190828d85713');
 
       patcher = AndroidPatcher(
         argParser: argParser,
@@ -151,6 +160,13 @@ void main() {
         flavor: null,
         target: null,
       );
+    });
+
+    group('minimumFlutterVersion', () {
+      test('is null', () {
+        // Patches of existing releases on any Flutter version are allowed.
+        expect(patcher.minimumFlutterVersion, isNull);
+      });
     });
 
     group('primaryReleaseArtifactArch', () {
@@ -245,8 +261,32 @@ void main() {
             archiveDiffer: any(named: 'archiveDiffer'),
             allowAssetChanges: any(named: 'allowAssetChanges'),
             allowNativeChanges: any(named: 'allowNativeChanges'),
+            showDexDiff: any(named: 'showDexDiff'),
           ),
         ).thenAnswer((_) async => diffStatus);
+      });
+
+      test('passes --show-dex-diff through to the checker', () async {
+        when(() => argResults['show-dex-diff']).thenReturn(true);
+
+        await runWithOverrides(
+          () => patcher.assertUnpatchableDiffs(
+            releaseArtifact: FakeReleaseArtifact(),
+            releaseArchive: File(''),
+            patchArchive: File(''),
+          ),
+        );
+
+        verify(
+          () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+            localArchive: any(named: 'localArchive'),
+            releaseArchive: any(named: 'releaseArchive'),
+            archiveDiffer: any(named: 'archiveDiffer'),
+            allowAssetChanges: any(named: 'allowAssetChanges'),
+            allowNativeChanges: any(named: 'allowNativeChanges'),
+            showDexDiff: true,
+          ),
+        ).called(1);
       });
 
       test('forwards result from patchDiffChecker', () async {
@@ -265,6 +305,7 @@ void main() {
             archiveDiffer: any(named: 'archiveDiffer'),
             allowAssetChanges: any(named: 'allowAssetChanges'),
             allowNativeChanges: any(named: 'allowNativeChanges'),
+            showDexDiff: any(named: 'showDexDiff'),
           ),
         ).called(1);
       });
@@ -302,6 +343,9 @@ void main() {
           when(
             () => shorebirdFlutter.getVersion(),
           ).thenAnswer((_) async => Version(3, 24, 1));
+          when(
+            () => shorebirdEnv.flutterRevision,
+          ).thenReturn('4150b0d8ee6354ee56dbc667bf5aee3e9d5eb1ca');
         });
 
         test('warns user of potential patch issues', () async {
@@ -314,19 +358,190 @@ void main() {
       });
 
       group('when flutter version does not contain updater issue 211', () {
-        setUp(() {
-          setUpProjectRootArtifacts();
-          when(
-            () => shorebirdFlutter.getVersion(),
-          ).thenAnswer((_) async => Version(3, 24, 2));
+        setUp(setUpProjectRootArtifacts);
+
+        group('when on the fixed Flutter 3.24.1 revision', () {
+          setUp(() {
+            when(
+              () => shorebirdFlutter.getVersion(),
+            ).thenAnswer((_) async => Version(3, 24, 1));
+            when(
+              () => shorebirdEnv.flutterRevision,
+            ).thenReturn('a25b7cdfb9ef79f7d6dae48a6334a415f024a0a8');
+          });
+
+          test('does not warn user of potential patch issues', () async {
+            await runWithOverrides(patcher.buildPatchArtifact);
+
+            verifyNever(
+              () => logger.warn(AndroidPatcher.updaterPatchErrorWarning),
+            );
+          });
         });
 
-        test('does not warn user of potential patch issues', () async {
+        group('when on Flutter 3.24.2 or newer', () {
+          setUp(() {
+            when(
+              () => shorebirdFlutter.getVersion(),
+            ).thenAnswer((_) async => Version(3, 24, 2));
+          });
+
+          test('does not warn user of potential patch issues', () async {
+            await runWithOverrides(patcher.buildPatchArtifact);
+
+            verifyNever(
+              () => logger.warn(AndroidPatcher.updaterPatchErrorWarning),
+            );
+          });
+        });
+      });
+
+      group("the release's architectures", () {
+        late Release release;
+
+        setUp(() {
+          setUpProjectRootArtifacts();
+          release = MockRelease();
+          when(() => release.id).thenReturn(42);
+          when(
+            () => codePushClientWrapper.getReleaseArtifacts(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              architectures: any(named: 'architectures'),
+              platform: any(named: 'platform'),
+            ),
+          ).thenAnswer((_) async => {Arch.arm64: FakeReleaseArtifact()});
+        });
+
+        Iterable<Arch>? builtTargetPlatforms() =>
+            verify(
+                  () => artifactBuilder.buildAppBundle(
+                    flavor: any(named: 'flavor'),
+                    target: any(named: 'target'),
+                    targetPlatforms: captureAny(named: 'targetPlatforms'),
+                    args: any(named: 'args'),
+                    base64PublicKey: any(named: 'base64PublicKey'),
+                    ddMaxBytes: any(named: 'ddMaxBytes'),
+                  ),
+                ).captured.single
+                as Iterable<Arch>?;
+
+        test('builds only the architectures the release has', () async {
+          await runWithOverrides(() async {
+            await patcher.prepareForRelease(appId: 'app-id', release: release);
+            await patcher.buildPatchArtifact();
+          });
+
+          expect(builtTargetPlatforms(), equals([Arch.arm64]));
+        });
+
+        test('builds the default architectures before the release is '
+            'known', () async {
           await runWithOverrides(patcher.buildPatchArtifact);
 
-          verifyNever(
-            () => logger.warn(AndroidPatcher.updaterPatchErrorWarning),
+          expect(builtTargetPlatforms(), isNull);
+        });
+
+        for (final rest in [
+          ['--target-platform=android-arm,android-arm64'],
+          ['--target-platform', 'android-arm'],
+        ]) {
+          test('leaves ${rest.join(' ')} passed after -- alone', () async {
+            when(() => argResults.rest).thenReturn(rest);
+
+            await runWithOverrides(() async {
+              await patcher.prepareForRelease(
+                appId: 'app-id',
+                release: release,
+              );
+              await patcher.buildPatchArtifact();
+            });
+
+            expect(builtTargetPlatforms(), isNull);
+          });
+        }
+
+        test('builds the default architectures when the release has no '
+            'per-architecture artifacts', () async {
+          when(
+            () => codePushClientWrapper.getReleaseArtifacts(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              architectures: any(named: 'architectures'),
+              platform: any(named: 'platform'),
+            ),
+          ).thenAnswer((_) async => {});
+
+          await runWithOverrides(() async {
+            await patcher.prepareForRelease(appId: 'app-id', release: release);
+            await patcher.buildPatchArtifact();
+          });
+
+          expect(builtTargetPlatforms(), isNull);
+        });
+
+        test('downloads the release artifacts without fetching them '
+            'again', () async {
+          const artifact = ReleaseArtifact(
+            id: 1,
+            releaseId: 42,
+            arch: 'aarch64',
+            platform: ReleasePlatform.android,
+            hash: '#',
+            size: 1,
+            url: 'https://example.com/libapp.so',
+            canSideload: true,
           );
+          when(
+            () => codePushClientWrapper.getReleaseArtifacts(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              architectures: any(named: 'architectures'),
+              platform: any(named: 'platform'),
+            ),
+          ).thenAnswer((_) async => {Arch.arm64: artifact});
+          when(
+            () => artifactManager.downloadReleaseArtifact(
+              any(),
+              message: any(named: 'message'),
+            ),
+          ).thenAnswer((_) async => File('libapp.so'));
+
+          final paths = await runWithOverrides(() async {
+            await patcher.prepareForRelease(appId: 'app-id', release: release);
+            return patcher.downloadAndroidReleaseArtifacts(
+              appId: 'app-id',
+              releaseId: 42,
+              downloadMessageTimeout: const Duration(minutes: 1),
+            );
+          });
+
+          expect(paths.keys, equals([Arch.arm64]));
+          verify(
+            () => codePushClientWrapper.getReleaseArtifacts(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              architectures: any(named: 'architectures'),
+              platform: any(named: 'platform'),
+            ),
+          ).called(1);
+
+          // Another release's artifacts are fetched, not reused.
+          await runWithOverrides(
+            () => patcher.downloadAndroidReleaseArtifacts(
+              appId: 'app-id',
+              releaseId: 43,
+              downloadMessageTimeout: const Duration(minutes: 1),
+            ),
+          );
+          verify(
+            () => codePushClientWrapper.getReleaseArtifacts(
+              appId: 'app-id',
+              releaseId: 43,
+              architectures: any(named: 'architectures'),
+              platform: any(named: 'platform'),
+            ),
+          ).called(1);
         });
       });
 
@@ -354,26 +569,30 @@ void main() {
         });
       });
 
-      group('when patch artifacts cannot be found', () {
-        test('logs error and exits with code 70', () async {
+      group('when the built aab has no libapp.so', () {
+        setUp(() {
+          setUpProjectRootArtifacts();
+          // A real aab that packages a native lib but no libapp.so, as happens
+          // when a custom Gradle build drops the Dart library before bundling.
+          final archive = Archive()
+            ..addFile(
+              ArchiveFile.string('base/lib/arm64-v8a/libflutter.so', 'so'),
+            );
+          aabFile = File(p.join(projectRoot.path, 'no_libapp.aab'))
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(ZipEncoder().encode(archive));
+        });
+
+        test('exits with an accurate error', () async {
           await expectLater(
             () => runWithOverrides(patcher.buildPatchArtifact),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message: contains(
+                'does not contain libapp.so for any architecture',
+              ),
+              exitCode: ExitCode.software,
+            ),
           );
-
-          verify(
-            () => logger.err('Cannot find patch build artifacts.'),
-          ).called(1);
-          verify(
-            () => logger.info('''
-Please run `shorebird cache clean` and try again. If the issue persists, please
-file a bug report at https://github.com/shorebirdtech/shorebird/issues/new.
-
-Looked in:
-  - the libapp.so entries inside the built .aab
-  - build/app/intermediates/stripped_native_libs/{variant}/strip{Variant}ReleaseDebugSymbols/out/lib
-  - build/app/intermediates/stripped_native_libs/{variant}/out/lib'''),
-          ).called(1);
         });
       });
 
@@ -391,21 +610,16 @@ Looked in:
             ..writeAsBytesSync(ZipEncoder().encode(archive));
         });
 
-        test('logs an accurate error and exits with code 70', () async {
+        test('exits with code 70 and an accurate error', () async {
           await expectLater(
             () => runWithOverrides(patcher.buildPatchArtifact),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(
-            () => logger.err(
-              any(
-                that: contains(
-                  'does not contain libapp.so for any architecture',
-                ),
+            exitsWithError(
+              message: contains(
+                'does not contain libapp.so for any architecture',
               ),
+              exitCode: ExitCode.software,
             ),
-          ).called(1);
+          );
         });
       });
 
@@ -449,7 +663,7 @@ Looked in:
         group('when the key pair is provided', () {
           setUp(() {
             when(
-              () => codeSigner.base64PublicKey(any()),
+              () => codeSigner.base64PublicKeyFromPem(any()),
             ).thenReturn('public_key_encoded');
           });
 
@@ -478,6 +692,35 @@ Looked in:
               ),
             ).called(1);
           });
+
+          test(
+            'passes a key from --public-key-cmd to buildAppBundle',
+            () async {
+              when(
+                () => argResults[CommonArguments.publicKeyCmd.name],
+              ).thenReturn('print-key');
+              when(
+                () => argResults.wasParsed(CommonArguments.publicKeyCmd.name),
+              ).thenReturn(true);
+              when(
+                () => codeSigner.runPublicKeyCmd('print-key'),
+              ).thenAnswer((_) async => 'pem-from-cmd');
+              await runWithOverrides(patcher.buildPatchArtifact);
+
+              verify(
+                () => codeSigner.base64PublicKeyFromPem('pem-from-cmd'),
+              ).called(1);
+
+              verify(
+                () => artifactBuilder.buildAppBundle(
+                  args: any(named: 'args'),
+                  flavor: any(named: 'flavor'),
+                  target: any(named: 'target'),
+                  base64PublicKey: 'public_key_encoded',
+                ),
+              ).called(1);
+            },
+          );
         });
 
         test('returns the aab file', () async {
@@ -497,7 +740,6 @@ Looked in:
         hash: '#',
         size: 42,
         url: 'https://example.com',
-        podfileLockHash: null,
         canSideload: true,
       );
 
@@ -517,7 +759,7 @@ Looked in:
           },
         );
         when(
-          () => artifactManager.downloadWithProgressUpdates(
+          () => artifactManager.downloadReleaseArtifact(
             any(),
             message: any(named: 'message'),
           ),
@@ -527,14 +769,14 @@ Looked in:
       group('when release artifact fails to download', () {
         setUp(() {
           when(
-            () => artifactManager.downloadWithProgressUpdates(
+            () => artifactManager.downloadReleaseArtifact(
               any(),
               message: any(named: 'message'),
             ),
           ).thenThrow(Exception('error'));
         });
 
-        test('logs error and exits with code 70', () async {
+        test('exits naming the failed download', () async {
           await expectLater(
             () => runWithOverrides(
               () => patcher.createPatchArtifacts(
@@ -543,13 +785,17 @@ Looked in:
                 releaseArtifact: File('release.aab'),
               ),
             ),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message: startsWith('Could not download the release artifact: '),
+              hint: 'Run the command again once that is fixed.',
+              exitCode: ExitCode.software,
+            ),
           );
         });
       });
 
       group('when unable to find patch build artifacts', () {
-        test('logs error and exits with code 70', () async {
+        test('exits with an error saying where it looked', () async {
           await expectLater(
             () => runWithOverrides(
               () => patcher.createPatchArtifacts(
@@ -558,10 +804,18 @@ Looked in:
                 releaseArtifact: File('release.aab'),
               ),
             ),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message:
+                  'Cannot find patch build artifacts: no libapp.so in the '
+                  'built .aab or in '
+                  'build/app/intermediates/stripped_native_libs.',
+              hint:
+                  'Clear the cache and try again, and file an issue at '
+                  'https://github.com/shorebirdtech/shorebird/issues/new if '
+                  'this persists. Run: shorebird cache clean',
+              exitCode: ExitCode.software,
+            ),
           );
-
-          verify(() => logger.err('Could not find patch artifacts')).called(1);
         });
       });
 
@@ -577,7 +831,7 @@ Looked in:
           ).thenThrow(Exception('error'));
         });
 
-        test('logs error and exits with code 70', () async {
+        test('fails progress and exits with the error', () async {
           await expectLater(
             () => runWithOverrides(
               () => patcher.createPatchArtifacts(
@@ -586,10 +840,13 @@ Looked in:
                 releaseArtifact: File('release.aab'),
               ),
             ),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message: 'Failed to create the patch diff: Exception: error',
+              exitCode: ExitCode.software,
+            ),
           );
 
-          verify(() => progress.fail('Exception: error')).called(1);
+          verify(() => progress.fail()).called(1);
         });
       });
 
@@ -677,7 +934,7 @@ Looked in:
           }
         });
 
-        test('fails progress and exits with code 70', () async {
+        test('fails progress and exits with an error', () async {
           await expectLater(
             () => runWithOverrides(
               () => patcher.createPatchArtifacts(
@@ -686,22 +943,21 @@ Looked in:
                 releaseArtifact: File('release.aab'),
               ),
             ),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message: startsWith('No patch artifacts produced'),
+              hint: 'Re-run with --verbose to see the build output.',
+              exitCode: ExitCode.software,
+            ),
           );
 
-          verify(
-            () => progress.fail(
-              any(that: contains('No patch artifacts produced')),
-            ),
-          ).called(1);
+          verify(() => progress.fail()).called(1);
         });
       });
 
       group('when the strip output is empty but the aab has libapp.so', () {
         // Mirrors AGP emitting no libapp.so on Flutter 3.44+.
-        // buildPatchArtifact extracts libapp.so from the built aab and caches
-        // the resulting directory; createPatchArtifacts diffs those copies
-        // instead of failing.
+        // createPatchArtifacts extracts libapp.so from the aab that
+        // buildPatchArtifact built and diffs those copies instead of failing.
         setUp(() {
           for (final arch in Arch.values) {
             Directory(
@@ -732,7 +988,7 @@ Looked in:
             ),
           ).thenAnswer(
             (_) async =>
-                File(p.join('test', 'fixtures', 'aabs', 'changed_asset.aab')),
+                File(p.join(fixturesDirectory, 'aabs', 'changed_asset.aab')),
           );
           when(
             () => artifactManager.createDiff(
@@ -770,6 +1026,28 @@ Looked in:
             ),
           ).called(Arch.values.length);
           verifyNever(() => progress.fail(any()));
+        });
+
+        test('deletes the extracted libapp.so files afterwards', () async {
+          await runWithOverrides(() async {
+            await patcher.buildPatchArtifact();
+            return patcher.createPatchArtifacts(
+              appId: 'appId',
+              releaseId: 0,
+              releaseArtifact: File('release.aab'),
+            );
+          });
+
+          final patchArtifactPaths = verify(
+            () => artifactManager.createDiff(
+              releaseArtifactPath: any(named: 'releaseArtifactPath'),
+              patchArtifactPath: captureAny(named: 'patchArtifactPath'),
+            ),
+          ).captured.cast<String>();
+          expect(patchArtifactPaths, hasLength(Arch.values.length));
+          for (final path in patchArtifactPaths) {
+            expect(File(path).parent.parent.existsSync(), isFalse);
+          }
         });
       });
 
@@ -881,7 +1159,7 @@ Looked in:
         group('when artifacts download takes longer than provided timeout', () {
           setUp(() {
             when(
-              () => artifactManager.downloadWithProgressUpdates(
+              () => artifactManager.downloadReleaseArtifact(
                 any(),
                 message: any(named: 'message'),
               ),
@@ -965,7 +1243,7 @@ Looked in:
     });
 
     group('assetsDirectory', () {
-      final aab = File(p.join('test', 'fixtures', 'aabs', 'changed_asset.aab'));
+      final aab = File(p.join(fixturesDirectory, 'aabs', 'changed_asset.aab'));
 
       /// Runs a real [buildPatchArtifact] so the patcher caches [aab] as the
       /// bundle this patch was built from, which is what assetsDirectory reads.

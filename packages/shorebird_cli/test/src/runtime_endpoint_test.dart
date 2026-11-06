@@ -1,5 +1,5 @@
 import 'package:mocktail/mocktail.dart';
-import 'package:platform/platform.dart';
+import 'package:platform/testing.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/config/shorebird_yaml.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
@@ -10,13 +10,15 @@ import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process
 import 'package:test/test.dart';
 
 import 'mocks.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(RuntimeEndpoint, () {
     const selfHostedApi = 'http://localhost:18080';
     const deviceReachable = 'http://10.0.0.7:18080';
 
-    late Platform platform;
+    late TestNativePlatform platform;
     late ShorebirdEnv shorebirdEnv;
     late ShorebirdLogger logger;
     late RuntimeEndpoint runtimeEndpoint;
@@ -42,14 +44,14 @@ void main() {
       if (expectedRuntimeUrl != null) {
         env[runtimeBaseUrlEnvVar] = expectedRuntimeUrl;
       }
-      when(() => platform.environment).thenReturn(env);
+      platform = platform.copyWith(environment: env);
       when(
         shorebirdEnv.getShorebirdYaml,
       ).thenReturn(ShorebirdYaml(appId: 'test-app-id', baseUrl: baseUrl));
     }
 
     setUp(() {
-      platform = MockPlatform();
+      platform = TestNativePlatform(environment: {});
       shorebirdEnv = MockShorebirdEnv();
       logger = MockShorebirdLogger();
       runtimeEndpoint = RuntimeEndpoint();

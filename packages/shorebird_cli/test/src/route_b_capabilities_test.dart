@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(RouteBCapabilities, () {
     const uri = 'package:app/main.dart';
 

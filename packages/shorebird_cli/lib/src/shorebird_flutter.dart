@@ -1,11 +1,14 @@
+// cspell:words precaching
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:pub_semver/pub_semver.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_builder/shorebird_tracer.dart';
+import 'package:shorebird_cli/src/cache_pruning.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/extensions/version.dart';
 import 'package:shorebird_cli/src/flutter_version_constraints.dart';
@@ -35,13 +38,6 @@ class ShorebirdFlutter {
   /// is pinned to.
   static const fvmExecutable = 'fvm';
 
-  /// The Shorebird Flutter fork git URL. Overridable via
-  /// `SHOREBIRD_FLUTTER_GIT_URL` so a self-hosted deployment can clone from
-  /// its own mirror instead of GitHub.
-  static String get flutterGitUrl =>
-      platform.environment['SHOREBIRD_FLUTTER_GIT_URL'] ??
-      'https://github.com/shorebirdtech/flutter.git';
-
   /// The `flutter precache` arguments that hydrate the engine artifacts a
   /// release for [releasePlatform] actually needs.
   ///
@@ -51,7 +47,7 @@ class ShorebirdFlutter {
   /// that legitimately owns only the iOS toolchain then cannot be installed at
   /// all: `android-arm64-release/` is an overlay-owned path, so a miss is a
   /// loud 404 rather than a silent fall-through. Measured 2026-09-02 against
-  /// cell d4c0dbc2 — a macos-ios cell — where it 404'd every fresh install.
+  /// cell d4c0dbc2 -- a macos-ios cell -- where it 404'd every fresh install.
   ///
   /// A null [releasePlatform] means "no particular target", which keeps the
   /// historical behaviour for callers that are not installing for a release.
@@ -73,49 +69,61 @@ class ShorebirdFlutter {
     return p.join(shorebirdEnv.flutterDirectory.parent.path, revision);
   }
 
-  /// Install the provided Flutter [revision], and guarantee that the engine
-  /// artifacts a release for [releasePlatform] requires are present.
-  ///
-  /// THE CONTRACT: selecting a Flutter revision for a target platform
-  /// guarantees that platform's engine artifacts exist BEFORE anything tries to
-  /// establish engine identity. Directory existence is evidence that a checkout
-  /// exists; it is NOT evidence that the target engine exists. Conflating the
-  /// two is what this used to do, and it produced a release that refused with
-  /// `COHERENCE_UNDETERMINABLE: …/engine/ios-release/gen_snapshot_arm64 is
-  /// missing` on a correctly published cell: the bootstrap had created the
-  /// checkout and fetched only the Dart SDK, this method saw the directory and
-  /// returned, and the coherence gate then correctly reported an absent engine.
-  /// Flutter's own lazy download never ran because coherence precedes the build.
-  ///
-  /// So hydration is UNCONDITIONAL and idempotent — `flutter precache` re-checks
-  /// its own stamps cheaply — rather than something that happens only on the
-  /// clone path.
-  ///
-  /// A precache failure is treated as a corrupted install: Flutter's
-  /// stamp-based cache will otherwise trust a partial extraction and surface
-  /// the missing artifact later as an opaque Gradle error (see
-  /// shorebirdtech/shorebird#3783). The user is directed to run
-  /// `shorebird cache clean` to start over.
-  Future<void> installRevision({
-    required String revision,
-    ReleasePlatform? releasePlatform,
-  }) async {
-    final targetDirectory = Directory(_workingDirectory(revision: revision));
-    final version = await getVersionForRevision(flutterRevision: revision);
-    if (targetDirectory.existsSync()) {
-      // Already checked out; still ensure the target engine is present.
-      await _precache(
-        revision: revision,
-        version: version,
-        releasePlatform: releasePlatform,
-      );
-      return;
-    }
+  /// Marker written once `flutter precache` has succeeded for an installed
+  /// revision.
+  static const precacheStampName = '.shorebird_precache';
 
+  /// Suffix identifying a directory an install is still writing into.
+  static const _stagingSuffix = '.tmp';
+
+  /// How long a staging directory must have existed before another install
+  /// treats it as abandoned rather than as a peer's work in progress.
+  static const _stagingMaxAge = Duration(days: 1);
+
+  /// Names a directory the sweep can reclaim once it is old enough.
+  ///
+  /// The creation time is carried in the name rather than read back from the
+  /// filesystem. A directory's mtime is not a dependable record: an unrelated
+  /// write can bump it, a rename does not touch it at all, and what it means
+  /// varies across platforms. This name is written once, by this code, and
+  /// never changes afterwards.
+  String _reclaimablePath(String path, {String? tag}) {
+    final stamp = clock.now().millisecondsSinceEpoch;
+    return '${[path, '$pid', ?tag].join('.')}.$stamp$_stagingSuffix';
+  }
+
+  /// Reads back the time [_reclaimablePath] wrote into [name], or null if
+  /// [name] was not written by it.
+  DateTime? _reclaimableSince({required String name, required String prefix}) {
+    if (!name.startsWith(prefix) || !name.endsWith(_stagingSuffix)) return null;
+    final stamp = name
+        .substring(prefix.length, name.length - _stagingSuffix.length)
+        .split('.')
+        .last;
+    final millis = int.tryParse(stamp);
+    if (millis == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(millis);
+  }
+
+  /// Clones and checks out [revision], publishing it at [targetDirectory]
+  /// only once both have succeeded.
+  ///
+  /// The work happens in a directory private to this process, so a run that
+  /// dies partway leaves that behind rather than a half-written
+  /// [targetDirectory]. Nothing infers completeness from the contents of a
+  /// checkout, and no existing install is ever deleted to make room.
+  Future<void> _cloneAndCheckout({
+    required Directory targetDirectory,
+    required String revision,
+    required String? version,
+  }) async {
     final installProgress = logger.progress(
       'Installing Flutter $version (${shortRevisionString(revision)})',
     );
 
+    // Carries this instant, so no earlier run's staging directory can share
+    // the name and no directory has to be cleared before the clone.
+    final stagingDirectory = Directory(_reclaimablePath(targetDirectory.path));
     try {
       // Traced: the clone is a multi-hundred-megabyte transfer and is
       // one of the two dominant costs of a cold start. It happens in a
@@ -123,62 +131,231 @@ class ShorebirdFlutter {
       await shorebirdTracer.setupSpan(
         phase: SetupPhase.flutterInstall,
         body: () async {
-          // Clone the Shorebird Flutter repo into the target directory.
+          // Clone the Shorebird Flutter repo into the staging directory.
           await git.clone(
-            url: flutterGitUrl,
-            outputDirectory: targetDirectory.path,
-            args: ['--filter=tree:0', '--no-checkout'],
+            url: shorebirdEnv.flutterGitUrl,
+            outputDirectory: stagingDirectory.path,
+            // Flutter has paths over Windows' 260-character limit. Setting
+            // core.longpaths in the clone's own config lets the checkout
+            // write them without a machine-wide (admin) git setting.
+            args: [
+              '--filter=tree:0',
+              '--no-checkout',
+              '--config',
+              'core.longpaths=true',
+            ],
           );
 
           // Checkout the correct revision.
           await git.checkout(
-            directory: targetDirectory.path,
+            directory: stagingDirectory.path,
             revision: revision,
           );
+
+          stagingDirectory.renameSync(targetDirectory.path);
         },
       );
       installProgress.complete();
     } catch (error) {
+      // Another process publishing the same revision first is not a failure.
+      // The winner's checkout is as good, so adopt it. A directory that is
+      // demonstrably unusable is not a peer's finished work, so it does not
+      // count: the shell bootstrap clones into this path in place, and
+      // adopting it mid-clone would precache and stamp a partial checkout.
+      final published =
+          targetDirectory.existsSync() && !_isUnusableInstall(targetDirectory);
+      if (published) {
+        installProgress.complete();
+        deleteIgnoringErrors(stagingDirectory);
+        return;
+      }
+
       final short = shortRevisionString(revision);
       installProgress.fail('Failed to install Flutter $version ($short)');
       logger.err('$error');
+      deleteIgnoringErrors(stagingDirectory);
       rethrow;
     }
+  }
 
-    await _precache(
-      revision: revision,
-      version: version,
-      releasePlatform: releasePlatform,
+  /// Removes staging directories left by runs that were killed before they
+  /// could publish.
+  ///
+  /// Publishing by rename means an interrupted install strands its staging
+  /// directory instead of poisoning the target, so something has to reclaim
+  /// it. A concurrent install's staging directory is indistinguishable from a
+  /// stranded one except by age, so only entries older than [_stagingMaxAge]
+  /// are removed. A clone finishes in minutes.
+  ///
+  /// A name this code did not write is left alone, so an unparseable or
+  /// unrecognized sibling is never a candidate.
+  void _reclaimStrandedStagingDirectories(Directory targetDirectory) {
+    _reclaimStaleDirectories(
+      parent: targetDirectory.parent,
+      prefix: '${p.basename(targetDirectory.path)}.',
     );
   }
 
-  /// Hydrate [revision]'s engine artifacts for [releasePlatform].
+  /// Removes every directory in [parent] that [_reclaimablePath] named, under
+  /// [prefix], more than [_stagingMaxAge] ago.
+  void _reclaimStaleDirectories({
+    required Directory parent,
+    required String prefix,
+  }) {
+    final cutoff = clock.now().subtract(_stagingMaxAge);
+
+    final List<FileSystemEntity> siblings;
+    try {
+      siblings = parent.listSync();
+    } on FileSystemException {
+      return;
+    }
+
+    for (final sibling in siblings.whereType<Directory>()) {
+      final since = _reclaimableSince(
+        name: p.basename(sibling.path),
+        prefix: prefix,
+      );
+      if (since == null || since.isAfter(cutoff)) continue;
+      deleteIgnoringErrors(sibling);
+    }
+  }
+
+  /// Whether [directory] definitely does not hold a usable install.
   ///
-  /// Runs the TARGET revision's own `flutter` binary, not the pinned one. The
-  /// pinned binary resolves its own `engine.version`, so using it while
-  /// installing a different revision asked the CDN for the wrong engine's
-  /// artifacts — measured while installing F3 (`ab29aee0`), which requested
-  /// paths under the previous cell.
-  Future<void> _precache({
+  /// A finished checkout always contains the Flutter launcher, so its absence
+  /// is proof the directory is unusable. The converse does not hold, which is
+  /// why this only ever condemns a directory and never certifies one: a
+  /// checkout interrupted after the launcher was written looks identical to a
+  /// finished one from the outside. Installs published by [_cloneAndCheckout]
+  /// do not need certifying, since a partial one is never published at all.
+  bool _isUnusableInstall(Directory directory) {
+    if (!directory.existsSync()) return false;
+    final launcher = platform.isWindows ? 'flutter.bat' : 'flutter';
+    return !File(p.join(directory.path, 'bin', launcher)).existsSync();
+  }
+
+  /// Moves an unusable install out of the way so a fresh one can take its
+  /// place, and hands the remains to [_reclaimStrandedStagingDirectories].
+  ///
+  /// Renamed rather than deleted because a launcher-less directory is also
+  /// what the shell bootstrap's in-place `git clone --no-checkout` looks like
+  /// while it runs, and there is no lock this side can take to tell the two
+  /// apart. A rename never destroys bytes another process is still writing.
+  /// The new name stamps this instant, so the sweep's age gate starts from
+  /// the rename rather than from whenever the directory was first written.
+  void _discardUnusableInstall(Directory directory) {
+    try {
+      directory.renameSync(_reclaimablePath(directory.path, tag: 'old'));
+    } on PathNotFoundException {
+      // A peer condemned it first. Its absence is the outcome wanted here.
+      return;
+    } on FileSystemException catch (error) {
+      final exception = CacheCorruptedException(
+        'Could not move ${directory.path} aside: $error.',
+        remedy: 'Remove ${directory.path} and run this command again.',
+      );
+      logger.err('$exception');
+      throw exception;
+    }
+  }
+
+  /// Install the provided Flutter [revision].
+  ///
+  /// Installing is two steps, each with its own durable record, so an
+  /// interrupted run resumes instead of leaving state that later runs mistake
+  /// for a finished install.
+  ///
+  /// The checkout records itself by existing: [_cloneAndCheckout] publishes
+  /// the target directory with a rename, so it is either a finished checkout
+  /// or absent. Precaching records itself with [precacheStampName].
+  /// Precache is idempotent, so a missing stamp re-runs it rather than
+  /// re-cloning.
+  ///
+  /// Directories left by versions that installed in place predate that
+  /// guarantee, so a demonstrably unusable one is discarded and reinstalled
+  /// rather than sending the user to `shorebird cache clean`, which would
+  /// take every other installed revision with it.
+  ///
+  /// Precache runs on install as a convenience so the first build is not
+  /// unexpectedly slow. A precache failure is treated as a corrupted install:
+  /// Flutter's stamp-based cache will otherwise trust a partial extraction and
+  /// surface the missing artifact later as an opaque Gradle error (see
+  /// shorebirdtech/shorebird#3783).
+  ///
+  /// Selecting a revision for [releasePlatform] guarantees that platform's
+  /// engine artifacts exist BEFORE anything tries to establish engine
+  /// identity: a checkout existing is evidence that a checkout exists, not that
+  /// the target engine does. So the precache record is per platform, and it
+  /// also names the engine it was made for (`bin/internal/engine.version`),
+  /// because this fork's tooling rewrites that file to switch experimental
+  /// engines under one pinned Flutter revision, and a precache for one engine
+  /// proves nothing about another's artifacts.
+  Future<void> installRevision({
     required String revision,
-    required String? version,
-    required ReleasePlatform? releasePlatform,
+    ReleasePlatform? releasePlatform,
   }) async {
     final targetDirectory = Directory(_workingDirectory(revision: revision));
+    final precacheStamp = File(
+      p.join(
+        targetDirectory.path,
+        releasePlatform == null
+            ? precacheStampName
+            : '$precacheStampName.${releasePlatform.name}',
+      ),
+    );
+
+    // Runs ahead of the already-installed early return below. A run killed
+    // mid-clone publishes on its retry, and nothing would ever clone that
+    // revision again to reclaim what the killed run left behind.
+    _reclaimStrandedStagingDirectories(targetDirectory);
+
+    final isUnusable = _isUnusableInstall(targetDirectory);
+    if (!isUnusable &&
+        targetDirectory.existsSync() &&
+        precacheStamp.existsSync() &&
+        _precacheStampMatchesEngine(precacheStamp, targetDirectory)) {
+      markUsed(targetDirectory);
+      return;
+    }
+
+    // Read the version before condemning anything. getVersionForRevision runs
+    // git in the active revision's checkout, which is this very directory
+    // whenever the revision being installed is the active one.
+    final version = await getVersionForRevision(flutterRevision: revision);
+
+    if (isUnusable) {
+      logger.info(
+        '''Flutter ${shortRevisionString(revision)} is incompletely installed. Reinstalling it.''',
+      );
+      _discardUnusableInstall(targetDirectory);
+    }
+
+    final isCheckedOut = targetDirectory.existsSync();
+
+    if (!isCheckedOut) {
+      await _cloneAndCheckout(
+        targetDirectory: targetDirectory,
+        revision: revision,
+        version: version,
+      );
+    }
+
     final precacheProgress = logger.progress(
       'Running ${lightCyan.wrap('flutter precache')}',
     );
 
-    // The revision's own binary, via the env's existing accessor rather than
-    // re-deriving the platform-specific name here.
-    final targetFlutter = shorebirdEnv
-        .copyWith(flutterRevisionOverride: revision)
-        .flutterBinaryFile
-        .path;
-    final precacheArguments = [
-      'precache',
-      ...precacheArgsFor(releasePlatform),
-    ];
+    final precacheArguments = ['precache', ...precacheArgsFor(releasePlatform)];
+
+    // Flutter's launcher derives FLUTTER_ROOT from its own script path, so
+    // `workingDirectory` cannot aim precache at [revision]. The vended binary
+    // path is what decides which cache is warmed, and it resolves from the
+    // ambient revision, which is the active one rather than [revision]:
+    // callers install before entering their own override scope.
+    final targetShorebirdEnv = shorebirdEnv.copyWith(
+      flutterRevisionOverride: revision,
+    );
+
     final ShorebirdProcessResult result;
     try {
       // Traced: precache downloads the engine artifacts for every target
@@ -189,36 +366,150 @@ class ShorebirdFlutter {
       result = await shorebirdTracer.setupSpan(
         phase: SetupPhase.flutterPrecache,
         args: {'argv': precacheArguments.join(' ')},
-        body: () => process.run(
-          targetFlutter,
-          precacheArguments,
-          workingDirectory: targetDirectory.path,
-          useVendedFlutter: false,
+        body: () => runScoped(
+          () => process.run(
+            executable,
+            precacheArguments,
+            workingDirectory: targetDirectory.path,
+          ),
+          values: {shorebirdEnvRef.overrideWith(() => targetShorebirdEnv)},
         ),
       );
     } on Exception catch (error) {
       precacheProgress.fail('Failed to precache Flutter $version');
-      throw CacheCorruptedException(
+      // The checkout itself is intact and precache re-runs on a missing
+      // stamp, so retrying is the whole repair.
+      final exception = CacheCorruptedException(
         'Failed to precache Flutter $version: $error.',
+        remedy: 'Run this command again to retry the precache.',
       );
+      logger.err('$exception');
+      throw exception;
     }
     if (result.exitCode != ExitCode.success.code) {
       precacheProgress.fail('Failed to precache Flutter $version');
       final stderr = '${result.stderr}'.trim();
-      throw CacheCorruptedException(
+      final exception = CacheCorruptedException(
         'flutter precache exited with code ${result.exitCode}: $stderr.',
+        remedy: 'Run this command again to retry the precache.',
       );
+      logger.err('$exception');
+      throw exception;
+    }
+    try {
+      precacheStamp.writeAsStringSync(_engineVersionOf(targetDirectory));
+    } on FileSystemException catch (error) {
+      precacheProgress.fail('Failed to precache Flutter $version');
+      final exception = CacheCorruptedException(
+        'Failed to record the precache for Flutter $version: $error.',
+        remedy: 'Make sure ${precacheStamp.path} is writable and retry.',
+      );
+      logger.err('$exception');
+      throw exception;
     }
     precacheProgress.complete();
+    markUsed(targetDirectory);
   }
 
-  /// Whether the current revision is unmodified.
-  Future<bool> isUnmodified({String? revision}) async {
-    final status = await git.status(
-      directory: _workingDirectory(revision: revision),
-      args: ['--untracked-files=no', '--porcelain'],
+  /// The engine version [flutterDirectory]'s checkout currently names, or the
+  /// empty string when it cannot be read.
+  String _engineVersionOf(Directory flutterDirectory) {
+    final file = File(
+      p.join(flutterDirectory.path, 'bin', 'internal', 'engine.version'),
     );
-    return status.isEmpty;
+    try {
+      return file.existsSync() ? file.readAsStringSync().trim() : '';
+    } on FileSystemException {
+      return '';
+    }
+  }
+
+  /// Whether [stamp] was written for the engine [flutterDirectory] names now.
+  bool _precacheStampMatchesEngine(File stamp, Directory flutterDirectory) {
+    try {
+      return stamp.readAsStringSync().trim() ==
+          _engineVersionOf(flutterDirectory);
+    } on FileSystemException {
+      return false;
+    }
+  }
+
+  /// The installed revision whose Dart SDK is running this process, or null
+  /// if the process is not running from the Flutter cache.
+  ///
+  /// The launcher runs the CLI on the pinned revision's Dart SDK. During
+  /// `shorebird upgrade` that is the revision being upgraded away from, which
+  /// is no longer the one `flutter.version` names.
+  String? _runningRevision(Directory flutterCache) {
+    final executable = platform.resolvedExecutable;
+    // The executable's path has its symlinks resolved, and the cache's may
+    // not (a symlinked Shorebird root), so compare against both spellings.
+    final cachePaths = {
+      flutterCache.path,
+      if (flutterCache.existsSync()) flutterCache.resolveSymbolicLinksSync(),
+    };
+    for (final cachePath in cachePaths) {
+      if (p.isWithin(cachePath, executable)) {
+        return p.split(p.relative(executable, from: cachePath)).first;
+      }
+    }
+    return null;
+  }
+
+  /// Removes installed Flutter revisions that have not been used within
+  /// [unusedCacheMaxAge], and returns the revisions removed.
+  ///
+  /// Never removes the pinned revision or the one running this process, and
+  /// records both as used, so a revision that stops being pinned gets the
+  /// full [unusedCacheMaxAge] from then. Reads the pinned revision from
+  /// [shorebirdEnv], so call this outside any `flutterRevisionOverride`
+  /// scope; after `shorebird upgrade` it is the new pin.
+  ///
+  /// Each candidate is moved aside before it is deleted, so a delete that
+  /// fails partway (a locked file on Windows) leaves a directory a later
+  /// sweep reclaims rather than a half-deleted install at the revision's
+  /// path. Another process that starts using a revision between the age
+  /// check and the move loses its install and reinstalls on its next run.
+  List<String> pruneUnusedRevisions() {
+    final flutterCache = shorebirdEnv.flutterDirectory.parent;
+    if (!flutterCache.existsSync()) return const [];
+
+    final protected = {
+      shorebirdEnv.flutterRevision,
+      ?_runningRevision(flutterCache),
+    };
+    for (final revision in protected) {
+      final directory = Directory(p.join(flutterCache.path, revision));
+      if (directory.existsSync()) markUsed(directory);
+    }
+
+    final removed = <String>[];
+    for (final entity in flutterCache.listSync().whereType<Directory>()) {
+      final revision = p.basename(entity.path);
+      if (protected.contains(revision)) continue;
+      if (!isUnusedRevisionDirectory(entity)) continue;
+
+      final Directory condemned;
+      try {
+        condemned = entity.renameSync(
+          _reclaimablePath(entity.path, tag: 'unused'),
+        );
+      } on FileSystemException catch (error) {
+        logger.detail('Failed to move aside ${entity.path}: $error');
+        continue;
+      }
+      logger.detail(
+        'Removing Flutter ${shortRevisionString(revision)}, unused for '
+        '${unusedCacheMaxAge.inDays} days.',
+      );
+      deleteIgnoringErrors(condemned);
+      removed.add(revision);
+    }
+
+    // Whatever a failed delete above, or an earlier run, left behind.
+    _reclaimStaleDirectories(parent: flutterCache, prefix: '');
+
+    return removed;
   }
 
   /// Returns the current system Flutter version.
@@ -393,8 +684,7 @@ class ShorebirdFlutter {
   ///
   /// e.g. 3.16.3 and b9b2390296b9b2390296 -> 3.16.3 (b9b2390296)
   String formatVersion({required String revision, required String? version}) {
-    version ??= 'unknown';
-    return '$version (${shortRevisionString(revision)})';
+    return '${version ?? 'unknown'} (${shortRevisionString(revision)})';
   }
 
   /// Returns the current Shorebird Flutter version and revision.

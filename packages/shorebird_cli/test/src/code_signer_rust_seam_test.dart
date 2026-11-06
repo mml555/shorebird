@@ -33,6 +33,7 @@ import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:test/test.dart';
 
 import 'mocks.dart';
+import 'helpers.dart';
 
 // Both named for readability at the lookup and call sites; the lint would
 // rather they were inlined, but a bare three-pointer function type reads as
@@ -76,6 +77,7 @@ Future<T> _withRealProcess<T>(Future<T> Function() body) => runScoped(
 );
 
 void main() {
+  useTempWorkingDirectory();
   group('Dart signer -> Rust verifier', () {
     late Directory tmp;
     late File privateKey;

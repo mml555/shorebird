@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 // G4.1. The matrix here is the release→patch acceptance table, and every row's
 // expectation traces to a MEASURED semantic rather than an assumed one — see
@@ -14,6 +15,7 @@ import 'package:test/test.dart';
 //   2 key order is byte-irrelevant    -> compare sorted
 //   3 -Dk= is a defined empty string  -> absent != empty
 void main() {
+  useTempWorkingDirectory();
   RouteBBuildConfig config(List<String> args) =>
       RouteBBuildConfig.fromBuildArgs(args)!;
 

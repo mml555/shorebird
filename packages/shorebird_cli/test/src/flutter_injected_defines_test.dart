@@ -4,8 +4,10 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/flutter_injected_defines.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(FlutterInjectedDefines, () {
     late Directory tempDir;
 

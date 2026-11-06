@@ -206,7 +206,8 @@ class RouteBReleaseProvenance {
       // P4.4 layer 1. Null for a release cut before these existed, which the
       // patch side reads as "cannot be established" rather than as agreement.
       releaseArtifactSha256: decoded['releaseArtifactSha256'] as String?,
-      compatibilityRevision: (decoded['compatibilityRevision'] as num?)?.toInt(),
+      compatibilityRevision: (decoded['compatibilityRevision'] as num?)
+          ?.toInt(),
       releaseTarget: decoded['releaseTarget'] as String?,
     );
   }

@@ -143,8 +143,7 @@ _Read _read({
   );
 }
 
-String? _charAt(String s, int i) =>
-    (i < 0 || i >= s.length) ? null : s[i];
+String? _charAt(String s, int i) => (i < 0 || i >= s.length) ? null : s[i];
 
 bool _isIdentifierPart(String? c) =>
     c != null &&

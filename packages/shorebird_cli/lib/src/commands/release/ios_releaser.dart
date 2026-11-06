@@ -3,18 +3,20 @@ import 'dart:io';
 
 import 'package:mason_logger/mason_logger.dart';
 import 'package:crypto/crypto.dart';
+import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/dart_define_from_file.dart';
+import 'package:shorebird_cli/src/command_error.dart';
+import 'package:shorebird_cli/src/commands/apple_build_helpers.dart';
+import 'package:shorebird_cli/src/commands/patch/apple_patcher_mixin.dart';
 import 'package:shorebird_cli/src/commands/release/apple_releaser_mixin.dart';
 import 'package:shorebird_cli/src/commands/release/releaser.dart';
-import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/flutter_injected_defines.dart';
-import 'package:shorebird_cli/src/flutter_version_constraints.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform/apple/apple.dart';
 import 'package:shorebird_cli/src/release_type.dart';
@@ -30,6 +32,7 @@ import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
+import 'package:shorebird_cli/src/split_debug_info.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 
@@ -43,9 +46,6 @@ class IosReleaser extends Releaser with AppleReleaserMixin {
     required super.flavor,
     required super.target,
   });
-
-  /// Whether to codesign the release.
-  bool get codesign => argResults['codesign'] == true;
 
   @override
   ReleaseType get releaseType => ReleaseType.ios;
@@ -65,28 +65,12 @@ class IosReleaser extends Releaser with AppleReleaserMixin {
   @override
   Future<void> assertArgsAreValid() async {
     assertReleaseVersionFlagNotProvided();
-
-    await assertObfuscationIsSupported();
-
-    final exportOptionsPlistFile = argResults.file(
-      CommonArguments.exportOptionsPlistArg.name,
-    );
-    if (exportOptionsPlistFile != null) {
-      try {
-        assertValidExportOptionsPlist(exportOptionsPlistFile);
-      } on InvalidExportOptionsPlistException catch (error) {
-        logger.err(error.message);
-        throw ProcessExit(ExitCode.usage.code);
-      }
-    }
+    argResults.assertValidExportOptionsPlistArg();
   }
 
   @override
-  Version? get minimumFlutterVersion => minimumSupportedIosFlutterVersion;
-
-  @override
   Future<FileSystemEntity> buildReleaseArtifacts() async {
-    if (!codesign) {
+    if (!argResults.appleCodesign) {
       logger
         ..info(
           '''Building for device with codesigning disabled. You will have to manually codesign before deploying to device.''',
@@ -102,50 +86,57 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
         );
     }
 
-    // Delete the Shorebird supplement directory if it exists.
-    // This is to ensure that we don't accidentally upload stale artifacts
-    // when building with older versions of Flutter.
-    final shorebirdSupplementDir = artifactManager
-        .getIosReleaseSupplementDirectory();
-    if (shorebirdSupplementDir?.existsSync() ?? false) {
-      shorebirdSupplementDir!.deleteSync(recursive: true);
-    }
+    // The patch-signing key is resolved, the supplement directory cleared and
+    // the obfuscation arguments added by runReleaseBuild. Everything Route B
+    // needs from the build is captured from inside its callback, because that
+    // is the one place the arguments the build will really compile with are
+    // known.
+    String? splitDebugInfo;
+    late final bool wantsPatchableCalls;
+    late final List<String> buildArgs;
+    RouteBCompiler? routeBCompiler;
+    final buildResult = await runReleaseBuild((
+      releaseBuildArgs,
+      base64PublicKey,
+    ) async {
+      buildArgs = releaseBuildArgs;
+      splitDebugInfo = splitDebugInfoDirectory(buildArgs);
+      wantsPatchableCalls = _addPatchableCallArgs(buildArgs);
 
-    final base64PublicKey = await getEncodedPublicKey();
+      // Route B retention, declared BEFORE the build that must honour it.
+      //
+      // A dynamic interface is generated from a kernel, and the kernel a
+      // release ships comes from this very build — so the circle is broken
+      // with a kernel-only PREPASS rather than by building the whole IPA twice
+      // and throwing one away. The extra cost is one frontend compilation.
+      routeBCompiler = isRouteBEngine(_routeBEngineBinary)
+          ? await _resolveReleaseTooling()
+          : null;
+      final compiler = routeBCompiler;
+      if (compiler != null) {
+        await _declareRetention(compiler, buildArgs);
+      }
 
-    final buildArgs = [...argResults.forwardedArgs];
-    addSplitDebugInfoDefault(buildArgs);
-    await addObfuscationMapArgs(buildArgs);
-    final wantsPatchableCalls = _addPatchableCallArgs(buildArgs);
-
-    // Route B retention, declared BEFORE the build that must honour it.
-    //
-    // A dynamic interface is generated from a kernel, and the kernel a release
-    // ships comes from this very build — so the circle is broken with a
-    // kernel-only PREPASS rather than by building the whole IPA twice and
-    // throwing one away. The extra cost is one frontend compilation.
-    final routeBCompiler = isRouteBEngine(_routeBEngineBinary)
-        ? await _resolveReleaseTooling()
-        : null;
-    if (routeBCompiler != null) {
-      await _declareRetention(routeBCompiler, buildArgs);
-    }
-
-    final buildResult = await artifactBuilder.buildIpa(
-      codesign: codesign,
-      flavor: flavor,
-      target: target,
-      args: buildArgs,
-      base64PublicKey: base64PublicKey,
-      ddMaxBytes: ddMaxBytes,
-    );
-
-    verifyObfuscationMap();
+      return artifactBuilder.buildIpa(
+        codesign: argResults.appleCodesign,
+        flavor: flavor,
+        target: target,
+        args: buildArgs,
+        base64PublicKey: base64PublicKey,
+        ddMaxBytes: ddMaxBytes,
+      );
+    });
+    if (splitDebugInfo != null) warnIfDebugSymbolsHaveNoDwarf(splitDebugInfo!);
 
     final xcarchiveDirectory = artifactManager.getXcarchiveDirectory();
     if (xcarchiveDirectory == null) {
-      logger.err('Unable to find .xcarchive directory');
-      throw ProcessExit(ExitCode.software.code);
+      throw CommandError(
+        message:
+            'Unable to find the .xcarchive directory in the iOS build '
+            'output.',
+        hint: 'Re-run with --verbose to see the build output.',
+        exitCode: ExitCode.software,
+      );
     }
 
     final appDirectory = artifactManager.getIosAppDirectory(
@@ -153,8 +144,21 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
     );
 
     if (appDirectory == null) {
-      logger.err('Unable to find .app directory');
-      throw ProcessExit(ExitCode.software.code);
+      throw CommandError(
+        message: 'Unable to find the .app directory in the .xcarchive.',
+        hint: 'Re-run with --verbose to see the build output.',
+        exitCode: ExitCode.software,
+      );
+    }
+
+    // Surface mismatched app extension versions here rather than letting the
+    // user discover them via an App Store Connect rejection days later.
+    // See https://github.com/shorebirdtech/shorebird/issues/1956.
+    final versionMismatches = findAppExtensionVersionMismatches(
+      appDirectory: appDirectory,
+    );
+    if (versionMismatches.isNotEmpty) {
+      logger.warn(appExtensionVersionMismatchWarning(versionMismatches));
     }
 
     if (wantsPatchableCalls) {
@@ -164,9 +168,10 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
     // Independent of who asked for the flag: a release built by a Route B
     // engine records which engine that was, whether the flag came from us or
     // from the caller's own --extra-gen-snapshot-options.
-    if (routeBCompiler != null) {
+    final releaseCompiler = routeBCompiler;
+    if (releaseCompiler != null) {
       await _recordRouteBProvenance(
-        routeBCompiler,
+        releaseCompiler,
         appDirectory,
         buildResult.kernelFile,
         buildArgs,
@@ -179,7 +184,7 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
     // so we must verify the .ipa was actually produced. Otherwise we would
     // report a successful release and point the user at an .ipa that does not
     // exist. See https://github.com/shorebirdtech/shorebird/issues/3807.
-    if (codesign) {
+    if (argResults.appleCodesign) {
       final ipa = artifactManager.getIpa();
       // EXISTING IS NOT ENOUGH — IT MUST BE THIS BUILD'S. The export writes into
       // build/ios/ipa, which is not cleared between runs, so a failed export
@@ -199,22 +204,18 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
             xcarchiveDirectory.statSync().modified,
           );
       if (ipa == null || stale) {
-        logger.err(
-          stale
+        throw CommandError(
+          message: stale
               ? '''
-Found an .ipa older than the .xcarchive this build just produced:
-
-  ${ipa.path}
-
-It is left over from an earlier build, so the IPA export step of "flutter build ipa" must have failed for this one (for example, due to a missing or invalid code signing certificate). Review the build output above for the underlying error. Releasing would upload the earlier build's .ipa.
-
-Delete it and re-run, or if you do not need a signed IPA (for example, you will sign the .xcarchive in Xcode), re-run this command with --no-codesign.'''
+Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. It is left over from an earlier build, so the IPA export step of "flutter build ipa" must have failed for this one (for example, due to a missing or invalid code signing certificate). Releasing would upload the earlier build's .ipa.'''
               : '''
-Unable to find generated IPA. This usually means that the IPA export step of "flutter build ipa" failed (for example, due to a missing or invalid code signing certificate). Review the build output above for the underlying error.
-
-If you do not need a signed IPA (for example, you will sign the .xcarchive in Xcode), re-run this command with --no-codesign.''',
+`flutter build ipa` exported no .ipa, usually because code signing failed. The build output above has the cause.''',
+          hint:
+              '${stale ? 'Delete the old .ipa and re-run. ' : ''}'
+              'To sign the .xcarchive in Xcode instead, release it unsigned. '
+              'Run: shorebird release ios --no-codesign',
+          exitCode: ExitCode.software,
         );
-        throw ProcessExit(ExitCode.software.code);
       }
     }
 
@@ -1043,25 +1044,42 @@ This usually means a stale engine artifact cache. Try:
     throw ProcessExit(ExitCode.software.code);
   }
 
+  /// Warns when the `--split-debug-info` dSYM in [directory] has no
+  /// `__debug_info`. It is still a valid dSYM with a matching UUID, so symbol
+  /// uploads succeed, but Dart frames in crash reports have no names.
+  ///
+  /// Xcode 27's linker writes no debug map for Dart's snapshot on Flutter
+  /// versions whose Dart emits an empty `DW_AT_comp_dir`, so dsymutil makes
+  /// a dSYM with no DWARF. See
+  /// https://github.com/shorebirdtech/shorebird/issues/4270.
+  @visibleForTesting
+  void warnIfDebugSymbolsHaveNoDwarf(String directory) {
+    final symbolsFile = File(
+      p.join(
+        projectRoot.path,
+        directory,
+        ApplePatcherMixin.splitDebugInfoFileName,
+      ),
+    );
+    // Flutter versions before the Mach-O dSYM write an ELF here, which
+    // debugInfoSize returns null for.
+    if (!symbolsFile.existsSync()) return;
+    if (MachO.debugInfoSize(symbolsFile) != 0) return;
+    logger.warn(
+      '''
+${p.relative(symbolsFile.path, from: projectRoot.path)} has no Dart debug info (no __debug_info section), so Dart frames in this release's crash reports will have no function names.
+
+The likely cause is Xcode 27's linker with a Flutter version that doesn't support it yet. To get Dart symbols, run `flutter clean` and build the release with Xcode 26. https://github.com/shorebirdtech/shorebird/issues/4270 tracks the fix.''',
+    );
+  }
+
   @override
   Future<String> getReleaseVersion({
     required FileSystemEntity releaseArtifactRoot,
-  }) async {
-    final plistFile = File(p.join(releaseArtifactRoot.path, 'Info.plist'));
-    if (!plistFile.existsSync()) {
-      logger.err('No Info.plist file found at ${plistFile.path}');
-      throw ProcessExit(ExitCode.software.code);
-    }
-
-    try {
-      return Plist(file: plistFile).versionNumber;
-    } on Exception catch (error) {
-      logger.err(
-        '''Failed to determine release version from ${plistFile.path}: $error''',
-      );
-      throw ProcessExit(ExitCode.software.code);
-    }
-  }
+  }) async => readReleaseVersionFromInfoPlist(
+    File(p.join(releaseArtifactRoot.path, 'Info.plist')),
+    hint: 'Re-run with --verbose to see the build output.',
+  );
 
   @override
   Future<void> uploadReleaseArtifacts({
@@ -1076,11 +1094,10 @@ This usually means a stale engine artifact cache. Try:
       runnerPath: artifactManager
           .getIosAppDirectory(xcarchiveDirectory: xcarchiveDirectory)!
           .path,
-      isCodesigned: codesign,
+      isCodesigned: argResults.appleCodesign,
       podfileLockHash: shorebirdEnv.iosPodfileLockHash,
+      signing: signing,
     );
-
-    await uploadSupplementArtifact(appId: appId, releaseId: release.id);
   }
 
   @override
@@ -1088,7 +1105,7 @@ This usually means a stale engine artifact cache. Try:
     final relativeArchivePath = p.relative(
       artifactManager.getXcarchiveDirectory()!.path,
     );
-    if (codesign) {
+    if (argResults.appleCodesign) {
       const ipaSearchString = 'build/ios/ipa/*.ipa';
       return '''
 

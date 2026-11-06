@@ -1,10 +1,10 @@
 import 'package:mason_logger/mason_logger.dart';
+import 'package:shorebird_cli/src/auth/auth.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/shorebird_command.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
-import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 
 /// {@template whoami_command}
@@ -25,11 +25,16 @@ class WhoamiCommand extends ShorebirdCommand {
       '  ID:             42\n'
       '  Email:          user@example.com\n'
       '  Display name:   Example User\n'
-      '  Plan:           paid\n'
-      '  Overage limit:  10000\n\n'
-      'Plan is "paid" (active Shorebird subscription) or "free".\n'
+      '  Plan:           enterprise\n'
+      '  Overage limit:  10000\n'
+      '  Credential:     Login (shorebird login)\n\n'
+      'Plan is your plan level: "free", "pro", "business" or "enterprise" '
+      '("unknown" if the server does not report one).\n'
       'Overage limit is the max pay-as-you-go patch installs allowed '
-      'beyond your plan ("none" if unset).\n\n'
+      'beyond your plan ("none" if unset).\n'
+      'Credential is how this command authenticated: an API key from '
+      '$shorebirdTokenEnvVar, GitHub Actions OIDC, or your '
+      '`shorebird login`.\n\n'
       '${ShorebirdCommand.jsonHint('shorebird account whoami --json')}';
 
   @override
@@ -39,24 +44,20 @@ class WhoamiCommand extends ShorebirdCommand {
         checkUserIsAuthenticated: true,
       );
     } on PreconditionFailedException catch (error) {
-      return error.exitCode.code;
+      return reportPreconditionFailure(error);
     }
 
-    final PrivateUser user;
-    try {
-      user = await codePushClientWrapper.getCurrentUser();
-    } on ProcessExit catch (e) {
-      if (isJsonMode) {
-        emitJsonError(
-          code: JsonErrorCode.fetchFailed,
-          message: 'Failed to fetch account.',
-        );
-        return e.exitCode;
-      }
-      rethrow;
-    }
-
-    final plan = (user.hasActiveSubscription ?? false) ? 'paid' : 'free';
+    late final PrivateUser user;
+    late final String? planLevel;
+    final fetchError = await guardApiCall(
+      () async {
+        user = await codePushClientWrapper.getCurrentUser();
+        planLevel = await codePushClientWrapper.getPlanLevel();
+      },
+      code: JsonErrorCode.fetchFailed,
+      message: 'Failed to fetch account.',
+    );
+    if (fetchError != null) return fetchError;
 
     if (isJsonMode) {
       emitJsonSuccess({
@@ -64,9 +65,19 @@ class WhoamiCommand extends ShorebirdCommand {
           'id': user.id,
           'email': user.email,
           'display_name': user.displayName,
-          'plan': plan,
+          // `plan` predates plan levels and is kept so existing scripts keep
+          // working; `plan_level` is the finer-grained value. Any level but
+          // free is paid, matching the server. Null when the server does
+          // not report a level.
+          'plan': switch (planLevel) {
+            null => null,
+            'free' => 'free',
+            _ => 'paid',
+          },
+          'plan_level': planLevel,
           'overage_limit': user.patchOverageLimit,
         },
+        'credential': auth.credentialKind?.jsonName,
       });
       return ExitCode.success.code;
     }
@@ -78,9 +89,24 @@ class WhoamiCommand extends ShorebirdCommand {
       logger.info('Display name:   ${user.displayName}');
     }
     logger
-      ..info('Plan:           $plan')
+      ..info('Plan:           ${planLevel ?? 'unknown'}')
       ..info('Overage limit:  ${user.patchOverageLimit ?? 'none'}');
+    if (auth.credentialKind case final kind?) {
+      logger.info('Credential:     ${kind.description}');
+    }
 
     return ExitCode.success.code;
   }
+}
+
+/// {@template top_level_whoami_command}
+/// `shorebird whoami`
+/// A hidden alias of `shorebird account whoami`, the command agents guess.
+/// {@endtemplate}
+class TopLevelWhoamiCommand extends WhoamiCommand {
+  /// {@macro top_level_whoami_command}
+  TopLevelWhoamiCommand();
+
+  @override
+  bool get hidden => true;
 }

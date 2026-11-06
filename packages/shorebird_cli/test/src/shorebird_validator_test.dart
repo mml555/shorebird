@@ -1,24 +1,30 @@
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:platform/platform.dart';
+import 'package:platform/testing.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/auth/auth.dart';
+import 'package:shorebird_cli/src/auth/credential_source.dart';
+import 'package:shorebird_cli/src/auth/github_actions_oidc.dart';
 import 'package:shorebird_cli/src/config/config.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
+import 'package:shorebird_cli/src/platform/apple/apple.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
 import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 import 'package:test/test.dart';
 
+import 'helpers.dart';
 import 'mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(ShorebirdValidator, () {
+    late Apple apple;
     late Auth auth;
     late ShorebirdLogger logger;
-    late Platform platform;
+    late TestNativePlatform platform;
     late Validator validator;
     late ShorebirdEnv shorebirdEnv;
     late ShorebirdValidator shorebirdValidator;
@@ -27,6 +33,7 @@ void main() {
       return runScoped(
         () => body(),
         values: {
+          appleRef.overrideWith(() => apple),
           authRef.overrideWith(() => auth),
           loggerRef.overrideWith(() => logger),
           platformRef.overrideWith(() => platform),
@@ -36,9 +43,13 @@ void main() {
     }
 
     setUp(() {
+      apple = MockApple();
       auth = MockAuth();
       logger = MockShorebirdLogger();
-      platform = MockPlatform();
+      platform = TestNativePlatform(
+        operatingSystem: NativePlatform.macOS,
+        environment: {},
+      );
       shorebirdEnv = MockShorebirdEnv();
       validator = MockValidator();
       shorebirdValidator = runWithOverrides(ShorebirdValidator.new);
@@ -59,19 +70,31 @@ void main() {
     group('validatePreconditions', () {
       test('throws UnsupportedOperatingSystemException '
           'when the operating system is not supported', () async {
-        when(() => platform.operatingSystem).thenReturn(Platform.linux);
-        const supportedOperatingSystems = {Platform.macOS, Platform.windows};
+        platform = platform.copyWith(operatingSystem: NativePlatform.linux);
+        const supportedOperatingSystems = {
+          NativePlatform.macOS,
+          NativePlatform.windows,
+        };
         await expectLater(
           runWithOverrides(
             () => shorebirdValidator.validatePreconditions(
               supportedOperatingSystems: supportedOperatingSystems,
             ),
           ),
-          throwsA(isA<UnsupportedOperatingSystemException>()),
+          throwsA(
+            isA<UnsupportedOperatingSystemException>()
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'This command is only supported on macos, windows '
+                      '(this machine is running linux).',
+                )
+                .having((e) => e.hint, 'hint', isNull),
+          ),
         );
         verify(
           () => logger.err(
-            '''This command is only supported on ${supportedOperatingSystems.join(' ,')}.''',
+            '''This command is only supported on macos, windows (this machine is running linux).''',
           ),
         ).called(1);
       });
@@ -85,7 +108,21 @@ void main() {
               checkUserIsAuthenticated: true,
             ),
           ),
-          throwsA(isA<UserNotAuthorizedException>()),
+          throwsA(
+            isA<UserNotAuthorizedException>()
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'You must be logged in to run this command.',
+                )
+                .having(
+                  (e) => e.hint,
+                  'hint',
+                  'If you already have an account, run `shorebird login` to '
+                      "sign in. If you don't have a Shorebird account, go to "
+                      'https://console.shorebird.dev to create one.',
+                ),
+          ),
         );
         verifyInOrder([
           () => logger.err('You must be logged in to run this command.'),
@@ -95,6 +132,106 @@ void main() {
           () => logger.info(
             '''If you don't have a Shorebird account, go to ${link(uri: Uri.parse('https://console.shorebird.dev'))} to create one.''',
           ),
+        ]);
+      });
+
+      test('reports why a way of authenticating this environment was meant '
+          'to use cannot be used', () async {
+        when(() => auth.isAuthenticated).thenReturn(false);
+        when(() => auth.unavailableCredentialsReason).thenReturn(
+          const CredentialSourceException(
+            'Signing in with GitHub Actions OIDC requires '
+            'SHOREBIRD_PROJECT_ID.',
+            hint: 'Set SHOREBIRD_PROJECT_ID.',
+          ),
+        );
+        platform = platform.copyWith(
+          environment: {githubActionsEnvVar: 'true'},
+        );
+        await expectLater(
+          runWithOverrides(
+            () => shorebirdValidator.validatePreconditions(
+              checkUserIsAuthenticated: true,
+            ),
+          ),
+          throwsA(
+            isA<UserNotAuthorizedException>()
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'Signing in with GitHub Actions OIDC requires '
+                      'SHOREBIRD_PROJECT_ID.',
+                )
+                .having((e) => e.hint, 'hint', 'Set SHOREBIRD_PROJECT_ID.'),
+          ),
+        );
+        verifyInOrder([
+          () => logger.err(
+            'Signing in with GitHub Actions OIDC requires '
+            'SHOREBIRD_PROJECT_ID.',
+          ),
+          () => logger.info('Set SHOREBIRD_PROJECT_ID.'),
+        ]);
+        verifyNever(
+          () => logger.err('You must be logged in to run this command.'),
+        );
+      });
+
+      test('reports an unavailable reason without a hint', () async {
+        when(() => auth.isAuthenticated).thenReturn(false);
+        when(() => auth.unavailableCredentialsReason).thenReturn(
+          const CredentialSourceException('Cannot sign in.'),
+        );
+        await expectLater(
+          runWithOverrides(
+            () => shorebirdValidator.validatePreconditions(
+              checkUserIsAuthenticated: true,
+            ),
+          ),
+          throwsA(
+            isA<UserNotAuthorizedException>().having(
+              (e) => e.hint,
+              'hint',
+              isNull,
+            ),
+          ),
+        );
+        verify(() => logger.err('Cannot sign in.')).called(1);
+        verifyNever(() => logger.info(any()));
+      });
+
+      test('points at GitHub Actions OIDC when running in GitHub Actions '
+          'and the user is not authenticated', () async {
+        when(() => auth.isAuthenticated).thenReturn(false);
+        platform = platform.copyWith(
+          environment: {githubActionsEnvVar: 'true'},
+        );
+        const oidcHint =
+            'To sign in from GitHub Actions without a stored secret, grant '
+            'the job `permissions: id-token: write`, set SHOREBIRD_PROJECT_ID '
+            'to the id of your project, and add a GitHub Actions trust rule '
+            'for this workflow at https://console.shorebird.dev.';
+        const apiKeyHint =
+            'Or set SHOREBIRD_TOKEN to a service account key: '
+            'https://docs.shorebird.dev/account/service-accounts/';
+        await expectLater(
+          runWithOverrides(
+            () => shorebirdValidator.validatePreconditions(
+              checkUserIsAuthenticated: true,
+            ),
+          ),
+          throwsA(
+            isA<UserNotAuthorizedException>().having(
+              (e) => e.hint,
+              'hint',
+              '$oidcHint $apiKeyHint',
+            ),
+          ),
+        );
+        verifyInOrder([
+          () => logger.err('You must be logged in to run this command.'),
+          () => logger.info(oidcHint),
+          () => logger.info(apiKeyHint),
         ]);
       });
 
@@ -115,7 +252,21 @@ void main() {
                       checkShorebirdInitialized: true,
                     ),
                   ),
-                  throwsA(isA<ShorebirdNotInitializedException>()),
+                  throwsA(
+                    isA<ShorebirdNotInitializedException>()
+                        .having(
+                          (e) => e.message,
+                          'message',
+                          'Unable to find shorebird.yaml. Are you in a '
+                              'shorebird app directory?',
+                        )
+                        .having(
+                          (e) => e.hint,
+                          'hint',
+                          'If you have not yet initialized your app, run '
+                              '`shorebird init` to get started.',
+                        ),
+                  ),
                 );
                 verifyInOrder([
                   () => logger.err(
@@ -147,7 +298,21 @@ void main() {
                       checkShorebirdInitialized: true,
                     ),
                   ),
-                  throwsA(isA<ShorebirdNotInitializedException>()),
+                  throwsA(
+                    isA<ShorebirdNotInitializedException>()
+                        .having(
+                          (e) => e.message,
+                          'message',
+                          'Your pubspec.yaml does not have shorebird.yaml as '
+                              'a flutter asset.',
+                        )
+                        .having(
+                          (e) => e.hint,
+                          'hint',
+                          'Add shorebird.yaml to the flutter assets in your '
+                              'pubspec.yaml.',
+                        ),
+                  ),
                 );
                 verifyInOrder([
                   () => logger.err(
@@ -181,7 +346,20 @@ To fix, update your pubspec.yaml to include the following:
               validators: [validator],
             ),
           ),
-          throwsA(isA<ValidationFailedException>()),
+          throwsA(
+            isA<ValidationFailedException>()
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'Aborting due to validation errors. test issue',
+                )
+                .having(
+                  (e) => e.hint,
+                  'hint',
+                  '1 issue can be fixed automatically with '
+                      '`shorebird doctor --fix`.',
+                ),
+          ),
         );
         verify(() => validator.validate()).called(1);
         verify(
@@ -211,11 +389,74 @@ To fix, update your pubspec.yaml to include the following:
                 validators: [validator],
               ),
             ),
-            throwsA(isA<UnsupportedContextException>()),
+            throwsA(
+              isA<UnsupportedContextException>().having(
+                (e) => e.message,
+                'message',
+                errorMessage,
+              ),
+            ),
           );
           verify(() => logger.err(errorMessage)).called(1);
         },
       );
+
+      test('reports only the error issues, and no hint when none is '
+          'fixable', () async {
+        const issues = [
+          ValidationIssue(
+            message: 'a warning',
+            severity: ValidationIssueSeverity.warning,
+          ),
+          ValidationIssue(
+            message: 'first error.',
+            severity: ValidationIssueSeverity.error,
+          ),
+          ValidationIssue(
+            message: 'second error.',
+            severity: ValidationIssueSeverity.error,
+          ),
+        ];
+        when(() => validator.canRunInCurrentContext()).thenReturn(true);
+        when(() => validator.validate()).thenAnswer((_) async => issues);
+        await expectLater(
+          runWithOverrides(
+            () => shorebirdValidator.validatePreconditions(
+              validators: [validator],
+            ),
+          ),
+          throwsA(
+            isA<ValidationFailedException>()
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'Aborting due to validation errors. first error. '
+                      'second error.',
+                )
+                .having((e) => e.hint, 'hint', isNull),
+          ),
+        );
+      });
+
+      test('uses a generic message when the validator gives no context '
+          'message', () async {
+        when(() => validator.canRunInCurrentContext()).thenReturn(false);
+        when(() => validator.incorrectContextMessage).thenReturn(null);
+        await expectLater(
+          runWithOverrides(
+            () => shorebirdValidator.validatePreconditions(
+              validators: [validator],
+            ),
+          ),
+          throwsA(
+            isA<UnsupportedContextException>().having(
+              (e) => e.message,
+              'message',
+              'This command cannot run in the current context.',
+            ),
+          ),
+        );
+      });
     });
 
     group('validateFlavors', () {
@@ -225,9 +466,6 @@ To fix, update your pubspec.yaml to include the following:
         when(
           () => shorebirdEnv.getShorebirdYaml(),
         ).thenAnswer((_) => shorebirdYaml);
-
-        when(() => platform.isWindows).thenReturn(false);
-        when(() => platform.isLinux).thenReturn(false);
       });
 
       group('when shorebird.yaml has flavors', () {
@@ -252,7 +490,20 @@ To fix, update your pubspec.yaml to include the following:
                     releasePlatform: ReleasePlatform.windows,
                   ),
                 ),
-                throwsA(isA<ValidationFailedException>()),
+                throwsA(
+                  isA<ValidationFailedException>()
+                      .having(
+                        (e) => e.message,
+                        'message',
+                        'Flavors are not supported on this platform.',
+                      )
+                      .having(
+                        (e) => e.hint,
+                        'hint',
+                        'Re-run this command without the --flavor argument. '
+                            'The app id test will be used.',
+                      ),
+                ),
               );
 
               verify(
@@ -296,10 +547,75 @@ To fix, update your pubspec.yaml to include the following:
               verify(
                 () => logger.warn(
                   '''
-The project has flavors (flavorA), but no --flavor argument was provided.
-The default app id test will be used.''',
+The project has flavors flavorA, but no --flavor argument was provided.
+The default app id test will be used. Pass --flavor=<name> to target a flavor.''',
                 ),
               ).called(1);
+            });
+          });
+
+          group('when the Xcode project has no scheme for the flavor', () {
+            setUp(() {
+              when(
+                () => apple.flavors(
+                  platform: ApplePlatform.ios,
+                  includeUserSchemes: true,
+                ),
+              ).thenReturn({});
+            });
+
+            test('fails validation before building', () async {
+              await expectLater(
+                runWithOverrides(
+                  () => shorebirdValidator.validateFlavors(
+                    flavorArg: 'flavorA',
+                    releasePlatform: ReleasePlatform.ios,
+                  ),
+                ),
+                throwsA(
+                  isA<ValidationFailedException>().having(
+                    (e) => e.message,
+                    'message',
+                    contains('The iOS project has no Xcode scheme'),
+                  ),
+                ),
+              );
+            });
+
+            test('does not warn when no flavor is given', () async {
+              await expectLater(
+                runWithOverrides(
+                  () => shorebirdValidator.validateFlavors(
+                    flavorArg: null,
+                    releasePlatform: ReleasePlatform.ios,
+                  ),
+                ),
+                completes,
+              );
+              verifyNever(() => logger.warn(any()));
+            });
+          });
+
+          group('when the Xcode schemes cannot be read', () {
+            setUp(() {
+              when(
+                () => apple.flavors(
+                  platform: ApplePlatform.ios,
+                  includeUserSchemes: true,
+                ),
+              ).thenThrow(Exception('no schemes'));
+            });
+
+            test('passes validation', () async {
+              await expectLater(
+                runWithOverrides(
+                  () => shorebirdValidator.validateFlavors(
+                    flavorArg: 'flavorA',
+                    releasePlatform: ReleasePlatform.ios,
+                  ),
+                ),
+                completes,
+              );
             });
           });
 
@@ -314,6 +630,7 @@ The default app id test will be used.''',
                 ),
                 completes,
               );
+              verifyZeroInteractions(apple);
             });
           });
         });
@@ -346,7 +663,13 @@ The default app id test will be used.''',
                     releasePlatform: ReleasePlatform.android,
                   ),
                 ),
-                throwsA(isA<ValidationFailedException>()),
+                throwsA(
+                  isA<ValidationFailedException>().having(
+                    (e) => e.message,
+                    'message',
+                    isNotEmpty,
+                  ),
+                ),
               );
             });
           });

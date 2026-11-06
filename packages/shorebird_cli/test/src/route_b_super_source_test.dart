@@ -6,8 +6,10 @@
 // AOT kernel ZERO.
 import 'package:shorebird_cli/src/route_b_super_source.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group('routeBSuperCallArgs', () {
     RouteBSuperArgs read(String source, String member) {
       // The Kernel offset points at the MEMBER NAME, measured on both kernels of
@@ -24,21 +26,31 @@ void main() {
     }
 
     test('admits an empty argument list', () {
-      expect(read('String t() => super.plain();', 'plain'),
-          RouteBSuperArgs.zeroArguments);
-      expect(read('String t() => super.plain(\n);', 'plain'),
-          RouteBSuperArgs.zeroArguments);
-      expect(read('String t() => super.plain(/* nested /*c*/ */);', 'plain'),
-          RouteBSuperArgs.zeroArguments);
-      expect(read('String t() => super . plain();', 'plain'),
-          RouteBSuperArgs.zeroArguments);
+      expect(
+        read('String t() => super.plain();', 'plain'),
+        RouteBSuperArgs.zeroArguments,
+      );
+      expect(
+        read('String t() => super.plain(\n);', 'plain'),
+        RouteBSuperArgs.zeroArguments,
+      );
+      expect(
+        read('String t() => super.plain(/* nested /*c*/ */);', 'plain'),
+        RouteBSuperArgs.zeroArguments,
+      );
+      expect(
+        read('String t() => super . plain();', 'plain'),
+        RouteBSuperArgs.zeroArguments,
+      );
     });
 
     test('THE CONTROL: refuses the arguments TFA would have erased', () {
       // The exact site from the permanent specimen. In the AOT kernel this call
       // reports ZERO arguments; the source says otherwise, and the source wins.
-      expect(read("String t() => super.tag('a', 7);", 'tag'),
-          RouteBSuperArgs.hasArguments);
+      expect(
+        read("String t() => super.tag('a', 7);", 'tag'),
+        RouteBSuperArgs.hasArguments,
+      );
     });
 
     test('refuses any argument shape', () {
@@ -50,41 +62,57 @@ void main() {
         'super.foo(() {})',
         'super.foo((a, b) => a)',
       ]) {
-        expect(read('String t() => $call;', 'foo'),
-            RouteBSuperArgs.hasArguments,
-            reason: call);
+        expect(
+          read('String t() => $call;', 'foo'),
+          RouteBSuperArgs.hasArguments,
+          reason: call,
+        );
       }
     });
 
     test('refuses a generic super invocation', () {
-      expect(read('String t() => super.foo<int>();', 'foo'),
-          RouteBSuperArgs.hasArguments);
+      expect(
+        read('String t() => super.foo<int>();', 'foo'),
+        RouteBSuperArgs.hasArguments,
+      );
     });
 
     test('refuses what it cannot read, rather than guessing', () {
       // Offset does not name the member.
       expect(
         routeBSuperCallArgs(
-            source: 'String t() => super.plain();', offset: 0, member: 'plain'),
+          source: 'String t() => super.plain();',
+          offset: 0,
+          member: 'plain',
+        ),
         RouteBSuperArgs.unverifiable,
       );
       // Offset out of range.
       expect(
         routeBSuperCallArgs(
-            source: 'super.plain();', offset: 999, member: 'plain'),
+          source: 'super.plain();',
+          offset: 999,
+          member: 'plain',
+        ),
         RouteBSuperArgs.unverifiable,
       );
       // No `super.` prefix — an ordinary receiver call must not be admitted by
       // this gate even when the member name matches.
-      expect(read('String t() => other.plain();', 'plain'),
-          RouteBSuperArgs.unverifiable);
+      expect(
+        read('String t() => other.plain();', 'plain'),
+        RouteBSuperArgs.unverifiable,
+      );
       // No argument list at all: a super TEAR-OFF, which is not a call.
-      expect(read('var f = super.plain;', 'plain'),
-          RouteBSuperArgs.unverifiable);
+      expect(
+        read('var f = super.plain;', 'plain'),
+        RouteBSuperArgs.unverifiable,
+      );
       // A comment between `super` and `.` is not read backwards; refused
       // rather than mis-lexed.
-      expect(read('String t() => super/*c*/.plain();', 'plain'),
-          RouteBSuperArgs.unverifiable);
+      expect(
+        read('String t() => super/*c*/.plain();', 'plain'),
+        RouteBSuperArgs.unverifiable,
+      );
     });
 
     test('does not match a longer identifier that starts the same way', () {

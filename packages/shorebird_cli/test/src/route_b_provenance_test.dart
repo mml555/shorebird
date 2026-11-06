@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group('route_b provenance', () {
     late Directory supplement;
 

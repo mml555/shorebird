@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:shorebird_cli/src/route_b.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 /// Build a fake arm64 binary of [sizeBytes] containing [sites] patchable call
 /// sequences, so the density thresholds can be exercised without shipping a
@@ -30,6 +31,7 @@ File _fakeAppBinary(
 }
 
 void main() {
+  useTempWorkingDirectory();
   group('isRouteBEngine', () {
     late Directory tmp;
 

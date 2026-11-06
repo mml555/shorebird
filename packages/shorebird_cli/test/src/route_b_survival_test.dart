@@ -5,8 +5,10 @@ import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group('survivalForInstrumentResult', () {
     test('maps the instrument model onto the three product answers', () {
       expect(

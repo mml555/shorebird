@@ -8,11 +8,15 @@ import 'dart:isolate';
 import 'package:archive/archive_io.dart';
 import 'package:collection/collection.dart';
 import 'package:mason_logger/mason_logger.dart';
+import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
+import 'package:retry/retry.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/commands/app_scoped_command.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
+import 'package:shorebird_cli/src/config/shorebird_yaml.dart';
 import 'package:shorebird_cli/src/deployment_track.dart';
 import 'package:shorebird_cli/src/executables/devicectl/apple_device.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
@@ -29,6 +33,15 @@ import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:yaml/yaml.dart';
 import 'package:yaml_edit/yaml_edit.dart';
 
+/// Signals that the device being waited on has not come back yet, so [retry]
+/// schedules another look.
+class _DeviceStillUnreachable implements Exception {}
+
+/// How many times to look for a paired device to come back before giving up.
+/// With the default delay factor this spends roughly 40 seconds, which covers
+/// walking over and unlocking the phone without stalling a scripted run.
+const _deviceWaitMaxAttempts = 20;
+
 /// {@template preview_command}
 /// `shorebird preview` command.
 /// {@endtemplate}
@@ -39,12 +52,15 @@ class PreviewCommand extends ShorebirdCommand {
       ..addOption(
         'device-id',
         abbr: 'd',
-        help: 'The ID of the device or simulator to preview the release on.',
+        help:
+            'The ID of the device or Android emulator to preview the release '
+            "on. iOS simulators aren't supported yet.",
       )
       ..addOption(
-        'app-id',
-        help: 'The ID of the app to preview the release for.',
+        CommonArguments.appIdArg.name,
+        help: CommonArguments.appIdArg.description,
       )
+      ..addOption(CommonArguments.flavorArg.name, help: appScopedFlavorHelp)
       ..addOption(
         CommonArguments.releaseVersionArg.name,
         help: CommonArguments.releaseVersionArg.description,
@@ -96,21 +112,30 @@ This is only applicable when previewing Android releases.''',
       )
       ..addOption(
         'track',
+        aliases: const ['channel'],
         help: 'The track to preview.',
         defaultsTo: DeploymentTrack.stable.channel,
       );
   }
 
   /// Returns the platforms that can be previewed on the current OS.
-  static List<ReleasePlatform> get supportedReleasePlatforms {
-    if (platform.isMacOS) {
-      return ReleasePlatform.values;
-    } else {
-      return ReleasePlatform.values
-          .where((p) => p != ReleasePlatform.ios)
-          .toList();
-    }
-  }
+  static List<ReleasePlatform> get supportedReleasePlatforms =>
+      ReleasePlatform.values.where(_isPreviewableHere).toList();
+
+  /// Whether a release built for [releasePlatform] can be launched from the
+  /// machine running this command.
+  ///
+  /// A desktop preview runs the release's own executable, so only its own OS
+  /// can launch it -- this used to exclude iOS alone, which left macOS in the
+  /// list on Windows and Linux and let `--platform macos` past the guard
+  /// there. Android is the exception: `adb` talks to the device from any host.
+  static bool _isPreviewableHere(ReleasePlatform releasePlatform) =>
+      switch (releasePlatform) {
+        ReleasePlatform.android => true,
+        ReleasePlatform.ios || ReleasePlatform.macos => platform.isMacOS,
+        ReleasePlatform.linux => platform.isLinux,
+        ReleasePlatform.windows => platform.isWindows,
+      };
 
   @override
   String get name => 'preview';
@@ -130,41 +155,152 @@ This is only applicable when previewing Android releases.''',
         checkUserIsAuthenticated: true,
       );
     } on PreconditionFailedException catch (error) {
-      return error.exitCode.code;
+      return reportPreconditionFailure(error);
     }
 
-    if (results.wasParsed('staging')) {
-      logger.err(
-        '''The --staging flag is deprecated and will be removed in a future release. Use --track=staging instead.''',
-      );
-      return ExitCode.usage.code;
-    }
+    _assertArgsAreValid();
 
-    final shorebirdYaml = shorebirdEnv.getShorebirdYaml();
-    final String? appId;
-
-    final flavors = shorebirdYaml?.flavors;
-
-    if (results.wasParsed('app-id')) {
-      appId = results['app-id'] as String;
-    } else if (shorebirdYaml != null && flavors == null) {
-      appId = shorebirdYaml.appId;
-    } else if (shorebirdYaml != null && flavors != null) {
-      final flavorOptions = flavors.keys.toList();
-      final chosenFlavor = logger.chooseOne<String>(
-        'Which app flavor?',
-        choices: flavorOptions,
-      );
-      appId = flavors[chosenFlavor];
-    } else {
-      appId = await promptForApp();
-    }
-
+    final (:appId, :errorCode) = await _resolveAppId();
+    if (errorCode != null) return errorCode;
     if (appId == null) {
       logger.info('No apps found');
       return ExitCode.success.code;
     }
 
+    final requestedPlatform = _requestedPlatform;
+    final resolved = await _resolveRelease(
+      appId: appId,
+      requestedPlatform: requestedPlatform,
+    );
+    if (resolved == null) return ExitCode.usage.code;
+
+    final releasePlatform = _resolvePlatform(
+      release: resolved.release,
+      allReleases: resolved.allReleases,
+      requestedPlatform: requestedPlatform,
+    );
+    if (releasePlatform == null) return ExitCode.usage.code;
+
+    return _installAndLaunch(
+      appId: appId,
+      release: resolved.release,
+      releasePlatform: releasePlatform,
+    );
+  }
+
+  /// The platform passed with `--platform`, if any.
+  ReleasePlatform? get _requestedPlatform {
+    final platformName = results['platform'] as String?;
+    return platformName != null
+        ? ReleasePlatform.values.byName(platformName)
+        : null;
+  }
+
+  /// Rejects invalid argument combinations before anything is fetched.
+  void _assertArgsAreValid() {
+    if (results.wasParsed('staging')) {
+      usageException(
+        'The --staging flag has been removed. Use --track=staging instead.',
+      );
+    }
+    _assertKeystoreArgsAreValid();
+  }
+
+  /// Validates the Android signing options (`--ks` and friends).
+  void _assertKeystoreArgsAreValid() {
+    final keystore = results['ks'] as String?;
+    if (keystore == null) return;
+
+    final keystorePassword = results['ks-pass'] as String?;
+    final keyPassword = results['ks-key-pass'] as String?;
+    final keyAlias = results['ks-key-alias'] as String?;
+
+    if (keystorePassword == null) {
+      usageException(
+        '--ks requires --ks-pass (e.g. --ks-pass=pass:<password> or '
+        '--ks-pass=file:<path>).',
+      );
+    }
+    if (keyAlias == null) {
+      usageException('--ks requires --ks-key-alias=<alias>.');
+    }
+
+    if (!keystorePassword.startsWith('pass:') &&
+        !keystorePassword.startsWith('file:')) {
+      usageException(
+        '--ks-pass must start with "pass:" or "file:" '
+        '(e.g. --ks-pass=pass:<password> or --ks-pass=file:<path>).',
+      );
+    }
+
+    if (keyPassword != null &&
+        !keyPassword.startsWith('pass:') &&
+        !keyPassword.startsWith('file:')) {
+      usageException(
+        '--ks-key-pass must start with "pass:" or "file:" '
+        '(e.g. --ks-key-pass=pass:<password> or --ks-key-pass=file:<path>).',
+      );
+    }
+  }
+
+  /// Determines which app to preview from `--app-id`, `--flavor` and
+  /// shorebird.yaml, or a prompt.
+  ///
+  /// Returns a null `appId` if the user has no apps, and a non-null
+  /// `errorCode` if `--flavor` can't be used.
+  Future<({String? appId, int? errorCode})> _resolveAppId() async {
+    final explicitAppId = results[CommonArguments.appIdArg.name] as String?;
+    if (explicitAppId != null) return (appId: explicitAppId, errorCode: null);
+
+    final flavor = results[CommonArguments.flavorArg.name] as String?;
+    final shorebirdYaml = shorebirdEnv.getShorebirdYaml();
+    if (shorebirdYaml == null) {
+      if (flavor != null) {
+        return (
+          appId: null,
+          errorCode: reportError(
+            message:
+                '--flavor needs a shorebird.yaml to read the app ID from. '
+                'Run this from your Shorebird project, or pass --app-id '
+                'instead.',
+          ),
+        );
+      }
+      return (appId: await promptForApp(), errorCode: null);
+    }
+
+    final flavorError = shorebirdYaml.unknownFlavorError(flavor);
+    if (flavorError != null) {
+      return (appId: null, errorCode: reportError(message: flavorError));
+    }
+    if (flavor != null) {
+      return (appId: shorebirdYaml.getAppId(flavor: flavor), errorCode: null);
+    }
+
+    final flavors = shorebirdYaml.flavors;
+    if (flavors == null) return (appId: shorebirdYaml.appId, errorCode: null);
+
+    final chosenFlavor = logger.chooseOne<String>(
+      'Which app flavor?',
+      choices: flavors.keys.toList(),
+      hint:
+          'Pass --flavor=<flavor> to preview a specific flavor without '
+          'prompting.',
+    );
+    return (appId: flavors[chosenFlavor], errorCode: null);
+  }
+
+  /// Chooses the release of [appId] to preview, from `--release-version` or a
+  /// prompt, limited to releases previewable on [requestedPlatform] if one
+  /// was passed.
+  ///
+  /// Also returns every release of [appId], including platforms that cannot
+  /// be previewed, for [_resolvePlatform]. Logs why and returns null when no
+  /// previewable release matches the arguments.
+  Future<({Release release, List<Release> allReleases})?> _resolveRelease({
+    required String appId,
+    required ReleasePlatform? requestedPlatform,
+  }) async {
     // The information if a platform is previewable or not is on
     // the artifacts, we would need to query for the artifacts for all platforms
     // in a release to be able to know if a platform is previewable or not.
@@ -188,41 +324,74 @@ This is only applicable when previewing Android releases.''',
       codePushClientWrapper.getReleases(appId: appId, sideloadableOnly: true),
     ).wait;
 
-    final maybePlatform = results['platform'] != null
-        ? ReleasePlatform.values.byName(results['platform'] as String)
-        : null;
     final platformReleases = sideloadableReleases
         .where(
           (r) =>
-              maybePlatform == null ||
-              r.activePlatforms.contains(maybePlatform),
+              requestedPlatform == null ||
+              r.activePlatforms.contains(requestedPlatform),
         )
         .toList();
 
     if (platformReleases.isEmpty) {
-      if (maybePlatform != null) {
+      if (requestedPlatform != null) {
         logger.err(
-          '''No previewable ${maybePlatform.displayName} releases found''',
+          '''No previewable ${requestedPlatform.displayName} releases found for app $appId.''',
         );
+        if (sideloadableReleases.isNotEmpty) {
+          final otherPlatforms = sideloadableReleases
+              .expand((r) => r.activePlatforms)
+              .toSet()
+              .map((p) => p.name)
+              .join(', ');
+          logger.info(
+            '''Previewable releases exist for: $otherPlatforms. Pass --platform=<one of those> or omit --platform to choose interactively.''',
+          );
+        } else {
+          logger.info(
+            '''Create one with ${lightCyan.wrap('shorebird release ${requestedPlatform.name}')}.''',
+          );
+        }
       } else {
-        logger.err('No previewable releases found for this app');
+        logger
+          ..err('No previewable releases found for app $appId.')
+          ..info(
+            '''Create one with ${lightCyan.wrap('shorebird release <platform>')}, or pass --app-id=<app-id> to preview a different app.''',
+          );
       }
-      return ExitCode.usage.code;
+      return null;
     }
 
     final releaseVersion =
         results['release-version'] as String? ??
-        await promptForReleaseVersion(platformReleases);
+        promptForReleaseVersion(platformReleases);
 
     final release = platformReleases.firstWhereOrNull(
       (r) => r.version == releaseVersion,
     );
 
     if (release == null) {
-      logger.err('No previewable releases found for version $releaseVersion');
-      return ExitCode.usage.code;
+      final versions = platformReleases.map((r) => r.version).join(', ');
+      logger
+        ..err('No previewable release found for version $releaseVersion.')
+        ..info(
+          '''Previewable versions: $versions. Pass one with --release-version=<version> or omit it to choose interactively.''',
+        );
+      return null;
     }
 
+    return (release: release, allReleases: allReleases);
+  }
+
+  /// Chooses the platform of [release] to preview: [requestedPlatform] if one
+  /// was passed, the only previewable platform, or a prompt.
+  ///
+  /// Logs why and returns null when none of the release's platforms can be
+  /// previewed from this machine.
+  ReleasePlatform? _resolvePlatform({
+    required Release release,
+    required List<Release> allReleases,
+    required ReleasePlatform? requestedPlatform,
+  }) {
     final availablePlatforms = release.activePlatforms
         .where((p) => supportedReleasePlatforms.contains(p))
         .toList();
@@ -231,10 +400,17 @@ This is only applicable when previewing Android releases.''',
       final activePlatformsString = release.activePlatforms
           .map((p) => p.displayName)
           .join(', ');
-      logger.err(
-        '''This release can only be previewed on platforms that support $activePlatformsString''',
-      );
-      return ExitCode.usage.code;
+      final supportedString = supportedReleasePlatforms
+          .map((p) => p.displayName)
+          .join(', ');
+      logger
+        ..err(
+          '''Release ${release.version} only has $activePlatformsString artifacts, which cannot be previewed from ${platform.operatingSystem}.''',
+        )
+        ..info(
+          '''Platforms previewable from this machine: $supportedString. iOS releases can only be previewed from macOS.''',
+        );
+      return null;
     }
 
     final releaseWithAllPlatforms = allReleases.firstWhere(
@@ -243,22 +419,22 @@ This is only applicable when previewing Android releases.''',
     assertPreviewableReleases(
       releaseWithAllPlatforms: releaseWithAllPlatforms,
       release: release,
-      targetPlatform: maybePlatform,
+      targetPlatform: requestedPlatform,
     );
 
-    final ReleasePlatform releasePlatform;
-    if (maybePlatform != null) {
-      final matchedPlatform = release.activePlatforms.firstWhere(
-        (p) => p == maybePlatform,
-      );
+    // A --platform was already checked against the release's active
+    // platforms when choosing the release in _resolveRelease.
+    if (requestedPlatform != null) return requestedPlatform;
+    if (availablePlatforms.length == 1) return availablePlatforms.first;
+    return promptForPlatform(availablePlatforms);
+  }
 
-      releasePlatform = matchedPlatform;
-    } else if (availablePlatforms.length == 1) {
-      releasePlatform = availablePlatforms.first;
-    } else {
-      releasePlatform = await promptForPlatform(availablePlatforms);
-    }
-
+  /// Installs and launches [release] of [appId] on [releasePlatform].
+  Future<int> _installAndLaunch({
+    required String appId,
+    required Release release,
+    required ReleasePlatform releasePlatform,
+  }) {
     final deviceId = results['device-id'] as String?;
 
     return switch (releasePlatform) {
@@ -296,10 +472,18 @@ This is only applicable when previewing Android releases.''',
   Future<String?> promptForApp() async {
     final apps = await codePushClientWrapper.getApps();
     if (apps.isEmpty) return null;
+    // Apps can share a display name, so tell those apart by their id.
+    final seenNames = <String>{};
+    final sharedNames = {
+      for (final app in apps)
+        if (!seenNames.add(app.displayName)) app.displayName,
+    };
     final app = logger.chooseOne(
       'Which app would you like to preview?',
       choices: apps,
-      display: (app) => app.displayName,
+      display: (app) => sharedNames.contains(app.displayName)
+          ? '${app.displayName} (${app.appId})'
+          : app.displayName,
       hint:
           'Pass --app-id=<app-id> to preview a specific app without '
           'prompting.',
@@ -308,7 +492,7 @@ This is only applicable when previewing Android releases.''',
   }
 
   /// Prompts the user to choose a release version to preview.
-  Future<String> promptForReleaseVersion(List<Release> releases) async {
+  String promptForReleaseVersion(List<Release> releases) {
     final release = chooseRelease(
       releases: releases,
       action: 'preview',
@@ -317,9 +501,7 @@ This is only applicable when previewing Android releases.''',
   }
 
   /// Prompts the user to choose a platform to preview.
-  Future<ReleasePlatform> promptForPlatform(
-    List<ReleasePlatform> platforms,
-  ) async {
+  ReleasePlatform promptForPlatform(List<ReleasePlatform> platforms) {
     final platformNames = platforms.map((p) => p.displayName).toList();
     final platform = logger.chooseOne(
       'Which platform would you like to preview?',
@@ -341,61 +523,18 @@ This is only applicable when previewing Android releases.''',
     required DeploymentTrack track,
   }) async {
     const platform = ReleasePlatform.linux;
-    late Directory appDirectory;
-    late ReleaseArtifact releaseArtifact;
-
-    try {
-      releaseArtifact = await codePushClientWrapper.getReleaseArtifact(
-        appId: appId,
-        releaseId: release.id,
-        arch: 'bundle',
-        platform: platform,
-      );
-    } on Exception catch (e, s) {
-      logger
-        ..err('Error getting release artifact: $e')
-        ..detail('Stack trace: $s');
-      return ExitCode.software.code;
-    }
-
-    appDirectory = Directory(
-      getArtifactPath(
-        appId: appId,
-        release: release,
-        artifact: releaseArtifact,
-        platform: platform,
-      ),
+    final appDirectory = await _downloadReleaseApp(
+      appId: appId,
+      release: release,
+      platform: platform,
+      arch: primaryLinuxReleaseArtifactArch,
     );
 
-    if (!appDirectory.existsSync()) {
-      try {
-        if (!appDirectory.existsSync()) {
-          appDirectory.createSync(recursive: true);
-        }
-
-        final archiveFile = await artifactManager.downloadWithProgressUpdates(
-          Uri.parse(releaseArtifact.url),
-          message: 'Downloading ${releaseArtifact.arch}',
-        );
-        await artifactManager.extractZip(
-          zipFile: archiveFile,
-          outputDirectory: appDirectory,
-        );
-      } on Exception catch (error) {
-        logger.err('$error');
-        return ExitCode.software.code;
-      }
-    }
-
-    final progress = logger.progress('Using $track track');
-    try {
-      await setChannelOnLinuxApp(
-        channel: track.channel,
-        bundleDirectory: appDirectory,
-      );
-      progress.complete();
-    } on Exception catch (error) {
-      progress.fail('$error');
+    if (!await _useTrackOnApp(
+      platform: platform,
+      appDirectory: appDirectory,
+      track: track,
+    )) {
       return ExitCode.software.code;
     }
 
@@ -416,57 +555,21 @@ This is only applicable when previewing Android releases.''',
     required DeploymentTrack track,
   }) async {
     const platform = ReleasePlatform.windows;
-    late Directory appDirectory;
-    late ReleaseArtifact releaseExeArtifact;
+    final appDirectory = await _downloadReleaseApp(
+      appId: appId,
+      release: release,
+      platform: platform,
+      arch: primaryWindowsReleaseArtifactArch,
+      fileExtension: 'exe',
+    );
 
-    try {
-      releaseExeArtifact = await codePushClientWrapper.getReleaseArtifact(
-        appId: appId,
-        releaseId: release.id,
-        arch: primaryWindowsReleaseArtifactArch,
-        platform: platform,
-      );
-    } on Exception catch (e, s) {
-      logger
-        ..err('Error getting release artifact: $e')
-        ..detail('Stack trace: $s');
+    if (!await _useTrackOnApp(
+      platform: platform,
+      appDirectory: appDirectory,
+      track: track,
+    )) {
       return ExitCode.software.code;
     }
-
-    appDirectory = Directory(
-      getArtifactPath(
-        appId: appId,
-        release: release,
-        artifact: releaseExeArtifact,
-        platform: platform,
-        fileExtension: 'exe',
-      ),
-    );
-
-    if (!appDirectory.existsSync()) {
-      try {
-        if (!appDirectory.existsSync()) {
-          appDirectory.createSync(recursive: true);
-        }
-
-        final archiveFile = await artifactManager.downloadWithProgressUpdates(
-          Uri.parse(releaseExeArtifact.url),
-          message: 'Downloading ${releaseExeArtifact.arch}',
-        );
-        await artifactManager.extractZip(
-          zipFile: archiveFile,
-          outputDirectory: appDirectory,
-        );
-      } on Exception catch (error) {
-        logger.err('$error');
-        return ExitCode.software.code;
-      }
-    }
-
-    await setChannelOnWindowsApp(
-      appDirectory: appDirectory,
-      channel: track.channel,
-    );
 
     final exeFile = windows.findExecutable(
       releaseDirectory: appDirectory,
@@ -485,57 +588,25 @@ This is only applicable when previewing Android releases.''',
     required DeploymentTrack track,
   }) async {
     const platform = ReleasePlatform.macos;
-    late Directory appDirectory;
-    late ReleaseArtifact releaseRunnerArtifact;
-
-    try {
-      releaseRunnerArtifact = await codePushClientWrapper.getReleaseArtifact(
-        appId: appId,
-        releaseId: release.id,
-        arch: 'app',
-        platform: platform,
-      );
-    } on Exception catch (e, s) {
-      logger
-        ..err('Error getting release artifact: $e')
-        ..detail('Stack trace: $s');
-      return ExitCode.software.code;
-    }
-
-    appDirectory = Directory(
-      getArtifactPath(
-        appId: appId,
-        release: release,
-        artifact: releaseRunnerArtifact,
-        platform: platform,
-        fileExtension: 'app',
+    final appDirectory = await _downloadReleaseApp(
+      appId: appId,
+      release: release,
+      platform: platform,
+      arch: 'app',
+      fileExtension: 'app',
+      extract: (archive, outputDirectory) => ditto.extract(
+        source: archive.path,
+        destination: outputDirectory.path,
       ),
     );
 
-    if (!appDirectory.existsSync()) {
-      try {
-        if (!appDirectory.existsSync()) {
-          appDirectory.createSync(recursive: true);
-        }
-
-        final archiveFile = await artifactManager.downloadWithProgressUpdates(
-          Uri.parse(releaseRunnerArtifact.url),
-          message: 'Downloading ${releaseRunnerArtifact.arch}',
-        );
-        await ditto.extract(
-          source: archiveFile.path,
-          destination: appDirectory.path,
-        );
-      } on Exception catch (error) {
-        logger.err('$error');
-        return ExitCode.software.code;
-      }
-    }
-
-    await setChannelOnMacosApp(
+    if (!await _useTrackOnApp(
+      platform: platform,
       appDirectory: appDirectory,
-      channel: track.channel,
-    );
+      track: track,
+    )) {
+      return ExitCode.software.code;
+    }
 
     final logs = await open.newApplication(path: appDirectory.path);
     final completer = Completer<void>();
@@ -592,71 +663,37 @@ This is only applicable when previewing Android releases.''',
     final keyPassword = results['ks-key-pass'] as String?;
     final keyAlias = results['ks-key-alias'] as String?;
 
-    // Ensure keystore options are valid.
-    if (keystore != null) {
-      if (keystorePassword == null) {
-        logger.err('You must provide a keystore password.');
-        return ExitCode.usage.code;
-      }
-      if (keyAlias == null) {
-        logger.err('You must provide a key alias.');
-        return ExitCode.usage.code;
-      }
+    // getReleaseArtifact reports its own failure and throws ProcessExit.
+    final releaseAabArtifact = await codePushClientWrapper.getReleaseArtifact(
+      appId: appId,
+      releaseId: release.id,
+      arch: 'aab',
+      platform: platform,
+    );
 
-      if (!keystorePassword.startsWith('pass:') &&
-          !keystorePassword.startsWith('file:')) {
-        logger.err('Keystore password must start with "pass:" or "file:".');
-        return ExitCode.usage.code;
-      }
-
-      if (keyPassword != null &&
-          !keyPassword.startsWith('pass:') &&
-          !keyPassword.startsWith('file:')) {
-        logger.err('Key password must start with "pass:" or "file:".');
-        return ExitCode.usage.code;
-      }
-    }
-
-    late File aabFile;
-    late ReleaseArtifact releaseAabArtifact;
-
-    try {
-      releaseAabArtifact = await codePushClientWrapper.getReleaseArtifact(
+    final aabFile = File(
+      getArtifactPath(
         appId: appId,
-        releaseId: release.id,
-        arch: 'aab',
+        release: release,
+        artifact: releaseAabArtifact,
         platform: platform,
-      );
-    } on Exception catch (e, s) {
-      logger
-        ..err('Error getting release artifact: $e')
-        ..detail('Stack trace: $s');
-      return ExitCode.software.code;
-    }
+        fileExtension: 'aab',
+      ),
+    );
 
-    try {
-      aabFile = File(
-        getArtifactPath(
-          appId: appId,
-          release: release,
-          artifact: releaseAabArtifact,
-          platform: platform,
-          fileExtension: 'aab',
-        ),
-      );
-
-      if (!aabFile.existsSync()) {
+    if (!aabFile.existsSync()) {
+      try {
         aabFile.createSync(recursive: true);
-
         await artifactManager.downloadWithProgressUpdates(
           Uri.parse(releaseAabArtifact.url),
           message: 'Downloading ${releaseAabArtifact.arch}',
           outputPath: aabFile.path,
         );
+      } on Exception catch (error) {
+        // Remove the partial file so the next run does not treat it as cached.
+        if (aabFile.existsSync()) aabFile.deleteSync();
+        reportDownloadFailure(releaseAabArtifact, error);
       }
-    } on Exception catch (error) {
-      logger.err('$error');
-      return ExitCode.software.code;
     }
 
     final apksPath = getArtifactPath(
@@ -668,78 +705,77 @@ This is only applicable when previewing Android releases.''',
     );
 
     if (File(apksPath).existsSync()) File(apksPath).deleteSync();
-    final progress = logger.progress('Using $track track');
-    try {
-      await setChannelOnAab(aabFile: aabFile, channel: track.channel);
-      progress.complete();
-    } on Exception catch (error) {
-      progress.fail('$error');
+    if (!await _useTrack(
+      track,
+      () => setChannelOnAab(aabFile: aabFile, channel: track.channel),
+    )) {
       return ExitCode.software.code;
     }
 
-    final extractMetadataProgress = logger.progress('Extracting metadata');
     late String package;
-    try {
+    if (!await _runStep('Extracting metadata', () async {
       package = await bundletool.getPackageName(aabFile.path);
-      extractMetadataProgress.complete();
-    } on Exception catch (error) {
-      extractMetadataProgress.fail('$error');
+    })) {
       return ExitCode.software.code;
     }
 
-    final buildApksProgress = logger.progress('Building apks');
-    try {
-      await bundletool.buildApks(
+    final apksLink = link(uri: Uri.parse(apksPath));
+    if (!await _runStep(
+      'Building apks',
+      () => bundletool.buildApks(
         bundle: aabFile.path,
         output: apksPath,
         keystore: keystore,
         keystorePassword: keystorePassword,
         keyPassword: keyPassword,
         keyAlias: keyAlias,
-      );
-      final apksLink = link(uri: Uri.parse(apksPath));
-      buildApksProgress.complete('Built apks: ${cyan.wrap(apksLink)}');
-    } on Exception catch (error) {
-      buildApksProgress.fail('$error');
+      ),
+      completeMessage: 'Built apks: ${cyan.wrap(apksLink)}',
+    )) {
       return ExitCode.software.code;
     }
 
     logger.info(
       'This will reinstall the app and clear its data on the device.',
     );
-    final installApksProgress = logger.progress('Installing apks');
-    try {
-      await bundletool.installApks(apks: apksPath, deviceId: deviceId);
-      installApksProgress.complete();
-    } on Exception catch (error) {
-      installApksProgress.fail('$error');
+    // Starting from clean data is best-effort and must not decide whether the
+    // preview runs. Several vendor ROMs deny the adb shell user the right to
+    // clear data or remove packages, and treating that as fatal meant the
+    // preview never ran at all. The new apks are still installed over the old
+    // app; the user is warned (after the app starts) that its data survived.
+    UninstallAppException? uninstallError;
+    if (!await _runStep(
+      'Installing apks',
+      () async {
+        try {
+          await adb.uninstallApp(package: package, deviceId: deviceId);
+        } on UninstallAppException catch (error) {
+          uninstallError = error;
+        }
+        await bundletool.installApks(apks: apksPath, deviceId: deviceId);
+      },
+    )) {
       return ExitCode.software.code;
     }
 
-    final startAppProgress = logger.progress('Starting app');
-    // Clearing data is best-effort and must not decide whether the preview
-    // runs. Several vendor ROMs deny CLEAR_APP_USER_DATA to the adb shell user,
-    // and treating that as fatal meant the app was installed and ready but
-    // never launched — so the error the user saw was about clearing data, from
-    // a command whose job is to start the app.
-    var appDataCleared = true;
-    ClearAppDataException? clearError;
-    try {
-      await adb.clearAppData(package: package, deviceId: deviceId);
-    } on ClearAppDataException catch (error) {
-      appDataCleared = false;
-      clearError = error;
-    }
-    try {
+    // The app can log everything it logs at startup before `adb logcat`
+    // attaches, so the log is read from the moment before launch rather than
+    // from whenever logcat happens to start.
+    String? logsSince;
+    if (!await _runStep('Starting app', () async {
+      logsSince = await adb.latestLogTimestamp(deviceId: deviceId);
       await adb.startApp(package: package, deviceId: deviceId);
-      startAppProgress.complete();
-    } on Exception catch (error) {
-      startAppProgress.fail('$error');
+    })) {
       return ExitCode.software.code;
     }
-    if (!appDataCleared) _warnAppDataNotCleared(clearError!);
+    final uninstallFailure = uninstallError;
+    if (uninstallFailure != null) _warnAppDataNotCleared(uninstallFailure);
 
-    final process = await adb.logcat(filter: 'flutter', deviceId: deviceId);
+    final process = await adb.logcat(
+      filter: 'flutter',
+      deviceId: deviceId,
+      since: logsSince,
+    );
     // adb logcat sometimes lets non-utf8 characters through, so we need to
     // not crash when it does.
     const decoder = Utf8Decoder(allowMalformed: true);
@@ -760,21 +796,21 @@ This is only applicable when previewing Android releases.''',
   /// earlier run, and the updater will launch that patch. So the app on screen
   /// may not be the release that was just previewed — exactly the thing a
   /// preview is supposed to show.
-  void _warnAppDataNotCleared(ClearAppDataException error) {
+  void _warnAppDataNotCleared(UninstallAppException error) {
     logger.warn(
-      'Could not clear the app data on this device, so the preview kept any '
+      'Could not reinstall the app cleanly on this device, so the preview kept any '
       'data from a previous install.',
     );
     if (error.isPermissionDenied) {
       logger.info(
         '''
-The device refused the request (${lightCyan.wrap('CLEAR_APP_USER_DATA')}). Some vendor ROMs — Xiaomi/POCO
+The device refused the request. Some vendor ROMs — Xiaomi/POCO
 and OPPO/OnePlus among them — deny this to the adb shell user even with USB
 debugging enabled, so it is a device restriction rather than a problem with your
 app or with Shorebird. See ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/1839'))}.''',
       );
     } else {
-      logger.info('adb reported: ${error.stderr.trim()}');
+      logger.info('adb reported: ${error.reason.trim()}');
     }
     logger.info(
       '''
@@ -795,68 +831,25 @@ device settings (or uninstall the app) and run ${lightCyan.wrap('shorebird previ
     await iosDeploy.installIfNeeded();
 
     const platform = ReleasePlatform.ios;
-    late Directory runnerDirectory;
-    late ReleaseArtifact releaseRunnerArtifact;
-
-    try {
-      releaseRunnerArtifact = await codePushClientWrapper.getReleaseArtifact(
-        appId: appId,
-        releaseId: release.id,
-        arch: 'runner',
-        platform: platform,
-      );
-    } on Exception catch (e, s) {
-      logger
-        ..err('Error getting release artifact: $e')
-        ..detail('Stack trace: $s');
-      return ExitCode.software.code;
-    }
-
-    runnerDirectory = Directory(
-      getArtifactPath(
-        appId: appId,
-        release: release,
-        artifact: releaseRunnerArtifact,
-        platform: platform,
-        fileExtension: 'app',
-      ),
+    final runnerDirectory = await _downloadReleaseApp(
+      appId: appId,
+      release: release,
+      platform: platform,
+      arch: 'runner',
+      fileExtension: 'app',
     );
 
-    if (!runnerDirectory.existsSync()) {
-      try {
-        if (!runnerDirectory.existsSync()) {
-          runnerDirectory.createSync(recursive: true);
-        }
-
-        final archiveFile = await artifactManager.downloadWithProgressUpdates(
-          Uri.parse(releaseRunnerArtifact.url),
-          message: 'Downloading ${releaseRunnerArtifact.arch}',
-        );
-        await artifactManager.extractZip(
-          zipFile: archiveFile,
-          outputDirectory: runnerDirectory,
-        );
-      } on Exception catch (error) {
-        logger.err('$error');
-        return ExitCode.software.code;
-      }
-    }
-
-    final progress = logger.progress('Using $track track');
-    try {
-      await setChannelOnRunner(
-        runnerDirectory: runnerDirectory,
-        channel: track.channel,
-      );
-      progress.complete();
-    } on Exception catch (error) {
-      progress.fail('$error');
+    if (!await _useTrackOnApp(
+      platform: platform,
+      appDirectory: runnerDirectory,
+      track: track,
+    )) {
       return ExitCode.software.code;
     }
 
     try {
-      final deviceLocateProgress = logger.progress('Locating device for run');
-      final AppleDevice? deviceForLaunch;
+      var deviceLocateProgress = logger.progress('Locating device for run');
+      AppleDevice? deviceForLaunch;
       // Try to find a device using devicectl first. If that fails, fall back to
       // ios-deploy.
       if (deviceId != null) {
@@ -868,42 +861,55 @@ device settings (or uninstall the app) and run ${lightCyan.wrap('shorebird previ
         deviceForLaunch = await devicectl.deviceForLaunch();
       }
 
-      final shouldUseDeviceCtl = deviceForLaunch != null;
-
       // Before falling back to ios-deploy, check if devicectl knows about a
       // matching iOS 17+ device that is paired but currently unreachable
       // (locked, screen off, or off the local network when wireless debugging
       // is in use). ios-deploy does not work with iOS 17 or later, so the
-      // fallback would just produce an opaque failure. Surface a hint
+      // fallback would just produce an opaque failure. Wait for the device
       // instead.
-      if (!shouldUseDeviceCtl) {
+      if (deviceForLaunch == null) {
         final unreachable = await _findUnreachableIos17OrLaterDevice(
           deviceId: deviceId,
         );
         if (unreachable != null) {
-          deviceLocateProgress.fail(
-            '${unreachable.name} (iOS '
-            '${unreachable.osVersionString ?? 'unknown'}) is paired but '
-            'currently unreachable.',
-          );
+          final description =
+              '${unreachable.name} (iOS '
+              '${unreachable.osVersionString ?? 'unknown'})';
+          // The hint is what tells the user to go unlock the phone, so it has
+          // to survive on screen while they do. A live progress repaints its
+          // line every 80ms and would scribble over it, so close this one
+          // before writing and open the wait's own afterwards.
+          deviceLocateProgress.cancel();
           logger.info(
             '''
 This usually means the device is locked, or that wireless debugging dropped because the screen turned off.
 
-To preview on this device:
-  • Connect it via USB, or
-  • Unlock the device and make sure it is on the same Wi-Fi network as this Mac.
+Unlock the device, or connect it via USB, and the preview will continue on its own.
 
 Skipping the ios-deploy fallback because it does not support iOS 17 or later.''',
           );
-          return ExitCode.software.code;
+          deviceLocateProgress = logger.progress(
+            'Waiting for $description to become reachable',
+          );
+          deviceForLaunch = await _waitForDeviceToBecomeReachable(
+            udid: unreachable.udid,
+          );
+          if (deviceForLaunch == null) {
+            deviceLocateProgress.fail(
+              '$description did not become reachable.',
+            );
+            return ExitCode.software.code;
+          }
         }
       }
+
+      final shouldUseDeviceCtl = deviceForLaunch != null;
 
       final progressCompleteMessage = deviceForLaunch != null
           ? 'Using device ${deviceForLaunch.name}'
           : '''No iOS 17+ device found, looking for devices running iOS 16 or lower''';
       deviceLocateProgress.complete(progressCompleteMessage);
+      if (deviceForLaunch == null) logger.info(iosSimulatorNotSupportedMessage);
 
       logger.info(
         'This will reinstall the app and clear its data on the device.',
@@ -931,6 +937,14 @@ Skipping the ios-deploy fallback because it does not support iOS 17 or later.'''
       return ExitCode.software.code;
     }
   }
+
+  /// Printed when no iOS 17+ device is found, since people without a phone
+  /// expect a running simulator to be used.
+  @visibleForTesting
+  static const iosSimulatorNotSupportedMessage =
+      "`shorebird preview` doesn't support the iOS simulator yet: Shorebird "
+      "releases are release builds, which Flutter doesn't build for the "
+      'simulator. Use a physical iPhone or iPad.';
 
   /// Returns a paired iOS 17+ device that devicectl knows about but cannot
   /// currently reach (e.g. locked, screen off, off Wi-Fi while wireless
@@ -963,7 +977,43 @@ Skipping the ios-deploy fallback because it does not support iOS 17 or later.'''
     return unreachableModern.firstOrNull;
   }
 
-  /// Resolves the artifact path for the given parameters.
+  /// The delay between looks while waiting for a paired device to come back,
+  /// doubling after every attempt up to two seconds. Settable for testing.
+  @visibleForTesting
+  Duration deviceWaitDelayFactor = const Duration(seconds: 1);
+
+  /// Polls devicectl until the device with [udid] is reachable, or returns
+  /// `null` once the attempts run out or devicectl fails in a way retrying
+  /// cannot fix.
+  ///
+  /// This waits rather than prompting so a locked phone behaves the same way
+  /// with and without a terminal. Unlocking it is the user's move either way,
+  /// and a prompt would hang a scripted run where this times out.
+  Future<AppleDevice?> _waitForDeviceToBecomeReachable({
+    required String udid,
+  }) async {
+    try {
+      return await retry(
+        () async {
+          final devices = await devicectl.listAvailableIosDevices();
+          final device = devices.firstWhereOrNull((d) => d.udid == udid);
+          if (device == null) throw _DeviceStillUnreachable();
+          return device;
+        },
+        retryIf: (e) => e is _DeviceStillUnreachable || e is DevicectlException,
+        maxAttempts: _deviceWaitMaxAttempts,
+        delayFactor: deviceWaitDelayFactor,
+        maxDelay: const Duration(seconds: 2),
+      );
+    } on Exception catch (error, stackTrace) {
+      logger.detail('waiting for device $udid gave up: $error $stackTrace');
+      return null;
+    }
+  }
+
+  /// Resolves the artifact path for the given parameters, and records the
+  /// artifact as used so [Cache.pruneUnusedPreviews] keeps it. Every preview
+  /// reaches its cached artifact through this path.
   String getArtifactPath({
     required String appId,
     required Release release,
@@ -973,75 +1023,127 @@ Skipping the ios-deploy fallback because it does not support iOS 17 or later.'''
   }) {
     final previewDirectory = cache.getPreviewDirectory(appId);
     final ext = fileExtension != null ? '.$fileExtension' : '';
-    return p.join(
+    final path = p.join(
       previewDirectory.path,
       '${platform.name}_${release.version}_${artifact.id}$ext',
     );
+    cache.markPreviewUsed(path);
+    return path;
   }
 
-  /// Sets the channel property in the shorebird.yaml file inside the Windows
-  /// app whose root directory is [appDirectory].
-  Future<void> setChannelOnWindowsApp({
-    required Directory appDirectory,
-    required String channel,
+  /// Downloads the app artifact [arch] of [release] for [platform] into the
+  /// preview cache, unless it is already there, and returns its directory.
+  ///
+  /// Throws [ProcessExit] if the artifact can't be fetched or downloaded.
+  Future<Directory> _downloadReleaseApp({
+    required String appId,
+    required Release release,
+    required ReleasePlatform platform,
+    required String arch,
+    String? fileExtension,
+    Future<void> Function(File archive, Directory outputDirectory)? extract,
   }) async {
-    final shorebirdYamlFile = File(
-      p.join(appDirectory.path, 'data', 'flutter_assets', 'shorebird.yaml'),
+    // getReleaseArtifact reports its own failure and throws ProcessExit.
+    final artifact = await codePushClientWrapper.getReleaseArtifact(
+      appId: appId,
+      releaseId: release.id,
+      arch: arch,
+      platform: platform,
     );
 
-    await _maybeSetChannelInShorebirdYaml(
-      channel: channel,
-      shorebirdYamlFile: shorebirdYamlFile,
-    );
-  }
-
-  /// Sets the channel property in the shorebird.yaml file inside the Runner.app
-  Future<void> setChannelOnRunner({
-    required Directory runnerDirectory,
-    required String channel,
-  }) async {
-    await Isolate.run(() async {
-      final shorebirdYaml = File(
-        p.join(
-          runnerDirectory.path,
-          'Frameworks',
-          'App.framework',
-          'flutter_assets',
-          'shorebird.yaml',
-        ),
-      );
-
-      if (!shorebirdYaml.existsSync()) {
-        throw Exception('Unable to find shorebird.yaml');
-      }
-
-      await _maybeSetChannelInShorebirdYaml(
-        channel: channel,
-        shorebirdYamlFile: shorebirdYaml,
-      );
-    });
-  }
-
-  /// Sets the channel property in the shorebird.yaml file inside a macOS app.
-  Future<void> setChannelOnMacosApp({
-    required Directory appDirectory,
-    required String channel,
-  }) async {
-    final shorebirdYamlFile = File(
-      p.join(
-        appDirectory.path,
-        'Contents',
-        'Frameworks',
-        'App.framework',
-        'Resources',
-        'flutter_assets',
-        'shorebird.yaml',
+    final appDirectory = Directory(
+      getArtifactPath(
+        appId: appId,
+        release: release,
+        artifact: artifact,
+        platform: platform,
+        fileExtension: fileExtension,
       ),
     );
 
+    await downloadAndExtractIfNeeded(
+      artifact: artifact,
+      outputDirectory: appDirectory,
+      extract: extract,
+    );
+    return appDirectory;
+  }
+
+  /// Runs [body] under a progress labeled [message], completing it with
+  /// [completeMessage] on success. On an exception, fails the progress with
+  /// the error and returns false.
+  Future<bool> _runStep(
+    String message,
+    Future<void> Function() body, {
+    String? completeMessage,
+  }) async {
+    final progress = logger.progress(message);
+    try {
+      await body();
+      progress.complete(completeMessage);
+      return true;
+    } on Exception catch (error) {
+      progress.fail('$error');
+      return false;
+    }
+  }
+
+  /// Points the app at [track]'s channel via [setChannel], under a
+  /// "Using <track> track" progress. Every platform goes through here so they
+  /// report the track, and fail, the same way.
+  Future<bool> _useTrack(
+    DeploymentTrack track,
+    Future<void> Function() setChannel,
+  ) => _runStep('Using $track track', setChannel);
+
+  /// [_useTrack] for an extracted [platform] app, see [setChannelOnApp].
+  Future<bool> _useTrackOnApp({
+    required ReleasePlatform platform,
+    required Directory appDirectory,
+    required DeploymentTrack track,
+  }) => _useTrack(
+    track,
+    () => setChannelOnApp(
+      platform: platform,
+      appDirectory: appDirectory,
+      channel: track.channel,
+    ),
+  );
+
+  /// The path of shorebird.yaml inside an extracted app, relative to the
+  /// app's root directory. Android is not listed: its shorebird.yaml lives
+  /// inside the .aab, see [setChannelOnAab].
+  static const _shorebirdYamlPaths = <ReleasePlatform, List<String>>{
+    ReleasePlatform.linux: ['data', 'flutter_assets', 'shorebird.yaml'],
+    ReleasePlatform.windows: ['data', 'flutter_assets', 'shorebird.yaml'],
+    ReleasePlatform.ios: [
+      'Frameworks',
+      'App.framework',
+      'flutter_assets',
+      'shorebird.yaml',
+    ],
+    ReleasePlatform.macos: [
+      'Contents',
+      'Frameworks',
+      'App.framework',
+      'Resources',
+      'flutter_assets',
+      'shorebird.yaml',
+    ],
+  };
+
+  /// Sets the channel property in the shorebird.yaml file inside the
+  /// extracted [platform] app whose root directory is [appDirectory].
+  Future<void> setChannelOnApp({
+    required ReleasePlatform platform,
+    required Directory appDirectory,
+    required String channel,
+  }) async {
     await _maybeSetChannelInShorebirdYaml(
       channel: channel,
-      shorebirdYamlFile: shorebirdYamlFile,
+      shorebirdYamlFile: File(
+        p.joinAll([appDirectory.path, ..._shorebirdYamlPaths[platform]!]),
+      ),
     );
   }
 
@@ -1104,21 +1206,6 @@ Skipping the ios-deploy fallback because it does not support iOS 17 or later.'''
     });
   }
 
-  /// Sets the channel property in the shorebird.yaml file if none is set.
-  Future<void> setChannelOnLinuxApp({
-    required String channel,
-    required Directory bundleDirectory,
-  }) async {
-    final shorebirdYamlFile = File(
-      p.join(bundleDirectory.path, 'data', 'flutter_assets', 'shorebird.yaml'),
-    );
-
-    await _maybeSetChannelInShorebirdYaml(
-      channel: channel,
-      shorebirdYamlFile: shorebirdYamlFile,
-    );
-  }
-
   /// Sets the channel property in the shorebird.yaml file if none is set or
   /// different from the provided channel.
   static Future<bool> _maybeSetChannelInShorebirdYaml({
@@ -1148,6 +1235,50 @@ Skipping the ios-deploy fallback because it does not support iOS 17 or later.'''
     return true;
   }
 
+  /// Downloads the zipped [artifact] and extracts it into [outputDirectory]
+  /// (with [extract], defaulting to [ArtifactManager.extractZip]) unless the
+  /// directory already exists.
+  ///
+  /// Removes [outputDirectory] if the download or extraction fails so the
+  /// next run does not treat the partial download as a cached artifact.
+  /// Throws [ProcessExit] on failure.
+  @visibleForTesting
+  Future<void> downloadAndExtractIfNeeded({
+    required ReleaseArtifact artifact,
+    required Directory outputDirectory,
+    Future<void> Function(File archive, Directory outputDirectory)? extract,
+  }) async {
+    if (outputDirectory.existsSync()) return;
+    try {
+      outputDirectory.createSync(recursive: true);
+      final archiveFile = await artifactManager.downloadWithProgressUpdates(
+        Uri.parse(artifact.url),
+        message: 'Downloading ${artifact.arch}',
+      );
+      if (extract != null) {
+        await extract(archiveFile, outputDirectory);
+      } else {
+        await artifactManager.extractZip(
+          zipFile: archiveFile,
+          outputDirectory: outputDirectory,
+        );
+      }
+    } on Exception catch (error) {
+      if (outputDirectory.existsSync()) {
+        outputDirectory.deleteSync(recursive: true);
+      }
+      reportDownloadFailure(artifact, error);
+    }
+  }
+
+  /// Logs a failed download of [artifact] and throws [ProcessExit].
+  Never reportDownloadFailure(ReleaseArtifact artifact, Object error) {
+    logger
+      ..err('Failed to download the ${artifact.arch} artifact: $error')
+      ..info('Re-run the command to try the download again.');
+    throw ProcessExit(ExitCode.software.code);
+  }
+
   /// Starts a process and forwards its stdout/stderr to the logger.
   ///
   /// Returns the process exit code.
@@ -1159,16 +1290,6 @@ Skipping the ios-deploy fallback because it does not support iOS 17 or later.'''
     proc.stderr.listen((log) => logger.err(decoder.convert(log)));
     return proc.exitCode;
   }
-}
-
-/// Extension on [Release] that exposes the active platforms (e.g. platforms
-/// that can be previewed).
-extension Previewable on Release {
-  /// Returns the platforms that can be previewed.
-  List<ReleasePlatform> get activePlatforms => platformStatuses.entries
-      .where((e) => e.value == ReleaseStatus.active)
-      .map((e) => e.key)
-      .toList();
 }
 
 /// Given two [Release]s, one with all the platforms, previewable or not,
@@ -1195,7 +1316,11 @@ void assertPreviewableReleases({
     // If the user explicitly specified a platform and it matches a non
     // previewable platform, we early exit to avoid duplicated warnings/errors.
     if (targetPlatform?.name == platform.name) {
-      logger.err(message);
+      logger
+        ..err(message)
+        ..info(
+          '''iOS releases built with --no-codesign and add-to-app releases (aar, ios-framework) cannot be previewed. Create a new release with ${lightCyan.wrap('shorebird release ${platform.name}')}, or pick another with --release-version.''',
+        );
       throw ProcessExit(ExitCode.software.code);
       // We only WARN if the user didn't specify a platform.
     } else if (targetPlatform == null) {

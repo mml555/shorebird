@@ -1,3 +1,13 @@
+# 0.0.15
+
+- fix: closing a TLS connection no longer raises an unhandled `TlsException` when the server answers the hang-up with an alert, as Memorystore for Valkey does. Errors that arrive on a connection being closed are dropped, and a failed flush no longer stops the close
+
+# 0.0.14
+
+- feat: connect over TLS with `RedisSocketOptions.tls` and an optional `securityContext`
+- feat: `RedisSocketOptions.credentialsProvider` supplies fresh credentials on every connect and reconnect, for short-lived tokens; it is bounded by `timeout`
+- fix: a refused `AUTH` now fails the connection attempt instead of leaving the client connected but unauthenticated
+
 # 0.0.13
 
 - refactor: extract `RedisConnection` from `RedisClient` to prepare for opt-in connection pooling

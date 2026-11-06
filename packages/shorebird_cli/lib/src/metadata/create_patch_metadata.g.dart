@@ -35,6 +35,10 @@ CreatePatchMetadata _$CreatePatchMetadataFromJson(Map<String, dynamic> json) =>
             (v) => BuildEnvironmentMetadata.fromJson(v as Map<String, dynamic>),
           ),
           isSigned: $checkedConvert('is_signed', (v) => v as bool),
+          usedDefaultTrack: $checkedConvert(
+            'used_default_track',
+            (v) => v as bool? ?? false,
+          ),
         );
         return val;
       },
@@ -43,6 +47,7 @@ CreatePatchMetadata _$CreatePatchMetadataFromJson(Map<String, dynamic> json) =>
         'usedIgnoreNativeChangesFlag': 'used_ignore_native_changes_flag',
         'inferredReleaseVersion': 'inferred_release_version',
         'isSigned': 'is_signed',
+        'usedDefaultTrack': 'used_default_track',
       },
     );
 
@@ -54,5 +59,6 @@ Map<String, dynamic> _$CreatePatchMetadataToJson(
   'used_ignore_native_changes_flag': instance.usedIgnoreNativeChangesFlag,
   'inferred_release_version': instance.inferredReleaseVersion,
   'is_signed': instance.isSigned,
+  'used_default_track': instance.usedDefaultTrack,
   'environment': instance.environment.toJson(),
 };

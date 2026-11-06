@@ -47,6 +47,12 @@ import 'package:shorebird_cli/src/platform.dart';
 /// `test/src/artifact_origin_test.dart`.
 /// {@endtemplate}
 abstract final class ArtifactOrigin {
+  /// Upstream's own knob for the Flutter/engine artifact host. Highest
+  /// precedence for [flutterStorageBaseUrl], and for the Shorebird tools it
+  /// selects upstream's `<url>/shorebird/<engine>/` layout (see
+  /// `Cache.shorebirdToolsBaseUrl`).
+  static const String downloadUrlKey = 'SHOREBIRD_DOWNLOAD_URL';
+
   /// The one variable a self-hosted deployment normally sets. When present it
   /// supplies the default for BOTH halves above.
   static const String originKey = 'SHOREBIRD_ARTIFACT_ORIGIN';
@@ -75,8 +81,13 @@ abstract final class ArtifactOrigin {
   static const String upstreamShorebirdStorageBucket = 'download.shorebird.dev';
 
   /// Where the Flutter child process fetches engine artifacts from.
+  ///
+  /// `SHOREBIRD_DOWNLOAD_URL` first, then `FLUTTER_STORAGE_BASE_URL`, then
+  /// `SHOREBIRD_ARTIFACT_ORIGIN`, then upstream.
   static String flutterStorageBaseUrl() =>
-      _resolve(flutterStorageKey) ?? upstreamFlutterStorageBaseUrl;
+      _nonEmpty(platform.environment[downloadUrlKey]) ??
+      _resolve(flutterStorageKey) ??
+      upstreamFlutterStorageBaseUrl;
 
   /// The base for Shorebird's own artifact downloads.
   static String shorebirdStorageBaseUrl() =>
@@ -93,10 +104,24 @@ abstract final class ArtifactOrigin {
   /// variables. Used to report the resolved configuration rather than leaving
   /// an operator to guess which knob took effect.
   static bool get isOverridden =>
+      _nonEmpty(platform.environment[downloadUrlKey]) != null ||
       _nonEmpty(platform.environment[originKey]) != null ||
       _nonEmpty(platform.environment[flutterStorageKey]) != null ||
       _nonEmpty(platform.environment[shorebirdStorageKey]) != null ||
       _nonEmpty(platform.environment[shorebirdBucketKey]) != null;
+
+  /// The root Shorebird's own artifacts hang off in the fork's self-host
+  /// layout, `<storage base>/<bucket>`, or null when upstream's
+  /// `SHOREBIRD_DOWNLOAD_URL` layout applies.
+  ///
+  /// The fork layout applies when any fork variable ([isOverridden]) is set and
+  /// [downloadUrlKey] is not: [downloadUrlKey] is upstream's mechanism and wins
+  /// when present.
+  static String? forkToolsRoot() {
+    if (_nonEmpty(platform.environment[downloadUrlKey]) != null) return null;
+    if (!isOverridden) return null;
+    return '${shorebirdStorageBaseUrl()}/${shorebirdStorageBucket()}';
+  }
 
   /// A one-line description of the resolved origins, for `--verbose` and for
   /// the doctor.

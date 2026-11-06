@@ -4,8 +4,8 @@ import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
-import 'package:scoped_deps/scoped_deps.dart';
 import 'package:pub_semver/pub_semver.dart';
+import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
@@ -26,10 +26,12 @@ import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
+import '../../helpers.dart';
 import '../../matchers.dart';
 import '../../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(AarReleaser, () {
     const packageName = 'com.example.my_flutter_module';
     const buildNumber = '1.0';
@@ -80,10 +82,17 @@ void main() {
 
     setUp(() {
       argResults = MockArgResults();
+      // Managed signing, the default, is covered in releaser_test.dart.
+      when(() => argResults['patch-signing']).thenReturn(false);
       artifactBuilder = MockArtifactBuilder();
       artifactManager = MockArtifactManager();
       codePushClientWrapper = MockCodePushClientWrapper();
       codeSigner = MockCodeSigner();
+      when(
+        () => codeSigner.canonicalPublicKeyPem(any()),
+      ).thenAnswer(
+        (invocation) => invocation.positionalArguments.single as String,
+      );
       operatingSystemInterface = MockOperatingSystemInterface();
       progress = MockProgress();
       projectRoot = Directory.systemTemp.createTempSync();
@@ -107,6 +116,9 @@ void main() {
         () => shorebirdEnv.getShorebirdProjectRoot(),
       ).thenReturn(projectRoot);
       when(() => shorebirdEnv.androidPackageName).thenReturn(packageName);
+      when(
+        () => shorebirdEnv.downloadUrl,
+      ).thenReturn('https://download.shorebird.dev');
 
       aarReleaser = AarReleaser(
         argResults: argResults,
@@ -121,17 +133,40 @@ void main() {
       });
     });
 
+    group('architectures', () {
+      test('throws exception when unknown platform is provided', () {
+        when(
+          () => argResults['target-platform'],
+        ).thenReturn(['android-arm', 'unknown-platform']);
+        expect(
+          () => runWithOverrides(() => aarReleaser.architectures),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'toString',
+              contains('Unknown target platform: unknown-platform'),
+            ),
+          ),
+        );
+      });
+    });
+
     group('minimumFlutterVersion', () {
-      test('is null', () {
-        // Shorebird has always had aar support, so we don't need to
-        // specify a minimum Flutter version.
-        expect(aarReleaser.minimumFlutterVersion, isNull);
+      test('is 3.24.0', () {
+        expect(aarReleaser.minimumFlutterVersion, Version(3, 24, 0));
       });
     });
 
     group('artifactDisplayName', () {
       test('has expected value', () {
         expect(aarReleaser.artifactDisplayName, 'Android archive');
+      });
+    });
+
+    group('supplement', () {
+      test('uploads under the platform supplement names', () {
+        expect(aarReleaser.supplementPlatformSubdir, equals('android'));
+        expect(aarReleaser.supplementArtifactArch, equals('aar_supplement'));
       });
     });
 
@@ -152,27 +187,20 @@ void main() {
           ).thenAnswer((_) async {});
         });
 
-        test('returns normally', () async {
-          await expectLater(
-            () => runWithOverrides(aarReleaser.assertPreconditions),
-            returnsNormally,
-          );
-        });
-
         group('when androidPackageName is null', () {
           setUp(() {
             when(() => shorebirdEnv.androidPackageName).thenReturn(null);
           });
 
-          test('logs error and exits with code 64', () async {
+          test('exits with a config error naming the fix', () async {
             await expectLater(
               () => runWithOverrides(aarReleaser.assertPreconditions),
-              exitsWithCode(ExitCode.config),
+              exitsWithError(
+                message: 'Could not find androidPackage in pubspec.yaml.',
+                hint: contains('androidPackage:'),
+                exitCode: ExitCode.config,
+              ),
             );
-            verify(
-              () =>
-                  logger.err('Could not find androidPackage in pubspec.yaml.'),
-            ).called(1);
           });
         });
       });
@@ -217,22 +245,35 @@ void main() {
     });
 
     group('assertArgsAreValid', () {
-      group('when release-version was not provided', () {
-        setUp(() {
-          when(() => argResults.wasParsed('release-version')).thenReturn(false);
-        });
+      for (final (description, value) in [
+        ('was not provided', null),
+        ('is blank', '  '),
+        ('is latest', 'latest'),
+      ]) {
+        group('when release-version $description', () {
+          setUp(() {
+            when(() => argResults['release-version']).thenReturn(value);
+          });
 
-        test('exits with code 64', () async {
-          await expectLater(
-            () => runWithOverrides(aarReleaser.assertArgsAreValid),
-            exitsWithCode(ExitCode.usage),
-          );
+          test('exits saying which version to pass', () async {
+            await expectLater(
+              () => runWithOverrides(aarReleaser.assertArgsAreValid),
+              exitsWithError(
+                message:
+                    'An aar release needs --release-version: the version of '
+                    'the Android app that embeds this module.',
+                hint:
+                    'Run: shorebird release aar '
+                    '--release-version=$releaseVersionExample',
+              ),
+            );
+          });
         });
-      });
+      }
 
       group('when arguments are valid', () {
         setUp(() {
-          when(() => argResults.wasParsed('release-version')).thenReturn(true);
+          when(() => argResults['release-version']).thenReturn('1.0.0+1');
         });
 
         test('returns normally', () {
@@ -243,48 +284,9 @@ void main() {
         });
       });
 
-      group('when --obfuscate is passed', () {
-        setUp(() {
-          when(() => argResults.wasParsed('release-version')).thenReturn(true);
-          when(() => argResults['obfuscate']).thenReturn(true);
-          when(() => argResults.wasParsed('obfuscate')).thenReturn(true);
-          when(() => shorebirdEnv.flutterRevision).thenReturn('deadbeef');
-        });
-
-        group('when Flutter version supports obfuscation', () {
-          setUp(() {
-            when(
-              () => shorebirdFlutter.resolveFlutterVersion(any()),
-            ).thenAnswer((_) async => Version(3, 41, 2));
-          });
-
-          test('returns normally', () async {
-            await expectLater(
-              runWithOverrides(aarReleaser.assertArgsAreValid),
-              completes,
-            );
-          });
-        });
-
-        group('when Flutter version does not support obfuscation', () {
-          setUp(() {
-            when(
-              () => shorebirdFlutter.resolveFlutterVersion(any()),
-            ).thenAnswer((_) async => Version(3, 27, 4));
-          });
-
-          test('logs error and exits', () async {
-            await expectLater(
-              () => runWithOverrides(aarReleaser.assertArgsAreValid),
-              exitsWithCode(ExitCode.unavailable),
-            );
-          });
-        });
-      });
-
       group('when --obfuscate is not passed', () {
         setUp(() {
-          when(() => argResults.wasParsed('release-version')).thenReturn(true);
+          when(() => argResults['release-version']).thenReturn('1.0.0+1');
         });
 
         test('returns normally', () async {
@@ -423,58 +425,6 @@ void main() {
           );
         });
 
-        group('when a public-key-cmd is provided', () {
-          const base64PublicKey = 'base64PublicKeyFromCmd';
-
-          setUp(() {
-            when(
-              () => argResults[CommonArguments.publicKeyCmd.name],
-            ).thenReturn('get-key-cmd');
-            when(
-              () => argResults.wasParsed(CommonArguments.publicKeyCmd.name),
-            ).thenReturn(true);
-
-            when(
-              () => artifactBuilder.buildAar(
-                buildNumber: any(named: 'buildNumber'),
-                targetPlatforms: any(named: 'targetPlatforms'),
-                args: any(named: 'args'),
-                base64PublicKey: any(named: 'base64PublicKey'),
-                ddMaxBytes: any(named: 'ddMaxBytes'),
-              ),
-            ).thenAnswer((_) async => File(''));
-
-            when(
-              () => codeSigner.runPublicKeyCmd(any()),
-            ).thenAnswer((_) async => 'pem-public-key');
-            when(
-              () => codeSigner.base64PublicKeyFromPem(any()),
-            ).thenReturn(base64PublicKey);
-          });
-
-          test(
-            'runs public key cmd and forwards encoded key to buildAar',
-            () async {
-              await runWithOverrides(() => aarReleaser.buildReleaseArtifacts());
-
-              verify(
-                () => codeSigner.runPublicKeyCmd('get-key-cmd'),
-              ).called(1);
-              verify(
-                () => codeSigner.base64PublicKeyFromPem('pem-public-key'),
-              ).called(1);
-              verify(
-                () => artifactBuilder.buildAar(
-                  buildNumber: buildNumber,
-                  targetPlatforms: any(named: 'targetPlatforms'),
-                  args: any(named: 'args'),
-                  base64PublicKey: base64PublicKey,
-                ),
-              ).called(1);
-            },
-          );
-        });
-
         group('when --obfuscate is passed', () {
           setUp(() {
             when(() => argResults['obfuscate']).thenReturn(true);
@@ -543,151 +493,6 @@ void main() {
               ),
             ).called(1);
           });
-
-          group('when obfuscation map is not generated', () {
-            setUp(() {
-              // Override to NOT create the map file.
-              when(
-                () => artifactBuilder.buildAar(
-                  buildNumber: any(named: 'buildNumber'),
-                  targetPlatforms: any(named: 'targetPlatforms'),
-                  args: any(named: 'args'),
-                ),
-              ).thenAnswer((_) async {});
-            });
-
-            test('logs error and exits', () async {
-              await expectLater(
-                () => runWithOverrides(aarReleaser.buildReleaseArtifacts),
-                exitsWithCode(ExitCode.software),
-              );
-
-              verify(
-                () => logger.err(
-                  any(
-                    that: contains(
-                      'Obfuscation was enabled but the obfuscation map was not',
-                    ),
-                  ),
-                ),
-              ).called(1);
-            });
-          });
-        });
-      });
-    });
-
-    group('assembleSupplementDirectory', () {
-      late Directory supplementDir;
-
-      setUp(() {
-        // Create the supplement directory as it would exist on disk.
-        supplementDir = Directory(
-          p.join(projectRoot.path, 'build', 'android', 'shorebird'),
-        )..createSync(recursive: true);
-
-        // Stub getReleaseSupplementDirectory to use the real directory.
-        when(
-          () => artifactManager.getReleaseSupplementDirectory(
-            platformSubdir: any(named: 'platformSubdir'),
-            create: any(named: 'create'),
-          ),
-        ).thenAnswer((invocation) {
-          final create =
-              invocation.namedArguments[const Symbol('create')] as bool;
-          if (!supplementDir.existsSync() && create) {
-            supplementDir.createSync(recursive: true);
-          }
-          return supplementDir.existsSync() ? supplementDir : null;
-        });
-      });
-
-      group('when obfuscation is enabled and map exists', () {
-        setUp(() {
-          when(() => argResults['obfuscate']).thenReturn(true);
-          when(() => argResults.wasParsed('obfuscate')).thenReturn(true);
-
-          // Create the obfuscation map at the expected build output location.
-          final mapFile = File(
-            p.join(
-              projectRoot.path,
-              'build',
-              'shorebird',
-              'obfuscation_map.json',
-            ),
-          )..createSync(recursive: true);
-          mapFile.writeAsStringSync('{"key": "value"}');
-        });
-
-        test('copies map into supplement directory and returns it', () {
-          final result = runWithOverrides(
-            () => aarReleaser.assembleSupplementDirectory(),
-          );
-
-          expect(result, isNotNull);
-          final mapInSupplement = File(
-            p.join(supplementDir.path, 'obfuscation_map.json'),
-          );
-          expect(mapInSupplement.existsSync(), isTrue);
-          expect(mapInSupplement.readAsStringSync(), '{"key": "value"}');
-        });
-      });
-
-      group('when obfuscation is disabled', () {
-        setUp(() {
-          when(() => argResults['obfuscate']).thenReturn(false);
-        });
-
-        group('and no stale map exists', () {
-          test('returns null', () {
-            // Remove the supplement dir so it's empty/missing.
-            if (supplementDir.existsSync()) {
-              supplementDir.deleteSync(recursive: true);
-            }
-            when(
-              () => artifactManager.getReleaseSupplementDirectory(
-                platformSubdir: any(named: 'platformSubdir'),
-                create: any(named: 'create'),
-              ),
-            ).thenReturn(null);
-
-            final result = runWithOverrides(
-              () => aarReleaser.assembleSupplementDirectory(),
-            );
-
-            expect(result, isNull);
-          });
-        });
-
-        group('and a stale obfuscation map exists', () {
-          setUp(() {
-            // Simulate a leftover obfuscation_map.json from a previous
-            // obfuscated build.
-            File(
-                p.join(supplementDir.path, 'obfuscation_map.json'),
-              )
-              ..createSync(recursive: true)
-              ..writeAsStringSync('{"stale": true}');
-          });
-
-          test('removes stale map, logs detail, and returns null', () {
-            final result = runWithOverrides(
-              () => aarReleaser.assembleSupplementDirectory(),
-            );
-
-            expect(result, isNull);
-            expect(
-              File(
-                p.join(supplementDir.path, 'obfuscation_map.json'),
-              ).existsSync(),
-              isFalse,
-            );
-            verify(
-              () => logger.detail(
-                any(that: contains('Removing stale obfuscation map')),
-              ),
-            ).called(1);
-          });
         });
       });
     });
@@ -705,6 +510,15 @@ void main() {
         );
         expect(result, releaseVersion);
       });
+
+      test('trims surrounding whitespace', () async {
+        when(() => argResults['release-version']).thenReturn(' 1.0.0 ');
+        final result = await runWithOverrides(
+          () =>
+              aarReleaser.getReleaseVersion(releaseArtifactRoot: Directory('')),
+        );
+        expect(result, equals('1.0.0'));
+      });
     });
 
     group('uploadReleaseArtifacts', () {
@@ -720,7 +534,7 @@ void main() {
         flutterRevision: flutterRevision,
         flutterVersion: flutterVersion,
         displayName: '1.2.3+1',
-        platformStatuses: const {},
+        platforms: const {},
         createdAt: DateTime(2023),
         updatedAt: DateTime(2023),
       );
@@ -775,7 +589,7 @@ void main() {
                 ),
               ),
             ),
-            extractedAarDir: 'path',
+            extractedAarDir: Directory('path').path,
             architectures: Arch.values,
           ),
         ).called(1);
@@ -793,6 +607,18 @@ void main() {
     });
 
     group('postReleaseInstructions', () {
+      test('points the Flutter maven repo at the download url', () {
+        when(
+          () => shorebirdEnv.downloadUrl,
+        ).thenReturn('https://mirror.example.com/shorebird');
+        expect(
+          runWithOverrides(() => aarReleaser.postReleaseInstructions),
+          contains(
+            "url 'https://mirror.example.com/shorebird/download.flutter.io'",
+          ),
+        );
+      });
+
       test('returns expected instructions', () {
         expect(
           runWithOverrides(() => aarReleaser.postReleaseInstructions),

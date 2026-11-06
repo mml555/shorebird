@@ -7,33 +7,35 @@
 // origins were assigned in four places under two differently-named variables.
 import 'dart:io' as io;
 
-import 'package:mocktail/mocktail.dart';
-import 'package:platform/platform.dart';
+import 'package:path/path.dart' as p;
+import 'package:platform/testing.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/platform.dart';
+import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:test/test.dart';
-
-import 'mocks.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(ArtifactOrigin, () {
-    late Platform platform;
+    late NativePlatform platform;
 
     R runWithEnv<R>(Map<String, String> env, R Function() body) {
-      platform = MockPlatform();
-      when(() => platform.environment).thenReturn(env);
       // `Cache`'s constructor reads the OS to pick its artifact set; unrelated
       // to the origin, but it has to answer for the consumer test below.
-      when(() => platform.isMacOS).thenReturn(true);
-      when(() => platform.isWindows).thenReturn(false);
-      when(() => platform.isLinux).thenReturn(false);
-      when(() => platform.operatingSystem).thenReturn('macos');
+      platform = TestNativePlatform(
+        environment: env,
+        operatingSystem: NativePlatform.macOS,
+      );
       return runScoped(
         body,
-        values: {platformRef.overrideWith(() => platform)},
+        values: {
+          platformRef.overrideWith(() => platform),
+          shorebirdEnvRef.overrideWith(ShorebirdEnv.new),
+        },
       );
     }
 
@@ -215,6 +217,10 @@ void main() {
       const allowed = <String, String>{
         'lib/src/artifact_origin.dart':
             'the authority itself — this is where the defaults live',
+        'lib/src/shorebird_env.dart':
+            'the upstream default constant `defaultDownloadUrl`, the value '
+            'ArtifactOrigin falls back to; ShorebirdEnv.downloadUrl resolves '
+            'through ArtifactOrigin.',
         'lib/src/route_b_compiler.dart':
             'a manifest MEMBER NAME, part of the preimage a cell address is '
             'computed over. Not a URL that is ever fetched; rewriting it would '
@@ -226,9 +232,13 @@ void main() {
 
       test('origin literals appear only where they are allowed', () {
         final offenders = <String>[];
-        for (final entity in io.Directory('lib').listSync(recursive: true)) {
+        for (final entity in io.Directory(
+          packagePath('lib'),
+        ).listSync(recursive: true)) {
           if (entity is! io.File || !entity.path.endsWith('.dart')) continue;
-          final relative = entity.path.replaceAll(r'\', '/');
+          final relative = p
+              .relative(entity.path, from: packagePath(''))
+              .replaceAll(r'\', '/');
           if (allowed.containsKey(relative)) continue;
           final source = entity.readAsStringSync();
           for (final literal in literals) {
@@ -252,7 +262,7 @@ void main() {
         // An entry that no longer contains a literal is an invitation to keep
         // adding entries; it must be removed when the reason stops applying.
         for (final path in allowed.keys) {
-          final file = io.File(path);
+          final file = io.File(packagePath(path));
           expect(file.existsSync(), isTrue, reason: '$path no longer exists');
           expect(
             literals.any(file.readAsStringSync().contains),
@@ -270,19 +280,20 @@ void main() {
         // duplicates the resolution in shell. Duplication is only safe if it
         // is pinned, which is what this asserts.
         final shared = io.File(
-          '../../third_party/flutter/bin/internal/shared.sh',
+          packagePath('../../third_party/flutter/bin/internal/shared.sh'),
         );
         expect(shared.existsSync(), isTrue);
         final source = shared.readAsStringSync();
         expect(
           source,
           contains(
-            r'FLUTTER_STORAGE_BASE_URL="${FLUTTER_STORAGE_BASE_URL:-'
-            r'${SHOREBIRD_ARTIFACT_ORIGIN:-'
-            'https://download.shorebird.dev}}"',
+            r'local download_url="${SHOREBIRD_DOWNLOAD_URL:-'
+            r'${FLUTTER_STORAGE_BASE_URL:-${SHOREBIRD_ARTIFACT_ORIGIN:-'
+            'https://download.shorebird.dev}}}"',
           ),
           reason:
-              'the bootstrap must resolve FLUTTER_STORAGE_BASE_URL, then '
+              'the bootstrap must resolve SHOREBIRD_DOWNLOAD_URL, then '
+              'FLUTTER_STORAGE_BASE_URL, then '
               'SHOREBIRD_ARTIFACT_ORIGIN, then the upstream default — the same '
               'order and the same default as ArtifactOrigin',
         );

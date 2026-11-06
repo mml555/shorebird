@@ -60,13 +60,8 @@ Shorebird:
 | [shorebird_cli](packages/shorebird_cli/README.md)                               | **Fork build** (`+selfhost.N`): command-line for interacting with Shorebird services    |
 | [shorebird_code_push_client](packages/shorebird_code_push_client/README.md)     | Dart library which allows Dart applications to interact with the Shorebird CodePush API |
 | [shorebird_code_push_protocol](packages/shorebird_code_push_protocol/README.md) | Dart library which contains common interfaces used by Shorebird CodePush                |
-| [artifact_proxy](packages/artifact_proxy/README.md)                             | Dart server which supports intercepting and proxying Flutter artifact requests          |
-| [discord_gcp_alerts](packages/discord_gcp_alerts/README.md)                     | Dart server which forwards GCP alerts to Discord                                        |
-| [flutter_version_resolver](packages/flutter_version_resolver/README.md)         | Command-line utility that determines which Flutter version should be used for a project |
-| [jwt](packages/jwt/README.md)                                                   | Dart library for verifying JSON Web Tokens                                              |
 | [redis_client](packages/redis_client/README.md)                                 | Dart library for interacting with Redis                                                 |
 | [scoped_deps](packages/scoped_deps/README.md)                                   | A simple dependency injection library built on Zones                                    |
-| [stripe_api](packages/stripe_api/README.md)                                     | Dart library for interacting with Stripe                                                |
 
 For more information, please refer to the documentation for each package.
 
@@ -79,17 +74,17 @@ applies to working in this repository.
 
 ### Environment setup
 
-Working on Shorebird requires Dart.
+Working on Shorebird requires a standalone Dart SDK. The one bundled with a
+Flutter checkout is a different SDK that formats this tree differently, and
+the scripts below refuse it.
 
 `./scripts/bootstrap.sh` will run `pub get` all packages in the repository.
 
 ### Running tests
 
-We don't yet have a script to run tests locally. For now, we recommend using
-`very_good test -r` in the packages directory to run all shorebird tests.
-
-(If you run it in the root, it will find packages in bin/cache/flutter and try
-to run tests there, some of which will fail.)
+`./tool/agent-verify.sh` runs the same format, analyze and test steps CI runs,
+over every workspace package, and skips each package whose inputs already
+passed. A single package is `dart test` in that package's directory.
 
 `code_push_server` is standalone — it has its own `pubspec.lock` and is not a
 workspace member — so run its tests from its own directory:
@@ -100,18 +95,22 @@ cd packages/code_push_server && dart test -x integration
 
 `-x integration` skips the tests that need a live Postgres/MinIO.
 
-To generate a coverage report install `lcov`:
+To generate a coverage report, install `lcov` and `very_good_cli`:
 
 ```
 brew install lcov
+dart pub global activate very_good_cli
 ```
 
-Then run tests with the `--coverage` flag:
+Then run tests with the `--coverage` flag, from the packages directory:
 
 ```
 very_good test -r --coverage
 genhtml coverage/lcov.info -o coverage
 ```
+
+(If you run it in the root, it will find packages in bin/cache/flutter and try
+to run tests there, some of which will fail.)
 
 You can view the generated coverage report via:
 
@@ -126,8 +125,6 @@ The following command will generate a coverage report for the Dart packages:
 ```bash
 dart test --coverage=coverage && dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --packages=.dart_tool/package_config.json --check-ignore
 ```
-
-Coverage reports are uploaded to [Codecov](https://app.codecov.io/gh/shorebirdtech/shorebird).
 
 ## License
 

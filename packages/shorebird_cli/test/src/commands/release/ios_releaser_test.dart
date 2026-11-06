@@ -37,6 +37,7 @@ import 'package:shorebird_cli/src/version.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
+import '../../helpers.dart';
 import '../../matchers.dart';
 import '../../mocks.dart';
 
@@ -66,6 +67,7 @@ RouteBCompiler _cell(Directory dir) => RouteBCompiler(
 );
 
 void main() {
+  useTempWorkingDirectory();
   group(IosReleaser, () {
     late Apple apple;
     late ArgResults argResults;
@@ -135,10 +137,17 @@ void main() {
     setUp(() {
       apple = MockApple();
       argResults = MockArgResults();
+      // Managed signing, the default, is covered in releaser_test.dart.
+      when(() => argResults['patch-signing']).thenReturn(false);
       artifactBuilder = MockArtifactBuilder();
       artifactManager = MockArtifactManager();
       codePushClientWrapper = MockCodePushClientWrapper();
       codeSigner = MockCodeSigner();
+      when(
+        () => codeSigner.canonicalPublicKeyPem(any()),
+      ).thenAnswer(
+        (invocation) => invocation.positionalArguments.single as String,
+      );
       doctor = MockDoctor();
       flavorValidator = MockFlavorValidator();
       projectRoot = Directory.systemTemp.createTempSync();
@@ -181,14 +190,21 @@ void main() {
     });
 
     group('minimumFlutterVersion', () {
-      test('is 3.22.2', () {
-        expect(iosReleaser.minimumFlutterVersion, Version(3, 22, 2));
+      test('is 3.24.0', () {
+        expect(iosReleaser.minimumFlutterVersion, Version(3, 24, 0));
       });
     });
 
     group('artifactDisplayName', () {
       test('has expected value', () {
         expect(iosReleaser.artifactDisplayName, 'iOS app');
+      });
+    });
+
+    group('supplement', () {
+      test('uploads under the platform supplement names', () {
+        expect(iosReleaser.supplementPlatformSubdir, equals('ios'));
+        expect(iosReleaser.supplementArtifactArch, equals('ios_supplement'));
       });
     });
 
@@ -201,30 +217,6 @@ void main() {
           () => shorebirdFlutter.resolveFlutterVersion(any()),
         ).thenAnswer((_) async => flutterVersion);
         when(flavorValidator.validate).thenAnswer((_) async => []);
-      });
-
-      group('when validation succeeds', () {
-        setUp(() {
-          when(
-            () => shorebirdValidator.validatePreconditions(
-              checkUserIsAuthenticated: any(named: 'checkUserIsAuthenticated'),
-              checkShorebirdInitialized: any(
-                named: 'checkShorebirdInitialized',
-              ),
-              validators: any(named: 'validators'),
-              supportedOperatingSystems: any(
-                named: 'supportedOperatingSystems',
-              ),
-            ),
-          ).thenAnswer((_) async {});
-        });
-
-        test('returns normally', () async {
-          await expectLater(
-            () => runWithOverrides(iosReleaser.assertPreconditions),
-            returnsNormally,
-          );
-        });
       });
 
       group('when validation fails', () {
@@ -255,27 +247,9 @@ void main() {
               checkUserIsAuthenticated: true,
               checkShorebirdInitialized: true,
               validators: [flavorValidator],
-              supportedOperatingSystems: {Platform.macOS},
+              supportedOperatingSystems: {NativePlatform.macOS},
             ),
           ).called(1);
-        });
-      });
-
-      group('when specified flutter version is less than minimum', () {
-        setUp(() {
-          when(
-            () => shorebirdValidator.validatePreconditions(
-              checkUserIsAuthenticated: any(named: 'checkUserIsAuthenticated'),
-              checkShorebirdInitialized: any(
-                named: 'checkShorebirdInitialized',
-              ),
-              validators: any(named: 'validators'),
-              supportedOperatingSystems: any(
-                named: 'supportedOperatingSystems',
-              ),
-            ),
-          ).thenAnswer((_) async {});
-          when(() => argResults['flutter-version']).thenReturn('3.0.0');
         });
       });
     });
@@ -286,58 +260,18 @@ void main() {
           when(() => argResults.wasParsed('release-version')).thenReturn(true);
         });
 
-        test('logs error and exits with usage err', () async {
+        test('exits with an error saying the flag is unsupported', () async {
           await expectLater(
             () => runWithOverrides(iosReleaser.assertArgsAreValid),
-            exitsWithCode(ExitCode.usage),
-          );
-
-          verify(
-            () => logger.err(
-              '''
-The "--release-version" flag is only supported for aar and ios-framework releases.
-
-To change the version of this release, change your app's version in your pubspec.yaml.''',
+            exitsWithError(
+              message:
+                  '--release-version is only supported for aar and '
+                  'ios-framework releases.',
+              hint:
+                  'Remove --release-version. This release takes its version '
+                  'from your pubspec.yaml.',
             ),
-          ).called(1);
-        });
-      });
-
-      group('when --obfuscate is passed', () {
-        setUp(() {
-          when(() => argResults['obfuscate']).thenReturn(true);
-          when(() => argResults.wasParsed('obfuscate')).thenReturn(true);
-          when(() => shorebirdEnv.flutterRevision).thenReturn('deadbeef');
-        });
-
-        group('when Flutter version supports obfuscation', () {
-          setUp(() {
-            when(
-              () => shorebirdFlutter.resolveFlutterVersion(any()),
-            ).thenAnswer((_) async => Version(3, 41, 2));
-          });
-
-          test('returns normally', () async {
-            await expectLater(
-              runWithOverrides(iosReleaser.assertArgsAreValid),
-              completes,
-            );
-          });
-        });
-
-        group('when Flutter version does not support obfuscation', () {
-          setUp(() {
-            when(
-              () => shorebirdFlutter.resolveFlutterVersion(any()),
-            ).thenAnswer((_) async => Version(3, 27, 4));
-          });
-
-          test('logs error and exits', () async {
-            await expectLater(
-              () => runWithOverrides(iosReleaser.assertArgsAreValid),
-              exitsWithCode(ExitCode.unavailable),
-            );
-          });
+          );
         });
       });
 
@@ -377,23 +311,6 @@ $body
         }
 
         test(
-          'returns normally when manageAppVersionAndBuildNumber is absent',
-          () async {
-            final file = writePlist(
-              '<key>method</key><string>app-store</string>',
-            );
-            when(
-              () => argResults[CommonArguments.exportOptionsPlistArg.name],
-            ).thenReturn(file.path);
-
-            await expectLater(
-              runWithOverrides(iosReleaser.assertArgsAreValid),
-              completes,
-            );
-          },
-        );
-
-        test(
           '''logs error and exits with usage when manageAppVersionAndBuildNumber is true''',
           () async {
             final file = writePlist(
@@ -413,41 +330,6 @@ $body
               ),
             ).called(1);
           },
-        );
-      });
-    });
-
-    group('addObfuscationMapArgs', () {
-      // The libapp.so strip gating only applies to Android; on iOS AGP is
-      // not in the pipeline. iOS must continue to pre-strip the snapshot in
-      // gen_snapshot regardless of the Flutter version to prevent the
-      // DWARF debug sections from leaking the identifiers obfuscation is
-      // meant to hide.
-      setUp(() {
-        when(() => argResults['obfuscate']).thenReturn(true);
-        when(() => argResults.wasParsed('obfuscate')).thenReturn(true);
-        when(() => shorebirdEnv.flutterRevision).thenReturn('deadbeef');
-        when(
-          () => shorebirdEnv.getShorebirdProjectRoot(),
-        ).thenReturn(projectRoot);
-      });
-
-      test('passes --strip on Flutter 3.44+ for iOS', () async {
-        when(
-          () => shorebirdFlutter.shouldPreStripLibappInGenSnapshot(
-            platform: any(named: 'platform'),
-            flutterRevision: any(named: 'flutterRevision'),
-          ),
-        ).thenAnswer((_) async => true);
-
-        final buildArgs = <String>[];
-        await runWithOverrides(
-          () => iosReleaser.addObfuscationMapArgs(buildArgs),
-        );
-
-        expect(
-          buildArgs,
-          contains('--extra-gen-snapshot-options=--strip'),
         );
       });
     });
@@ -550,61 +432,6 @@ $body
         );
       });
 
-      group('when a public-key-cmd is provided', () {
-        setUp(() {
-          when(
-            () => argResults[CommonArguments.publicKeyCmd.name],
-          ).thenReturn('get-key-cmd');
-          when(
-            () => argResults.wasParsed(CommonArguments.publicKeyCmd.name),
-          ).thenReturn(true);
-
-          when(
-            () => artifactBuilder.buildIpa(
-              codesign: any(named: 'codesign'),
-              flavor: any(named: 'flavor'),
-              target: any(named: 'target'),
-              args: any(named: 'args'),
-              base64PublicKey: any(named: 'base64PublicKey'),
-              ddMaxBytes: any(named: 'ddMaxBytes'),
-            ),
-          ).thenAnswer(
-            (_) async =>
-                AppleBuildResult(kernelFile: File('/path/to/app.dill')),
-          );
-
-          when(
-            () => codeSigner.runPublicKeyCmd(any()),
-          ).thenAnswer((_) async => 'pem-public-key');
-          when(
-            () => codeSigner.base64PublicKeyFromPem(any()),
-          ).thenReturn('base64PublicKeyFromCmd');
-        });
-
-        test(
-          'runs public key cmd and forwards encoded key to buildIpa',
-          () async {
-            await runWithOverrides(() => iosReleaser.buildReleaseArtifacts());
-
-            verify(
-              () => codeSigner.runPublicKeyCmd('get-key-cmd'),
-            ).called(1);
-            verify(
-              () => codeSigner.base64PublicKeyFromPem('pem-public-key'),
-            ).called(1);
-            verify(
-              () => artifactBuilder.buildIpa(
-                codesign: any(named: 'codesign'),
-                flavor: any(named: 'flavor'),
-                target: any(named: 'target'),
-                args: any(named: 'args'),
-                base64PublicKey: 'base64PublicKeyFromCmd',
-              ),
-            ).called(1);
-          },
-        );
-      });
-
       group('when not codesigning', () {
         setUp(() {
           when(() => argResults['codesign']).thenReturn(false);
@@ -636,22 +463,128 @@ $body
         });
       });
 
-      group('when stale build/ios/shorebird directory exists', () {
-        late Directory shorebirdSupplementDir;
+      group('when --split-debug-info is passed', () {
+        void buildWritesSymbols(String fixtureName) {
+          when(
+            () => artifactBuilder.buildIpa(
+              codesign: any(named: 'codesign'),
+              flavor: any(named: 'flavor'),
+              target: any(named: 'target'),
+              args: any(named: 'args'),
+            ),
+          ).thenAnswer((_) async {
+            File(
+              p.join(fixturesDirectory, 'dsym', fixtureName),
+            ).copySync(
+              (File(
+                p.join(projectRoot.path, 'symbols', 'app.ios-arm64.symbols'),
+              )..createSync(recursive: true)).path,
+            );
+            return AppleBuildResult(kernelFile: File('/path/to/app.dill'));
+          });
+        }
 
         setUp(() {
-          shorebirdSupplementDir = Directory(
-            p.join(projectRoot.path, 'build', 'ios', 'shorebird'),
-          )..createSync(recursive: true);
           when(
-            () => artifactManager.getIosReleaseSupplementDirectory(),
-          ).thenReturn(shorebirdSupplementDir);
+            () => argResults.rest,
+          ).thenReturn(['--split-debug-info', 'symbols']);
         });
 
-        test('deletes the directory', () async {
-          expect(shorebirdSupplementDir.existsSync(), isTrue);
+        test('warns when the dSYM has no __debug_info', () async {
+          buildWritesSymbols('no_debug_info.dwarf');
+
           await runWithOverrides(iosReleaser.buildReleaseArtifacts);
-          expect(shorebirdSupplementDir.existsSync(), isFalse);
+
+          verify(
+            () => logger.warn(
+              any(
+                that: allOf(
+                  startsWith(
+                    '${p.join('symbols', 'app.ios-arm64.symbols')} has no '
+                    'Dart debug info',
+                  ),
+                  contains('Xcode 27'),
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+
+        test('does not warn when the dSYM has __debug_info', () async {
+          buildWritesSymbols('with_debug_info.dwarf');
+
+          await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+          verifyNever(
+            () => logger.warn(any(that: contains('no Dart debug info'))),
+          );
+        });
+
+        test('checks the --obfuscate default directory', () async {
+          when(() => argResults.rest).thenReturn([]);
+          when(() => argResults['obfuscate']).thenReturn(true);
+          when(() => argResults.wasParsed('obfuscate')).thenReturn(true);
+          when(() => shorebirdEnv.flutterRevision).thenReturn('deadbeef');
+          when(
+            () => shorebirdFlutter.shouldPreStripLibappInGenSnapshot(
+              platform: any(named: 'platform'),
+              flutterRevision: any(named: 'flutterRevision'),
+            ),
+          ).thenAnswer((_) async => true);
+          when(
+            () => artifactBuilder.buildIpa(
+              codesign: any(named: 'codesign'),
+              flavor: any(named: 'flavor'),
+              target: any(named: 'target'),
+              args: any(named: 'args'),
+            ),
+          ).thenAnswer((_) async {
+            File(
+                p.join(
+                  projectRoot.path,
+                  'build',
+                  'shorebird',
+                  'obfuscation_map.json',
+                ),
+              )
+              ..createSync(recursive: true)
+              ..writeAsStringSync('{}');
+            File(
+              p.join(fixturesDirectory, 'dsym', 'no_debug_info.dwarf'),
+            ).copySync(
+              (File(
+                p.join(
+                  projectRoot.path,
+                  'build',
+                  'shorebird',
+                  'symbols',
+                  'app.ios-arm64.symbols',
+                ),
+              )..createSync(recursive: true)).path,
+            );
+            return AppleBuildResult(kernelFile: File('/path/to/app.dill'));
+          });
+
+          await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+          verify(
+            () => logger.warn(
+              any(
+                that: startsWith(
+                  '${p.join('build', 'shorebird', 'symbols')}'
+                  '${p.separator}app.ios-arm64.symbols has no Dart debug info',
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+
+        test('does not warn when the build wrote no symbols file', () async {
+          await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+          verifyNever(
+            () => logger.warn(any(that: contains('no Dart debug info'))),
+          );
         });
       });
 
@@ -1722,16 +1655,21 @@ $body
           when(() => artifactManager.getXcarchiveDirectory()).thenReturn(null);
         });
 
-        test('logs message and exits with code 70', () async {
-          await expectLater(
-            () => runWithOverrides(iosReleaser.buildReleaseArtifacts),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(
-            () => logger.err('Unable to find .xcarchive directory'),
-          ).called(1);
-        });
+        test(
+          'exits with an error saying the .xcarchive was not found',
+          () async {
+            await expectLater(
+              () => runWithOverrides(iosReleaser.buildReleaseArtifacts),
+              exitsWithError(
+                message:
+                    'Unable to find the .xcarchive directory in the iOS build '
+                    'output.',
+                hint: 'Re-run with --verbose to see the build output.',
+                exitCode: ExitCode.software,
+              ),
+            );
+          },
+        );
       });
 
       group('when app not found after build', () {
@@ -1743,13 +1681,65 @@ $body
           ).thenReturn(null);
         });
 
-        test('logs message and exits with code 70', () async {
+        test('exits with an error saying the .app was not found', () async {
           await expectLater(
             () => runWithOverrides(iosReleaser.buildReleaseArtifacts),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message: 'Unable to find the .app directory in the .xcarchive.',
+              hint: 'Re-run with --verbose to see the build output.',
+              exitCode: ExitCode.software,
+            ),
+          );
+        });
+      });
+
+      group('when an app extension version does not match the app', () {
+        setUp(() {
+          String plist(String shortVersion, String version) =>
+              '''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleShortVersionString</key>
+	<string>$shortVersion</string>
+	<key>CFBundleVersion</key>
+	<string>$version</string>
+</dict>
+</plist>
+''';
+
+          File(
+            p.join(iosAppDirectory.path, 'Info.plist'),
+          ).writeAsStringSync(plist('1.15.67', '250'));
+          final extensionDirectory = Directory(
+            p.join(
+              iosAppDirectory.path,
+              'PlugIns',
+              'NotificationService.appex',
+            ),
+          )..createSync(recursive: true);
+          File(
+            p.join(extensionDirectory.path, 'Info.plist'),
+          ).writeAsStringSync(plist('1.15.32', '250'));
+        });
+
+        test('warns but does not fail the release', () async {
+          expect(
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts),
+            equals(xcarchiveDirectory),
           );
 
-          verify(() => logger.err('Unable to find .app directory')).called(1);
+          verify(
+            () => logger.warn(
+              any(
+                that: allOf(
+                  contains('NotificationService.appex'),
+                  contains('ITMS-90473'),
+                ),
+              ),
+            ),
+          ).called(1);
         });
       });
 
@@ -1759,17 +1749,15 @@ $body
           when(() => artifactManager.getIpa()).thenReturn(null);
         });
 
-        test('logs message and exits with code 70', () async {
+        test('exits with an error saying no .ipa was exported', () async {
           await expectLater(
             () => runWithOverrides(iosReleaser.buildReleaseArtifacts),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(
-            () => logger.err(
-              any(that: contains('Unable to find generated IPA')),
+            exitsWithError(
+              message: contains('`flutter build ipa` exported no .ipa'),
+              hint: contains('Run: shorebird release ios --no-codesign'),
+              exitCode: ExitCode.software,
             ),
-          ).called(1);
+          );
         });
       });
 
@@ -1799,19 +1787,14 @@ $body
           test('refuses to release it', () async {
             await expectLater(
               () => runWithOverrides(iosReleaser.buildReleaseArtifacts),
-              exitsWithCode(ExitCode.software),
-            );
-
-            verify(
-              () => logger.err(
-                any(
-                  that: contains(
-                    'Found an .ipa older than the .xcarchive this build just '
-                    'produced',
-                  ),
+              exitsWithError(
+                message: contains(
+                  'Found an .ipa older than the .xcarchive this build just '
+                  'produced',
                 ),
+                exitCode: ExitCode.software,
               ),
-            ).called(1);
+            );
           });
         },
       );
@@ -1934,41 +1917,6 @@ $body
           );
         });
 
-        group('when --split-debug-info is also provided', () {
-          setUp(() {
-            when(
-              () => argResults.wasParsed('split-debug-info'),
-            ).thenReturn(true);
-            when(
-              () => argResults['split-debug-info'],
-            ).thenReturn('custom/symbols');
-          });
-
-          test('preserves user-provided --split-debug-info', () async {
-            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
-
-            final captured = verify(
-              () => artifactBuilder.buildIpa(
-                codesign: any(named: 'codesign'),
-                flavor: any(named: 'flavor'),
-                target: any(named: 'target'),
-                args: captureAny(named: 'args'),
-              ),
-            ).captured;
-
-            final args = captured.last as List<String>;
-            expect(
-              args,
-              contains('--split-debug-info=custom/symbols'),
-            );
-            // Should not contain a second auto-defaulted one.
-            expect(
-              args.where((a) => a.startsWith('--split-debug-info=')).length,
-              equals(1),
-            );
-          });
-        });
-
         test('logs detail about map location', () async {
           await runWithOverrides(iosReleaser.buildReleaseArtifacts);
 
@@ -1977,40 +1925,6 @@ $body
               any(that: startsWith('Obfuscation map saved to')),
             ),
           ).called(1);
-        });
-
-        group('when obfuscation map is not generated', () {
-          setUp(() {
-            // Override to NOT create the map file.
-            when(
-              () => artifactBuilder.buildIpa(
-                codesign: any(named: 'codesign'),
-                flavor: any(named: 'flavor'),
-                target: any(named: 'target'),
-                args: any(named: 'args'),
-              ),
-            ).thenAnswer(
-              (_) async =>
-                  AppleBuildResult(kernelFile: File('/path/to/app.dill')),
-            );
-          });
-
-          test('logs error and exits', () async {
-            await expectLater(
-              () => runWithOverrides(iosReleaser.buildReleaseArtifacts),
-              exitsWithCode(ExitCode.software),
-            );
-
-            verify(
-              () => logger.err(
-                any(
-                  that: contains(
-                    'Obfuscation was enabled but the obfuscation map was not',
-                  ),
-                ),
-              ),
-            ).called(1);
-          });
         });
       });
     });
@@ -2023,61 +1937,20 @@ $body
       });
 
       group('when plist does not exist', () {
-        test('logs error and exits', () async {
+        test('exits with an error naming the missing file', () async {
           await expectLater(
             () => runWithOverrides(
               () => iosReleaser.getReleaseVersion(
                 releaseArtifactRoot: xcarchiveDirectory,
               ),
             ),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message:
+                  'No Info.plist file found at '
+                  '${p.join(xcarchiveDirectory.path, 'Info.plist')}',
+              exitCode: ExitCode.software,
+            ),
           );
-
-          verify(
-            () => logger.err(
-              '''No Info.plist file found at ${p.join(xcarchiveDirectory.path, 'Info.plist')}''',
-            ),
-          ).called(1);
-        });
-      });
-
-      group('when plist does not contain version number', () {
-        late File plist;
-        setUp(() {
-          plist = File(p.join(xcarchiveDirectory.path, 'Info.plist'))
-            ..createSync()
-            ..writeAsStringSync('''
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>ApplicationProperties</key>
-	<dict>
-	</dict>
-</dict>
-</plist>'
-''');
-        });
-
-        test('logs error and exits', () async {
-          await expectLater(
-            () => runWithOverrides(
-              () => iosReleaser.getReleaseVersion(
-                releaseArtifactRoot: xcarchiveDirectory,
-              ),
-            ),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(
-            () => logger.err(
-              any(
-                that: startsWith(
-                  'Failed to determine release version from ${plist.path}',
-                ),
-              ),
-            ),
-          ).called(1);
         });
       });
 
@@ -2143,14 +2016,13 @@ $body
         flutterRevision: flutterRevision,
         flutterVersion: flutterVersion,
         displayName: '1.2.3+1',
-        platformStatuses: const {},
+        platforms: const {},
         createdAt: DateTime(2023),
         updatedAt: DateTime(2023),
       );
 
       late Directory xcarchiveDirectory;
       late Directory iosAppDirectory;
-      late Directory supplementDirectory;
 
       setUp(() {
         when(() => argResults['codesign']).thenReturn(codesign);
@@ -2160,7 +2032,6 @@ $body
 
         xcarchiveDirectory = Directory.systemTemp.createTempSync();
         iosAppDirectory = Directory.systemTemp.createTempSync();
-        supplementDirectory = Directory.systemTemp.createTempSync();
         when(
           artifactManager.getXcarchiveDirectory,
         ).thenReturn(xcarchiveDirectory);
@@ -2169,9 +2040,6 @@ $body
             xcarchiveDirectory: any(named: 'xcarchiveDirectory'),
           ),
         ).thenReturn(iosAppDirectory);
-        when(
-          () => artifactManager.getIosReleaseSupplementDirectory(),
-        ).thenReturn(supplementDirectory);
         when(
           () => codePushClientWrapper.createIosReleaseArtifacts(
             appId: any(named: 'appId'),

@@ -1,7 +1,9 @@
 import 'package:shorebird_cli/src/route_b_binding.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   // P4.4. The point of these is that every cross-binding fails INDEPENDENTLY.
   // A single MISMATCH would tell an operator that something is wrong and send
   // them to guess which of six things it was.
@@ -46,8 +48,9 @@ void main() {
     releaseSignature: releaseSignature,
     replacementSignature: replacementSignature,
     survivalResult: 'ONE_OR_MORE_QUALIFYING_CALLSITES',
-    measuredAgainstArtifactSha256:
-        clearMeasuredAgainst ? null : measuredAgainst ?? artifact,
+    measuredAgainstArtifactSha256: clearMeasuredAgainst
+        ? null
+        : measuredAgainst ?? artifact,
   );
 
   List<RouteBBindingProblem> problems({
@@ -193,11 +196,14 @@ void main() {
     final found = problems(
       live: evidence(buildId: 'release-2', engine: 'cell-2', defines: 'x'),
     );
-    expect(found, containsAll(<RouteBBindingProblem>[
-      RouteBBindingProblem.releaseIdentity,
-      RouteBBindingProblem.cell,
-      RouteBBindingProblem.defineFingerprint,
-    ]));
+    expect(
+      found,
+      containsAll(<RouteBBindingProblem>[
+        RouteBBindingProblem.releaseIdentity,
+        RouteBBindingProblem.cell,
+        RouteBBindingProblem.defineFingerprint,
+      ]),
+    );
   });
 
   test('survives a round trip through the container header', () {
@@ -206,7 +212,10 @@ void main() {
     // lossless for the fields the checks depend on.
     final original = RouteBPatchBinding(
       evidence: evidence(),
-      receipts: [receipt(), receipt(className: null, member: 'topLevel')],
+      receipts: [
+        receipt(),
+        receipt(className: null, member: 'topLevel'),
+      ],
     );
     final round = RouteBPatchBinding.fromJson(original.toJson());
     expect(

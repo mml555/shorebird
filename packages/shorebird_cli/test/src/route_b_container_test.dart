@@ -5,8 +5,10 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group('route_b container', () {
     RouteBPatchTarget target(String selector, String body) => RouteBPatchTarget(
       library: 'package:app/main.dart',

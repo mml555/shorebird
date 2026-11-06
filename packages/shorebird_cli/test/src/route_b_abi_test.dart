@@ -11,8 +11,10 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:test/test.dart';
 
 import 'mocks.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   // P4.3 pins the replacement ABI boundary. It pins the CODE, not the prose:
   // the analyzer's wording ships in the compiler cell and must stay free to be
   // copy-edited, while what a caller may rely on must not move.
@@ -38,7 +40,11 @@ void main() {
               'code',
               RouteBAbiCode.unsupportedParameterShape,
             )
-            .having((r) => r.reason, 'reason', 'optional_positional_parameters'),
+            .having(
+              (r) => r.reason,
+              'reason',
+              'optional_positional_parameters',
+            ),
       );
       expect(
         classifyRouteBAbiRefusals('the method is generic').single,
@@ -63,7 +69,10 @@ void main() {
     test('required positionals are SUPPORTED and produce no refusal', () {
       // The positive side of the boundary. Without this row the group would
       // only prove that refusals are named, not that anything is allowed.
-      expect(classifyRouteBAbiRefusals('the method takes 3 parameters'), isEmpty);
+      expect(
+        classifyRouteBAbiRefusals('the method takes 3 parameters'),
+        isEmpty,
+      );
       expect(routeBAbiLabel('the receiver is used in a closure'), isNull);
     });
 
@@ -122,35 +131,35 @@ void main() {
     RouteBCoverage coverageWith(List<String> unsupported) {
       final text = source.readAsStringSync();
       return RouteBCoverage.fromJson(
-          jsonEncode({
-            'analysisVersion': supportedRouteBAnalysisVersion,
-            'verdict': 'accept',
-            'changed': ['package:app/main.dart#C.m'],
-            'added': <String>[],
-            'removed': <String>[],
-            'patchable': <String>[],
-            'conditional': ['package:app/main.dart#C.m'],
-            'sources': {
-              'package:app/main.dart#C.m': {
-                'fileUri': source.uri.toString(),
-                'start': 0,
-                'end': text.length,
-              },
+        jsonEncode({
+          'analysisVersion': supportedRouteBAnalysisVersion,
+          'verdict': 'accept',
+          'changed': ['package:app/main.dart#C.m'],
+          'added': <String>[],
+          'removed': <String>[],
+          'patchable': <String>[],
+          'conditional': ['package:app/main.dart#C.m'],
+          'sources': {
+            'package:app/main.dart#C.m': {
+              'fileUri': source.uri.toString(),
+              'start': 0,
+              'end': text.length,
             },
-            'lowering': {
-              'package:app/main.dart#C.m': {
-                'receiverType': 'package:app/main.dart#C',
-                // The analyzer points at the member's own identifier; omitting
-                // it makes the lowering fail with a bare null-check error that
-                // says nothing about the ABI.
-                'nameOffset': text.indexOf('m('),
-                'accesses': <Object>[],
-                'unsupported': unsupported,
-              },
+          },
+          'lowering': {
+            'package:app/main.dart#C.m': {
+              'receiverType': 'package:app/main.dart#C',
+              // The analyzer points at the member's own identifier; omitting
+              // it makes the lowering fail with a bare null-check error that
+              // says nothing about the ABI.
+              'nameOffset': text.indexOf('m('),
+              'accesses': <Object>[],
+              'unsupported': unsupported,
             },
-            'rejections': <Object>[],
-            'refusalSummary': null,
-          }),
+          },
+          'rejections': <Object>[],
+          'refusalSummary': null,
+        }),
       );
     }
 

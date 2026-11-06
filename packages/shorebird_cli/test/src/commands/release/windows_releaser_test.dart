@@ -18,7 +18,6 @@ import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
-import 'package:pub_semver/pub_semver.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
@@ -27,10 +26,12 @@ import 'package:shorebird_cli/src/validators/validators.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
+import '../../helpers.dart';
 import '../../matchers.dart';
 import '../../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(WindowsReleaser, () {
     late ArgResults argResults;
     late ArtifactBuilder artifactBuilder;
@@ -79,10 +80,17 @@ void main() {
 
     setUp(() {
       argResults = MockArgResults();
+      // Managed signing, the default, is covered in releaser_test.dart.
+      when(() => argResults['patch-signing']).thenReturn(false);
       artifactBuilder = MockArtifactBuilder();
       artifactManager = MockArtifactManager();
       codePushClientWrapper = MockCodePushClientWrapper();
       codeSigner = MockCodeSigner();
+      when(
+        () => codeSigner.canonicalPublicKeyPem(any()),
+      ).thenAnswer(
+        (invocation) => invocation.positionalArguments.single as String,
+      );
       doctor = MockDoctor();
       flavorValidator = MockFlavorValidator();
       powershell = MockPowershell();
@@ -145,64 +153,31 @@ void main() {
       });
     });
 
+    group('supplement', () {
+      test('uploads under the platform supplement names', () {
+        expect(releaser.supplementPlatformSubdir, equals('windows'));
+        expect(releaser.supplementArtifactArch, equals('windows_supplement'));
+      });
+    });
+
     group('assertArgsAreValid', () {
       group('when release-version is passed', () {
         setUp(() {
           when(() => argResults.wasParsed('release-version')).thenReturn(true);
         });
 
-        test('logs error and exits with usage err', () async {
+        test('exits with an error saying the flag is unsupported', () async {
           await expectLater(
             () => runWithOverrides(releaser.assertArgsAreValid),
-            exitsWithCode(ExitCode.usage),
-          );
-
-          verify(
-            () => logger.err(
-              '''
-The "--release-version" flag is only supported for aar and ios-framework releases.
-
-To change the version of this release, change your app's version in your pubspec.yaml.''',
+            exitsWithError(
+              message:
+                  '--release-version is only supported for aar and '
+                  'ios-framework releases.',
+              hint:
+                  'Remove --release-version. This release takes its version '
+                  'from your pubspec.yaml.',
             ),
-          ).called(1);
-        });
-      });
-
-      group('when --obfuscate is passed', () {
-        setUp(() {
-          when(() => argResults['obfuscate']).thenReturn(true);
-          when(() => argResults.wasParsed('obfuscate')).thenReturn(true);
-          when(() => shorebirdEnv.flutterRevision).thenReturn('deadbeef');
-        });
-
-        group('when Flutter version supports obfuscation', () {
-          setUp(() {
-            when(
-              () => shorebirdFlutter.resolveFlutterVersion(any()),
-            ).thenAnswer((_) async => Version(3, 41, 2));
-          });
-
-          test('returns normally', () async {
-            await expectLater(
-              runWithOverrides(releaser.assertArgsAreValid),
-              completes,
-            );
-          });
-        });
-
-        group('when Flutter version does not support obfuscation', () {
-          setUp(() {
-            when(
-              () => shorebirdFlutter.resolveFlutterVersion(any()),
-            ).thenAnswer((_) async => Version(3, 27, 4));
-          });
-
-          test('logs error and exits', () async {
-            await expectLater(
-              () => runWithOverrides(releaser.assertArgsAreValid),
-              exitsWithCode(ExitCode.unavailable),
-            );
-          });
+          );
         });
       });
 
@@ -222,30 +197,6 @@ To change the version of this release, change your app's version in your pubspec
           () => doctor.windowsCommandValidators,
         ).thenReturn([flavorValidator]);
         when(flavorValidator.validate).thenAnswer((_) async => []);
-      });
-
-      group('when validation succeeds', () {
-        setUp(() {
-          when(
-            () => shorebirdValidator.validatePreconditions(
-              checkUserIsAuthenticated: any(named: 'checkUserIsAuthenticated'),
-              checkShorebirdInitialized: any(
-                named: 'checkShorebirdInitialized',
-              ),
-              validators: any(named: 'validators'),
-              supportedOperatingSystems: any(
-                named: 'supportedOperatingSystems',
-              ),
-            ),
-          ).thenAnswer((_) async {});
-        });
-
-        test('returns normally', () async {
-          await expectLater(
-            () => runWithOverrides(releaser.assertPreconditions),
-            returnsNormally,
-          );
-        });
       });
 
       group('when validation fails', () {
@@ -276,32 +227,9 @@ To change the version of this release, change your app's version in your pubspec
               checkUserIsAuthenticated: true,
               checkShorebirdInitialized: true,
               validators: [flavorValidator],
-              supportedOperatingSystems: {Platform.windows},
+              supportedOperatingSystems: {NativePlatform.windows},
             ),
           ).called(1);
-        });
-      });
-
-      group('when flutter version is too old', () {
-        setUp(() {
-          when(
-            () => shorebirdValidator.validatePreconditions(
-              checkUserIsAuthenticated: any(named: 'checkUserIsAuthenticated'),
-              checkShorebirdInitialized: any(
-                named: 'checkShorebirdInitialized',
-              ),
-              validators: any(named: 'validators'),
-              supportedOperatingSystems: any(
-                named: 'supportedOperatingSystems',
-              ),
-            ),
-          ).thenAnswer((_) async {});
-          when(
-            () => argResults['flutter-version'] as String?,
-          ).thenReturn('3.27.1');
-          when(
-            () => shorebirdFlutter.resolveFlutterVersion('3.27.1'),
-          ).thenAnswer((_) async => Version(3, 27, 1));
         });
       });
     });
@@ -382,46 +310,6 @@ To change the version of this release, change your app's version in your pubspec
         });
       });
 
-      group('when a public-key-cmd is provided', () {
-        setUp(() {
-          when(
-            () => artifactBuilder.buildWindowsApp(
-              target: any(named: 'target'),
-              args: any(named: 'args'),
-              base64PublicKey: any(named: 'base64PublicKey'),
-              ddMaxBytes: any(named: 'ddMaxBytes'),
-            ),
-          ).thenAnswer((_) async => projectRoot);
-          when(
-            () => argResults[CommonArguments.publicKeyCmd.name],
-          ).thenReturn('get-key-cmd');
-          when(
-            () => argResults.wasParsed(CommonArguments.publicKeyCmd.name),
-          ).thenReturn(true);
-
-          when(
-            () => codeSigner.runPublicKeyCmd(any()),
-          ).thenAnswer((_) async => 'pem-public-key');
-          when(
-            () => codeSigner.base64PublicKeyFromPem(any()),
-          ).thenReturn('encoded_public_key_from_cmd');
-        });
-
-        test('passes public key to buildWindowsApp', () async {
-          await runWithOverrides(releaser.buildReleaseArtifacts);
-          verify(
-            () => codeSigner.runPublicKeyCmd('get-key-cmd'),
-          ).called(1);
-          verify(
-            () => artifactBuilder.buildWindowsApp(
-              base64PublicKey: 'encoded_public_key_from_cmd',
-              target: any(named: 'target'),
-              args: any(named: 'args'),
-            ),
-          ).called(1);
-        });
-      });
-
       group('when --obfuscate is passed', () {
         setUp(() {
           when(() => argResults['obfuscate']).thenReturn(true);
@@ -487,37 +375,6 @@ To change the version of this release, change your app's version in your pubspec
               any(that: startsWith('Obfuscation map saved to')),
             ),
           ).called(1);
-        });
-
-        group('when obfuscation map is not generated', () {
-          setUp(() {
-            // Override to NOT create the map file.
-            when(
-              () => artifactBuilder.buildWindowsApp(
-                target: any(named: 'target'),
-                args: any(named: 'args'),
-                base64PublicKey: any(named: 'base64PublicKey'),
-                ddMaxBytes: any(named: 'ddMaxBytes'),
-              ),
-            ).thenAnswer((_) async => projectRoot);
-          });
-
-          test('logs error and exits', () async {
-            await expectLater(
-              () => runWithOverrides(releaser.buildReleaseArtifacts),
-              exitsWithCode(ExitCode.software),
-            );
-
-            verify(
-              () => logger.err(
-                any(
-                  that: contains(
-                    'Obfuscation was enabled but the obfuscation map was not',
-                  ),
-                ),
-              ),
-            ).called(1);
-          });
         });
       });
     });
@@ -604,22 +461,24 @@ To change the version of this release, change your app's version in your pubspec
           releaseDirectory.deleteSync();
         });
 
-        test('fails progress, exits', () async {
-          await expectLater(
-            () => runWithOverrides(
-              () => releaser.uploadReleaseArtifacts(
-                release: release,
-                appId: appId,
+        test(
+          'exits with an error saying no release directory was found',
+          () async {
+            await expectLater(
+              () => runWithOverrides(
+                () => releaser.uploadReleaseArtifacts(
+                  release: release,
+                  appId: appId,
+                ),
               ),
-            ),
-            exitsWithCode(ExitCode.software),
-          );
-          verify(
-            () => logger.err(
-              any(that: startsWith('No release directory found at')),
-            ),
-          ).called(1);
-        });
+              exitsWithError(
+                message: startsWith('No release directory found at'),
+                hint: 'Re-run with --verbose to see the build output.',
+                exitCode: ExitCode.software,
+              ),
+            );
+          },
+        );
       });
 
       group('when release directory exists', () {
@@ -628,8 +487,7 @@ To change the version of this release, change your app's version in your pubspec
             () => codePushClientWrapper.createWindowsReleaseArtifacts(
               appId: any(named: 'appId'),
               releaseId: any(named: 'releaseId'),
-              projectRoot: any(named: 'projectRoot'),
-              releaseZipPath: any(named: 'releaseZipPath'),
+              releaseDirectory: any(named: 'releaseDirectory'),
             ),
           ).thenAnswer((_) async {});
         });
@@ -643,8 +501,7 @@ To change the version of this release, change your app's version in your pubspec
             () => codePushClientWrapper.createWindowsReleaseArtifacts(
               appId: appId,
               releaseId: releaseId,
-              projectRoot: projectRoot.path,
-              releaseZipPath: any(named: 'releaseZipPath'),
+              releaseDirectory: any(named: 'releaseDirectory'),
             ),
           ).called(1);
         });

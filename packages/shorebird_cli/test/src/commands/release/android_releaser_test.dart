@@ -5,8 +5,8 @@ import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
-import 'package:scoped_deps/scoped_deps.dart';
 import 'package:pub_semver/pub_semver.dart';
+import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/commands/release/releaser.dart';
@@ -32,10 +32,12 @@ import 'package:shorebird_cli/src/version.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
+import '../../helpers.dart';
 import '../../matchers.dart';
 import '../../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(AndroidReleaser, () {
     late ArgResults argResults;
     late ArtifactBuilder artifactBuilder;
@@ -82,14 +84,24 @@ void main() {
       registerFallbackValue(Directory(''));
       registerFallbackValue(File(''));
       registerFallbackValue(ReleasePlatform.android);
+      registerFallbackValue(
+        const ArtifactSigningRequest(mode: ReleaseSigningMode.unsigned),
+      );
     });
 
     setUp(() {
       argResults = MockArgResults();
+      // Managed signing, the default, is covered in releaser_test.dart.
+      when(() => argResults['patch-signing']).thenReturn(false);
       artifactBuilder = MockArtifactBuilder();
       artifactManager = MockArtifactManager();
       codePushClientWrapper = MockCodePushClientWrapper();
       codeSigner = MockCodeSigner();
+      when(
+        () => codeSigner.canonicalPublicKeyPem(any()),
+      ).thenAnswer(
+        (invocation) => invocation.positionalArguments.single as String,
+      );
       doctor = MockDoctor();
       flavorValidator = MockFlavorValidator();
       operatingSystemInterface = MockOperatingSystemInterface();
@@ -128,16 +140,24 @@ void main() {
     });
 
     group('minimumFlutterVersion', () {
-      test('is null', () {
-        // Shorebird has always had Android support, so we don't need to
-        // specify a minimum Flutter version.
-        expect(androidReleaser.minimumFlutterVersion, isNull);
+      test('is 3.24.0', () {
+        expect(androidReleaser.minimumFlutterVersion, Version(3, 24, 0));
       });
     });
 
     group('artifactDisplayName', () {
       test('has expected value', () {
         expect(androidReleaser.artifactDisplayName, 'Android app bundle');
+      });
+    });
+
+    group('supplement', () {
+      test('uploads under the platform supplement names', () {
+        expect(androidReleaser.supplementPlatformSubdir, equals('android'));
+        expect(
+          androidReleaser.supplementArtifactArch,
+          equals('android_supplement'),
+        );
       });
     });
 
@@ -172,30 +192,6 @@ void main() {
           () => doctor.androidCommandValidators,
         ).thenReturn([flavorValidator]);
         when(flavorValidator.validate).thenAnswer((_) async => []);
-      });
-
-      group('when validation succeeds', () {
-        setUp(() {
-          when(
-            () => shorebirdValidator.validatePreconditions(
-              checkUserIsAuthenticated: any(named: 'checkUserIsAuthenticated'),
-              checkShorebirdInitialized: any(
-                named: 'checkShorebirdInitialized',
-              ),
-              validators: any(named: 'validators'),
-              supportedOperatingSystems: any(
-                named: 'supportedOperatingSystems',
-              ),
-            ),
-          ).thenAnswer((_) async {});
-        });
-
-        test('returns normally', () async {
-          await expectLater(
-            () => runWithOverrides(androidReleaser.assertPreconditions),
-            returnsNormally,
-          );
-        });
       });
 
       group('when validation fails', () {
@@ -244,20 +240,18 @@ void main() {
           when(() => argResults.wasParsed('release-version')).thenReturn(true);
         });
 
-        test('logs error and exits with usage err', () async {
+        test('exits with an error saying the flag is unsupported', () async {
           await expectLater(
             () => runWithOverrides(androidReleaser.assertArgsAreValid),
-            exitsWithCode(ExitCode.usage),
-          );
-
-          verify(
-            () => logger.err(
-              '''
-The "--release-version" flag is only supported for aar and ios-framework releases.
-        
-To change the version of this release, change your app's version in your pubspec.yaml.''',
+            exitsWithError(
+              message:
+                  '--release-version is only supported for aar and '
+                  'ios-framework releases.',
+              hint:
+                  'Remove --release-version. This release takes its version '
+                  'from your pubspec.yaml.',
             ),
-          ).called(1);
+          );
         });
       });
 
@@ -267,12 +261,21 @@ To change the version of this release, change your app's version in your pubspec
           when(() => argResults['split-per-abi']).thenReturn(true);
         });
 
-        test('exits with code 69', () async {
-          await expectLater(
-            () => runWithOverrides(androidReleaser.assertArgsAreValid),
-            exitsWithCode(ExitCode.unavailable),
-          );
-        });
+        test(
+          'exits with an error saying split-per-abi is unsupported',
+          () async {
+            await expectLater(
+              () => runWithOverrides(androidReleaser.assertArgsAreValid),
+              exitsWithError(
+                message: startsWith(
+                  'Shorebird does not support --split-per-abi',
+                ),
+                hint: startsWith('Re-run without --split-per-abi.'),
+                exitCode: ExitCode.unavailable,
+              ),
+            );
+          },
+        );
       });
 
       group('when arguments are valid', () {
@@ -289,47 +292,7 @@ To change the version of this release, change your app's version in your pubspec
         });
       });
 
-      group('when --obfuscate is passed', () {
-        setUp(() {
-          when(() => argResults['artifact']).thenReturn('aab');
-          when(() => argResults['split-per-abi']).thenReturn(false);
-          when(() => argResults['obfuscate']).thenReturn(true);
-          when(() => argResults.wasParsed('obfuscate')).thenReturn(true);
-          when(() => shorebirdEnv.flutterRevision).thenReturn('deadbeef');
-        });
-
-        group('when Flutter version supports obfuscation', () {
-          setUp(() {
-            when(
-              () => shorebirdFlutter.resolveFlutterVersion(any()),
-            ).thenAnswer((_) async => Version(3, 41, 2));
-          });
-
-          test('returns normally', () async {
-            await expectLater(
-              runWithOverrides(androidReleaser.assertArgsAreValid),
-              completes,
-            );
-          });
-        });
-
-        group('when Flutter version does not support obfuscation', () {
-          setUp(() {
-            when(
-              () => shorebirdFlutter.resolveFlutterVersion(any()),
-            ).thenAnswer((_) async => Version(3, 27, 4));
-          });
-
-          test('logs error and exits', () async {
-            await expectLater(
-              () => runWithOverrides(androidReleaser.assertArgsAreValid),
-              exitsWithCode(ExitCode.unavailable),
-            );
-          });
-        });
-      });
-
-      group('when --obfuscate is not passed', () {
+      group('when building an aab', () {
         setUp(() {
           when(() => argResults['artifact']).thenReturn('aab');
           when(() => argResults['split-per-abi']).thenReturn(false);
@@ -604,6 +567,80 @@ To change the version of this release, change your app's version in your pubspec
         });
       });
 
+      group('when --obfuscate is passed', () {
+        setUp(() {
+          when(() => argResults['obfuscate']).thenReturn(true);
+          when(() => argResults.wasParsed('obfuscate')).thenReturn(true);
+          when(() => shorebirdEnv.flutterRevision).thenReturn('deadbeef');
+          when(
+            () => shorebirdFlutter.shouldPreStripLibappInGenSnapshot(
+              platform: any(named: 'platform'),
+              flutterRevision: any(named: 'flutterRevision'),
+            ),
+          ).thenAnswer((_) async => false);
+          // Simulate the build creating the obfuscation map.
+          when(
+            () => artifactBuilder.buildAppBundle(
+              flavor: any(named: 'flavor'),
+              target: any(named: 'target'),
+              targetPlatforms: any(named: 'targetPlatforms'),
+              args: any(named: 'args'),
+            ),
+          ).thenAnswer((_) async {
+            File(
+                p.join(
+                  projectRoot.path,
+                  'build',
+                  'shorebird',
+                  'obfuscation_map.json',
+                ),
+              )
+              ..createSync(recursive: true)
+              ..writeAsStringSync('{}');
+            return aabFile;
+          });
+        });
+
+        test('injects --save-obfuscation-map into build args', () async {
+          await runWithOverrides(androidReleaser.buildReleaseArtifacts);
+
+          final args =
+              verify(
+                    () => artifactBuilder.buildAppBundle(
+                      flavor: any(named: 'flavor'),
+                      target: any(named: 'target'),
+                      targetPlatforms: any(named: 'targetPlatforms'),
+                      args: captureAny(named: 'args'),
+                    ),
+                  ).captured.single
+                  as List<String>;
+          expect(
+            args,
+            contains(
+              startsWith(
+                '--extra-gen-snapshot-options=--save-obfuscation-map=',
+              ),
+            ),
+          );
+          verify(
+            () => shorebirdFlutter.shouldPreStripLibappInGenSnapshot(
+              platform: ReleasePlatform.android,
+              flutterRevision: 'deadbeef',
+            ),
+          ).called(1);
+        });
+
+        test('logs detail about map location', () async {
+          await runWithOverrides(androidReleaser.buildReleaseArtifacts);
+
+          verify(
+            () => logger.detail(
+              any(that: startsWith('Obfuscation map saved to')),
+            ),
+          ).called(1);
+        });
+      });
+
       group('with flavor and target', () {
         const flavor = 'my-flavor';
         const target = 'my-target';
@@ -735,62 +772,6 @@ To change the version of this release, change your app's version in your pubspec
           );
         });
       });
-
-      group('when a public-key-cmd is provided', () {
-        const base64PublicKey = 'base64PublicKeyFromCmd';
-
-        setUp(() {
-          when(
-            () => argResults[CommonArguments.publicKeyCmd.name],
-          ).thenReturn('get-key-cmd');
-          when(
-            () => argResults.wasParsed(CommonArguments.publicKeyCmd.name),
-          ).thenReturn(true);
-
-          when(
-            () => artifactBuilder.buildAppBundle(
-              flavor: any(named: 'flavor'),
-              target: any(named: 'target'),
-              targetPlatforms: any(named: 'targetPlatforms'),
-              args: any(named: 'args'),
-              base64PublicKey: any(named: 'base64PublicKey'),
-              ddMaxBytes: any(named: 'ddMaxBytes'),
-            ),
-          ).thenAnswer((_) async => aabFile);
-
-          when(
-            () => codeSigner.runPublicKeyCmd(any()),
-          ).thenAnswer((_) async => 'pem-public-key');
-          when(
-            () => codeSigner.base64PublicKeyFromPem(any()),
-          ).thenReturn(base64PublicKey);
-        });
-
-        test(
-          'runs public key cmd and forwards encoded key to buildAab',
-          () async {
-            await runWithOverrides(
-              () => androidReleaser.buildReleaseArtifacts(),
-            );
-
-            verify(
-              () => codeSigner.runPublicKeyCmd('get-key-cmd'),
-            ).called(1);
-            verify(
-              () => codeSigner.base64PublicKeyFromPem('pem-public-key'),
-            ).called(1);
-            verify(
-              () => artifactBuilder.buildAppBundle(
-                flavor: any(named: 'flavor'),
-                target: any(named: 'target'),
-                targetPlatforms: any(named: 'targetPlatforms'),
-                args: any(named: 'args'),
-                base64PublicKey: base64PublicKey,
-              ),
-            ).called(1);
-          },
-        );
-      });
     });
 
     group('getReleaseVersion', () {
@@ -804,16 +785,68 @@ To change the version of this release, change your app's version in your pubspec
       });
 
       test('returns value from artifactManager', () async {
+        final releaseArtifactRoot = Directory('');
         final result = await runWithOverrides(
           () => androidReleaser.getReleaseVersion(
-            releaseArtifactRoot: Directory(''),
+            releaseArtifactRoot: releaseArtifactRoot,
           ),
         );
         expect(result, releaseVersion);
         verify(
-          () =>
-              shorebirdAndroidArtifacts.extractReleaseVersionFromAppBundle(''),
+          () => shorebirdAndroidArtifacts.extractReleaseVersionFromAppBundle(
+            releaseArtifactRoot.path,
+          ),
         ).called(1);
+      });
+
+      group('when the version name has characters iOS versions cannot', () {
+        setUp(() {
+          when(
+            () => shorebirdAndroidArtifacts.extractReleaseVersionFromAppBundle(
+              any(),
+            ),
+          ).thenAnswer((_) async => '1.0.0-stage+1');
+        });
+
+        test('explains it when the app has an iOS project', () async {
+          Directory(p.join(projectRoot.path, 'ios')).createSync();
+          await runWithOverrides(
+            () => androidReleaser.getReleaseVersion(
+              releaseArtifactRoot: Directory(''),
+            ),
+          );
+          verify(
+            () => logger.info(
+              any(
+                that: contains(
+                  "Android's version name 1.0.0-stage has characters iOS "
+                  "versions can't",
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+
+        test('explains nothing when the app has no iOS project', () async {
+          await runWithOverrides(
+            () => androidReleaser.getReleaseVersion(
+              releaseArtifactRoot: Directory(''),
+            ),
+          );
+          verifyNever(() => logger.info(any(that: contains('version name'))));
+        });
+      });
+
+      group('when the version name is only digits and dots', () {
+        test('explains nothing', () async {
+          Directory(p.join(projectRoot.path, 'ios')).createSync();
+          await runWithOverrides(
+            () => androidReleaser.getReleaseVersion(
+              releaseArtifactRoot: Directory(''),
+            ),
+          );
+          verifyNever(() => logger.info(any(that: contains('version name'))));
+        });
       });
 
       group('when artifactManager throws exception', () {
@@ -825,16 +858,21 @@ To change the version of this release, change your app's version in your pubspec
           ).thenThrow(Exception('oops'));
         });
 
-        test('logs error and exits with code 70', () async {
+        test('fails progress and exits with the error', () async {
           await expectLater(
             () => runWithOverrides(
               () => androidReleaser.getReleaseVersion(
                 releaseArtifactRoot: Directory(''),
               ),
             ),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message:
+                  'Unable to read the release version from the app bundle: '
+                  'Exception: oops',
+              exitCode: ExitCode.software,
+            ),
           );
-          verify(() => progress.fail('Exception: oops')).called(1);
+          verify(() => progress.fail()).called(1);
         });
       });
     });
@@ -852,7 +890,7 @@ To change the version of this release, change your app's version in your pubspec
         flutterRevision: flutterRevision,
         flutterVersion: flutterVersion,
         displayName: '1.2.3+1',
-        platformStatuses: const {},
+        platforms: const {},
         createdAt: DateTime(2023),
         updatedAt: DateTime(2023),
       );
@@ -871,6 +909,7 @@ To change the version of this release, change your app's version in your pubspec
             platform: any(named: 'platform'),
             architectures: any(named: 'architectures'),
             flavor: any(named: 'flavor'),
+            signing: any(named: 'signing'),
           ),
         ).thenAnswer((_) async {});
         when(
@@ -879,6 +918,32 @@ To change the version of this release, change your app's version in your pubspec
             flavor: any(named: 'flavor'),
           ),
         ).thenReturn(aabFile);
+      });
+
+      test('records how the build is signed on its artifacts', () async {
+        const signing = ArtifactSigningRequest(
+          mode: ReleaseSigningMode.managed,
+          keyId: 7,
+        );
+        androidReleaser.signing = signing;
+        await runWithOverrides(
+          () => androidReleaser.uploadReleaseArtifacts(
+            appId: appId,
+            release: release,
+          ),
+        );
+        verify(
+          () => codePushClientWrapper.createAndroidReleaseArtifacts(
+            appId: appId,
+            releaseId: release.id,
+            projectRoot: projectRoot.path,
+            aabPath: aabFile.path,
+            platform: ReleasePlatform.android,
+            architectures: Arch.values,
+            flavor: androidReleaser.flavor,
+            signing: signing,
+          ),
+        ).called(1);
       });
 
       test(
@@ -1013,10 +1078,10 @@ To change the version of this release, change your app's version in your pubspec
             runWithOverrides(() => androidReleaser.postReleaseInstructions),
             '''
 Your next step is to upload the app bundle to the Play Store:
-${lightCyan.wrap(aabPath)}
+${lightCyan.wrap(File(aabPath).path)}
 
 Or distribute the apk:
-${lightCyan.wrap(apkPath)}
+${lightCyan.wrap(File(apkPath).path)}
 
 For information on uploading to the Play Store, see:
 ${link(uri: Uri.parse('https://support.google.com/googleplay/android-developer/answer/9859152?hl=en'))}
@@ -1035,7 +1100,7 @@ ${link(uri: Uri.parse('https://support.google.com/googleplay/android-developer/a
             runWithOverrides(() => androidReleaser.postReleaseInstructions),
             '''
 Your next step is to upload the app bundle to the Play Store:
-${lightCyan.wrap(aabPath)}
+${lightCyan.wrap(File(aabPath).path)}
 
 For information on uploading to the Play Store, see:
 ${link(uri: Uri.parse('https://support.google.com/googleplay/android-developer/answer/9859152?hl=en'))}

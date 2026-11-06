@@ -32,14 +32,16 @@ function update_flutter {
   echo "Shorebird Engine • revision $SHOREBIRD_ENGINE_VERSION"
   # Install Shorebird Flutter Artifacts.
   #
-  # This resolves the SAME authority as `ArtifactOrigin` in the CLI
-  # (packages/shorebird_cli/lib/src/artifact_origin.dart): the specific
-  # variable first, then SHOREBIRD_ARTIFACT_ORIGIN, then upstream. It has to be
-  # duplicated in shell rather than read from Dart because this bootstrap runs
-  # BEFORE any Dart code exists to ask — it is the download that produces the
-  # Dart SDK. Kept in step by a test that pins both defaults
-  # (`artifact_origin_test.dart`).
-  FLUTTER_STORAGE_BASE_URL="${FLUTTER_STORAGE_BASE_URL:-${SHOREBIRD_ARTIFACT_ORIGIN:-https://download.shorebird.dev}}" $FLUTTER_PATH/bin/flutter --version
+  # This resolves the SAME authority as `ArtifactOrigin.flutterStorageBaseUrl`
+  # in the CLI (packages/shorebird_cli/lib/src/artifact_origin.dart) and
+  # ShorebirdEnv.downloadUrl: SHOREBIRD_DOWNLOAD_URL first, then the fork's
+  # FLUTTER_STORAGE_BASE_URL, then SHOREBIRD_ARTIFACT_ORIGIN, then upstream; and
+  # a trailing slash is dropped. It has to be duplicated in shell rather than
+  # read from Dart because this bootstrap runs BEFORE any Dart code exists to
+  # ask -- it is the download that produces the Dart SDK. Kept in step by a test
+  # that pins both defaults (`artifact_origin_test.dart`).
+  local download_url="${SHOREBIRD_DOWNLOAD_URL:-${FLUTTER_STORAGE_BASE_URL:-${SHOREBIRD_ARTIFACT_ORIGIN:-https://download.shorebird.dev}}}"
+  FLUTTER_STORAGE_BASE_URL="${download_url%/}" $FLUTTER_PATH/bin/flutter --version
 }
 
 function pub_get_with_retry {
@@ -51,8 +53,22 @@ function pub_get_with_retry {
   fi
   local total_tries="10"
   local remaining_tries=$((total_tries - 1))
+  # Install exactly the versions and bytes in the checked-in pubspec.lock, so
+  # every install runs the dependencies we tested. The lockfile names pub.dev
+  # as each package's source, so with a mirror (PUB_HOSTED_URL) pub can't use
+  # it at all; resolve those installs as before.
+  local enforce_lockfile=""
+  case "${PUB_HOSTED_URL:-https://pub.dev}" in
+    https://pub.dev|https://pub.dev/) enforce_lockfile="--enforce-lockfile" ;;
+  esac
   while [[ "$remaining_tries" -gt 0 ]]; do
-    (cd "$SHOREBIRD_CLI_DIR" && $DART_PATH pub get $pub_offline_flag) && break
+    (cd "$SHOREBIRD_CLI_DIR" && $DART_PATH pub get $pub_offline_flag $enforce_lockfile) && break
+    # 65: the pubspecs or a package's hash don't match pubspec.lock. Retrying
+    # won't fix either.
+    if [[ "$?" == 65 ]]; then
+      >&2 echo "Error: Couldn't install the exact packages in Shorebird's pubspec.lock: a pubspec.yaml in $SHOREBIRD_ROOT changed, or a downloaded package's hash doesn't match the lockfile. Undo any local changes there (git -C \"$SHOREBIRD_ROOT\" status) and run shorebird again."
+      return 1
+    fi
     >&2 echo "Error: Unable to 'pub get' shorebird. Retrying in five seconds... ($remaining_tries tries left)"
     remaining_tries=$((remaining_tries - 1))
     sleep 5

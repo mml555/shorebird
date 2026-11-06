@@ -22,6 +22,9 @@ class ArgumentDescriber {
   final String? defaultValue;
 }
 
+/// Example value for `--release-version` in help and error messages.
+const releaseVersionExample = '1.0.0+1';
+
 /// A class that houses the name of arguments that are shared between different
 /// commands and layers.
 class CommonArguments {
@@ -110,6 +113,17 @@ The path for a public key .pem file that will be used to validate patch signatur
 ''',
   );
 
+  /// Whether a release signs its patches. On by default: with no key of the
+  /// customer's, the build embeds a key Shorebird manages.
+  static const patchSigningArg = ArgumentDescriber(
+    name: 'patch-signing',
+    description: '''
+Sign every patch to this release, so apps install only patches signed with its key.
+On by default: the build embeds a key Shorebird manages for your organization.
+To sign patches with your own key, pass --public-key-path or --public-key-cmd.
+--no-patch-signing builds a release whose patches are unsigned.''',
+  );
+
   /// An argument that allows the user to specify a private key file that will
   /// be used to sign the patch artifact.
   static const privateKeyArg = ArgumentDescriber(
@@ -143,13 +157,26 @@ Command that reads data from stdin and outputs a base64 signature to stdout.
   /// more thoroughly explains what the release version is used for.
   static const releaseVersionArg = ArgumentDescriber(
     name: 'release-version',
-    description: 'The version of the release (e.g. "1.0.0+1").',
+    description: 'The version of the release (e.g. "$releaseVersionExample").',
+  );
+
+  /// An argument that identifies a patch by its number within a release.
+  static const patchNumberArg = ArgumentDescriber(
+    name: 'patch-number',
+    description: 'The number of the patch (e.g. "1").',
+  );
+
+  /// An argument that identifies an organization by its id.
+  static const orgIdArg = ArgumentDescriber(
+    name: 'org-id',
+    description: 'The id of the organization (e.g. "42").',
   );
 
   /// Help text for release version arguments in patch commands, where the
   /// version identifies which release the patch belongs to.
   static const patchReleaseVersionDescription =
-      'The version of the release the patch belongs to (e.g. "1.0.0+1").';
+      'The version of the release the patch belongs to '
+      '(e.g. "$releaseVersionExample").';
 
   /// The Flutter --obfuscate argument.
   static const obfuscateArg = ArgumentDescriber(
@@ -173,19 +200,55 @@ symbolize" command with the right program symbol file is required to obtain a hu
 ''',
   );
 
-  /// An argument that allows the user to bypass interactive confirmations.
-  static const noConfirmArg = ArgumentDescriber(
-    name: 'no-confirm',
-    description: '''
-Bypass all confirmation messages. It's generally not advised to use this unless running from a script.
-''',
-  );
-
   /// Maximum character length for an app display name.
   static const appDisplayNameMaxLength = 128;
 
   /// Maximum character length for a track name.
   static const trackNameMaxLength = 128;
+
+  /// Checks a user-supplied name (an app display name, channel or track),
+  /// returning why it is invalid, or null if it is fine.
+  ///
+  /// A name that is empty or only whitespace is rejected, as is one longer
+  /// than [maxLength] characters. [label] names the value in the message,
+  /// e.g. "Channel name".
+  static String? nameError({
+    required String label,
+    required String value,
+    required int maxLength,
+  }) {
+    if (value.trim().isEmpty) return '$label must not be blank.';
+    if (value.length > maxLength) {
+      return '$label must be at most $maxLength characters '
+          '(got ${value.length}).';
+    }
+    return null;
+  }
+
+  /// The Dynamic Dispatch table cascade byte threshold, shared by
+  /// `shorebird release` (forwarded to the Flutter build) and
+  /// `shorebird patch` (forwarded to the linker).
+  ///
+  /// Hidden from `--help` on both commands: changing it off the default is
+  /// almost never the right call for end users. It exists for internal
+  /// testing of the cascade limiter.
+  static const ddMaxBytesArg = ArgumentDescriber(
+    name: 'dd-max-bytes',
+    description:
+        'Dynamic Dispatch table cascade byte threshold. '
+        'Functions whose transitive caller tree exceeds this many bytes '
+        'are routed through the indirect dispatch table. '
+        'Set to 0 to disable.',
+  );
+
+  /// Accepted and ignored on `release` and `patch`. `--no-confirm` was a
+  /// documented flag from 1.5.4 to 1.6.83, and the docs told CI scripts to
+  /// pass it. Neither command asks for confirmation any more. `--confirm`,
+  /// which asked for a prompt, stays an error.
+  static const noConfirmArg = ArgumentDescriber(
+    name: 'no-confirm',
+    description: 'Does nothing. Kept so existing scripts keep working.',
+  );
 
   /// Minimum valid value for [minLinkPercentage].
   static const minLinkPercentageMin = 0;
@@ -197,12 +260,12 @@ Bypass all confirmation messages. It's generally not advised to use this unless 
   /// threshold.
   static const minLinkPercentage = ArgumentDescriber(
     name: 'min-link-percentage',
-    defaultValue: '0',
+    defaultValue: '20',
     description:
         '''
 The minimum link percentage ($minLinkPercentageMin-$minLinkPercentageMax) required in order to generate a patch (Apple platforms only).
 
-Patches with a lower link percentage than what is provided here will fail.
+Patches with a lower link percentage than what is provided here will fail. Pass 0 to accept any link percentage.
 ''',
   );
 }

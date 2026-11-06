@@ -8,6 +8,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:platform/platform.dart';
+import 'package:platform/testing.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/abi.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
@@ -21,8 +22,10 @@ import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:test/test.dart';
 
 import 'mocks.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(RouteBCompilerResolver, () {
     const engineRevision = 'engine-abc';
 
@@ -31,7 +34,7 @@ void main() {
     late Cache cache;
     late http.Client httpClient;
     late ShorebirdLogger logger;
-    late Platform platform;
+    late TestNativePlatform platform;
     late Progress progress;
     late ShorebirdEnv shorebirdEnv;
     late Directory shorebirdRoot;
@@ -53,7 +56,6 @@ void main() {
     }
 
     setUpAll(() {
-
       registerFallbackValue(Uri.parse('https://fallback.test'));
       registerFallbackValue(Directory(''));
       registerFallbackValue(File(''));
@@ -66,18 +68,20 @@ void main() {
       cache = MockCache();
       httpClient = MockHttpClient();
       logger = MockShorebirdLogger();
-      platform = MockPlatform();
+      platform = TestNativePlatform(
+        environment: {},
+        operatingSystem: NativePlatform.macOS,
+      );
       progress = MockProgress();
       shorebirdEnv = MockShorebirdEnv();
       shorebirdRoot = Directory.systemTemp.createTempSync();
 
       when(() => abi.current).thenReturn(Abi.macosArm64);
-      when(() => platform.isMacOS).thenReturn(true);
-      when(() => platform.isLinux).thenReturn(false);
-      when(() => platform.isWindows).thenReturn(false);
-      when(() => platform.environment).thenReturn({});
       when(() => logger.progress(any())).thenReturn(progress);
       when(() => shorebirdEnv.shorebirdRoot).thenReturn(shorebirdRoot);
+      when(
+        () => cache.shorebirdToolsRoot,
+      ).thenReturn('https://storage.test/bucket.test');
       when(() => cache.storageBaseUrl).thenReturn('https://storage.test');
       when(() => cache.storageBucket).thenReturn('bucket.test');
       // These cases are all about the v1 path, so the cell descriptor is
@@ -186,14 +190,13 @@ flutter_platform_strong.dill : ${hash(flutterPlatform)}
           'route-b-compiler-darwin-x64.zip',
         );
 
-        when(() => platform.isMacOS).thenReturn(false);
-        when(() => platform.isLinux).thenReturn(true);
+        platform = platform.copyWith(operatingSystem: NativePlatform.linux);
         expect(
           runWithOverrides(() => RouteBCompilerResolver.bundleFileName),
           'route-b-compiler-linux-x64.zip',
         );
 
-        when(() => platform.isLinux).thenReturn(false);
+        platform = platform.copyWith(operatingSystem: NativePlatform.windows);
         expect(
           runWithOverrides(() => RouteBCompilerResolver.bundleFileName),
           'route-b-compiler-windows-x64.zip',

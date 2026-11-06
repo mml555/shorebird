@@ -4,20 +4,21 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:mason_logger/mason_logger.dart';
-import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
+import 'package:pub_semver/pub_semver.dart';
 import 'package:shorebird_cli/src/archive/archive.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/command_error.dart';
+import 'package:shorebird_cli/src/commands/apple_build_helpers.dart';
 import 'package:shorebird_cli/src/commands/patch/apple_patcher_mixin.dart';
 import 'package:shorebird_cli/src/commands/patch/patcher.dart';
-import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
+import 'package:shorebird_cli/src/extensions/directory.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
-import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b.dart';
@@ -33,19 +34,18 @@ import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
-import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
-import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
-import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
-import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 
 /// {@template ios_patcher}
 /// Functions to create an iOS patch.
 /// {@endtemplate}
 class IosPatcher extends Patcher
-    with ApplePatcherMixin, ApplePodfileLockPatcherMixin {
+    with
+        ApplePatcherMixin,
+        ApplePodfileLockPatcherMixin,
+        AppleLinkerPatcherMixin {
   /// {@macro ios_patcher}
   IosPatcher({
     required super.argResults,
@@ -54,19 +54,6 @@ class IosPatcher extends Patcher
     required super.target,
   });
 
-  String get _aotOutputPath =>
-      p.join(shorebirdEnv.buildDirectory.path, 'out.aot');
-
-  String get _vmcodeOutputPath =>
-      p.join(shorebirdEnv.buildDirectory.path, 'out.vmcode');
-
-  String get _appDillCopyPath =>
-      p.join(shorebirdEnv.buildDirectory.path, 'app.dill');
-
-  /// The last build's link percentage.
-  @visibleForTesting
-  double? lastBuildLinkPercentage;
-
   /// The arguments the patch's own `flutter build ipa` ran with.
   ///
   /// Kept so the Route B block can regenerate a kernel from the SAME patched
@@ -74,18 +61,11 @@ class IosPatcher extends Patcher
   /// Set in `buildPatchArtifact`, which always runs first.
   List<String> _patchBuildArgs = const [];
 
-  /// The last build's link metadata.
-  @visibleForTesting
-  Json? lastBuildLinkMetadata;
-
-  @override
-  double? get linkPercentage => lastBuildLinkPercentage;
-
-  @override
-  Json? get linkMetadata => lastBuildLinkMetadata;
-
   @override
   ReleaseType get releaseType => ReleaseType.ios;
+
+  @override
+  Version? get minimumFlutterVersion => minimumPatchableIosFlutterVersion;
 
   @override
   String get primaryReleaseArtifactArch => 'xcarchive';
@@ -103,37 +83,11 @@ class IosPatcher extends Patcher
   String get podfileLockRelativePath => 'ios/Podfile.lock';
 
   @override
-  Future<void> assertArgsAreValid() async {
-    final exportOptionsPlistFile = argResults.file(
-      CommonArguments.exportOptionsPlistArg.name,
-    );
-    if (exportOptionsPlistFile != null) {
-      try {
-        assertValidExportOptionsPlist(exportOptionsPlistFile);
-      } on InvalidExportOptionsPlistException catch (error) {
-        logger.err(error.message);
-        throw ProcessExit(ExitCode.usage.code);
-      }
-    }
-  }
+  Future<void> assertArgsAreValid() async =>
+      argResults.assertValidExportOptionsPlistArg();
 
   @override
   Future<File> buildPatchArtifact({String? releaseVersion}) async {
-    final shouldCodesign = argResults['codesign'] == true;
-    final (flutterVersionAndRevision, flutterVersion) = await (
-      shorebirdFlutter.getVersionAndRevision(),
-      shorebirdFlutter.getVersion(),
-    ).wait;
-
-    if ((flutterVersion ?? minimumSupportedIosFlutterVersion) <
-        minimumSupportedIosFlutterVersion) {
-      logger.err('''
-This release was built with Flutter $flutterVersionAndRevision, but iOS patches need Flutter $minimumSupportedIosFlutterVersion or newer.
-A release cannot change Flutter versions, so create a new release with ${lightCyan.wrap('shorebird release ios --flutter-version=<version>')} and patch that one.
-For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
-      throw ProcessExit(ExitCode.software.code);
-    }
-
     final buildArgs = [
       ...argResults.forwardedArgs,
       ...extraBuildArgs,
@@ -145,29 +99,22 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
     // If buildIpa is called with a different codesign value than the
     // release was, we will erroneously report native diffs.
     final ipaBuildResult = await artifactBuilder.buildIpa(
-      codesign: shouldCodesign,
+      codesign: argResults.appleCodesign,
       flavor: flavor,
       target: target,
       args: buildArgs,
-      base64PublicKey: argResults.encodedPublicKey,
+      base64PublicKey: await getEncodedPublicKey(),
     );
 
-    if (splitDebugInfoPath != null) {
-      Directory(splitDebugInfoPath!).createSync(recursive: true);
-    }
-    await artifactBuilder.buildElfAotSnapshot(
+    await buildAppleElfAotSnapshot(
       appDillPath: ipaBuildResult.kernelFile.path,
-      outFilePath: _aotOutputPath,
+      outFilePath: aotOutputPath,
       genSnapshotArtifact: ShorebirdArtifact.genSnapshotIos,
-      additionalArgs: [
-        ...ApplePatcherMixin.splitDebugInfoArgs(splitDebugInfoPath),
-        ...obfuscationGenSnapshotArgs,
-      ],
     );
 
     // Copy the kernel file to the build directory so that it can be used
     // to generate a patch.
-    ipaBuildResult.kernelFile.copySync(_appDillCopyPath);
+    ipaBuildResult.kernelFile.copySync(appDillCopyPath);
 
     return artifactManager.getXcarchiveDirectory()!.zipToTempFile();
   }
@@ -184,289 +131,185 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
       _noXcarchiveFound();
     }
 
-    File? routeBContainer;
     final unzipProgress = logger.progress('Extracting release artifact');
 
-    late final String releaseXcarchivePath;
-    {
-      final tempDir = Directory.systemTemp.createTempSync();
+    final releaseXcarchiveDirectory = Directory.systemTemp.createTempSync();
+    // Only a supplement directory created here is ours to delete; one passed
+    // in belongs to the caller.
+    final fallbackSupplementDirectory = supplementDirectory == null
+        ? Directory.systemTemp.createTempSync()
+        : null;
+    try {
       await artifactManager.extractZip(
         zipFile: releaseArtifact,
-        outputDirectory: tempDir,
+        outputDirectory: releaseXcarchiveDirectory,
       );
-      releaseXcarchivePath = tempDir.path;
-    }
 
-    final releaseSupplementDir =
-        supplementDirectory ?? Directory.systemTemp.createTempSync();
-
-    unzipProgress.complete();
-    final appDirectory = artifactManager.getIosAppDirectory(
-      xcarchiveDirectory: Directory(releaseXcarchivePath),
-    );
-    if (appDirectory == null) {
-      logger
-        ..err(
-          'The release .xcarchive downloaded from Shorebird has no '
-          'Products/Applications/*.app directory.',
-        )
-        ..info(
-          'Re-run to download it again. If this persists, the release '
-          'artifact is damaged; create a new release with '
-          '${lightCyan.wrap('shorebird release ios')} and patch that one.',
+      unzipProgress.complete();
+      final appDirectory = artifactManager.getIosAppDirectory(
+        xcarchiveDirectory: releaseXcarchiveDirectory,
+      );
+      if (appDirectory == null) {
+        throw CommandError(
+          message:
+              'The release .xcarchive downloaded from Shorebird has no '
+              'Products/Applications/*.app directory.',
+          hint:
+              'Re-run to download it again. If this persists, the release '
+              'artifact is damaged: create a new release and patch that one. '
+              'Run: shorebird release ios',
+          exitCode: ExitCode.software,
         );
-      throw ProcessExit(ExitCode.software.code);
-    }
-    final releaseArtifactFile = File(
-      p.join(appDirectory.path, 'Frameworks', 'App.framework', 'App'),
-    );
-
-    // Route B (selfhost): a code patch against a Route B release is only
-    // meaningful if the RELEASE was built with patchable call sites. Checked
-    // here, against the release artifact we just downloaded, because the
-    // alternative is the worst failure in this project: the patch builds,
-    // uploads, downloads, installs, validates, attaches, reports success — and
-    // the app behaves identically, because AOT emitted direct calls that never
-    // consult `Function.entry_point_`.
-    //
-    // Two ways in, and the first is the real one. A release that carries Route
-    // B provenance says so itself, from its own uploaded bytes, so the branch
-    // is taken for the right releases even on a machine whose engine has been
-    // switched to something else. The local-engine check stays as a safety net
-    // for releases cut before provenance existed: without it, a Route B release
-    // built without the flag would fall through to the private AOT linker
-    // instead of getting the "not patchable, cut a new release" diagnosis.
-    if (!assetsOnly &&
-        (hasRouteBReleaseProvenance(releaseSupplementDir) ||
-            _engineSupportsIosCodePush())) {
-      _verifyReleaseIsPatchable(releaseArtifactFile);
-      // The release IS Route B. From here the only valid outcomes are a Route B
-      // patch or an explicit refusal — never a fall through to the private
-      // linker. Letting the legacy path catch a Route B release would leave the
-      // old architecture as an accidental fallback, and it would fail somewhere
-      // downstream with a message about a linker nobody asked for.
-      final provenance = _readReleaseProvenance(releaseSupplementDir);
-      final releaseArtifacts = _verifyReleaseArtifacts(
-        releaseSupplementDir,
-        provenance,
-      );
-      // G4.1: THE DEFINES MUST MATCH, CHECKED BEFORE ANY COMPILATION.
-      //
-      // `const String.fromEnvironment` resolves at COMPILE time, so a patch built
-      // with a different effective define set than its release does not fail -- it
-      // bakes in a different constant and ships. Nothing downstream can catch it,
-      // because by then the wrong value is already a literal.
-      //
-      // Placed here deliberately: before the compiler is resolved, before coverage,
-      // before any kernel, bytecode or container exists. It is NOT before the
-      // patch's own `flutter build ipa`, which runs in `buildPatchArtifact` --
-      // the release supplement, and so the release's provenance, is not downloaded
-      // until after that. Refusing ahead of that build means fetching the
-      // supplement earlier in the patcher lifecycle, which is its own change;
-      // that build alone produces nothing shippable.
-      await _verifyBuildConfigAgrees(provenance);
-
-      // P5-TARGET OPEN, logged and NOT gated. If a target difference is ever
-      // shown to admit a semantic mismatch, this line is the evidence that was
-      // already being recorded; until then, inequality is not unsafe and saying
-      // so would refuse patches with no defect.
-      _noteTargetProvenance(provenance);
-
-      // P4.4. THE CONTRACT REVISION, before anything is compiled.
-      //
-      // A patch is only interpretable against one whole Route B contract --
-      // analysis version, container format, probe revision, capability model.
-      // A release cut under another revision may be perfectly fine and still
-      // disagree with this CLI about what a patch MEANS, and every individual
-      // check would pass while doing so.
-      _verifyCompatibilityRevision(provenance);
-
-      final compiler = await _resolveRouteBCompiler(provenance);
-      _verifyReleaseKernelsAgree(compiler, releaseArtifacts);
-
-      // COVERAGE BEFORE BYTECODE, deliberately. A patch that cannot be
-      // represented has no business invoking a compiler, and more importantly
-      // the ordering keeps failure attribution clean: a coverage rejection, a
-      // compiler failure and a container failure are three different problems
-      // and must never be reachable through one another.
-      final coverage = _analyzeCoverage(compiler, releaseArtifacts);
-      if (coverage.verdict != RouteBVerdict.accept) {
-        _refuseCoverage(coverage);
       }
-
-      // ROUTE B SUPER: the patched body, for the compiler to verify against.
-      //
-      // CONDITIONAL ON THE ANALYSIS STRUCTURE, not on admission. Whether a site
-      // may actually be carried is the producer's decision — it owns the source
-      // argument gate and the release-evidence rule — and duplicating that here
-      // to decide whether to build an artifact would be a second admission
-      // implementation. A site can therefore cause this build and then be
-      // refused; that is the correct trade.
-      final patchedVerificationKernel = _patchedVerificationKernel(
-        compiler,
-        coverage,
+      final releaseArtifactFile = File(
+        p.join(appDirectory.path, 'Frameworks', 'App.framework', 'App'),
       );
 
-      final buildId = _readReleaseBuildId(releaseArtifactFile);
-      routeBContainer = _produceRouteBContainer(
-        compiler: compiler,
-        coverage: coverage,
-        releaseImportKernel:
-            releaseArtifacts[routeBReleaseImportKernelFileName]!,
-        patchedVerificationKernel: patchedVerificationKernel,
-        releaseBuildId: buildId,
-        // WHAT THIS RELEASE GRANTED, from the release's own hash-verified
-        // artifact. Absent for a release cut before manifests existed, and the
-        // producer reads absence as "nothing provable" rather than as
-        // permission — so an older release keeps working for everything that
-        // worked before and refuses only the private references it cannot
-        // vouch for.
-        capabilities: _readReleaseCapabilities(releaseArtifacts),
-        // G4.1. The release's own effective define set, already proven to match
-        // this patch's by _verifyBuildConfigAgrees above, so the replacement
-        // compiles with the constants the release compiled with.
-        buildConfig: provenance.buildConfig,
-        // P4.1. WHAT THIS RELEASE STILL CONTAINS, as opposed to what it
-        // granted. Asked of the cell's own probe against the release's own
-        // profile, bound to the digest of the artifact downloaded just above.
-        survival: _releaseSurvivalOracle(
+      final releaseSupplementDir =
+          supplementDirectory ?? fallbackSupplementDirectory!;
+      File? routeBContainer;
+      // Route B (selfhost): a code patch against a Route B release is only
+      // meaningful if the RELEASE was built with patchable call sites. Checked
+      // here, against the release artifact we just downloaded, because the
+      // alternative is the worst failure in this project: the patch builds,
+      // uploads, downloads, installs, validates, attaches, reports success — and
+      // the app behaves identically, because AOT emitted direct calls that never
+      // consult `Function.entry_point_`.
+      //
+      // Two ways in, and the first is the real one. A release that carries Route
+      // B provenance says so itself, from its own uploaded bytes, so the branch
+      // is taken for the right releases even on a machine whose engine has been
+      // switched to something else. The local-engine check stays as a safety net
+      // for releases cut before provenance existed: without it, a Route B release
+      // built without the flag would fall through to the private AOT linker
+      // instead of getting the "not patchable, cut a new release" diagnosis.
+      if (!assetsOnly &&
+          (hasRouteBReleaseProvenance(releaseSupplementDir) ||
+              _engineSupportsIosCodePush())) {
+        _verifyReleaseIsPatchable(releaseArtifactFile);
+        // The release IS Route B. From here the only valid outcomes are a Route B
+        // patch or an explicit refusal — never a fall through to the private
+        // linker. Letting the legacy path catch a Route B release would leave the
+        // old architecture as an accidental fallback, and it would fail somewhere
+        // downstream with a message about a linker nobody asked for.
+        final provenance = _readReleaseProvenance(releaseSupplementDir);
+        final releaseArtifacts = _verifyReleaseArtifacts(
+          releaseSupplementDir,
+          provenance,
+        );
+        // G4.1: THE DEFINES MUST MATCH, CHECKED BEFORE ANY COMPILATION.
+        //
+        // `const String.fromEnvironment` resolves at COMPILE time, so a patch built
+        // with a different effective define set than its release does not fail -- it
+        // bakes in a different constant and ships. Nothing downstream can catch it,
+        // because by then the wrong value is already a literal.
+        //
+        // Placed here deliberately: before the compiler is resolved, before coverage,
+        // before any kernel, bytecode or container exists. It is NOT before the
+        // patch's own `flutter build ipa`, which runs in `buildPatchArtifact` --
+        // the release supplement, and so the release's provenance, is not downloaded
+        // until after that. Refusing ahead of that build means fetching the
+        // supplement earlier in the patcher lifecycle, which is its own change;
+        // that build alone produces nothing shippable.
+        await _verifyBuildConfigAgrees(provenance);
+
+        // P5-TARGET OPEN, logged and NOT gated. If a target difference is ever
+        // shown to admit a semantic mismatch, this line is the evidence that was
+        // already being recorded; until then, inequality is not unsafe and saying
+        // so would refuse patches with no defect.
+        _noteTargetProvenance(provenance);
+
+        // P4.4. THE CONTRACT REVISION, before anything is compiled.
+        //
+        // A patch is only interpretable against one whole Route B contract --
+        // analysis version, container format, probe revision, capability model.
+        // A release cut under another revision may be perfectly fine and still
+        // disagree with this CLI about what a patch MEANS, and every individual
+        // check would pass while doing so.
+        _verifyCompatibilityRevision(provenance);
+
+        final compiler = await _resolveRouteBCompiler(provenance);
+        _verifyReleaseKernelsAgree(compiler, releaseArtifacts);
+
+        // COVERAGE BEFORE BYTECODE, deliberately. A patch that cannot be
+        // represented has no business invoking a compiler, and more importantly
+        // the ordering keeps failure attribution clean: a coverage rejection, a
+        // compiler failure and a container failure are three different problems
+        // and must never be reachable through one another.
+        final coverage = _analyzeCoverage(compiler, releaseArtifacts);
+        if (coverage.verdict != RouteBVerdict.accept) {
+          _refuseCoverage(coverage);
+        }
+
+        // ROUTE B SUPER: the patched body, for the compiler to verify against.
+        //
+        // CONDITIONAL ON THE ANALYSIS STRUCTURE, not on admission. Whether a site
+        // may actually be carried is the producer's decision — it owns the source
+        // argument gate and the release-evidence rule — and duplicating that here
+        // to decide whether to build an artifact would be a second admission
+        // implementation. A site can therefore cause this build and then be
+        // refused; that is the correct trade.
+        final patchedVerificationKernel = _patchedVerificationKernel(
+          compiler,
+          coverage,
+        );
+
+        final buildId = _readReleaseBuildId(releaseArtifactFile);
+        routeBContainer = _produceRouteBContainer(
           compiler: compiler,
-          releaseArtifacts: releaseArtifacts,
-          releaseArtifact: releaseArtifactFile,
-          provenance: provenance,
-        ),
-        // P4.4 layers 1 and 3. What this patch is bound to, recorded IN the
-        // published container so any later reader can check it rather than
-        // having to trust that the names lined up.
-        releaseEvidence: _releaseEvidence(
-          provenance: provenance,
-          releaseArtifacts: releaseArtifacts,
-          buildId: buildId,
-        ),
-      );
-    }
-
-    // A Route B patch never links: the container IS the payload, and linking
-    // would produce a `.vmcode` that is discarded. This also keeps a Route B
-    // release off `aot-tools.dill` entirely.
-    //
-    // An assets-only patch carries no code, and the patch command drops the code
-    // bundles before upload — so linking here would produce a `.vmcode` that is
-    // immediately discarded. Skipping it also drops the only dependency on
-    // `aot-tools.dill` (Shorebird's AOT linker, which we cannot build), which is
-    // what makes an assets-only iOS patch possible without their toolchain.
-    final useLinker =
-        routeBContainer == null &&
-        !assetsOnly &&
-        AotTools.usesLinker(shorebirdEnv.flutterRevision);
-    if (useLinker) {
-      apple.copySupplementFilesToSnapshotDirs(
-        releaseSupplementDir: releaseSupplementDir,
-        releaseSnapshotDir: releaseArtifactFile.parent,
-        patchSupplementDir: shorebirdEnv.iosSupplementDirectory,
-        patchSnapshotDir: shorebirdEnv.buildDirectory,
-      );
-
-      final result = await apple.runLinker(
-        kernelFile: File(_appDillCopyPath),
-        releaseArtifact: releaseArtifactFile,
-        splitDebugInfoArgs: [
-          ...ApplePatcherMixin.splitDebugInfoArgs(splitDebugInfoPath),
-          ...obfuscationGenSnapshotArgs,
-        ],
-        aotOutputFile: File(_aotOutputPath),
-        vmCodeFile: File(_vmcodeOutputPath),
-        ddMaxBytes: int.tryParse(
-          platform.environment['SHOREBIRD_PATCH_DD_MAX_BYTES'] ?? '',
-        ),
-      );
-      final linkPercentage = result.linkPercentage;
-      final exitCode = result.exitCode;
-      if (exitCode != ExitCode.success.code) throw ProcessExit(exitCode);
-      if (linkPercentage != null &&
-          linkPercentage < Patcher.linkPercentageWarningThreshold) {
-        logger.warn(Patcher.lowLinkPercentageWarning(linkPercentage));
-      }
-      lastBuildLinkPercentage = linkPercentage;
-      lastBuildLinkMetadata = result.linkMetadata;
-    }
-
-    // The bytes the device must end up holding. For Route B that is the
-    // container; `hash` is taken from this file and `size` from the artifact
-    // below, because check_hash() on device runs against the INFLATED result.
-    final patchBuildFile =
-        routeBContainer ?? File(useLinker ? _vmcodeOutputPath : _aotOutputPath);
-
-    final File patchFile;
-    if (routeBContainer != null) {
-      // The SAME differ every other platform uses, against a one-byte synthetic
-      // base. The updater inflates every code artifact against the running
-      // app's base snapshot — on iOS the four Dart blobs behind
-      // SnapshotsDataHandle — and a container has nothing in common with those
-      // bytes. Diffing against them would buy nothing AND force the producer to
-      // reproduce the device's exact base, which needs `analyze_snapshot
-      // --dump_blobs`, a Shorebird-fork tool we cannot build.
-      //
-      // Against a synthetic base the artifact is pure literal inserts, so
-      // reconstruction never reads the base and is correct on any device. An
-      // actually-empty base panics inside bidiff's suffix-array code, which is
-      // why it is one zero byte rather than none.
-      //
-      // Verified byte-for-byte against the reference `route_b_artifact` tool,
-      // which is why no separate publishing tool remains in the product path.
-      final syntheticBase = File(
-        p.join(shorebirdEnv.buildDirectory.path, 'route_b_base'),
-      )..writeAsBytesSync(Uint8List(1));
-      patchFile = File(
-        await artifactManager.createDiff(
-          releaseArtifactPath: syntheticBase.path,
-          patchArtifactPath: routeBContainer.path,
-        ),
-      );
-    } else if (useLinker && await aotTools.isGeneratePatchDiffBaseSupported()) {
-      final patchBaseProgress = logger.progress('Generating patch diff base');
-      final analyzeSnapshotPath = shorebirdArtifacts.getArtifactPath(
-        artifact: ShorebirdArtifact.analyzeSnapshotIos,
-      );
-
-      final File patchBaseFile;
-      try {
-        // If the aot_tools executable supports the dump_blobs command, we
-        // can generate a stable diff base and use that to create a patch.
-        patchBaseFile = await aotTools.generatePatchDiffBase(
-          analyzeSnapshotPath: analyzeSnapshotPath,
-          releaseSnapshot: releaseArtifactFile,
+          coverage: coverage,
+          releaseImportKernel:
+              releaseArtifacts[routeBReleaseImportKernelFileName]!,
+          patchedVerificationKernel: patchedVerificationKernel,
+          releaseBuildId: buildId,
+          // WHAT THIS RELEASE GRANTED, from the release's own hash-verified
+          // artifact. Absent for a release cut before manifests existed, and the
+          // producer reads absence as "nothing provable" rather than as
+          // permission — so an older release keeps working for everything that
+          // worked before and refuses only the private references it cannot
+          // vouch for.
+          capabilities: _readReleaseCapabilities(releaseArtifacts),
+          // G4.1. The release's own effective define set, already proven to match
+          // this patch's by _verifyBuildConfigAgrees above, so the replacement
+          // compiles with the constants the release compiled with.
+          buildConfig: provenance.buildConfig,
+          // P4.1. WHAT THIS RELEASE STILL CONTAINS, as opposed to what it
+          // granted. Asked of the cell's own probe against the release's own
+          // profile, bound to the digest of the artifact downloaded just above.
+          survival: _releaseSurvivalOracle(
+            compiler: compiler,
+            releaseArtifacts: releaseArtifacts,
+            releaseArtifact: releaseArtifactFile,
+            provenance: provenance,
+          ),
+          // P4.4 layers 1 and 3. What this patch is bound to, recorded IN the
+          // published container so any later reader can check it rather than
+          // having to trust that the names lined up.
+          releaseEvidence: _releaseEvidence(
+            provenance: provenance,
+            releaseArtifacts: releaseArtifacts,
+            buildId: buildId,
+          ),
         );
-        patchBaseProgress.complete();
-      } on Exception catch (error) {
-        patchBaseProgress.fail('$error');
-        throw ProcessExit(ExitCode.software.code);
       }
 
-      patchFile = File(
-        await artifactManager.createDiff(
-          releaseArtifactPath: patchBaseFile.path,
-          patchArtifactPath: patchBuildFile.path,
-        ),
-      );
-    } else {
-      patchFile = patchBuildFile;
-    }
+      if (routeBContainer != null) {
+        return await _bundleRouteBContainer(routeBContainer);
+      }
 
-    final patchFileSize = patchFile.statSync().size;
-    final hash = sha256.convert(patchBuildFile.readAsBytesSync()).toString();
-    final hashSignature = await signHash(hash);
-
-    return {
-      Arch.arm64: PatchArtifactBundle(
-        arch: 'aarch64',
-        path: patchFile.path,
-        hash: hash,
-        size: patchFileSize,
-        hashSignature: hashSignature,
+      // The returned bundles point at the diff or the patch build output,
+      // never into the extracted release, so it can go once this returns.
+      return await linkAndBundlePatch(
+        releaseArtifactFile: releaseArtifactFile,
+        releaseSupplementDir: releaseSupplementDir,
         podfileLockHash: shorebirdEnv.iosPodfileLockHash,
-      ),
-    };
+      );
+    } finally {
+      releaseXcarchiveDirectory.deleteTemporarySync();
+      if (fallbackSupplementDirectory != null) {
+        fallbackSupplementDirectory.deleteTemporarySync();
+      }
+    }
   }
 
   /// Whether the engine this patch is being built with can run Route B
@@ -754,7 +597,7 @@ A patch is only interpretable against one whole contract, so these cannot be mix
     RouteBCompiler compiler,
     Map<String, File> releaseArtifacts,
   ) {
-    final patchKernel = File(_appDillCopyPath);
+    final patchKernel = File(appDillCopyPath);
     if (!patchKernel.existsSync()) {
       logger.err(
         '''Could not find the kernel this patch build produced at ${patchKernel.path}.''',
@@ -1148,37 +991,62 @@ this version of Shorebird request patchable call sites automatically.''',
     return ArtifactManager.findFlutterAssetsDirectory(app);
   }
 
+  /// Diffs the Route B [container] against a one-byte synthetic base and
+  /// returns the signed arm64 bundle for it.
+  ///
+  /// The bytes the device must end up holding are the container itself:
+  /// `hash` is taken from that file and `size` from the artifact, because
+  /// check_hash() on device runs against the INFLATED result.
+  Future<Map<Arch, PatchArtifactBundle>> _bundleRouteBContainer(
+    File container,
+  ) async {
+    // The SAME differ every other platform uses, against a one-byte synthetic
+    // base. The updater inflates every code artifact against the running
+    // app's base snapshot — on iOS the four Dart blobs behind
+    // SnapshotsDataHandle — and a container has nothing in common with those
+    // bytes. Diffing against them would buy nothing AND force the producer to
+    // reproduce the device's exact base, which needs `analyze_snapshot
+    // --dump_blobs`, a Shorebird-fork tool we cannot build.
+    //
+    // Against a synthetic base the artifact is pure literal inserts, so
+    // reconstruction never reads the base and is correct on any device. An
+    // actually-empty base panics inside bidiff's suffix-array code, which is
+    // why it is one zero byte rather than none.
+    final syntheticBase = File(
+      p.join(shorebirdEnv.buildDirectory.path, 'route_b_base'),
+    )..writeAsBytesSync(Uint8List(1));
+    final patchFile = File(
+      await artifactManager.createDiff(
+        releaseArtifactPath: syntheticBase.path,
+        patchArtifactPath: container.path,
+      ),
+    );
+
+    final hash = sha256.convert(container.readAsBytesSync()).toString();
+    final hashSignature = await signHash(hash);
+
+    return {
+      Arch.arm64: PatchArtifactBundle(
+        arch: 'aarch64',
+        path: patchFile.path,
+        hash: hash,
+        size: patchFile.statSync().size,
+        hashSignature: hashSignature,
+        podfileLockHash: shorebirdEnv.iosPodfileLockHash,
+      ),
+    };
+  }
+
   @override
   Future<String> extractReleaseVersionFromArtifact(File artifact) async {
     final archivePath = artifactManager.getXcarchiveDirectory()?.path;
     if (archivePath == null) _noXcarchiveFound();
 
-    final plistFile = File(p.join(archivePath, 'Info.plist'));
-    if (!plistFile.existsSync()) {
-      logger
-        ..err('No Info.plist file found at ${plistFile.path}.')
-        ..info(_passReleaseVersionHint);
-      throw ProcessExit(ExitCode.software.code);
-    }
-
-    final plist = Plist(file: plistFile);
-    try {
-      return plist.versionNumber;
-    } on Exception catch (error) {
-      logger
-        ..err(
-          'Failed to determine release version from ${plistFile.path}: $error',
-        )
-        ..info(_passReleaseVersionHint);
-      throw ProcessExit(ExitCode.software.code);
-    }
+    return readReleaseVersionFromInfoPlist(
+      File(p.join(archivePath, 'Info.plist')),
+      hint: passReleaseVersionHint,
+    );
   }
-
-  /// The release version is only read from the archive when the user did not
-  /// pass one, so passing one is always a way around a broken read.
-  static const _passReleaseVersionHint =
-      'Pass --release-version=<version> (or --release-version=latest) to '
-      'skip reading the version from the archive.';
 
   /// Logs that `flutter build ipa` left no .xcarchive where Shorebird looks
   /// for it and throws [ProcessExit].
@@ -1189,13 +1057,12 @@ this version of Shorebird request patchable call sites automatically.''',
       'ios',
       'archive',
     );
-    logger
-      ..err('No .xcarchive found in $archiveDirectory after the build.')
-      ..info(
-        'Shorebird looks for the archive that '
-        '${lightCyan.wrap('flutter build ipa')} writes there. '
-        'Re-run with --verbose to see the build output.',
-      );
-    throw ProcessExit(ExitCode.software.code);
+    throw CommandError(
+      message:
+          'No .xcarchive found in $archiveDirectory, where `flutter build '
+          'ipa` writes it.',
+      hint: 'Re-run with --verbose to see the build output.',
+      exitCode: ExitCode.software,
+    );
   }
 }

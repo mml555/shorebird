@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
-import 'package:platform/platform.dart';
+import 'package:platform/testing.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
@@ -13,8 +13,10 @@ import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 import 'package:test/test.dart';
 
 import 'mocks.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(ToolchainCoherence, () {
     const cell = '4792f0eca461f3761001a1adbe131b4b115e3684';
     const priorCell = 'ca7d2c0d43bf975db2c42cc0aa6351d527443abf';
@@ -94,14 +96,14 @@ void main() {
 
         if (cacheIosEngines) {
           File(
-            p.join(
-              dir.path,
-              'Flutter.xcframework',
-              'ios-arm64',
-              'Flutter.framework',
-              'Flutter',
-            ),
-          )
+              p.join(
+                dir.path,
+                'Flutter.xcframework',
+                'ios-arm64',
+                'Flutter.framework',
+                'Flutter',
+              ),
+            )
             ..createSync(recursive: true)
             ..writeAsStringSync(engineBytes(cachedEngineRevision, mode));
         }
@@ -223,7 +225,8 @@ void main() {
           expect(
             problems.map((e) => e.code).toSet(),
             {ToolchainIncoherence.engineArtifactsStale},
-            reason: 'no stamp or capability problem exists in this state — the '
+            reason:
+                'no stamp or capability problem exists in this state — the '
                 'byte comparison is the only thing that can catch it',
           );
           // ALL THREE modes named, not just the release one: a partially
@@ -443,7 +446,7 @@ void main() {
     group('assertToolchainCoherent', () {
       late ShorebirdEnv shorebirdEnv;
       late ShorebirdLogger logger;
-      late Platform platform;
+      late TestNativePlatform platform;
 
       R runWithOverrides<R>(R Function() body) => runScoped(
         body,
@@ -458,10 +461,9 @@ void main() {
       setUp(() {
         shorebirdEnv = MockShorebirdEnv();
         logger = MockShorebirdLogger();
-        platform = MockPlatform();
-        when(() => platform.environment).thenReturn({
-          publishedIosEngineDirEnvVar: publishedIos.path,
-        });
+        platform = TestNativePlatform(
+          environment: {publishedIosEngineDirEnvVar: publishedIos.path},
+        );
         when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDir);
         when(() => shorebirdEnv.shorebirdEngineRevision).thenReturn(cell);
       });
@@ -533,7 +535,7 @@ void main() {
       });
 
       test('REFUSES an iOS build when the published source is unset', () {
-        when(() => platform.environment).thenReturn({});
+        platform = platform.copyWith(environment: {});
         makeCheckout();
         expect(
           () => runWithOverrides(
@@ -545,7 +547,7 @@ void main() {
       });
 
       test('an ANDROID build still passes with no published source', () {
-        when(() => platform.environment).thenReturn({});
+        platform = platform.copyWith(environment: {});
         makeCheckout();
         expect(
           () => runWithOverrides(

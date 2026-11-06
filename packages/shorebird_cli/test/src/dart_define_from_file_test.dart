@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/dart_define_from_file.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 // G4.1. The rules here are Flutter's, not ours, and none of them is guessed:
 // each traces to `flutter_command.dart` in the pinned checkout
@@ -15,6 +16,7 @@ import 'package:test/test.dart';
 // So these tests pin the port; the probe is what says the port is right. Neither
 // is sufficient alone: a unit test can only agree with its author.
 void main() {
+  useTempWorkingDirectory();
   late Directory tempDir;
 
   setUp(

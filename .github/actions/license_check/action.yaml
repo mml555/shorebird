@@ -15,14 +15,19 @@ runs:
   using: "composite"
   steps:
     - name: 🎯 Setup Dart
-      uses: dart-lang/setup-dart@v1
+      uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
       with:
         sdk: ${{ inputs.dart_sdk }}
+        # Its matcher path resolves against the calling composite action rather
+        # than setup-dart itself, so the file is never found. setup-dart#198.
+        problem-matcher: false
 
     - name: 📦 Install Dependencies
       working-directory: ${{ inputs.working_directory }}
       shell: ${{ inputs.shell }}
-      run: dart pub get
+      # The install scripts install with --enforce-lockfile, so fail here if a
+      # pubspec change didn't update pubspec.lock.
+      run: dart pub get --enforce-lockfile
 
     - name: 📄 License Check
       working-directory: ${{ inputs.working_directory }}

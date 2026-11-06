@@ -10,6 +10,7 @@ import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 const _files = [
   'dartaotruntime',
@@ -39,6 +40,7 @@ const _member =
 }
 
 void main() {
+  useTempWorkingDirectory();
   late Directory tmp;
   setUp(() => tmp = Directory.systemTemp.createTempSync('cellbind'));
   tearDown(() => tmp.deleteSync(recursive: true));
@@ -84,22 +86,27 @@ void main() {
       probe: probe,
       fetchCellManifest: manifestText == null
           ? null
-          : (_) async => File(p.join(tmp.path, 'desc.v2'))
-              ..writeAsStringSync(manifestText),
+          : (_) async =>
+                File(p.join(tmp.path, 'desc.v2'))
+                  ..writeAsStringSync(manifestText),
     );
   }
 
   const legacyH = 'a5a8be5854c529268378ce16762a16d6e31763e9';
 
-  test('v2: descriptor + addressed bundle ACCEPTS, though bundle records H',
-      () async {
-    final (f, digest) = bundle(legacyH);
-    final m = makeManifest(digest);
-    final c = await resolve(
-      engineHash: m.address, theBundle: f, manifestText: m.text,
-    );
-    expect(c.supportsDirectSuperDualKernel, isTrue);
-  });
+  test(
+    'v2: descriptor + addressed bundle ACCEPTS, though bundle records H',
+    () async {
+      final (f, digest) = bundle(legacyH);
+      final m = makeManifest(digest);
+      final c = await resolve(
+        engineHash: m.address,
+        theBundle: f,
+        manifestText: m.text,
+      );
+      expect(c.supportsDirectSuperDualKernel, isTrue);
+    },
+  );
 
   test('v2: mutated compiler archive REFUSES on digest', () async {
     final (f, digest) = bundle(legacyH);
@@ -120,20 +127,23 @@ void main() {
     );
   });
 
-  test('v2: compiler member digest changed => no longer addresses the cell',
-      () async {
-    final (f, digest) = bundle(legacyH);
-    final m = makeManifest(digest);
-    final tampered = m.text.replaceFirst(digest, 'a' * 64);
-    await expectLater(
-      resolve(engineHash: m.address, theBundle: f, manifestText: tampered),
-      throwsA(predicate((e) => '$e'.contains('addresses'))),
-    );
-  });
+  test(
+    'v2: compiler member digest changed => no longer addresses the cell',
+    () async {
+      final (f, digest) = bundle(legacyH);
+      final m = makeManifest(digest);
+      final tampered = m.text.replaceFirst(digest, 'a' * 64);
+      await expectLater(
+        resolve(engineHash: m.address, theBundle: f, manifestText: tampered),
+        throwsA(predicate((e) => '$e'.contains('addresses'))),
+      );
+    },
+  );
 
   test('v2: wrong cell REFUSES', () async {
     final (f, digest) = bundle(legacyH);
-    final text = 'address_schema route-b-cell-v2\ncell linux-android\n'
+    final text =
+        'address_schema route-b-cell-v2\ncell linux-android\n'
         '$_member $digest\n';
     final addr = sha256.convert(utf8.encode(text)).toString().substring(0, 40);
     await expectLater(
@@ -147,51 +157,58 @@ void main() {
     final (f, _) = bundle(legacyH);
     await expectLater(
       resolve(engineHash: 'b' * 40, theBundle: f),
-      throwsA(predicate((e) =>
-          '$e'.contains('not the engine it was published under'))),
-    );
-  });
-
-  test('descriptor ABSENT (fetcher returns null) + valid v1 bundle => ACCEPT',
-      () async {
-    final (f, _) = bundle(legacyH);
-    // The fetcher is wired but reports genuine absence. That, and only that,
-    // may select the v1 rule.
-    final c = await resolveRouteBCompiler(
-      engineHash: legacyH,
-      fetchBundle: (_) async => f,
-      extractTo: extract,
-      cacheRoot: Directory(p.join(tmp.path, 'cache-abs'))..createSync(),
-      probe: probe,
-      fetchCellManifest: (_) async => null,
-    );
-    expect(c.supportsDirectSuperDualKernel, isTrue);
-  });
-
-  test('descriptor PRESENT but unknown schema => REFUSE, before bundle fetch',
-      () async {
-    var bundleFetched = false;
-    await expectLater(
-      resolveRouteBCompiler(
-        engineHash: 'c' * 40,
-        fetchBundle: (_) async {
-          bundleFetched = true;
-          return bundle(legacyH).$1;
-        },
-        extractTo: extract,
-        cacheRoot: Directory(p.join(tmp.path, 'cache-bad'))..createSync(),
-        probe: probe,
-        fetchCellManifest: (_) async => File(p.join(tmp.path, 'bad.v2'))
-          ..writeAsStringSync(
-            'address_schema something-else\ncell macos-ios\n',
-          ),
+      throwsA(
+        predicate(
+          (e) => '$e'.contains('not the engine it was published under'),
+        ),
       ),
-      throwsA(predicate((e) => '$e'.contains('not route-b-cell-v2'))),
     );
-    // A malformed descriptor must not silently downgrade to v1, and must not
-    // cost a tooling download.
-    expect(bundleFetched, isFalse);
   });
+
+  test(
+    'descriptor ABSENT (fetcher returns null) + valid v1 bundle => ACCEPT',
+    () async {
+      final (f, _) = bundle(legacyH);
+      // The fetcher is wired but reports genuine absence. That, and only that,
+      // may select the v1 rule.
+      final c = await resolveRouteBCompiler(
+        engineHash: legacyH,
+        fetchBundle: (_) async => f,
+        extractTo: extract,
+        cacheRoot: Directory(p.join(tmp.path, 'cache-abs'))..createSync(),
+        probe: probe,
+        fetchCellManifest: (_) async => null,
+      );
+      expect(c.supportsDirectSuperDualKernel, isTrue);
+    },
+  );
+
+  test(
+    'descriptor PRESENT but unknown schema => REFUSE, before bundle fetch',
+    () async {
+      var bundleFetched = false;
+      await expectLater(
+        resolveRouteBCompiler(
+          engineHash: 'c' * 40,
+          fetchBundle: (_) async {
+            bundleFetched = true;
+            return bundle(legacyH).$1;
+          },
+          extractTo: extract,
+          cacheRoot: Directory(p.join(tmp.path, 'cache-bad'))..createSync(),
+          probe: probe,
+          fetchCellManifest: (_) async =>
+              File(p.join(tmp.path, 'bad.v2'))..writeAsStringSync(
+                'address_schema something-else\ncell macos-ios\n',
+              ),
+        ),
+        throwsA(predicate((e) => '$e'.contains('not route-b-cell-v2'))),
+      );
+      // A malformed descriptor must not silently downgrade to v1, and must not
+      // cost a tooling download.
+      expect(bundleFetched, isFalse);
+    },
+  );
 
   test('descriptor with DUPLICATE cell lines => REFUSE as ambiguous', () async {
     final (f, digest) = bundle(legacyH);

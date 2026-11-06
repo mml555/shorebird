@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(RouteBCoverage, () {
     const target = 'package:app/main.dart#Shape.describe';
     const abstractReason = 'abstract; call sites dispatch to implementations';

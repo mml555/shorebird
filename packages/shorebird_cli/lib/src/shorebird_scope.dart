@@ -18,6 +18,7 @@ import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
 import 'package:shorebird_cli/src/artifact_builder/shorebird_tracer.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/auth/auth.dart';
+import 'package:shorebird_cli/src/browser.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/checksum_checker.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
@@ -67,6 +68,7 @@ Set<ScopedRef<dynamic>> shorebirdScope({
     () => BuildTraceSession(commandStartedAt: commandStartedAt),
   ),
   authRef,
+  browserRef,
   bundletoolRef,
   cacheRef,
   checksumCheckerRef,
@@ -92,6 +94,7 @@ Set<ScopedRef<dynamic>> shorebirdScope({
   linuxRef,
   loggerRef,
   networkCheckerRef,
+  nonRetryingHttpClientRef,
   openRef,
   osInterfaceRef,
   patchExecutableRef,
@@ -100,6 +103,7 @@ Set<ScopedRef<dynamic>> shorebirdScope({
   powershellRef,
   processRef,
   pubspecEditorRef,
+  retryFailedRequestsRef,
   // Route B (selfhost). Registered here or `read` throws at the moment
   // a Route B release or patch needs them — which unit tests cannot
   // catch, because they inject every ref they use.
@@ -112,7 +116,6 @@ Set<ScopedRef<dynamic>> shorebirdScope({
   shorebirdEnvRef,
   shorebirdFlutterRef,
   shorebirdTracerRef,
-  shorebirdToolsRef,
   shorebirdValidatorRef,
   runtimeEndpointRef,
   toolchainCoherenceRef,

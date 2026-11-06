@@ -5,8 +5,10 @@ import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_scope.dart';
 import 'package:test/test.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group('shorebirdScope', () {
     /// The scope `bin/shorebird.dart` actually runs commands inside.
     R runWithProductionScope<R>(R Function() body) => runScoped(

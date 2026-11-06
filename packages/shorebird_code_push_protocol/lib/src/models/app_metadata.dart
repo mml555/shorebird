@@ -15,6 +15,9 @@ class AppMetadata {
     required this.displayName,
     required this.createdAt,
     required this.updatedAt,
+    this.organizationId,
+    this.patchSigningRequired,
+    this.enterpriseName,
     this.latestReleaseVersion,
     this.latestPatchNumber,
     this.platforms,
@@ -30,7 +33,10 @@ class AppMetadata {
       json,
       () => AppMetadata(
         appId: json['app_id'] as String,
+        organizationId: json['organization_id'] as int?,
         displayName: json['display_name'] as String,
+        patchSigningRequired: json['patch_signing_required'] as bool?,
+        enterpriseName: json['enterprise_name'] as String?,
         latestReleaseVersion: json['latest_release_version'] as String?,
         latestPatchNumber: json['latest_patch_number'] as int?,
         createdAt: DateTime.parse(json['created_at'] as String),
@@ -68,8 +74,26 @@ class AppMetadata {
   /// The ID of the app.
   final String appId;
 
+  /// The ID of the organization the app belongs to. Every app
+  /// belongs to exactly one organization and the server always
+  /// sends this; it is optional only so that clients tolerate
+  /// servers that predate it.
+  final int? organizationId;
+
   /// The display name of the app.
   final String displayName;
+
+  /// Whether the enterprise the app's organization is in requires
+  /// every release and patch of the app to be signed, so the server
+  /// refuses a release built with `--no-patch-signing` and any patch
+  /// to a release that can't verify a signature. Sent only when
+  /// reading one app.
+  final bool? patchSigningRequired;
+
+  /// The name of the enterprise the app's organization is in, to
+  /// name in messages about its policies. Sent only when reading one
+  /// app, and only for an app in an enterprise.
+  final String? enterpriseName;
 
   /// The latest release version of the app.
   final String? latestReleaseVersion;
@@ -108,37 +132,43 @@ class AppMetadata {
   /// Server-emitted URL for the app's launcher icon, sourced from
   /// the most recent analyzed iOS release (or Android, when iOS
   /// has no analyzed release with an icon). Requires the same
-  /// auth as the rest of the apps API. The URL embeds the picked
-  /// release's id as a `v` query parameter so it can be cached
-  /// indefinitely; when a different release becomes the icon
-  /// source the URL changes and clients re-fetch. Omitted when
-  /// no analyzed release has an icon.
+  /// auth as the rest of the apps API. The URL embeds a digest
+  /// of the icon as a `v` query parameter so it can be cached
+  /// indefinitely; a release that leaves the icon unchanged
+  /// leaves the URL unchanged too. Omitted when no analyzed
+  /// release has an icon.
   final String? iconUrl;
 
   /// Converts an [AppMetadata] to a `Map<String, dynamic>`.
   Map<String, dynamic> toJson() {
     return {
       'app_id': appId,
+      'organization_id': ?organizationId,
       'display_name': displayName,
-      'latest_release_version': latestReleaseVersion,
-      'latest_patch_number': latestPatchNumber,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
-      'platforms': platforms?.map((e) => e.toJson()).toList(),
-      'latest_releases': latestReleases?.map(
+      'patch_signing_required': ?patchSigningRequired,
+      'enterprise_name': ?enterpriseName,
+      'latest_release_version': ?latestReleaseVersion,
+      'latest_patch_number': ?latestPatchNumber,
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'updated_at': updatedAt.toUtc().toIso8601String(),
+      'platforms': ?platforms?.map((e) => e.toJson()).toList(),
+      'latest_releases': ?latestReleases?.map(
         (key, value) => MapEntry(key.toJson(), value.toJson()),
       ),
-      'pending_releases': pendingReleases?.map(
+      'pending_releases': ?pendingReleases?.map(
         (key, value) => MapEntry(key.toJson(), value.toJson()),
       ),
-      'icon_url': iconUrl,
+      'icon_url': ?iconUrl,
     };
   }
 
   @override
   int get hashCode => Object.hashAll([
     appId,
+    organizationId,
     displayName,
+    patchSigningRequired,
+    enterpriseName,
     latestReleaseVersion,
     latestPatchNumber,
     createdAt,
@@ -154,7 +184,10 @@ class AppMetadata {
     if (identical(this, other)) return true;
     return other is AppMetadata &&
         appId == other.appId &&
+        organizationId == other.organizationId &&
         displayName == other.displayName &&
+        patchSigningRequired == other.patchSigningRequired &&
+        enterpriseName == other.enterpriseName &&
         latestReleaseVersion == other.latestReleaseVersion &&
         latestPatchNumber == other.latestPatchNumber &&
         createdAt == other.createdAt &&

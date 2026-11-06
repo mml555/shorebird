@@ -148,7 +148,7 @@ class RouteBCompilerResolver {
   /// file only because the resolver takes a File, and it is never promoted.
   Future<File?> _fetchCellManifest(String engineHash) async {
     final url =
-        '${cache.storageBaseUrl}/${cache.storageBucket}/shorebird/'
+        '${cache.shorebirdToolsRoot}/shorebird/'
         'cell-manifests/$engineHash.v2';
 
     final http.Response response;
@@ -173,8 +173,10 @@ class RouteBCompilerResolver {
     }
 
     final file = File(
-      p.join(Directory.systemTemp.createTempSync('route-b-cell').path,
-          '$engineHash.v2'),
+      p.join(
+        Directory.systemTemp.createTempSync('route-b-cell').path,
+        '$engineHash.v2',
+      ),
     )..writeAsBytesSync(response.bodyBytes);
     logger.detail('[route-b] fetched cell descriptor from $url');
     return file;
@@ -192,7 +194,7 @@ class RouteBCompilerResolver {
     }
 
     final url =
-        '${cache.storageBaseUrl}/${cache.storageBucket}/shorebird/'
+        '${cache.shorebirdToolsRoot}/shorebird/'
         '$engineHash/$bundleFileName';
 
     final http.StreamedResponse response;

@@ -3,11 +3,14 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/config/config.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
+import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 import 'package:test/test.dart';
 
+import '../helpers.dart';
 import '../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(FlavorValidator, () {
     const appId = 'app-id';
     const flavors = {'flavorA': 'flavorA', 'flavorB': 'flavorB'};
@@ -57,7 +60,7 @@ void main() {
             expect(
               issues.first.message,
               equals(
-                '''The project does not have any flavors defined, but the --flavor argument was provided''',
+                '''The project does not have any flavors defined (no "flavors" in shorebird.yaml), but --flavor was provided. Re-run without --flavor, or run "shorebird init" to detect flavors.''',
               ),
             );
           });
@@ -106,11 +109,99 @@ void main() {
                 equals([
                   ValidationIssue.error(
                     message:
-                        '''This project does not have a flavor named "flavorC". Available flavors: (flavorA, flavorB)''',
+                        '''This project does not have a flavor named "flavorC". Pass one of: flavorA, flavorB (from "flavors" in shorebird.yaml).''',
                   ),
                 ]),
               );
             });
+          });
+        });
+
+        group('when the platform project has no matching flavor', () {
+          test('returns an error naming the default app id', () async {
+            validator = FlavorValidator(
+              flavorArg: 'flavorA',
+              platform: ReleasePlatform.ios,
+              platformFlavors: {},
+            );
+            final issues = await runWithOverrides(validator.validate);
+            expect(
+              issues,
+              equals([
+                ValidationIssue.error(
+                  message:
+                      '''The iOS project has no Xcode scheme for flavor "flavorA", so it cannot be built with --flavor=flavorA. Add a scheme named "flavorA" (see https://docs.shorebird.dev/code-push/guides/flavors/ios/), or re-run without --flavor to use the default app id $appId.''',
+                ),
+              ]),
+            );
+          });
+
+          test(
+            'suggests the shorebird.yaml flavors that have a scheme',
+            () async {
+              when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(
+                const ShorebirdYaml(
+                  appId: appId,
+                  flavors: {'Prod': 'prod-id', 'Dev': 'dev-id'},
+                ),
+              );
+              validator = FlavorValidator(
+                flavorArg: 'Prod',
+                platform: ReleasePlatform.ios,
+                platformFlavors: {'dev', 'staging'},
+              );
+              final issues = await runWithOverrides(validator.validate);
+              expect(
+                issues,
+                equals([
+                  ValidationIssue.error(
+                    message:
+                        '''The iOS project has no Xcode scheme for flavor "Prod", so it cannot be built with --flavor=Prod. Add a scheme named "Prod" (see https://docs.shorebird.dev/code-push/guides/flavors/ios/), or pass one of: Dev.''',
+                  ),
+                ]),
+              );
+            },
+          );
+
+          test('links no guide for macOS', () async {
+            validator = FlavorValidator(
+              flavorArg: 'flavorA',
+              platform: ReleasePlatform.macos,
+              platformFlavors: {},
+            );
+            final issues = await runWithOverrides(validator.validate);
+            expect(
+              issues,
+              equals([
+                ValidationIssue.error(
+                  message:
+                      '''The macOS project has no Xcode scheme for flavor "flavorA", so it cannot be built with --flavor=flavorA. Add a scheme named "flavorA", or re-run without --flavor to use the default app id $appId.''',
+                ),
+              ]),
+            );
+          });
+
+          test('matches scheme names case-insensitively', () async {
+            when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(
+              const ShorebirdYaml(appId: appId, flavors: {'Staging': 'id'}),
+            );
+            validator = FlavorValidator(
+              flavorArg: 'Staging',
+              platform: ReleasePlatform.ios,
+              platformFlavors: {'staging'},
+            );
+            final issues = await runWithOverrides(validator.validate);
+            expect(issues, isEmpty);
+          });
+
+          test('does not warn about a missing --flavor', () async {
+            validator = FlavorValidator(
+              flavorArg: null,
+              platform: ReleasePlatform.ios,
+              platformFlavors: {},
+            );
+            final issues = await runWithOverrides(validator.validate);
+            expect(issues, isEmpty);
           });
         });
 
@@ -126,8 +217,8 @@ void main() {
               equals([
                 ValidationIssue.warning(
                   message: '''
-The project has flavors (flavorA, flavorB), but no --flavor argument was provided.
-The default app id $appId will be used.''',
+The project has flavors flavorA, flavorB, but no --flavor argument was provided.
+The default app id $appId will be used. Pass --flavor=<name> to target a flavor.''',
                 ),
               ]),
             );

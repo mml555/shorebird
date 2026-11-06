@@ -9,8 +9,10 @@ import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 import 'package:test/test.dart';
 
 import 'mocks.dart';
+import 'helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(GenSnapshotProbe, () {
     const flutterRevision = 'release-pinned-revision';
 

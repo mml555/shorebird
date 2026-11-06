@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
+import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -45,6 +46,13 @@ class ShorebirdProcess {
   /// on the child side, regressing the interactive UX; a pty or per-fd
   /// shell tee would fix both but costs a dependency / POSIX-only path.
   /// Accepting the logging gap for now.
+  ///
+  /// `--json` mode is the exception. `inheritStdio` hands the child our real
+  /// fd 1, which is exactly where `IOOverrides` cannot follow it, so gradle
+  /// and `flutter build` would write their output into the stream the caller
+  /// is parsing as JSON. There is no interactive terminal UX to protect for
+  /// a caller reading stdout, so pipe there instead and forward both of the
+  /// child's streams to stderr alongside our own human output.
   Future<int> stream(
     String executable,
     List<String> arguments, {
@@ -59,9 +67,22 @@ class ShorebirdProcess {
       environment: environment,
       runInShell: runInShell,
       workingDirectory: workingDirectory,
-      mode: ProcessStartMode.inheritStdio,
+      mode: isJsonMode
+          ? ProcessStartMode.normal
+          : ProcessStartMode.inheritStdio,
     );
     onStart?.call(process);
+    if (!isJsonMode) return process.exitCode;
+
+    // Bytes rather than lines: the child's output is already formatted for a
+    // terminal, and decoding it would only risk throwing on a partial or
+    // invalid UTF-8 sequence. `add` rather than `addStream`, because two
+    // concurrent `addStream` calls on one sink is a StateError.
+    await Future.wait([
+      process.stdout.forEach(stderr.add),
+      process.stderr.forEach(stderr.add),
+    ]);
+    await stderr.flush();
     return process.exitCode;
   }
 
@@ -306,18 +327,15 @@ $stderr''');
     if (_isFlutterExecutable(executable)) {
       // THE CHILD PROCESS IS WHERE THIS HAS TO LAND. Flutter fetches engine
       // artifacts itself, so an origin the parent merely knows about changes
-      // nothing — it is handed over in the environment, under Flutter's own
+      // nothing -- it is handed over in the environment, under Flutter's own
       // standard variable name.
       //
-      // Resolved through ArtifactOrigin rather than read here, so this is not a
-      // fourth place that decides an origin. The `shorebird` shell wrapper
-      // (third_party/flutter/bin/internal/shared.sh) resolves the same
-      // authority for the first-run bootstrap, which happens before any Dart
-      // code runs at all.
-      return {
-        ArtifactOrigin.flutterStorageKey:
-            ArtifactOrigin.flutterStorageBaseUrl(),
-      };
+      // Resolved through ShorebirdEnv.downloadUrl (SHOREBIRD_DOWNLOAD_URL, then
+      // the fork's FLUTTER_STORAGE_BASE_URL / SHOREBIRD_ARTIFACT_ORIGIN
+      // aliases via ArtifactOrigin), so this is not another place that decides
+      // an origin. If this ever changes we also need to update shared.sh and
+      // shorebird.ps1, which run Flutter to fetch artifacts the first time.
+      return {ArtifactOrigin.flutterStorageKey: shorebirdEnv.downloadUrl};
     }
 
     return {};
