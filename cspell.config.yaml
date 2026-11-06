@@ -325,8 +325,6 @@ words:
   - swiftc
   - fopen
   - caffeinate # macOS
-  - sshkey
-  - azureuser
   - reaudit
   - manualapi
   # --- Step 4: the probes/plans residue, READ rather than bulk-normalized.
