@@ -526,6 +526,9 @@ class Api {
     if (seg.length == 2 && seg[0] == 'oauth' && seg[1] == 'callback') {
       return true;
     }
+    if (seg.length == 2 && seg[0] == 'cli' && seg[1] == 'login-result') {
+      return true;
+    }
     if (seg.length == 2 && seg[0] == 'api' && seg[1] == 'logout') return true;
     if (seg.length == 2 && seg[0] == '.well-known' && seg[1] == 'jwks.json') {
       return true;
@@ -693,6 +696,12 @@ class Api {
     if (seg.isNotEmpty && seg[0] == 'console' && m == 'GET') return _console();
 
     // OAuth auth service (shorebird login).
+    if (seg.length == 2 &&
+        seg[0] == 'cli' &&
+        seg[1] == 'login-result' &&
+        m == 'GET') {
+      return _cliLoginResult(req);
+    }
     if (seg.length == 1 && seg[0] == 'login' && m == 'GET') return _login(req);
     if (seg.length == 1 && seg[0] == 'login' && m == 'POST') {
       return _loginSubmit(req);
@@ -985,6 +994,15 @@ class Api {
       q['code_challenge'],
       q['code_challenge_method'],
     );
+    // The `redirect_uri` spelling is the standard authorization-code request,
+    // and PKCE is what binds its code to the login that asked for it, so it
+    // is required there. Only the legacy `continue` spelling, which the
+    // oldest CLIs send, may go without.
+    if (q['continue'] == null && challenge == null) {
+      throw badRequest(
+        'code_challenge (PKCE, S256) is required with redirect_uri',
+      );
+    }
 
     // Broker mode: bounce to the external IdP; the real email arrives at
     // /oauth/callback, which then issues our own code back to `continue`.
@@ -1009,6 +1027,38 @@ class Api {
     }
 
     return _loginFormResponse(cont, challenge: challenge);
+  }
+
+  /// GET `/cli/login-result?status=success|failed`: where the CLI sends the
+  /// browser once its loopback listener has seen the login finish. Public and
+  /// static: only `status == success` is honoured, and nothing from the
+  /// request is reflected into the page.
+  Response _cliLoginResult(Request req) {
+    final ok = req.url.queryParameters['status'] == 'success';
+    final title = ok ? 'You are logged in' : 'Login did not complete';
+    final detail = ok
+        ? 'You are logged in. You can close this tab and return to your '
+              'terminal.'
+        : 'The login did not complete. Return to your terminal for the '
+              'reason, then run <code>shorebird login</code> again.';
+    return Response(
+      HttpStatus.ok,
+      body:
+          '''
+<!doctype html><html><head><meta charset="utf-8"><title>$title</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+ body{font:15px/1.5 system-ui,sans-serif;margin:0;display:grid;place-items:center;
+      min-height:100vh;background:#f6f7f9;color:#222}
+ main{background:#fff;padding:2rem;border-radius:12px;box-shadow:0 1px 4px #0002;width:min(26rem,90vw)}
+ h1{font-size:1.15rem;margin:0 0 .5rem}
+</style></head><body><main><h1>$title</h1><p>$detail</p></main></body></html>
+''',
+      headers: {
+        HttpHeaders.contentTypeHeader: 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+      },
+    );
   }
 
   /// POST `/login` (form-encoded `continue` + `api_key`): the self-consent

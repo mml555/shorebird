@@ -150,17 +150,59 @@ void main() {
     }
   });
 
-  test(
-    'a login with no challenge (older CLI) redeems without a verifier',
-    () async {
-      final q = await login(challenge: null);
-      final r = await token({
-        'grant_type': 'authorization_code',
-        'code': q['code']!,
-      });
-      expect(r.statusCode, HttpStatus.ok);
-    },
-  );
+  test('a redirect_uri login without a PKCE challenge is refused', () async {
+    for (final extra in [
+      <String, String>{},
+      {'code_challenge_method': 'S256'},
+    ]) {
+      final r = await send(
+        'GET',
+        '/login?${Uri(queryParameters: {'redirect_uri': 'http://localhost:1/callback', 'state': 's', ...extra}).query}',
+      );
+      expect(r.statusCode, HttpStatus.badRequest, reason: '$extra');
+      expect(await r.readAsString(), contains('code_challenge'));
+    }
+  });
+
+  test('a login with no challenge (older CLI, `continue`) redeems without a '
+      'verifier', () async {
+    final cont = 'http://localhost:1234/cb';
+    expect(
+      (await send(
+        'GET',
+        '/login?continue=${Uri.encodeQueryComponent(cont)}',
+      )).statusCode,
+      HttpStatus.ok,
+    );
+    final post = await send(
+      'POST',
+      '/login',
+      form: {'continue': cont, 'api_key': _key},
+    );
+    final code = Uri.parse(
+      post.headers[HttpHeaders.locationHeader]!,
+    ).queryParameters['code']!;
+    final r = await token({'grant_type': 'authorization_code', 'code': code});
+    expect(r.statusCode, HttpStatus.ok);
+  });
+
+  test('/cli/login-result is public and says how the login went', () async {
+    final ok = await send('GET', '/cli/login-result?status=success');
+    expect(ok.statusCode, HttpStatus.ok);
+    expect(ok.headers[HttpHeaders.contentTypeHeader], contains('text/html'));
+    expect(await ok.readAsString(), contains('logged in'));
+    final bad = await send('GET', '/cli/login-result?status=failed');
+    expect(bad.statusCode, HttpStatus.ok);
+    expect(await bad.readAsString(), contains('did not complete'));
+    // Anything else is treated as a failure and never reflected.
+    final evil = await send(
+      'GET',
+      '/cli/login-result?status=%3Cscript%3Ealert(1)%3C/script%3E',
+    );
+    final html = await evil.readAsString();
+    expect(html, isNot(contains('<script>alert')));
+    expect(html, contains('did not complete'));
+  });
 
   test('the older `continue` flow is unchanged', () async {
     final form = await send(
