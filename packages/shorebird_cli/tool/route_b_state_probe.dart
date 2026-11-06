@@ -19,7 +19,9 @@ void main(List<String> args) {
       }
     }
     stdout.writeln('  ${path.split('/').last}');
-    stdout.writeln('    parsed lowering=${c.lowering.length} '
-        'absent(null)=$absent empty=$empty populated=$populated');
+    stdout.writeln(
+      '    parsed lowering=${c.lowering.length} '
+      'absent(null)=$absent empty=$empty populated=$populated',
+    );
   }
 }

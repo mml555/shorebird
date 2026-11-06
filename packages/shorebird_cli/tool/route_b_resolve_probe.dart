@@ -34,42 +34,59 @@ Future<void> main(List<String> args) async {
   final root = Directory(args[1]);
   final recorder = _Recording(http.Client());
 
-  await runScoped(() async {
-    stdout.writeln('  cacheRoot path         : '
-        '${RouteBCompilerResolver.cacheRoot.path}');
-    final resolver = RouteBCompilerResolver();
-    try {
-      final compiler = await resolver.resolve(engineRevision: engine);
-      stdout.writeln('RESULT: ACCEPTED');
-      stdout.writeln('  dual-kernel capability : '
-          '${compiler.supportsDirectSuperDualKernel}');
-      final bundle = File(p.join(root.path, 'bundles',
-          '$engine-route-b-compiler-darwin-arm64.zip'));
-      if (bundle.existsSync()) {
-        stdout.writeln('  bundle archive sha256  : '
-            '${sha256.convert(bundle.readAsBytesSync())}');
+  await runScoped(
+    () async {
+      stdout.writeln(
+        '  cacheRoot path         : '
+        '${RouteBCompilerResolver.cacheRoot.path}',
+      );
+      final resolver = RouteBCompilerResolver();
+      try {
+        final compiler = await resolver.resolve(engineRevision: engine);
+        stdout.writeln('RESULT: ACCEPTED');
+        stdout.writeln(
+          '  dual-kernel capability : '
+          '${compiler.supportsDirectSuperDualKernel}',
+        );
+        final bundle = File(
+          p.join(
+            root.path,
+            'bundles',
+            '$engine-route-b-compiler-darwin-arm64.zip',
+          ),
+        );
+        if (bundle.existsSync()) {
+          stdout.writeln(
+            '  bundle archive sha256  : '
+            '${sha256.convert(bundle.readAsBytesSync())}',
+          );
+        }
+        final prov = File(p.join(root.path, engine, 'PROVENANCE.txt'));
+        if (prov.existsSync()) {
+          final line = prov.readAsLinesSync().firstWhere(
+            (l) => l.startsWith('engine revision'),
+            orElse: () => '',
+          );
+          stdout.writeln(
+            '  producer lineage       : ${line.split(':').last.trim()}',
+          );
+        }
+      } on Object catch (e) {
+        stdout.writeln('RESULT: REFUSED');
+        stdout.writeln('  $e'.split('\n').take(3).join('\n  '));
       }
-      final prov = File(p.join(root.path, engine, 'PROVENANCE.txt'));
-      if (prov.existsSync()) {
-        final line = prov
-            .readAsLinesSync()
-            .firstWhere((l) => l.startsWith('engine revision'), orElse: () => '');
-        stdout.writeln('  producer lineage       : ${line.split(':').last.trim()}');
+      stdout.writeln('REQUESTS (in order):');
+      for (final u in recorder.urls) {
+        stdout.writeln('  ${u.replaceFirst('http://localhost:8085', '')}');
       }
-    } on Object catch (e) {
-      stdout.writeln('RESULT: REFUSED');
-      stdout.writeln('  $e'.split('\n').take(3).join('\n  '));
-    }
-    stdout.writeln('REQUESTS (in order):');
-    for (final u in recorder.urls) {
-      stdout.writeln('  ${u.replaceFirst('http://localhost:8085', '')}');
-    }
-  }, values: {
-    httpClientRef.overrideWith(() => recorder),
-    cacheRef.overrideWith(Cache.new),
-    loggerRef.overrideWith(ShorebirdLogger.new),
-    shorebirdEnvRef.overrideWith(ShorebirdEnv.new),
-    isJsonModeRef.overrideWith(() => false),
-    artifactManagerRef.overrideWith(ArtifactManager.new),
-  });
+    },
+    values: {
+      httpClientRef.overrideWith(() => recorder),
+      cacheRef.overrideWith(Cache.new),
+      loggerRef.overrideWith(ShorebirdLogger.new),
+      shorebirdEnvRef.overrideWith(ShorebirdEnv.new),
+      isJsonModeRef.overrideWith(() => false),
+      artifactManagerRef.overrideWith(ArtifactManager.new),
+    },
+  );
 }

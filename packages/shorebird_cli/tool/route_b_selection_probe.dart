@@ -72,10 +72,14 @@ Future<void> main(List<String> args) async {
             '$engine-route-b-compiler-darwin-arm64.zip',
           ),
         );
-        stdout.writeln('  compiler archive : '
-            '${sha256.convert(bundle.readAsBytesSync())}');
-        stdout.writeln('  dual-kernel      : '
-            '${c.supportsDirectSuperDualKernel}');
+        stdout.writeln(
+          '  compiler archive : '
+          '${sha256.convert(bundle.readAsBytesSync())}',
+        );
+        stdout.writeln(
+          '  dual-kernel      : '
+          '${c.supportsDirectSuperDualKernel}',
+        );
         stdout.writeln('  RESULT: ACCEPTED');
       } on Object catch (e) {
         stdout.writeln('  RESULT: REFUSED');
