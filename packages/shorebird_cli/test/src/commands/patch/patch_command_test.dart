@@ -415,6 +415,7 @@ void main() {
       ).thenReturn([File('/path/to/gen_snapshot')]);
       when(() => patcher.extraBuildArgs).thenReturn(const []);
       when(patcher.assetsDirectory).thenAnswer((_) async => null);
+      when(() => patcher.signHash(any())).thenAnswer((_) async => null);
       when(patcher.debugSymbolsDirectory).thenAnswer((_) async => null);
       when(() => patcher.updatedPlatformMetadata(any())).thenAnswer(
         (invocation) async =>
@@ -712,6 +713,31 @@ void main() {
             publishedSidecars()[ReleasePlatform.android]?.assets,
             isNotNull,
           );
+        });
+
+        test('signs the asset bundle hash when a key is configured', () async {
+          when(
+            () => patcher.signHash(any()),
+          ).thenAnswer((_) async => 'assets-signature');
+
+          await runWithOverrides(command.run);
+
+          final sidecar = publishedSidecars()[ReleasePlatform.android]!;
+          // The signature is over the sha256 of the zip as uploaded, which is
+          // the file the updater hashes for dlc.assets.
+          final hash = sha256.convert(sidecar.assets!.readAsBytesSync());
+          verify(() => patcher.signHash(hash.toString())).called(1);
+          expect(sidecar.assetsHashSignature, 'assets-signature');
+        });
+
+        test('sends no signature without a key', () async {
+          when(() => patcher.signHash(any())).thenAnswer((_) async => null);
+
+          await runWithOverrides(command.run);
+
+          final sidecar = publishedSidecars()[ReleasePlatform.android]!;
+          expect(sidecar.assets, isNotNull);
+          expect(sidecar.assetsHashSignature, isNull);
         });
 
         test('refuses to publish a patch that would carry nothing', () async {

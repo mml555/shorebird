@@ -4409,6 +4409,63 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
           verify(() => progress.complete()).called(1);
         });
 
+        test('carries the supplied signature on the assets artifact, and '
+            'none without one', () async {
+          when(
+            () => codePushClient.createPatchArtifact(
+              appId: any(named: 'appId'),
+              patchId: any(named: 'patchId'),
+              artifactPath: any(named: 'artifactPath'),
+              arch: any(named: 'arch'),
+              platform: any(named: 'platform'),
+              hash: any(named: 'hash'),
+              hashSignature: any(named: 'hashSignature'),
+            ),
+          ).thenAnswer((_) async {});
+          final hash = sha256.convert(bundle.readAsBytesSync()).toString();
+
+          await runWithOverrides(
+            () => codePushClientWrapper.createPatchAssetArtifact(
+              appId: appId,
+              patch: patch,
+              platform: releasePlatform,
+              bundle: bundle,
+              hashSignature: 'c2ln',
+            ),
+          );
+          verify(
+            () => codePushClient.createPatchArtifact(
+              appId: appId,
+              patchId: patchId,
+              artifactPath: bundle.path,
+              arch: assetsArch,
+              platform: releasePlatform,
+              hash: hash,
+              hashSignature: 'c2ln',
+            ),
+          ).called(1);
+
+          await runWithOverrides(
+            () => codePushClientWrapper.createPatchAssetArtifact(
+              appId: appId,
+              patch: patch,
+              platform: releasePlatform,
+              bundle: bundle,
+            ),
+          );
+          verify(
+            () => codePushClient.createPatchArtifact(
+              appId: appId,
+              patchId: patchId,
+              artifactPath: bundle.path,
+              arch: assetsArch,
+              platform: releasePlatform,
+              hash: hash,
+              hashSignature: null,
+            ),
+          ).called(1);
+        });
+
         test('retains debug symbols under the symbols tag', () async {
           final symbols = File(p.join(tempDir.path, 'patch-debug.zip'))
             ..writeAsBytesSync([9, 9, 9]);
@@ -4598,6 +4655,7 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                 sidecars: {
                   releasePlatform: (
                     assets: assetsBundle,
+                    assetsHashSignature: null,
                     symbols: symbolsBundle,
                   ),
                 },
@@ -4635,7 +4693,11 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                 patchArtifactBundles: {releasePlatform: patchArtifactBundles},
                 metadata: {'foo': 'bar'},
                 sidecars: {
-                  releasePlatform: (assets: null, symbols: symbolsBundle),
+                  releasePlatform: (
+                    assets: null,
+                    assetsHashSignature: null,
+                    symbols: symbolsBundle,
+                  ),
                 },
               ),
             );
@@ -4697,7 +4759,11 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                 patchArtifactBundles: {releasePlatform: patchArtifactBundles},
                 metadata: {'foo': 'bar'},
                 sidecars: {
-                  releasePlatform: (assets: assetsBundle, symbols: null),
+                  releasePlatform: (
+                    assets: assetsBundle,
+                    assetsHashSignature: null,
+                    symbols: null,
+                  ),
                 },
               ),
             );
@@ -4722,6 +4788,7 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                 sidecars: {
                   ReleasePlatform.android: (
                     assets: assetsBundle,
+                    assetsHashSignature: null,
                     symbols: null,
                   ),
                 },

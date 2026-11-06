@@ -94,10 +94,24 @@ const symbolsArch = 'symbols';
 /// Both are optional and independent: a patch may ship assets without symbols
 /// (no `--split-debug-info`), symbols without assets (no `--assets`), or
 /// neither, which is the default and matches stock behavior exactly.
-typedef PatchSidecars = ({File? assets, File? symbols});
+///
+/// [assetsHashSignature] is the signature of the assets bundle's sha256, made
+/// with the same key as the code artifact's (null when no key is configured).
+/// Devices verify `dlc.assets` against it in Strict mode exactly as they verify
+/// code, and the server requires it for customer-signed releases. Symbols are
+/// never signed: devices never download them.
+typedef PatchSidecars = ({
+  File? assets,
+  String? assetsHashSignature,
+  File? symbols,
+});
 
 /// A [PatchSidecars] carrying nothing, for platforms that contributed neither.
-const noPatchSidecars = (assets: null, symbols: null);
+const noPatchSidecars = (
+  assets: null,
+  assetsHashSignature: null,
+  symbols: null,
+);
 
 /// A reference to a [CodePushClientWrapper] instance.
 ScopedRef<CodePushClientWrapper> codePushClientWrapperRef = create(
@@ -1626,6 +1640,7 @@ $name artifact already exists, continuing...''');
     required CreatePatchResponse patch,
     required ReleasePlatform platform,
     required File bundle,
+    String? hashSignature,
   }) => _createPatchSidecarArtifact(
     appId: appId,
     patch: patch,
@@ -1633,6 +1648,7 @@ $name artifact already exists, continuing...''');
     file: bundle,
     arch: assetsArch,
     label: 'assets',
+    hashSignature: hashSignature,
   );
 
   /// Retains debug symbols for [patch] so crashes reported against it can be
@@ -1668,6 +1684,7 @@ $name artifact already exists, continuing...''');
     required File file,
     required String arch,
     required String label,
+    String? hashSignature,
   }) async {
     final progress = logger.progress(
       'Uploading ${platform.displayName} $label',
@@ -1680,6 +1697,7 @@ $name artifact already exists, continuing...''');
         arch: arch,
         platform: platform,
         hash: sha256.convert(await file.readAsBytes()).toString(),
+        hashSignature: hashSignature,
       );
       progress.complete();
     } catch (error) {
@@ -1818,6 +1836,7 @@ $name artifact already exists, continuing...''');
           patch: patch,
           platform: platform,
           bundle: assets,
+          hashSignature: sidecar.assetsHashSignature,
         );
       }
       if (sidecar.symbols case final symbols?) {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
@@ -1750,6 +1751,7 @@ Refusing before building: a patch built with a different configuration compiles 
     final platformName = patcher.releaseType.releasePlatform.displayName;
 
     File? assets;
+    String? assetsHashSignature;
     if (includeAssets) {
       final directory = await patcher.assetsDirectory();
       if (directory == null) {
@@ -1759,6 +1761,14 @@ Refusing before building: a patch built with a different configuration compiles 
         );
       } else {
         assets = await _tryZip(directory, name: 'assets', of: platformName);
+        if (assets != null) {
+          // Devices install the bundle as `dlc.assets` and, in Strict mode,
+          // verify this signature over the sha256 of exactly these bytes, as
+          // they do for code. Null when no signing key is configured.
+          assetsHashSignature = await patcher.signHash(
+            sha256.convert(await assets.readAsBytes()).toString(),
+          );
+        }
       }
     }
 
@@ -1769,7 +1779,11 @@ Refusing before building: a patch built with a different configuration compiles 
       symbols = await _tryZip(directory, name: 'symbols', of: platformName);
     }
 
-    return (assets: assets, symbols: symbols);
+    return (
+      assets: assets,
+      assetsHashSignature: assetsHashSignature,
+      symbols: symbols,
+    );
   }
 
   /// Zips [directory], or returns null and warns if that fails. [name] and [of]
