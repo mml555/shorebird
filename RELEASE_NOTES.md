@@ -30,8 +30,8 @@ applies, and the fork's own behavior is kept on top of it:
 - `--confirm` on `release` and `patch` is accepted again, hidden. Upstream
   removed it and prompts nowhere by default; here it asks `Would you like to
   continue?` after the summary. With no terminal to answer it refuses (exit 64)
-  instead of going ahead, and declining exits 1 as upstream's prompts do (it
-  was 0 in the 1.6.123 backport).
+  instead of going ahead, and declining prints `Aborting.` and exits 0, as the
+  1.6.123 backport did.
 
 ## 1.6.138 (November 6, 2026)
 
