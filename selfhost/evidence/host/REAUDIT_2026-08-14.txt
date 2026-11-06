@@ -1,4 +1,4 @@
-host re-audit — 20.120.104.70:13549 — 2026-08-14
+host re-audit — <build-host>:<ssh-port> — 2026-08-14
 
 --- hermes: gone ---
 systemctl is-active hermes-gateway -> inactive

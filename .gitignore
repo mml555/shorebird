@@ -23,7 +23,7 @@ bin/cache/
 .DS_Store
 .claude/
 serverinfo.md
-sshkey20.120.104.70.pem
+sshkey*.pem
 
 # Locally built experimental engine artifacts served by the CDN mirror
 # (selfhost/engine/overlay_publish.sh). Hundreds of MB of build output.
@@ -77,3 +77,6 @@ selfhost/fixtures/privatestate_app/ios/Flutter/ephemeral/
 # runtime CLI checkout. Machine-local by nature, so it is not committed -- the
 # verifier reads it only to avoid a hard-coded default.
 selfhost/engine/route_b/.runtime_root
+
+# R12 mirror server key: regenerate with selfhost/ci/r12/tls_r12.sh, never commit.
+selfhost/cdn/tls-r12/server.key

@@ -1870,7 +1870,7 @@ Not blockers on the engine, but real:
   so the device half is ready. What remains is the build itself, and it is not a
   quick job:
 
-  - `20.120.104.70` has **4 cores**, and its `out/` directories are gone. Disk
+  - `<build-host>` has **4 cores**, and its `out/` directories are gone. Disk
     is no longer the constraint — the media archive was removed on 2026-08-05,
     so `/data` has **378 GB free** and `/mnt/spare` **195 GB**. Cores are: a
     full `android_release_arm64` build there is multi-hour on 4 of them. Run it
@@ -2800,10 +2800,10 @@ Do not re-learn these:
 
   Note `/mnt/spare` is the old 220 GB `/data` disk, now in `/etc/fstab` with
   `nofail` (backup at `/etc/fstab.bak-20260803`).
-- **Build host:** Hermes VPS `20.120.104.70`. **SSH is on port 13549 as user
-  `jewgo`**, not 22 as `azureuser` — port 22 is filtered, so the box looks dead
-  if you assume the default (`ssh -i sshkey20.120.104.70.pem -p 13549
-  jewgo@20.120.104.70`; also recorded in [`../serverinfo.md`](../serverinfo.md)).
+- **Build host:** Hermes VPS `<build-host>`. **SSH is on port <ssh-port> as user
+  `<ssh-user>`**, not 22 as `azureuser` — port 22 is filtered, so the box looks dead
+  if you assume the default (`ssh -i <ssh-key>.pem -p <ssh-port>
+  <ssh-user>@<build-host>`; also recorded in [`../serverinfo.md`](../serverinfo.md)).
   Confirmed reachable 2026-07-30: 4 cores, 82 GB RAM, `/data` 380 GB free,
   `hermes-gateway` active. Everything under
   `/data/shorebird-engine/` — never touch `/data/hermes`, and check

@@ -11,5 +11,5 @@ Please create a release using "shorebird release" and try again.
 If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
 
 You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
-/home/jewgo/.config/shorebird/logs/1786723977873_shorebird.log
+/home/<ssh-user>/.config/shorebird/logs/1786723977873_shorebird.log
 
