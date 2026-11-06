@@ -309,7 +309,9 @@ void main() {
             'bash',
             [
               '-c',
-              'source "\$1"; resolve_download_url',
+              // `set -u`: the Flutter wrapper scripts may run with nounset, and
+              // most of the variables read here are unset in most matrix rows.
+              'set -u; source "\$1"; resolve_download_url',
               'bash',
               shared,
             ],

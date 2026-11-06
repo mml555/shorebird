@@ -29,7 +29,7 @@ function resolve_download_url {
   local names=(SHOREBIRD_DOWNLOAD_URL FLUTTER_STORAGE_BASE_URL SHOREBIRD_ARTIFACT_ORIGIN)
   local winner="" winner_value="" distinct="" ignored="" name value
   for name in "${names[@]}"; do
-    value="$(_origin_value "${!name}")"
+    value="$(_origin_value "${!name:-}")"
     [[ -z "$value" ]] && continue
     if [[ -z "$winner" ]]; then
       winner="$name"; winner_value="$value"
@@ -47,15 +47,15 @@ function resolve_download_url {
     if [[ "$winner" == SHOREBIRD_DOWNLOAD_URL ]]; then
       layout="upstream layout: $winner_value/shorebird/<engine>/..."
     else
-      storage_base="$(_origin_value "$SHOREBIRD_STORAGE_BASE_URL")"
-      [[ -z "$storage_base" ]] && storage_base="$(_origin_value "$SHOREBIRD_ARTIFACT_ORIGIN")"
+      storage_base="$(_origin_value "${SHOREBIRD_STORAGE_BASE_URL:-}")"
+      [[ -z "$storage_base" ]] && storage_base="$(_origin_value "${SHOREBIRD_ARTIFACT_ORIGIN:-}")"
       [[ -z "$storage_base" ]] && storage_base="https://storage.googleapis.com"
-      storage_bucket="$(_origin_value "$SHOREBIRD_STORAGE_BUCKET")"
+      storage_bucket="$(_origin_value "${SHOREBIRD_STORAGE_BUCKET:-}")"
       [[ -z "$storage_bucket" ]] && storage_bucket="download.shorebird.dev"
       layout="fork layout: $storage_base/$storage_bucket/shorebird/<engine>/..."
     fi
     local all_set
-    all_set="$(for name in "${names[@]}"; do if [[ -n "$(_origin_value "${!name}")" ]]; then printf '%s, ' "$name"; fi; done)"
+    all_set="$(for name in "${names[@]}"; do if [[ -n "$(_origin_value "${!name:-}")" ]]; then printf '%s, ' "$name"; fi; done)"
     >&2 echo "Warning: ${all_set%, } are set to conflicting values. $winner=$winner_value wins (precedence: SHOREBIRD_DOWNLOAD_URL, FLUTTER_STORAGE_BASE_URL, SHOREBIRD_ARTIFACT_ORIGIN), giving the $layout. Ignored: $ignored. Unset the ones you do not mean."
   fi
   printf '%s' "$winner_value"
