@@ -146,6 +146,12 @@ To target the latest release (e.g. the release that was most recently updated) u
         hide: true,
       )
       ..addFlag(
+        CommonArguments.confirmArg.name,
+        help: CommonArguments.confirmArg.description,
+        negatable: false,
+        hide: true,
+      )
+      ..addFlag(
         CommonArguments.noConfirmArg.name,
         help: CommonArguments.noConfirmArg.description,
         negatable: false,
@@ -1916,6 +1922,21 @@ ${styleBold.wrap(lightGreen.wrap('🚀 Ready to publish a new patch!'))}
 
 ${summary.join('\n')}
 ''');
+
+    // A requested confirmation must not approve itself: `logger.confirm`
+    // throws InteractivePromptRequiredException (exit 64) when nothing can
+    // answer, so this refuses rather than publishing unattended.
+    if (results[CommonArguments.confirmArg.name] == true &&
+        !logger.confirm(
+          'Would you like to continue?',
+          defaultValue: true,
+          hint:
+              'Re-run with a TTY, or drop --confirm to proceed without '
+              'confirmation.',
+        )) {
+      logger.err('Aborting.');
+      throw PromptDeclinedExit();
+    }
   }
 
   /// Downloads the given [releaseArtifact].

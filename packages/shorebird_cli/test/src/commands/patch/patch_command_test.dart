@@ -29,6 +29,7 @@ import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/flutter_build_options.dart';
 import 'package:shorebird_cli/src/gen_snapshot_probe.dart';
 import 'package:shorebird_cli/src/json_output.dart';
+import 'package:shorebird_cli/src/interactive_mode.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
@@ -472,14 +473,13 @@ void main() {
       expect(command.description, isNotEmpty);
     });
 
-    test('accepts a hidden --no-confirm and rejects --confirm', () {
+    test('accepts hidden --no-confirm and --confirm', () {
       final parser = PatchCommand().argParser;
       expect(parser.options['no-confirm']!.hide, isTrue);
+      expect(parser.options['confirm']!.hide, isTrue);
       expect(() => parser.parse(['--no-confirm']), returnsNormally);
-      expect(
-        () => parser.parse(['--confirm']),
-        throwsA(isA<FormatException>()),
-      );
+      expect(parser.parse(['--confirm'])['confirm'], isTrue);
+      expect(parser.parse([])['confirm'], isFalse);
     });
 
     test('accepts --channel as an alias of --track', () {
@@ -1856,6 +1856,75 @@ A patch cannot change the Flutter version a release was built with. To fix this,
     });
 
     group('confirmCreatePatch', () {
+      group('--confirm', () {
+        Future<void> logSummary() => runWithOverrides(
+          () => command.logPatchSummary(
+            app: appMetadata,
+            releaseVersion: releaseVersion,
+            patchers: [patcher],
+            patchArtifactBundles: {
+              patcher.releaseType.releasePlatform: patchArtifactBundles,
+            },
+          ),
+        );
+
+        setUp(() {
+          when(() => argResults['confirm']).thenReturn(true);
+        });
+
+        test('goes on when the user confirms', () async {
+          when(
+            () => logger.confirm(
+              any(),
+              defaultValue: any(named: 'defaultValue'),
+              hint: any(named: 'hint'),
+            ),
+          ).thenReturn(true);
+
+          await logSummary();
+
+          verify(
+            () => logger.confirm(
+              'Would you like to continue?',
+              defaultValue: true,
+              hint: any(named: 'hint'),
+            ),
+          ).called(1);
+        });
+
+        test('stops when the user declines', () async {
+          when(
+            () => logger.confirm(
+              any(),
+              defaultValue: any(named: 'defaultValue'),
+              hint: any(named: 'hint'),
+            ),
+          ).thenReturn(false);
+
+          await expectLater(logSummary(), throwsA(isA<PromptDeclinedExit>()));
+        });
+
+        test('refuses when nothing can answer, instead of approving', () async {
+          when(
+            () => logger.confirm(
+              any(),
+              defaultValue: any(named: 'defaultValue'),
+              hint: any(named: 'hint'),
+            ),
+          ).thenThrow(
+            const InteractivePromptRequiredException(
+              promptText: 'Would you like to continue?',
+              hint: 'hint',
+            ),
+          );
+
+          await expectLater(
+            logSummary(),
+            throwsA(isA<InteractivePromptRequiredException>()),
+          );
+        });
+      });
+
       group('when using a custom deployment track', () {
         setUp(() {
           when(() => argResults['track']).thenReturn('custom-track');

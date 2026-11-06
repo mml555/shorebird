@@ -25,8 +25,11 @@ applies, and the fork's own behavior is kept on top of it:
   upstream login flow no longer validates the issuer on the client.
 - `shorebird preview` keeps going when it cannot uninstall the previous copy of
   the app, and warns that stale app data may remain.
-- `--confirm` is rejected as an unknown flag (upstream removed it); a requested
-  confirmation can therefore no longer be silently skipped.
+- `--confirm` on `release` and `patch` is accepted again, hidden. Upstream
+  removed it and prompts nowhere by default; here it asks `Would you like to
+  continue?` after the summary. With no terminal to answer it refuses (exit 64)
+  instead of going ahead, and declining exits 1 as upstream's prompts do (it
+  was 0 in the 1.6.123 backport).
 
 ## 1.6.138 (November 6, 2026)
 

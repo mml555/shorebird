@@ -244,10 +244,24 @@ symbolize" command with the right program symbol file is required to obtain a hu
   /// Accepted and ignored on `release` and `patch`. `--no-confirm` was a
   /// documented flag from 1.5.4 to 1.6.83, and the docs told CI scripts to
   /// pass it. Neither command asks for confirmation any more. `--confirm`,
-  /// which asked for a prompt, stays an error.
+  /// which asked for a prompt, is [confirmArg].
   static const noConfirmArg = ArgumentDescriber(
     name: 'no-confirm',
     description: 'Does nothing. Kept so existing scripts keep working.',
+  );
+
+  /// Asks for confirmation after the summary of a `release` or `patch`.
+  ///
+  /// Upstream removed `--confirm` (shorebirdtech/shorebird#4107), so neither
+  /// command prompts by default. This fork's CI and runbooks pass it to ask
+  /// for a prompt, so it is accepted again, hidden. Where nothing can answer
+  /// the prompt the command refuses (exit 64) rather than going ahead, because
+  /// a confirmation someone asked for must not approve itself.
+  static const confirmArg = ArgumentDescriber(
+    name: 'confirm',
+    description:
+        'Ask for confirmation before publishing. Refuses when there is no '
+        'terminal to answer on.',
   );
 
   /// Minimum valid value for [minLinkPercentage].

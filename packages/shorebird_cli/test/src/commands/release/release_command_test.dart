@@ -18,6 +18,7 @@ import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/flutter_version_constraints.dart';
 import 'package:shorebird_cli/src/json_output.dart';
+import 'package:shorebird_cli/src/interactive_mode.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/release_type.dart';
@@ -278,14 +279,13 @@ void main() {
       expect(command.description, isNotEmpty);
     });
 
-    test('accepts a hidden --no-confirm and rejects --confirm', () {
+    test('accepts hidden --no-confirm and --confirm', () {
       final parser = ReleaseCommand().argParser;
       expect(parser.options['no-confirm']!.hide, isTrue);
+      expect(parser.options['confirm']!.hide, isTrue);
       expect(() => parser.parse(['--no-confirm']), returnsNormally);
-      expect(
-        () => parser.parse(['--confirm']),
-        throwsA(isA<FormatException>()),
-      );
+      expect(parser.parse(['--confirm'])['confirm'], isTrue);
+      expect(parser.parse([])['confirm'], isFalse);
     });
 
     group('getReleaser', () {
@@ -1441,6 +1441,79 @@ Did you mean --release-version=1.0.0+1?''',
           ).called(1);
         });
       }
+
+      group('--confirm', () {
+        setUp(() {
+          when(() => argResults['confirm']).thenReturn(true);
+        });
+
+        test('goes on when the user confirms', () async {
+          when(
+            () => logger.confirm(
+              any(),
+              defaultValue: any(named: 'defaultValue'),
+              hint: any(named: 'hint'),
+            ),
+          ).thenReturn(true);
+
+          await printSummary(ReleaseSigningMode.managed);
+
+          verify(
+            () => logger.confirm(
+              'Would you like to continue?',
+              defaultValue: true,
+              hint: any(named: 'hint'),
+            ),
+          ).called(1);
+        });
+
+        test('stops when the user declines', () async {
+          when(
+            () => logger.confirm(
+              any(),
+              defaultValue: any(named: 'defaultValue'),
+              hint: any(named: 'hint'),
+            ),
+          ).thenReturn(false);
+
+          await expectLater(
+            printSummary(ReleaseSigningMode.managed),
+            throwsA(isA<PromptDeclinedExit>()),
+          );
+        });
+
+        test('refuses when nothing can answer, instead of approving', () async {
+          when(
+            () => logger.confirm(
+              any(),
+              defaultValue: any(named: 'defaultValue'),
+              hint: any(named: 'hint'),
+            ),
+          ).thenThrow(
+            const InteractivePromptRequiredException(
+              promptText: 'Would you like to continue?',
+              hint: 'hint',
+            ),
+          );
+
+          await expectLater(
+            printSummary(ReleaseSigningMode.managed),
+            throwsA(isA<InteractivePromptRequiredException>()),
+          );
+        });
+      });
+
+      test('does not prompt without --confirm', () async {
+        await printSummary(ReleaseSigningMode.managed);
+
+        verifyNever(
+          () => logger.confirm(
+            any(),
+            defaultValue: any(named: 'defaultValue'),
+            hint: any(named: 'hint'),
+          ),
+        );
+      });
 
       test('says patch signing is off for an unsigned release', () async {
         await printSummary(ReleaseSigningMode.unsigned);

@@ -16,6 +16,7 @@ import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/extensions/string.dart';
 import 'package:shorebird_cli/src/flutter_build_options.dart';
+import 'package:shorebird_cli/src/interactive_mode.dart';
 import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
@@ -134,6 +135,12 @@ Also accepts the following special values:
             'To learn more, see: https://developer.android.com/studio/build/configure-apk-splits#configure-abi-split',
         hide: true,
         negatable: false,
+      )
+      ..addFlag(
+        CommonArguments.confirmArg.name,
+        help: CommonArguments.confirmArg.description,
+        negatable: false,
+        hide: true,
       )
       ..addFlag(
         CommonArguments.noConfirmArg.name,
@@ -935,6 +942,21 @@ ${styleBold.wrap(lightGreen.wrap('🚀 Ready to create a new release!'))}
 
 ${summary.join('\n')}
 ''');
+
+    // A requested confirmation must not approve itself: `logger.confirm`
+    // throws InteractivePromptRequiredException (exit 64) when nothing can
+    // answer, so this refuses rather than publishing unattended.
+    if (results[CommonArguments.confirmArg.name] == true &&
+        !logger.confirm(
+          'Would you like to continue?',
+          defaultValue: true,
+          hint:
+              'Re-run with a TTY, or drop --confirm to proceed without '
+              'confirmation.',
+        )) {
+      logger.err('Aborting.');
+      throw PromptDeclinedExit();
+    }
   }
 
   /// Fetches the release with version [version] from the server or creates a
