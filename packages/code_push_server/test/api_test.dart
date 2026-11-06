@@ -1,3 +1,4 @@
+// cspell:words collab unlogged
 // Request-level tests for the HTTP surface in `lib/src/api.dart`.
 //
 // Every group here corresponds to a defect found in the end-to-end security
