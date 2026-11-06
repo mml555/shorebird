@@ -159,11 +159,12 @@ void main() {
     String hash = 'deadbeef',
     String? hashSignature,
     String platform = 'android',
+    String arch = 'aarch64',
   }) => send(
     'POST',
     '/api/v1/apps/$appId/patches/$patchId/artifacts',
     body: multipart({
-      'arch': 'aarch64',
+      'arch': arch,
       'platform': platform,
       'hash': hash,
       'size': '3',
@@ -550,6 +551,55 @@ void main() {
       );
       expect(r.statusCode, HttpStatus.ok);
       expect((await repo.patchArtifacts(patchId)).single.hashSignature, 'YWJj');
+    });
+
+    test('customer: sidecar artifacts (assets, symbols) need no signature, '
+        'while code still does', () async {
+      final appId = await newApp();
+      final id = await newRelease(appId);
+      await registerReleaseArtifact(appId, id, signing: {'mode': 'customer'});
+      final patchId = await newPatch(appId, id);
+      expect(
+        (await registerPatchArtifact(appId, patchId)).statusCode,
+        HttpStatus.badRequest,
+      );
+      for (final arch in ['assets', 'symbols']) {
+        final r = await registerPatchArtifact(appId, patchId, arch: arch);
+        expect(r.statusCode, HttpStatus.ok, reason: arch);
+      }
+      expect(
+        (await registerPatchArtifact(
+          appId,
+          patchId,
+          hashSignature: 'YWJj',
+        )).statusCode,
+        HttpStatus.ok,
+      );
+      final stored = {
+        for (final a in await repo.patchArtifacts(patchId))
+          a.arch: a.hashSignature,
+      };
+      expect(stored, {'assets': null, 'symbols': null, 'aarch64': 'YWJj'});
+    });
+
+    test('managed: sidecar artifacts are not signed', () async {
+      final appId = await newApp();
+      final key = await signingKey(appId);
+      final id = await newRelease(appId);
+      await registerReleaseArtifact(
+        appId,
+        id,
+        signing: {'mode': 'managed', 'key_id': key['id']},
+      );
+      final patchId = await newPatch(appId, id);
+      for (final arch in ['assets', 'symbols']) {
+        final r = await registerPatchArtifact(appId, patchId, arch: arch);
+        expect(r.statusCode, HttpStatus.ok, reason: arch);
+      }
+      expect(
+        (await repo.patchArtifacts(patchId)).map((a) => a.hashSignature),
+        everyElement(isNull),
+      );
     });
 
     test(
