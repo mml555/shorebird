@@ -1,3 +1,5 @@
+<!-- cspell:words spki rsassa -->
+
 # API reference
 
 Every HTTP endpoint the server exposes. Grouped by consumer: the **CLI wire
@@ -67,22 +69,27 @@ These are exactly what the pinned Shorebird CLI calls for `init` / `release` /
 | Method | Path | Body | Response |
 |---|---|---|---|
 | POST | `/apps` | `{"organization_id":1,"display_name":"My App"}` | `{"id":"<uuid>","display_name":"My App"}` |
-| GET | `/apps` | — | `{"apps":[{"app_id","display_name","latest_release_version","latest_patch_number","platforms":[…]}]}` |
+| GET | `/apps` | — | `{"apps":[AppMetadata]}` — each `{"app_id","organization_id","display_name","latest_release_version","latest_patch_number","created_at","updated_at","platforms":[…]}` |
+| GET | `/apps/{appId}` | — | one `AppMetadata` (upstream 1.6.138 `getApp`). **404, never 403**, for an app that does not exist and for one the caller cannot see, with the same body, so app ids cannot be probed. `patch_signing_required` is an enterprise policy with no counterpart here and is omitted |
+| GET | `/apps/{appId}/signing-key` | — | `{"signing_key":{"id","public_key_pem"}}` — the **organization's** managed patch-signing key (RSA 2048, SPKI PEM), created on first fetch. Public half only. 404 for an app the caller cannot see. See **Managed patch signing** |
+| PATCH | `/apps/{appId}` | `{"name"}` | 204 (app admin) |
 
 ### Releases
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/apps/{appId}/releases` | `{"version":"1.0.0+1","flutter_revision":"…","flutter_version"?,"display_name"?,"notes"?}` | `{"release":{"id","app_id","version","flutter_revision","flutter_version","display_name","platform_statuses","created_at","updated_at","notes","metadata"}}` — corrected 2026-08-13: this row said `"status"`, and `_releaseJson` (`api.dart:2834-2849`) emits **no `status` key at all**. Per-platform state is `platform_statuses`, which the pinned CLI casts **unguarded** (`shorebird_code_push_protocol/.../release.dart`), so omitting it is a client crash, not a missing field. (`status` *is* a valid request field on `PATCH` below — different row) |
+| POST | `/apps/{appId}/releases` | `{"version":"1.0.0+1","flutter_revision":"…","flutter_version"?,"display_name"?,"notes"?}` | `{"release":{"id","app_id","version","flutter_revision","flutter_version","display_name","platforms","platform_statuses","created_at","updated_at","notes","metadata"}}`. **`platforms`** (upstream 1.6.138, cast as a non-null map by `Release.fromJson`): `{"<platform>":{"status":"draft|active","signing_mode"?:"managed|customer|unsigned"}}`. `signing_mode` is present only for a platform whose release artifacts reported `signing`. `platform_statuses` (`{"<platform>":"<status>"}`) is the deprecated form, still sent for older CLIs. `flutter_revision_issue` is never sent (no data source; nullable upstream) — corrected 2026-08-13: this row said `"status"`, and `_releaseJson` (`api.dart:2834-2849`) emits **no `status` key at all**. Per-platform state is `platform_statuses`, which the pinned CLI casts **unguarded** (`shorebird_code_push_protocol/.../release.dart`), so omitting it is a client crash, not a missing field. (`status` *is* a valid request field on `PATCH` below — different row) |
 | GET | `/apps/{appId}/releases` | — | `{"releases":[Release]}` |
+| DELETE | `/apps/{appId}/releases/{releaseId}` | — | 204 · deletes the release, all platforms' artifacts and every patch of it (rows and stored objects). App admin. Audited `release.delete` |
 | PATCH | `/apps/{appId}/releases/{releaseId}` | `{"status"?:"active","platform"?:"android","metadata"?,"notes"?}` | 204 · **409** if set `active` before all artifacts verified (fail-closed finalize) |
 
 ### Release artifacts
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/apps/{appId}/releases/{releaseId}/artifacts` | multipart: `arch,platform,hash,filename,size,can_sideload?,podfile_lock_hash?` | `{…,"url":"…/api/v1/uploads/<token>","upload_method":"multipart"}` |
-| GET | `/apps/{appId}/releases/{releaseId}/artifacts?arch=&platform=` | — | `{"artifacts":[{arch,platform,hash,size,url,…}]}` |
+| POST | `/apps/{appId}/releases/{releaseId}/artifacts` | multipart: `arch,platform,hash,filename,size,can_sideload?,podfile_lock_hash?,signing?` (`signing` is ONE JSON-encoded field, `{"mode":"managed","key_id":1}`; `key_id` only for `managed`, and must be a key of the app's org, else 400) | `{…,"url":"…/api/v1/uploads/<token>","upload_method":"multipart"}` |
+| GET | `/apps/{appId}/releases/{releaseId}/artifacts?arch=&platform=` | — | `{"artifacts":[{arch,platform,hash,size,url,…,"signing"?:{"mode","key_id"?,"public_key_pem"?}}]}` — `signing` for `managed` carries the key id and public key; `customer`/`unsigned` carry the mode only; absent for artifacts registered without it |
+| DELETE | `/apps/{appId}/releases/{releaseId}/artifacts?platform=` | — | 204 · removes one platform (its artifacts and status) from the release, leaving the rest. `platform` required (400). App admin |
 
 Register returns an upload `url` + `upload_method`. The bytes are then uploaded
 (see **Uploads**). The server verifies `sha256(bytes) == hash` and `size`; a
@@ -93,7 +100,7 @@ mismatch fails the artifact (`400` on upload) and the release cannot finalize.
 | Method | Path | Body | Response |
 |---|---|---|---|
 | POST | `/apps/{appId}/patches` | `{"release_id":1,"metadata":{},"notes"?}` | `{"id","number","notes"}` |
-| POST | `/apps/{appId}/patches/{patchId}/artifacts` | multipart: `arch,platform,hash,size,hash_signature?,podfile_lock_hash?` | `{…,"url","upload_method"}` |
+| POST | `/apps/{appId}/patches/{patchId}/artifacts` | multipart: `arch,platform,hash,size,hash_signature?,podfile_lock_hash?` | `{…,"url","upload_method"}` · **400** if the release's build on `platform` is `managed` and the request carries `hash_signature`, or is `customer` and it does not (see **Managed patch signing**) |
 | POST | `/apps/{appId}/patches/promote` | `{"patch_id":1,"channel_id":1,"rollout"?:0-100}` | 204 · **400** if `rollout` is outside 0-100 · **409** if the patch isn't `ready` |
 
 > `rollout` (optional, default `100`) added to this row 2026-08-13 — it was undocumented, and it is the only non-admin way to promote straight into a partial rollout (`_promotePatch`). PARITY.md §6 already counts it as part of the built rollout surface.
@@ -592,14 +599,45 @@ time-bucketed series need not sum to the window total.
 
 ---
 
+## Managed patch signing
+
+Upstream 1.6.138's `shorebird release` embeds a Shorebird-held public key by
+default and `shorebird patch` then sends no signature. This server plays that
+role:
+
+- **Key scope: one RSA-2048 key per organization**, created on the first
+  `GET /apps/{appId}/signing-key` (migration 14, `signing_keys`). Apps in the
+  org share it; a transferred app keeps using the key its releases embed (the
+  artifact records the key id).
+- **Storage:** the private key is a JWE (`dir` + `A256GCM`) of the private JWK.
+  It is encrypted under `PATCH_SIGNING_KEY_SECRET` (optional, at least 32
+  characters; falls back to `URL_SIGNING_SECRET`). It is never logged or
+  returned by any route. Changing the secret makes existing keys unreadable.
+- **Registration:** a release artifact may carry `signing={mode,key_id?}`. Per
+  platform, the release's mode is read back from its artifacts (`platforms`
+  `signing_mode`, artifact `signing`).
+- **Signing a patch** (`POST …/patches/{id}/artifacts`), by the release's mode
+  on that artifact's platform:
+  - `managed`: the server signs `hash` and stores it; a client `hash_signature`
+    is 400.
+  - `customer`: the client must send `hash_signature` (400 otherwise); stored
+    untouched. The server holds no key for it and cannot verify it.
+  - `unsigned`, or nothing reported (every release made before this feature, or
+    by an older CLI): stored exactly as sent, **never server-signed**; those
+    builds embed no managed key.
+- **Algorithm:** RSASSA-PKCS1-v1_5, SHA-256, over the UTF-8 bytes of the patch's
+  lowercase-hex SHA-256 string (not the file), base64. `hash_signature` is
+  returned by `patches/check` from the stored value. See `UPDATER_CONTRACT.md`.
+
 ## Auth / OAuth
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/login?continue=<loopback>` | start `shorebird login`. Self-consent mode returns an API-key form; broker mode redirects to the external IdP. `continue` must be a loopback URL |
-| POST | `/login` | self-consent credential check (form: `continue`, `api_key`); a valid key 302s to `continue` with an auth code, otherwise 401 |
+| GET | `/login?continue=<loopback>` or `/login?response_type=code&client_id=shorebird-cli&redirect_uri=<loopback>&scope=api&state=&code_challenge=&code_challenge_method=S256` | start `shorebird login`. Self-consent mode returns an API-key form; broker mode redirects to the external IdP. The loopback URL (`continue`, or `redirect_uri` from upstream 1.6.138) must be `http://localhost`/`127.0.0.1`/`[::1]`. `state` is echoed on the redirect. A `code_challenge` must be S256 (`plain` is a 400); the login then binds it to the code |
+| POST | `/login` | self-consent credential check (form: `continue`, `api_key`, `code_challenge?`); a valid key 302s to `continue` with an auth code, otherwise 401 |
 | GET | `/oauth/callback` | IdP redirect target; exchanges the IdP code and issues our own auth code |
-| POST | `/token` | exchange auth code / refresh token → `{access_token, refresh_token, …}` (RS256 JWT; codes + refresh tokens are single-use, persisted, rotated) |
+| POST | `/token` | exchange auth code / refresh token → `{access_token, refresh_token, …}` (RS256 JWT; codes + refresh tokens are single-use, persisted, rotated). A code issued for a `code_challenge` needs the matching `code_verifier` (RFC 7636 S256), else 400 `invalid_grant`, and the code is spent; a code issued without a challenge (older CLI) redeems as before. `client_id` and `scope` are accepted and ignored |
+| POST | `/revoke` | RFC 7009 (form `token`): revokes a refresh token, 200 whether or not it was live (upstream 1.6.138 `shorebird logout`) |
 | POST | `/api/logout` | bearer is the refresh token; revokes it |
 | GET | `/.well-known/jwks.json` | public JWKS for verifying issued JWTs |
 
