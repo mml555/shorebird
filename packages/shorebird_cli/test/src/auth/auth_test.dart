@@ -620,44 +620,104 @@ void main() {
         ).called(1);
       });
 
-      test('carries a legacy login over when self-hosted, keyed to the '
-          'configured host', () {
-        when(
-          () => shorebirdEnv.authServiceUri,
-        ).thenReturn(Uri.parse('https://cps.example.com'));
-        when(
-          () => shorebirdEnv.hostedUri,
-        ).thenReturn(Uri.parse('https://cps.example.com'));
-        final selfHostedPath = p.join(
-          credentialsDir,
-          'credentials-v2-cps.example.com.json',
-        );
-        File(legacyCredentialsPath).writeAsStringSync(
-          jsonEncode({
-            'accessToken': {
-              'type': 'Bearer',
-              'data': shorebirdAccessToken,
-              'expiry': DateTime.now()
-                  .add(const Duration(minutes: 10))
-                  .toUtc()
-                  .toIso8601String(),
-            },
-            'refreshToken': refreshToken,
-            'scopes': <String>[],
-          }),
-        );
+      group('when self-hosted at cps.example.com', () {
+        late String selfHostedPath;
 
-        auth = buildAuth();
+        String jwt(Map<String, Object?> claims) {
+          String part(Object o) =>
+              base64Url.encode(utf8.encode(jsonEncode(o))).replaceAll('=', '');
+          return '${part({'alg': 'none'})}.${part(claims)}.sig';
+        }
 
-        expect(auth.isAuthenticated, isTrue);
-        expect(File(legacyCredentialsPath).existsSync(), isFalse);
-        expect(File(selfHostedPath).existsSync(), isTrue);
-        expect(File(credentialsPath).existsSync(), isFalse);
-        final stored = oauth2.Credentials.fromJson(
-          File(selfHostedPath).readAsStringSync(),
-        );
-        expect(stored.refreshToken, equals(refreshToken));
-        expect(stored.tokenEndpoint?.host, equals('cps.example.com'));
+        void writeLegacy({String? idToken}) {
+          File(legacyCredentialsPath).writeAsStringSync(
+            jsonEncode({
+              'accessToken': {
+                'type': 'Bearer',
+                'data': shorebirdAccessToken,
+                'expiry': DateTime.now()
+                    .add(const Duration(minutes: 10))
+                    .toUtc()
+                    .toIso8601String(),
+              },
+              'refreshToken': refreshToken,
+              'idToken': ?idToken,
+              'scopes': <String>[],
+            }),
+          );
+        }
+
+        setUp(() {
+          when(
+            () => shorebirdEnv.authServiceUri,
+          ).thenReturn(Uri.parse('https://cps.example.com'));
+          when(
+            () => shorebirdEnv.hostedUri,
+          ).thenReturn(Uri.parse('https://cps.example.com'));
+          selfHostedPath = p.join(
+            credentialsDir,
+            'credentials-v2-cps.example.com.json',
+          );
+        });
+
+        test('carries a legacy login over when its idToken was issued by '
+            'this host, keyed to the configured host', () {
+          writeLegacy(idToken: jwt({'iss': 'https://cps.example.com'}));
+
+          auth = buildAuth();
+
+          expect(auth.isAuthenticated, isTrue);
+          expect(File(legacyCredentialsPath).existsSync(), isFalse);
+          expect(File(selfHostedPath).existsSync(), isTrue);
+          expect(File(credentialsPath).existsSync(), isFalse);
+          final stored = oauth2.Credentials.fromJson(
+            File(selfHostedPath).readAsStringSync(),
+          );
+          expect(stored.refreshToken, equals(refreshToken));
+          expect(stored.tokenEndpoint?.host, equals('cps.example.com'));
+        });
+
+        test('leaves a shorebird.dev login alone: not migrated, not sent to '
+            'the self-host, not deleted', () {
+          writeLegacy(idToken: jwt({'iss': 'https://auth.shorebird.dev'}));
+
+          auth = buildAuth();
+
+          expect(auth.isAuthenticated, isFalse);
+          expect(File(legacyCredentialsPath).existsSync(), isTrue);
+          expect(File(selfHostedPath).existsSync(), isFalse);
+          verifyNever(
+            () => httpClient.post(
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+            ),
+          );
+        });
+
+        test('leaves a legacy login with no idToken, or an unparsable one, '
+            'alone', () {
+          for (final idToken in <String?>[null, 'not-a-jwt', 'a.b.c']) {
+            writeLegacy(idToken: idToken);
+
+            auth = buildAuth();
+
+            expect(auth.isAuthenticated, isFalse, reason: '$idToken');
+            expect(File(legacyCredentialsPath).existsSync(), isTrue);
+            expect(File(selfHostedPath).existsSync(), isFalse);
+          }
+        });
+
+        test('clearing credentials keeps a legacy file that is not this '
+            "host's, and deletes one that is", () {
+          writeLegacy(idToken: jwt({'iss': 'https://auth.shorebird.dev'}));
+          runWithOverrides(buildAuth().clearCredentials);
+          expect(File(legacyCredentialsPath).existsSync(), isTrue);
+
+          writeLegacy(idToken: jwt({'iss': 'https://cps.example.com'}));
+          runWithOverrides(buildAuth().clearCredentials);
+          expect(File(legacyCredentialsPath).existsSync(), isFalse);
+        });
       });
 
       test('does not carry a legacy login over', () {

@@ -409,7 +409,39 @@ class Auth {
   /// `base_url`), that control plane's: those CLIs kept one login too, and a
   /// self-hosted user is otherwise silently logged out by this one. Any other
   /// non-default service (`AUTH_SERVICE_URL` alone) is left alone.
+  ///
+  /// Being self-hosted is only a candidate: the same file may hold a login for
+  /// shorebird.dev, whose refresh token must never be sent to a self-host's
+  /// token endpoint, and which deleting would log the user out of. For a
+  /// self-host the file is carried over, or deleted, only when
+  /// [_legacyLoginIsForThisAuthService] shows it belongs here.
   bool get _carriesLegacyLogin => _isDefaultAuthService || _isSelfHosted;
+
+  /// Whether the legacy login in [json] demonstrably belongs to the current
+  /// auth service. The default service's always does, as that file never
+  /// named a service. Otherwise the stored `idToken` must be a JWT whose `iss`
+  /// is this auth service's host; a file without one, or with another issuer,
+  /// is not ours to send anywhere or delete.
+  bool _legacyLoginIsForThisAuthService(Object? json) {
+    if (_isDefaultAuthService) return true;
+    if (!_isSelfHosted || json is! Map) return false;
+    final idToken = json['idToken'];
+    if (idToken is! String) return false;
+    final parts = idToken.split('.');
+    if (parts.length != 3) return false;
+    try {
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      final issuer = payload is Map ? payload['iss'] : null;
+      if (issuer is! String) return false;
+      final issuerUri = Uri.parse(issuer);
+      return issuerUri.host.isNotEmpty &&
+          _authServiceKey(issuerUri) == _authServiceKey(_authServiceUri);
+    } on FormatException {
+      return false;
+    }
+  }
 
   /// The path of the credentials file CLIs before `package:oauth2` wrote, in
   /// `package:googleapis_auth`'s format. Read once, to carry a login over to
@@ -915,6 +947,15 @@ class Auth {
     final oauth2.Credentials credentials;
     try {
       final json = jsonDecode(legacyFile.readAsStringSync());
+      if (!_legacyLoginIsForThisAuthService(json)) {
+        // Not provably this self-host's: leave the file alone (it may be a
+        // shorebird.dev login) and let the user log in.
+        logger.detail(
+          'Ignoring $legacyCredentialsFilePath: it does not name '
+          '${_authServiceUri.host} as its issuer.',
+        );
+        return null;
+      }
       if (json case {
         'accessToken': {
           'data': final String accessToken,
@@ -1024,10 +1065,24 @@ class Auth {
 
     for (final path in [
       credentialsFilePath,
-      if (_carriesLegacyLogin) legacyCredentialsFilePath,
+      if (_carriesLegacyLogin && _legacyFileIsForThisAuthService())
+        legacyCredentialsFilePath,
     ]) {
       final file = File(path);
       if (file.existsSync()) file.deleteSync();
+    }
+  }
+
+  /// Whether the legacy credentials file is this auth service's to delete.
+  /// Unreadable or foreign files on a self-host are left in place.
+  bool _legacyFileIsForThisAuthService() {
+    if (_isDefaultAuthService) return true;
+    try {
+      return _legacyLoginIsForThisAuthService(
+        jsonDecode(File(legacyCredentialsFilePath).readAsStringSync()),
+      );
+    } on Exception {
+      return false;
     }
   }
 
