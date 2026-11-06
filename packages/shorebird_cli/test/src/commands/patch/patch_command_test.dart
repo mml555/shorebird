@@ -614,6 +614,487 @@ void main() {
       });
     });
 
+    group('--assets and --assets-only', () {
+      test('--assets is an opt-in flag', () {
+        final parser = PatchCommand().argParser;
+
+        expect(parser.options['assets']!.isFlag, isTrue);
+        expect(parser.parse([])['assets'], isFalse);
+        expect(parser.parse(['--assets'])['assets'], isTrue);
+      });
+
+      test('--assets-only is an opt-in flag', () {
+        final parser = PatchCommand().argParser;
+
+        expect(parser.options['assets-only']!.isFlag, isTrue);
+        expect(parser.options['assets-only']!.negatable, isFalse);
+        expect(parser.parse([])['assets-only'], isFalse);
+        expect(parser.parse(['--assets-only'])['assets-only'], isTrue);
+      });
+
+      test('--assets-only implies --assets', () {
+        // A patch with neither code nor assets would carry nothing at all, so
+        // requiring both flags together would only trip people up.
+        final args = MockArgResults();
+        when(() => args['assets']).thenReturn(false);
+        when(() => args['assets-only']).thenReturn(true);
+        final assetsOnlyCommand = PatchCommand()..testArgResults = args;
+
+        expect(assetsOnlyCommand.assetsOnly, isTrue);
+        expect(assetsOnlyCommand.includeAssets, isTrue);
+      });
+
+      test('--assets does not imply --assets-only', () {
+        final args = MockArgResults();
+        when(() => args['assets']).thenReturn(true);
+        when(() => args['assets-only']).thenReturn(false);
+        final assetsCommand = PatchCommand()..testArgResults = args;
+
+        expect(assetsCommand.includeAssets, isTrue);
+        expect(assetsCommand.assetsOnly, isFalse);
+      });
+
+      group('when --assets-only is passed', () {
+        late Directory assetsDirectory;
+
+        Map<ReleasePlatform, PatchSidecars> publishedSidecars() =>
+            verify(
+                  () => codePushClientWrapper.publishPatch(
+                    appId: any(named: 'appId'),
+                    releaseId: any(named: 'releaseId'),
+                    metadata: any(named: 'metadata'),
+                    track: any(named: 'track'),
+                    patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                    sidecars: captureAny(named: 'sidecars'),
+                  ),
+                ).captured.single
+                as Map<ReleasePlatform, PatchSidecars>;
+
+        setUp(() {
+          when(() => argResults['assets-only']).thenReturn(true);
+          assetsDirectory = Directory.systemTemp.createTempSync('assets');
+          File(
+            p.join(assetsDirectory.path, 'asset.txt'),
+          ).writeAsStringSync('hello');
+          when(
+            patcher.assetsDirectory,
+          ).thenAnswer((_) async => assetsDirectory);
+        });
+
+        test('tells the patcher, so it can skip code-only work', () async {
+          await runWithOverrides(command.run);
+
+          verify(() => patcher.assetsOnly = true).called(1);
+        });
+
+        test('publishes the asset bundle and no code', () async {
+          await runWithOverrides(command.run);
+
+          verify(
+            () => codePushClientWrapper.publishPatch(
+              appId: appId,
+              releaseId: any(named: 'releaseId'),
+              metadata: any(named: 'metadata'),
+              track: any(named: 'track'),
+              patchArtifactBundles: {ReleasePlatform.android: const {}},
+              sidecars: any(named: 'sidecars'),
+            ),
+          ).called(1);
+        });
+
+        test('uploads an asset bundle for the platform', () async {
+          await runWithOverrides(command.run);
+
+          expect(
+            publishedSidecars()[ReleasePlatform.android]?.assets,
+            isNotNull,
+          );
+        });
+
+        test('refuses to publish a patch that would carry nothing', () async {
+          when(patcher.assetsDirectory).thenAnswer((_) async => null);
+
+          await expectLater(
+            runWithOverrides(command.run),
+            exitsWithError(
+              message: contains(
+                '--assets-only was passed but no asset bundle could be '
+                'packaged for: android',
+              ),
+              exitCode: ExitCode.software,
+            ),
+          );
+          verifyNever(
+            () => codePushClientWrapper.publishPatch(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              metadata: any(named: 'metadata'),
+              track: any(named: 'track'),
+              patchArtifactBundles: any(named: 'patchArtifactBundles'),
+              sidecars: any(named: 'sidecars'),
+            ),
+          );
+        });
+      });
+
+      test('without --assets-only, code artifacts are published', () async {
+        await runWithOverrides(command.run);
+
+        verify(() => patcher.assetsOnly = false).called(1);
+        verify(
+          () => codePushClientWrapper.publishPatch(
+            appId: appId,
+            releaseId: any(named: 'releaseId'),
+            metadata: any(named: 'metadata'),
+            track: any(named: 'track'),
+            patchArtifactBundles: {
+              ReleasePlatform.android: patchArtifactBundles,
+            },
+            sidecars: any(named: 'sidecars'),
+          ),
+        ).called(1);
+      });
+    });
+
+    group('when patching several platforms in one invocation', () {
+      late Patcher iosPatcher;
+      late Release multiPlatformRelease;
+
+      /// Matches any call to publishPatch, for verify and verifyNever.
+      Future<CreatePatchResponse> anyPublishPatch() =>
+          codePushClientWrapper.publishPatch(
+            appId: any(named: 'appId'),
+            releaseId: any(named: 'releaseId'),
+            metadata: any(named: 'metadata'),
+            track: any(named: 'track'),
+            patchArtifactBundles: any(named: 'patchArtifactBundles'),
+            sidecars: any(named: 'sidecars'),
+          );
+
+      Release releaseCovering(
+        Set<ReleasePlatform> platforms, {
+        int id = 7,
+        String version = releaseVersion,
+        DateTime? updatedAt,
+      }) => Release(
+        id: id,
+        appId: appId,
+        version: version,
+        flutterRevision: flutterRevision,
+        flutterVersion: flutterVersion,
+        displayName: version,
+        platforms: {
+          for (final platform in platforms)
+            platform: const ReleasePlatformDetails(
+              status: ReleaseStatus.active,
+            ),
+        },
+        createdAt: DateTime(2023),
+        updatedAt: updatedAt ?? DateTime(2023),
+      );
+
+      setUp(() {
+        iosPatcher = MockPatcher();
+        when(() => iosPatcher.releaseType).thenReturn(ReleaseType.ios);
+        when(
+          () => iosPatcher.primaryReleaseArtifactArch,
+        ).thenReturn('xcarchive');
+        when(
+          () => iosPatcher.supplementaryReleaseArtifactArch,
+        ).thenReturn(null);
+        when(() => iosPatcher.linkPercentage).thenReturn(null);
+        when(() => iosPatcher.requiresReleaseVersionArg).thenReturn(false);
+        when(() => iosPatcher.extraBuildArgs).thenReturn(const []);
+        when(() => iosPatcher.assertArgsAreValid()).thenAnswer((_) async {});
+        when(() => iosPatcher.assertPreconditions()).thenAnswer((_) async {});
+        when(
+          () => iosPatcher.prepareForRelease(
+            appId: any(named: 'appId'),
+            release: any(named: 'release'),
+          ),
+        ).thenAnswer((_) async {});
+        when(iosPatcher.assetsDirectory).thenAnswer((_) async => null);
+        when(iosPatcher.debugSymbolsDirectory).thenAnswer((_) async => null);
+        when(
+          () => iosPatcher.buildPatchArtifact(
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        ).thenAnswer((_) async => File(''));
+        when(
+          () => iosPatcher.createPatchArtifacts(
+            appId: any(named: 'appId'),
+            releaseId: any(named: 'releaseId'),
+            releaseArtifact: any(named: 'releaseArtifact'),
+            supplementDirectory: any(named: 'supplementDirectory'),
+          ),
+        ).thenAnswer((_) async => patchArtifactBundles);
+        when(
+          () => iosPatcher.assertUnpatchableDiffs(
+            releaseArtifact: any(named: 'releaseArtifact'),
+            releaseArchive: any(named: 'releaseArchive'),
+            patchArchive: any(named: 'patchArchive'),
+          ),
+        ).thenAnswer((_) async => diffStatus);
+        when(() => iosPatcher.updatedPlatformMetadata(any())).thenAnswer(
+          (invocation) async =>
+              invocation.positionalArguments.first
+                  as CreatePatchPlatformMetadata,
+        );
+        when(() => iosPatcher.updatedEnvironmentMetadata(any())).thenAnswer(
+          (invocation) async =>
+              invocation.positionalArguments.first as BuildEnvironmentMetadata,
+        );
+
+        multiPlatformRelease = releaseCovering({
+          ReleasePlatform.android,
+          ReleasePlatform.ios,
+        });
+        when(
+          () => codePushClientWrapper.getRelease(
+            appId: any(named: 'appId'),
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        ).thenAnswer((_) async => multiPlatformRelease);
+        when(
+          () => codePushClientWrapper.getReleases(appId: any(named: 'appId')),
+        ).thenAnswer((_) async => [multiPlatformRelease]);
+        when(
+          () => codePushClientWrapper.getReleaseArtifact(
+            appId: any(named: 'appId'),
+            releaseId: any(named: 'releaseId'),
+            arch: 'xcarchive',
+            platform: ReleasePlatform.ios,
+          ),
+        ).thenAnswer((_) async => releaseArtifact);
+
+        when(() => argResults['platforms']).thenReturn(['android', 'ios']);
+        command =
+            PatchCommand(
+                resolvePatcher: (type) =>
+                    type == ReleaseType.ios ? iosPatcher : patcher,
+              )
+              ..testArgResults = argResults
+              ..testRunner = usageRunner();
+      });
+
+      test('publishes exactly one patch, with one patch number, '
+          'carrying every platform', () async {
+        final published = await runWithOverrides(
+          () => command.createPatch([patcher, iosPatcher]),
+        );
+
+        // One publishPatch is one patch number and one promotion; the server
+        // promotes the patch it just created once every artifact is uploaded.
+        verify(
+          () => codePushClientWrapper.publishPatch(
+            appId: appId,
+            releaseId: multiPlatformRelease.id,
+            metadata: any(named: 'metadata'),
+            track: DeploymentTrack.stable,
+            patchArtifactBundles: {
+              ReleasePlatform.android: patchArtifactBundles,
+              ReleasePlatform.ios: patchArtifactBundles,
+            },
+            sidecars: any(named: 'sidecars'),
+          ),
+        ).called(1);
+        expect(published, hasLength(2));
+        expect(
+          published.map((p) => p.platform),
+          unorderedEquals([ReleasePlatform.android, ReleasePlatform.ios]),
+        );
+        expect(published.map((p) => p.patch.number).toSet(), equals({2}));
+      });
+
+      test('run publishes once and reports the one patch number', () async {
+        final exitCode = await runWithOverrides(command.run);
+
+        expect(exitCode, equals(ExitCode.success.code));
+        verify(anyPublishPatch).called(1);
+      });
+
+      test('records metadata for every platform', () async {
+        await runWithOverrides(command.run);
+
+        final metadata =
+            verify(
+                  () => codePushClientWrapper.publishPatch(
+                    appId: any(named: 'appId'),
+                    releaseId: any(named: 'releaseId'),
+                    metadata: captureAny(named: 'metadata'),
+                    track: any(named: 'track'),
+                    patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                    sidecars: any(named: 'sidecars'),
+                  ),
+                ).captured.single
+                as Map<String, dynamic>;
+
+        expect(
+          (metadata['platforms']! as Map).keys,
+          containsAll(<String>['android', 'ios']),
+        );
+      });
+
+      test('asserts every platform before building any of them', () async {
+        await runWithOverrides(command.run);
+
+        verifyInOrder([
+          patcher.assertPreconditions,
+          iosPatcher.assertPreconditions,
+          () => patcher.buildPatchArtifact(
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        ]);
+      });
+
+      group('when a later platform fails to build', () {
+        setUp(() {
+          when(
+            () => iosPatcher.buildPatchArtifact(
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          ).thenThrow(Exception('oh no'));
+        });
+
+        test('publishes nothing, so no platform goes live alone', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            exitsWithCode(ExitCode.software),
+          );
+
+          verify(
+            () => patcher.buildPatchArtifact(
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          ).called(1);
+          verifyNever(anyPublishPatch);
+        });
+      });
+
+      group('when the release does not cover every platform', () {
+        setUp(() {
+          final androidOnly = releaseCovering({ReleasePlatform.android});
+          when(
+            () => codePushClientWrapper.getRelease(
+              appId: any(named: 'appId'),
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          ).thenAnswer((_) async => androidOnly);
+        });
+
+        test('errors and publishes nothing', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            exitsWithCode(ExitCode.software),
+          );
+
+          verifyNever(anyPublishPatch);
+        });
+      });
+
+      group('when --release-version=latest', () {
+        setUp(() {
+          when(() => argResults['release-version']).thenReturn('latest');
+        });
+
+        test('skips releases that do not cover every platform', () async {
+          // Newer, but android-only: resolving "latest" per platform would
+          // pick it for android and straddle two release versions.
+          final androidOnly = releaseCovering(
+            {ReleasePlatform.android},
+            id: 9,
+            version: '1.2.4+1',
+            updatedAt: DateTime(2024),
+          );
+          when(
+            () => codePushClientWrapper.getReleases(appId: any(named: 'appId')),
+          ).thenAnswer((_) async => [multiPlatformRelease, androidOnly]);
+
+          await runWithOverrides(command.run);
+
+          verify(
+            () => codePushClientWrapper.publishPatch(
+              appId: appId,
+              releaseId: multiPlatformRelease.id,
+              metadata: any(named: 'metadata'),
+              track: any(named: 'track'),
+              patchArtifactBundles: any(named: 'patchArtifactBundles'),
+              sidecars: any(named: 'sidecars'),
+            ),
+          ).called(1);
+        });
+
+        test('errors when no release covers every platform', () async {
+          when(
+            () => codePushClientWrapper.getReleases(appId: any(named: 'appId')),
+          ).thenAnswer(
+            (_) async => [
+              releaseCovering({ReleasePlatform.android}),
+            ],
+          );
+
+          await expectLater(
+            runWithOverrides(command.run),
+            exitsWithError(
+              message: contains('covering Android and iOS'),
+              exitCode: ExitCode.usage,
+            ),
+          );
+          verifyNever(anyPublishPatch);
+        });
+      });
+
+      group('with --dry-run', () {
+        setUp(() {
+          when(() => argResults['dry-run']).thenReturn(true);
+          when(
+            () => shorebirdEnv.buildDirectory,
+          ).thenReturn(Directory.systemTemp.createTempSync());
+        });
+
+        test(
+          'builds and checks every platform, and publishes nothing',
+          () async {
+            await expectLater(
+              runWithOverrides(command.run),
+              exitsWithCode(ExitCode.success),
+            );
+
+            verify(
+              () => patcher.buildPatchArtifact(
+                releaseVersion: any(named: 'releaseVersion'),
+              ),
+            ).called(1);
+            verify(
+              () => iosPatcher.buildPatchArtifact(
+                releaseVersion: any(named: 'releaseVersion'),
+              ),
+            ).called(1);
+            verify(() => logger.info('No issues detected.')).called(1);
+            verifyNever(anyPublishPatch);
+          },
+        );
+
+        test('fails when any one platform is below the minimum '
+            'link percentage, naming it', () async {
+          when(() => iosPatcher.linkPercentage).thenReturn(12.3);
+
+          await expectLater(
+            runWithOverrides(command.run),
+            exitsWithError(
+              message: allOf(
+                contains('iOS'),
+                contains('below the minimum threshold (20%)'),
+              ),
+              exitCode: ExitCode.software,
+            ),
+          );
+          verifyNever(() => logger.info('No issues detected.'));
+          verifyNever(anyPublishPatch);
+        });
+      });
+    });
+
     group('createPatch', () {
       test('checks the patcher once when run already checked it', () async {
         await runWithOverrides(command.run);
