@@ -2162,6 +2162,23 @@ class Api {
         'the console or the API with ?force=true. The CLI cannot send force.',
       );
     }
+    if (!force) {
+      final withdrawn = await repo.releaseRecentWithdrawal(releaseId);
+      if (withdrawn != null) {
+        final deletable = withdrawn.add(releaseDeleteGrace).toUtc();
+        _audit(req)?.note(detail: {'version': release.version, 'force': false});
+        throw conflict(
+          'Release ${release.version} had a patch rolled back or withdrawn '
+          'on ${withdrawn.toIso8601String()}. Devices that have not checked '
+          'in since learn to drop it only from the records deleting the '
+          'release removes, so it can be deleted without force from '
+          '${deletable.toIso8601String()} '
+          '(${releaseDeleteGrace.inDays} days after). To delete it now, '
+          'accept that, and send ?force=true through the console or the API. '
+          'The CLI cannot send force.',
+        );
+      }
+    }
     _audit(req)?.note(detail: {'version': release.version, 'force': force});
     await _deleteObjects(await repo.deleteRelease(releaseId));
     return Response(HttpStatus.noContent);

@@ -827,11 +827,14 @@ void main() {
       expect(await repo.patch(patchId), isNull);
     });
 
-    test(
-      'DELETE succeeds without force once the live patch is rolled back',
-      () async {
-        final appId = await newApp();
-        final id = await newRelease(appId);
+    group('DELETE after a rollback', () {
+      late String appId;
+      late int id;
+      late int patchId;
+
+      Future<void> promoteAndRollBack() async {
+        appId = await newApp();
+        id = await newRelease(appId);
         await registerReleaseArtifact(appId, id);
         final channel = await jsonOf(
           await send(
@@ -840,7 +843,7 @@ void main() {
             json: {'channel': 'stable'},
           ),
         );
-        final patchId = await newPatch(appId, id);
+        patchId = await newPatch(appId, id);
         await registerPatchArtifact(appId, patchId);
         final art = (await repo.patchArtifacts(patchId)).single;
         await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
@@ -855,16 +858,72 @@ void main() {
           (await send('DELETE', '/api/v1/apps/$appId/releases/$id')).statusCode,
           HttpStatus.conflict,
         );
-
         expect(await repo.rollbackActive(patchId), [channel['id']]);
+      }
+
+      Future<void> withdrawnAgo(Duration ago) => repo.db.query(
+        'UPDATE channel_patches SET withdrawn_at = @t WHERE patch_id = @p',
+        {'t': DateTime.now().toUtc().subtract(ago), 'p': patchId},
+      );
+
+      test('is refused within the grace period, naming when it ends', () async {
+        await promoteAndRollBack();
+        final before = DateTime.now().toUtc();
+
+        final refused = await send(
+          'DELETE',
+          '/api/v1/apps/$appId/releases/$id',
+        );
+
+        expect(refused.statusCode, HttpStatus.conflict);
+        final message = await refused.readAsString();
+        expect(message, contains('force=true'));
+        final deletable = RegExp(
+          r'from (\S+Z) ',
+        ).firstMatch(message)!.group(1)!;
+        final wait = DateTime.parse(deletable).difference(before);
+        expect(
+          wait,
+          greaterThan(releaseDeleteGrace - const Duration(minutes: 1)),
+        );
+        expect(wait, lessThan(releaseDeleteGrace + const Duration(minutes: 1)));
+        expect(await repo.release(id), isNotNull);
+      });
+
+      test('is refused just inside the grace period', () async {
+        await promoteAndRollBack();
+        await withdrawnAgo(releaseDeleteGrace - const Duration(hours: 1));
+
+        expect(
+          (await send('DELETE', '/api/v1/apps/$appId/releases/$id')).statusCode,
+          HttpStatus.conflict,
+        );
+      });
+
+      test('succeeds once the grace period has passed', () async {
+        await promoteAndRollBack();
+        await withdrawnAgo(releaseDeleteGrace + const Duration(hours: 1));
 
         expect(
           (await send('DELETE', '/api/v1/apps/$appId/releases/$id')).statusCode,
           HttpStatus.noContent,
         );
         expect(await repo.release(id), isNull);
-      },
-    );
+      });
+
+      test('succeeds with force within the grace period', () async {
+        await promoteAndRollBack();
+
+        expect(
+          (await send(
+            'DELETE',
+            '/api/v1/apps/$appId/releases/$id?force=true',
+          )).statusCode,
+          HttpStatus.noContent,
+        );
+        expect(await repo.release(id), isNull);
+      });
+    });
 
     test('DELETE artifacts?platform= removes one platform only', () async {
       final appId = await newApp();

@@ -293,6 +293,12 @@ class SchemaTooNewException implements Exception {
       'you are rolling back to.';
 }
 
+/// How long after a patch of a release was withdrawn (rolled back, or
+/// superseded) the release cannot be deleted without `?force=true`: devices
+/// that have not checked in since learn to drop the patch from its
+/// `channel_patches` row, which deleting the release removes. Whole days.
+const releaseDeleteGrace = Duration(days: 7);
+
 class Repository {
   Repository(this._db);
 
@@ -1483,6 +1489,26 @@ class Repository {
       {'r': releaseId, 'a': ChannelPatchStatus.active.name},
     );
     return r.isNotEmpty;
+  }
+
+  /// When the newest withdrawal (a rollback, or a patch superseded on its
+  /// channel) of any patch of [releaseId] happened, if that was less than
+  /// [releaseDeleteGrace] ago; null if there is none that recent.
+  ///
+  /// Deleting the release deletes its `channel_patches` rows, rolled-back ones
+  /// included, and a device that has not checked in since a rollback learns to
+  /// drop the patch only from such a row. The comparison is in SQL because
+  /// `withdrawn_at` is a `DateTime` on Postgres and a `String` on SQLite.
+  Future<DateTime?> releaseRecentWithdrawal(int releaseId) async {
+    final r = await _q(
+      'SELECT MAX(cp.withdrawn_at) AS w FROM channel_patches cp '
+      'JOIN patches p ON p.id = cp.patch_id WHERE p.release_id = @r '
+      "AND cp.withdrawn_at > now() - interval '${releaseDeleteGrace.inDays} days'",
+      {'r': releaseId},
+    );
+    final w = r.isEmpty ? null : r.first['w'];
+    if (w == null) return null;
+    return w is DateTime ? w.toUtc() : DateTime.parse(w.toString()).toUtc();
   }
 
   /// True if [patchId] has been rolled back on any channel.

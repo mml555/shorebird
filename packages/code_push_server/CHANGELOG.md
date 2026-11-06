@@ -35,6 +35,11 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   release is live on a channel. Rolling the patch back unblocks deletion. Pass
   `?force=true` through the console or API to delete anyway; the CLI sends no
   force, and the message says to roll the live patches back first.
+  Deleting is also refused (409) for 7 days (`releaseDeleteGrace`) after any
+  patch of the release was rolled back or withdrawn, because deleting removes
+  the `channel_patches` rows a device that has not checked in since needs to
+  learn to drop the patch. The message says when the release becomes deletable
+  and that `?force=true` overrides it.
 
 ### Added
 
