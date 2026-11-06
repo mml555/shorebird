@@ -2250,11 +2250,11 @@ class Api {
   ///  * `unsigned` or unreported (every release made before managed signing):
   ///    stored as the client sent it, exactly as before. Never server-signed.
   ///
-  /// Sidecar artifacts ([symbolsArch], [assetsArch]) are exempt from all of
-  /// that: the CLI uploads them with no signature in every signing mode, so
-  /// requiring one would 400 every patch built with `--split-debug-info` or
-  /// `--assets`, and signing one would be a signature nobody asked for. A
-  /// signature a client does send is stored as sent.
+  /// [symbolsArch] is exempt from all of that: devices never download it, so
+  /// it is never signed and never required to carry a signature (a signature a
+  /// client does send is stored as sent). [assetsArch] is NOT exempt: devices
+  /// install it as `dlc.assets` and, in Strict mode, verify its signature, so
+  /// an assets-only patch needs one exactly like code does.
   Future<String?> _patchHashSignature(
     PatchRow patch, {
     required String arch,
@@ -2265,7 +2265,7 @@ class Api {
     final supplied = clientSignature == null || clientSignature.isEmpty
         ? null
         : clientSignature;
-    if (arch == symbolsArch || arch == assetsArch) return supplied;
+    if (arch == symbolsArch) return supplied;
     final signing = (await repo.releaseSigning(patch.releaseId))[platform];
     switch (signing?.mode) {
       case 'managed':

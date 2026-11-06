@@ -553,20 +553,39 @@ void main() {
       expect((await repo.patchArtifacts(patchId)).single.hashSignature, 'YWJj');
     });
 
-    test('customer: sidecar artifacts (assets, symbols) need no signature, '
-        'while code still does', () async {
+    test('customer: assets needs a signature like code, symbols does not',
+        () async {
       final appId = await newApp();
       final id = await newRelease(appId);
       await registerReleaseArtifact(appId, id, signing: {'mode': 'customer'});
       final patchId = await newPatch(appId, id);
+      // Devices verify dlc.assets in Strict mode, so an unsigned assets
+      // artifact would become a patch that is tombstoned on the next boot.
+      final unsigned = await registerPatchArtifact(
+        appId,
+        patchId,
+        arch: 'assets',
+      );
+      expect(unsigned.statusCode, HttpStatus.badRequest);
+      expect(await unsigned.readAsString(), contains('hash_signature'));
       expect(
         (await registerPatchArtifact(appId, patchId)).statusCode,
         HttpStatus.badRequest,
       );
-      for (final arch in ['assets', 'symbols']) {
-        final r = await registerPatchArtifact(appId, patchId, arch: arch);
-        expect(r.statusCode, HttpStatus.ok, reason: arch);
-      }
+      expect(
+        (await registerPatchArtifact(
+          appId,
+          patchId,
+          arch: 'assets',
+          hashSignature: 'YXNzZXRz',
+        )).statusCode,
+        HttpStatus.ok,
+      );
+      expect(
+        (await registerPatchArtifact(appId, patchId, arch: 'symbols'))
+            .statusCode,
+        HttpStatus.ok,
+      );
       expect(
         (await registerPatchArtifact(
           appId,
@@ -579,10 +598,15 @@ void main() {
         for (final a in await repo.patchArtifacts(patchId))
           a.arch: a.hashSignature,
       };
-      expect(stored, {'assets': null, 'symbols': null, 'aarch64': 'YWJj'});
+      expect(stored, {
+        'assets': 'YXNzZXRz',
+        'symbols': null,
+        'aarch64': 'YWJj',
+      });
     });
 
-    test('managed: sidecar artifacts are not signed', () async {
+    test('managed: assets is server-signed like code, symbols is not',
+        () async {
       final appId = await newApp();
       final key = await signingKey(appId);
       final id = await newRelease(appId);
@@ -592,13 +616,32 @@ void main() {
         signing: {'mode': 'managed', 'key_id': key['id']},
       );
       final patchId = await newPatch(appId, id);
+      const assetsHash = 'ab12';
       for (final arch in ['assets', 'symbols']) {
-        final r = await registerPatchArtifact(appId, patchId, arch: arch);
+        final r = await registerPatchArtifact(
+          appId,
+          patchId,
+          arch: arch,
+          hash: assetsHash,
+        );
         expect(r.statusCode, HttpStatus.ok, reason: arch);
       }
+      final stored = {
+        for (final a in await repo.patchArtifacts(patchId))
+          a.arch: a.hashSignature,
+      };
+      expect(stored['symbols'], isNull);
+      expect(stored['assets'], isNotNull);
+      final pub = JsonWebKey.fromJson(
+        _jwkFromPem(key['public_key_pem'] as String),
+      );
       expect(
-        (await repo.patchArtifacts(patchId)).map((a) => a.hashSignature),
-        everyElement(isNull),
+        pub.verify(
+          utf8.encode(assetsHash),
+          base64.decode(stored['assets']!),
+          algorithm: 'RS256',
+        ),
+        isTrue,
       );
     });
 
