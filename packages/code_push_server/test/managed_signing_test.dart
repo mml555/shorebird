@@ -722,6 +722,62 @@ void main() {
       },
     );
 
+    test('DELETE refuses a release that ever had a promoted patch, unless '
+        'forced', () async {
+      final appId = await newApp();
+      final id = await newRelease(appId);
+      await registerReleaseArtifact(appId, id);
+      final channel = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/$appId/channels',
+          json: {'channel': 'stable'},
+        ),
+      );
+      final patchId = await newPatch(appId, id);
+      await registerPatchArtifact(appId, patchId);
+      final art = (await repo.patchArtifacts(patchId)).single;
+      await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
+      await repo.setPatchStatus(patchId, PatchStatus.ready);
+      await repo.setReleasePlatformStatus(id, 'android', 'active');
+      expect(
+        (await send(
+          'POST',
+          '/api/v1/apps/$appId/patches/promote',
+          json: {'patch_id': patchId, 'channel_id': channel['id']},
+        )).statusCode,
+        lessThan(300),
+      );
+
+      final refused = await send('DELETE', '/api/v1/apps/$appId/releases/$id');
+      expect(refused.statusCode, HttpStatus.conflict);
+      final message = await refused.readAsString();
+      expect(message, contains('patches rollback'));
+      expect(message, contains('force=true'));
+      expect(await repo.release(id), isNotNull);
+      expect(await repo.patch(patchId), isNotNull);
+
+      // Only an explicit true forces it.
+      for (final f in ['false', '0', '']) {
+        expect(
+          (await send(
+            'DELETE',
+            '/api/v1/apps/$appId/releases/$id?force=$f',
+          )).statusCode,
+          HttpStatus.conflict,
+          reason: 'force=$f',
+        );
+      }
+
+      final forced = await send(
+        'DELETE',
+        '/api/v1/apps/$appId/releases/$id?force=true',
+      );
+      expect(forced.statusCode, HttpStatus.noContent);
+      expect(await repo.release(id), isNull);
+      expect(await repo.patch(patchId), isNull);
+    });
+
     test('DELETE artifacts?platform= removes one platform only', () async {
       final appId = await newApp();
       final id = await newRelease(appId);

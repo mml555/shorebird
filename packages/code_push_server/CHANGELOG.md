@@ -29,6 +29,13 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Patch artifacts with arch `assets` or `symbols` need no `hash_signature` in
   any signing mode, and are never server-signed (the CLI sends none).
 
+- `DELETE /apps/{app}/releases/{release}` answers 409 once any patch of the
+  release has ever been promoted (deleting drops the `channel_patches` rows
+  devices need to be told to uninstall a patch, and lets patch numbers restart
+  under a reused version). Pass `?force=true` through the console or API to
+  delete anyway; the CLI sends no force, and the message says to roll the
+  patches back first.
+
 ### Added
 
 - `GET /cli/login-result`: the page the 1.6.138 CLI sends the browser to after

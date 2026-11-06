@@ -2131,6 +2131,14 @@ class Api {
   /// Upstream `DELETE /apps/{app}/releases/{release}`: the release, every
   /// platform's artifacts and every patch of it. App-admin, like deleting a
   /// channel: it unserves every patch of the release, and cannot be undone.
+  ///
+  /// Refused with 409 once any patch of the release has ever been promoted,
+  /// unless `?force=true`. Deleting takes the `channel_patches` rows with it,
+  /// and a device holding an installed patch learns about a rollback only from
+  /// those rows: it would never be told to drop the patch. A reused version
+  /// string would also restart patch numbering at 1 under the same release
+  /// version, colliding with what devices still have installed. Upstream's
+  /// client sends no `force`, so the message says what to do instead.
   Future<Response> _deleteRelease(
     Request req,
     String appId,
@@ -2138,7 +2146,22 @@ class Api {
   ) async {
     await _authorizeAppAdmin(req, appId, what: 'Deleting a release');
     final release = await _ownedRelease(appId, releaseId);
-    _audit(req)?.note(detail: {'version': release.version});
+    final force = const {
+      'true',
+      '1',
+    }.contains(req.url.queryParameters['force']?.toLowerCase());
+    if (!force && await repo.releaseEverPromoted(releaseId)) {
+      _audit(req)?.note(detail: {'version': release.version, 'force': false});
+      throw conflict(
+        'Release ${release.version} has had patches promoted to devices, and '
+        'deleting it would discard the record devices need to be told to '
+        'uninstall them (and let patch numbers restart under this version). '
+        'Roll the patches back first (shorebird patches rollback) and let '
+        'devices check in, or, if you are sure, delete it through the console '
+        'or the API with ?force=true. The CLI cannot send force.',
+      );
+    }
+    _audit(req)?.note(detail: {'version': release.version, 'force': force});
     await _deleteObjects(await repo.deleteRelease(releaseId));
     return Response(HttpStatus.noContent);
   }

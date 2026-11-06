@@ -1472,6 +1472,17 @@ class Repository {
     return r.isNotEmpty;
   }
 
+  /// True if any patch of [releaseId] has ever been promoted to a channel,
+  /// whatever became of it since (withdrawn and rolled-back rows count).
+  Future<bool> releaseEverPromoted(int releaseId) async {
+    final r = await _q(
+      'SELECT 1 FROM channel_patches WHERE patch_id IN '
+      '(SELECT id FROM patches WHERE release_id = @r) LIMIT 1',
+      {'r': releaseId},
+    );
+    return r.isNotEmpty;
+  }
+
   /// True if [patchId] has been rolled back on any channel.
   Future<bool> patchRolledBack(int patchId) async {
     final r = await _q(
