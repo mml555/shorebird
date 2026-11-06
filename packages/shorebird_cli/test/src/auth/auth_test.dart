@@ -629,12 +629,12 @@ void main() {
           return '${part({'alg': 'none'})}.${part(claims)}.sig';
         }
 
-        void writeLegacy({String? idToken}) {
+        void writeLegacy({String? idToken, String? accessToken}) {
           File(legacyCredentialsPath).writeAsStringSync(
             jsonEncode({
               'accessToken': {
                 'type': 'Bearer',
-                'data': shorebirdAccessToken,
+                'data': accessToken ?? shorebirdAccessToken,
                 'expiry': DateTime.now()
                     .add(const Duration(minutes: 10))
                     .toUtc()
@@ -675,6 +675,78 @@ void main() {
           );
           expect(stored.refreshToken, equals(refreshToken));
           expect(stored.tokenEndpoint?.host, equals('cps.example.com'));
+        });
+
+        test('carries over a login as the self-host and the CLI before this '
+            'one wrote it: an access-token JWT, no idToken', () {
+          // The server's /token returns `access_token` (a JWT whose `iss` is
+          // its configured issuer), `refresh_token`, `token_type` and
+          // `expires_in`, and no `id_token`.
+          writeLegacy(
+            accessToken: jwt({
+              'iss': 'https://cps.example.com',
+              'aud': 'shorebird',
+              'sub': 'a@b.c',
+            }),
+          );
+
+          auth = buildAuth();
+
+          expect(auth.isAuthenticated, isTrue);
+          expect(File(legacyCredentialsPath).existsSync(), isFalse);
+          expect(File(selfHostedPath).existsSync(), isTrue);
+        });
+
+        test('matches the issuer on its normalized origin', () {
+          for (final issuer in [
+            'https://cps.example.com/',
+            'https://cps.example.com:443',
+            'HTTPS://CPS.Example.COM:443/',
+          ]) {
+            writeLegacy(accessToken: jwt({'iss': issuer}));
+
+            auth = buildAuth();
+
+            expect(auth.isAuthenticated, isTrue, reason: issuer);
+            expect(File(legacyCredentialsPath).existsSync(), isFalse);
+            File(selfHostedPath).deleteSync();
+          }
+        });
+
+        test('does not match a different scheme or port', () {
+          for (final issuer in [
+            'http://cps.example.com',
+            'https://cps.example.com:8443',
+          ]) {
+            writeLegacy(accessToken: jwt({'iss': issuer}));
+
+            auth = buildAuth();
+
+            expect(auth.isAuthenticated, isFalse, reason: issuer);
+            expect(File(legacyCredentialsPath).existsSync(), isTrue);
+          }
+        });
+
+        test('tells the user to log in when the server advertises another '
+            'host as its issuer, and keeps the file', () async {
+          writeLegacy(accessToken: jwt({'iss': 'https://10.0.0.5:8080'}));
+
+          auth = buildAuth();
+          runWithOverrides(() => auth.isAuthenticated);
+          await runWithOverrides(auth.hasValidCredentials);
+
+          expect(File(legacyCredentialsPath).existsSync(), isTrue);
+          expect(File(selfHostedPath).existsSync(), isFalse);
+          verify(
+            () => logger.info(
+              any(
+                that: allOf(
+                  contains('https://10.0.0.5:8080'),
+                  contains('shorebird login'),
+                ),
+              ),
+            ),
+          ).called(greaterThanOrEqualTo(1));
         });
 
         test('leaves a shorebird.dev login alone: not migrated, not sent to '

@@ -419,28 +419,71 @@ class Auth {
 
   /// Whether the legacy login in [json] demonstrably belongs to the current
   /// auth service. The default service's always does, as that file never
-  /// named a service. Otherwise the stored `idToken` must be a JWT whose `iss`
-  /// is this auth service's host; a file without one, or with another issuer,
-  /// is not ours to send anywhere or delete.
+  /// named a service.
+  ///
+  /// Otherwise the file must carry a JWT whose `iss` names this auth
+  /// service's origin (scheme, host and port; case, a default port and a
+  /// trailing slash do not matter). The self-hosted CLI wrote the access
+  /// token, which the server mints as a JWT, to both `accessToken.data` and
+  /// `idToken`, but a file may have no `idToken` (the server's `/token`
+  /// returns no `id_token`), so the access token counts too. Every issuer
+  /// found must match. A file with no readable issuer, or another one, is not
+  /// ours to send anywhere or delete.
+  ///
+  /// This does not match when the server advertises an issuer
+  /// (`SHOREBIRD_JWT_ISSUER` or `PUBLIC_BASE_URL`) on a different origin than
+  /// the one this CLI connects to. The login is then left in place, and the
+  /// user is told to run `shorebird login` (see [_migrateLegacyCredentials]).
   bool _legacyLoginIsForThisAuthService(Object? json) {
     if (_isDefaultAuthService) return true;
-    if (!_isSelfHosted || json is! Map) return false;
-    final idToken = json['idToken'];
-    if (idToken is! String) return false;
-    final parts = idToken.split('.');
-    if (parts.length != 3) return false;
+    if (!_isSelfHosted) return false;
+    final issuers = _legacyIssuers(json);
+    if (issuers.isEmpty) return false;
+    final ours = _origin(_authServiceUri);
+    return issuers.every((issuer) => _originOf(issuer) == ours);
+  }
+
+  /// The `iss` claims of the JWTs in the legacy login [json]: its `idToken`
+  /// and its access token, whichever are JWTs with an issuer.
+  List<String> _legacyIssuers(Object? json) {
+    if (json is! Map) return const [];
+    final accessToken = json['accessToken'];
+    return [
+      for (final token in [
+        json['idToken'],
+        if (accessToken is Map) accessToken['data'],
+      ])
+        ?_jwtIssuer(token),
+    ];
+  }
+
+  /// The `iss` claim of [token] if it is a JWT that has one. Does not verify
+  /// the signature: the issuer only decides whether the file is ours.
+  static String? _jwtIssuer(Object? token) {
+    if (token is! String) return null;
+    final parts = token.split('.');
+    if (parts.length != 3) return null;
     try {
       final payload = jsonDecode(
         utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
       );
       final issuer = payload is Map ? payload['iss'] : null;
-      if (issuer is! String) return false;
-      final issuerUri = Uri.parse(issuer);
-      return issuerUri.host.isNotEmpty &&
-          _authServiceKey(issuerUri) == _authServiceKey(_authServiceUri);
+      return issuer is String ? issuer : null;
     } on FormatException {
-      return false;
+      return null;
     }
+  }
+
+  /// [uri]'s origin, normalized: lower-case scheme and host, the port always
+  /// present (a default one included), no path.
+  static String _origin(Uri uri) =>
+      '${uri.scheme.toLowerCase()}://${uri.host.toLowerCase()}:${uri.port}';
+
+  /// The normalized origin of the URL [issuer], or null if it is not one.
+  static String? _originOf(String issuer) {
+    final uri = Uri.tryParse(issuer.trim());
+    if (uri == null || uri.host.isEmpty || !uri.hasScheme) return null;
+    return _origin(uri);
   }
 
   /// The path of the credentials file CLIs before `package:oauth2` wrote, in
@@ -949,11 +992,21 @@ class Auth {
       final json = jsonDecode(legacyFile.readAsStringSync());
       if (!_legacyLoginIsForThisAuthService(json)) {
         // Not provably this self-host's: leave the file alone (it may be a
-        // shorebird.dev login) and let the user log in.
-        logger.detail(
-          'Ignoring $legacyCredentialsFilePath: it does not name '
-          '${_authServiceUri.host} as its issuer.',
-        );
+        // shorebird.dev login, or the server's issuer may be configured as
+        // another host than the one this CLI connects to), send it nowhere,
+        // and tell the user to log in.
+        if (warn) {
+          final issuers = _legacyIssuers(json);
+          final issuedBy = issuers.isEmpty
+              ? 'does not name an issuer'
+              : 'was issued by ${issuers.first}';
+          logger.info(
+            'Your saved login in $legacyCredentialsFilePath $issuedBy, not '
+            '${_authServiceUri.origin}, so it was not carried over. Run '
+            '${lightCyan.wrap('shorebird login')} to sign in to '
+            '${_authServiceUri.host}.',
+          );
+        }
         return null;
       }
       if (json case {
