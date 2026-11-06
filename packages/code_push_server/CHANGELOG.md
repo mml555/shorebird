@@ -26,15 +26,15 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Back the secret up with the database.
 - `/login` now requires `code_challenge` (PKCE S256) with `redirect_uri`. The
   legacy `continue` form still works without one.
-- Patch artifacts with arch `assets` or `symbols` need no `hash_signature` in
-  any signing mode, and are never server-signed (the CLI sends none).
+- Patch artifacts with arch `symbols` need no `hash_signature` and are never
+  server-signed. Arch `assets` is signed like code: server-signed on managed
+  releases, and on customer-signed releases it needs a `hash_signature` (400
+  without), because devices verify the installed assets bundle in Strict mode.
 
-- `DELETE /apps/{app}/releases/{release}` answers 409 once any patch of the
-  release has ever been promoted (deleting drops the `channel_patches` rows
-  devices need to be told to uninstall a patch, and lets patch numbers restart
-  under a reused version). Pass `?force=true` through the console or API to
-  delete anyway; the CLI sends no force, and the message says to roll the
-  patches back first.
+- `DELETE /apps/{app}/releases/{release}` answers 409 while any patch of the
+  release is live on a channel. Rolling the patch back unblocks deletion. Pass
+  `?force=true` through the console or API to delete anyway; the CLI sends no
+  force, and the message says to roll the live patches back first.
 
 ### Added
 

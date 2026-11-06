@@ -1942,10 +1942,17 @@ class Repository {
     return r.isEmpty ? null : _signingKeyFrom(r.first);
   }
 
-  /// Any one stored key, for the boot-time trial decrypt.
+  /// Any one stored key (the oldest).
   Future<SigningKeyRow?> anySigningKey() async {
     final r = await _q('SELECT * FROM signing_keys ORDER BY id LIMIT 1', {});
     return r.isEmpty ? null : _signingKeyFrom(r.first);
+  }
+
+  /// Every stored key, oldest first, for the boot-time trial decrypt (the
+  /// table has at most one row per org, so it is small).
+  Future<List<SigningKeyRow>> allSigningKeys() async {
+    final r = await _q('SELECT * FROM signing_keys ORDER BY id', {});
+    return [for (final row in r) _signingKeyFrom(row)];
   }
 
   Future<SigningKeyRow?> signingKeyForOrg(int orgId) async {

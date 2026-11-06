@@ -996,6 +996,24 @@ void main() {
       final missing = await (await withSecret(null)).checkPatchSigningKeys();
       expect(missing, contains('PATCH_SIGNING_KEY_SECRET is not set'));
     });
+
+    test(
+      'boot check: a later org\'s undecryptable key is found and named',
+      () async {
+        await signingKey(await newApp());
+        // A second org whose key was wrapped under some other secret.
+        final user = await repo.upsertUser('second@example.com', null);
+        final orgId = (await repo.memberships(user.id)).single.orgId;
+        final bad = await repo.insertSigningKeyIfAbsent(
+          orgId,
+          'pem',
+          'garbage',
+        );
+        final problem = await api.checkPatchSigningKeys();
+        expect(problem, contains('organization $orgId'));
+        expect(problem, contains('key id ${bad.id}'));
+      },
+    );
   });
 
   group('Config', () {

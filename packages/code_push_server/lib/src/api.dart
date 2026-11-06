@@ -205,24 +205,27 @@ class Api {
             'never rotate it without re-wrapping the stored keys.',
       ));
 
-  /// Boot-time check that a stored managed signing key decrypts under the
-  /// configured secret. Returns a problem to refuse to start with, or null
-  /// when there is no key yet or the one tried decrypts.
+  /// Boot-time check that every stored managed signing key decrypts under the
+  /// configured secret. Returns a problem to refuse to start with, naming the
+  /// org whose key failed, or null when there are no keys or all decrypt.
   Future<String?> checkPatchSigningKeys() async {
-    final stored = await repo.anySigningKey();
-    if (stored == null) return null;
+    final stored = await repo.allSigningKeys();
+    if (stored.isEmpty) return null;
     final signer = _patchSigner;
     if (signer == null) {
       return 'PATCH_SIGNING_KEY_SECRET is not set, but this database holds '
           'managed patch-signing keys encrypted under it. Set it to the value '
           'they were created with.';
     }
-    if (await signer.canDecrypt(stored.privateKeyEncrypted)) return null;
-    return 'PATCH_SIGNING_KEY_SECRET does not decrypt the stored managed '
-        'patch-signing key (id ${stored.id}). It was changed, or the key was '
-        'created under another secret (an older build fell back to '
-        'URL_SIGNING_SECRET). Restore the original value; rotating it strands '
-        'every key.';
+    for (final key in stored) {
+      if (await signer.canDecrypt(key.privateKeyEncrypted)) continue;
+      return 'PATCH_SIGNING_KEY_SECRET does not decrypt the stored managed '
+          'patch-signing key of organization ${key.orgId} (key id '
+          '${key.id}). It was changed, or the key was created under another '
+          'secret (an older build fell back to URL_SIGNING_SECRET). Restore '
+          'the original value; rotating it strands every key.';
+    }
+    return null;
   }
 
   final Analytics _analytics;
