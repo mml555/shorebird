@@ -437,10 +437,15 @@ class Auth {
   bool _legacyLoginIsForThisAuthService(Object? json) {
     if (_isDefaultAuthService) return true;
     if (!_isSelfHosted) return false;
-    final issuers = _legacyIssuers(json);
-    if (issuers.isEmpty) return false;
     final ours = _origin(_authServiceUri);
-    return issuers.every((issuer) => _originOf(issuer) == ours);
+    // The token that is migrated and sent is the access token, so it must
+    // be a JWT issued by this service itself, not just sit next to one.
+    final accessToken = json is Map ? json['accessToken'] : null;
+    final sentIssuer = _jwtIssuer(
+      accessToken is Map ? accessToken['data'] : null,
+    );
+    if (sentIssuer == null || _originOf(sentIssuer) != ours) return false;
+    return _legacyIssuers(json).every((issuer) => _originOf(issuer) == ours);
   }
 
   /// The `iss` claims of the JWTs in the legacy login [json]: its `idToken`
@@ -970,6 +975,10 @@ class Auth {
     }
   }
 
+  /// Whether the legacy-login issuer mismatch has been reported by this
+  /// instance already.
+  bool _warnedLegacyMismatch = false;
+
   /// Carries a login stored in [legacyCredentialsFilePath], in
   /// `package:googleapis_auth`'s `AccessCredentials` format, over to
   /// [credentialsFilePath], then deletes the legacy file.
@@ -995,14 +1004,17 @@ class Auth {
         // shorebird.dev login, or the server's issuer may be configured as
         // another host than the one this CLI connects to), send it nowhere,
         // and tell the user to log in.
-        if (warn) {
+        if (warn && !_warnedLegacyMismatch) {
+          // Once per process: the file stays in place, so every command
+          // would otherwise print this again.
+          _warnedLegacyMismatch = true;
           final issuers = _legacyIssuers(json);
           final issuedBy = issuers.isEmpty
               ? 'does not name an issuer'
               : 'was issued by ${issuers.first}';
           logger.info(
             'Your saved login in $legacyCredentialsFilePath $issuedBy, not '
-            '${_authServiceUri.origin}, so it was not carried over. Run '
+            '${_origin(_authServiceUri)}, so it was not carried over. Run '
             '${lightCyan.wrap('shorebird login')} to sign in to '
             '${_authServiceUri.host}.',
           );

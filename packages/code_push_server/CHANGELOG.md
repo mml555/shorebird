@@ -10,6 +10,12 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- `POST /api/v1/patches/events` answers `422` when an event cannot be stored
+  even verbatim (for example a NUL character in the body on Postgres), instead
+  of `500`. The updater retries a `500` forever, which blocked its queue.
+- Rollback wording for deleting a release names the 7-day grace period
+  (`releaseDeleteGrace`): rolling a patch back does not allow an immediate
+  delete without `force`.
 - **`PATCH_SIGNING_KEY_SECRET` is now required for managed signing, and no
   longer falls back to `URL_SIGNING_SECRET`.** Rotating a secret operators
   rotate for other reasons must never strand the stored signing keys. It is

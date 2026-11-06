@@ -662,7 +662,10 @@ void main() {
 
         test('carries a legacy login over when its idToken was issued by '
             'this host, keyed to the configured host', () {
-          writeLegacy(idToken: jwt({'iss': 'https://cps.example.com'}));
+          writeLegacy(
+            idToken: jwt({'iss': 'https://cps.example.com'}),
+            accessToken: jwt({'iss': 'https://cps.example.com'}),
+          );
 
           auth = buildAuth();
 
@@ -703,14 +706,65 @@ void main() {
             'https://cps.example.com:443',
             'HTTPS://CPS.Example.COM:443/',
           ]) {
-            writeLegacy(accessToken: jwt({'iss': issuer}));
+            final token = jwt({'iss': issuer});
+            writeLegacy(accessToken: token);
 
             auth = buildAuth();
 
             expect(auth.isAuthenticated, isTrue, reason: issuer);
             expect(File(legacyCredentialsPath).existsSync(), isFalse);
+            expect(
+              oauth2.Credentials.fromJson(
+                File(selfHostedPath).readAsStringSync(),
+              ).accessToken,
+              equals(token),
+              reason: issuer,
+            );
             File(selfHostedPath).deleteSync();
           }
+        });
+
+        test('does not migrate when the idToken is ours but the access token '
+            'was issued elsewhere', () {
+          writeLegacy(
+            idToken: jwt({'iss': 'https://cps.example.com'}),
+            accessToken: jwt({'iss': 'https://auth.shorebird.dev'}),
+          );
+
+          auth = buildAuth();
+
+          expect(auth.isAuthenticated, isFalse);
+          expect(File(legacyCredentialsPath).existsSync(), isTrue);
+          expect(File(selfHostedPath).existsSync(), isFalse);
+        });
+
+        test('does not migrate an opaque access token next to a matching '
+            'idToken, and keeps the file', () {
+          writeLegacy(
+            idToken: jwt({'iss': 'https://cps.example.com'}),
+            accessToken: 'opaque-access-token',
+          );
+
+          auth = buildAuth();
+
+          expect(auth.isAuthenticated, isFalse);
+          expect(File(legacyCredentialsPath).existsSync(), isTrue);
+          expect(File(selfHostedPath).existsSync(), isFalse);
+        });
+
+        test('matches an IPv6 issuer', () {
+          when(
+            () => shorebirdEnv.authServiceUri,
+          ).thenReturn(Uri.parse('https://[::1]:8443'));
+          when(
+            () => shorebirdEnv.hostedUri,
+          ).thenReturn(Uri.parse('https://[::1]:8443'));
+          writeLegacy(accessToken: jwt({'iss': 'https://[::1]:8443/'}));
+
+          auth = buildAuth();
+
+          expect(auth.isAuthenticated, isTrue);
+          expect(File(legacyCredentialsPath).existsSync(), isFalse);
         });
 
         test('does not match a different scheme or port', () {
@@ -786,7 +840,10 @@ void main() {
           runWithOverrides(buildAuth().clearCredentials);
           expect(File(legacyCredentialsPath).existsSync(), isTrue);
 
-          writeLegacy(idToken: jwt({'iss': 'https://cps.example.com'}));
+          writeLegacy(
+            idToken: jwt({'iss': 'https://cps.example.com'}),
+            accessToken: jwt({'iss': 'https://cps.example.com'}),
+          );
           runWithOverrides(buildAuth().clearCredentials);
           expect(File(legacyCredentialsPath).existsSync(), isFalse);
         });

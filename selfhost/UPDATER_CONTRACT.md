@@ -343,7 +343,9 @@ Exactly the `{ "event": { … } }` object from §1. One event per POST.
 `send_patch_event` builds `CreatePatchEventRequest { event }` and POSTs it as
 JSON (`network.rs:301-307`, `report_event_default` at `network.rs:136-140`).
 Unauthenticated (no bearer). Any 2xx is success; our server returns `204`
-(`api.dart` `_patchesEvents`, `204` at :2439). Response body is ignored.
+(`api.dart` `_patchesEvents`, `204` at :2439). Response body is ignored. An
+event that cannot be stored even verbatim (for example a NUL character on
+Postgres) gets `422`, a permanent refusal, not a `500` the updater would retry.
 
 ### Queue / retry / offline behavior
 This is the subtle part — two different delivery paths:

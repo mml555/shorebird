@@ -2138,9 +2138,11 @@ class Api {
   /// Refused with 409 while any patch of the release is live on a channel,
   /// unless `?force=true`: deleting would silently stop serving it, and a
   /// device holding it installed would never be told to drop it. Rolling the
-  /// patch back is the supported way out and unblocks deletion (a rolled-back
-  /// row is no longer live), which matters because upstream's client sends no
-  /// `force`, so the message says what to do instead.
+  /// patch back is the supported way out, though not an immediate one: a
+  /// rolled-back row is no longer live, but the release stays undeletable
+  /// without `force` for [releaseDeleteGrace] (7 days) after the rollback.
+  /// That matters because upstream's client sends no `force`, so the message
+  /// says what to do instead.
   Future<Response> _deleteRelease(
     Request req,
     String appId,
@@ -2157,8 +2159,9 @@ class Api {
       throw conflict(
         'Release ${release.version} still has a patch live on a channel, and '
         'deleting it would stop serving that patch to devices. Roll the live '
-        'patches back first (shorebird patches rollback); once none is live '
-        'the release can be deleted. Or, if you are sure, delete it through '
+        'patches back first (shorebird patches rollback); once none is live, '
+        'and ${releaseDeleteGrace.inDays} days have passed since the last '
+        'rollback, the release can be deleted. Or, if you are sure, delete it through '
         'the console or the API with ?force=true. The CLI cannot send force.',
       );
     }
@@ -3366,7 +3369,20 @@ class Api {
       );
       if (!inserted) obs.info('duplicate event ignored');
     } catch (_) {
-      await repo.insertEvent(raw: raw);
+      // Malformed or unexpected events are still kept verbatim. If even that
+      // fails (for example a NUL character in `raw` on Postgres), the event
+      // can never be stored: refuse it permanently with 422. A 500 would make
+      // the updater retry the same event forever and block its queue.
+      try {
+        await repo.insertEvent(raw: raw);
+      } catch (error, st) {
+        obs.error('patches/events: event could not be stored', error, st);
+        return _err(
+          HttpStatus.unprocessableEntity,
+          'unprocessable',
+          'Event could not be stored; do not retry it',
+        );
+      }
     }
     return Response(HttpStatus.noContent);
   }

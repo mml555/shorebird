@@ -309,7 +309,8 @@ Where a patch carries both a code artifact and an asset bundle, `kind` is
   "patch_number":1,"platform":"android","arch":"aarch64",
   "release_version":"1.0.0+1","timestamp":1785000000,"message":null } }
 ```
-Returns `204`. Idempotent (deduped by `client_id|app_id|release_version|
+Returns `204`, or `422` if the event cannot be stored even verbatim (a
+permanent refusal; do not retry). Idempotent (deduped by `client_id|app_id|release_version|
 patch_number|type|timestamp`). Known types: `__patch_download__`,
 `__patch_install__`, plus `__patch_install_failure__` / `__patch_update_failure__`.
 

@@ -1480,8 +1480,9 @@ class Repository {
 
   /// True if any patch of [releaseId] is live on a channel right now: a
   /// `channel_patches` row still `active`. A rolled-back (or superseded) row
-  /// is `withdrawn`, so rolling a patch back is what unblocks deleting its
-  /// release.
+  /// is `withdrawn`, so rolling a patch back is the first step to deleting its
+  /// release, which then waits out [releaseDeleteGrace] (7 days) after the
+  /// rollback unless forced.
   Future<bool> releaseHasLivePatch(int releaseId) async {
     final r = await _q(
       'SELECT 1 FROM channel_patches WHERE status = @a AND patch_id IN '

@@ -35,6 +35,7 @@ done
 
 say()  { printf '\033[36m==>\033[0m %s\n' "$*"; }
 ok()   { printf '\033[32m ✓\033[0m %s\n' "$*"; }
+warn() { printf '\033[33m WARNING:\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 gen()  { openssl rand -hex 32; }
 
@@ -294,7 +295,8 @@ if [[ -f .env ]]; then
   say "Using existing .env (delete it to regenerate)."
   # An .env from an older setup.sh, or one created by hand, may be world
   # readable. It holds every secret.
-  chmod 600 .env
+  # It may be owned by another user, in which case chmod fails: warn, go on.
+  chmod 600 .env 2>/dev/null || warn ".env could not be made owner-only (chmod 600 failed; is it owned by another user?). It holds every secret: fix its permissions yourself."
   # PATCH_SIGNING_KEY_SECRET is required and is never derived from another
   # secret. An .env from before it existed gets a fresh one. If this database
   # already holds managed signing keys wrapped under the old URL_SIGNING_SECRET
@@ -318,6 +320,9 @@ if [[ -f .env ]]; then
     # or half written, and never briefly readable by others.
     chmod 600 "$env_tmp"
     mv -f "$env_tmp" .env
+    # Nothing left to clean up: restore default signal handling so later steps
+    # (docker) keep their normal exit codes.
+    trap - INT TERM EXIT
     ok "Added PATCH_SIGNING_KEY_SECRET to .env. BACK IT UP: it encrypts the managed signing keys and can never be rotated without re-wrapping them."
   fi
 elif [[ "$MODE" == scale ]]; then

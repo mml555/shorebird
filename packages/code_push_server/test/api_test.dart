@@ -323,6 +323,25 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  group('POST /patches/events when an event cannot be stored', () {
+    test('answers 422, a permanent refusal, not a retryable 500', () async {
+      final failing = Api(
+        _FailingEvents(repo.db),
+        await ArtifactStore.open(config),
+        config,
+      );
+      final r = await failing.handler(
+        Request(
+          'POST',
+          Uri.parse('http://localhost:8080/api/v1/patches/events'),
+          body: 'not json',
+        ),
+      );
+      expect(r.statusCode, HttpStatus.unprocessableEntity);
+      expect(await r.readAsString(), contains('do not retry'));
+    });
+  });
+
   group('request body limits', () {
     // WAS: every one of these read the body with an uncapped `readAsString`.
     // /patches/check, /patches/events, /login and /token are all public, so an
@@ -3910,4 +3929,29 @@ String _signedUrlFor(Config config, String token) {
   final signer = UrlSigner(config.urlSigningSecret);
   final s = signer.sign(token, DateTime.now().add(config.downloadUrlTtl));
   return '/download/$token?exp=${s.exp}&sig=${s.sig}';
+}
+
+/// A repository whose event inserts always fail, so both the main insert and
+/// the verbatim fallback of `POST /patches/events` throw.
+class _FailingEvents extends Repository {
+  _FailingEvents(super.db);
+
+  @override
+  Future<bool> insertEvent({
+    required String raw,
+    String? dedupeKey,
+    String? appId,
+    String? clientId,
+    String? type,
+    int? patchNumber,
+    String? platform,
+    String? arch,
+    String? releaseVersion,
+    int? ts,
+    String? outcome,
+    int? ambiguousAttemptCount,
+    int? bootFailureThreshold,
+    int? bootStartedAt,
+    String? updaterRevision,
+  }) => throw StateError('injected event insert failure');
 }
