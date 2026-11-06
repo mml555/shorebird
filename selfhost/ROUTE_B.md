@@ -674,7 +674,7 @@ start, and if you find yourself doing it, check whether it is already solved.
 | Android engine | `760e3fab…` — ditto, full device lifecycle proven |
 | iOS build host | this Mac, `/Volumes/build/ios-engine` (external SSD, APFS, **no spaces in the path** — depot_tools/gclient/GN break on them) |
 | **Route B tree** | `/Volumes/build/route-b/flutter` — **created 2026-08-09**, its own checkout as required below. APFS clone of the iOS tree + the killgate patch; `dart_dynamic_modules = true` |
-| Android build host | Hermes VPS, `ssh -i sshkey20.120.104.70.pem -p 13549 jewgo@20.120.104.70`, `/data/shorebird-engine` — the `-i` is **not optional**, and without it you get `Permission denied (publickey)`, which reads like a dead box |
+| Android build host | Hermes VPS, `ssh -i <ssh-key>.pem -p <ssh-port> <ssh-user>@<build-host>`, `/data/shorebird-engine` — the `-i` is **not optional**, and without it you get `Permission denied (publickey)`, which reads like a dead box |
 | Control planes | `cps-ios` :18080, `cps-android` :18081 |
 | Rig state | `~/shorebird-rig/{control-plane,config,secrets}` — see [`fixtures/CONTROL_PLANE_DATA.md`](fixtures/CONTROL_PLANE_DATA.md) |
 | Acceptance fixture | [`fixtures/airgap_app`](fixtures/airgap_app) — committed, reproducible |

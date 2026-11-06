@@ -1,7 +1,7 @@
 SSD backup reclaim — 2026-08-14
 ===============================
 
-GOAL: remove disk pressure on the Azure build host (20.120.104.70:13549).
+GOAL: remove disk pressure on the Azure build host (<build-host>:<ssh-port>).
 
 THE PREMISE INVERTED. media_manifest.json declares:
     "root": "/Volumes/build/media"

@@ -366,7 +366,7 @@ independence:
 # contract is unchanged: gen_snapshot, aot-tools.dill and the patch CLI all come
 # from `falls_back_to`.
 experimental:
-  build_host: hermes-vps           # Azure 20.120.104.70, /data/shorebird-engine (shared
+  build_host: hermes-vps           # Azure <build-host>, /data/shorebird-engine (shared
                                    # with a live Hermes deployment — 4 vCPU, cap ninja -j3)
   cell: android-arm64-release      # the only platform cell built from source today
   engines:

@@ -164,7 +164,7 @@ The immutable SHA was chosen deliberately.
 
 ### 7.5e — patch-linux-x64.zip  DONE, built on the Linux box
 
-Host: Hermes VPS, port 13549 as `jewgo`, key in repo, per HANDOFF.md. x86_64,
+Host: Hermes VPS, port <ssh-port> as `<ssh-user>`, key in repo, per HANDOFF.md. x86_64,
 cargo 1.96.0. Login shell used throughout — cargo's env lives in `~/.profile`
 and a non-login probe reports it missing.
 

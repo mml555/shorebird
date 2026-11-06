@@ -269,7 +269,7 @@ C++**, and a starting point for a port, but it is not a rebuildable engine.
 
 ## The build host we actually use (Azure VPS)
 
-Azure `20.120.104.70`, port `13549`. ~~**Co-tenant with a live Hermes
+Azure `<build-host>`, port `<ssh-port>`. ~~**Co-tenant with a live Hermes
 deployment**~~ — **Hermes was moved off this box; re-audited 2026-08-14.**
 
 > **THE CO-TENANT LEFT, THE HOST BRIEFLY GOT TIGHTER, AND IS NOW THE ROOMIEST
