@@ -998,7 +998,7 @@ void main() {
     });
 
     test(
-      'boot check: a later org\'s undecryptable key is found and named',
+      'boot check: a later org\'s key that does not decrypt is found and named',
       () async {
         await signingKey(await newApp());
         // A second org whose key was wrapped under some other secret.
