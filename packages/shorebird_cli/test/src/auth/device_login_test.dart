@@ -144,6 +144,16 @@ void main() {
       );
     });
 
+    test('throws DeviceFlowUnsupportedException when the endpoint is not '
+        'there (a self-hosted auth service)', () async {
+      await expectLater(
+        login(start: http.Response('not found', 404)),
+        throwsA(isA<DeviceFlowUnsupportedException>()),
+      );
+      expect(prompts, isEmpty);
+      expect(requests, hasLength(1));
+    });
+
     test('respects an authBaseUrl with a path', () async {
       final client = MockClient((request) async {
         requests.add(request);

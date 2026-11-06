@@ -131,6 +131,23 @@ void main() {
         verify(() => logger.err(error.toString())).called(1);
       });
 
+      test('falls back to the browser login, with a message, when the auth '
+          'service has no device flow', () async {
+        when(() => browser.canOpen).thenReturn(false);
+        when(
+          () => auth.loginWithDeviceCode(prompt: any(named: 'prompt')),
+        ).thenThrow(const DeviceFlowUnsupportedException());
+
+        final result = await runWithOverrides(command.run);
+
+        expect(result, equals(ExitCode.success.code));
+        verify(
+          () => logger.warn(any(that: contains('does not support device'))),
+        ).called(1);
+        verify(() => auth.login(prompt: any(named: 'prompt'))).called(1);
+        verifyNever(() => logger.err(any()));
+      });
+
       test('is not used when a browser can be opened', () async {
         final result = await runWithOverrides(command.run);
 

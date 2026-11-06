@@ -20,6 +20,18 @@ class ShorebirdAuthException implements Exception {
   String toString() => 'ShorebirdAuthException: $message';
 }
 
+/// The auth service has no device authorization endpoint (RFC 8628), so a
+/// login that needs no browser on this machine is not possible with it.
+///
+/// A self-hosted control plane's auth service signs people in through its own
+/// page and has no device flow; the caller falls back to the loopback login,
+/// printing its URL.
+class DeviceFlowUnsupportedException extends ShorebirdAuthException {
+  /// Creates a [DeviceFlowUnsupportedException].
+  const DeviceFlowUnsupportedException()
+    : super('The auth service does not support device code login.');
+}
+
 /// The OAuth client id the CLI is registered under with the auth service.
 ///
 /// A public client (RFC 6749 section 2.1): it has no secret, and PKCE is what
@@ -327,6 +339,13 @@ Future<DeviceAuthorization> _startDeviceAuthorization({
     );
   }
 
+  // 404 (no such route), 405 and 501 all say this server never implemented
+  // the endpoint, which is not the same as refusing this request.
+  if (response.statusCode == HttpStatus.notFound ||
+      response.statusCode == HttpStatus.methodNotAllowed ||
+      response.statusCode == HttpStatus.notImplemented) {
+    throw const DeviceFlowUnsupportedException();
+  }
   _throwUnlessOk(response, 'Could not start a login');
 
   final Object? json;

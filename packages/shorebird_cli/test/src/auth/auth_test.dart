@@ -620,6 +620,46 @@ void main() {
         ).called(1);
       });
 
+      test('carries a legacy login over when self-hosted, keyed to the '
+          'configured host', () {
+        when(
+          () => shorebirdEnv.authServiceUri,
+        ).thenReturn(Uri.parse('https://cps.example.com'));
+        when(
+          () => shorebirdEnv.hostedUri,
+        ).thenReturn(Uri.parse('https://cps.example.com'));
+        final selfHostedPath = p.join(
+          credentialsDir,
+          'credentials-v2-cps.example.com.json',
+        );
+        File(legacyCredentialsPath).writeAsStringSync(
+          jsonEncode({
+            'accessToken': {
+              'type': 'Bearer',
+              'data': shorebirdAccessToken,
+              'expiry': DateTime.now()
+                  .add(const Duration(minutes: 10))
+                  .toUtc()
+                  .toIso8601String(),
+            },
+            'refreshToken': refreshToken,
+            'scopes': <String>[],
+          }),
+        );
+
+        auth = buildAuth();
+
+        expect(auth.isAuthenticated, isTrue);
+        expect(File(legacyCredentialsPath).existsSync(), isFalse);
+        expect(File(selfHostedPath).existsSync(), isTrue);
+        expect(File(credentialsPath).existsSync(), isFalse);
+        final stored = oauth2.Credentials.fromJson(
+          File(selfHostedPath).readAsStringSync(),
+        );
+        expect(stored.refreshToken, equals(refreshToken));
+        expect(stored.tokenEndpoint?.host, equals('cps.example.com'));
+      });
+
       test('does not carry a legacy login over', () {
         File(legacyCredentialsPath).writeAsStringSync('{}');
 
@@ -925,6 +965,27 @@ void main() {
           });
         }
 
+        test('self-hosted: still says shorebird login works', () async {
+          when(
+            () => shorebirdEnv.hostedUri,
+          ).thenReturn(Uri.parse('https://cps.example.com'));
+          storeCredentials(credentialsWith(refreshToken: null, expired: true));
+          auth = buildAuth();
+
+          await expectLater(sendRequest, exitsWithCode(ExitCode.software));
+          verify(
+            () => logger.info(
+              any(
+                that: allOf(
+                  contains('shorebird login'),
+                  contains('https://cps.example.com'),
+                  contains(shorebirdTokenEnvVar),
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+
         test('asks the user to log in again with no refresh token', () async {
           storeCredentials(credentialsWith(refreshToken: null, expired: true));
           auth = buildAuth();
@@ -1126,6 +1187,27 @@ void main() {
             ),
           ).called(1);
         });
+
+        test(
+          'self-hosted: points at the control plane, not service accounts',
+          () {
+            when(
+              () => shorebirdEnv.hostedUri,
+            ).thenReturn(Uri.parse('https://cps.example.com'));
+            expect(buildAuth, exitsWithCode(ExitCode.config));
+            verify(
+              () => logger.info(
+                any(
+                  that: allOf(
+                    contains('POST /admin/users'),
+                    contains('https://cps.example.com'),
+                    isNot(contains('service-accounts')),
+                  ),
+                ),
+              ),
+            ).called(1);
+          },
+        );
       });
     });
 

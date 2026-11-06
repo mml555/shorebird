@@ -92,7 +92,24 @@ class LoginCommand extends ShorebirdCommand {
     final useDeviceCode = results[deviceFlag] == true || !browser.canOpen;
     try {
       if (useDeviceCode) {
-        await auth.loginWithDeviceCode(prompt: devicePrompt);
+        try {
+          await auth.loginWithDeviceCode(prompt: devicePrompt);
+        } on DeviceFlowUnsupportedException {
+          // A self-hosted auth service has no device flow. Do what the CLI
+          // always did without a browser: print the sign-in URL and wait for
+          // the redirect to this machine's loopback listener.
+          logger
+            ..warn(
+              'This auth service does not support device code login, so '
+              'falling back to a browser login.',
+            )
+            ..info(
+              'Open the URL below in a browser on THIS machine. Over SSH, '
+              'forward the loopback port the URL names, or set '
+              '$shorebirdTokenEnvVar to an API key instead.',
+            );
+          await auth.login(prompt: prompt);
+        }
       } else {
         await auth.login(prompt: prompt);
       }

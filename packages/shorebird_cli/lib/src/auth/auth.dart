@@ -39,18 +39,31 @@ const shorebirdTokenEnvVar = 'SHOREBIRD_TOKEN';
 /// pointing the CLI somewhere other than upstream.
 bool get _isSelfHosted => shorebirdEnv.hostedUri != null;
 
+/// Where to get an API key (`sb_api_...`).
+///
+/// Upstream's answer is a service account at console.shorebird.dev. A
+/// self-hosted control plane has neither: it issues its own keys from
+/// `POST /admin/users`, and has no service accounts or console of Shorebird's.
+/// Pointing its users at either is not merely unhelpful: the advice reads as
+/// authoritative, and following it has cost this fork real time.
+String get _apiKeySourceAdvice => _isSelfHosted
+    ? 'This deployment is self-hosted (${shorebirdEnv.hostedUri}), so it issues '
+          'its own API keys: create one with POST /admin/users against your '
+          'control plane. There are no Shorebird service accounts or '
+          'console.shorebird.dev here.'
+    : 'Create a service account key (${serviceAccountsUrl.toLink()}).';
+
 /// What to do when stored credentials cannot be used any more.
 ///
-/// `shorebird login` is the right answer only when there is something to log
-/// in TO. A self-hosted control plane is its OWN identity provider: it issues
-/// `sb_api_...` keys from `POST /admin/users`, there is no console.shorebird.dev
-/// in that deployment, and the browser flow may not be configured at all
-/// (self-consent mode). So there the recoverable path is an API key in
-/// [shorebirdTokenEnvVar].
+/// Against a self-hosted control plane, `shorebird login` works (it opens the
+/// control plane's own sign-in page, or prints its URL on a machine with no
+/// browser), so it stays the first answer. An API key in
+/// [shorebirdTokenEnvVar] is the alternative for CI and for a control plane
+/// whose sign-in is not configured.
 String get _credentialRecoveryAdvice => _isSelfHosted
-    ? 'This deployment is self-hosted (${shorebirdEnv.hostedUri}). Rather than '
-          'logging in, set $shorebirdTokenEnvVar to an API key (sb_api_...) '
-          'issued by your own control plane via POST /admin/users.'
+    ? 'Run ${lightCyan.wrap('shorebird login')} to log in to '
+          '${shorebirdEnv.hostedUri} again, or set $shorebirdTokenEnvVar to '
+          'an API key (sb_api_...). $_apiKeySourceAdvice'
     : 'Run ${lightCyan.wrap('shorebird login')} to log in again.';
 
 /// The prefix every Shorebird API key starts with.
@@ -263,7 +276,7 @@ class ApiKeySource extends CredentialSource {
           '(API keys start with $apiKeyPrefix).',
         )
         ..info(
-          '''CI tokens from `shorebird login:ci` are no longer supported. Create a service account key (${serviceAccountsUrl.toLink()}) and set it as your ${lightCyan.wrap(shorebirdTokenEnvVar)} environment variable.''',
+          '''CI tokens from `shorebird login:ci` are no longer supported. $_apiKeySourceAdvice Then set it as your ${lightCyan.wrap(shorebirdTokenEnvVar)} environment variable.''',
         );
       throw ProcessExit(ExitCode.config.code);
     }
@@ -387,6 +400,16 @@ class Auth {
   /// `credentials-v2.json`.
   bool get _isDefaultAuthService =>
       _authServiceKey(_authServiceUri) == _defaultAuthServiceKey;
+
+  /// Whether a login in [legacyCredentialsFilePath] belongs to the current
+  /// auth service, so is carried over to [credentialsFilePath].
+  ///
+  /// That file never named its auth service. It is the default one's, or, for
+  /// a CLI pointed at a self-hosted control plane (`SHOREBIRD_HOSTED_URL` or
+  /// `base_url`), that control plane's: those CLIs kept one login too, and a
+  /// self-hosted user is otherwise silently logged out by this one. Any other
+  /// non-default service (`AUTH_SERVICE_URL` alone) is left alone.
+  bool get _carriesLegacyLogin => _isDefaultAuthService || _isSelfHosted;
 
   /// The path of the credentials file CLIs before `package:oauth2` wrote, in
   /// `package:googleapis_auth`'s format. Read once, to carry a login over to
@@ -826,7 +849,7 @@ class Auth {
   _StoredLogin? _readCredentialsFile({bool warn = false}) {
     final credentialsFile = File(credentialsFilePath);
     if (!credentialsFile.existsSync()) {
-      if (!_isDefaultAuthService) return null;
+      if (!_carriesLegacyLogin) return null;
       final credentials = _migrateLegacyCredentials(warn: warn);
       if (credentials == null) return null;
       return (credentials: credentials, email: null);
@@ -1001,7 +1024,7 @@ class Auth {
 
     for (final path in [
       credentialsFilePath,
-      if (_isDefaultAuthService) legacyCredentialsFilePath,
+      if (_carriesLegacyLogin) legacyCredentialsFilePath,
     ]) {
       final file = File(path);
       if (file.existsSync()) file.deleteSync();
