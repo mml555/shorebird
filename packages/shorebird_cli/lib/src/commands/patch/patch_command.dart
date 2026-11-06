@@ -1934,8 +1934,12 @@ ${summary.join('\n')}
               'Re-run with a TTY, or drop --confirm to proceed without '
               'confirmation.',
         )) {
-      logger.err('Aborting.');
-      throw PromptDeclinedExit();
+      // Declining a confirmation the user asked for is not a failure: the
+      // fork's CLI exited 0 with an info line, and scripts that run with
+      // --confirm rely on that. Only the non-TTY refusal above is an error
+      // (exit 64).
+      logger.info('Aborting.');
+      throw ProcessExit(ExitCode.success.code);
     }
   }
 

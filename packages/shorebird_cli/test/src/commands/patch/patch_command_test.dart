@@ -2850,17 +2850,31 @@ A patch cannot change the Flutter version a release was built with. To fix this,
           ).called(1);
         });
 
-        test('stops when the user declines', () async {
-          when(
-            () => logger.confirm(
-              any(),
-              defaultValue: any(named: 'defaultValue'),
-              hint: any(named: 'hint'),
-            ),
-          ).thenReturn(false);
+        test(
+          'stops with exit 0 and an info line when the user declines',
+          () async {
+            when(
+              () => logger.confirm(
+                any(),
+                defaultValue: any(named: 'defaultValue'),
+                hint: any(named: 'hint'),
+              ),
+            ).thenReturn(false);
 
-          await expectLater(logSummary(), throwsA(isA<PromptDeclinedExit>()));
-        });
+            await expectLater(
+              logSummary(),
+              throwsA(
+                isA<ProcessExit>().having(
+                  (e) => e.exitCode,
+                  'exitCode',
+                  ExitCode.success.code,
+                ),
+              ),
+            );
+            verify(() => logger.info('Aborting.')).called(1);
+            verifyNever(() => logger.err('Aborting.'));
+          },
+        );
 
         test('refuses when nothing can answer, instead of approving', () async {
           when(

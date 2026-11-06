@@ -1467,20 +1467,31 @@ Did you mean --release-version=1.0.0+1?''',
           ).called(1);
         });
 
-        test('stops when the user declines', () async {
-          when(
-            () => logger.confirm(
-              any(),
-              defaultValue: any(named: 'defaultValue'),
-              hint: any(named: 'hint'),
-            ),
-          ).thenReturn(false);
+        test(
+          'stops with exit 0 and an info line when the user declines',
+          () async {
+            when(
+              () => logger.confirm(
+                any(),
+                defaultValue: any(named: 'defaultValue'),
+                hint: any(named: 'hint'),
+              ),
+            ).thenReturn(false);
 
-          await expectLater(
-            printSummary(ReleaseSigningMode.managed),
-            throwsA(isA<PromptDeclinedExit>()),
-          );
-        });
+            await expectLater(
+              printSummary(ReleaseSigningMode.managed),
+              throwsA(
+                isA<ProcessExit>().having(
+                  (e) => e.exitCode,
+                  'exitCode',
+                  ExitCode.success.code,
+                ),
+              ),
+            );
+            verify(() => logger.info('Aborting.')).called(1);
+            verifyNever(() => logger.err('Aborting.'));
+          },
+        );
 
         test('refuses when nothing can answer, instead of approving', () async {
           when(

@@ -16,7 +16,6 @@ import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/extensions/string.dart';
 import 'package:shorebird_cli/src/flutter_build_options.dart';
-import 'package:shorebird_cli/src/interactive_mode.dart';
 import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
@@ -954,8 +953,12 @@ ${summary.join('\n')}
               'Re-run with a TTY, or drop --confirm to proceed without '
               'confirmation.',
         )) {
-      logger.err('Aborting.');
-      throw PromptDeclinedExit();
+      // Declining a confirmation the user asked for is not a failure: the
+      // fork's CLI exited 0 with an info line, and scripts that run with
+      // --confirm rely on that. Only the non-TTY refusal above is an error
+      // (exit 64).
+      logger.info('Aborting.');
+      throw ProcessExit(ExitCode.success.code);
     }
   }
 
