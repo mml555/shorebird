@@ -292,6 +292,9 @@ lan_ip() {
 new_env() { rm -f .env; ( umask 077; : > .env ); }
 if [[ -f .env ]]; then
   say "Using existing .env (delete it to regenerate)."
+  # An .env from an older setup.sh, or one created by hand, may be world
+  # readable. It holds every secret.
+  chmod 600 .env
   # PATCH_SIGNING_KEY_SECRET is required and is never derived from another
   # secret. An .env from before it existed gets a fresh one. If this database
   # already holds managed signing keys wrapped under the old URL_SIGNING_SECRET
@@ -301,12 +304,20 @@ if [[ -f .env ]]; then
   # rather than shadowed by a second line, and a file with no trailing newline
   # does not get the new line glued onto its last one.
   if ! grep -qE '^PATCH_SIGNING_KEY_SECRET=[^[:space:]]' .env; then
-    env_tmp="$(mktemp .env.XXXXXX)"
+    # The temp file holds every secret in .env: remove it on any exit, error
+    # or signal. A successful `mv` below leaves nothing to remove.
+    env_tmp=""
+    trap 'rm -f "${env_tmp:-}"' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    env_tmp="$(mktemp .env.XXXXXX)"   # created 0600
     grep -vE '^PATCH_SIGNING_KEY_SECRET=[[:space:]]*$' .env > "$env_tmp" || true
     if [[ -s "$env_tmp" && -n "$(tail -c1 "$env_tmp")" ]]; then echo >> "$env_tmp"; fi
     printf 'PATCH_SIGNING_KEY_SECRET=%s\n' "$(gen)" >> "$env_tmp"
-    cat "$env_tmp" > .env   # keeps .env's own mode and owner
-    rm -f "$env_tmp"
+    # Replace .env atomically, so an interrupted run never leaves it truncated
+    # or half written, and never briefly readable by others.
+    chmod 600 "$env_tmp"
+    mv -f "$env_tmp" .env
     ok "Added PATCH_SIGNING_KEY_SECRET to .env. BACK IT UP: it encrypts the managed signing keys and can never be rotated without re-wrapping them."
   fi
 elif [[ "$MODE" == scale ]]; then
