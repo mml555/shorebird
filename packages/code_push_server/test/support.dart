@@ -1,7 +1,7 @@
 import 'package:code_push_server/src/config.dart';
 
 /// A key-encryption secret for tests that exercise managed signing. Pass
-/// `patchSigningKeySecret: null` to test the unconfigured server.
+/// `patchSigningKeySecret: null` to test a server with no secret set.
 const testPatchSigningKeySecret = 'test-patch-signing-key-secret-0123456789';
 
 /// A [Config] for an embedded SQLite + filesystem backend rooted at [dataDir].

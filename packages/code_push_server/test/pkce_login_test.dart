@@ -195,12 +195,9 @@ void main() {
     expect(bad.statusCode, HttpStatus.ok);
     expect(await bad.readAsString(), contains('did not complete'));
     // Anything else is treated as a failure and never reflected.
-    final evil = await send(
-      'GET',
-      '/cli/login-result?status=%3Cscript%3Ealert(1)%3C/script%3E',
-    );
+    final evil = await send('GET', '/cli/login-result?status=%3Cb%3Ex%3C/b%3E');
     final html = await evil.readAsString();
-    expect(html, isNot(contains('<script>alert')));
+    expect(html, isNot(contains('<b>x')));
     expect(html, contains('did not complete'));
   });
 

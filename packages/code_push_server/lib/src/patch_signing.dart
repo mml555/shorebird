@@ -15,10 +15,12 @@ import 'package:jose/jose.dart';
 /// (not over the patch file), base64 (standard alphabet) encoded.
 class PatchSigner {
   PatchSigner(String secret)
-    : _ceks = {currentKeyVersion: _deriveKey(secret, currentKeyVersion)};
+    : _keyEncryptionKeys = {
+        currentKeyVersion: _deriveKey(secret, currentKeyVersion),
+      };
 
   /// The key-encryption-key version written to every new key's JWE protected
-  /// header as `kid`. A future rotation adds `v2` to [_ceks] (derived from a
+  /// header as `kid`. A future rotation adds `v2` to [_keyEncryptionKeys] (derived from a
   /// new secret) and keeps `v1` decrypting existing keys, so rotating never
   /// strands a stored key the way replacing the one secret would.
   static const currentKeyVersion = 'v1';
@@ -27,7 +29,7 @@ class PatchSigner {
   /// because every device verifies each patch with it.
   static const int keyBits = 2048;
 
-  final Map<String, JsonWebKey> _ceks;
+  final Map<String, JsonWebKey> _keyEncryptionKeys;
 
   static JsonWebKey _deriveKey(String secret, String kid) {
     // Domain-separated, so the same secret used elsewhere (URL signing) never
@@ -55,7 +57,7 @@ class PatchSigner {
       ..stringContent = jsonEncode(jwk)
       ..encryptionAlgorithm = 'A256GCM'
       ..setProtectedHeader('kid', currentKeyVersion)
-      ..addRecipient(_ceks[currentKeyVersion]!, algorithm: 'dir');
+      ..addRecipient(_keyEncryptionKeys[currentKeyVersion]!, algorithm: 'dir');
     return (
       publicKeyPem: pem,
       privateKeyEncrypted: builder.build().toCompactSerialization(),
@@ -66,7 +68,7 @@ class PatchSigner {
     final jwe = JsonWebEncryption.fromCompactSerialization(privateKeyEncrypted);
     // A key stored before `kid` existed was wrapped under what is now `v1`.
     final kid = jwe.commonProtectedHeader.keyId ?? currentKeyVersion;
-    final cek = _ceks[kid];
+    final cek = _keyEncryptionKeys[kid];
     if (cek == null) {
       throw StateError('Signing key is wrapped under unknown key version $kid');
     }

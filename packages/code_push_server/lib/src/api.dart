@@ -192,7 +192,7 @@ class Api {
   final UrlSigner _signer;
   final PatchSigner? _patchSigner;
 
-  /// The managed-signing key encryptor, or a 503 naming the variable that
+  /// The managed-signing key wrapper, or a 503 naming the variable that
   /// enables it. Never falls back to another secret (see
   /// [Config.patchSigningKeySecret]).
   PatchSigner get _requirePatchSigner =>
@@ -2130,7 +2130,7 @@ class Api {
 
   /// Upstream `DELETE /apps/{app}/releases/{release}`: the release, every
   /// platform's artifacts and every patch of it. App-admin, like deleting a
-  /// channel: it unserves every patch of the release, and cannot be undone.
+  /// channel: it stops serving every patch of the release, and cannot be undone.
   ///
   /// Refused with 409 once any patch of the release has ever been promoted,
   /// unless `?force=true`. Deleting takes the `channel_patches` rows with it,

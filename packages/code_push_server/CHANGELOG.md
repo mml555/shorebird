@@ -1,4 +1,4 @@
-<!-- cspell:words ungated -->
+<!-- cspell:words ungated rsassa -->
 
 # Changelog
 
