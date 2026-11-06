@@ -1,3 +1,5 @@
+<!-- cspell:words spki rsassa -->
+
 # Shorebird updater contract (self-hosted control plane)
 
 Definitive wire + behavior contract for the Rust updater embedded in Shorebird's
@@ -471,10 +473,21 @@ diff, streamed to `dlc.vmcode`. On Android the base is read from the split APKs
     `Bad{ValidationFailed}` + recompute next boot.
   - `install_only`: verified once at install time only (faster boot).
 - If no `patch_public_key` is configured, signature verification is skipped
-  (`cache/lifecycle.rs:716-722`). **Server is a pure pass-through** of
-  `hash_signature` — it stores whatever the CLI registered
-  (`api.dart:1549` on upload, `:2099`/`:2164` on serve) and never generates or validates signatures. Confirms
-  `BEHAVIORAL_FINDINGS.md`: signing is fully device-side.
+  (`cache/lifecycle.rs:716-722`).
+- **Who makes the signature (changed with upstream 1.6.138).** Still a
+  pass-through for `customer` and unsigned releases: the CLI registers a
+  `hash_signature` and the server stores and serves it unvalidated. For a
+  release built in `managed` mode (the 1.6.138 CLI default: the build embeds the
+  org key from `GET /apps/{app}/signing-key`) the server **generates** the
+  signature when the patch artifact is registered, with exactly the scheme the
+  updater verifies and the CLI's `CodeSigner` produces for customer keys:
+  RSASSA-PKCS1-v1_5 / SHA-256 over the UTF-8 bytes of the hex `hash` string
+  (`Signer('SHA-256/RSA')` in `code_signer.dart`; `RSA_PKCS1_2048_8192_SHA256`
+  in `cache/signing.rs`), base64. Keys are RSA-2048, within the updater's
+  2048-8192 range. A release made before this feature embeds no key, so its
+  patches are never server-signed. Design and rules: `API_REFERENCE.md`,
+  *Managed patch signing*. (This supersedes the earlier finding that signing was
+  fully device-side.)
 
 ### HTTP Range / resume / mid-download failure
 `download_to_path_default` (`network.rs:83-134`) supports resume:
@@ -563,7 +576,7 @@ the server offers the same `download_url` string again.
 | Respond with `patch_available` + optional `patch{number,download_url,hash,hash_signature,kind}` (**5** fields — `kind` added by our own fork, corrected 2026-08-13) + `rolled_back_patch_numbers` | ✅ `api.dart` `_patchesCheck` response block (:2085-2170) |
 | Send a valid **hex** `hash` = the CLI-registered inflate-output hash (echo, don't recompute) | ✅ `api.dart:2099,2164` |
 | Verify **size** (not hash) for patch artifacts; hash only for release artifacts | ✅ `api.dart:1777,1850` — correct per contract |
-| Pass `hash_signature` through untouched | ✅ `api.dart:1549` on upload, `:2099`/`:2164` on serve |
+| Pass `hash_signature` through untouched (`customer`/unsigned); generate it for `managed` releases | ✅ `_patchHashSignature` on upload, stored value served by `_patchesCheck` |
 | Serve downloads with `Content-Length`, honor `Range` with `206` + `Content-Range` + `Accept-Ranges` | ✅ `api.dart` `_download` (:1889), `206` at :1925 |
 | Populate `rolled_back_patch_numbers` from patches withdrawn with rollback=true | ✅ `api.dart:2000`, `repository.dart` `rolledBackPatchNumbers` (:1352) |
 | Accept unauthenticated `POST /api/v1/patches/events` with the `{event:{…}}` wrapper, 2xx | ✅ `api.dart` `_patchesEvents` (:2407) (`204`) |

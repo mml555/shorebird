@@ -52,6 +52,7 @@ openssl rand -hex 32
 You need fresh values for:
 
 - `URL_SIGNING_SECRET` — signs short-lived download URLs.
+- `PATCH_SIGNING_KEY_SECRET` — encrypts the managed patch-signing private keys at rest. Back it up with the database: without it every managed key is unreadable and its releases can no longer receive signed patches.
 - `API_KEY` — bootstrap API key (rotate/remove once real users exist).
 - `POSTGRES_PASSWORD` (and the matching password inside `DATABASE_URL`).
 - `MINIO_ROOT_PASSWORD` (and the matching `S3_SECRET_KEY`).
@@ -174,7 +175,7 @@ it into a fresh stack requires you to supply, separately:
 
 | not backed up | why it matters |
 |---|---|
-| `.env` — `API_KEY`, `URL_SIGNING_SECRET`, DB and S3 credentials | the stack will not boot without them, and `URL_SIGNING_SECRET` must match or every previously-issued download URL breaks |
+| `.env` — `API_KEY`, `URL_SIGNING_SECRET`, `PATCH_SIGNING_KEY_SECRET`, DB and S3 credentials | the stack will not boot without them, and `URL_SIGNING_SECRET` must match or every previously-issued download URL breaks |
 | TLS material (Caddy's cert store) | reissued automatically on a reachable domain; a private CA is not |
 | the container image tag | a restore onto a newer image runs its migrations against the restored schema |
 | in-flight resumable upload chunks | staged in the server container's ephemeral filesystem; an interrupted upload does not survive |

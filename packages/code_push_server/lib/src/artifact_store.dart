@@ -25,6 +25,10 @@ abstract class ArtifactStore {
   Future<void> commitStaged(String token, String key);
   void discardStaged(String token);
   Future<void> put(String key, List<int> bytes);
+
+  /// Removes the object at [key]. Removing one that is already gone is not an
+  /// error.
+  Future<void> delete(String key);
   Future<bool> ping();
   Future<bool> exists(String key);
   Future<int> size(String key);
@@ -132,6 +136,12 @@ class FilesystemArtifactStore with _DiskStaging implements ArtifactStore {
   }
 
   @override
+  Future<void> delete(String key) async {
+    final f = _file(key);
+    if (f.existsSync()) await f.delete();
+  }
+
+  @override
   Future<bool> ping() async => _root.existsSync();
 
   @override
@@ -205,6 +215,9 @@ class S3ArtifactStore with _DiskStaging implements ArtifactStore {
       size: bytes.length,
     );
   }
+
+  @override
+  Future<void> delete(String key) => _minio.removeObject(_bucket, key);
 
   @override
   Future<bool> ping() async {

@@ -12,6 +12,7 @@ import 'package:code_push_server/src/db.dart' show asDbBool;
 import 'package:code_push_server/src/domain.dart';
 import 'package:code_push_server/src/oauth.dart';
 import 'package:code_push_server/src/observability.dart';
+import 'package:code_push_server/src/patch_signing.dart';
 import 'package:code_push_server/src/repository.dart';
 import 'package:code_push_server/src/rollout.dart';
 import 'package:code_push_server/src/signing.dart';
@@ -176,6 +177,7 @@ class Api {
   Api(this.repo, this.store, this.config, {String? signingKeyJson})
     : oauth = OAuthService(config.jwtIssuer, keyJson: signingKeyJson),
       _signer = UrlSigner(config.urlSigningSecret),
+      _patchSigner = PatchSigner(config.patchSigningSecret),
       _analytics = Analytics(repo.db),
       _symbolizer = Symbolizer(store: store),
       obs = Observability(json: config.logFormat == 'json');
@@ -185,6 +187,7 @@ class Api {
   final Config config;
   final OAuthService oauth;
   final UrlSigner _signer;
+  final PatchSigner _patchSigner;
   final Analytics _analytics;
   final Symbolizer _symbolizer;
 
@@ -516,7 +519,8 @@ class Api {
     if (seg.isNotEmpty && seg[0] == 'console') return true; // static UI
     if (seg.first == 'download') return true;
     // Auth-service endpoints (no bearer yet at login time).
-    if (seg.length == 1 && (seg[0] == 'login' || seg[0] == 'token')) {
+    if (seg.length == 1 &&
+        (seg[0] == 'login' || seg[0] == 'token' || seg[0] == 'revoke')) {
       return true;
     }
     if (seg.length == 2 && seg[0] == 'oauth' && seg[1] == 'callback') {
@@ -700,6 +704,9 @@ class Api {
       return _oauthCallback(req);
     }
     if (seg.length == 1 && seg[0] == 'token' && m == 'POST') return _token(req);
+    if (seg.length == 1 && seg[0] == 'revoke' && m == 'POST') {
+      return _revoke(req);
+    }
     if (seg.length == 2 &&
         seg[0] == 'api' &&
         seg[1] == 'logout' &&
@@ -779,8 +786,18 @@ class Api {
 
     if (seg.length >= 2 && seg[0] == 'apps') {
       final appId = seg[1];
-      await _authorizeApp(req, appId);
       final rest = seg.sublist(2);
+      // Upstream 1.6.138 reads. An app the caller cannot see answers 404, the
+      // same as one that does not exist, so a probe cannot learn which app ids
+      // are real (every other app route predates this and answers 403).
+      if (m == 'GET' &&
+          (rest.isEmpty || (rest.length == 1 && rest[0] == 'signing-key'))) {
+        if (!await repo.userCanAccessApp(_uid(req), appId)) {
+          throw notFound('App not found');
+        }
+        return rest.isEmpty ? _getApp(appId) : _getSigningKey(appId);
+      }
+      await _authorizeApp(req, appId);
       if (rest.isEmpty && m == 'PATCH') return _renameApp(req, appId);
       if (rest.length == 1 && rest[0] == 'channels') {
         if (m == 'GET') return _getChannels(appId);
@@ -890,8 +907,14 @@ class Api {
       if (rest.length == 2 && rest[0] == 'releases' && m == 'PATCH') {
         return _updateRelease(req, appId, _pathId(rest[1], 'release id'));
       }
+      if (rest.length == 2 && rest[0] == 'releases' && m == 'DELETE') {
+        return _deleteRelease(req, appId, _pathId(rest[1], 'release id'));
+      }
       if (rest.length == 3 && rest[0] == 'releases' && rest[2] == 'artifacts') {
         final releaseId = _pathId(rest[1], 'release id');
+        if (m == 'DELETE') {
+          return _deleteReleasePlatform(req, appId, releaseId);
+        }
         if (m == 'POST') return _createReleaseArtifact(req, appId, releaseId);
         if (m == 'GET') return _getReleaseArtifacts(req, appId, releaseId);
       }
@@ -942,15 +965,26 @@ class Api {
   /// operator against an API key: the browser gets a form, and only a correct
   /// key yields an auth code. The identity is then whatever that key is bound
   /// to — never anything supplied in the request.
+  ///
+  /// Two spellings of the same request are accepted. The older CLI sends
+  /// `continue`. Upstream 1.6.138 sends a standard authorization-code request
+  /// (RFC 6749 + PKCE, RFC 7636): `redirect_uri`, `state`, `code_challenge`
+  /// and `code_challenge_method=S256`. `state` is echoed back on the redirect;
+  /// the challenge is bound to the issued code and checked at `/token`.
   Future<Response> _login(Request req) async {
-    final cont = req.url.queryParameters['continue'];
+    final q = req.url.queryParameters;
+    final cont = _loginContinue(q['continue'], q['redirect_uri'], q['state']);
     if (cont == null || !_safeContinue(cont)) {
       return _err(
         HttpStatus.badRequest,
         'bad_request',
-        'A loopback `continue` URL is required',
+        'A loopback `continue` or `redirect_uri` URL is required',
       );
     }
+    final challenge = _codeChallenge(
+      q['code_challenge'],
+      q['code_challenge_method'],
+    );
 
     // Broker mode: bounce to the external IdP; the real email arrives at
     // /oauth/callback, which then issues our own code back to `continue`.
@@ -960,6 +994,7 @@ class Api {
         state,
         cont,
         DateTime.now().add(const Duration(minutes: 10)),
+        codeChallenge: challenge,
       );
       final authUri = Uri.parse(config.idpAuthorizeUrl).replace(
         queryParameters: {
@@ -973,7 +1008,7 @@ class Api {
       return Response.found(authUri.toString());
     }
 
-    return _loginFormResponse(cont);
+    return _loginFormResponse(cont, challenge: challenge);
   }
 
   /// POST `/login` (form-encoded `continue` + `api_key`): the self-consent
@@ -982,6 +1017,7 @@ class Api {
   Future<Response> _loginSubmit(Request req) async {
     final form = Uri.splitQueryString(await _readText(req));
     final cont = form['continue'];
+    final challenge = _codeChallenge(form['code_challenge'], 'S256');
     if (cont == null || !_safeContinue(cont)) {
       return _err(
         HttpStatus.badRequest,
@@ -1004,7 +1040,11 @@ class Api {
       // default retention — the same unbounded growth the housekeeping sweeps
       // exist to prevent. The structured log is where auth failures belong.
       obs.info('login denied', {'reason': 'invalid api key'});
-      return _loginFormResponse(cont, error: 'That API key was not accepted.');
+      return _loginFormResponse(
+        cont,
+        challenge: challenge,
+        error: 'That API key was not accepted.',
+      );
     }
 
     final code = OAuthService.randomToken('sb_code_');
@@ -1012,6 +1052,7 @@ class Api {
       code,
       email,
       DateTime.now().add(const Duration(minutes: 5)),
+      codeChallenge: challenge,
     );
     await repo.audit('login.consent', actor: email, requestId: _rid(req));
     final sep = cont.contains('?') ? '&' : '?';
@@ -1050,13 +1091,59 @@ class Api {
         uri.host == '::1';
   }
 
-  Response _loginFormResponse(String cont, {String? error}) => Response(
+  /// The loopback URL to send the browser back to: `continue` as the older CLI
+  /// sends it, else `redirect_uri` with the caller's `state` appended, so the
+  /// existing redirect code (which appends `code=`) echoes it unchanged.
+  static String? _loginContinue(
+    String? cont,
+    String? redirectUri,
+    String? state,
+  ) {
+    if (cont != null) return cont;
+    if (redirectUri == null) return null;
+    if (state == null || state.isEmpty) return redirectUri;
+    if (state.length > 512) return null;
+    final sep = redirectUri.contains('?') ? '&' : '?';
+    return '$redirectUri${sep}state=${Uri.encodeQueryComponent(state)}';
+  }
+
+  static final _challengeShape = RegExp(r'^[A-Za-z0-9_-]{43}$');
+
+  /// Validates a PKCE `code_challenge`. Absent is fine (an older CLI): that
+  /// login's code redeems without a verifier. Present means S256 only: `plain`
+  /// protects nothing, since the challenge IS the verifier.
+  static String? _codeChallenge(String? challenge, String? method) {
+    if (challenge == null || challenge.isEmpty) return null;
+    if (method != 'S256') {
+      throw badRequest('code_challenge_method must be S256');
+    }
+    if (!_challengeShape.hasMatch(challenge)) {
+      throw badRequest('code_challenge is not a base64url SHA-256 digest');
+    }
+    return challenge;
+  }
+
+  /// RFC 7636 section 4.6: BASE64URL(SHA256(verifier)) without padding must
+  /// equal the challenge. Constant-time compare.
+  static bool pkceVerifierMatches(String verifier, String challenge) {
+    if (verifier.length < 43 || verifier.length > 128) return false;
+    final actual = base64Url
+        .encode(sha256.convert(ascii.encode(verifier)).bytes)
+        .replaceAll('=', '');
+    return UrlSigner.constTimeEq(actual, challenge);
+  }
+
+  Response _loginFormResponse(
+    String cont, {
+    String? challenge,
+    String? error,
+  }) => Response(
     error == null ? HttpStatus.ok : HttpStatus.unauthorized,
-    body: _loginHtml(cont, error),
+    body: _loginHtml(cont, error, challenge),
     headers: {HttpHeaders.contentTypeHeader: 'text/html; charset=utf-8'},
   );
 
-  static String _loginHtml(String cont, String? error) {
+  static String _loginHtml(String cont, String? error, String? challenge) {
     String esc(String s) => const HtmlEscape().convert(s);
     return '''
 <!doctype html><html><head><meta charset="utf-8"><title>Sign in</title>
@@ -1079,6 +1166,7 @@ class Api {
     <code>POST /admin/users</code>.</p>
  ${error == null ? '' : '<div class="err">${esc(error)}</div>'}
  <input type="hidden" name="continue" value="${esc(cont)}">
+ ${challenge == null ? '' : '<input type="hidden" name="code_challenge" value="${esc(challenge)}">'}
  <input type="password" name="api_key" placeholder="sb_api_…" autofocus
         autocomplete="off" spellcheck="false">
  <button type="submit">Sign in</button>
@@ -1092,14 +1180,15 @@ class Api {
     final q = req.url.queryParameters;
     // Single-use and persisted, so the state survives a restart and is valid
     // on whichever replica the IdP redirects the browser back to.
-    final cont = await repo.consumeIdpState(q['state'] ?? '');
-    if (cont == null) {
+    final pending = await repo.consumeIdpStateGrant(q['state'] ?? '');
+    if (pending == null) {
       return _err(
         HttpStatus.badRequest,
         'bad_request',
         'Invalid or expired state',
       );
     }
+    final cont = pending.continueUrl;
     // `_safeContinue` allows a loopback URL that already carries a query
     // string, so the separator has to be computed — and the IdP's `error` is
     // its text, not ours, so it has to be encoded before being pasted in.
@@ -1122,6 +1211,7 @@ class Api {
       code,
       email,
       DateTime.now().add(const Duration(minutes: 5)),
+      codeChallenge: pending.codeChallenge,
     );
     return Response.found(back('code', code));
   }
@@ -1166,7 +1256,20 @@ class Api {
     final grant = form['grant_type'];
     String? email;
     if (grant == 'authorization_code') {
-      email = await repo.consumeAuthCode(form['code'] ?? '');
+      // Consumed first, so a failed verifier burns the code: a guess cannot be
+      // retried against the same code.
+      final redeemed = await repo.consumeAuthCodeGrant(form['code'] ?? '');
+      final challenge = redeemed?.codeChallenge;
+      if (redeemed != null &&
+          challenge != null &&
+          !pkceVerifierMatches(form['code_verifier'] ?? '', challenge)) {
+        return _err(
+          HttpStatus.badRequest,
+          'invalid_grant',
+          'PKCE verification failed',
+        );
+      }
+      email = redeemed?.email;
     } else if (grant == 'refresh_token') {
       email = await repo.consumeRefreshToken(form['refresh_token'] ?? '');
     } else {
@@ -1191,6 +1294,19 @@ class Api {
       'token_type': 'Bearer',
       'expires_in': 900,
     });
+  }
+
+  /// POST /revoke (RFC 7009, form `token`): upstream 1.6.138's `shorebird
+  /// logout`. Answers 200 whether or not the token was live, as the RFC says,
+  /// so it cannot be used to probe for valid tokens.
+  Future<Response> _revoke(Request req) async {
+    final form = Uri.splitQueryString(await _readText(req));
+    final token = form['token'];
+    if (token != null && token.isNotEmpty) await repo.revokeRefreshToken(token);
+    return Response.ok(
+      '{}',
+      headers: {HttpHeaders.contentTypeHeader: 'application/json'},
+    );
   }
 
   /// POST /api/logout: bearer is the refresh token; revoke and 200.
@@ -1475,28 +1591,67 @@ class Api {
     return channel;
   }
 
+  /// Upstream `GET /apps/{app}`: one `AppMetadata`. Cheaper and narrower than
+  /// the list, and what `shorebird release`/`patch` call before building.
+  /// `patch_signing_required` is an enterprise policy that has no counterpart
+  /// here, so it is omitted (null to the client, meaning "not required").
+  Future<Response> _getApp(String appId) async {
+    final orgId = await repo.appOrgId(appId);
+    final app = orgId == null
+        ? null
+        : (await repo.apps(
+            orgIds: [orgId],
+          )).where((a) => a.appId == appId).firstOrNull;
+    if (app == null) throw notFound('App not found');
+    return _json(await _appMetadata(app));
+  }
+
+  Future<Map<String, Object?>> _appMetadata(AppRow a) async {
+    final rels = await repo.releases(a.appId);
+    final platforms = <String>{};
+    for (final r in rels) {
+      platforms.addAll(r.platformStatuses.keys);
+    }
+    return {
+      'app_id': a.appId,
+      'organization_id': a.orgId,
+      'display_name': a.displayName,
+      'latest_release_version': rels.isEmpty ? null : rels.last.version,
+      'latest_patch_number': await repo.latestPatchNumberForApp(a.appId),
+      'created_at': a.createdAt,
+      'updated_at': a.updatedAt,
+      if (platforms.isNotEmpty) 'platforms': platforms.toList(),
+    };
+  }
+
+  /// Upstream `GET /apps/{app}/signing-key`: the managed public key a new build
+  /// embeds. The key belongs to the app's organization and is created on first
+  /// fetch. Only the public half is ever returned.
+  Future<Response> _getSigningKey(String appId) async {
+    final orgId = await repo.appOrgId(appId);
+    if (orgId == null) throw notFound('App not found');
+    var key = await repo.signingKeyForOrg(orgId);
+    if (key == null) {
+      final fresh = _patchSigner.generate();
+      key = await repo.insertSigningKeyIfAbsent(
+        orgId,
+        fresh.publicKeyPem,
+        fresh.privateKeyEncrypted,
+      );
+    }
+    return _json({
+      'signing_key': {'id': key.id, 'public_key_pem': key.publicKeyPem},
+    });
+  }
+
   Future<Response> _getApps(Request req) async {
     final orgIds = (await repo.memberships(
       _uid(req),
     )).map((m) => m.orgId).toList();
     final apps = await repo.apps(orgIds: orgIds);
-    final out = <Map<String, Object?>>[];
-    for (final a in apps) {
-      final rels = await repo.releases(a.appId);
-      final platforms = <String>{};
-      for (final r in rels) {
-        platforms.addAll(r.platformStatuses.keys);
-      }
-      out.add({
-        'app_id': a.appId,
-        'display_name': a.displayName,
-        'latest_release_version': rels.isEmpty ? null : rels.last.version,
-        'latest_patch_number': await repo.latestPatchNumberForApp(a.appId),
-        'created_at': a.createdAt,
-        'updated_at': a.updatedAt,
-        if (platforms.isNotEmpty) 'platforms': platforms.toList(),
-      });
-    }
+    final out = <Map<String, Object?>>[
+      for (final a in apps) await _appMetadata(a),
+    ];
     return _json({'apps': out});
   }
 
@@ -1511,12 +1666,14 @@ class Api {
       notes: _optNotesField(body),
     );
     _audit(req)?.note(releaseId: r.id, detail: {'version': r.version});
-    return _json({'release': _releaseJson(r)});
+    return _json({'release': await _releaseJson(r)});
   }
 
   Future<Response> _getReleases(String appId) async {
     final rels = await repo.releases(appId);
-    return _json({'releases': rels.map(_releaseJson).toList()});
+    return _json({
+      'releases': [for (final r in rels) await _releaseJson(r)],
+    });
   }
 
   Future<Response> _updateRelease(
@@ -1764,6 +1921,7 @@ class Api {
     final arch = _requiredField(fields, 'arch');
     final platform = _requiredField(fields, 'platform');
     final hash = _requiredField(fields, 'hash');
+    final signing = await _parseSigning(fields['signing'], appId);
     _audit(req)?.note(detail: {'arch': arch, 'platform': platform});
     final existing = await repo.existingArtifact(
       'release',
@@ -1822,6 +1980,8 @@ class Api {
       size: int.tryParse(fields['size'] ?? '0') ?? 0,
       podfileLockHash: fields['podfile_lock_hash'],
       canSideload: fields['can_sideload'] == 'true',
+      signingMode: signing?.mode,
+      signingKeyId: signing?.keyId,
     );
     return _json(_registerJson(art, releaseKey: true));
   }
@@ -1860,6 +2020,12 @@ class Api {
     if (await repo.existingArtifact('patch', patchId, arch, platform) != null) {
       throw conflict('Artifact already registered for $arch/$platform');
     }
+    final hashSignature = await _patchHashSignature(
+      patch,
+      platform: platform,
+      hash: hash,
+      clientSignature: fields['hash_signature'],
+    );
     await repo.setPatchStatus(patchId, PatchStatus.uploading);
     final art = await repo.createArtifact(
       ownerKind: 'patch',
@@ -1868,10 +2034,160 @@ class Api {
       platform: platform,
       hash: hash,
       size: int.tryParse(fields['size'] ?? '0') ?? 0,
-      hashSignature: fields['hash_signature'],
+      hashSignature: hashSignature,
       podfileLockHash: fields['podfile_lock_hash'],
     );
     return _json(_registerJson(art, releaseKey: false));
+  }
+
+  /// Upstream `DELETE /apps/{app}/releases/{release}`: the release, every
+  /// platform's artifacts and every patch of it. App-admin, like deleting a
+  /// channel: it unserves every patch of the release, and cannot be undone.
+  Future<Response> _deleteRelease(
+    Request req,
+    String appId,
+    int releaseId,
+  ) async {
+    await _authorizeAppAdmin(req, appId, what: 'Deleting a release');
+    final release = await _ownedRelease(appId, releaseId);
+    _audit(req)?.note(detail: {'version': release.version});
+    await _deleteObjects(await repo.deleteRelease(releaseId));
+    return Response(HttpStatus.noContent);
+  }
+
+  /// Upstream `DELETE /apps/{app}/releases/{release}/artifacts?platform=`:
+  /// removes one platform from a release and leaves the rest.
+  Future<Response> _deleteReleasePlatform(
+    Request req,
+    String appId,
+    int releaseId,
+  ) async {
+    await _authorizeAppAdmin(req, appId, what: 'Deleting release artifacts');
+    await _ownedRelease(appId, releaseId);
+    final platform = req.url.queryParameters['platform'];
+    if (platform == null || platform.isEmpty) {
+      throw badRequest('platform is required');
+    }
+    _audit(req)?.note(detail: {'platform': platform});
+    await _deleteObjects(await repo.deleteReleasePlatform(releaseId, platform));
+    return Response(HttpStatus.noContent);
+  }
+
+  /// Best-effort: the rows are already gone, so an object that cannot be
+  /// removed is an orphan to log, not a reason to fail the request.
+  Future<void> _deleteObjects(List<String> keys) async {
+    for (final key in keys) {
+      try {
+        await store.delete(key);
+      } on Object catch (e) {
+        obs.info('could not delete artifact object', {
+          'key': key,
+          'error': '$e',
+        });
+      }
+    }
+  }
+
+  static const _signingModes = {'managed', 'customer', 'unsigned'};
+
+  /// Parses the `signing` multipart field (one JSON object, which is how
+  /// upstream's `createReleaseArtifact` sends an object-valued field). Absent
+  /// means an older CLI, which reports nothing; the artifact is then left
+  /// unsigned-by-us. A managed key must exist and belong to the app's org: a
+  /// key id is a bearer reference to a private key, so another tenant's must
+  /// not be nameable.
+  Future<({String mode, int? keyId})?> _parseSigning(
+    String? raw,
+    String appId,
+  ) async {
+    if (raw == null || raw.isEmpty) return null;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      throw badRequest('signing must be a JSON object');
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw badRequest('signing must be a JSON object');
+    }
+    final mode = decoded['mode'];
+    if (mode is! String || !_signingModes.contains(mode)) {
+      throw badRequest(
+        'signing.mode must be one of ${_signingModes.join(', ')}',
+      );
+    }
+    if (mode != 'managed') return (mode: mode, keyId: null);
+    final keyId = decoded['key_id'];
+    if (keyId is! int) {
+      throw badRequest('signing.key_id is required for managed signing');
+    }
+    final key = await repo.signingKeyById(keyId);
+    if (key == null || key.orgId != await repo.appOrgId(appId)) {
+      throw badRequest('Unknown signing key $keyId');
+    }
+    return (mode: mode, keyId: keyId);
+  }
+
+  /// The `hash_signature` to store for a patch artifact on [platform].
+  ///
+  /// By how the release's build on that platform was signed:
+  ///  * `managed`: this server signs [hash]; a client-supplied signature is
+  ///    refused (the CLI sends none, and a second signature could only
+  ///    disagree with the embedded key).
+  ///  * `customer`: devices verify against the customer's key, which the
+  ///    server never sees, so the client must supply the signature.
+  ///  * `unsigned` or unreported (every release made before managed signing):
+  ///    stored as the client sent it, exactly as before. Never server-signed.
+  Future<String?> _patchHashSignature(
+    PatchRow patch, {
+    required String platform,
+    required String hash,
+    required String? clientSignature,
+  }) async {
+    final supplied = clientSignature == null || clientSignature.isEmpty
+        ? null
+        : clientSignature;
+    final signing = (await repo.releaseSigning(patch.releaseId))[platform];
+    switch (signing?.mode) {
+      case 'managed':
+        if (supplied != null) {
+          throw badRequest(
+            'This release is signed with a Shorebird-managed key, and the '
+            'server signs its patches; do not send hash_signature.',
+          );
+        }
+        final key = await repo.signingKeyById(signing!.keyId!);
+        if (key == null) {
+          throw conflict('The release\'s signing key no longer exists.');
+        }
+        return _patchSigner.signHash(key.privateKeyEncrypted, hash);
+      case 'customer':
+        if (supplied == null) {
+          throw badRequest(
+            'This release was signed with the customer\'s own key, so its '
+            'patches must carry a hash_signature.',
+          );
+        }
+        return supplied;
+      default:
+        return supplied;
+    }
+  }
+
+  Future<Map<String, Object?>?> _signingJson(
+    ArtifactRow a,
+    Map<int, SigningKeyRow?> keys,
+  ) async {
+    final mode = a.signingMode;
+    if (mode == null) return null;
+    final keyId = a.signingKeyId;
+    if (mode != 'managed' || keyId == null) return {'mode': mode};
+    final key = keys[keyId] ??= await repo.signingKeyById(keyId);
+    return {
+      'mode': mode,
+      'key_id': keyId,
+      'public_key_pem': ?key?.publicKeyPem,
+    };
   }
 
   Future<Response> _getReleaseArtifacts(
@@ -1887,10 +2203,12 @@ class Api {
       arch: arch,
       platform: platform,
     );
+    final keys = <int, SigningKeyRow?>{};
     return _json({
       'artifacts': [
         for (final a in arts)
           {
+            'signing': ?await _signingJson(a, keys),
             'id': a.id,
             'release_id': a.ownerId,
             'arch': a.arch,
@@ -2067,6 +2385,7 @@ class Api {
               'created_at': a.createdAt,
             },
         ],
+        'created_at': ?p.createdAt,
         'is_rolled_back': await repo.patchRolledBack(p.id),
         'notes': p.notes,
         'metadata': p.metadata,
@@ -3439,22 +3758,36 @@ class Api {
     'upload_method': config.uploadMethod,
   };
 
-  Map<String, Object?> _releaseJson(ReleaseRow r) => {
-    'id': r.id,
-    'app_id': r.appId,
-    'version': r.version,
-    'flutter_revision': r.flutterRevision,
-    'flutter_version': r.flutterVersion,
-    'display_name': r.displayName,
-    'platform_statuses': r.platformStatuses,
-    'created_at': r.createdAt,
-    'updated_at': r.updatedAt,
-    'notes': r.notes,
-    // Extra key the pinned CLI ignores (its DTOs parse field by field), so the
-    // console and any operator tooling can read build provenance without a
-    // second round trip.
-    'metadata': r.metadata,
-  };
+  /// A release as upstream's `Release.fromJson` reads it: `platforms` is
+  /// required there (a non-null map), `platform_statuses` is the deprecated
+  /// form older CLIs still read. `signing_mode` is reported only for a platform
+  /// whose artifacts said how they were signed.
+  Future<Map<String, Object?>> _releaseJson(ReleaseRow r) async {
+    final signing = await repo.releaseSigning(r.id);
+    return {
+      'platforms': {
+        for (final e in r.platformStatuses.entries)
+          e.key: {
+            'status': e.value,
+            if (signing[e.key] != null) 'signing_mode': signing[e.key]!.mode,
+          },
+      },
+      'id': r.id,
+      'app_id': r.appId,
+      'version': r.version,
+      'flutter_revision': r.flutterRevision,
+      'flutter_version': r.flutterVersion,
+      'display_name': r.displayName,
+      'platform_statuses': r.platformStatuses,
+      'created_at': r.createdAt,
+      'updated_at': r.updatedAt,
+      'notes': r.notes,
+      // Extra key the pinned CLI ignores (its DTOs parse field by field), so the
+      // console and any operator tooling can read build provenance without a
+      // second round trip.
+      'metadata': r.metadata,
+    };
+  }
 
   /// Ceiling on any body we turn into a String. Every payload at these
   /// endpoints is a small control-plane document; `readAsString` on its own has

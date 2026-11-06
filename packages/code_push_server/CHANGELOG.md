@@ -8,6 +8,39 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 1.4.0 — 2026-11-06
+
+### Added
+
+- **Upstream 1.6.138 CLI support.** The 1.6.138 CLI could not talk to this
+  server: it casts `platforms` on every release as non-null, calls
+  `GET /apps/{app}` and `GET /apps/{app}/signing-key`, and logs in with a
+  standard PKCE authorization-code request. Older CLIs keep working: every
+  change is additive.
+  - **`platforms` on releases**: `{platform: {status, signing_mode?}}`, beside
+    the unchanged `platform_statuses`. Patches also carry `created_at`, and app
+    entries `organization_id`.
+  - **`GET /api/v1/apps/{app}`**: one `AppMetadata`. 404 (never 403) for an app
+    the caller cannot see.
+  - **Managed patch signing** (migration 14). `GET /apps/{app}/signing-key`
+    creates the organization's RSA-2048 key on first fetch and returns the
+    public half. Release artifacts accept and return `signing`. For a release
+    built in `managed` mode the server signs each patch's hash on registration
+    (RSASSA-PKCS1-v1_5 / SHA-256 over the hex hash string, the scheme the
+    updater verifies); a client `hash_signature` is refused. A `customer`
+    release requires one. Releases made before this change are never
+    server-signed. Private keys are stored as JWE under the new optional
+    `PATCH_SIGNING_KEY_SECRET` (min. 32 characters, falls back to
+    `URL_SIGNING_SECRET`) and are never returned or logged.
+  - **`DELETE /apps/{app}/releases/{release}`** and
+    **`DELETE …/releases/{release}/artifacts?platform=`** (app admin; audited
+    as `release.delete` / `release.artifact.delete`). The artifact store gains
+    `delete`.
+  - **Login**: `/login` accepts upstream's `redirect_uri` + `state` as well as
+    `continue`, and verifies PKCE S256 at `/token` (migration 15). A login with
+    no `code_challenge`, as an older CLI sends, redeems without a verifier.
+    `POST /revoke` (RFC 7009) backs `shorebird logout`.
+
 ### Added
 
 - **Upstream 1.6.123 `apps rename`, `apps transfer` and `channels delete`.**
