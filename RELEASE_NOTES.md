@@ -21,8 +21,10 @@ applies, and the fork's own behavior is kept on top of it:
   `selfhost/cdn` layout.
 - A self-hosted server has no managed patch-signing key, so releases to one are
   unsigned unless you pass your own `--public-key-path`/`--public-key-cmd`.
-- `SHOREBIRD_JWT_ISSUER` is still accepted but no longer has an effect: the
-  upstream login flow no longer validates the issuer on the client.
+- `SHOREBIRD_JWT_ISSUER` no longer affects the CLI: the upstream login flow
+  does not validate the issuer on the client, and the CLI's own copy of the
+  setting is removed. Unset it on build hosts. The server still uses it (it
+  sets the `iss` its tokens carry), so keep it there.
 - `shorebird preview` keeps going when it cannot uninstall the previous copy of
   the app, and warns that stale app data may remain.
 - `--confirm` on `release` and `patch` is accepted again, hidden. Upstream

@@ -82,7 +82,7 @@ SHOREBIRD_TOKEN=sb_api_… SHOREBIRD_HOSTED_URL=http://localhost:18080 \
 (`user.create`) then says who did what, and revoking one lane's key does not sign out
 the rig.
 
-### `shorebird login` works here — and the one variable you may still need
+### `shorebird login` works here, and needs no issuer setting
 
 **Verified end to end on this rig 2026-08-14** against `cps-ios`: `shorebird login`
 prints `http://localhost:18080/login?continue=…`, the self-consent form accepts the
@@ -90,24 +90,15 @@ API key, the loopback callback receives a `sb_code_…`, the CLI exchanges it at
 `/token`, and `account whoami` then reports a real user. No browser vendor, no
 upstream, no `console.shorebird.dev`.
 
-Setting `SHOREBIRD_HOSTED_URL` is normally all you need — the CLI derives the auth
-service and the expected JWT issuer from it.
-
-**The exception, and this rig is an instance of it.** The issuer is a property of the
-SERVER's advertised identity — its `PUBLIC_BASE_URL` — and NOT of the address you
-reach it on. Those legitimately differ: this control plane advertises
-`http://169.254.189.3:18080` so a tethered device can reach it, while the Mac talks to
-it over `localhost:18080`. Login then fails with
-
-```
-Token issuer mismatch: expected http://localhost:18080, got http://169.254.189.3:18080
-```
-
-which is a correct diagnosis. Name the issuer explicitly and it succeeds:
+Setting `SHOREBIRD_HOSTED_URL` is all you need: the CLI derives the auth service from
+it. Older CLIs also checked the token's issuer against the address you reached the
+server on, which is why a server advertising a different `PUBLIC_BASE_URL` than you
+reach it on needed `SHOREBIRD_JWT_ISSUER` set on the client. The current CLI does not
+validate the issuer and ignores that variable; it only sets the `iss` the server
+stamps into its tokens.
 
 ```sh
 SHOREBIRD_HOSTED_URL=http://localhost:18080 \
-SHOREBIRD_JWT_ISSUER=http://169.254.189.3:18080 \
   shorebird login
 ```
 
@@ -276,14 +267,13 @@ API host and the auth service:
 ```bash
 export SHOREBIRD_HOSTED_URL=https://code-push.example.com
 export AUTH_SERVICE_URL=https://code-push.example.com
-export SHOREBIRD_JWT_ISSUER=https://code-push.example.com   # must equal the server's iss
 
 shorebird login
 ```
 
-`SHOREBIRD_JWT_ISSUER` must equal the server's `SHOREBIRD_JWT_ISSUER` (the `iss`
-claim it stamps into JWTs, and the `jwt_issuer` it returns from `/users/me`) or
-the CLI will reject the minted token.
+The CLI no longer reads `SHOREBIRD_JWT_ISSUER`; do not set it on build hosts.
+Only the server uses it (the `iss` claim it stamps into JWTs, and the
+`jwt_issuer` it returns from `/users/me`).
 
 With broker mode enabled, `shorebird login` now opens the **IdP's** sign-in page
 (Google / Microsoft) instead of self-consenting. After the user authenticates,

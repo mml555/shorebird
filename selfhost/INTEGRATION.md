@@ -120,7 +120,7 @@ Read by `lib/src/config.dart`. Everything has a default; set only what you need.
 **Identity / login**
 | Var | Default | Purpose |
 |---|---|---|
-| `SHOREBIRD_JWT_ISSUER` | `PUBLIC_BASE_URL` | JWT `iss`; must match the CLI |
+| `SHOREBIRD_JWT_ISSUER` | `PUBLIC_BASE_URL` | JWT `iss`; server-side only (the CLI ignores it) |
 | `LOGIN_EMAIL` | `owner@self-host.local` | identity for self-consent `shorebird login` (no IdP) |
 | `IDP_CLIENT_ID` / `IDP_CLIENT_SECRET` / `IDP_AUTHORIZE_URL` / `IDP_TOKEN_URL` / `IDP_SCOPES` | — | broker `shorebird login` to Google/Microsoft/Okta (see `IDP_SETUP.md`) |
 

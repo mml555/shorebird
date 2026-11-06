@@ -363,20 +363,6 @@ class ShorebirdEnv {
         defaultAuthServiceUrl,
   );
 
-  /// The expected JWT issuer for Shorebird-issued tokens. Can be overridden
-  /// with the `SHOREBIRD_JWT_ISSUER` environment variable.
-  ///
-  /// Defaults to the self-hosted control plane when one is configured, matching
-  /// that server's OWN default: `code_push_server` issues tokens whose `iss` is
-  /// `SHOREBIRD_JWT_ISSUER ?? JWT_ISSUER ?? PUBLIC_BASE_URL`. An operator who
-  /// sets a custom issuer server-side sets this variable too, which still wins.
-  ///
-  /// Otherwise defaults to `https://auth.shorebird.dev`.
-  String get jwtIssuer =>
-      platform.environment['SHOREBIRD_JWT_ISSUER'] ??
-      _selfHostedBaseUrl ??
-      'https://auth.shorebird.dev';
-
   /// The Shorebird-hosted environment whose code push server [hostedUri]
   /// names, matched by host: [productionEnvironment] when [hostedUri] is
   /// null, and null for a server Shorebird does not host, such as a local
@@ -447,11 +433,8 @@ class ShorebirdEnv {
   /// [hostedUri] as a base URL string with any trailing slash removed, or
   /// `null` when not self-hosted.
   ///
-  /// The trailing slash matters and is not cosmetic: [jwtIssuer] is compared
-  /// for EXACT string equality against the `iss` claim, so a `base_url` written
-  /// as `http://host:18080/` would fail to match a server issuing
-  /// `http://host:18080` — a mismatch that surfaces as an unexplained auth
-  /// failure rather than as a configuration error.
+  /// The trailing slash is dropped so a `base_url` written as
+  /// `http://host:18080/` yields endpoints without a doubled slash.
   String? get _selfHostedBaseUrl {
     final uri = hostedUri;
     if (uri == null) return null;

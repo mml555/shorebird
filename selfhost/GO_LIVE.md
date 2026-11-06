@@ -117,7 +117,7 @@ from you — the code is built and, where possible, stub-verified:
 
 - [ ] Deployment shape chosen (§1); managed Postgres + object storage + CDN
       provisioned if Shape B/C (§2).
-- [ ] Domain + DNS + TLS live; `PUBLIC_BASE_URL` / `SHOREBIRD_JWT_ISSUER` match
+- [ ] Domain + DNS + TLS live; `PUBLIC_BASE_URL` / the server's `SHOREBIRD_JWT_ISSUER` match
       the HTTPS URL (`PRODUCTION.md` §4).
 - [ ] All secrets real (`PRODUCTION.md` §8 security checklist complete).
 - [ ] Backups configured **and a restore tested** (`PRODUCTION.md` §5). Store
