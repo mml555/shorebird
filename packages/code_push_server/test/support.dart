@@ -10,6 +10,7 @@ Config sqliteConfig(
   bool rateLimitShared = false,
   String? loginEmail,
   bool idpEnabled = false,
+  String? patchSigningKeySecret,
 }) => Config(
   trustedProxies: trustedProxies,
   rateLimitIpPerMinute: rateLimitIpPerMinute,
@@ -48,4 +49,5 @@ Config sqliteConfig(
   logFormat: 'text',
   dbSslMode: 'disable',
   loginEmail: loginEmail ?? 'owner@self-host.local',
+  patchSigningKeySecret: patchSigningKeySecret,
 );

@@ -307,6 +307,7 @@ S3_SECRET_KEY=$MINPW
 S3_BUCKET=code-push-artifacts
 API_KEY=sb_api_$(gen)
 URL_SIGNING_SECRET=$(gen)
+PATCH_SIGNING_KEY_SECRET=$(gen)
 DOWNLOAD_URL_TTL=300
 RATE_LIMIT_PER_MINUTE=600
 RATE_LIMIT_BACKEND=postgres
@@ -336,6 +337,7 @@ PRODUCTION=true
 PUBLIC_BASE_URL=https://$DOMAIN
 API_KEY=sb_api_$(gen)
 URL_SIGNING_SECRET=$(gen)
+PATCH_SIGNING_KEY_SECRET=$(gen)
 # Caddy proxies to the server from the compose bridge network (see above).
 TRUSTED_PROXIES=172.16.0.0/12
 LOGIN_EMAIL=$EMAIL
@@ -356,6 +358,7 @@ PUBLIC_BASE_URL=$BASE
 HOST_BIND=0.0.0.0
 API_KEY=sb_api_$(gen)
 URL_SIGNING_SECRET=$(gen)
+PATCH_SIGNING_KEY_SECRET=$(gen)
 LOGIN_EMAIL=you@example.com
 EOF
   ok ".env written."

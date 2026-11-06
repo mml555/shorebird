@@ -1,4 +1,4 @@
-// cspell:words queryability unactivated
+// cspell:words pkce queryability unactivated
 import 'dart:convert';
 import 'dart:math';
 
@@ -71,12 +71,16 @@ class PatchRow {
     this.status, {
     this.notes,
     this.metadata,
+    this.createdAt,
   });
   final int id;
   final String appId;
   final int releaseId;
   final int number;
   final PatchStatus status;
+
+  /// When the patch was created, ISO-8601 UTC.
+  final String? createdAt;
 
   /// Freeform operator-supplied patch notes, surfaced by
   /// `shorebird patches info`. Null when never set.
@@ -132,6 +136,8 @@ class ArtifactRow {
     required this.status,
     required this.storageKey,
     required this.createdAt,
+    this.signingMode,
+    this.signingKeyId,
   });
   final int id;
   final String token;
@@ -150,6 +156,27 @@ class ArtifactRow {
   /// When the artifact row was created, ISO-8601 UTC. Part of the CLI's
   /// `PatchArtifact` wire contract, which requires it.
   final String createdAt;
+
+  /// `managed`, `customer` or `unsigned` for a release artifact whose build
+  /// reported its signing; null otherwise (see migration 14).
+  final String? signingMode;
+
+  /// The `signing_keys` row a `managed` artifact's build embeds.
+  final int? signingKeyId;
+}
+
+/// A managed patch-signing key. [privateKeyEncrypted] never leaves the server.
+class SigningKeyRow {
+  SigningKeyRow(
+    this.id,
+    this.orgId,
+    this.publicKeyPem,
+    this.privateKeyEncrypted,
+  );
+  final int id;
+  final int orgId;
+  final String publicKeyPem;
+  final String privateKeyEncrypted;
 }
 
 class UserRow {
@@ -509,6 +536,38 @@ class Repository {
         // never again be told to revert a patch. See
         // selfhost/upstream/ADOPTION-1.6.123.md §5.
         'ALTER TABLE channels ADD COLUMN deleted_at TIMESTAMPTZ',
+      ],
+    ),
+    (
+      14,
+      [
+        // Managed patch signing (upstream 1.6.138). One RSA key per ORGANIZATION,
+        // created on the first `GET /apps/{app}/signing-key` (upstream's client
+        // documents "the organization's key"). `private_key_enc` is a JWE, never
+        // plaintext, and no route returns it.
+        '''CREATE TABLE IF NOT EXISTS signing_keys(
+              id SERIAL PRIMARY KEY,
+              org_id INTEGER NOT NULL REFERENCES organizations(id),
+              public_key_pem TEXT NOT NULL,
+              private_key_enc TEXT NOT NULL,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+              UNIQUE(org_id))''',
+        // How a release artifact's build is signed: `managed`, `customer` or
+        // `unsigned`; NULL for every artifact registered before this migration
+        // or by a CLI that does not report signing. NULL means "embeds no
+        // Shorebird-managed key", so its patches are never server-signed.
+        'ALTER TABLE artifacts ADD COLUMN signing_mode TEXT',
+        'ALTER TABLE artifacts ADD COLUMN signing_key_id INTEGER',
+      ],
+    ),
+    (
+      15,
+      [
+        // PKCE (RFC 7636): the S256 code challenge a login asked for, kept with
+        // the auth code (and across the external-IdP round trip) so `/token`
+        // can check the verifier. NULL for a login that sent none (older CLIs).
+        'ALTER TABLE auth_codes ADD COLUMN code_challenge TEXT',
+        'ALTER TABLE idp_states ADD COLUMN code_challenge TEXT',
       ],
     ),
   ];
@@ -1261,6 +1320,58 @@ class Repository {
     });
   }
 
+  /// Deletes [releaseId] with every platform's artifacts and every patch of it
+  /// (their artifacts and channel deployments included), in one transaction.
+  /// Returns the storage keys of the removed artifacts so the caller can delete
+  /// the objects. Device events keep their history.
+  Future<List<String>> deleteRelease(int releaseId) => _db.tx((s) async {
+    const mine =
+        "((owner_kind = 'release' AND owner_id = @r) OR (owner_kind = 'patch' "
+        'AND owner_id IN (SELECT id FROM patches WHERE release_id = @r)))';
+    final p = {'r': releaseId};
+    final keys = (await s.query(
+      'SELECT storage_key FROM artifacts WHERE $mine',
+      p,
+    )).map((m) => m['storage_key'] as String).toList();
+    await s.query('DELETE FROM artifacts WHERE $mine', p);
+    await s.query(
+      'DELETE FROM channel_patches WHERE patch_id IN '
+      '(SELECT id FROM patches WHERE release_id = @r)',
+      p,
+    );
+    await s.query('DELETE FROM patches WHERE release_id = @r', p);
+    await s.query(
+      'DELETE FROM release_platform_status WHERE release_id = @r',
+      p,
+    );
+    await s.query('DELETE FROM releases WHERE id = @r', p);
+    return keys;
+  });
+
+  /// Removes [platform] from [releaseId]: its release artifacts and its status
+  /// row. The release and its other platforms stay. Returns the storage keys
+  /// of the removed artifacts.
+  Future<List<String>> deleteReleasePlatform(
+    int releaseId,
+    String platform,
+  ) => _db.tx((s) async {
+    final p = {'r': releaseId, 'p': platform};
+    const where = "owner_kind = 'release' AND owner_id = @r AND platform = @p";
+    final keys = (await s.query(
+      'SELECT storage_key FROM artifacts WHERE $where',
+      p,
+    )).map((m) => m['storage_key'] as String).toList();
+    await s.query('DELETE FROM artifacts WHERE $where', p);
+    await s.query(
+      'DELETE FROM release_platform_status WHERE release_id = @r AND platform = @p',
+      p,
+    );
+    await s.query('UPDATE releases SET updated_at = now() WHERE id = @r', {
+      'r': releaseId,
+    });
+    return keys;
+  });
+
   // ---- Patches ----
 
   Future<PatchRow> createPatch(
@@ -1322,6 +1433,7 @@ class Repository {
     PatchStatus.parse(m['status'] as String),
     notes: m['notes'] as String?,
     metadata: _decodeMetadata(m['metadata']),
+    createdAt: m['created_at'] == null ? null : _ts(m['created_at']),
   );
 
   /// Per-channel deployment state for [patchId]: `{channel, status, rollout,
@@ -1674,13 +1786,16 @@ class Repository {
     String? hashSignature,
     String? podfileLockHash,
     bool canSideload = false,
+    String? signingMode,
+    int? signingKeyId,
   }) async {
     final token = newToken();
     final storageKey = '$ownerKind/$ownerId/$token';
     final r = await _q(
       'INSERT INTO artifacts(token, owner_kind, owner_id, arch, platform, hash, size, '
-      'hash_signature, podfile_lock_hash, can_sideload, status, storage_key) '
-      'VALUES (@t,@ok,@oi,@ar,@pl,@h,@sz,@hs,@ph,@cs,@st,@sk) RETURNING id',
+      'hash_signature, podfile_lock_hash, can_sideload, status, storage_key, '
+      'signing_mode, signing_key_id) '
+      'VALUES (@t,@ok,@oi,@ar,@pl,@h,@sz,@hs,@ph,@cs,@st,@sk,@sm,@sk2) RETURNING id',
       {
         't': token,
         'ok': ownerKind,
@@ -1694,6 +1809,8 @@ class Repository {
         'cs': canSideload,
         'st': ArtifactStatus.pending.name,
         'sk': storageKey,
+        'sm': signingMode,
+        'sk2': signingKeyId,
       },
     );
     return (await _artifactById(_int(r.first['id'])))!;
@@ -1746,6 +1863,10 @@ class Repository {
     status: ArtifactStatus.parse(m['status'] as String),
     storageKey: m['storage_key'] as String,
     createdAt: _ts(m['created_at']),
+    signingMode: m['signing_mode'] as String?,
+    signingKeyId: m['signing_key_id'] == null
+        ? null
+        : _int(m['signing_key_id']),
   );
 
   Future<void> setArtifactStatus(int artifactId, ArtifactStatus status) => _q(
@@ -1774,6 +1895,69 @@ class Repository {
     );
     return r.map(_artifactFrom).toList();
   }
+
+  /// How each platform of [releaseId] was signed, from its live (non-`failed`)
+  /// release artifacts: platform -> (mode, key id). A platform whose artifacts
+  /// reported no signing (anything registered before migration 14, or by an
+  /// older CLI) is absent, which callers must read as "not signed by us".
+  Future<Map<String, ({String mode, int? keyId})>> releaseSigning(
+    int releaseId,
+  ) async {
+    final r = await _q(
+      "SELECT platform, signing_mode, signing_key_id FROM artifacts "
+      "WHERE owner_kind = 'release' AND owner_id = @o AND status <> 'failed' "
+      "AND signing_mode IS NOT NULL ORDER BY id",
+      {'o': releaseId},
+    );
+    final out = <String, ({String mode, int? keyId})>{};
+    for (final m in r) {
+      out.putIfAbsent(
+        m['platform'] as String,
+        () => (
+          mode: m['signing_mode'] as String,
+          keyId: m['signing_key_id'] == null ? null : _int(m['signing_key_id']),
+        ),
+      );
+    }
+    return out;
+  }
+
+  // ---- Managed patch-signing keys ----
+
+  Future<SigningKeyRow?> signingKeyById(int id) async {
+    final r = await _q('SELECT * FROM signing_keys WHERE id = @id', {'id': id});
+    return r.isEmpty ? null : _signingKeyFrom(r.first);
+  }
+
+  Future<SigningKeyRow?> signingKeyForOrg(int orgId) async {
+    final r = await _q('SELECT * FROM signing_keys WHERE org_id = @o', {
+      'o': orgId,
+    });
+    return r.isEmpty ? null : _signingKeyFrom(r.first);
+  }
+
+  /// Stores [publicKeyPem] / [privateKeyEncrypted] as [orgId]'s key unless the
+  /// org already has one, and returns whichever key the org ends up with, so
+  /// two racing first fetches converge on one key.
+  Future<SigningKeyRow> insertSigningKeyIfAbsent(
+    int orgId,
+    String publicKeyPem,
+    String privateKeyEncrypted,
+  ) async {
+    await _q(
+      'INSERT INTO signing_keys(org_id, public_key_pem, private_key_enc) '
+      'VALUES (@o,@pub,@priv) ON CONFLICT(org_id) DO NOTHING',
+      {'o': orgId, 'pub': publicKeyPem, 'priv': privateKeyEncrypted},
+    );
+    return (await signingKeyForOrg(orgId))!;
+  }
+
+  SigningKeyRow _signingKeyFrom(Map<String, Object?> m) => SigningKeyRow(
+    _int(m['id']),
+    _int(m['org_id']),
+    m['public_key_pem'] as String,
+    m['private_key_enc'] as String,
+  );
 
   Future<List<ArtifactRow>> patchArtifacts(int patchId) async {
     final r = await _q(
@@ -1911,20 +2095,36 @@ class Repository {
 
   // ---- OAuth codes + refresh tokens (persisted, single-use) ----
 
-  Future<void> insertAuthCode(String code, String email, DateTime expiresAt) =>
-      _q('INSERT INTO auth_codes(code, email, expires_at) VALUES (@c,@e,@x)', {
-        'c': code,
-        'e': email,
-        'x': expiresAt,
-      });
+  Future<void> insertAuthCode(
+    String code,
+    String email,
+    DateTime expiresAt, {
+    String? codeChallenge,
+  }) => _q(
+    'INSERT INTO auth_codes(code, email, expires_at, code_challenge) '
+    'VALUES (@c,@e,@x,@cc)',
+    {'c': code, 'e': email, 'x': expiresAt, 'cc': codeChallenge},
+  );
 
   /// Atomically consumes an unexpired auth code, returning its email (or null).
-  Future<String?> consumeAuthCode(String code) async {
+  Future<String?> consumeAuthCode(String code) async =>
+      (await consumeAuthCodeGrant(code))?.email;
+
+  /// Like [consumeAuthCode], also returning the PKCE challenge the login asked
+  /// for (null when it sent none).
+  Future<({String email, String? codeChallenge})?> consumeAuthCodeGrant(
+    String code,
+  ) async {
     final r = await _q(
-      'DELETE FROM auth_codes WHERE code = @c AND expires_at > now() RETURNING email',
+      'DELETE FROM auth_codes WHERE code = @c AND expires_at > now() '
+      'RETURNING email, code_challenge',
       {'c': code},
     );
-    return r.isEmpty ? null : r.first['email'] as String;
+    if (r.isEmpty) return null;
+    return (
+      email: r.first['email'] as String,
+      codeChallenge: r.first['code_challenge'] as String?,
+    );
   }
 
   Future<void> insertRefreshToken(String token, String email) => _q(
@@ -1953,20 +2153,33 @@ class Repository {
   Future<void> insertIdpState(
     String state,
     String continueUrl,
-    DateTime expiresAt,
-  ) => _q(
-    'INSERT INTO idp_states(state, continue_url, expires_at) VALUES (@s,@c,@x)',
-    {'s': state, 'c': continueUrl, 'x': expiresAt},
+    DateTime expiresAt, {
+    String? codeChallenge,
+  }) => _q(
+    'INSERT INTO idp_states(state, continue_url, expires_at, code_challenge) '
+    'VALUES (@s,@c,@x,@cc)',
+    {'s': state, 'c': continueUrl, 'x': expiresAt, 'cc': codeChallenge},
   );
 
   /// Atomically consumes an unexpired IdP state, returning its `continue` URL.
-  Future<String?> consumeIdpState(String state) async {
+  Future<String?> consumeIdpState(String state) async =>
+      (await consumeIdpStateGrant(state))?.continueUrl;
+
+  /// Like [consumeIdpState], also returning the PKCE challenge to carry onto
+  /// the auth code issued at the end of the round trip.
+  Future<({String continueUrl, String? codeChallenge})?> consumeIdpStateGrant(
+    String state,
+  ) async {
     final r = await _q(
       'DELETE FROM idp_states WHERE state = @s AND expires_at > now() '
-      'RETURNING continue_url',
+      'RETURNING continue_url, code_challenge',
       {'s': state},
     );
-    return r.isEmpty ? null : r.first['continue_url'] as String;
+    if (r.isEmpty) return null;
+    return (
+      continueUrl: r.first['continue_url'] as String,
+      codeChallenge: r.first['code_challenge'] as String?,
+    );
   }
 
   /// Drops IdP states abandoned mid-login (call periodically).

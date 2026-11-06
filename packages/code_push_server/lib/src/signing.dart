@@ -30,6 +30,8 @@ class UrlSigner {
     return _constTimeEq(sig, _hmac('$token.$exp'));
   }
 
+  static bool constTimeEq(String a, String b) => _constTimeEq(a, b);
+
   static bool _constTimeEq(String a, String b) {
     if (a.length != b.length) return false;
     var diff = 0;

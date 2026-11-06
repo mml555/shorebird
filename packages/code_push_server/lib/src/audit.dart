@@ -248,6 +248,22 @@ AuditRoute? classifyMutation(String method, List<String> segments) {
         releaseId: id(rest[1]),
       );
     }
+    if (rest.length == 2 && method == 'DELETE') {
+      return AuditRoute(
+        'release.delete',
+        'DELETE /api/v1/apps/{app}/releases/{release}',
+        appId: appId,
+        releaseId: id(rest[1]),
+      );
+    }
+    if (rest.length == 3 && rest[2] == 'artifacts' && method == 'DELETE') {
+      return AuditRoute(
+        'release.artifact.delete',
+        'DELETE /api/v1/apps/{app}/releases/{release}/artifacts',
+        appId: appId,
+        releaseId: id(rest[1]),
+      );
+    }
     if (rest.length == 3 && rest[2] == 'artifacts' && method == 'POST') {
       return AuditRoute(
         'release.artifact.create',
