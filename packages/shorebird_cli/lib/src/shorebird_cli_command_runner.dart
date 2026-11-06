@@ -9,6 +9,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/api_error_exit.dart';
+import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/commands/commands.dart';
@@ -376,6 +377,9 @@ class ShorebirdCliCommandRunner extends CompletionCommandRunner<int> {
           logger.info(aliasNotice);
         }
       }
+      // stderr, never the logger: stdout may be reserved for --json.
+      final originConflict = ArtifactOrigin.conflictWarning();
+      if (originConflict != null) io.stderr.writeln(originConflict);
       try {
         exitCode = await runScoped(
           () => super.runCommand(topLevelResults),

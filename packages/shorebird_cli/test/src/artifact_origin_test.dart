@@ -274,30 +274,132 @@ void main() {
         }
       });
 
-      test('the shell bootstrap resolves the same authority', () {
+      test('the shell bootstrap resolves the same authority, and warns the '
+          'same way', () {
         // `third_party/flutter/bin/internal/shared.sh` runs BEFORE any Dart
         // exists — it is the download that produces the Dart SDK — so it
         // duplicates the resolution in shell. Duplication is only safe if it
-        // is pinned, which is what this asserts.
-        final shared = io.File(
-          packagePath('../../third_party/flutter/bin/internal/shared.sh'),
+        // is pinned: run the real function over a matrix and compare it to
+        // ArtifactOrigin, URL and warning both.
+        final shared = packagePath(
+          '../../third_party/flutter/bin/internal/shared.sh',
         );
-        expect(shared.existsSync(), isTrue);
-        final source = shared.readAsStringSync();
-        expect(
-          source,
-          contains(
-            r'local download_url="${SHOREBIRD_DOWNLOAD_URL:-'
-            r'${FLUTTER_STORAGE_BASE_URL:-${SHOREBIRD_ARTIFACT_ORIGIN:-'
-            'https://download.shorebird.dev}}}"',
-          ),
-          reason:
-              'the bootstrap must resolve SHOREBIRD_DOWNLOAD_URL, then '
-              'FLUTTER_STORAGE_BASE_URL, then '
-              'SHOREBIRD_ARTIFACT_ORIGIN, then the upstream default — the same '
-              'order and the same default as ArtifactOrigin',
-        );
-        expect(source, contains(ArtifactOrigin.originKey));
+        expect(io.File(shared).existsSync(), isTrue);
+        const dl = ArtifactOrigin.downloadUrlKey;
+        const fl = ArtifactOrigin.flutterStorageKey;
+        const or = ArtifactOrigin.originKey;
+        for (final env in <Map<String, String>>[
+          {},
+          {dl: 'https://a.example/'},
+          {fl: 'https://b.example'},
+          {or: 'https://c.example//'},
+          {dl: '', fl: '  ', or: ''},
+          {fl: '  https://b.example/  '},
+          {dl: 'https://a.example', fl: 'https://a.example/'},
+          {dl: 'https://a.example', fl: 'https://b.example'},
+          {fl: 'https://b.example', or: 'https://c.example'},
+          {dl: 'https://a.example', fl: 'https://b.example', or: 'https://c'},
+          {
+            fl: 'https://b.example',
+            or: 'https://c.example',
+            ArtifactOrigin.shorebirdBucketKey: 'bkt',
+          },
+        ]) {
+          final result = io.Process.runSync(
+            'bash',
+            [
+              '-c',
+              'source "\$1"; resolve_download_url',
+              'bash',
+              shared,
+            ],
+            environment: {
+              'PATH': io.Platform.environment['PATH']!,
+              ...env,
+            },
+            includeParentEnvironment: false,
+          );
+          expect(result.exitCode, 0, reason: '$env ${result.stderr}');
+          runWithEnv(env, () {
+            expect(
+              result.stdout,
+              ArtifactOrigin.flutterStorageBaseUrl(),
+              reason: '$env',
+            );
+            final warning = ArtifactOrigin.conflictWarning();
+            expect(
+              (result.stderr as String).trim(),
+              warning ?? '',
+              reason: '$env',
+            );
+          });
+        }
+      });
+
+      group('conflictWarning', () {
+        test('is null when nothing, one, or agreeing variables are set', () {
+          for (final env in <Map<String, String>>[
+            {},
+            {ArtifactOrigin.originKey: 'https://c.example'},
+            {
+              ArtifactOrigin.downloadUrlKey: 'https://a.example/',
+              ArtifactOrigin.flutterStorageKey: 'https://a.example',
+            },
+          ]) {
+            runWithEnv(
+              env,
+              () => expect(ArtifactOrigin.conflictWarning(), isNull),
+            );
+          }
+        });
+
+        test('names the winner and the upstream layout', () {
+          runWithEnv(
+            {
+              ArtifactOrigin.downloadUrlKey: 'https://a.example',
+              ArtifactOrigin.flutterStorageKey: 'https://b.example',
+            },
+            () {
+              final warning = ArtifactOrigin.conflictWarning()!;
+              expect(
+                warning,
+                contains('SHOREBIRD_DOWNLOAD_URL=https://a.example wins'),
+              );
+              expect(
+                warning,
+                contains(
+                  'upstream layout: https://a.example/shorebird/<engine>/',
+                ),
+              );
+              expect(
+                warning,
+                contains('Ignored: FLUTTER_STORAGE_BASE_URL=https://b.example'),
+              );
+            },
+          );
+        });
+
+        test('names the winner and the fork layout', () {
+          runWithEnv(
+            {
+              ArtifactOrigin.flutterStorageKey: 'https://b.example',
+              ArtifactOrigin.originKey: 'https://c.example',
+            },
+            () {
+              final warning = ArtifactOrigin.conflictWarning()!;
+              expect(
+                warning,
+                contains('FLUTTER_STORAGE_BASE_URL=https://b.example wins'),
+              );
+              expect(
+                warning,
+                contains(
+                  'fork layout: https://c.example/download.shorebird.dev/shorebird/<engine>/',
+                ),
+              );
+            },
+          );
+        });
       });
     });
   });

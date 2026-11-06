@@ -123,6 +123,35 @@ abstract final class ArtifactOrigin {
     return '${shorebirdStorageBaseUrl()}/${shorebirdStorageBucket()}';
   }
 
+  /// A warning for stderr when more than one of [downloadUrlKey],
+  /// [flutterStorageKey] and [originKey] is set and they disagree, or null.
+  ///
+  /// The precedence is deliberate (an operator's mirror must win over an
+  /// ambient `SHOREBIRD_ARTIFACT_ORIGIN`), but a stale variable in a shell
+  /// profile silently decides where engine bytes come from, so say which one
+  /// won and what layout it implies. `third_party/flutter/bin/internal/
+  /// shared.sh` resolves the same winner, in the same order.
+  static String? conflictWarning() {
+    final set = <String, String>{
+      for (final key in [downloadUrlKey, flutterStorageKey, originKey])
+        if (_nonEmpty(platform.environment[key]) case final value?) key: value,
+    };
+    if (set.values.toSet().length < 2) return null;
+    final winner = set.keys.first;
+    final layout = winner == downloadUrlKey
+        ? 'upstream layout: ${set[winner]}/shorebird/<engine>/...'
+        : 'fork layout: ${shorebirdStorageBaseUrl()}/'
+              '${shorebirdStorageBucket()}/shorebird/<engine>/...';
+    final ignored = [
+      for (final e in set.entries)
+        if (e.key != winner) '${e.key}=${e.value}',
+    ];
+    return 'Warning: ${set.keys.join(', ')} are set to conflicting values. '
+        '$winner=${set[winner]} wins (precedence: $downloadUrlKey, '
+        '$flutterStorageKey, $originKey), giving the $layout. Ignored: '
+        '${ignored.join(', ')}. Unset the ones you do not mean.';
+  }
+
   /// A one-line description of the resolved origins, for `--verbose` and for
   /// the doctor.
   static String describe() =>

@@ -8,6 +8,59 @@ set -e
 # Needed because if it is set, cd may print the path it changed to.
 unset CDPATH
 
+# An origin variable's value as the CLI reads it (ArtifactOrigin._nonEmpty in
+# packages/shorebird_cli/lib/src/artifact_origin.dart): whitespace trimmed,
+# trailing slashes dropped, and empty meaning unset.
+function _origin_value {
+  local v="$1"
+  v="${v#"${v%%[![:space:]]*}"}"
+  v="${v%"${v##*[![:space:]]}"}"
+  while [[ "$v" == */ ]]; do v="${v%/}"; done
+  printf '%s' "$v"
+}
+
+# Resolves where Flutter/engine artifacts come from: SHOREBIRD_DOWNLOAD_URL,
+# then FLUTTER_STORAGE_BASE_URL, then SHOREBIRD_ARTIFACT_ORIGIN, then upstream.
+# Prints the URL. When more than one is set and they disagree, warns on stderr
+# naming the winner and the layout it implies, exactly as
+# ArtifactOrigin.conflictWarning does. Pinned against the Dart side by
+# artifact_origin_test.dart.
+function resolve_download_url {
+  local names=(SHOREBIRD_DOWNLOAD_URL FLUTTER_STORAGE_BASE_URL SHOREBIRD_ARTIFACT_ORIGIN)
+  local winner="" winner_value="" distinct="" ignored="" name value
+  for name in "${names[@]}"; do
+    value="$(_origin_value "${!name}")"
+    [[ -z "$value" ]] && continue
+    if [[ -z "$winner" ]]; then
+      winner="$name"; winner_value="$value"
+    else
+      ignored="${ignored:+$ignored, }$name=$value"
+    fi
+    case " $distinct " in *" $value "*) ;; *) distinct="$distinct $value" ;; esac
+  done
+  if [[ -z "$winner" ]]; then
+    printf '%s' "https://download.shorebird.dev"
+    return
+  fi
+  if [[ $(wc -w <<<"$distinct") -gt 1 ]]; then
+    local layout storage_base storage_bucket
+    if [[ "$winner" == SHOREBIRD_DOWNLOAD_URL ]]; then
+      layout="upstream layout: $winner_value/shorebird/<engine>/..."
+    else
+      storage_base="$(_origin_value "$SHOREBIRD_STORAGE_BASE_URL")"
+      [[ -z "$storage_base" ]] && storage_base="$(_origin_value "$SHOREBIRD_ARTIFACT_ORIGIN")"
+      [[ -z "$storage_base" ]] && storage_base="https://storage.googleapis.com"
+      storage_bucket="$(_origin_value "$SHOREBIRD_STORAGE_BUCKET")"
+      [[ -z "$storage_bucket" ]] && storage_bucket="download.shorebird.dev"
+      layout="fork layout: $storage_base/$storage_bucket/shorebird/<engine>/..."
+    fi
+    local all_set
+    all_set="$(for name in "${names[@]}"; do if [[ -n "$(_origin_value "${!name}")" ]]; then printf '%s, ' "$name"; fi; done)"
+    >&2 echo "Warning: ${all_set%, } are set to conflicting values. $winner=$winner_value wins (precedence: SHOREBIRD_DOWNLOAD_URL, FLUTTER_STORAGE_BASE_URL, SHOREBIRD_ARTIFACT_ORIGIN), giving the $layout. Ignored: $ignored. Unset the ones you do not mean."
+  fi
+  printf '%s' "$winner_value"
+}
+
 # Either clones or pulls the Shorebird Flutter repository, depending on whether FLUTTER_PATH exists.
 # A self-hosted deployment can point both network touches at its own mirror:
 # SHOREBIRD_FLUTTER_GIT_URL for the clone, and for the artifact download either
@@ -40,8 +93,9 @@ function update_flutter {
   # read from Dart because this bootstrap runs BEFORE any Dart code exists to
   # ask -- it is the download that produces the Dart SDK. Kept in step by a test
   # that pins both defaults (`artifact_origin_test.dart`).
-  local download_url="${SHOREBIRD_DOWNLOAD_URL:-${FLUTTER_STORAGE_BASE_URL:-${SHOREBIRD_ARTIFACT_ORIGIN:-https://download.shorebird.dev}}}"
-  FLUTTER_STORAGE_BASE_URL="${download_url%/}" $FLUTTER_PATH/bin/flutter --version
+  local download_url
+  download_url="$(resolve_download_url)"
+  FLUTTER_STORAGE_BASE_URL="$download_url" $FLUTTER_PATH/bin/flutter --version
 }
 
 function pub_get_with_retry {
