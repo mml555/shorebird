@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
@@ -83,6 +84,16 @@ target workflow file without overwriting surrounding jobs, services,
 or matrix strategies.''',
         negatable: false,
       )
+      ..addOption(
+        'linux-runner',
+        help: '''
+JSON array of runner labels for the `ubuntu-latest` leg of --style
+static's reusable workflows, e.g. '["self-hosted","linux","x64"]'.
+The leg only moves for trusted events: a pull request from a fork
+keeps `ubuntu-latest`, so outside contributors' code never runs on
+your own hardware. Unset (the default), every leg runs on the label
+the matrix names.''',
+      )
       ..addFlag(
         'fatal-infos',
         help:
@@ -109,6 +120,13 @@ or matrix strategies.''',
     final emitRequiredJob = argResults!.flag('required');
     final filtersOnly = argResults!.flag('filters-only');
     final fatalInfos = argResults!.flag('fatal-infos');
+    final linuxRunner = argResults!['linux-runner'] as String?;
+    if (linuxRunner != null && !_isJsonStringArray(linuxRunner)) {
+      stderr.writeln(
+        '--linux-runner must be a JSON array of labels, got: $linuxRunner',
+      );
+      return 64;
+    }
 
     final analyzer = RepositoryAnalyzer();
     final repoDir = Directory(repoRoot);
@@ -181,6 +199,7 @@ or matrix strategies.''',
             codecovTokenSecret: codecovTokenSecret,
             emitRequiredJob: emitRequiredJob,
             fatalInfos: fatalInfos,
+            linuxRunner: linuxRunner,
             packages: sortedPackages,
             slugs: slugs!,
           )
@@ -344,6 +363,7 @@ updates:
     required String? codecovTokenSecret,
     required bool emitRequiredJob,
     required bool fatalInfos,
+    required String? linuxRunner,
     required List<PackageDescription> packages,
     required Map<PackageDescription, String> slugs,
   }) {
@@ -371,6 +391,7 @@ updates:
             hasRedis: _anyNeedsRedis(packages),
             hasSubmodules: repository.hasSubmodules,
             fatalInfos: fatalInfos,
+            linuxRunner: linuxRunner,
             codecovTokenSecret: codecovTokenSecret,
           );
     }
@@ -381,6 +402,7 @@ updates:
             hasCodecov: repository.hasCodecov,
             hasSubmodules: repository.hasSubmodules,
             fatalInfos: fatalInfos,
+            linuxRunner: linuxRunner,
             codecovTokenSecret: codecovTokenSecret,
           );
     }
@@ -575,12 +597,38 @@ ${repository.hasSubmodules ? '          submodules: recursive\n' : ''}          
     return buffer.toString();
   }
 
+  /// The `runs-on:` line of a reusable workflow's `ci` job.
+  ///
+  /// With [linuxRunner], the `ubuntu-latest` leg runs on those labels, but
+  /// only when the event is trusted: a pull request from a fork stays on
+  /// the hosted runner. `matrix.os` itself stays `ubuntu-latest`, which the
+  /// coverage steps compare against.
+  String _runsOnLine(String? linuxRunner) {
+    if (linuxRunner == null) return r'    runs-on: ${{ matrix.os }}';
+    return '''
+    # Self-hosted runners are only for trusted events. A pull request from
+    # a fork must never run on hardware the repo owner controls.
+    runs-on: \${{ matrix.os == 'ubuntu-latest' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('$linuxRunner') || matrix.os }}''';
+  }
+
+  static bool _isJsonStringArray(String value) {
+    try {
+      final decoded = jsonDecode(value);
+      return decoded is List &&
+          decoded.isNotEmpty &&
+          decoded.every((e) => e is String);
+    } on FormatException {
+      return false;
+    }
+  }
+
   String _buildDartReusableWorkflow({
     required bool hasBlocLint,
     required bool hasCodecov,
     required bool hasRedis,
     required bool hasSubmodules,
     required bool fatalInfos,
+    required String? linuxRunner,
     required String? codecovTokenSecret,
   }) {
     final analyzeFlag = fatalInfos ? '--fatal-infos' : '--fatal-warnings';
@@ -650,7 +698,7 @@ jobs:
       fail-fast: false
       matrix:
         os: \${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || inputs.runners) }}
-    runs-on: \${{ matrix.os }}
+${_runsOnLine(linuxRunner)}
     defaults:
       run:
         shell: bash
@@ -736,6 +784,7 @@ $codecovStep''';
     required bool hasCodecov,
     required bool hasSubmodules,
     required bool fatalInfos,
+    required String? linuxRunner,
     required String? codecovTokenSecret,
   }) {
     final analyzeCmd = fatalInfos
@@ -811,7 +860,7 @@ jobs:
       fail-fast: false
       matrix:
         os: \${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || inputs.runners) }}
-    runs-on: \${{ matrix.os }}
+${_runsOnLine(linuxRunner)}
     defaults:
       run:
         shell: bash

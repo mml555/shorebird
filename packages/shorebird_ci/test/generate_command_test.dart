@@ -354,6 +354,67 @@ void main() {
       );
     });
 
+    test('--linux-runner moves only trusted ubuntu legs', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      createPackage(tempDir, 'packages/bar', 'bar', flutterLine: 'any');
+      initGitRepo(tempDir);
+
+      await runGenerate(
+        tempDir,
+        extra: [
+          '--style',
+          'static',
+          '--linux-runner',
+          '["self-hosted","linux","x64"]',
+        ],
+      );
+
+      for (final name in [
+        '_shorebird_ci_dart.yaml',
+        '_shorebird_ci_flutter.yaml',
+      ]) {
+        final content = File(
+          p.join(tempDir.path, '.github', 'workflows', name),
+        ).readAsStringSync();
+        expect(
+          content,
+          contains(
+            r"runs-on: ${{ matrix.os == 'ubuntu-latest' && "
+            "(github.event_name != 'pull_request' || "
+            'github.event.pull_request.head.repo.full_name == '
+            'github.repository) && '
+            '''fromJSON('["self-hosted","linux","x64"]') || matrix.os }}''',
+          ),
+          reason: name,
+        );
+        expect(content, contains("matrix.os == 'ubuntu-latest'"));
+      }
+    });
+
+    test('--linux-runner rejects what is not a JSON array', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+
+      final code = await runGenerate(
+        tempDir,
+        extra: ['--style', 'static', '--linux-runner', 'self-hosted'],
+      );
+
+      expect(code, 64);
+    });
+
+    test('without --linux-runner every leg runs on matrix.os', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+
+      final content = File(
+        p.join(tempDir.path, '.github', 'workflows', '_shorebird_ci_dart.yaml'),
+      ).readAsStringSync();
+      expect(content, contains(r'runs-on: ${{ matrix.os }}'));
+    });
+
     test('static workflow triggers on merge_group', () async {
       // Branch protection's required contexts only gate a merge if they
       // report on the queue's temp branch too.

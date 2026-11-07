@@ -8,6 +8,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
+  # Start CI by hand on any branch (Actions -> ci -> Run workflow).
+  workflow_dispatch:
   pull_request:
   # Checks run on the queue's own temp branch, not the PR. Without this
   # trigger the required contexts never report there and the queue
@@ -24,7 +26,10 @@ permissions:
 jobs:
   license_check:
     name: 📄 License Check
-    runs-on: ubuntu-latest
+    # Self-hosted (ci-build, on the owner's home LAN) only for trusted events:
+    # a pull request from a fork keeps the hosted runner, so outside
+    # contributors' code never reaches the LAN.
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     steps:
       - name: 📚 Git Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,7 +41,7 @@ jobs:
 
   actionlint:
     name: 🔍 Lint Workflows
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     # The image pull from Docker Hub is the only network step; bound it so a
     # Docker Hub stall fails fast instead of holding the required check.
     timeout-minutes: 5
@@ -69,7 +74,7 @@ jobs:
   # DOTFILE typo must each fail this exact command.
   cspell_full_tree:
     name: 🔤 Check Spelling (full tree)
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     steps:
       - name: 📚 Git Checkout
         uses: actions/checkout@v7
@@ -78,7 +83,7 @@ jobs:
         run: npx cspell --dot --no-progress --no-summary selfhost packages/code_push_server/lib
 
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     permissions:
       contents: read
       # dorny/paths-filter lists a pull request's changed files through the API.
@@ -97,6 +102,8 @@ jobs:
         name: Verify Detection
         id: needs_verify
         with:
+          # A manual run has no PR or push to diff, so compare with main.
+          base: ${{ github.event_name == 'workflow_dispatch' && 'main' || '' }}
           filters: |
             shorebird_cli:
               - ./.github/workflows/main.yaml
@@ -125,7 +132,7 @@ jobs:
       matrix:
         package: ${{ fromJSON(needs.changes.outputs.needs_verify) }}
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
 
     name: 🔎 Verify ${{ matrix.package }}
 
@@ -146,7 +153,7 @@ jobs:
     # for a run nothing is waiting on.
     if: ${{ !cancelled() }}
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
 
     steps:
       - name: ⛔️ exit(1) on failure or cancellation

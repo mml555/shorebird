@@ -190,8 +190,11 @@ edits the tool doesn't make for you:
 - **Branch name.** The workflow triggers on `pull_request` and `push`
   against `main` only. Repos using `master`, `trunk`, etc. need to
   swap the branch in both triggers.
-- **Runner.** Every job is `ubuntu-latest`. Self-hosted, ARM, or macOS
-  runners need a manual change to `runs-on:`.
+- **Runner.** Every job is `ubuntu-latest`. ARM or macOS runners need a
+  manual change to `runs-on:`. For self-hosted Linux, pass
+  `--linux-runner '["self-hosted","linux","x64"]'` with `--style static`:
+  the reusable workflows then run their `ubuntu-latest` leg on those labels,
+  except for pull requests from forks, which keep `ubuntu-latest`.
 - **Non-Codecov secrets.** Only the Codecov token has first-class flag
   support. Anything else (private pub registries, integration-test
   credentials) needs to be plumbed through by hand.

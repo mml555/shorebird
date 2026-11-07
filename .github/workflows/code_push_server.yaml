@@ -1,3 +1,4 @@
+# cspell:words dpkg getsockname
 # CI for the self-hosted code_push_server package. Standalone (its own
 # pubspec.lock, not a workspace member), so it's built and tested on its own.
 # Path-filtered to only run when this package (or this workflow) changes.
@@ -24,7 +25,10 @@ defaults:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Self-hosted (ci-build, on the owner's home LAN) only for trusted events:
+    # a pull request from a fork keeps the hosted runner, so outside
+    # contributors' code never reaches the LAN.
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -34,8 +38,13 @@ jobs:
 
       # libsqlite3: the single-container (SQLite) backend uses sqlite3 via FFI.
       # shellcheck: lint the shell tooling (below). Both in one apt call.
+      # Skipped when both are already there: the self-hosted runner keeps
+      # them between runs, and apt-get update is slow.
       - name: Install libsqlite3 + shellcheck
-        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev shellcheck
+        run: |
+          if ! dpkg -s libsqlite3-dev shellcheck >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y libsqlite3-dev shellcheck
+          fi
 
       - name: Install dependencies
         run: dart pub get --enforce-lockfile
@@ -58,7 +67,7 @@ jobs:
         run: dart test -x integration
 
       - name: Native compile (production build path)
-        run: dart compile exe bin/server.dart -o /tmp/server
+        run: dart compile exe bin/server.dart -o "$RUNNER_TEMP/server"
 
       # End-to-end wire-contract smoke against the SQLite single-container
       # backend: boots the server and drives create -> verify -> promote ->
@@ -71,20 +80,23 @@ jobs:
           API_KEY: sb_api_ci_ephemeral_0123456789abcdef
           URL_SIGNING_SECRET: ci-ephemeral-url-signing-secret
         run: |
-          DATA_DIR=/tmp/cps-ci /tmp/server &
+          # The runner host is shared, so take a free port rather than 8080.
+          PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
+          export PORT
+          DATA_DIR="$RUNNER_TEMP/cps-ci" "$RUNNER_TEMP/server" &
           SV=$!
           for _ in $(seq 1 40); do
-            curl -sf http://localhost:8080/readyz | grep -q '"db":true' && break
+            curl -sf "http://localhost:$PORT/readyz" | grep -q '"db":true' && break
             sleep 0.5
           done
-          BASE=http://localhost:8080 KEY="$API_KEY" ./tool/smoke_test.sh
+          BASE="http://localhost:$PORT" KEY="$API_KEY" ./tool/smoke_test.sh
           kill $SV || true
 
   # Exercises the scale backend (Postgres metadata + filesystem artifacts) that
   # the SQLite job never touches: the PgDb adapter, unrewritten Postgres SQL,
   # and the Postgres flavor of the analytics date bucketing.
   postgres:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     services:
       postgres:
         image: postgres:16-alpine
@@ -92,8 +104,10 @@ jobs:
           POSTGRES_USER: cps
           POSTGRES_PASSWORD: cps_ci_password
           POSTGRES_DB: code_push
+        # A bare container port: Docker picks the host port, so two jobs on
+        # the shared runner host never collide on 5432.
         ports:
-          - 5432:5432
+          - 5432
         options: >-
           --health-cmd "pg_isready -U cps"
           --health-interval 5s
@@ -110,32 +124,35 @@ jobs:
         run: dart pub get --enforce-lockfile
 
       - name: Native compile
-        run: dart compile exe bin/server.dart -o /tmp/server
+        run: dart compile exe bin/server.dart -o "$RUNNER_TEMP/server"
 
       # DATABASE_URL selects the Postgres backend; S3_ENDPOINT is left unset so
       # artifacts use the filesystem store under DATA_DIR.
       - name: Smoke test (Postgres backend)
         env:
-          DATABASE_URL: postgres://cps:cps_ci_password@localhost:5432/code_push
+          DATABASE_URL: postgres://cps:cps_ci_password@localhost:${{ job.services.postgres.ports['5432'] }}/code_push
           # See the SQLite job: placeholder secrets are refused at boot.
           API_KEY: sb_api_ci_ephemeral_0123456789abcdef
           URL_SIGNING_SECRET: ci-ephemeral-url-signing-secret
         run: |
-          DATA_DIR=/tmp/cps-pg /tmp/server &
+          # The runner host is shared, so take a free port rather than 8080.
+          PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
+          export PORT
+          DATA_DIR="$RUNNER_TEMP/cps-pg" "$RUNNER_TEMP/server" &
           SV=$!
           for _ in $(seq 1 40); do
-            curl -sf http://localhost:8080/readyz | grep -q '"db":true' && break
+            curl -sf "http://localhost:$PORT/readyz" | grep -q '"db":true' && break
             sleep 0.5
           done
-          BASE=http://localhost:8080 KEY="$API_KEY" ./tool/smoke_test.sh
+          BASE="http://localhost:$PORT" KEY="$API_KEY" ./tool/smoke_test.sh
           # Exercise the Postgres date SQL (date_trunc / dow / hour) that the
           # smoke doesn't: seed one device event, then hit the analytics
           # endpoints that bucket by period, weekday, and hour.
           H="Authorization: Bearer $API_KEY"
-          APP=$(curl -s -H "$H" -X POST http://localhost:8080/api/v1/apps \
+          APP=$(curl -s -H "$H" -X POST "http://localhost:$PORT/api/v1/apps" \
             -d '{"organization_id":1,"display_name":"pg-analytics"}' \
             | sed -E 's/.*"id":"([^"]+)".*/\1/')
-          curl -s -X POST http://localhost:8080/api/v1/patches/events \
+          curl -s -X POST "http://localhost:$PORT/api/v1/patches/events" \
             -d "{\"app_id\":\"$APP\",\"client_id\":\"ci-device\",\"type\":\"__patch_install__\",\"release_version\":\"1.0.0+1\",\"patch_number\":1,\"platform\":\"android\",\"arch\":\"aarch64\",\"timestamp\":1700000000}" \
             >/dev/null
           for ep in \
@@ -145,7 +162,7 @@ jobs:
             "analytics/active-hours" \
             "analytics/patch-adoption?granularity=day"; do
             CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "$H" \
-              "http://localhost:8080/api/v1/apps/$APP/$ep")
+              "http://localhost:$PORT/api/v1/apps/$APP/$ep")
             echo "GET /$ep -> $CODE"
             [ "$CODE" = "200" ] || { echo "analytics endpoint failed"; kill $SV; exit 1; }
           done

@@ -55,7 +55,9 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || inputs.runners) }}
-    runs-on: ${{ matrix.os }}
+    # Self-hosted runners are only for trusted events. A pull request from
+    # a fork must never run on hardware the repo owner controls.
+    runs-on: ${{ matrix.os == 'ubuntu-latest' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || matrix.os }}
     defaults:
       run:
         shell: bash
