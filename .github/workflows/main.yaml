@@ -1,3 +1,4 @@
+# cspell:words clippy rustc
 name: ci
 
 concurrency:
@@ -91,6 +92,7 @@ jobs:
 
     outputs:
       needs_verify: ${{ steps.needs_verify.outputs.changes }}
+      updater_rust: ${{ steps.updater_rust.outputs.updater_rust }}
 
     name: 👀 Detect Changes
 
@@ -124,6 +126,18 @@ jobs:
               - pubspec.lock
               - pubspec.yaml
 
+      # Its own step: needs_verify's output is a list of package names that
+      # verify_packages turns into a matrix, so this filter cannot join it.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        name: Updater (Rust) Detection
+        id: updater_rust
+        with:
+          base: ${{ github.event_name == 'workflow_dispatch' && 'main' || '' }}
+          filters: |
+            updater_rust:
+              - ./.github/workflows/main.yaml
+              - vendor/updater/**
+
   verify_packages:
     needs: changes
     if: ${{ needs.changes.outputs.needs_verify != '[]' }}
@@ -145,8 +159,43 @@ jobs:
         with:
           working_directory: packages/${{ matrix.package }}
 
+  # vendor/updater is a Cargo workspace (library, library_test_hooks, patch).
+  # Commands follow vendor/updater/CLAUDE.md; the lint pair is added on top.
+  # cargo comes from rustup on the runner (the self-hosted host and the
+  # hosted image both have it with rustfmt and clippy).
+  updater_rust:
+    needs: changes
+    if: ${{ needs.changes.outputs.updater_rust == 'true' }}
+    name: 🦀 Updater (cargo)
+    timeout-minutes: 45
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    defaults:
+      run:
+        working-directory: vendor/updater
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 🦀 Toolchain
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: 🎨 Format
+        run: cargo fmt --check
+
+      - name: 📎 Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      # Tests that call shorebird_init are #[serial] in the crate, so the
+      # default parallel runner is safe.
+      - name: 🧪 Test
+        run: cargo test
+
   ci:
-    needs: [actionlint, changes, license_check, verify_packages]
+    needs: [actionlint, changes, license_check, updater_rust, verify_packages]
     # Not always(): that keeps this job alive through a run cancellation,
     # so a superseded push would report ci red on the stale commit. A
     # skipped required check reports success, which is the right answer
