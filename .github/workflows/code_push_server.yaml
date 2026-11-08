@@ -46,11 +46,16 @@ jobs:
       - name: Install libsqlite3 + shellcheck
         run: |
           if ! dpkg -s libsqlite3-dev shellcheck >/dev/null 2>&1; then
-            if ! sudo -n true 2>/dev/null; then
-              echo "::error::libsqlite3-dev and shellcheck are not installed on this runner, and it has no sudo. Install them on the host (apt-get install libsqlite3-dev shellcheck)."
-              exit 1
+            # Root (a container job) needs no sudo, and may not have it.
+            SUDO=""
+            if [ "$(id -u)" -ne 0 ]; then
+              if ! sudo -n true 2>/dev/null; then
+                echo "::error::libsqlite3-dev or shellcheck is not installed on this runner, and it has no sudo. Install them on the host (apt-get install libsqlite3-dev shellcheck)."
+                exit 1
+              fi
+              SUDO=sudo
             fi
-            sudo apt-get update && sudo apt-get install -y libsqlite3-dev shellcheck
+            $SUDO apt-get update && $SUDO apt-get install -y libsqlite3-dev shellcheck
           fi
 
       - name: Install dependencies
