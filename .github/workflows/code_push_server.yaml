@@ -40,12 +40,22 @@ jobs:
 
       # libsqlite3: the single-container (SQLite) backend uses sqlite3 via FFI.
       # shellcheck: lint the shell tooling (below). Both in one apt call.
-      # Skipped when both are already there: the self-hosted runner keeps
-      # them between runs, and apt-get update is slow.
+      # Skipped when both are already there. The self-hosted runners have them
+      # installed system-wide and run as an unprivileged user with no sudo, so
+      # when they are missing there, say so instead of failing on `sudo`.
       - name: Install libsqlite3 + shellcheck
         run: |
           if ! dpkg -s libsqlite3-dev shellcheck >/dev/null 2>&1; then
-            sudo apt-get update && sudo apt-get install -y libsqlite3-dev shellcheck
+            # Root (a container job) needs no sudo, and may not have it.
+            SUDO=""
+            if [ "$(id -u)" -ne 0 ]; then
+              if ! sudo -n true 2>/dev/null; then
+                echo "::error::libsqlite3-dev or shellcheck is not installed on this runner, and it has no sudo. Install them on the host (apt-get install libsqlite3-dev shellcheck)."
+                exit 1
+              fi
+              SUDO=sudo
+            fi
+            $SUDO apt-get update && $SUDO apt-get install -y libsqlite3-dev shellcheck
           fi
 
       - name: Install dependencies
