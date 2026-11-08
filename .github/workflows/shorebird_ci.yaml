@@ -213,7 +213,20 @@ jobs:
       has_unit_tests: true
       subpackages: ""
       runners: '["macos-latest", "windows-latest", "ubuntu-latest"]'
-      min_coverage: "94.7"
+      # Coverage is checked on the Linux leg only. These files' tests are
+      # testOn: 'mac-os' (upstream too), so on Linux every line counts as
+      # missed. The fork grew them by ~436 lines, which pulled the Linux
+      # figure to 92.06%. They are measured out here, and the minimum is
+      # raised to the fork's figure on this basis (96.14%; upstream 97.17%),
+      # so the gate does not loosen. Nothing gates these files' coverage
+      # until a macOS leg checks it.
+      coverage_excludes: >-
+        **/lib/src/commands/patch/ios_patcher.dart
+        **/lib/src/commands/patch/macos_patcher.dart
+        **/lib/src/commands/release/ios_releaser.dart
+        **/lib/src/commands/release/macos_releaser.dart
+        **/lib/src/commands/release/apple_releaser_mixin.dart
+      min_coverage: "96.1"
 
   shorebird_code_push_client:
     needs: changes
