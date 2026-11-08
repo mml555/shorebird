@@ -6,6 +6,7 @@ name: code_push_server
 
 on:
   push:
+    branches: [main]
     paths:
       - packages/code_push_server/**
       - .github/workflows/code_push_server.yaml
