@@ -25,10 +25,12 @@
 # url, so the layout tracks whatever upstream does next.
 #
 # ONE-TIME farm bootstrap:
-#   1. Install depot_tools; add to PATH.
-#   2. Rewrite the SSH remote DEPS uses for the Dart SDK fork, so no GitHub key
-#      is needed on the build host (DEPS pins
-#      dart_sdk_git = git@github.com:shorebirdtech/dart-sdk.git):
+#   1. Install depot_tools; add to PATH; run ./ensure_bootstrap from INSIDE the
+#      depot_tools directory (from elsewhere it fails on relative paths).
+#   2. Only if DEPS fetches anything over SSH, rewrite it so no GitHub key is
+#      needed on the build host (upstream's DEPS pinned
+#      dart_sdk_git = git@github.com:shorebirdtech/dart-sdk.git; the
+#      mml555/shorebird-flutter DEPS uses https throughout):
 #        git config --global url."https://github.com/".insteadOf git@github.com:
 #      On a SHARED host, scope that to the build shell instead of the login
 #      account by redirecting git's "global" config to your own file (git >=
@@ -55,11 +57,15 @@ solutions = [
     "managed": False,
     "name": ".",
     "safesync_url": "",
-    "url": "https://github.com/shorebirdtech/flutter.git",
+    "url": "https://github.com/mml555/shorebird-flutter.git",
 
-    # Uncomment if you need to build the web engine.
-    # "custom_vars": {
-    #   "download_emsdk": True,
-    # },
+    "custom_vars": {
+      # gs://shorebird-dart-sdk-prebuilt is private (403 anonymously), so the
+      # sync would fail fetching it. build.sh then passes
+      # --no-prebuilt-dart-sdk and builds Dart from source.
+      "download_dart_sdk": False,
+      # Uncomment if you need to build the web engine.
+      # "download_emsdk": True,
+    },
   },
 ]

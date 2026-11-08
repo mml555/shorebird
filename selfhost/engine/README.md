@@ -1,3 +1,4 @@
+<!-- cspell:words ionice -->
 # Engine build + publish toolkit (Path 2)
 
 Turn-key automation for building the Shorebird engine **from the captured source**
@@ -5,20 +6,23 @@ Turn-key automation for building the Shorebird engine **from the captured source
 our engine instead of `download.shorebird.dev`. This is the last rung of the
 independence ladder (see `selfhost/ENGINE_BUILD.md`).
 
-> **Status — corrected for the monorepo layout; the build itself is not yet run
-> here.** These scripts sit on top of Shorebird's *own* vendored CI
+> **Status — the android-arm64 cell builds.** On 2026-11-08 it was built on
+> ci-build from mml555/shorebird-flutter `selfhost/flutter-3.47.9` (Dart
+> 2be7164438, updater 87c198d30f87): `gclient sync --no-history --jobs 8` took
+> 7 minutes and the build 23 minutes at `-j12` under `nice -n 10 ionice -c3`,
+> using 36 GB. The full shard and the publish scripts have not been run. These
+> scripts sit on top of Shorebird's *own* vendored CI
 > (`vendor/flutter/shorebird/ci/`), which is the real, authoritative build
-> process. The engine build needs a farm (depot_tools, ~150 GB disk, per-OS
-> hosts) that this machine does not have, so treat the first real run as a
-> bring-up.
+> process. A full shard needs per-OS hosts and ~150 GB of disk.
 >
 > The gclient bootstrap documented below was **wrong** until it was checked
 > against this revision's `DEPS`: the solution name is `"."` at the checkout
 > root (not `flutter` in its parent), `gclient sync` runs from the checkout root
 > (not `engine/src`), the sync marker lives under `engine/src/flutter/third_party`
-> (not `engine/src/third_party`), and the Dart SDK dep needs an SSH remote or a
-> rewrite. Argument handling, prereq checks and the `--cell` path have been
-> exercised; the ninja build has not.
+> (not `engine/src/third_party`), and upstream's Dart SDK dep needs an SSH remote
+> or a rewrite (the fork's DEPS uses https). Shorebird's prebuilt Dart SDK
+> bucket is private, so set `download_dart_sdk: False` in `.gclient`; `build.sh`
+> then builds Dart from source.
 
 ## How it works (the key insight)
 
@@ -55,7 +59,8 @@ not in it is ignored, so the manifest and the uploads must agree.
 
 ## One-time farm prerequisites
 
-- **depot_tools** on `PATH` (`gclient`, `gn`, `ninja`), Rust/cargo with the
+- **depot_tools** on `PATH` (`gclient`, `gn`, `ninja`), bootstrapped with
+  `./ensure_bootstrap` run from inside its directory; Rust/cargo with the
   target triple installed (`rustup target add aarch64-linux-android` for Android
   arm64). The **NDK and Android SDK come from `gclient`**, not the host —
   `download_android_deps` defaults to true on linux-x64 and mac. `cargo-ndk` is

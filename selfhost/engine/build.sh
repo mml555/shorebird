@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words worktree
+# cspell:words worktree ionice
 #
 # build.sh — build the Shorebird engine from a synced Shorebird Flutter checkout.
 # Does not upload; run publish_to_store.sh (object store) or overlay_publish.sh
@@ -26,8 +26,11 @@
 #                   `android-arm64` today.
 #   --host <os>     mac|linux|win. Default: auto-detect.
 #   --jobs <n>      ninja parallelism for --cell builds. Default: 3, which is
-#                   deliberately low — the documented build host is a 4-vCPU box
-#                   shared with another service (see selfhost/ENGINE_BUILD.md).
+#                   deliberately low for a small shared host. On ci-build (32
+#                   cores, shared with CI) -j12 under `nice -n 10 ionice -c3`
+#                   built the cell in 23 minutes.
+#   --gn-arg <flag> Extra flag for ./flutter/tools/gn (--cell builds); repeat
+#                   for several. GN_EXTRA_ARGS (space-separated) adds more.
 #   --root <dir>    Flutter checkout to build. Default: vendor/flutter. On a
 #                   build farm this is normally a real git clone of the pinned
 #                   revision, because gclient and Flutter's own scripts need
@@ -45,6 +48,7 @@ CELL=""
 HOST=""
 JOBS=3
 FLUTTER_ROOT="$REPO_ROOT/vendor/flutter"
+GN_ARGS=()
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 note() { echo "==> $*"; }
@@ -55,6 +59,7 @@ while [[ $# -gt 0 ]]; do
     --host) HOST="${2:?--host needs a value}"; shift 2 ;;
     --jobs) JOBS="${2:?--jobs needs a value}"; shift 2 ;;
     --root) FLUTTER_ROOT="${2:?--root needs a value}"; shift 2 ;;
+    --gn-arg) GN_ARGS+=("${2:?--gn-arg needs a value}"); shift 2 ;;
     mac|linux|win) HOST="$1"; shift ;;   # positional form, kept for compatibility
     -h|--help) sed -n '2,40p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) die "unknown argument: $1" ;;
@@ -88,6 +93,12 @@ note "engine.version:  $ENGINE_HASH"
 note "Host build type: $HOST"
 
 # --- Prereqs ----------------------------------------------------------------
+# depot_tools' `ninja` is a wrapper that looks for the real binary under the
+# gclient root's third_party/ninja, and fails when it isn't where it looks.
+# gclient puts it in the checkout, so use that one directly.
+if [[ -x "$FLUTTER_ROOT/third_party/ninja/ninja" ]]; then
+  export PATH="$FLUTTER_ROOT/third_party/ninja:$PATH"
+fi
 need() { command -v "$1" >/dev/null 2>&1 || die "missing prerequisite: $1 ($2)"; }
 need cargo   "install Rust: https://rustup.rs — the updater is compiled by the GN build"
 need ninja   "install depot_tools (provides ninja) and add to PATH"
@@ -107,13 +118,18 @@ fetched with gclient first.
 
 One-time bootstrap (on the build farm):
   1. Install depot_tools and put it on PATH.
-  2. git config --global url."https://github.com/".insteadOf git@github.com:
-     (DEPS pins the Dart SDK fork over SSH; this avoids needing a GitHub key.
+     Bootstrap it from INSIDE its directory: cd depot_tools && ./ensure_bootstrap
+     (run from elsewhere, it fails on relative paths).
+  2. Only if DEPS fetches anything over SSH (git@github.com:...):
+       git config --global url."https://github.com/".insteadOf git@github.com:
      On a shared host, export GIT_CONFIG_GLOBAL=<worktree>/gitconfig first —
-     it redirects --global to that file instead of ~/.gitconfig.)
+     it redirects --global to that file instead of ~/.gitconfig.
+     (The mml555/shorebird-flutter DEPS uses https throughout.)
   3. Copy a .gclient to the checkout ROOT — solution name ".", see
      selfhost/engine/.gclient.template or the in-tree
-     engine/scripts/standard.gclient.
+     engine/scripts/standard.gclient. Set custom_vars download_dart_sdk: False
+     unless you can read gs://shorebird-dart-sdk-prebuilt (private); this
+     script then builds Dart from source.
   4. Run:  cd "$FLUTTER_ROOT" && gclient sync --no-history
 Then re-run this script.
 EOF
@@ -149,7 +165,17 @@ if [[ -n "$CELL" ]]; then
   fi
 
   OUT_DIR="out/android_release_arm64"
-  note "Cell: android-arm64  (out/$OUT_DIR, ninja -j$JOBS)"
+  note "Cell: android-arm64  ($OUT_DIR, ninja -j$JOBS)"
+
+  # Without the prebuilt Dart SDK (download_dart_sdk: False, because the bucket
+  # is private), gn must be told to build Dart from source, or it stops looking
+  # for the prebuilt one.
+  if ! compgen -G "$ENGINE_SRC/flutter/prebuilts/*/dart-sdk/bin/dart" >/dev/null; then
+    note "No prebuilt Dart SDK under engine/src/flutter/prebuilts: building Dart from source."
+    GN_ARGS+=(--no-prebuilt-dart-sdk)
+  fi
+  # shellcheck disable=SC2206  # GN_EXTRA_ARGS is a space-separated flag list
+  GN_ARGS+=(${GN_EXTRA_ARGS:-})
 
   cd "$ENGINE_SRC"
   # Flags per shorebird/docs/BUILDING.md (Linux / Android arm64). Note there is
@@ -157,7 +183,7 @@ if [[ -n "$CELL" ]]; then
   # unconditional, gated in GN by shorebird_updater_supported. BUILDING.md's iOS
   # example still passes it; don't copy that.
   ./flutter/tools/gn --no-rbe --no-enable-unittests \
-    --android --android-cpu=arm64 --runtime-mode=release
+    --android --android-cpu=arm64 --runtime-mode=release ${GN_ARGS[@]+"${GN_ARGS[@]}"}
   ninja -C "$OUT_DIR" -j "$JOBS" default gen_snapshot
 
   note "Cell complete. Expected artifacts under $ENGINE_SRC/$OUT_DIR:"
