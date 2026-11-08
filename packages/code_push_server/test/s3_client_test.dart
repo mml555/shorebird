@@ -210,7 +210,7 @@ void main() {
         throwsA(isA<S3Exception>().having((e) => e.statusCode, 'status', 200)),
       );
       await expectLater(read('k', offset: 2), throwsA(isA<S3Exception>()));
-      // An unranged read is still a plain 200.
+      // A read with no range is still a plain 200.
       expect(await read('k'), [1, 2, 3, 4, 5]);
       expect(await read('k', offset: 0), [1, 2, 3, 4, 5]);
     });
