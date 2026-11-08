@@ -1,3 +1,4 @@
+# cspell:words esac
 # Publishes the self-hosted control plane as a multi-arch container image to
 # GHCR, so operators can `docker pull` a known-good build instead of compiling
 # from source.
@@ -39,7 +40,10 @@
 # is not 'true'), only the amd64 leg runs, on the home runner (ci-build), and
 # the manifest list has that one child. A semantic tag is write-once, so a
 # release cut in that state is amd64-only for good: set HOSTED_RUNNERS (or
-# build arm64 elsewhere) before tagging a release that needs arm64.
+# build arm64 elsewhere) before tagging a release that needs arm64. The
+# `guard` job enforces this: a run for a code_push_server-v* or selfhost-v*
+# tag fails before anything is built unless HOSTED_RUNNERS is 'true' or a
+# workflow_dispatch run passes allow_partial.
 name: release_code_push_server
 
 on:
@@ -57,6 +61,10 @@ on:
         description: "Also move the :latest tag"
         type: boolean
         default: false
+      allow_partial:
+        description: "Allow a code_push_server-v* or selfhost-v* tag to publish amd64 only while HOSTED_RUNNERS is not 'true'. Semantic tags are write-once, so this is permanent."
+        type: boolean
+        default: false
 
 concurrency:
   group: release_code_push_server-${{ inputs.ref || github.ref }}
@@ -67,7 +75,35 @@ env:
   IMAGE_NAME: ${{ github.repository_owner }}/code-push-server
 
 jobs:
+  # Fails closed: a tag release that would skip the arm64 leg must be asked
+  # for explicitly. A tag push cannot carry an input, so it always fails here
+  # in that state; re-run it as a workflow_dispatch with allow_partial.
+  guard:
+    runs-on: [self-hosted, linux, x64, shorebird]
+    permissions: {}
+    steps:
+      - name: Refuse a silent amd64-only release
+        env:
+          REF_NAME: ${{ inputs.ref || github.ref_name }}
+          HOSTED: ${{ vars.HOSTED_RUNNERS }}
+          ALLOW_PARTIAL: ${{ inputs.allow_partial }}
+        run: |
+          case "$REF_NAME" in
+            code_push_server-v*|selfhost-v*) ;;
+            *) exit 0 ;;
+          esac
+          if [ "$HOSTED" = "true" ]; then
+            exit 0
+          fi
+          if [ "$ALLOW_PARTIAL" = "true" ]; then
+            echo "::warning::allow_partial: releasing $REF_NAME with the amd64 leg only; the tag is write-once."
+            exit 0
+          fi
+          echo "::error::HOSTED_RUNNERS is not 'true', so the arm64 leg would be skipped and $REF_NAME would be amd64-only for good. Set HOSTED_RUNNERS, or run this workflow by hand (workflow_dispatch) with ref=$REF_NAME and allow_partial=true."
+          exit 1
+
   build:
+    needs: guard
     strategy:
       fail-fast: false
       matrix:
