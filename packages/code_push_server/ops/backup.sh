@@ -153,13 +153,15 @@ rm -f "${BACKUP_DIR}/.counts.tsv"
 
 echo "==> Object bucket '${S3_BUCKET}' backup → ${OBJECTS_OUT}"
 # `sync` makes the directory equal to the bucket (deleting strays), and
-# --checksum compares content, not just size and time. `check` then proves it.
+# --checksum compares content, not just size and time. `check --download` then
+# proves it byte for byte: plain `check` falls back to size alone when the two
+# sides share no hash type, and still exits 0.
 "${DC[@]}" --profile tools run --rm --no-deps \
   -v "${OBJECTS_OUT}:/backup" \
   rclone sync "store:${S3_BUCKET}" /backup --checksum
 "${DC[@]}" --profile tools run --rm --no-deps \
   -v "${OBJECTS_OUT}:/backup:ro" \
-  rclone check "store:${S3_BUCKET}" /backup --one-way \
+  rclone check "store:${S3_BUCKET}" /backup --one-way --download \
   || die "the object backup does not match the bucket"
 
 # The object half carries the SAME backup_id. This is the only thing that makes

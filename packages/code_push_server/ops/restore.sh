@@ -224,7 +224,7 @@ echo "==> Restoring object bucket '${S3_BUCKET}' from ${OBJECTS_SNAPSHOT}"
   rclone sync /restore "store:${S3_BUCKET}" --checksum --exclude 'MANIFEST.json'
 "${DC[@]}" --profile tools run --rm --no-deps \
   -v "${OBJECTS_SNAPSHOT}:/restore:ro" \
-  rclone check /restore "store:${S3_BUCKET}" --exclude 'MANIFEST.json' \
+  rclone check /restore "store:${S3_BUCKET}" --exclude 'MANIFEST.json' --download \
   || die "the restored bucket does not match the snapshot"
 
 # --- reconcile against the manifest ----------------------------------------

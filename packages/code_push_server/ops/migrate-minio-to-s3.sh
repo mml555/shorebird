@@ -11,8 +11,8 @@
 #
 # Usage:
 #   ./ops/migrate-minio-to-s3.sh            # migrate, verify, stop the old MinIO
-#   DRY_RUN=1 ./ops/migrate-minio-to-s3.sh  # list what would be copied
-#   VERIFY=download ./ops/migrate-minio-to-s3.sh   # compare bytes, not hashes
+#   DRY_RUN=1 ./ops/migrate-minio-to-s3.sh  # check the preconditions and print
+#                                           # the plan; changes and stops nothing
 #
 # Environment (all optional; .env is read first):
 #   MINIO_LEGACY_IMAGE   MinIO image to run for the old volume. Default: the
@@ -23,8 +23,9 @@
 #                        instead of starting minio-legacy (the volume is then
 #                        not touched). The new store is the one in .env.
 #
-# Safe to re-run: `rclone copy` only adds or updates, and `rclone check` runs
-# at the end every time. The server is stopped first, so nothing writes while
+# Safe to re-run: `rclone copy` only adds or updates, and `rclone check
+# --download` (every byte of both sides, not a size or hash comparison) runs at
+# the end every time. The server is stopped first, so nothing writes while
 # the copy runs; start it again once this prints MIGRATION VERIFIED.
 
 set -euo pipefail
@@ -71,6 +72,19 @@ if (( ! EXTERNAL )); then
     die "no volume '${legacy_volume}': there is no old MinIO data to migrate under compose project '${project}'.
    (Wrong directory or COMPOSE_PROJECT_NAME? A fresh install has nothing to migrate.)"
   fi
+fi
+
+if [[ "${DRY_RUN:-0}" == 1 ]]; then
+  # Nothing below this point may run: it stops the server, removes the old
+  # MinIO container and starts containers on the live volume.
+  echo "==> DRY_RUN: preconditions hold; nothing was changed or stopped. A real run would:"
+  echo "    1. stop the server"
+  (( EXTERNAL )) || echo "    2. remove the old 'minio' container (the cps_minio volume is kept)"
+  echo "    3. start the new object store"
+  (( EXTERNAL )) || echo "    4. start minio-legacy on the cps_minio volume (${MINIO_LEGACY_IMAGE})"
+  echo "    5. copy legacy:${S3_BUCKET} -> store:${S3_BUCKET}, then compare every byte"
+  echo "    6. stop minio-legacy; the server stays stopped until you start it"
+  exit 0
 fi
 
 echo "==> Stopping the server so nothing writes during the copy"
@@ -122,20 +136,15 @@ done
 echo "==> Old bucket:"
 "${RCLONE[@]}" size "legacy:${S3_BUCKET}"
 
-if [[ "${DRY_RUN:-0}" == 1 ]]; then
-  echo "==> DRY_RUN: would copy these objects"
-  "${RCLONE[@]}" copy "legacy:${S3_BUCKET}" "store:${S3_BUCKET}" --dry-run -v 2>&1 | grep -E "Skipped copy|Not copying|NOTICE" | head -50 || true
-  exit 0
-fi
-
 echo "==> Copying legacy:${S3_BUCKET} -> store:${S3_BUCKET}"
 "${RCLONE[@]}" copy "legacy:${S3_BUCKET}" "store:${S3_BUCKET}" \
   --transfers 4 --checkers 8 --stats-one-line --stats 10s 2>&1 | tail -n 5
 
 echo "==> Verifying every old object exists in the new store with identical content"
-verify_flags=(--one-way)
-[[ "${VERIFY:-hash}" == download ]] && verify_flags+=(--download)
-if "${RCLONE[@]}" check "legacy:${S3_BUCKET}" "store:${S3_BUCKET}" "${verify_flags[@]}"; then
+# --download reads both sides and compares the bytes. Without it rclone compares
+# hashes, and when the two stores share no hash type (a multipart MinIO object
+# has a composite ETag) it falls back to size alone and still exits 0.
+if "${RCLONE[@]}" check "legacy:${S3_BUCKET}" "store:${S3_BUCKET}" --one-way --download; then
   echo "==> New bucket:"
   "${RCLONE[@]}" size "store:${S3_BUCKET}"
   echo "MIGRATION VERIFIED. Start the stack:  docker compose -f ${COMPOSE_FILE##*/} up -d"

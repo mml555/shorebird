@@ -107,12 +107,22 @@ services:
     restart: unless-stopped
     # -volume.max=0 sizes the volume count to the free disk; 1 GiB volumes keep
     # a small host from reserving the default 30 GB per volume.
+    #
+    # -ip / -ip.bind put the master, volume server and filer on 127.0.0.1
+    # inside the container, and -s3.ip.bind alone listens on all interfaces.
+    # Those other listeners have no authentication and the filer would let
+    # anything on the network read and rewrite the bucket without the S3 key,
+    # so only port 9000 may be reachable from the other containers.
     command: >-
       server -s3 -s3.port=9000 -dir=/data
+      -ip=127.0.0.1 -ip.bind=127.0.0.1 -s3.ip.bind=0.0.0.0
       -master.volumeSizeLimitMB=1024 -volume.max=0
     environment:
+      # SeaweedFS turns these two into its admin identity. With them empty it
+      # starts with no identity at all and accepts anonymous requests, so the
+      # secret is required (`:?` stops compose before anything starts).
       AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-${MINIO_ROOT_USER:-cps}}
-      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD:?set S3_SECRET_KEY in .env}}
     volumes:
       - cps_s3:/data
     healthcheck:
@@ -158,7 +168,7 @@ services:
       RCLONE_CONFIG_STORE_PROVIDER: Other
       RCLONE_CONFIG_STORE_ENDPOINT: ${S3_ENDPOINT:-http://s3:9000}
       RCLONE_CONFIG_STORE_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-${MINIO_ROOT_USER:-cps}}
-      RCLONE_CONFIG_STORE_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
+      RCLONE_CONFIG_STORE_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD:?set S3_SECRET_KEY in .env}}
       RCLONE_CONFIG_STORE_REGION: ${S3_REGION:-us-east-1}
       RCLONE_CONFIG_STORE_FORCE_PATH_STYLE: ${S3_PATH_STYLE:-true}
       RCLONE_CONFIG_LEGACY_TYPE: s3

@@ -300,7 +300,12 @@ only stateless `server` replicas + Caddy in compose.
       `URL_SIGNING_SECRET`, DB and object-store credentials are all
       unique `openssl rand -hex 32` values.
 - [ ] **Keep the object store private** — SeaweedFS has no host ports in the
-      compose file, and no console is exposed. Do not publish its S3 port.
+      compose file, and no console is exposed. Do not publish its S3 port. Inside
+      the container its master, volume and filer listeners (which have no
+      authentication) are bound to 127.0.0.1, so only the S3 port answers on
+      the `cps` network; keep `-ip.bind` if you change the command. An empty
+      `S3_SECRET_KEY` makes compose refuse to start: SeaweedFS would otherwise
+      run with no identity and accept anonymous requests.
 - [ ] **Network isolation** — only Caddy publishes ports (80/443). The
       `server`, `postgres`, and the S3 API stay on the internal `cps`
       network with no host ports.
@@ -527,18 +532,20 @@ docker compose -f docker-compose.prod.yaml up -d
    (`go install github.com/minio/minio@RELEASE.2025-10-15T17-29-55Z`) or a
    community fork. `LEGACY_ENDPOINT`, `LEGACY_ACCESS_KEY` and
    `LEGACY_SECRET_KEY` instead copy from a MinIO that is already running;
-3. copies the bucket with a pinned `rclone`, then runs `rclone check`, which
-   fails the script unless every old object exists in the new store with
-   identical content (`VERIFY=download` compares the bytes themselves);
+3. copies the bucket with a pinned `rclone`, then runs `rclone check
+   --download`, which fails the script unless every old object exists in the
+   new store with identical bytes (it reads both sides; a plain `check` would
+   fall back to comparing sizes when the stores share no hash type);
 4. stops the old MinIO. It deletes nothing.
 
-It is safe to re-run, and `DRY_RUN=1` only lists what would be copied. Keep the
+It is safe to re-run. `DRY_RUN=1` checks the preconditions and prints the steps
+above without running any of them: it stops and removes nothing. Keep the
 `cps_minio` volume until the new stack has served traffic for a while; once you
 are satisfied, `docker volume rm <project>_cps_minio` frees the space.
 
 To roll back, `docker compose stop server`, point the compose file back at the
-old revision and `up -d`: the objects in the old MinIO volume were not changed. Objects written
-since the migration live only in the new store.
+old revision and `up -d`: the objects in the old MinIO volume were not changed.
+Objects written since the migration live only in the new store.
 
 Backups taken before the switch (`backups/minio/<STAMP>/`) restore with the new
 `ops/restore.sh` unchanged: it takes the directory as an argument.
