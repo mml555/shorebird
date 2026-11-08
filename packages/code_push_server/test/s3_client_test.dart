@@ -92,10 +92,21 @@ void main() {
     late S3Client client;
     final objects = <String, List<int>>{};
     final seen = <String>[];
+    // Behaviours a test switches on to imitate a misbehaving store.
+    var ignoreRange = false;
+    var bucketExistsNow = false;
+    int? bucketPutStatus;
+    var bucketPutBody = '';
+    var stall = false;
 
     setUp(() async {
       objects.clear();
       seen.clear();
+      ignoreRange = false;
+      bucketExistsNow = false;
+      bucketPutStatus = null;
+      bucketPutBody = '';
+      stall = false;
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       unawaited(
         server.forEach((req) async {
@@ -112,10 +123,12 @@ void main() {
           );
           final path = req.uri.path;
           final res = req.response;
+          if (stall) return; // never answer
           if (path == '/bkt' && req.method == 'HEAD') {
-            res.statusCode = 404;
+            res.statusCode = bucketExistsNow ? 200 : 404;
           } else if (path == '/bkt' && req.method == 'PUT') {
-            res.statusCode = 200;
+            res.statusCode = bucketPutStatus ?? 200;
+            res.write(bucketPutBody);
           } else if (req.method == 'PUT') {
             objects[path] = body;
           } else if (req.method == 'DELETE') {
@@ -129,7 +142,7 @@ void main() {
               res.contentLength = data.length;
             } else {
               final range = req.headers.value('range');
-              if (range != null) {
+              if (range != null && !ignoreRange) {
                 final m = RegExp(r'bytes=(\d+)-(\d*)').firstMatch(range)!;
                 final start = int.parse(m[1]!);
                 final end = m[2]!.isEmpty ? data.length - 1 : int.parse(m[2]!);
@@ -182,6 +195,99 @@ void main() {
       expect(seen, contains('PUT /bkt/patch/1/a%20b signed'));
     });
 
+    Future<List<int>> read(String key, {int? offset, int? length}) async =>
+        (await (await client.getObject(
+          key,
+          offset: offset,
+          length: length,
+        )).expand((c) => c).toList());
+
+    test('a ranged read fails when the store ignores Range (200)', () async {
+      await client.putObject('k', [1, 2, 3, 4, 5]);
+      ignoreRange = true;
+      await expectLater(
+        read('k', offset: 1, length: 2),
+        throwsA(isA<S3Exception>().having((e) => e.statusCode, 'status', 200)),
+      );
+      await expectLater(read('k', offset: 2), throwsA(isA<S3Exception>()));
+      // An unranged read is still a plain 200.
+      expect(await read('k'), [1, 2, 3, 4, 5]);
+      expect(await read('k', offset: 0), [1, 2, 3, 4, 5]);
+    });
+
+    test('a ranged read rejects a length below 1 without a request', () async {
+      await client.putObject('k', [1, 2, 3]);
+      seen.clear();
+      await expectLater(
+        read('k', offset: 1, length: 0),
+        throwsA(isA<ArgumentError>()),
+      );
+      await expectLater(
+        read('k', offset: -1, length: 1),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(seen, isEmpty);
+    });
+
+    test('BucketAlreadyOwnedByYou is success', () async {
+      bucketPutStatus = 409;
+      bucketPutBody = '<Error><Code>BucketAlreadyOwnedByYou</Code></Error>';
+      await client.createBucket();
+    });
+
+    test(
+      'BucketAlreadyExists is success when our HEAD then succeeds',
+      () async {
+        bucketPutStatus = 409;
+        bucketPutBody = '<Error><Code>BucketAlreadyExists</Code></Error>';
+        bucketExistsNow = true;
+        await client.createBucket();
+        expect(seen, ['PUT /bkt signed', 'HEAD /bkt signed']);
+      },
+    );
+
+    test(
+      'BucketAlreadyExists still fails when the bucket is not ours',
+      () async {
+        bucketPutStatus = 409;
+        bucketPutBody = '<Error><Code>BucketAlreadyExists</Code></Error>';
+        bucketExistsNow = false; // HEAD says 404 (or, on AWS, 403)
+        await expectLater(
+          client.createBucket(),
+          throwsA(
+            isA<S3Exception>()
+                .having((e) => e.statusCode, 'status', 409)
+                .having((e) => e.body, 'body', contains('BucketAlreadyExists')),
+          ),
+        );
+      },
+    );
+
+    test('other bucket errors are not retried as success', () async {
+      bucketPutStatus = 403;
+      bucketPutBody = '<Error><Code>AccessDenied</Code></Error>';
+      bucketExistsNow = true;
+      await expectLater(client.createBucket(), throwsA(isA<S3Exception>()));
+      expect(seen, ['PUT /bkt signed']);
+    });
+
+    test('a store that never answers fails after responseTimeout', () async {
+      stall = true;
+      final slow = S3Client(
+        endpoint: Uri.parse('http://127.0.0.1:${server.port}'),
+        region: 'us-east-1',
+        accessKey: 'k',
+        secretKey: 's',
+        bucket: 'bkt',
+        responseTimeout: const Duration(milliseconds: 200),
+      );
+      addTearDown(slow.close);
+      await expectLater(
+        slow.statObject('k'),
+        throwsA(isA<S3Exception>().having((e) => e.statusCode, 'status', 0)),
+      );
+    });
+
     test('virtual-hosted style puts the bucket in the host', () {
       final c = S3Client(
         endpoint: Uri.parse('https://s3.example.com'),
@@ -208,6 +314,45 @@ void main() {
         'MINIO_ROOT_USER is deprecated, use S3_ACCESS_KEY',
         'MINIO_ROOT_PASSWORD is deprecated, use S3_SECRET_KEY',
       ]);
+    });
+
+    test('an empty value counts as unset, as in compose', () {
+      final c = Config.fromEnv({
+        'S3_ACCESS_KEY': '',
+        'S3_SECRET_KEY': '',
+        'MINIO_ROOT_USER': 'old-user',
+        'MINIO_ROOT_PASSWORD': 'old-pass',
+      });
+      expect(c.s3AccessKey, 'old-user');
+      expect(c.s3SecretKey, 'old-pass');
+      expect(c.deprecationWarnings, hasLength(2));
+      expect(c.deprecationWarnings, everyElement(isNot(contains('ignored'))));
+    });
+
+    test('an empty MINIO_* does not override S3_*, or warn', () {
+      final c = Config.fromEnv({
+        'S3_ACCESS_KEY': 'new-user',
+        'S3_SECRET_KEY': 'new-pass',
+        'MINIO_ROOT_USER': '',
+        'MINIO_ROOT_PASSWORD': '',
+      });
+      expect(c.s3AccessKey, 'new-user');
+      expect(c.s3SecretKey, 'new-pass');
+      expect(c.deprecationWarnings, isEmpty);
+    });
+
+    test('an empty S3_ACCESS_KEY alone falls back to the default', () {
+      expect(Config.fromEnv({'S3_ACCESS_KEY': ''}).s3AccessKey, 'cps');
+    });
+
+    test('an empty secret is refused by validate(), in any mode', () {
+      final c = Config.fromEnv({
+        'S3_ENDPOINT': 'http://s3:9000',
+        'S3_SECRET_KEY': '',
+      });
+      expect(c.s3SecretKey, isEmpty);
+      expect(c.production, isFalse);
+      expect(c.validate(), contains('S3_SECRET_KEY must not be empty'));
     });
 
     test('S3_* wins when both are set, and an unchanged .env still loads', () {

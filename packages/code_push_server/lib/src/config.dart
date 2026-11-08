@@ -61,18 +61,24 @@ class Config {
     final rawEnv = environment ?? Platform.environment;
     // A deprecated name only fills in for its replacement: when both are set
     // the new one wins, so an operator can migrate one variable at a time.
+    // An empty value counts as unset, as it does in docker-compose (`:-`) and
+    // ops/lib/s3_env.sh (`-z`), so all three agree on which value is used.
     final warnings = <String>[];
     final env = {...rawEnv};
     deprecatedEnv.forEach((old, replacement) {
       final value = rawEnv[old];
-      if (value == null) return;
-      final used = !rawEnv.containsKey(replacement);
+      if (value == null || value.isEmpty) return;
+      final used = (rawEnv[replacement] ?? '').isEmpty;
       if (used) env[replacement] = value;
       warnings.add(
         '$old is deprecated, use $replacement'
         '${used ? '' : ' ($replacement is set, so $old is ignored)'}',
       );
     });
+    // An empty access key falls back to the default, like compose does. An
+    // empty secret stays empty so [validate] rejects it by name rather than
+    // the server quietly signing with a default.
+    if (env['S3_ACCESS_KEY'] == '') env.remove('S3_ACCESS_KEY');
     final port = int.parse(env['PORT'] ?? '8080');
     final dbUri = Uri.parse(
       env['DATABASE_URL'] ?? 'postgres://cps:cps@localhost:55433/code_push',
@@ -260,6 +266,11 @@ class Config {
           'API_KEY',
         );
       }
+    }
+    // An empty secret means the store was started without credentials (or
+    // with a different secret than the server signs with), in any mode.
+    if (storageBackend == 's3' && s3SecretKey.isEmpty) {
+      problems.add('S3_SECRET_KEY must not be empty');
     }
     if (!production) return problems;
     // DB/object-store credential checks apply only to the backend in use.
