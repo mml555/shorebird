@@ -4,6 +4,7 @@ version: "0.2"
 # Shoul in particular must NEVER become a dictionary word -- it is a genuine
 # misspelling in upstream's test name, and the point of quoting it is that it
 # stays wrong. File-scoped so it is invisible here and nowhere else.
+# cspell:words cand elig ents envx fals getsize logf stdev trav
 # cspell:ignore delibrate mispelt Shoul shutil stdlib gskinner hlcl hlclpqwxzq hlclxeca hlclqjttgm hlclx hldxg wfyg VVFRF WRVJTSU UNRE Volemes Ünïcödé
 # The tokens this file lists as ignoreWords or inline-scoped vocabulary, which
 # would otherwise be reported here, in the one place that names them.
@@ -302,6 +303,17 @@ overrides:
     ignoreWords: [simarm, SYSV]
   - filename: "selfhost/evidence/r12-linux-ci/arm-B/host_memory.txt"
     ignoreWords: [libpostal, NCPU, shidduchcard]
+
+  # Short loop-variable-style tokens that are only words in the selfhost Python
+  # and shell gate scripts. Scoped here, not in `words:`, so a stray "fals" in
+  # authored Dart or docs still fails.
+  - filename: "selfhost/**/*.{py,sh}"
+    words: [cand, elig, ents, envx, fals, getsize, logf, stdev, trav]
+  # The same tokens where they appear in prose or captured output.
+  - filename: "selfhost/engine/mutable_aot/m5/STAGE4[36]-*.md"
+    words: [elig]
+  - filename: "selfhost/engine/semantic_{linker,map}/**/*.{md,json,txt}"
+    words: [stdev]
 
 words:
   # --- BACKUP-RESTORE-1. Vocabulary shared by the backup/restore scripts, the
@@ -1081,7 +1093,6 @@ words:
   - basework # this lane's probe, fixture or gate identifier
   - brdnym # this lane's probe, fixture or gate identifier
   - callees # Dart VM / AOT compiler term
-  - cand # short loop variable in the Python gate scripts
   - canonicalizer # Dart VM / AOT compiler term
   - constantish # Dart VM / AOT compiler term
   - debugserver # iOS device tool or app under test
@@ -1093,18 +1104,12 @@ words:
   - devirtualized # devirtualization, the AOT optimisation the mutable-AOT and semantic-map lanes measure (both spellings occur)
   - devirtualizes # devirtualization, the AOT optimisation the mutable-AOT and semantic-map lanes measure (both spellings occur)
   - edgediff # this lane's probe, fixture or gate identifier
-  - elig # short loop variable in the Python gate scripts
-  - ents # short loop variable in the Python gate scripts
-  - envx # this lane's probe, fixture or gate identifier
-  - fals # short loop variable in the Python gate scripts
   - flowgraph # Dart VM / AOT compiler term
   - gatecd # this lane's probe, fixture or gate identifier
-  - getsize # short loop variable in the Python gate scripts
   - idevice # iOS device tool or app under test
   - inlinee # Dart VM / AOT compiler term
   - insns # Dart VM / AOT compiler term
   - localsend # iOS device tool or app under test
-  - logf # this lane's probe, fixture or gate identifier
   - massdiag # this lane's probe, fixture or gate identifier
   - mintstage # this lane's probe, fixture or gate identifier
   - noaot # this lane's probe, fixture or gate identifier
@@ -1141,9 +1146,7 @@ words:
   - sizemat # this lane's probe, fixture or gate identifier
   - socat # Linux/Docker tool vocabulary
   - specializer # Dart VM / AOT compiler term
-  - stdev # this lane's probe, fixture or gate identifier
   - superapp # this lane's probe, fixture or gate identifier
-  - trav # short loop variable in the Python gate scripts
   - typeparam # Dart VM / AOT compiler term
   - uiapp # this lane's probe, fixture or gate identifier
   - undemonstrated # Dart VM / AOT compiler term
