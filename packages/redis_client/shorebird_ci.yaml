@@ -1,12 +1,5 @@
 # This is a demo of what a shorebird_ci.yaml file might look like. The format is
 # very much subject to change.
-
-pre:
-  - name: 🐳 Run Redis
-    # Docker picks the host port, so jobs on a shared runner never collide;
-    # the tests read it from REDIS_PORT.
-    run: |
-      docker pull redis/redis-stack-server:latest
-      name="redis-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-      docker run --name "$name" -d -p 127.0.0.1::6379 --rm -e REDIS_ARGS="--requirepass password" redis/redis-stack-server:latest
-      echo "REDIS_PORT=$(docker port "$name" 6379/tcp | head -n1 | sed 's/.*://')" >> "$GITHUB_ENV"
+#
+# Redis for the tests is started by _shorebird_ci_dart.yaml (needs_redis), not
+# here.
