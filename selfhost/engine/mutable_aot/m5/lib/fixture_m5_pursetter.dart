@@ -1,3 +1,4 @@
+// cspell:words callless
 // MAOT-5 (#69) -- serialization falsification, call-less setter arm.
 //
 // The setter crash was reported as a SETTER defect. The paired run showed why

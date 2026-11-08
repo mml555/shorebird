@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words DEVNULL isdir namelist
 # cspell:words dartaotruntime dill semantic linker
 # emit_manifest.sh -- SEMANTIC-LINKER-1 / G1. Record every build input and
 # artifact of the matched pair, and re-check that the SUPPORTED producer tree is

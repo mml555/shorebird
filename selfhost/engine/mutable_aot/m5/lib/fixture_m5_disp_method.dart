@@ -1,3 +1,4 @@
+// cspell:words dispmethod
 // MAOT-5 (#69) Task A -- dispatch matrix for the `method` subject.
 //
 // Four declarations, one per FINAL AOT ROUTE, measured by the lowering survey

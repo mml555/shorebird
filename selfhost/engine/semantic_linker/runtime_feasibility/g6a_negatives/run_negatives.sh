@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words AJSON altplat badimport badversion bytearray importdill rowsfile
 # cspell:words dartaotruntime dill semantic linker KBC oldpos
 # run_negatives.sh -- SEMANTIC-LINKER-1 / G6A. Every failure mode, forced, and
 # classified into the narrowest category the evidence actually supports.

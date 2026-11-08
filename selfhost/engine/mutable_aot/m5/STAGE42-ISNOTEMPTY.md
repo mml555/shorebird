@@ -154,3 +154,5 @@ scratchpad/orderinline.sh   # one invocation per arm: --trace_precompiler
 scratchpad/interv.sh        # the --inline_getters_setters_smaller_than=0 arms
 selfhost/engine/mutable_aot/m5/lib/edgediff_m5.py    # the edge graphs
 ```
+
+<!-- cspell:words interv multisets orderinline -->

@@ -398,3 +398,5 @@ refuses a base manifest that names the hash being generated for.
 - `artifact-proxy` itself still reaches Shorebird's GCS bucket for the per-
   revision `artifacts_manifest.yaml`; the Caddy cache captures that object on
   first fetch too, so it is covered by the same warm-up.
+
+<!-- cspell:words refspec refspecs -->

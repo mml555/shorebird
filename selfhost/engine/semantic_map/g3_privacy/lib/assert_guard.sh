@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words appscope
 # cspell:words semantic dill bytecode
 # assert_guard.sh -- SM1-G3 (#52) CONFOUND ASSERTION. Must pass before the
 # platform-library arm means anything.

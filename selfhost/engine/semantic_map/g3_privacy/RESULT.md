@@ -440,3 +440,5 @@ unmodified. The corpus gained `g3_privowner`; the base corpus stays frozen.
 - **`_enumToString`-shaped foreign domains.** The derivation distinguishes a
   private name whose domain is not its enclosing library, but the corpus contains
   no such declaration, so that branch is represented and not exercised.
+
+<!-- cspell:words clonefile noguard -->

@@ -293,3 +293,5 @@ delete, restore, transfer).
 5. ~~§2 CLI fixes behind a governed pin promotion~~ — premise was false;
    backported to `1.6.115+selfhost.2` without a promotion
    ([`BACKPORT-1.6.123.md`](BACKPORT-1.6.123.md)).
+
+<!-- cspell:words toggleable -->

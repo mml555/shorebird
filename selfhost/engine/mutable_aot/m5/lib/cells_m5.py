@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words cellmap
 """MAOT-5 (#69) -- the exact #64 cells this issue may claim.
 
 Derived from the AUTHORITATIVE T0 fixtures (`t0/corpus/<row>/fixture.json`),

@@ -427,3 +427,5 @@ distinguishable, for the same patch on the same device installation:
 **"No second failure arrived" is not recovery** — the device may simply never
 have launched again. That requires a POSITIVE recovery observation carrying
 `recovered_after_inferred_failures`, not an inference from silence.
+
+<!-- cspell:words scorable -->

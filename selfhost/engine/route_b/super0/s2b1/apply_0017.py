@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words depfile
 """Apply 0017: the DUAL-KERNEL direct-super intrinsic.
 
 0015 is UNSOUND AS DESIGNED and stays that way. 0016 supersedes it and adds the

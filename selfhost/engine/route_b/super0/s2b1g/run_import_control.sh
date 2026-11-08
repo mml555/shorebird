@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words DBACKUP dbefore
 # cspell:words dartaotruntime dynmod
 #
 # run_import_control.sh -- the durable assertion against regressing to 0015

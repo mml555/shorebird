@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words MAXIT
 # Discover and close the owned bootstrap artifact set for one engine revision.
 #
 # The loop is: bootstrap against a SEALED, COLD mirror -> it stops at the first

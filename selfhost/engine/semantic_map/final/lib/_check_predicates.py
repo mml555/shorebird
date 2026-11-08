@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words mapdesign
 """Assert each composite rung predicate IS the conjunction it claims to be.
 
 These three facts were previously asserted by looking for names in a

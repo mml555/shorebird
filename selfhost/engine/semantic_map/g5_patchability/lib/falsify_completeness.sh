@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words defn
 # Positive control for verify_completeness.sh.
 #
 # An enumeration that cannot come out wrong proves nothing. This builds a copy

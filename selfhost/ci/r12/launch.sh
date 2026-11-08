@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words curlimages NCPU Perc RELVER
 # R12 launcher — starts ONE decisive arm in a genuinely fresh container.
 #
 #   launch.sh <arm-label> <release-version>

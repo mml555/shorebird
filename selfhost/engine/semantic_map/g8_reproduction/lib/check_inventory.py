@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words gdir
 """Prove  inventory == tested == caught  across every gate.
 
 Three sets, and every difference between them is a finding:

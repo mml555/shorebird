@@ -81,3 +81,5 @@ Two facts the instrumentation must explain together:
 * No dispatch form is proven. No #64 cell moves.
 * The trampoline has never executed; obligations 1, 2, 3 and 6 remain untested.
 * The 6→7 boundary is not yet attributed to a count or to a declaration.
+
+<!-- cspell:words stackmaps -->

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words fmean noret
 # SM1-G7 (#56) -- what the map costs at release scale.
 #
 # Five families, reported SEPARATELY so no single number stands in for the

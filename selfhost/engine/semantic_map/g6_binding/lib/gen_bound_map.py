@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words nameidx strhdr stroff strsz
 """Build a semantic map BOUND to exactly one release.
 
 The map describes one release, so every identity it is bound to is read from

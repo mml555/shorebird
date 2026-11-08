@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words ALLC negs
 # cspell:words semantic linker dartaotruntime dill devirtualization
 # assemble_verdict.sh -- SEMANTIC-LINKER-1 / #46. Build the final result matrix
 # BY EXTRACTION from the gate evidence, not by transcription.

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words faot fbound fcodes fdumps fmut fpcrel fptot fsites ftabs ftot fwords gatec pcrel ptot simm
 """Gates C and D, and the compact production replacement regression.
 
 Gate C   the machine code at a #67 call site is still cell-indirect after two

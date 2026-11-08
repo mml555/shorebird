@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words PEOF
 # cspell:words dartaotruntime psdk apfs RSTART
 #
 # mint_route_b_cell.sh -- give a changed compiler cell its own engine hash.

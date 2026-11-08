@@ -1,3 +1,4 @@
+// cspell:words dlast monomorphically
 // MAOT-5 (#69) virtual-routing fixture.
 //
 // The question this program exists to answer is narrow: does a REAL AOT

@@ -103,3 +103,5 @@ the exact target.
     MUTATE_VIRTUAL=1 WORK=/tmp/1m bash super0/s2b1d/run_2b1d.sh   # override control
 
 The first exits non-zero on arm C, which is the finding.
+
+<!-- cspell:words unprobed -->

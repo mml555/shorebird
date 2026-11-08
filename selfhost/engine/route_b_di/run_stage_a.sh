@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words hsnap merr mout mpath msrc vflag
 # ROUTE-B-DI-1 / STAGE A (#61) -- does the EXISTING upstream validator close
 # the three DYNAMIC_INTERFACE_POLICY failures when the module compile is
 # actually given --validate?

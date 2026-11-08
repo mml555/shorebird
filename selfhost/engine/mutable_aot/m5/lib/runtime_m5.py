@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words ebad fbad getloadavg pgrep PKGNAME
 """The runtime gate: A vs C, per workload, never averaged across workloads.
 
 Design, as authorized after the first two attempts falsified parts of it:

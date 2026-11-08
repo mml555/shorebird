@@ -292,3 +292,5 @@ Both directions, on the 2×2 and super fixtures already built:
 - must stay green: `CD`, `ND`, `NW`, `NS`.
 - must still be able to fail: with `MAOT_ALLOW_CONSTANT_FOLDING=1` the defect
   reappears, so the gate is not vacuous.
+
+<!-- cspell:words fixpoint inferability strpool -->

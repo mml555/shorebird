@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words okrow
 """score_g3.py -- SEMANTIC-MAP-1 G3 (#52). Score the privacy-domain map.
 
 WHAT THIS GATE HAS TO SHOW. The map must refuse a patch that reaches outside its

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words gcrss gcus rssd
 # cspell:words dartaotruntime dill semantic linker
 # run_alloc.sh -- SEMANTIC-LINKER-1 / G6B addendum. Allocation throughput and
 # collection behaviour under mixed execution.

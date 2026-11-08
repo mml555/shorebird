@@ -125,3 +125,5 @@ ASan produced a stack but **no memory-safety violation at all** — no
 use-after-free, overflow, or use-after-scope — which together with three
 refuted input hypotheses is approaching the stated debugger triggers (1) and
 (3). Not requesting the debugger yet: UBSan is owed first.
+
+<!-- cspell:words asan RELOC SCALL -->

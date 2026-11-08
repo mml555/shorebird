@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words dispcallable dispgetter dispmethod dispoperator dispsetter
 """Task A -- ARM64_AOT_INSTANCE_DISPATCH_MATRIX.
 
 One fixture per subject, one declaration per FINAL AOT ROUTE, all installed in

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words ADDSEL MOVSEL ubfx
 """DETECT recognized indirect-call SHAPES in a release AOT.
 
 This is SHAPE DETECTION, not a redirectability classifier and not a complete

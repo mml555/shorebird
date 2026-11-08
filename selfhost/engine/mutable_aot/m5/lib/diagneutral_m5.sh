@@ -1,3 +1,4 @@
+# cspell:words nodiag nonserialized
 set -u
 O=/Volumes/build/route-b/flutter/engine/src/out/maot_host
 W=/private/tmp/claude-501/-Users-mendell-shorebird/541d1f40-74f1-4642-a5e6-6219048476c9/scratchpad/stage43

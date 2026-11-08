@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words armauto crashreports termina
 # cspell:words rbtrace idevicesyslog idevicescreenshot idevicecrashreport routeb dlc
 #
 # first_activation_run.sh -- capture ONE launch of the disappearance

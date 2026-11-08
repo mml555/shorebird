@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words defn
 # Re-derive the recorder-completeness enumeration from a Dart source tree.
 #
 # evidence/recorder_completeness.md asserts a set of counts and gates. This

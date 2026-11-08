@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words disasm globl lowermethod
 """Measure what each source dispatch form lowers to in final AOT code.
 
 Classification is read off the emitted instructions, not from source syntax:

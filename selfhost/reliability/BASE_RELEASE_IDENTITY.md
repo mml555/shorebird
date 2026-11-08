@@ -71,3 +71,5 @@ and the shipped app carries the same linked image by `LC_UUID`.
 > is the wrong test — Xcode re-signs on embed and stripping does not normalise
 > the Mach-O. To tie a **cached** engine to a published one, compare bytes: that
 > path is unsigned on both sides and byte equality holds exactly.
+
+<!-- cspell:words firstactivation LINKEDIT -->

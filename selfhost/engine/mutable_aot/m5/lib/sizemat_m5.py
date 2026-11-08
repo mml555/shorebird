@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words BASEFLAGS ktag nret
 """Size-driver ablation. Call indirection OFF and roots OFF in EVERY arm, so
 reachability stays ~baseline and size is not confounded by the 22k->2k collapse.
 

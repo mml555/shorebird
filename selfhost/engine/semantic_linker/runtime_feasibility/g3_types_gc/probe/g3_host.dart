@@ -1,3 +1,4 @@
+// cspell:words patcharg
 // SL1-G3 host: patch-defined classes inside Dart's type system, and inside its
 // garbage-collected object graph.
 //

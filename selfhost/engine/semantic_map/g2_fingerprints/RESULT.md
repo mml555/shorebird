@@ -384,3 +384,5 @@ disagreements**. Shared code would make the check prove nothing — the reasonin
   exercised here; the corpus is the adversarial one.
 - **`REDUCE_SCOPE` was not needed.** Canonical body fingerprinting did not turn
   into a compiler project, so `MODIFY_MAP_DESIGN` was not triggered.
+
+<!-- cspell:words twolib -->

@@ -115,3 +115,5 @@ none.
 
 This is a recommendation, not an implementation. Nothing is built until the
 split-identity design is approved.
+
+<!-- cspell:words chokepoint -->

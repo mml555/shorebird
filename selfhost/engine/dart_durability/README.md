@@ -88,3 +88,5 @@ more.
 `publish_lineage.sh --execute` is idempotent: if the remote already carries the
 recorded ref it pushes nothing, and if the remote carries something *else* it
 refuses rather than moving a published provenance ref.
+
+<!-- cspell:words askpass fetchability -->

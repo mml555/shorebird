@@ -104,3 +104,5 @@ raised rather than chosen.
     H2                 ACTIVE, 16/16 verified
     host repair        CONFIRMED by the successful build and release
     B patch controls   BLOCKED
+
+<!-- cspell:words requalifying -->

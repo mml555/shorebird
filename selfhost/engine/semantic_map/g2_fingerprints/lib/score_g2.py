@@ -1,3 +1,4 @@
+# cspell:words gshape
 """Score SM1-G2: ABI and body fingerprints, and the classification they imply.
 
 Expectations come from G0's frozen corpus file and G2's own declared file. This

@@ -92,3 +92,5 @@ both `out/host_release_arm64` and `flutter/third_party/dart` with the lineage
 clone. `build_probe_corpus.sh` refuses on an unrecorded source rather than
 falling back to another checkout, which is what makes a wrong argument here
 visible instead of silently producing a different corpus.
+
+<!-- cspell:words elif -->

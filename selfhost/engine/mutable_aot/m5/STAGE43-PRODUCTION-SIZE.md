@@ -115,3 +115,5 @@ this true, and this is the measurement of it rather than a restatement.
 selfhost/engine/mutable_aot/m5/lib/stage43_m5.py    the matrix
 scratchpad diagneutral.sh (vendored below)          the diagnostics control
 ```
+
+<!-- cspell:words diagneutral -->

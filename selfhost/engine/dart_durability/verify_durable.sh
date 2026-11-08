@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words askpass f'PROTFLAGS LOCALREMOTE nohome NOSYSTEM PROTFLAGS
 # DART-DURABILITY-1 (#47) -- the acceptance criterion.
 #
 # verify_lineage.sh proved the delta reconstructs the tree, but it read a clone

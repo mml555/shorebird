@@ -91,3 +91,5 @@ treated as the same population.
 No diagnosis, no fix, no flag change, no default-on movement. #69 remains
 ESTABLISHED on its instance-member dispatch scope; this is population
 readiness, which was already NOT ESTABLISHED and remains so.
+
+<!-- cspell:words ADRALN -->

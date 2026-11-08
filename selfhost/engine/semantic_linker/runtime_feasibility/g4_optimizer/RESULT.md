@@ -141,3 +141,5 @@ Two states were added after reading the bytes rather than assumed in advance:
 Runtime healthy, bypass identified, fence named narrowly enough to feed
 `AOT-ASSUMPTIONS-1`. Recommend proceeding, with the contract obligation recorded
 as the deliverable this gate produces.
+
+<!-- cspell:words fenceable impls overridability soloinl -->

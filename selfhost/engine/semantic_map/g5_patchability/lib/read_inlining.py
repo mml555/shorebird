@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words cands descsz libkey namesz ntype pkind plib plibkey powner strerror strhdr stroff strsz unprojectable
 """read_inlining.py -- SM1-G5 route 2 reader.
 
 Projects the compiler-emitted inlining relation onto SM1-G1 declaration

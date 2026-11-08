@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words descsz nameidx namesz Shorebirx strtab vmname
 """Adversarial falsification of read_inlining.py.
 
 Every arm mutates a real schema-6 AOT (or the G1 projection it is read

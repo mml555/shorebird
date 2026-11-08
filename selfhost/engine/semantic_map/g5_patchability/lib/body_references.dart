@@ -1,3 +1,4 @@
+// cspell:words referenceless
 // Copyright (c) 2026, the Shorebird self-host fork.
 //
 // body_references.dart -- SEMANTIC-MAP-1 G5: what does a declaration's BODY

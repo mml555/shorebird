@@ -1,3 +1,4 @@
+// cspell:words preaot
 // Copyright (c) 2026, the Shorebird self-host fork.
 //
 // gen_map_rows.dart -- SEMANTIC-MAP-1 G2: emit one map row per declaration,

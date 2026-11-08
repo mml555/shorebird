@@ -1,3 +1,4 @@
+// cspell:words inferability superfold
 // MAOT-5 -- is the super divergence super-specific, or the same #67 hole the
 // 2x2 just located?
 //

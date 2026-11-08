@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words HOSTSRC MODSRC patchchild soloinl
 # cspell:words dartaotruntime objdump symbolize dill semantic linker devirtualized
 # run_g4.sh -- SEMANTIC-LINKER-1 / G4. Five call shapes x {HostChild control,
 # PatchChild subject} x {fenced contract, unfenced contract}, with RUNTIME truth

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words srcs
 """Falsify the B0 classifier, in BOTH directions.
 
 The first version tested only a hard-coded VALIDATION_INPUT_UNDERIVED control

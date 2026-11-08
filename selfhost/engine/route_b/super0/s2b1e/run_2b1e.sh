@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words SCORABLE
 #
 # run_2b1e.sh -- can the RELEASE build make an exact super target an AOT
 # compilation ROOT, rather than merely a retained name?

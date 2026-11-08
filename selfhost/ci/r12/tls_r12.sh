@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words Acreateserial extfile fullchain keyout newkey noout
 # Issue an R12 server certificate from the EXISTING mirror CA.
 #
 # WHY NOT tls/generate.sh. That script regenerates the CA unconditionally

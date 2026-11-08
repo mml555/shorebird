@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words fetchall fetchone revb
 # cspell:words dbsnap
 #
 # epoch_b_progress.sh -- how far Epoch B is toward its precommitted threshold.

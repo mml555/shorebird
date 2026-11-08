@@ -79,3 +79,5 @@ causing the serializer crash.
 * The cross-wiring test could not run: it needs a program that executes, and
   the runtime crashes with even one trampoline.
 * No fix attempted for either remaining failure.
+
+<!-- cspell:words deduplicable -->

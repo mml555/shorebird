@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words argr
 # cspell:words dartaotruntime dynmod
 #
 # run_2b1.sh -- D-SUPER-2B.1 host matrix for the COMPILER BACKSTOP.

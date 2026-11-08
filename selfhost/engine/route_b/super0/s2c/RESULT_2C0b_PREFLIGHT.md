@@ -141,3 +141,5 @@ hashes, and that is exactly the foreign-artifact defect recorded in
 The alternative — raising the mirror's fetch deadline — is a CDN config change
 that would make releases depend on a slow upstream path at build time, and it
 does not give H artifacts that are actually its own.
+
+<!-- cspell:words reflog -->

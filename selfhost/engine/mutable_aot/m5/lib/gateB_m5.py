@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words outdill
 """Gate B -- runnable real application under mass selection.
 
 Subject: pkg/vm/bin/gen_kernel.dart, the Dart front-end driver. A real,

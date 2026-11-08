@@ -205,3 +205,5 @@ selfhost/engine/mutable_aot/m5/lib/strongweak_m5.py  revised Gate A
 ```
 
 `SW_REUSE=1` re-classifies without re-running the snapshots.
+
+<!-- cspell:words pcrel strongweak -->

@@ -214,3 +214,5 @@ not started.
 
 Housekeeping left behind: the isolated Linux clone and staging directory at
 `/data/shorebird-engine/route-b-2c-linux/` are retained as build evidence.
+
+<!-- cspell:words rwxr -->

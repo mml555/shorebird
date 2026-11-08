@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words paot pnoaot
 #
 # run_site.sh -- 2B.1c-SITE. Is a super site's fileOffset a CROSS-VERSION
 # identity, or only stable across optimization of one source version?

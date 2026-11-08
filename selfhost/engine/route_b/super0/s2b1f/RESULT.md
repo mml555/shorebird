@@ -96,3 +96,5 @@ have to be priced on real apps rather than on E3's toy per-target number.
     WORK=/tmp/f  bash super0/s2b1f/run_2b1f.sh
     CORRUPT_EVIDENCE=1 WORK=/tmp/fc bash super0/s2b1f/run_2b1f.sh
     MUTATE_GATE=1      WORK=/tmp/fm bash super0/s2b1f/run_2b1f.sh
+
+<!-- cspell:words miscompiling -->

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words reldir routebhost
 # cspell:words dynmod nodm depot caffeinate prebuilt
 #
 # build_host_nodm_debug.sh -- the NON-dynamic-modules release host and the debug

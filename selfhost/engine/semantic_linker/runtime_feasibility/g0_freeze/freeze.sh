@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words rval TAGCOMMIT TAGOBJ unreplayed
 # cspell:words gcs semantic linker dartaotruntime aot dill localsend wonderous
 # freeze.sh -- SEMANTIC-LINKER-1 / G0. Freeze the selfhost-v1.1.1 baseline and
 # the ACTUAL source bytes that produced it, and make the freeze falsifiable.

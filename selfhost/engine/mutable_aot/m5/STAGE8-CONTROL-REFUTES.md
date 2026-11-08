@@ -67,3 +67,5 @@ asserting it.
   without trampolines.
 * `super/unproven` stays `UNMODELED_BLOCKING`, unchanged.
 * No disposition touched, no fix attempted, no #64 cell moved.
+
+<!-- cspell:words indirects -->

@@ -1,3 +1,4 @@
+# cspell:words boxx obfmap shapex
 """Score SM1-G1 against the frozen expectations.
 
 The expectations come from files frozen in G0 and declared in G1; this script

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words DRYEV
 # cspell:words armeabi embedding canonicalize canonicalizer MAPEOF
 # publish_android_cell.sh -- mint the macos-ios-android cell into the LIVE
 # overlay, wire the CDN to it, and then prove the wiring rather than assume it.

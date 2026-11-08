@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words ctrls preds
 """Generate SM1-G5's closeout report and provenance manifest.
 
 Every number is DERIVED from banked evidence. Nothing is transcribed: a report

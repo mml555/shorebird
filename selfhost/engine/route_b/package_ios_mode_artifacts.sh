@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words MBIN RBIN rsha XEOF
 # cspell:words dynmod prebuilt xcframework PATCHSET patchset
 #
 # package_ios_mode_artifacts.sh -- package and publish ONE iOS engine mode's

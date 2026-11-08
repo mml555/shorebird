@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words unrefused
 """Classify Stage A from the structured arm records.
 
 #61: "Prefer structured records over error-string matching... closure of this

@@ -1,3 +1,4 @@
+// cspell:words INLINEABLE
 // The release under test for Route B step 4.
 //
 // Two patchable functions, because the whole point of step 4 is that a patch is

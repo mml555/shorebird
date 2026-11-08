@@ -72,7 +72,7 @@ restores clean state:
 | B | a declared mode claimed by no bucket leaves real cells outside the partition | pass |
 | C | THE ORIGINAL ERROR: counting `direct` as accepted prior coverage inside #69's own rows,  | pass |
 | D | THE OTHER ORIGINAL ERROR: a row whose subject is not an instance member (EB-07, a factor | pass |
-| E | a fixture whose declared subject changes must fail the map rather than be silently recla | pass |
+| E | a fixture whose declared subject changes must fail the map rather than be silently reclassified | pass |
 
 Arms C and D inject the two errors review actually found, so the map now
 refuses the mistakes it was corrected for.
@@ -148,3 +148,5 @@ next step.
   still bind to the wrong declaration, which is a separate #69 obligation.
 * The four uninventoried caches may change the architecture conclusion.
 
+
+<!-- cspell:words riscv uninventoried -->

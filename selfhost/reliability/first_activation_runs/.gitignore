@@ -1,3 +1,4 @@
+# cspell:words crashreports irst Siri
 # Raw crash-report dumps contain unrelated DEVICE telemetry -- SiriSearchFeedback,
 # DifferentialPrivacy, Analytics-*, log-aggregated and friends are the operator's
 # personal device data, not evidence for this investigation, and they do not

@@ -1,3 +1,4 @@
+// cspell:words ncontrol nwork
 // MAOT-5 -- separating TWO variables that the paired A/B experiment held
 // confounded.
 //

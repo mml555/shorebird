@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words cmap
 """The SM1-G5 subset check:  predicted patchable  SUBSET-OF  demonstrated patchable.
 
 This is BINARY SAFETY. One predicted declaration that is not demonstrated is

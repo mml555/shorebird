@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words armb
 # cspell:words xcarchive aab apksigner
 #
 # armb_measure.sh -- fetch a release artifact from the control plane and measure

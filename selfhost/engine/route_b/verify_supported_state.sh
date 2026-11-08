@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words ARCHBYTES CLICONTAINS CLIREV
 # cspell:words dups DUPPY cleanroom noyaml pyyaml FDIR stdlib nopython
 # verify_supported_state.sh -- re-check the DEPLOYABLE IDENTITY claims in
 # SUPPORTED_STATE.yaml against the artifacts themselves.

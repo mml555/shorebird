@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words CONP DEMOR SRCP
 # cspell:words dartaotruntime dill bytecode dynmod
 # assert_no_retaining_pragma.sh -- SM1-G4 (#53) CONFOUND ASSERTION.
 #

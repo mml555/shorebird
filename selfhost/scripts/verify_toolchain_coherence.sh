@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words PUBZIP
 # cspell:words dartaotruntime dart-sdk gen snapshot
 #
 # verify_toolchain_coherence.sh -- assert that a Flutter checkout is running the

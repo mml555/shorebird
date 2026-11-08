@@ -136,3 +136,5 @@ So step 7 must invoke the publisher with BOTH:
 The script's default `PINNED=69f9831c…` (a shorebird hash) can never work for
 this artifact; that default is what made the earlier run fail once the outage
 was out of the way.
+
+<!-- cspell:words bodyless -->

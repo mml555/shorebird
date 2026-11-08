@@ -1,3 +1,4 @@
+# cspell:words crel
 """Emit the G0 freeze manifest.
 
 ONE INVENTORY. Every frozen input is an entry in `frozen_inputs` with a path and

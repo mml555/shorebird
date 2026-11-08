@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words inty
 """Prove the instance-dispatch predicate is fail-closed.
 
 The predicate under test, in predict_patchable.dart:

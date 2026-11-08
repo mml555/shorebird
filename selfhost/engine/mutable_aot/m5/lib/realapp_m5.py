@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words ktime
 """Task C -- real-application population gate.
 
 Subject: shorebird_cli (208 files, ~36.6k lines, 45 direct deps) -- a real

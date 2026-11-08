@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words changeit Dorg genkeypair importcert jvmargs MAXIT Metaspace noprompt storetype
 # Discover the release/patch artifact closure, the same way the bootstrap closure
 # was found: run against a SEALED COLD mirror, import whatever it refuses, repeat.
 #

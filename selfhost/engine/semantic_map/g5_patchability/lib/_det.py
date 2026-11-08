@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words aotdiff
 """Compare two reader outputs. Prints four tokens for run_route2.sh to assert.
 
 Each token is either the expected word or 'x', so the caller asserts a value

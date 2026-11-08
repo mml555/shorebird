@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words allok froz impls replscale selfcyc
 """Replacement at scale, through the production StageReplacement path only.
 
 400 declarations replaced per transaction (300 unique-body + 100 shared-body),

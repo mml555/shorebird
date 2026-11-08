@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words PKGNAME
 """Runtime-cost gate: A vs C on ARM64.
 
 This rig has already produced one unusable timing result -- two arms doing

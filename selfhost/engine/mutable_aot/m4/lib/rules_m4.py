@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words intrinsified
 """MAOT-4 (#68) -- the per-pass optimizer rule table.
 
 Every optimizer class #68 names, with:

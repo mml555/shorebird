@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words devnull noconfirm noflag noversion
 # cspell:words getsockname noninteractive chardev nonint armeabi OPORT dists
 # CI-NONINTERACTIVE-1 gate 1: what does the ordinary workflow ASK FOR when
 # nothing can answer?

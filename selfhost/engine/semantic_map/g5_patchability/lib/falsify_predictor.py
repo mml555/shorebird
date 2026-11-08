@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words cbad kref
 """One adversarial arm per safety-bearing predictor refusal, plus a control.
 
 Each arm drives the REAL predictor with real input schemas, asserts the exact

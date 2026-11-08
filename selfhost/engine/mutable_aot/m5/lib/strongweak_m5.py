@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words allk reclass strongweak
 """The revised routing-neutrality gate: strong retention exact, weak reported.
 
 A declaration is WEAK only if its sole reason for being retained is another

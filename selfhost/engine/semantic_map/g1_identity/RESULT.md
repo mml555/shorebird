@@ -310,3 +310,5 @@ Both were mine, and both would have produced a wrong reading:
   proven; whether an extension member can be patched at all is G5's.
 - **Nested generic ownership** beyond `Box<T>` — deeper nesting, generic methods
   on generic owners — is not covered.
+
+<!-- cspell:words kinded -->

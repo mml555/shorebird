@@ -138,3 +138,5 @@ sits inside the scope both nominally claim — a getter with a call in its body
 crashes the snapshotter.
 
 No disposition is changed here. Reported for ruling.
+
+<!-- cspell:words callgetter pursetter -->

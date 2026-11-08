@@ -104,3 +104,5 @@ so a second wipe cannot cost the staged bytes.
 No live publication, no protections, no map entry. That is the next transition
 and is deliberately separate, so H2's exact address inputs are banked before any
 mutation.
+
+<!-- cspell:words fafc fcac recomputable -->

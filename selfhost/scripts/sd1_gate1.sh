@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words AREV QREV
 # cspell:words armv OLDCELL
 # SELFHOST-DISTRIBUTION-1 gate 1: is the qualified Flutter revision what it is
 # claimed to be, and can it be made durable WITHOUT rebuilding anything?

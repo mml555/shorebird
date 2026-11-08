@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words scaleapp
 """MAOT-4 (#68) scale lane -- what the conservative posture costs a real app.
 
 Usage: scale_m4.py <m4_dir> <out.json>

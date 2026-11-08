@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words withs
 """The population report: reads what Stage 47 left on disk, runs nothing.
 
 Columns are the ones the gate asks for, plus the fit of the one-parameter

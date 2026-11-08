@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words noseed objcc
 """MAOT-4 (#68) -- run the optimizer-invariant lane and derive the verdicts.
 
 Every run drives the real chain, and every falsification is a real build with

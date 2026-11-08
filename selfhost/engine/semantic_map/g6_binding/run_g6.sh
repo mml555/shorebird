@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words genmod iterdir
 # SM1-G6 (#55) -- map schema, identity, versioning and release binding.
 #
 # A map describes ONE release and must never be applicable to another. This

@@ -95,3 +95,5 @@ Production consumer                blocking_records, which does NOT read the pro
 Category                           (2) diagnostics accidentally serialized
 Optimization                       NOT ATTEMPTED -- returning as directed
 ```
+
+<!-- cspell:words disa disposi -->

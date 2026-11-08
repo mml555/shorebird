@@ -114,3 +114,5 @@ decision.
   remain untested. The smallest valid test — trampoline → pinned release body
   → OLD — has not passed.
 * The N ≥ 7 serializer failure remains parked and uninvestigated.
+
+<!-- cspell:words SIGABRT -->

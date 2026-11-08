@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words CLIREV gotcell nonok
 # cspell:words seatbelt sandboxed pubcache prebuilt getsockname realpath PREREQ prereq CLEANROOM cleanroom cellhits CELLREQ OTHERREQ
 # SELFHOST-CLEANROOM-2 -- the same hostile cleanroom as CLEANROOM-1, re-run
 # after SELFHOST-DISTRIBUTION-1.

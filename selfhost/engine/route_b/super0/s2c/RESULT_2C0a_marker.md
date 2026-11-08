@@ -97,3 +97,5 @@ sha1, and the cell publishes under the same value.
     compatibility.yaml  42a970f46a234794…  unchanged
     installed CLI       207c4a7ac91f937e…  unchanged
     experimental map    7bdc97bf9ed27082…  unchanged
+
+<!-- cspell:words flto PYTHONPATH -->

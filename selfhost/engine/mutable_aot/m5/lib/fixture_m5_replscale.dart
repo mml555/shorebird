@@ -1,3 +1,4 @@
+// cspell:words replscale
 // MAOT-5 (#69) -- REPLACEMENT AT SCALE.
 //
 // Two dimensions deliberately separated:

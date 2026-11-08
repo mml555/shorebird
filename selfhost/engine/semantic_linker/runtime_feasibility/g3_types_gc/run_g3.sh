@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words patcharg
 # cspell:words dartaotruntime dill semantic linker
 # run_g3.sh -- SEMANTIC-LINKER-1 / G3. Type-system participation and GC
 # correctness across the mixed object graph.

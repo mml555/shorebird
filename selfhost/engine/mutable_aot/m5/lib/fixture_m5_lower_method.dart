@@ -1,3 +1,4 @@
+// cspell:words devirtualises
 // MAOT-5 (#69) Task A -- LOWERING SURVEY for the `method` subject.
 //
 // This fixture does not replace anything. It exists to measure what each

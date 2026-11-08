@@ -100,3 +100,5 @@ The harness is validated and idle. `armauto` derives the run label from device
 state, so a recurrence can be captured without deciding in advance what kind of tap
 it is. Retain the raw capture for any anomalous run until its classification closes
 — that is what turned `run_007` from a finding into a void.
+
+<!-- cspell:words armauto -->

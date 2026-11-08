@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words machdep maxrss
 # cspell:want dartaotruntime dill semantic linker devirtualization
 # run_costs.sh -- SEMANTIC-LINKER-1 / G6B. Four cost families, reported
 # INDEPENDENTLY, with raw samples retained.

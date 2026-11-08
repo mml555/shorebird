@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words pcts
 """Stage 44 (programme) / Stage 47 (lane) -- default-readiness population gate.
 
 The same A/B/C matrix as Stage 43, run unchanged over a population of real

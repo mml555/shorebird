@@ -192,3 +192,5 @@ Everything in *WHAT IS NOT ALLOWED WHILE COLLECTING* above, plus: the
 policy semantics. Its first objective is classification and reproduction, not a
 fix. A fix that moved the attributability boundary again would end Epoch B the way
 `af6e842ccf87` ended Epoch A.
+
+<!-- cspell:words attributability unactivated -->

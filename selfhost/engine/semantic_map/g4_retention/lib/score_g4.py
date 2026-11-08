@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words noeff srcs
 """score_g4.py -- SEMANTIC-MAP-1 G4 (#53). Score the retention contract.
 
 FAIL_OPEN IS A RESULT, NOT A FAILURE OF THIS HARNESS.

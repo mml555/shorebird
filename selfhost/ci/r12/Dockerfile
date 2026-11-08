@@ -1,3 +1,4 @@
+# cspell:words cmdline commandlinetools procps sdkmanager
 # R12 builder substrate — GENERIC ONLY.
 #
 # What this image may contain, and nothing else: a pinned Linux base, a JDK, the

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words aotdiff defaultdict MSEM
 # SM1-G5 route 2 -- regenerate every banked artifact from source.
 #
 # Writes its own transcripts. Nothing here is hand-assembled: the patch is

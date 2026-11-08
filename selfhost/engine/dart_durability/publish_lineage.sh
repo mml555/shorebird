@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words AKIA LOCALTAG ONREMOTE recj REVDATE subschema TAGONREMOTE TAGT
 # DART-DURABILITY-1 (#47) -- the DURABLE half: publish the producing Dart
 # lineage to a remote that is not this machine, and make the exact producing
 # tree resolvable from a fresh anonymous clone.

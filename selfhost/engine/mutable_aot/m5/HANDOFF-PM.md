@@ -222,3 +222,5 @@ async and generator bodies, closures. None touched.
 `STAGE20` body-leaves-the-walk · `STAGE21` instance matrix (§5 superseded by
 STAGE22) · `STAGE22` forwarder route · `STAGE23` tear-offs · `STAGE24` route
 convergence. Fixtures `m5/lib/fixture_m5_{prod,getter,setter,operator,callable,tearoff,callgetter,pursetter}.dart`.
+
+<!-- cspell:words callgetter pursetter -->

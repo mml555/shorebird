@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words conv unevidenced
 # cspell:words deployments
 #
 # tracks_admin.sh -- the authenticated half of the P6 tracks arm.

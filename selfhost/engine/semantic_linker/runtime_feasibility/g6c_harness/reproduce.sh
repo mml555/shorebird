@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words abspath CJSON CREPRO machdep negs
 # cspell:words dartaotruntime dill semantic linker devirtualization nodm KBC
 # reproduce.sh -- SEMANTIC-LINKER-1 / G6C. One command that reproduces the whole
 # evidence set, fail-closed.

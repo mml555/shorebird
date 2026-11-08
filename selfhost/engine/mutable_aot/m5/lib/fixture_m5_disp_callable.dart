@@ -1,3 +1,4 @@
+// cspell:words dispcallable
 // MAOT-5 (#69) Task A -- dispatch matrix for the `callable` subject.
 //
 // One declaration per FINAL AOT ROUTE, established by the lowering survey:

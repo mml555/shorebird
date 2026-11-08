@@ -167,3 +167,5 @@ true`. No gate was re-run to produce it, and report-only cannot manufacture one.
 
 The last is the one that matters: if the product had moved, the whole
 feasibility argument would be contaminated.
+
+<!-- cspell:words clonefile -->

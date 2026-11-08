@@ -167,3 +167,5 @@ open.
 selfhost/engine/mutable_aot/m5/lib/stage47_m5.py     runs the population
 selfhost/engine/mutable_aot/m5/lib/popreport_m5.py   reads what it left, runs nothing
 ```
+
+<!-- cspell:words popreport -->

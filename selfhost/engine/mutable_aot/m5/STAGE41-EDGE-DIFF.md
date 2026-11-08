@@ -171,3 +171,5 @@ selfhost/engine/mutable_aot/m5/lib/edgeanalyze_m5.py  # edge-kind breakdowns
 ```
 
 `EDGEDIFF_REUSE=1` re-analyses without re-running the snapshots.
+
+<!-- cspell:words edgeablate edgeanalyze -->

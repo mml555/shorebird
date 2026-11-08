@@ -154,3 +154,5 @@ was checked independently of CLI output:
    device wire contract, but only a real build proves the release path is
    intact. `compatibility.yaml`'s `cli_version` stays `1.6.115+selfhost.1`
    until that passes and the release is cut.
+
+<!-- cspell:words deflake -->

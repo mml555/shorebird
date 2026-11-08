@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words obfmap
 # obfuscation_arm.sh -- SM1-G1: MEASURE, rather than reason about, what
 # obfuscation does to declaration identity.
 #

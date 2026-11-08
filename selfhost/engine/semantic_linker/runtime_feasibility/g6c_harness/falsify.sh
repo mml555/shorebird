@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words CFALS suppc
 # cspell:words semantic linker falsifiability
 # falsify.sh -- SEMANTIC-LINKER-1 / G6C. Prove the harness REFUSES when mandatory
 # evidence is missing or mutated.

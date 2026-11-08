@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words functools
 # cspell:words dartaotruntime clonefile depot gclient prebuilt nodm dill semantic linker
 # stage_substrate.sh -- SEMANTIC-LINKER-1 / G1 step 1. Stand up an ISOLATED
 # engine tree at the frozen lineage, and prove it IS the frozen lineage.

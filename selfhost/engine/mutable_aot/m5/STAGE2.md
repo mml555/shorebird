@@ -92,3 +92,5 @@ That discriminator is the cheapest next step and is what I would run first.
   current failure.
 * #66/#67/#68 regressions have not been re-run against stage 2 — there is no
   snapshot to run them against.
+
+<!-- cspell:words rederiving stackmaps -->

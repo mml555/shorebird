@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words boundness CANDS
 # ROUTE-B-DI-1 / STAGE B0 (#61) -- derive the production validation input, or
 # classify VALIDATION_INPUT_UNDERIVED and stop.
 #

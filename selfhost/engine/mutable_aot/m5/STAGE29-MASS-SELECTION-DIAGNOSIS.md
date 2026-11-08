@@ -170,3 +170,5 @@ run), so it is reproducible rather than random.
 The remaining work is a memory-corruption / lifetime investigation, not a
 declaration bisect — the Case B branch of the ruling. Chasing it further with
 markers would keep producing intervals that contain no code.
+
+<!-- cspell:words bsearch erializa stackmap unsymbolized -->

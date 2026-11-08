@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words printcert
 # cspell:words codesign mobileprovision entitlements jarsigner apksigner plutil CDHash certs
 #
 # signing_state.sh -- measure the platform-signing state of a release artifact.

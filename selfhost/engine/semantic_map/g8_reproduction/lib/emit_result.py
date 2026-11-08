@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words feas GATESTATUS
 """G8's top-level result, in the SEMANTIC-LINKER-1 four-partition shape.
 
     REPRODUCTION / FEASIBILITY_EVIDENCE / KNOWN_FAIL_OPEN_FINDINGS /

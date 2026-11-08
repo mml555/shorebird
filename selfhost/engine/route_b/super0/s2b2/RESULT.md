@@ -162,3 +162,5 @@ the local overlay. Publishing the 0017 cell under a fresh experimental hash and
 cutting a local release pinned to it would let A/B/C run end to end without
 touching any certified artifact. It still writes tracked files and mutates the
 installed CLI, so it needs an explicit decision rather than being assumed.
+
+<!-- cspell:words argtarget -->

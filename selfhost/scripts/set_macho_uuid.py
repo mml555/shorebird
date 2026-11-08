@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words CIGAM cmdsize hexstr ncmds nfat
 """Rewrite a Mach-O's LC_UUID in place.
 
 WHY THIS IS NEEDED. The two track clients are copies of one build, so their main

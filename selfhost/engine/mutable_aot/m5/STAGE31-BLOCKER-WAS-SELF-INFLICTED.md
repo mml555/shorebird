@@ -80,3 +80,5 @@ clean performance measurements and should not be reused as a baseline.
   label is fixed.
 * **The 625 gap** between installed (5098) and pinned bodies (4473) remains
   unexplained and still open.
+
+<!-- cspell:words Reloc -->

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words dsec
 """Stage 44 -- where the production-policy bytes actually are.
 
 Attribution only. No architecture change, no reduction applied.

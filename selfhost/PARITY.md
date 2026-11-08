@@ -4425,3 +4425,5 @@ When an item becomes PROVEN, record beside it whichever of these apply:
 * platform / device;
 * evidence or probe name;
 * the commit containing the implementation and its gate.
+
+<!-- cspell:words azureuser -->

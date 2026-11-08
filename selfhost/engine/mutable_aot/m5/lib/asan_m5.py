@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words allk ASAN CLANGBIN
 """ASan paired run for REALAPP_MAOT_SELECTION_PRECOMPILER.
 
 Arm A: control kernel (normal selection)

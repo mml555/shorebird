@@ -1,3 +1,4 @@
+// cspell:words gatec
 // Gate C / Gate D / compact production replacement regression.
 //
 // Three replaceable subjects, one never-replaced CALLER, and one control.

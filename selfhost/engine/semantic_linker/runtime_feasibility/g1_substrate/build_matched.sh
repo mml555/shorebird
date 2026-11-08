@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words LOGDIR NLINES NREMOVED
 # cspell:words dartaotruntime depot gclient prebuilt caffeinate dill nodm semantic linker
 # build_matched.sh -- SEMANTIC-LINKER-1 / G1 step 2. Build the Dynamic Modules
 # OFF (control) and ON (experiment) host toolchains from ONE staged source, so

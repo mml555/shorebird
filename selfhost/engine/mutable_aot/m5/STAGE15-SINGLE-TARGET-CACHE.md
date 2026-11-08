@@ -136,3 +136,5 @@ fixture.
 - `expected_cid=-1` in a SingleTargetCache reading is the inspector's
   "not applicable" sentinel, not a measured value. That state has a cid RANGE,
   not a single expected cid.
+
+<!-- cspell:words devirtualise undecoded -->

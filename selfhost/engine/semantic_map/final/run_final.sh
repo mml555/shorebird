@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words NFAIL NLINES NNOTE NPASS SRCFACTS
 # SM1-FINAL (#58) -- extract the matrix, compute the verdict, publish.
 #
 # This lane IMPLEMENTS NOTHING. It extracts every row from evidence, computes

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words depdigest
 # SM1-G5 -- build the probe corpus from checked-in source.
 #
 # WHY THIS EXISTS. G8 found that the original probe work directory could not be

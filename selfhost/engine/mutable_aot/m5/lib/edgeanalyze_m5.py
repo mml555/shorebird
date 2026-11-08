@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words TABLESEL
 """Post-analysis over the two edge logs written by edgediff_m5.py.
 
 Separate from the run so the 40-minute snapshot pair is not repeated every

@@ -104,3 +104,5 @@ was not skipped.
 Stage the 16-member v2 cell — five corrected host members, everything else exact
 cloned H bytes — and compute the real H2 in scratch first. The compiler bundle
 must stay `9d4ace27…`. Nothing published; H remains RETIRED and immutable.
+
+<!-- cspell:words fcac -->

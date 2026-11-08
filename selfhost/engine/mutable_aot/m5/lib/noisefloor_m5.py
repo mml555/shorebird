@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words allv getloadavg henv hspread
 """Instrument characterization: how well can this machine resolve a delta?
 
 This measures the MEASURING DEVICE, not Mutable-AOT. Arm A is compared with

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words currentcode
 """The acceptance judgement, separated so it can be falsified.
 
 A suite that returns PASS on every row the first time it runs has not been

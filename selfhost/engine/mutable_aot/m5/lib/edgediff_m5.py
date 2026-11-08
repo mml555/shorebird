@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words preds
 """Stage 40 differential diagnosis: diff the REACHABILITY GRAPH, not its result.
 
 Stage 40 compared two sets of survivors. A set difference cannot distinguish

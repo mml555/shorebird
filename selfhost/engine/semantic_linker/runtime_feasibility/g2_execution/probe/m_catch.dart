@@ -1,3 +1,4 @@
+// cspell:words unwindings
 // D2. AOT throws, bytecode catches -- through a host `finally`, and the module
 // then keeps working. "Repeated use after exceptions" is the last clause: a
 // boundary that survives one throw but is corrupted afterwards would pass a

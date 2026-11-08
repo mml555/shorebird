@@ -1,3 +1,4 @@
+// cspell:words preaot
 // Copyright (c) 2026, the Shorebird self-host fork.
 //
 // gen_privacy_rows.dart -- SEMANTIC-MAP-1 G3: per declaration, which private

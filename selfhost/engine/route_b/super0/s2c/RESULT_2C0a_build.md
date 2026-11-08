@@ -78,3 +78,5 @@ The measured value the chain would use is
     installed CLI       207c4a7ac91f937e…  unchanged
     experimental map    7bdc97bf9ed27082…  unchanged
     engine fork         route-b-2c-candidate @ dfa2b24a (619fdad1 intact)
+
+<!-- cspell:words SPIR -->

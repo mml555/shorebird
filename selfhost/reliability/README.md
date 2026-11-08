@@ -226,3 +226,5 @@ set, `Bad{BootCrash}`, a consumed retry, a deleted last-known-good, or failure
 before Route B completes or before launch success — **stop**. That is materially
 different from the three historical disappearances and may indicate a real
 certified-runtime defect.
+
+<!-- cspell:words underflowed -->

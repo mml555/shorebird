@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words nonvacuous
 """Check the B0 discovery record's properties, not a remembered count.
 
 The assertion this replaces expected exactly 4 excluded fixtures -- a number

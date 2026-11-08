@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words CAUSESRC csrcs dets GKRC
 # cspell:words dartaotruntime dill bytecode dynmod
 # run_arms.sh -- SM1-G4 (#53): withhold each retention class in turn.
 #

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words rowname
 """Sensitivity controls for the FINAL assembler.
 
 #58: "A verdict that could not have come out any other way is not worth

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words REPORTNEG surfacehash
 # SM1-G8 (#57) -- clean reproduction and the centralized negative inventory.
 #
 # Rebuilds from checked-in source rather than inheriting, drives every negative

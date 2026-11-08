@@ -159,3 +159,5 @@ measured heap growth and left the collector nothing to do.
   behaviour on three allocation paths; it does not tune anything, and one
   workload on one machine is not a GC characterisation.
 - Host macOS/arm64, one module, one machine, no iOS and no real application.
+
+<!-- cspell:words extrapolable -->

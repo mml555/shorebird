@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words OBFW
 # cspell:words semantic dill devirtualizes
 # run_g1.sh -- SEMANTIC-MAP-1 / G1 (#50). Is the declaration identity stable
 # under the things that actually move in a release, and does it move when the

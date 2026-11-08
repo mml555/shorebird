@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words changeit genkeypair importcert jvmargs noprompt storetype
 # R12 decisive arm — runs INSIDE a fresh linux/amd64 container.
 #
 # ORDER MATTERS AND IS NOT NEGOTIABLE:

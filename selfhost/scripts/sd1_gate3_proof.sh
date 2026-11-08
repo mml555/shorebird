@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words getsockname
 # cspell:words armv seatbelt PRODCDN serveable HYDC
 # SELFHOST-DISTRIBUTION-1 gate 3 proof: the durable distribution is sufficient,
 # and it is falsifiable.
