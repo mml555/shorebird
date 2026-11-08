@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # cspell:words imagetools
 # Shared helpers for the server release publisher.
 #
