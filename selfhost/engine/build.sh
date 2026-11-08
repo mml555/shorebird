@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words worktree
+# cspell:words worktree ionice
 #
 # build.sh — build the Shorebird engine from a synced Shorebird Flutter checkout.
 # Does not upload; run publish_to_store.sh (object store) or overlay_publish.sh
@@ -26,8 +26,15 @@
 #                   `android-arm64` today.
 #   --host <os>     mac|linux|win. Default: auto-detect.
 #   --jobs <n>      ninja parallelism for --cell builds. Default: 3, which is
-#                   deliberately low — the documented build host is a 4-vCPU box
-#                   shared with another service (see selfhost/ENGINE_BUILD.md).
+#                   deliberately low for a small shared host. On ci-build (32
+#                   cores, shared with CI) -j12 under `nice -n 10 ionice -c3`
+#                   built the cell in 23 minutes.
+#   --gn-arg <flag> Extra flag for ./flutter/tools/gn (--cell builds only);
+#                   repeat for several. GN_EXTRA_ARGS (space-separated) adds
+#                   more. The full shard runs Shorebird's own scripts, which
+#                   call gn themselves: without the prebuilt Dart SDK it needs
+#                   --no-prebuilt-dart-sdk added there (overlay_publish.sh
+#                   does the same).
 #   --root <dir>    Flutter checkout to build. Default: vendor/flutter. On a
 #                   build farm this is normally a real git clone of the pinned
 #                   revision, because gclient and Flutter's own scripts need
@@ -45,6 +52,7 @@ CELL=""
 HOST=""
 JOBS=3
 FLUTTER_ROOT="$REPO_ROOT/vendor/flutter"
+GN_ARGS=()
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 note() { echo "==> $*"; }
@@ -55,8 +63,9 @@ while [[ $# -gt 0 ]]; do
     --host) HOST="${2:?--host needs a value}"; shift 2 ;;
     --jobs) JOBS="${2:?--jobs needs a value}"; shift 2 ;;
     --root) FLUTTER_ROOT="${2:?--root needs a value}"; shift 2 ;;
+    --gn-arg) GN_ARGS+=("${2:?--gn-arg needs a value}"); shift 2 ;;
     mac|linux|win) HOST="$1"; shift ;;   # positional form, kept for compatibility
-    -h|--help) sed -n '2,40p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help) sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed '$d'; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
 done
@@ -88,6 +97,14 @@ note "engine.version:  $ENGINE_HASH"
 note "Host build type: $HOST"
 
 # --- Prereqs ----------------------------------------------------------------
+# Use the ninja binary gclient pinned into the checkout directly. depot_tools'
+# `ninja` is a Python wrapper that finds it by searching up from the current
+# directory, so it depends on both: the first cell build on ci-build failed to
+# find ninja until this directory was on PATH, and the wrapper has also crashed
+# on Python 3.13 (No module named 'pipes'; route_b/super0/s2c/RESULT_2C0a_marker.md).
+if [[ -x "$FLUTTER_ROOT/third_party/ninja/ninja" ]]; then
+  export PATH="$FLUTTER_ROOT/third_party/ninja:$PATH"
+fi
 need() { command -v "$1" >/dev/null 2>&1 || die "missing prerequisite: $1 ($2)"; }
 need cargo   "install Rust: https://rustup.rs — the updater is compiled by the GN build"
 need ninja   "install depot_tools (provides ninja) and add to PATH"
@@ -107,13 +124,18 @@ fetched with gclient first.
 
 One-time bootstrap (on the build farm):
   1. Install depot_tools and put it on PATH.
-  2. git config --global url."https://github.com/".insteadOf git@github.com:
-     (DEPS pins the Dart SDK fork over SSH; this avoids needing a GitHub key.
+     Bootstrap it from INSIDE its directory: cd depot_tools && ./ensure_bootstrap
+     (run from elsewhere, it fails on relative paths).
+  2. Only if DEPS fetches anything over SSH (git@github.com:...):
+       git config --global url."https://github.com/".insteadOf git@github.com:
      On a shared host, export GIT_CONFIG_GLOBAL=<worktree>/gitconfig first —
-     it redirects --global to that file instead of ~/.gitconfig.)
+     it redirects --global to that file instead of ~/.gitconfig.
+     (The mml555/shorebird-flutter DEPS uses https throughout.)
   3. Copy a .gclient to the checkout ROOT — solution name ".", see
      selfhost/engine/.gclient.template or the in-tree
-     engine/scripts/standard.gclient.
+     engine/scripts/standard.gclient. Set custom_vars download_dart_sdk: False
+     unless you can read gs://shorebird-dart-sdk-prebuilt (private); this
+     script then builds Dart from source.
   4. Run:  cd "$FLUTTER_ROOT" && gclient sync --no-history
 Then re-run this script.
 EOF
@@ -149,7 +171,27 @@ if [[ -n "$CELL" ]]; then
   fi
 
   OUT_DIR="out/android_release_arm64"
-  note "Cell: android-arm64  (out/$OUT_DIR, ninja -j$JOBS)"
+  note "Cell: android-arm64  ($OUT_DIR, ninja -j$JOBS)"
+
+  # Without the prebuilt Dart SDK (download_dart_sdk: False, because the bucket
+  # is private), gn must be told to build Dart from source; by default it
+  # expects the prebuilt SDK and fails without it. Only this host's prebuilt
+  # counts: another platform's, or none, means from source.
+  case "$(uname -m)" in
+    x86_64|amd64) HOST_CPU=x64 ;;
+    aarch64|arm64) HOST_CPU=arm64 ;;
+    *) HOST_CPU="$(uname -m)" ;;
+  esac
+  PREBUILT_DART="$ENGINE_SRC/flutter/prebuilts/linux-$HOST_CPU/dart-sdk/bin/dart"
+  if [[ -x "$PREBUILT_DART" ]]; then
+    note "Using the prebuilt Dart SDK: $PREBUILT_DART"
+  else
+    note "No prebuilt Dart SDK at $PREBUILT_DART: building Dart from source."
+    GN_ARGS+=(--no-prebuilt-dart-sdk)
+  fi
+  # Split on whitespace only; `read` does no glob expansion.
+  read -r -a EXTRA <<< "${GN_EXTRA_ARGS:-}"
+  GN_ARGS+=(${EXTRA[@]+"${EXTRA[@]}"})
 
   cd "$ENGINE_SRC"
   # Flags per shorebird/docs/BUILDING.md (Linux / Android arm64). Note there is
@@ -157,7 +199,7 @@ if [[ -n "$CELL" ]]; then
   # unconditional, gated in GN by shorebird_updater_supported. BUILDING.md's iOS
   # example still passes it; don't copy that.
   ./flutter/tools/gn --no-rbe --no-enable-unittests \
-    --android --android-cpu=arm64 --runtime-mode=release
+    --android --android-cpu=arm64 --runtime-mode=release ${GN_ARGS[@]+"${GN_ARGS[@]}"}
   ninja -C "$OUT_DIR" -j "$JOBS" default gen_snapshot
 
   note "Cell complete. Expected artifacts under $ENGINE_SRC/$OUT_DIR:"
