@@ -136,7 +136,8 @@ controlled is what makes the answer trustworthy — which is the whole point of 
       sample    PRESERVED. Never pooled into a later threshold decision.
 
     Epoch B — CURRENT
-      updater   af6e842ccf87
+      updater   af6e842ccf87, and 87c198d30f87 since 2026-11-07 (owner's
+                decision; B now pools two behaviours, split by revision)
       cell      4792f0eca461f3761001a1adbe131b4b115e3684
       sample    starts from ZERO
       threshold unchanged: 100 distinct clients with a first ambiguity

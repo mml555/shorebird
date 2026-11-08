@@ -193,6 +193,10 @@ jobs:
 
       - name: 🦀 Toolchain
         run: |
+          # vendor/updater/rust-toolchain.toml picks the toolchain. Show it, so a
+          # runner missing that version or a listed component fails here,
+          # legibly, rather than in fmt or clippy.
+          rustup show active-toolchain
           rustc --version
           cargo --version
 

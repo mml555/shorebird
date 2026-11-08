@@ -216,7 +216,8 @@ class MembershipRow {
 /// revisions to one set would recombine two samples that are not comparable,
 /// and nothing would complain.
 ///
-/// Epochs are therefore closed, not extended.
+/// Epochs are therefore closed, not extended. The one exception is B, which
+/// the owner extended on 2026-11-07; its doc comment says what that costs.
 enum PolicyEpoch {
   /// CLOSED. Preserved as instrumentation and behavioural evidence; its
   /// clients must never count toward a later epoch's threshold.

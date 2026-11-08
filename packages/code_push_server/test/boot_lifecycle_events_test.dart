@@ -290,6 +290,23 @@ void main() {
       );
     });
 
+    test('B is exactly its two revisions and shares none with A', () async {
+      // Guards the extension itself: a B widened past its list would still
+      // pass the two visibility tests above.
+      expect(
+        PolicyEpoch.a.updaterRevisions.intersection(
+          PolicyEpoch.b.updaterRevisions,
+        ),
+        isEmpty,
+      );
+      await put('ambiguous_boot_retry', attempt: 1, rev: '000000000000');
+      expect(
+        await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.b),
+        isEmpty,
+        reason: 'a revision outside B must not count toward B',
+      );
+    });
+
     test('the epochs PARTITION the rows rather than pooling them', () async {
       // One client per revision. Each epoch sees exactly its own, and neither
       // ever reports the sum.

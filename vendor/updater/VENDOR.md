@@ -13,6 +13,13 @@ ourselves and are insulated from upstream changes.
 - Engine revision it was last matched against: e1eaecbcac6d9a32cb5590c646e21cf21252cf19 (see selfhost/compatibility.yaml).
   That file has not been bumped for this snapshot.
 
+The revision the updater reports (`UPDATER_REVISION`, which `PolicyEpoch` keys
+on) is read by `library/build.rs` from the checkout's own `.git`. This copy has
+none, so anything built from `vendor/updater` stamps `unknown` and its events
+count toward no epoch. Shipped engines build the updater from the mirror
+checkout that the Flutter fork's DEPS pins, which stamps `87c198d30f87`. This
+copy is for CI and the Dart-to-Rust signing seam test.
+
 `shorebird_code_push/` is the Dart package. It needs the Flutter SDK, so no CI job runs it. Only the Rust
 workspace (library, library_test_hooks, patch) is built and tested in CI.
 
