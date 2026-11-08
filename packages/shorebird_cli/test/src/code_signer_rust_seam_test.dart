@@ -23,6 +23,7 @@
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:ffi/ffi.dart';
@@ -142,7 +143,7 @@ void main() {
 
         // Build and load the production verifier through the test-hooks cdylib.
         final workspace = Directory(
-          '${Directory.current.parent.parent.path}/vendor/updater',
+          '${(await _repoRoot()).path}/vendor/updater',
         );
         expect(
           workspace.existsSync(),
@@ -313,11 +314,11 @@ void main() {
         );
       });
 
-      test('the production verifier still uses RSA PKCS#1 SHA-256', () {
+      test('the production verifier still uses RSA PKCS#1 SHA-256', () async {
         // Guards the algorithm itself: Arm A means nothing if the verifier were
         // silently switched to another scheme.
         final signing = File(
-          '${Directory.current.parent.parent.path}/vendor/updater/library/src/cache/signing.rs',
+          '${(await _repoRoot()).path}/vendor/updater/library/src/cache/signing.rs',
         );
         expect(signing.existsSync(), isTrue);
         final source = signing.readAsStringSync();
@@ -326,4 +327,15 @@ void main() {
       });
     },
   );
+}
+
+/// The repository root, located from this package's own lib/ directory.
+///
+/// Not Directory.current: the working directory is process-wide, and other
+/// test files running concurrently in this process change it.
+Future<Directory> _repoRoot() async {
+  final packageLib = await Isolate.resolvePackageUri(
+    Uri.parse('package:shorebird_cli/'),
+  );
+  return Directory.fromUri(packageLib!).parent.parent.parent;
 }
