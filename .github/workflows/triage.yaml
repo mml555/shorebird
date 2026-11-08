@@ -9,9 +9,18 @@ on:
 permissions:
   issues: write
 
+# Both jobs run on the self-hosted home runner, and the approval policy does
+# not gate issue events. So they run only when the issue's author is the
+# repo owner, a member or a collaborator. The cost: an outside customer's
+# issue gets no automatic needs-triage label and their reply does not swap
+# labels, so triage those by hand until hosted runners are back (then move
+# these jobs to ubuntu-latest behind vars.HOSTED_RUNNERS == 'true').
+
 jobs:
   add-needs-triage:
-    if: github.event_name == 'issues'
+    if: >-
+      github.event_name == 'issues' &&
+      (github.event.issue.author_association == 'OWNER' || github.event.issue.author_association == 'MEMBER' || github.event.issue.author_association == 'COLLABORATOR')
     runs-on: [self-hosted, linux, x64, shorebird]
     steps:
       # ci-build has no gh. Fetch the release binary, checking it against the
@@ -44,7 +53,10 @@ jobs:
     if: >-
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request == null &&
-      github.event.comment.user.login == github.event.issue.user.login
+      github.event.comment.user.login == github.event.issue.user.login &&
+      (github.event.comment.author_association == 'OWNER' ||
+      github.event.comment.author_association == 'MEMBER' ||
+      github.event.comment.author_association == 'COLLABORATOR')
     runs-on: [self-hosted, linux, x64, shorebird]
     steps:
       # ci-build has no gh. Fetch the release binary, checking it against the
