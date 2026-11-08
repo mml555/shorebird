@@ -43,7 +43,14 @@ jobs:
     # The home runner (ci-build), only for trusted events: a pull request from
     # a fork is skipped unless HOSTED_RUNNERS is 'true', which also puts it on
     # a hosted runner.
-    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
+    #
+    # Off in the self-host fork: `bin/shorebird --version` downloads the Linux
+    # x64 Dart SDK for the pinned engine (flutter.version), and the fork's
+    # engine cell builds only macOS, iOS and Android, so the CDN answers with a
+    # 9-byte not-found body. Re-enable by adding a linux-x64 engine to the cell,
+    # then setting the repository variable LINUX_X64_ENGINE to 'true'. Upstream
+    # (shorebirdtech/shorebird) always runs it.
+    if: ${{ (github.repository == 'shorebirdtech/shorebird' || vars.LINUX_X64_ENGINE == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     steps:
       - name: 📚 Git Checkout
