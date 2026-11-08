@@ -59,6 +59,8 @@ jobs:
     # Self-hosted runners are only for trusted events. A pull request from
     # a fork must never run on hardware the repo owner controls.
     runs-on: ${{ matrix.os == 'ubuntu-latest' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || matrix.os }}
+    # A hung test would otherwise hold a home runner for the 6h default.
+    timeout-minutes: 60
     defaults:
       run:
         shell: bash
@@ -113,7 +115,11 @@ jobs:
             # Pinned until https://github.com/dart-lang/tools/issues/2667 is fixed.
             dart pub global activate coverage 1.15.1
             COVERAGE_DIR="$(pwd -W 2>/dev/null || pwd)/coverage"
-            printf '%s\n' "$files" | xargs -n 50 dart test --coverage="$COVERAGE_DIR"
+            # --concurrency=4: dart test's default is half the cores. On the
+            # 32-core home runner (16 at once), coverage collection livelocks:
+            # 50 files hung for 30+ min, but passed in 50s with 4 at once and
+            # 148s with 1. Without coverage the same files pass in 5s either way.
+            printf '%s\n' "$files" | xargs -n 50 dart test --concurrency=4 --coverage="$COVERAGE_DIR"
             if [ -z "$(find coverage -name '*.json' -print -quit)" ]; then
               echo "::error::dart test wrote no coverage files to coverage/"
               exit 1
@@ -134,7 +140,7 @@ jobs:
             jq --arg name "$PACKAGE_NAME" '.packages |= map(select(.name == $name))' "$PACKAGE_CONFIG" > "$SCOPED_CONFIG"
             dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --packages="$SCOPED_CONFIG" --report-on="$REPORT_ON" --check-ignore
           else
-            printf '%s\n' "$files" | xargs -n 50 dart test
+            printf '%s\n' "$files" | xargs -n 50 dart test --concurrency=4
           fi
       - name: Check Coverage
         if: inputs.has_unit_tests && inputs.min_coverage != '' && inputs.min_coverage != '0' && matrix.os == 'ubuntu-latest'
