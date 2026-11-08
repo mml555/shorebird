@@ -44,10 +44,14 @@ class S3Client {
     required this.secretKey,
     required this.bucket,
     this.pathStyle = true,
+    this.responseTimeout = const Duration(seconds: 60),
     HttpClient? httpClient,
     DateTime Function()? clock,
   }) : _http = (httpClient ?? HttpClient())
-         ..connectionTimeout = const Duration(seconds: 10),
+         ..connectionTimeout = const Duration(seconds: 10)
+         // dart:io would otherwise ask for gzip and inflate what comes back,
+         // which breaks ranged offsets and the size from [statObject].
+         ..autoUncompress = false,
        _clock = clock ?? DateTime.now;
 
   /// Base URL of the store, such as `http://seaweedfs:8333`. A path in it is
@@ -60,6 +64,11 @@ class S3Client {
 
   /// `true`: `https://host/bucket/key`. `false`: `https://bucket.host/key`.
   final bool pathStyle;
+
+  /// How long to wait for the response headers after the request is sent. A
+  /// store that accepts the connection and then stalls fails the call instead
+  /// of hanging it. The body of a response is not covered.
+  final Duration responseTimeout;
 
   final HttpClient _http;
   final DateTime Function() _clock;
@@ -94,6 +103,18 @@ class S3Client {
     if (res.statusCode == 200 || text.contains('BucketAlreadyOwnedByYou')) {
       return;
     }
+    // Some stores answer BucketAlreadyExists, not BucketAlreadyOwnedByYou, to
+    // the owner, so two servers booting together race on create. It is safe to
+    // accept when a HEAD with our own credentials then succeeds: on AWS a
+    // bucket owned by someone else answers that HEAD with 403, which still
+    // fails. Anything else (a 403 or 5xx from PUT) is not retried this way.
+    if (res.statusCode == 409 && text.contains('BucketAlreadyExists')) {
+      try {
+        if (await bucketExists()) return;
+      } on S3Exception {
+        // Not ours or unreachable: report the original error below.
+      }
+    }
     throw S3Exception('PUT bucket $bucket', res.statusCode, text);
   }
 
@@ -118,14 +139,28 @@ class S3Client {
 
   /// The object's bytes, or [length] bytes from [offset] (to the end when
   /// [length] is null). The status is checked before the stream is returned.
+  ///
+  /// A ranged read must be answered with 206 and a matching `Content-Range`: a
+  /// store or proxy that ignores `Range` and sends the whole object with 200
+  /// would otherwise be passed on as the slice. A [length] below 1 is an
+  /// [ArgumentError] (AWS ignores `bytes=N-(N-1)` and sends everything).
   Future<Stream<List<int>>> getObject(
     String key, {
     int? offset,
     int? length,
   }) async {
-    final range = offset == null
-        ? null
-        : 'bytes=$offset-${length == null ? '' : offset + length - 1}';
+    if (length != null && length < 1) {
+      throw ArgumentError.value(length, 'length', 'must be at least 1');
+    }
+    if (offset != null && offset < 0) {
+      throw ArgumentError.value(offset, 'offset', 'must not be negative');
+    }
+    // `bytes=0-` is the whole object: send no Range, and expect a plain 200.
+    final ranged = length != null || (offset != null && offset > 0);
+    final start = offset ?? 0;
+    final range = ranged
+        ? 'bytes=$start-${length == null ? '' : start + length - 1}'
+        : null;
     final res = await _send(
       'GET',
       key,
@@ -135,8 +170,27 @@ class S3Client {
       await res.drain<void>();
       throw S3NotFoundException('GET $key');
     }
-    if (res.statusCode != 200 && res.statusCode != 206) {
-      throw S3Exception('GET $key', res.statusCode, await _readText(res));
+    final expected = ranged ? 206 : 200;
+    if (res.statusCode != expected) {
+      final text = await _readText(res);
+      throw S3Exception(
+        'GET $key ($range)',
+        res.statusCode,
+        res.statusCode == 200 && ranged
+            ? 'the store ignored the Range header'
+            : text,
+      );
+    }
+    final contentRange = res.headers.value('content-range');
+    if (ranged &&
+        contentRange != null &&
+        !contentRange.startsWith('bytes $start-')) {
+      await res.drain<void>();
+      throw S3Exception(
+        'GET $key ($range)',
+        res.statusCode,
+        'unexpected Content-Range: $contentRange',
+      );
     }
     return res;
   }
@@ -186,7 +240,7 @@ class S3Client {
       signed.forEach(req.headers.set);
       req.contentLength = body.length;
       if (body.isNotEmpty) req.add(body);
-      return await req.close();
+      return await req.close().timeout(responseTimeout);
     } on SocketException catch (e) {
       throw S3Exception(op, 0, e.message);
     } on HttpException catch (e) {
