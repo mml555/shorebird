@@ -20,7 +20,7 @@ downloads*. Pick by fleet size.
 
 | Shape | Fleet | What runs it | Effort |
 |---|---|---|---|
-| **A — Single box** | dev / internal / < ~5k devices | One Linux VPS, Postgres + MinIO in-compose, Caddy for TLS. `PRODUCTION.md` as written. | ~1 hour |
+| **A — Single box** | dev / internal / < ~5k devices | One Linux VPS, Postgres + SeaweedFS (S3) in-compose, Caddy for TLS. `PRODUCTION.md` as written. | ~1 hour |
 | **B — Managed services** (recommended prod) | ~5k–100k devices | Stateless `server` replicas + Caddy, but Postgres and object storage are **managed/external**, and a **CDN** fronts downloads. | ~1 day |
 | **C — At scale** | 100k–millions | Shape B + a real load balancer, horizontal autoscaling of `server`, Postgres read-replicas, multi-region CDN/object store. | ongoing infra work |
 
@@ -42,7 +42,7 @@ you provision them yourself (Shape B/C):
 - **Managed Postgres** — RDS / Cloud SQL / Neon / Supabase / etc. Point
   `DATABASE_URL` at it and drop the in-compose `postgres` service. Turn on
   automated backups + PITR + a read replica if you're at Shape C.
-- **Object storage** — S3 / Cloudflare R2 / GCS / managed MinIO. Point the
+- **Object storage** — S3 / Cloudflare R2 / Garage / any S3-compatible store (set `S3_REGION` and `S3_PATH_STYLE` as needed; MinIO is no longer maintained). Point the
   `S3_*` env at it. This is where artifact bytes live and grow (releases ×
   archs × history); set a lifecycle/retention policy.
 - **CDN for downloads** — put Cloudflare / Fastly / CloudFront in front of the

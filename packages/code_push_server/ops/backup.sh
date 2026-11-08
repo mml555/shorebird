@@ -4,7 +4,7 @@
 # backup.sh — back up the code_push_server persistent state (scale profile).
 #
 #   * Postgres metadata  → pg_dump (custom format, compressed)
-#   * MinIO artifacts    → `mc mirror` of the artifact bucket to a local dir
+#   * Object-store artifacts → `rclone sync` of the artifact bucket to a local dir
 #
 # Usage:
 #   ./ops/backup.sh                 # uses .env + docker-compose.prod.yaml
@@ -50,8 +50,8 @@ fi
 
 POSTGRES_USER="${POSTGRES_USER:-cps}"
 POSTGRES_DB="${POSTGRES_DB:-code_push}"
-MINIO_ROOT_USER="${MINIO_ROOT_USER:-cps}"
-MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/s3_env.sh"
 S3_BUCKET="${S3_BUCKET:-code-push-artifacts}"
 
 BACKUP_DIR="${BACKUP_DIR:-${ROOT_DIR}/backups}"
@@ -69,13 +69,13 @@ SERVER_IMAGE_ID="$(docker image inspect "${SERVER_IMAGE:-none}" \
   -f '{{if .RepoDigests}}{{index .RepoDigests 0}}{{else}}{{.Id}}{{end}}' 2>/dev/null || echo unknown)"
 PG_OUT="${BACKUP_DIR}/postgres_${STAMP}.dump"
 PG_MANIFEST="${PG_OUT}.manifest.json"
-MINIO_OUT="${BACKUP_DIR}/minio/${STAMP}"
+OBJECTS_OUT="${BACKUP_DIR}/objects/${STAMP}"
 
-DC=(docker compose -f "${COMPOSE_FILE}")
+DC=(docker compose --progress quiet -f "${COMPOSE_FILE}")
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
-mkdir -p "${BACKUP_DIR}" "${MINIO_OUT}"
+mkdir -p "${BACKUP_DIR}" "${OBJECTS_OUT}"
 
 # --- quiesce, and prove it -------------------------------------------------
 echo "==> Stopping the server so both halves describe the same instant"
@@ -151,18 +151,22 @@ print(f"    tables: {len(counts)}")
 PYMANIFEST
 rm -f "${BACKUP_DIR}/.counts.tsv"
 
-echo "==> MinIO bucket '${S3_BUCKET}' backup → ${MINIO_OUT}"
-"${DC[@]}" run --rm --no-deps \
-  -v "${MINIO_OUT}:/backup" \
-  --entrypoint /bin/sh \
-  createbuckets -c "
-    mc alias set local http://minio:9000 '${MINIO_ROOT_USER}' '${MINIO_ROOT_PASSWORD}' &&
-    mc mirror --overwrite --remove local/'${S3_BUCKET}' /backup
-  "
+echo "==> Object bucket '${S3_BUCKET}' backup → ${OBJECTS_OUT}"
+# `sync` makes the directory equal to the bucket (deleting strays), and
+# --checksum compares content, not just size and time. `check --download` then
+# proves it byte for byte: plain `check` falls back to size alone when the two
+# sides share no hash type, and still exits 0.
+"${DC[@]}" --profile tools run --rm --no-deps \
+  -v "${OBJECTS_OUT}:/backup" \
+  rclone sync "store:${S3_BUCKET}" /backup --checksum
+"${DC[@]}" --profile tools run --rm --no-deps \
+  -v "${OBJECTS_OUT}:/backup:ro" \
+  rclone check "store:${S3_BUCKET}" /backup --one-way --download \
+  || die "the object backup does not match the bucket"
 
 # The object half carries the SAME backup_id. This is the only thing that makes
 # a pair a pair; ops/restore.sh refuses when the two ids disagree.
-python3 - "${MINIO_OUT}" "${BACKUP_ID}" "${STAMP}" <<'PY'
+python3 - "${OBJECTS_OUT}" "${BACKUP_ID}" "${STAMP}" <<'PY'
 import hashlib, json, os, sys
 root, bid, stamp = sys.argv[1], sys.argv[2], sys.argv[3]
 files = {}
@@ -193,5 +197,5 @@ PY
 echo "==> Done.  backup_id ${BACKUP_ID}  image ${SERVER_IMAGE:-unknown}"
 echo "    postgres : ${PG_OUT}"
 echo "    manifest : ${PG_MANIFEST}"
-echo "    minio    : ${MINIO_OUT}"
+echo "    objects  : ${OBJECTS_OUT}"
 echo "    NOTE: this backup contains plaintext API keys. Store it as a secret."

@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:code_push_server/src/config.dart';
+import 'package:code_push_server/src/s3_client.dart';
 import 'package:crypto/crypto.dart';
-import 'package:minio/minio.dart';
 
 /// Artifact byte storage. Objects are keyed by `storage_key` (e.g.
 /// `patch/12/<token>`). Shorebird hashes artifacts with sha256 over the raw
@@ -12,7 +12,7 @@ import 'package:minio/minio.dart';
 /// checkable here.
 ///
 /// Two backends: [FilesystemArtifactStore] (single-container default — bytes on
-/// a local directory) and [S3ArtifactStore] (MinIO/S3 for scale). Both expose
+/// a local directory) and [S3ArtifactStore] (any S3-compatible store, for scale). Both expose
 /// the same surface; resumable-upload staging always uses local disk.
 abstract class ArtifactStore {
   /// Opens the backend selected by [cfg]: `file` (default) or `s3`.
@@ -177,52 +177,49 @@ class FilesystemArtifactStore with _DiskStaging implements ArtifactStore {
 }
 
 // ---------------------------------------------------------------------------
-// S3 / MinIO (scale backend)
+// S3-compatible object store (scale backend)
 // ---------------------------------------------------------------------------
 
 class S3ArtifactStore with _DiskStaging implements ArtifactStore {
-  S3ArtifactStore(this._minio, this._bucket, this._staging);
+  S3ArtifactStore(this._s3, this._staging);
 
   static Future<S3ArtifactStore> open(Config cfg) async {
-    final minio = Minio(
-      endPoint: cfg.s3Endpoint,
-      port: cfg.s3Port,
-      useSSL: cfg.s3UseSsl,
+    final s3 = S3Client(
+      endpoint: Uri(
+        scheme: cfg.s3UseSsl ? 'https' : 'http',
+        host: cfg.s3Endpoint,
+        port: cfg.s3Port,
+      ),
+      region: cfg.s3Region,
       accessKey: cfg.s3AccessKey,
       secretKey: cfg.s3SecretKey,
+      bucket: cfg.s3Bucket,
+      pathStyle: cfg.s3PathStyle,
     );
-    if (!await minio.bucketExists(cfg.s3Bucket)) {
-      await minio.makeBucket(cfg.s3Bucket);
+    if (!await s3.bucketExists()) {
+      await s3.createBucket();
     }
     final staging = Directory('${Directory.systemTemp.path}/cps_staging')
       ..createSync(recursive: true);
-    return S3ArtifactStore(minio, cfg.s3Bucket, staging);
+    return S3ArtifactStore(s3, staging);
   }
 
-  final Minio _minio;
-  final String _bucket;
+  final S3Client _s3;
   final Directory _staging;
 
   @override
   Directory get staging => _staging;
 
   @override
-  Future<void> put(String key, List<int> bytes) async {
-    await _minio.putObject(
-      _bucket,
-      key,
-      Stream.value(Uint8List.fromList(bytes)),
-      size: bytes.length,
-    );
-  }
+  Future<void> put(String key, List<int> bytes) => _s3.putObject(key, bytes);
 
   @override
-  Future<void> delete(String key) => _minio.removeObject(_bucket, key);
+  Future<void> delete(String key) => _s3.deleteObject(key);
 
   @override
   Future<bool> ping() async {
     try {
-      await _minio.bucketExists(_bucket);
+      await _s3.bucketExists();
       return true;
     } on Exception {
       return false;
@@ -232,7 +229,7 @@ class S3ArtifactStore with _DiskStaging implements ArtifactStore {
   @override
   Future<bool> exists(String key) async {
     try {
-      await _minio.statObject(_bucket, key);
+      await _s3.statObject(key);
       return true;
     } on Exception {
       return false;
@@ -240,10 +237,7 @@ class S3ArtifactStore with _DiskStaging implements ArtifactStore {
   }
 
   @override
-  Future<int> size(String key) async {
-    final stat = await _minio.statObject(_bucket, key);
-    return stat.size ?? 0;
-  }
+  Future<int> size(String key) => _s3.statObject(key);
 
   @override
   Future<String?> verify(
@@ -257,7 +251,7 @@ class S3ArtifactStore with _DiskStaging implements ArtifactStore {
   }
 
   Future<List<int>> _readAll(String key) async {
-    final stream = await _minio.getObject(_bucket, key);
+    final stream = await _s3.getObject(key);
     final b = BytesBuilder();
     await for (final chunk in stream) {
       b.add(chunk);
@@ -266,14 +260,6 @@ class S3ArtifactStore with _DiskStaging implements ArtifactStore {
   }
 
   @override
-  Future<Stream<List<int>>> openRead(
-    String key, {
-    int? offset,
-    int? length,
-  }) async {
-    if (offset != null) {
-      return _minio.getPartialObject(_bucket, key, offset, length);
-    }
-    return _minio.getObject(_bucket, key);
-  }
+  Future<Stream<List<int>>> openRead(String key, {int? offset, int? length}) =>
+      _s3.getObject(key, offset: offset, length: length);
 }

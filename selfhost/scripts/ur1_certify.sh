@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words objkey failmig setimg psql projfrom mcsh AFTERFAIL ENVF NEWSCHEMA OLDSCHEMA SCRSCHEMA reupgrade SAMETAG sametag
+# cspell:words objkey failmig setimg psql projfrom rclonesh AFTERFAIL ENVF NEWSCHEMA OLDSCHEMA SCRSCHEMA reupgrade SAMETAG sametag
 # UPGRADE-ROLLBACK-1 — certification pass, one backend per run.
 #
 #   old populated deployment
@@ -56,6 +56,10 @@ single)
   ;;
 scale)
   DCF="$DIR/docker-compose.prod.yaml"; ENVF="$DIR/.env"
+  # Runs one `rclone ...` command in the compose file's rclone service, with the
+  # remote `store` pointing at the stack's object store (br1_inventory.sh).
+  printf '#!/usr/bin/env bash\nexec docker compose -f %q --env-file %q --profile tools run --rm --no-deps -T --entrypoint sh rclone -c "$1"\n' "$DCF" "$ENVF" > "$DIR/rclonesh"
+  chmod +x "$DIR/rclonesh"
   DCP=(docker compose -f "$DCF" --env-file "$ENVF")
   set_image(){ ./setimg.sh "$1" >/dev/null; }
   stop_server(){ "${DCP[@]}" stop server >/dev/null 2>&1; }
@@ -65,8 +69,8 @@ scale)
   psql_(){ "${DCP[@]}" exec -T postgres psql -U cps -d code_push -Atc "$1" 2>/dev/null | tr -d '[:space:]'; }
   schema(){ psql_ 'select max(version) from schema_migrations'; }
   schema_down(){ schema; }
-  inventory(){ PROJ_FROM=${2:-} MC_SH="$DIR/mcsh" MC_ALIAS=local S3_BUCKET=code-push-artifacts \
-      STORE=minio PROFILE=scale COMPOSE="$DCF" OUT="$1" bash "$SCRIPTS/br1_inventory.sh" >/dev/null 2>&1; }
+  inventory(){ PROJ_FROM=${2:-} RCLONE_SH="$DIR/rclonesh" S3_BUCKET=code-push-artifacts \
+      STORE=s3 PROFILE=scale COMPOSE="$DCF" OUT="$1" bash "$SCRIPTS/br1_inventory.sh" >/dev/null 2>&1; }
   do_backup(){ COMPOSE_FILE="$DCF" ENV_FILE="$ENVF" BACKUP_DIR="$DIR/bk" bash ops/backup.sh 2>&1; }
   latest_backup(){ ls -t "$DIR"/bk/postgres_*.dump | head -1; }
   # Pair the halves by their shared backup_id, not by "the newest directory".
@@ -75,7 +79,7 @@ scale)
   # reported as a rollback failure three steps later.
   mirror_for(){ local want d
     want=$(python3 -c "import json;print(json.load(open('$1.manifest.json'))['backup_id'])" 2>/dev/null) || return 1
-    for d in "$DIR"/bk/minio/*; do
+    for d in "$DIR"/bk/objects/* "$DIR"/bk/minio/*; do
       [[ -f "$d/MANIFEST.json" ]] || continue
       [[ "$(python3 -c "import json;print(json.load(open('$d/MANIFEST.json'))['backup_id'])" 2>/dev/null)" == "$want" ]] && { echo "$d"; return 0; }
     done

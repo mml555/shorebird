@@ -5,13 +5,13 @@
 # ops/backup.sh (scale profile).
 #
 #   * Postgres  → pg_restore into the running `postgres` service.
-#   * MinIO     → `mc mirror` a local artifact snapshot back into the bucket.
+#   * Objects   → `rclone sync` a local artifact snapshot back into the bucket.
 #
 # Usage:
-#   ./ops/restore.sh <postgres_dump_file> <minio_snapshot_dir>
+#   ./ops/restore.sh <postgres_dump_file> <objects_snapshot_dir>
 #
 # WARNING: this is DESTRUCTIVE. pg_restore runs with --clean, dropping and
-# recreating objects; the MinIO mirror uses --remove, deleting bucket objects
+# recreating objects; the object sync deletes, deleting bucket objects
 # absent from the snapshot.
 #
 # THE TWO HALVES MUST BE ONE BACKUP. The previous version took two independent
@@ -36,17 +36,17 @@ COMPOSE_FILE="${COMPOSE_FILE:-${ROOT_DIR}/docker-compose.prod.yaml}"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
 
 if [[ $# -ne 2 ]]; then
-  echo "usage: $0 <postgres_dump_file> <minio_snapshot_dir>" >&2
+  echo "usage: $0 <postgres_dump_file> <objects_snapshot_dir>" >&2
   exit 2
 fi
 
 PG_DUMP="$1"
-MINIO_SNAPSHOT="$2"
+OBJECTS_SNAPSHOT="$2"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
 [[ -f "${PG_DUMP}" ]]        || die "no such postgres dump: ${PG_DUMP}"
-[[ -d "${MINIO_SNAPSHOT}" ]] || die "no such minio snapshot dir: ${MINIO_SNAPSHOT}"
+[[ -d "${OBJECTS_SNAPSHOT}" ]] || die "no such object snapshot dir: ${OBJECTS_SNAPSHOT}"
 
 if [[ -f "${ENV_FILE}" ]]; then
   set -a
@@ -57,25 +57,25 @@ fi
 
 POSTGRES_USER="${POSTGRES_USER:-cps}"
 POSTGRES_DB="${POSTGRES_DB:-code_push}"
-MINIO_ROOT_USER="${MINIO_ROOT_USER:-cps}"
-MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/s3_env.sh"
 S3_BUCKET="${S3_BUCKET:-code-push-artifacts}"
 
-DC=(docker compose -f "${COMPOSE_FILE}")
+DC=(docker compose --progress quiet -f "${COMPOSE_FILE}")
 
-MINIO_SNAPSHOT="$(cd -- "${MINIO_SNAPSHOT}" >/dev/null 2>&1 && pwd)"
+OBJECTS_SNAPSHOT="$(cd -- "${OBJECTS_SNAPSHOT}" >/dev/null 2>&1 && pwd)"
 PG_DUMP="$(cd -- "$(dirname "${PG_DUMP}")" >/dev/null 2>&1 && pwd)/$(basename "${PG_DUMP}")"
 
 # --- verify the pair BEFORE destroying anything ----------------------------
 PG_MANIFEST="${PG_DUMP}.manifest.json"
-OBJ_MANIFEST="${MINIO_SNAPSHOT}/MANIFEST.json"
+OBJ_MANIFEST="${OBJECTS_SNAPSHOT}/MANIFEST.json"
 [[ -f "${PG_MANIFEST}" ]]  || die "the postgres half has no manifest (${PG_MANIFEST}).
    A backup from before manifests cannot be checked against its object half.
-   Verify the pairing yourself and run pg_restore / mc mirror by hand."
+   Verify the pairing yourself and run pg_restore / rclone sync by hand."
 [[ -f "${OBJ_MANIFEST}" ]] || die "the object half has no manifest (${OBJ_MANIFEST})."
 
 echo "==> Verifying the two halves are one backup"
-python3 - "${PG_MANIFEST}" "${OBJ_MANIFEST}" "${PG_DUMP}" "${MINIO_SNAPSHOT}" <<'PY'
+python3 - "${PG_MANIFEST}" "${OBJ_MANIFEST}" "${PG_DUMP}" "${OBJECTS_SNAPSHOT}" <<'PY'
 import hashlib, json, os, sys
 pgm_p, objm_p, dump, root = sys.argv[1:5]
 pgm  = json.load(open(pgm_p))
@@ -214,17 +214,18 @@ echo "==> Restoring Postgres from ${PG_DUMP}"
   -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
   < "${PG_DUMP}"
 
-echo "==> Restoring MinIO bucket '${S3_BUCKET}' from ${MINIO_SNAPSHOT}"
+echo "==> Restoring object bucket '${S3_BUCKET}' from ${OBJECTS_SNAPSHOT}"
 # MANIFEST.json is backup metadata, not an artifact: excluded so it does not
-# land in the bucket as an object the server knows nothing about.
-"${DC[@]}" run --rm --no-deps \
-  -v "${MINIO_SNAPSHOT}:/restore:ro" \
-  --entrypoint /bin/sh \
-  createbuckets -c "
-    mc alias set local http://minio:9000 '${MINIO_ROOT_USER}' '${MINIO_ROOT_PASSWORD}' &&
-    mc mb --ignore-existing local/'${S3_BUCKET}' &&
-    mc mirror --overwrite --remove --exclude 'MANIFEST.json' /restore local/'${S3_BUCKET}'
-  "
+# land in the bucket as an object the server knows nothing about. `sync`
+# deletes bucket objects absent from the snapshot, and creates the bucket when
+# it is missing.
+"${DC[@]}" --profile tools run --rm --no-deps \
+  -v "${OBJECTS_SNAPSHOT}:/restore:ro" \
+  rclone sync /restore "store:${S3_BUCKET}" --checksum --exclude 'MANIFEST.json'
+"${DC[@]}" --profile tools run --rm --no-deps \
+  -v "${OBJECTS_SNAPSHOT}:/restore:ro" \
+  rclone check /restore "store:${S3_BUCKET}" --exclude 'MANIFEST.json' --download \
+  || die "the restored bucket does not match the snapshot"
 
 # --- reconcile against the manifest ----------------------------------------
 echo "==> Reconciling the restored state against the manifest"

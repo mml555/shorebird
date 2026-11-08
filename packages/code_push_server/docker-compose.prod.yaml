@@ -5,12 +5,18 @@
 #
 # Topology:
 #   caddy  ──TLS──▶ server ──▶ postgres  (metadata)
-#                         └──▶ minio     (artifact object storage)
+#                         └──▶ s3        (artifact object storage: SeaweedFS)
 #
-# The Dart server is stateless: all durable state lives in Postgres + MinIO,
-# so `server` can be scaled horizontally (see PRODUCTION.md). Only Caddy
-# publishes ports to the host; postgres/minio/server stay on the internal
-# network. The MinIO console is bound to localhost only.
+# The Dart server is stateless: all durable state lives in Postgres + the S3
+# store, so `server` can be scaled horizontally (see PRODUCTION.md). Only Caddy
+# publishes ports to the host; postgres/s3/server stay on the internal network.
+#
+# The object store used to be MinIO, which is no longer maintained. It is now
+# SeaweedFS, and any S3-compatible store works in its place (set S3_ENDPOINT,
+# S3_REGION, S3_PATH_STYLE). An existing install keeps its data in the old
+# `cps_minio` volume: copy it across once with ops/migrate-minio-to-s3.sh
+# (PRODUCTION.md, "Migrating from MinIO"). Until then `docker compose up` starts
+# an EMPTY store, so run the migration in the same maintenance window.
 #
 # Values come from .env (see .env.example). Never commit .env.
 
@@ -21,7 +27,7 @@ services:
     #   build:
     #     context: .
     #     dockerfile: Dockerfile
-    image: ghcr.io/mml555/code-push-server:1.3.0
+    image: ${CPS_IMAGE:-ghcr.io/mml555/code-push-server:1.3.0}
     restart: unless-stopped
     env_file:
       - .env
@@ -45,10 +51,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
+      s3:
         condition: service_healthy
-      createbuckets:
-        condition: service_completed_successfully
+        # Not required: with an external store, the s3 service is turned off
+        # with a profile (PRODUCTION.md, "Using a different S3-compatible
+        # store") and the server must still start.
+        required: false
     networks:
       - cps
 
@@ -88,39 +96,91 @@ services:
     networks:
       - cps
 
-  minio:
-    image: minio/minio:latest
+  # Object store: SeaweedFS (Apache-2.0), one container running master, volume
+  # server, filer and the S3 gateway. The image is pinned by version AND digest;
+  # bump both together after testing (test/integration/s3_store_test.dart). The gateway listens
+  # on 9000 and answers to the network alias `minio` as well as `s3`, so an
+  # existing .env with S3_ENDPOINT=http://minio:9000 keeps working unchanged.
+  # The server creates the bucket itself on first boot.
+  #
+  # The root credentials are S3_ACCESS_KEY / S3_SECRET_KEY (the same values the
+  # server uses). MINIO_ROOT_USER / MINIO_ROOT_PASSWORD still work as deprecated
+  # fallbacks for an .env that only has those.
+  s3:
+    image: chrislusf/seaweedfs:4.52@sha256:57877e32bb90073b37dc109b438ba66e84fd5ed9ced5f5c04f56444ef243ce59
     restart: unless-stopped
-    command: server /data --console-address ":9001"
+    # -volume.max=0 sizes the volume count to the free disk; 1 GiB volumes keep
+    # a small host from reserving the default 30 GB per volume.
+    #
+    # -ip / -ip.bind put the master, volume server and filer on 127.0.0.1
+    # inside the container, and -s3.ip.bind alone listens on all interfaces.
+    # Those other listeners have no authentication and the filer would let
+    # anything on the network read and rewrite the bucket without the S3 key,
+    # so only port 9000 may be reachable from the other containers.
+    command: >-
+      server -s3 -s3.port=9000 -dir=/data
+      -ip=127.0.0.1 -ip.bind=127.0.0.1 -s3.ip.bind=0.0.0.0
+      -master.volumeSizeLimitMB=1024 -volume.max=0
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    ports:
-      # Console bound to localhost only — reach it via an SSH tunnel, never
-      # expose it to the internet. The S3 API is internal-network only.
-      - "127.0.0.1:19001:9001"
+      # SeaweedFS turns these two into its admin identity. With them empty it
+      # starts with no identity at all and accepts anonymous requests, so the
+      # secret is required (`:?` stops compose before anything starts).
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-${MINIO_ROOT_USER:-cps}}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD:?set S3_SECRET_KEY in .env}}
     volumes:
-      - cps_minio:/data
+      - cps_s3:/data
     healthcheck:
-      test: ["CMD-SHELL", "mc ready local || curl -sf http://localhost:9000/minio/health/live || exit 1"]
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9000 && wget -q -O /dev/null http://127.0.0.1:9333/cluster/healthz"]
       interval: 5s
       timeout: 5s
-      retries: 20
+      retries: 30
+    networks:
+      cps:
+        aliases:
+          - minio
+
+  # Only for migrating an existing install (ops/migrate-minio-to-s3.sh starts
+  # it with `--profile migrate`): the old MinIO, read-only in effect, on the old
+  # `cps_minio` volume. Docker Hub no longer serves minio/minio, so this uses
+  # the image already on your host (MINIO_LEGACY_IMAGE overrides it) and never
+  # pulls. Delete this service, and the volume, once the migration is verified.
+  minio-legacy:
+    image: ${MINIO_LEGACY_IMAGE:-minio/minio:latest}
+    pull_policy: never
+    profiles: ["migrate"]
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-${S3_ACCESS_KEY:-cps}}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-${S3_SECRET_KEY}}
+    volumes:
+      - cps_minio:/data
     networks:
       - cps
 
-  # Creates the artifacts bucket on first boot, then exits.
-  createbuckets:
-    image: minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
-      mc mb --ignore-existing local/${S3_BUCKET} &&
-      echo 'bucket ready'
-      "
+  # rclone, for backups (ops/backup.sh, ops/restore.sh) and the one-off MinIO
+  # migration (ops/migrate-minio-to-s3.sh). Never started by `up`; the scripts
+  # run it with `docker compose --profile tools run --rm rclone ...`. Pinned by
+  # version and digest. Remote `store` is the current object store (the same
+  # S3_* settings the server uses); remote `legacy` is the old MinIO.
+  rclone:
+    image: rclone/rclone:1.73.0@sha256:9f59fda717a48aced38d7f27e9ec8fd9992b5651e7a03897bebf204d3a9197d6
+    profiles: ["tools"]
+    entrypoint: ["rclone"]
+    environment:
+      RCLONE_CONFIG: /dev/null  # all remotes below come from the environment
+      RCLONE_CONFIG_STORE_TYPE: s3
+      RCLONE_CONFIG_STORE_PROVIDER: Other
+      RCLONE_CONFIG_STORE_ENDPOINT: ${S3_ENDPOINT:-http://s3:9000}
+      RCLONE_CONFIG_STORE_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-${MINIO_ROOT_USER:-cps}}
+      RCLONE_CONFIG_STORE_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD:?set S3_SECRET_KEY in .env}}
+      RCLONE_CONFIG_STORE_REGION: ${S3_REGION:-us-east-1}
+      RCLONE_CONFIG_STORE_FORCE_PATH_STYLE: ${S3_PATH_STYLE:-true}
+      RCLONE_CONFIG_LEGACY_TYPE: s3
+      RCLONE_CONFIG_LEGACY_PROVIDER: Minio
+      RCLONE_CONFIG_LEGACY_ENDPOINT: ${LEGACY_ENDPOINT:-http://minio-legacy:9000}
+      RCLONE_CONFIG_LEGACY_ACCESS_KEY_ID: ${LEGACY_ACCESS_KEY:-${MINIO_ROOT_USER:-${S3_ACCESS_KEY:-cps}}}
+      RCLONE_CONFIG_LEGACY_SECRET_ACCESS_KEY: ${LEGACY_SECRET_KEY:-${MINIO_ROOT_PASSWORD:-${S3_SECRET_KEY}}}
+      RCLONE_CONFIG_LEGACY_FORCE_PATH_STYLE: "true"
     networks:
       - cps
 
@@ -130,6 +190,9 @@ networks:
 
 volumes:
   cps_pg:
+  cps_s3:
+  # The old MinIO data. Kept (not deleted) so the migration can be re-run and
+  # rolled back; see PRODUCTION.md.
   cps_minio:
   caddy_data:
   caddy_config:

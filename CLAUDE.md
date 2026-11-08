@@ -24,7 +24,7 @@ npx cspell <changed files>
 
 # code_push_server is standalone — own pubspec.lock, NOT a workspace member,
 # so run its tests from its own directory. `-x integration` skips the tests
-# needing live Postgres/MinIO.
+# needing live Postgres/an S3 store.
 cd packages/code_push_server && dart test -x integration
 ```
 

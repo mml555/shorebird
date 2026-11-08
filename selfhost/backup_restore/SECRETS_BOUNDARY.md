@@ -58,7 +58,7 @@ Store backups encrypted, wherever you store passwords.
 | item | why |
 |---|---|
 | `API_KEY` (the bootstrap key) | env-only, not in the database. Measured above: old rejected, new accepted, all data intact. CLI configs holding the old value must be updated. |
-| `POSTGRES_PASSWORD`, `MINIO_ROOT_*`, `S3_ACCESS_KEY`/`S3_SECRET_KEY` | infrastructure credentials; the data does not reference them. Change them in `.env` and in the store together. |
+| `POSTGRES_PASSWORD`, `S3_ACCESS_KEY`/`S3_SECRET_KEY` (and the deprecated `MINIO_ROOT_*` aliases) | infrastructure credentials; the data does not reference them. Change them in `.env` and in the store together. |
 | TLS material | Caddy reissues on a reachable domain. A private CA is not reconstructible and belongs in the row below. |
 
 ### External prerequisites — not in the backup, required before restoring

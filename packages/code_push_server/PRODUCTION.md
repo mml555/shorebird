@@ -3,7 +3,7 @@
 > **Most deployments don't need this.** The default is a single container with
 > embedded SQLite + local-disk artifacts — `./setup.sh`, back up one volume,
 > done (see `README.md`). This runbook is the **scale profile**: multiple
-> stateless replicas behind Caddy TLS, backed by Postgres + S3/MinIO. Reach for
+> stateless replicas behind Caddy TLS, backed by Postgres + an S3-compatible object store (SeaweedFS in compose). Reach for
 > it when you outgrow one node or want a managed database. `./setup.sh --scale --domain
 > <host>` sets it up for you — **`--scale` is required, and corrected
 > 2026-08-13**: this line said `--domain <host>` alone, which selects the
@@ -16,15 +16,16 @@
 > manual/operational detail.
 
 A self-hosted Shorebird code-push control plane: a stateless Dart (shelf)
-server backed by Postgres (metadata) and MinIO (artifact object storage),
+server backed by Postgres (metadata) and an S3-compatible object store (artifacts;
+SeaweedFS in the compose file, since MinIO is no longer maintained),
 fronted by Caddy for TLS.
 
 ```
 Internet ──HTTPS──▶ caddy ──HTTP──▶ server ──▶ postgres
-                                          └──▶ minio (S3)
+                                          └──▶ s3 (SeaweedFS)
 ```
 
-All durable state lives in Postgres + MinIO. The `server` container itself is
+All durable state lives in Postgres + the object store. The `server` container itself is
 stateless and disposable.
 
 ---
@@ -55,7 +56,8 @@ You need fresh values for:
 - `PATCH_SIGNING_KEY_SECRET` — **required in production** (the server refuses to boot without it). Encrypts the managed patch-signing private keys at rest, and is never derived from `URL_SIGNING_SECRET`. Back it up with the database, and **never rotate it** without first re-wrapping the stored keys: shipped apps embed the matching public keys, so a lost or changed value strands every managed key for good. At boot the server trial-decrypts a stored key and refuses to start, naming this variable, if it does not decrypt.
 - `API_KEY` — bootstrap API key (rotate/remove once real users exist).
 - `POSTGRES_PASSWORD` (and the matching password inside `DATABASE_URL`).
-- `MINIO_ROOT_PASSWORD` (and the matching `S3_SECRET_KEY`).
+- `S3_SECRET_KEY` (the object store's root password; the compose file hands
+  it to SeaweedFS).
 
 ---
 
@@ -66,14 +68,13 @@ cp .env.example .env
 # Edit .env: set DOMAIN, PUBLIC_BASE_URL, ACME_EMAIL, LOGIN_EMAIL,
 # and every "CHANGE ME" secret. Keep the paired values consistent:
 #   DATABASE_URL password  == POSTGRES_PASSWORD
-#   S3_ACCESS_KEY / SECRET  == MINIO_ROOT_USER / MINIO_ROOT_PASSWORD
 
 docker compose -f docker-compose.prod.yaml up -d --pull missing
 ```
 
-What happens: Postgres and MinIO start and become healthy, `createbuckets`
-creates the `${S3_BUCKET}` bucket and exits, the `server` starts once its
-dependencies are healthy, and Caddy obtains a TLS certificate and begins
+What happens: Postgres and the `s3` store start and become healthy, the
+`server` starts once they are, creates the `${S3_BUCKET}` bucket on first
+boot, and Caddy obtains a TLS certificate and begins
 proxying.
 
 Verify:
@@ -120,7 +121,7 @@ enforced on top of the placeholder-secret checks, which always run).
 
 ## 5. Backups & restore
 
-Back up **both** Postgres and MinIO. They are one backup: the metadata
+Back up **both** Postgres and the object store. They are one backup: the metadata
 references object keys, and the two halves are only a matched pair if they came
 from the same run.
 
@@ -129,12 +130,13 @@ from the same run.
 # until it is serving again. Writes three things under $BACKUP_DIR (./backups):
 #   postgres_<STAMP>.dump
 #   postgres_<STAMP>.dump.manifest.json
-#   minio/<STAMP>/          (with its own MANIFEST.json)
+#   objects/<STAMP>/        (with its own MANIFEST.json; older backups
+#                            wrote minio/<STAMP>/ and restore the same way)
 ./ops/backup.sh
 
 # Restore (DESTRUCTIVE — the script refuses while the server is running)
 docker compose -f docker-compose.prod.yaml stop server
-./ops/restore.sh backups/postgres_<STAMP>.dump backups/minio/<STAMP>
+./ops/restore.sh backups/postgres_<STAMP>.dump backups/objects/<STAMP>
 docker compose -f docker-compose.prod.yaml up -d server
 ```
 
@@ -203,7 +205,7 @@ Migrations run at boot, each in its own transaction.
 ```bash
 docker compose -f docker-compose.prod.yaml stop server
 #   point the compose file back at the previous image, then:
-./ops/restore.sh backups/postgres_<STAMP>.dump backups/minio/<STAMP>
+./ops/restore.sh backups/postgres_<STAMP>.dump backups/objects/<STAMP>
 docker compose -f docker-compose.prod.yaml up -d server
 ```
 
@@ -270,15 +272,16 @@ docker compose -f docker-compose.prod.yaml up -d --scale server=3
   for a shared window (section 9).
 
 Caddy's `reverse_proxy server:8080` load-balances across replicas via
-Docker's internal DNS. All replicas share the **same** Postgres and MinIO, so
+Docker's internal DNS. All replicas share the **same** Postgres and object store, so
 those become the scaling bottleneck — scale them independently:
 
 - **Postgres:** move to a managed instance or a primary + read replicas;
   point `DATABASE_URL` at it and drop the in-compose `postgres` service.
-- **MinIO:** run a distributed MinIO cluster or use a managed S3-compatible
-  store; point `S3_ENDPOINT` / credentials at it.
+- **Object store:** use a managed S3-compatible store (AWS S3, Cloudflare R2,
+  ...) or a SeaweedFS/Garage cluster; point `S3_ENDPOINT` / credentials at it
+  (see "Using a different S3-compatible store").
 
-For real load, run Postgres and MinIO as managed/external services and keep
+For real load, run Postgres and the object store as managed/external services and keep
 only stateless `server` replicas + Caddy in compose.
 
 ---
@@ -294,13 +297,17 @@ only stateless `server` replicas + Caddy in compose.
       just `PRODUCTION=true`. The first authenticates as an owner of the root
       org (server admin), the second forges `/download` URLs.
 - [ ] **Set real secrets** — no `CHANGE_ME`, no dev defaults. Confirm
-      `URL_SIGNING_SECRET`, DB and MinIO credentials are all
+      `URL_SIGNING_SECRET`, DB and object-store credentials are all
       unique `openssl rand -hex 32` values.
-- [ ] **Restrict the MinIO console** — it is bound to `127.0.0.1:19001` only;
-      reach it via SSH tunnel (`ssh -L 19001:127.0.0.1:19001 host`), never
-      expose it publicly.
+- [ ] **Keep the object store private** — SeaweedFS has no host ports in the
+      compose file, and no console is exposed. Do not publish its S3 port. Inside
+      the container its master, volume and filer listeners (which have no
+      authentication) are bound to 127.0.0.1, so only the S3 port answers on
+      the `cps` network; keep `-ip.bind` if you change the command. An empty
+      `S3_SECRET_KEY` makes compose refuse to start: SeaweedFS would otherwise
+      run with no identity and accept anonymous requests.
 - [ ] **Network isolation** — only Caddy publishes ports (80/443). The
-      `server`, `postgres`, and MinIO S3 API stay on the internal `cps`
+      `server`, `postgres`, and the S3 API stay on the internal `cps`
       network with no host ports.
 - [ ] **`.env` hygiene** — never commit it; restrict file perms
       (`chmod 600 .env`); rotate secrets if leaked.
@@ -335,7 +342,7 @@ only stateless `server` replicas + Caddy in compose.
       durable trail has holes: some mutation happened whose row did not land.
       The event is still on stdout (with `audit_persisted: false`) and logged as
       `AUDIT WRITE FAILED`, so nothing is lost if you ship logs.
-- [ ] **Updates** — keep base images (postgres/minio/caddy/dart) patched.
+- [ ] **Updates** — keep base images (postgres/seaweedfs/caddy/dart) patched.
 
 ---
 
@@ -477,3 +484,102 @@ Add to the security checklist when broker mode is on:
 - [ ] **`IDP_CLIENT_SECRET`** is a real secret, kept out of git (like every
       other secret in `.env`).
 - [ ] The IdP redirect URI is `<PUBLIC_BASE_URL>/oauth/callback` over HTTPS.
+
+---
+
+## 10. Migrating from MinIO
+
+MinIO is no longer maintained: its Community Edition repository was archived in
+April 2026, and `minio/minio` and `minio/mc` are gone from Docker Hub. The
+compose file now runs SeaweedFS (Apache-2.0) as service `s3` instead. The server
+itself speaks plain S3, so nothing changes for devices or the CLI.
+
+**An existing install does not need to touch `.env`.** The old values keep
+working: `S3_ENDPOINT=http://minio:9000` still reaches the new store (it answers
+to the name `minio` on the compose network), and `MINIO_ROOT_USER` /
+`MINIO_ROOT_PASSWORD` are read as deprecated aliases of `S3_ACCESS_KEY` /
+`S3_SECRET_KEY` (the server logs one warning per variable at startup).
+
+| Old | New | Notes |
+| --- | --- | --- |
+| `MINIO_ROOT_USER` | `S3_ACCESS_KEY` | alias works; `S3_ACCESS_KEY` wins if both are set |
+| `MINIO_ROOT_PASSWORD` | `S3_SECRET_KEY` | alias works; `S3_SECRET_KEY` wins if both are set |
+| `S3_ENDPOINT=http://minio:9000` | `http://s3:9000` | the old value still works |
+| (none) | `S3_REGION`, `S3_PATH_STYLE` | for AWS S3, R2 and other hosted stores |
+
+**The data does not move by itself.** The old bucket sits in the `cps_minio`
+volume in MinIO's own format, which no other store reads. Starting the new
+compose file without migrating gives you an empty bucket, and every artifact
+the database knows about would 404. So migrate first, in one maintenance
+window (the server is down for the copy: minutes for a few GB):
+
+```bash
+git pull                                   # the new compose file and ops/ scripts
+./ops/migrate-minio-to-s3.sh               # stops the server, copies, verifies
+docker compose -f docker-compose.prod.yaml up -d
+```
+
+`ops/migrate-minio-to-s3.sh`:
+
+1. stops the `server` and removes the old `minio` container (the `cps_minio`
+   volume is kept; a leftover container would answer to the same name as the
+   new store);
+2. starts the new `s3` store, and the old MinIO on the old volume (service
+   `minio-legacy`) from the **image already on your host**. Docker Hub no
+   longer serves `minio/minio`, so nothing is pulled. If your host no longer
+   has it, `MINIO_LEGACY_IMAGE=<repo:tag>` names any image that can open the
+   volume, such as one you built from the last upstream release
+   (`go install github.com/minio/minio@RELEASE.2025-10-15T17-29-55Z`) or a
+   community fork. `LEGACY_ENDPOINT`, `LEGACY_ACCESS_KEY` and
+   `LEGACY_SECRET_KEY` instead copy from a MinIO that is already running;
+3. copies the bucket with a pinned `rclone`, then runs `rclone check
+   --download`, which fails the script unless every old object exists in the
+   new store with identical bytes (it reads both sides; a plain `check` would
+   fall back to comparing sizes when the stores share no hash type);
+4. stops the old MinIO. It deletes nothing.
+
+It is safe to re-run. `DRY_RUN=1` checks the preconditions and prints the steps
+above without running any of them: it stops and removes nothing. Keep the
+`cps_minio` volume until the new stack has served traffic for a while; once you
+are satisfied, `docker volume rm <project>_cps_minio` frees the space.
+
+To roll back, `docker compose stop server`, point the compose file back at the
+old revision and `up -d`: the objects in the old MinIO volume were not changed.
+Objects written since the migration live only in the new store.
+
+Backups taken before the switch (`backups/minio/<STAMP>/`) restore with the new
+`ops/restore.sh` unchanged: it takes the directory as an argument.
+
+### Using a different S3-compatible store
+
+The server needs only PUT, GET (with `Range`), HEAD, DELETE and bucket
+create/head; it uses neither multipart upload nor presigned URLs (downloads are
+streamed through the server). So any S3-compatible store works by setting
+`S3_ENDPOINT`, `S3_REGION`, `S3_PATH_STYLE` and the credentials. For a store
+outside the compose file, also turn the bundled one off by giving the `s3`
+service a profile you never enable, rather than deleting it (the server's
+`depends_on` names it, and Compose rejects a dependency on a service that isn't
+defined):
+
+```yaml
+  s3:
+    profiles: ["bundled-store"]
+```
+
+| Store | `S3_ENDPOINT` | `S3_REGION` | `S3_PATH_STYLE` |
+| --- | --- | --- | --- |
+| SeaweedFS (default) | `http://s3:9000` | any | `true` |
+| RustFS (tested) | `http://s3:9000` | any | `true` |
+| Garage | `http://garage:3900` | the `s3_region` in its config | `true` |
+| Cloudflare R2 | `https://<account>.r2.cloudflarestorage.com` | `auto` | `true` |
+| AWS S3 | `https://s3.<region>.amazonaws.com` | the bucket's region | `false` (or `true`) |
+
+The server creates the bucket on first boot when the credentials may do so;
+create it yourself first on a hosted store where they may not.
+
+To run RustFS instead of SeaweedFS, replace the `s3` service's image with a
+pinned `rustfs/rustfs` tag and digest, set `RUSTFS_ACCESS_KEY` /
+`RUSTFS_SECRET_KEY` from `S3_ACCESS_KEY` / `S3_SECRET_KEY`, and make the
+healthcheck `nc -z 127.0.0.1 9000`. It passed the same tests as SeaweedFS (see
+`CHANGELOG.md`); SeaweedFS is the default because RustFS 1.0 is weeks old and
+has open data-integrity issues on its tracker.

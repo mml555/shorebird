@@ -195,7 +195,7 @@ flowchart TB
   end
   subgraph ours["OUR infrastructure — ONE container by default"]
     SRV["code_push_server<br/>Dart · shelf<br/>SQLite + local-disk artifacts"]
-    SCALE[("scale option:<br/>Postgres + S3/MinIO")]
+    SCALE[("scale option:<br/>Postgres + S3 store")]
     CDN["CDN mirror<br/>artifact_proxy + Caddy"]
     SRV -.->|"only if you scale"| SCALE
   end
@@ -209,7 +209,7 @@ flowchart TB
       <figcaption>fig 1 — control plane. Solid = every run; dashed = first build per engine revision only.</figcaption>
     </figure>
     <ul class="clean" style="margin-top:18px">
-      <li><span class="tick">▹</span><span><b>Ours:</b> the backend (this server), Postgres + MinIO, and the build-time CDN mirror.</span></li>
+      <li><span class="tick">▹</span><span><b>Ours:</b> the backend (this server), Postgres + an S3 store, and the build-time CDN mirror.</span></li>
       <li><span class="tick">▹</span><span><b>Consumed (open source):</b> the CLI, the protocol DTOs, the modified Flutter engine, and the Rust updater (also vendored + built from source in <code>vendor/updater</code>).</span></li>
     </ul>
   </section>
@@ -221,7 +221,7 @@ flowchart TB
 sequenceDiagram
   participant D as Developer (CLI)
   participant S as code_push_server
-  participant O as MinIO / Postgres
+  participant O as S3 store / Postgres
   participant V as Device (updater)
   D->>S: create app · release · register artifacts
   D->>S: upload bytes (multipart or resumable PUT)
@@ -267,7 +267,7 @@ sequenceDiagram
           <tr><td class="feat">Withdraw &amp; rollback</td><td><span class="pill p-ok">complete</span></td><td>transactional promote (one active/channel); device revert via <code>rolled_back_patch_numbers</code></td></tr>
           <tr><td class="feat">Signed patches</td><td><span class="pill p-ok">complete</span></td><td><code>hash_signature</code> pass-through; device verifies against the embedded public key</td></tr>
           <tr><td class="feat">Uploads</td><td><span class="pill p-ok">complete</span></td><td>multipart <em>and</em> GCS-style resumable (Content-Range / 308 / Range)</td></tr>
-          <tr><td class="feat">Downloads</td><td><span class="pill p-ok">complete</span></td><td>short-lived HMAC-signed URLs streamed from MinIO; HTTP range supported</td></tr>
+          <tr><td class="feat">Downloads</td><td><span class="pill p-ok">complete</span></td><td>short-lived HMAC-signed URLs streamed from the object store; HTTP range supported</td></tr>
           <tr><td class="feat">Multi-tenancy</td><td><span class="pill p-ok">complete</span></td><td>users + per-user API keys, orgs + roles, app collaborators, email invitations</td></tr>
           <tr><td class="feat">Login / OAuth</td><td><span class="pill p-ok">complete</span></td><td><code>shorebird login</code> via self-consent <em>or</em> a real IdP broker (Google/Microsoft); RS256 JWT, persisted key</td></tr>
           <tr><td class="feat">Analytics + console</td><td><span class="pill p-ok">complete</span></td><td>adoption, unique users, version distribution, heatmap, install/download metrics + a web dashboard</td></tr>
@@ -339,7 +339,7 @@ sequenceDiagram
           <tr><td><code>domain.dart</code></td><td>lifecycle enums + transition guards (the state machines)</td></tr>
           <tr><td><code>db.dart</code></td><td>backend adapter — SQLite (default, embedded) or Postgres (scale); one SQL set</td></tr>
           <tr><td><code>repository.dart</code></td><td>schema + CRUD + versioned migrations + transactions (backend-agnostic)</td></tr>
-          <tr><td><code>artifact_store.dart</code></td><td>artifact bytes — local filesystem (default) or MinIO/S3, sha256 verify, range reads</td></tr>
+          <tr><td><code>artifact_store.dart</code></td><td>artifact bytes — local filesystem (default) or any S3-compatible store, sha256 verify, range reads</td></tr>
           <tr><td><code>oauth.dart</code></td><td>RS256 JWT mint/verify, IdP token decoding</td></tr>
           <tr><td><code>rollout.dart</code> · <code>signing.dart</code> · <code>content_range.dart</code></td><td>pure, unit-tested logic — bucketing, signed URLs, Content-Range parsing</td></tr>
           <tr><td><code>console/</code></td><td>self-contained web dashboard (apps, rollouts, analytics charts)</td></tr>

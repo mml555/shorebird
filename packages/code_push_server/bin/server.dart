@@ -1,7 +1,7 @@
 // code_push_server — self-hosted Shorebird control plane.
 //
 // Single-container by default (embedded SQLite + local-disk artifacts); an
-// opt-in Postgres + S3/MinIO scale profile is auto-selected by DATABASE_URL /
+// opt-in Postgres + S3-compatible object store scale profile is auto-selected by DATABASE_URL /
 // S3_ENDPOINT. Short-lived signed download URLs, partial rollouts, audit log +
 // rate limiting, multi-tenancy, OAuth login, event-derived analytics,
 // health/readiness, and graceful shutdown. Wire-compatible with the pinned
@@ -21,6 +21,10 @@ Future<void> main() async {
   final config = Config.fromEnv();
   // Set the process-wide log format before anything (migrations included) logs.
   configureLogging(json: config.logFormat == 'json');
+
+  for (final warning in config.deprecationWarnings) {
+    logInfo('WARNING: $warning');
+  }
 
   final problems = config.validate();
   if (problems.isNotEmpty) {

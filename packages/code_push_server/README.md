@@ -126,10 +126,10 @@ in [`../../selfhost/IOS_ONDEVICE.md`](../../selfhost/IOS_ONDEVICE.md).
 
 - **Single container (default) — plug and play.** One container, embedded
   **SQLite** + **local-disk artifacts** under one `/data` volume. No Postgres, no
-  MinIO, no Redis. This is what `./setup.sh` starts, and the right choice for
+  object store, no Redis. This is what `./setup.sh` starts, and the right choice for
   dropping code-push into an existing app or small/medium fleet. Back up = copy
   one volume.
-- **Scale — Postgres + S3/MinIO.** For horizontal scale (multiple stateless
+- **Scale — Postgres + an S3-compatible store (SeaweedFS in compose).** For horizontal scale (multiple stateless
   replicas) or an existing managed database. Selected automatically the moment
   `DATABASE_URL` / `S3_ENDPOINT` are set — which is what `./setup.sh --scale
   --domain <host>` and `docker-compose.prod.yaml` do (**corrected 2026-08-13**:
@@ -143,7 +143,7 @@ in [`../../selfhost/IOS_ONDEVICE.md`](../../selfhost/IOS_ONDEVICE.md).
 ```
                                               default:  SQLite + files  (/data volume)
 Flutter app / CLI ──/api/v1──▶  code_push_server
-on-device updater ──/patches──▶  (stateless, Dart)   scale:  Postgres + S3/MinIO
+on-device updater ──/patches──▶  (stateless, Dart)   scale:  Postgres + S3 store
 ```
 
 The server is **stateless** — all durable state is in the database + artifact
@@ -154,7 +154,7 @@ lib/src/config.dart          env config + backend selection + secret validation
 lib/src/db.dart              Db abstraction: SQLite (default) + Postgres adapters
 lib/src/domain.dart          lifecycle state-machine guards
 lib/src/repository.dart      schema + CRUD + migrations (backend-agnostic)
-lib/src/artifact_store.dart  filesystem (default) + S3/MinIO artifact backends
+lib/src/artifact_store.dart  filesystem (default) + S3-compatible artifact backend (lib/src/s3_client.dart: SigV4 over dart:io)
 lib/src/oauth.dart           RS256 JWT mint/verify + IdP broker
 lib/src/{rollout,signing,content_range}.dart   pure, unit-tested logic
 lib/src/api.dart             HTTP surface (wire contract, auth, admin, analytics)

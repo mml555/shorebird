@@ -2,11 +2,11 @@
 #
 #   ./setup.sh            # generates secrets, starts this, prints next steps
 #
-# ONE container. No Postgres, no MinIO, no Redis — the server embeds SQLite and
+# ONE container. No Postgres, no object store, no Redis — the server embeds SQLite and
 # stores artifacts on a local volume (/data). That volume is the only thing to
 # back up. This is the plug-and-play path for dropping code-push into an
 # existing app/infra. Need horizontal scale? See docker-compose.prod.yaml
-# (Postgres + S3/MinIO + Caddy TLS), selected automatically when DATABASE_URL /
+# (Postgres + S3-compatible store + Caddy TLS), selected automatically when DATABASE_URL /
 # S3_ENDPOINT are set.
 #
 # Run setup.sh first. There is deliberately no zero-config path: API_KEY and
