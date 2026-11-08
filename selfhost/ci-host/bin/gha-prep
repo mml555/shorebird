@@ -123,7 +123,7 @@ if [[ ${GHA_DRY_RUN:-0} == 1 ]]; then
 fi
 # The PAT goes to curl on stdin (-H @-), never on a command line.
 reg=
-hdr=$fail_dir/$user.headers; err=$fail_dir/$user.curlerr
+hdr=$fail_dir/$user.headers; err=$fail_dir/$user.curl_err
 for attempt in 1 2 3; do
   # No -f: on an HTTP error GitHub's JSON body says why ("Bad credentials", "Resource not
   # accessible by personal access token", a rate limit ...); log that message, never the token.

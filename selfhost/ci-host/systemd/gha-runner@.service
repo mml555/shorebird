@@ -21,7 +21,7 @@ ExecStart=/usr/local/sbin/gha-run %i
 Restart=always
 RestartSec=3
 # gha-prep may wait 15 minutes (its backoff cap) plus up to 30 s of jitter, then spend
-# about 2 minutes on token requests, the HOME wipe, untar and config.sh. 30 minutes
+# about 2 minutes on token requests, the HOME wipe, unpacking the runner and config.sh. 30 minutes
 # leaves a wide margin; the timeout must stay above that sum.
 TimeoutStartSec=30min
 # The whole cgroup dies with the main process: no process of a finished job

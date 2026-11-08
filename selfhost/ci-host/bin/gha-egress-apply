@@ -46,7 +46,7 @@ flock 9
 ip addr replace 10.0.2.2/32 dev lo
 shopt -s nullglob
 [[ -r /etc/gha-runners/egress.exclude ]] && EXCLUDE="${EXCLUDE:-} $(tr '\n' ' ' < /etc/gha-runners/egress.exclude)"
-uids=(); uidspec=(); slices=(); in_rules=(); mark_rules=(); jump_rules=(); k=0
+uids=(); uid_elems=(); slices=(); in_rules=(); mark_rules=(); jump_rules=(); k=0
 for conf in /etc/gha-runners/gha-*.conf; do
   u=$(basename "$conf" .conf)
   [[ " ${EXCLUDE:-} " == *" $u "* ]] && continue
@@ -58,7 +58,7 @@ for conf in /etc/gha-runners/gha-*.conf; do
       spec+=",$start-$((start + count - 1))"
     fi
   done < /etc/subuid
-  uidspec+=("$spec")
+  uid_elems+=("$spec")
   # shellcheck source=/dev/null
   range=$( (source "$conf"; echo "${GHA_PORT_RANGE:-}") )
   [[ -n $range ]] && slices+=("$uid ${range// /-}")
@@ -94,7 +94,7 @@ f=$(mktemp); trap 'rm -f "$f"' EXIT
   echo "table inet gha_egress"
   echo "delete table inet gha_egress"
   echo "table inet gha_egress {"
-  echo "  set gha_uids { type uid; flags interval; $( [[ ${#uidspec[@]} -gt 0 ]] && echo "elements = { $(join "${uidspec[@]}") }" ) }"
+  echo "  set gha_uids { type uid; flags interval; $( [[ ${#uid_elems[@]} -gt 0 ]] && echo "elements = { $(join "${uid_elems[@]}") }" ) }"
   echo "  chain gha {"
   echo "    ct state established,related accept"
   echo "    oifname \"lo\" tcp dport { 3128, 5000 } ip daddr { 127.0.0.1, 10.0.2.2 } accept"
