@@ -84,7 +84,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: 🪄 Spell Check (declared full-tree scope)
-        run: npx cspell --dot --no-progress --no-summary selfhost packages/code_push_server/lib
+        run: npx --yes cspell@10.4.0 --dot --no-progress --no-summary selfhost packages/code_push_server/lib
 
   changes:
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
@@ -165,6 +165,11 @@ jobs:
 
   # vendor/updater is a Cargo workspace (library, library_test_hooks, patch).
   # Commands follow vendor/updater/CLAUDE.md; the lint pair is added on top.
+  # Cargo covers the Rust workspace only. vendor/updater/shorebird_code_push
+  # (the Dart package and its test/ files) is NOT run here or anywhere else:
+  # it needs the Flutter SDK (`dart pub get` refuses it), which no runner has,
+  # and it is vendored, so its pubspec is not ours to change. Re-vendoring
+  # from route-b-ca91f4b3 is the place to revisit that.
   # cargo comes from rustup on the runner (the self-hosted host and the
   # hosted image both have it with rustfmt and clippy).
   updater_rust:
@@ -191,17 +196,18 @@ jobs:
         run: cargo fmt --check
 
       - name: 📎 Clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --locked --all-targets -- -D warnings
 
       # One thread: #[serial] only orders tests against each other, and the
       # unmarked tests still race the global updater config. In parallel,
       # 4 of 5 runs on ci-build failed, a different c_api test each time;
       # single-threaded, 5 of 5 passed. The whole suite runs in about 2s.
       - name: 🧪 Test
-        run: cargo test -- --test-threads=1
+        run: cargo test --locked -- --test-threads=1
 
   ci:
-    needs: [actionlint, changes, license_check, updater_rust, verify_packages]
+    needs:
+      [actionlint, changes, cspell_full_tree, license_check, updater_rust, verify_packages]
     # Not always(): that keeps this job alive through a run cancellation,
     # so a superseded push would report ci red on the stale commit. A
     # skipped required check reports success, which is the right answer
