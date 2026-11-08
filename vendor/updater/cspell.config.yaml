@@ -4,6 +4,9 @@ ignorePaths:
   - target
   - build
   - "**/*.g.dart"
+  # Fixture binaries and test keys.
+  - "fixtures/**/*.bin"
+  - fixtures/keys
   # Flutter platform directories with per-platform build files
   - windows
   - macos
@@ -32,28 +35,37 @@ words:
   - comde
   - compatch
   - Condvar
+  - dashmap
   - datadir
   - debuginfo
   - declspec
   - Decompressor
+  - Deque
+  - dgst
   - dllexport
   - dlopen
   - dorny
+  - downcastable
   - downloadables
   - EACCES
   - EDQUOT
   - embedder
   - embedders
   - EOCD
+  - flate
   - endtemplate
   - ENOSPC
+  - EPERM
   - EROFS
   - eseidel
   - felangel
   - ffigen
   - gclient
+  - goldens
   - hdpi
+  - hexdigit
   - ifdef
+  - jailbroken
   - keypair
   - libapp
   - libc
@@ -71,13 +83,18 @@ words:
   - pubspec
   - repr
   - reqwest
+  - retryability
   - rlib
   - roundtrips
+  - rposition
   - rsplit
+  - RSASSA
   - rollforward
   - rollouts
   - RTLD
+  - rustc
   - rustflags
+  - rustfmt
   - rustls
   - rustup
   - serde
@@ -101,9 +118,11 @@ words:
   - taiki
   - Verdana
   - vmcode
+  - webpki
   - withf
   - xlink
   - zstandard
   - zstd
+  - zopfli
   - xcodeproj
   - pbxproj

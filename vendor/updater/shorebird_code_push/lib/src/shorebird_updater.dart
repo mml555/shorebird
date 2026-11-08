@@ -4,6 +4,10 @@ import 'package:shorebird_code_push/src/shorebird_updater_io.dart'
 /// The reason a call to [ShorebirdUpdater.update] failed.
 enum UpdateFailureReason {
   /// No update is available.
+  ///
+  /// [ShorebirdUpdater.update] no longer reports this reason: it completes
+  /// normally when no update is available. This value remains for
+  /// compatibility.
   noUpdate,
 
   /// The update failed because the patch could not be downloaded.
@@ -106,12 +110,17 @@ abstract class ShorebirdUpdater {
   /// {@macro shorebird_updater}
   factory ShorebirdUpdater() => ShorebirdUpdaterImpl();
 
-  /// Whether the updater is available on the current platform.
-  /// The most common reasons for this returning false are:
-  /// 1. The app is running in debug mode (Shorebird only supports release
-  ///    mode).
-  /// 2. The app was *NOT* built using `shorebird release` and does *NOT*
-  ///    contain the Shorebird engine.
+  /// Whether the running app contains the Shorebird engine.
+  ///
+  /// This is false when the app does *NOT* contain the Shorebird engine (e.g.
+  /// it was built with `flutter build` or `flutter run`), or on an unsupported
+  /// platform (e.g. web).
+  ///
+  /// This does not check the build mode or whether the updater started. When
+  /// the engine did not start the updater, as in some non-release builds, this
+  /// is still true, but [readCurrentPatch] and [readNextPatch] return `null`,
+  /// [checkForUpdate] returns [UpdateStatus.upToDate], and [update] throws an
+  /// [UpdateException].
   bool get isAvailable;
 
   /// Returns information about the currently installed patch.
@@ -155,32 +164,14 @@ abstract class ShorebirdUpdater {
   /// Updates the app to the latest patch available on the specified track, or
   /// [UpdateTrack.stable] if no track is specified.
   ///
-  /// Completes normally on every benign outcome, and throws [UpdateException]
-  /// only on an actual failure:
-  ///
-  /// | outcome | behaviour |
-  /// |---|---|
-  /// | a patch was downloaded and installed | returns normally |
-  /// | no update available on the track | returns normally |
-  /// | another update was already in progress | returns normally |
-  /// | download or install actually failed | throws [UpdateException] |
-  ///
-  /// "Another update already in progress" is usually the automatic updater
-  /// thread; the caller simply did not start a new one, which is not an error.
-  ///
-  /// This previously read *"If no update is available or the update fails, this
-  /// method will throw an [UpdateException]"*, which did not match the
-  /// implementation — `SHOREBIRD_NO_UPDATE` has always been handled alongside
-  /// installed and in-progress as a successful result. Corrected after a device
-  /// certification observed `update()` on an empty track returning normally
-  /// (`selfhost/evidence/p6-manual-api/VERDICT.md`). The BEHAVIOUR was correct;
-  /// only this comment was wrong.
+  /// If the update fails, this method will throw an [UpdateException]. It does
+  /// not throw if no update is available.
   ///
   /// The returned Future will complete once the update is fully downloaded and
   /// ready to be used on the next app start.
   ///
   /// Note: The app must be restarted for the update to take effect.
-  /// Note: This method does nothing if the updater is not available.
+  /// Note: This method does nothing if [isAvailable] is false.
   ///
   /// **Warning:** This method makes a network call to download the update,
   /// which may take a long time to complete. If your app gates startup on
@@ -202,7 +193,8 @@ abstract class ShorebirdUpdater {
   /// ```
   ///
   /// See also:
-  /// * [isAvailable], which indicates whether the updater is available.
+  /// * [isAvailable], which indicates whether the app contains the Shorebird
+  ///   engine.
   /// * [checkForUpdate], which should be called to check if an update is
   ///   available before calling this method.
   Future<void> update({UpdateTrack? track});

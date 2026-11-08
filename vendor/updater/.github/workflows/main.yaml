@@ -1,5 +1,15 @@
-# cspell:words dorny codecov
+# cspell:words dorny
 name: ci
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel superseded PR runs: a newer push's result covers the older one.
+  # Runs on main always finish so each commit has its own pass or fail,
+  # which shows which commit broke main.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 on:
   pull_request:
@@ -8,20 +18,11 @@ on:
       - main
 
 jobs:
-  semantic_pull_request:
-    name: ✅ Semantic Pull Request
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/semantic_pull_request.yml@v1
-
-  cspell:
-    name: 🔤 Check Spelling
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/spell_check.yml@v1
-    with:
-      config: cspell.config.yaml
-
   changes:
     runs-on: ubuntu-latest
 
     permissions:
+      contents: read
       pull-requests: read
 
     outputs:
@@ -32,9 +33,9 @@ jobs:
 
     steps:
       - name: 📚 Git Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         name: Build Detection
         id: needs_flutter_build
         with:
@@ -43,6 +44,8 @@ jobs:
               - ./.github/workflows/main.yaml
               - ./.github/actions/flutter_package/action.yaml
               - shorebird_code_push/**
+              - Cargo.lock
+              - rust-toolchain.toml
               # Integration tests under shorebird_code_push/test/integration
               # build and load the library_test_hooks cdylib, which
               # re-exports the production updater C API. A change to
@@ -51,21 +54,33 @@ jobs:
               - library/**
               - library_test_hooks/**
 
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         name: Build Detection
         id: needs_rust_build
         with:
           filters: |
             library:
+              - ./.github/workflows/main.yaml
               - ./.github/actions/rust_crate/action.yaml
+              - Cargo.lock
+              - Cargo.toml
+              - rust-toolchain.toml
               - library/**
             patch:
               - ./.github/actions/rust_crate/action.yaml
+              - Cargo.lock
+              - Cargo.toml
+              - rust-toolchain.toml
               - patch/**
             library_test_hooks:
               - ./.github/actions/rust_crate/action.yaml
+              - Cargo.lock
+              - Cargo.toml
+              - rust-toolchain.toml
               - library/**
               - library_test_hooks/**
+              # tests/fixture_corpus.rs replays the fixture corpus.
+              - fixtures/**
 
   build_rust_crates:
     needs: changes
@@ -82,13 +97,77 @@ jobs:
 
     steps:
       - name: 📚 Git Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: 🦀 Build ${{ matrix.crate }}
         uses: ./.github/actions/rust_crate
         with:
-          codecov_token: ${{ secrets.CODECOV_TOKEN }}
           working_directory: ${{ matrix.crate }}
+
+  # The host builds above never compile code behind cfg(target_os =
+  # "android") or cfg(target_os = "ios"); the engine build is the first place
+  # those paths compile. Lint them for the mobile targets here instead.
+  check_mobile_targets:
+    needs: changes
+    if: ${{ contains(fromJSON(needs.changes.outputs.needs_rust_build), 'library') }}
+
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-linux-android
+            os: ubuntu-latest
+          - target: aarch64-apple-ios
+            os: macos-latest
+          # The engine's arm64 iOS simulator build links this target
+          # (shorebirdtech/flutter#225).
+          - target: aarch64-apple-ios-sim
+            os: macos-latest
+
+    runs-on: ${{ matrix.os }}
+
+    name: 📱 Check library (${{ matrix.target }})
+
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: 🦀 Add ${{ matrix.target }}
+        run: rustup target add ${{ matrix.target }}
+
+      # The runner image ships an NDK at ANDROID_NDK_HOME; cargo-ndk points
+      # the C compiler that zstd-sys builds with at it.
+      - name: 🤖 Install cargo-ndk
+        if: ${{ contains(matrix.target, 'android') }}
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: cargo-ndk
+
+      - name: 🤖 Clippy (Android)
+        if: ${{ contains(matrix.target, 'android') }}
+        working-directory: library
+        run: cargo ndk --target ${{ matrix.target }} clippy -- -D warnings
+
+      - name: 🍎 Clippy (iOS)
+        if: ${{ contains(matrix.target, 'ios') }}
+        working-directory: library
+        run: cargo clippy --target ${{ matrix.target }} -- -D warnings
+
+  # Advisories, banned crates and sources for every crate in Cargo.lock
+  # (config in deny.toml). Runs on every PR, not only Rust changes, so a
+  # newly published advisory against a dependency we already ship fails CI.
+  cargo_deny:
+    runs-on: ubuntu-latest
+
+    name: 🛡️ cargo deny
+
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: 🛡️ cargo deny
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          command: check advisories bans sources
 
   build_flutter_packages:
     needs: changes
@@ -104,24 +183,24 @@ jobs:
 
     steps:
       - name: 📚 Git Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
       - name: 🐦 Build ${{ matrix.package }}
         uses: ./.github/actions/flutter_package
         with:
-          codecov_token: ${{ secrets.CODECOV_TOKEN }}
           coverage_excludes: "**/*.g.dart"
           working_directory: ${{ matrix.package }}
 
   ci:
-    needs: [semantic_pull_request, build_flutter_packages, build_rust_crates]
+    needs: [build_flutter_packages, build_rust_crates, cargo_deny, check_mobile_targets]
     if: ${{ always() }}
 
     runs-on: ubuntu-latest
 
     steps:
+      # A cancelled job never ran its checks, so it fails the gate too.
       - name: ⛔️ exit(1) on failure
-        if: ${{ contains(join(needs.*.result, ','), 'failure') }}
+        if: ${{ contains(join(needs.*.result, ','), 'failure') || contains(join(needs.*.result, ','), 'cancelled') }}
         run: exit 1
