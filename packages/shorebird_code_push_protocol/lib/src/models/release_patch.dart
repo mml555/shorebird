@@ -70,26 +70,6 @@ class ReleasePatch {
   /// Freeform notes associated with the patch, if any.
   final String? notes;
 
-  /// Returns a copy of this [ReleasePatch] with the given fields replaced by
-  /// the new values.
-  ReleasePatch copyWith({
-    int? id,
-    int? number,
-    String? channel,
-    List<PatchArtifact>? artifacts,
-    bool? isRolledBack,
-    DateTime? createdAt,
-    String? notes,
-  }) => ReleasePatch(
-    id: id ?? this.id,
-    number: number ?? this.number,
-    channel: channel ?? this.channel,
-    artifacts: artifacts ?? this.artifacts,
-    isRolledBack: isRolledBack ?? this.isRolledBack,
-    createdAt: createdAt ?? this.createdAt,
-    notes: notes ?? this.notes,
-  );
-
   /// Converts a [ReleasePatch] to a `Map<String, dynamic>`.
   Map<String, dynamic> toJson() {
     return {
