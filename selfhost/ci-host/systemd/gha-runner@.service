@@ -20,9 +20,10 @@ ExecStartPre=+/usr/local/sbin/gha-prep %i
 ExecStart=/usr/local/sbin/gha-run %i
 Restart=always
 RestartSec=3
-# gha-prep waits up to 15 minutes between failed registrations (its backoff),
-# and the start timeout covers it.
-TimeoutStartSec=20min
+# gha-prep may wait 15 minutes (its backoff cap) plus up to 30 s of jitter, then spend
+# about 2 minutes on token requests, the HOME wipe, untar and config.sh. 30 minutes
+# leaves a wide margin; the timeout must stay above that sum.
+TimeoutStartSec=30min
 # The whole cgroup dies with the main process: no process of a finished job
 # survives into the next one.
 KillMode=control-group

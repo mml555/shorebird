@@ -21,11 +21,22 @@
 # rebuilt whenever a runner unit is (re)started; gha-prep does that on every start.
 # A user whose unit has no cgroup yet gets "drop every marked SYN" (fail closed).
 #
+# Who counts as "the user's traffic": the user's uid, the user's subuid ranges from
+# /etc/subuid (a job can run processes under them in the host network namespace, via
+# rootlesskit or `docker run --network host --user N`; the kernel then names the
+# subuid as the socket owner) and, belt and braces, anything in the user's
+# gha-runner@<user> cgroup whatever its uid.
+#
 # Idempotent: replaces only its own table. EXCLUDE="gha-sb1 ..." leaves users out
 # (staged rollout while their runner is busy); also read from the file
 # /etc/gha-runners/egress.exclude (one user per line) when it exists. Normally neither is set.
 set -euo pipefail
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# --stamp: print a fingerprint of everything the table is built from (this script, the
+# runner configs, /etc/subuid). A successful apply stores it in /run/gha-egress.stamp, so
+# install.sh can tell whether the loaded table is out of date.
+stamp() { { cat "$0" /etc/subuid /etc/gha-runners/egress.exclude /etc/gha-runners/gha-*.conf 2>/dev/null || true; } | sha256sum | cut -d' ' -f1; }
+[[ ${1:-} != --stamp ]] || { stamp; exit 0; }
 [[ $EUID -eq 0 ]] || { echo "run as root" >&2; exit 1; }
 # Serialise: two runner starts must not interleave "read cgroup ids" and "load table".
 exec 9> /run/gha-egress-apply.lock
@@ -35,21 +46,32 @@ flock 9
 ip addr replace 10.0.2.2/32 dev lo
 shopt -s nullglob
 [[ -r /etc/gha-runners/egress.exclude ]] && EXCLUDE="${EXCLUDE:-} $(tr '\n' ' ' < /etc/gha-runners/egress.exclude)"
-uids=(); slices=(); in_rules=(); mark_rules=()
+uids=(); uidspec=(); slices=(); in_rules=(); mark_rules=(); jump_rules=(); k=0
 for conf in /etc/gha-runners/gha-*.conf; do
   u=$(basename "$conf" .conf)
   [[ " ${EXCLUDE:-} " == *" $u "* ]] && continue
   uid=$(id -u "$u" 2>/dev/null) || continue
-  uids+=("$uid")
+  uids+=("$uid"); k=$((k + 1))
+  spec=$uid
+  while IFS=: read -r name start count; do
+    if [[ $name == "$u" || $name == "$uid" ]] && [[ $start =~ ^[0-9]+$ && $count =~ ^[0-9]+$ ]]; then
+      spec+=",$start-$((start + count - 1))"
+    fi
+  done < /etc/subuid
+  uidspec+=("$spec")
   # shellcheck source=/dev/null
   range=$( (source "$conf"; echo "${GHA_PORT_RANGE:-}") )
   [[ -n $range ]] && slices+=("$uid ${range// /-}")
-  mark=$(printf '0x%08x' $((0x6a000000 | uid)))
-  mark_rules+=("    meta skuid $uid oifname \"lo\" meta mark set $mark")
+  # 0x6a<index>: one value per runner (not the uid, which can exceed 24 bits). It
+  # overwrites any mark another component set on this user's loopback packets.
+  mark=$(printf '0x%08x' $((0x6a000000 | k)))
+  mark_rules+=("    meta skuid { $spec } oifname \"lo\" meta mark set $mark")
   # systemd names the cgroup of the template instance like this (the dash in
   # "gha-runner" is escaped as \x2d in the slice name).
   cg="system.slice/system-gha\\x2drunner.slice/gha-runner@$u.service"
   if [[ -d "/sys/fs/cgroup/$cg" ]]; then
+    jump_rules+=("    socket cgroupv2 level 3 \"$cg\" jump gha")
+    mark_rules+=("    socket cgroupv2 level 3 \"$cg\" oifname \"lo\" meta mark set $mark")
     # Accept the user's own listeners, drop any other listener that is found. (A `!=`
     # match would not work: for a listener in a shallower cgroup, such as
     # system.slice/foo.service, "the level-3 ancestor" does not exist and nft skips the rule.)
@@ -72,7 +94,7 @@ f=$(mktemp); trap 'rm -f "$f"' EXIT
   echo "table inet gha_egress"
   echo "delete table inet gha_egress"
   echo "table inet gha_egress {"
-  echo "  set gha_uids { type uid; $( [[ ${#uids[@]} -gt 0 ]] && echo "elements = { $(join "${uids[@]}") }" ) }"
+  echo "  set gha_uids { type uid; flags interval; $( [[ ${#uidspec[@]} -gt 0 ]] && echo "elements = { $(join "${uidspec[@]}") }" ) }"
   echo "  chain gha {"
   echo "    ct state established,related accept"
   echo "    oifname \"lo\" tcp dport { 3128, 5000 } ip daddr { 127.0.0.1, 10.0.2.2 } accept"
@@ -89,6 +111,7 @@ f=$(mktemp); trap 'rm -f "$f"' EXIT
   echo "  }"
   echo "  chain output {"
   echo "    type filter hook output priority filter; policy accept;"
+  printf '%s\n' "${jump_rules[@]}"
   echo "    meta skuid @gha_uids jump gha"
   echo "  }"
   echo "  chain input {"
@@ -99,4 +122,5 @@ f=$(mktemp); trap 'rm -f "$f"' EXIT
 } > "$f"
 nft -c -f "$f"
 nft -f "$f"
+stamp > /run/gha-egress.stamp
 echo "gha-egress-apply: table inet gha_egress loaded for uids: ${uids[*]:-none}"

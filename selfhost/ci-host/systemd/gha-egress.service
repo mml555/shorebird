@@ -11,7 +11,8 @@ Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/local/sbin/gha-egress-apply
 ExecReload=/usr/local/sbin/gha-egress-apply
-ExecStop=-/usr/sbin/nft delete table inet gha_egress
+# No ExecStop: stopping or restarting this unit must not remove the table, or running jobs
+# would have unrestricted egress. The table stays loaded; gha-egress-apply replaces it.
 
 [Install]
 WantedBy=multi-user.target

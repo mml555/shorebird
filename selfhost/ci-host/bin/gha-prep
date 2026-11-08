@@ -28,8 +28,41 @@ if [[ -e /etc/sudoers ]] && grep -rqsE "^[^#]*\b$user\b" /etc/sudoers /etc/sudoe
   echo "REFUSING: $user has a sudoers entry" >&2; exit 3
 fi
 
-# Egress: (re)load the nftables allowlist (it also refreshes the set of host ports jobs
-# may not reach). Fail closed: no runner starts without it. See gha-egress-apply.
+# ---- Back off across restarts (first thing, before any work is repeated) -----
+# systemd restarts a failed start 3 s later, so a per-start retry loop alone hammers the
+# API from every runner at once: on 2026-11-08 five runners retrying every few seconds
+# kept the account's rate limit tripped, which blocked their own registration. Count
+# consecutive failures in /run and wait 1, 2, 4, 8, then 15 minutes (capped, plus up to
+# 30 s of jitter so runners sharing a PAT do not wake together) before the next attempt.
+# When GitHub named the end of a rate limit, wait for that instead (also capped at 15 min;
+# the unit's TimeoutStartSec must stay above the cap plus a normal start, see the unit).
+# The count resets only when config.sh succeeds. A new token file (newer than the last
+# failure) skips the wait. Operator escape: rm /run/gha-prep/<user>.* and restart the unit.
+fail_dir=/run/gha-prep
+fail_file=$fail_dir/$user.failures
+until_file=$fail_dir/$user.until
+if [[ ${GHA_DRY_RUN:-0} != 1 ]]; then
+  [[ -s $GHA_TOKEN_FILE ]] || { echo "no PAT at $GHA_TOKEN_FILE" >&2; exit 5; }
+  mkdir -p "$fail_dir"
+  failures=$(cat "$fail_file" 2>/dev/null || echo 0)
+  [[ $failures =~ ^[0-9]+$ ]] || failures=0
+  if [[ -e $fail_file && $GHA_TOKEN_FILE -nt $fail_file ]]; then
+    echo "gha-prep: the token file is newer than the last failure; not waiting" >&2
+    failures=0; rm -f "$fail_file" "$until_file"
+  fi
+  if (( failures > 0 )); then
+    delay=$(( 60 << (failures > 4 ? 4 : failures - 1) ))
+    until_ts=$(cat "$until_file" 2>/dev/null || echo 0)
+    [[ $until_ts =~ ^[0-9]+$ ]] || until_ts=0
+    (( until_ts - $(date +%s) > delay )) && delay=$(( until_ts - $(date +%s) ))
+    (( delay > 900 )) && delay=900
+    delay=$(( delay + RANDOM % 30 ))
+    echo "gha-prep: $failures failed registration(s) in a row; waiting ${delay}s before asking GitHub again" >&2
+    sleep "$delay"
+  fi
+fi
+
+# Egress: (re)load the nftables allowlist (it also refreshes the runner cgroup ids it matches). Fail closed: no runner starts without it. See gha-egress-apply.
 /usr/local/sbin/gha-egress-apply >/dev/null \
   || { echo "REFUSING: could not load the gha_egress firewall table" >&2; exit 8; }
 [[ $(systemctl is-active squid) == active ]] \
@@ -88,52 +121,44 @@ if [[ ${GHA_DRY_RUN:-0} == 1 ]]; then
   echo "gha-prep: dry run, not registering"
   exit 0
 fi
-[[ -s $GHA_TOKEN_FILE ]] || { echo "no PAT at $GHA_TOKEN_FILE" >&2; exit 5; }
-# Back off across restarts. systemd restarts a failed start 3 s later, so a
-# per-start retry loop alone hammers the API from every runner at once: on
-# 2026-11-08 five runners retrying every few seconds kept the account's
-# secondary rate limit tripped, which blocked their own registration. Count
-# consecutive failures in /run and wait 1, 2, 4, 8, then 15 minutes (capped)
-# before the next attempt; a success resets the count.
-fail_dir=/run/gha-prep
-fail_file=$fail_dir/$user.failures
-mkdir -p "$fail_dir"
-failures=$(cat "$fail_file" 2>/dev/null || echo 0)
-[[ $failures =~ ^[0-9]+$ ]] || failures=0
-if (( failures > 0 )); then
-  delay=$(( 60 << (failures > 4 ? 4 : failures - 1) ))
-  (( delay > 900 )) && delay=900
-  echo "gha-prep: $failures failed registration(s) in a row; waiting ${delay}s before asking GitHub again" >&2
-  sleep "$delay"
-fi
-
 # The PAT goes to curl on stdin (-H @-), never on a command line.
 reg=
+hdr=$fail_dir/$user.headers; err=$fail_dir/$user.curlerr
 for attempt in 1 2 3; do
   # No -f: on an HTTP error GitHub's JSON body says why ("Bad credentials", "Resource not
   # accessible by personal access token", a rate limit ...); log that message, never the token.
   resp=$(printf 'Authorization: Bearer %s\n' "$(< "$GHA_TOKEN_FILE")" | curl -sS --max-time 30 -X POST \
-    -H @- -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
-    "https://api.github.com/repos/$GHA_REPO/actions/runners/registration-token") || resp=
+    -D "$hdr" -H @- -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
+    "https://api.github.com/repos/$GHA_REPO/actions/runners/registration-token" 2>"$err") || resp=
   reg=$(jq -er .token <<<"$resp" 2>/dev/null) && break
   reg=
-  msg=$(jq -r '.message // "no JSON answer"' <<<"$resp" 2>/dev/null || echo "no JSON answer")
+  msg=$(jq -r '.message // empty' <<<"$resp" 2>/dev/null || true)
+  [[ -n $msg ]] || msg="no JSON answer ($(head -c 200 "$err" 2>/dev/null | tr '\n' ' '))"
   echo "gha-prep: registration token request failed (attempt $attempt): $msg" >&2
-  # Retrying a rate limit sooner only keeps it tripped; leave it to the backoff.
-  [[ $msg == *"rate limit"* ]] && break
+  if [[ $msg == *"rate limit"* ]]; then
+    # Retrying sooner only keeps the limit tripped. Remember when GitHub says it ends.
+    hv() { tr -d '\r' < "$hdr" | awk -F': *' -v k="$1" 'tolower($1)==k{print $2; exit}'; }
+    reset=$(hv x-ratelimit-reset); ra=$(hv retry-after)
+    [[ ${ra:-} =~ ^[0-9]+$ ]] && reset=$(( $(date +%s) + ra ))
+    [[ ${reset:-} =~ ^[0-9]+$ ]] && echo "$reset" > "$until_file"
+    break
+  fi
   sleep $((attempt * 5))
 done
+rm -f "$hdr" "$err"
 if [[ -z $reg ]]; then
   echo $((failures + 1)) > "$fail_file"
   echo "could not mint a registration token for $GHA_REPO" >&2
   exit 6
 fi
-rm -f "$fail_file"
 
 # The token travels in the environment (ACTIONS_RUNNER_INPUT_TOKEN), not argv.
 # shellcheck source=/dev/null
 ( set -a; source /etc/gha-runners/proxy.env; set +a; cd "$home/runner" &&
   HOME=$home USER=$user LOGNAME=$user PATH=$jobpath ACTIONS_RUNNER_INPUT_TOKEN=$reg \
   setpriv --reuid="$uid" --regid="$gid" --clear-groups ./config.sh --url "https://github.com/$GHA_REPO" --name "$GHA_NAME" \
-    --labels "$GHA_LABELS" --work _work --ephemeral --disableupdate --unattended --replace )
+    --labels "$GHA_LABELS" --work _work --ephemeral --disableupdate --unattended --replace ) \
+  || { echo $((failures + 1)) > "$fail_file"; echo "config.sh failed for $GHA_REPO" >&2; exit 6; }
+# Only now is a registration really done: reset the backoff.
+rm -f "$fail_file" "$until_file"
 echo "gha-prep: $GHA_NAME registered (ephemeral) for $GHA_REPO"

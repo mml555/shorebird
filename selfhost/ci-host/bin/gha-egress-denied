@@ -20,6 +20,7 @@ done
 n=${BASH_REMATCH[1]}
 case ${BASH_REMATCH[2]} in s) secs=$n ;; m) secs=$((n * 60)) ;; h) secs=$((n * 3600)) ;; d) secs=$((n * 86400)) ;; esac
 cutoff=$(( $(date +%s) - secs ))
+(( secs <= 86400 )) || echo "note: only the current and the previous day's log are kept; older requests are not shown" >&2
 
 logs=()
 for l in /var/log/squid/access.log.1 /var/log/squid/access.log; do [[ -e $l ]] && logs+=("$l"); done

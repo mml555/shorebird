@@ -34,9 +34,14 @@ maintainer approves it. Everything below limits the damage if an approved job is
   runner whose user is in `sudo`, `docker`, `lxd`, `adm`, `kvm`, `root`, `disk` or
   `shadow`, or has a sudoers entry.
 - Outbound traffic of runner users is dropped by nftables except to the proxy
-  (127.0.0.1 and 10.0.2.2, port 3128) and the registry cache. No direct DNS, no direct
-  internet, IPv4 and IPv6. The proxy allows only the hosts in `squid/` and never reaches
-  private or loopback addresses.
+  (127.0.0.1 and 10.0.2.2, port 3128), the registry cache (127.0.0.1:5000) and loopback
+  ports used between a job's own processes (5432/6379, the ephemeral range and the
+  user's Docker port slice; the loopback bullet below limits who may listen there).
+  No direct DNS, no direct internet, IPv4 and IPv6. "The user's traffic" means the
+  user's uid, its `/etc/subuid` range and anything in its `gha-runner@<user>` cgroup, so
+  a process in a user namespace (rootlesskit, `docker run --network host --user N`) is
+  covered. The proxy allows only the hosts in `squid/` (by name: an IP-literal target
+  matches nothing) and never reaches private or loopback addresses.
 - Loopback between jobs: a job may connect to a loopback listener only if the listener
   belongs to its own runner unit's cgroup. Host services (anything the owner starts at
   any time), other runners and processes outside the unit are unreachable. This is
@@ -62,6 +67,14 @@ needs `index.` and `static.`, not the bare name), and `registry-1.docker.io`,
 `auth.docker.io`, `production.cloudflare.docker.com` (images come through the pull-through
 cache, which fetches them itself; no job ever used the Hub directly). If a job needs one
 back, add it as below.
+
+| the registry cache on `127.0.0.1:5000` | image pulls | the cache runs as root and fetches any public path on `registry-1.docker.io` for any job (an arbitrary public image, or data encoded in an image name). It is not on the allowlist, but it is not closed either |
+
+Also accepted: nftables does not cover Unix sockets. Abstract-namespace sockets belong to
+the network namespace, which jobs share with the host (dockerd runs in it). Today
+`/var/run/docker.sock` is `root:docker 0660` and `/run/containerd` is closed to the
+runner users, so nothing reachable is lost; re-check if a host service adds an
+abstract or world-accessible socket.
 
 Also accepted: a job can read everything in its own HOME and the checked-out repo, and can
 use the CPU, disk and the allowed hosts while it runs. A job cannot outlive its unit.
@@ -110,8 +123,12 @@ sudo journalctl -u gha-runner@gha-sb1 --since -10min | grep gha-prep
 
 `gha-prep` logs GitHub's own message when it cannot get a registration token (for example
 "API rate limit exceeded" when the token's account used up its hourly quota, or "Bad
-credentials" for an expired or revoked token). Fix the token in `/etc/gha`; nothing else
-needs a restart, the unit keeps retrying.
+credentials" for an expired or revoked token). After a failed registration `gha-prep`
+backs off before it touches anything (1, 2, 4, 8, then 15 minutes, plus up to 30 s of
+jitter; if GitHub named the end of a rate limit it waits for that), and it resets the count
+only when `config.sh` succeeds. A token file newer than the last failure skips the wait.
+To skip it by hand: `sudo rm /run/gha-prep/<user>.*` and `sudo systemctl restart
+gha-runner@<user>` (only when no `Runner.Worker` is running for that user).
 
 ## Add a runner
 
@@ -130,7 +147,8 @@ Never restart a runner that is running a job (`pgrep -a Runner.Worker`).
 - A change here: revert the commit and run `install.sh`. For the firewall script alone,
   the previous version stays valid; re-run `gha-egress-apply` to load it.
 - Emergency, firewall: `sudo nft delete table inet gha_egress` opens egress for runner
-  users (the next runner start or `gha-egress-apply` rebuilds it; `gha-prep` refuses to
-  start a runner while the table is missing).
+  users (the next runner start or `gha-egress-apply` rebuilds it; `gha-prep` re-creates it at
+  every start and refuses to start the runner if that fails). `gha-egress.service` does
+  not remove the table when stopped, so restarting it never opens egress.
 - Emergency, proxy: `sudo systemctl stop squid` blocks all job traffic (the jobs fail, nothing leaks).
 - Disable one runner: `sudo systemctl disable --now gha-runner@<user>`, after its job ends.
