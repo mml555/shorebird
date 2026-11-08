@@ -53,6 +53,10 @@ services:
         condition: service_healthy
       s3:
         condition: service_healthy
+        # Not required: with an external store, the s3 service is turned off
+        # with a profile (PRODUCTION.md, "Using a different S3-compatible
+        # store") and the server must still start.
+        required: false
     networks:
       - cps
 

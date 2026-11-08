@@ -53,6 +53,11 @@ DC=(docker compose --progress quiet -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}
 RCLONE=("${DC[@]}" --profile tools run --rm --no-deps -T rclone)
 EXTERNAL=0
 [[ -n "${LEGACY_ENDPOINT:-}" ]] && EXTERNAL=1
+# The target is the bundled store only while the compose file's s3 service is
+# enabled. When a profile turns it off (PRODUCTION.md), S3_ENDPOINT names an
+# external store, which is already running and is not this script's to start.
+BUNDLED_STORE=0
+"${DC[@]}" config --services 2>/dev/null | grep -qx s3 && BUNDLED_STORE=1
 # The legacy credentials default to the MINIO_ROOT_* of the old .env, else the
 # S3_* ones (the old and new compose files shared them).
 export LEGACY_ACCESS_KEY="${LEGACY_ACCESS_KEY:-${MINIO_ROOT_USER:-${S3_ACCESS_KEY}}}"
@@ -80,7 +85,11 @@ if [[ "${DRY_RUN:-0}" == 1 ]]; then
   echo "==> DRY_RUN: preconditions hold; nothing was changed or stopped. A real run would:"
   echo "    1. stop the server"
   (( EXTERNAL )) || echo "    2. remove the old 'minio' container (the cps_minio volume is kept)"
-  echo "    3. start the new object store"
+  if (( BUNDLED_STORE )); then
+    echo "    3. start the new object store (compose service s3)"
+  else
+    echo "    3. use the external store at ${S3_ENDPOINT} (the compose file's s3 service is off)"
+  fi
   (( EXTERNAL )) || echo "    4. start minio-legacy on the cps_minio volume (${MINIO_LEGACY_IMAGE})"
   echo "    5. copy legacy:${S3_BUCKET} -> store:${S3_BUCKET}, then compare every byte"
   echo "    6. stop minio-legacy; the server stays stopped until you start it"
@@ -106,8 +115,14 @@ if (( ! EXTERNAL )) && [[ -n "${project}" ]]; then
   fi
 fi
 
-echo "==> Starting the new object store"
-"${DC[@]}" up -d --wait s3 >/dev/null || die "the new object store did not become healthy (docker compose logs s3)"
+if (( BUNDLED_STORE )); then
+  echo "==> Starting the new object store"
+  "${DC[@]}" up -d --wait s3 >/dev/null || die "the new object store did not become healthy (docker compose logs s3)"
+else
+  echo "==> Checking the external store at ${S3_ENDPOINT}"
+  "${RCLONE[@]}" lsd store: --retries 1 --low-level-retries 1 --contimeout 5s >/dev/null 2>&1 \
+    || die "cannot reach the store at ${S3_ENDPOINT} with the credentials in .env"
+fi
 
 if (( ! EXTERNAL )); then
   echo "==> Starting the old MinIO on the cps_minio volume (${MINIO_LEGACY_IMAGE})"

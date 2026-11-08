@@ -555,8 +555,16 @@ Backups taken before the switch (`backups/minio/<STAMP>/`) restore with the new
 The server needs only PUT, GET (with `Range`), HEAD, DELETE and bucket
 create/head; it uses neither multipart upload nor presigned URLs (downloads are
 streamed through the server). So any S3-compatible store works by setting
-`S3_ENDPOINT`, `S3_REGION`, `S3_PATH_STYLE` and the credentials, after which you
-remove the `s3` service from the compose file:
+`S3_ENDPOINT`, `S3_REGION`, `S3_PATH_STYLE` and the credentials. For a store
+outside the compose file, also turn the bundled one off by giving the `s3`
+service a profile you never enable, rather than deleting it (the server's
+`depends_on` names it, and Compose rejects a dependency on a service that isn't
+defined):
+
+```yaml
+  s3:
+    profiles: ["bundled-store"]
+```
 
 | Store | `S3_ENDPOINT` | `S3_REGION` | `S3_PATH_STYLE` |
 | --- | --- | --- | --- |
