@@ -7,8 +7,8 @@
 #   Stage 2 (run):   copy the executable + the Dart runtime shared libraries
 #                    onto a minimal Debian base and run as a non-root user.
 #
-# Both the Postgres client (package:postgres) and the MinIO/S3 client
-# (package:minio) are pure Dart, so no extra native libraries are needed
+# Both the Postgres client (package:postgres) and the S3 client
+# (lib/src/s3_client.dart, plain dart:io) are pure Dart, so no extra native libraries are needed
 # beyond the small runtime the `dart compile exe` output links against
 # (libc, and Dart's bundled runtime shipped from /runtime/).
 #

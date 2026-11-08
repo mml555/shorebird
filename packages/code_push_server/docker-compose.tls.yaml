@@ -1,5 +1,5 @@
 # TLS overlay for the SINGLE-CONTAINER stack: puts Caddy in front of the server
-# for automatic HTTPS, without adding Postgres/MinIO. Layer it on the default:
+# for automatic HTTPS, without adding Postgres or an object store. Layer it on the default:
 #
 #   docker compose -f docker-compose.yaml -f docker-compose.tls.yaml up -d
 #
