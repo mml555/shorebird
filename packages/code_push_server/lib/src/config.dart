@@ -17,6 +17,9 @@ class Config {
     required this.s3SecretKey,
     required this.s3Bucket,
     required this.s3UseSsl,
+    this.s3Region = 'us-east-1',
+    this.s3PathStyle = true,
+    this.deprecationWarnings = const [],
     required this.urlSigningSecret,
     required this.jwtIssuer,
     required this.downloadUrlTtl,
@@ -43,8 +46,33 @@ class Config {
     this.patchSigningKeySecret,
   });
 
-  factory Config.fromEnv() {
-    final env = Platform.environment;
+  /// Environment variables from the MinIO era, mapped to what replaced them.
+  /// MinIO is no longer maintained, so the object store is now any S3-compatible
+  /// server (SeaweedFS in the shipped compose files). The old names keep
+  /// working, with a startup warning, until a future major release.
+  static const deprecatedEnv = <String, String>{
+    'MINIO_ROOT_USER': 'S3_ACCESS_KEY',
+    'MINIO_ROOT_PASSWORD': 'S3_SECRET_KEY',
+  };
+
+  /// Reads the configuration from [environment] (the process environment when
+  /// omitted).
+  factory Config.fromEnv([Map<String, String>? environment]) {
+    final rawEnv = environment ?? Platform.environment;
+    // A deprecated name only fills in for its replacement: when both are set
+    // the new one wins, so an operator can migrate one variable at a time.
+    final warnings = <String>[];
+    final env = {...rawEnv};
+    deprecatedEnv.forEach((old, replacement) {
+      final value = rawEnv[old];
+      if (value == null) return;
+      final used = !rawEnv.containsKey(replacement);
+      if (used) env[replacement] = value;
+      warnings.add(
+        '$old is deprecated, use $replacement'
+        '${used ? '' : ' ($replacement is set, so $old is ignored)'}',
+      );
+    });
     final port = int.parse(env['PORT'] ?? '8080');
     final dbUri = Uri.parse(
       env['DATABASE_URL'] ?? 'postgres://cps:cps@localhost:55433/code_push',
@@ -90,6 +118,12 @@ class Config {
       s3SecretKey: env['S3_SECRET_KEY'] ?? 'cps-secret',
       s3Bucket: env['S3_BUCKET'] ?? 'code-push-artifacts',
       s3UseSsl: s3.scheme == 'https',
+      s3Region: env['S3_REGION'] ?? 'us-east-1',
+      // Path-style (`https://host/bucket/key`) suits SeaweedFS, Garage and any
+      // self-hosted store. Set S3_PATH_STYLE=false for virtual-hosted style
+      // (`https://bucket.host/key`), which AWS S3 and R2 also accept.
+      s3PathStyle: _parseBool('S3_PATH_STYLE', env['S3_PATH_STYLE'], true),
+      deprecationWarnings: warnings,
       urlSigningSecret: env['URL_SIGNING_SECRET'] ?? devUrlSigningSecret,
       // TLS to Postgres. `disable` (default, in-network compose) / `require`
       // (encrypt, no cert verification) / `verify-full` (encrypt + verify).
@@ -243,6 +277,17 @@ class Config {
     return problems;
   }
 
+  static bool _parseBool(String name, String? raw, bool fallback) {
+    if (raw == null || raw.isEmpty) return fallback;
+    switch (raw.toLowerCase()) {
+      case 'true' || '1' || 'yes':
+        return true;
+      case 'false' || '0' || 'no':
+        return false;
+    }
+    throw FormatException('$name must be true or false, got "$raw"');
+  }
+
   final int port;
 
   /// Absolute base URL embedded in artifact upload/download URLs. Must be
@@ -266,6 +311,16 @@ class Config {
   final String s3SecretKey;
   final String s3Bucket;
   final bool s3UseSsl;
+
+  /// Region used to sign requests (`S3_REGION`). Self-hosted stores accept any
+  /// value; AWS S3 needs the bucket's, and R2 takes `auto`.
+  final String s3Region;
+
+  /// Path-style addressing (`S3_PATH_STYLE`, default true).
+  final bool s3PathStyle;
+
+  /// Startup warnings about deprecated environment variables, one per entry.
+  final List<String> deprecationWarnings;
 
   /// HMAC secret for short-lived signed download URLs.
   final String urlSigningSecret;
@@ -337,7 +392,7 @@ class Config {
   /// `sqlite` (embedded, single-container default) or `postgres` (scale).
   final String dbBackend;
 
-  /// `file` (local-disk artifacts, default) or `s3` (MinIO/S3 for scale).
+  /// `file` (local-disk artifacts, default) or `s3` (any S3-compatible store).
   final String storageBackend;
 
   /// Directory for the SQLite database file and filesystem artifacts (the one

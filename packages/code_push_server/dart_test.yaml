@@ -1,5 +1,5 @@
 # Declares the opt-in `integration` tag used by test/integration/. Those tests
-# require a live server + Postgres + MinIO and are skipped unless INTEGRATION=1
+# require a live server + Postgres + an S3 store and are skipped unless INTEGRATION=1
 # and the required env vars are set. Run them with: dart test --tags integration
 tags:
   integration:
