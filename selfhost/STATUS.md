@@ -51,7 +51,7 @@ The project is at a stable point when every row is done.
 | 2 | No stale PRs or branches | Done, except the snapshot branches below |
 | 3 | Server release matches what compose pins | After #86 and its release run |
 | 4 | Docs and manifests name the current revisions | No: `compatibility.yaml` still declares CLI 1.6.115 and Flutter `a4a3c0d1`; bump it with the 3.47.9 promotion |
-| 5 | Release and patch proven on the current engine | In progress: emulator run of the 3.47.9 android-arm64 engine |
+| 5 | Release and patch proven on the current engine | Partly: release, patch download and patched boot passed on an emulator with the 3.47.9 android-arm64 engine (2026-11-08), but only with the official Dart host tools standing in for the fork's (item 1) |
 | 6 | Publish durability shown (no vanished publishes) | Open, item 3 below |
 | 7 | No unbounded growth on devices | Open, item 2 below |
 | 8 | Device or emulator signal in CI | Open, item 5 below |
@@ -63,7 +63,7 @@ Effort: S under a day, M a few days, L a week or more.
 
 | # | Item | Effort | Notes |
 |---|---|---|---|
-| 1 | Promote the 3.47.9 engine | M | Resolve shorebird-flutter PR #1 conflicts, finish the emulator release + patch, publish, bump `bin/internal/flutter.version` and `compatibility.yaml`. Rules in [`TOOLCHAIN_PROMOTION.md`](TOOLCHAIN_PROMOTION.md). `eligibleUpdaterRevisions` is frozen by [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md): changing it is the owner's call. |
+| 1 | Promote the 3.47.9 engine | M-L | **Blocker first:** host AOT snapshots built with the fork's Dart 3.13.7 tools (`dartdev`, `frontend_server`, `const_finder`) fail at run time with `NoSuchMethodError: Class '_Map<…>' has no instance getter '_data'`, a likely precompiler miscompile in the 3.13.7 port. Not yet checked whether app code from the fork's `gen_snapshot` is affected (the test app ran). Also: the web platform builds (`dart2js`, `ddc`) reject the new `external` members in `dart:_internal`, and `build.sh` leaves out `impellerc`. Then: resolve shorebird-flutter PR #1 conflicts, finish the emulator release + patch, publish, bump `bin/internal/flutter.version` and `compatibility.yaml`. Rules in [`TOOLCHAIN_PROMOTION.md`](TOOLCHAIN_PROMOTION.md). `eligibleUpdaterRevisions` is frozen by [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md): changing it is the owner's call. |
 | 2 | Bound the updater's diag logs | S | `state_diag.log` and `success_diag.log` are appended on every launch and never cleaned (`vendor/updater/SELFHOST_PORT_ca91f4b3.md`). Rotate or cap in the mirror, then re-vendor. |
 | 3 | Re-test vanished publishes | M | [`PARITY.md`](PARITY.md) still lists accepted-but-missing releases with no root cause. Repro on server 1.4.0 and the current CLI, reading every publish back from the database. |
 | 4 | Updater: map the HTTP client's `ConnectProxyFailed` to a transport error | S | Today a proxy refusal surfaces differently from a direct network failure; #84 works around it in CI only. Needs a new updater revision. |
