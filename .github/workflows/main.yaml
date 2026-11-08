@@ -173,7 +173,7 @@ jobs:
   # (the Dart package and its test/ files) is NOT run here or anywhere else:
   # it needs the Flutter SDK (`dart pub get` refuses it), which no runner has,
   # and it is vendored, so its pubspec is not ours to change. Re-vendoring
-  # from route-b-ca91f4b3 is the place to revisit that.
+  # from route-b-ca91f4b3 kept it as-is.
   # cargo comes from rustup on the runner (the self-hosted host and the
   # hosted image both have it with rustfmt and clippy).
   updater_rust:
@@ -202,12 +202,12 @@ jobs:
       - name: 📎 Clippy
         run: cargo clippy --locked --all-targets -- -D warnings
 
-      # One thread: #[serial] only orders tests against each other, and the
-      # unmarked tests still race the global updater config. In parallel,
-      # 4 of 5 runs on ci-build failed, a different c_api test each time;
-      # single-threaded, 5 of 5 passed. The whole suite runs in about 2s.
+      # Parallel threads. The route-b-ca91f4b3 tree marks the tests that touch
+      # the global updater config #[serial]; 6 of 6 parallel runs and 6 of 6
+      # single-threaded runs passed on ci-build. The old vendored tree failed 4
+      # of 5 parallel runs, which is why this once ran with --test-threads=1.
       - name: 🧪 Test
-        run: cargo test --locked -- --test-threads=1
+        run: cargo test --locked
 
   ci:
     needs:
