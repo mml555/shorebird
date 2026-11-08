@@ -73,7 +73,8 @@ volume (set `DATABASE_URL`, leave `S3_ENDPOINT` unset).
 
 ## Getting the image
 
-- **Pull the published image (default):** multi-arch (amd64/arm64), built by
+- **Pull the published image (default):** amd64 for 1.4.0 (built while
+  GitHub-hosted runners were unavailable; earlier releases are amd64/arm64), built by
   `.github/workflows/release_code_push_server.yaml` from the release tag and
   what the compose files reference.
   ```
