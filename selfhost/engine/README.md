@@ -21,8 +21,10 @@ independence ladder (see `selfhost/ENGINE_BUILD.md`).
 > (not `engine/src`), the sync marker lives under `engine/src/flutter/third_party`
 > (not `engine/src/third_party`), and upstream's Dart SDK dep needs an SSH remote
 > or a rewrite (the fork's DEPS uses https). Shorebird's prebuilt Dart SDK
-> bucket is private, so set `download_dart_sdk: False` in `.gclient`; `build.sh`
-> then builds Dart from source.
+> bucket is private (403, for Linux and macOS alike), so set
+> `download_dart_sdk: False` in `.gclient`; `build.sh --cell` then builds Dart
+> from source. The full shard (no `--cell`) runs Shorebird's own scripts, which
+> call gn themselves and need `--no-prebuilt-dart-sdk` added there by hand.
 
 ## How it works (the key insight)
 

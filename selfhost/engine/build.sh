@@ -29,8 +29,12 @@
 #                   deliberately low for a small shared host. On ci-build (32
 #                   cores, shared with CI) -j12 under `nice -n 10 ionice -c3`
 #                   built the cell in 23 minutes.
-#   --gn-arg <flag> Extra flag for ./flutter/tools/gn (--cell builds); repeat
-#                   for several. GN_EXTRA_ARGS (space-separated) adds more.
+#   --gn-arg <flag> Extra flag for ./flutter/tools/gn (--cell builds only);
+#                   repeat for several. GN_EXTRA_ARGS (space-separated) adds
+#                   more. The full shard runs Shorebird's own scripts, which
+#                   call gn themselves: without the prebuilt Dart SDK it needs
+#                   --no-prebuilt-dart-sdk added there (overlay_publish.sh
+#                   does the same).
 #   --root <dir>    Flutter checkout to build. Default: vendor/flutter. On a
 #                   build farm this is normally a real git clone of the pinned
 #                   revision, because gclient and Flutter's own scripts need
@@ -61,7 +65,7 @@ while [[ $# -gt 0 ]]; do
     --root) FLUTTER_ROOT="${2:?--root needs a value}"; shift 2 ;;
     --gn-arg) GN_ARGS+=("${2:?--gn-arg needs a value}"); shift 2 ;;
     mac|linux|win) HOST="$1"; shift ;;   # positional form, kept for compatibility
-    -h|--help) sed -n '2,40p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help) sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed '$d'; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
 done
@@ -93,9 +97,11 @@ note "engine.version:  $ENGINE_HASH"
 note "Host build type: $HOST"
 
 # --- Prereqs ----------------------------------------------------------------
-# depot_tools' `ninja` is a wrapper that looks for the real binary under the
-# gclient root's third_party/ninja, and fails when it isn't where it looks.
-# gclient puts it in the checkout, so use that one directly.
+# Use the ninja binary gclient pinned into the checkout directly. depot_tools'
+# `ninja` is a Python wrapper that finds it by searching up from the current
+# directory, so it depends on both: the first cell build on ci-build failed to
+# find ninja until this directory was on PATH, and the wrapper has also crashed
+# on Python 3.13 (No module named 'pipes'; route_b/super0/s2c/RESULT_2C0a_marker.md).
 if [[ -x "$FLUTTER_ROOT/third_party/ninja/ninja" ]]; then
   export PATH="$FLUTTER_ROOT/third_party/ninja:$PATH"
 fi
@@ -168,14 +174,24 @@ if [[ -n "$CELL" ]]; then
   note "Cell: android-arm64  ($OUT_DIR, ninja -j$JOBS)"
 
   # Without the prebuilt Dart SDK (download_dart_sdk: False, because the bucket
-  # is private), gn must be told to build Dart from source, or it stops looking
-  # for the prebuilt one.
-  if ! compgen -G "$ENGINE_SRC/flutter/prebuilts/*/dart-sdk/bin/dart" >/dev/null; then
-    note "No prebuilt Dart SDK under engine/src/flutter/prebuilts: building Dart from source."
+  # is private), gn must be told to build Dart from source; by default it
+  # expects the prebuilt SDK and fails without it. Only this host's prebuilt
+  # counts: another platform's, or none, means from source.
+  case "$(uname -m)" in
+    x86_64|amd64) HOST_CPU=x64 ;;
+    aarch64|arm64) HOST_CPU=arm64 ;;
+    *) HOST_CPU="$(uname -m)" ;;
+  esac
+  PREBUILT_DART="$ENGINE_SRC/flutter/prebuilts/linux-$HOST_CPU/dart-sdk/bin/dart"
+  if [[ -x "$PREBUILT_DART" ]]; then
+    note "Using the prebuilt Dart SDK: $PREBUILT_DART"
+  else
+    note "No prebuilt Dart SDK at $PREBUILT_DART: building Dart from source."
     GN_ARGS+=(--no-prebuilt-dart-sdk)
   fi
-  # shellcheck disable=SC2206  # GN_EXTRA_ARGS is a space-separated flag list
-  GN_ARGS+=(${GN_EXTRA_ARGS:-})
+  # Split on whitespace only; `read` does no glob expansion.
+  read -r -a EXTRA <<< "${GN_EXTRA_ARGS:-}"
+  GN_ARGS+=(${EXTRA[@]+"${EXTRA[@]}"})
 
   cd "$ENGINE_SRC"
   # Flags per shorebird/docs/BUILDING.md (Linux / Android arm64). Note there is
