@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+# cspell:words dwarfdump
+#
+# preserve_release_evidence.sh -- copy a release's own bytes aside, BEFORE any
+# patch build can overwrite them.
+#
+# WHY THIS EXISTS. `assert_installed_release.sh` compares an `.app` against the
+# release a patch targets, and its header already says to run it before the patch
+# build because `shorebird patch ios` re-archives over
+# `build/ios/archive/Runner.xcarchive`. That instruction is followed and the
+# evidence is still lost: the FIRST patch overwrites the archive, so the second
+# and later patches against the same release have nothing release-owned left to
+# compare with.
+#
+# That is exactly what happened on release 24. Identity was verified at install
+# time and every later launch used `--noinstall`, so the claim "the device is
+# running release 24" was sound — but it had become an ARGUMENT rather than a
+# measurement, and an argument cannot be re-checked by whoever reads the result
+# later.
+#
+# So: at install time, copy the artifact aside and record its LC_UUID. Every
+# later patch re-runs the comparison against these bytes instead of against
+# whatever the working tree now holds.
+#
+#   preserve_release_evidence.sh <release-version> <path/to/Runner.app|.xcarchive>
+#
+# Writes, under selfhost/evidence/releases/<version>/:
+#   App          the App.framework binary — the bytes the build id is read from
+#   LC_UUID      that binary's LC_UUID, lowercased and dash-stripped
+#   RECORDED     when, from where, and the patchability measurement
+#   App.dSYM.DWARF   the DWARF binary, WHEN an .xcarchive was given
+#   App.ipa      the INSTALLABLE signed bundle, when one is found beside the build
+#
+# WHY THE .ipa TOO, learned the hard way on 2026-08-13. The preserved App is a
+# Mach-O, not something that can be installed: reproducing a device run needs a
+# signed bundle. `shorebird patch ios` re-runs `flutter build ipa`, so whether the
+# release's .ipa survives the first patch build is an ACCIDENT of whether that
+# export succeeds. For airgap_app it fails (its export method has no matching
+# profile) and the .ipa survived; for twoengine_app it succeeds and the release's
+# .ipa was overwritten by the patch build, leaving no installable release bytes at
+# all and costing a re-cut. Do not rely on the accident.
+#
+# WHY THE dSYM IS COPIED HERE AND NOT LEFT WHERE IT LIES. `shorebird patch ios`
+# re-archives over build/ios/archive, and it overwrites the dSYMs too — so the
+# release's symbols are destroyed by the first patch build, exactly like the App
+# binary. That happened to release 37 on 2026-08-13: its consumption measurement
+# had already been taken (`--symbol` against the then-live dSYM), but the dSYM
+# itself was never copied aside, so no LATER question about that release can be
+# answered by symbol. The stripped App alone cannot name a call site.
+#
+# The dSYM's own UUID is checked against the App's before it is kept. A dSYM from
+# a different build is worse than no dSYM: it resolves names to addresses that
+# belong to other bytes, and the resulting site would look located.
+set -euo pipefail
+
+VERSION=${1:?usage: preserve_release_evidence.sh <release-version> <Runner.app|.xcarchive>}
+TARGET=${2:?need the .app or .xcarchive to preserve}
+HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+SELFHOST="$(cd "$HERE/../../.." >/dev/null 2>&1 && pwd)"
+OUT=${OUT:-$SELFHOST/evidence/releases/$VERSION}
+
+die() { echo "ERROR: $*" >&2; exit 1; }
+
+# Accept whichever level of the bundle the caller happens to have, same as
+# verify_patchable_release.sh does.
+APP=$TARGET
+case "$TARGET" in
+  *.xcarchive) APP="$TARGET/Products/Applications/Runner.app" ;;
+esac
+BIN="$APP/Frameworks/App.framework/App"
+[ -f "$BIN" ] || die "no App binary at $BIN"
+
+# REFUSE TO OVERWRITE. The point of this directory is that it is immutable: a
+# second release cut under the same version, or a patch build re-running this by
+# accident, must not silently replace the bytes a later comparison depends on.
+if [ -e "$OUT/LC_UUID" ]; then
+  existing=$(tr -d '\n' < "$OUT/LC_UUID")
+  incoming=$(dwarfdump --uuid "$BIN" | sed -n 's/^UUID: \([0-9A-Fa-f-]*\).*/\1/p' \
+    | tr -d '-' | tr '[:upper:]' '[:lower:]')
+  [ "$existing" = "$incoming" ] || die \
+    "$OUT already holds evidence for a DIFFERENT binary ($existing, incoming $incoming). Refusing to overwrite; move it aside deliberately."
+  echo "already preserved: $VERSION -> $existing"
+  exit 0
+fi
+
+mkdir -p "$OUT"
+cp "$BIN" "$OUT/App"
+UUID=$(dwarfdump --uuid "$OUT/App" | sed -n 's/^UUID: \([0-9A-Fa-f-]*\).*/\1/p' \
+  | tr -d '-' | tr '[:upper:]' '[:lower:]')
+[ -n "$UUID" ] || die "could not read an LC_UUID from the preserved binary"
+printf '%s\n' "$UUID" > "$OUT/LC_UUID"
+
+# The dSYM, when the caller handed us an archive that still has one. Best effort
+# and loud about it: a missing dSYM does not invalidate the App bytes, but it
+# must never be silently absent, because absence is only discoverable later, when
+# it is too late to fix.
+DWARF=""
+case "$TARGET" in
+  *.xcarchive)
+    DWARF="$TARGET/dSYMs/App.framework.dSYM/Contents/Resources/DWARF/App" ;;
+esac
+if [ -n "$DWARF" ] && [ -f "$DWARF" ]; then
+  duuid=$(dwarfdump --uuid "$DWARF" | sed -n 's/^UUID: \([0-9A-Fa-f-]*\).*/\1/p' \
+    | tr -d '-' | tr '[:upper:]' '[:lower:]')
+  if [ "$duuid" = "$UUID" ]; then
+    cp "$DWARF" "$OUT/App.dSYM.DWARF"
+    echo "  dSYM     : preserved ($duuid)"
+  else
+    echo "  dSYM     : REJECTED — belongs to $duuid, not $UUID." >&2
+    echo "             A dSYM from another build resolves names to addresses in" >&2
+    echo "             other bytes, so a located site would be a fiction." >&2
+  fi
+else
+  echo "  dSYM     : ABSENT${DWARF:+ at $DWARF}" >&2
+  echo "             Symbol-based location will be impossible for this release" >&2
+  echo "             once a patch build overwrites the archive. If you need it," >&2
+  echo "             stop and re-cut BEFORE patching." >&2
+fi
+
+# The installable bundle, whose UUID must match the App we just preserved -- a
+# bundle from another build would be the patch-build false positive in a new
+# costume.
+IPA=""
+case "$TARGET" in
+  *.xcarchive) IPA="$(ls -t "$(dirname "$TARGET")/../ipa"/*.ipa 2>/dev/null | head -1)" ;;
+esac
+if [ -n "$IPA" ] && [ -f "$IPA" ]; then
+  tmpd=$(mktemp -d)
+  if unzip -qq "$IPA" -d "$tmpd" 2>/dev/null; then
+    ipa_app="$(find "$tmpd/Payload" -maxdepth 1 -name '*.app' | head -1)"
+    iuuid=$(dwarfdump --uuid "$ipa_app/Frameworks/App.framework/App" 2>/dev/null |
+      sed -n 's/^UUID: \([0-9A-Fa-f-]*\).*/\1/p' | tr -d '-' | tr '[:upper:]' '[:lower:]')
+    if [ "$iuuid" = "$UUID" ]; then
+      cp "$IPA" "$OUT/App.ipa"
+      echo "  ipa      : preserved ($(basename "$IPA"))"
+    else
+      echo "  ipa      : REJECTED -- $(basename "$IPA") carries $iuuid, not $UUID." >&2
+      echo "             Not the release's bytes; installing it would describe" >&2
+      echo "             another build." >&2
+    fi
+  fi
+  rm -rf "$tmpd"
+else
+  echo "  ipa      : ABSENT -- no installable bundle preserved. A later device run" >&2
+  echo "             cannot be reproduced from this directory." >&2
+fi
+
+# Patchability travels WITH the identity, because interpreting a device result
+# needs both and they were separated once already — a release that was never
+# patchable produced four runs of `applied 1/1 targets` and no behaviour change.
+PATCHABLE="not measured"
+if [ -x "$HERE/../verify_patchable_release.sh" ]; then
+  PATCHABLE=$("$HERE/../verify_patchable_release.sh" "$APP" 2>&1 \
+    | sed -n 's/^patchable sites *: //p' | head -1)
+  PATCHABLE=${PATCHABLE:-"measurement failed"}
+fi
+
+cat > "$OUT/RECORDED" <<EOF
+release        : $VERSION
+preserved from : $BIN
+preserved at   : $(date -u +%FT%TZ)
+LC_UUID        : $UUID
+patchable      : $PATCHABLE
+size           : $(wc -c < "$OUT/App" | tr -d ' ') bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect $UUID
+
+The working archive is NOT a substitute: \`shorebird patch ios\` re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.
+EOF
+
+echo "preserved release $VERSION"
+echo "  LC_UUID   : $UUID"
+echo "  patchable : $PATCHABLE"
+echo "  at        : $OUT"

@@ -1,0 +1,33 @@
+verify_supported_state -- record /Volumes/build/semantic-linker/freeze-wt/selfhost/engine/route_b/SUPPORTED_STATE.yaml
+  ok      record format is clean (no duplicate keys, coherent indentation)
+  ok      and a real YAML loader accepts it (PyYAML present)
+  shorebird root : /Volumes/build/semantic-linker/freeze-wt
+  ok      recorded cli_revision exists in this repository
+  ok      cli_revision is in this branch's history
+  ok      cli_revision contains 6b4f6c42 (private-name resolution)
+  ok      CLI flutter.version (committed blob at cli_revision) selects the recorded Flutter
+  ok      repo HEAD product tree packages/shorebird_cli
+  ok      runtime checkout product tree packages/shorebird_cli
+  ok      repo HEAD product tree bin/internal
+  ok      runtime checkout product tree bin/internal
+  ok      runtime checkout has no uncommitted changes at all
+  ok      runtime checkout's flutter.version matches the committed selector
+  ok      runtime checkout's bin/internal is clean
+  ok      Flutter engine.version at the RECORDED selector selects the recorded cell
+  ok      the Flutter checkout's HEAD IS the recorded selector
+  ok      Flutter checkout is clean
+  ok      compiler archive digest
+  ok      compiler archive size
+  ok      analyzer digest (extracted from the published archive)
+  ok      producer engine revision
+  ok      dart revision
+  --      analyzer not resolved into this root's cache (archive already verified)
+  ok      v2 manifest recomputes to the cell address
+  ok      all addressed cell members match the bytes served
+  ok      fallback engine revision
+  ok      updater revision agrees with selfhost/compatibility.yaml
+  ok      engine producer f1a59b8a1609 durable AND matches the banked patch, parent dfa2b24ac384
+  ok      engine producer dfa2b24ac384 is reachable on the remote
+  ok      audit_route_b_compiler: AUDIT CLEAN
+
+SUPPORTED STATE VERIFIED

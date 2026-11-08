@@ -1,0 +1,16 @@
+  REFUSE	package:localsend_app/gen/strings.g.dart#AppLocale.build	UNSUPPORTED_PARAMETER_SHAPE(named_parameters) the method takes named parameters; uses `this` other than to read a member
+  REFUSE	package:localsend_app/gen/strings.g.dart#AppLocale.buildSync	UNSUPPORTED_PARAMETER_SHAPE(named_parameters) the method takes named parameters; uses `this` other than to read a member
+  REFUSE	package:localsend_app/gen/strings_be.g.dart#_Translations$progressPage$remainingTime$be.hoursUnit	the library it lives in has a RELATIVE import (`import 'strings.g.dart';`), and a replacement cannot reuse one: copied as-is it resolves against a different directory, and rewritten to a file URI it makes the compiler see that library twice. Convert it to a `package:` import and cut a new release
+  REFUSE	package:localsend_app/gen/strings_be.g.dart#_Translations$progressPage$remainingTime$be.minutesUnit	the library it lives in has a RELATIVE import (`import 'strings.g.dart';`), and a replacement cannot reuse one: copied as-is it resolves against a different directory, and rewritten to a file URI it makes the compiler see that library twice. Convert it to a `package:` import and cut a new release
+  REFUSE	package:localsend_app/gen/strings_be.g.dart#_Translations$sendPage$be.get:waiting	its parameter list could not be found
+  REFUSE	package:localsend_app/gen/strings_be.g.dart#_Translations$webSharePage$be.get:loading	its parameter list could not be found
+  REFUSE	package:localsend_app/gen/strings_be.g.dart#_Translations$webSharePage$be.get:stopping	its parameter list could not be found
+  REFUSE	package:localsend_app/provider/network/server/server_provider.dart#ServerService._handleEvent	references the private member `_restartAfterListenerFailure`, which this release did not retain. A patch can only name a private member the release was built to keep.
+  REFUSE	package:localsend_app/provider/network/server/server_provider.dart#ServerService.startServer	UNSUPPORTED_PARAMETER_SHAPE(named_parameters) the method takes named parameters
+  REFUSE	package:localsend_isolates/rust/api/server.dart#WebI18n.==	uses `this` other than to read a member
+  REFUSE	package:localsend_isolates/rust/api/server.dart#WebI18n.get:hashCode	its parameter list could not be found
+  REFUSE	package:localsend_app/pages/progress_page.dart#_ProgressPageState.build	its body names `_advancedProgressPanelExtraPadding`, a private identifier this analysis did not resolve to a member the release granted. Private references are carried only when the release manifest shows the exact member was retained.
+  REFUSE	package:localsend_app/provider/selection/selected_sending_files_provider.dart#AddAndroidDirectoryAction.reduce	reads `state` through a receiver this lowering cannot rewrite safely
+  REFUSE	package:localsend_app/provider/network/server/server_provider.dart#ServerService.startServer	UNSUPPORTED_PARAMETER_SHAPE(named_parameters) the method takes named parameters
+  REFUSE	package:localsend_isolates/rust/api/server.dart#WebParams.==	uses `this` other than to read a member
+  REFUSE	package:localsend_isolates/rust/api/server.dart#WebParams.get:hashCode	its parameter list could not be found

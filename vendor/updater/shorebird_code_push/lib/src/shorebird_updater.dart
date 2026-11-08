@@ -155,8 +155,26 @@ abstract class ShorebirdUpdater {
   /// Updates the app to the latest patch available on the specified track, or
   /// [UpdateTrack.stable] if no track is specified.
   ///
-  /// If no update is available or the update fails, this method will throw an
-  /// [UpdateException].
+  /// Completes normally on every benign outcome, and throws [UpdateException]
+  /// only on an actual failure:
+  ///
+  /// | outcome | behaviour |
+  /// |---|---|
+  /// | a patch was downloaded and installed | returns normally |
+  /// | no update available on the track | returns normally |
+  /// | another update was already in progress | returns normally |
+  /// | download or install actually failed | throws [UpdateException] |
+  ///
+  /// "Another update already in progress" is usually the automatic updater
+  /// thread; the caller simply did not start a new one, which is not an error.
+  ///
+  /// This previously read *"If no update is available or the update fails, this
+  /// method will throw an [UpdateException]"*, which did not match the
+  /// implementation — `SHOREBIRD_NO_UPDATE` has always been handled alongside
+  /// installed and in-progress as a successful result. Corrected after a device
+  /// certification observed `update()` on an empty track returning normally
+  /// (`selfhost/evidence/p6-manual-api/VERDICT.md`). The BEHAVIOUR was correct;
+  /// only this comment was wrong.
   ///
   /// The returned Future will complete once the update is fully downloaded and
   /// ready to be used on the next app start.

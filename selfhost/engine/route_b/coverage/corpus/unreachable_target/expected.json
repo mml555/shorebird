@@ -1,0 +1,16 @@
+{
+  "note": "The abstract declaration changes. UNREACHABLE, not 'unsupported dispatch-table call' -- the remediation is retention and shape, not compiler coverage. Getting this reason wrong sends someone to the wrong half.",
+  "verdict": "reject",
+  "changed": [
+    "package:corpus/main.dart#Shape.describe"
+  ],
+  "patchable": [],
+  "conditional": [],
+  "unreachable": [
+    "package:corpus/main.dart#Shape.describe"
+  ],
+  "added": [],
+  "rejectionReasons": [
+    "abstract; call sites dispatch to implementations"
+  ]
+}

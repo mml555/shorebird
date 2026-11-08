@@ -5,8 +5,9 @@ import 'package:collection/collection.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
-import 'package:shorebird_cli/src/extensions/file.dart';
+import 'package:shorebird_cli/src/flutter_build_options.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
+import 'package:shorebird_cli/src/platform/apple/apple.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 
@@ -69,145 +70,47 @@ extension OptionFinder on ArgResults {
   }
 }
 
+/// The public key PEM already resolved for each parse.
+///
+/// A release or patch needs the key more than once (for each build, and
+/// again to verify each signature), but `--public-key-cmd` is a user command
+/// that may prompt or may not return the same key twice, so it runs at most
+/// once per invocation and every caller sees the same key.
+final _publicKeyPemCache = Expando<Future<String?>>('publicKeyPem');
+
 /// Extension on [ArgResults] to provide code signing related extensions.
 extension CodeSign on ArgResults {
-  /// Asserts that either there is no public key argument
-  /// or that the path received exists.
-  void assertAbsentOrValidPublicKey() {
-    file(CommonArguments.publicKeyArg.name)?.assertExists();
-  }
-
-  /// Asserts that either there is no private key argument
-  /// or that the path received exists.
-  void assertAbsentOrValidPrivateKey() {
-    file(CommonArguments.privateKeyArg.name)?.assertExists();
-  }
-
-  /// Asserts that both public and private keys are either absent or
-  /// when provided, that both of them are pointing to existing files.
-  void assertAbsentOrValidKeyPair() {
-    final publicKeyWasParsed = wasParsed(CommonArguments.publicKeyArg.name);
-    final privateKeyWasParsed = wasParsed(CommonArguments.privateKeyArg.name);
-
-    if (publicKeyWasParsed == privateKeyWasParsed) {
-      assertAbsentOrValidPublicKey();
-      assertAbsentOrValidPrivateKey();
-    } else {
-      logger.err('Both public and private keys must be provided.');
-      throw ProcessExit(ExitCode.usage.code);
-    }
-  }
-
-  /// Resolves the public key PEM string from the configured source.
+  /// Resolves the public key PEM string from the configured source, as
+  /// [CodeSigner.canonicalPublicKeyPem] re-encodes it.
+  ///
+  /// The result is resolved once per parse and reused by later calls.
   ///
   /// Returns null if no public key is configured. Throws
-  /// [ProcessException] or [FormatException] if a command-based key
-  /// fails.
-  Future<String?> resolvePublicKeyPem() async {
-    final publicKeyFile = file(CommonArguments.publicKeyArg.name);
-    if (publicKeyFile != null) {
-      return publicKeyFile.readAsStringSync();
-    }
+  /// [ProcessException] if a command-based key fails, and
+  /// [FormatException] if the key is not exactly one PEM public key, which
+  /// a private key never is.
+  Future<String?> resolvePublicKeyPem() =>
+      _publicKeyPemCache[this] ??= _readPublicKeyPem();
 
+  Future<String?> _readPublicKeyPem() async {
+    final publicKeyFile = file(CommonArguments.publicKeyArg.name);
     final publicKeyCmd = this[CommonArguments.publicKeyCmd.name] as String?;
-    if (publicKeyCmd != null && wasParsed(CommonArguments.publicKeyCmd.name)) {
-      return codeSigner.runPublicKeyCmd(publicKeyCmd);
+    final String pem;
+    if (publicKeyFile != null) {
+      pem = publicKeyFile.readAsStringSync();
+    } else if (publicKeyCmd != null &&
+        wasParsed(CommonArguments.publicKeyCmd.name)) {
+      pem = await codeSigner.runPublicKeyCmd(publicKeyCmd);
+    } else {
+      return null;
     }
-
-    return null;
+    return codeSigner.canonicalPublicKeyPem(pem);
   }
 
-  /// Read the public key file and encode it to base64 if any.
-  String? get encodedPublicKey {
-    final publicKeyFile = file(CommonArguments.publicKeyArg.name);
-
-    return publicKeyFile != null
-        ? codeSigner.base64PublicKey(publicKeyFile)
-        : null;
-  }
-
-  /// Validates key arguments for patch commands.
-  ///
-  /// Valid configurations:
-  /// - No signing (nothing provided)
-  /// - File-based: --public-key-path + --private-key-path
-  /// - Command-based: --public-key-cmd + --sign-cmd
-  /// - Mixed: --public-key-path + --sign-cmd
-  ///
-  /// Invalid configurations:
-  /// - Both --public-key-path and --public-key-cmd (ambiguous public key)
-  /// - Both --private-key-path and --sign-cmd (ambiguous signing method)
-  /// - --sign-cmd without a public key source
-  /// - --private-key-path without --public-key-path
-  void assertAbsentOrValidKeyPairOrCommands() {
-    final hasPublicKeyFile = wasParsed(CommonArguments.publicKeyArg.name);
-    final hasPrivateKeyFile = wasParsed(CommonArguments.privateKeyArg.name);
-    final hasPublicKeyCmd = wasParsed(CommonArguments.publicKeyCmd.name);
-    final hasSignCmd = wasParsed(CommonArguments.signCmd.name);
-
-    // Can't have two public key sources
-    if (hasPublicKeyFile && hasPublicKeyCmd) {
-      logger.err(
-        'Cannot specify both --${CommonArguments.publicKeyArg.name} and '
-        '--${CommonArguments.publicKeyCmd.name}.',
-      );
-      throw ProcessExit(ExitCode.usage.code);
-    }
-
-    // Can't have two signing methods
-    if (hasPrivateKeyFile && hasSignCmd) {
-      logger.err(
-        'Cannot specify both --${CommonArguments.privateKeyArg.name} and '
-        '--${CommonArguments.signCmd.name}.',
-      );
-      throw ProcessExit(ExitCode.usage.code);
-    }
-
-    // File-based signing requires both file args
-    if (hasPrivateKeyFile || (hasPublicKeyFile && !hasSignCmd)) {
-      assertAbsentOrValidKeyPair();
-    }
-
-    // --sign-cmd requires a public key source
-    if (hasSignCmd && !hasPublicKeyFile && !hasPublicKeyCmd) {
-      logger.err(
-        '--${CommonArguments.signCmd.name} requires a public key '
-        '(--${CommonArguments.publicKeyArg.name} or '
-        '--${CommonArguments.publicKeyCmd.name}).',
-      );
-      throw ProcessExit(ExitCode.usage.code);
-    }
-
-    // Validate the public key file exists if provided
-    if (hasPublicKeyFile && hasSignCmd) {
-      assertAbsentOrValidPublicKey();
-    }
-  }
-
-  /// Validates public key arguments for release commands.
-  ///
-  /// Valid configurations:
-  /// - No public key (no signing)
-  /// - --public-key-path with valid file
-  /// - --public-key-cmd
-  ///
-  /// Invalid: mixing --public-key-path and --public-key-cmd
-  void assertAbsentOrValidPublicKeyOrCmd() {
-    final hasFilePath = wasParsed(CommonArguments.publicKeyArg.name);
-    final hasCmd = wasParsed(CommonArguments.publicKeyCmd.name);
-
-    if (hasFilePath && hasCmd) {
-      logger.err(
-        'Cannot specify both --${CommonArguments.publicKeyArg.name} and '
-        '--${CommonArguments.publicKeyCmd.name}.',
-      );
-      throw ProcessExit(ExitCode.usage.code);
-    }
-
-    if (hasFilePath) {
-      assertAbsentOrValidPublicKey();
-    }
-  }
+  /// Whether a release signs its patches (`--patch-signing`, on by default):
+  /// with the customer's key if one is passed, else a Shorebird-managed key.
+  bool get patchSigningEnabled =>
+      this[CommonArguments.patchSigningArg.name] == true;
 
   /// Get base64-encoded public key from either file or command.
   ///
@@ -218,26 +121,70 @@ extension CodeSign on ArgResults {
       if (pem == null) return null;
       return codeSigner.base64PublicKeyFromPem(pem);
     } on ProcessException catch (e) {
-      logger.err(
-        'Failed to run '
-        '--${CommonArguments.publicKeyCmd.name}: ${e.message}',
-      );
+      logger
+        ..err(
+          'Failed to run '
+          '--${CommonArguments.publicKeyCmd.name}: ${e.message}',
+        )
+        ..info(
+          'Run the command in your shell to see why it fails; it must print '
+          'a PEM-encoded public key to stdout and exit 0.',
+        );
+      throw ProcessExit(ExitCode.software.code);
+    } on InvalidPublicKeyException catch (e) {
+      _logInvalidPublicKey(e.message);
       throw ProcessExit(ExitCode.software.code);
     } on FormatException catch (e) {
-      logger.err(
-        '--${CommonArguments.publicKeyCmd.name} produced invalid output: '
-        '${e.message}',
-      );
+      _logInvalidPublicKey('is not a valid public key: ${e.message}');
       throw ProcessExit(ExitCode.software.code);
       // Malformed PEM content causes ASN1 parsing errors (RangeError, etc.)
       // ignore: avoid_catching_errors
     } on Error catch (e) {
       // ASN1 parsing errors for malformed PEM content
-      logger.err(
-        '--${CommonArguments.publicKeyCmd.name} output is not a valid '
-        'public key: $e',
-      );
+      _logInvalidPublicKey('is not a valid public key: $e');
       throw ProcessExit(ExitCode.software.code);
+    }
+  }
+
+  /// Reports a malformed public key, naming whichever option supplied it.
+  void _logInvalidPublicKey(String problem) {
+    if (file(CommonArguments.publicKeyArg.name) != null) {
+      logger
+        ..err('The --${CommonArguments.publicKeyArg.name} file $problem')
+        ..info('The file must contain only a PEM-encoded public key.');
+    } else {
+      logger
+        ..err('The --${CommonArguments.publicKeyCmd.name} output $problem')
+        ..info(
+          'The command must print only a PEM-encoded public key to stdout.',
+        );
+    }
+  }
+}
+
+/// Extension on [ArgResults] for Apple-only arguments shared by
+/// `shorebird release` and `shorebird patch`.
+extension AppleArgs on ArgResults {
+  /// Whether to sign the Apple app bundle with Apple code signing
+  /// (`--codesign`, on by default).
+  ///
+  /// Unrelated to [CodeSign], which handles Shorebird patch signing keys.
+  bool get appleCodesign => this['codesign'] == true;
+
+  /// Validates the `--export-options-plist` file, if one was passed.
+  ///
+  /// Logs an error and exits with [ExitCode.usage] if the plist would make
+  /// Xcode rewrite the build number. See [assertValidExportOptionsPlist].
+  void assertValidExportOptionsPlistArg() {
+    final exportOptionsPlistFile = file(
+      CommonArguments.exportOptionsPlistArg.name,
+    );
+    if (exportOptionsPlistFile == null) return;
+    try {
+      assertValidExportOptionsPlist(exportOptionsPlistFile);
+    } on InvalidExportOptionsPlistException catch (error) {
+      logger.err(error.message);
+      throw ProcessExit(ExitCode.usage.code);
     }
   }
 }
@@ -286,12 +233,28 @@ extension ForwardedArgs on ArgResults {
     return value ? ['--$name'] : [];
   }
 
+  /// The [FlutterBuildOption] as it was passed. Commands that read
+  /// [forwardedArgs] register these with
+  /// [FlutterBuildOptionsArgParser.addFlutterBuildOptions].
+  Iterable<String> _flutterBuildArgs(FlutterBuildOption option) {
+    final name = option.name;
+    if (!wasParsed(name)) return [];
+    final value = this[name];
+    return switch (value) {
+      true => ['--$name'],
+      false => ['--no-$name'],
+      _ => (value as List<String>).map((v) => '--$name=$v'),
+    };
+  }
+
   /// A list of arguments parsed by Shorebird commands that will be forwarded
   /// to the underlying Flutter commands (that is, placed after `--`).
   List<String> get forwardedArgs {
     final List<String> forwarded;
     if (rest.isNotEmpty && _isPositionalArgPlatform(rest.first)) {
-      forwarded = rest.skip(1).toList();
+      // A `.dart` positional after the platform is passed as `--target` by
+      // the command, so it must not also be forwarded.
+      forwarded = rest.skip(positionalTarget == null ? 1 : 2).toList();
     } else {
       forwarded = rest.toList();
     }
@@ -305,6 +268,7 @@ extension ForwardedArgs on ArgResults {
       ..._argsNamed(CommonArguments.exportMethodArg.name),
       ..._argsNamed(CommonArguments.exportOptionsPlistArg.name),
       ..._flagNamed(CommonArguments.obfuscateArg.name),
+      for (final option in flutterBuildOptions) ..._flutterBuildArgs(option),
     ]);
 
     return forwarded;

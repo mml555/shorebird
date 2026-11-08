@@ -1,0 +1,52 @@
+{
+  "dm_off/gen_snapshot": {
+    "recorded": "a1220d87c8c127ea5b57daa1c395184d0c5cf07174ebfcfaa00d43e583d21834",
+    "rebuilt": "a1220d87c8c127ea5b57daa1c395184d0c5cf07174ebfcfaa00d43e583d21834",
+    "byte_identical": true
+  },
+  "dm_off/dartaotruntime": {
+    "recorded": "4f2ff7a849656c430b530252fba8ba0a55d564ccd330d3aa085477dc6fbeb398",
+    "rebuilt": "4f2ff7a849656c430b530252fba8ba0a55d564ccd330d3aa085477dc6fbeb398",
+    "byte_identical": true
+  },
+  "dm_off/dart": {
+    "recorded": "c34dec14d891d0af33df983ac8ee12bc6a003a62fc8949a0add3cf0d1e67ca3d",
+    "rebuilt": "c34dec14d891d0af33df983ac8ee12bc6a003a62fc8949a0add3cf0d1e67ca3d",
+    "byte_identical": true
+  },
+  "dm_off/vm_platform.dill": {
+    "recorded": "015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2",
+    "rebuilt": "015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2",
+    "byte_identical": true
+  },
+  "dm_off/dart-sdk/bin/dart": {
+    "recorded": "c34dec14d891d0af33df983ac8ee12bc6a003a62fc8949a0add3cf0d1e67ca3d",
+    "rebuilt": "c34dec14d891d0af33df983ac8ee12bc6a003a62fc8949a0add3cf0d1e67ca3d",
+    "byte_identical": true
+  },
+  "dm_on/gen_snapshot": {
+    "recorded": "935f3938d0c981bff08c6699f4e538d665bfb24e5722201169242b913e58d8ef",
+    "rebuilt": "935f3938d0c981bff08c6699f4e538d665bfb24e5722201169242b913e58d8ef",
+    "byte_identical": true
+  },
+  "dm_on/dartaotruntime": {
+    "recorded": "a9cd02be1c29379685a16df7ddc88101e351c9702a8b996c76dab89886f66be9",
+    "rebuilt": "a9cd02be1c29379685a16df7ddc88101e351c9702a8b996c76dab89886f66be9",
+    "byte_identical": true
+  },
+  "dm_on/dart": {
+    "recorded": "b706f8c85c6fc278dccaf328379a0777dc1470137f34546d9c44ce72e3b775d3",
+    "rebuilt": "b706f8c85c6fc278dccaf328379a0777dc1470137f34546d9c44ce72e3b775d3",
+    "byte_identical": true
+  },
+  "dm_on/vm_platform.dill": {
+    "recorded": "015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2",
+    "rebuilt": "015ef32c6cb988d8ec160e97da5ec62fb4d4798ac9e03815294c982b298c75d2",
+    "byte_identical": true
+  },
+  "dm_on/dart-sdk/bin/dart": {
+    "recorded": "b706f8c85c6fc278dccaf328379a0777dc1470137f34546d9c44ce72e3b775d3",
+    "rebuilt": "b706f8c85c6fc278dccaf328379a0777dc1470137f34546d9c44ce72e3b775d3",
+    "byte_identical": true
+  }
+}

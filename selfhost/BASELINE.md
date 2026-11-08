@@ -99,3 +99,5 @@ files of investigation artifacts — binaries, screenshots, verdicts.
     bump cost            5 conflicts / 39 files / ~3,350 upstream commits;
                          updater_rev UNCHANGED so the wire contract is safe;
                          SNAPSHOT_HASH WILL move
+
+<!-- cspell:words unreviewable -->

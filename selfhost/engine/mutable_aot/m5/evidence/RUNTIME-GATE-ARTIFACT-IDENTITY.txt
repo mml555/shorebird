@@ -1,0 +1,33 @@
+# The artifact under benchmark. Copied verbatim from
+# out/maot_host/.maot_source_digest at the moment the runtime gate was
+# frozen, so 'repository now clean' can never be confused with
+# 'this is what was measured'.
+#
+# shorebird = d5888ac82
+# captured  = 2026-09-22T23:42:06Z
+#
+# gen_snapshot   1838aa405f256444d8bc9bd72d4a850478f623551fca144cdcc8b2f56b7758f9
+# dartaotruntime dc0254ea1908408ad8c520902805aff9517b9ec5bc677900ba2e7dfe6ff41880
+
+# written by build_maot.sh after a successful build
+fork_commit 5878283d55ef56049a8f3523759baa7e5ab72406
+fork_tree 12193b5ef7473ebf22800d7a894f1b4eb3236490
+fork_sources_match_head 1
+built_at 2026-09-22T20:51:31Z
+36c9eb5f4b5f10a2c3c8e13779c95c6b06e5e5e24392bc52ccf0cf37b0513dbb runtime/vm/maot_registry.cc
+4efad30c7b987ca02be42dfaafa03c0652a6851d290fbbf790322c117195d921 runtime/vm/maot_registry.h
+42a9c25279cc049d9669ba601fc5936eadda78d837c1f25abad5d92928d87751 runtime/vm/kernel_loader.cc
+f0ccb348e996eacb79b58f3033b3168012ef7f9b1ab9905028c8b9d50ed5edc5 runtime/vm/object_store.h
+76221ab91bfe8a5d882288c7b535b1caa5ee33f263d6bb0b7240d948c5c365af runtime/vm/dart.cc
+946a925279630efa4a96df0461cfb7acb87396b30b8f96a66f22f68255bb0f10 runtime/vm/compiler/aot/precompiler.cc
+241440c900470c203f73dfb58f18e6708021a3aee782ea0118e712cab426279d runtime/vm/compiler/aot/precompiler.h
+31ed035938828bf7ee4495d2a3b300d01d6e9daefa4eac532448ae99ddd49b5e runtime/vm/compiler/frontend/kernel_translation_helper.cc
+4c392ddaf8dc6ccb30b785efba2c2a5b33972011d82a11d2939e298a299aa6f2 runtime/vm/compiler/frontend/kernel_translation_helper.h
+258136ebfec5be540d7c2c270b13e3c9b8df937e683fba179025caf72b29ad73 runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
+67c9f537e52578ec548da0b0787576e6bf93f2709883e5e3cf3864f33ce75410 runtime/vm/compiler/backend/inliner.cc
+9e922e29501bdd02acbcb65d65c494341afa9197ae7d362a6654ca9544e2ca37 runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc
+54f8efdc8a686e429b91218cbb3c03a41b51ea16a6600eef46298b07e726b770 pkg/vm/lib/metadata/maot_declaration_id.dart
+c54f8a205adcad5b3cd4c8c156bf8ce087117cfc4dfad56373cfc2ca7d39249b pkg/vm/lib/transformations/type_flow/transformer.dart
+c19421662247174fb023004205eb68738de3cb256e0a407a1fa1f777338407d2 pkg/vm/lib/transformations/type_flow/maot_selection.dart
+882a80a8bb700145fbb7eb5026f2d7f6d8b6c6432e14661b6f52545bdfcde22a pkg/vm/lib/transformations/pragma.dart
+82c464b114770687a2868b51d7d93405d0d347dedf8da4604d1c2f56723c1885 pkg/vm/lib/modular/target/vm.dart

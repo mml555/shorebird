@@ -1,0 +1,303 @@
+# P6 · tracks — arm log
+
+Running log against the frozen `PRECOMMIT.md`.
+
+## Setup
+
+Release **1.10.0+1** (server id **121**) cut with
+`--target lib/main_tracks.dart`, flavor `foo`, `--export-method development`.
+`Route B retention: 4 named SDK members, interface 2218 bytes`.
+
+Two clients cut from that ONE build by `scripts/make_track_clients.sh`:
+
+| | client A | client B |
+|---|---|---|
+| bundle id | `dev.selfhost.flavoredProbe.foo.tka` | `…foo.tkb` |
+| display name | `Tracks A` | `Tracks B` |
+| bundled `channel:` | `alpha` | `beta` |
+| `app_id` | `1c99c679-…` | **same** |
+| release version | `1.10.0+1` | **same** |
+| AOT payload | `2bda0fb0971e` | **same, and equal to the source build** |
+
+Installed with `ios-deploy --bundle` and no `-d`.
+
+### The invariant had to be corrected, not dropped
+
+The builder first asserted `App.framework/App` was byte-identical and **refused**:
+re-signing rewrites the Mach-O code-signature blob, so the file hash changes
+while no AOT byte does. Deleting the assertion would have removed the only thing
+standing between "two clients, one release" and an accidentally rebuilt
+snapshot, so it was narrowed to the AOT **payload** — hashed with the signature
+stripped — and the script still reports that the signed files *do* differ, so the
+narrowing is visible rather than silent.
+
+That a re-signature cannot matter is measured: nothing on the device verifies the
+base binary. `check_hash` (`vendor/updater/library/src/updater.rs:327`) hashes
+the **downloaded patch** against the server's hash, and the `libapp.so` hashing
+sketched in the comment at `:334` was never implemented. Route B's
+release-artifact binding is a **publish-time producer** check.
+
+## Vacuity guard satisfied before Phase 0
+
+`api.dart:2008` returns an empty response for an **unknown** channel, so a
+client on a channel that never existed receives nothing regardless of any
+deployment. Both tracks were therefore created and asserted first:
+
+    channels on 1c99c679-…: alpha, beta, stable
+    ASSERTION OK: alpha and beta both exist, so withholding can only be a
+    deployment decision
+
+## Phase 0 — server state
+
+    release 1.10.0+1 -> id 121
+      (no patches yet)
+
+Read from `deployments`, not the convenience `channel` field. Nothing is
+deployed on any track, so at this point neither client can be withheld *for a
+track reason* — which is exactly what makes Phase 0 a control and not evidence
+about tracks.
+
+## Two harness defects fixed on the way, both in the guard itself
+
+1. the channels reader assumed `{channels:[…]}`; `api.dart:1711` returns a
+   **bare** array. The assertion crashed before it could assert.
+2. the deployments reader carried escaped quotes into a single-quoted `python3
+   -c` block and would not parse.
+
+Both are worth naming because they were failures *of the checking code*, and a
+guard that throws before it asserts is indistinguishable from no guard.
+
+## Phase 0 — device half: the two clients are proven independent, but transport is DOWN
+
+### What is established (client-side, from the device's own syslog)
+
+Captured with `idevicesyslog` — a passive read, no debugger attached, and every
+launch by hand. Each client's native updater logs the request it builds:
+
+| | client A (`tka`) | client B (`tkb`) | base app (control) |
+|---|---|---|---|
+| `channel` | **`alpha`** | **`beta`** | `stable` |
+| `client_id` | `06ecaea8-0dd4-…` | `23d73a05-811e-…` | `c5f049c3-f4e8-…` |
+| `release_version` | `1.10.0+1` | `1.10.0+1` | `1.9.0+1` |
+| `platform`/`arch` | `ios`/`aarch64` | `ios`/`aarch64` | `ios`/`aarch64` |
+| `current_patch_number` | `None` | `None` | `Some(1)` |
+| `app_id` | `1c99c679-…` | **same** | same |
+
+**This is the precommit's independence requirement, met and measured:** between
+A and B the only differing fields are `client_id` and `channel`. It also proves
+the packaging works — the post-build edit to the bundled `shorebird.yaml`
+reached the *native updater*, not merely the Dart side that renders the screen.
+
+### What is NOT established: no check ever reached the server
+
+Zero `POST /api/v1/patches/check` from any client. Two distinct failure shapes:
+
+    16:40:52.341  tka  Sending patch check request … channel: "alpha"
+    (no result line at all — the call was still hanging when force-quit)
+
+    16:41:04.980  tkb  Update failed: Patch check request failed due to network
+                       error.                     (~95ms after start)
+
+The **base app fails the same way**, and it has local-network permission and
+successfully downloaded a patch 50 minutes earlier. So this is not about the
+re-signed bundles and not about per-app permission.
+
+One race is real and worth recording regardless:
+
+    16:31:18.306  Sending patch check request … channel: "stable"
+    16:31:18.306  Update failed: … network error            (0.3ms later)
+    16:31:18.440  nehelper: Local network allowed by preference for Flavored Probe
+
+The updater fires its check **pre-main**, while iOS resolves local-network
+permission asynchronously. The first connection in a process can therefore lose
+the race and the updater gives up for that launch. That is the mechanism behind
+the tap → force-quit → tap-again ritual every device arm on this rig has needed.
+But it does not explain a *hang*, and it does not explain the base app failing
+after its grant was already on record.
+
+### Phase 0 is therefore NOT a passed control
+
+Both clients show `TRACK-V1` and neither has a patch — but neither asked
+successfully, so "neither received a patch" is currently **unfalsifiable**.
+Promoting to alpha now would produce an A-gets-it result indistinguishable from
+luck, so **nothing has been promoted.** Phase 0 stands open.
+
+### A packaging consequence found on the way
+
+All three bundles share `LC_UUID BB02BCB5-82C5-3979-8222-9356C9611EF6`, because
+they are copies of one build. iOS's network attribution keys on that UUID and
+resolved `tka`'s identity to the **base** bundle id (`bundle_id: (null)` in the
+blocked-connection notice, then "allowed by preference for Flavored Probe"). It
+did not cause this failure, but it means **per-app local-network state cannot be
+made to differ between A and B** while they share one Mach-O. If a future arm
+needs A and B to hold different permissions, that shared UUID is where it breaks.
+
+## Phase 0 — PASSED, after the UUID fix
+
+### The blocker was my own packaging, and the fix was predicted before testing
+
+All three bundles shared `LC_UUID BB02BCB5-…` because they are copies of one
+build. iOS attributes local-network permission **by executable UUID**: with a
+colliding set installed it logged `Got local network blocked notification: …
+bundle_id: (null)` and refused the connection in ~0.2ms — no round trip. That hit
+**every** app sharing the UUID, including the untouched base app, which had
+downloaded a patch successfully an hour earlier and then began failing purely as
+collateral damage of my copying.
+
+Safari on the phone reaching `http://10.0.0.7:18080/` ("code push Ok") is what
+separated "the phone cannot route to the server" from "these apps cannot", and
+sent the diagnosis to the right place.
+
+Fix: `scripts/set_macho_uuid.py` rewrites the 16-byte `LC_UUID` payload in each
+copy's main executable — deterministically, from a hash of its bundle id — before
+signing, so the signature covers the new bytes. Nothing else in the Mach-O
+changes, and `make_track_clients.sh` still asserts the AOT payload is untouched.
+The prediction was written down before the taps: with distinct UUIDs each app
+gets its own grant and the checks land. Zero checks reached the server before;
+four did after.
+
+### The control, as required
+
+Both clients on the reinstalled bundles performed a **real check** and received a
+**real response**:
+
+| client | pid | channel | `client_id` | server response |
+|---|---|---|---|---|
+| `tka` | 38282 | **`alpha`** | `42b44b12` | `PatchCheckResponse { patch_available: false, patch: None }` |
+| `tkb` | 38270 | **`beta`** | `8ce6ece3` | `PatchCheckResponse { patch_available: false, patch: None }` |
+
+Server side, four `POST /api/v1/patches/check -> 200`. Release state:
+`(no patches yet)`, read from `deployments`.
+
+So "neither client received a patch" is now **falsifiable**: both asked, both
+were answered, and nothing was deployed. Phase 0 is a control rather than an
+absence.
+
+`client_id`s differ from the pre-fix values because the reinstall reset updater
+state (`No existing state file found`) — expected, and it does not weaken the
+arm: independence is a property of the two clients, not of particular UUIDs.
+
+### A second real finding, kept
+
+The updater fires its check **pre-main** while iOS resolves local-network
+permission **asynchronously**, so the first request in a fresh process can lose
+that race and the updater abandons the update for that launch. Every successful
+check here came from a *second* launch. That is the mechanism behind the
+tap → force-quit → tap-again ritual this rig has always needed, and it is worth
+recording as a property of the updater rather than rig folklore.
+
+## Phase 1 — patch staged
+
+`trackState()` changed `TRACK-V1` → `TRACK-V2` in both ternary branches; the
+control `kTracksRelease` is untouched. `git diff` is 2 lines.
+
+## Phase 1 — isolation: PASSED
+
+`shorebird patch --track=alpha` published patch 1 (`⚪️ Track: alpha`, arm64,
+1.04 KB). `Verifying patch can be applied to release` passed — the P4.1 survival
+and coverage gates clearing on this release.
+
+### Server state, read from `deployments`
+
+    patch 1  status=ready
+      deployment: channel=alpha  rollout=100  -> LIVE
+      beta: ABSENT (no deployment row at all)
+
+### Client outcomes
+
+| client | channel sent | `patch_available` | download/install events | screen |
+|---|---|---|---|---|
+| A `42b44b12` | `alpha` | **true**, patch 1 | `__patch_download__` ×1, `__patch_install__` ×1 | **`TRACK-V2`** |
+| B `8ce6ece3` | `beta` | **false** (two separate launches) | **none at all** | `TRACK-V1` |
+
+A's second launch then reported `patch_available: false`, correctly — it already
+had patch 1.
+
+### B's withholding, banked as more than a screen
+
+Every item the precommit demanded, so this is a withholding rather than a silent
+failure:
+
+* B performed a **real** check — its updater logged the request and the server
+  answered 200; this is not an absence of traffic;
+* the request carried **`channel: "beta"`**, from B's own updater log;
+* the response was `PatchCheckResponse { patch_available: false, patch: None }`;
+* the `events` table has **no row of any type** for `8ce6ece3` on
+  `1.10.0+1`, so nothing was downloaded and nothing installed;
+* the screen stayed `TRACK-V1` with `channel: beta` and `release: TRACKS-REL-1`
+  unchanged.
+
+Compare against A on the same release, same artifact, same server, seconds apart
+— A got `patch_available: true` and produced both events. The two differ in
+`client_id` and `channel`, nothing else.
+
+**This still does not close the arm.** Phase 1 alone cannot distinguish "beta was
+withheld" from "B cannot update for some unrelated reason", which is exactly the
+failure mode that consumed most of this arm. Phase 2 is the discriminator.
+
+### A note on evidence hygiene
+
+A screenshot taken here caught the **home screen**, because both apps had been
+force-quit — it is kept as `02_two_installs_home.png`, which is what it actually
+shows (two distinct installs, `Tracks A` and `Tracks B`), rather than filed under
+the name I originally gave it.
+
+## Phase 2 — the causal negative control: PASSED
+
+`shorebird patches set-track --release 1.10.0+1 --patch 1 --track beta --flavor
+foo` → *"Patch 1 on release 1.10.0+1 is now in channel beta!"*. **Nothing was
+rebuilt and nothing reinstalled.**
+
+### Server state — one patch, two live tracks
+
+    patch 1  status=ready   convenience channel='beta'
+      deployment: channel=beta   status=active  rolled_back=False  rollout=100  -> LIVE
+      deployment: channel=alpha  status=active  rolled_back=False  rollout=100  -> LIVE
+
+Promotion was **additive**: alpha stayed live, as `set_track_command.dart`'s own
+comment says it must (`repository.dart` supersedes only `WHERE channel_id`).
+
+**The precommit's insistence on `deployments` paid off in this arm's own data.**
+The convenience `channel` field now reads `'beta'` alone, because it returns only
+the newest live deployment. Had the assertion been made on that field, the honest
+reading would have been "the patch moved to beta" — and the multi-track claim
+would have been reported backwards. `deployments` shows both.
+
+### The same client, before and after, with only the deployment changed
+
+| time | client | channel sent | `patch_available` |
+|---|---|---|---|
+| 17:13:08 | `8ce6ece3` | `beta` | false |
+| 17:13:26 | `8ce6ece3` | `beta` | false |
+| **17:18:20** | `8ce6ece3` | `beta` | **true, patch 1** |
+| 17:18:39 | `8ce6ece3` | `beta` | false (it now has it) |
+
+Events for `1.10.0+1` afterwards:
+
+    42b44b12  __patch_download__  1
+    42b44b12  __patch_install__   1
+    8ce6ece3  __patch_download__  1
+    8ce6ece3  __patch_install__   1
+
+Device: `channel: beta` / `release: TRACKS-REL-1` / **`track state: TRACK-V2`**
+— `03_phase2_beta_v2.png`, read from the render.
+
+### Why this makes Phase 1 causal
+
+Identical `client_id`, identical requested channel, identical patch number,
+identical binary, identical server. The response flipped from `patch_available:
+false` to `true` across a change to **one deployment row**. Every alternative
+explanation for Phase 1's withholding is excluded, because each would have kept B
+on V1 here as well:
+
+| alternative | excluded because |
+|---|---|
+| transport | the same client reached the same server and downloaded |
+| signing | the same signed bundle installed and ran the patch |
+| stale release | same `release_version` `1.10.0+1` throughout |
+| bad patch artifact | the same patch 1 artifact applied on B |
+| broken updater | the same updater downloaded and installed |
+| wrong app id | unchanged `app_id`, and it now matches |
+| B incapable of updating | B just updated |
+
+The only changed variable is track eligibility.

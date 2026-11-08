@@ -1,0 +1,1199 @@
+diff --git a/engine/src/flutter/shell/common/shorebird/BUILD.gn b/engine/src/flutter/shell/common/shorebird/BUILD.gn
+index 8c8034a..beaf698 100644
+--- a/engine/src/flutter/shell/common/shorebird/BUILD.gn
++++ b/engine/src/flutter/shell/common/shorebird/BUILD.gn
+@@ -117,6 +117,20 @@ source_set("updater") {
+   }
+ }
+ 
++# Route B patch containers. Split out from :shorebird so the container reader
++# can be unit-tested without dragging in the updater and the whole shell.
++source_set("route_b_patch") {
++  sources = [
++    "route_b_patch.cc",
++    "route_b_patch.h",
++  ]
++
++  deps = [
++    "//flutter/fml",
++    "//flutter/third_party/rapidjson",
++  ]
++}
++
+ source_set("shorebird") {
+   sources = [
+     "shorebird.cc",
+@@ -124,6 +138,7 @@ source_set("shorebird") {
+   ]
+ 
+   deps = [
++    ":route_b_patch",
+     ":snapshots_data_handle",
+     ":updater",
+     "//flutter/fml",
+@@ -144,12 +159,14 @@ if (enable_unittests) {
+ 
+     sources = [
+       "patch_cache_unittests.cc",
++      "route_b_patch_unittests.cc",
+       "shorebird_unittests.cc",
+       "snapshots_data_handle_unittests.cc",
+       "updater_unittests.cc",
+     ]
+ 
+     deps = [
++      ":route_b_patch",
+       ":shorebird",
+       ":shorebird_fixtures",
+       ":snapshots_data_handle",
+diff --git a/engine/src/flutter/shell/common/shorebird/route_b_patch.cc b/engine/src/flutter/shell/common/shorebird/route_b_patch.cc
+new file mode 100644
+index 0000000..18520d6
+--- /dev/null
++++ b/engine/src/flutter/shell/common/shorebird/route_b_patch.cc
+@@ -0,0 +1,297 @@
++// Copyright (c) 2026, the Shorebird self-host fork.
++
++#include "flutter/shell/common/shorebird/route_b_patch.h"
++
++#include <cstdio>
++#include <cstring>
++
++#include "flutter/fml/file.h"
++#include "flutter/fml/mapping.h"
++#include "third_party/rapidjson/include/rapidjson/document.h"
++
++namespace flutter {
++namespace route_b {
++
++namespace {
++
++constexpr char kMagic[8] = {'S', 'B', 'R', 'B', 'P', 'T', 'C', 'H'};
++constexpr uint32_t kFormatVersion = 1;
++// magic(8) + version(4) + headerLen(4). Anything shorter cannot be a container.
++constexpr size_t kFixedHeaderSize = 16;
++
++uint32_t ReadU32LE(const uint8_t* p) {
++  return static_cast<uint32_t>(p[0]) | (static_cast<uint32_t>(p[1]) << 8) |
++         (static_cast<uint32_t>(p[2]) << 16) |
++         (static_cast<uint32_t>(p[3]) << 24);
++}
++
++// SHA-256, FIPS 180-4.
++//
++// Implemented here rather than pulled in because no shell target depends on
++// boringssl today and this is an integrity check, not a security boundary --
++// the bytes have already been sha256-verified end-to-end by the updater's
++// install step by the time we see them. A NIST test vector is asserted in
++// route_b_patch_unittests.cc; do not touch this without running it.
++class Sha256 {
++ public:
++  Sha256() = default;
++
++  void Update(const uint8_t* data, size_t len) {
++    for (size_t i = 0; i < len; i++) {
++      buffer_[buffer_len_++] = data[i];
++      if (buffer_len_ == 64) {
++        Transform(buffer_);
++        bit_len_ += 512;
++        buffer_len_ = 0;
++      }
++    }
++  }
++
++  // Lowercase hex, 64 characters.
++  std::string HexDigest() {
++    size_t i = buffer_len_;
++    if (buffer_len_ < 56) {
++      buffer_[i++] = 0x80;
++      while (i < 56) buffer_[i++] = 0x00;
++    } else {
++      buffer_[i++] = 0x80;
++      while (i < 64) buffer_[i++] = 0x00;
++      Transform(buffer_);
++      memset(buffer_, 0, 56);
++    }
++    bit_len_ += buffer_len_ * 8;
++    for (int j = 0; j < 8; j++) {
++      buffer_[63 - j] = static_cast<uint8_t>(bit_len_ >> (8 * j));
++    }
++    Transform(buffer_);
++
++    char out[65];
++    for (int j = 0; j < 8; j++) {
++      snprintf(out + j * 8, 9, "%08x", state_[j]);
++    }
++    return std::string(out, 64);
++  }
++
++ private:
++  static uint32_t Rotr(uint32_t x, uint32_t n) {
++    return (x >> n) | (x << (32 - n));
++  }
++
++  void Transform(const uint8_t* chunk) {
++    static const uint32_t k[64] = {
++        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
++        0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
++        0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
++        0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
++        0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
++        0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
++        0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
++        0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
++        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
++        0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
++        0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
++
++    uint32_t w[64];
++    for (int i = 0; i < 16; i++) {
++      w[i] = (static_cast<uint32_t>(chunk[i * 4]) << 24) |
++             (static_cast<uint32_t>(chunk[i * 4 + 1]) << 16) |
++             (static_cast<uint32_t>(chunk[i * 4 + 2]) << 8) |
++             static_cast<uint32_t>(chunk[i * 4 + 3]);
++    }
++    for (int i = 16; i < 64; i++) {
++      uint32_t s0 = Rotr(w[i - 15], 7) ^ Rotr(w[i - 15], 18) ^ (w[i - 15] >> 3);
++      uint32_t s1 = Rotr(w[i - 2], 17) ^ Rotr(w[i - 2], 19) ^ (w[i - 2] >> 10);
++      w[i] = w[i - 16] + s0 + w[i - 7] + s1;
++    }
++
++    uint32_t a = state_[0], b = state_[1], c = state_[2], d = state_[3];
++    uint32_t e = state_[4], f = state_[5], g = state_[6], h = state_[7];
++    for (int i = 0; i < 64; i++) {
++      uint32_t s1 = Rotr(e, 6) ^ Rotr(e, 11) ^ Rotr(e, 25);
++      uint32_t ch = (e & f) ^ ((~e) & g);
++      uint32_t t1 = h + s1 + ch + k[i] + w[i];
++      uint32_t s0 = Rotr(a, 2) ^ Rotr(a, 13) ^ Rotr(a, 22);
++      uint32_t maj = (a & b) ^ (a & c) ^ (b & c);
++      uint32_t t2 = s0 + maj;
++      h = g;
++      g = f;
++      f = e;
++      e = d + t1;
++      d = c;
++      c = b;
++      b = a;
++      a = t1 + t2;
++    }
++    state_[0] += a;
++    state_[1] += b;
++    state_[2] += c;
++    state_[3] += d;
++    state_[4] += e;
++    state_[5] += f;
++    state_[6] += g;
++    state_[7] += h;
++  }
++
++  uint32_t state_[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
++                        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
++  uint8_t buffer_[64] = {};
++  size_t buffer_len_ = 0;
++  uint64_t bit_len_ = 0;
++};
++
++std::string Sha256Hex(const uint8_t* data, size_t len) {
++  Sha256 h;
++  h.Update(data, len);
++  return h.HexDigest();
++}
++
++ContainerStatus Fail(ContainerStatus status,
++                     std::string* error,
++                     const std::string& message) {
++  if (error != nullptr) {
++    *error = message;
++  }
++  return status;
++}
++
++}  // namespace
++
++const char* StatusName(ContainerStatus status) {
++  switch (status) {
++    case ContainerStatus::kOk:
++      return "ok";
++    case ContainerStatus::kNotAContainer:
++      return "not-a-container";
++    case ContainerStatus::kUnsupportedVersion:
++      return "unsupported-version";
++    case ContainerStatus::kMalformed:
++      return "malformed";
++    case ContainerStatus::kWrongRelease:
++      return "wrong-release";
++    case ContainerStatus::kPayloadCorrupt:
++      return "payload-corrupt";
++  }
++  return "unknown";
++}
++
++ContainerStatus SniffFile(const std::string& path) {
++  if (!fml::IsFile(path)) {
++    return ContainerStatus::kNotAContainer;
++  }
++  FILE* f = fopen(path.c_str(), "rb");
++  if (f == nullptr) {
++    // Unreadable is "not mine" rather than an error: whatever this is, the
++    // Route B path cannot claim it, and the existing code path will report its
++    // own failure with better context.
++    return ContainerStatus::kNotAContainer;
++  }
++  uint8_t head[sizeof(kMagic)] = {};
++  const size_t read = fread(head, 1, sizeof(head), f);
++  fclose(f);
++  if (read != sizeof(head) || memcmp(head, kMagic, sizeof(kMagic)) != 0) {
++    return ContainerStatus::kNotAContainer;
++  }
++  return ContainerStatus::kOk;
++}
++
++ContainerStatus Parse(const uint8_t* bytes,
++                      size_t length,
++                      Container* out,
++                      std::string* error) {
++  if (bytes == nullptr || length < kFixedHeaderSize) {
++    return Fail(ContainerStatus::kNotAContainer, error,
++                "too short to be a patch container");
++  }
++  if (memcmp(bytes, kMagic, sizeof(kMagic)) != 0) {
++    return Fail(ContainerStatus::kNotAContainer, error, "bad magic");
++  }
++
++  // Version before anything else that could be reinterpreted. A v2 container
++  // may lay its header out differently, so parsing it with v1 rules would turn
++  // a clean refusal into a malformed-file report.
++  const uint32_t version = ReadU32LE(bytes + 8);
++  if (version != kFormatVersion) {
++    char buf[128];
++    snprintf(buf, sizeof(buf),
++             "unsupported format version %u (this build reads %u)", version,
++             kFormatVersion);
++    return Fail(ContainerStatus::kUnsupportedVersion, error, buf);
++  }
++
++  const uint32_t header_len = ReadU32LE(bytes + 12);
++  if (kFixedHeaderSize + static_cast<uint64_t>(header_len) > length) {
++    return Fail(ContainerStatus::kMalformed, error,
++                "header runs past end of file");
++  }
++
++  const std::string header_json(
++      reinterpret_cast<const char*>(bytes + kFixedHeaderSize), header_len);
++  rapidjson::Document doc;
++  doc.Parse(header_json.c_str(), header_json.size());
++  if (doc.HasParseError() || !doc.IsObject()) {
++    return Fail(ContainerStatus::kMalformed, error, "header is not JSON");
++  }
++
++  if (!doc.HasMember("release") || !doc["release"].IsObject() ||
++      !doc["release"].HasMember("buildId") ||
++      !doc["release"]["buildId"].IsString()) {
++    return Fail(ContainerStatus::kMalformed, error,
++                "header has no release.buildId");
++  }
++  if (!doc.HasMember("targets") || !doc["targets"].IsArray()) {
++    return Fail(ContainerStatus::kMalformed, error, "header has no targets");
++  }
++
++  Container parsed;
++  parsed.release_build_id = doc["release"]["buildId"].GetString();
++
++  const size_t base = kFixedHeaderSize + header_len;
++  for (const auto& entry : doc["targets"].GetArray()) {
++    if (!entry.IsObject() || !entry.HasMember("library") ||
++        !entry["library"].IsString() || !entry.HasMember("selector") ||
++        !entry["selector"].IsString() || !entry.HasMember("offset") ||
++        !entry["offset"].IsUint64() || !entry.HasMember("length") ||
++        !entry["length"].IsUint64() || !entry.HasMember("sha256") ||
++        !entry["sha256"].IsString()) {
++      return Fail(ContainerStatus::kMalformed, error,
++                  "target entry is missing required fields");
++    }
++    const uint64_t offset = entry["offset"].GetUint64();
++    const uint64_t len = entry["length"].GetUint64();
++    if (base + offset + len > length || base + offset < base) {
++      return Fail(ContainerStatus::kMalformed, error,
++                  "payload runs past end of file");
++    }
++
++    Target t;
++    t.library = entry["library"].GetString();
++    t.selector = entry["selector"].GetString();
++    t.bytecode = bytes + base + offset;
++    t.length = static_cast<size_t>(len);
++
++    // Before anything is attached, not after: an apply can unwind attachments,
++    // it cannot unwind a corrupt body already executing.
++    const std::string actual = Sha256Hex(t.bytecode, t.length);
++    if (actual != entry["sha256"].GetString()) {
++      return Fail(ContainerStatus::kPayloadCorrupt, error,
++                  "payload for " + t.selector + " is corrupt (declared " +
++                      entry["sha256"].GetString() + ", got " + actual + ")");
++    }
++    parsed.targets.push_back(std::move(t));
++  }
++
++  if (parsed.targets.empty()) {
++    // The producer refuses to write this, so seeing it means the file was
++    // edited or truncated in a way the length checks did not catch.
++    return Fail(ContainerStatus::kMalformed, error,
++                "container declares no targets, so it would be silently inert");
++  }
++
++  if (out != nullptr) {
++    *out = std::move(parsed);
++  }
++  return ContainerStatus::kOk;
++}
++
++}  // namespace route_b
++}  // namespace flutter
+diff --git a/engine/src/flutter/shell/common/shorebird/route_b_patch.h b/engine/src/flutter/shell/common/shorebird/route_b_patch.h
+new file mode 100644
+index 0000000..6e6f932
+--- /dev/null
++++ b/engine/src/flutter/shell/common/shorebird/route_b_patch.h
+@@ -0,0 +1,88 @@
++// Copyright (c) 2026, the Shorebird self-host fork.
++//
++// Route B patch containers ("SBRBPTCH"), read on the embedder side.
++//
++// WHY THIS LIVES HERE AND NOT IN THE VM. The Dart runtime should receive
++// already-validated (library, selector, bytes) triples and nothing else. It has
++// no business learning JSON, container layout or release identity: those are
++// delivery concerns, they change on a different schedule to the VM, and every
++// one of them is an embedder-side failure the VM cannot report usefully.
++//
++// WHY IT IS NOT KEYED ON THE FILENAME. The updater installs every code artifact
++// as `{state_root}/patches/{N}/dlc.vmcode`, whatever is inside it. So the name
++// says nothing, and `PatchCarriesCode()` -- which keys on `.vmcode` -- is true
++// for a Route B container too. Handing one of those to the VM as the app's only
++// library path is not a degraded patch, it is a failure to boot. Content
++// sniffing is a boot-safety invariant here, not tidiness.
++
++#ifndef FLUTTER_SHELL_COMMON_SHOREBIRD_ROUTE_B_PATCH_H_
++#define FLUTTER_SHELL_COMMON_SHOREBIRD_ROUTE_B_PATCH_H_
++
++#include <cstdint>
++#include <string>
++#include <vector>
++
++namespace flutter {
++namespace route_b {
++
++/// Why a container was refused, or kOk.
++///
++/// One code per cause. The whole point is that a stale payload says
++/// kWrongRelease and never degrades into an opaque attach failure -- Route B
++/// has lost enough hours to exactly that collapse.
++enum class ContainerStatus {
++  kOk,
++  /// Magic did not match. The overwhelmingly common case: an ordinary code
++  /// patch. Not an error, and callers must treat it as "not mine".
++  kNotAContainer,
++  /// Magic matched, formatVersion did not. Refuse rather than guess: a reader
++  /// that tolerates unknown versions defines the format by accident.
++  kUnsupportedVersion,
++  /// Truncated, unparseable, missing required fields, or offsets that run past
++  /// the end of the file.
++  kMalformed,
++  /// Built for a different release. Checked BEFORE any target is resolved.
++  kWrongRelease,
++  /// A payload's bytes do not match its declared sha256.
++  kPayloadCorrupt,
++};
++
++const char* StatusName(ContainerStatus status);
++
++/// One function to replace. `bytecode` points into the caller's mapping and is
++/// valid only as long as that mapping is.
++struct Target {
++  std::string library;
++  std::string selector;
++  const uint8_t* bytecode = nullptr;
++  size_t length = 0;
++};
++
++struct Container {
++  std::string release_build_id;
++  std::vector<Target> targets;
++};
++
++/// Cheap first-8-bytes check, for deciding whether a path is a Route B
++/// container at all. Returns kOk or kNotAContainer; never reads the header.
++///
++/// Separate from ParseContainer because the decision it feeds -- whether to put
++/// this path into application_library_paths -- happens in ConfigureShorebird,
++/// long before an isolate exists to validate a release against.
++ContainerStatus SniffFile(const std::string& path);
++
++/// Full structural parse and integrity check.
++///
++/// Does NOT check release identity: that needs a live isolate, so the caller
++/// compares `release_build_id` itself. Everything this CAN check, it checks
++/// before returning, so a caller that gets kOk holds a container whose payloads
++/// are intact.
++ContainerStatus Parse(const uint8_t* bytes,
++                      size_t length,
++                      Container* out,
++                      std::string* error);
++
++}  // namespace route_b
++}  // namespace flutter
++
++#endif  // FLUTTER_SHELL_COMMON_SHOREBIRD_ROUTE_B_PATCH_H_
+diff --git a/engine/src/flutter/shell/common/shorebird/route_b_patch_unittests.cc b/engine/src/flutter/shell/common/shorebird/route_b_patch_unittests.cc
+new file mode 100644
+index 0000000..f42adb7
+--- /dev/null
++++ b/engine/src/flutter/shell/common/shorebird/route_b_patch_unittests.cc
+@@ -0,0 +1,197 @@
++// Copyright (c) 2026, the Shorebird self-host fork.
++//
++// The rejection taxonomy, asserted. Every one of these outcomes has a different
++// cause and a different fix, and the reason they are separate codes at all is
++// that Route B kept paying for the collapsed version: a stale payload reported
++// as "attach returned false" sent us looking at retention, bytecode metadata
++// and the installer in turn, none of which were wrong.
++
++#include "flutter/shell/common/shorebird/route_b_patch.h"
++
++#include <string>
++#include <vector>
++
++#include "flutter/testing/testing.h"
++
++namespace flutter {
++namespace testing {
++
++namespace {
++
++using route_b::Container;
++using route_b::ContainerStatus;
++
++void AppendU32LE(std::vector<uint8_t>* out, uint32_t v) {
++  out->push_back(static_cast<uint8_t>(v & 0xff));
++  out->push_back(static_cast<uint8_t>((v >> 8) & 0xff));
++  out->push_back(static_cast<uint8_t>((v >> 16) & 0xff));
++  out->push_back(static_cast<uint8_t>((v >> 24) & 0xff));
++}
++
++// sha256("hello") — used so the fixtures below carry a real digest rather than
++// a placeholder the reader would have to be taught to ignore.
++constexpr char kHelloSha256[] =
++    "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
++
++std::vector<uint8_t> BuildContainer(const std::string& header_json,
++                                    const std::string& payload,
++                                    uint32_t version = 1) {
++  std::vector<uint8_t> out;
++  const char magic[] = {'S', 'B', 'R', 'B', 'P', 'T', 'C', 'H'};
++  out.insert(out.end(), magic, magic + 8);
++  AppendU32LE(&out, version);
++  AppendU32LE(&out, static_cast<uint32_t>(header_json.size()));
++  out.insert(out.end(), header_json.begin(), header_json.end());
++  out.insert(out.end(), payload.begin(), payload.end());
++  return out;
++}
++
++std::string GoodHeader(const std::string& build_id = "abc123",
++                       const std::string& sha = kHelloSha256,
++                       size_t length = 5) {
++  return std::string(R"({"formatVersion":1,"release":{"buildId":")") +
++         build_id + R"("},"targets":[{"library":"package:a/a.dart",)" +
++         R"("selector":"greet","offset":0,"length":)" +
++         std::to_string(length) + R"(,"sha256":")" + sha + R"("}]})";
++}
++
++ContainerStatus ParseVec(const std::vector<uint8_t>& bytes,
++                         Container* out = nullptr,
++                         std::string* error = nullptr) {
++  std::string scratch_error;
++  Container scratch;
++  return route_b::Parse(bytes.data(), bytes.size(),
++                        out != nullptr ? out : &scratch,
++                        error != nullptr ? error : &scratch_error);
++}
++
++}  // namespace
++
++// The SHA-256 in route_b_patch.cc is hand-written because no shell target
++// depends on boringssl. This is the guard on that decision: if this fails,
++// every payload integrity check in the file is meaningless.
++TEST(RouteBPatchTest, Sha256MatchesKnownVector) {
++  // Exercised through the only public surface that hashes: a container whose
++  // declared digest is the known sha256 of "hello" must parse clean.
++  const auto bytes = BuildContainer(GoodHeader(), "hello");
++  EXPECT_EQ(ParseVec(bytes), ContainerStatus::kOk);
++
++  // ...and the same bytes with any other declared digest must not.
++  const auto wrong = BuildContainer(
++      GoodHeader("abc123", std::string(64, '0')), "hello");
++  EXPECT_EQ(ParseVec(wrong), ContainerStatus::kPayloadCorrupt);
++}
++
++TEST(RouteBPatchTest, NotAContainer) {
++  // An ordinary code patch. This is the common case and must be cheap and
++  // silent, not an error.
++  const std::string vmcode = "\x28\xb5\x2f\xfd not a route b container";
++  const std::vector<uint8_t> bytes(vmcode.begin(), vmcode.end());
++  EXPECT_EQ(ParseVec(bytes), ContainerStatus::kNotAContainer);
++}
++
++TEST(RouteBPatchTest, TooShortIsNotAContainer) {
++  const std::vector<uint8_t> bytes = {'S', 'B', 'R'};
++  EXPECT_EQ(ParseVec(bytes), ContainerStatus::kNotAContainer);
++}
++
++TEST(RouteBPatchTest, UnsupportedVersion) {
++  const auto bytes = BuildContainer(GoodHeader(), "hello", /*version=*/2);
++  std::string error;
++  EXPECT_EQ(ParseVec(bytes, nullptr, &error),
++            ContainerStatus::kUnsupportedVersion);
++  // Refused on the version alone: a v2 container may lay its header out
++  // differently, so parsing it with v1 rules would report "malformed" for a
++  // file that is perfectly well formed.
++  EXPECT_NE(error.find("version 2"), std::string::npos);
++}
++
++TEST(RouteBPatchTest, MalformedHeaderJson) {
++  const auto bytes = BuildContainer("{not json", "hello");
++  EXPECT_EQ(ParseVec(bytes), ContainerStatus::kMalformed);
++}
++
++TEST(RouteBPatchTest, MissingReleaseBuildId) {
++  const auto bytes = BuildContainer(
++      R"({"formatVersion":1,"targets":[]})", "hello");
++  EXPECT_EQ(ParseVec(bytes), ContainerStatus::kMalformed);
++}
++
++TEST(RouteBPatchTest, PayloadRunsPastEndOfFile) {
++  // Declares 5000 bytes of payload, ships 5.
++  const auto bytes = BuildContainer(GoodHeader("abc123", kHelloSha256, 5000),
++                                    "hello");
++  EXPECT_EQ(ParseVec(bytes), ContainerStatus::kMalformed);
++}
++
++TEST(RouteBPatchTest, HeaderRunsPastEndOfFile) {
++  auto bytes = BuildContainer(GoodHeader(), "hello");
++  // Overwrite headerLen with something enormous.
++  bytes[12] = 0xff;
++  bytes[13] = 0xff;
++  EXPECT_EQ(ParseVec(bytes), ContainerStatus::kMalformed);
++}
++
++TEST(RouteBPatchTest, NoTargetsIsMalformed) {
++  const auto bytes = BuildContainer(
++      R"({"formatVersion":1,"release":{"buildId":"abc"},"targets":[]})",
++      "hello");
++  // A container with no targets would apply cleanly and do nothing, which is
++  // the worst possible outcome: a patch that reports success and changes
++  // nothing.
++  EXPECT_EQ(ParseVec(bytes), ContainerStatus::kMalformed);
++}
++
++TEST(RouteBPatchTest, ParsesTargets) {
++  Container container;
++  const auto bytes = BuildContainer(GoodHeader("deadbeef"), "hello");
++  ASSERT_EQ(ParseVec(bytes, &container), ContainerStatus::kOk);
++  EXPECT_EQ(container.release_build_id, "deadbeef");
++  ASSERT_EQ(container.targets.size(), 1u);
++  EXPECT_EQ(container.targets[0].library, "package:a/a.dart");
++  EXPECT_EQ(container.targets[0].selector, "greet");
++  EXPECT_EQ(container.targets[0].length, 5u);
++  EXPECT_EQ(std::string(reinterpret_cast<const char*>(
++                            container.targets[0].bytecode),
++                        container.targets[0].length),
++            "hello");
++}
++
++// Release identity is NOT checked here: it needs a live isolate, so the hook
++// compares release_build_id itself. What this asserts is that the parser hands
++// the caller the identity to compare, before any target is resolved — which is
++// the ordering that keeps a stale payload from degrading into a target or
++// attach failure.
++TEST(RouteBPatchTest, ReleaseIdentityIsAvailableBeforeTargetsAreUsed) {
++  Container container;
++  const auto bytes = BuildContainer(GoodHeader("11223344"), "hello");
++  ASSERT_EQ(ParseVec(bytes, &container), ContainerStatus::kOk);
++  EXPECT_EQ(container.release_build_id, "11223344");
++}
++
++TEST(RouteBPatchTest, StatusNamesAreDistinct) {
++  // A code nobody can read is a bool with extra steps.
++  const std::vector<ContainerStatus> all = {
++      ContainerStatus::kOk,          ContainerStatus::kNotAContainer,
++      ContainerStatus::kUnsupportedVersion, ContainerStatus::kMalformed,
++      ContainerStatus::kWrongRelease, ContainerStatus::kPayloadCorrupt};
++  std::vector<std::string> names;
++  for (const auto status : all) {
++    names.emplace_back(route_b::StatusName(status));
++  }
++  for (size_t i = 0; i < names.size(); i++) {
++    EXPECT_FALSE(names[i].empty());
++    EXPECT_NE(names[i], "unknown");
++    for (size_t j = i + 1; j < names.size(); j++) {
++      EXPECT_NE(names[i], names[j]);
++    }
++  }
++}
++
++TEST(RouteBPatchTest, SniffMissingFileIsNotAContainer) {
++  EXPECT_EQ(route_b::SniffFile("/definitely/not/here/dlc.vmcode"),
++            ContainerStatus::kNotAContainer);
++}
++
++}  // namespace testing
++}  // namespace flutter
+diff --git a/engine/src/flutter/shell/common/shorebird/shorebird.cc b/engine/src/flutter/shell/common/shorebird/shorebird.cc
+index fe2dc49..4643dae 100644
+--- a/engine/src/flutter/shell/common/shorebird/shorebird.cc
++++ b/engine/src/flutter/shell/common/shorebird/shorebird.cc
+@@ -19,6 +19,7 @@
+ #include "flutter/runtime/dart_snapshot.h"
+ #include "flutter/runtime/dart_vm.h"
+ #include "flutter/shell/common/shell.h"
++#include "flutter/shell/common/shorebird/route_b_patch.h"
+ #include "flutter/shell/common/shorebird/snapshots_data_handle.h"
+ #include "flutter/shell/common/shorebird/updater.h"
+ #include "flutter/shell/common/switches.h"
+@@ -46,7 +47,26 @@ extern "C" __attribute__((weak)) unsigned long getauxval(unsigned long type) {
+ }
+ #endif
+ 
+-#if SHOREBIRD_USE_INTERPRETER
++// Whether this build needs the base snapshot bytes available to the updater.
++//
++// SHOREBIRD_USE_INTERPRETER used to stand in for "is iOS", because upstream has
++// no iOS configuration where it is false. Route B is exactly that
++// configuration, and the two capabilities are not the same thing:
++//
++//   iOS patch installation needs base snapshot bytes   (inflate reads them)
++//   iOS must use Shorebird's private interpreter       (a different question)
++//
++// The updater's `patch_base()` is `file_provider.open()` on iOS and nothing
++// else, so with the flag off there was no base reader at all and every install
++// failed inside inflate() before it read a byte. Keyed on the platform, which
++// is what the requirement actually is.
++#if defined(FML_OS_IOS) || SHOREBIRD_USE_INTERPRETER
++#define SHOREBIRD_NEEDS_BASE_SNAPSHOT 1
++#else
++#define SHOREBIRD_NEEDS_BASE_SNAPSHOT 0
++#endif
++
++#if SHOREBIRD_NEEDS_BASE_SNAPSHOT
+ // Global references to the base (unpatched) snapshots from the App.framework.
+ // These are process-global because:
+ // 1. The Shorebird updater library is a process-global singleton with its own
+@@ -91,12 +111,18 @@ void SetBaseSnapshot(Settings& settings) {
+                 << (vm_data_size + iso_data_size + vm_insns_size +
+                     iso_insns_size);
+ 
++#if SHOREBIRD_USE_INTERPRETER
++  // Private-fork API: it hands the base snapshots to Shorebird's own
++  // interpreter. Deliberately still behind the interpreter flag — Route B needs
++  // the mappings held alive for the updater's base reader, and nothing else
++  // here.
+   Shorebird_SetBaseSnapshots(isolate_snapshot->GetDataMapping(),
+                              isolate_snapshot->GetInstructionsMapping(),
+                              vm_snapshot->GetDataMapping(),
+                              vm_snapshot->GetInstructionsMapping());
+-}
+ #endif  // SHOREBIRD_USE_INTERPRETER
++}
++#endif  // SHOREBIRD_NEEDS_BASE_SNAPSHOT
+ 
+ class FileCallbacksImpl {
+  public:
+@@ -142,78 +168,113 @@ std::string GetValueFromYaml(const std::string& yaml, const std::string& key) {
+ // Route B (selfhost), SEAM 6: activate a patch after the root isolate exists
+ // and before main runs.
+ //
+-// TEST-ONLY WIRING for the seam-6 kill gate. The payload path and target are
+-// fixed here rather than coming from the updater, so this proves the ACTIVATION
+-// TIMING in isolation before delivery is built. The lifecycle keeps deciding
+-// WHICH patch is active; the engine only decides HOW a Route B patch becomes
+-// live -- that ownership split is why this is a separate hook rather than a
+-// change to ConfigureShorebird.
++// The lifecycle keeps deciding WHICH patch is active; the engine only decides
++// HOW a Route B patch becomes live. That ownership split is why this is a
++// separate hook armed from the tail of ConfigureShorebird rather than more code
++// inside it, and it is why the path handed in here is the one
++// NextBootPatchPath() already chose.
++//
++// TIMING. root_isolate_create_callback fires at dart_isolate.cc:163, inside a
++// tonic::DartState::Scope: after the isolate exists and its libraries are
++// loaded, and before RunFromLibrary/InvokeMainEntrypoint at :174. Route B needs
++// live Function objects so it cannot run earlier, and must precede user Dart so
++// it cannot run later. That one-line window is the whole seam.
++//
++// FAIL CLOSED. Every refusal leaves the program pristine and returns, so the
++// app boots on unpatched AOT. A Route B patch that cannot be applied must never
++// be the difference between running and not running.
+ //
+ // Existing callback is CHAINED, never replaced: root_isolate_create_callback is
+ // a general extension point (fuchsia and the embedder API both set it), and
+ // silently consuming another subsystem's hook would be a nasty regression to
+ // debug.
+-void InstallRouteBActivationHook(Settings& settings) {
+-  // Trigger by FILE PRESENCE, not environment.
+-  //
+-  // The first attempt used SHOREBIRD_ROUTEB_* env vars and the hook never
+-  // fired: ios-deploy --envs did not reach the launched process, so getenv
+-  // returned null and the whole chain was silently skipped. That is a test
+-  // TRANSPORT failure rather than anything about activation, and swapping the
+-  // trigger changes only how the engine RECEIVES configuration, not how a
+-  // patch becomes live.
+-  //
+-  // Env is still honoured when present, because on hosts where it does work it
+-  // is the more convenient switch.
+-  //
+-  // TEST-ONLY. In 4b this whole block is replaced by the lifecycle-selected
+-  // SBRBPTCH path, and library/target come from the container's own target
+-  // records rather than being hard-coded here.
+-  std::string path;
+-  std::string uri;
+-  std::string target;
+-
+-  const char* env_payload = std::getenv("SHOREBIRD_ROUTEB_PAYLOAD");
+-  const char* env_library = std::getenv("SHOREBIRD_ROUTEB_LIBRARY");
+-  const char* env_target = std::getenv("SHOREBIRD_ROUTEB_TARGET");
+-  if (env_payload != nullptr && env_library != nullptr &&
+-      env_target != nullptr) {
+-    path = env_payload;
+-    uri = env_library;
+-    target = env_target;
+-  } else if (!settings.assets_path.empty()) {
+-    // A deliberately unusual asset name, so no ordinary app can trip this.
+-    const std::string candidate =
+-        settings.assets_path + "/assets/routeb_patch.bytecode";
+-    if (!fml::IsFile(candidate)) {
+-      // Inert for ordinary apps and releases. Not an error: the overwhelmingly
+-      // common case is no Route B patch at all, and it must cost nothing.
+-      return;
+-    }
+-    path = candidate;
+-    uri = "package:airgap_probe/main.dart";
+-    target = "routeBValue";
+-  } else {
++void InstallRouteBActivationHook(Settings& settings, const std::string& path) {
++  if (path.empty()) {
++    // Inert. The overwhelmingly common case is no Route B patch at all, and it
++    // must cost nothing.
+     return;
+   }
+   auto existing = settings.root_isolate_create_callback;
+ 
+   settings.root_isolate_create_callback =
+-      [existing, path, uri, target](const DartIsolate& isolate) {
++      [existing, path](const DartIsolate& isolate) {
+         if (existing) {
+           existing(isolate);
+         }
+-        FML_LOG(ERROR) << "ROUTEB: pre-main hook entered";
++        FML_LOG(ERROR) << "ROUTEB: pre-main hook entered, path=" << path;
++
+         auto mapping = fml::FileMapping::CreateReadOnly(path);
+         if (!mapping || mapping->GetSize() == 0) {
+-          FML_LOG(ERROR) << "ROUTEB: cannot read payload at " << path;
++          FML_LOG(ERROR) << "ROUTEB: REFUSED (unreadable): " << path;
++          return;
++        }
++
++        route_b::Container container;
++        std::string error;
++        const auto status = route_b::Parse(mapping->GetMapping(),
++                                           mapping->GetSize(), &container,
++                                           &error);
++        if (status != route_b::ContainerStatus::kOk) {
++          FML_LOG(ERROR) << "ROUTEB: REFUSED (" << route_b::StatusName(status)
++                         << "): " << error;
+           return;
+         }
+-        const bool ok = Dart_RouteBActivatePatch(
+-            mapping->GetMapping(), static_cast<intptr_t>(mapping->GetSize()),
+-            uri.c_str(), target.c_str());
+-        FML_LOG(ERROR) << "ROUTEB: activation " << (ok ? "complete" : "FAILED")
+-                       << ", entering main";
++
++        // RELEASE IDENTITY BEFORE TARGET RESOLUTION. Patch bytecode is compiled
++        // against one release's kernel, so applying it elsewhere is undefined
++        // rather than merely unsupported. Checking it here means a stale
++        // payload says "wrong release" instead of degrading into a target or
++        // attach failure three steps later -- which is the single most
++        // expensive diagnostic confusion this project has had.
++        char* running = Dart_RouteBReleaseBuildId();
++        if (running == nullptr) {
++          // No identity is not "any identity". Refuse.
++          FML_LOG(ERROR) << "ROUTEB: REFUSED (no-release-identity): this "
++                            "snapshot carries no build ID";
++          return;
++        }
++        const std::string running_id(running);
++        ::free(running);
++        if (running_id != container.release_build_id) {
++          FML_LOG(ERROR) << "ROUTEB: REFUSED ("
++                         << route_b::StatusName(
++                                route_b::ContainerStatus::kWrongRelease)
++                         << "): built for " << container.release_build_id
++                         << ", running " << running_id;
++          return;
++        }
++
++        int applied = 0;
++        for (const auto& target : container.targets) {
++          const int32_t result = Dart_RouteBActivatePatch(
++              target.bytecode, static_cast<intptr_t>(target.length),
++              target.library.c_str(), target.selector.c_str());
++          if (result == Dart_RouteB_Ok) {
++            applied++;
++            continue;
++          }
++          // Named, not numbered. A code nobody can read is a bool with extra
++          // steps.
++          const char* reason = "unknown";
++          switch (result) {
++            case Dart_RouteB_NoIsolate: reason = "no-isolate"; break;
++            case Dart_RouteB_EmptyPayload: reason = "empty-payload"; break;
++            case Dart_RouteB_InvalidBytecode: reason = "invalid-bytecode"; break;
++            case Dart_RouteB_TargetMissing: reason = "target-missing"; break;
++            case Dart_RouteB_AlreadyInterpreted:
++              reason = "already-interpreted";
++              break;
++            case Dart_RouteB_AttachFailed: reason = "attach-failed"; break;
++            case Dart_RouteB_Unsupported: reason = "unsupported-build"; break;
++            case Dart_RouteB_OutOfMemory: reason = "out-of-memory"; break;
++            default: break;
++          }
++          FML_LOG(ERROR) << "ROUTEB: target " << target.selector << " in "
++                         << target.library << " REFUSED (" << reason << ")";
++        }
++        FML_LOG(ERROR) << "ROUTEB: applied " << applied << "/"
++                       << container.targets.size()
++                       << " targets, entering main";
+       };
+ }
+ 
+@@ -363,13 +424,20 @@ void ConfigureShorebird(std::string code_cache_path,
+   // package:shorebird_code_push.
+   // https://github.com/shorebirdtech/shorebird/issues/950
+ 
+-  // We only set the base snapshot on iOS for now.
+-#if SHOREBIRD_USE_INTERPRETER
++  // iOS only: the updater's inflate() reads the base through the file
++  // callbacks, so this has to happen before any install can succeed. Not gated
++  // on the interpreter flag — see SHOREBIRD_NEEDS_BASE_SNAPSHOT.
++#if SHOREBIRD_NEEDS_BASE_SNAPSHOT
+   SetBaseSnapshot(settings);
+ #endif
+ 
+   shorebird::Updater::Instance().ValidateNextBootPatch();
+   std::string active_path = shorebird::Updater::Instance().NextBootPatchPath();
++
++  // The Route B container this boot will activate, if the active artifact is
++  // one. Empty otherwise, which leaves the hook inert.
++  std::string route_b_path;
++
+   if (!active_path.empty()) {
+     FML_LOG(INFO) << "Shorebird updater: active path: " << active_path;
+ 
+@@ -378,26 +446,47 @@ void ConfigureShorebird(std::string code_cache_path,
+     // is simply not pushed.
+     settings.shorebird_patch_assets_path = PatchAssetsPathForPatch(active_path);
+ 
++    // WHAT THIS ARTIFACT IS, decided by its BYTES.
++    //
++    // The lifecycle installs every code artifact as `patches/{N}/dlc.vmcode`
++    // regardless of content, so the filename carries no information and
++    // PatchCarriesCode() -- which keys on `.vmcode` -- says "code" for a Route
++    // B container too. Handing one to the VM as the app's only library path is
++    // not a degraded patch, it is a failure to boot. So the sniff has to happen
++    // BEFORE application_library_paths is touched, and it is a boot-safety
++    // invariant rather than tidiness.
++    const bool is_route_b =
++        route_b::SniffFile(active_path) == route_b::ContainerStatus::kOk;
++
++    if (is_route_b) {
++      // A Route B container must never reach the VM snapshot loader. It is not
++      // a snapshot; it is bytecode plus a header, applied later by the pre-main
++      // hook once an isolate exists to apply it to.
++      FML_LOG(INFO) << "Shorebird updater: active patch is a Route B container";
++      route_b_path = active_path;
++    } else {
+ #if SHOREBIRD_USE_INTERPRETER
+-    // On iOS we add the patch to the front of the list instead of clearing
+-    // the list, to allow dart_snapshot.cc to still find the base snapshot
+-    // for the vm isolate.
+-    settings.application_library_paths.insert(
+-        settings.application_library_paths.begin(), active_path);
++      // On iOS we add the patch to the front of the list instead of clearing
++      // the list, to allow dart_snapshot.cc to still find the base snapshot
++      // for the vm isolate.
++      settings.application_library_paths.insert(
++          settings.application_library_paths.begin(), active_path);
+ #else
+-    // Only a patch that actually carries code may displace the app's own
+-    // library. An assets-only patch has no snapshot in it, so clearing the list
+-    // would leave the loader with a single path holding nothing loadable and
+-    // the app would fail to boot — while the asset overlay above, which is the
+-    // whole point of such a patch, needs no library path at all.
+-    //
+-    // Note the asymmetry with the iOS branch above: iOS *inserts* and so keeps
+-    // the base reachable for free, which is why this guard is only needed here.
+-    if (PatchCarriesCode(active_path)) {
+-      settings.application_library_paths.clear();
+-      settings.application_library_paths.emplace_back(active_path);
+-    }
++      // Only a patch that actually carries code may displace the app's own
++      // library. An assets-only patch has no snapshot in it, so clearing the
++      // list would leave the loader with a single path holding nothing loadable
++      // and the app would fail to boot — while the asset overlay above, which
++      // is the whole point of such a patch, needs no library path at all.
++      //
++      // Note the asymmetry with the iOS branch above: iOS *inserts* and so
++      // keeps the base reachable for free, which is why this guard is only
++      // needed here.
++      if (PatchCarriesCode(active_path)) {
++        settings.application_library_paths.clear();
++        settings.application_library_paths.emplace_back(active_path);
++      }
+ #endif
++    }
+   } else {
+     FML_LOG(INFO) << "Shorebird updater: no active patch.";
+   }
+@@ -419,25 +508,38 @@ void ConfigureShorebird(std::string code_cache_path,
+         << "Shorebird auto_update disabled, not checking for updates.";
+   }
+ 
+-  // SEAM 6: the lifecycle above has decided WHICH patch is active. Arming the
+-  // pre-main hook here keeps that ownership intact -- activation happens later,
+-  // once the root isolate exists, because Route B needs live Function objects
+-  // and this runs before the engine has started.
+-  InstallRouteBActivationHook(settings);
++  // SEAM 6: the lifecycle above has decided WHICH patch is active, and the
++  // content sniff decided whether it is a Route B container. Arming the hook
++  // here keeps that ownership intact -- activation happens later, once the root
++  // isolate exists, because Route B needs live Function objects and this runs
++  // before the engine has started.
++  InstallRouteBActivationHook(settings, route_b_path);
+ }
+ 
+ void* FileCallbacksImpl::Open() {
+-#if SHOREBIRD_USE_INTERPRETER
++#if SHOREBIRD_NEEDS_BASE_SNAPSHOT
++  // iOS patches are generated from just the Dart parts of the snapshot,
++  // excluding the Mach-O headers, which carry dates and paths that change on
++  // every build. SnapshotsDataHandle presents those four blobs as one seekable
++  // stream, which is what the diff was computed against.
++  if (!vm_snapshot || !isolate_snapshot) {
++    // Init order regression rather than a supported state: ConfigureShorebird
++    // calls SetBaseSnapshot before anything can ask for a base. Returning null
++    // surfaces as "CFile open failed" inside install, which is a confusing
++    // place to read this from, so say it here too.
++    FML_LOG(ERROR) << "[shorebird] base snapshot requested before it was set; "
++                      "patch installation will fail";
++    return nullptr;
++  }
+   return SnapshotsDataHandle::createForSnapshots(*vm_snapshot,
+                                                  *isolate_snapshot)
+       .release();
+ #else
+-  // SnapshotsDataHandle exists on all platforms (for testing) but is only used
+-  // on iOS. iOS patches are generated from just the Dart parts of the snapshot,
+-  // excluding the Mach-O specific headers which contain dates and paths that
+-  // make them change on every build.
++  // SnapshotsDataHandle exists on all platforms (for testing) but the updater
++  // only asks for a base through these callbacks on iOS; Android opens
++  // libapp.so directly.
+   return nullptr;
+-#endif  // SHOREBIRD_USE_INTERPRETER
++#endif  // SHOREBIRD_NEEDS_BASE_SNAPSHOT
+ }
+ 
+ uintptr_t FileCallbacksImpl::Read(void* file,
+diff --git a/engine/src/flutter/third_party/updater/Cargo.lock b/engine/src/flutter/third_party/updater/Cargo.lock
+index 733c1ca..e195577 100644
+--- a/engine/src/flutter/third_party/updater/Cargo.lock
++++ b/engine/src/flutter/third_party/updater/Cargo.lock
+@@ -1020,9 +1020,9 @@ checksum = "dce6dd36094cac388f119d2e9dc82dc730ef91c32a6222170d630e5414b956e6"
+ 
+ [[package]]
+ name = "mockall"
+-version = "0.14.0"
++version = "0.15.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "f58d964098a5f9c6b63d0798e5372fd04708193510a7af313c22e9f29b7b620b"
++checksum = "1a6ceddfe3ce334925e96bf420fdb2dcee5bed6c632a168ece622676dadeaf8a"
+ dependencies = [
+  "cfg-if",
+  "downcast",
+@@ -1034,9 +1034,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "mockall_derive"
+-version = "0.14.0"
++version = "0.15.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ca41ce716dda6a9be188b385aa78ee5260fc25cd3802cb2a8afdc6afbe6b6dbf"
++checksum = "9cfe16fbe8a314aeec0b861ac24e60b1e123e97634bab045475b9d6a18416fd8"
+ dependencies = [
+  "cfg-if",
+  "proc-macro2",
+@@ -1144,6 +1144,7 @@ name = "patch"
+ version = "0.2.1"
+ dependencies = [
+  "bidiff",
++ "bipatch",
+  "comde",
+  "hex",
+  "pipe",
+diff --git a/engine/src/flutter/third_party/updater/patch/Cargo.toml b/engine/src/flutter/third_party/updater/patch/Cargo.toml
+index fb54d7f..625b241 100644
+--- a/engine/src/flutter/third_party/updater/patch/Cargo.toml
++++ b/engine/src/flutter/third_party/updater/patch/Cargo.toml
+@@ -8,6 +8,10 @@ edition = "2021"
+ [dependencies]
+ # Compression and decompression of patch files.
+ bidiff = "1.0.0"
++# Reconstruction, used only by the route_b_artifact tool to VERIFY that the
++# artifact it just produced does not read the base. Same crate the updater
++# inflates with, so the check exercises the real reader.
++bipatch = "1.0.0"
+ # Pipe is a simple in-memory pipe implementation, there might be a std way too?
+ pipe = "0.4.0"
+ # comde is a wrapper around several compression libraries.
+diff --git a/engine/src/flutter/third_party/updater/patch/src/bin/route_b_artifact.rs b/engine/src/flutter/third_party/updater/patch/src/bin/route_b_artifact.rs
+new file mode 100644
+index 0000000..7f38dd0
+--- /dev/null
++++ b/engine/src/flutter/third_party/updater/patch/src/bin/route_b_artifact.rs
+@@ -0,0 +1,127 @@
++// Route B (selfhost): turn an SBRBPTCH container into a patch artifact the
++// existing updater can download, inflate and hash-check without any change to
++// the transport.
++//
++// WHY A BASE-INDEPENDENT DIFF. The updater inflates every code artifact against
++// the running app's base snapshot: on iOS that is the four Dart blobs presented
++// as one stream by SnapshotsDataHandle. A Route B container has nothing in
++// common with those bytes, so diffing against them buys nothing -- and it would
++// force the producer to reproduce the device's exact base byte-for-byte, which
++// needs `analyze_snapshot --dump_blobs`, a Shorebird-fork tool we cannot build.
++//
++// Diffing against a tiny SYNTHETIC base makes the artifact pure literal
++// inserts: the reconstruction never reads the base, so it is correct on any
++// device whose base reader merely works. (An actually-empty base panics inside
++// bidiff's suffix-array code, which is why the synthetic base is one zero byte
++// rather than nothing at all.)
++//
++// That is a property, not a hope, which is why this tool VERIFIES it rather
++// than asserting it -- see `verify` below, which reconstructs against both an
++// empty base and a 4 MB noise base and requires both to reproduce the container
++// exactly. Measured: a 4,338-byte container becomes a 229-byte artifact,
++// identical for every synthetic base length tried.
++//
++// The transport is otherwise untouched: same bidiff+zstd container, same
++// download/resume/install/hash path.
++//
++// Usage:
++//   route_b_artifact <container.sbrbptch> <output.patch>
++//
++// Prints the sha256 of the CONTAINER (not the artifact) -- that is the value
++// the control plane must record as the patch hash, because check_hash() runs
++// against the inflated result.
++
++use std::fs::{self, File};
++use std::io::{Cursor, Read, Seek, SeekFrom, Write};
++
++use comde::de::Decompressor;
++use comde::zstd::ZstdDecompressor;
++use sha2::{Digest, Sha256};
++
++/// Reconstruct `artifact` against `base`, exactly the way the updater's
++/// `inflate()` does, and return the bytes.
++fn inflate_with_base(artifact: &[u8], base: Vec<u8>) -> Result<Vec<u8>, String> {
++    let (patch_r, patch_w) = pipe::pipe();
++    let compressed = Cursor::new(artifact.to_vec());
++    let decompress = ZstdDecompressor::new();
++    let handle = std::thread::spawn(move || decompress.copy(compressed, patch_w));
++
++    let mut reader = bipatch::Reader::new(patch_r, Cursor::new(base))
++        .map_err(|e| format!("bipatch header: {e:?}"))?;
++    let mut out = Vec::new();
++    reader
++        .read_to_end(&mut out)
++        .map_err(|e| format!("bipatch read: {e:?}"))?;
++    let _ = handle.join();
++    Ok(out)
++}
++
++/// The claim this tool rests on, checked every time it runs.
++///
++/// If a future bidiff ever emitted a base-referencing instruction for an empty
++/// base, this is what would catch it -- before an artifact reached a device and
++/// failed its install hash check with nothing to point at.
++fn verify(container: &[u8], artifact: &[u8]) {
++    let from_empty = inflate_with_base(artifact, Vec::new())
++        .expect("inflate against an empty base");
++    assert_eq!(
++        from_empty, container,
++        "artifact does not reconstruct the container from an empty base"
++    );
++
++    // A base of a different size and content entirely. If reconstruction still
++    // matches, the artifact provably does not read the base.
++    let mut noise = vec![0u8; 4 * 1024 * 1024];
++    for (i, b) in noise.iter_mut().enumerate() {
++        *b = (i.wrapping_mul(2654435761) >> 13) as u8;
++    }
++    let from_noise =
++        inflate_with_base(artifact, noise).expect("inflate against a noise base");
++    assert_eq!(
++        from_noise, container,
++        "artifact is base-DEPENDENT: reconstruction changed with the base"
++    );
++}
++
++fn main() {
++    let args: Vec<String> = std::env::args().collect();
++    if args.len() < 3 {
++        eprintln!("Usage: {} <container.sbrbptch> <output.patch>", args[0]);
++        std::process::exit(1);
++    }
++    let container = fs::read(&args[1]).expect("read container");
++
++    if container.len() < 8 || &container[0..8] != b"SBRBPTCH" {
++        // Refuse early. Producing an artifact from something that is not a
++        // container would install cleanly and then be refused pre-main, which
++        // is a much more expensive place to discover a typo.
++        eprintln!("error: {} is not an SBRBPTCH container", args[1]);
++        std::process::exit(2);
++    }
++
++    // An EMPTY base panics inside bidiff's suffix-array code ("partitioned
++    // suffix arrays should always find at least one longest common substring"),
++    // so the smallest base that keeps the differ alive is used instead. Whether
++    // that is enough to keep the artifact base-INDEPENDENT is not assumed --
++    // verify() below reconstructs against a completely different base and
++    // requires the same bytes out.
++    let synthetic_base = vec![0u8; std::env::var("ROUTE_B_BASE_LEN")
++        .ok()
++        .and_then(|v| v.parse().ok())
++        .unwrap_or(1usize)];
++    let mut artifact = Cursor::new(Vec::new());
++    patch::make_patch(synthetic_base, container.clone(), &mut artifact);
++    artifact.seek(SeekFrom::Start(0)).unwrap();
++    let artifact = artifact.into_inner();
++
++    verify(&container, &artifact);
++
++    let mut f = File::create(&args[2]).expect("create output");
++    f.write_all(&artifact).expect("write output");
++
++    let hash = hex::encode(Sha256::digest(&container));
++    println!("container bytes : {}", container.len());
++    println!("artifact bytes  : {}", artifact.len());
++    println!("verified        : reconstructs from an empty base AND a noise base");
++    println!("patch hash      : {}", hash);
++}

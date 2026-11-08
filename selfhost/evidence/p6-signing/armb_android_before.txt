@@ -1,0 +1,14 @@
+label: before
+release_id: 12
+arch: aab
+container_sha256: 3eedee454b3ed4795554416d320d42115ac8a7d0830d8d2c0fc496074a969dbd
+container_bytes: 46427075
+artifact_sha256: 3eedee454b3ed4795554416d320d42115ac8a7d0830d8d2c0fc496074a969dbd
+artifact_bytes: 46427075
+aab_verify: PASS
+aab_verify_detail: jar verified.
+signer_dn: CN=Shorebird B2 Release Test, OU=Selfhost Certification, O=Disposable, C=US
+signature_algorithm: SHA256withRSA, 2048-bit key
+signer_cert_sha256: C4:83:77:18:A7:3A:18:BB:60:B5:74:80:24:C4:A6:2E:0F:FE:AB:1E:2E:E3:A8:55:A8:FF:12:92:28:D3:E5:F1
+signer_cert_owner: CN=Shorebird B2 Release Test, OU=Selfhost Certification, O=Disposable, C=US
+measurement: COMPLETE

@@ -1,0 +1,157 @@
+R3 = /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart
+recorded 2026-09-10T22:07:58Z before MAOT-2 borrowed the rig
+
+branch   route-b
+HEAD     9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+tree     aa55ff960f07682fd098195e4884f2cbcb4f5f27
+
+uncommitted, rescued to route-b-source-loader-private-scope-guard.patch and to
+branch maot/rescue-source-loader on the durable remote:
+ M pkg/front_end/lib/src/source/source_loader.dart
+?? third_party/binaryen/.DS_Store
+
+RESTORE: git checkout route-b && git apply <the patch>
+
+RESTORED 2026-09-10T22:16:38Z after the MAOT-2 baseline build.
+Verified: branch route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., the same
+two dirty entries, and the restored diff digest 6b358f715e491bd9 equals the
+rescued patch's. Route B's out/host_release_arm64_nodm was never written to --
+MAOT-2 built into out/maot_host, an APFS clone.
+
+SECOND BORROW / HAND-BACK for the MAOT-2 implementation segment.
+Returned to branch route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07...,
+the same two dirty entries, dirty digest 6b358f715e491bd9 -- identical to the
+first recording. Built only in out/maot_host; Route B's out dir untouched.
+
+THIRD BORROW / HAND-BACK (retention integration segment).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Built only in out/maot_host.
+
+FOURTH BORROW / HAND-BACK (target-pragma retention segment).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes. Built only in out/maot_host.
+
+FIFTH BORROW / HAND-BACK (executable-body invariant segment).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B out dir untouched.
+
+SIXTH BORROW / HAND-BACK (registry semantics, self-test and soundness fixes).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9 -- identical to every earlier
+recording. Route B gen_snapshot untouched at 6875648 bytes, Sep 1 02:40.
+Built only in out/maot_host.
+
+One READ-ONLY use of Route B's own gen_snapshot during this segment: it
+compiled a MAOT-2 fixture kernel file to an ELF written into a temp dir, to
+discriminate "the MAOT gen_snapshot aborts" from "this kernel file is odd".
+Nothing under out/host_release_arm64_nodm was written.
+
+SEVENTH BORROW / HAND-BACK (regenerate the record against the committed gate).
+Short: no source change, ninja relinked only, then one gate run. Needed
+because the evidence record embeds the gate's own sha256, and later edits to
+the gate would have left the record naming a script that no longer existed.
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.
+
+The working change was verified BYTE-IDENTICAL to the rescued patch before it
+was discarded and re-applied, not merely equal in digest-of-a-digest.
+
+EIGHTH BORROW / HAND-BACK (pin the Code; L01/X01/X02 arms).
+Taken because the acceptance review found two required falsifications with no
+arm behind them: "lookup succeeds by function name while DeclarationIds
+differ" and "a replacement mutating a Function/Code object directly while
+registry state remains old". Neither could be shown without fork changes.
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.
+
+NINTH BORROW (closure-hold repair: ABI model, docs, real F23 falsification).
+Taken 2026-09-11 after independent review put #66 closure on HOLD.
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.
+
+TENTH BORROW (second hold: pristine F23 probes, injective type renderer).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.
+
+ELEVENTH BORROW (#67 MAOT-3: direct/static replacement through the slot).
+Authorized 2026-09-11 after #66 was independently ACCEPTED and closed.
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.
+
+TWELFTH BORROW (#67 hold: harden the proof, not the mechanism).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.
+
+THIRTEENTH BORROW (#67 evidence-only synchronization; no mechanism change).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. No fork source changed during
+this borrow -- evidence-only synchronization, no rebuild.
+
+FOURTEENTH BORROW (#67 G19 repair; evidence-only, no mechanism change).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. No fork source changed and no
+rebuild -- evidence-only.
+
+FIFTEENTH BORROW (#68 MAOT-4 Phase A: optimizer invariants).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes. Built only in out/maot_host.
+
+SIXTEENTH BORROW (#68 Phase A: decision records, controls, devirtualization).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Built only in out/maot_host.
+
+SEVENTEENTH BORROW (#68 Phase A: DEPENDENCY_REQUIRED, devirt, m4 gate).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Built only in out/maot_host.
+
+EIGHTEENTH BORROW (#68: devirt instrumentation, restore #66 proof strength).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Built only in out/maot_host.
+
+NINETEENTH BORROW (#68 Phase A closure: rule table, m4 gate, measurements).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. No fork source changed this
+borrow -- gate, fixture and evidence work only.
+
+TWENTIETH BORROW (#68 closure repair: recognized/intrinsic, injected defects,
+scale measurement).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9 -- identical to every earlier
+recording. Route B gen_snapshot untouched at 6875648 bytes, Sep 1 02:40.
+Built only in out/maot_host.
+
+Fork work committed as b92efd823d83e4c901b48c0ef9e953e07e34c79d, tree
+a5c581641bf7bf3ff80c109e89586aa665b20327, pushed to durable maot/build.
+
+The restore used `git diff route-b maot/rescue-source-loader` rather than a
+loose patch file: the patch named in the original record
+(route-b-source-loader-private-scope-guard.patch) is not on this disk. The
+rescue BRANCH is, on both the local repo and the durable remote, and it is
+the authority -- a file beside a checkout is not provenance. The restored
+working tree reproduces dirty digest 6b358f715e491bd9 exactly, which is the
+same value recorded at the first borrow, so the restore is verified against
+the recorded state rather than against the file it came from.
+
+TWENTY-FIRST BORROW (#68 provenance synchronization: bind evidence to the
+commit it names).
+Returned to route-b, HEAD 9e8c898a4d2a..., tree aa55ff960f07..., same two
+dirty entries, dirty digest 6b358f715e491bd9. Route B gen_snapshot untouched
+at 6875648 bytes, Sep 1 02:40. Built only in out/maot_host.
+
+No fork source changed this borrow. The fork was checked out CLEAN at
+b92efd823d83e4c901b48c0ef9e953e07e34c79d, tree a5c581641bf7..., rebuilt, and
+every lane re-measured against it, because the previous records named
+2e4df989 while having been measured against a dirty worktree holding what
+later became b92efd82.
+
+build_maot.sh now refuses to write a digest while any tracked MAOT source
+differs from HEAD (exit 4, verified firing), so a borrow that edits a source
+and rebuilds without committing cannot produce a record at all.

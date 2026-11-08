@@ -1,0 +1,53 @@
+G8 — the manual update API, driven from Dart. PROVEN on device.
+================================================================
+2026-08-14. R2 = CPH2551 3f72a543. New fixture `manual_api_app`
+(app c675901a-…, release 3.0.0+1, patch 1), `auto_update: false`,
+`shorebird_code_push` resolved BY PATH from vendor/updater.
+
+  install, then TWO launches   MANUALAPI-V1  current: none  next: none
+  checkForUpdate()             UpdateStatus.outdated
+  update()                     next: 1, current: none, before update(): none
+  restart                      MANUALAPI-V2  current: 1     next: 1
+
+WHAT EACH LINE IS FOR, because three of them are easy to over-read:
+
+* TWO launches before touching anything. Patch 1 already existed on the server.
+  With `auto_update: false` nothing applied across either launch — that is the
+  fixture's actual claim: no update happens behind the app's back. One launch
+  would not have shown it.
+
+* `update()` leaves current=none and next=1. Staged, not active. That separates
+  readNextPatch from readCurrentPatch on real hardware rather than by reading
+  the header docs.
+
+* THE NUMBER ALONE WOULD PROVE NOTHING. Precommitted outcome 9 names this as an
+  easy false green: readCurrentPatch is ALREADY exercised by every airgap
+  release, so a patch number on screen is not evidence for checkForUpdate or
+  update(). Two independent guards were built in:
+      - the fixture captures the value BEFORE update() and displays it
+        (`before update(): none`), so the claim is that the number CHANGED
+        across a call we made;
+      - the MARKER (V1 -> V2) is compiled Dart, so patched CODE demonstrably ran.
+  Either alone is weak; together they exclude the false green.
+
+* checkForUpdate returned `outdated` BEFORE update() was pressed, which is
+  precommitted outcome 8's condition. Outcome 8 grants BUILT for that on host
+  and PROVEN only once the update installs and the patched value renders — both
+  of which are above.
+
+IDENTITY
+  app c675901a-5bef-c155-670e-65c8e31dd903, release 3.0.0+1 (patch 1)
+  APK from the REGISTERED release aab (46,699,731 B) via bundletool, NOT from
+  the local build tree — `shorebird patch android` rewrites it (see G10.2).
+  CLI under test 5a95c303 on R12; control plane cps-android :18081 via
+  `adb reverse`.
+
+OUT OF SCOPE, deliberately: the iOS manual-api rows. Precommitted outcome 14
+says do not run them — the restart-required half is source-determined via G15's
+once-per-process guard, and the path half needs R1. A green run would be luck
+and a red one misattributed.
+
+Track note: this run used UpdateTrack.stable. Driving a NAMED track (beta) is
+what G6's device row additionally needs; the FFI marshalling is in place
+(shorebird_updater_io.dart:73,95 -> updater.dart:30-39) but is NOT exercised
+here, so G6's device row stays where it is.

@@ -1,0 +1,82 @@
+[WARN] No patch public key was provided. Patches for this release will not be cryptographically verified on the device.
+To enable verification, provide --public-key-path or --public-key-cmd.
+Starting Downloading patch......
+Done Downloading patch...
+Starting Extracting patch......
+Done Extracting patch...
+Starting Downloading bundletool.jar......
+Done Downloading bundletool.jar...
+Starting Extracting bundletool.jar......
+Done Extracting bundletool.jar...
+Starting Fetching apps...
+Done Fetching apps
+Building Android app bundle with Flutter 3.44.8+selfhost.1 (a4a3c0d1b1)
+Flutter assets will be downloaded from https://host.docker.internal:8087. Make sure you trust this source!
+[1/10] Material Fonts                                              230ms
+[2/10] Gradle Wrapper                                               15ms
+[3/10] Flutter SDK
+  ├─ [1/5] sky_engine                                               69ms
+  ├─ [2/5] flutter_gpu                                               7ms
+  ├─ [3/5] flutter_patched_sdk                                     174ms
+  ├─ [4/5] flutter_patched_sdk_product                             199ms
+  └─ [5/5] linux-x64                                             1,323ms
+[10/10] linux-x64/font-subset                                       92ms
+[1/1] Android SDK
+  ├─ [1/6] android-arm-profile/linux-x64                            91ms
+  ├─ [2/6] android-arm-release/linux-x64                            73ms
+  ├─ [3/6] android-arm64-profile/linux-x64                         131ms
+  ├─ [4/6] android-arm64-release/linux-x64                          78ms
+  ├─ [5/6] android-x64-profile/linux-x64                            90ms
+  └─ [6/6] android-x64-release/linux-x64                            79ms
+Resolving dependencies...
+Downloading packages...
+  clock 1.1.2 (1.1.3 available)
+  matcher 0.12.19 (0.12.20 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.18.0 (1.19.0 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  test_api 0.7.11 (0.7.13 available)
+  vector_math 2.2.0 (2.4.2 available)
+Got dependencies!
+7 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Running Gradle task 'bundleRelease'...                          
+Flutter assets will be downloaded from https://host.docker.internal:8087. Make sure you trust this source!
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 1096 bytes (99.9% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Running Gradle task 'bundleRelease'...                            514.7s
+Shorebird build trace written to /r12src/selfhost/fixtures/android_signing_app/build/shorebird/debug/build-trace-android.json. View at https://ui.perfetto.dev
+libapp.so.sym or libapp.so.dbg not present when checking final appbundle for debug symbols. Play Console will not receive Dart crash symbols for this build. To enable, remove `packaging.jniLibs.keepDebugSymbols.add("**/libapp.so")` from android/app/build.gradle.kts.
+✓ Built build/app/outputs/bundle/release/app-release.aab (46.4MB)
+Starting Determining release version...
+Done Release version: 1.1.0+1
+Starting Fetching releases...
+Done Fetching releases
+
+🚀 Ready to create a new release!
+
+📱 App: android-signing-b2 (2a476c0c-a4d1-0d8d-c791-74f2a78ad127)
+📦 Release Version: 1.1.0+1
+🕹️  Platform: android
+🐦 Flutter Version: 3.44.8+selfhost.1 (a4a3c0d1b1)
+
+Starting Fetching releases...
+Done Fetching releases
+Starting Creating release...
+Done Creating release
+Starting Updating release status...
+Done Updating release status
+Starting Uploading artifacts...
+Done Uploading artifacts
+Starting Uploading supplement artifacts...
+Done Uploading supplement artifacts
+Starting Updating release status...
+Done Updating release status
+
+✅ Published Release 1.1.0+1!
+Your next step is to upload the app bundle to the Play Store:
+/r12src/selfhost/fixtures/android_signing_app/build/app/outputs/bundle/release/app-release.aab
+
+For information on uploading to the Play Store, see:
+https://support.google.com/googleplay/android-developer/answer/9859152?hl=en
+
+To create a patch for this release, run shorebird patch --platforms=android --release-version=1.1.0+1

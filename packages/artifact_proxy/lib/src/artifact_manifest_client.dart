@@ -11,10 +11,19 @@ import 'package:quiver/collection.dart';
 /// {@endtemplate}
 class ArtifactManifestClient {
   /// {@macro artifact_manifest_client}
-  ArtifactManifestClient({http.Client? httpClient})
-    : _httpClient = httpClient ?? http.Client();
+  ArtifactManifestClient({http.Client? httpClient, String? manifestBaseUrl})
+    : _httpClient = httpClient ?? http.Client(),
+      _manifestBaseUrl =
+          manifestBaseUrl ??
+          'https://storage.googleapis.com/download.shorebird.dev';
 
   final http.Client _httpClient;
+
+  /// Where `shorebird/<revision>/artifacts_manifest.yaml` lives. This fetch
+  /// is server-side (it never passes through the CDN cache in front of this
+  /// proxy), so a self-hosted deployment must point it at its own mirror via
+  /// `MANIFEST_BASE_URL` to operate with upstream unreachable.
+  final String _manifestBaseUrl;
 
   final _cache = LruMap<String, ArtifactsManifest>(maximumSize: 1000);
 
@@ -29,7 +38,7 @@ class ArtifactManifestClient {
 
   Future<ArtifactsManifest> _fetchManifest(String revision) async {
     final url = Uri.parse(
-      'https://storage.googleapis.com/download.shorebird.dev/shorebird/$revision/artifacts_manifest.yaml',
+      '$_manifestBaseUrl/shorebird/$revision/artifacts_manifest.yaml',
     );
     final response = await _httpClient.get(url);
     if (response.statusCode != HttpStatus.ok) {

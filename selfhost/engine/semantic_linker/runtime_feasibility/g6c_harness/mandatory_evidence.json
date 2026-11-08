@@ -1,0 +1,91 @@
+{
+  "schema": "semantic-linker-1/g6c-mandatory-evidence/1",
+  "purpose": "THE single inventory of evidence this lane treats as mandatory. reproduce.sh validates exactly these and falsify.sh mutates exactly these. Neither keeps its own list and neither keeps a count, because a hand-maintained count is how falsify.sh came to claim it refused \"every mandatory-evidence mutation\" while testing 8 of 12.",
+  "contract": "inventory_count == falsified_count == caught_count, asserted by falsify.sh at run time. The complementary mutation of every item is exercised as a supplementary matrix beyond that equality, and a supplementary miss also fails the run.",
+  "items": [
+    {
+      "id": "freeze_manifest",
+      "path": "g0_freeze/freeze_manifest.json",
+      "kind": "json",
+      "mutation": "corrupt",
+      "complementary": "delete"
+    },
+    {
+      "id": "negatives",
+      "path": "g6a_negatives/evidence/negatives.json",
+      "kind": "json",
+      "mutation": "corrupt",
+      "complementary": "delete"
+    },
+    {
+      "id": "probe_g3_on",
+      "path": "g1_substrate/evidence/probe_g3_on.txt",
+      "kind": "text",
+      "mutation": "delete",
+      "complementary": "truncate"
+    },
+    {
+      "id": "g2_g3_on",
+      "path": "g2_execution/evidence/g2_g3_on.txt",
+      "kind": "text",
+      "mutation": "delete",
+      "complementary": "truncate"
+    },
+    {
+      "id": "g3_g3_on",
+      "path": "g3_types_gc/evidence/g3_g3_on.txt",
+      "kind": "text",
+      "mutation": "delete",
+      "complementary": "truncate"
+    },
+    {
+      "id": "g4_solo_fenced",
+      "path": "g4_optimizer/evidence/g4_solo_fenced.txt",
+      "kind": "text",
+      "mutation": "delete",
+      "complementary": "truncate"
+    },
+    {
+      "id": "g4_solo_unfenced",
+      "path": "g4_optimizer/evidence/g4_solo_unfenced.txt",
+      "kind": "text",
+      "mutation": "delete",
+      "complementary": "truncate"
+    },
+    {
+      "id": "costs",
+      "path": "g6b_cost/evidence/costs.txt",
+      "kind": "text",
+      "mutation": "delete",
+      "complementary": "truncate"
+    },
+    {
+      "id": "alloc_gc",
+      "path": "g6b_cost/evidence/alloc_gc.txt",
+      "kind": "text",
+      "mutation": "delete",
+      "complementary": "truncate"
+    },
+    {
+      "id": "9999-worktree-uncommitted",
+      "path": "g0_freeze/banked_source/dart/9999-worktree-uncommitted.patch",
+      "kind": "blob",
+      "mutation": "corrupt",
+      "complementary": "delete"
+    },
+    {
+      "id": "0001-g2-function-execution-mode-instrument",
+      "path": "g2_execution/banked_experiment/0001-g2-function-execution-mode-instrument.patch",
+      "kind": "blob",
+      "mutation": "corrupt",
+      "complementary": "delete"
+    },
+    {
+      "id": "0001-g3-expose-full-gc-for-testing",
+      "path": "g3_types_gc/banked_experiment/0001-g3-expose-full-gc-for-testing.patch",
+      "kind": "blob",
+      "mutation": "corrupt",
+      "complementary": "delete"
+    }
+  ]
+}

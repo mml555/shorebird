@@ -56,6 +56,7 @@ class UserInfo extends Equatable {
     this.description,
     this.localizedDescription,
     this.localizedFailureReason,
+    this.localizedRecoverySuggestion,
     this.underlyingError,
   });
 
@@ -71,12 +72,13 @@ class UserInfo extends Equatable {
   @JsonKey(name: 'NSLocalizedFailureReason')
   final StringContainer? localizedFailureReason;
 
+  /// A localized suggestion for how to recover from the error.
+  @JsonKey(name: 'NSLocalizedRecoverySuggestion')
+  final StringContainer? localizedRecoverySuggestion;
+
   /// The underlying error, if any.
   @JsonKey(name: 'NSUnderlyingError')
   final NSUnderlyingError? underlyingError;
-
-  /// An empty [UserInfo] instance.
-  static const nullInfo = UserInfo();
 
   /// Creates a [UserInfo] from [Json].
   static UserInfo fromJson(Json json) => _$UserInfoFromJson(json);
@@ -91,6 +93,7 @@ UserInfo(
   description: $description,
   localizedDescription: $localizedDescription,
   localizedFailureReason: $localizedFailureReason,
+  localizedRecoverySuggestion: $localizedRecoverySuggestion,
   underlyingError: $underlyingError
 )''';
 
@@ -99,6 +102,7 @@ UserInfo(
     description,
     localizedDescription,
     localizedFailureReason,
+    localizedRecoverySuggestion,
     underlyingError,
   ];
 }

@@ -1,0 +1,93 @@
+
+13. the screen must be awake and unlocked
+    mAwake=true  mDreamingLockscreen=false
+  PASS  awake and unlocked
+
+14. install the fresh release APK, with a genuinely fresh updater state
+    Backup Manager currently disabled
+  PASS  backup manager disabled, so no state can be restored
+  PASS  the app data directory is gone after the uninstall
+    Performing Streamed Install
+    Success
+    apk sha256 27827fe11c0a6a094386959d1ca40d323ed9bced619e95d6daeb25f6d1158782
+    control-plane requests before launch: 44
+  PASS  installed
+
+15. launch as a user would, and read the RELEASE marker
+  PASS  the updater started from no state file
+  PASS  first patch check reports current_patch_number: None
+  PASS  this launch booted the BASE release, not a patch
+    marker on first launch: AFS2-V1-RELEASE
+  PASS  the release marker is on screen
+
+16. normal discovery, download and install — no manual trigger
+    what the device asked the control plane:
+      POST   /api/v1/patches/check                          200
+      GET    /download/4328c0b9c0c86bc14bc0ecb836849e43     200
+      POST   /api/v1/patches/events                         204
+  PASS  the device called /patches/check
+  PASS  the device downloaded the patch artifact
+  PASS  the device acknowledged with /patches/events
+    device/CLI requests answered 4xx or 5xx: 0
+  PASS  no request was refused by the control plane
+
+16b. the updater's own account of the install
+      Inflating patch from "/data/user/0/dev.selfhost.afs2.app/code_cache/shorebird_updater/downloads/1" (6082 bytes)
+      Patch successfully applied to "/data/user/0/dev.selfhost.afs2.app/files/shorebird_updater/patches/1/dlc.vmcode". patch_file=6082b base_size=2884496b decompressed_into_pipe=2884562b decompressed_out_of_pipe=2884562b base_read=2884460b base_last_seek_pos=2884496 base_seeks=13 output_written=2884496b
+      Patch 1 successfully downloaded. It will be launched when the app next restarts.
+      Update thread finished with status: Update installed
+  PASS  the diff inflated and was applied
+  PASS  the updater reports: Update installed
+  PASS  and says it will be launched on the NEXT RESTART — staged, by the product's own account
+
+17. THE MANDATORY MIDDLE OBSERVATION: staged, not executed
+    marker after download, before restart: AFS2-V1-RELEASE
+  PASS  still the RELEASE marker — the patch is staged, not executing
+
+18. restart the app — the only lifecycle step
+    marker after restart: AFS2-V2-PATCHED
+  PASS  PATCHED CODE IS EXECUTING
+
+19. what the updater reports back
+      POST   /api/v1/patches/check                          200
+      GET    /download/4328c0b9c0c86bc14bc0ecb836849e43     200
+      POST   /api/v1/patches/events                         204
+      POST   /api/v1/patches/check                          200
+      POST   /api/v1/patches/events                         204
+  PASS  /patches/events acknowledgement recorded
+    /patches/events calls: 2  statuses: [204, 204]
+{
+  "total_events": 2,
+  "unique_clients": 1,
+  "events_by_type": {
+    "__patch_download__": 1,
+    "__patch_install__": 1
+  },
+  "patches": [
+    {
+      "patch_number": 1,
+      "downloads": 1,
+      "installs": 1,
+      "install_failures": 0,
+      "update_failures": 0,
+      "unique_clients": 1
+    }
+  ]
+}
+    patch 1   downloads=1   installs=1   install_failures=0   update_failures=0   unique_clients=1
+    event types: {'__patch_download__': 1, '__patch_install__': 1}
+    unique clients on this app: 1
+  PASS  patch 1 installed, and install/update failure counts are zero for a single client
+
+20. the updater's own view, from the device
+    (updater state not readable via run-as on a release build)
+
+21. restore the device's backup setting
+    Backup Manager currently enabled
+
+RESULT
+  first launch   : AFS2-V1-RELEASE
+  after download : AFS2-V1-RELEASE
+  after restart  : AFS2-V2-PATCHED
+  screenshots: /Volumes/build/route-b/afs2/work.865TmY/shots
+  STAGE C PASSED

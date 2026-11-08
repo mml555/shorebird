@@ -1,0 +1,369 @@
+{
+  "all_checks_shown_firing": true,
+  "arms": [
+    {
+      "errors": [
+        {
+          "buckets": [
+            "control_only_unreachable",
+            "target_by_69"
+          ],
+          "cells": [
+            [
+              "direct",
+              "aot",
+              "cold"
+            ],
+            [
+              "direct",
+              "aot",
+              "hot"
+            ],
+            [
+              "dynamic",
+              "aot",
+              "cold"
+            ],
+            [
+              "dynamic",
+              "aot",
+              "hot"
+            ],
+            [
+              "interface",
+              "aot",
+              "cold"
+            ],
+            [
+              "interface",
+              "aot",
+              "hot"
+            ],
+            [
+              "super",
+              "aot",
+              "cold"
+            ],
+            [
+              "super",
+              "aot",
+              "hot"
+            ],
+            [
+              "tearoff_post",
+              "aot",
+              "cold"
+            ],
+            [
+              "tearoff_post",
+              "aot",
+              "hot"
+            ],
+            [
+              "tearoff_pre",
+              "aot",
+              "cold"
+            ],
+            [
+              "tearoff_pre",
+              "aot",
+              "hot"
+            ],
+            [
+              "virtual",
+              "aot",
+              "cold"
+            ],
+            [
+              "virtual",
+              "aot",
+              "hot"
+            ]
+          ],
+          "problem": "cell in two buckets",
+          "row": "EB-03"
+        },
+        {
+          "buckets": [
+            "control_only_unreachable",
+            "target_by_69"
+          ],
+          "cells": [
+            [
+              "direct",
+              "aot",
+              "cold"
+            ],
+            [
+              "direct",
+              "aot",
+              "hot"
+            ],
+            [
+              "dynamic",
+              "aot",
+              "cold"
+            ],
+            [
+              "dynamic",
+              "aot",
+              "hot"
+            ],
+            [
+              "interface",
+              "aot",
+              "cold"
+            ],
+            [
+              "interface",
+              "aot",
+              "hot"
+            ],
+            [
+              "virtual",
+              "aot",
+              "cold"
+            ],
+            [
+              "virtual",
+              "aot",
+              "hot"
+            ]
+          ],
+          "problem": "cell in two buckets",
+          "row": "EB-04"
+        }
+      ],
+      "id": "A",
+      "observed": {
+        "deferred_other_issue": 0,
+        "partition_exact": false,
+        "surface_derivations_agree": true,
+        "target_by_69": 44
+      },
+      "restored_clean": true,
+      "result": "pass",
+      "why": "a mode declared both product and control puts its cells in two buckets at once"
+    },
+    {
+      "errors": [
+        {
+          "extra": [],
+          "missing": [
+            [
+              "direct",
+              "aot",
+              "cold"
+            ],
+            [
+              "direct",
+              "aot",
+              "hot"
+            ],
+            [
+              "dynamic",
+              "aot",
+              "cold"
+            ],
+            [
+              "dynamic",
+              "aot",
+              "hot"
+            ],
+            [
+              "interface",
+              "aot",
+              "cold"
+            ],
+            [
+              "interface",
+              "aot",
+              "hot"
+            ],
+            [
+              "super",
+              "aot",
+              "cold"
+            ],
+            [
+              "super",
+              "aot",
+              "hot"
+            ],
+            [
+              "tearoff_post",
+              "aot",
+              "cold"
+            ],
+            [
+              "tearoff_post",
+              "aot",
+              "hot"
+            ],
+            [
+              "tearoff_pre",
+              "aot",
+              "cold"
+            ],
+            [
+              "tearoff_pre",
+              "aot",
+              "hot"
+            ],
+            [
+              "virtual",
+              "aot",
+              "cold"
+            ],
+            [
+              "virtual",
+              "aot",
+              "hot"
+            ]
+          ],
+          "problem": "partition does not equal declared",
+          "row": "EB-03"
+        },
+        {
+          "extra": [],
+          "missing": [
+            [
+              "direct",
+              "aot",
+              "cold"
+            ],
+            [
+              "direct",
+              "aot",
+              "hot"
+            ],
+            [
+              "dynamic",
+              "aot",
+              "cold"
+            ],
+            [
+              "dynamic",
+              "aot",
+              "hot"
+            ],
+            [
+              "interface",
+              "aot",
+              "cold"
+            ],
+            [
+              "interface",
+              "aot",
+              "hot"
+            ],
+            [
+              "virtual",
+              "aot",
+              "cold"
+            ],
+            [
+              "virtual",
+              "aot",
+              "hot"
+            ]
+          ],
+          "problem": "partition does not equal declared",
+          "row": "EB-04"
+        }
+      ],
+      "id": "B",
+      "observed": {
+        "deferred_other_issue": 0,
+        "partition_exact": false,
+        "surface_derivations_agree": true,
+        "target_by_69": 0
+      },
+      "restored_clean": true,
+      "result": "pass",
+      "why": "a declared mode claimed by no bucket leaves real cells outside the partition"
+    },
+    {
+      "errors": [
+        {
+          "buckets": [
+            "accepted_prior",
+            "target_by_69"
+          ],
+          "cells": [
+            [
+              "direct",
+              "aot",
+              "cold"
+            ],
+            [
+              "direct",
+              "aot",
+              "hot"
+            ]
+          ],
+          "problem": "cell in two buckets",
+          "row": "EB-03"
+        }
+      ],
+      "id": "C",
+      "observed": {
+        "deferred_other_issue": 0,
+        "partition_exact": false,
+        "surface_derivations_agree": true,
+        "target_by_69": 44
+      },
+      "restored_clean": true,
+      "result": "pass",
+      "why": "THE ORIGINAL ERROR: counting `direct` as accepted prior coverage inside #69's own rows, which double-counts it as both target and prior"
+    },
+    {
+      "errors": [],
+      "id": "D",
+      "observed": {
+        "deferred_other_issue": 0,
+        "partition_exact": true,
+        "surface_derivations_agree": false,
+        "target_by_69": 48
+      },
+      "restored_clean": true,
+      "result": "pass",
+      "why": "THE OTHER ORIGINAL ERROR: a row whose subject is not an instance member (EB-07, a factory) smuggled into the surface. The two derivations must stop agreeing."
+    },
+    {
+      "errors": [],
+      "id": "E",
+      "observed": {
+        "deferred_other_issue": 0,
+        "partition_exact": true,
+        "surface_derivations_agree": true,
+        "target_by_69": 44
+      },
+      "restored_clean": true,
+      "result": "pass",
+      "why": "a fixture whose declared subject changes must fail the map rather than be silently reclassified"
+    }
+  ],
+  "arms_failed": [],
+  "arms_that_did_not_restore": [],
+  "issue": 69,
+  "live_summary": {
+    "accepted_prior_global_reference": [
+      "EB-01/direct/aot/cold",
+      "EB-01/direct/aot/hot",
+      "EB-02/direct/aot/cold",
+      "EB-02/direct/aot/hot"
+    ],
+    "accepted_prior_within_69_rows": 0,
+    "control_only_unreachable": 44,
+    "declared_cells": 88,
+    "deferred_other_issue": 0,
+    "partition_exact": true,
+    "rows": 5,
+    "rows_whole_row_promotable": [],
+    "surface_derivations_agree": true,
+    "target_arch": "arm64",
+    "target_by_69": 44
+  },
+  "schema": "maot.m5.falsification/1"
+}

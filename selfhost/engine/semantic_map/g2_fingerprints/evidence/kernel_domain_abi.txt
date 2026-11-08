@@ -1,0 +1,36 @@
+SM1-G2 kernel-domain measurement — why the ABI cannot come from the AOT kernel
+date : 2026-09-07T07:04:31Z
+
+Declared parameters, same source, two kernels:
+
+  declaration              pre-AOT        AOT
+  topLevel(int x)          req=1 pos=1    req=0 pos=0
+  Shape.area(int,int)      req=2 pos=2    req=0 pos=0
+  Shape.scale (setter)     req=1 pos=1    req=1 pos=1
+  Shape.+ (operator)       req=1 pos=1    req=1 pos=1
+
+gen_kernel --aot strips parameters from ordinary methods and top-level
+functions while setters and operators keep theirs. Two different declared
+signatures therefore erase to the same empty shape.
+
+CONSEQUENCE, measured through the incumbent oracle on --aot kernels:
+
+  base   Shape.area  abi=1b377cbf38d8  printed=b9ec5e555b98
+  named  Shape.area  abi=77b4bd34ce31  printed=b9ec5e555b98
+
+  our ABI differs                 : True
+  incumbent printed text differs  : False
+  abi_shape stated in the row     : supported -> refused:named
+
+  coverage/parity.sh builds its kernels with --aot and says so:
+    "--aot, matching the real pipeline. It matters: TFA tree-shakes"
+  so the incumbent member diff runs on the kernel where parameters are gone.
+
+  int area(int w, int h)  ->  int area(int w, {required int h})
+  is reported UNCHANGED by printed-AOT-Procedure comparison.
+
+  WHAT THIS DOES AND DOES NOT ESTABLISH. It establishes that the printed-AST
+  oracle ALONE cannot see a signature-only change on an AOT kernel. It does
+  NOT establish that the production pipeline ships such a patch: ROADMAP P2
+  refuses named arguments before publication by a separate mechanism, and
+  whether that refusal fires first is SM1-G5's question, not measured here.

@@ -1,0 +1,60 @@
+
+[1m0. throwaway control plane on :54031[0m
+  up
+
+[1m1. create a real Flutter MODULE via the normal path[0m
+  module at /tmp/addtoapp1.oHeZYT/addtoapp_module
+README.md addtoapp_module.iml addtoapp_module_android.iml analysis_options.yaml lib pubspec.lock pubspec.yaml test 
+
+[1m2. register the app and point the module at the self-host[0m
+  added shorebird.yaml to flutter assets
+  app_id=87cb18bd-3cd9-b47b-5e3e-3b5fb9e0a2b7
+
+[1m3. shorebird release ios-framework — the real command[0m
+  coherence authority: cd848320d605ff8af5060cabf9a8d1b35853f752
+  exit=70
+  --- last 30 lines ---
+    | 
+    | 💡 Fix Recommendations
+    | 
+    | • Check that running `flutter build` with the same command-line arguments
+    | completes successfully by running the following command:
+    | 
+    | flutter build ios-framework --no-debug --no-profile --no-codesign
+    | 
+    | If the above command fails, then this is likely not a Shorebird issue and
+    | the underlying `flutter build` failure must be resolved for Shorebird to
+    | build a release.
+    | 
+    | • If `flutter build` completes successfully, please ensure that you are
+    | providing the desired flutter version to the release command via 
+    | the `--flutter-version` option. If you do not specify a `--flutter-version`
+    | Shorebird will default to the latest stable version of Flutter.
+    | We strongly encourage always specifying an explicit Flutter version:
+    | 
+    | shorebird release <platform> --flutter-version=3.29.0
+    | 
+    | • If `flutter build` completes successfully and `shorebird release`
+    | fails when using the same flutter version, please file an issue:
+    | https://github.com/shorebirdtech/shorebird/issues/new
+    | 
+    | 
+    | If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+    | 
+    | You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+    | /Users/mendell/Library/Application Support/shorebird/logs/1788472321732_shorebird.log
+    | 
+
+[1m4. what reached the control plane[0m
+    POST   /api/v1/apps                                                 200
+    GET    /api/v1/apps                                                 200
+
+[1m5. the release's registered artifacts and lifecycle[0m
+    {
+        "releases": []
+    }
+
+[1m6. the audit trail says what was attempted and what happened[0m
+    app.create                   success  200   {"org_id":1}
+
+workdir: /tmp/addtoapp1.oHeZYT

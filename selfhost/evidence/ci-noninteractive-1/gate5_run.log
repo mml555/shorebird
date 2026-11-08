@@ -1,0 +1,122 @@
+
+== 0 - the identities this run is against
+    tag                          selfhost-v1.1.1
+    cli_revision                 5cc178ef070cf74f4b9420e8905319e667da04ef
+    flutter_selector             5b180d224df04a267a19888c3f344474e243b382
+    cell                         f85251f344600ae08196925a174e9cff8f0ff18e
+    flutter_version              3.44.6-100-g5b180d224
+
+== 1 - a throwaway app, and a fresh app record
+  PASS  flutter create succeeded, including pub get
+  PASS  app_id a0282e0f-56de-6c39-b187-d20d87b4d3d0
+
+== 2 - doctor --fix supplies the INTERNET permission, unattended
+  doctor               exit=0   
+  PASS  INTERNET permission present
+
+== 3 - RELEASE, stdin closed, explicit --no-confirm
+  release              exit=0   Published Release 1.0.0+1
+  PASS  release exited 0
+  PASS  release id 10 (1.0.0+1)
+    release artifacts banked: 5
+
+== 4 - a SECOND SOURCE REVISION, then the patch, published to a track
+  PASS  source changed to the patched marker
+  patch                exit=0   Published Patch 1
+  PASS  patch exited 0, published to stable
+    patches banked: 1
+  PASS  a patch is recorded
+  PASS  patch 1 is live on stable, unattended
+
+== 5 - MOVING a patch between tracks, and the one case that refuses
+  patch2               exit=0   Published Patch 2
+  PASS  patch 2 exited 0, published to beta
+  settrack             exit=0   
+  PASS  set-track to an EXISTING channel exited 0
+  PASS  patch 2 moved beta -> stable, unattended
+  settrack_newchannel  exit=64  Input was required for the following prompt 
+  PASS  set-track REFUSES to create a channel unattended (exit 64), naming the prompt
+  settrack_missing     exit=70  
+  PASS  omitting a mandatory target refuses (exit 70), it does not ask
+
+== 6 - the audit trail attributes every mutation to the credential
+    audit events for this app: 35
+    actor_credential (a FINGERPRINT, not the key): bootstrap:1b1486344a85
+    request ids captured: 35 of 35
+    the raw token appears in an audit row: False
+  PASS  every mutation carries one credential fingerprint and a request id, and the key is never stored
+
+== 7 - stdin was never usable, and the secret never printed
+  PASS  the token appears in 0 captured log files
+  PASS  no invocation on the certified path hit an interactive prompt
+
+== RESULT
+    tag                          selfhost-v1.1.1
+    cli_revision                 5cc178ef070cf74f4b9420e8905319e667da04ef
+    flutter_selector             5b180d224df04a267a19888c3f344474e243b382
+    cell                         f85251f344600ae08196925a174e9cff8f0ff18e
+    flutter_version              3.44.6-100-g5b180d224
+    app_id                       a0282e0f-56de-6c39-b187-d20d87b4d3d0
+    exit:doctor                  0
+    exit:release                 0
+    release_id                   10
+    release_version              1.0.0+1
+    release_artifact:arm         3195468 d95615d87eec17760ba8bbc26de26d7e2de5d7802abc97bf5ab205720f026576
+    release_artifact:aarch64     2884496 c0713bc8a2baf1afcf6eada4bba41628850fb0dea5affcd7838c3a7abedd13b2
+    release_artifact:x86_64      3015568 789f144236ecdfc21740ea9b8a7af58b79a95ef3a630e52965c091d8d9d86352
+    release_artifact:aab         46728862 966eb252f835dfa0dd789a1d643f08034a8e363e64fe7bbfe6919d2620523429
+    release_artifact:android_supplement 244 15229ce656b091474639a59b58f2ed4ab6965992b76b636fde33d72209c4d15e
+    exit:patch                   0
+    patch                        id=7 number=1 status=ready channel=stable
+    patch_artifact:arm           2169 92687ac6fd1c1ecb4d1d89948774bd3911a4c5fb2580001a86db8da863eb61cd
+    patch_artifact:aarch64       2155 22b1e4d104614e5a30ddc4bb17fa003cb4bc0aae57f30a4527bdce879a06a42f
+    patch_artifact:x86_64        2209 5a0b9e3156a2541e18f6e675529ccb97f80ed2004e97f94343c0f88845eefd3b
+    exit:patch2                  0
+    patch2_number                2
+    exit:settrack                0
+    patch2_channel_after_settrack stable
+    exit:settrack_newchannel     64
+    exit_settrack_new_channel    64
+    exit:settrack_missing        70
+    audit_events                 35
+    audit_actor_credential       bootstrap:1b1486344a85
+    audit_raw_token_present      False
+    audit:app.create             success 200 req=req_5edc784a4976cd00eba2764ae0fdf482
+    audit:release.create         success 200 req=req_928196e73b542c2820071f8f23114f01
+    audit:release.update         success 204 req=req_b7abf6944b0a3e63603eeaa5270465b1
+    audit:release.update         success 204 req=req_6afcd43aee161295463ec21c84ce5fcc
+    audit:release.artifact.create success 200 req=req_d15b4b0ed977c14f86e7630f6dd2beb9
+    audit:artifact.upload        success 204 req=req_d4f7885e228739de864a31d4d1a94fc5
+    audit:release.artifact.create success 200 req=req_ec3d62923ecd82b1a58b25f64c9de983
+    audit:artifact.upload        success 204 req=req_76d877af500911851a408a56a10c17a5
+    audit:release.artifact.create success 200 req=req_5039742ccea4e51d24696de955e53102
+    audit:artifact.upload        success 204 req=req_ea99764d3c966b4207e1eba522e59931
+    audit:release.artifact.create success 200 req=req_6121e88413d7725495a97afe9e10329a
+    audit:artifact.upload        success 204 req=req_5764c646214bf8884405b16441e553db
+    audit:release.artifact.create success 200 req=req_18eee337fe69e0e444fe659660838314
+    audit:artifact.upload        success 204 req=req_b19319a414782fb1aa93de747dbd3a3e
+    audit:release.ready          None None req=req_880af99fbea3f1408592e1f535ea89d5
+    audit:release.update         success 204 req=req_880af99fbea3f1408592e1f535ea89d5
+    audit:patch.create           success 200 req=req_5ba1ecb11c96b9c8e18199d57df377b6
+    audit:patch.artifact.create  success 200 req=req_d18eb4d32d1badb8afcdcab8af928663
+    audit:artifact.upload        success 204 req=req_00a09c85637964f3d522a06b4da4b2d7
+    audit:patch.artifact.create  success 200 req=req_57b295908feedb4b70aa161fdb380478
+    audit:artifact.upload        success 204 req=req_9524c89d3f5a846dac29d1518a9878a7
+    audit:patch.artifact.create  success 200 req=req_6ae82de304759899efcf8a9df45e07e0
+    audit:artifact.upload        success 204 req=req_aeb95f28a8ab18b1f6bd426722ab9161
+    audit:channel.create         success 200 req=req_7bda521c00105eac5145db95f75c61e8
+    audit:patch.promote          success 204 req=req_f314f2754dbf9a2c347e5e1881b89265
+    audit:patch.create           success 200 req=req_1ca7f2c794dbb7421030ede1b6420208
+    audit:patch.artifact.create  success 200 req=req_064bc7302cd08cfecfc0f8392288a53c
+    audit:artifact.upload        success 204 req=req_19a38346745bf642284d783bada839d1
+    audit:patch.artifact.create  success 200 req=req_8fa1cb2e86d12b341bac82ab5dcb36cc
+    audit:artifact.upload        success 204 req=req_9c4178e22d128267664fc8762c8a3579
+    audit:patch.artifact.create  success 200 req=req_e00ee855adf1b927e67340df91688f25
+    audit:artifact.upload        success 204 req=req_2b2dcb19ca17eede31ae712a2d57e1d5
+    audit:channel.create         success 200 req=req_ff2b4872fbac73c9924705f8d6432b4e
+    audit:patch.promote          success 204 req=req_5a3b753e4993314b9226061f5fff631b
+    audit:patch.promote          success 204 req=req_01b6c252a9d4ff35184782ef334b1e1c
+    secret_in_logs               0
+    interactive_prompts_hit      0
+
+  GATE 5 PASSED — unattended release, patch and promote

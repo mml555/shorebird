@@ -1,0 +1,99 @@
+Aug 19 00:05:42.603436 Runner(Flutter)[97714] <Notice>: SANITY CHECK: Running precompiled code.
+Aug 19 00:05:42.604061 Runner(Flutter)[97714] <Notice>: Using App.framework from /private/var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework
+Aug 19 00:05:42.630117 Runner(Flutter)[97714] <Notice>: ASSET PATH /var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework/flutter_assets
+Aug 19 00:05:42.630223 Runner(Flutter)[97714] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:05:42.630245 Runner(Flutter)[97714] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=554811 vm_insns_size=43584 iso_insns_size=1822640 total=2426213
+Aug 19 00:05:42.630265 Runner(Flutter)[97714] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 19 00:05:42.631260 Runner(Flutter)[97714] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(658)] Shorebird updater: active path: /private/var/mobile/Containers/Data/Application/427DB3C9-694B-461F-A7D6-5E102FC339E4/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode
+Aug 19 00:05:42.631959 Runner(Flutter)[97714] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(681)] Shorebird updater: active patch is a Route B container
+Aug 19 00:05:42.631977 Runner(Flutter)[97714] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 19 00:05:42.642558 Runner(Flutter)[97714] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3", channel: "stable", release_version: "1.0.8+1", platform: "ios", arch: "aarch64", client_id: "96eadb33-261c-49d3-9de9-ef872422420b", current_patch_number: Some(1) }
+Aug 19 00:05:42.648528 Runner(Flutter)[97714] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 19 00:05:42.648565 Runner(Flutter)[97714] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 19 00:05:42.648598 Runner(Flutter)[97714] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 19 00:05:42.648621 Runner(Flutter)[97714] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=b68032dfeb8e33a2a5405ab4a875d539
+Aug 19 00:05:42.648648 Runner(Flutter)[97714] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=b68032dfeb8e33a2a5405ab4a875d539
+Aug 19 00:05:42.648664 Runner(Flutter)[97714] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 19 00:05:42.648683 Runner(Flutter)[97714] <Notice>: ROUTEB: activated routeBValue in package:killswitch_probe/main.dart before main
+Aug 19 00:05:42.649495 Runner(Flutter)[97714] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 19 00:09:11.885161 Runner(Flutter)[3518] <Notice>: SANITY CHECK: Running precompiled code.
+Aug 19 00:09:11.885631 Runner(Flutter)[3518] <Notice>: Using App.framework from /private/var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework
+Aug 19 00:09:11.886364 Runner(Flutter)[3518] <Notice>: ASSET PATH /var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework/flutter_assets
+Aug 19 00:09:11.886454 Runner(Flutter)[3518] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:09:11.886473 Runner(Flutter)[3518] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=554811 vm_insns_size=43584 iso_insns_size=1822640 total=2426213
+Aug 19 00:09:11.886521 Runner(Flutter)[3518] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 19 00:09:11.886547 Runner(Flutter)[3518] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(658)] Shorebird updater: active path: /private/var/mobile/Containers/Data/Application/427DB3C9-694B-461F-A7D6-5E102FC339E4/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode
+Aug 19 00:09:11.886596 Runner(Flutter)[3518] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(681)] Shorebird updater: active patch is a Route B container
+Aug 19 00:09:11.886617 Runner(Flutter)[3518] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 19 00:09:11.925223 Runner(Flutter)[3518] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3", channel: "stable", release_version: "1.0.8+1", platform: "ios", arch: "aarch64", client_id: "96eadb33-261c-49d3-9de9-ef872422420b", current_patch_number: Some(1) }
+Aug 19 00:09:11.931017 Runner(Flutter)[3518] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 19 00:09:11.931055 Runner(Flutter)[3518] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=b68032dfeb8e33a2a5405ab4a875d539
+Aug 19 00:09:11.931247 Runner(Flutter)[3518] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=b68032dfeb8e33a2a5405ab4a875d539
+Aug 19 00:09:11.931512 Runner(Flutter)[3518] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 19 00:09:11.931628 Runner(Flutter)[3518] <Notice>: ROUTEB: activated routeBValue in package:killswitch_probe/main.dart before main
+Aug 19 00:09:11.931758 Runner(Flutter)[3518] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 19 00:09:11.952680 Runner(Flutter)[3518] <Notice>: [shorebird] Reporting failed launch.
+Aug 19 00:09:11.952836 Runner(Flutter)[3518] <Notice>: [ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: Bad state: G15: SIGKILL did not terminate the process
+Aug 19 00:09:11.956302 Runner(Flutter)[3518] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 19 00:09:11.956325 Runner(Flutter)[3518] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 19 00:12:08.363903 Runner(Flutter)[3543] <Notice>: SANITY CHECK: Running precompiled code.
+Aug 19 00:12:08.363985 Runner(Flutter)[3543] <Notice>: Using App.framework from /private/var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework
+Aug 19 00:12:08.364179 Runner(Flutter)[3543] <Notice>: ASSET PATH /var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework/flutter_assets
+Aug 19 00:12:08.364399 Runner(Flutter)[3543] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:12:08.364427 Runner(Flutter)[3543] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=554811 vm_insns_size=43584 iso_insns_size=1822640 total=2426213
+Aug 19 00:12:08.364445 Runner(Flutter)[3543] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 19 00:12:08.364462 Runner(Flutter)[3543] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 19 00:12:08.432417 Runner(Flutter)[3543] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3", channel: "stable", release_version: "1.0.8+1", platform: "ios", arch: "aarch64", client_id: "96eadb33-261c-49d3-9de9-ef872422420b", current_patch_number: None }
+Aug 19 00:12:08.434929 Runner(Flutter)[3543] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "f51c410e597df060ac452454aab6e615ae23efd7daec4ac63bc53f71b8de028b", download_url: "http://10.0.0.7:18080/download/95e00ae21096c9d231ab051bbd13d848?exp=1787113028&sig=e71afc999680b7fd184e883f0043e32567a1ee058df13ed099813abc3e7ac266", hash_signature: None }), rolled_back_patch_numbers: Some([]) }
+Aug 19 00:12:08.434966 Runner(Flutter)[3543] <Notice>: [shorebird] Patch 1 is known bad, skipping.
+Aug 19 00:12:08.434994 Runner(Flutter)[3543] <Notice>: [shorebird] Update thread finished with status: Update available but previously failed to install. Not installing.
+Aug 19 00:12:18.665290 Runner(Flutter)[3545] <Notice>: SANITY CHECK: Running precompiled code.
+Aug 19 00:12:18.665700 Runner(Flutter)[3545] <Notice>: Using App.framework from /private/var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework
+Aug 19 00:12:18.666845 Runner(Flutter)[3545] <Notice>: ASSET PATH /var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework/flutter_assets
+Aug 19 00:12:18.666902 Runner(Flutter)[3545] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:12:18.666931 Runner(Flutter)[3545] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=554811 vm_insns_size=43584 iso_insns_size=1822640 total=2426213
+Aug 19 00:12:18.667106 Runner(Flutter)[3545] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 19 00:12:18.667134 Runner(Flutter)[3545] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 19 00:12:18.696261 Runner(Flutter)[3545] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3", channel: "stable", release_version: "1.0.8+1", platform: "ios", arch: "aarch64", client_id: "96eadb33-261c-49d3-9de9-ef872422420b", current_patch_number: None }
+Aug 19 00:12:18.718745 Runner(Flutter)[3545] <Notice>: [shorebird] Reporting failed launch.
+Aug 19 00:12:18.718850 Runner(Flutter)[3545] <Fault>: [shorebird] Error reporting launch failure: Invalid State: currently_booting_patch is None
+Aug 19 00:12:18.718891 Runner(Flutter)[3545] <Notice>: [ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: Bad state: G15: SIGKILL did not terminate the process
+Aug 19 00:12:18.732585 Runner(Flutter)[3545] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "f51c410e597df060ac452454aab6e615ae23efd7daec4ac63bc53f71b8de028b", download_url: "http://10.0.0.7:18080/download/95e00ae21096c9d231ab051bbd13d848?exp=1787113038&sig=2b088f29cf36f662f332827e1d7f3069a59cc77a33b7f12496ea0a11523968c9", hash_signature: None }), rolled_back_patch_numbers: Some([]) }
+Aug 19 00:12:18.735216 Runner(Flutter)[3545] <Notice>: [shorebird] Patch 1 is known bad, skipping.
+Aug 19 00:12:18.735327 Runner(Flutter)[3545] <Notice>: [shorebird] Update thread finished with status: Update available but previously failed to install. Not installing.
+Aug 19 00:12:21.581985 Runner(Flutter)[3546] <Notice>: SANITY CHECK: Running precompiled code.
+Aug 19 00:12:21.582119 Runner(Flutter)[3546] <Notice>: Using App.framework from /private/var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework
+Aug 19 00:12:21.582623 Runner(Flutter)[3546] <Notice>: ASSET PATH /var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework/flutter_assets
+Aug 19 00:12:21.582934 Runner(Flutter)[3546] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:12:21.582982 Runner(Flutter)[3546] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=554811 vm_insns_size=43584 iso_insns_size=1822640 total=2426213
+Aug 19 00:12:21.583025 Runner(Flutter)[3546] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 19 00:12:21.583085 Runner(Flutter)[3546] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 19 00:12:21.598202 Runner(Flutter)[3546] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3", channel: "stable", release_version: "1.0.8+1", platform: "ios", arch: "aarch64", client_id: "96eadb33-261c-49d3-9de9-ef872422420b", current_patch_number: None }
+Aug 19 00:12:21.641515 Runner(Flutter)[3546] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "f51c410e597df060ac452454aab6e615ae23efd7daec4ac63bc53f71b8de028b", download_url: "http://10.0.0.7:18080/download/95e00ae21096c9d231ab051bbd13d848?exp=1787113041&sig=024d66e8cde8c2688a9cf375e5c9ae5e48032967b1b47270d454d484d13ea55e", hash_signature: None }), rolled_back_patch_numbers: Some([]) }
+Aug 19 00:12:21.642293 Runner(Flutter)[3546] <Notice>: [shorebird] Patch 1 is known bad, skipping.
+Aug 19 00:12:21.642324 Runner(Flutter)[3546] <Notice>: [shorebird] Update thread finished with status: Update available but previously failed to install. Not installing.
+Aug 19 00:12:29.017833 Runner(Flutter)[3548] <Notice>: SANITY CHECK: Running precompiled code.
+Aug 19 00:12:29.017892 Runner(Flutter)[3548] <Notice>: Using App.framework from /private/var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework
+Aug 19 00:12:29.018089 Runner(Flutter)[3548] <Notice>: ASSET PATH /var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework/flutter_assets
+Aug 19 00:12:29.018254 Runner(Flutter)[3548] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:12:29.018297 Runner(Flutter)[3548] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=554811 vm_insns_size=43584 iso_insns_size=1822640 total=2426213
+Aug 19 00:12:29.018318 Runner(Flutter)[3548] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 19 00:12:29.018335 Runner(Flutter)[3548] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 19 00:12:29.052122 Runner(Flutter)[3548] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3", channel: "stable", release_version: "1.0.8+1", platform: "ios", arch: "aarch64", client_id: "96eadb33-261c-49d3-9de9-ef872422420b", current_patch_number: None }
+Aug 19 00:12:29.076788 Runner(Flutter)[3548] <Notice>: [shorebird] Reporting failed launch.
+Aug 19 00:12:29.077542 Runner(Flutter)[3548] <Fault>: [shorebird] Error reporting launch failure: Invalid State: currently_booting_patch is None
+Aug 19 00:12:29.077592 Runner(Flutter)[3548] <Notice>: [ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: Bad state: G15: SIGKILL did not terminate the process
+Aug 19 00:12:29.084965 Runner(Flutter)[3548] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "f51c410e597df060ac452454aab6e615ae23efd7daec4ac63bc53f71b8de028b", download_url: "http://10.0.0.7:18080/download/95e00ae21096c9d231ab051bbd13d848?exp=1787113049&sig=55b5bf1abd1dfa1f6ab94c4998c2b65fca7f0134c1fa1cb5e7e70b0b5d4d2990", hash_signature: None }), rolled_back_patch_numbers: Some([]) }
+Aug 19 00:12:29.085013 Runner(Flutter)[3548] <Notice>: [shorebird] Patch 1 is known bad, skipping.
+Aug 19 00:12:29.085611 Runner(Flutter)[3548] <Notice>: [shorebird] Update thread finished with status: Update available but previously failed to install. Not installing.
+Aug 19 00:12:31.373285 Runner(Flutter)[3549] <Notice>: SANITY CHECK: Running precompiled code.
+Aug 19 00:12:31.373714 Runner(Flutter)[3549] <Notice>: Using App.framework from /private/var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework
+Aug 19 00:12:31.374038 Runner(Flutter)[3549] <Notice>: ASSET PATH /var/containers/Bundle/Application/968E9719-F1CB-4F8F-B0D3-9107E821B28F/Runner.app/Frameworks/App.framework/flutter_assets
+Aug 19 00:12:31.375261 Runner(Flutter)[3549] <Notice>: [shorebird] Reporting launch start.
+Aug 19 00:12:31.375303 Runner(Flutter)[3549] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=554811 vm_insns_size=43584 iso_insns_size=1822640 total=2426213
+Aug 19 00:12:31.375345 Runner(Flutter)[3549] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 19 00:12:31.375433 Runner(Flutter)[3549] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 19 00:12:31.394319 Runner(Flutter)[3549] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3", channel: "stable", release_version: "1.0.8+1", platform: "ios", arch: "aarch64", client_id: "96eadb33-261c-49d3-9de9-ef872422420b", current_patch_number: None }
+Aug 19 00:12:31.435353 Runner(Flutter)[3549] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "f51c410e597df060ac452454aab6e615ae23efd7daec4ac63bc53f71b8de028b", download_url: "http://10.0.0.7:18080/download/95e00ae21096c9d231ab051bbd13d848?exp=1787113051&sig=99147039a1a0367255acb5b9212be42ef48971fa10e1100a20d58b126a3c7650", hash_signature: None }), rolled_back_patch_numbers: Some([]) }
+Aug 19 00:12:31.435401 Runner(Flutter)[3549] <Notice>: [shorebird] Patch 1 is known bad, skipping.
+Aug 19 00:12:31.435445 Runner(Flutter)[3549] <Notice>: [shorebird] Update thread finished with status: Update available but previously failed to install. Not installing.

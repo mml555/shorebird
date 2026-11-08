@@ -1,0 +1,84 @@
+==============================================================================
+D-PRODUCER-DEMAND-1 -- the producer-truth number over D-DEMAND-1's
+exact corpus. Capabilities come from each RELEASE's own generated
+manifest, never from the candidate's source.
+==============================================================================
+
+------------------------------------------------------------------------------
+Wonderous
+------------------------------------------------------------------------------
+  pairs replayed 8 of 8 with a changed method
+
+  Bucket                                        Count  % changed
+  ----------------------------------------------------------------
+  analyzer refuses                                  6     30.00%
+  analyzer accepts, PRODUCER REFUSES                4     20.00%
+  producer accepts                                 10     50.00%
+  ----------------------------------------------------------------
+  changed methods replayed                         20
+  analyzer-level compatibility                   70.00%   <-- analyzer upper bound
+  producer-level compatibility                   50.00%   <-- PRODUCER TRUTH
+
+  ANALYZER->PRODUCER DISAGREEMENTS, by exact cause
+  cause                               methods   % of gap
+  --------------------------------------------------------
+  other                                     2     50.00%
+  private_type_reference                    1     25.00%
+  capability_not_granted                    1     25.00%
+
+  the disagreeing methods:
+    _BottomTextContent.build                       private_type_reference
+    AppBtn.build                                   other
+    AppBtn.build                                   other
+    _MapsThumbnailState.build                      capability_not_granted
+
+  PRODUCER-LEVEL REFUSAL TAXONOMY (every refused method)
+  reason                                      methods  % refused
+  ----------------------------------------------------------------
+  analyzer:construct.method_tearoff                 6     60.00%
+  producer:other                                    2     20.00%
+  analyzer:abi.named_parameters                     1     10.00%
+  analyzer:construct.this_escape                    1     10.00%
+  producer:private_type_reference                   1     10.00%
+  producer:capability_not_granted                   1     10.00%
+
+------------------------------------------------------------------------------
+LocalSend
+------------------------------------------------------------------------------
+  pairs replayed 11 of 11 with a changed method
+
+  Bucket                                        Count  % changed
+  ----------------------------------------------------------------
+  analyzer refuses                                 12      5.17%
+  analyzer accepts, PRODUCER REFUSES                5      2.16%
+  producer accepts                                215     92.67%
+  ----------------------------------------------------------------
+  changed methods replayed                        232
+  analyzer-level compatibility                   94.83%   <-- analyzer upper bound
+  producer-level compatibility                   92.67%   <-- PRODUCER TRUTH
+
+  ANALYZER->PRODUCER DISAGREEMENTS, by exact cause
+  cause                               methods   % of gap
+  --------------------------------------------------------
+  private_type_reference                    3     60.00%
+  capability_not_granted                    1     20.00%
+  receiver_rewrite                          1     20.00%
+
+  the disagreeing methods:
+    _ProgressPageState.build                       private_type_reference
+    ServerService._handleEvent                     capability_not_granted
+    _ProgressPageState.build                       private_type_reference
+    _ProgressPageState.build                       private_type_reference
+    AddAndroidDirectoryAction.reduce               receiver_rewrite
+
+  PRODUCER-LEVEL REFUSAL TAXONOMY (every refused method)
+  reason                                      methods  % refused
+  ----------------------------------------------------------------
+  analyzer:abi.named_parameters                     5     29.41%
+  analyzer:construct.method_tearoff                 3     17.65%
+  producer:private_type_reference                   3     17.65%
+  analyzer:receiver.compound_same_offset            2     11.76%
+  analyzer:reach.unreachable                        2     11.76%
+  analyzer:abi.optional_positionals                 1      5.88%
+  producer:capability_not_granted                   1      5.88%
+  producer:receiver_rewrite                         1      5.88%

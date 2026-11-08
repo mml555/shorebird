@@ -1,0 +1,23 @@
+{
+ "policy": "p2",
+ "policyDescription": "all app-private members and classes",
+ "privateEnumerationSource": "private-dill (non-AOT)",
+ "counts": {
+  "privateTopLevelCallable": 27,
+  "privateStaticsCallable": 23,
+  "privateInstanceCallable": 338,
+  "privateClassPublicMembers": 414,
+  "privateClassesConstructible": 0,
+  "implicitlyConstructible": 0,
+  "constructionWithheld": 119,
+  "refused": 6
+ },
+ "privateTopLevelCallable": 27,
+ "privateStaticsCallable": 23,
+ "privateInstanceCallable": 338,
+ "privateClassPublicMembers": 414,
+ "privateClassesConstructible": 0,
+ "implicitlyConstructible": 0,
+ "constructionWithheld": 119,
+ "refused": 6
+}

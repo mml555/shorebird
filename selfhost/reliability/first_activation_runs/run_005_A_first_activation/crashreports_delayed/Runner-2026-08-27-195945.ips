@@ -1,0 +1,144 @@
+{"app_name":"Runner","timestamp":"2026-08-27 19:59:45.00 -0400","app_version":"1.1.0","slice_uuid":"434f2962-bf42-3d77-a9bf-67323f069246","build_version":"1","platform":2,"bundleID":"dev.selfhost.firstActivationProbe","share_with_app_devs":0,"is_first_party":0,"bug_type":"309","os_version":"iPhone OS 15.8.8 (19H422)","incident_id":"C66F3354-5445-4F49-9FA6-A85A04DD82DA","name":"Runner"}
+{
+  "uptime" : 1200000,
+  "procLaunch" : "2026-08-27 19:59:44.4621 -0400",
+  "procRole" : "Foreground",
+  "version" : 2,
+  "userID" : 501,
+  "deployVersion" : 210,
+  "modelCode" : "iPhone9,1",
+  "procStartAbsTime" : 29876018626299,
+  "coalitionID" : 2928,
+  "osVersion" : {
+    "isEmbedded" : true,
+    "train" : "iPhone OS 15.8.8",
+    "releaseType" : "User",
+    "build" : "19H422"
+  },
+  "captureTime" : "2026-08-27 19:59:44.7592 -0400",
+  "incident" : "C66F3354-5445-4F49-9FA6-A85A04DD82DA",
+  "bug_type" : "309",
+  "pid" : 49957,
+  "procExitAbsTime" : 29876025653921,
+  "cpuType" : "ARM-64",
+  "procName" : "Runner",
+  "procPath" : "\/private\/var\/containers\/Bundle\/Application\/9F4F3359-B2EA-4831-A2A7-CC9B382FD690\/Runner.app\/Runner",
+  "bundleInfo" : {"CFBundleShortVersionString":"1.1.0","CFBundleVersion":"1","CFBundleIdentifier":"dev.selfhost.firstActivationProbe"},
+  "storeInfo" : {"deviceIdentifierForVendor":"F286FB5A-F465-4913-9A2D-BB245248C64B","thirdParty":true},
+  "parentProc" : "launchd",
+  "parentPid" : 1,
+  "coalitionName" : "dev.selfhost.firstActivationProbe",
+  "crashReporterKey" : "32e09282d8b9817a57e4196f47ef5dbdd7c6f001",
+  "basebandVersion" : "12.00.00",
+  "isCorpse" : 1,
+  "exception" : {"codes":"0x0000000000000001, 0x0000000100c59184","rawCodes":[1,4307915140],"type":"EXC_BREAKPOINT","signal":"SIGTRAP"},
+  "termination" : {"flags":0,"code":5,"namespace":"SIGNAL","indicator":"Trace\/BPT trap: 5","byProc":"exc handler","byPid":49957},
+  "faultingThread" : 0,
+  "threads" : [{"triggered":true,"id":3499746,"threadState":{"x":[{"value":6158987360},{"value":8514258560,"symbolLocation":0,"symbol":"type metadata for DispatchTime"},{"value":6863623020,"symbolLocation":0,"symbol":"one-time initialization function for timebaseInfo"},{"value":68719460488},{"value":0},{"value":18446744073709551592},{"value":24},{"value":6902865234,"objc-selector":"applicationWillTerminate:"},{"value":18446744073709549907},{"value":3},{"value":0},{"value":8725728599271296},{"value":16},{"value":4321241440},{"value":6450724864},{"value":4307961680},{"value":6451075648,"symbolLocation":0,"symbol":"dispatch_once_f$VARIANT$mp"},{"value":4307910932},{"value":0},{"value":6158987376},{"value":1244834376174500},{"value":1244834376172791},{"value":8514258560,"symbolLocation":0,"symbol":"type metadata for DispatchTime"},{"value":6158987392},{"value":6532590464,"symbolLocation":0,"symbol":"swift::metadataimpl::ValueWitnesses<swift::metadataimpl::NativeBox<unsigned long long, 8ul, 8ul, 8ul> >::destroy(swift::OpaqueValue*, swift::TargetMetadata<swift::InProcess> const*)"},{"value":6158987360},{"value":8512982160,"symbolLocation":0,"symbol":"value witness table for Builtin.Int64"},{"value":8512982160,"symbolLocation":0,"symbol":"value witness table for Builtin.Int64"},{"value":8512886688,"symbolLocation":0,"symbol":"type metadata for Date"}],"flavor":"ARM_THREAD_STATE64","lr":{"value":4307913912},"cpsr":{"value":2147483648},"fp":{"value":6158987632},"sp":{"value":6158987344},"esr":{"value":4060086273,"description":"(Breakpoint) brk 1"},"pc":{"value":4307915140,"matchesCrashFrame":1},"far":{"value":8514254344}},"queue":"com.apple.main-thread","frames":[{"imageOffset":20868,"imageIndex":0},{"imageOffset":19640,"imageIndex":0},{"imageOffset":16824,"imageIndex":0},{"imageOffset":3183988,"symbol":"-[UIApplication _handleDelegateCallbacksWithOptions:isSuspended:restoreState:]","symbolLocation":336,"imageIndex":1},{"imageOffset":5103000,"symbol":"-[UIApplication _callInitializationDelegatesWithActions:forCanvas:payload:fromOriginatingProcess:]","symbolLocation":3508,"imageIndex":1},{"imageOffset":5010620,"symbol":"-[UIApplication _runWithMainScene:transitionContext:completion:]","symbolLocation":1176,"imageIndex":1},{"imageOffset":3363524,"symbol":"-[_UISceneLifecycleMultiplexer completeApplicationLaunchWithFBSScene:transitionContext:]","symbolLocation":212,"imageIndex":1},{"imageOffset":3360668,"symbol":"-[UIApplication _compellApplicationLaunchToCompleteUnconditionally]","symbolLocation":64,"imageIndex":1},{"imageOffset":5134948,"symbol":"-[UIApplication _run]","symbolLocation":1044,"imageIndex":1},{"imageOffset":2617208,"symbol":"UIApplicationMain","symbolLocation":336,"imageIndex":1},{"imageOffset":163556,"symbol":"UIApplicationMain(_:_:_:_:)","symbolLocation":100,"imageIndex":2},{"imageOffset":18272,"imageIndex":0},{"imageOffset":99536,"symbol":"start","symbolLocation":444,"imageIndex":3}]},{"id":3499774,"frames":[{"imageOffset":6436,"symbol":"start_wqthread","symbolLocation":0,"imageIndex":4}]},{"id":3499775,"frames":[{"imageOffset":6436,"symbol":"start_wqthread","symbolLocation":0,"imageIndex":4}]},{"id":3499776,"frames":[{"imageOffset":6436,"symbol":"start_wqthread","symbolLocation":0,"imageIndex":4}]},{"id":3499778,"name":"com.apple.uikit.eventfetch-thread","frames":[{"imageOffset":2732,"symbol":"mach_msg_trap","symbolLocation":8,"imageIndex":5},{"imageOffset":4220,"symbol":"mach_msg","symbolLocation":72,"imageIndex":5},{"imageOffset":27784,"symbol":"__CFRunLoopServiceMachPort","symbolLocation":368,"imageIndex":6},{"imageOffset":44944,"symbol":"__CFRunLoopRun","symbolLocation":1160,"imageIndex":6},{"imageOffset":123252,"symbol":"CFRunLoopRunSpecific","symbolLocation":572,"imageIndex":6},{"imageOffset":97964,"symbol":"-[NSRunLoop(NSRunLoop) runMode:beforeDate:]","symbolLocation":232,"imageIndex":7},{"imageOffset":356304,"symbol":"-[NSRunLoop(NSRunLoop) runUntilDate:]","symbolLocation":88,"imageIndex":7},{"imageOffset":4607732,"symbol":"-[UIEventFetcher threadMain]","symbolLocation":512,"imageIndex":1},{"imageOffset":412636,"symbol":"__NSThread__start__","symbolLocation":792,"imageIndex":7},{"imageOffset":13112,"symbol":"_pthread_start","symbolLocation":116,"imageIndex":4},{"imageOffset":6456,"symbol":"thread_start","symbolLocation":8,"imageIndex":4}]},{"id":3499779,"frames":[{"imageOffset":6436,"symbol":"start_wqthread","symbolLocation":0,"imageIndex":4}]},{"id":3499780,"frames":[{"imageOffset":6436,"symbol":"start_wqthread","symbolLocation":0,"imageIndex":4}]}],
+  "usedImages" : [
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4307894272,
+    "size" : 49152,
+    "uuid" : "434f2962-bf42-3d77-a9bf-67323f069246",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/9F4F3359-B2EA-4831-A2A7-CC9B382FD690\/Runner.app\/Runner",
+    "name" : "Runner"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 6491209728,
+    "size" : 24756224,
+    "uuid" : "9d301877-2593-385c-8f72-f075aa0b48fa",
+    "path" : "\/System\/Library\/PrivateFrameworks\/UIKitCore.framework\/UIKitCore",
+    "name" : "UIKitCore"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 6833340416,
+    "size" : 393216,
+    "uuid" : "883d1a20-d060-3440-adf2-7c37b7efb6bd",
+    "path" : "\/usr\/lib\/swift\/libswiftUIKit.dylib",
+    "name" : "libswiftUIKit.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4308451328,
+    "size" : 344064,
+    "uuid" : "16c8ea1a-1c77-3f4f-97a6-6ae7fb25eb29",
+    "path" : "\/usr\/lib\/dyld",
+    "name" : "dyld"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 7985217536,
+    "size" : 69632,
+    "uuid" : "a150c45a-fa09-3593-8e64-337bc555c085",
+    "path" : "\/usr\/lib\/system\/libsystem_pthread.dylib",
+    "name" : "libsystem_pthread.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 7437238272,
+    "size" : 212992,
+    "uuid" : "a0b29fd9-54cf-3871-a8e2-2b30ffceb58b",
+    "path" : "\/usr\/lib\/system\/libsystem_kernel.dylib",
+    "name" : "libsystem_kernel.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 6454267904,
+    "size" : 4448256,
+    "uuid" : "eec1287d-059b-38c8-9bc1-58a0c8b1e6c2",
+    "path" : "\/System\/Library\/Frameworks\/CoreFoundation.framework\/CoreFoundation",
+    "name" : "CoreFoundation"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 6478462976,
+    "size" : 3035136,
+    "uuid" : "f9235fc7-ec4e-31c9-b56e-95cf10b07239",
+    "path" : "\/System\/Library\/Frameworks\/Foundation.framework\/Foundation",
+    "name" : "Foundation"
+  }
+],
+  "sharedCache" : {
+  "base" : 6450724864,
+  "size" : 2333966336,
+  "uuid" : "76a8fa42-fa8c-3a25-8943-0bef9b03dd2b"
+},
+  "vmSummary" : "ReadOnly portion of Libraries: Total=593.8M resident=0K(0%) swapped_out_or_unallocated=593.8M(100%)\nWritable regions: Total=544.9M written=0K(0%) resident=0K(0%) swapped_out=0K(0%) unallocated=544.9M(100%)\n\n                                VIRTUAL   REGION \nREGION TYPE                        SIZE    COUNT (non-coalesced) \n===========                     =======  ======= \nActivity Tracing                   256K        1 \nColorSync                           64K        2 \nCoreAnimation                       16K        1 \nFoundation                          16K        1 \nKernel Alloc Once                   32K        1 \nMALLOC                           540.3M       23 \nMALLOC guard page                  128K        8 \nSTACK GUARD                        112K        7 \nStack                             4272K        7 \nVM_ALLOCATE                         32K        1 \n__CTF                               756        1 \n__DATA                            10.8M      407 \n__DATA_CONST                      33.8M      425 \n__DATA_DIRTY                      1381K      341 \n__FONT_DATA                          4K        1 \n__LINKEDIT                       192.9M        5 \n__OBJC_RO                         92.1M        1 \n__OBJC_RW                         3520K        1 \n__TEXT                           400.8M      430 \n__UNICODE                          592K        1 \ndyld private memory               1120K        5 \nmapped file                       29.1M        3 \nshared memory                       48K        3 \n===========                     =======  ======= \nTOTAL                              1.3G     1676 \n",
+  "legacyInfo" : {
+  "threadTriggered" : {
+    "queue" : "com.apple.main-thread"
+  }
+},
+  "trialInfo" : {
+  "rollouts" : [
+    {
+      "rolloutId" : "607844aa04477260f58a8077",
+      "factorPackIds" : {
+        "SIRI_MORPHUN_ASSETS" : "6103050cbfe6dc472e1c982a"
+      },
+      "deploymentId" : 240000066
+    },
+    {
+      "rolloutId" : "5f72dc58705eff005a46b3a9",
+      "factorPackIds" : {
+
+      },
+      "deploymentId" : 240000015
+    }
+  ],
+  "experiments" : [
+
+  ]
+}
+}

@@ -1,12 +1,10 @@
 import 'dart:io';
 
 import 'package:args/args.dart';
-import 'package:googleapis_auth/auth_io.dart';
+import 'package:args/command_runner.dart';
 import 'package:http/http.dart' as http;
-import 'package:jwt/jwt.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:platform/platform.dart';
 import 'package:pubspec_parse/pubspec_parse.dart';
 import 'package:shorebird_cli/src/abi.dart';
 import 'package:shorebird_cli/src/android_sdk.dart';
@@ -16,6 +14,7 @@ import 'package:shorebird_cli/src/archive_analysis/archive_differ.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/auth/auth.dart';
+import 'package:shorebird_cli/src/browser.dart';
 import 'package:shorebird_cli/src/cache.dart' show Cache;
 import 'package:shorebird_cli/src/checksum_checker.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
@@ -23,20 +22,28 @@ import 'package:shorebird_cli/src/code_signer.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/config/config.dart';
+import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
 import 'package:shorebird_cli/src/executables/devicectl/apple_device.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
+import 'package:shorebird_cli/src/gen_snapshot_probe.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/network_checker.dart';
 import 'package:shorebird_cli/src/os/os.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/pubspec_editor.dart';
+import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
+import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_producer.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/shorebird_android_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_cli_command_runner.dart';
+import 'package:shorebird_cli/src/runtime_endpoint.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
+import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
@@ -45,8 +52,6 @@ import 'package:shorebird_cli/src/validators/validators.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 
 class MockAbi extends Mock implements LocalAbi {}
-
-class MockAccessCredentials extends Mock implements AccessCredentials {}
 
 class MockAdb extends Mock implements Adb {}
 
@@ -68,6 +73,19 @@ class MockArgParser extends Mock implements ArgParser {}
 
 class MockArgResults extends Mock implements ArgResults {}
 
+class MockCommand extends Mock implements Command<int> {}
+
+/// A runner mock stubbed just enough for [Command.usageException] to build
+/// its usage text.
+MockShorebirdCliCommandRunner usageRunner({
+  Map<String, Command<int>> commands = const {},
+}) {
+  final runner = MockShorebirdCliCommandRunner();
+  when(() => runner.executableName).thenReturn('shorebird');
+  when(() => runner.commands).thenReturn(commands);
+  return runner;
+}
+
 class MockArtifactBuildException extends Mock
     implements ArtifactBuildException {}
 
@@ -82,6 +100,8 @@ class MockBundleTool extends Mock implements Bundletool {}
 class MockCache extends Mock implements Cache {}
 
 class MockChecksumChecker extends Mock implements ChecksumChecker {}
+
+class MockDartSdkCompatibility extends Mock implements DartSdkCompatibility {}
 
 class MockCodePushClient extends Mock implements CodePushClient {}
 
@@ -107,6 +127,8 @@ class MockFileSetDiff extends Mock implements FileSetDiff {}
 
 class MockFlavorValidator extends Mock implements FlavorValidator {}
 
+class MockGenSnapshotProbe extends Mock implements GenSnapshotProbe {}
+
 class MockGit extends Mock implements Git {}
 
 class MockGradlew extends Mock implements Gradlew {}
@@ -121,13 +143,11 @@ class MockIOSink extends Mock implements IOSink {}
 
 class MockJava extends Mock implements Java {}
 
-class MockJwtHeader extends Mock implements JwtHeader {}
-
-class MockJwtPayload extends Mock implements JwtPayload {}
-
 class MockLinux extends Mock implements Linux {}
 
 class MockNetworkChecker extends Mock implements NetworkChecker {}
+
+class MockBrowser extends Mock implements Browser {}
 
 class MockOpen extends Mock implements Open {}
 
@@ -140,7 +160,7 @@ class MockPatchExecutable extends Mock implements PatchExecutable {}
 
 class MockPatcher extends Mock implements Patcher {}
 
-class MockPlatform extends Mock implements Platform {}
+class MockToolchainCoherence extends Mock implements ToolchainCoherence {}
 
 class MockPowershell extends Mock implements Powershell {}
 
@@ -164,6 +184,17 @@ class MockReleaser extends Mock implements Releaser {}
 
 class MockReleaseArtifact extends Mock implements ReleaseArtifact {}
 
+class MockRouteBCompilerResolver extends Mock
+    implements RouteBCompilerResolver {}
+
+class MockRouteBCoverageAnalyzer extends Mock
+    implements RouteBCoverageAnalyzer {}
+
+class MockRouteBProducer extends Mock implements RouteBProducer {}
+
+class MockRouteBReleaseKernelBuilder extends Mock
+    implements RouteBReleaseKernelBuilder {}
+
 class MockShorebirdAndroidArtifacts extends Mock
     implements ShorebirdAndroidArtifacts {}
 
@@ -171,6 +202,8 @@ class MockShorebirdArtifacts extends Mock implements ShorebirdArtifacts {}
 
 class MockShorebirdCliCommandRunner extends Mock
     implements ShorebirdCliCommandRunner {}
+
+class MockRuntimeEndpoint extends Mock implements RuntimeEndpoint {}
 
 class MockShorebirdEnv extends Mock implements ShorebirdEnv {}
 

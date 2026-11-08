@@ -42,7 +42,7 @@ docker run -d --name code-push \
   -e TRUSTED_PROXIES=172.17.0.1 \
   -p 127.0.0.1:8080:8080 \
   -v code_push_data:/data \
-  ghcr.io/mml555/code-push-server:1.2.0
+  ghcr.io/mml555/code-push-server:1.3.0
 ```
 
 `TRUSTED_PROXIES` must be **your proxy's address as the container sees it**, not
@@ -77,7 +77,7 @@ volume (set `DATABASE_URL`, leave `S3_ENDPOINT` unset).
   `.github/workflows/release_code_push_server.yaml` from the release tag and
   what the compose files reference.
   ```
-  docker pull ghcr.io/mml555/code-push-server:1.2.0
+  docker pull ghcr.io/mml555/code-push-server:1.3.0
   ```
   Pin the version tag rather than `:latest` — the server's compatibility with
   the Shorebird CLI/updater is tracked in `selfhost/compatibility.yaml`, which
@@ -87,9 +87,9 @@ volume (set `DATABASE_URL`, leave `S3_ENDPOINT` unset).
   uncomment the `build:` block above it).
 - **Mirror into your own registry** (air-gapped, or policy requires it):
   ```
-  docker pull ghcr.io/mml555/code-push-server:1.2.0
-  docker tag  ghcr.io/mml555/code-push-server:1.2.0 registry.yourco.com/code-push-server:1.2.0
-  docker push registry.yourco.com/code-push-server:1.2.0
+  docker pull ghcr.io/mml555/code-push-server:1.3.0
+  docker tag  ghcr.io/mml555/code-push-server:1.3.0 registry.yourco.com/code-push-server:1.3.0
+  docker push registry.yourco.com/code-push-server:1.3.0
   ```
 
 ## Full environment variable contract
@@ -120,8 +120,8 @@ Read by `lib/src/config.dart`. Everything has a default; set only what you need.
 **Identity / login**
 | Var | Default | Purpose |
 |---|---|---|
-| `SHOREBIRD_JWT_ISSUER` | `PUBLIC_BASE_URL` | JWT `iss`; must match the CLI |
-| `LOGIN_EMAIL` | `you@example.com` | identity for self-consent `shorebird login` (no IdP) |
+| `SHOREBIRD_JWT_ISSUER` | `PUBLIC_BASE_URL` | JWT `iss`; server-side only (the CLI ignores it) |
+| `LOGIN_EMAIL` | `owner@self-host.local` | identity for self-consent `shorebird login` (no IdP) |
 | `IDP_CLIENT_ID` / `IDP_CLIENT_SECRET` / `IDP_AUTHORIZE_URL` / `IDP_TOKEN_URL` / `IDP_SCOPES` | — | broker `shorebird login` to Google/Microsoft/Okta (see `IDP_SETUP.md`) |
 
 **Tuning**
@@ -133,15 +133,41 @@ Read by `lib/src/config.dart`. Everything has a default; set only what you need.
 | `TRUSTED_PROXIES` | `127.0.0.1,::1` | proxies whose `X-Forwarded-For` is believed (IPs, IPv4 CIDR, or `*`). Wrong value = no effective IP limit, or the whole fleet in one bucket |
 | `RATE_LIMIT_BACKEND` | `memory` | `postgres` for a shared window across replicas |
 | `UPLOAD_METHOD` | `multipart` | `resumable` for GCS-style chunked uploads |
+| `MAX_UPLOAD_BYTES` | `536870912` (512 MiB) | the `413` ceiling on artifact uploads. Added 2026-08-13 — it was missing from a table titled "full", and an operator whose release artifact exceeds it sees a 413 with nothing in this document to explain it |
+| `DB_SSL_MODE` | `disable` | Postgres TLS mode. **Validated at boot against an exact list — an unrecognised spelling refuses to start**, so this is not a free-text field. Added 2026-08-13 for that reason: a boot-fail an operator cannot predict from the docs is the worst kind of missing row |
 
 ## Backups
 
+Both paths are certified end to end — see
+[`backup_restore/`](backup_restore) for what the guarantee covers and, more
+usefully, what it does not.
+
 - **Single container:** the `/data` volume is everything. `./setup.sh --backup`
-  writes a timestamped tarball (brief pause for a consistent snapshot);
-  `./setup.sh --restore <file>` restores it. Or just snapshot the volume with
-  your own tooling.
-- **Scale:** back up your Postgres and object store as you already do (or see
-  `packages/code_push_server/ops/backup.sh`). They must be restored as a pair.
+  stops the server for the snapshot (and **refuses** rather than snapshotting a
+  volume something can still write to), then writes a timestamped tarball with a
+  manifest of every file's sha256. `./setup.sh --restore <file>` verifies the
+  archive against that manifest *before* overwriting anything.
+- **Scale:** `packages/code_push_server/ops/backup.sh`. The Postgres dump and the
+  object snapshot are **one backup**: both halves carry a shared `backup_id`, and
+  `ops/restore.sh` refuses a pair whose halves came from different runs. It is not
+  a matched pair because the filenames agree — nothing reads a filename.
+
+Three things worth knowing before you rely on either:
+
+- **A backup is a credential store.** `api_keys.key` holds the plaintext key.
+  Store backups encrypted, and if one leaks, revoke those rows — rotating the
+  deployment's own `API_KEY` does not.
+- **`.env` is not in the backup**, deliberately. Back it up separately and
+  encrypted; without `URL_SIGNING_SECRET` every previously issued download URL
+  breaks.
+- **Restore onto the image the backup came from.** This is enforced, not advice:
+  the manifest records that image's digest and restore refuses a different build,
+  including the same tag republished over different code. Keep the image
+  reachable — releases are also published as `:source-<commit>` for exactly that
+  reason.
+
+Snapshotting the volume with your own tooling still works, but you lose the
+manifest, so a restore cannot check the archive before destroying what is there.
 
 ## Connecting your app
 

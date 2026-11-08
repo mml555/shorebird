@@ -1,0 +1,23 @@
+label: after
+release_id: 129
+arch: xcarchive
+container_sha256: a71170aae04da816b39f4e96e7478e03ab0c62ef22e88b770b8d5637f4e60df8
+container_bytes: 11053421
+artifact_sha256: 75ed6861b71a714a5c81b49eb5e8c2756b4d28e50ee86c5de9851945da6ee0f1
+artifact_bytes: dir
+app_bundle_name: Runner.app
+codesign_verify: PASS
+identifier: dev.selfhost.flavoredProbe.foo
+team_identifier: SK85S6YZP9
+authority: Apple Development: Pesach Brody (BRDNYM22XL)
+cd_hash: 96db6e00fc97dbcb337eee127a2886416309da4a
+cd_hashes: 96db6e00fc97dbcb337eee127a2886416309da4a
+profile_sha256: 78b4e9cab6fe26911d5e0aa4d976ce5ae7688cceb6d96655c26fec2cf5580efd
+profile_uuid: e3a92ae5-fe6c-4b28-a3b3-ad2212a80330
+profile_name: iOS Team Provisioning Profile: *
+profile_team_identifier: SK85S6YZP9
+profile_app_identifier: SK85S6YZP9.*
+profile_expiration: 2027-07-31T15:21:48Z
+entitlements_normalized_sha256: 1048d467c69cf8b3bc4bae1995952ad264feaaf3f828e62640538b8736fe5e3d
+entitlements_get_task_allow: true
+entitlements_app_identifier: SK85S6YZP9.dev.selfhost.flavoredProbe.foo

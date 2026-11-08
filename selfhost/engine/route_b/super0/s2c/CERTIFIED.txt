@@ -1,0 +1,7 @@
+preserved from out/ios_release before the 2C candidate build
+date_utc : 2026-08-31T23:54:51Z
+sha1     : cc150ab64dbeef57be41fd7b1bd12bda5cb7e717
+sha256   : 62bd2395005cc3150d504d05b7efd9d3a4f6c14fff728cde49637d9f7f4f801c
+size     : 19104440
+updater  : 1 occurrence(s) of af6e842ccf87
+marker   : 0 occurrence(s) of the candidate marker

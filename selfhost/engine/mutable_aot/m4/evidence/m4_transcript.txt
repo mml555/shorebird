@@ -1,0 +1,15 @@
+=== MAOT-4 (#68) optimizer invariants for mutable declarations ===
+run  2026-09-16T21:26:44Z
+fork 4c637705c880fb87a82d3fa87b3bb6bf963a26d6
+
+fork          4c637705c880fb87a82d3fa87b3bb6bf963a26d6
+rules         10 optimizer classes
+variants      tiny OLD-TINY -> NEW-TINY -> NEW-CONST | chain NEW-A
+devirt        install -3 (refused: instance dispatch is #69) | join 6+3
+arms          19 (0 failed)
+blocking      0
+conditions    24 (0 failed)
+PHASE A       arm64_aot_optimizer_invariants = ESTABLISHED
+CLOSURE       issue_68_closure = READY
+
+gate exit 0

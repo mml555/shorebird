@@ -112,11 +112,21 @@ class RedisConnection {
       _disconnected = Completer<void>();
       _connection = connection;
       _client = RespClient(connection);
-      if (options.password != null) {
-        logger.info('Authenticating.');
-        final username = options.username;
-        final password = options.password!;
-        await RespCommandsTier0(_client!).execute(['AUTH', username, password]);
+      try {
+        await _authenticate(_client!);
+      } on Object catch (error, stackTrace) {
+        // Closing the socket runs onConnectionClosed, which counts this as a
+        // failed attempt and schedules the next one.
+        logger.error(
+          'Authentication failed.',
+          error: error,
+          stackTrace: stackTrace,
+        );
+        _connection = null;
+        _client = null;
+        if (!_disconnected.isCompleted) _disconnected.complete();
+        await connection.close();
+        return;
       }
       _isConnected = true;
       if (!_connected.isCompleted) _connected.complete();
@@ -163,11 +173,13 @@ class RedisConnection {
     try {
       logger.info('Connecting to ${options._connectionUri}.');
       final uri = options._connectionUri;
-      final connection = await connectSocket(
-        uri.host,
-        port: uri.port,
-        timeout: options.timeout,
-      );
+      final connection = options.tls
+          ? await _connectSecureSocket(uri)
+          : await connectSocket(
+              uri.host,
+              port: uri.port,
+              timeout: options.timeout,
+            );
       unawaited(onConnectionOpened(connection));
       unawaited(
         connection.outputSink.done
@@ -179,11 +191,87 @@ class RedisConnection {
     }
   }
 
+  /// Sends `AUTH` with the credentials for this connection, if any.
+  /// Throws if the provider throws or the server refuses them.
+  Future<void> _authenticate(RespClient client) async {
+    final RedisCredentials credentials;
+    final provider = options.credentialsProvider;
+    if (provider != null) {
+      // Bounded like the socket connect, so a provider that never answers
+      // (a hung token endpoint) fails this attempt rather than the client.
+      credentials = await provider().timeout(options.timeout);
+    } else if (options.password != null) {
+      credentials = RedisCredentials(
+        username: options.username,
+        password: options.password!,
+      );
+    } else {
+      return;
+    }
+    logger.info('Authenticating.');
+    final result = await RespCommandsTier0(client).execute([
+      'AUTH',
+      credentials.username,
+      credentials.password,
+    ]);
+    if (result.isError) throw RedisException(result.toString());
+  }
+
+  Future<RespServerConnection> _connectSecureSocket(Uri uri) async {
+    final socket = await SecureSocket.connect(
+      uri.host,
+      uri.port,
+      context: options.securityContext,
+      timeout: options.timeout,
+    );
+    return _SocketConnection(socket);
+  }
+
   void _reset() {
     _connected = Completer<void>();
     _connection = null;
     _client = null;
     if (!_disconnected.isCompleted) _disconnected.complete();
+  }
+}
+
+/// A [RespServerConnection] over an already-open [Socket], such as a
+/// [SecureSocket]. `resp_client`'s own socket connection is plaintext only.
+class _SocketConnection implements RespServerConnection {
+  _SocketConnection(this._socket);
+
+  final Socket _socket;
+  var _closing = false;
+
+  @override
+  StreamSink<List<int>> get outputSink => _socket;
+
+  /// The socket's input, minus any error that arrives once [close] has begun.
+  ///
+  /// On a [SecureSocket], [Socket.close] closes only the write side, with a
+  /// FIN and no TLS close_notify, and the read side keeps listening. OpenSSL
+  /// servers, Memorystore for Valkey among them, answer that with a fatal
+  /// alert. `resp_client` reads this stream without an error handler, so
+  /// passed through, that alert would be an unhandled error.
+  @override
+  late final Stream<List<int>> inputStream = _socket.handleError(
+    (Object _) {},
+    test: (_) => _closing,
+  );
+
+  /// Flushes and closes the socket.
+  ///
+  /// The close runs even if the flush fails: closing the sink is what
+  /// completes `outputSink.done`, and that is how the reconnect loop learns
+  /// this connection is gone.
+  @override
+  Future<void> close() async {
+    _closing = true;
+    try {
+      await _socket.flush();
+    } finally {
+      await _socket.close();
+    }
   }
 }
 

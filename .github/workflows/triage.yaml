@@ -9,11 +9,37 @@ on:
 permissions:
   issues: write
 
+# Both jobs run on the self-hosted home runner, and the approval policy does
+# not gate issue events. So they run only when the issue's author is the
+# repo owner, a member or a collaborator. The cost: an outside customer's
+# issue gets no automatic needs-triage label and their reply does not swap
+# labels, so triage those by hand until hosted runners are back (then move
+# these jobs to ubuntu-latest behind vars.HOSTED_RUNNERS == 'true').
+
 jobs:
   add-needs-triage:
-    if: github.event_name == 'issues'
-    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'issues' &&
+      (github.event.issue.author_association == 'OWNER' || github.event.issue.author_association == 'MEMBER' || github.event.issue.author_association == 'COLLABORATOR')
+    runs-on: [self-hosted, linux, x64, shorebird]
     steps:
+      # ci-build has no gh. Fetch the release binary, checking it against the
+      # release's checksums, unless one is already on PATH.
+      - name: 🔧 Install gh
+        run: |
+          if ! command -v gh >/dev/null; then
+            version=2.63.2
+            archive="gh_${version}_linux_amd64.tar.gz"
+            base="https://github.com/cli/cli/releases/download/v${version}"
+            dir="$RUNNER_TEMP/gh"
+            mkdir -p "$dir"
+            curl -fsSL -o "$dir/$archive" "$base/$archive"
+            curl -fsSL -o "$dir/checksums.txt" "$base/gh_${version}_checksums.txt"
+            (cd "$dir" && grep " $archive\$" checksums.txt | sha256sum -c -)
+            tar -xzf "$dir/$archive" -C "$dir" --strip-components=1
+            echo "$dir/bin" >> "$GITHUB_PATH"
+          fi
+
       - name: Add needs-triage label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -27,9 +53,29 @@ jobs:
     if: >-
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request == null &&
-      github.event.comment.user.login == github.event.issue.user.login
-    runs-on: ubuntu-latest
+      github.event.comment.user.login == github.event.issue.user.login &&
+      (github.event.comment.author_association == 'OWNER' ||
+      github.event.comment.author_association == 'MEMBER' ||
+      github.event.comment.author_association == 'COLLABORATOR')
+    runs-on: [self-hosted, linux, x64, shorebird]
     steps:
+      # ci-build has no gh. Fetch the release binary, checking it against the
+      # release's checksums, unless one is already on PATH.
+      - name: 🔧 Install gh
+        run: |
+          if ! command -v gh >/dev/null; then
+            version=2.63.2
+            archive="gh_${version}_linux_amd64.tar.gz"
+            base="https://github.com/cli/cli/releases/download/v${version}"
+            dir="$RUNNER_TEMP/gh"
+            mkdir -p "$dir"
+            curl -fsSL -o "$dir/$archive" "$base/$archive"
+            curl -fsSL -o "$dir/checksums.txt" "$base/gh_${version}_checksums.txt"
+            (cd "$dir" && grep " $archive\$" checksums.txt | sha256sum -c -)
+            tar -xzf "$dir/$archive" -C "$dir" --strip-components=1
+            echo "$dir/bin" >> "$GITHUB_PATH"
+          fi
+
       - name: Swap waiting-for-response to needs-triage on author reply
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

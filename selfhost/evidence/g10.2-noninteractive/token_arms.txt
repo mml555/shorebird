@@ -1,0 +1,39 @@
+# G10.2 — SHOREBIRD_TOKEN arms (auth.dart:350-380)
+# identity: CLI ba4e1c02 at ~/.shorebird; SHOREBIRD_HOSTED_URL=http://localhost:18081 (cps-android, started this session)
+# stdout is a FILE, never a PTY. CI unset. no --json.
+# command: shorebird account whoami   (authenticates; builds nothing)
+# date: 2026-08-13 17:25:51 EDT
+#
+# TWO EARLIER ATTEMPTS WERE VOID and are recorded rather than hidden:
+#   'apps list'      -> not a command; all three arms printed the usage banner
+#   'account usage'  -> not a subcommand; all three arms exited 64
+# Neither reached the auth path, so neither measured anything. A vacuous arm
+# that LOOKS like a result is exactly the failure mode this lane exists for.
+
+=== arm: SHOREBIRD_TOKEN unset ===
+Starting Fetching account...
+Failed to refresh credentials.
+Try logging out with shorebird logout and logging in again.
+Failed ProcessExit: 70
+
+If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+exit=70
+
+=== arm: SHOREBIRD_TOKEN empty ===
+Failed to parse SHOREBIRD_TOKEN. Expected an API key (sb_api_...) or a legacy CI token.
+FormatException: Unexpected end of input (at character 1)
+
+^
+
+
+exit=70
+
+=== arm: SHOREBIRD_TOKEN garbage ===
+Failed to parse SHOREBIRD_TOKEN. Expected an API key (sb_api_...) or a legacy CI token.
+FormatException: Unexpected extension byte (at offset 0)
+
+If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+
+You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+exit=70
+

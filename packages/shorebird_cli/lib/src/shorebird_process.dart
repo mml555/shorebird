@@ -3,8 +3,11 @@ import 'dart:io';
 
 import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
+import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
+import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -43,6 +46,13 @@ class ShorebirdProcess {
   /// on the child side, regressing the interactive UX; a pty or per-fd
   /// shell tee would fix both but costs a dependency / POSIX-only path.
   /// Accepting the logging gap for now.
+  ///
+  /// `--json` mode is the exception. `inheritStdio` hands the child our real
+  /// fd 1, which is exactly where `IOOverrides` cannot follow it, so gradle
+  /// and `flutter build` would write their output into the stream the caller
+  /// is parsing as JSON. There is no interactive terminal UX to protect for
+  /// a caller reading stdout, so pipe there instead and forward both of the
+  /// child's streams to stderr alongside our own human output.
   Future<int> stream(
     String executable,
     List<String> arguments, {
@@ -57,9 +67,22 @@ class ShorebirdProcess {
       environment: environment,
       runInShell: runInShell,
       workingDirectory: workingDirectory,
-      mode: ProcessStartMode.inheritStdio,
+      mode: isJsonMode
+          ? ProcessStartMode.normal
+          : ProcessStartMode.inheritStdio,
     );
     onStart?.call(process);
+    if (!isJsonMode) return process.exitCode;
+
+    // Bytes rather than lines: the child's output is already formatted for a
+    // terminal, and decoding it would only risk throwing on a partial or
+    // invalid UTF-8 sequence. `add` rather than `addStream`, because two
+    // concurrent `addStream` calls on one sink is a StateError.
+    await Future.wait([
+      process.stdout.forEach(stderr.add),
+      process.stderr.forEach(stderr.add),
+    ]);
+    await stderr.flush();
     return process.exitCode;
   }
 
@@ -152,7 +175,7 @@ class ShorebirdProcess {
     ProcessStartMode mode = ProcessStartMode.normal,
   }) {
     final resolvedEnvironment = environment ?? {};
-    if (useVendedFlutter) {
+    if (_appliesStorageOrigin(useVendedFlutter: useVendedFlutter)) {
       // Note: this will overwrite existing environment values.
       resolvedEnvironment.addAll(_environmentOverrides(executable: executable));
     }
@@ -185,13 +208,26 @@ class ShorebirdProcess {
     required bool useVendedFlutter,
   }) {
     final resolvedEnvironment = baseEnvironment ?? {};
-    if (useVendedFlutter) {
+    if (_appliesStorageOrigin(useVendedFlutter: useVendedFlutter)) {
       // Note: this will overwrite existing environment values.
       resolvedEnvironment.addAll(_environmentOverrides(executable: executable));
     }
 
     return resolvedEnvironment;
   }
+
+  /// Whether to hand the artifact origin to the child.
+  ///
+  /// `useVendedFlutter` is about WHICH flutter runs, not about where its
+  /// artifacts come from — but upstream only injected the origin for the vended
+  /// one, and `_precache` deliberately passes `useVendedFlutter: false` because
+  /// it runs the TARGET revision's own binary. So a configured origin applies
+  /// either way.
+  ///
+  /// When nothing is configured this reduces to the upstream condition exactly,
+  /// which is what keeps default behaviour byte-identical.
+  static bool _appliesStorageOrigin({required bool useVendedFlutter}) =>
+      useVendedFlutter || ArtifactOrigin.isOverridden;
 
   String _resolveExecutable(
     String executable, {
@@ -262,16 +298,44 @@ $stderr''');
     }
   }
 
+  /// Whether [executable] is a Flutter invocation, by BASENAME.
+  ///
+  /// Equality against the literal `'flutter'` was not enough, and this is the
+  /// bug that made FLUTTER-STORAGE-AUTHORITY-1 more than a rename:
+  /// `ShorebirdFlutter._precache` — the ONE call that downloads engine
+  /// artifacts — passes the target revision's ABSOLUTE binary path, so the
+  /// origin was never injected for it. It only appeared to work when the
+  /// operator had set `FLUTTER_STORAGE_BASE_URL` in their own shell, because
+  /// the child inherits that regardless.
+  static bool _isFlutterExecutable(String executable) {
+    final name = p.basename(executable);
+    return name == 'flutter' || name == 'flutter.bat';
+  }
+
+  /// [_environmentOverrides] combined with the [_appliesStorageOrigin] gate,
+  /// exposed so a test can assert on the environment a child would receive
+  /// without standing up a real process.
+  @visibleForTesting
+  Map<String, String> testEnvironmentOverrides({
+    required String executable,
+    required bool useVendedFlutter,
+  }) => _appliesStorageOrigin(useVendedFlutter: useVendedFlutter)
+      ? _environmentOverrides(executable: executable)
+      : const {};
+
   Map<String, String> _environmentOverrides({required String executable}) {
-    if (executable == 'flutter') {
-      // If this ever changes we also need to update the `shorebird` shell
-      // wrapper which downloads runs Flutter to fetch artifacts the first time.
-      // Overridable via FLUTTER_STORAGE_BASE_URL so a self-hosted deployment
-      // can mirror engine artifacts off Shorebird's CDN (defaults to upstream).
-      const key = 'FLUTTER_STORAGE_BASE_URL';
-      return {
-        key: platform.environment[key] ?? 'https://download.shorebird.dev',
-      };
+    if (_isFlutterExecutable(executable)) {
+      // THE CHILD PROCESS IS WHERE THIS HAS TO LAND. Flutter fetches engine
+      // artifacts itself, so an origin the parent merely knows about changes
+      // nothing -- it is handed over in the environment, under Flutter's own
+      // standard variable name.
+      //
+      // Resolved through ShorebirdEnv.downloadUrl (SHOREBIRD_DOWNLOAD_URL, then
+      // the fork's FLUTTER_STORAGE_BASE_URL / SHOREBIRD_ARTIFACT_ORIGIN
+      // aliases via ArtifactOrigin), so this is not another place that decides
+      // an origin. If this ever changes we also need to update shared.sh and
+      // shorebird.ps1, which run Flutter to fetch artifacts the first time.
+      return {ArtifactOrigin.flutterStorageKey: shorebirdEnv.downloadUrl};
     }
 
     return {};

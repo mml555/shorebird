@@ -1,6 +1,9 @@
+// cspell:words xcuserdata
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:collection/collection.dart';
+import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/archive/directory_archive.dart';
@@ -15,6 +18,7 @@ import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:xml/xml.dart';
 
+export 'app_extension_versions.dart';
 export 'apple_platform.dart';
 export 'export_method.dart';
 export 'invalid_export_options_plist_exception.dart';
@@ -22,6 +26,50 @@ export 'link_result.dart';
 export 'macho.dart';
 export 'missing_xcode_project_exception.dart';
 export 'plist.dart';
+
+/// A short reason `aot_tools link_metadata` failed, for the patch metadata
+/// and the warning: the exception line aot_tools printed, or what it printed
+/// instead of JSON. The text from the first path on becomes `<path>`, since
+/// patch metadata holds no paths.
+@visibleForTesting
+String linkMetadataFailureReason(Exception error) {
+  String firstLine(String text) => LineSplitter.split(text)
+      .map((l) => l.trim())
+      .firstWhere(
+        (l) => l.isNotEmpty,
+        orElse: () => '',
+      );
+  // Everything from the first path on is dropped, since a path can hold
+  // spaces and so has no reliable end.
+  String clean(String text, {int maxLength = 200}) {
+    final path = RegExp(r'(?:[A-Za-z]:)?[\\/]').firstMatch(text);
+    final kept = path == null ? text : text.substring(0, path.start);
+    final truncated = kept.length > maxLength
+        ? kept.substring(0, maxLength)
+        : kept;
+    return path == null ? truncated : '$truncated<path>';
+  }
+
+  switch (error) {
+    case FormatException(:final String source):
+      return 'invalid JSON: "${clean(firstLine(source), maxLength: 60)}"';
+    case FormatException():
+      return 'invalid JSON';
+    case AotToolsExecutionFailure(:final stderr, :final exitCode):
+      // An uncaught exception prints "Unhandled exception:", then the
+      // exception's own line, then the stack.
+      final lines = LineSplitter.split(
+        stderr,
+      ).map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+      final unhandled = lines.indexOf('Unhandled exception:');
+      final line = unhandled != -1 && unhandled + 1 < lines.length
+          ? lines[unhandled + 1]
+          : lines.firstOrNull;
+      return line == null ? 'exit code $exitCode' : clean(line);
+    default:
+      return clean(firstLine('$error'));
+  }
+}
 
 /// A reference to a [Apple] instance.
 final appleRef = create(Apple.new);
@@ -97,7 +145,13 @@ class Apple {
 
   /// Returns the set of flavors for the Xcode project associated with
   /// [platform], if this project has that platform configured.
-  Set<String>? flavors({required ApplePlatform platform}) {
+  ///
+  /// With [includeUserSchemes], schemes a developer hasn't shared (under
+  /// `xcuserdata`) count too, as they do for `flutter build`.
+  Set<String>? flavors({
+    required ApplePlatform platform,
+    bool includeUserSchemes = false,
+  }) {
     final projectRoot = shorebirdEnv.getFlutterProjectRoot()!;
     // Ideally, we would use `xcodebuild -list` to detect schemes/flavors.
     // Unfortunately, many projects contain schemes that are not flavors, and we
@@ -133,8 +187,15 @@ class Apple {
       throw Exception('Unable to detect schemes in $xcschemesDir');
     }
 
-    return xcschemesDir
-        .listSync()
+    final userSchemeFiles = <FileSystemEntity>[
+      if (includeUserSchemes)
+        for (final userDir in _subdirectories(
+          p.join(xcodeProjDirectory.path, 'xcuserdata'),
+        ))
+          ..._listIfExists(p.join(userDir.path, 'xcschemes')),
+    ];
+
+    return [...xcschemesDir.listSync(), ...userSchemeFiles]
         .whereType<File>()
         .where((e) => p.extension(e.path) == '.xcscheme')
         .where((e) => p.basenameWithoutExtension(e.path) != 'Runner')
@@ -224,64 +285,103 @@ class Apple {
       );
 
       final debugInfoZip = await dumpDebugInfoDir.zipToTempFile();
-      debugInfoZip.copySync(p.join('build', Patcher.debugInfoFile.path));
-      logger.detail('Link debug info saved to ${Patcher.debugInfoFile.path}');
-
-      // If we're running on codemagic, export the patch-debug.zip artifact.
-      // https://docs.codemagic.io/knowledge-others/upload-custom-artifacts
-      final codemagicExportDir = platform.environment['CM_EXPORT_DIR'];
-      if (codemagicExportDir != null) {
+      try {
+        debugInfoZip.copySync(p.join('build', Patcher.debugInfoFile.path));
         logger.detail(
-          '''Codemagic environment detected. Exporting ${Patcher.debugInfoFile.path} to $codemagicExportDir''',
+          'Link debug info saved to ${Patcher.debugInfoFile.path}',
         );
-        try {
-          debugInfoZip.copySync(
-            p.join(codemagicExportDir, p.basename(Patcher.debugInfoFile.path)),
+
+        // If we're running on codemagic, export the patch-debug.zip artifact.
+        // https://docs.codemagic.io/knowledge-others/upload-custom-artifacts
+        final codemagicExportDir = platform.environment['CM_EXPORT_DIR'];
+        if (codemagicExportDir != null) {
+          logger.detail(
+            '''Codemagic environment detected. Exporting ${Patcher.debugInfoFile.path} to $codemagicExportDir''',
           );
-        } on Exception catch (error) {
-          logger.detail('''
+          try {
+            debugInfoZip.copySync(
+              p.join(
+                codemagicExportDir,
+                p.basename(Patcher.debugInfoFile.path),
+              ),
+            );
+          } on Exception catch (error) {
+            logger.detail('''
 Failed to export ${Patcher.debugInfoFile.path} to $codemagicExportDir.
 $error''');
+          }
         }
+      } finally {
+        // The zip has been copied to its destinations above.
+        debugInfoZip.parent.deleteSync(recursive: true);
       }
     }
 
+    // The debug info is read back below for link metadata and copied out as
+    // patch-debug.zip, after which the directory itself is no longer needed.
     try {
-      linkPercentage = await aotTools.link(
-        base: releaseArtifact.path,
-        patch: patch.path,
-        analyzeSnapshot: analyzeSnapshot.path,
-        genSnapshot: genSnapshot,
-        outputPath: vmCodeFile.path,
-        workingDirectory: buildDirectory.path,
-        kernel: kernelFile.path,
-        dumpDebugInfoPath: dumpDebugInfoDir?.path,
-        ddMaxBytes: ddMaxBytes,
-        additionalArgs: splitDebugInfoArgs,
-      );
-    } on Exception catch (error) {
-      linkProgress.fail('Failed to link AOT files: $error');
-      return const LinkResult.failure();
-    } finally {
-      await dumpDebugInfo();
-    }
-    Map<String, dynamic>? linkMetadata;
-    try {
-      if (dumpDebugInfoDir != null) {
-        linkMetadata = await aotTools.getLinkMetadata(
-          debugDir: dumpDebugInfoDir.path,
+      try {
+        linkPercentage = await aotTools.link(
+          base: releaseArtifact.path,
+          patch: patch.path,
+          analyzeSnapshot: analyzeSnapshot.path,
+          genSnapshot: genSnapshot,
+          outputPath: vmCodeFile.path,
           workingDirectory: buildDirectory.path,
+          kernel: kernelFile.path,
+          dumpDebugInfoPath: dumpDebugInfoDir?.path,
+          ddMaxBytes: ddMaxBytes,
+          additionalArgs: splitDebugInfoArgs,
+        );
+      } on Exception catch (error) {
+        linkProgress.fail('Failed to link AOT files: $error');
+        return const LinkResult.failure();
+      } finally {
+        await dumpDebugInfo();
+      }
+      Map<String, dynamic>? linkMetadata;
+      try {
+        // Flutter versions before 3.29.3 have no link_metadata command, so
+        // their patches have no link details to record or warn about.
+        if (dumpDebugInfoDir != null &&
+            await aotTools.isLinkMetadataSupported()) {
+          linkMetadata = await aotTools.getLinkMetadata(
+            debugDir: dumpDebugInfoDir.path,
+            workingDirectory: buildDirectory.path,
+          );
+        }
+      } on Exception catch (error) {
+        logger.detail('[aot_tools] Failed to get link metadata: $error');
+        // Recorded in the patch metadata in place of the link details, so the
+        // failure is visible to Shorebird rather than a bare null.
+        linkMetadata = {'error': linkMetadataFailureReason(error)};
+      }
+
+      linkProgress.complete();
+      if (linkMetadata?['error'] case final String reason) {
+        logger.warn(
+          'Could not read link details for this patch ($reason). The patch '
+          'is not affected; the reason is sent to Shorebird with the patch so '
+          'it can be fixed.',
         );
       }
-    } on Exception catch (error) {
-      logger.detail('[aot_tools] Failed to get link metadata: $error');
+      return LinkResult.success(
+        linkPercentage: linkPercentage,
+        linkMetadata: linkMetadata,
+      );
+    } finally {
+      if (dumpDebugInfoDir != null && dumpDebugInfoDir.existsSync()) {
+        dumpDebugInfoDir.deleteSync(recursive: true);
+      }
     }
+  }
 
-    linkProgress.complete();
-    return LinkResult.success(
-      linkPercentage: linkPercentage,
-      linkMetadata: linkMetadata,
-    );
+  Iterable<Directory> _subdirectories(String path) =>
+      _listIfExists(path).whereType<Directory>();
+
+  List<FileSystemEntity> _listIfExists(String path) {
+    final directory = Directory(path);
+    return directory.existsSync() ? directory.listSync() : const [];
   }
 
   /// Parses the .xcscheme file to determine if it was created for an app

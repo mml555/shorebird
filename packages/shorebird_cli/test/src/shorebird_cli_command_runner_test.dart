@@ -1,35 +1,45 @@
+// cspell:words wohami
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:platform/platform.dart';
+import 'package:platform/testing.dart';
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/api_error_exit.dart';
+import 'package:shorebird_cli/src/cache.dart';
+import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/interactive_mode.dart';
 import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart' hide logger;
 import 'package:shorebird_cli/src/platform.dart';
+import 'package:shorebird_cli/src/server_notices.dart';
 import 'package:shorebird_cli/src/shorebird_cli_command_runner.dart';
 import 'package:shorebird_cli/src/shorebird_command.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
+import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/shorebird_version.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:shorebird_cli/src/version.dart';
+import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart' as helpers;
+import 'helpers.dart';
 import 'mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(ShorebirdCliCommandRunner, () {
     const shorebirdEngineRevision = 'test-engine-revision';
     const flutterRevision = 'test-flutter-revision';
     const flutterVersion = '1.2.3';
 
+    late Cache cache;
     late ShorebirdLogger logger;
-    late Platform platform;
+    late TestNativePlatform platform;
     late ShorebirdEnv shorebirdEnv;
     late ShorebirdFlutter shorebirdFlutter;
     late ShorebirdVersion shorebirdVersion;
@@ -39,6 +49,7 @@ void main() {
       return runScoped(
         body,
         values: {
+          cacheRef.overrideWith(() => cache),
           loggerRef.overrideWith(() => logger),
           platformRef.overrideWith(() => platform),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
@@ -49,8 +60,12 @@ void main() {
     }
 
     setUp(() {
+      cache = MockCache();
       logger = MockShorebirdLogger();
-      platform = MockPlatform();
+      platform = TestNativePlatform(
+        operatingSystem: NativePlatform.linux,
+        environment: {},
+      );
       shorebirdEnv = MockShorebirdEnv();
       shorebirdFlutter = MockShorebirdFlutter();
       shorebirdVersion = MockShorebirdVersion();
@@ -64,14 +79,132 @@ void main() {
       when(
         () => shorebirdEnv.shorebirdEngineRevision,
       ).thenReturn(shorebirdEngineRevision);
-      when(() => platform.isWindows).thenReturn(false);
       when(() => shorebirdEnv.flutterRevision).thenReturn(flutterRevision);
       when(
         () => shorebirdFlutter.getVersionString(),
       ).thenAnswer((_) async => flutterVersion);
+      when(() => shorebirdFlutter.pruneUnusedRevisions()).thenReturn([]);
+      when(() => cache.pruneUnusedArtifacts()).thenReturn([]);
+      when(() => cache.pruneUnusedPreviews()).thenReturn([]);
+      when(() => cache.pruneUnusedReleaseArtifacts()).thenReturn([]);
       when(shorebirdVersion.isLatest).thenAnswer((_) async => true);
       when(shorebirdVersion.isTrackingStable).thenAnswer((_) async => true);
+      when(shorebirdVersion.hasUpstream).thenAnswer((_) async => true);
       commandRunner = runWithOverrides(ShorebirdCliCommandRunner.new);
+    });
+
+    group('pruning unused caches', () {
+      test('prunes after the command runs', () async {
+        commandRunner.addCommand(_TestCommand(ExitCode.success));
+
+        await runWithOverrides(() => commandRunner.run(['test']));
+
+        verify(() => shorebirdFlutter.pruneUnusedRevisions()).called(1);
+        verify(() => cache.pruneUnusedArtifacts()).called(1);
+        verify(() => cache.pruneUnusedPreviews()).called(1);
+        verify(() => cache.pruneUnusedReleaseArtifacts()).called(1);
+      });
+
+      test('prunes after a command that fails', () async {
+        commandRunner.addCommand(_TestCommand(ExitCode.software));
+
+        await runWithOverrides(() => commandRunner.run(['test']));
+
+        verify(() => shorebirdFlutter.pruneUnusedRevisions()).called(1);
+        verify(() => cache.pruneUnusedArtifacts()).called(1);
+        verify(() => cache.pruneUnusedPreviews()).called(1);
+        verify(() => cache.pruneUnusedReleaseArtifacts()).called(1);
+      });
+
+      test('does not fail the command when pruning throws', () async {
+        when(
+          () => shorebirdFlutter.pruneUnusedRevisions(),
+        ).thenThrow(const FileSystemException('denied'));
+        when(
+          () => cache.pruneUnusedArtifacts(),
+        ).thenThrow(const FileSystemException('denied'));
+        when(
+          () => cache.pruneUnusedPreviews(),
+        ).thenThrow(const FileSystemException('denied'));
+        when(
+          () => cache.pruneUnusedReleaseArtifacts(),
+        ).thenThrow(const FileSystemException('denied'));
+        commandRunner.addCommand(_TestCommand(ExitCode.success));
+
+        final result = await runWithOverrides(
+          () => commandRunner.run(['test']),
+        );
+
+        expect(result, equals(ExitCode.success.code));
+        verify(
+          () => logger.detail(
+            any(that: contains('Unable to prune unused Flutter installs')),
+          ),
+        ).called(1);
+        verify(
+          () => logger.detail(
+            any(that: contains('Unable to prune unused artifacts')),
+          ),
+        ).called(1);
+        verify(
+          () => logger.detail(
+            any(that: contains('Unable to prune unused previews')),
+          ),
+        ).called(1);
+      });
+    });
+
+    group('server notices', () {
+      test('prints them after a command that succeeds', () async {
+        commandRunner.addCommand(_NoticeCommand(ExitCode.success));
+        await runWithOverrides(() => commandRunner.run(['notice']));
+        verify(() => logger.warn('Patches are paused.')).called(1);
+      });
+
+      test('prints them after a command that fails, below its error', () async {
+        commandRunner.addCommand(_NoticeCommand(ExitCode.software));
+        final result = await runWithOverrides(
+          () => commandRunner.run(['notice']),
+        );
+        expect(result, equals(ExitCode.software.code));
+        verify(() => logger.warn('Patches are paused.')).called(1);
+      });
+
+      test('writes them to stderr when the command reserves stdout, '
+          'as GitHub Actions annotations', () async {
+        platform = TestNativePlatform(
+          operatingSystem: NativePlatform.linux,
+          environment: {'GITHUB_ACTIONS': 'true'},
+        );
+        commandRunner.addCommand(
+          _ReservesStdoutCommand(exitCode: 0, notice: 'Patches are paused.'),
+        );
+        final stdoutLines = <String>[];
+        final stderrLines = <String>[];
+        final realStderr = stderr;
+        // A real logger, so a notice printed outside runWithStdoutOnStderr
+        // would show up on the captured stdout and fail the test.
+        logger = ShorebirdLogger();
+
+        await helpers.captureStdout(
+          () => IOOverrides.runZoned(
+            () => runWithOverrides(
+              () => commandRunner.run(['reserves-stdout']),
+            ),
+            stderr: () => helpers.CapturingStdout(
+              baseStdOut: realStderr,
+              captured: stderrLines,
+            ),
+          ),
+          captured: stdoutLines,
+        );
+
+        expect(stdoutLines, isEmpty);
+        expect(
+          stderrLines,
+          contains('::warning title=Shorebird::Patches are paused.'),
+        );
+      });
     });
 
     group('handles ProcessExit', () {
@@ -96,6 +229,30 @@ void main() {
             ),
           ),
         ).called(1);
+      });
+
+      test('reports a CommandError and exits with its code', () async {
+        commandRunner.addCommand(_CommandErrorCommand());
+        final result = await runWithOverrides(
+          () => commandRunner.run(['command-error']),
+        );
+        expect(result, equals(ExitCode.unavailable.code));
+        verify(() => logger.err('Something is wrong.')).called(1);
+        verify(() => logger.info('Run: shorebird fix')).called(1);
+      });
+
+      test('exits 1 without the failure footer when a prompt is '
+          'declined', () async {
+        commandRunner.addCommand(_DeclinedCommand());
+        final result = await runWithOverrides(
+          () => commandRunner.run(['declined']),
+        );
+        expect(result, equals(declinedExitCode));
+        verifyNever(
+          () => logger.info(
+            any(that: contains("If you aren't sure why this command failed")),
+          ),
+        );
       });
     });
 
@@ -147,60 +304,225 @@ void main() {
     });
 
     test('handles missing option error', () async {
-      final exception = UsageException(
-        'Could not find an option named "foo".',
-        'exception usage',
-      );
-      var isFirstInvocation = true;
-      when(() => logger.info(any())).thenAnswer((_) {
-        if (isFirstInvocation) {
-          isFirstInvocation = false;
-          throw exception;
-        }
-      });
       final result = await runWithOverrides(
-        () => commandRunner.run(['--version']),
+        () => commandRunner.run(['release', 'android', '--foo']),
       );
       expect(result, equals(ExitCode.usage.code));
-      verify(() => logger.err(exception.message)).called(1);
+      verify(
+        () => logger.err('Could not find an option named "--foo".'),
+      ).called(1);
       verify(
         () => logger.err('''
-To proxy an option to the flutter command, use the -- --<option> syntax.
+To pass --foo to flutter build, put it after --:
 
-Example:
-
-${lightCyan.wrap('shorebird release android -- --no-pub lib/main.dart')}'''),
+  ${lightCyan.wrap('shorebird release android -- --foo')}'''),
       ).called(1);
-      verify(() => logger.info('exception usage')).called(1);
+      verify(
+        () => logger.info(any(that: startsWith('Usage: shorebird release'))),
+      ).called(1);
     });
 
     test('handles missing option error on Windows', () async {
-      when(() => platform.isWindows).thenReturn(true);
-      final exception = UsageException(
-        'Could not find an option named "foo".',
-        'exception usage',
-      );
-      var isFirstInvocation = true;
-      when(() => logger.info(any())).thenAnswer((_) {
-        if (isFirstInvocation) {
-          isFirstInvocation = false;
-          throw exception;
-        }
-      });
+      platform = TestNativePlatform(operatingSystem: NativePlatform.windows);
       final result = await runWithOverrides(
-        () => commandRunner.run(['--version']),
+        () => commandRunner.run(['release', 'android', '--foo']),
       );
       expect(result, equals(ExitCode.usage.code));
-      verify(() => logger.err(exception.message)).called(1);
+      verify(
+        () => logger.err('Could not find an option named "--foo".'),
+      ).called(1);
       verify(
         () => logger.err('''
-To proxy an option to the flutter command, use the '--' --<option> syntax.
+To pass --foo to flutter build, put it after '--':
 
-Example:
-
-${lightCyan.wrap("shorebird release android '--' --no-pub lib/main.dart")}'''),
+  ${lightCyan.wrap("shorebird release android '--' --foo")}'''),
       ).called(1);
-      verify(() => logger.info('exception usage')).called(1);
+      verify(
+        () => logger.info(any(that: startsWith('Usage: shorebird release'))),
+      ).called(1);
+    });
+
+    group('unknown option on patch', () {
+      const overrideHint = '''
+shorebird patch has no --force flag. The patch safety checks are bypassed per check:
+  --allow-native-diffs      publish even though native code changed
+  --allow-asset-diffs       publish even though assets changed
+  --allow-build-flag-diffs  build even though --dart-define or --target differ from the release
+The warning that fails the patch names the one that applies.''';
+
+      test('names --allow-native-diffs / --allow-asset-diffs', () async {
+        final result = await runWithOverrides(
+          () => commandRunner.run(['patch', 'android', '--force']),
+        );
+        expect(result, equals(ExitCode.usage.code));
+        verify(
+          () => logger.err('Could not find an option named "--force".'),
+        ).called(1);
+        verify(() => logger.err(overrideHint)).called(1);
+        verifyNever(
+          () =>
+              logger.err(any(that: contains('to flutter build, put it after'))),
+        );
+      });
+
+      test('matches other override-shaped options', () async {
+        await runWithOverrides(
+          () => commandRunner.run(['patch', '--skip-checks']),
+        );
+        verify(
+          () => logger.err(
+            any(that: startsWith('shorebird patch has no --skip-checks flag')),
+          ),
+        ).called(1);
+      });
+
+      test('falls back to the pass-through hint for other options', () async {
+        await runWithOverrides(
+          () => commandRunner.run(['patch', 'android', '--fast=true']),
+        );
+        verify(
+          () => logger.err('''
+To pass --fast to flutter build, put it after --:
+
+  ${lightCyan.wrap('shorebird patch android -- --fast=true')}'''),
+        ).called(1);
+      });
+
+      test('puts the option right after an existing --', () async {
+        await runWithOverrides(
+          () => commandRunner.run([
+            'patch',
+            'android',
+            '--fast',
+            '--',
+            '--no-pub',
+          ]),
+        );
+        verify(
+          () => logger.err('''
+To pass --fast to flutter build, put it after --:
+
+  ${lightCyan.wrap('shorebird patch android -- --fast --no-pub')}'''),
+        ).called(1);
+      });
+
+      test('commands that do not build get no pass-through hint', () async {
+        await runWithOverrides(() => commandRunner.run(['doctor', '--fast']));
+        verify(
+          () => logger.err('Could not find an option named "--fast".'),
+        ).called(1);
+        verifyNever(
+          () => logger.err(any(that: contains('to flutter build'))),
+        );
+      });
+
+      test('does not apply to other commands', () async {
+        await runWithOverrides(
+          () => commandRunner.run(['release', 'android', '--force']),
+        );
+        verify(
+          () =>
+              logger.err(any(that: contains('to flutter build, put it after'))),
+        ).called(1);
+      });
+
+      test('carries the hint in the --json envelope', () async {
+        final stdoutOutput = <String>[];
+        await helpers.captureStdout<int>(
+          () => runWithOverrides(
+            () => commandRunner.run(['--json', 'patch', 'android', '--force']),
+          ),
+          captured: stdoutOutput,
+        );
+        final json = jsonDecode(stdoutOutput.first) as Map<String, dynamic>;
+        final error = json['error'] as Map<String, dynamic>;
+        expect(error['code'], equals('usage_error'));
+        expect(error['hint'], equals(overrideHint));
+      });
+    });
+
+    group('--enterprise', () {
+      const general =
+          'Commands for your whole enterprise are under '
+          '`shorebird enterprise`. Run: shorebird enterprise --help';
+
+      Future<void> expectHint(List<String> args, String hint) async {
+        final result = await runWithOverrides(() => commandRunner.run(args));
+        expect(result, equals(ExitCode.usage.code));
+        verify(() => logger.err(hint)).called(1);
+        verifyNever(
+          () => logger.err(any(that: contains('To proxy an option'))),
+        );
+      }
+
+      String suggests(String command) => 'Run `$command`.';
+
+      test('points at the shorebird enterprise command', () async {
+        await expectHint(
+          ['members', 'list', '--enterprise'],
+          suggests('shorebird enterprise members list'),
+        );
+      });
+
+      test('names a group run with its default subcommand', () async {
+        await expectHint(
+          ['members', '--enterprise'],
+          suggests('shorebird enterprise members'),
+        );
+      });
+
+      test('never names a command the enterprise lacks', () async {
+        for (final args in [
+          ['apps', 'delete', '--enterprise'],
+          ['members', 'add', 'bob@acme.com', '--enterprise'],
+          ['service-accounts', 'create', 'ci', '--enterprise'],
+          ['orgs', 'create', '--enterprise'],
+        ]) {
+          reset(logger);
+          await expectHint(args, general);
+        }
+      });
+
+      test('drops positional arguments', () async {
+        await expectHint(
+          ['usage', '42', '--enterprise'],
+          suggests('shorebird enterprise usage'),
+        );
+      });
+
+      test('skips global flags before the command', () async {
+        await expectHint(
+          ['--verbose', 'members', 'list', '--enterprise'],
+          suggests('shorebird enterprise members list'),
+        );
+      });
+
+      test('points at --help under shorebird enterprise', () async {
+        await expectHint([
+          'enterprise',
+          'members',
+          'list',
+          '--enterprise',
+        ], general);
+      });
+
+      test('reads aliases as their command', () async {
+        await expectHint(
+          ['teams', 'list', '--enterprise'],
+          suggests('shorebird enterprise orgs list'),
+        );
+      });
+
+      test('treats --no-enterprise the same', () async {
+        await expectHint(
+          ['members', 'list', '--no-enterprise'],
+          suggests('shorebird enterprise members list'),
+        );
+      });
+
+      test('points at shorebird enterprise --help elsewhere', () async {
+        await expectHint(['releases', 'list', '--enterprise-id', '7'], general);
+      });
     });
 
     group('--version', () {
@@ -232,6 +554,316 @@ Engine • revision $shorebirdEngineRevision'''),
       });
     });
 
+    group('default subcommand', () {
+      late _ParentCommand parent;
+
+      setUp(() {
+        parent = _ParentCommand();
+        commandRunner.addCommand(parent);
+      });
+
+      test('runs the default subcommand when given none', () async {
+        final result = await runWithOverrides(
+          () => commandRunner.run(['parent']),
+        );
+        expect(result, equals(ExitCode.success.code));
+        expect(parent.child.ran, isTrue);
+      });
+
+      test('keeps global flags before the command', () async {
+        final result = await runWithOverrides(
+          () => commandRunner.run(['--verbose', 'parent']),
+        );
+        expect(result, equals(ExitCode.success.code));
+        expect(parent.child.ran, isTrue);
+      });
+
+      test('runs a default subcommand of a nested command', () async {
+        final grandparent = _GrandparentCommand();
+        commandRunner.addCommand(grandparent);
+        final result = await runWithOverrides(
+          () => commandRunner.run(['grandparent', 'parent']),
+        );
+        expect(result, equals(ExitCode.success.code));
+        expect(grandparent.nested.child.ran, isTrue);
+      });
+
+      test('keeps global flags after the command', () async {
+        final result = await runWithOverrides(
+          () => commandRunner.run(['parent', '--verbose']),
+        );
+        expect(result, equals(ExitCode.success.code));
+        expect(parent.child.ran, isTrue);
+      });
+
+      test('is added when given options only it takes', () async {
+        final result = await runWithOverrides(
+          () => commandRunner.run(['parent', '--only-child']),
+        );
+        expect(result, equals(ExitCode.success.code));
+        expect(parent.child.ran, isTrue);
+      });
+
+      test('is added under a nested command too', () async {
+        final grandparent = _GrandparentCommand();
+        commandRunner.addCommand(grandparent);
+        final result = await runWithOverrides(
+          () => commandRunner.run(['grandparent', 'parent', '--only-child']),
+        );
+        expect(result, equals(ExitCode.success.code));
+        expect(grandparent.nested.child.ran, isTrue);
+      });
+
+      test('still rejects an option no subcommand takes', () async {
+        await expectLater(
+          runWithOverrides(() => commandRunner.run(['parent', '--bogus'])),
+          completion(equals(ExitCode.usage.code)),
+        );
+        expect(parent.child.ran, isFalse);
+      });
+
+      test('is added before a positional argument it takes', () async {
+        parent.child.takesPositional = true;
+        final result = await runWithOverrides(
+          () => commandRunner.run(['parent', 'extra']),
+        );
+        expect(result, equals(ExitCode.success.code));
+        expect(parent.child.ran, isTrue);
+      });
+
+      test('is not added before a word it does not take', () async {
+        final result = await runWithOverrides(
+          () => commandRunner.run(['parent', 'sibling']),
+        );
+        expect(result, equals(ExitCode.usage.code));
+        expect(parent.child.ran, isFalse);
+      });
+
+      test('leaves a mistyped subcommand an error', () {
+        for (final args in [
+          ['orgs', 'lst'],
+          ['teams', 'lst'],
+          ['account', 'wohami'],
+          ['orgs', 'lst', '--org-id', '42'],
+        ]) {
+          expect(commandRunner.withDefaultSubcommand(args), args);
+        }
+      });
+
+      test('follows aliases typed at each level', () {
+        expect(
+          commandRunner.withDefaultSubcommand(['org', 'audit', '42']),
+          ['org', 'audit', 'list', '42'],
+        );
+        expect(
+          commandRunner.withDefaultSubcommand(['audit-logs', '42']),
+          ['audit-logs', 'list', '42'],
+        );
+      });
+
+      test('reaches audit-log list with options or an org id', () {
+        expect(
+          commandRunner.withDefaultSubcommand(['audit-log', '--org-id', '42']),
+          ['audit-log', 'list', '--org-id', '42'],
+        );
+        expect(
+          commandRunner.withDefaultSubcommand(['audit-log', '42']),
+          ['audit-log', 'list', '42'],
+        );
+        expect(
+          commandRunner.withDefaultSubcommand(['audit-log', '--start', 'x']),
+          ['audit-log', 'list', '--start', 'x'],
+        );
+      });
+
+      test('reaches the default of each enterprise noun', () {
+        for (final (args, expanded) in [
+          (['enterprise'], ['enterprise', 'get']),
+          (['enterprise', 'members'], ['enterprise', 'members', 'list']),
+          (['enterprise', 'guests'], ['enterprise', 'guests', 'list']),
+          (['enterprise', 'orgs'], ['enterprise', 'orgs', 'list']),
+          (['enterprise', 'teams'], ['enterprise', 'teams', 'list']),
+          (['enterprise', 'apps'], ['enterprise', 'apps', 'list']),
+          (
+            ['enterprise', 'service-accounts'],
+            ['enterprise', 'service-accounts', 'list'],
+          ),
+          (['enterprise', 'audit-log'], ['enterprise', 'audit-log', 'list']),
+          (
+            ['enterprise', 'audit-log', '--start', '2026-10-21'],
+            ['enterprise', 'audit-log', 'list', '--start', '2026-10-21'],
+          ),
+          (
+            ['enterprises', 'audit', '--cursor', 'c'],
+            ['enterprises', 'audit', 'list', '--cursor', 'c'],
+          ),
+        ]) {
+          expect(
+            commandRunner.withDefaultSubcommand(args),
+            expanded,
+            reason: args.join(' '),
+          );
+        }
+      });
+
+      test('leaves a mistyped enterprise subcommand an error', () {
+        for (final args in [
+          ['enterprise', 'audit-log', 'lst'],
+          ['enterprise', 'members', 'lst'],
+        ]) {
+          expect(commandRunner.withDefaultSubcommand(args), args);
+        }
+      });
+
+      test('leaves a named subcommand alone', () {
+        final args = ['audit-log', 'export', '42'];
+        expect(commandRunner.withDefaultSubcommand(args), args);
+      });
+
+      test('is not added after --', () async {
+        await runWithOverrides(() => commandRunner.run(['parent', '--']));
+        expect(parent.child.ran, isFalse);
+      });
+
+      test('prints usage instead with --help', () async {
+        await runWithOverrides(() => commandRunner.run(['parent', '--help']));
+        expect(parent.child.ran, isFalse);
+      });
+
+      test('leaves a command with no default alone', () async {
+        final grandparent = _GrandparentCommand();
+        commandRunner.addCommand(grandparent);
+        await expectLater(
+          runWithOverrides(() => commandRunner.run(['grandparent'])),
+          completion(equals(ExitCode.usage.code)),
+        );
+        expect(grandparent.nested.child.ran, isFalse);
+      });
+    });
+
+    group('when run through an alias', () {
+      test('names the canonical command once', () async {
+        final parent = _ParentCommand();
+        commandRunner.addCommand(parent);
+
+        final result = await runWithOverrides(
+          () => commandRunner.run(['mom', 'kid']),
+        );
+
+        expect(result, equals(ExitCode.success.code));
+        expect(parent.child.ran, isTrue);
+        verify(
+          () => logger.info(
+            '`shorebird mom kid` is an alias of `shorebird parent child`.',
+          ),
+        ).called(1);
+      });
+
+      test('names it when only the subcommand is an alias', () async {
+        commandRunner.addCommand(_ParentCommand());
+
+        await runWithOverrides(() => commandRunner.run(['parent', 'kid']));
+
+        verify(
+          () => logger.info(
+            '`shorebird parent kid` is an alias of `shorebird parent child`.',
+          ),
+        ).called(1);
+      });
+
+      test('says nothing for the canonical name', () async {
+        commandRunner.addCommand(_ParentCommand());
+
+        await runWithOverrides(() => commandRunner.run(['parent', 'child']));
+
+        verifyNever(
+          () => logger.info(any(that: contains('is an alias of'))),
+        );
+      });
+
+      test('keeps the --json envelope alone on stdout', () async {
+        commandRunner.addCommand(_ParentCommand());
+        final stdoutLines = <String>[];
+
+        await helpers.captureStdout(
+          () => runWithOverrides(
+            () => commandRunner.run(['--json', 'mom', 'kid']),
+          ),
+          captured: stdoutLines,
+        );
+
+        verify(
+          () => logger.info(
+            '`shorebird mom kid` is an alias of `shorebird parent child`.',
+          ),
+        ).called(1);
+        expect(stdoutLines, hasLength(1));
+        expect(
+          jsonDecode(stdoutLines.single),
+          containsPair('status', 'success'),
+        );
+      });
+
+      test('writes to stderr when the command reserves stdout', () async {
+        commandRunner.addCommand(_ReservesStdoutCommand(exitCode: 0));
+        final stdoutLines = <String>[];
+        final stderrLines = <String>[];
+        final realStderr = stderr;
+        // A real logger, so a notice logged outside runWithStdoutOnStderr
+        // would show up on the captured stdout and fail the test.
+        logger = ShorebirdLogger();
+
+        await helpers.captureStdout(
+          () => IOOverrides.runZoned(
+            () => runWithOverrides(
+              () => commandRunner.run(['owns-stdout']),
+            ),
+            stderr: () => helpers.CapturingStdout(
+              baseStdOut: realStderr,
+              captured: stderrLines,
+            ),
+          ),
+          captured: stdoutLines,
+        );
+
+        expect(stdoutLines, isEmpty);
+        expect(
+          stderrLines,
+          contains(
+            '`shorebird owns-stdout` is an alias of '
+            '`shorebird reserves-stdout`.',
+          ),
+        );
+      });
+    });
+
+    group('--dev', () {
+      test('selects the dev environment for the command', () async {
+        final command = _RecordsDevModeCommand();
+        commandRunner.addCommand(command);
+
+        final result = await runWithOverrides(
+          () => commandRunner.run(['--dev', 'records-dev-mode']),
+        );
+
+        expect(result, equals(ExitCode.success.code));
+        expect(command.isDevMode, isTrue);
+      });
+
+      test('is off by default', () async {
+        final command = _RecordsDevModeCommand();
+        commandRunner.addCommand(command);
+
+        await runWithOverrides(() => commandRunner.run(['records-dev-mode']));
+
+        expect(command.isDevMode, isFalse);
+      });
+
+      test('is not shown in usage', () {
+        expect(commandRunner.usage, isNot(contains('--dev')));
+      });
+    });
+
     group('local engine', () {
       group('when all local engine args are provided', () {
         test('creates engine config with arguments', () async {
@@ -257,12 +889,36 @@ Engine • revision $shorebirdEngineRevision'''),
       });
 
       group('when some local engine args are provided', () {
-        test('throws ArgumentException', () async {
-          await expectLater(
-            () async => runWithOverrides(
-              () => commandRunner.run(['--local-engine', 'foo']),
+        test('exits with a usage error naming the flags', () async {
+          final result = await runWithOverrides(
+            () => commandRunner.run(['--local-engine', 'foo']),
+          );
+          expect(result, equals(ExitCode.usage.code));
+          verify(
+            () => logger.err(
+              '''--local-engine, --local-engine-src-path, and --local-engine-host must all be provided together''',
             ),
-            throwsArgumentError,
+          ).called(1);
+        });
+
+        test('emits a single usage_error envelope in --json mode', () async {
+          final stdoutOutput = <String>[];
+          final result = await helpers.captureStdout<int>(
+            () => runWithOverrides(
+              () => commandRunner.run(['--json', '--local-engine', 'foo']),
+            ),
+            captured: stdoutOutput,
+          );
+          expect(result, equals(ExitCode.usage.code));
+          expect(stdoutOutput, hasLength(1));
+          final json = jsonDecode(stdoutOutput.single) as Map<String, dynamic>;
+          final error = json['error'] as Map<String, dynamic>;
+          expect(error['code'], equals('usage_error'));
+          expect(
+            error['message'],
+            equals(
+              '''--local-engine, --local-engine-src-path, and --local-engine-host must all be provided together''',
+            ),
           );
         });
       });
@@ -309,6 +965,50 @@ Engine • revision $shorebirdEngineRevision'''),
           );
           verify(() => logger.info(any(that: contains('--verbose')))).called(1);
         });
+      });
+    });
+
+    group('when the command reserves stdout', () {
+      test('does not print the failure hint', () async {
+        commandRunner.addCommand(_ReservesStdoutCommand(exitCode: 1));
+
+        final result = await runWithOverrides(
+          () => commandRunner.run(['reserves-stdout']),
+        );
+
+        expect(result, equals(1));
+        verifyNever(
+          () => logger.info(
+            any(that: contains("If you aren't sure why this command failed")),
+          ),
+        );
+      });
+
+      test('prints the update notice to stderr', () async {
+        when(shorebirdVersion.isLatest).thenAnswer((_) async => false);
+        commandRunner.addCommand(_ReservesStdoutCommand(exitCode: 0));
+        final stdoutLines = <String>[];
+        final stderrLines = <String>[];
+        final realStderr = stderr;
+
+        await helpers.captureStdout(
+          () => IOOverrides.runZoned(
+            () => runWithOverrides(
+              () => commandRunner.run(['reserves-stdout']),
+            ),
+            stderr: () => helpers.CapturingStdout(
+              baseStdOut: realStderr,
+              captured: stderrLines,
+            ),
+          ),
+          captured: stdoutLines,
+        );
+
+        expect(stdoutLines, isEmpty);
+        expect(
+          stderrLines,
+          contains('A new version of shorebird is available!'),
+        );
       });
     });
 
@@ -451,6 +1151,43 @@ Engine • revision $shorebirdEngineRevision'''),
         return helpers.captureStdout(body, captured: stdoutOutput);
       }
 
+      test('routes everything but the envelope to stderr', () async {
+        // A command that writes a human line straight to stdout and then
+        // emits an envelope. With --json, stdout must carry the envelope
+        // alone; the human line lands on stderr.
+        commandRunner.addCommand(_ChattyCommand());
+        final stderrOutput = <String>[];
+        final realStderr = stderr;
+        final result = await captureStdout(
+          () => IOOverrides.runZoned(
+            () => runWithOverrides(
+              () => commandRunner.run(['--json', 'chatty']),
+            ),
+            stderr: () => helpers.CapturingStdout(
+              baseStdOut: realStderr,
+              captured: stderrOutput,
+            ),
+          ),
+        );
+
+        expect(result, equals(ExitCode.success.code));
+        expect(stdoutOutput, hasLength(1));
+        final json = jsonDecode(stdoutOutput.single) as Map<String, dynamic>;
+        expect(json['status'], equals('success'));
+        expect((json['data'] as Map)['said'], equals('hello'));
+        expect(stderrOutput, contains('hello, human'));
+      });
+
+      test('leaves stdout alone without --json', () async {
+        commandRunner.addCommand(_ChattyCommand());
+        final result = await captureStdout(
+          () => runWithOverrides(() => commandRunner.run(['chatty'])),
+        );
+
+        expect(result, equals(ExitCode.success.code));
+        expect(stdoutOutput, equals(['hello, human']));
+      });
+
       group('on ProcessExit with non-zero exit code', () {
         test('emits JSON error envelope', () async {
           commandRunner.addCommand(_TestCommand(ExitCode.unavailable));
@@ -491,8 +1228,255 @@ Engine • revision $shorebirdEngineRevision'''),
         });
       });
 
+      test('reports a CommandError in the JSON error envelope', () async {
+        commandRunner.addCommand(_CommandErrorCommand());
+        final result = await captureStdout(
+          () => runWithOverrides(
+            () => commandRunner.run(['--json', 'command-error']),
+          ),
+        );
+        expect(result, equals(ExitCode.unavailable.code));
+        expect(stdoutOutput, hasLength(1));
+        final json = jsonDecode(stdoutOutput.single) as Map<String, dynamic>;
+        expect(json['status'], equals('error'));
+        final error = json['error'] as Map<String, dynamic>;
+        expect(error['code'], equals('process_exit'));
+        expect(error['message'], equals('Something is wrong.'));
+        expect(error['hint'], equals('Run: shorebird fix'));
+        final meta = json['meta'] as Map<String, dynamic>;
+        expect(meta['command'], equals('command-error'));
+        verifyNever(() => logger.err(any()));
+      });
+
+      group('when a command fails without writing an envelope', () {
+        test('emits exactly one error envelope', () async {
+          // e.g. a failed precondition (not logged in, not initialized),
+          // which commands report by returning its exit code.
+          commandRunner.addCommand(_FailingCommand());
+          final result = await captureStdout(
+            () => runWithOverrides(
+              () => commandRunner.run(['--json', 'failing']),
+            ),
+          );
+          expect(result, equals(ExitCode.config.code));
+          expect(stdoutOutput, hasLength(1));
+          final json = jsonDecode(stdoutOutput.single) as Map<String, dynamic>;
+          expect(json['status'], equals('error'));
+          final error = json['error'] as Map<String, dynamic>;
+          expect(error['code'], equals('process_exit'));
+          expect(
+            error['message'],
+            equals('Process exited with code ${ExitCode.config.code}.'),
+          );
+          final meta = json['meta'] as Map<String, dynamic>;
+          expect(meta['command'], equals('failing'));
+        });
+
+        test('writes nothing without --json', () async {
+          commandRunner.addCommand(_FailingCommand());
+          final result = await captureStdout(
+            () => runWithOverrides(() => commandRunner.run(['failing'])),
+          );
+          expect(result, equals(ExitCode.config.code));
+          expect(
+            stdoutOutput.where((line) => line.contains('"status"')),
+            isEmpty,
+          );
+        });
+      });
+
+      group('when an API call fails', () {
+        test('emits one envelope with the server message, code, details '
+            'and documentation', () async {
+          commandRunner.addCommand(
+            _FailingCommand(
+              thenThrow: ApiErrorExit(
+                CodePushException(
+                  message: 'Plan lacks this feature.',
+                  response: ErrorResponse(
+                    code: 'shorebird_plan_insufficient_tier',
+                    message: 'Plan lacks this feature.',
+                    documentationUrl: Uri.parse(
+                      'https://docs.shorebird.dev/plans',
+                    ),
+                  ),
+                  details: 'Upgrade to Business.',
+                ),
+                ExitCode.software.code,
+              ),
+            ),
+          );
+          final result = await captureStdout(
+            () => runWithOverrides(
+              () => commandRunner.run(['--json', 'failing']),
+            ),
+          );
+          expect(result, equals(ExitCode.software.code));
+          expect(stdoutOutput, hasLength(1));
+          final json = jsonDecode(stdoutOutput.single) as Map<String, dynamic>;
+          expect(
+            json['error'],
+            equals({
+              'code': 'process_exit',
+              'message': 'Plan lacks this feature.',
+              'api_code': 'shorebird_plan_insufficient_tier',
+              'details': 'Upgrade to Business.',
+              'documentation_url': 'https://docs.shorebird.dev/plans',
+            }),
+          );
+        });
+      });
+
+      group('when a precondition fails', () {
+        Future<(int?, Map<String, dynamic>)> runSingleEnvelope(
+          ShorebirdCommand command,
+        ) async {
+          commandRunner.addCommand(command);
+          final result = await captureStdout(
+            () => runWithOverrides(
+              () => commandRunner.run(['--json', command.name]),
+            ),
+          );
+          expect(stdoutOutput, hasLength(1));
+          final json = jsonDecode(stdoutOutput.single) as Map<String, dynamic>;
+          expect(json['status'], equals('error'));
+          return (result, json['error'] as Map<String, dynamic>);
+        }
+
+        test('a reported failure emits one precondition_failed envelope '
+            'with its message and hint', () async {
+          final (result, error) = await runSingleEnvelope(
+            _PreconditionCommand(),
+          );
+          expect(result, equals(ExitCode.noUser.code));
+          expect(
+            error,
+            equals({
+              'code': 'precondition_failed',
+              'message': UserNotAuthorizedException().message,
+              'hint': UserNotAuthorizedException().hint,
+            }),
+          );
+        });
+
+        test('a thrown PreconditionFailedExit emits one precondition_failed '
+            'envelope with its message and hint', () async {
+          final (result, error) = await runSingleEnvelope(
+            _FailingCommand(
+              thenThrow: PreconditionFailedExit(
+                ShorebirdNotInitializedException(),
+              ),
+            ),
+          );
+          expect(result, equals(ExitCode.config.code));
+          expect(
+            error,
+            equals({
+              'code': 'precondition_failed',
+              'message': ShorebirdNotInitializedException().message,
+              'hint': ShorebirdNotInitializedException().hint,
+            }),
+          );
+        });
+
+        test('a thrown PreconditionFailedExit writes nothing without '
+            '--json', () async {
+          commandRunner.addCommand(
+            _FailingCommand(
+              thenThrow: PreconditionFailedExit(UserNotAuthorizedException()),
+            ),
+          );
+          final result = await captureStdout(
+            () => runWithOverrides(() => commandRunner.run(['failing'])),
+          );
+          expect(result, equals(ExitCode.noUser.code));
+          expect(
+            stdoutOutput.where((line) => line.contains('"status"')),
+            isEmpty,
+          );
+        });
+      });
+
+      group('when a command already wrote an envelope', () {
+        Future<Map<String, dynamic>> runSingleEnvelope(
+          _FailingCommand command,
+        ) async {
+          commandRunner.addCommand(command);
+          await captureStdout(
+            () => runWithOverrides(
+              () => commandRunner.run(['--json', 'failing']),
+            ),
+          );
+          expect(stdoutOutput, hasLength(1));
+          final json = jsonDecode(stdoutOutput.single) as Map<String, dynamic>;
+          return json['error'] as Map<String, dynamic>;
+        }
+
+        test('and returns a failure, does not add a second', () async {
+          final error = await runSingleEnvelope(
+            _FailingCommand(reports: true),
+          );
+          expect(error['message'], equals('own envelope'));
+        });
+
+        test('and throws ProcessExit, does not add a second', () async {
+          final error = await runSingleEnvelope(
+            _FailingCommand(
+              reports: true,
+              thenThrow: ProcessExit(ExitCode.software.code),
+            ),
+          );
+          expect(error['message'], equals('own envelope'));
+        });
+
+        test('and throws CommandError, does not add a second', () async {
+          final error = await runSingleEnvelope(
+            _FailingCommand(
+              reports: true,
+              thenThrow: CommandError(
+                message: 'Something is wrong.',
+                hint: 'Run: shorebird fix',
+              ),
+            ),
+          );
+          expect(error['message'], equals('own envelope'));
+          verifyNever(() => logger.err(any()));
+        });
+
+        test('and throws UsageException, does not add a second', () async {
+          final error = await runSingleEnvelope(
+            _FailingCommand(
+              reports: true,
+              thenThrow: UsageException('bad usage', 'usage'),
+            ),
+          );
+          expect(error['message'], equals('own envelope'));
+        });
+
+        test('and throws InteractivePromptRequiredException, does not add a '
+            'second', () async {
+          final error = await runSingleEnvelope(
+            _FailingCommand(
+              reports: true,
+              thenThrow: const InteractivePromptRequiredException(
+                promptText: 'Continue?',
+                hint: 'Pass --force',
+              ),
+            ),
+          );
+          expect(error['message'], equals('own envelope'));
+        });
+
+        test('and throws an error, does not add a second', () async {
+          final error = await runSingleEnvelope(
+            _FailingCommand(reports: true, thenThrow: StateError('boom')),
+          );
+          expect(error['message'], equals('own envelope'));
+        });
+      });
+
       group('on ProcessExit with zero exit code', () {
-        test('does not emit JSON error', () async {
+        test('emits one success envelope', () async {
           commandRunner.addCommand(_TestCommand(ExitCode.success));
           final result = await captureStdout(
             () => runWithOverrides(
@@ -500,10 +1484,9 @@ Engine • revision $shorebirdEngineRevision'''),
             ),
           );
           expect(result, equals(ExitCode.success.code));
-          expect(
-            stdoutOutput.where((line) => line.contains('"status"')),
-            isEmpty,
-          );
+          final json = jsonDecode(stdoutOutput.single) as Map<String, dynamic>;
+          expect(json['status'], equals('success'));
+          expect(json['data'], isEmpty);
         });
       });
 
@@ -583,6 +1566,97 @@ Engine • revision $shorebirdEngineRevision'''),
 
         verifyNever(() => shorebirdVersion.isTrackingStable());
         verifyNever(() => shorebirdVersion.isLatest());
+      });
+
+      group('on a command that writes no envelope', () {
+        late _HumanOnlyCommand command;
+
+        setUp(() {
+          command = _HumanOnlyCommand();
+          commandRunner.addCommand(command);
+        });
+
+        Future<(int?, Map<String, dynamic>)> runJson(List<String> args) async {
+          final result = await captureStdout(
+            () => runWithOverrides(() => commandRunner.run(args)),
+          );
+          final json = jsonDecode(stdoutOutput.single) as Map<String, dynamic>;
+          return (result, json);
+        }
+
+        test('runs it and emits one empty success envelope', () async {
+          final stderrOutput = <String>[];
+          final realStderr = stderr;
+          final (result, json) = await IOOverrides.runZoned(
+            () => runJson(['--json', 'human-only']),
+            stderr: () => helpers.CapturingStdout(
+              baseStdOut: realStderr,
+              captured: stderrOutput,
+            ),
+          );
+
+          expect(result, equals(ExitCode.success.code));
+          expect(command.ran, isTrue);
+          expect(json['status'], equals('success'));
+          expect(json['data'], isEmpty);
+          expect((json['meta'] as Map)['command'], equals('human-only'));
+          expect(stderrOutput, contains('hello, human'));
+        });
+
+        test('names the full subcommand', () async {
+          commandRunner.addCommand(_GroupCommand());
+          final (result, json) = await runJson(['--json', 'group', 'leaf']);
+
+          expect(result, equals(ExitCode.success.code));
+          expect((json['meta'] as Map)['command'], equals('group leaf'));
+        });
+
+        test('prints --help usage via the logger and one envelope', () async {
+          final (result, json) = await runJson([
+            '--json',
+            'human-only',
+            '--help',
+          ]);
+
+          expect(result, equals(ExitCode.success.code));
+          expect(command.ran, isFalse);
+          expect(json['status'], equals('success'));
+          verify(() => logger.info(command.usage)).called(1);
+        });
+
+        test(
+          'prints `help <command>` via the logger and one envelope',
+          () async {
+            final (result, json) = await runJson([
+              '--json',
+              'help',
+              'human-only',
+            ]);
+
+            expect(result, equals(ExitCode.success.code));
+            expect(json['status'], equals('success'));
+            verify(() => logger.info(command.usage)).called(1);
+          },
+        );
+
+        test('emits one error envelope when it fails', () async {
+          command.exitCode = ExitCode.config;
+          final (result, json) = await runJson(['--json', 'human-only']);
+
+          expect(result, equals(ExitCode.config.code));
+          expect(json['status'], equals('error'));
+          final error = json['error'] as Map<String, dynamic>;
+          expect(error['code'], equals('process_exit'));
+        });
+
+        test('emits no envelope without --json', () async {
+          final result = await captureStdout(
+            () => runWithOverrides(() => commandRunner.run(['human-only'])),
+          );
+
+          expect(result, equals(ExitCode.success.code));
+          expect(stdoutOutput, equals(['hello, human']));
+        });
       });
 
       group('on parse-time errors', () {
@@ -774,6 +1848,88 @@ Engine • revision $shorebirdEngineRevision'''),
   });
 }
 
+/// Records whether the dev environment was selected when it ran.
+class _RecordsDevModeCommand extends ShorebirdCommand {
+  bool? isDevMode;
+
+  @override
+  String get name => 'records-dev-mode';
+
+  @override
+  String get description => 'Records isDevMode';
+
+  @override
+  Future<int> run() async {
+    isDevMode = read(isDevModeRef);
+    return ExitCode.success.code;
+  }
+}
+
+/// A command with no subcommands of its own that records whether it ran.
+class _ChildCommand extends ShorebirdCommand {
+  _ChildCommand() {
+    argParser.addFlag('only-child', help: 'An option only the child takes');
+  }
+
+  bool ran = false;
+
+  bool takesPositional = false;
+
+  @override
+  bool get takesPositionalArguments => takesPositional;
+
+  @override
+  String get name => 'child';
+
+  @override
+  List<String> get aliases => const ['kid'];
+
+  @override
+  String get description => 'Records that it ran';
+
+  @override
+  Future<int> run() async {
+    ran = true;
+    return ExitCode.success.code;
+  }
+}
+
+/// A command whose [defaultSubcommand] is its only subcommand, `child`.
+class _ParentCommand extends ShorebirdCommand {
+  _ParentCommand() {
+    addSubcommand(child);
+  }
+
+  final child = _ChildCommand();
+
+  @override
+  String get name => 'parent';
+
+  @override
+  List<String> get aliases => const ['mom'];
+
+  @override
+  String get description => 'Runs child by default';
+
+  @override
+  String get defaultSubcommand => 'child';
+}
+
+/// A command with no [defaultSubcommand], whose subcommand has one.
+class _GrandparentCommand extends ShorebirdCommand {
+  _GrandparentCommand() {
+    addSubcommand(nested);
+  }
+
+  final nested = _ParentCommand();
+
+  @override
+  String get name => 'grandparent';
+
+  @override
+  String get description => 'Has no default subcommand';
+}
+
 class _TestCommand extends ShorebirdCommand {
   _TestCommand(this.exitCode);
 
@@ -789,6 +1945,122 @@ class _TestCommand extends ShorebirdCommand {
   Future<int> run() async {
     throw ProcessExit(exitCode.code);
   }
+}
+
+/// Throws a [CommandError], as a releaser or patcher does on a command's
+/// behalf.
+class _CommandErrorCommand extends ShorebirdCommand {
+  @override
+  String get name => 'command-error';
+
+  @override
+  String get description => 'A command that throws a CommandError';
+
+  @override
+  Future<int> run() async {
+    throw CommandError(
+      message: 'Something is wrong.',
+      hint: 'Run: shorebird fix',
+      exitCode: ExitCode.unavailable,
+    );
+  }
+}
+
+/// Throws [PromptDeclinedExit], as a command does when the user declines a
+/// confirmation prompt.
+class _DeclinedCommand extends ShorebirdCommand {
+  @override
+  String get name => 'declined';
+
+  @override
+  String get description => 'A command whose prompt is declined';
+
+  @override
+  Future<int> run() async => throw PromptDeclinedExit();
+}
+
+/// Returns [exitCode], and owns stdout the way `shorebird api` does.
+class _ReservesStdoutCommand extends ShorebirdCommand {
+  _ReservesStdoutCommand({required this.exitCode, this.notice});
+
+  final int exitCode;
+
+  /// A server notice to record while running, if any.
+  final String? notice;
+
+  @override
+  String get name => 'reserves-stdout';
+
+  @override
+  List<String> get aliases => const ['owns-stdout'];
+
+  @override
+  String get description => 'Reserves stdout command';
+
+  @override
+  bool get reservesStdout => true;
+
+  @override
+  Future<int> run() async {
+    if (notice case final notice?) serverNotices.add(notice);
+    return exitCode;
+  }
+}
+
+/// Writes a human line to stdout, then an envelope when in JSON mode.
+class _ChattyCommand extends ShorebirdCommand {
+  @override
+  String get name => 'chatty';
+
+  @override
+  String get description => 'Chatty command';
+
+  @override
+  Future<int> run() async {
+    stdout.writeln('hello, human');
+    if (isJsonMode) emitJsonSuccess({'said': 'hello'});
+    return ExitCode.success.code;
+  }
+}
+
+/// Fails by returning [ExitCode.config], optionally after writing its own
+/// error envelope ([reports]) and optionally throwing [thenThrow] afterwards.
+class _FailingCommand extends ShorebirdCommand {
+  _FailingCommand({this.reports = false, this.thenThrow});
+
+  final bool reports;
+  final Object? thenThrow;
+
+  @override
+  String get name => 'failing';
+
+  @override
+  String get description => 'A command that fails';
+
+  @override
+  Future<int> run() async {
+    if (reports) {
+      emitJsonError(code: JsonErrorCode.usageError, message: 'own envelope');
+    }
+    if (thenThrow case final error?) {
+      Error.throwWithStackTrace(error, StackTrace.current);
+    }
+    return ExitCode.config.code;
+  }
+}
+
+/// A command whose precondition check fails (the user isn't logged in) and
+/// reports it the way commands do, with [reportPreconditionFailure].
+class _PreconditionCommand extends ShorebirdCommand {
+  @override
+  String get name => 'precondition';
+
+  @override
+  String get description => 'A command whose precondition fails';
+
+  @override
+  Future<int> run() async =>
+      reportPreconditionFailure(UserNotAuthorizedException());
 }
 
 class _ThrowingCommand extends ShorebirdCommand {
@@ -844,5 +2116,61 @@ class _CaptureModeCommand extends ShorebirdCommand {
     capturedIsInteractive = isInteractive;
     onRun?.call();
     return ExitCode.success.code;
+  }
+}
+
+/// A command that prints human output only, never an envelope.
+class _HumanOnlyCommand extends ShorebirdCommand {
+  _HumanOnlyCommand({this.name = 'human-only'});
+
+  @override
+  final String name;
+
+  ExitCode exitCode = ExitCode.success;
+  bool ran = false;
+
+  @override
+  String get description => 'Prints human output only.';
+
+  @override
+  Future<int> run() async {
+    ran = true;
+    stdout.writeln('hello, human');
+    return exitCode.code;
+  }
+}
+
+/// A command group holding one [_HumanOnlyCommand], `leaf`.
+class _GroupCommand extends ShorebirdCommand {
+  _GroupCommand() {
+    addSubcommand(_HumanOnlyCommand(name: 'leaf'));
+  }
+
+  @override
+  String get name => 'group';
+
+  @override
+  String get description => 'A command group.';
+}
+
+/// Records a server notice twice, as two responses carrying the same header
+/// would, then exits with [exitCode].
+class _NoticeCommand extends ShorebirdCommand {
+  _NoticeCommand(this.exitCode);
+
+  final ExitCode exitCode;
+
+  @override
+  String get name => 'notice';
+
+  @override
+  String get description => 'A command the server sends a notice during';
+
+  @override
+  Future<int> run() async {
+    serverNotices
+      ..add('Patches are paused.')
+      ..add('Patches are paused.');
+    throw ProcessExit(exitCode.code);
   }
 }

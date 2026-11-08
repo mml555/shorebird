@@ -1,0 +1,105 @@
+mint provenance generator — verdict
+===================================
+cspell:words psdk
+2026-08-16. Probe: selfhost/engine/route_b/probes/mint_provenance.sh
+Product under test: selfhost/engine/route_b/mint_route_b_cell.sh (provenance_comment)
+
+THE DEFECT
+----------
+The mint inferred a cell's ANCESTRY from one flag. With --ios-artifacts it wrote
+"Donor X supplied every OTHER engine artifact"; without it, "cloned byte-for-byte;
+only the CELL differs". Neither was measured. Both are false the moment anything
+else is substituted, and something else routinely is: PSDK_ZIP installs a platform
+dill over the donor clone in the same script.
+
+Already occurred twice, not hypothetical:
+  cd137db6  dill 757d09d7… vs donor's 9f5a5f75… — line claimed the donor supplied
+            every other artifact. Corrected BY HAND in 064115f9.
+  87130ae8  same understatement, still in the map, deliberately left (see LIMITS).
+
+THE FIX
+-------
+ADDRESS and ANCESTRY are now separate claims with separate sources:
+  ADDRESS   driven by --ios-artifacts, because participation in the cell's
+            identity genuinely IS a property of the inputs.
+  ANCESTRY  MEASURED — the installed cell is digested against the donor file by
+            file, after every install and before the map append, so the sentence
+            describes the cell a consumer will actually download.
+
+This makes the claim true for substitution paths that do not exist yet, which a
+flag-branch cannot be.
+
+RESULT — 16/16, exit 0
+----------------------
+arm 0  judge instrument controls (3/3)   a lenient judge would pass everything
+arm 1  fixed generator truthful (4/4)    psdk-only / ios-only / both / true clone
+arm 2  NEGATIVE CONTROL caught (2/2)     the frozen pre-fix wording, on A and C
+arm 3  control discriminates (2/2)       legacy was right on B and D, and passes
+arm 4  REAL CELLS (5/5)                  87130ae8 -> cd137db6
+
+The decisive arm is A: iOS artifacts INHERITED, platform dill SUBSTITUTED. The old
+logic cannot see that shape at all — no --ios-artifacts, so it takes the clone
+branch and asserts an ancestry false for one artifact. Legacy is CAUGHT there
+(false-ancestry:claims-clone) and on C (false-ancestry:unnamed:
+flutter_patched_sdk_product.zip).
+
+Arm 3 exists so the negative control means something. A control that fails every
+case discriminates nothing; legacy PASSES B and D, where it was accidentally
+right.
+
+MUTATION CHECK — the arms fail on a PRODUCT regression, not only a frozen copy
+------------------------------------------------------------------------------
+The probe was re-run with MINT= pointing at a mutant mint_route_b_cell.sh whose
+provenance_comment had been reverted to the flag-inferred sentence:
+
+  PASS=10 FAIL=6, exit 1
+  FAIL  A psdk-only substitution -> false-ancestry:claims-clone
+  FAIL  C both substituted -> false-ancestry:unnamed:flutter_patched_sdk_product.zip
+  FAIL  fixed generator is truthful on the real pair
+  FAIL  it names the platform dill zip / the ios artifacts zip
+  FAIL  it reproduces 064115f9's measured count (9 unchanged)
+
+Clean tree: exit 0. Mutant: exit 1. The check can fail.
+
+ARM 4 REPRODUCES 064115f9 FROM THE BYTES
+----------------------------------------
+Run against the real 87130ae8 -> cd137db6 pair, the fixed generator emits:
+
+  2 of 11 artifacts differ:
+    CHANGED flutter_patched_sdk_product.zip — 774bb4b6… (donor 0e4bd8b3…)
+    CHANGED ios-release/artifacts.zip       — 443faeb2… (donor 4302bf4d…)
+  Donor 87130ae8… supplied the other 9, byte-for-byte.
+
+That is the hand-written correction in 064115f9, recomputed independently by the
+product rather than restated. Instrument independence is real (manual shasum
+comparison then, generator now); OPERATOR independence is not — same session, same
+day. It corroborates the manual correction; it does not audit it.
+
+LIMITS — what this does NOT establish
+-------------------------------------
+1. NO CELL HAS BEEN MINTED WITH THIS. The generator is host-verified against
+   synthetic dirs and real cell DIRECTORIES, but the mint's own write path has not
+   run end to end. BUILT, not PROVEN. The next real mint is the proof, and whoever
+   runs it should read the emitted block before trusting it.
+2. --dry-run no longer previews the comment block at all. Ancestry is measured from
+   an installed cell and a dry run does not create one, so there is nothing
+   truthful to preview. Deliberate: guessing the preview would reintroduce exactly
+   the inference this removes.
+3. 87130ae8's committed map entry is STILL UNDERSTATED. Left alone on purpose —
+   correcting it by hand would add a second manual exception to the very file the
+   generator is now supposed to be able to write truthfully. It should be
+   regenerated, not hand-patched.
+4. The judge accepts an artifact as "named" by path OR by digest. That leniency is
+   deliberate, and it exists to give the legacy control credit where it genuinely
+   identified an artifact — it makes arm 3 possible. A stricter judge would fail
+   legacy everywhere and prove less.
+5. Scope: ancestry only. Whether the ADDRESS covers the right inputs is a separate
+   question, and mint_route_b_cell.sh:105-108 already states that it is currently
+   defined as the Route-B/iOS cell identity and would not catch an Android-only
+   runtime change.
+
+NOT TOUCHED
+-----------
+No engine checkout opened, nothing built, nothing minted, nothing published, no
+cell mutated. The probe digests the real cells read-only and does all writing in
+mktemp. R3 was not taken.

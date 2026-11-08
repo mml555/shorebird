@@ -1,0 +1,295 @@
+{
+  "schema": "semantic-map-1/g1-identity/1",
+  "gate": "SM1-G1",
+  "issue": 50,
+  "checks_failed": 0,
+  "collisions": 0,
+  "base_declaration_count": 23,
+  "member_kinds_named": {
+    "class": 2,
+    "method": 10,
+    "constructor": 3,
+    "field": 3,
+    "factory": 1,
+    "getter": 2,
+    "operator": 1,
+    "setter": 1
+  },
+  "harness_control": {
+    "available": true,
+    "canonical_stable_under_reorder": true,
+    "index_derived_stable_under_reorder": false
+  },
+  "extra_arms": {
+    "recompilation": {
+      "base_count": 23,
+      "rebuild_count": 23,
+      "identical_sets": true,
+      "only_in_base": [],
+      "only_in_rebuild": []
+    },
+    "obfuscation": {
+      "obfuscation_map_entries": 4579,
+      "declared_names_renamed": {
+        "topLevel": "pF",
+        "Shape": "Ji",
+        "area": "lF",
+        "usesPrivate": "rF",
+        "Box": "Ki",
+        "helperAdd": "tF"
+      },
+      "declaration_ids_unchanged": true
+    },
+    "extension_distinctness": {
+      "distinct_ids": true,
+      "differ_by_owner": true,
+      "shapex_lowered": "ShapeX|doubled",
+      "boxx_lowered": "BoxX|doubled",
+      "owner_kind": "extension"
+    },
+    "nested_functions": {
+      "named": 0,
+      "names": []
+    },
+    "synthetic_members": {
+      "named": [
+        {
+          "selector": "Doubler.base",
+          "kind": "method",
+          "synthetic": false
+        },
+        {
+          "selector": "Mixed.",
+          "kind": "constructor",
+          "synthetic": true
+        },
+        {
+          "selector": "Mixed.base",
+          "kind": "method",
+          "synthetic": false
+        }
+      ],
+      "flagged_synthetic": 1,
+      "required_row": {
+        "selector": "Mixed.",
+        "kind": "constructor",
+        "synthetic": true,
+        "why": "The implicit constructor the CFE generates must be present AND flagged. An arm that fails only when NO generated members are found can green with flagged_synthetic == 0, which would let the flag rot unnoticed."
+      },
+      "required_row_present": true
+    },
+    "kernel_domain": {
+      "aot_declarations": 28,
+      "pre_aot_declarations": 33,
+      "shaken_out": [
+        "._Mixed&Object&Doubler (class)",
+        "Doubler.doubledViaMixin (method)",
+        "_Mixed&Object&Doubler. (constructor)",
+        "_Mixed&Object&Doubler.base (method)",
+        "_Mixed&Object&Doubler.doubledViaMixin (method)"
+      ],
+      "consequence": "A map derived from the AOT kernel describes a TREE-SHAKEN program, not the program that was written. Deriving from the AOT kernel is the CONSERVATIVE choice -- it cannot claim a shaken-out declaration is patchable -- but it cannot explain \"you wrote it and it is not here\" either. Deriving from the pre-AOT kernel would name declarations the release does not contain, which is an over-claim and a FAIL_OPEN under SM1-G5's subset rule.",
+      "recommendation": "derive the map from the AOT kernel; carry the pre-AOT set alongside only as explanatory data, never as the patchable set"
+    }
+  },
+  "results": [
+    {
+      "id": "body_only",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "the load-bearing case: a body change must NOT move the declaration id, or the map cannot say 'same declaration, new implementation'"
+    },
+    {
+      "id": "abi_added_positional",
+      "subject": "package:corpus/app.dart::Shape.area",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": ""
+    },
+    {
+      "id": "abi_nullability",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "body is textually identical; only the return type moved. If the map reports abi_equal here it is deriving ABI from the body."
+    },
+    {
+      "id": "abi_positional_to_named",
+      "subject": "package:corpus/app.dart::Shape.area",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "also inside the ROADMAP P2 refusal boundary; the map must state the refusal rather than mis-classify"
+    },
+    {
+      "id": "abi_generic_bound",
+      "subject": "package:corpus/app.dart::Box",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": ""
+    },
+    {
+      "id": "abi_return_type",
+      "subject": "package:corpus/app.dart::Shape.perimeter",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": ""
+    },
+    {
+      "id": "reorder",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": false,
+      "outcome": "OK",
+      "note": "the anti-order-dependence case: an index- or offset-derived identity fails here"
+    },
+    {
+      "id": "unrelated_added",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": ""
+    },
+    {
+      "id": "unrelated_removed",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": ""
+    },
+    {
+      "id": "unrelated_renamed",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": ""
+    },
+    {
+      "id": "field_added",
+      "subject": "package:corpus/app.dart::Shape.area",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "the METHOD is unchanged. Whether the owning class's layout change makes the method unsafe to reuse is a SEPARATE question owned by SM1-G5, and must not be smuggled into the fingerprints."
+    },
+    {
+      "id": "private_other_domain",
+      "subject": "package:corpus/app.dart::usesPrivate",
+      "source": "g0_freeze/corpus/EXPECTATIONS.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "corpus.helper::_privateHelper and corpus.app::_privateHelper share a simple name across privacy domains; a map that confuses them will report app's caller as changed"
+    },
+    {
+      "id": "ext_extension_member",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g1_identity/EXPECTATIONS_EXT.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": false,
+      "outcome": "OK",
+      "note": "sufficiency: extension members must not disturb an unrelated declaration's identity"
+    },
+    {
+      "id": "ext_renamed_subject",
+      "outcome": "MOVED_TO_DESTINATION",
+      "old_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d",
+      "new_declaration_id": "856204f7412600fec1dc6ce8bfeb3b7f5c7a0b822acad6346cf6e935a8d530f5",
+      "destination": "package:corpus/app.dart::topLevelRenamed"
+    },
+    {
+      "id": "ext_kind_change",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g1_identity/EXPECTATIONS_EXT.json",
+      "want_declaration_id_stable": false,
+      "declaration_id_stable": false,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "MUST move: kind is part of the identity, and the VM name changes too (topLevel -> get:topLevel)"
+    },
+    {
+      "id": "ext_owner_change",
+      "outcome": "MOVED_TO_DESTINATION",
+      "old_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d",
+      "new_declaration_id": "6e41306072d1431bdfb7b8b2ad5a29a56c4c9a8a5fc53f9ded56c704f706dc87",
+      "destination": "package:corpus/app.dart::Shape.topLevel"
+    },
+    {
+      "id": "ext_moved_library",
+      "outcome": "MOVED_TO_DESTINATION",
+      "old_declaration_id": "66384f87886ea5ed8fd1ebd44bebce37ff222f55f3391c3a714bcfab40439f1d",
+      "new_declaration_id": "1954b8800c365a491d698ece985a06f21bdfadd7367f7114ef0185fc3d73d98f",
+      "destination": "package:corpus/helper.dart::topLevel"
+    },
+    {
+      "id": "ext_extension_owner_renamed",
+      "outcome": "MOVED_TO_DESTINATION",
+      "old_declaration_id": "0a3c1002c4240241e0653e33372433a013b57281eb0f77d3b0573abc2f55fc32",
+      "new_declaration_id": "7132ff02fefc9e37d34eee0a813f623d4ad2a6622c015067a4fbd975534162a5",
+      "destination": "package:corpus/app.dart::ShapeXRenamed.doubled"
+    },
+    {
+      "id": "ext_generic_owner_bound",
+      "subject": "package:corpus/app.dart::Box.unwrap",
+      "source": "g1_identity/EXPECTATIONS_EXT.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "MUST stay stable. `Box.unwrap` was not renamed, re-owned or re-kinded, so it is the same declaration. Whether it is still ABI-compatible is SM1-G2's question -- G1 must not smuggle ABI semantics into identity."
+    },
+    {
+      "id": "ext_local_function",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g1_identity/EXPECTATIONS_EXT.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "The enclosing declaration keeps its identity. Whether the nested function is NAMED at all is a separate scope claim, checked by the nested-scope arm."
+    },
+    {
+      "id": "ext_synthetic_members",
+      "subject": "package:corpus/app.dart::topLevel",
+      "source": "g1_identity/EXPECTATIONS_EXT.json",
+      "want_declaration_id_stable": true,
+      "declaration_id_stable": true,
+      "index_id_stable": true,
+      "outcome": "OK",
+      "note": "The unrelated subject must not move. What the walker NAMES among the generated members, and how it flags them, is checked by the synthetic arm."
+    }
+  ]
+}

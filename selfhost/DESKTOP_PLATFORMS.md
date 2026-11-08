@@ -56,7 +56,6 @@ On every build host, point the CLI at your server before releasing/patching:
 ```bash
 export SHOREBIRD_HOSTED_URL=https://code-push.example.com
 export AUTH_SERVICE_URL=https://code-push.example.com
-export SHOREBIRD_JWT_ISSUER=https://code-push.example.com
 shorebird login          # or use an API key
 ```
 

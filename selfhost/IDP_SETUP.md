@@ -14,6 +14,109 @@ after which identity comes from the IdP's `email` claim instead.
 
 ---
 
+## 0. Authenticating a SCRIPT or an AGENT on this rig — no browser, no upstream
+
+**Read this before you run `shorebird login`.** On this rig that command is almost
+always the wrong instinct, and the CLI's own error text will send you somewhere that
+does not exist for us. This section is here because that misdirection has cost real
+time more than once.
+
+### The trap, quoted exactly
+
+When credentials are absent or stale, `shorebird account whoami` says:
+
+```
+Failed to refresh credentials.
+Try logging out with shorebird logout and logging in again.
+```
+
+and a bad `SHOREBIRD_TOKEN` says:
+
+```
+Failed to parse SHOREBIRD_TOKEN. Expected an API key (sb_api_...) or a legacy CI token.
+… Create an API key at https://console.shorebird.dev instead.
+```
+
+**Both messages point at upstream Shorebird infrastructure, and neither applies
+here.** There is no `console.shorebird.dev` in this deployment and there is nothing
+to log in *to* — our control plane is its own identity provider. The message is
+inherited upstream text and is correct only for a hosted customer. Reading it as an
+instruction is what wastes the time.
+
+### What is actually true
+
+* The CLI authenticates from **`SHOREBIRD_TOKEN`** (`auth/auth.dart:43`), which takes
+  an API key beginning `sb_api_` — or a legacy `login:ci` token, which is deprecated.
+* Our server ISSUES those keys itself. `POST /admin/users?email=&name=` creates the
+  user and returns `{user_id, email, api_key}` (`api.dart`, the `/admin/users` route).
+* That route is gated on `_authorizeServerAdmin` — owner/admin of the **root org**.
+  The bootstrap `API_KEY` authenticates as user 1, an owner of the root org, so the
+  bootstrap key is sufficient and no other identity is needed to get started.
+* The bootstrap key lives in the container's environment, sourced from
+  `~/shorebird-rig/secrets/<container>.env`. It is a **real random value**: the
+  published placeholder `sb_api_selfhost_dev` (`Config.devApiKey`) is rejected at boot
+  by `validate()`, so any *running* instance necessarily has a real one.
+* Ports: `cps-ios` is `:18080` and `cps-android` is `:18081` on the host; both are
+  `8080` inside the container.
+
+### The recipe
+
+Mint a purpose-named key by running the request **inside** the container, so the
+bootstrap secret is used without ever being printed or copied anywhere:
+
+```sh
+docker exec cps-ios sh -lc \
+  'curl -sS -X POST \
+     "http://localhost:8080/admin/users?email=<purpose>@selfhost.local&name=<purpose>" \
+     -H "Authorization: Bearer $API_KEY"'
+```
+
+Then use the `api_key` it returns:
+
+```sh
+SHOREBIRD_TOKEN=sb_api_… SHOREBIRD_HOSTED_URL=http://localhost:18080 \
+  shorebird account whoami
+```
+
+**Mint a NAMED key per purpose rather than reusing one.** The audit row
+(`user.create`) then says who did what, and revoking one lane's key does not sign out
+the rig.
+
+### `shorebird login` works here, and needs no issuer setting
+
+**Verified end to end on this rig 2026-08-14** against `cps-ios`: `shorebird login`
+prints `http://localhost:18080/login?continue=…`, the self-consent form accepts the
+API key, the loopback callback receives a `sb_code_…`, the CLI exchanges it at
+`/token`, and `account whoami` then reports a real user. No browser vendor, no
+upstream, no `console.shorebird.dev`.
+
+Setting `SHOREBIRD_HOSTED_URL` is all you need: the CLI derives the auth service from
+it. Older CLIs also checked the token's issuer against the address you reached the
+server on, which is why a server advertising a different `PUBLIC_BASE_URL` than you
+reach it on needed `SHOREBIRD_JWT_ISSUER` set on the client. The current CLI does not
+validate the issuer and ignores that variable; it only sets the `iss` the server
+stamps into its tokens.
+
+```sh
+SHOREBIRD_HOSTED_URL=http://localhost:18080 \
+  shorebird login
+```
+
+The CLI now suggests exactly that line, with the observed issuer filled in, whenever
+a self-hosted control plane is configured.
+
+### If you are an agent and the command is refused
+
+Reading `~/shorebird-rig/secrets/*.env`, and `docker exec` against a container to use
+`$API_KEY`, are both credential operations and a permission layer may block them even
+though nothing is printed. **That is a harness policy, not a missing capability, and
+it is a different problem from "we need to log in".** Say which of the two you hit —
+otherwise the next reader re-runs this whole investigation. Ask the operator to run
+the one command above and hand back only the minted `sb_api_…`, which is a purpose-
+scoped key rather than the bootstrap secret.
+
+---
+
 ## 1. The broker flow
 
 ```
@@ -164,14 +267,13 @@ API host and the auth service:
 ```bash
 export SHOREBIRD_HOSTED_URL=https://code-push.example.com
 export AUTH_SERVICE_URL=https://code-push.example.com
-export SHOREBIRD_JWT_ISSUER=https://code-push.example.com   # must equal the server's iss
 
 shorebird login
 ```
 
-`SHOREBIRD_JWT_ISSUER` must equal the server's `SHOREBIRD_JWT_ISSUER` (the `iss`
-claim it stamps into JWTs, and the `jwt_issuer` it returns from `/users/me`) or
-the CLI will reject the minted token.
+The CLI no longer reads `SHOREBIRD_JWT_ISSUER`; do not set it on build hosts.
+Only the server uses it (the `iss` claim it stamps into JWTs, and the
+`jwt_issuer` it returns from `/users/me`).
 
 With broker mode enabled, `shorebird login` now opens the **IdP's** sign-in page
 (Google / Microsoft) instead of self-consenting. After the user authenticates,

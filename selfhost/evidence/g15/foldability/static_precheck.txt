@@ -1,0 +1,27 @@
+STATIC PRE-CHECK — release 41, before any device run
+====================================================
+Required by foldability_precommit.md: prove the SHIPPED release bytes
+exhibit the intended optimisation asymmetry, so 'foldConst' is more than a
+source-level label.
+
+---- foldOpaque ----
+locator         : symbol foldOpaque at 0xd15b4-0xd1630 (resolved in selfhost/evidence/releases/41/App.dSYM.DWARF)
+located         : 1
+site 0xd15d4  (no symbol)
+  VERDICT       : CONSUMED
+RESULT: RESULT CONSUMED — a patch's return value can reach the app.
+
+---- foldConst ----
+locator         : symbol foldConst at 0x12c7d4-0x12c7e0 (resolved in selfhost/evidence/releases/41/App.dSYM.DWARF)
+located         : 0
+RESULT: NOT LOCATED
+No call site matched the locator, so nothing was measured. This is NOT
+result-consumption is UNKNOWN. Check the locator before reading any
+
+COMPILED BODY SIZES (from the symbol ranges above)
+  foldOpaque  0xd15b4-0xd1630 = 124 bytes   real code
+  foldConst   0x12c7d4-0x12c7e0 =  12 bytes  stub
+
+VERDICT: ASYMMETRY ESTABLISHED. foldConst has NO surviving call site — its
+result is statically substituted at the caller — while foldOpaque retains a
+real, CONSUMED call site. The pre-check condition is met.

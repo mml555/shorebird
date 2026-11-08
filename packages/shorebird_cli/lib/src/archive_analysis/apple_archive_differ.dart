@@ -1,16 +1,18 @@
-// cspell:words xcframeworks xcasset unsign codesign assetutil pubspec xcassets actool
+// cspell:words xcframeworks xcasset unsign codesign assetutil pubspec
+// cspell:words xcassets actool
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
-import 'package:collection/collection.dart';
 import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/archive_analysis/archive_differ.dart';
 import 'package:shorebird_cli/src/archive_analysis/file_set_diff.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
+import 'package:shorebird_cli/src/extensions/directory.dart';
 import 'package:shorebird_cli/src/platform/apple/macho.dart';
 
 /// {@template apple_archive_differ}
@@ -81,23 +83,42 @@ class AppleArchiveDiffer extends ArchiveDiffer {
     required String archivePath,
     required PathHashes pathHashes,
   }) async {
-    return Isolate.run(() async {
-      for (final file in _filesToUnsign(archivePath)) {
-        pathHashes[file.name] = await _unsignedFileHash(file);
-      }
+    // Resolved here because the isolate below does not inherit IOOverrides.
+    final tempRoot = Directory.systemTemp.path;
+    return Isolate.run(
+      () => _withArchive(archivePath, (archive) async {
+        for (final file in _filesToUnsign(archive)) {
+          pathHashes[file.name] = await _unsignedFileHash(file, tempRoot);
+        }
 
-      for (final file in _carFiles(archivePath)) {
-        pathHashes[file.name] = await _sanitizedCarFileHash(file);
-      }
+        for (final file in _carFiles(archive)) {
+          pathHashes[file.name] = await _sanitizedCarFileHash(file, tempRoot);
+        }
 
-      return pathHashes;
-    });
+        return pathHashes;
+      }),
+    );
   }
 
-  List<ArchiveFile> _filesToUnsign(String archivePath) {
-    return ZipDecoder()
-        .decodeStream(InputFileStream(archivePath))
-        .files
+  /// Decodes the zip at [archivePath], runs [body] on it, and closes the
+  /// underlying file afterwards.
+  ///
+  /// [ArchiveFile] contents are read lazily from the open file, so all work
+  /// that reads file contents must happen inside [body].
+  static Future<T> _withArchive<T>(
+    String archivePath,
+    Future<T> Function(Archive archive) body,
+  ) async {
+    final input = InputFileStream(archivePath);
+    try {
+      return await body(ZipDecoder().decodeStream(input));
+    } finally {
+      await input.close();
+    }
+  }
+
+  List<ArchiveFile> _filesToUnsign(Archive archive) {
+    return archive.files
         .where((file) => file.isFile)
         .where(
           (file) =>
@@ -109,17 +130,31 @@ class AppleArchiveDiffer extends ArchiveDiffer {
         .toList();
   }
 
-  List<ArchiveFile> _carFiles(String archivePath) {
-    return ZipDecoder()
-        .decodeStream(InputFileStream(archivePath))
-        .files
+  List<ArchiveFile> _carFiles(Archive archive) {
+    return archive.files
         .where((file) => file.isFile && p.basename(file.name) == 'Assets.car')
         .toList();
   }
 
-  Future<String> _unsignedFileHash(ArchiveFile file) async {
-    final tempDir = Directory.systemTemp.createTempSync();
-    final outPath = p.join(tempDir.path, file.name);
+  /// Deletes [dir], ignoring failure. Used in place of
+  /// `deleteTemporarySync` inside `Isolate.run`, where scoped deps such as
+  /// `logger` are unavailable, so logging a failed delete would throw.
+  static void _deleteInIsolate(Directory dir) {
+    try {
+      dir.deleteSync(recursive: true);
+    } on FileSystemException catch (_) {}
+  }
+
+  Future<String> _unsignedFileHash(ArchiveFile file, String tempRoot) async {
+    final tempDir = Directory(tempRoot).createTempSync();
+    try {
+      return await _hashUnsignedCopy(file, p.join(tempDir.path, file.name));
+    } finally {
+      _deleteInIsolate(tempDir);
+    }
+  }
+
+  Future<String> _hashUnsignedCopy(ArchiveFile file, String outPath) async {
     final outputStream = OutputFileStream(outPath);
     file.writeContent(outputStream);
     await outputStream.close();
@@ -141,13 +176,12 @@ class AppleArchiveDiffer extends ArchiveDiffer {
     return _hash(bytes);
   }
 
-  /// Writes a json description of a .car file to a temporary location and
-  /// returns the [File].
+  /// Writes a .car file and a json description of it into [outDir] and
+  /// returns the json [File].
   ///
   /// Equivalent of running `xcrun assetutil --info /path/to/Assets.car > outfile.json`.
-  Future<File> _carJsonFile(ArchiveFile file) async {
-    final tempDir = Directory.systemTemp.createTempSync();
-    final outPath = p.join(tempDir.path, file.name);
+  Future<File> _carJsonFile(ArchiveFile file, Directory outDir) async {
+    final outPath = p.join(outDir.path, file.name);
     final outputStream = OutputFileStream(outPath);
     file.writeContent(outputStream);
     await outputStream.close();
@@ -162,33 +196,123 @@ class AppleArchiveDiffer extends ArchiveDiffer {
   }
 
   /// Uses assetutil to write a json description of a .car file to disk and
-  /// hashes the contents of that file, less the lines that vary build-to-build
-  /// for reasons unrelated to asset content.
-  Future<String> _sanitizedCarFileHash(ArchiveFile file) async {
-    final jsonFile = await _carJsonFile(file);
-    final lines = jsonFile.readAsLinesSync();
-    return _hash(sanitizeCarJson(lines).codeUnits);
+  /// hashes the contents of that file, less the values that vary
+  /// build-to-build for reasons unrelated to asset content.
+  Future<String> _sanitizedCarFileHash(
+    ArchiveFile file,
+    String tempRoot,
+  ) async {
+    final tempDir = Directory(tempRoot).createTempSync();
+    try {
+      final jsonFile = await _carJsonFile(file, tempDir);
+      return _hash(sanitizeCarJson(jsonFile.readAsStringSync()).codeUnits);
+    } finally {
+      _deleteInIsolate(tempDir);
+    }
   }
 
-  /// Strips non-deterministic content from the lines of an
-  /// `assetutil --info` JSON dump so two builds of the same assets hash the
-  /// same. Currently removes:
+  /// Keys in the `assetutil --info` header block that describe the toolchain
+  /// that compiled the asset catalog rather than its contents. Xcode 26.3
+  /// bumped `CoreUIVersion` from 972 to 973, for example, which changes every
+  /// one of these strings without changing a single asset.
   ///
-  ///   * The `Timestamp` line, which records when the .car file was built.
-  ///   * UUIDs that `actool` embeds in the rendition file names of iOS 18
-  ///     layered icon (.icon) bundles, which are regenerated every build.
+  /// `PlatformVersion` and `SchemaVersion` are deliberately not here. They
+  /// describe the catalog a developer asked for, not the tool that built it,
+  /// so a change in either is worth reporting.
+  static const _toolchainVersionKeys = {
+    'AssetStorageVersion',
+    'Authoring Tool',
+    'CoreUIVersion',
+    'DumpToolVersion',
+    'MainVersion',
+  };
+
+  static final _uuidRegex = RegExp(
+    '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-'
+    '[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}',
+  );
+
+  /// The `_<uuid>-<pid>-<counter>` suffix `actool` appends to the rendition
+  /// file names it generates for a layered icon (.icon) bundle. Every part of
+  /// it is regenerated per build, including the trailing pid and counter that
+  /// sit outside the uuid.
+  static final _generatedRenditionSuffixRegex = RegExp(
+    '_[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-'
+    r'[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}-\d+-[0-9A-Fa-f]+',
+  );
+
+  /// Strips non-deterministic content from an `assetutil --info` JSON dump so
+  /// two builds of the same assets hash the same. Currently removes:
+  ///
+  ///   * `Timestamp`, which records when the .car file was built.
+  ///   * The toolchain version keys in the header block, which record the
+  ///     versions of Xcode and CoreUI that compiled the catalog rather than
+  ///     anything about the assets themselves. They move on every Xcode
+  ///     upgrade, so leaving them in makes an unchanged catalog look changed
+  ///     to any developer who upgrades between a release and its patch. A
+  ///     re-encode that actually alters a rendition still shows up, because
+  ///     `SizeOnDisk`, `Encoding`, `Compression`, both dimensions and
+  ///     `SHA1Digest` are all still compared.
+  ///   * The generated suffix in the rendition file names of iOS 18 layered
+  ///     icon (.icon) bundles, which `actool` regenerates every build.
+  ///   * `SHA1Digest` on those renditions only. Two builds of one unchanged
+  ///     icon produce byte-identical payloads but different digests, so the
+  ///     digest covers a region that includes the generated name and cannot
+  ///     be compared. The other rendition attributes still are, including
+  ///     `SizeOnDisk`, `Encoding`, `Compression` and both dimensions. A real
+  ///     edit therefore goes unreported only if it preserves every one of
+  ///     them, down to the exact compressed byte count.
+  ///
+  /// Keys are sorted so the hash does not depend on the order assetutil
+  /// happens to emit fields in. `assetutil` writes a JSON array, but its
+  /// output is not part of any documented contract, so content that does not
+  /// parse is hashed verbatim rather than failing the patch.
   @visibleForTesting
-  static String sanitizeCarJson(List<String> lines) {
-    final timestampRegex = RegExp(r'^\W+"Timestamp" : \d+$');
-    final uuidRegex = RegExp(
-      '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-'
-      '[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}',
-    );
-    return lines
-        .whereNot(timestampRegex.hasMatch)
-        .map((line) => line.replaceAll(uuidRegex, '<uuid>'))
-        .join('\n');
+  static String sanitizeCarJson(String contents) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(contents);
+    } on FormatException {
+      return contents;
+    }
+    return jsonEncode(_sanitizeJson(decoded));
   }
+
+  static Object? _sanitizeJson(Object? value) {
+    switch (value) {
+      case final Map<String, dynamic> map:
+        final renditionName = map['RenditionName'];
+        final isGenerated =
+            renditionName is String &&
+            _generatedRenditionSuffixRegex.hasMatch(renditionName);
+        // Keys are assetutil's fixed field names, so they are ordered but
+        // not sanitized. Normalizing them would leave keys that normalize
+        // alike tied under the sort, falling back to assetutil's emission
+        // order, and would let two such keys collapse into one.
+        final keys =
+            map.keys
+                .where((key) => key != 'Timestamp')
+                .where((key) => !_toolchainVersionKeys.contains(key))
+                .where((key) => !(isGenerated && key == 'SHA1Digest'))
+                .toList()
+              ..sort();
+        return <String, Object?>{
+          for (final key in keys) key: _sanitizeJson(map[key]),
+        };
+      case final List<dynamic> list:
+        return list.map(_sanitizeJson).toList();
+      case final String string:
+        return _sanitizeString(string);
+      case _:
+        return value;
+    }
+  }
+
+  // The generated-suffix pattern is applied first because it is the more
+  // specific of the two and contains a uuid of its own.
+  static String _sanitizeString(String value) => value
+      .replaceAll(_generatedRenditionSuffixRegex, '_<generated>')
+      .replaceAll(_uuidRegex, '<uuid>');
 
   @override
   Future<String> availableAssetDiffs({
@@ -199,23 +323,32 @@ class AppleArchiveDiffer extends ArchiveDiffer {
     final diffs = <String>[];
     for (final changedPath in fileSetDiff.changedPaths) {
       if (changedPath.endsWith('.car')) {
-        final oldCarFile = ZipDecoder()
-            .decodeStream(InputFileStream(oldArchivePath))
-            .files
-            .firstWhere((file) => file.name == changedPath);
-        final newCarFile = ZipDecoder()
-            .decodeStream(InputFileStream(newArchivePath))
-            .files
-            .firstWhere((file) => file.name == changedPath);
-        final oldCarJsonFile = await _carJsonFile(oldCarFile);
-        final newCarJsonFile = await _carJsonFile(newCarFile);
-        final diffResult = await diff.run(
-          oldCarJsonFile.path,
-          newCarJsonFile.path,
-          colorMode: DiffColorMode.always,
-          unified: true,
-        );
-        diffs.add(diffResult.stdout as String);
+        final tempDir = Directory.systemTemp.createTempSync();
+        try {
+          final oldCarJsonFile = await _withArchive(
+            oldArchivePath,
+            (archive) => _carJsonFile(
+              archive.files.firstWhere((file) => file.name == changedPath),
+              Directory(p.join(tempDir.path, 'old')),
+            ),
+          );
+          final newCarJsonFile = await _withArchive(
+            newArchivePath,
+            (archive) => _carJsonFile(
+              archive.files.firstWhere((file) => file.name == changedPath),
+              Directory(p.join(tempDir.path, 'new')),
+            ),
+          );
+          final diffResult = await diff.run(
+            oldCarJsonFile.path,
+            newCarJsonFile.path,
+            colorMode: DiffColorMode.always,
+            unified: true,
+          );
+          diffs.add(diffResult.stdout as String);
+        } finally {
+          tempDir.deleteTemporarySync();
+        }
       }
     }
     return diffs.join('\n');

@@ -1,8 +1,317 @@
+<!-- cspell:words ungated rsassa -->
+
 # Changelog
 
 All notable changes to `code_push_server` are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## Unreleased
+
+### Changed
+
+- `POST /api/v1/patches/events` answers `422` when an event cannot be stored
+  even verbatim (for example a NUL character in the body on Postgres), instead
+  of `500`. The updater retries a `500` forever, which blocked its queue.
+- Rollback wording for deleting a release names the 7-day grace period
+  (`releaseDeleteGrace`): rolling a patch back does not allow an immediate
+  delete without `force`.
+- **`PATCH_SIGNING_KEY_SECRET` is now required for managed signing, and no
+  longer falls back to `URL_SIGNING_SECRET`.** Rotating a secret operators
+  rotate for other reasons must never strand the stored signing keys. It is
+  required (boot refuses) when `PRODUCTION` is set; otherwise unset, `GET
+  /apps/{app}/signing-key` and managed patch signing answer 503 naming the
+  variable. At boot a stored key is trial-decrypted and the server refuses to
+  start, naming the variable, if it does not decrypt. New keys carry a `kid`
+  (`v1`) in the JWE header so a later rotation can add a second version.
+  **Breaking, deliberately clean:** the fallback only existed on the
+  unreleased 1.4.0 branch, so there is no migration. A database whose keys were
+  wrapped under the `URL_SIGNING_SECRET` fallback will not boot until you set
+  `PATCH_SIGNING_KEY_SECRET=<that URL_SIGNING_SECRET value>`; delete the
+  `signing_keys` rows instead only if no release was built with a managed key.
+  Back the secret up with the database.
+- `/login` now requires `code_challenge` (PKCE S256) with `redirect_uri`. The
+  legacy `continue` form still works without one.
+- Patch artifacts with arch `symbols` need no `hash_signature` and are never
+  server-signed. Arch `assets` is signed like code: server-signed on managed
+  releases, and on customer-signed releases it needs a `hash_signature` (400
+  without), because devices verify the installed assets bundle in Strict mode.
+
+- `DELETE /apps/{app}/releases/{release}` answers 409 while any patch of the
+  release is live on a channel. Rolling the patch back unblocks deletion. Pass
+  `?force=true` through the console or API to delete anyway; the CLI sends no
+  force, and the message says to roll the live patches back first.
+  Deleting is also refused (409) for 7 days (`releaseDeleteGrace`) after any
+  patch of the release was rolled back or withdrawn, because deleting removes
+  the `channel_patches` rows a device that has not checked in since needs to
+  learn to drop the patch. The message says when the release becomes deletable
+  and that `?force=true` overrides it.
+
+### Added
+
+- `GET /cli/login-result`: the page the 1.6.138 CLI sends the browser to after
+  a loopback login.
+
+## 1.4.0 — 2026-11-06
+
+### Added
+
+- **Upstream 1.6.138 CLI support.** The 1.6.138 CLI could not talk to this
+  server: it casts `platforms` on every release as non-null, calls
+  `GET /apps/{app}` and `GET /apps/{app}/signing-key`, and logs in with a
+  standard PKCE authorization-code request. Older CLIs keep working: every
+  change is additive.
+  - **`platforms` on releases**: `{platform: {status, signing_mode?}}`, beside
+    the unchanged `platform_statuses`. Patches also carry `created_at`, and app
+    entries `organization_id`.
+  - **`GET /api/v1/apps/{app}`**: one `AppMetadata`. 404 (never 403) for an app
+    the caller cannot see.
+  - **Managed patch signing** (migration 14). `GET /apps/{app}/signing-key`
+    creates the organization's RSA-2048 key on first fetch and returns the
+    public half. Release artifacts accept and return `signing`. For a release
+    built in `managed` mode the server signs each patch's hash on registration
+    (RSASSA-PKCS1-v1_5 / SHA-256 over the hex hash string, the scheme the
+    updater verifies); a client `hash_signature` is refused. A `customer`
+    release requires one. Releases made before this change are never
+    server-signed. Private keys are stored as JWE under the new
+    `PATCH_SIGNING_KEY_SECRET` (min. 32 characters; see Unreleased: it no
+    longer falls back to `URL_SIGNING_SECRET`) and are never returned or
+    logged.
+  - **`DELETE /apps/{app}/releases/{release}`** and
+    **`DELETE …/releases/{release}/artifacts?platform=`** (app admin; audited
+    as `release.delete` / `release.artifact.delete`). The artifact store gains
+    `delete`.
+  - **Login**: `/login` accepts upstream's `redirect_uri` + `state` as well as
+    `continue`, and verifies PKCE S256 at `/token` (migration 15). A `continue`
+    login with no `code_challenge`, as an older CLI sends, redeems without a
+    verifier; `redirect_uri` requires one (see Unreleased).
+    `POST /revoke` (RFC 7009) backs `shorebird logout`.
+
+### Added
+
+- **Upstream 1.6.123 `apps rename`, `apps transfer` and `channels delete`.**
+  `PATCH /api/v1/apps/{app}`, `POST /api/v1/organizations/{org}/apps` and
+  `DELETE /api/v1/apps/{app}/channels/{channel}`, all under one rule: admin at
+  every scope the mutation changes. Rename and channel delete need an app
+  admin. Transfer needs an owner/admin of both orgs; a collaborator grant never
+  counts at org scope. A transfer is refused while the app has collaborators
+  outside the destination org's email-domain allowlist. Channel delete is a
+  soft delete (migration 13): the channel stops serving patches but its devices
+  still receive rollbacks, recreating the name restores it empty, and
+  `stable`/`beta`/`staging` cannot be deleted. Audited as `app.update`,
+  `app.transfer` and `channel.delete`.
+
+- **Upstream 1.6.123 `shorebird patches rollback` works against this server.**
+  `POST /api/v1/apps/{app}/releases/{release}/patches/{patch}/rollback` rolls
+  the patch back on every channel where it is active (the same withdrawal as
+  `/admin/.../withdraw?rollback=true`), answers 304 when it is already rolled
+  back, and is audited as `patch.withdraw`. `.../rollforward` is intentionally
+  unsupported and answers `501 unsupported`: a rolled-back patch stays
+  withdrawn permanently.
+
+- **Control-plane mutations are auditable.** Every mutating patch-lifecycle
+  request — `app.create`, `release.create`/`update`, release and patch artifact
+  registration, `artifact.upload`, `patch.create`/`update`/`promote`/
+  `withdraw`/`rollout`, `channel.create` — now writes exactly one structured
+  `audit_log` row, plus a JSON line to the operational log sink. Each row
+  answers when, who (account *and* a non-reversible fingerprint of the
+  credential presented), what operation, which app/release/patch/track, what
+  outcome, what HTTP status, and which request caused it.
+
+  Read it at `GET /admin/audit` (root-org owner/admin), filtered by
+  `app_id`/`release_id`/`patch_id`/`request_id`/`operation`/`result`/`after`/
+  `since`. The response always carries `ceiling` — the current maximum audit id
+  — so "this published nothing" can be stated as *no `patch.create` row above
+  id N*, which is falsifiable, rather than as "I looked and saw nothing", which
+  is not. Migration 11; `AUDIT_RETENTION_DAYS` still governs retention.
+
+  Three properties are structural rather than conventional. The outcome is
+  derived from the response the server actually sent, so no handler can assert
+  `success` for work that conflicted, was forbidden, or threw. The auditing
+  middleware sits *outside* authentication and rate limiting, so an attempt
+  refused by a bad credential is recorded rather than indistinguishable from
+  nobody having tried. And a route that is not a recognized mutation has no
+  code path that writes a request-outcome row, so a read cannot masquerade as
+  one.
+
+  Nothing sensitive is recorded: the event is an allowlist of computed fields,
+  never a copy of a header or body, so API keys, JWTs, authorization headers and
+  upload tokens are structurally absent — with credential-shape scrubbing as a
+  backstop on free text.
+
+- **Identity and tenancy mutations are typed audit outcomes too.** The state
+  that decides *who may mutate releases and patches* used to be recorded only as
+  free-text notes. `user.create`, `user.register`, `org.invite`,
+  `org.invite.accept`, `org.invite.revoke`, `org.member.role`,
+  `org.member.remove`, `org.domains`, `app.collaborator.add` and
+  `app.collaborator.remove` now each write one typed request row with a result
+  and an HTTP status, alongside two new columns (migration 12): `org_id`, and
+  `target_kind` — which finally makes the pre-existing `target` column typeable
+  (`user` → a user id or email, `org` → an org id, `invitation` / `api_key` → a
+  fingerprint).
+
+  Access-control changes bank **both sides**: `role_before` / `role_after` on
+  memberships and collaborator grants, `domains_before` / `domains_after` on the
+  org email policy. `addCollaborator` upserts, so that route silently *changes*
+  an existing grant as well as creating one — recording only the new role could
+  not tell a fresh `developer` from a quiet `developer -> owner`.
+
+  Values a caller supplied in the query string are banked **before**
+  authorization decides, so a refused attempt keeps its subject: an outsider
+  trying to grant themselves `owner` on someone else's app appears as exactly
+  that rather than as a bare 403. (Request *bodies* are still never read before
+  authentication — see the previous entry.)
+
+  `POST /login` and `GET /oauth/callback` stay unclassified: they are public
+  routes, and classifying them would let an unauthenticated caller write a row
+  per request. `admin.denied` also stays a detail row, because it is the only
+  trace of a denied *read* of the operator surface — `GET /admin/audit`
+  included, which by design writes no mutation event.
+
+- **`POST /admin/users` records which credential it issued**, as
+  `api_key_issued`: 12 hex characters of SHA-256 of the returned key, never the
+  key. Enough to match a key found in a CI config back to the request that
+  created it. It also records `account_existed`, because that route returns the
+  existing account on an email conflict — so a key issued against an account
+  that already existed is a distinct, more interesting event.
+
+- **`X-Request-Id` on every response**, echoed on the request log line and
+  stored on the request's audit event. Adopted from an inbound header only when
+  the socket peer is a configured trusted proxy.
+
+- **`code_push_audit_events_total`** and **`code_push_audit_write_failures_total`**
+  at `/metrics`. The second above zero means the durable trail has holes — an
+  audit write failure is logged loudly and the event still reaches the log sink,
+  because the mutation has already happened by then and a silently missing row
+  is what makes "nothing was logged" mean nothing.
+
+- **Assets-only patches.** `patches/check` can now serve a patch whose payload
+  is an asset bundle and nothing else, which is what lets the engine's asset
+  overlay ship on platforms where shipping *code* needs the AOT linker — there
+  is nothing to link or interpret. The response always carries a `kind`
+  (`code` | `assets`).
+
+  Gated behind a `supported_patch_kinds` capability in the request rather than
+  simply announced, because the failure mode is sticky: a stock updater handed
+  an assets-only patch would try to inflate the archive as a binary diff, fail,
+  and tombstone the patch as permanently bad for that release. Silence means
+  code-only, and a wrong-typed capability is read as no support.
+
+  A patch carrying both a code artifact and a bundle still reports `code`; the
+  bundle continues to be fetched separately via `patches/assets`.
+
+### Fixed
+
+- **An interrupted release is recoverable.** Registering a release artifact used
+  to conflict unconditionally on a second attempt, which made a killed
+  `shorebird release` terminal: the CLI rebuilds and re-uploads a platform's
+  artifacts in a fixed order, so the retry died re-sending the one that already
+  landed and never reached the ones still missing — and this API has no `DELETE`
+  to clear the way.
+
+  Found the hard way on 2026-07-30. Cutting `2.0.0+1785465879` was killed
+  mid-upload with iOS `xcarchive` registered and `runner` + `ios_supplement`
+  missing. The release sat at `{android: active, ios: draft}` and no invocation
+  could finish it.
+
+  A byte-identical re-upload now returns the existing registration. A *differing*
+  hash while the release is still `draft`/`uploading` supersedes the stale row
+  (marked `failed`, which the duplicate lookup skips) and is audited as
+  `artifact.superseded` — matching on hash alone would have missed the real case,
+  since a rebuild never reproduces the previous bytes. From `ready` onward a
+  differing hash stays a hard conflict: those artifacts are what installed apps
+  run and what patches are linked against, so swapping one would silently
+  invalidate every patch built from it.
+
+- **A platform can no longer be activated with an incomplete artifact set.** The
+  gate asserted that every artifact *present* was verified, not that the expected
+  set was complete, so a lone verified `xcarchive` would activate an iOS release
+  that no patch could ever be linked against — surfacing at patch time, far from
+  the cause. Now compared against a per-platform required set.
+
+  Platforms absent from that set are deliberately ungated. Blocking a target
+  whose artifact list this server has never learned would stop it shipping
+  outright, which is worse than closing the hole late.
+
+- **A client that cannot install the active patch is now offered the newest one
+  it can**, instead of nothing.
+
+  Found by promoting a real assets-only patch: promotion withdrew the release's
+  code patch, and because a stock updater cannot be offered an assets patch,
+  `patches/check` returned `patch_available: false` for it. A device already
+  running the code patch kept it, but a fresh install would have run unpatched
+  code that the previous patch had fixed — silently, with nothing in the rollout
+  to show it.
+
+  The fallback walks superseded patches newest-first and applies every gate the
+  active path applies: same release, `ready`, newer than the client's, and
+  eligible under that patch's own rollout — a fallback that skipped those would
+  be a way to receive a patch a rollout excluded. Rolled-back patches are never
+  candidates: superseded means *replaced*, rolled back means *pulled for cause*,
+  and conflating them would resurrect a patch someone deliberately withdrew.
+
+  Consequence worth understanding: client classes can now legitimately sit on
+  different patch numbers, each running the newest patch it supports. That is
+  intended. It follows from a device being able to boot only one patch, which
+  makes an assets-only patch and a code patch alternatives rather than additive.
+
+## 1.3.0 — 2026-07-29
+
+### Added
+
+- **Patch asset bundles are stored and served**, so a patch can change assets —
+  images, fonts, JSON — and not only Dart code. The bundle rides along as an
+  ordinary patch artifact tagged `arch: assets`, which needed no schema change
+  and no new upload path, because `arch` is free-form end to end.
+  - `POST /patches/assets` — device-facing and unauthenticated, like the rest of
+    the device surface: an app in the wild knows only its `app_id`. Takes
+    `{app_id, release_version, platform, patch_number}` and answers
+    `{assets_available, assets: {url, hash, size}}` with a signed download URL.
+  - Malformed or unknown input answers "nothing here" rather than erroring. This
+    is polled on launch by app code, and a hard failure would be a needless
+    crash path for a purely additive feature.
+  - A **rolled-back patch stops serving its assets**, or an app that had reverted
+    would keep using the newer bundle against older code.
+
+  The native updater is never involved, which is what keeps this off the
+  engine-build critical path — and therefore working on iOS as well as Android.
+
+- **Crash reports are ingested, retained, and symbolicated** (schema migration
+  **v8**), so a self-hosted deployment gets crash visibility without a
+  third-party SDK. Boot-crash rollback already existed; the stack trace
+  explaining *why* never left the device.
+  - `POST /crashes` — device-facing and unauthenticated. It always answers
+    `200 {stored: bool}` and swallows malformed input **on purpose**: the client
+    is an app that just died, and making it fight 4xx/5xx is a second failure on
+    top of the first. A test named `garbage never fails the reporter` guards it.
+  - `GET /api/v1/apps/{appId}/crashes` — authed, filterable by
+    `release_version` / `patch_number`.
+  - `?symbolicate=true` adds `stack_symbolicated` beside the raw `stack`,
+    resolving the trace against the debug symbols the CLI retains for that patch
+    (`arch: symbols`).
+
+  Symbolication is pure Dart: what the CLI retains is Dart's own
+  `--split-debug-info` output, which is what `flutter symbolize` reads through
+  `package:native_stack_traces`, and that package handles both the ELF form
+  (Android) and the Mach-O form (Apple). So one implementation covers every
+  platform inside this Linux container — no `llvm-symbolizer`, no `atos`, no Mac
+  worker. Those would only matter for native Objective-C/C++ frames out of a
+  dSYM, which a Dart crash handler does not produce.
+
+  Notable choices:
+  - **Read-time, never ingest-time.** Ingest must stay unfailable, and symbols
+    are routinely uploaded *after* a crash has already arrived, so resolving at
+    ingest would permanently miss.
+  - **Opt-in.** Resolving costs a fetch, unzip and DWARF parse per distinct patch
+    in the page, so the default response is unchanged for existing callers.
+  - **Never guesses the symbol file.** Arch matching is on the
+    `-<token>.symbols` suffix rather than a substring: `arm` is a prefix of
+    `arm64`, so a substring match would hand arm64 symbols to an arm32 crash and
+    resolve every frame to a wrong address — a failure that looks like success.
+    Given several candidates and no arch match it resolves nothing.
+
+  Verified end to end against a physical Android device: a crash thrown from
+  patched code resolved to exact function names and line numbers.
 
 ## 1.2.0 — 2026-07-29
 

@@ -1,0 +1,69 @@
+release        : 31
+preserved from : selfhost/fixtures/airgap_app/build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+preserved at   : 2026-08-13T05:33:39Z
+LC_UUID        : 49bfcd9b754934029e64ae632a66e34c
+patchable      : 7,142  (1,775 per MB)
+size           : 4219232 bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect 49bfcd9b754934029e64ae632a66e34c
+
+The working archive is NOT a substitute: `shorebird patch ios` re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.
+
+[REPAIRED 2026-08-13, same defect as release 30's record and found by comparing
+them: the unquoted heredoc in preserve_release_evidence.sh executed
+`shorebird patch ios` and spliced its output here. This run it failed with "run
+shorebird init" because the script was invoked from the repo root rather than the
+app directory. TWICE THE ONLY THING THAT PREVENTED AN EVIDENCE SCRIPT FROM
+PUBLISHING A PATCH WAS AN UNRELATED FAILURE — expired auth for release 30, the
+wrong working directory here. Fixed by escaping the backticks; verified by
+re-running the script against the staged release bytes under a throwaway version,
+which produced the literal sentence and invoked nothing. `shorebird patches list`
+confirms release 31 carries exactly the two intended patches.]
+
+DEVICE RESULT — release 31, engine 881e4129, trace schema v4, iPhone 7 (iOS 15.8.8)
+
+  gates    : assert_diagnostic_engine 881e4129 3/3 ("this engine is the
+             instrumented one"); CLI's own _verifyPatchableRelease ran and
+             reported 7142 sites (1775/MiB) -- it runs ONLY when the flag comes
+             from the CLI, so the flag was deliberately NOT passed by hand;
+             verify_patchable_release.sh 7,142 / 1,775 per MB on the preserved
+             bytes; assert_result_consumed.sh CONSUMED at derived offset 0xd4a0;
+             assert_installed_release.sh exit 0 at every one of five launches
+  release  : value() => DateTime.now()... ? 'OLD-rel' : dead branch naming
+             helper/tagged -- non-foldable, and the fold is gone from the SHIPPED
+             iOS bytes, not merely from a host arm
+
+  patch 1  : String value() => 'NEW-CTL';   ->  screen NEW-CTL, code patch 1
+  patch 2  : String value() => _secret;     ->  screen NEW-PRIV, code patch 2
+  baseline : OLD-rel, code patch none, on the same binary that later showed both
+
+THE QUESTION THIS SEQUENCE OPENED ON IS ANSWERED. "After activation, does this
+exact call site execute, and does execution reach InterpretCall?" -- yes to both,
+established through the UI rather than through a new instrument. bc_post=1,
+interp_post=1, both Function entry points moved to the same-run InterpretCall
+stub, and the replacement body's return value reached the screen. The v5 execution
+marker was never built; the branch that would have authorized it did not fire.
+
+AND G3.6b IS CLOSED ON HARDWARE. Patch 2's body reads a private field the release
+never reads, so it could only execute if P2 retention, the manifest grant, the
+producer's acceptance and the CFE's private-name resolution all held.
+
+WHAT THE FOLD HAD BEEN HIDING: nothing was broken except the observation channel.
+Releases 23-30 spent six device runs and five overturned attributions on a
+mechanism that already worked. Both patches here worked on the first attempt each,
+on the first release cut after the fold was removed.
+
+THE ADMISSIBILITY RULE FIRED, ON ITS FIRST USE, AGAINST A REAL FALSE ATTRIBUTION.
+The classifier returns exit 1 IDENTITY MISMATCH for BOTH patches, reading the
+engine's stale 0xd4a8: index 6803 holds a different Function in release 31 than in
+release 30, and it IS a Function, so the classifier's own "two positively
+identified Functions" safeguard was satisfied by a wrong input and could not
+catch itself. Only the external rule -- derived offset must equal the hardcoded
+one -- knew the input was invalid. See verdict.txt; committed in 6248a951 a day
+before the number that triggers it existed.
+
+Release 30 remains the IDENTITY specimen. Release 31 is the EXECUTION specimen.
+Do not reinterpret release 31's pool fields.

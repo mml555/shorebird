@@ -1,0 +1,134 @@
+SM1-G5 route 2 -- strict reader state over the schema-6 note
+generated 2026-09-09T05:22:09Z by run_route2.sh
+
+PRODUCER AND SUBJECT
+  c0a982fab70900aff92bc03602a3a9447f75fe26a27d853c8bc5b6176a5dac3a  0001-g5-aot-capability-note.patch
+  078d9d4d497f3ae13c5cc72ac009ffcaf34d5f14ea66bc91799903eae8a26286  0002-g5-inlining-relation.patch
+  b307906fe7dc9ef254231023e0862c89da23840e7fef3911cfd10308abc4a81a  gen_snapshot (frozen + 0001 + 0002)
+  564571cf8fe19db2dff795f86a0d3c2c579e48b24d275173d11e50f7238819a1  release3.dill (the patchable release kernel)
+  7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34  app_release.aot
+  recipe: gen_snapshot --snapshot_kind=app-aot-elf --patchable_static_calls \
+            --elf=app_release.aot release3.dill
+
+REPLAY: frozen (recovered by git) + 0001 + 0002 vs the built clone
+  runtime/vm/elf.h                                     equal
+    replayed 67b24ba39bd97cdb4e6ae38aa17d8c0df3c9c79eb3eacf1ad7781ea907ba1ee3
+    built    67b24ba39bd97cdb4e6ae38aa17d8c0df3c9c79eb3eacf1ad7781ea907ba1ee3
+  runtime/vm/elf.cc                                    equal
+    replayed 2c14752121704bb89a73728427a576e2f09497d144ec41a2df40e8f82cc912c8
+    built    2c14752121704bb89a73728427a576e2f09497d144ec41a2df40e8f82cc912c8
+  runtime/vm/compiler/backend/flow_graph_compiler.cc   equal
+    replayed 1165ccfe9a4e30eb839d9ccb935ef901ddcf61b1764747d0789cb066116939eb
+    built    1165ccfe9a4e30eb839d9ccb935ef901ddcf61b1764747d0789cb066116939eb
+  all_files_equal=true
+
+NOTE DETERMINISM (same input kernel, two runs of the same producer)
+  records              equal
+    A 3353
+    B 3353
+  note_section_sha256  equal
+    A 3b0339a417e38433abdcfa6908fcba5f135a5e977afd2bd74b8ca2bdd5737af6
+    B 3b0339a417e38433abdcfa6908fcba5f135a5e977afd2bd74b8ca2bdd5737af6
+  aot_sha256           DIFFER
+    A 7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34
+    B a7a123e471aa18e7235f0f741cc5c8ce28c2d2adcc9d28c5737004eada21d759
+  states identical     True
+
+  Deterministic NOTE CONTENT and identical verdicts -- not
+  byte-reproducible whole-AOT output: the two AOT hashes differ.
+
+READER STATE
+  note_validated            True
+  note_error_code           None
+  note_complete_projection  True
+  in-scope unprojected      0
+  out-of-scope records      3340
+
+  ACCOUNTING (asserted by the reader, which exits non-zero if it fails)
+    total_g1_rows      36
+    INLINED             2
+    NOT_INLINED        15
+    UNKNOWN            14
+    NO_BODY             5
+    accounted          36
+    identity         accounted == total_g1_rows == INLINED+NOT_INLINED+UNKNOWN+NO_BODY
+
+  INLINED
+    method _inlineHelper               INLINEE
+    method smallTarget                 INLINEE
+
+  NOT_INLINED
+    method Base.work                   ABSENT_FROM_VALIDATED_NOTE
+    method Other.work                  ABSENT_FROM_VALIDATED_NOTE
+    method _parse                      ABSENT_FROM_VALIDATED_NOTE
+    method _state                      ABSENT_FROM_VALIDATED_NOTE
+    method alpha                       ABSENT_FROM_VALIDATED_NOTE
+    method applyPatchContainer         ABSENT_FROM_VALIDATED_NOTE
+    method beta                        ABSENT_FROM_VALIDATED_NOTE
+    method callsSmall                  ABSENT_FROM_VALIDATED_NOTE
+    method callsViaTearOff             ABSENT_FROM_VALIDATED_NOTE
+    method jsonDecodeMap               ABSENT_FROM_VALIDATED_NOTE
+    method main                        ABSENT_FROM_VALIDATED_NOTE
+    method revertAll                   ABSENT_FROM_VALIDATED_NOTE
+    method viaDirect                   ABSENT_FROM_VALIDATED_NOTE
+    method viaInlined                  ABSENT_FROM_VALIDATED_NOTE
+    method viaVirtual                  ABSENT_FROM_VALIDATED_NOTE
+
+  UNKNOWN
+    constructor ApplyResult.           KIND_NOT_COVERED_BY_PROOF
+    constructor Base.                  KIND_NOT_COVERED_BY_PROOF
+    constructor Other.                 KIND_NOT_COVERED_BY_PROOF
+    constructor _Container.            KIND_NOT_COVERED_BY_PROOF
+    constructor _Target.               KIND_NOT_COVERED_BY_PROOF
+    field ApplyResult.attached         KIND_NOT_COVERED_BY_PROOF
+    field ApplyResult.message          KIND_NOT_COVERED_BY_PROOF
+    field ApplyResult.ok               KIND_NOT_COVERED_BY_PROOF
+    field _Container.buildId           KIND_NOT_COVERED_BY_PROOF
+    field _Container.targets           KIND_NOT_COVERED_BY_PROOF
+    field _Target.bytecode             KIND_NOT_COVERED_BY_PROOF
+    field _Target.library              KIND_NOT_COVERED_BY_PROOF
+    field _Target.selector             KIND_NOT_COVERED_BY_PROOF
+    method tearOffTarget               ONLY_SYNTHETIC_CHILD_INLINEE
+
+  NO_BODY
+    class ApplyResult                    declares no body, so no inline copy of it can exist
+    class Base                           declares no body, so no inline copy of it can exist
+    class Other                          declares no body, so no inline copy of it can exist
+    class _Container                     declares no body, so no inline copy of it can exist
+    class _Target                        declares no body, so no inline copy of it can exist
+
+  codes given for refusal:
+    KIND_NOT_COVERED_BY_PROOF
+      constructor body materialization is not covered by the recorder-completeness proof
+    ONLY_SYNTHETIC_CHILD_INLINEE
+      only a synthetic child is an inlinee; the harmless case is established for one shape only
+
+WHY NOT_INLINED IS AVAILABLE ONLY TO SOME KINDS
+  See evidence/recorder_completeness.md and .txt. Every copy of a body's IL
+  into another function is registered through exactly one function with exactly
+  one caller, and the recorder reads that registry in the one AOT
+  code-generation path. A second family of operations -- the CallSpecializer
+  replacements -- materializes a callee's semantics without registering
+  anything; its gates close for recognized methods and for operators on
+  application classes, but NOT for a field's VM-synthesized implicit accessors.
+  So field, constructor and factory rows are candidates that refuse, class rows
+  are reported as declaring no body, and only method/getter/setter/operator can
+  carry NOT_INLINED.
+
+=========== MANIFEST SEMANTIC IDENTITY, AND ITS CONTROL ===========
+arm                                                    result detail
+--------------------------------------------------------------------------------------------------------
+BASELINE the banked manifest is accepted               pass   ok
+subject.aot renamed to the withdrawn subject           pass   subject.aot: recorded 'app_s6r.aot', expected 'app_release.aot'
+subject.input_kernel renamed to the pre-pass kernel    pass   subject.input_kernel: recorded 'prepass3.dill', expected 'release3.dill'
+recipe left describing the withdrawn lane              pass   subject.recipe: recorded 'gen_snapshot --snapshot_kind=app-aot-elf --patchable_static_ca
+recipe no longer names the kernel it claims            pass   subject.recipe: recorded 'gen_snapshot --snapshot_kind=app-aot-elf --patchable_static_ca
+a withdrawn artifact reappears outside withdrawn_subjects pass   withdrawn artifact prepass3.dill still appears outside withdrawn_subjects
+the withdrawn subjects are dropped from the record     pass   both withdrawn subjects must stay recorded as historical
+determinism build_b renamed                            pass   determinism.build_b.aot: recorded 'app_release.aot', expected 'app_release_b.aot'
+determinism claims the two AOTs are byte-equal         pass   determinism must not claim the two AOTs are byte-equal
+falsification arm count left stale                     pass   reader_falsification.arms: recorded 28, transcript says 34
+one control dropped from the falsification record      pass   reader_falsification must record both controls
+--------------------------------------------------------------------------------------------------------
+arms=11 passed=11 failed=0
+SM1_G5_MANIFEST_SEMANTICS: ALL_SWAPS_REFUSED

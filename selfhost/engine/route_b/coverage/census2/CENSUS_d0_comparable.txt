@@ -1,0 +1,212 @@
+================================================================================
+STRUCTURAL BODY CENSUS -- NOT PATCH DEMAND
+================================================================================
+Each existing method counts once, regardless of how likely that method is to
+change in practice.
+
+Percentages measure current Route B refusal reachability over methods that
+EXIST. They do NOT estimate:
+  - patch success rate,
+  - frequency of real changes,
+  - user demand,
+  - or percentage of production fixes Route B can ship.
+
+Only the LOWERING stage was run. Reachability, release retention, the
+producer's own source-text refusals and the bytecode compiler are separate
+stages and were not evaluated. `lowerable` means this stage raised no
+objection, and nothing more.
+
+The two corpora are reported separately and are NOT pooled: one is a synthetic
+regression fixture written to exercise this mechanism, the other is an
+application written by people who had never heard of it.
+================================================================================
+
+--------------------------------------------------------------------------------
+airgap_app   (synthetic regression fixture)
+--------------------------------------------------------------------------------
+  dill                        /private/tmp/claude-501/-Users-mendell-shorebird/8688bc8f-b3b0-49e5-b8b9-c4f9ab0a7854/scratchpad/census2/run/airgap.dill
+  include                     package:airgap_probe/
+
+  excluded                    files marked @generated
+    rows removed                        0 of 19
+    (this corpus has none -- the same filter, no effect)
+
+  instance procedures considered       19
+    lowerable now                      18    94.74%
+    blocked by >=1 reason               1     5.26%
+
+  excluded from the denominator, counted so the exclusion is visible:
+    static (no receiver to lower)       0
+    abstract / external (no body)       2
+    no usable source span               0
+
+  REFUSAL CATEGORIES
+  (from analysisVersion 10 a genuine super METHOD site is reported
+   structurally and no longer appears here as a reason string; it is
+   still counted as a blocker, in the construct table below. Super
+   getters and setters remain reason strings.)
+  category                          methods % of all     SOLE  % unlock
+  --------------------------------------------------------------------------
+
+  SOLE = methods for which this is the ONLY refusal. "% unlock" is that
+  count over the BLOCKED population: what closing this one category alone
+  would move. Categories overlap, so the "methods" column does not sum to
+  the blocked total and the "SOLE" column does not sum to it either --
+  the remainder is methods blocked by two or more categories at once.
+
+  CONSTRUCTS, attributed once each  <-- PLAN FROM THIS TABLE
+  construct                         methods % of all     SOLE  % unlock
+  --------------------------------------------------------------------------
+  construct.super                         1    5.26%        1   100.00%
+
+  D-HYGIENE EXERCISE COUNT (informational -- NOT a blocker)
+    declarations spelling `self`        1 of 19 with readable source
+      of those, lowerable now           1
+    These lower CORRECTLY; they cost a capture-avoiding receiver rename.
+    Counting them as unsupported would put a solved problem back into the
+    ranking. The test is the producer's own conservative substring scan, so
+    it over-triggers on comments and on names like `selfTest`.
+
+--------------------------------------------------------------------------------
+Wonderous   (real app — animation-led showcase)
+--------------------------------------------------------------------------------
+  dill                        /private/tmp/claude-501/-Users-mendell-shorebird/8688bc8f-b3b0-49e5-b8b9-c4f9ab0a7854/scratchpad/census2/run/wonderous.dill
+  include                     package:wonders/
+
+  excluded                    files marked @generated
+    rows removed                        0 of 1282
+    (this corpus has none -- the same filter, no effect)
+
+  instance procedures considered     1282
+    lowerable now                    1179    91.97%
+    blocked by >=1 reason             103     8.03%
+
+  excluded from the denominator, counted so the exclusion is visible:
+    static (no receiver to lower)      44
+    abstract / external (no body)     355
+    no usable source span               6
+
+  REFUSAL CATEGORIES
+  (from analysisVersion 10 a genuine super METHOD site is reported
+   structurally and no longer appears here as a reason string; it is
+   still counted as a blocker, in the construct table below. Super
+   getters and setters remain reason strings.)
+  category                          methods % of all     SOLE  % unlock
+  --------------------------------------------------------------------------
+  receiver.unconsumed_this               54    4.21%       53    51.46%
+  abi.named_parameters                    8    0.62%        7     6.80%
+  abi.generic                             2    0.16%        2     1.94%
+  receiver.compound_same_offset           2    0.16%        2     1.94%
+  abi.optional_positionals                1    0.08%        1     0.97%
+  receiver.super_get                      1    0.08%        1     0.97%
+
+  SOLE = methods for which this is the ONLY refusal. "% unlock" is that
+  count over the BLOCKED population: what closing this one category alone
+  would move. Categories overlap, so the "methods" column does not sum to
+  the blocked total and the "SOLE" column does not sum to it either --
+  the remainder is methods blocked by two or more categories at once.
+
+  INSIDE receiver.unconsumed_this -- by the PARENT of each `this`
+  kernel parent node                 occurrences sole-blocked
+  ------------------------------------------------------------
+  InstanceTearOff                            89           52
+  SuperMethodInvocation                       7            7
+  Arguments                                   2            2
+
+  InstanceTearOff is `onPressed: _handleTap` -- `this` is the RECEIVER
+  of a tear-off, and the lowered spelling is the same textual edit as a
+  read. Arguments/VariableDeclaration/ReturnStatement are the receiver
+  genuinely escaping. Raw node names, so an unexamined shape cannot hide.
+
+  CONSTRUCTS, attributed once each  <-- PLAN FROM THIS TABLE
+  construct                         methods % of all     SOLE  % unlock
+  --------------------------------------------------------------------------
+  construct.method_tearoff               53    4.13%       44    42.72%
+  construct.super                        44    3.43%       37    35.92%
+  abi.named_parameters                    8    0.62%        7     6.80%
+  abi.generic                             2    0.16%        2     1.94%
+  receiver.compound_same_offset           2    0.16%        2     1.94%
+  construct.this_escape                   2    0.16%        1     0.97%
+  abi.optional_positionals                1    0.08%        1     0.97%
+
+  TOP BLOCKER CO-OCCURRENCES
+       1   abi.named_parameters + receiver.unconsumed_this
+
+  These are why raw prevalence misleads: a pair that co-occurs often is a
+  pair where closing either one alone unlocks almost nothing.
+
+  D-HYGIENE EXERCISE COUNT (informational -- NOT a blocker)
+    declarations spelling `self`        9 of 1282 with readable source
+      of those, lowerable now           7
+    These lower CORRECTLY; they cost a capture-avoiding receiver rename.
+    Counting them as unsupported would put a solved problem back into the
+    ranking. The test is the producer's own conservative substring scan, so
+    it over-triggers on comments and on names like `selfTest`.
+
+--------------------------------------------------------------------------------
+localsend   (real app — networking/state utility)
+--------------------------------------------------------------------------------
+  dill                        /private/tmp/claude-501/-Users-mendell-shorebird/8688bc8f-b3b0-49e5-b8b9-c4f9ab0a7854/scratchpad/census2/run/localsend.dill
+  include                     package:localsend_app/, package:localsend_isolates/, package:typed_isolates/
+
+  excluded                    files marked @generated
+    rows removed                    18580 of 19164
+
+  instance procedures considered      584
+    lowerable now                     539    92.29%
+    blocked by >=1 reason              45     7.71%
+
+  excluded from the denominator, counted so the exclusion is visible:
+    static (no receiver to lower)     335
+    abstract / external (no body)     102
+    no usable source span              25
+
+  REFUSAL CATEGORIES
+  (from analysisVersion 10 a genuine super METHOD site is reported
+   structurally and no longer appears here as a reason string; it is
+   still counted as a blocker, in the construct table below. Super
+   getters and setters remain reason strings.)
+  category                          methods % of all     SOLE  % unlock
+  --------------------------------------------------------------------------
+  receiver.unconsumed_this               15    2.57%       15    33.33%
+  abi.optional_positionals                3    0.51%        3     6.67%
+  receiver.compound_same_offset           3    0.51%        3     6.67%
+  abi.named_parameters                    2    0.34%        2     4.44%
+
+  SOLE = methods for which this is the ONLY refusal. "% unlock" is that
+  count over the BLOCKED population: what closing this one category alone
+  would move. Categories overlap, so the "methods" column does not sum to
+  the blocked total and the "SOLE" column does not sum to it either --
+  the remainder is methods blocked by two or more categories at once.
+
+  INSIDE receiver.unconsumed_this -- by the PARENT of each `this`
+  kernel parent node                 occurrences sole-blocked
+  ------------------------------------------------------------
+  Arguments                                   7            7
+  SuperMethodInvocation                       6            6
+  SwitchStatement                             4            4
+  InstanceTearOff                             4            3
+  VariableSet                                 1            1
+
+  InstanceTearOff is `onPressed: _handleTap` -- `this` is the RECEIVER
+  of a tear-off, and the lowered spelling is the same textual edit as a
+  read. Arguments/VariableDeclaration/ReturnStatement are the receiver
+  genuinely escaping. Raw node names, so an unexamined shape cannot hide.
+
+  CONSTRUCTS, attributed once each  <-- PLAN FROM THIS TABLE
+  construct                         methods % of all     SOLE  % unlock
+  --------------------------------------------------------------------------
+  construct.super                        30    5.14%       22    48.89%
+  construct.this_escape                  12    2.05%        6    13.33%
+  abi.optional_positionals                3    0.51%        3     6.67%
+  construct.method_tearoff                3    0.51%        3     6.67%
+  abi.named_parameters                    2    0.34%        2     4.44%
+  receiver.compound_same_offset           3    0.51%        1     2.22%
+
+  D-HYGIENE EXERCISE COUNT (informational -- NOT a blocker)
+    declarations spelling `self`        4 of 584 with readable source
+      of those, lowerable now           4
+    These lower CORRECTLY; they cost a capture-avoiding receiver rename.
+    Counting them as unsupported would put a solved problem back into the
+    ranking. The test is the producer's own conservative substring scan, so
+    it over-triggers on comments and on names like `selfTest`.

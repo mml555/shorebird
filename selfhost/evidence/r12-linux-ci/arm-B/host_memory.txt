@@ -1,0 +1,13 @@
+# docker VM and co-tenants at collection time
+MemTotal=12792242176 NCPU=9
+r12-cdn-sealed 28.66MiB / 11.91GiB 0.23%
+r12-flutter-git 9.812MiB / 11.91GiB 0.08%
+app_redis_test 11.43MiB / 11.91GiB 0.09%
+app_libpostal_test 1.879GiB / 11.91GiB 15.77%
+app_db_test 80.14MiB / 11.91GiB 0.66%
+shidduchcard-postgres-1 34.53MiB / 11.91GiB 0.28%
+cps-ios 14.1MiB / 11.91GiB 0.12%
+shorebird-cdn-cdn-cache-1 43.37MiB / 11.91GiB 0.36%
+cps-android 121.1MiB / 11.91GiB 0.99%
+shorebird-cdn-artifact-proxy-1 7.914MiB / 11.91GiB 0.06%
+shidduchcard-minio-1 118.4MiB / 11.91GiB 0.97%

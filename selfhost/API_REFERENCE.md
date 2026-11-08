@@ -1,3 +1,5 @@
+<!-- cspell:words spki rsassa -->
+
 # API reference
 
 Every HTTP endpoint the server exposes. Grouped by consumer: the **CLI wire
@@ -19,12 +21,29 @@ where `<token>` is either an **API key** (`sb_api_…`, bootstrap or per-user) o
 **session JWT** from `shorebird login`. Public endpoints (no auth): `/healthz`,
 `/readyz`, `/console`, `/admin/ui`, `/download/*` (signed), `/login`, `/token`,
 `/oauth/callback`, `/api/logout`, `/.well-known/jwks.json`, `/patches/check`,
-`/patches/events`.
+`/patches/assets`, `/crashes`, `/patches/events`, `/metrics`, `GET /`, and
+`/diagnostics/speedtest`.
 
-**Errors.** Non-2xx responses are `{"code": "...", "message": "...", "details"?: …}`.
-Common statuses: `400` bad request, `401` missing/invalid auth, `403` cross-tenant
-/ insufficient role, `404` not found, `409` state-machine violation (e.g. finalize
-before verified, promote a non-ready patch).
+> `/diagnostics/speedtest`, `/metrics` and `GET /` added to this list 2026-08-13.
+> The speedtest is unauthenticated on **both** verbs — `GET` streams up to
+> 16,000,000 zero bytes (`?size=` clamped) and any other verb drains and discards
+> an upload, returning `204`. It is separately rate-limited (`speed:<ip>`, 6/min)
+> precisely because it is public and moves 16 MB a call. Omitting a public
+> bandwidth endpoint from the public list is the kind of gap an operator writing
+> firewall or WAF rules from this document would inherit.
+
+**Errors.** Non-2xx JSON responses are `{"code": "...", "message": "..."}` — exactly
+two keys. Common statuses: `400` bad request, `403` **all auth failures**, `404` not
+found, `409` state-machine violation (e.g. finalize before verified, promote a
+non-ready patch).
+
+> Corrected 2026-08-13. This block listed `401` for "missing/invalid auth" and an
+> optional `details` key; the API emits neither. A missing bearer and an invalid
+> credential both return **`403 {"code":"forbidden"}`** — the single
+> `HttpStatus.unauthorized` in the server is the HTML login form re-render, not a
+> JSON API response — and `_err` builds a two-key body with no `details`. A client
+> written from the old text would branch on a 401 that never arrives and treat a
+> genuine auth failure as an authorization bug.
 
 **Auth context.** An API key resolves to a user; the bootstrap key maps to user 1
 (owner of the default org). App-scoped requests require the user to own the app's
@@ -41,30 +60,36 @@ These are exactly what the pinned Shorebird CLI calls for `init` / `release` /
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| GET | `/organizations` | — | `{"organizations":[{"organization":{"id","name","org_type"},"role"}]}` |
+| GET | `/organizations` | — | `{"organizations":[{"organization":{"id","name","organization_type"},"role"}]}` (corrected 2026-08-13 — this row said `org_type`; the server emits `organization_type`, `api.dart:1069`) |
 | GET | `/users/me` | — | `PrivateUser` `{id,email,jwt_issuer,…}` (404 → treated as null by CLI) |
+| POST | `/users` | `{"display_name"?}` | `PrivateUser` — **added 2026-08-13, was undocumented** in a table introduced as "every HTTP endpoint the server exposes". Authenticated; the CLI calls it to create/rename the account behind a session JWT. It upserts on the **authenticated caller's email**, never on anything in the body |
 
 ### Apps
 
 | Method | Path | Body | Response |
 |---|---|---|---|
 | POST | `/apps` | `{"organization_id":1,"display_name":"My App"}` | `{"id":"<uuid>","display_name":"My App"}` |
-| GET | `/apps` | — | `{"apps":[{"app_id","display_name","latest_release_version","latest_patch_number","platforms":[…]}]}` |
+| GET | `/apps` | — | `{"apps":[AppMetadata]}` — each `{"app_id","organization_id","display_name","latest_release_version","latest_patch_number","created_at","updated_at","platforms":[…]}` |
+| GET | `/apps/{appId}` | — | one `AppMetadata` (upstream 1.6.138 `getApp`). **404, never 403**, for an app that does not exist and for one the caller cannot see, with the same body, so app ids cannot be probed. `patch_signing_required` is an enterprise policy with no counterpart here and is omitted |
+| GET | `/apps/{appId}/signing-key` | — | `{"signing_key":{"id","public_key_pem"}}` — the **organization's** managed patch-signing key (RSA 2048, SPKI PEM), created on first fetch. Public half only. 404 for an app the caller cannot see. See **Managed patch signing** |
+| PATCH | `/apps/{appId}` | `{"name"}` | 204 (app admin) |
 
 ### Releases
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/apps/{appId}/releases` | `{"version":"1.0.0+1","flutter_revision":"…","flutter_version"?,"display_name"?,"notes"?}` | `{"release":{"id","version","flutter_revision","status","notes",…}}` |
+| POST | `/apps/{appId}/releases` | `{"version":"1.0.0+1","flutter_revision":"…","flutter_version"?,"display_name"?,"notes"?}` | `{"release":{"id","app_id","version","flutter_revision","flutter_version","display_name","platforms","platform_statuses","created_at","updated_at","notes","metadata"}}`. **`platforms`** (upstream 1.6.138, cast as a non-null map by `Release.fromJson`): `{"<platform>":{"status":"draft|active","signing_mode"?:"managed|customer|unsigned"}}`. `signing_mode` is present only for a platform whose release artifacts reported `signing`. `platform_statuses` (`{"<platform>":"<status>"}`) is the deprecated form, still sent for older CLIs. `flutter_revision_issue` is never sent (no data source; nullable upstream) — corrected 2026-08-13: this row said `"status"`, and `_releaseJson` (`api.dart:2834-2849`) emits **no `status` key at all**. Per-platform state is `platform_statuses`, which the pinned CLI casts **unguarded** (`shorebird_code_push_protocol/.../release.dart`), so omitting it is a client crash, not a missing field. (`status` *is* a valid request field on `PATCH` below — different row) |
 | GET | `/apps/{appId}/releases` | — | `{"releases":[Release]}` |
+| DELETE | `/apps/{appId}/releases/{releaseId}` | — | 204 · deletes the release, all platforms' artifacts and every patch of it (rows and stored objects). **409** while a patch of it is live on a channel, or was rolled back or withdrawn less than 7 days ago (`releaseDeleteGrace`; the message gives the time it becomes deletable), unless `?force=true` (console or API; the CLI sends none). App admin. Audited `release.delete` |
 | PATCH | `/apps/{appId}/releases/{releaseId}` | `{"status"?:"active","platform"?:"android","metadata"?,"notes"?}` | 204 · **409** if set `active` before all artifacts verified (fail-closed finalize) |
 
 ### Release artifacts
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/apps/{appId}/releases/{releaseId}/artifacts` | multipart: `arch,platform,hash,filename,size,can_sideload?,podfile_lock_hash?` | `{…,"url":"…/api/v1/uploads/<token>","upload_method":"multipart"}` |
-| GET | `/apps/{appId}/releases/{releaseId}/artifacts?arch=&platform=` | — | `{"artifacts":[{arch,platform,hash,size,url,…}]}` |
+| POST | `/apps/{appId}/releases/{releaseId}/artifacts` | multipart: `arch,platform,hash,filename,size,can_sideload?,podfile_lock_hash?,signing?` (`signing` is ONE JSON-encoded field, `{"mode":"managed","key_id":1}`; `key_id` only for `managed`, and must be a key of the app's org, else 400) | `{…,"url":"…/api/v1/uploads/<token>","upload_method":"multipart"}` |
+| GET | `/apps/{appId}/releases/{releaseId}/artifacts?arch=&platform=` | — | `{"artifacts":[{arch,platform,hash,size,url,…,"signing"?:{"mode","key_id"?,"public_key_pem"?}}]}` — `signing` for `managed` carries the key id and public key; `customer`/`unsigned` carry the mode only; absent for artifacts registered without it |
+| DELETE | `/apps/{appId}/releases/{releaseId}/artifacts?platform=` | — | 204 · removes one platform (its artifacts and status) from the release, leaving the rest. `platform` required (400). App admin |
 
 Register returns an upload `url` + `upload_method`. The bytes are then uploaded
 (see **Uploads**). The server verifies `sha256(bytes) == hash` and `size`; a
@@ -75,8 +100,10 @@ mismatch fails the artifact (`400` on upload) and the release cannot finalize.
 | Method | Path | Body | Response |
 |---|---|---|---|
 | POST | `/apps/{appId}/patches` | `{"release_id":1,"metadata":{},"notes"?}` | `{"id","number","notes"}` |
-| POST | `/apps/{appId}/patches/{patchId}/artifacts` | multipart: `arch,platform,hash,size,hash_signature?,podfile_lock_hash?` | `{…,"url","upload_method"}` |
-| POST | `/apps/{appId}/patches/promote` | `{"patch_id":1,"channel_id":1}` | 204 · **409** if the patch isn't `ready` |
+| POST | `/apps/{appId}/patches/{patchId}/artifacts` | multipart: `arch,platform,hash,size,hash_signature?,podfile_lock_hash?` | `{…,"url","upload_method"}` · **400** if the release's build on `platform` is `managed` and the request carries `hash_signature`, or is `customer` and it does not (see **Managed patch signing**) |
+| POST | `/apps/{appId}/patches/promote` | `{"patch_id":1,"channel_id":1,"rollout"?:0-100}` | 204 · **400** if `rollout` is outside 0-100 · **409** if the patch isn't `ready` |
+
+> `rollout` (optional, default `100`) added to this row 2026-08-13 — it was undocumented, and it is the only non-admin way to promote straight into a partial rollout (`_promotePatch`). PARITY.md §6 already counts it as part of the built rollout surface.
 | PATCH | `/apps/{appId}/patches/{patchId}` | `{"notes"?}` | `{"id","number","notes"}` |
 
 ### Release & patch notes
@@ -141,6 +168,26 @@ release was built from (#3443) and the `--dart-define` values set at release
 time so a patch can warn when they changed (#3700). This is the storage and
 display half.
 
+**Partly overtaken on the fork side, and worth knowing before anyone implements
+#3700 here.** A Route B release already records its effective define set — but in
+the SHIPPED SUPPLEMENT (`route_b.json`'s `buildConfig`), not in this blob, so the
+server still cannot answer "what defines built this release" and the statement
+above remains true of the API. What exists CLI-side:
+
+* `effectiveDefines` — the user's `--dart-define` and `--dart-define-from-file`
+  values, canonicalized. **This is what compatibility is decided on**, and a patch
+  is refused before compiling when it disagrees.
+* `injectedDefines` — the six Flutter injects into every build
+  (`FLUTTER_VERSION` and siblings). **Deliberately outside the fingerprint** and
+  used only to compile a patch's replacement in the same `-D` environment. See
+  `PARITY.md` §4 `G4.1c`.
+
+So #3700's "warn when they changed" is already a *refusal* on this fork, and
+anyone adding the server-side field should mirror that split rather than
+flattening both maps into one — they answer different questions. The same gap
+`R8` recorded for the engine/cell field applies: the authoritative record lives
+in the on-device artifact rather than on the server.
+
 A patch's `hash` is the **inflated-output** hash (the reconstructed `libapp.so`),
 while the uploaded bytes are a binary diff — so the server verifies only the
 patch's `size`; the device verifies the hash after inflating.
@@ -156,7 +203,34 @@ patch's `size`; the device verifies the hash after inflating.
 
 | Method | Path | Response |
 |---|---|---|
-| GET | `/apps/{appId}/metrics` | `{"patches":[{"patch_number","downloads","installs","install_failures","update_failures","unique_clients"}]}` |
+| GET | `/apps/{appId}/metrics` | `{"patches":[{"patch_number","downloads","installs","install_failures","update_failures","unique_clients"}]}` — plus **top-level** `total_events`, `unique_clients` and an `events_by_type` map, which the handler spreads alongside `patches` (`return _json({...app, 'patches': patches})`). Noted 2026-08-13; `unique_clients` appears at both levels with different meanings — per-app at the top, per-patch inside. |
+
+### Crashes (read, with symbolication)
+
+`GET /api/v1/apps/{appId}/crashes`
+Optional: `release_version`, `patch_number`, `limit` (default 100),
+`symbolicate=true`.
+
+Returns `{ "crashes": [ { id, client_id, release_version, patch_number, platform,
+arch, kind, message, stack, ts, received_at } ] }`.
+
+With `symbolicate=true`, each entry gains **`stack_symbolicated`** — the trace
+resolved against the debug symbols retained for that patch (`arch: symbols`,
+uploaded when the patch was built with `--split-debug-info`). `null` is a normal
+outcome: a crash on an unpatched release has no retained symbols, and symbols may
+be uploaded after a crash arrives. The raw `stack` is always present alongside.
+
+Notable choices:
+
+- **Opt-in**, because resolving costs a fetch, unzip and DWARF parse per distinct
+  patch in the page. Off by default the response is unchanged for existing callers.
+- **Read-time, never ingest-time.** Ingest must stay unfailable, and symbols
+  routinely arrive *after* a crash, so resolving at ingest would permanently miss.
+- **Pure Dart** (`package:native_stack_traces`, the same one `flutter symbolize`
+  uses), which reads both the ELF form (Android) and the Mach-O form (Apple). One
+  implementation covers every platform with no native toolchain in the image —
+  `llvm-symbolizer` and `atos` would only matter for native C/Objective-C frames,
+  which a Dart crash handler does not produce.
 
 ### Uploads
 
@@ -185,19 +259,47 @@ The updater reads `base_url` from the bundled `shorebird.yaml` and calls these �
 ```json
 { "app_id":"<uuid>", "release_version":"1.0.0+1", "platform":"android",
   "arch":"aarch64", "channel":"stable", "client_id":"<uuid>",
-  "patch_number": 0 }
+  "current_patch_number": 1,
+  "supported_patch_kinds": ["code","assets"] }
 ```
+
+> `current_patch_number` is what the pinned updater actually sends, and it is
+> **omitted entirely on a fresh install** rather than sent as `0` (corrected
+> 2026-08-13 — this block documented only `patch_number: 0`). `patch_number` is
+> the LEGACY spelling and is still accepted: the server reads
+> `current_patch_number ?? patch_number ?? 0`. Documenting only the legacy name
+> left `API_REFERENCE.md` and `UPDATER_CONTRACT.md` §2 describing two different
+> request shapes for the same endpoint.
+
 Response:
 ```json
 { "patch_available": true,
   "patch": { "number": 1, "download_url": "…/download/<token>?exp=&sig=",
-             "hash": "<sha256>", "hash_signature": "<base64>|null" },
+             "hash": "<sha256>", "hash_signature": "<base64>|null",
+             "kind": "code" },
   "rolled_back_patch_numbers": [] }
 ```
 A patch is offered only if its artifact is verified, the patch is `ready` (not
 invalidated), an **active** channel-patch makes this `client_id` eligible under
 the current rollout, and its number exceeds the client's. A rolled-back patch's
 number appears in `rolled_back_patch_numbers` (installed devices revert).
+
+**`kind`** (always present) is `code` for the usual patch, or `assets` for a
+patch whose payload is assets and nothing else — the shape that lets the
+engine's asset overlay ship where code cannot, because there is nothing to link
+or interpret.
+
+**`supported_patch_kinds`** (optional, defaults to code-only) is a *capability
+gate, not a hint*. An assets-only patch is offered **only** to a client that
+lists `assets`. A stock updater handed one would try to inflate an asset archive
+as a binary diff against the release snapshot, fail, and tombstone the patch as
+permanently bad for that release — so silence must mean "code only". A
+wrong-typed value is read as no support, failing closed like every other field
+on this endpoint.
+
+Where a patch carries both a code artifact and an asset bundle, `kind` is
+`code`: the bundle rides alongside and is fetched separately via
+`/patches/assets`.
 
 ### Events
 
@@ -207,9 +309,76 @@ number appears in `rolled_back_patch_numbers` (installed devices revert).
   "patch_number":1,"platform":"android","arch":"aarch64",
   "release_version":"1.0.0+1","timestamp":1785000000,"message":null } }
 ```
-Returns `204`. Idempotent (deduped by `client_id|app_id|release_version|
+Returns `204`, or `422` if the event cannot be stored even verbatim (a
+permanent refusal; do not retry). Idempotent (deduped by `client_id|app_id|release_version|
 patch_number|type|timestamp`). Known types: `__patch_download__`,
 `__patch_install__`, plus `__patch_install_failure__` / `__patch_update_failure__`.
+
+**Updated 2026-08-20/23 — a fifth type and a seventh dedupe field.**
+
+* `__patch_boot_lifecycle__` — NON-TERMINAL boot-lifecycle telemetry. Carries five
+  optional fields the server columnises: `outcome` (`ambiguous_boot_retry` |
+  `recovered_after_ambiguity` | `retired_after_ambiguity`),
+  `ambiguous_attempt_count`, `boot_failure_threshold`, `boot_started_at`,
+  `updater_revision`. All are absent from every other type, and a deployment that
+  never receives one is unaffected.
+* **The dedupe key appends `outcome` when it is present**, making it seven fields for
+  lifecycle events and leaving all four older types byte-identical. Required for
+  correctness, not tidiness: a retry and the recovery from that same launch can land
+  in the same timestamp-second, and the six-field key discarded the recovery as a
+  duplicate.
+* These rows feed `Repository.bootLifecycleMetrics()`, which has **no HTTP endpoint
+  today** — it is queried directly. Eligibility is keyed to `updater_revision`
+  (`NULL` is ineligible), and the behaviour is frozen while data is collected:
+  `selfhost/MEASUREMENT_MODE.md`.
+
+### Patch asset bundle
+
+`POST /api/v1/patches/assets`
+```json
+{ "app_id":"<uuid>", "release_version":"1.0.0+1", "platform":"android",
+  "patch_number": 1 }
+```
+Response:
+```json
+{ "assets_available": true,
+  "assets": { "url": "…/download/<token>?exp=&sig=", "hash": "<sha256>",
+              "size": 114524 } }
+```
+Serves the `flutter_assets` overlay attached to a patch, so a patch can change
+assets and not only Dart code. The bundle is an ordinary patch artifact tagged
+`arch: assets` (see [`PLATFORM_MATRIX.md`](PLATFORM_MATRIX.md)); no schema or
+protocol change was needed because `arch` is free-form end to end.
+
+The **native updater never sees this** — it downloads exactly one artifact and
+applies it as a binary diff. App-side Dart fetches the bundle instead
+([`code_push_runtime`](../packages/code_push_runtime)), which is what keeps the
+feature off the engine-build critical path and therefore working on iOS.
+
+Malformed or unknown input answers `{"assets_available": false, "assets": null}`
+rather than erroring: this is polled on launch by app code, and a hard failure
+would be a needless crash path for a purely additive feature. A **rolled-back**
+patch stops serving its assets, or an app that had reverted would keep using the
+newer bundle against older code.
+
+### Crash reports
+
+`POST /api/v1/crashes`
+```json
+{ "app_id":"<uuid>", "client_id":"<uuid>", "release_version":"1.0.0+1",
+  "patch_number": 1, "platform":"android", "arch":"arm64",
+  "kind":"StateError", "message":"Bad state: …",
+  "stack":"*** *** ***\npid: …\n    #00 abs 0000… virt 0000…",
+  "timestamp": 1785000000 }
+```
+Always answers `200 {"stored": <bool>}`. **It never fails**, and swallows
+malformed input on purpose: the client is an app that just died, and making it
+fight 4xx/5xx is a second failure on top of the first. A test named
+`garbage never fails the reporter` guards this.
+
+`arch` matters — it selects which retained symbol file the trace is resolved
+against, and the wrong one resolves every frame to a wrong address. Read back via
+`GET /api/v1/apps/{appId}/crashes` below.
 
 ### Download
 
@@ -292,6 +461,124 @@ added to a company org or onto one of its apps. With a policy set, both
 
 **Roles:** `owner`, `admin`, `appManager`, `developer`, `viewer`.
 
+### Audit log
+
+| Method | Path | Auth | Response |
+|---|---|---|---|
+| GET | `/admin/audit?…` | root-org owner/admin | `{"ceiling",<max id>,"count",n,"events":[…]}` |
+
+The record of every **mutating** control-plane operation — both the patch
+lifecycle and the identity/tenancy state that decides who may touch it: who did
+what to which app/release/patch/user/org, with what outcome, and which request
+caused it. Root-org only — the trail names who shipped what and who was given
+access, across the whole deployment.
+
+Filters, all optional and AND-ed: `app_id`, `release_id`, `patch_id`, `org_id`,
+`target_kind` (`user` | `org` | `invitation` | `api_key`), `target`,
+`request_id`, `operation` (comma-separated), `result`
+(`success` | `refused` | `error`), `after` (exclusive audit id), `since`
+(ISO-8601), `limit` (default 100, max 1000). Rows come back oldest-first. An
+unrecognized `result` or `target_kind` is a **400**, never a silently empty
+answer.
+
+Each event:
+
+| field | meaning |
+|---|---|
+| `id` | monotonic audit id; `ceiling` is the current maximum |
+| `timestamp` | when |
+| `request_id` | the request that caused it — also returned to that caller in `X-Request-Id`, and on its request log line |
+| `kind` | `request` (the outcome of one HTTP request) or `detail` (a sub-fact of one, e.g. `release.ready`) |
+| `operation` | *patch lifecycle:* `app.create`, `release.create`, `release.update`, `release.artifact.create`, `patch.create`, `patch.update`, `patch.promote`, `patch.artifact.create`, `patch.withdraw`, `patch.rollout`, `channel.create`, `artifact.upload`. *identity & tenancy:* `user.create`, `user.register`, `org.invite`, `org.invite.accept`, `org.invite.revoke`, `org.member.role`, `org.member.remove`, `org.domains`, `app.collaborator.add`, `app.collaborator.remove` |
+| `route`, `method` | the route template that matched. Never holds an id, and never an upload token |
+| `actor`, `actor_id` | the account that acted |
+| `actor_credential` | `<kind>:<fingerprint>` — `bootstrap`, `api_key`, `oauth`, `rejected`, `anonymous`, plus 12 hex characters of SHA-256 of the bearer. Distinguishes two keys on one account; never the credential itself |
+| `app_id`, `release_id`, `patch_id`, `patch_number`, `track` | what was operated on, as far as the request got |
+| `org_id` | the organization an identity/tenancy mutation was scoped to |
+| `target_kind`, `target` | the SUBJECT of the mutation, when it isn't an app/release/patch. `user` → a user id or email; `org` → an org id; `invitation` / `api_key` → a **fingerprint**, never the credential. A row with no `target_kind` is a legacy note whose `target` nobody can type |
+| `result` | `success` \| `refused` \| `error`, derived from the response status — a handler cannot assert it |
+| `http_status` | the status the caller received |
+| `detail` | JSON: operation-specific extras (`rollout`, `arch`, `rollback`, `role_before` / `role_after`, `domains_before` / `domains_after`, `api_key_issued`, `account_existed`, …) |
+
+**Exactly one `kind: "request"` row per audited mutating request**, written after
+the outcome is known — including requests refused by rate limiting, by a bad
+credential, or by authorization, none of which reach a handler. Reads write
+nothing at all, so a read cannot appear as a mutation. Never recorded: API keys,
+JWTs, authorization headers, upload tokens, invitation tokens, request bodies.
+
+Access-control mutations bank **both sides** in `detail`, so a quiet privilege
+change is legible rather than merely present — `role_before` / `role_after` on
+memberships and collaborator grants, `domains_before` / `domains_after` on the
+org email policy. A refusal keeps the requested value, so an attempt to grant
+`owner` shows up as an attempt to grant `owner`.
+
+Two things stay outside this table on purpose. `POST /login` and
+`GET /oauth/callback` are **public**, so classifying them would let an
+unauthenticated caller write a row per request; a successful consent still
+records a `login.consent` detail row. And `admin.denied` remains a detail row
+because it also fires for denied *reads* of the operator surface — including
+`GET /admin/audit` itself, which writes no mutation event, so it is the only
+trace of someone probing the trail.
+
+**"Did anyone attempt to create/promote/withdraw a patch for release 142?"**
+
+```bash
+# release-precise
+curl -H "Authorization: Bearer $KEY" \
+  "$BASE/admin/audit?release_id=142&operation=patch.create,patch.promote,patch.withdraw"
+# complete: also catches attempts refused BEFORE the body was parsed, which
+# therefore carry the app but not the release
+curl -H "Authorization: Bearer $KEY" \
+  "$BASE/admin/audit?app_id=$APP&operation=patch.create,patch.promote,patch.withdraw"
+```
+
+**"Who changed access to app X, what did they attempt, and did it succeed?"**
+
+```bash
+curl -H "Authorization: Bearer $KEY" \
+  "$BASE/admin/audit?app_id=$APP&operation=app.collaborator.add,app.collaborator.remove"
+```
+
+Each row names the actor and their credential fingerprint, the person granted or
+removed, the role before and after, and the result — so a refused attempt to
+self-grant `owner` reads as exactly that.
+
+**"What has been done to this account, and which key was issued to it?"**
+
+```bash
+curl -H "Authorization: Bearer $KEY" \
+  "$BASE/admin/audit?target_kind=user&target=someone@example.com"
+curl -H "Authorization: Bearer $KEY" "$BASE/admin/audit?org_id=1&operation=org.member.role"
+```
+
+`user.create` banks `api_key_issued`: 12 hex characters of SHA-256 of the key it
+returned. Fingerprint a key found in a CI config the same way
+(`printf %s "$key" | shasum -a 256 | cut -c1-12`) to find the request that
+issued it — the trail never holds a usable credential. It also banks
+`account_existed`, because that route returns the **existing** account on an
+email conflict, so "a key was issued for an account that already existed" is a
+distinct and more interesting event.
+
+Invitation tokens are fingerprinted the same way, which is what links an
+invitation's `org.invite`, `org.invite.accept` and `org.invite.revoke` rows
+without any of them holding the token.
+
+**Proving something wrote nothing.** Snapshot `ceiling`, run the thing, then ask
+what appeared above it:
+
+```bash
+CEILING=$(curl -sH "Authorization: Bearer $KEY" "$BASE/admin/audit?limit=0" | jq .ceiling)
+# … run the operation you expect to publish nothing …
+curl -sH "Authorization: Bearer $KEY" "$BASE/admin/audit?after=$CEILING&operation=patch.create"
+```
+
+A `count` of 0 is a falsifiable claim only if the same probe would have reported
+a create that *did* happen — so pair it with one known-valid create.
+`selfhost/scripts/audit_qualification.sh` runs exactly that pairing.
+
+Retention is `AUDIT_RETENTION_DAYS` (unset = keep forever). Nothing in the
+server updates or deletes an audit row apart from that purge.
+
 ---
 
 ## Analytics (`/api/v1/apps/{appId}/analytics/*`)
@@ -313,14 +600,48 @@ time-bucketed series need not sum to the window total.
 
 ---
 
+## Managed patch signing
+
+Upstream 1.6.138's `shorebird release` embeds a Shorebird-held public key by
+default and `shorebird patch` then sends no signature. This server plays that
+role:
+
+- **Key scope: one RSA-2048 key per organization**, created on the first
+  `GET /apps/{appId}/signing-key` (migration 14, `signing_keys`). Apps in the
+  org share it; a transferred app keeps using the key its releases embed (the
+  artifact records the key id).
+- **Storage:** the private key is a JWE (`dir` + `A256GCM`) of the private JWK.
+  It is encrypted under `PATCH_SIGNING_KEY_SECRET` (required in production, at
+  least 32 characters; never derived from `URL_SIGNING_SECRET`; the JWE header
+  carries `kid` `v1`). Unset, this route answers 503 naming the variable. It is
+  never logged or returned by any route. Changing the secret makes existing
+  keys unreadable, and the server refuses to boot if a stored key does not
+  decrypt.
+- **Registration:** a release artifact may carry `signing={mode,key_id?}`. Per
+  platform, the release's mode is read back from its artifacts (`platforms`
+  `signing_mode`, artifact `signing`).
+- **Signing a patch** (`POST …/patches/{id}/artifacts`), by the release's mode
+  on that artifact's platform:
+  - `managed`: the server signs `hash` and stores it; a client `hash_signature`
+    is 400.
+  - `customer`: the client must send `hash_signature` (400 otherwise); stored
+    untouched. The server holds no key for it and cannot verify it.
+  - `unsigned`, or nothing reported (every release made before this feature, or
+    by an older CLI): stored exactly as sent, **never server-signed**; those
+    builds embed no managed key.
+- **Algorithm:** RSASSA-PKCS1-v1_5, SHA-256, over the UTF-8 bytes of the patch's
+  lowercase-hex SHA-256 string (not the file), base64. `hash_signature` is
+  returned by `patches/check` from the stored value. See `UPDATER_CONTRACT.md`.
+
 ## Auth / OAuth
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/login?continue=<loopback>` | start `shorebird login`. Self-consent mode returns an API-key form; broker mode redirects to the external IdP. `continue` must be a loopback URL |
-| POST | `/login` | self-consent credential check (form: `continue`, `api_key`); a valid key 302s to `continue` with an auth code, otherwise 401 |
+| GET | `/login?continue=<loopback>` or `/login?response_type=code&client_id=shorebird-cli&redirect_uri=<loopback>&scope=api&state=&code_challenge=&code_challenge_method=S256` | start `shorebird login`. Self-consent mode returns an API-key form; broker mode redirects to the external IdP. The loopback URL (`continue`, or `redirect_uri` from upstream 1.6.138) must be `http://localhost`/`127.0.0.1`/`[::1]`. `state` is echoed on the redirect. A `code_challenge` must be S256 (`plain` is a 400); the login then binds it to the code |
+| POST | `/login` | self-consent credential check (form: `continue`, `api_key`, `code_challenge?`); a valid key 302s to `continue` with an auth code, otherwise 401 |
 | GET | `/oauth/callback` | IdP redirect target; exchanges the IdP code and issues our own auth code |
-| POST | `/token` | exchange auth code / refresh token → `{access_token, refresh_token, …}` (RS256 JWT; codes + refresh tokens are single-use, persisted, rotated) |
+| POST | `/token` | exchange auth code / refresh token → `{access_token, refresh_token, …}` (RS256 JWT; codes + refresh tokens are single-use, persisted, rotated). A code issued for a `code_challenge` needs the matching `code_verifier` (RFC 7636 S256), else 400 `invalid_grant`, and the code is spent; a code issued without a challenge (older CLI) redeems as before. `client_id` and `scope` are accepted and ignored |
+| POST | `/revoke` | RFC 7009 (form `token`): revokes a refresh token, 200 whether or not it was live (upstream 1.6.138 `shorebird logout`) |
 | POST | `/api/logout` | bearer is the refresh token; revokes it |
 | GET | `/.well-known/jwks.json` | public JWKS for verifying issued JWTs |
 

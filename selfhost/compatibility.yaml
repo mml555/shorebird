@@ -1,15 +1,246 @@
+# cspell:words CODEPATCH tearoff selfhost requalification
 # Compatibility manifest — the pinned Shorebird revisions this self-hosted
 # control plane supports. "Current upstream" is NOT a target: a new
 # CLI/updater/engine revision is unsupported until the compatibility suite
 # passes against it. This is the single source of truth for what we build,
 # vendor, and mirror.
 # SUPPORTED — the revision set the compatibility suite has passed against.
+# PROMOTING A REVISION INTO THIS FILE IS GOVERNED BY selfhost/TOOLCHAIN_PROMOTION.md.
+# A pin does not become SUPPORTED because its source is owned and the compatibility
+# suite passes. The owned artifact service must also carry the bootstrap closure for
+# the engine that pin resolves to, proved on a SEALED COLD builder -- that link was
+# missing for the whole programme and warm caches hid it. Closure BEFORE promotion,
+# never discovered after.
 shorebird:
   cli_version: 1.6.115+selfhost.1                                # fork build of upstream 1.6.115
   cli_revision: selfhost-v1.0.0                                  # this repo's baseline tag
-  flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98      # bin/internal/flutter.version (3.44.8 / Dart 3.12.2)
+  flutter_revision: a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61      # bin/internal/flutter.version (3.44.8 / Dart 3.12.2)
+                                                                  # SELFHOST FORK COMMIT, on refs/heads/selfhost/3.44.8
+                                                                  # in the durable mirror. It is upstream c15ef637 plus ONE
+                                                                  # change: compileShorebirdYaml copies channel: into the
+                                                                  # bundled shorebird.yaml. Without it the key is accepted by
+                                                                  # the CLI and silently dropped from the shipped bundle, so a
+                                                                  # project configured for a non-stable track still requests
+                                                                  # stable. Pinned here rather than applied as a local patch
+                                                                  # because a fresh bootstrap must reproduce the supported
+                                                                  # toolchain from owned bytes alone.
+                                                                  # engine.version at this commit is UNCHANGED from c15ef637
+                                                                  # (measured: still 69f9831c), so engine_revision below stands.
   engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b       # shorebirdtech/flutter bin/internal/engine.version
-  updater_revision: 1f85c4ab                                      # vendored at vendor/updater — UNCHANGED across this bump
+                                                                    # ROUTE B USES A DIFFERENT AXIS. This value is the
+                                                                    # general toolchain's engine, and it is also the
+                                                                    # FALLBACK engine recorded in the v2 cell manifest.
+                                                                    # The Route B compiler cell is content-addressed and
+                                                                    # is NOT this revision; the supported cell, its
+                                                                    # archive, analyzer and CLI product trees live in
+                                                                    # engine/route_b/SUPPORTED_STATE.yaml and are re-checked
+                                                                    # by engine/route_b/verify_supported_state.sh.
+                                                                    # Do not reconcile the two by editing either value:
+                                                                    # producer engine, cell address and fallback engine are
+                                                                    # three distinct identities.
+  updater_revision: af6e842ccf87                                  # PROVENANCE OF CONSUMED BYTES.
+                                                                    # RESTAMPED 2026-08-27 for cell 4792f0ec. Full SHA
+                                                                    # af6e842ccf87a083d1598b1e7c9e0868c5731931, durable
+                                                                    # at mml555/shorebird-updater-mirror ref route-b. The
+                                                                    # previous value f729f958e9be is preserved below and
+                                                                    # was correct for cells 2c4443ce and ca7d2c0d.
+                                                                    # WHAT CHANGED: prepare_next_boot() makes boot
+                                                                    # attribution atomic with boot selection, so
+                                                                    # currently_booting_patch is the patch whose path is
+                                                                    # returned. NOT YET in eligibleUpdaterRevisions -- see
+                                                                    # MEASUREMENT_MODE.md; that is a decision, and the
+                                                                    # absent direction under-counts rather than fabricates.
+                                                                    # THESE FOUR ARE DISTINCT IDENTITIES. Do not collapse
+                                                                    # them: the documentation commit is NOT part of the
+                                                                    # built runtime.
+                                                                    # BRANCHES ARE NOT PROVENANCE. route-b and
+                                                                    # selfhost/3.44.8 are transport refs and move; the
+                                                                    # certified source is repository + FULL immutable SHA.
+                                                                    #   evidence      mml555/shorebird
+                                                                    #     3b6a5ab83bd5d36fd022731b67c918be348c57f8
+                                                                    #   control plane mml555/shorebird
+                                                                    #     58b4998007f1736b654e00e9034116f38b459be4
+                                                                    #   engine        mml555/shorebird-flutter
+                                                                    #     619fdad176ff457331b50230b9511e7230a6ed93
+                                                                    #   updater       mml555/shorebird-updater-mirror
+                                                                    #     af6e842ccf87a083d1598b1e7c9e0868c5731931
+                                                                    # The 12-char updater_revision VALUE above is the wire
+                                                                    # form the client stamps into events; it is the
+                                                                    # eligibility key, not the provenance identity.
+                                                                    # 619fdad176ff4573 is the engine_version the mode
+                                                                    # qualification gate read out of all three iOS builds.
+                                                                    # THE CERTIFIED ENGINE COMMIT IS PINNED HERE. A later
+                                                                    # formatting-only commit may advance the branch; this
+                                                                    # field must keep naming the commit whose bytes were
+                                                                    # built and certified, until an actual rebuild and
+                                                                    # requalification happens.
+                                                                    # CELL 2026-08-27: ca7d2c0d -> 4792f0ec. Runtime-only:
+                                                                    # exactly three members moved, all iOS engine modes;
+                                                                    # all ten host producer members byte-identical. See
+                                                                    # evidence/p6-signing/CELL_4792f0ec_AB_MANIFEST.md.
+                                                                    # --- superseded, kept verbatim ---
+  superseded_updater_revision_2026_08_27: f729f958e9be                                  # PROVENANCE OF CONSUMED BYTES.
+                                                                  # RESTAMPED 2026-08-23. The previous value, fe51f225,
+                                                                  # and its whole justification are preserved verbatim
+                                                                  # below under `superseded_updater_revision` — it was
+                                                                  # correct for the 2026-08-20 21:25 run and is NOT
+                                                                  # eligible for lifecycle-policy analysis, because it
+                                                                  # has exact event acknowledgement but predates
+                                                                  # FAILURE ROTATION, so a stuck batch head could still
+                                                                  # censor lifecycle events behind it.
+                                                                  # CELL RESTAMPED 2026-08-25 (third time today) to
+                                                                  # 9b5f040c18a43f6c1c7fae66b7c60d5936cc8b1f.
+                                                                  # P4.4: ONE artifact moved, route_b_analyze.aot
+                                                                  # 422dda43 -> 14538a67, raising the analysis version
+                                                                  # 8 -> 9 and adding a SIGNATURE identity per changed
+                                                                  # member. The producer refuses a target whose shape
+                                                                  # changed, and one whose shape could not be
+                                                                  # established -- not established is not unchanged.
+                                                                  # Everything else is byte-identical to donor
+                                                                  # ac5d3b63. NO RUNTIME DELTA: the same six engine
+                                                                  # artifacts, byte-for-byte; only engine_stamp.json
+                                                                  # re-derives. See APPSTORE_COMPLIANCE.md §7d.
+                                                                  # Qualified the same way: fetched back over HTTP
+                                                                  # (9eaa0baacbcef66f, which differs from donor
+                                                                  # 65a5aba0fbb493de, so not fallback bytes), AUDIT
+                                                                  # CLEAN on all eight members, DELIVERY VERIFIED
+                                                                  # through the consumer path, and 18/18 through the
+                                                                  # REAL producer using the fetched cell -- including a
+                                                                  # shape change refused as TARGET_SIGNATURE_CHANGED
+                                                                  # and its mutation arm showing the same patch
+                                                                  # publishes once nothing is bound.
+                                                                  # Previous cell, kept for rollback:
+                                                                  # ac5d3b63ff0d074a4aa3742acc03c178f4517988.
+                                                                  # CELL RESTAMPED 2026-08-25 (second time today) to
+                                                                  # ac5d3b63ff0d074a4aa3742acc03c178f4517988.
+                                                                  # P4.1: the cell gains an EIGHTH member,
+                                                                  # route_b_release_probe.aot ee144635d144a080, which
+                                                                  # answers per target whether a supported invocation
+                                                                  # site SURVIVED compilation. It is REQUIRED, so the
+                                                                  # previous cell 93a3756 now resolves as INVALID --
+                                                                  # deliberately: an absent gate is indistinguishable
+                                                                  # from a gate that passed.
+                                                                  # NO RUNTIME DELTA, measured not asserted: six of the
+                                                                  # seven engine artifacts are byte-identical to donor
+                                                                  # 93a3756 (ios-release/artifacts.zip 216a326d81688d1a,
+                                                                  # dart-sdk-darwin-arm64.zip bc5948b7e4598f64,
+                                                                  # flutter_patched_sdk.zip 213948fe75b4c7c4,
+                                                                  # flutter_patched_sdk_product.zip 8c59cf50881ad44f,
+                                                                  # darwin-arm64/artifacts.zip 31f88a5e89a56dd4,
+                                                                  # font-subset.zip fea5a7433596604d) and the seventh,
+                                                                  # engine_stamp.json, records the address itself.
+                                                                  # App Store compliance answered as a DELTA re-audit --
+                                                                  # see selfhost/APPSTORE_COMPLIANCE.md §7c.
+                                                                  # Stamped from the FETCHED-BACK bundle over HTTP from
+                                                                  # the mirror (65a5aba0fbb493de, which differs from the
+                                                                  # donor's 54218084b190f059 -- so the fetch is proven
+                                                                  # not to be fallback bytes), AUDIT CLEAN on all eight
+                                                                  # members, and 13/13 through the REAL producer using
+                                                                  # the fetched probe. Not from a build log.
+                                                                  # A LONG-STANDING DEFECT WAS CLOSED IN PASSING: the
+                                                                  # mint's and publish's FLUTTER_PLATFORM defaults both
+                                                                  # pointed at stale paths (a 2026-08-09 published_sdk
+                                                                  # copy 9f5a5f75, and a DIFFERENT out directory's zip
+                                                                  # 757d09d7), while the live lineage carries 099b0313.
+                                                                  # The mint's own gate refused rather than shipping it.
+                                                                  # Both defaults now DERIVE from the zip the mint
+                                                                  # installs, so the address and the download cannot
+                                                                  # disagree; audit check 4b passes for the first time
+                                                                  # on this lineage. Proof the right dill is 099b0313
+                                                                  # and not a third guess: recomputing the SEVEN-file
+                                                                  # manifest with it reproduces 93a3756 exactly.
+                                                                  # Previous cell, kept for rollback:
+                                                                  # 93a375665d637f999bbff028488301a510bb611e.
+                                                                  # A TOOLING-ONLY cell: every engine artifact is
+                                                                  # byte-identical to donor 2c4443ce
+                                                                  # (ios-release/artifacts.zip 216a326d81688d1a,
+                                                                  # dart-sdk-darwin-arm64.zip bc5948b7e4598f64,
+                                                                  # flutter_patched_sdk.zip 213948fe75b4c7c4,
+                                                                  # flutter_patched_sdk_product.zip 8c59cf50881ad44f),
+                                                                  # so the UPDATER and the whole runtime are unchanged
+                                                                  # and this revision still describes what executes.
+                                                                  # Two HOST artifacts moved:
+                                                                  #   dart2bytecode.aot  eb22c50f -> 8dfb3b66
+                                                                  #     the CFE now refuses a `dart:` URI as the target
+                                                                  #     of --resolve-private-names-in-library. Measured
+                                                                  #     consequence on the consumer path: the old cell
+                                                                  #     COMPILES that request, the new one refuses it.
+                                                                  #   route_b_gen_dynamic_interface.aot -> c22680024
+                                                                  #     private classes are represented by exact member
+                                                                  #     grants; construction is opt-in per constructor
+                                                                  #     and granted by default nowhere.
+                                                                  # Stamped from the FETCHED-BACK bundle: all seven
+                                                                  # cell files match the cell manifest by digest, and
+                                                                  # the published generator's output is byte-identical
+                                                                  # to the source generator's. Not from a build log.
+                                                                  # App Store compliance trigger #1 fired and was
+                                                                  # answered as a DELTA re-audit -- see
+                                                                  # selfhost/APPSTORE_COMPLIANCE.md §7b: no runtime
+                                                                  # file changed, so nothing in the execution
+                                                                  # mechanism moved.
+                                                                  # Previous cell, kept for rollback:
+                                                                  # 2c4443cedd654fad8eebd877bbc215edbdd11615
+                                                                  # (arm64 LC_UUID 4C4C4496-5555-3144-A132-BC57AC16BED0),
+                                                                  # registered in selfhost/cdn/experimental_hashes.map,
+                                                                  # published through the normal cell pipeline with the
+                                                                  # fetch-back gate passed and Route B producer tooling
+                                                                  # AUDIT CLEAN.
+                                                                  # Tied mechanically, and to the BYTES rather than a
+                                                                  # build log: f729f958e9be is present in the app's own
+                                                                  # shipped engine alongside REQUEUE_FAILED and
+                                                                  # ACK_EVENT. Verifying the log instead would have
+                                                                  # hidden two real stamp defects (git absent from the
+                                                                  # ninja action's PATH; .git/HEAD unchanged when a
+                                                                  # commit lands on a branch), each of which produces an
+                                                                  # engine that can never match an eligible revision —
+                                                                  # indistinguishable, in the data, from "no eligible
+                                                                  # clients exist".
+                                                                  # Carries exact event acknowledgement AND failure
+                                                                  # rotation: an event is removed only once THAT event
+                                                                  # was sent, and a failed batch rotates so n stuck
+                                                                  # events cannot permanently censor what is behind
+                                                                  # them.
+                                                                  # PAIRS WITH control plane cps-assets:local-m10
+                                                                  # (migration 9 outcome-aware event dedupe +
+                                                                  # migration 10 updater_revision column/index).
+                                                                  # THE HALVES ARE ONLY CORRECT TOGETHER — this was
+                                                                  # learned the expensive way: the client half was once
+                                                                  # published against a local-m9 server that had no
+                                                                  # updater_revision column at all.
+                                                                  # This is the ONLY revision in
+                                                                  # Repository.eligibleUpdaterRevisions. Adding a new
+                                                                  # eligible revision is an explicit act; a missing
+                                                                  # entry UNDER-counts and cannot fabricate a recovery,
+                                                                  # and that direction is deliberate.
+                                                                  # Lifecycle behaviour is FROZEN while collecting —
+                                                                  # see selfhost/MEASUREMENT_MODE.md before changing
+                                                                  # anything on either side of the wire.
+                                                                  # NOTE: vendor/updater/patch (the differ) stays at
+                                                                  # 1f85c4ab — separate crate.
+
+  # Kept verbatim, not deleted: this is the provenance of the 2026-08-20 21:25 run
+  # (layer-3 closure, commit 1092e800) and the reason it is now ineligible is a
+  # PROPERTY OF THE CLIENT CODE, not a mistake in the stamping.
+  superseded_updater_revision: fe51f225                           # PROVENANCE OF CONSUMED BYTES.
+                                                                  # The updater compiled into engine cell
+                                                                  # 986e088019dc7c59a10ab568fd69dccd9b788765
+                                                                  # (arm64 LC_UUID 4C4C4462-5555-3144-A11E-11E07BD5F384),
+                                                                  # fetched back through the CDN path the CLI uses and
+                                                                  # verified coherent on all four surfaces at SDK hash
+                                                                  # 9e8c898a4d, with Route B producer tooling AUDIT CLEAN
+                                                                  # and a real patch build succeeding first.
+                                                                  # Tied mechanically: the ACK_EVENT diagnostic string is
+                                                                  # in the shipped engine and exists at fe51f225 but not
+                                                                  # at its parent.
+                                                                  # Carries the queue-acknowledgement fix: a queued event
+                                                                  # is removed only once THAT EXACT event was sent, so
+                                                                  # events enqueued during a flush are no longer
+                                                                  # destroyed. Pairs with control plane
+                                                                  # cps-assets:local-m9 (schema migration 9 +
+                                                                  # outcome-aware event dedupe); the client and server
+                                                                  # halves are only correct TOGETHER.
+                                                                  # NOTE: vendor/updater/patch (the differ) stays at
+                                                                  # 1f85c4ab — separate crate.
   protocol_version: 0.1.0+1                                       # shorebird_code_push_protocol
 
 # Previous supported set, kept for rollback. Promoted out of here on 2026-07-29
@@ -37,6 +268,9 @@ previous:
 #   - updater_rev identical at both Flutter revisions (see above).
 #   - shorebird_cli suite: 2087 pass on the merged tree.
 #   - code_push_server suite: 193 pass (unchanged; engine-agnostic).
+#     Re-run 2026-08-23: 301 pass on `dart test -x integration` (migrations 1-10
+#     applied). Still engine-agnostic; the growth is the lifecycle telemetry work,
+#     not the pin.
 #
 # NOT re-run for this pin — do before relying on it in anger:
 #   - a `shorebird release`/`patch` through the CDN mirror, which warms lazily
@@ -50,7 +284,7 @@ verification:
                                    # (9 unpublished for this rev), 2.8 GB, second
                                    # pass all HIT. Flow B (aot-tools.dill,
                                    # patch-*.zip, artifacts_manifest.yaml) cached
-                                   # too. Required an nginx fix — see
+                                   # too. Required a CDN redirect fix — see
                                    # selfhost/cdn/README.md.
   device_reverified: true          # 2026-07-29, physical CPH2551 (Android 16,
                                    # arm64-v8a): release built on this pin through
@@ -76,7 +310,35 @@ independence:
                          # artifact the proxy routes is on local disk and a second
                          # pass is all cache HIT. Re-warm only when adopting a new
                          # engine revision.
-  engine_from_source: false  # still consuming Shorebird's prebuilt engine binary.
+  engine_from_source: false  # false = the SUPPORTED pin still consumes Shorebird's
+                             # prebuilt engine. Per-platform reality (2026-08-05):
+                             # Android — PROVEN from source (vanilla Dart + shim,
+                             # device-verified). iOS — PROVEN from source for
+                             # releases + assets patches (engine 70974f81, own
+                             # frontend, device-verified); iOS Dart CODE patches
+                             # are PROVEN — CORRECTED 2026-08-13. This block
+                             # said NOT BUILT, and listed the call-emission
+                             # mode, symbol retention, versioned payload header,
+                             # updater integration and device gate as "all still
+                             # ahead". Every one of those closed between
+                             # 2026-08-09 and 2026-08-11 and the text was never
+                             # revisited, so the file that calls itself the
+                             # single source of truth (line 6) was the most
+                             # pessimistic document in the repo. Actual state:
+                             # `shorebird release ios` -> edit -> `shorebird
+                             # patch ios` -> control plane -> updater -> install
+                             # -> native pre-main activation -> patched Dart ->
+                             # relaunch -> rollback, device-verified, no
+                             # upstream private AOT linker. First full chain on
+                             # release 9.0.0+1 (2026-08-10); producer-generated
+                             # since 19.0.0+1. See selfhost/PARITY.md §2 (twelve
+                             # PROVEN rows). What is NOT proven is the language
+                             # SURFACE a patch may use — PARITY.md §3. Do not
+                             # let this field's `false` be read as covering that
+                             # claim: `false` is about the SUPPORTED pin only.
+                             # The private dart-sdk fork remains unfetchable; the
+                             # engine/000x patches are what make vanilla Dart work.
+                             # Still consuming Shorebird's prebuilt engine binary.
                              # SOURCE is captured (insurance vs. closed-source) and
                              # is CURRENT with the supported pin: vendor/flutter is
                              # re-vendored @ c15ef637 (engine 69f9831c, verified
@@ -89,8 +351,258 @@ independence:
                              # Building the engine still needs a farm — see
                              # selfhost/ENGINE_BUILD.md.
 
+# EXPERIMENTAL — engines we build ourselves, for feature work that has to modify
+# the engine (see selfhost/ENGINE_BUILD.md). These are NOT supported revisions
+# and must never be promoted into `shorebird:` above without the full gate in
+# `policy` below.
+#
+# An experimental engine hash is the git sha of the engine branch it was built
+# from, so the artifact prefix names its own source. Only the artifacts listed
+# under `local_artifacts` are ours; the mirror serves everything else from
+# `falls_back_to`, and 404s rather than substituting stock bytes for an artifact
+# the build was supposed to provide (selfhost/cdn/Caddyfile `@must_be_local`).
+#
+# Valid only while dart_sdk_revision in DEPS is untouched and the snapshot/patch
+# contract is unchanged: gen_snapshot, aot-tools.dill and the patch CLI all come
+# from `falls_back_to`.
+experimental:
+  build_host: hermes-vps           # Azure <build-host>, /data/shorebird-engine (shared
+                                   # with a live Hermes deployment — 4 vCPU, cap ninja -j3)
+  cell: android-arm64-release      # the only platform cell built from source today
+  engines:
+    - hash: 760e3fabffbf31b4e86919a0ef47d6ce5f182991   # 5b1a8965 + the Rust updater's assets-patch support
+      falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
+      flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
+      built: 2026-07-31                                # hermes-vps, incremental, ~3 min
+      changes: |
+        Everything in 5b1a8965 plus the Rust updater half of assets-only
+        patches: PatchKind names the two payload shapes and the installed
+        artifact's filename carries it (dlc.vmcode / dlc.assets), the updater
+        advertises supported_patch_kinds on patches/check, and an assets payload
+        is unpacked into <patch dir>/flutter_assets where the engine resolver
+        reads it. The assets filename must never contain ".vmcode": that
+        substring is how both TryLoadFromPatch and PatchCarriesCode decide
+        whether a patch carries code.
+      verified:
+        compiles: true
+        links: true
+        served_by_mirror: true         # 17-file overlay, verified over HTTPS
+        device_verified: true          # 2026-07-31, physical Android arm64 (USB).
+                                       # A patch with NO code artifact at all
+                                       # (one artifact, arch=assets) was offered
+                                       # only after the updater advertised
+                                       # supported_patch_kinds, installed as
+                                       # dlc.assets, and the app BOOTED with it
+                                       # active — which is itself the proof of the
+                                       # PatchCarriesCode guard, since without it
+                                       # Android clears application_library_paths
+                                       # and nothing is loadable. rootBundle then
+                                       # read {"origin":"ASSETS-ONLY-PATCH"},
+                                       # a path no app-side AssetBundle can
+                                       # intercept. Font and shader stayed at
+                                       # their APK values as controls.
+        corrected_compiler_verified: true
+          # 2026-08-05, physical Android arm64 (CPH2551, USB). Re-verified after
+          # engine/0004+0005+0006 corrected the AOT compiler. THIS ENGINE BINARY
+          # IS UNCHANGED: ninja rebuilt 10 compiler objects and only
+          # linux-x64.zip (host gen_snapshot); artifacts.zip and symbols.zip
+          # were not relinked, and the rebuilt artifacts.zip is byte-identical
+          # to the published copy (ecdcb458…). So the round-trip isolates the
+          # compiler change to one variable.
+          #
+          # release install -> CODEPATCH-V1 patch: null
+          # patch apply     -> CODEPATCH-V2 patch: 1
+          # rollback        -> CODEPATCH-V1 patch: null
+          #
+          # Run against a SEPARATE control plane (cps-android, :18081) so the
+          # iOS rig on :18080 stayed untouched. Engine identity inside the APK
+          # was confirmed by marker, not hash — AGP strips the packaged .so —
+          # via dlc.assets x1 and vmcode x2, with the stock 69f9831c revision
+          # string absent.
+          #
+          # Also republished under this same hash: flutter_patched_sdk.zip. The
+          # 2026-07-31 publish reused the host toolchain from the previous hash,
+          # so this hash had none of its own; that is fine until someone clears
+          # bin/cache/artifacts/engine/common, at which point it 404s. The hash
+          # is now self-contained.
+        retired_patches_verified: true
+          # 2026-08-05, same device. linux-x64.zip republished again after
+          # patches 2 and 3a were RETIRED from 0004/0005 — the IsUsed(),
+          # torn_off and has_tearoff_uses gates all restored to upstream. See
+          # selfhost/TFA_ROOT_CAUSE.md: they were compensating for Shorebird's
+          # forked frontend_server's dill being read by our vanilla backend,
+          # and this box never had that problem — its bin/cache/dart-sdk is
+          # revision 4bd36869, our own tree, because the checkout was
+          # bootstrapped with engine.version already pointing here.
+          #
+          # release install -> CODEPATCH-V2 patch: null   (0.7.0+1)
+          # patch apply     -> CODEPATCH-V3 patch: 1
+          # rollback        -> CODEPATCH-V2 patch: null
+          #
+          # Engine binary unchanged again: only linux-x64.zip moved.
+    - hash: 5b1a89658709b9a0d2e76c6f3d47ad1a26eecdee   # fc184af6 + the assets-only patch guard
+      falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
+      flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
+      built: 2026-07-31                                # hermes-vps, ninja -j3, ~3 min
+                                                       # INCREMENTAL on the reproducible
+                                                       # baseline, not a clean build
+      # Content-addressed, not a source sha: the first 40 hex of the built
+      # libflutter.so's sha256. Only meaningful because the build was proven
+      # reproducible the same day — identical source now yields identical bytes,
+      # so the artifact naming itself is verifiable.
+      changes: |
+        PatchCarriesCode() guard in shell/common/shorebird/shorebird.cc. Android
+        cleared application_library_paths and replaced them with the active patch
+        path; for an assets-only patch, which contains no snapshot, that leaves
+        the loader holding one path to nothing loadable and the app fails to boot.
+        Decided on the ".vmcode" substring, exactly as TryLoadFromPatch decides,
+        so the two cannot disagree. iOS is unaffected: it inserts rather than
+        clears, keeping the base reachable for free.
+      verified:
+        compiles: true
+        links: true                    # shorebird literals present in libflutter.so
+        blast_radius: 1                # of 7,366 objects — only
+                                       # shell/common/shorebird/shorebird.shorebird.o
+                                       # changed. This check is only sound because
+                                       # two clean builds were proven byte-identical.
+        served_by_mirror: true         # 17-file overlay verified 2026-07-31; an ABI
+                                       # we did not build still falls back to pinned
+        device_verified: false         # NOT yet run on device. Needs a release built
+                                       # against this hash on the Linux box, and the
+                                       # box CLI lacks --assets-only (still 1.6.115).
+    - hash: fc184af6509a93eaf6fc068c6820639b324175a8   # dabf1837 + the Route B asset resolver
+      falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
+      flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
+      built: 2026-07-30                                # hermes-vps, ninja -j3, ~6 min
+                                                       # incremental on dabf1837's out/
+      changes: |
+        Engine-level patch assets (Route B). A DirectoryAssetBundle over the
+        running patch's own asset directory is registered AHEAD of the APK's
+        provider, so a patched asset wins with no app opt-in. Five files:
+        Settings::shorebird_patch_assets_path, PatchAssetsPathForPatch() in
+        shell/common/shorebird/, the registration in android_shell_holder.cc
+        (the load-bearing one: Android never calls
+        RunConfiguration::InferFromSettings), the same in run_configuration.cc
+        for embedders that do, and two unit tests.
+      verified:
+        compiles: true                 # 91/91 targets, zero errors
+        links: true                    # marker literal present in libflutter.so
+        served_by_mirror: true         # 17-file overlay, our bytes not stock
+        device_verified: true          # 2026-07-30, physical Android arm64 (USB).
+                                       # An app with NO code_push_runtime
+                                       # dependency, reading via rootBundle,
+                                       # went from {"origin":"APK-baked"} to
+                                       # {"origin":"ENGINE-OVERLAY-patch-2"}.
+                                       # Release AND patch built on the Linux box.
+        fonts_verified: true           # 2026-07-30, same device. A pubspec-declared
+                                       # family rendered in Courier New from the
+                                       # APK, then in Comic Sans from the patch
+                                       # overlay, with only the .ttf bytes swapped
+                                       # (FontManifest.json untouched). Fonts are
+                                       # resolved by the ENGINE, never through an
+                                       # app-side AssetBundle, so this is the case
+                                       # Route A structurally cannot reach and the
+                                       # reason Route B exists.
+        shaders_verified: true         # 2026-07-30, same device. A pubspec-declared
+                                       # fragment shader rendered blue from the APK
+                                       # and red from the overlay. Note: BOTH
+                                       # shaders must be declared under `shaders:`
+                                       # so both compile to iplr — swapping a raw
+                                       # .frag (a plain asset) over a compiled one
+                                       # just yields an unparseable shader.
+      notes: |
+        All three engine-only asset cases verified together in one launch:
+        rootBundle, a declared font, and a declared shader.
+
+        Not reproducible: rebuilding dabf1837's identical source produced a
+        libflutter.so of identical size with a different .text, so an engine
+        change cannot be validated by diffing against a known-good artifact.
+        Every change needs its own device test.
+
+        Building a release against the mirror needs HTTPS or a patched Gradle
+        plugin: Gradle 8+ refuses insecure Maven repositories, which breaks the
+        documented http mirror setup for everyone, not just experimental engines.
+    - hash: dabf1837976819e5da33f3e143c4f628749702da   # shorebirdtech/flutter @ selfhost/experimental
+      branch: selfhost/experimental
+      falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
+      flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
+      dart_vm: 4bd36869145ebc45bb78b604d326f9b8591c3ca8  # OUR fork: vanilla Dart
+                                                         # 3.12.2 (d684a576) + 57 lines.
+                                                         # See selfhost/engine/dart-fork/.
+      built: 2026-07-29                                  # hermes-vps, ninja -j2, ~35 min
+      local_artifacts:
+        - android-arm64-release/artifacts.zip            # 42 MB
+        - android-arm64-release/symbols.zip              # 43 MB
+        - android-arm64-release/linux-x64.zip            # host gen_snapshot, 2 MB
+        - arm64_v8a_release-1.0.0-<hash>.{jar,pom,maven-metadata.xml}   # 43 MB jar
+      changes: none                    # the ENGINE source is stock at this commit; the
+                                       # only difference from 69f9831c is the Dart VM.
+                                       # This build exists to prove the toolchain, not
+                                       # to change behavior. Expect it to behave
+                                       # identically to the pinned engine.
+      verified:
+        gclient_sync: true             # 54 deps, 23 GB, clean
+        compiles: true                 # snapshots_data_handle.o + shorebird.o
+        links: true                    # 5369/5369, zero FAILED:, libflutter.so 14 MB
+                                       # stripped. Our accessors appear as U in the
+                                       # object and the link resolved them; they are
+                                       # absent from nm output exactly as stock
+                                       # Dart_IsKernel is (LTO internalizes both).
+        served_by_mirror: true         # overlay hits for our artifacts, 302 -> pinned
+                                       # hash for the rest, our jar != stock jar
+        device_verified: true          # 2026-07-29, physical CPH2551 (Android 16,
+                                       # arm64-v8a). Release 1.0.2+3 built ON THE
+                                       # LINUX BOX (see host_toolchain below),
+                                       # installed; APK libflutter.so sha256
+                                       # 0da873a2… == our build. Booted, updater
+                                       # reported successful launch. Patch 1
+                                       # (arm64 66.93 KB) downloaded, applied
+                                       # (output_written=3146640b == libapp.so
+                                       # size), and the patched code RAN on the
+                                       # next launch. Withdraw with rollback
+                                       # reverted it on the following launch.
+      host_toolchain:                  # all from OUR tree — a mixed set cannot boot
+        - out/android_release_arm64    # libflutter.so + android gen_snapshot
+        - out/host_release             # dart_sdk + flutter_patched_sdk_product
+        - out/host_debug               # linux-x64/artifacts.zip = frontend_server
+      build_host_constraints:
+        - >-
+          Releases and patches must run on Linux, because our gen_snapshot is
+          linux-x64. A macOS host fetches darwin-x64 gen_snapshot, which only a
+          macOS engine build can produce.
+        - >-
+          --no-tree-shake-icons is required. Icon tree shaking runs const_finder,
+          a kernel snapshot stamped with the SDK hash of the Dart that built it,
+          so ours fails with "Can't load Kernel binary. Invalid SDK hash".
+          Shorebird hit the same wall - font_subset/ConstFinder is commented out
+          of their own linux_build.sh (flutter#164531).
+        - >-
+          Recompile the CLI/flutter tool snapshots whenever the vended Dart
+          changes. Clearing an artifact cache swaps the Dart underneath an
+          already-compiled snapshot and surfaces as "Wrong full snapshot version"
+          on the HOST, which reads like an engine fault but is not.
+        - >-
+          PUBLIC_BASE_URL must be reachable, at the same URL, by both the build
+          host and the device - the server embeds absolute upload/download URLs.
+          A LAN IP cannot satisfy a remote build box; http://localhost:18080 plus
+          an ssh reverse tunnel (box) and adb reverse (device) does.
+    # shape for future entries:
+                                   # - hash: <40-hex sha of the engine branch HEAD>
+                                   #   branch: selfhost/experimental
+                                   #   falls_back_to: 69f9831c360d9152862ec3897c67fb09ae843f3b
+                                   #   flutter_revision: c15ef6379403a0a55531a058bdb2c8e55bc05c98
+                                   #   local_artifacts:
+                                   #     - android-arm64-release/artifacts.zip
+                                   #     - android-arm64-release/symbols.zip
+                                   #     - android-arm64-release/linux-x64.zip
+                                   #     - arm64_v8a_release-1.0.0-<hash>.{jar,pom}
+                                   #   changes: <what this engine does differently, or "none">
+                                   #   device_verified: false
+
 policy: >
   Upgrading any pinned revision is a deliberate, gated process: bump the value
   here, re-vendor/re-mirror as needed, and re-run the CLI-contract + native-updater
   suites (see selfhost/BEHAVIORAL_FINDINGS.md) before declaring the new revision
-  supported.
+  supported. Experimental engines (see `experimental`) are exempt from this gate
+  precisely because they are served under their own hash and are never the
+  supported pin.

@@ -8,22 +8,29 @@ import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/commands/release/release.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
+import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/extensions/string.dart';
+import 'package:shorebird_cli/src/flutter_build_options.dart';
+import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
+import 'package:shorebird_cli/src/patch_verification.dart';
 import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/shorebird_command.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
+import 'package:shorebird_cli/src/runtime_endpoint.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
+import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_cli/src/version.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
@@ -41,6 +48,8 @@ class ReleaseCommand extends ShorebirdCommand {
     argParser
       ..addMultiOption(
         CommonArguments.dartDefineArg.name,
+        abbr: 'D',
+        splitCommas: false,
         help: CommonArguments.dartDefineArg.description,
       )
       ..addMultiOption(
@@ -68,7 +77,7 @@ class ReleaseCommand extends ShorebirdCommand {
       )
       ..addFlag(
         'codesign',
-        help: 'Codesign the application bundle (iOS only).',
+        help: 'Codesign the app bundle or XCFrameworks (iOS and macOS only).',
         defaultsTo: true,
       )
       ..addFlag(
@@ -96,7 +105,10 @@ class ReleaseCommand extends ShorebirdCommand {
         help: '''
 The Flutter version to use when building the app (e.g: 3.16.3).
 This option also accepts Flutter commit hashes (e.g. 611a4066f1).
-Defaults to "latest" which builds using the latest stable Flutter version.''',
+Also accepts the following special values:
+  * "latest" builds using the latest stable Flutter version.
+  * "system" uses the version reported by the `flutter` on your PATH.
+  * "fvm" uses the version fvm resolves for this project.''',
       )
       ..addOption(
         'artifact',
@@ -114,8 +126,6 @@ Defaults to "latest" which builds using the latest stable Flutter version.''',
         abbr: 'p',
         help: 'The platform(s) to build this release for.',
         allowed: ReleaseType.values.map((e) => e.cliName).toList(),
-        // TODO(bryanoltman): uncomment this once https://github.com/dart-lang/args/pull/273 lands
-        // mandatory: true.
       )
       ..addFlag(
         'split-per-abi',
@@ -125,17 +135,23 @@ Defaults to "latest" which builds using the latest stable Flutter version.''',
         hide: true,
         negatable: false,
       )
-      // Added for https://github.com/shorebirdtech/shorebird/issues/3223.
-      // Can be removed fall 2026 or later.
       ..addFlag(
-        'confirm',
+        CommonArguments.confirmArg.name,
+        help: CommonArguments.confirmArg.description,
+        negatable: false,
+        hide: true,
+      )
+      ..addFlag(
+        CommonArguments.noConfirmArg.name,
+        help: CommonArguments.noConfirmArg.description,
+        negatable: false,
         hide: true,
       )
       ..addOption(
         'release-version',
         help: '''
-The version of the associated release (e.g. "1.0.0"). This should be the version
-of the iOS app that is using this module. (aar and ios-framework only)''',
+The version of the Android or iOS app that embeds this module
+(e.g. "$releaseVersionExample"). Required for aar and ios-framework only.''',
       )
       ..addMultiOption(
         'target-platform',
@@ -151,6 +167,11 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
         CommonArguments.publicKeyCmd.name,
         help: CommonArguments.publicKeyCmd.description,
       )
+      ..addFlag(
+        CommonArguments.patchSigningArg.name,
+        defaultsTo: true,
+        help: CommonArguments.patchSigningArg.description,
+      )
       ..addOption(
         CommonArguments.splitDebugInfoArg.name,
         help: CommonArguments.splitDebugInfoArg.description,
@@ -161,18 +182,12 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
         negatable: false,
       )
       ..addOption(
-        'dd-max-bytes',
+        CommonArguments.ddMaxBytesArg.name,
         defaultsTo: '10000',
-        // Hidden from --help: changing this off the default is almost never
-        // the right call for end users. The flag is here for internal
-        // testing of the cascade limiter against patch flows.
         hide: true,
-        help:
-            'Dynamic Dispatch table cascade byte threshold. '
-            'Functions whose transitive caller tree exceeds this many bytes '
-            'are routed through the indirect dispatch table. '
-            'Set to 0 to disable.',
-      );
+        help: CommonArguments.ddMaxBytesArg.description,
+      )
+      ..addFlutterBuildOptions();
   }
 
   late final ResolveReleaser _resolveReleaser;
@@ -185,20 +200,32 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
   String get name => 'release';
 
   @override
+  String get usageFooter => flutterBuildOptionsUsage('release');
+
+  @override
   Future<int> run() async {
-    if (results.releaseTypes.isEmpty) {
-      logger.err(
-        '''No platforms were provided. Use the --platforms argument to provide one or more platforms''',
-      );
-      return ExitCode.usage.code;
+    final releaseTypes = releaseTypesOrUsageError(
+      siblingCommand: 'releases',
+      versionHint: _versionHint,
+    );
+
+    // One Release can carry several platforms, so releases are collected by
+    // id: each platform's pass re-fetches the release, and the last fetch is
+    // the one whose platform statuses are complete.
+    final releases = <int, Release>{};
+    for (final releaseType in releaseTypes) {
+      final release = await createRelease(_resolveReleaser(releaseType));
+      releases[release.id] = release;
     }
 
-    final releaserFutures = results.releaseTypes
-        .map(_resolveReleaser)
-        .map(createRelease);
-
-    for (final future in releaserFutures) {
-      await future;
+    if (isJsonMode) {
+      emitJsonSuccess({
+        'app_id': appId,
+        'platforms': [
+          for (final type in releaseTypes) type.releasePlatform.name,
+        ],
+        'releases': [for (final release in releases.values) release.toJson()],
+      });
     }
 
     return ExitCode.success.code;
@@ -245,20 +272,93 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
     }
   }
 
-  /// Whether to prompt for confirmation before creating the release.
-  bool get confirm => results['confirm'] == true;
-
   /// The shorebird app ID for the current project.
   String get appId => shorebirdEnv.getShorebirdYaml()!.getAppId(flavor: flavor);
 
   /// The build flavor, if provided.
   String? get flavor => results.findOption('flavor', argParser: argParser);
 
+  /// `--release-version` is only valid for aar and ios-framework releases;
+  /// other platforms take their version from `--build-name` and
+  /// `--build-number` (or the pubspec).
+  String? _versionHint(String version) {
+    final platform = results.rest.first;
+    if (platform == ReleaseType.aar.cliName ||
+        platform == ReleaseType.iosFramework.cliName) {
+      return null;
+    }
+    final plus = version.indexOf('+');
+    if (plus == -1) return 'Did you mean --build-name=$version?';
+    return 'Did you mean --build-name=${version.substring(0, plus)} '
+        '--build-number=${version.substring(plus + 1)}?';
+  }
+
   /// The target script, if provided.
-  String? get target => results.findOption('target', argParser: argParser);
+  late final String? target = resolveTarget();
 
   /// The flutter version specified.
   String get flutterVersionArg => results['flutter-version'] as String;
+
+  String? _resolvedFlutterVersionArg;
+
+  /// [flutterVersionArg] with the "system" and "fvm" aliases resolved to a
+  /// concrete Flutter version (e.g. `3.32.4`) by asking that Flutter which
+  /// version it is. Any other value is returned unchanged.
+  ///
+  /// The resolved version is then looked up like any other, so we build with
+  /// Shorebird's fork at the matching version, and a version Shorebird doesn't
+  /// support fails the same way an explicitly requested one does.
+  ///
+  /// The lookup is only performed once per command.
+  Future<String> resolveFlutterVersionArg() async {
+    if (_resolvedFlutterVersionArg case final resolved?) return resolved;
+
+    final String command;
+    final Future<String?> Function() getVersion;
+    switch (flutterVersionArg) {
+      case 'system':
+        command = 'flutter --version';
+        getVersion = shorebirdFlutter.getSystemVersion;
+      case 'fvm':
+        // `getFvmVersion` may ask fvm more than one thing, so name the tool
+        // rather than a single command line.
+        command = 'fvm';
+        getVersion = shorebirdFlutter.getFvmVersion;
+      default:
+        return _resolvedFlutterVersionArg = flutterVersionArg;
+    }
+
+    final String? version;
+    try {
+      version = await getVersion();
+    } on Exception catch (error) {
+      throw CommandError(
+        message:
+            'Unable to determine the Flutter version from `$command`: '
+            '$error',
+        hint: _passFlutterVersionHint,
+        exitCode: ExitCode.software,
+      );
+    }
+
+    if (version == null) {
+      throw CommandError(
+        message:
+            'Unable to parse a Flutter version from the output of `$command`.',
+        hint: _passFlutterVersionHint,
+        exitCode: ExitCode.software,
+      );
+    }
+
+    logger.info('Using Flutter $version, as reported by `$command`.');
+    return _resolvedFlutterVersionArg = version;
+  }
+
+  /// The hint for a `--flutter-version` (`system`, `fvm`) whose version
+  /// could not be read.
+  static const _passFlutterVersionHint =
+      'Pass a version with --flutter-version=<version> instead. '
+      'Run: shorebird flutter versions list';
 
   /// The build name specified via `--build-name`.
   String? get buildName =>
@@ -270,166 +370,446 @@ of the iOS app that is using this module. (aar and ios-framework only)''',
 
   /// The workflow to create a new release for a Shorebird app.
   ///
+  /// Returns the published [Release]. A dry run does not return: it exits
+  /// the process with success once the build has been checked.
+  ///
   /// Expectations for methods invoked by this command:
-  ///  - They perform their own logging. If an error occurs, they are
-  ///    responsible for properly logging the error, cleaning up running
-  ///    [Progress]es, etc.
-  ///  - They handle their own exceptions and exit with a non-zero exit code if
-  ///    an error occurs *instead of* throwing an exception.
+  ///  - They clean up their own [Progress]es when they fail.
+  ///  - They report a failure by throwing a [CommandError] (or a
+  ///    [ProcessExit] when a callee already reported it), never another
+  ///    exception.
   @visibleForTesting
-  Future<void> createRelease(Releaser releaser) async {
+  Future<Release> createRelease(Releaser releaser) async {
     await releaser.assertPreconditions();
     await assertArgsAreValid(releaser);
+    await _validateFlavors(releaser);
 
-    try {
-      await shorebirdValidator.validateFlavors(
-        flavorArg: flavor,
-        releasePlatform: releaser.releaseType.releasePlatform,
-      );
-    } on ValidationFailedException {
-      throw ProcessExit(ExitCode.config.code);
-    }
+    // BEFORE anything is built or fetched. A self-hosted workflow must not be
+    // able to publish a release whose runtime points at upstream Shorebird:
+    // the app would ask api.shorebird.dev for patches to an app that exists
+    // only here, be offered nothing, and report no error. Absence of a
+    // base_url still means "use Shorebird's service" for an upstream workflow,
+    // which this does not touch.
+    runtimeEndpoint.assertShippable();
 
     await cache.updateAll();
 
     // This command handles logging, we don't need to provide our own
     // progress, error logs, etc.
     final app = await codePushClientWrapper.getApp(appId: appId);
-    final targetFlutterRevision = await resolveTargetFlutterRevision();
-    try {
-      await shorebirdFlutter.installRevision(revision: targetFlutterRevision);
-    } on Exception {
-      throw ProcessExit(ExitCode.software.code);
-    }
+    _assertSigningAllowedByPolicy(app);
+    final targetFlutterRevision = await _installTargetFlutter(releaser);
 
-    // If a user explicitly specified --build-name (and optionally
-    // --build-number), we ensure that the version is releasable to avoid
-    // unnecessarily waiting for a build.
-    if (buildName != null) {
-      final version = buildName!;
-      await ensureVersionIsReleasable(
-        version: buildNumber != null ? '$version+$buildNumber' : version,
-        flutterRevision: targetFlutterRevision,
-        releasePlatform: releaser.releaseType.releasePlatform,
-      );
-    }
-
+    // Captured BEFORE entering any scope. Building it inside the override
+    // closure resolves `shorebirdEnv` from the scope being defined, so
+    // copyWith recurses into itself -- that overflowed the stack.
     final releaseFlutterShorebirdEnv = shorebirdEnv.copyWith(
       flutterRevisionOverride: targetFlutterRevision,
     );
+
+    // COHERENCE COMES AFTER SELECTION AND HYDRATION, and the order is the whole
+    // point. It used to run first, against whatever revision happened to be
+    // pinned, and before the target revision's engine artifacts existed -- so a
+    // correctly published cell was refused with
+    // `COHERENCE_UNDETERMINABLE: .../engine/ios-release/gen_snapshot_arm64 is
+    // missing` on a fresh checkout the bootstrap had just created. An absent
+    // engine is not an incoherent one; it is an engine nobody had fetched yet.
+    //
+    // Still BEFORE any artifact is produced, which is what the check is for: a
+    // mixed toolchain ships releases that cannot be patched and kernels that
+    // abort the mandatory profile step, and both were previously discovered
+    // only after publication.
+    //
+    // Asserted against the TARGET revision, not the ambient one, because
+    // --flutter-version may select a different Flutter than the pin.
+    await runScoped(
+      () async => toolchainCoherence.assertCoherent(
+        releasePlatform: releaser.releaseType.releasePlatform,
+      ),
+      values: {shorebirdEnvRef.overrideWith(() => releaseFlutterShorebirdEnv)},
+    );
+
+    await _ensureRequestedVersionIsReleasable(
+      releaser: releaser,
+      flutterRevision: targetFlutterRevision,
+    );
+
     return await runScoped(
-      () async {
-        await cache.updateAll();
-
-        // Set up build tracing for this platform before any flutter build /
-        // aot_tools / gen_snapshot call runs. Version-gated inside
-        // prepareBuildTrace — a no-op on older Flutter pins. Finalized at
-        // the end of finalizeRelease, after upload, so uploaded metadata
-        // reflects the whole command.
-        await artifactBuilder.prepareBuildTrace(
-          platform: releaser.releaseType.releasePlatform.name,
-        );
-
-        final flutterVersionString = await shorebirdFlutter
-            .getVersionAndRevision();
-        logger.info(
-          '''Building ${releaser.artifactDisplayName} with Flutter $flutterVersionString''',
-        );
-        final FileSystemEntity releaseArtifact;
-        try {
-          releaseArtifact = await releaser.buildReleaseArtifacts();
-        } on ArtifactBuildException catch (e) {
-          logger.err(e.message);
-          if (!e.fixRecommendation.isNullOrEmpty) {
-            logger.info(e.fixRecommendation);
-          }
-          throw ProcessExit(ExitCode.software.code);
-        } on Exception catch (e) {
-          logger.err('Failed to build release artifacts: $e');
-          throw ProcessExit(ExitCode.software.code);
-        }
-
-        final releaseVersion = await releaser.getReleaseVersion(
-          releaseArtifactRoot: releaseArtifact,
-        );
-
-        // Ensure we can create a release from what we've built.
-        await ensureVersionIsReleasable(
-          version: releaseVersion,
-          flutterRevision: targetFlutterRevision,
-          releasePlatform: releaser.releaseType.releasePlatform,
-        );
-
-        final dryRun = results['dry-run'] == true;
-        if (dryRun) {
-          logger
-            ..info('No issues detected.')
-            ..info('The server may enforce additional checks.');
-          throw ProcessExit(ExitCode.success.code);
-        }
-
-        await printReleaseSummary(
-          app: app,
-          releaseVersion: releaseVersion,
-          flutterVersion: targetFlutterRevision,
-          releasePlatform: releaser.releaseType.releasePlatform,
-        );
-
-        final release = await getOrCreateRelease(
-          version: releaseVersion,
-          releasePlatform: releaser.releaseType.releasePlatform,
-        );
-        await prepareRelease(release: release, releaser: releaser);
-        await releaser.uploadReleaseArtifacts(release: release, appId: appId);
-        await finalizeRelease(release: release, releaser: releaser);
-
-        logger
-          ..success('''
-
-✅ Published Release ${release.version}!''')
-          ..info(releaser.postReleaseInstructions);
-
-        printPatchInstructions(
-          releaser: releaser,
-          releaseVersion: releaseVersion,
-          releaseType: releaser.releaseType,
-          flavor: flavor,
-          target: target,
-        );
-      },
+      () => _buildAndPublishRelease(
+        releaser: releaser,
+        app: app,
+        flutterRevision: targetFlutterRevision,
+      ),
       values: {shorebirdEnvRef.overrideWith(() => releaseFlutterShorebirdEnv)},
     );
   }
 
+  /// Exits before building if [app]'s enterprise requires patch signing and
+  /// the release would be built without it (`--no-patch-signing`): the
+  /// server refuses such a release, so building it would only waste the
+  /// build.
+  void _assertSigningAllowedByPolicy(AppMetadata app) {
+    if (app.patchSigningRequired != true || results.patchSigningEnabled) {
+      return;
+    }
+    throw CommandError(
+      message:
+          '${app.enterpriseName ?? 'Your enterprise'} requires patch '
+          "signing, so a release can't be built without it.",
+      hint:
+          'Release again without '
+          '--no-${CommonArguments.patchSigningArg.name}.',
+      exitCode: ExitCode.noPerm,
+    );
+  }
+
+  /// Exits with [ExitCode.config] if [flavor] doesn't match the project's
+  /// flavors for [releaser]'s platform.
+  Future<void> _validateFlavors(Releaser releaser) async {
+    try {
+      await shorebirdValidator.validateFlavors(
+        flavorArg: flavor,
+        releasePlatform: releaser.releaseType.releasePlatform,
+      );
+    } on ValidationFailedException catch (e) {
+      throw PreconditionFailedExit(e);
+    }
+  }
+
+  /// Resolves the Flutter revision to release with, installs it, and returns
+  /// it.
+  Future<String> _installTargetFlutter(Releaser releaser) async {
+    final targetFlutterRevision = await resolveTargetFlutterRevision();
+    try {
+      await shorebirdFlutter.installRevision(
+        revision: targetFlutterRevision,
+        releasePlatform: releaser.releaseType.releasePlatform,
+      );
+    } on Exception {
+      throw ProcessExit(ExitCode.software.code);
+    }
+    return targetFlutterRevision;
+  }
+
+  /// If a user explicitly specified --build-name (and optionally
+  /// --build-number), we ensure that the version is releasable to avoid
+  /// unnecessarily waiting for a build.
+  Future<void> _ensureRequestedVersionIsReleasable({
+    required Releaser releaser,
+    required String flutterRevision,
+  }) async {
+    final version = buildName;
+    if (version == null) return;
+    await ensureVersionIsReleasable(
+      version: buildNumber != null ? '$version+$buildNumber' : version,
+      flutterRevision: flutterRevision,
+      releasePlatform: releaser.releaseType.releasePlatform,
+    );
+  }
+
+  /// Builds the release with [flutterRevision] and publishes it. Runs with
+  /// [shorebirdEnv] scoped to [flutterRevision].
+  Future<Release> _buildAndPublishRelease({
+    required Releaser releaser,
+    required AppMetadata app,
+    required String flutterRevision,
+  }) async {
+    await cache.updateAll();
+
+    // After updateAll, so the cache is populated, and before anything invokes
+    // Flutter. A frontend/backend mismatch here builds cleanly and fails on the
+    // device instead.
+    try {
+      dartSdkCompatibility.validate();
+    } on DartSdkMismatchException catch (error) {
+      throw CommandError(message: '$error', exitCode: ExitCode.config);
+    }
+
+    await _assertPatchVerificationChecksSignatures();
+
+    // Set up build tracing for this platform before any flutter build /
+    // aot_tools / gen_snapshot call runs. Version-gated inside
+    // prepareBuildTrace — a no-op on older Flutter pins. Finalized at
+    // the end of finalizeRelease, after upload, so uploaded metadata
+    // reflects the whole command.
+    await artifactBuilder.prepareBuildTrace(
+      platform: releaser.releaseType.releasePlatform.name,
+    );
+
+    final releaseArtifact = await _buildReleaseArtifacts(releaser);
+    final releaseVersion = await releaser.getReleaseVersion(
+      releaseArtifactRoot: releaseArtifact,
+    );
+
+    // Ensure we can create a release from what we've built.
+    await ensureVersionIsReleasable(
+      version: releaseVersion,
+      flutterRevision: flutterRevision,
+      releasePlatform: releaser.releaseType.releasePlatform,
+    );
+
+    if (results['dry-run'] == true) {
+      _exitDryRun(
+        releaser: releaser,
+        releaseVersion: releaseVersion,
+        flutterRevision: flutterRevision,
+      );
+    }
+
+    await printReleaseSummary(
+      app: app,
+      releaseVersion: releaseVersion,
+      flutterVersion: flutterRevision,
+      releasePlatform: releaser.releaseType.releasePlatform,
+      signing: releaser.signing,
+    );
+
+    final release = await _publishRelease(
+      releaser: releaser,
+      releaseVersion: releaseVersion,
+    );
+    return _refreshReleaseForJson(release);
+  }
+
+  /// Exits with [ExitCode.config] if shorebird.yaml asks for
+  /// `patch_verification: install_only` on a Flutter build whose updater
+  /// never checks patch signatures in that mode (since updater#352).
+  /// Runs with [shorebirdEnv] scoped to the release's Flutter revision.
+  Future<void> _assertPatchVerificationChecksSignatures() async {
+    final patchVerification = shorebirdEnv
+        .getShorebirdYaml()
+        ?.patchVerification;
+    if (patchVerification != PatchVerification.installOnly) return;
+    if (!installOnlySkipsSignatureCheck(shorebirdEnv.shorebirdEngineRevision)) {
+      return;
+    }
+    final flutterVersion = await shorebirdFlutter.getVersionAndRevision();
+    final failure = ValidationFailedException(
+      message:
+          '`patch_verification: install_only` in shorebird.yaml does not '
+          'check patch signatures with Flutter $flutterVersion.',
+      hint:
+          'Remove `patch_verification` from shorebird.yaml (or set it to '
+          '`strict`), so patches are verified each time the app launches, or '
+          'release with a Flutter '
+          'version that checks signatures in install_only mode, such as '
+          '--flutter-version=3.41.8.',
+    );
+    logger
+      ..err(failure.message)
+      ..info(failure.hint);
+    throw PreconditionFailedExit(failure);
+  }
+
+  /// Builds the release artifacts, exiting with [ExitCode.software] if the
+  /// build fails.
+  Future<FileSystemEntity> _buildReleaseArtifacts(Releaser releaser) async {
+    final flutterVersionString = await shorebirdFlutter.getVersionAndRevision();
+    logger.info(
+      '''Building ${releaser.artifactDisplayName} with Flutter $flutterVersionString''',
+    );
+    try {
+      return await releaser.buildReleaseArtifacts();
+    } on ArtifactBuildException catch (e) {
+      throw CommandError(
+        message: e.message,
+        hint: e.fixRecommendation.isNullOrEmpty ? null : e.fixRecommendation,
+        exitCode: ExitCode.software,
+      );
+    } on ProcessExit {
+      // A step before the build (such as fetching the patch signing key)
+      // already reported why it stopped, and an ApiErrorExit carries the
+      // server's error for --json.
+      rethrow;
+    } on Exception catch (e) {
+      throw CommandError(
+        message: 'Failed to build release artifacts: $e',
+        exitCode: ExitCode.software,
+      );
+    }
+  }
+
+  /// Reports that a dry run found no issues and exits with success.
+  Never _exitDryRun({
+    required Releaser releaser,
+    required String releaseVersion,
+    required String flutterRevision,
+  }) {
+    if (isJsonMode) {
+      emitJsonSuccess({
+        'dry_run': true,
+        'app_id': appId,
+        'platform': releaser.releaseType.releasePlatform.name,
+        'release_version': releaseVersion,
+        'flutter_revision': flutterRevision,
+      });
+    } else {
+      logger
+        ..info('No issues detected.')
+        ..info('The server may enforce additional checks.');
+    }
+    throw ProcessExit(ExitCode.success.code);
+  }
+
+  /// Creates or reuses the release for [releaseVersion], uploads its
+  /// artifacts, marks it active, and tells the user how to patch it.
+  Future<Release> _publishRelease({
+    required Releaser releaser,
+    required String releaseVersion,
+  }) async {
+    final release = await getOrCreateRelease(
+      version: releaseVersion,
+      releasePlatform: releaser.releaseType.releasePlatform,
+    );
+    await prepareRelease(release: release, releaser: releaser);
+    await releaser.uploadReleaseArtifacts(release: release, appId: appId);
+    await releaser.uploadSupplementArtifact(
+      appId: appId,
+      releaseId: release.id,
+    );
+    await finalizeRelease(release: release, releaser: releaser);
+
+    logger
+      ..success('''
+
+✅ Published Release ${release.version}!''')
+      ..info(releaser.postReleaseInstructions);
+
+    printPatchInstructions(
+      releaser: releaser,
+      releaseVersion: releaseVersion,
+      releaseType: releaser.releaseType,
+      flavor: flavor,
+      target: target,
+    );
+    return release;
+  }
+
+  /// Returns [release] as it is now, for the JSON envelope.
+  ///
+  /// The Release in hand predates finalizeRelease, so its status for this
+  /// platform still reads draft. A caller reading the envelope should see the
+  /// release as it is now, which costs one fetch and is only paid when there
+  /// is an envelope to fill.
+  ///
+  /// Best-effort, because by this point the release is published: a refresh
+  /// that fails must not turn a run that succeeded into a failed one.
+  /// getRelease would do exactly that -- it exits the process, and does it
+  /// with a message about publishing patches, which is not what the user just
+  /// ran. Falling back to the release in hand costs the envelope a stale
+  /// status, no more.
+  Future<Release> _refreshReleaseForJson(Release release) async {
+    if (!isJsonMode) return release;
+    try {
+      final refreshed = await codePushClientWrapper.maybeGetRelease(
+        appId: appId,
+        releaseVersion: release.version,
+      );
+      return refreshed ?? release;
+    } on Exception {
+      return release;
+    }
+  }
+
   /// Validates arguments that are common to all release types.
   Future<void> assertArgsAreValid(Releaser releaser) async {
-    results.assertAbsentOrValidPublicKeyOrCmd();
+    assertPublicKeyArgsValid();
 
     final shorebirdYaml = shorebirdEnv.getShorebirdYaml();
     final hasPublicKey =
         results.wasParsed(CommonArguments.publicKeyArg.name) ||
         results.wasParsed(CommonArguments.publicKeyCmd.name);
-    if (shorebirdYaml?.patchVerification != null && !hasPublicKey) {
+    // REFUSED, not warned, and refused HERE rather than at patch time.
+    //
+    // The self-hosted updater has no production install-time signature
+    // verification: the only code that verifies an InstallOnly patch lives
+    // behind #[cfg(test)]. So a release cut with this mode produces clients
+    // that never verify a patch, whatever a later patch command does -- and a
+    // refusal at patch time cannot repair a client already in the field.
+    //
+    // Checked before the unsigned warning so a command that is going to fail
+    // for an unsupported verification mode does not also emit signing noise.
+    if (shorebirdEnv.hostedEnvironment == null &&
+        shorebirdYaml?.patchVerification == PatchVerification.installOnly) {
+      logger.err(
+        '''
+patch_verification: install_only is unsupported by the self-hosted updater
+because production install-time signature verification is not implemented.
+Use patch_verification: strict.''',
+      );
+      throw ProcessExit(ExitCode.config.code);
+    }
+
+    // A self-hosted control plane has no Shorebird-managed signing key to
+    // embed (see Releaser.resolvePatchSigningKey), so without a key of the
+    // user's own the release verifies nothing: Strict without a public key
+    // skips verification outright. Say so, with the security consequence
+    // rather than the config interaction.
+    if (!hasPublicKey &&
+        shorebirdEnv.hostedEnvironment == null &&
+        results.patchSigningEnabled) {
+      logger.warn(
+        'No patch public key was provided. Patches for this release will not '
+        'be cryptographically verified on the device.\n'
+        'To enable verification, provide '
+        '--${CommonArguments.publicKeyArg.name} or '
+        '--${CommonArguments.publicKeyCmd.name}.',
+      );
+    }
+    if (hasPublicKey && !results.patchSigningEnabled) {
+      usageException(
+        '--no-${CommonArguments.patchSigningArg.name} builds a release whose '
+        'patches are unsigned, so it cannot be combined with '
+        '--${CommonArguments.publicKeyArg.name} or '
+        '--${CommonArguments.publicKeyCmd.name}.',
+      );
+    }
+    if (shorebirdYaml?.patchVerification != null &&
+        !results.patchSigningEnabled) {
       logger.warn(
         'patch_verification is set in shorebird.yaml but '
-        'no public key was provided '
-        '(--${CommonArguments.publicKeyArg.name} '
-        'or --${CommonArguments.publicKeyCmd.name}).\n'
+        '--no-${CommonArguments.patchSigningArg.name} builds a release whose '
+        'patches are unsigned.\n'
         'patch_verification configuration will have no effect.',
       );
     }
 
+    // The Flutter version this release will be built with: the CLI's pinned
+    // revision unless --flutter-version says otherwise.
     final version = await shorebirdFlutter.resolveFlutterVersion(
-      flutterVersionArg,
+      flutterVersionArg == 'latest'
+          ? shorebirdEnv.flutterRevision
+          : await resolveFlutterVersionArg(),
     );
     final minimumFlutterVersion = releaser.minimumFlutterVersion;
-    if (minimumFlutterVersion != null &&
+    if (version != null && version < minimumFlutterVersion) {
+      final cliName = releaser.releaseType.cliName;
+      throw CommandError(
+        message:
+            'At least Flutter $minimumFlutterVersion is required to release '
+            'with `$cliName` (see $supportedFlutterVersionsUrl).',
+        hint: flutterVersionArg == 'latest'
+            ? null
+            : 'Drop --flutter-version to release with the latest supported '
+                  'Flutter. Run: ${releaser.releaseType.releaseCommand()}',
+      );
+    }
+
+    if (releaser.useObfuscation &&
+        patchesLinkAgainstRelease(releaser.releaseType.releasePlatform) &&
         version != null &&
-        version < minimumFlutterVersion) {
-      logger.err('''
-At least Flutter $minimumFlutterVersion is required to release with `${releaser.releaseType.name}`.
-For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
-      throw ProcessExit(ExitCode.usage.code);
+        version < minimumObfuscationFlutterVersion) {
+      throw CommandError(
+        message:
+            'Obfuscation on '
+            '${releaser.releaseType.releasePlatform.displayName} '
+            'requires Flutter $minimumObfuscationFlutterVersion or later '
+            '(current: $version).',
+        hint:
+            'Run: ${releaser.releaseType.releaseCommand()} --obfuscate '
+            '--flutter-version=$minimumObfuscationFlutterVersion',
+        exitCode: ExitCode.unavailable,
+      );
     }
 
     // Ask the releaser to assert its own args are valid.
@@ -443,34 +823,34 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}''');
   Future<String> resolveTargetFlutterRevision() async {
     if (flutterVersionArg == 'latest') return shorebirdEnv.flutterRevision;
 
+    final versionOrHash = await resolveFlutterVersionArg();
+
     // Fetch the latest remote refs so that release branch pointers
     // (e.g. flutter_release/3.38.5) are up to date.
     await shorebirdFlutter.fetchRemoteRefs();
 
     final String? revision;
     try {
-      revision = await shorebirdFlutter.resolveFlutterRevision(
-        flutterVersionArg,
-      );
+      revision = await shorebirdFlutter.resolveFlutterRevision(versionOrHash);
     } on Exception catch (error) {
-      logger.err('''
-Unable to determine revision for Flutter version: $flutterVersionArg.
-$error''');
-      throw ProcessExit(ExitCode.software.code);
+      throw CommandError(
+        message:
+            'Unable to determine the revision for Flutter $versionOrHash: '
+            '$error',
+        hint: 'Run: shorebird flutter versions list',
+        exitCode: ExitCode.software,
+      );
     }
 
     if (revision == null) {
-      final openIssueLink = link(
-        uri: Uri.parse(
-          'https://github.com/shorebirdtech/shorebird/issues/new?assignees=&labels=feature&projects=&template=feature_request.md&title=feat%3A+',
-        ),
-        message: 'open an issue',
+      throw CommandError(
+        message:
+            'Flutter $versionOrHash is not available to Shorebird. To request '
+            'it, open an issue at '
+            'https://github.com/shorebirdtech/shorebird/issues/new.',
+        hint: 'Run: shorebird flutter versions list',
+        exitCode: ExitCode.software,
       );
-      logger.err('''
-Version $flutterVersionArg not found. Please $openIssueLink to request a new version.
-Use `shorebird flutter versions list` to list available versions.
-''');
-      throw ProcessExit(ExitCode.software.code);
     }
 
     return revision;
@@ -514,24 +894,18 @@ Use `shorebird flutter versions list` to list available versions.
           version: existingRelease.flutterVersion,
         );
 
-        logger
-          ..err('''
-${styleBold.wrap(lightRed.wrap('A release with version $version already exists but was built using a different Flutter revision.'))}
-''')
-          ..info(
-            '''
-
-  Existing release built with: ${lightCyan.wrap(formattedExistingReleaseVersion)}
-  Current release built with: ${lightCyan.wrap(formattedCurrentReleaseVersion)}
-
-${styleBold.wrap(lightRed.wrap('All platforms for a given release must be built using the same Flutter revision.'))}
-
-To resolve this issue, you can:
-  * Re-run the release command with "${lightCyan.wrap('--flutter-version=${existingRelease.flutterRevision}')}".
-  * Delete the existing release and re-run the release command with the desired Flutter version.
-  * Bump the release version and re-run the release command with the desired Flutter version.''',
-          );
-        throw ProcessExit(ExitCode.software.code);
+        throw CommandError(
+          message:
+              'Release $version was built with Flutter '
+              '$formattedExistingReleaseVersion, not '
+              '$formattedCurrentReleaseVersion. All platforms of a release '
+              'must use the same Flutter.',
+          hint:
+              'Re-run with '
+              '--flutter-version=${existingRelease.flutterRevision}, or bump '
+              'the release version to use another Flutter.',
+          exitCode: ExitCode.software,
+        );
       }
     }
   }
@@ -542,6 +916,7 @@ To resolve this issue, you can:
     required String releaseVersion,
     required String flutterVersion,
     required ReleasePlatform releasePlatform,
+    ArtifactSigningRequest? signing,
   }) async {
     final flutterVersionString = await shorebirdFlutter.getVersionAndRevision();
     // TODO(bryanoltman): include archs in the summary for android
@@ -552,6 +927,12 @@ To resolve this issue, you can:
       '📦 Release Version: ${lightCyan.wrap(releaseVersion)}',
       '🕹️  Platform: ${lightCyan.wrap(releasePlatform.name)}',
       '🐦 Flutter Version: ${lightCyan.wrap(flutterVersionString)}',
+      if (signing?.mode == ReleaseSigningMode.managed)
+        '🔏 Patch Signing: ${lightCyan.wrap('Shorebird-managed key')}'
+      else if (signing?.mode == ReleaseSigningMode.customer)
+        '🔏 Patch Signing: ${lightCyan.wrap('your key')}'
+      else if (signing?.mode == ReleaseSigningMode.unsigned)
+        '🔏 Patch Signing: ${yellow.wrap('off')}',
     ];
 
     logger.info('''
@@ -561,11 +942,23 @@ ${styleBold.wrap(lightGreen.wrap('🚀 Ready to create a new release!'))}
 ${summary.join('\n')}
 ''');
 
-    if (confirm && shorebirdEnv.canAcceptUserInput) {
-      if (!logger.confirm('Would you like to continue?', defaultValue: true)) {
-        logger.info('Aborting.');
-        throw ProcessExit(ExitCode.success.code);
-      }
+    // A requested confirmation must not approve itself: `logger.confirm`
+    // throws InteractivePromptRequiredException (exit 64) when nothing can
+    // answer, so this refuses rather than publishing unattended.
+    if (results[CommonArguments.confirmArg.name] == true &&
+        !logger.confirm(
+          'Would you like to continue?',
+          defaultValue: true,
+          hint:
+              'Re-run with a TTY, or drop --confirm to proceed without '
+              'confirmation.',
+        )) {
+      // Declining a confirmation the user asked for is not a failure: the
+      // fork's CLI exited 0 with an info line, and scripts that run with
+      // --confirm rely on that. Only the non-TTY refusal above is an error
+      // (exit 64).
+      logger.info('Aborting.');
+      throw ProcessExit(ExitCode.success.code);
     }
   }
 
@@ -624,6 +1017,10 @@ ${summary.join('\n')}
         shorebirdVersion: packageVersion,
         shorebirdYaml: shorebirdEnv.getShorebirdYaml()!,
         usesShorebirdCodePushPackage: shorebirdEnv.usesShorebirdCodePushPackage,
+        // The ENGINE that produced this, so the control plane can say WHICH
+        // engine did — flutterRevision cannot, since two cells can share one
+        // Flutter revision and differ in capability.
+        engineRevision: shorebirdEnv.shorebirdEngineRevision,
       ),
       // Attach the build-trace summary if the build produced one.
       // Null for older Flutter pins without the --shorebird-trace flag

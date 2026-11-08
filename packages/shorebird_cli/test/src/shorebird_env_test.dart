@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
-import 'package:platform/platform.dart';
+import 'package:platform/testing.dart';
 import 'package:pubspec_parse/pubspec_parse.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/json_output.dart';
@@ -13,12 +13,42 @@ import 'package:shorebird_cli/src/shorebird_cli_command_runner.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:test/test.dart';
 
+import 'helpers.dart';
 import 'mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
+  group(CacheCorruptedException, () {
+    test('defaults to advising a full cache wipe', () {
+      const exception = CacheCorruptedException('Could not read a file.');
+
+      expect(
+        exception.toString(),
+        'Could not read a file. Your Shorebird installation may be corrupted. '
+        "Try running 'shorebird cache clean' and retrying.",
+      );
+    });
+
+    test('uses a caller-supplied remedy in place of the wipe', () {
+      const exception = CacheCorruptedException(
+        'Could not move /cache/abc123 aside.',
+        remedy: 'Remove /cache/abc123 and run this command again.',
+      );
+
+      // Wiping the cache takes every other installed revision with it, so a
+      // caller that knows the smaller repair has to be able to say so.
+      expect(
+        exception.toString(),
+        'Could not move /cache/abc123 aside. '
+        'Remove /cache/abc123 and run this command again.',
+      );
+      expect(exception.toString(), isNot(contains('shorebird cache clean')));
+    });
+  });
+
   group(ShorebirdEnv, () {
     const flutterRevision = 'test-flutter-revision';
-    late Platform platform;
+    late TestNativePlatform platform;
     late Directory shorebirdRoot;
     late Uri platformScript;
     late ShorebirdEnv shorebirdEnv;
@@ -41,11 +71,8 @@ void main() {
       File(p.join(shorebirdRoot.path, 'bin', 'internal', 'flutter.version'))
         ..createSync(recursive: true)
         ..writeAsStringSync(flutterRevision, flush: true);
-      platform = MockPlatform();
+      platform = TestNativePlatform(environment: {}, script: platformScript);
       shorebirdEnv = runWithOverrides(ShorebirdEnv.new);
-
-      when(() => platform.environment).thenReturn(const {});
-      when(() => platform.script).thenReturn(platformScript);
     });
 
     group('copyWith', () {
@@ -68,20 +95,29 @@ void main() {
     });
 
     group('configDirectory', () {
-      test('returns correct directory', () {
-        expect(
-          runWithOverrides(() => shorebirdEnv.configDirectory.path),
-          endsWith(executableName),
+      late String home;
+
+      setUp(() {
+        home = Directory.systemTemp.createTempSync().path;
+        platform = platform.copyWith(
+          environment: {
+            'HOME': home,
+            'APPDATA': home,
+            'XDG_CONFIG_HOME': p.join(home, '.config'),
+          },
         );
       });
-    });
 
-    group('logsDirectory', () {
-      test('returns correct directory', () {
-        expect(
-          runWithOverrides(() => shorebirdEnv.logsDirectory.path),
-          endsWith(p.join(executableName, 'logs')),
-        );
+      test("is found from the scoped platform's environment", () {
+        final path = runWithOverrides(() => shorebirdEnv.configDirectory.path);
+        expect(path, endsWith(executableName));
+        expect(p.isWithin(home, path), isTrue);
+      });
+
+      test('holds logsDirectory', () {
+        final path = runWithOverrides(() => shorebirdEnv.logsDirectory.path);
+        expect(path, endsWith(p.join(executableName, 'logs')));
+        expect(p.isWithin(home, path), isTrue);
       });
     });
 
@@ -202,7 +238,7 @@ void main() {
 
     group('dartBinaryFile', () {
       test('returns correct path', () {
-        when(() => platform.isWindows).thenReturn(false);
+        platform = platform.copyWith(operatingSystem: NativePlatform.linux);
         expect(
           runWithOverrides(() => shorebirdEnv.dartBinaryFile.path),
           equals(
@@ -217,7 +253,7 @@ void main() {
             ),
           ),
         );
-        when(() => platform.isWindows).thenReturn(true);
+        platform = platform.copyWith(operatingSystem: NativePlatform.windows);
         expect(
           runWithOverrides(() => shorebirdEnv.dartBinaryFile.path),
           equals(
@@ -253,8 +289,13 @@ void main() {
     group('iosPodfileLockHash', () {
       group('when file does not exist', () {
         test('returns null', () {
+          final projectRoot = Directory.systemTemp.createTempSync();
+          File(p.join(projectRoot.path, 'pubspec.yaml')).createSync();
           expect(
-            runWithOverrides(() => shorebirdEnv.iosPodfileLockHash),
+            IOOverrides.runZoned(
+              () => runWithOverrides(() => shorebirdEnv.iosPodfileLockHash),
+              getCurrentDirectory: () => projectRoot,
+            ),
             isNull,
           );
         });
@@ -340,8 +381,13 @@ void main() {
     group('macosPodfileLockHash', () {
       group('when file does not exist', () {
         test('returns null', () {
+          final projectRoot = Directory.systemTemp.createTempSync();
+          File(p.join(projectRoot.path, 'pubspec.yaml')).createSync();
           expect(
-            runWithOverrides(() => shorebirdEnv.macosPodfileLockHash),
+            IOOverrides.runZoned(
+              () => runWithOverrides(() => shorebirdEnv.macosPodfileLockHash),
+              getCurrentDirectory: () => projectRoot,
+            ),
             isNull,
           );
         });
@@ -380,7 +426,7 @@ void main() {
 
     group('flutterBinaryFile', () {
       test('returns correct path', () {
-        when(() => platform.isWindows).thenReturn(false);
+        platform = platform.copyWith(operatingSystem: NativePlatform.linux);
         expect(
           runWithOverrides(() => shorebirdEnv.flutterBinaryFile.path),
           equals(
@@ -395,7 +441,7 @@ void main() {
             ),
           ),
         );
-        when(() => platform.isWindows).thenReturn(true);
+        platform = platform.copyWith(operatingSystem: NativePlatform.windows);
         expect(
           runWithOverrides(() => shorebirdEnv.flutterBinaryFile.path),
           equals(
@@ -769,11 +815,128 @@ dependencies:
       });
     });
 
+    group('downloadUrl', () {
+      test('defaults to download.shorebird.dev', () {
+        expect(
+          runWithOverrides(() => shorebirdEnv.downloadUrl),
+          equals('https://download.shorebird.dev'),
+        );
+      });
+
+      test('returns SHOREBIRD_DOWNLOAD_URL when set', () {
+        platform = platform.copyWith(
+          environment: {
+            'SHOREBIRD_DOWNLOAD_URL': 'http://localhost:8080',
+          },
+        );
+        expect(
+          runWithOverrides(() => shorebirdEnv.downloadUrl),
+          equals('http://localhost:8080'),
+        );
+      });
+
+      test('strips a trailing slash', () {
+        platform = platform.copyWith(
+          environment: {
+            'SHOREBIRD_DOWNLOAD_URL': 'https://mirror.example.com/sb/',
+          },
+        );
+        expect(
+          runWithOverrides(() => shorebirdEnv.downloadUrl),
+          equals('https://mirror.example.com/sb'),
+        );
+      });
+
+      test('ignores an empty SHOREBIRD_DOWNLOAD_URL', () {
+        platform = platform.copyWith(
+          environment: {'SHOREBIRD_DOWNLOAD_URL': ''},
+        );
+        expect(
+          runWithOverrides(() => shorebirdEnv.downloadUrl),
+          equals('https://download.shorebird.dev'),
+        );
+      });
+
+      test('honors the fork alias FLUTTER_STORAGE_BASE_URL', () {
+        platform = platform.copyWith(
+          environment: {
+            'FLUTTER_STORAGE_BASE_URL': 'https://storage.flutter-io.cn',
+          },
+        );
+        expect(
+          runWithOverrides(() => shorebirdEnv.downloadUrl),
+          equals('https://storage.flutter-io.cn'),
+        );
+      });
+    });
+
+    group('flutterGitUrl', () {
+      test('defaults to the Shorebird Flutter fork on GitHub', () {
+        expect(
+          runWithOverrides(() => shorebirdEnv.flutterGitUrl),
+          equals('https://github.com/shorebirdtech/flutter.git'),
+        );
+      });
+
+      test('returns SHOREBIRD_FLUTTER_GIT_URL when set', () {
+        platform = platform.copyWith(
+          environment: {
+            'SHOREBIRD_FLUTTER_GIT_URL': 'https://git.example.com/flutter.git',
+          },
+        );
+        expect(
+          runWithOverrides(() => shorebirdEnv.flutterGitUrl),
+          equals('https://git.example.com/flutter.git'),
+        );
+      });
+
+      test('ignores an empty SHOREBIRD_FLUTTER_GIT_URL', () {
+        platform = platform.copyWith(
+          environment: {'SHOREBIRD_FLUTTER_GIT_URL': ''},
+        );
+        expect(
+          runWithOverrides(() => shorebirdEnv.flutterGitUrl),
+          equals(defaultFlutterGitUrl),
+        );
+      });
+    });
+
+    group('bundletoolUrl', () {
+      test('defaults to the bundletool GitHub release', () {
+        expect(
+          runWithOverrides(() => shorebirdEnv.bundletoolUrl),
+          equals(defaultBundletoolUrl),
+        );
+      });
+
+      test('returns SHOREBIRD_BUNDLETOOL_URL when set', () {
+        platform = platform.copyWith(
+          environment: {
+            'SHOREBIRD_BUNDLETOOL_URL': 'https://mirror.example.com/bt.jar',
+          },
+        );
+        expect(
+          runWithOverrides(() => shorebirdEnv.bundletoolUrl),
+          equals('https://mirror.example.com/bt.jar'),
+        );
+      });
+
+      test('ignores an empty SHOREBIRD_BUNDLETOOL_URL', () {
+        platform = platform.copyWith(
+          environment: {'SHOREBIRD_BUNDLETOOL_URL': ''},
+        );
+        expect(
+          runWithOverrides(() => shorebirdEnv.bundletoolUrl),
+          equals(defaultBundletoolUrl),
+        );
+      });
+    });
+
     group('hostedUrl', () {
       test('returns hosted url from env if available', () {
-        when(
-          () => platform.environment,
-        ).thenReturn({'SHOREBIRD_HOSTED_URL': 'https://example.com'});
+        platform = platform.copyWith(
+          environment: {'SHOREBIRD_HOSTED_URL': 'https://example.com'},
+        );
         expect(
           runWithOverrides(() => shorebirdEnv.hostedUri),
           equals(Uri.parse('https://example.com')),
@@ -792,6 +955,37 @@ base_url: https://example.com''');
           ),
           equals(Uri.parse('https://example.com')),
         );
+      });
+
+      group('with --dev', () {
+        R runInDevMode<R>(R Function() body) => runScoped(
+          () => runWithOverrides(body),
+          values: {isDevModeRef.overrideWith(() => true)},
+        );
+
+        test('returns the dev server over shorebird.yaml', () {
+          final directory = Directory.systemTemp.createTempSync();
+          File(p.join(directory.path, 'shorebird.yaml')).writeAsStringSync('''
+app_id: test-id
+base_url: https://example.com''');
+          expect(
+            IOOverrides.runZoned(
+              () => runInDevMode(() => shorebirdEnv.hostedUri),
+              getCurrentDirectory: () => directory,
+            ),
+            equals(Uri.parse('https://api-dev.shorebird.dev')),
+          );
+        });
+
+        test('returns hosted url from env if available', () {
+          platform = platform.copyWith(
+            environment: {'SHOREBIRD_HOSTED_URL': 'https://example.com'},
+          );
+          expect(
+            runInDevMode(() => shorebirdEnv.hostedUri),
+            equals(Uri.parse('https://example.com')),
+          );
+        });
       });
 
       test('returns null when there is no env override or shorebird.yaml', () {
@@ -817,10 +1011,19 @@ base_url: https://example.com''');
 
     group('canAcceptUserInput', () {
       late Stdin stdin;
+      late Stdout stdout;
 
       setUp(() {
         stdin = MockStdin();
+        stdout = MockStdout();
+        when(() => stdout.hasTerminal).thenReturn(true);
       });
+
+      bool canAcceptUserInput() => IOOverrides.runZoned(
+        () => runWithOverrides(() => shorebirdEnv.canAcceptUserInput),
+        stdin: () => stdin,
+        stdout: () => stdout,
+      );
 
       group('when stdin has terminal', () {
         setUp(() {
@@ -829,57 +1032,52 @@ base_url: https://example.com''');
 
         group('when not running on CI', () {
           setUp(() {
-            when(() => platform.environment).thenReturn({});
+            platform = platform.copyWith(environment: {});
           });
 
           test('returns true', () {
-            expect(
-              IOOverrides.runZoned(
-                () => runWithOverrides(() => shorebirdEnv.canAcceptUserInput),
-                stdin: () => stdin,
-              ),
-              isTrue,
-            );
+            expect(canAcceptUserInput(), isTrue);
           });
         });
 
         group('when running on CI', () {
           setUp(() {
-            when(() => platform.environment).thenReturn({'CI': ''});
+            platform = platform.copyWith(environment: {'CI': ''});
           });
 
           test('returns false', () {
-            expect(
-              IOOverrides.runZoned(
-                () => runWithOverrides(() => shorebirdEnv.canAcceptUserInput),
-                stdin: () => stdin,
-              ),
-              isFalse,
-            );
+            expect(canAcceptUserInput(), isFalse);
+          });
+        });
+
+        // e.g. stdout redirected to /dev/null, or a PTY with no window size.
+        // mason_logger's prompts require stdout.hasTerminal.
+        group('when stdout has no terminal', () {
+          setUp(() {
+            platform = platform.copyWith(environment: {});
+            when(() => stdout.hasTerminal).thenReturn(false);
+          });
+
+          test('returns false', () {
+            expect(canAcceptUserInput(), isFalse);
           });
         });
       });
 
-      group('when stdin has terminal', () {
+      group('when stdin has no terminal', () {
         setUp(() {
           when(() => stdin.hasTerminal).thenReturn(false);
         });
 
-        test('returns true', () {
-          expect(
-            IOOverrides.runZoned(
-              () => runWithOverrides(() => shorebirdEnv.canAcceptUserInput),
-              stdin: () => stdin,
-            ),
-            isFalse,
-          );
+        test('returns false', () {
+          expect(canAcceptUserInput(), isFalse);
         });
       });
     });
 
     group('authServiceUri', () {
       test('returns default URI when env var is not set', () {
-        when(() => platform.environment).thenReturn({});
+        platform = platform.copyWith(environment: {});
         expect(
           runWithOverrides(() => shorebirdEnv.authServiceUri),
           equals(Uri.parse('https://auth.shorebird.dev')),
@@ -887,9 +1085,11 @@ base_url: https://example.com''');
       });
 
       test('returns URI from env var when set', () {
-        when(() => platform.environment).thenReturn({
-          'AUTH_SERVICE_URL': 'https://custom-auth.example.com',
-        });
+        platform = platform.copyWith(
+          environment: {
+            'AUTH_SERVICE_URL': 'https://custom-auth.example.com',
+          },
+        );
         expect(
           runWithOverrides(() => shorebirdEnv.authServiceUri),
           equals(Uri.parse('https://custom-auth.example.com')),
@@ -897,86 +1097,66 @@ base_url: https://example.com''');
       });
     });
 
-    group('jwtIssuer', () {
-      test('returns default issuer when env var is not set', () {
-        when(() => platform.environment).thenReturn({});
-        expect(
-          runWithOverrides(() => shorebirdEnv.jwtIssuer),
-          equals('https://auth.shorebird.dev'),
-        );
-      });
-
-      test('returns issuer from env var when set', () {
-        when(() => platform.environment).thenReturn({
-          'SHOREBIRD_JWT_ISSUER': 'https://custom-issuer.example.com',
-        });
-        expect(
-          runWithOverrides(() => shorebirdEnv.jwtIssuer),
-          equals('https://custom-issuer.example.com'),
-        );
-      });
-    });
-
     group('isRunningOnCI', () {
       test('returns true if BOT variable is "true"', () {
-        when(() => platform.environment).thenReturn({'BOT': 'true'});
+        platform = platform.copyWith(environment: {'BOT': 'true'});
         expect(runWithOverrides(() => shorebirdEnv.isRunningOnCI), isTrue);
       });
 
       test('returns true if TRAVIS variable is "true"', () {
-        when(() => platform.environment).thenReturn({'TRAVIS': 'true'});
+        platform = platform.copyWith(environment: {'TRAVIS': 'true'});
         expect(runWithOverrides(() => shorebirdEnv.isRunningOnCI), isTrue);
       });
 
       test('returns true if CONTINUOUS_INTEGRATION variable is "true"', () {
-        when(
-          () => platform.environment,
-        ).thenReturn({'CONTINUOUS_INTEGRATION': 'true'});
+        platform = platform.copyWith(
+          environment: {'CONTINUOUS_INTEGRATION': 'true'},
+        );
         expect(runWithOverrides(() => shorebirdEnv.isRunningOnCI), isTrue);
       });
 
       test('returns true if CI variable is set', () {
-        when(() => platform.environment).thenReturn({'CI': ''});
+        platform = platform.copyWith(environment: {'CI': ''});
         expect(runWithOverrides(() => shorebirdEnv.isRunningOnCI), isTrue);
       });
 
       test('returns true if APPVEYOR variable is set', () {
-        when(() => platform.environment).thenReturn({'APPVEYOR': ''});
+        platform = platform.copyWith(environment: {'APPVEYOR': ''});
         expect(runWithOverrides(() => shorebirdEnv.isRunningOnCI), isTrue);
       });
 
       test('returns true if CIRRUS_CI variable is set', () {
-        when(() => platform.environment).thenReturn({'CIRRUS_CI': ''});
+        platform = platform.copyWith(environment: {'CIRRUS_CI': ''});
         expect(runWithOverrides(() => shorebirdEnv.isRunningOnCI), isTrue);
       });
 
       test(
         '''returns true if AWS_REGION and CODEBUILD_INITIATOR variables are set''',
         () {
-          when(
-            () => platform.environment,
-          ).thenReturn({'AWS_REGION': '', 'CODEBUILD_INITIATOR': ''});
+          platform = platform.copyWith(
+            environment: {'AWS_REGION': '', 'CODEBUILD_INITIATOR': ''},
+          );
           expect(runWithOverrides(() => shorebirdEnv.isRunningOnCI), isTrue);
         },
       );
 
       test('returns true if JENKINS_URL variable is set', () {
-        when(() => platform.environment).thenReturn({'JENKINS_URL': ''});
+        platform = platform.copyWith(environment: {'JENKINS_URL': ''});
         expect(runWithOverrides(() => shorebirdEnv.isRunningOnCI), isTrue);
       });
 
       test('returns true if GITHUB_ACTIONS variable is set', () {
-        when(() => platform.environment).thenReturn({'GITHUB_ACTIONS': ''});
+        platform = platform.copyWith(environment: {'GITHUB_ACTIONS': ''});
         expect(runWithOverrides(() => shorebirdEnv.isRunningOnCI), isTrue);
       });
 
       test('returns true if TF_BUILD is set', () {
-        when(() => platform.environment).thenReturn({'TF_BUILD': 'True'});
+        platform = platform.copyWith(environment: {'TF_BUILD': 'True'});
         expect(runWithOverrides(() => shorebirdEnv.isRunningOnCI), isTrue);
       });
 
       test('returns false if no relevant environment variables are set', () {
-        when(() => platform.environment).thenReturn({});
+        platform = platform.copyWith(environment: {});
         expect(runWithOverrides(() => shorebirdEnv.isRunningOnCI), isFalse);
       });
     });

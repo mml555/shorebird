@@ -1,0 +1,26 @@
+classifier    : f0c19701   (trace schema v4)
+target        : package:airgap_probe/main.dart RouteBThing.value
+rc            : 0   attach_entered=1 attach_returned=1
+function      : 0x10783dfc1
+
+FUNCTION fields (what the call instruction loads)
+  entry_point_            0x106671ca8    -> 0x1065a0044
+  unchecked_entry_point_  0x106671ca8    -> 0x1065a0044
+CODE values (kept separate on purpose; v1 mislabelled these)
+  Code                    0x10773cd81    -> 0x106315cb1
+  Code::EntryPoint        0x106671ca8    -> 0x1065a0044
+  Code::UncheckedEntry    0x106671ca8    -> 0x1065a0044
+same-run InterpretCall  : 0x1065a0044
+
+caller identity : NOT MEASURED (no caller supplied). These fields are unavailable, not a zero result — draw nothing from them.
+
+============================================================
+pool offset     : 0xd4a8  -> index 6803 of 15432
+pool entry      : 0x10783dfc1  is_function=1
+
+IDENTITY MATCHES: the exact call-site pool entry IS the patched
+Function.  entry 0x10783dfc1 == patched 0x10783dfc1
+
+Object identity is DISPROVEN as the cause. The contradiction moves
+to how the call loads or observes that object at run time.
+classifier exit: 0 (captured directly, not through a pipe)

@@ -1,21 +1,61 @@
+// cspell:words bidiff
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:code_push_server/src/analytics.dart';
 import 'package:code_push_server/src/artifact_store.dart';
+import 'package:code_push_server/src/audit.dart';
 import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/content_range.dart';
 import 'package:code_push_server/src/db.dart' show asDbBool;
 import 'package:code_push_server/src/domain.dart';
 import 'package:code_push_server/src/oauth.dart';
 import 'package:code_push_server/src/observability.dart';
+import 'package:code_push_server/src/patch_signing.dart';
 import 'package:code_push_server/src/repository.dart';
 import 'package:code_push_server/src/rollout.dart';
 import 'package:code_push_server/src/signing.dart';
+import 'package:code_push_server/src/symbolication.dart';
 import 'package:crypto/crypto.dart';
 import 'package:mime/mime.dart';
 import 'package:shelf/shelf.dart';
+
+/// The path of [url] as it should appear in the request log.
+///
+/// Ordinarily the path ALONE. Query strings on this API carry user data — the
+/// admin surface takes `?email=`, for one — so logging them wholesale would put
+/// personal data into a log that is shipped, tailed, and pasted into issues.
+///
+/// The air-gap fixture's beacon is the deliberate exception, and it is the
+/// reason this function exists. That beacon is a plain unauthenticated GET
+/// whose QUERY STRING *is* the payload: the device fixture reports its rendered
+/// state by asking for `/selfhost-beacon/state?release=…&param=…`, no endpoint
+/// is served (the 403 is the expected response), and the acceptance harness
+/// reads the values back out of this log line. Logging only the path made every
+/// beacon-based device assertion unrunnable — the value arrived and was thrown
+/// away one layer above where it was needed.
+///
+/// Two properties this must keep, because a log line is parsed by machines:
+///   * the query is CLIPPED, so an unbounded URL cannot write an unbounded line;
+///   * bytes outside printable ASCII become `?`, so a caller cannot inject a
+///     newline and forge a second log line. Percent-encoding normally prevents
+///     that on its own; this does not rely on it.
+String loggedRequestPath(Uri url) {
+  const beaconPrefix = 'selfhost-beacon/';
+  const maxQuery = 512;
+
+  final path = url.path;
+  final query = url.query;
+  if (query.isEmpty || !path.startsWith(beaconPrefix)) return path;
+
+  final safe = query
+      .replaceAll(RegExp(r'[^\x20-\x7E]'), '?')
+      .replaceAll('"', '%22');
+  return safe.length > maxQuery
+      ? '$path?${safe.substring(0, maxQuery)}(clipped)'
+      : '$path?$safe';
+}
 
 /// The client's network identity: the socket [remoteIp], or a hop from
 /// `X-Forwarded-For` when [isTrustedProxy] says the peer is one of our own
@@ -93,6 +133,43 @@ String rateLimitKey({String? auth, required String ip}) {
   return 'ip:$ip';
 }
 
+/// Artifacts a release must carry, per platform, before that platform may be
+/// activated.
+///
+/// Derived from every release this server has accepted (ids 1-6 as of
+/// 2026-07-31): Android has always registered exactly these five and iOS exactly
+/// these three. A platform absent from this map is not gated — see the
+/// completeness check in `_updateRelease` for why unknown targets are left alone.
+const _requiredArchs = <String, Set<String>>{
+  // Android requires only the bundle. Everything else is conditional on how the
+  // release was built, which the previous set got wrong by inducting from a
+  // biased sample — every Android release this server had seen at the time was
+  // both obfuscated and single-ABI:
+  //
+  //   * `android_supplement` exists only when `--obfuscate` is passed. It is the
+  //     obfuscation map's home (see `assembleSupplementDirectory`), and the CLI
+  //     does not even create the directory otherwise. Requiring it made a
+  //     non-obfuscated Android release impossible to activate.
+  //   * `arm` / `x86_64` exist only for a multi-ABI release. A
+  //     `--target-platform android-arm64` build produces `aarch64` alone.
+  //
+  // Nor does Android *need* the supplement to be patchable: it applies a bidiff
+  // against the release snapshot and never links, which is what the supplement
+  // serves.
+  'android': {'aab'},
+  'ios': {'xcarchive', 'runner', 'ios_supplement'},
+};
+
+/// Platforms that must ship at least one executable-code artifact.
+///
+/// Separate from [_requiredArchs] because the requirement is "one of these",
+/// not "all of these" — the ABI set depends on `--target-platform`. Without it
+/// an Android release holding only an `aab` would activate, and no patch could
+/// ever be built against it.
+const _requiredAnyArchs = <String, Set<String>>{
+  'android': {'aarch64', 'arm', 'x86_64'},
+};
+
 /// The HTTP surface: the Shorebird CLI/updater wire contract (translated to the
 /// internal domain here), an OAuth auth service (`shorebird login`), and an
 /// authenticated /admin surface (rollout, withdraw/rollback, provisioning).
@@ -100,7 +177,12 @@ class Api {
   Api(this.repo, this.store, this.config, {String? signingKeyJson})
     : oauth = OAuthService(config.jwtIssuer, keyJson: signingKeyJson),
       _signer = UrlSigner(config.urlSigningSecret),
+      _patchSigner = switch (config.patchSigningKeySecret) {
+        null => null,
+        final secret => PatchSigner(secret),
+      },
       _analytics = Analytics(repo.db),
+      _symbolizer = Symbolizer(store: store),
       obs = Observability(json: config.logFormat == 'json');
 
   final Repository repo;
@@ -108,7 +190,46 @@ class Api {
   final Config config;
   final OAuthService oauth;
   final UrlSigner _signer;
+  final PatchSigner? _patchSigner;
+
+  /// The managed-signing key wrapper, or a 503 naming the variable that
+  /// enables it. Never falls back to another secret (see
+  /// [Config.patchSigningKeySecret]).
+  PatchSigner get _requirePatchSigner =>
+      _patchSigner ??
+      (throw DomainException(
+        503,
+        'signing_not_configured',
+        'Managed patch signing is not configured on this server: set '
+            'PATCH_SIGNING_KEY_SECRET (openssl rand -hex 32), back it up, and '
+            'never rotate it without re-wrapping the stored keys.',
+      ));
+
+  /// Boot-time check that every stored managed signing key decrypts under the
+  /// configured secret. Returns a problem to refuse to start with, naming the
+  /// org whose key failed, or null when there are no keys or all decrypt.
+  Future<String?> checkPatchSigningKeys() async {
+    final stored = await repo.allSigningKeys();
+    if (stored.isEmpty) return null;
+    final signer = _patchSigner;
+    if (signer == null) {
+      return 'PATCH_SIGNING_KEY_SECRET is not set, but this database holds '
+          'managed patch-signing keys encrypted under it. Set it to the value '
+          'they were created with.';
+    }
+    for (final key in stored) {
+      if (await signer.canDecrypt(key.privateKeyEncrypted)) continue;
+      return 'PATCH_SIGNING_KEY_SECRET does not decrypt the stored managed '
+          'patch-signing key of organization ${key.orgId} (key id '
+          '${key.id}). It was changed, or the key was created under another '
+          'secret (an older build fell back to URL_SIGNING_SECRET). Restore '
+          'the original value; rotating it strands every key.';
+    }
+    return null;
+  }
+
   final Analytics _analytics;
+  final Symbolizer _symbolizer;
 
   /// Structured logging + Prometheus metrics (exposed at `GET /metrics`).
   final Observability obs;
@@ -159,12 +280,170 @@ class Api {
   }
 
   Handler get handler => const Pipeline()
+      .addMiddleware(_requestIds())
       .addMiddleware(_logRequests())
+      // Outside `_rateLimit` and `_auth` on purpose: a mutation refused by
+      // rate limiting or by a bad credential is exactly the attempt an
+      // operator needs to see, and it never reaches a handler.
+      .addMiddleware(_auditing())
       .addMiddleware(_rateLimit())
       .addMiddleware(_auth())
       .addHandler(_route);
 
   // ---- middleware ----
+
+  /// Shelf context key holding this request's correlation id.
+  static const String _requestIdKey = 'cps.request_id';
+
+  /// This request's correlation id. Also returned to the caller in
+  /// `X-Request-Id` and stored on any audit event the request writes.
+  String _rid(Request req) => req.context[_requestIdKey] as String? ?? '';
+
+  /// The audit accumulator for this request, or null when the route is not a
+  /// mutation the audit trail covers (see [classifyMutation]).
+  ///
+  /// Handlers use it to attribute an event with what the PATH cannot say — a
+  /// new patch's id and number, the release behind a promotion, the app behind
+  /// an upload token. They never decide the OUTCOME: `_auditing` derives that
+  /// from the response.
+  AuditScope? _audit(Request req) =>
+      req.context[AuditScope.contextKey] as AuditScope?;
+
+  Middleware _requestIds() =>
+      (inner) => (req) async {
+        final id =
+            adoptedRequestId(
+              req.headers['x-request-id'],
+              peerIsTrustedProxy: _peerIsTrustedProxy(req),
+            ) ??
+            newRequestId();
+        final res = await inner(req.change(context: {_requestIdKey: id}));
+        return res.change(headers: {'x-request-id': id});
+      };
+
+  /// Whether the socket peer is one of the reverse proxies we configured.
+  /// Shared by `_requestIds` and `_rateLimit`, which must agree.
+  bool _peerIsTrustedProxy(Request req) {
+    if (config.trustsAnyProxy) return true;
+    final conn = req.context['shelf.io.connection_info'];
+    return conn is HttpConnectionInfo &&
+        config.trustsProxy(conn.remoteAddress.address);
+  }
+
+  /// Writes exactly one audit event per mutating request, after the outcome is
+  /// known.
+  ///
+  /// The structure is the guarantee. A handler cannot assert `success` — the
+  /// result is [AuditResult.fromStatus] of the response the server actually
+  /// sent — so a mutation that conflicts, is forbidden, or throws part-way
+  /// cannot leave a success behind. And there is no code path that writes a
+  /// request-outcome event for a route [classifyMutation] does not recognize,
+  /// so a read can never masquerade as a mutation.
+  Middleware _auditing() =>
+      (inner) => (req) async {
+        final route = classifyMutation(req.method, req.url.pathSegments);
+        if (route == null) return inner(req);
+        final scope = AuditScope(
+          requestId: _rid(req),
+          method: req.method,
+          operation: route.operation,
+          route: route.route,
+          appId: route.appId,
+          releaseId: route.releaseId,
+          patchId: route.patchId,
+          orgId: route.orgId,
+          targetKind: route.targetKind,
+          target: route.target,
+        );
+        try {
+          final res = await inner(
+            req.change(context: {AuditScope.contextKey: scope}),
+          );
+          await _writeAuditEvent(scope, res.statusCode);
+          return res;
+        } on Object {
+          // `_route` turns every handler failure into a response, so reaching
+          // here means a middleware faulted. Record the attempt as an error
+          // outcome rather than losing it, then let it propagate.
+          await _writeAuditEvent(scope, HttpStatus.internalServerError);
+          rethrow;
+        }
+      };
+
+  /// Persists [scope] as a request-outcome row and emits it to the log sink.
+  Future<void> _writeAuditEvent(AuditScope scope, int status) async {
+    final result = AuditResult.fromStatus(status);
+    final event = scope.toEvent(
+      result: result,
+      httpStatus: status,
+      at: DateTime.now(),
+    );
+    try {
+      final id = await repo.audit(
+        scope.operation,
+        actor: event['actor'] as String?,
+        actorId: scope.actorId,
+        actorCredential: scope.credential,
+        requestId: scope.requestId,
+        route: scope.route,
+        method: scope.method,
+        appId: event['app_id'] as String?,
+        releaseId: scope.releaseId,
+        patchId: scope.patchId,
+        patchNumber: scope.patchNumber,
+        track: event['track'] as String?,
+        orgId: scope.orgId,
+        targetKind: scope.targetKind?.wireName,
+        target: event['target'] as String?,
+        result: result.name,
+        httpStatus: status,
+        detail: event['detail'] == null ? null : jsonEncode(event['detail']),
+      );
+      obs.audit({'audit_id': id, ...event});
+    } on Object catch (e, st) {
+      obs.auditWriteFailed(event, e, st);
+    }
+  }
+
+  /// Writes a DETAIL row: a sub-fact of the request in [req], correlated to its
+  /// request-outcome event by `request_id`.
+  ///
+  /// Detail rows carry no `result` — they are not the request's outcome, and
+  /// conflating the two is how an audit trail starts lying. They exist because
+  /// some facts are worth recording under their own name (`release.ready`,
+  /// `artifact.superseded`) and were already recorded that way before this
+  /// table became structured.
+  Future<void> _auditDetail(
+    Request req,
+    String operation, {
+    String? target,
+    String? detail,
+    String? appId,
+    int? releaseId,
+    int? patchId,
+  }) async {
+    final scope = _audit(req);
+    try {
+      await repo.audit(
+        operation,
+        actor: '${_uid(req)}',
+        actorId: _uid(req),
+        actorCredential: scope?.credential,
+        target: target,
+        detail: detail == null ? null : auditSafeText(detail),
+        requestId: _rid(req),
+        appId: appId ?? scope?.appId,
+        releaseId: releaseId ?? scope?.releaseId,
+        patchId: patchId ?? scope?.patchId,
+      );
+    } on Object catch (e, st) {
+      obs.auditWriteFailed(
+        {'request_id': _rid(req), 'operation': operation, 'target': target},
+        e,
+        st,
+      );
+    }
+  }
 
   Middleware _logRequests() =>
       (inner) => (req) async {
@@ -175,9 +454,10 @@ class Api {
           sw.stop();
           obs.request(
             req.method,
-            req.url.path,
+            loggedRequestPath(req.url),
             res.statusCode,
             sw.elapsedMilliseconds,
+            requestId: _rid(req),
           );
           return res;
         } finally {
@@ -279,10 +559,14 @@ class Api {
     if (seg.isNotEmpty && seg[0] == 'console') return true; // static UI
     if (seg.first == 'download') return true;
     // Auth-service endpoints (no bearer yet at login time).
-    if (seg.length == 1 && (seg[0] == 'login' || seg[0] == 'token')) {
+    if (seg.length == 1 &&
+        (seg[0] == 'login' || seg[0] == 'token' || seg[0] == 'revoke')) {
       return true;
     }
     if (seg.length == 2 && seg[0] == 'oauth' && seg[1] == 'callback') {
+      return true;
+    }
+    if (seg.length == 2 && seg[0] == 'cli' && seg[1] == 'login-result') {
       return true;
     }
     if (seg.length == 2 && seg[0] == 'api' && seg[1] == 'logout') return true;
@@ -290,19 +574,29 @@ class Api {
       return true;
     }
     final tail = seg.first == 'api' && seg.length > 2 ? seg.sublist(2) : seg;
+    // The device surface carries no bearer: apps in the wild only know their
+    // app_id. `assets` joins it for the same reason — it is asked by app-side
+    // Dart on launch, which has no credential either, and it answers only for a
+    // patch number the caller already names.
+    if (tail.length == 1 && tail[0] == 'crashes') return true;
     return tail.length == 2 &&
         tail[0] == 'patches' &&
-        (tail[1] == 'check' || tail[1] == 'events');
+        (tail[1] == 'check' || tail[1] == 'events' || tail[1] == 'assets');
   }
 
   Middleware _auth() =>
       (inner) => (req) async {
         if (_isPublic(req.url.pathSegments)) return inner(req);
+        // The audit scope, when there is one, is a mutable object already in
+        // the context — so this middleware can attribute the event even though
+        // `_auditing` sits OUTSIDE it and may be about to record a refusal.
+        final scope = _audit(req);
         final auth = req.headers['authorization'];
         final key = (auth != null && auth.startsWith('Bearer '))
             ? auth.substring('Bearer '.length)
             : null;
         if (key == null || key.isEmpty) {
+          scope?.identify(kind: CredentialKind.anonymous);
           return _err(
             HttpStatus.forbidden,
             'forbidden',
@@ -310,14 +604,18 @@ class Api {
           );
         }
         int? userId;
+        var kind = CredentialKind.rejected;
+        String? email;
         if (key.split('.').length == 3) {
           // Looks like a JWT (OAuth login credential): verify and map to a user.
-          final email = await oauth.emailFromToken(key);
-          if (email != null) {
+          final tokenEmail = await oauth.emailFromToken(key);
+          if (tokenEmail != null) {
             final user =
-                await repo.userByEmail(email) ??
-                await repo.upsertUser(email, null);
+                await repo.userByEmail(tokenEmail) ??
+                await repo.upsertUser(tokenEmail, null);
             userId = user.id;
+            email = user.email;
+            kind = CredentialKind.oauth;
           }
         } else if (config.bootstrapApiKey.isNotEmpty &&
             key == config.bootstrapApiKey) {
@@ -325,8 +623,19 @@ class Api {
           // `Authorization: Bearer ` header would otherwise match here and
           // authenticate the caller as the seeded owner.
           userId = 1;
+          kind = CredentialKind.bootstrap;
         } else {
           userId = await repo.userIdForApiKey(key);
+          if (userId != null) kind = CredentialKind.apiKey;
+        }
+        // Fingerprinted, never stored: `identify` keeps 12 hex characters of
+        // SHA-256 so two keys on one account are distinguishable actors, and a
+        // rejected bearer is still attributable to whoever keeps presenting it.
+        if (scope != null) {
+          if (email == null && userId != null) {
+            email = (await repo.userById(userId))?.email;
+          }
+          scope.identify(userId: userId, email: email, kind: kind, bearer: key);
         }
         if (userId == null) {
           return _err(HttpStatus.forbidden, 'forbidden', 'Invalid credentials');
@@ -427,6 +736,12 @@ class Api {
     if (seg.isNotEmpty && seg[0] == 'console' && m == 'GET') return _console();
 
     // OAuth auth service (shorebird login).
+    if (seg.length == 2 &&
+        seg[0] == 'cli' &&
+        seg[1] == 'login-result' &&
+        m == 'GET') {
+      return _cliLoginResult(req);
+    }
     if (seg.length == 1 && seg[0] == 'login' && m == 'GET') return _login(req);
     if (seg.length == 1 && seg[0] == 'login' && m == 'POST') {
       return _loginSubmit(req);
@@ -438,6 +753,9 @@ class Api {
       return _oauthCallback(req);
     }
     if (seg.length == 1 && seg[0] == 'token' && m == 'POST') return _token(req);
+    if (seg.length == 1 && seg[0] == 'revoke' && m == 'POST') {
+      return _revoke(req);
+    }
     if (seg.length == 2 &&
         seg[0] == 'api' &&
         seg[1] == 'logout' &&
@@ -452,6 +770,10 @@ class Api {
     if (devTail.length == 2 && devTail[0] == 'patches' && m == 'POST') {
       if (devTail[1] == 'check') return _patchesCheck(req);
       if (devTail[1] == 'events') return _patchesEvents(req);
+      if (devTail[1] == 'assets') return _patchesAssets(req);
+    }
+    if (devTail.length == 1 && devTail[0] == 'crashes' && m == 'POST') {
+      return _crashesReport(req);
     }
 
     if (seg.isNotEmpty && seg[0] == 'admin') return _admin(req, seg.sublist(1));
@@ -467,6 +789,12 @@ class Api {
 
     if (seg.length == 1 && seg[0] == 'organizations' && m == 'GET') {
       return _organizations(req);
+    }
+    if (seg.length == 3 &&
+        seg[0] == 'organizations' &&
+        seg[2] == 'apps' &&
+        m == 'POST') {
+      return _transferApp(req, _pathId(seg[1], 'organization id'));
     }
     if (seg.length == 2 && seg[0] == 'users' && seg[1] == 'me' && m == 'GET') {
       return _usersMe(req);
@@ -507,11 +835,25 @@ class Api {
 
     if (seg.length >= 2 && seg[0] == 'apps') {
       final appId = seg[1];
-      await _authorizeApp(req, appId);
       final rest = seg.sublist(2);
+      // Upstream 1.6.138 reads. An app the caller cannot see answers 404, the
+      // same as one that does not exist, so a probe cannot learn which app ids
+      // are real (every other app route predates this and answers 403).
+      if (m == 'GET' &&
+          (rest.isEmpty || (rest.length == 1 && rest[0] == 'signing-key'))) {
+        if (!await repo.userCanAccessApp(_uid(req), appId)) {
+          throw notFound('App not found');
+        }
+        return rest.isEmpty ? _getApp(appId) : _getSigningKey(appId);
+      }
+      await _authorizeApp(req, appId);
+      if (rest.isEmpty && m == 'PATCH') return _renameApp(req, appId);
       if (rest.length == 1 && rest[0] == 'channels') {
         if (m == 'GET') return _getChannels(appId);
         if (m == 'POST') return _createChannel(req, appId);
+      }
+      if (rest.length == 2 && rest[0] == 'channels' && m == 'DELETE') {
+        return _deleteChannel(req, appId, _pathId(rest[1], 'channel id'));
       }
       if (rest.length == 1 && rest[0] == 'metrics' && m == 'GET') {
         return _metrics(appId);
@@ -604,6 +946,9 @@ class Api {
       if (rest.length == 2 && rest[0] == 'patches' && m == 'PATCH') {
         return _updatePatch(req, appId, _pathId(rest[1], 'patch id'));
       }
+      if (rest.length == 1 && rest[0] == 'crashes' && m == 'GET') {
+        return _getCrashes(req, appId);
+      }
       if (rest.length == 1 && rest[0] == 'releases') {
         if (m == 'POST') return _createRelease(req, appId);
         if (m == 'GET') return _getReleases(appId);
@@ -611,8 +956,14 @@ class Api {
       if (rest.length == 2 && rest[0] == 'releases' && m == 'PATCH') {
         return _updateRelease(req, appId, _pathId(rest[1], 'release id'));
       }
+      if (rest.length == 2 && rest[0] == 'releases' && m == 'DELETE') {
+        return _deleteRelease(req, appId, _pathId(rest[1], 'release id'));
+      }
       if (rest.length == 3 && rest[0] == 'releases' && rest[2] == 'artifacts') {
         final releaseId = _pathId(rest[1], 'release id');
+        if (m == 'DELETE') {
+          return _deleteReleasePlatform(req, appId, releaseId);
+        }
         if (m == 'POST') return _createReleaseArtifact(req, appId, releaseId);
         if (m == 'GET') return _getReleaseArtifacts(req, appId, releaseId);
       }
@@ -621,6 +972,29 @@ class Api {
           rest[2] == 'patches' &&
           m == 'GET') {
         return _getReleasePatches(appId, _pathId(rest[1], 'release id'));
+      }
+      // Upstream 1.6.123 `shorebird patches rollback` / `rollforward`.
+      if (rest.length == 5 &&
+          rest[0] == 'releases' &&
+          rest[2] == 'patches' &&
+          m == 'POST') {
+        final releaseId = _pathId(rest[1], 'release id');
+        final patchId = _pathId(rest[3], 'patch id');
+        if (rest[4] == 'rollback') {
+          return _rollbackPatch(req, appId, releaseId, patchId);
+        }
+        if (rest[4] == 'rollforward') {
+          // Intentionally unsupported: withdrawal is terminal here
+          // (`_channelPatchNext`), and upstream's rollforward reactivates a
+          // rolled-back patch. See selfhost/upstream/ADOPTION-1.6.123.md §3.
+          throw DomainException(
+            HttpStatus.notImplemented,
+            'unsupported',
+            'Rollforward is not supported by this self-hosted server: a '
+                'rolled-back patch is withdrawn permanently. Publish a new '
+                'patch instead.',
+          );
+        }
       }
     }
 
@@ -640,13 +1014,33 @@ class Api {
   /// operator against an API key: the browser gets a form, and only a correct
   /// key yields an auth code. The identity is then whatever that key is bound
   /// to — never anything supplied in the request.
+  ///
+  /// Two spellings of the same request are accepted. The older CLI sends
+  /// `continue`. Upstream 1.6.138 sends a standard authorization-code request
+  /// (RFC 6749 + PKCE, RFC 7636): `redirect_uri`, `state`, `code_challenge`
+  /// and `code_challenge_method=S256`. `state` is echoed back on the redirect;
+  /// the challenge is bound to the issued code and checked at `/token`.
   Future<Response> _login(Request req) async {
-    final cont = req.url.queryParameters['continue'];
+    final q = req.url.queryParameters;
+    final cont = _loginContinue(q['continue'], q['redirect_uri'], q['state']);
     if (cont == null || !_safeContinue(cont)) {
       return _err(
         HttpStatus.badRequest,
         'bad_request',
-        'A loopback `continue` URL is required',
+        'A loopback `continue` or `redirect_uri` URL is required',
+      );
+    }
+    final challenge = _codeChallenge(
+      q['code_challenge'],
+      q['code_challenge_method'],
+    );
+    // The `redirect_uri` spelling is the standard authorization-code request,
+    // and PKCE is what binds its code to the login that asked for it, so it
+    // is required there. Only the legacy `continue` spelling, which the
+    // oldest CLIs send, may go without.
+    if (q['continue'] == null && challenge == null) {
+      throw badRequest(
+        'code_challenge (PKCE, S256) is required with redirect_uri',
       );
     }
 
@@ -658,6 +1052,7 @@ class Api {
         state,
         cont,
         DateTime.now().add(const Duration(minutes: 10)),
+        codeChallenge: challenge,
       );
       final authUri = Uri.parse(config.idpAuthorizeUrl).replace(
         queryParameters: {
@@ -671,7 +1066,39 @@ class Api {
       return Response.found(authUri.toString());
     }
 
-    return _loginFormResponse(cont);
+    return _loginFormResponse(cont, challenge: challenge);
+  }
+
+  /// GET `/cli/login-result?status=success|failed`: where the CLI sends the
+  /// browser once its loopback listener has seen the login finish. Public and
+  /// static: only `status == success` is honoured, and nothing from the
+  /// request is reflected into the page.
+  Response _cliLoginResult(Request req) {
+    final ok = req.url.queryParameters['status'] == 'success';
+    final title = ok ? 'You are logged in' : 'Login did not complete';
+    final detail = ok
+        ? 'You are logged in. You can close this tab and return to your '
+              'terminal.'
+        : 'The login did not complete. Return to your terminal for the '
+              'reason, then run <code>shorebird login</code> again.';
+    return Response(
+      HttpStatus.ok,
+      body:
+          '''
+<!doctype html><html><head><meta charset="utf-8"><title>$title</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+ body{font:15px/1.5 system-ui,sans-serif;margin:0;display:grid;place-items:center;
+      min-height:100vh;background:#f6f7f9;color:#222}
+ main{background:#fff;padding:2rem;border-radius:12px;box-shadow:0 1px 4px #0002;width:min(26rem,90vw)}
+ h1{font-size:1.15rem;margin:0 0 .5rem}
+</style></head><body><main><h1>$title</h1><p>$detail</p></main></body></html>
+''',
+      headers: {
+        HttpHeaders.contentTypeHeader: 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+      },
+    );
   }
 
   /// POST `/login` (form-encoded `continue` + `api_key`): the self-consent
@@ -680,6 +1107,7 @@ class Api {
   Future<Response> _loginSubmit(Request req) async {
     final form = Uri.splitQueryString(await _readText(req));
     final cont = form['continue'];
+    final challenge = _codeChallenge(form['code_challenge'], 'S256');
     if (cont == null || !_safeContinue(cont)) {
       return _err(
         HttpStatus.badRequest,
@@ -702,7 +1130,11 @@ class Api {
       // default retention — the same unbounded growth the housekeeping sweeps
       // exist to prevent. The structured log is where auth failures belong.
       obs.info('login denied', {'reason': 'invalid api key'});
-      return _loginFormResponse(cont, error: 'That API key was not accepted.');
+      return _loginFormResponse(
+        cont,
+        challenge: challenge,
+        error: 'That API key was not accepted.',
+      );
     }
 
     final code = OAuthService.randomToken('sb_code_');
@@ -710,8 +1142,9 @@ class Api {
       code,
       email,
       DateTime.now().add(const Duration(minutes: 5)),
+      codeChallenge: challenge,
     );
-    await repo.audit('login.consent', actor: email);
+    await repo.audit('login.consent', actor: email, requestId: _rid(req));
     final sep = cont.contains('?') ? '&' : '?';
     return Response.found('$cont${sep}code=$code');
   }
@@ -748,13 +1181,59 @@ class Api {
         uri.host == '::1';
   }
 
-  Response _loginFormResponse(String cont, {String? error}) => Response(
+  /// The loopback URL to send the browser back to: `continue` as the older CLI
+  /// sends it, else `redirect_uri` with the caller's `state` appended, so the
+  /// existing redirect code (which appends `code=`) echoes it unchanged.
+  static String? _loginContinue(
+    String? cont,
+    String? redirectUri,
+    String? state,
+  ) {
+    if (cont != null) return cont;
+    if (redirectUri == null) return null;
+    if (state == null || state.isEmpty) return redirectUri;
+    if (state.length > 512) return null;
+    final sep = redirectUri.contains('?') ? '&' : '?';
+    return '$redirectUri${sep}state=${Uri.encodeQueryComponent(state)}';
+  }
+
+  static final _challengeShape = RegExp(r'^[A-Za-z0-9_-]{43}$');
+
+  /// Validates a PKCE `code_challenge`. Absent is fine (an older CLI): that
+  /// login's code redeems without a verifier. Present means S256 only: `plain`
+  /// protects nothing, since the challenge IS the verifier.
+  static String? _codeChallenge(String? challenge, String? method) {
+    if (challenge == null || challenge.isEmpty) return null;
+    if (method != 'S256') {
+      throw badRequest('code_challenge_method must be S256');
+    }
+    if (!_challengeShape.hasMatch(challenge)) {
+      throw badRequest('code_challenge is not a base64url SHA-256 digest');
+    }
+    return challenge;
+  }
+
+  /// RFC 7636 section 4.6: BASE64URL(SHA256(verifier)) without padding must
+  /// equal the challenge. Constant-time compare.
+  static bool pkceVerifierMatches(String verifier, String challenge) {
+    if (verifier.length < 43 || verifier.length > 128) return false;
+    final actual = base64Url
+        .encode(sha256.convert(ascii.encode(verifier)).bytes)
+        .replaceAll('=', '');
+    return UrlSigner.constTimeEq(actual, challenge);
+  }
+
+  Response _loginFormResponse(
+    String cont, {
+    String? challenge,
+    String? error,
+  }) => Response(
     error == null ? HttpStatus.ok : HttpStatus.unauthorized,
-    body: _loginHtml(cont, error),
+    body: _loginHtml(cont, error, challenge),
     headers: {HttpHeaders.contentTypeHeader: 'text/html; charset=utf-8'},
   );
 
-  static String _loginHtml(String cont, String? error) {
+  static String _loginHtml(String cont, String? error, String? challenge) {
     String esc(String s) => const HtmlEscape().convert(s);
     return '''
 <!doctype html><html><head><meta charset="utf-8"><title>Sign in</title>
@@ -777,6 +1256,7 @@ class Api {
     <code>POST /admin/users</code>.</p>
  ${error == null ? '' : '<div class="err">${esc(error)}</div>'}
  <input type="hidden" name="continue" value="${esc(cont)}">
+ ${challenge == null ? '' : '<input type="hidden" name="code_challenge" value="${esc(challenge)}">'}
  <input type="password" name="api_key" placeholder="sb_api_…" autofocus
         autocomplete="off" spellcheck="false">
  <button type="submit">Sign in</button>
@@ -790,14 +1270,15 @@ class Api {
     final q = req.url.queryParameters;
     // Single-use and persisted, so the state survives a restart and is valid
     // on whichever replica the IdP redirects the browser back to.
-    final cont = await repo.consumeIdpState(q['state'] ?? '');
-    if (cont == null) {
+    final pending = await repo.consumeIdpStateGrant(q['state'] ?? '');
+    if (pending == null) {
       return _err(
         HttpStatus.badRequest,
         'bad_request',
         'Invalid or expired state',
       );
     }
+    final cont = pending.continueUrl;
     // `_safeContinue` allows a loopback URL that already carries a query
     // string, so the separator has to be computed — and the IdP's `error` is
     // its text, not ours, so it has to be encoded before being pasted in.
@@ -820,6 +1301,7 @@ class Api {
       code,
       email,
       DateTime.now().add(const Duration(minutes: 5)),
+      codeChallenge: pending.codeChallenge,
     );
     return Response.found(back('code', code));
   }
@@ -864,7 +1346,20 @@ class Api {
     final grant = form['grant_type'];
     String? email;
     if (grant == 'authorization_code') {
-      email = await repo.consumeAuthCode(form['code'] ?? '');
+      // Consumed first, so a failed verifier burns the code: a guess cannot be
+      // retried against the same code.
+      final redeemed = await repo.consumeAuthCodeGrant(form['code'] ?? '');
+      final challenge = redeemed?.codeChallenge;
+      if (redeemed != null &&
+          challenge != null &&
+          !pkceVerifierMatches(form['code_verifier'] ?? '', challenge)) {
+        return _err(
+          HttpStatus.badRequest,
+          'invalid_grant',
+          'PKCE verification failed',
+        );
+      }
+      email = redeemed?.email;
     } else if (grant == 'refresh_token') {
       email = await repo.consumeRefreshToken(form['refresh_token'] ?? '');
     } else {
@@ -889,6 +1384,19 @@ class Api {
       'token_type': 'Bearer',
       'expires_in': 900,
     });
+  }
+
+  /// POST /revoke (RFC 7009, form `token`): upstream 1.6.138's `shorebird
+  /// logout`. Answers 200 whether or not the token was live, as the RFC says,
+  /// so it cannot be used to probe for valid tokens.
+  Future<Response> _revoke(Request req) async {
+    final form = Uri.splitQueryString(await _readText(req));
+    final token = form['token'];
+    if (token != null && token.isNotEmpty) await repo.revokeRefreshToken(token);
+    return Response.ok(
+      '{}',
+      headers: {HttpHeaders.contentTypeHeader: 'application/json'},
+    );
   }
 
   /// POST /api/logout: bearer is the refresh token; revoke and 200.
@@ -925,16 +1433,21 @@ class Api {
         'Invitation is for a different email',
       );
     }
+    // Noted before the write: the role being granted, and to whom, is the
+    // interesting part whether or not the grant lands.
+    _audit(req)?.note(
+      orgId: inv['org_id'] as int,
+      detail: {
+        'role_after': inv['role'],
+        'user_id': user.id,
+        'email': user.email,
+      },
+    );
     await repo.acceptInvitation(
       token,
       user.id,
       inv['org_id'] as int,
       inv['role'] as String,
-    );
-    await repo.audit(
-      'org.invite.accept',
-      actor: '${user.id}',
-      target: '${inv['org_id']}',
     );
     return _json({'joined_org': inv['org_id'], 'role': inv['role']});
   }
@@ -952,6 +1465,16 @@ class Api {
     final user = await repo.upsertUser(
       current?.email ?? config.loginEmail,
       _optStringField(body, 'name'),
+    );
+    // `upsertUser` provisions a personal org with an owner membership the
+    // first time it sees an address, so this is an identity mutation even
+    // though the CLI treats it as a no-op registration call.
+    _audit(req)?.note(
+      target: user.email,
+      detail: {
+        'display_name_set': _optStringField(body, 'name') != null,
+        'account_existed': current != null,
+      },
     );
     return _json(_privateUser(user));
   }
@@ -1001,8 +1524,27 @@ class Api {
       _optStringField(body, 'display_name') ?? 'app',
       orgId,
     );
-    await repo.audit('app.create', actor: '${_uid(req)}', target: app.appId);
+    _audit(req)?.note(appId: app.appId, detail: {'org_id': orgId});
     return _json({'id': app.appId, 'display_name': app.displayName});
+  }
+
+  /// Banks the subject and the role a grant REQUESTED, before authorization
+  /// decides whether it happens.
+  ///
+  /// These values come from the query string, which is already parsed — so
+  /// unlike a request body there is nothing to buffer and no cost to reading
+  /// them early. Recording them before the gate is what makes a refusal
+  /// actionable: "an outsider tried to grant themselves `owner` on this app"
+  /// is the event worth seeing, and a bare 403 with no subject is not.
+  ///
+  /// `role_after` holds the RAW requested value here; a later note replaces it
+  /// with the validated role on the paths that get that far, so the key means
+  /// the same thing on every row: the role the request asked to end at.
+  void _noteRequestedGrant(Request req, String? email) {
+    final role = req.url.queryParameters['role'];
+    _audit(
+      req,
+    )?.note(target: email, detail: {if (role != null) 'role_after': role});
   }
 
   /// Authorizes the caller for [appId] via org membership or collaboration.
@@ -1036,13 +1578,21 @@ class Api {
     }
   }
 
-  /// Authorizes the caller to administer [appId] (manage collaborators).
-  Future<void> _authorizeAppAdmin(Request req, String appId) async {
+  /// Authorizes the caller to administer [appId]: an owner/admin of the owning
+  /// org, or an owner/admin collaborator. The app-scope half of the rule in
+  /// selfhost/upstream/ADOPTION-1.6.123.md §5 — anything that changes an app's
+  /// identity, structure or ownership needs admin at every scope it changes.
+  /// [what] names the action in the refusal.
+  Future<void> _authorizeAppAdmin(
+    Request req,
+    String appId, {
+    String what = 'Managing collaborators',
+  }) async {
     if (!await repo.userIsAppAdmin(_uid(req), appId)) {
       throw DomainException(
         HttpStatus.forbidden,
         'forbidden',
-        'Managing collaborators on $appId requires an admin role',
+        '$what on $appId requires an admin role',
       );
     }
   }
@@ -1077,13 +1627,23 @@ class Api {
 
   /// Authorizes the caller as an operator of this deployment: an owner/admin
   /// of the root org. This is the identity `setup.sh`'s bootstrap key maps to.
-  Future<void> _authorizeServerAdmin(Request req) async {
+  Future<void> _authorizeServerAdmin(
+    Request req, {
+    String target = 'users',
+    String what = 'Issuing API keys',
+  }) async {
     if (!await repo.userIsOrgAdmin(_uid(req), _rootOrgId)) {
-      await repo.audit('admin.denied', actor: '${_uid(req)}', target: 'users');
+      // Kept as a DETAIL row even though every mutating admin route now
+      // writes a typed refused event of its own. It is not redundant: this
+      // also fires for denied READS of the operator surface — `GET
+      // /admin/audit` above all — and a read writes no mutation event by
+      // design. Someone probing the audit log itself would otherwise leave no
+      // trace at all.
+      await _auditDetail(req, 'admin.denied', target: target);
       throw DomainException(
         HttpStatus.forbidden,
         'forbidden',
-        'Issuing API keys requires an owner/admin of the root organization',
+        '$what requires an owner/admin of the root organization',
       );
     }
   }
@@ -1121,28 +1681,67 @@ class Api {
     return channel;
   }
 
+  /// Upstream `GET /apps/{app}`: one `AppMetadata`. Cheaper and narrower than
+  /// the list, and what `shorebird release`/`patch` call before building.
+  /// `patch_signing_required` is an enterprise policy that has no counterpart
+  /// here, so it is omitted (null to the client, meaning "not required").
+  Future<Response> _getApp(String appId) async {
+    final orgId = await repo.appOrgId(appId);
+    final app = orgId == null
+        ? null
+        : (await repo.apps(
+            orgIds: [orgId],
+          )).where((a) => a.appId == appId).firstOrNull;
+    if (app == null) throw notFound('App not found');
+    return _json(await _appMetadata(app));
+  }
+
+  Future<Map<String, Object?>> _appMetadata(AppRow a) async {
+    final rels = await repo.releases(a.appId);
+    final platforms = <String>{};
+    for (final r in rels) {
+      platforms.addAll(r.platformStatuses.keys);
+    }
+    return {
+      'app_id': a.appId,
+      'organization_id': a.orgId,
+      'display_name': a.displayName,
+      'latest_release_version': rels.isEmpty ? null : rels.last.version,
+      'latest_patch_number': await repo.latestPatchNumberForApp(a.appId),
+      'created_at': a.createdAt,
+      'updated_at': a.updatedAt,
+      if (platforms.isNotEmpty) 'platforms': platforms.toList(),
+    };
+  }
+
+  /// Upstream `GET /apps/{app}/signing-key`: the managed public key a new build
+  /// embeds. The key belongs to the app's organization and is created on first
+  /// fetch. Only the public half is ever returned.
+  Future<Response> _getSigningKey(String appId) async {
+    final orgId = await repo.appOrgId(appId);
+    if (orgId == null) throw notFound('App not found');
+    var key = await repo.signingKeyForOrg(orgId);
+    if (key == null) {
+      final fresh = _requirePatchSigner.generate();
+      key = await repo.insertSigningKeyIfAbsent(
+        orgId,
+        fresh.publicKeyPem,
+        fresh.privateKeyEncrypted,
+      );
+    }
+    return _json({
+      'signing_key': {'id': key.id, 'public_key_pem': key.publicKeyPem},
+    });
+  }
+
   Future<Response> _getApps(Request req) async {
     final orgIds = (await repo.memberships(
       _uid(req),
     )).map((m) => m.orgId).toList();
     final apps = await repo.apps(orgIds: orgIds);
-    final out = <Map<String, Object?>>[];
-    for (final a in apps) {
-      final rels = await repo.releases(a.appId);
-      final platforms = <String>{};
-      for (final r in rels) {
-        platforms.addAll(r.platformStatuses.keys);
-      }
-      out.add({
-        'app_id': a.appId,
-        'display_name': a.displayName,
-        'latest_release_version': rels.isEmpty ? null : rels.last.version,
-        'latest_patch_number': await repo.latestPatchNumberForApp(a.appId),
-        'created_at': a.createdAt,
-        'updated_at': a.updatedAt,
-        if (platforms.isNotEmpty) 'platforms': platforms.toList(),
-      });
-    }
+    final out = <Map<String, Object?>>[
+      for (final a in apps) await _appMetadata(a),
+    ];
     return _json({'apps': out});
   }
 
@@ -1156,12 +1755,15 @@ class Api {
       displayName: _optStringField(body, 'display_name'),
       notes: _optNotesField(body),
     );
-    return _json({'release': _releaseJson(r)});
+    _audit(req)?.note(releaseId: r.id, detail: {'version': r.version});
+    return _json({'release': await _releaseJson(r)});
   }
 
   Future<Response> _getReleases(String appId) async {
     final rels = await repo.releases(appId);
-    return _json({'releases': rels.map(_releaseJson).toList()});
+    return _json({
+      'releases': [for (final r in rels) await _releaseJson(r)],
+    });
   }
 
   Future<Response> _updateRelease(
@@ -1170,6 +1772,19 @@ class Api {
     int releaseId,
   ) async {
     final body = await _jsonBody(req);
+    // Recorded before the gates below, so a release activation REFUSED for
+    // unverified or missing artifacts still says which platform and status
+    // were asked for. A refusal with no subject is the shape of audit event
+    // nobody can act on.
+    _audit(req)?.note(
+      detail: {
+        if (_optStringField(body, 'status') != null)
+          'status': _optStringField(body, 'status'),
+        if (_optStringField(body, 'platform') != null)
+          'platform': _optStringField(body, 'platform'),
+        if (body['notes'] != null) 'notes': 'set',
+      },
+    );
     final release = await _ownedRelease(appId, releaseId);
     // Upstream's `UpdateReleaseRequest` documents `notes: null` as "leave
     // unchanged" — and it serializes the key on every request, including the
@@ -1211,23 +1826,42 @@ class Api {
             'Release $releaseId ($platform) has unverified artifacts',
           );
         }
+        // `allVerified` only asserts that whatever is *present* is verified — not
+        // that the platform's expected set is complete. An interrupted upload can
+        // leave iOS holding a lone verified `xcarchive`, which sails through this
+        // gate and publishes a release no patch can ever be built against (the
+        // linker needs `runner` + `ios_supplement`). The failure then surfaces at
+        // patch time, far from the cause.
+        //
+        // Unknown platforms are deliberately unchecked: gating a target this
+        // server hasn't learned the artifact set for would break it outright,
+        // which is worse than the hole being closed late.
+        final present = live.map((a) => a.arch).toSet();
+        final missing = _requiredArchs[platform]?.difference(present);
+        if (missing != null && missing.isNotEmpty) {
+          throw conflict(
+            'Release $releaseId ($platform) is missing artifacts: '
+            '${(missing.toList()..sort()).join(', ')}',
+          );
+        }
+        // "At least one of" — the ABI set varies with --target-platform, so the
+        // check is that *some* code shipped, not which.
+        final anyOf = _requiredAnyArchs[platform];
+        if (anyOf != null && anyOf.intersection(present).isEmpty) {
+          throw conflict(
+            'Release $releaseId ($platform) has no code artifact: expected at '
+            'least one of ${(anyOf.toList()..sort()).join(', ')}',
+          );
+        }
         if (release.lifecycle != ReleaseLifecycle.ready) {
           await repo.setReleaseLifecycle(releaseId, ReleaseLifecycle.ready);
-          await repo.audit(
-            'release.ready',
-            actor: '${_uid(req)}',
-            target: '$releaseId',
-          );
+          await _auditDetail(req, 'release.ready', target: '$releaseId');
         }
       }
     }
     if (writesNotes) {
       await repo.setReleaseNotes(releaseId, notes);
-      await repo.audit(
-        'release.notes',
-        actor: '${_uid(req)}',
-        target: '$releaseId',
-      );
+      await _auditDetail(req, 'release.notes', target: '$releaseId');
     }
     return Response(HttpStatus.noContent);
   }
@@ -1235,6 +1869,10 @@ class Api {
   Future<Response> _createPatch(Request req, String appId) async {
     final body = await _jsonBody(req);
     final releaseId = _intField(body, 'release_id');
+    // Attributed to the release BEFORE the ownership check, so a refused
+    // attempt is still findable by "what happened to release N" — which is
+    // the whole question this audit trail exists to answer.
+    _audit(req)?.note(releaseId: releaseId);
     await _ownedRelease(appId, releaseId);
     // `notes` is optional and the pinned CLI never sends it; accepted here so a
     // script or the console can annotate a patch at creation time instead of
@@ -1245,6 +1883,7 @@ class Api {
       notes: _optNotesField(body),
       metadata: _optMetadataField(body),
     );
+    _audit(req)?.note(patchId: p.id, patchNumber: p.number);
     return _json({'id': p.id, 'number': p.number, 'notes': p.notes});
   }
 
@@ -1252,18 +1891,61 @@ class Api {
   ///
   /// Same null-means-unchanged / empty-means-clear semantics as the release
   /// endpoint. Returns the patch so a caller can confirm what was stored.
+  /// Upstream's release-scoped rollback. It names no channel, so it rolls the
+  /// patch back on every channel where it is active — the same mutation as
+  /// `/admin/.../withdraw?rollback=true`, applied to each.
+  ///
+  /// 200 when anything changed; 304 when the patch is already rolled back and
+  /// active nowhere, which upstream's CLI reads as "nothing to do". A patch
+  /// that was never promoted, or was only superseded, is a 409: withdrawal is
+  /// terminal, so a superseded row cannot be re-marked as rolled back.
+  Future<Response> _rollbackPatch(
+    Request req,
+    String appId,
+    int releaseId,
+    int patchId,
+  ) async {
+    final patch = await _ownedPatch(appId, patchId);
+    if (patch.releaseId != releaseId) {
+      throw notFound('No patch $patchId on release $releaseId');
+    }
+    _audit(req)?.note(releaseId: releaseId, patchNumber: patch.number);
+    final channelIds = await repo.rollbackActive(patchId);
+    if (channelIds.isEmpty) {
+      if (await repo.patchRolledBack(patchId)) {
+        _audit(req)?.note(detail: {'rollback': true, 'changed': false});
+        return Response.notModified();
+      }
+      throw conflict(
+        'Patch $patchId is not active on any channel, so there is nothing '
+        'to roll back',
+      );
+    }
+    final channels = [
+      for (final id in channelIds)
+        (await repo.channelById(id, includeDeleted: true))!.name,
+    ];
+    _audit(req)?.note(
+      track: channels.length == 1 ? channels.single : null,
+      detail: {'rollback': true, 'changed': true, 'channels': channels},
+    );
+    return _json({
+      'withdrawn': true,
+      'patch_id': patchId,
+      'rolled_back': true,
+      'channels': channels,
+    });
+  }
+
   Future<Response> _updatePatch(Request req, String appId, int patchId) async {
     final body = await _jsonBody(req);
     final patch = await _ownedPatch(appId, patchId);
+    _audit(req)?.note(releaseId: patch.releaseId, patchNumber: patch.number);
     var notes = patch.notes;
     if (body['notes'] != null) {
       notes = _optNotesField(body);
       await repo.setPatchNotes(patchId, notes);
-      await repo.audit(
-        'patch.notes',
-        actor: '${_uid(req)}',
-        target: '$patchId',
-      );
+      await _auditDetail(req, 'patch.notes', target: '$patchId');
     }
     return _json({'id': patch.id, 'number': patch.number, 'notes': notes});
   }
@@ -1329,9 +2011,52 @@ class Api {
     final arch = _requiredField(fields, 'arch');
     final platform = _requiredField(fields, 'platform');
     final hash = _requiredField(fields, 'hash');
-    if (await repo.existingArtifact('release', releaseId, arch, platform) !=
-        null) {
-      throw conflict('Artifact already registered for $arch/$platform');
+    final signing = await _parseSigning(fields['signing'], appId);
+    _audit(req)?.note(detail: {'arch': arch, 'platform': platform});
+    final existing = await repo.existingArtifact(
+      'release',
+      releaseId,
+      arch,
+      platform,
+    );
+    if (existing != null) {
+      // Idempotent re-upload. `shorebird release` uploads a platform's artifacts
+      // in a fixed order and has no resume: an interrupted run re-sends the ones
+      // that already landed. 409ing on those aborts the retry *before* it reaches
+      // the artifacts that are actually missing, which strands the release
+      // permanently — this API exposes no DELETE, so nothing can clear the
+      // blocker. Observed 2026-07-30 on release 2.0.0+1785465879, killed
+      // mid-upload with `xcarchive` registered and `runner` + `ios_supplement`
+      // missing; every retry died on `xcarchive` and iOS was unrecoverable.
+      //
+      // A byte-identical re-upload carries no new information, so return the
+      // existing registration and let the run continue to what it still owes.
+      if (existing.hash == hash) {
+        return _json(_registerJson(existing, releaseKey: true));
+      }
+      // A *differing* hash while the release is still incomplete is a rebuild,
+      // not a collision. `shorebird release` rebuilds on every invocation, so a
+      // retry after an interruption arrives with fresh bytes — matching on hash
+      // alone would 409 exactly the case this is meant to rescue. Supersede the
+      // stale row (the lookup above skips `failed`) so the retry can register and
+      // go on to the artifacts that are missing.
+      //
+      // Once the release is `ready` its artifacts are what installed apps
+      // actually run, and patches are linked against them. Replacing one then
+      // would silently invalidate every patch built from it, so from `ready`
+      // onward a differing hash stays a hard conflict.
+      if (release.lifecycle == ReleaseLifecycle.draft ||
+          release.lifecycle == ReleaseLifecycle.uploading) {
+        await repo.setArtifactStatus(existing.id, ArtifactStatus.failed);
+        await _auditDetail(
+          req,
+          'artifact.superseded',
+          target: '${existing.id}',
+          detail: 'release $releaseId $platform/$arch re-registered on retry',
+        );
+      } else {
+        throw conflict('Artifact already registered for $arch/$platform');
+      }
     }
     if (release.lifecycle == ReleaseLifecycle.draft) {
       await repo.setReleaseLifecycle(releaseId, ReleaseLifecycle.uploading);
@@ -1345,6 +2070,8 @@ class Api {
       size: int.tryParse(fields['size'] ?? '0') ?? 0,
       podfileLockHash: fields['podfile_lock_hash'],
       canSideload: fields['can_sideload'] == 'true',
+      signingMode: signing?.mode,
+      signingKeyId: signing?.keyId,
     );
     return _json(_registerJson(art, releaseKey: true));
   }
@@ -1355,6 +2082,7 @@ class Api {
     int patchId,
   ) async {
     final patch = await _ownedPatch(appId, patchId);
+    _audit(req)?.note(releaseId: patch.releaseId, patchNumber: patch.number);
     // A promoted patch's artifact set is frozen. Re-opening it to `uploading`
     // would stop `patches/check` serving it (it requires `ready`), silently
     // unserving every device mid-rollout until the new arch finished.
@@ -1378,9 +2106,17 @@ class Api {
     // client didn't hear it) would flip the patch back to `uploading` and only
     // then 409. Nothing can move it forward from there — `patches/check` and
     // `_promotePatch` both require `ready` — so the patch is stranded for good.
+    _audit(req)?.note(detail: {'arch': arch, 'platform': platform});
     if (await repo.existingArtifact('patch', patchId, arch, platform) != null) {
       throw conflict('Artifact already registered for $arch/$platform');
     }
+    final hashSignature = await _patchHashSignature(
+      patch,
+      arch: arch,
+      platform: platform,
+      hash: hash,
+      clientSignature: fields['hash_signature'],
+    );
     await repo.setPatchStatus(patchId, PatchStatus.uploading);
     final art = await repo.createArtifact(
       ownerKind: 'patch',
@@ -1389,10 +2125,209 @@ class Api {
       platform: platform,
       hash: hash,
       size: int.tryParse(fields['size'] ?? '0') ?? 0,
-      hashSignature: fields['hash_signature'],
+      hashSignature: hashSignature,
       podfileLockHash: fields['podfile_lock_hash'],
     );
     return _json(_registerJson(art, releaseKey: false));
+  }
+
+  /// Upstream `DELETE /apps/{app}/releases/{release}`: the release, every
+  /// platform's artifacts and every patch of it. App-admin, like deleting a
+  /// channel: it stops serving every patch of the release, and cannot be undone.
+  ///
+  /// Refused with 409 while any patch of the release is live on a channel,
+  /// unless `?force=true`: deleting would silently stop serving it, and a
+  /// device holding it installed would never be told to drop it. Rolling the
+  /// patch back is the supported way out, though not an immediate one: a
+  /// rolled-back row is no longer live, but the release stays undeletable
+  /// without `force` for [releaseDeleteGrace] (7 days) after the rollback.
+  /// That matters because upstream's client sends no `force`, so the message
+  /// says what to do instead.
+  Future<Response> _deleteRelease(
+    Request req,
+    String appId,
+    int releaseId,
+  ) async {
+    await _authorizeAppAdmin(req, appId, what: 'Deleting a release');
+    final release = await _ownedRelease(appId, releaseId);
+    final force = const {
+      'true',
+      '1',
+    }.contains(req.url.queryParameters['force']?.toLowerCase());
+    if (!force && await repo.releaseHasLivePatch(releaseId)) {
+      _audit(req)?.note(detail: {'version': release.version, 'force': false});
+      throw conflict(
+        'Release ${release.version} still has a patch live on a channel, and '
+        'deleting it would stop serving that patch to devices. Roll the live '
+        'patches back first (shorebird patches rollback); once none is live, '
+        'and ${releaseDeleteGrace.inDays} days have passed since the last '
+        'rollback, the release can be deleted. Or, if you are sure, delete it through '
+        'the console or the API with ?force=true. The CLI cannot send force.',
+      );
+    }
+    if (!force) {
+      final withdrawn = await repo.releaseRecentWithdrawal(releaseId);
+      if (withdrawn != null) {
+        final deletable = withdrawn.add(releaseDeleteGrace).toUtc();
+        _audit(req)?.note(detail: {'version': release.version, 'force': false});
+        throw conflict(
+          'Release ${release.version} had a patch rolled back or withdrawn '
+          'on ${withdrawn.toIso8601String()}. Devices that have not checked '
+          'in since learn to drop it only from the records deleting the '
+          'release removes, so it can be deleted without force from '
+          '${deletable.toIso8601String()} '
+          '(${releaseDeleteGrace.inDays} days after). To delete it now, '
+          'accept that, and send ?force=true through the console or the API. '
+          'The CLI cannot send force.',
+        );
+      }
+    }
+    _audit(req)?.note(detail: {'version': release.version, 'force': force});
+    await _deleteObjects(await repo.deleteRelease(releaseId));
+    return Response(HttpStatus.noContent);
+  }
+
+  /// Upstream `DELETE /apps/{app}/releases/{release}/artifacts?platform=`:
+  /// removes one platform from a release and leaves the rest.
+  Future<Response> _deleteReleasePlatform(
+    Request req,
+    String appId,
+    int releaseId,
+  ) async {
+    await _authorizeAppAdmin(req, appId, what: 'Deleting release artifacts');
+    await _ownedRelease(appId, releaseId);
+    final platform = req.url.queryParameters['platform'];
+    if (platform == null || platform.isEmpty) {
+      throw badRequest('platform is required');
+    }
+    _audit(req)?.note(detail: {'platform': platform});
+    await _deleteObjects(await repo.deleteReleasePlatform(releaseId, platform));
+    return Response(HttpStatus.noContent);
+  }
+
+  /// Best-effort: the rows are already gone, so an object that cannot be
+  /// removed is an orphan to log, not a reason to fail the request.
+  Future<void> _deleteObjects(List<String> keys) async {
+    for (final key in keys) {
+      try {
+        await store.delete(key);
+      } on Object catch (e) {
+        obs.info('could not delete artifact object', {
+          'key': key,
+          'error': '$e',
+        });
+      }
+    }
+  }
+
+  static const _signingModes = {'managed', 'customer', 'unsigned'};
+
+  /// Parses the `signing` multipart field (one JSON object, which is how
+  /// upstream's `createReleaseArtifact` sends an object-valued field). Absent
+  /// means an older CLI, which reports nothing; the artifact is then left
+  /// unsigned-by-us. A managed key must exist and belong to the app's org: a
+  /// key id is a bearer reference to a private key, so another tenant's must
+  /// not be nameable.
+  Future<({String mode, int? keyId})?> _parseSigning(
+    String? raw,
+    String appId,
+  ) async {
+    if (raw == null || raw.isEmpty) return null;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      throw badRequest('signing must be a JSON object');
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw badRequest('signing must be a JSON object');
+    }
+    final mode = decoded['mode'];
+    if (mode is! String || !_signingModes.contains(mode)) {
+      throw badRequest(
+        'signing.mode must be one of ${_signingModes.join(', ')}',
+      );
+    }
+    if (mode != 'managed') return (mode: mode, keyId: null);
+    final keyId = decoded['key_id'];
+    if (keyId is! int) {
+      throw badRequest('signing.key_id is required for managed signing');
+    }
+    final key = await repo.signingKeyById(keyId);
+    if (key == null || key.orgId != await repo.appOrgId(appId)) {
+      throw badRequest('Unknown signing key $keyId');
+    }
+    return (mode: mode, keyId: keyId);
+  }
+
+  /// The `hash_signature` to store for a patch artifact on [platform].
+  ///
+  /// By how the release's build on that platform was signed:
+  ///  * `managed`: this server signs [hash]; a client-supplied signature is
+  ///    refused (the CLI sends none, and a second signature could only
+  ///    disagree with the embedded key).
+  ///  * `customer`: devices verify against the customer's key, which the
+  ///    server never sees, so the client must supply the signature.
+  ///  * `unsigned` or unreported (every release made before managed signing):
+  ///    stored as the client sent it, exactly as before. Never server-signed.
+  ///
+  /// [symbolsArch] is exempt from all of that: devices never download it, so
+  /// it is never signed and never required to carry a signature (a signature a
+  /// client does send is stored as sent). [assetsArch] is NOT exempt: devices
+  /// install it as `dlc.assets` and, in Strict mode, verify its signature, so
+  /// an assets-only patch needs one exactly like code does.
+  Future<String?> _patchHashSignature(
+    PatchRow patch, {
+    required String arch,
+    required String platform,
+    required String hash,
+    required String? clientSignature,
+  }) async {
+    final supplied = clientSignature == null || clientSignature.isEmpty
+        ? null
+        : clientSignature;
+    if (arch == symbolsArch) return supplied;
+    final signing = (await repo.releaseSigning(patch.releaseId))[platform];
+    switch (signing?.mode) {
+      case 'managed':
+        if (supplied != null) {
+          throw badRequest(
+            'This release is signed with a Shorebird-managed key, and the '
+            'server signs its patches; do not send hash_signature.',
+          );
+        }
+        final key = await repo.signingKeyById(signing!.keyId!);
+        if (key == null) {
+          throw conflict('The release\'s signing key no longer exists.');
+        }
+        return _requirePatchSigner.signHash(key.privateKeyEncrypted, hash);
+      case 'customer':
+        if (supplied == null) {
+          throw badRequest(
+            'This release was signed with the customer\'s own key, so its '
+            'patches must carry a hash_signature.',
+          );
+        }
+        return supplied;
+      default:
+        return supplied;
+    }
+  }
+
+  Future<Map<String, Object?>?> _signingJson(
+    ArtifactRow a,
+    Map<int, SigningKeyRow?> keys,
+  ) async {
+    final mode = a.signingMode;
+    if (mode == null) return null;
+    final keyId = a.signingKeyId;
+    if (mode != 'managed' || keyId == null) return {'mode': mode};
+    final key = keys[keyId] ??= await repo.signingKeyById(keyId);
+    return {
+      'mode': mode,
+      'key_id': keyId,
+      'public_key_pem': ?key?.publicKeyPem,
+    };
   }
 
   Future<Response> _getReleaseArtifacts(
@@ -1408,10 +2343,12 @@ class Api {
       arch: arch,
       platform: platform,
     );
+    final keys = <int, SigningKeyRow?>{};
     return _json({
       'artifacts': [
         for (final a in arts)
           {
+            'signing': ?await _signingJson(a, keys),
             'id': a.id,
             'release_id': a.ownerId,
             'arch': a.arch,
@@ -1429,10 +2366,100 @@ class Api {
   Future<Response> _createChannel(Request req, String appId) async {
     final body = await _jsonBody(req);
     final name = _stringField(body, 'channel');
-    final channel =
-        await repo.channel(appId, name) ??
-        await repo.createChannel(appId, name);
+    final existing = await repo.channel(appId, name, includeDeleted: true);
+    final channel = existing == null
+        ? await repo.createChannel(appId, name)
+        : existing.deleted
+        ? await repo.restoreChannel(existing)
+        : existing;
+    _audit(req)?.note(
+      track: channel.name,
+      detail: {
+        'channel_id': channel.id,
+        if (existing?.deleted ?? false) 'restored': true,
+      },
+    );
     return _json({'id': channel.id, 'app_id': appId, 'name': channel.name});
+  }
+
+  /// The built-in tracks. Upstream's CLI refuses to delete them; the server
+  /// refuses too, so a direct API call cannot either. `stable` is also what
+  /// patch-check falls back to when a device names no channel.
+  static const Set<String> _permanentChannels = {'stable', 'beta', 'staging'};
+
+  /// Upstream 1.6.123 `shorebird channels delete`. A soft delete, for the
+  /// reasons on migration 13: devices stop receiving patches, but still
+  /// receive rollbacks. App-admin, per ADOPTION-1.6.123.md §5.
+  Future<Response> _deleteChannel(
+    Request req,
+    String appId,
+    int channelId,
+  ) async {
+    await _authorizeAppAdmin(req, appId, what: 'Deleting a channel');
+    final channel = await _ownedChannel(appId, channelId);
+    _audit(req)?.note(track: channel.name, detail: {'channel_id': channel.id});
+    if (_permanentChannels.contains(channel.name)) {
+      throw conflict('The ${channel.name} channel is permanent');
+    }
+    await repo.deleteChannel(channel.id);
+    return Response(HttpStatus.noContent);
+  }
+
+  /// Upstream 1.6.123 `shorebird apps rename`. App-admin, per
+  /// ADOPTION-1.6.123.md §5: a rename changes what every collaborator sees.
+  Future<Response> _renameApp(Request req, String appId) async {
+    await _authorizeAppAdmin(req, appId, what: 'Renaming an app');
+    final body = await _jsonBody(req);
+    final name = _stringField(body, 'name').trim();
+    if (name.isEmpty) throw badRequest('name must not be empty');
+    _audit(req)?.note(detail: {'display_name': name});
+    await repo.renameApp(appId, name);
+    return Response(HttpStatus.noContent);
+  }
+
+  /// Upstream 1.6.123 `shorebird apps transfer`: moves an existing app into
+  /// [orgId]. Org-admin of BOTH orgs, per ADOPTION-1.6.123.md §5 — a
+  /// collaborator grant is app-scoped and never confers org authority, or an
+  /// owner collaborator could move a company's app into their own org.
+  ///
+  /// Refused with 409 while the app carries collaborators the destination's
+  /// email-domain allowlist would not admit: a transfer must not become a way
+  /// around that policy.
+  Future<Response> _transferApp(Request req, int orgId) async {
+    final body = await _jsonBody(req);
+    final appId = _stringField(body, 'app_id');
+    _audit(req)?.note(appId: appId, orgId: orgId);
+    await _authorizeApp(req, appId);
+    final fromOrgId = (await repo.appOrgId(appId))!;
+    _audit(req)?.note(detail: {'from_org_id': fromOrgId, 'to_org_id': orgId});
+    final uid = _uid(req);
+    if (!await repo.userIsOrgAdmin(uid, fromOrgId) ||
+        !await repo.userIsOrgAdmin(uid, orgId)) {
+      throw DomainException(
+        HttpStatus.forbidden,
+        'forbidden',
+        'Transferring an app requires an owner/admin role in both the source '
+            'and destination organizations',
+      );
+    }
+    if (fromOrgId == orgId) return Response(HttpStatus.noContent);
+    final domains = await repo.orgAllowedDomains(orgId);
+    if (domains.isNotEmpty) {
+      final outside = [
+        for (final c in await repo.appCollaborators(appId))
+          if (!emailAllowedByDomains(c['email']! as String, domains))
+            c['email']! as String,
+      ];
+      if (outside.isNotEmpty) {
+        throw conflict(
+          'Organization $orgId only admits addresses at '
+          '${domains.join(', ')}; remove these collaborators first: '
+          '${outside.join(', ')}',
+        );
+      }
+    }
+    await repo.transferApp(appId, orgId);
+    return Response(HttpStatus.noContent);
   }
 
   Future<Response> _metrics(String appId) async {
@@ -1450,7 +2477,8 @@ class Api {
   static String? _currentTrack(List<Map<String, Object?>> deployments) {
     for (final d in deployments) {
       if (d['status'] == ChannelPatchStatus.active.name &&
-          d['rolled_back'] != true) {
+          d['rolled_back'] != true &&
+          d['channel_deleted'] != true) {
         return d['channel'] as String?;
       }
     }
@@ -1497,6 +2525,7 @@ class Api {
               'created_at': a.createdAt,
             },
         ],
+        'created_at': ?p.createdAt,
         'is_rolled_back': await repo.patchRolledBack(p.id),
         'notes': p.notes,
         'metadata': p.metadata,
@@ -1568,26 +2597,65 @@ class Api {
     if (rollout < 0 || rollout > 100) {
       throw badRequest('rollout must be between 0 and 100');
     }
+    // Both ids come from the BODY on this route, so the path classification
+    // could not supply them. Noted before the ownership and readiness gates so
+    // a refused promotion is attributable to the patch someone tried to ship.
+    _audit(req)?.note(
+      patchId: patchId,
+      detail: {'channel_id': channelId, 'rollout': rollout},
+    );
     final patch = await _ownedPatch(appId, patchId);
-    await _ownedChannel(appId, channelId);
+    final channel = await _ownedChannel(appId, channelId);
+    _audit(req)?.note(
+      releaseId: patch.releaseId,
+      patchNumber: patch.number,
+      track: channel.name,
+    );
     if (patch.status != PatchStatus.ready) {
       throw conflict('Patch $patchId is ${patch.status.name}, not ready');
     }
     await repo.promote(channelId, patchId, rollout: rollout);
-    await repo.audit(
-      'patch.promote',
-      actor: '${_uid(req)}',
-      target: '$patchId',
-      detail: 'channel=$channelId rollout=$rollout',
-    );
     return Response(HttpStatus.noContent);
   }
 
   // ---- uploads / downloads ----
 
+  /// Attributes an upload audit event to the app/release/patch behind an
+  /// upload token.
+  ///
+  /// `/api/v1/uploads/{token}` names nothing else: the token IS the address,
+  /// and it is a bearer capability, so it is never recorded. Without this an
+  /// upload event would be unattributable — the one mutation in the patch
+  /// lifecycle whose path says nothing about its subject.
+  Future<void> _noteUploadTarget(Request req, ArtifactRow art) async {
+    final scope = _audit(req);
+    if (scope == null) return;
+    scope.note(
+      detail: {
+        'artifact_id': art.id,
+        'owner_kind': art.ownerKind,
+        'arch': art.arch,
+        'platform': art.platform,
+      },
+    );
+    if (art.ownerKind == 'patch') {
+      final patch = await repo.patch(art.ownerId);
+      scope.note(
+        appId: patch?.appId,
+        patchId: art.ownerId,
+        releaseId: patch?.releaseId,
+        patchNumber: patch?.number,
+      );
+    } else {
+      final release = await repo.release(art.ownerId);
+      scope.note(appId: release?.appId, releaseId: art.ownerId);
+    }
+  }
+
   Future<Response> _upload(Request req, String token) async {
     final art = await repo.artifactByToken(token);
     if (art == null) throw notFound('Unknown upload token');
+    await _noteUploadTarget(req, art);
     final appId = art.ownerKind == 'release'
         ? (await repo.release(art.ownerId))?.appId
         : (await repo.patch(art.ownerId))?.appId;
@@ -1621,7 +2689,12 @@ class Api {
     );
     if (reason != null) {
       await repo.setArtifactStatus(art.id, ArtifactStatus.failed);
-      await repo.audit('artifact.failed', target: '${art.id}', detail: reason);
+      await _auditDetail(
+        req,
+        'artifact.failed',
+        target: '${art.id}',
+        detail: reason,
+      );
       obs.info('artifact verify failed', {
         'artifact': art.id,
         'reason': reason,
@@ -1644,6 +2717,7 @@ class Api {
   Future<Response> _resumableUpload(Request req, String token) async {
     final art = await repo.artifactByToken(token);
     if (art == null) throw notFound('Unknown upload token');
+    await _noteUploadTarget(req, art);
     final appId = art.ownerKind == 'release'
         ? (await repo.release(art.ownerId))?.appId
         : (await repo.patch(art.ownerId))?.appId;
@@ -1682,7 +2756,14 @@ class Api {
     final chunk = await _collect(req.read(), max: config.maxUploadBytes);
     await store.stageChunk(token, cr.start, chunk);
     final received = store.stagedSize(token);
-    if (received < cr.total) return _resumeIncomplete(received);
+    if (received < cr.total) {
+      // 308 is a SUCCESSFUL chunk, not a finished upload. Said explicitly so a
+      // reader of the trail does not mistake a resumable upload's many events
+      // for many uploads.
+      _audit(req)?.note(detail: {'complete': false, 'staged_bytes': received});
+      return _resumeIncomplete(received);
+    }
+    _audit(req)?.note(detail: {'complete': true, 'staged_bytes': received});
 
     // Complete: commit to the object store + verify.
     await store.commitStaged(token, art.storageKey);
@@ -1694,7 +2775,12 @@ class Api {
     );
     if (reason != null) {
       await repo.setArtifactStatus(art.id, ArtifactStatus.failed);
-      await repo.audit('artifact.failed', target: '${art.id}', detail: reason);
+      await _auditDetail(
+        req,
+        'artifact.failed',
+        target: '${art.id}',
+        detail: reason,
+      );
       throw badRequest('Artifact verification failed: $reason');
     }
     await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
@@ -1848,13 +2934,20 @@ class Api {
     }
     final release = await repo.releaseByVersion(appId, version);
     if (release == null) return _json(resp());
-    final channel = await repo.channel(appId, channelName);
+    final channel = await repo.channel(
+      appId,
+      channelName,
+      includeDeleted: true,
+    );
     if (channel == null) return _json(resp());
 
     final rolledBack = await repo.rolledBackPatchNumbers(
       channel.id,
       release.id,
     );
+    // A deleted channel offers nothing, but must keep telling its devices
+    // which patches to revert — the reason channel delete is soft.
+    if (channel.deleted) return _json(resp(rolledBack: rolledBack));
 
     // Platform-scoped: a channel can hold one active patch per platform, so an
     // Android device must not be handed the newest patch when that patch is
@@ -1885,9 +2978,53 @@ class Api {
       return _json(resp(rolledBack: rolledBack));
     }
 
-    final artifact = await repo.patchArtifact(patch.id, arch, platform);
+    // Capability negotiation, and it has to be negotiation rather than a bare
+    // response field. An assets-only patch has no code artifact, so a stock
+    // updater handed one would try to inflate an asset archive as a binary diff
+    // against the release snapshot, fail, and tombstone the patch as
+    // permanently bad — it would never retry it for that release. Clients that
+    // understand the kind say so; everyone else is only ever offered code.
+    // Read the same tolerant way as every other field here: a wrong-typed
+    // capability yields "no support", never a 500 the device has to interpret.
+    final rawKinds = body['supported_patch_kinds'];
+    final supportedKinds = <String>{
+      if (rawKinds is List) ...rawKinds.whereType<String>(),
+    };
+
+    var kind = codePatchKind;
+    var artifact = await repo.patchArtifact(patch.id, arch, platform);
+    if (artifact == null && supportedKinds.contains(assetsPatchKind)) {
+      // No code for this arch. That is what an assets-only patch looks like,
+      // so fall back to its bundle rather than reporting "no patch".
+      artifact = await repo.patchArtifact(patch.id, assetsArch, platform);
+      kind = assetsPatchKind;
+    }
+
     if (artifact == null || artifact.status != ArtifactStatus.verified) {
-      return _json(resp(rolledBack: rolledBack));
+      // The active patch is unusable by *this* client — overwhelmingly because
+      // it is assets-only and the client is a stock updater. Offering nothing
+      // would strip a patch the device was already entitled to: a fresh install
+      // would run unpatched code that the previous patch had fixed, silently.
+      //
+      // So fall back to the newest superseded patch this client *can* take.
+      // Superseded is not the same as withdrawn-for-cause: those patches were
+      // replaced, not pulled, and `supersededChannelPatches` excludes anything
+      // rolled back. Each client class therefore runs the best patch available
+      // to it, which is why different clients can legitimately sit on different
+      // patch numbers.
+      return _json(
+        await _fallbackPatchResponse(
+          channelId: channel.id,
+          releaseId: release.id,
+          appId: appId,
+          arch: arch,
+          platform: platform,
+          clientId: clientId,
+          clientPatch: clientPatch,
+          rolledBack: rolledBack,
+          resp: resp,
+        ),
+      );
     }
     return _json(
       resp(
@@ -1896,9 +3033,310 @@ class Api {
           'download_url': _signedUrl(artifact.token),
           'hash': artifact.hash,
           'hash_signature': artifact.hashSignature,
+          // Always present, including for code, so a client never has to infer
+          // the kind from an absent field.
+          'kind': kind,
         },
         rolledBack: rolledBack,
       ),
+    );
+  }
+
+  /// The newest superseded patch this client can install, or "no patch".
+  ///
+  /// Only reached when the active patch cannot be served to the caller. Applies
+  /// the same gates as the active path — same release, `ready`, newer than the
+  /// client's, eligible under that patch's own rollout — because a fallback that
+  /// skipped them would be a way to receive a patch the rollout excluded.
+  ///
+  /// Deliberately code-only: an assets patch that could not be served is one the
+  /// client said it cannot install, so trying another of the same kind would
+  /// fail the same way.
+  Future<Map<String, Object?>> _fallbackPatchResponse({
+    required int channelId,
+    required int releaseId,
+    required String appId,
+    required String arch,
+    required String platform,
+    required String? clientId,
+    required int clientPatch,
+    required List<int> rolledBack,
+    required Map<String, Object?> Function({
+      Map<String, Object?>? patch,
+      List<int> rolledBack,
+    })
+    resp,
+  }) async {
+    final candidates = await repo.supersededChannelPatches(
+      channelId,
+      platform: platform,
+    );
+    for (final candidate in candidates) {
+      final patch = await repo.patch(candidate.patchId);
+      if (patch == null ||
+          patch.releaseId != releaseId ||
+          patch.status != PatchStatus.ready ||
+          patch.number <= clientPatch) {
+        continue;
+      }
+      if (!eligibleForRollout(
+        appId: appId,
+        channelId: channelId,
+        patchId: patch.id,
+        rollout: candidate.rollout,
+        clientId: clientId,
+      )) {
+        continue;
+      }
+      final artifact = await repo.patchArtifact(patch.id, arch, platform);
+      if (artifact == null || artifact.status != ArtifactStatus.verified) {
+        continue;
+      }
+      return resp(
+        patch: {
+          'number': patch.number,
+          'download_url': _signedUrl(artifact.token),
+          'hash': artifact.hash,
+          'hash_signature': artifact.hashSignature,
+          'kind': codePatchKind,
+        },
+        rolledBack: rolledBack,
+      );
+    }
+    return resp(rolledBack: rolledBack);
+  }
+
+  /// `POST /patches/assets` — device-facing lookup for a patch's **asset
+  /// bundle**, the payload behind asset support in patches.
+  ///
+  /// Why this exists as its own endpoint rather than a field on
+  /// `patches/check`: that response is consumed by the native updater, which is
+  /// the stock upstream binary and knows nothing about assets. The app-side Dart
+  /// code never sees it. So the app asks here instead, and the updater stays
+  /// untouched — which is what keeps this feature off the engine-build critical
+  /// path and therefore working on iOS as well as Android.
+  ///
+  /// Same posture as `patches/check`: unauthenticated, scoped by `app_id`, and
+  /// handing back a signed, expiring URL. It deliberately requires the caller to
+  /// name a `patch_number` and only answers for that patch, so a client cannot
+  /// be handed assets belonging to a patch it is not running.
+  ///
+  /// Body: `{app_id, release_version, platform, patch_number}`.
+  /// Reply: `{assets_available, assets: {url, hash, size} | null}`.
+  Future<Response> _patchesAssets(Request req) async {
+    final body = await _jsonBody(req);
+    String? str(String key) {
+      final v = body[key];
+      return v is String ? v : null;
+    }
+
+    final appId = str('app_id');
+    final version = str('release_version');
+    final platform = str('platform');
+    final number = body['patch_number'];
+
+    Map<String, Object?> resp({Map<String, Object?>? assets}) => {
+      'assets_available': assets != null,
+      'assets': assets,
+    };
+
+    // Malformed or unknown input answers "nothing here" rather than erroring:
+    // this is polled by app code on launch, and a hard failure would be a
+    // needless crash path for a purely additive feature.
+    if (appId == null ||
+        version == null ||
+        platform == null ||
+        number is! int) {
+      return _json(resp());
+    }
+    final release = await repo.releaseByVersion(appId, version);
+    if (release == null) return _json(resp());
+
+    final patches = await repo.patchesForRelease(release.id);
+    PatchRow? patch;
+    for (final p in patches) {
+      if (p.number == number) {
+        patch = p;
+        break;
+      }
+    }
+    if (patch == null) return _json(resp());
+
+    // Withdrawn/rolled-back patches must not keep serving their assets, or an
+    // app that rolled back would go on using the newer bundle against older
+    // code.
+    if (await repo.patchRolledBack(patch.id)) return _json(resp());
+
+    final artifact = await repo.patchArtifact(patch.id, assetsArch, platform);
+    if (artifact == null || artifact.status != ArtifactStatus.verified) {
+      return _json(resp());
+    }
+    return _json(
+      resp(
+        assets: {
+          'url': _signedUrl(artifact.token),
+          'hash': artifact.hash,
+          'size': artifact.size,
+        },
+      ),
+    );
+  }
+
+  /// `POST /crashes` — device-facing crash ingestion.
+  ///
+  /// Shorebird already detects a boot crash and rolls the patch back, but the
+  /// stack trace explaining *why* never leaves the device: the CLI only emits
+  /// symbols for third-party crash tools. This is the intake for that, so a
+  /// self-hosted deployment gets crash visibility without bolting on a
+  /// third-party SDK.
+  ///
+  /// Same posture as `patches/check` and `patches/events`: unauthenticated,
+  /// `app_id`-scoped, and tolerant of anything malformed — a crashing app must
+  /// never be made worse by its own reporter. Always answers 200 with
+  /// `{stored: bool}`; `false` means the report deduped, which is the normal
+  /// outcome for a retrying reporter or a crash loop.
+  Future<Response> _crashesReport(Request req) async {
+    final raw = await _readText(req);
+    obs.info('crashes/report', {'bytes': raw.length});
+    try {
+      final decoded = jsonDecode(raw);
+      final m = decoded is Map ? decoded : const {};
+      final body = m['crash'] is Map ? m['crash'] as Map : m;
+      String? str(String k) => body[k] is String ? body[k] as String : null;
+      int? integer(String k) => body[k] is int ? body[k] as int : null;
+
+      final appId = str('app_id');
+      final clientId = str('client_id');
+      final releaseVersion = str('release_version');
+      final patchNumber = integer('patch_number');
+      final stack = str('stack') ?? str('stack_trace');
+      final ts = integer('timestamp') ?? integer('ts');
+
+      // Dedupe on identity + the stack itself, so a loop collapses to one row
+      // while genuinely different crashes from the same build still land.
+      final dedupe = [
+        clientId,
+        appId,
+        releaseVersion,
+        patchNumber,
+        str('kind'),
+        // A whole stack makes an unwieldy key; its hash is enough.
+        if (stack != null) sha256.convert(utf8.encode(stack)).toString(),
+        ts,
+      ].join('|');
+
+      final stored = await repo.insertCrashReport(
+        raw: raw,
+        dedupeKey: dedupe,
+        appId: appId,
+        clientId: clientId,
+        releaseVersion: releaseVersion,
+        patchNumber: patchNumber,
+        platform: str('platform'),
+        arch: str('arch'),
+        kind: str('kind'),
+        message: str('message'),
+        stack: stack,
+        ts: ts,
+      );
+      return _json({'stored': stored});
+    } on Object catch (e) {
+      // Deliberately swallowed. An app in a crash loop retrying a malformed
+      // report should not also be fighting 4xx/5xx responses.
+      obs.info('crashes/report rejected', {'error': '$e'});
+      return _json({'stored': false});
+    }
+  }
+
+  /// `GET /api/v1/apps/{appId}/crashes` — authenticated read for the console.
+  ///
+  /// `release_version` and `patch_number` narrow to the tuple a retained symbol
+  /// set would be keyed by, which is how symbolication will find its inputs.
+  Future<Response> _getCrashes(Request req, String appId) async {
+    await _authorizeApp(req, appId);
+    final q = req.url.queryParameters;
+    final reports = await repo.crashReports(
+      appId,
+      releaseVersion: q['release_version'],
+      patchNumber: int.tryParse(q['patch_number'] ?? ''),
+      limit: int.tryParse(q['limit'] ?? '') ?? 100,
+    );
+
+    // Opt-in, because resolving means fetching, unzipping and DWARF-parsing a
+    // symbol set per distinct patch in the page — fine for one crash, too slow
+    // to impose on a list view that only wants counts and messages. Off by
+    // default also keeps this response byte-identical to before.
+    final wantSymbols = q['symbolicate'] == 'true';
+
+    return _json({
+      'crashes': [
+        for (final r in reports)
+          {
+            'id': r['id'],
+            'client_id': r['client_id'],
+            'release_version': r['release_version'],
+            'patch_number': r['patch_number'],
+            'platform': r['platform'],
+            'arch': r['arch'],
+            'kind': r['kind'],
+            'message': r['message'],
+            'stack': r['stack'],
+            if (wantSymbols)
+              'stack_symbolicated': await _symbolicatedStack(appId, r),
+            'ts': r['ts'],
+            // Postgres hands back a DateTime here, SQLite a String. Normalize
+            // so the wire shape does not depend on the backend.
+            'received_at': r['received_at'] is DateTime
+                ? (r['received_at']! as DateTime).toUtc().toIso8601String()
+                : '${r['received_at']}',
+          },
+      ],
+    });
+  }
+
+  /// The symbolicated form of one crash report's stack, or `null` when it
+  /// cannot be resolved.
+  ///
+  /// Null is a normal outcome, not an error: a crash against a release (no
+  /// patch number) has no retained symbol set, a patch built without
+  /// `--split-debug-info` retained none, and symbols may simply not have been
+  /// uploaded yet. The raw `stack` is always present alongside this, so the
+  /// caller loses nothing when it is null.
+  Future<String?> _symbolicatedStack(
+    String appId,
+    Map<String, Object?> report,
+  ) async {
+    final stack = report['stack'];
+    final version = report['release_version'];
+    final number = report['patch_number'];
+    if (stack is! String || stack.isEmpty) return null;
+    if (version is! String || number is! int) return null;
+
+    final platform = report['platform'];
+    if (platform is! String) return null;
+
+    final release = await repo.releaseByVersion(appId, version);
+    if (release == null) return null;
+
+    final patches = await repo.patchesForRelease(release.id);
+    PatchRow? patch;
+    for (final p in patches) {
+      if (p.number == number) {
+        patch = p;
+        break;
+      }
+    }
+    if (patch == null) return null;
+
+    final symbols = await repo.patchArtifact(patch.id, symbolsArch, platform);
+    if (symbols == null || symbols.status != ArtifactStatus.verified) {
+      return null;
+    }
+
+    return _symbolizer.symbolicate(
+      stack: stack,
+      symbols: symbols,
+      arch: report['arch'] is String ? report['arch']! as String : null,
     );
   }
 
@@ -1910,14 +3348,8 @@ class Api {
       final e = (decoded is Map && decoded['event'] is Map)
           ? decoded['event'] as Map
           : (decoded as Map);
-      final dedupe = [
-        e['client_id'],
-        e['app_id'],
-        e['release_version'],
-        e['patch_number'],
-        e['type'],
-        e['timestamp'],
-      ].join('|');
+      final outcome = e['outcome'] as String?;
+      final dedupe = eventDedupeKey(e);
       final inserted = await repo.insertEvent(
         raw: raw,
         dedupeKey: dedupe,
@@ -1929,10 +3361,28 @@ class Api {
         arch: e['arch'] as String?,
         releaseVersion: e['release_version'] as String?,
         ts: e['timestamp'] as int?,
+        outcome: outcome,
+        ambiguousAttemptCount: e['ambiguous_attempt_count'] as int?,
+        bootFailureThreshold: e['boot_failure_threshold'] as int?,
+        bootStartedAt: e['boot_started_at'] as int?,
+        updaterRevision: e['updater_revision'] as String?,
       );
       if (!inserted) obs.info('duplicate event ignored');
     } catch (_) {
-      await repo.insertEvent(raw: raw);
+      // Malformed or unexpected events are still kept verbatim. If even that
+      // fails (for example a NUL character in `raw` on Postgres), the event
+      // can never be stored: refuse it permanently with 422. A 500 would make
+      // the updater retry the same event forever and block its queue.
+      try {
+        await repo.insertEvent(raw: raw);
+      } catch (error, st) {
+        obs.error('patches/events: event could not be stored', error, st);
+        return _err(
+          HttpStatus.unprocessableEntity,
+          'unprocessable',
+          'Event could not be stored; do not retry it',
+        );
+      }
     }
     return Response(HttpStatus.noContent);
   }
@@ -1946,6 +3396,7 @@ class Api {
         seg[0] == 'orgs' &&
         seg[2] == 'invitations') {
       final orgId = _pathId(seg[1], 'org id');
+      _noteRequestedGrant(req, req.url.queryParameters['email']);
       if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
         throw DomainException(
           HttpStatus.forbidden,
@@ -1959,14 +3410,13 @@ class Api {
         orDefault: 'developer',
       );
       if (email == null) throw badRequest('email required');
+      _audit(req)?.note(detail: {'role_after': role});
       await _requireEmailAllowedInOrg(orgId, email);
       final token = await repo.createInvitation(orgId, email, role);
-      await repo.audit(
-        'org.invite',
-        actor: '${_uid(req)}',
-        target: '$orgId',
-        detail: '$email as $role',
-      );
+      // `token` is deliberately absent from the audit event: presenting it
+      // grants the role. The classifier fingerprints it on the accept and
+      // revoke routes, which is what correlates the three rows.
+      _audit(req)?.note(detail: {'invitation': credentialFingerprint(token)});
       // SMTP is optional in a self-host; return the accept link for delivery.
       return _json({
         'token': token,
@@ -1986,12 +3436,25 @@ class Api {
       await _authorizeServerAdmin(req);
       final email = req.url.queryParameters['email'];
       if (email == null || email.isEmpty) throw badRequest('email required');
+      final existing = await repo.userByEmail(email);
       final user = await repo.upsertUser(
         email,
         req.url.queryParameters['name'],
       );
       final key = await repo.createApiKey(user.id);
-      await repo.audit('user.create', actor: '${_uid(req)}', target: email);
+      // This route ISSUES A CREDENTIAL, and it returns the existing account on
+      // an email conflict — so "was this a new account or a second key for one
+      // that already existed?" is the question an incident asks first. The key
+      // is recorded only as a fingerprint, which is enough to match a key
+      // found in a CI config back to the request that issued it.
+      _audit(req)?.note(
+        target: email,
+        detail: {
+          'user_id': user.id,
+          'account_existed': existing != null,
+          'api_key_issued': credentialFingerprint(key),
+        },
+      );
       return _json({'user_id': user.id, 'email': user.email, 'api_key': key});
     }
     // POST /admin/apps/{appId}/collaborators?email=&role=
@@ -2000,6 +3463,7 @@ class Api {
         seg[0] == 'apps' &&
         seg[2] == 'collaborators') {
       final appId = seg[1];
+      _noteRequestedGrant(req, req.url.queryParameters['email']);
       // Granting access is an admin action: a `developer` collaborator can
       // ship patches but must not be able to add or remove other people.
       await _authorizeAppAdmin(req, appId);
@@ -2009,22 +3473,27 @@ class Api {
         orDefault: 'developer',
       );
       if (email == null) throw badRequest('email required');
+      _audit(req)?.note(detail: {'role_after': role});
       // The policy lives on the owning org, and a collaborator grant is a way
       // into that org's app — so it has to be checked here too, not just on the
       // invitation path. This is the case the upstream request is really about:
       // a personal account added straight onto a company app.
       final appOrgId = await repo.appOrgId(appId);
       if (appOrgId == null) throw notFound('No app $appId');
+      _audit(req)?.note(orgId: appOrgId);
       await _requireEmailAllowedInOrg(appOrgId, email);
       final user = await repo.userByEmail(email);
       if (user == null) throw notFound('No user $email');
-      await repo.addCollaborator(appId, user.id, role);
-      await repo.audit(
-        'app.collaborator.add',
-        actor: '${_uid(req)}',
-        target: appId,
-        detail: '$email as $role',
+      // `addCollaborator` upserts, so this route silently CHANGES an existing
+      // grant as well as creating one. Banking the previous role is what makes
+      // a quiet privilege escalation legible after the fact.
+      _audit(req)?.note(
+        detail: {
+          'user_id': user.id,
+          'role_before': await repo.collaboratorRole(appId, user.id),
+        },
       );
+      await repo.addCollaborator(appId, user.id, role);
       return _json({'app_id': appId, 'user_id': user.id, 'role': role});
     }
     // POST /admin/apps/{appId}/patches/{patchId}/withdraw?channel=&rollback=
@@ -2039,8 +3508,13 @@ class Api {
       // /admin is dispatched outside the /api/v1/apps block, so it gets no
       // authorization for free — withdraw and rollout must check it here.
       await _authorizeApp(req, appId);
-      await _ownedPatch(appId, patchId);
+      final patch = await _ownedPatch(appId, patchId);
       final channelName = req.url.queryParameters['channel'] ?? 'stable';
+      _audit(req)?.note(
+        releaseId: patch.releaseId,
+        patchNumber: patch.number,
+        track: channelName,
+      );
       final channel = await repo.channel(appId, channelName);
       if (channel == null) throw notFound('No channel $channelName');
 
@@ -2052,12 +3526,7 @@ class Api {
         }
         requireChannelPatchTransition(cp.status, ChannelPatchStatus.withdrawn);
         await repo.withdraw(channel.id, patchId, rollback: rollback);
-        await repo.audit(
-          'patch.withdraw',
-          actor: '${_uid(req)}',
-          target: '$patchId',
-          detail: 'rollback=$rollback',
-        );
+        _audit(req)?.note(detail: {'rollback': rollback});
         return _json({
           'withdrawn': true,
           'patch_id': patchId,
@@ -2076,12 +3545,7 @@ class Api {
           throw conflict('Patch $patchId is not active on $channelName');
         }
         await repo.setRollout(channel.id, patchId, percent);
-        await repo.audit(
-          'patch.rollout',
-          actor: '${_uid(req)}',
-          target: '$patchId',
-          detail: 'percent=$percent',
-        );
+        _audit(req)?.note(detail: {'percent': percent});
         return _json({'patch_id': patchId, 'rollout': percent});
       }
     }
@@ -2109,6 +3573,7 @@ class Api {
         seg[2] == 'members') {
       final orgId = _pathId(seg[1], 'org id');
       final userId = _pathId(seg[3], 'user id');
+      _noteRequestedGrant(req, null);
       if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
         throw DomainException(
           HttpStatus.forbidden,
@@ -2117,6 +3582,15 @@ class Api {
         );
       }
       final role = _validRole(req.url.queryParameters['role']);
+      // Both roles, banked before the gate below can refuse. "admin -> owner"
+      // and "developer -> owner" are very different events, and the new value
+      // alone cannot tell them apart.
+      _audit(req)?.note(
+        detail: {
+          'role_before': await repo.memberRole(orgId, userId),
+          'role_after': role,
+        },
+      );
       // Same "don't strand the org" rule the DELETE below enforces: demoting
       // the last owner/admin leaves nobody who can invite, manage members, or
       // (for the root org) issue API keys, with no recovery short of the
@@ -2128,12 +3602,6 @@ class Api {
         throw conflict('Cannot demote the last owner/admin of the org');
       }
       await repo.setMemberRole(orgId, userId, role);
-      await repo.audit(
-        'org.member.role',
-        actor: '${_uid(req)}',
-        target: '$orgId',
-        detail: 'user $userId -> $role',
-      );
       return _json({'org_id': orgId, 'user_id': userId, 'role': role});
     }
     // DELETE /admin/orgs/{orgId}/members/{userId}
@@ -2159,18 +3627,18 @@ class Api {
         }
       }
       final r = target?['role'];
+      _audit(req)?.note(
+        detail: {
+          'role_before': r,
+          if (target?['email'] case final String email) 'email': email,
+        },
+      );
       if (r is String &&
           _adminRoles.contains(r) &&
           await repo.orgAdminCount(orgId) <= 1) {
         throw conflict('Cannot remove the last owner/admin of the org');
       }
       await repo.removeMember(orgId, userId);
-      await repo.audit(
-        'org.member.remove',
-        actor: '${_uid(req)}',
-        target: '$orgId',
-        detail: 'user $userId',
-      );
       return _json({'removed': true, 'org_id': orgId, 'user_id': userId});
     }
     // GET /admin/orgs/{orgId}/invitations
@@ -2197,6 +3665,11 @@ class Api {
         seg[2] == 'domains' &&
         (req.method == 'GET' || req.method == 'PUT')) {
       final orgId = _pathId(seg[1], 'org id');
+      // A no-op on the GET: that route is not a classified mutation, so there
+      // is no scope to note onto.
+      _audit(req)?.note(
+        detail: {'domains_after': req.url.queryParameters['domains'] ?? ''},
+      );
       // Reading is admin-only too: the allowlist names the company's mail
       // domains, which is not something a `developer` needs.
       if (!await repo.userIsOrgAdmin(_uid(req), orgId)) {
@@ -2211,6 +3684,15 @@ class Api {
       }
       final raw = req.url.queryParameters['domains'] ?? '';
       final domains = parseDomainList(raw);
+      // Before and after, banked ahead of the two gates below. This policy
+      // governs who may be added to the org from then on, so a REFUSED change
+      // is as worth seeing as an applied one.
+      _audit(req)?.note(
+        detail: {
+          'domains_before': (await repo.orgAllowedDomains(orgId)).join(','),
+          'domains_after': domains.join(','),
+        },
+      );
       // Refuse a policy that would lock out every current owner/admin: nobody
       // left could invite, and it is only ever a typo. Existing members keep
       // access either way, so this is about not stranding administration.
@@ -2233,12 +3715,6 @@ class Api {
         throw badRequest('No valid domains in "$raw"');
       }
       await repo.setOrgAllowedDomains(orgId, domains);
-      await repo.audit(
-        'org.domains',
-        actor: '${_uid(req)}',
-        target: '$orgId',
-        detail: domains.isEmpty ? 'cleared' : domains.join(','),
-      );
       return _json({'org_id': orgId, 'domains': domains});
     }
     // DELETE /admin/orgs/{orgId}/invitations/{token}
@@ -2254,13 +3730,18 @@ class Api {
           'Not an org admin',
         );
       }
-      await repo.revokeInvitation(orgId, seg[3]);
-      await repo.audit(
-        'org.invite.revoke',
-        actor: '${_uid(req)}',
-        target: '$orgId',
-        detail: seg[3],
+      // The invitation's own details, so a revocation says WHAT was revoked
+      // rather than only that something was. Read before the delete; absent
+      // when the token is unknown, which is itself worth seeing.
+      final inv = await repo.invitation(seg[3]);
+      _audit(req)?.note(
+        detail: {
+          if (inv?['email'] case final String email) 'email': email,
+          if (inv?['role'] case final String role) 'role_before': role,
+          'invitation_existed': inv != null,
+        },
       );
+      await repo.revokeInvitation(orgId, seg[3]);
       return _json({'revoked': true});
     }
     // GET /admin/apps/{appId}/collaborators
@@ -2286,14 +3767,23 @@ class Api {
       final appId = seg[1];
       await _authorizeAppAdmin(req, appId);
       final userId = _pathId(seg[3], 'user id');
-      await repo.removeCollaborator(appId, userId);
-      await repo.audit(
-        'app.collaborator.remove',
-        actor: '${_uid(req)}',
-        target: appId,
-        detail: 'user $userId',
+      // Both the id the request named and the address behind it, so an
+      // access-change history for an app reads as people rather than numbers.
+      _audit(req)?.note(
+        detail: {
+          'user_id': userId,
+          if ((await repo.userById(userId))?.email case final String email)
+            'email': email,
+          'role_before': await repo.collaboratorRole(appId, userId),
+        },
       );
+      await repo.removeCollaborator(appId, userId);
       return _json({'removed': true, 'user_id': userId});
+    }
+
+    // GET /admin/audit — the operator's read of the mutation trail.
+    if (req.method == 'GET' && seg.length == 1 && seg[0] == 'audit') {
+      return _auditQuery(req);
     }
 
     return _err(
@@ -2301,6 +3791,98 @@ class Api {
       'not_found',
       'No admin route /${req.url.path}',
     );
+  }
+
+  /// `GET /admin/audit` — reads the control-plane mutation trail.
+  ///
+  /// This endpoint is the acceptance criterion for the audit work: another
+  /// operator must be able to answer "did anyone attempt to create, promote or
+  /// withdraw a patch for release 142, and what happened?" without inferring it
+  /// from database side effects. That is one call:
+  ///
+  ///     GET /admin/audit?release_id=142&operation=patch.create,patch.promote,patch.withdraw
+  ///
+  /// That query is the PRECISE one. The COMPLETE one is app-scoped:
+  ///
+  ///     GET /admin/audit?app_id=<app>&operation=patch.create,patch.promote,patch.withdraw
+  ///
+  /// because `release_id` and `patch_id` arrive in the request BODY on
+  /// `patch.create` and `patch.promote`, and a request refused by
+  /// authentication is never parsed — deliberately: buffering an
+  /// unauthenticated body to decorate an audit event would be a
+  /// denial-of-service surface on the one route that can reject at the header.
+  /// Such an attempt still carries its operation and its app id, both taken
+  /// from the path, so the app-scoped query sees it and the release-scoped one
+  /// does not. Ask both.
+  ///
+  /// `ceiling` is always the current `MAX(id)` of the whole table, so a caller
+  /// can snapshot it, run something it expects to write nothing, and then ask
+  /// `?after=<ceiling>&operation=patch.create` — a claim that can be falsified,
+  /// unlike "I looked and saw nothing".
+  ///
+  /// The identity and tenancy mutations are in the same trail, and answer the
+  /// question that precedes "who shipped this?" — who was ALLOWED to:
+  ///
+  ///     GET /admin/audit?app_id=<app>&operation=app.collaborator.add,app.collaborator.remove
+  ///     GET /admin/audit?org_id=1&operation=org.member.role,org.member.remove,org.invite
+  ///     GET /admin/audit?target_kind=user&target=someone@example.com
+  ///
+  /// Role and policy changes bank both sides in `detail` (`role_before` /
+  /// `role_after`, `domains_before` / `domains_after`), so a quiet privilege
+  /// escalation is legible rather than merely present.
+  ///
+  /// Server-admin only. The trail names who shipped what, and a `developer`
+  /// collaborator on one app has no business reading the whole deployment's.
+  Future<Response> _auditQuery(Request req) async {
+    await _authorizeServerAdmin(
+      req,
+      target: 'audit',
+      what: 'Reading the audit log',
+    );
+    final q = req.url.queryParameters;
+    final result = q['result'];
+    if (result != null && !AuditResult.values.any((r) => r.name == result)) {
+      throw badRequest(
+        'result must be one of ${AuditResult.values.map((r) => r.name).join(', ')}',
+      );
+    }
+    final targetKind = q['target_kind'];
+    if (targetKind != null &&
+        !AuditTargetKind.values.any((k) => k.wireName == targetKind)) {
+      throw badRequest(
+        'target_kind must be one of '
+        '${AuditTargetKind.values.map((k) => k.wireName).join(', ')}',
+      );
+    }
+    final events = await repo.auditEvents(
+      appId: q['app_id'],
+      releaseId: q['release_id'] == null
+          ? null
+          : _pathId(q['release_id']!, 'release_id'),
+      patchId: q['patch_id'] == null
+          ? null
+          : _pathId(q['patch_id']!, 'patch_id'),
+      orgId: q['org_id'] == null ? null : _pathId(q['org_id']!, 'org_id'),
+      targetKind: targetKind,
+      target: q['target'],
+      requestId: q['request_id'],
+      operations: (q['operation'] ?? '')
+          .split(',')
+          .map((o) => o.trim())
+          .where((o) => o.isNotEmpty)
+          .toList(),
+      result: result,
+      after: q['after'] == null ? null : _pathId(q['after']!, 'after'),
+      since: _dateParam(q, 'since'),
+      limit: int.tryParse(q['limit'] ?? '') ?? 100,
+    );
+    return _json({
+      // Read AFTER the rows, so `ceiling` can never sit below an event this
+      // same response already returned.
+      'ceiling': await repo.auditCeiling(),
+      'count': events.length,
+      'events': events,
+    });
   }
 
   // ---- signed URLs ----
@@ -2329,22 +3911,36 @@ class Api {
     'upload_method': config.uploadMethod,
   };
 
-  Map<String, Object?> _releaseJson(ReleaseRow r) => {
-    'id': r.id,
-    'app_id': r.appId,
-    'version': r.version,
-    'flutter_revision': r.flutterRevision,
-    'flutter_version': r.flutterVersion,
-    'display_name': r.displayName,
-    'platform_statuses': r.platformStatuses,
-    'created_at': r.createdAt,
-    'updated_at': r.updatedAt,
-    'notes': r.notes,
-    // Extra key the pinned CLI ignores (its DTOs parse field by field), so the
-    // console and any operator tooling can read build provenance without a
-    // second round trip.
-    'metadata': r.metadata,
-  };
+  /// A release as upstream's `Release.fromJson` reads it: `platforms` is
+  /// required there (a non-null map), `platform_statuses` is the deprecated
+  /// form older CLIs still read. `signing_mode` is reported only for a platform
+  /// whose artifacts said how they were signed.
+  Future<Map<String, Object?>> _releaseJson(ReleaseRow r) async {
+    final signing = await repo.releaseSigning(r.id);
+    return {
+      'platforms': {
+        for (final e in r.platformStatuses.entries)
+          e.key: {
+            'status': e.value,
+            if (signing[e.key] != null) 'signing_mode': signing[e.key]!.mode,
+          },
+      },
+      'id': r.id,
+      'app_id': r.appId,
+      'version': r.version,
+      'flutter_revision': r.flutterRevision,
+      'flutter_version': r.flutterVersion,
+      'display_name': r.displayName,
+      'platform_statuses': r.platformStatuses,
+      'created_at': r.createdAt,
+      'updated_at': r.updatedAt,
+      'notes': r.notes,
+      // Extra key the pinned CLI ignores (its DTOs parse field by field), so the
+      // console and any operator tooling can read build provenance without a
+      // second round trip.
+      'metadata': r.metadata,
+    };
+  }
 
   /// Ceiling on any body we turn into a String. Every payload at these
   /// endpoints is a small control-plane document; `readAsString` on its own has
@@ -2569,4 +4165,32 @@ class _RateLimiter {
     _buckets[key] = (nowMin, entry.$2 + 1);
     return true;
   }
+}
+
+/// Builds the dedupe key for a device event.
+///
+/// Extracted and public so the collision rule below can be tested directly —
+/// asserting it through a repository call would only prove the database keeps
+/// two rows with two different keys, not that this function PRODUCES two
+/// different keys, which is the actual regression.
+String eventDedupeKey(Map<dynamic, dynamic> e) {
+  final outcome = e['outcome'] as String?;
+  return [
+    e['client_id'],
+    e['app_id'],
+    e['release_version'],
+    e['patch_number'],
+    e['type'],
+    e['timestamp'],
+    // Boot-lifecycle events carry SEVERAL distinct outcomes for one patch, and
+    // two can legitimately land in the same second — an `ambiguous_boot_retry`
+    // at init and the `recovered_after_ambiguity` from that same launch's
+    // success. Without `outcome` in the key those collide and the RECOVERY is
+    // dropped as a duplicate, biasing P(recovery | first ambiguity) downward:
+    // the one metric the retry threshold is meant to be judged on.
+    //
+    // Appended only when present, so every pre-existing event type keeps a
+    // byte-identical key and nothing is re-accepted on upgrade.
+    if (outcome != null) outcome,
+  ].join('|');
 }

@@ -1,0 +1,9 @@
+
+== creating the release/patch discovery container ==
+   localhost:18081 -> 200 (forwarded to the host control plane)
+   container ready at 4cc9e6cf1b49166253e975d0d966389489ca294d
+
+== iteration 1 — frozen harness against the SEALED COLD mirror (v0.9.1+1) ==
+   harness exit 0
+
+== CLOSED — the frozen harness passed under seal with nothing refused ==

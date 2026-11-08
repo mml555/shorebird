@@ -1,0 +1,11 @@
+{
+ "shapes": {
+  "63efbe6be27475a7bd4ec5f322d85c1944c8beed|package:localsend_app/pages/apk_picker_page.dart#_ApkPickerPageState.dispose|2018": "zeroArguments",
+  "63efbe6be27475a7bd4ec5f322d85c1944c8beed|package:localsend_app/pages/progress_page.dart#_ProgressPageState.initState|2988": "zeroArguments",
+  "224ef8b16ac5cac7c257328fcc2dbf84fd684df5|package:localsend_app/pages/apk_picker_page.dart#_ApkPickerPageState.dispose|2018": "zeroArguments",
+  "224ef8b16ac5cac7c257328fcc2dbf84fd684df5|package:localsend_app/pages/device_details_page.dart#_DeviceDetailsPageState.initState|1397": "zeroArguments",
+  "224ef8b16ac5cac7c257328fcc2dbf84fd684df5|package:localsend_app/pages/progress_page.dart#_ProgressPageState.initState|3123": "zeroArguments",
+  "224ef8b16ac5cac7c257328fcc2dbf84fd684df5|package:localsend_app/widget/dialogs/favorite_edit_dialog.dart#_FavoriteEditDialogState.initState|1522": "zeroArguments"
+ },
+ "unmapped": []
+}

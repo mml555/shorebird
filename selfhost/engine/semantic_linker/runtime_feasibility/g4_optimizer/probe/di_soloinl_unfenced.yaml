@@ -1,0 +1,21 @@
+# cspell:words dynmod
+# VARIANT B — the SAME host with can-be-overridden OMITTED.
+#
+# The adversarial arm. `Base` stays extendable and its members stay callable, so
+# the module still compiles and still loads; only the retention of the DISPATCH
+# POINT is withdrawn. A and B therefore differ by exactly one contract entry,
+# which is what makes any bypass attributable to that entry rather than to
+# compiler mood.
+extendable:
+  - library: 'package:dynamic_modules/g4_host_solo_inl.dart'
+    class: 'Base'
+can-be-used-as-type:
+  - library: 'package:dynamic_modules/g4_host_solo_inl.dart'
+    class: 'Base'
+callable:
+  - library: 'package:dynamic_modules/g4_host_solo_inl.dart'
+    class: 'Base'
+    member: ''
+  - library: 'package:dynamic_modules/g4_host_solo_inl.dart'
+    class: 'Base'
+    member: 'execute'

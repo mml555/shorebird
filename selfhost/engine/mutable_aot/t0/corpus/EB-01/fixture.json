@@ -1,0 +1,26 @@
+{
+  "schema": "maot.t0.fixture/1",
+  "row_id": "EB-01",
+  "gate_id": "T0/EB-01",
+  "title": "top-level function body",
+  "executable": true,
+  "placeholder_reason": null,
+  "dispatch_modes": [
+    "direct",
+    "tearoff_pre",
+    "tearoff_post",
+    "dynamic"
+  ],
+  "optimizer_modes": [
+    "jit",
+    "aot"
+  ],
+  "heat_modes": [
+    "cold",
+    "hot"
+  ],
+  "expected_pre": "1",
+  "expected_post": "2",
+  "old_state_required": true,
+  "subject_note": "top-level function body"
+}

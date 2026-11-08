@@ -1,0 +1,329 @@
+{
+  "schema": "semantic-linker-1/final-verdict/1",
+  "gate": "SL1-FINAL",
+  "issue": 46,
+  "tracker": 36,
+  "published": "2026-09-06T23:58:23Z",
+  "frozen_baseline": {
+    "tag": "selfhost-v1.1.1",
+    "tag_object": "315d364383890d29fbf9bc2c7f30aac53f4e5b48",
+    "tag_is_annotated": true,
+    "commit": "bdb234ab938fc0570e499d800928a0c3d640bfe1",
+    "commit_tree": "2280e5c61f835a201097424f00fbe3845fc1e96c"
+  },
+  "record_at_tag": {
+    "cli_revision": "46ee70af56c3814d079cc2466b092481c7904e76",
+    "cli_contains": "6b4f6c422bab55143ef04c8f43f92015ee3b3feb",
+    "flutter_selector": "5b180d224df04a267a19888c3f344474e243b382",
+    "cell_address": "f85251f344600ae08196925a174e9cff8f0ff18e",
+    "producer_engine_revision": "dfa2b24ac38477f3705ff0357530f33fe09474b8",
+    "fallback_engine_revision": "69f9831c360d9152862ec3897c67fb09ae843f3b",
+    "dart_revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+    "updater_revision": "af6e842ccf87",
+    "packages_shorebird_cli": "6c76e79a3ad1c86658a41b144dececb07ff5d3ca",
+    "bin_internal": "8ae6081fb375ed33515e8ae0d61bc4ecdb51b990"
+  },
+  "source_identity": {
+    "engine": {
+      "revision": "dfa2b24ac38477f3705ff0357530f33fe09474b8",
+      "tree": "26acc7f47d809563a08212c8264516aae64f10d5",
+      "clean": true,
+      "untracked_build_inputs": {
+        ".gcs_entries": "engine/src/flutter/prebuilts/macos-arm64/dart-sdk <- db98bdaa9d8f8e2250ff83d24abcaf775807244c/dart-sdk-darwin-arm64.tar.gz"
+      },
+      "durable_remote": "https://github.com/mml555/shorebird-flutter.git",
+      "durable_refs": [
+        "refs/heads/route-b-2c-candidate",
+        "refs/tags/acs2-macos-ios-producer"
+      ]
+    },
+    "dart": {
+      "revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+      "head_tree": "aa55ff960f07682fd098195e4884f2cbcb4f5f27",
+      "effective_tree": "7b04b01bdc10ec990143257f0d28580571c2122f",
+      "effective_tree_note": "HEAD plus the uncommitted guard; THIS is what built the cell",
+      "deps_pinned_base": "d684a576a6aa954ae107a03b2b4e1d61c3bebe93",
+      "dirty_paths": [
+        "pkg/front_end/lib/src/source/source_loader.dart"
+      ],
+      "durable_remote": null,
+      "durability": "LOCAL-DISK-ONLY \u2014 banked here as patches",
+      "bank": {
+        "0001-Add-snapshot-size-accessors-for-code-push.patch": "4e119599829b0d4968623226fc51232f7bd4f9b44cfd5eed034e3d9f4068b06f",
+        "0002-Route-B-Dart-SDK-support-bytecode-producer-and-the-t.patch": "2f59d6a836e746a097a2482d6f0cc3339dce0e7e6536277b517680591784aad1",
+        "9999-worktree-uncommitted.patch": "6b358f715e491bd9829e00fee0262ac7b637982f3bf66e748befcec84075262c"
+      }
+    }
+  },
+  "reproduction": {
+    "result": {
+      "REPRODUCTION": "PASS",
+      "FEASIBILITY_EVIDENCE": "REPRODUCED",
+      "KNOWN_FAIL_OPEN_FINDINGS": "REPRODUCED",
+      "PRODUCTION_PREREQUISITES": "UNRESOLVED"
+    },
+    "state": {
+      "RUNTIME_SUBSTRATE": "PASS",
+      "MIXED_EXECUTION": "PASS",
+      "TYPE_AND_GC": "PASS",
+      "OPTIMIZER_CONTRACT": "PASS_IF_CAN_BE_OVERRIDDEN",
+      "NEGATIVE_CONTROLS": "FINDINGS_PRESENT",
+      "PERFORMANCE": "MEASURED",
+      "REPRODUCIBILITY": "PASS",
+      "UNRESOLVED_PREREQUISITES": [
+        "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION"
+      ]
+    },
+    "lane_build": "REPRODUCIBLE",
+    "supported_cell": "NOT_ESTABLISHED_BY_THIS_GATE"
+  },
+  "matrix": {
+    "FROZEN_LINEAGE": {
+      "value": "VERIFIED",
+      "evidence": "g0_freeze/freeze_manifest.json",
+      "commit": "bdb234ab938fc0570e499d800928a0c3d640bfe1",
+      "producing_dart_tree": "7b04b01bdc10ec990143257f0d28580571c2122f"
+    },
+    "CURRENT_DART": {
+      "value": "NOT_TRIGGERED",
+      "evidence": "issue #42 closed as not planned",
+      "why": "the frozen lineage exposes and enforces the required mechanism; no primitive failed on it"
+    },
+    "BYTECODE_TO_AOT": {
+      "value": "PROVEN",
+      "evidence": "g2_execution/evidence/g2_g3_on.txt",
+      "marker": "multiply is RETAINED AOT, not interpreted"
+    },
+    "AOT_TO_BYTECODE": {
+      "value": "PROVEN",
+      "evidence": "g2_execution/evidence/g2_g3_on.txt",
+      "marker": "module implementation is interpreted"
+    },
+    "SHARED_HEAP": {
+      "value": "PROVEN",
+      "evidence": "g2_execution/evidence/g2_g3_on.txt",
+      "marker": "module mutation B->A is visible to AOT"
+    },
+    "OBJECT_IDENTITY": {
+      "value": "PROVEN",
+      "evidence": "g2_execution/evidence/g2_g3_on.txt",
+      "marker": "module returned the very same Box (identity, not equality)"
+    },
+    "AOT_ROOT_TO_PATCH_OBJECT": {
+      "value": "PROVEN",
+      "evidence": "g3_types_gc/evidence/g3_g3_on.txt",
+      "marker": "patch object survived a full GC"
+    },
+    "PATCH_ROOT_TO_AOT_OBJECT": {
+      "value": "PROVEN",
+      "evidence": "g3_types_gc/evidence/g3_g3_on.txt",
+      "marker": "AOT object survived, rooted only through patch code"
+    },
+    "CROSS_RUNTIME_CYCLE_COLLECTION": {
+      "value": "PROVEN",
+      "evidence": "g3_types_gc/evidence/g3_g3_on.txt",
+      "marker": "unrooted patch object in the cycle WAS collected"
+    },
+    "BYTECODE_EXCEPTION_TO_AOT": {
+      "value": "PROVEN",
+      "evidence": "g2_execution/evidence/g2_g3_on.txt",
+      "marker": "AOT caught a throw that originated in bytecode"
+    },
+    "AOT_EXCEPTION_TO_BYTECODE": {
+      "value": "PROVEN",
+      "evidence": "g2_execution/evidence/g2_g3_on.txt",
+      "marker": "module caught the host exception"
+    },
+    "FINALLY": {
+      "value": "PROVEN",
+      "evidence": "g2_execution/evidence/g2_g3_on.txt",
+      "marker": "the host finally ran during unwinding"
+    },
+    "STACK_UNWINDING": {
+      "value": "PROVEN",
+      "evidence": "g2_execution/evidence/g2_g3_on.txt",
+      "marker": "AOT still executes correctly after the unwind"
+    },
+    "PATCH_CLASS": {
+      "value": "PROVEN",
+      "evidence": "g3_types_gc/evidence/g3_g3_on.txt",
+      "marker": "runtimeType is the patch class"
+    },
+    "IMPLEMENTS_AOT_INTERFACE": {
+      "value": "PROVEN",
+      "evidence": "g3_types_gc/evidence/g3_g3_on.txt",
+      "marker": "is Iface: true"
+    },
+    "EXTENDS_AOT_CLASS": {
+      "value": "PROVEN",
+      "evidence": "g3_types_gc/evidence/g3_g3_on.txt",
+      "marker": "is Base: true"
+    },
+    "SUPER_TO_AOT": {
+      "value": "PROVEN",
+      "evidence": "g3_types_gc/evidence/g3_g3_on.txt",
+      "marker": "override ran and super reached AOT"
+    },
+    "IS_CHECK": {
+      "value": "PROVEN",
+      "evidence": "g3_types_gc/evidence/g3_g3_on.txt",
+      "marker": "AOT treats the result as Base"
+    },
+    "CAST": {
+      "value": "PROVEN",
+      "evidence": "g3_types_gc/evidence/g3_g3_on.txt",
+      "marker": "inherited AOT method"
+    },
+    "GENERICS": {
+      "value": "PROVEN",
+      "evidence": "g3_types_gc/evidence/g3_g3_on.txt",
+      "marker": "module instantiated the AOT generic at its own type"
+    },
+    "OPTIMIZER_DIRECT_VIRTUAL": {
+      "value": "SOUND_WITH_CONTRACT__BYPASSED_WITHOUT",
+      "evidence": [
+        "g4_optimizer/evidence/g4_solo_fenced.txt",
+        "g4_optimizer/evidence/g4_solo_unfenced.txt"
+      ],
+      "shape": "1_virtual"
+    },
+    "OPTIMIZER_MONOMORPHIC": {
+      "value": "SOUND_WITH_CONTRACT__BYPASSED_WITHOUT",
+      "evidence": [
+        "g4_optimizer/evidence/g4_solo_fenced.txt",
+        "g4_optimizer/evidence/g4_solo_unfenced.txt"
+      ],
+      "shape": "2_monomorphic"
+    },
+    "OPTIMIZER_HELPER_CHAIN": {
+      "value": "SOUND_WITH_CONTRACT__BYPASSED_WITHOUT",
+      "evidence": [
+        "g4_optimizer/evidence/g4_solo_fenced.txt",
+        "g4_optimizer/evidence/g4_solo_unfenced.txt"
+      ],
+      "shape": "3_helper_chain"
+    },
+    "OPTIMIZER_GENERIC": {
+      "value": "SOUND_WITH_CONTRACT__BYPASSED_WITHOUT",
+      "evidence": [
+        "g4_optimizer/evidence/g4_solo_fenced.txt",
+        "g4_optimizer/evidence/g4_solo_unfenced.txt"
+      ],
+      "shape": "4_bounded_generic"
+    },
+    "OPTIMIZER_FIELD_RECEIVER": {
+      "value": "SOUND_WITH_CONTRACT__BYPASSED_WITHOUT",
+      "evidence": [
+        "g4_optimizer/evidence/g4_solo_fenced.txt",
+        "g4_optimizer/evidence/g4_solo_unfenced.txt"
+      ],
+      "shape": "5_field_receiver"
+    },
+    "SUBSTRATE_COST": {
+      "value": "dartaotruntime +2.76%; vm_platform.dill 0.00%; normal AOT perf: no measurable difference",
+      "evidence": "g6b_cost/evidence/costs.txt"
+    },
+    "DYNAMIC_INTERFACE_COST": {
+      "value": "+16,704 bytes (+1.88%) retained AOT per declared-patchable member",
+      "evidence": "g6b_cost/evidence/costs.txt"
+    },
+    "MODULE_COST": {
+      "value": "module 1,190 B; load ~99 us; RSS delta ~112 KB",
+      "evidence": "g6b_cost/evidence/costs.txt"
+    },
+    "CALL_COST": {
+      "value": {
+        "aot_to_aot_direct_ns": 2.27,
+        "aot_to_aot_virtual_ns": 2.52,
+        "aot_to_bytecode_ns": 20.78,
+        "bytecode_to_aot_ns": 27.94,
+        "bytecode_to_bytecode_ns": 28.39,
+        "alloc_aot_ns": 5.69,
+        "alloc_bytecode_aot_type_ns": 77.15,
+        "alloc_bytecode_patch_type_ns": 95.52,
+        "interpretation_multiple": "~9-12x a direct AOT call; the three interpreted modes are within noise of each other"
+      },
+      "evidence": [
+        "g6b_cost/evidence/costs.txt",
+        "g6b_cost/evidence/alloc_gc.txt"
+      ]
+    },
+    "KNOWN_GAPS": {
+      "value": [
+        {
+          "id": "MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION",
+          "status": "UNRESOLVED",
+          "severity": "BLOCKING_FOR_PRODUCTION",
+          "classification": "production pipeline/tooling requirement \u2014 NOT a runtime or compiler defect",
+          "evidence": "g6a_negatives/RESULT.md"
+        },
+        {
+          "id": "NEGATIVE_CONTROLS_FAIL_OPEN",
+          "status": "FINDING",
+          "items": [
+            "wrong_platform_dill",
+            "wrong_runtime_build",
+            "no_extendable",
+            "no_type",
+            "member_not_overridable"
+          ],
+          "evidence": "g6a_negatives/evidence/negatives.json"
+        },
+        {
+          "id": "SUPPORTED_CELL_REPRODUCIBILITY",
+          "status": "NOT_ESTABLISHED_BY_THIS_LANE",
+          "evidence": "g6c_harness/evidence/reproduction.json"
+        },
+        {
+          "id": "GC_COST_CHARACTERISATION",
+          "status": "PARTIAL",
+          "note": "one workload on one machine; collection cost flat across modes, not a GC characterisation"
+        },
+        {
+          "id": "PLATFORM_SCOPE",
+          "status": "LIMIT",
+          "note": "host macOS/arm64 only; no iOS, no device, no real application"
+        },
+        {
+          "id": "CALL_SITE_REBINDING",
+          "status": "OUT_OF_SCOPE",
+          "note": "Dart-side call sites remain statically bound; the binder is not built and no gate claims it"
+        }
+      ],
+      "evidence": "multiple"
+    },
+    "VERDICT": {
+      "value": "PROCEED",
+      "why": "every required primitive is mechanically supported on the frozen lineage, and optimizer behaviour is fully characterised without changing the runtime model: it is sound when can-be-overridden is part of the release-time patchability contract. The one blocking gap (module-side dynamic-interface validation) is a production pipeline requirement, not a runtime or compiler defect, so it does not select MODIFY_VM or MODIFY_COMPILER_FENCES.",
+      "optimizer_fully_characterised": true,
+      "allowed_verdicts": [
+        "PROCEED",
+        "MODIFY_UPGRADE_DART",
+        "MODIFY_COMPILER_FENCES",
+        "MODIFY_VM",
+        "ABANDON_OR_REDESIGN"
+      ]
+    }
+  },
+  "provenance": {
+    "g0_freeze/freeze_manifest.json": "e72e0fb306da1794779b94e5ccceca9e422d8787d2fb8505f1ebc5a8e5384ddf",
+    "g0_freeze/banked_source/dart/0001-Add-snapshot-size-accessors-for-code-push.patch": "4e119599829b0d4968623226fc51232f7bd4f9b44cfd5eed034e3d9f4068b06f",
+    "g0_freeze/banked_source/dart/0002-Route-B-Dart-SDK-support-bytecode-producer-and-the-t.patch": "2f59d6a836e746a097a2482d6f0cc3339dce0e7e6536277b517680591784aad1",
+    "g0_freeze/banked_source/dart/9999-worktree-uncommitted.patch": "6b358f715e491bd9829e00fee0262ac7b637982f3bf66e748befcec84075262c",
+    "g2_execution/banked_experiment/0001-g2-function-execution-mode-instrument.patch": "6466c7d9bc707018fb5e1bad966ab441d37951211658fb7ece44cb0ad2260b2f",
+    "g3_types_gc/banked_experiment/0001-g3-expose-full-gc-for-testing.patch": "30286207aa0124ec58dde6d3dcd61f42e54a9672cef5d8d4e4a4978afa993e06",
+    "g1_substrate/g1_manifest.json": "0cb31fac4881c700c96ce3180269313a32c1f3c664d55fffee6c87bc5e71a329",
+    "g6a_negatives/evidence/negatives.json": "98ba926de674724d466144630056ac819609c3ce84c08a368b69c49fa2fc03f3",
+    "g6c_harness/evidence/reproduction.json": "b750b2ad11b09a8c849cc1e1302918896191fb387c163842a6cb3320af1befe2",
+    "g6c_harness/evidence/falsification.json": "8a800396cd1cba2ce2cc758373b2d2b14d53f55be6000ee9f239701a41330d22",
+    "g6c_harness/mandatory_evidence.json": "6aacb3a9e07583062b8cc582b69ba46b6ab5534ca2779884854e0009ee9c8007",
+    "g2_execution/evidence/g2_g3_on.txt": "41a83ad32a46200043f84ecdd54994539b6e65eb4ddf99c335dc56789ba746d1",
+    "g3_types_gc/evidence/g3_g3_on.txt": "1a45a697a75c4c19c71420135427e1c7435aa9b9c13e7512ac8683935feaf29c",
+    "g4_optimizer/evidence/g4_solo_fenced.txt": "a55eadd3c9dd2448d99d368d69363c588d792dd3fbc09a8df656e4bbc4ecf6cd",
+    "g4_optimizer/evidence/g4_solo_unfenced.txt": "d8d6f3fcc0136d14ed63f096649f6d92764c855f1e042d406e5d95de563301a3",
+    "g6b_cost/evidence/costs.txt": "9339009d87687507cc6718053c0442a55ef97d01d27b01c2ebb11629c929a637",
+    "g6b_cost/evidence/alloc_gc.txt": "57939ce377ce65c39e41555baa127e6b52b7e032b1d8c24cc5d58298fee7bc80"
+  },
+  "next_lane": "SEMANTIC-MAP-1",
+  "stop_boundary": "This issue publishes a verdict. No semantic-map implementation, assumption instrumentation, reconciliation, patch-v2, CLI integration, signing change, supported-state change, or physical deployment begins here."
+}

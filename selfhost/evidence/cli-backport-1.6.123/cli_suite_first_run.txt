@@ -1,0 +1,8 @@
+# shorebird_cli: dart test -r failures-only (Dart 3.12.2)
+## backport branch, before the fvm/system test adaptation
++1777 ~1 -1: test/src/commands/release/release_command_test.dart: ReleaseCommand when flutter-version is "system" builds with the Shorebird revision for the reported version [E]
++1782 ~1 -2: test/src/commands/release/release_command_test.dart: ReleaseCommand when flutter-version is "fvm" builds with the Shorebird revision for the reported version [E]
++2939 ~2 -2: Some tests failed.
+## experimental (baseline)
++2507 ~2 -1: test/src/artifact_manager_test.dart: ArtifactManager downloadWithProgressUpdates when download succeeds progress updates with a throttled  [E]
++2740 ~2 -1: Some tests failed.

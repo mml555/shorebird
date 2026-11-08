@@ -1,0 +1,23 @@
+classifier    : 498be727   (trace schema v3)
+target        : package:airgap_probe/main.dart RouteBThing.value
+rc            : 0   attach_entered=1 attach_returned=1
+function      : 0x104a3dfc1
+
+FUNCTION fields (what the call instruction loads)
+  entry_point_            0x10383dca8    -> 0x10376c044
+  unchecked_entry_point_  0x10383dca8    -> 0x10376c044
+CODE values (kept separate on purpose; v1 mislabelled these)
+  Code                    0x10493cd81    -> 0x103515cb1
+  Code::EntryPoint        0x10383dca8    -> 0x10376c044
+  Code::UncheckedEntry    0x10383dca8    -> 0x10376c044
+same-run InterpretCall  : 0x10376c044
+
+caller identity : resolved=1 pool_functions=None matches_target=None other_fn=0x0
+
+============================================================
+IDENTITY NOT MEASURED — caller_scan_status=NULL_POOL.
+The pool was not walked, so the counters carry no information:
+  caller_pool_functions=None  matches_target=None
+Neither a zero count nor a zero match may participate in
+classification. Fix the measurement and re-run.
+classifier exit: 3 (recorded)

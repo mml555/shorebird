@@ -8,26 +8,121 @@ set -e
 # Needed because if it is set, cd may print the path it changed to.
 unset CDPATH
 
+# An origin variable's value as the CLI reads it (ArtifactOrigin._nonEmpty in
+# packages/shorebird_cli/lib/src/artifact_origin.dart): whitespace trimmed,
+# trailing slashes dropped, and empty meaning unset.
+function _origin_value {
+  local v="$1"
+  v="${v#"${v%%[![:space:]]*}"}"
+  v="${v%"${v##*[![:space:]]}"}"
+  while [[ "$v" == */ ]]; do v="${v%/}"; done
+  printf '%s' "$v"
+}
+
+# Resolves where Flutter/engine artifacts come from: SHOREBIRD_DOWNLOAD_URL,
+# then FLUTTER_STORAGE_BASE_URL, then SHOREBIRD_ARTIFACT_ORIGIN, then upstream.
+# Prints the URL. When more than one is set and they disagree, warns on stderr
+# naming the winner and the layout it implies, exactly as
+# ArtifactOrigin.conflictWarning does. Pinned against the Dart side by
+# artifact_origin_test.dart.
+function resolve_download_url {
+  local names=(SHOREBIRD_DOWNLOAD_URL FLUTTER_STORAGE_BASE_URL SHOREBIRD_ARTIFACT_ORIGIN)
+  local winner="" winner_value="" distinct="" ignored="" name value
+  for name in "${names[@]}"; do
+    value="$(_origin_value "${!name:-}")"
+    [[ -z "$value" ]] && continue
+    if [[ -z "$winner" ]]; then
+      winner="$name"; winner_value="$value"
+    else
+      ignored="${ignored:+$ignored, }$name=$value"
+    fi
+    case " $distinct " in *" $value "*) ;; *) distinct="$distinct $value" ;; esac
+  done
+  if [[ -z "$winner" ]]; then
+    printf '%s' "https://download.shorebird.dev"
+    return
+  fi
+  if [[ $(wc -w <<<"$distinct") -gt 1 ]]; then
+    local layout storage_base storage_bucket
+    if [[ "$winner" == SHOREBIRD_DOWNLOAD_URL ]]; then
+      layout="upstream layout: $winner_value/shorebird/<engine>/..."
+    else
+      storage_base="$(_origin_value "${SHOREBIRD_STORAGE_BASE_URL:-}")"
+      [[ -z "$storage_base" ]] && storage_base="$(_origin_value "${SHOREBIRD_ARTIFACT_ORIGIN:-}")"
+      [[ -z "$storage_base" ]] && storage_base="https://storage.googleapis.com"
+      storage_bucket="$(_origin_value "${SHOREBIRD_STORAGE_BUCKET:-}")"
+      [[ -z "$storage_bucket" ]] && storage_bucket="download.shorebird.dev"
+      layout="fork layout: $storage_base/$storage_bucket/shorebird/<engine>/..."
+    fi
+    local all_set
+    all_set="$(for name in "${names[@]}"; do if [[ -n "$(_origin_value "${!name:-}")" ]]; then printf '%s, ' "$name"; fi; done)"
+    >&2 echo "Warning: ${all_set%, } are set to conflicting values. $winner=$winner_value wins (precedence: SHOREBIRD_DOWNLOAD_URL, FLUTTER_STORAGE_BASE_URL, SHOREBIRD_ARTIFACT_ORIGIN), giving the $layout. Ignored: $ignored. Unset the ones you do not mean."
+  fi
+  printf '%s' "$winner_value"
+}
+
 # Either clones or pulls the Shorebird Flutter repository, depending on whether FLUTTER_PATH exists.
+# A self-hosted deployment can point both network touches at its own mirror:
+# SHOREBIRD_FLUTTER_GIT_URL for the clone, and for the artifact download either
+# FLUTTER_STORAGE_BASE_URL or the single SHOREBIRD_ARTIFACT_ORIGIN authority
+# (the upstream default applies only when the caller set neither).
 function update_flutter {
   if [[ -d "$FLUTTER_PATH" ]]; then
     git -C "$FLUTTER_PATH" fetch
   else
-    git clone --filter=tree:0 https://github.com/shorebirdtech/flutter.git --no-checkout "$FLUTTER_PATH"
+    # THE DEFAULT MUST BE A REMOTE THAT HAS OUR REVISIONS. It used to be
+    # shorebirdtech/flutter, which does not carry the self-hosted selector --
+    # SELFHOST-CLEANROOM-1 measured the consequence: a clean bootstrap died with
+    # `remote error: upload-pack: not our ref <selector>`, so nobody but the
+    # qualification machine could install this stack at all. The fork carries
+    # both the selector and the engine producers; SHOREBIRD_FLUTTER_GIT_URL
+    # still overrides it for an operator serving a local mirror.
+    git clone --filter=tree:0 "${SHOREBIRD_FLUTTER_GIT_URL:-https://github.com/mml555/shorebird-flutter.git}" --no-checkout "$FLUTTER_PATH"
   fi
   # -c to avoid printing a warning about being in a detached head state.
   git -C "$FLUTTER_PATH" -c advice.detachedHead=false checkout "$FLUTTER_VERSION"
   SHOREBIRD_ENGINE_VERSION=`cat "$FLUTTER_PATH/bin/internal/engine.version"`
   echo "Shorebird Engine • revision $SHOREBIRD_ENGINE_VERSION"
-  # Install Shorebird Flutter Artifacts
-  FLUTTER_STORAGE_BASE_URL=https://download.shorebird.dev $FLUTTER_PATH/bin/flutter --version
+  # Install Shorebird Flutter Artifacts.
+  #
+  # This resolves the SAME authority as `ArtifactOrigin.flutterStorageBaseUrl`
+  # in the CLI (packages/shorebird_cli/lib/src/artifact_origin.dart) and
+  # ShorebirdEnv.downloadUrl: SHOREBIRD_DOWNLOAD_URL first, then the fork's
+  # FLUTTER_STORAGE_BASE_URL, then SHOREBIRD_ARTIFACT_ORIGIN, then upstream; and
+  # a trailing slash is dropped. It has to be duplicated in shell rather than
+  # read from Dart because this bootstrap runs BEFORE any Dart code exists to
+  # ask -- it is the download that produces the Dart SDK. Kept in step by a test
+  # that pins both defaults (`artifact_origin_test.dart`).
+  local download_url
+  download_url="$(resolve_download_url)"
+  FLUTTER_STORAGE_BASE_URL="$download_url" $FLUTTER_PATH/bin/flutter --version
 }
 
 function pub_get_with_retry {
+  # SHOREBIRD_PUB_OFFLINE=true resolves from the local pub cache only — for
+  # air-gapped installs with a seeded PUB_CACHE.
+  local pub_offline_flag=""
+  if [[ "$SHOREBIRD_PUB_OFFLINE" == "true" ]]; then
+    pub_offline_flag="--offline"
+  fi
   local total_tries="10"
   local remaining_tries=$((total_tries - 1))
+  # Install exactly the versions and bytes in the checked-in pubspec.lock, so
+  # every install runs the dependencies we tested. The lockfile names pub.dev
+  # as each package's source, so with a mirror (PUB_HOSTED_URL) pub can't use
+  # it at all; resolve those installs as before.
+  local enforce_lockfile=""
+  case "${PUB_HOSTED_URL:-https://pub.dev}" in
+    https://pub.dev|https://pub.dev/) enforce_lockfile="--enforce-lockfile" ;;
+  esac
   while [[ "$remaining_tries" -gt 0 ]]; do
-    (cd "$SHOREBIRD_CLI_DIR" && $DART_PATH pub get) && break
+    (cd "$SHOREBIRD_CLI_DIR" && $DART_PATH pub get $pub_offline_flag $enforce_lockfile) && break
+    # 65: the pubspecs or a package's hash don't match pubspec.lock. Retrying
+    # won't fix either.
+    if [[ "$?" == 65 ]]; then
+      >&2 echo "Error: Couldn't install the exact packages in Shorebird's pubspec.lock: a pubspec.yaml in $SHOREBIRD_ROOT changed, or a downloaded package's hash doesn't match the lockfile. Undo any local changes there (git -C \"$SHOREBIRD_ROOT\" status) and run shorebird again."
+      return 1
+    fi
     >&2 echo "Error: Unable to 'pub get' shorebird. Retrying in five seconds... ($remaining_tries tries left)"
     remaining_tries=$((remaining_tries - 1))
     sleep 5

@@ -1,0 +1,6 @@
+native launch
+native engine
+dart hlixrxoulb dart-main-entered
+dart hlixrxoulb boot-probe-returned:boot-ok
+dart hlixrxoulb mode:success
+dart hlixrxoulb first-frame

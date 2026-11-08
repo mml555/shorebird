@@ -1,0 +1,510 @@
+#!/usr/bin/env bash
+# cspell:words aotdiff defaultdict MSEM
+# SM1-G5 route 2 -- regenerate every banked artifact from source.
+#
+# Writes its own transcripts. Nothing here is hand-assembled: the patch is
+# re-derived from the frozen base, the replay is re-verified, both AOTs are
+# rebuilt, the reader is re-run, the falsification set and the completeness
+# enumeration are re-run with their positive controls, and the manifest digests
+# are recomputed. Exits non-zero if any of it fails.
+#
+# usage: run_route2.sh <clone-src> <workdir>
+#   clone-src: the engine checkout carrying the instrumentation
+#   workdir:   holds release3.dill and g2_r.json
+#
+# THE CANONICAL SUBJECT. app_release.aot is built here from release3.dill --
+# the kernel compiled WITH --dynamic-interface, i.e. the PATCHABLE release --
+# and that exact file is what the reader is banked against and what
+# run_dispatch_experiment.sh consumes UNCHANGED. Whole-AOT output is not
+# byte-reproducible, so the subject is built once and passed along, never
+# rebuilt per consumer.
+#
+# app_release_b.aot is a second build from the same kernel, used only to show
+# the note bytes and the verdicts are deterministic. It is never a subject.
+set -uo pipefail
+SRC="${1:?usage: run_route2.sh <clone-src> <workdir>}"
+W="${2:?usage: run_route2.sh <clone-src> <workdir>}"
+G="$(cd "$(dirname "$0")" && pwd)"
+D="$SRC/flutter/third_party/dart"
+GS="$SRC/out/host_release_arm64/gen_snapshot"
+T=7b04b01bdc10ec990143257f0d28580571c2122f
+FILES=(runtime/vm/elf.h runtime/vm/elf.cc runtime/vm/compiler/backend/flow_graph_compiler.cc)
+rc=0
+sha() { shasum -a 256 "$1" | awk '{print $1}'; }
+# The number of falsification arms, asserted rather than assumed: an arm that
+# silently stops running would otherwise shrink the suite unnoticed.
+ARMS_EXPECTED=34
+
+# EVERY OUTCOME BELOW IS ASSERTED, NOT PRINTED. Printing an exit code lets a
+# control that unexpectedly passes leave the overall run green -- the same
+# class of defect as a probe that cannot fail.
+ASSERTIONS=()
+want() { # want <description> <expected> <actual>
+  if [ "$2" = "$3" ]; then
+    ASSERTIONS+=("  pass  $1")
+  else
+    ASSERTIONS+=("  FAIL  $1 -- got '$3', expected '$2'")
+    rc=1
+  fi
+}
+
+# THE G1 PROJECTION IS BANKED, NOT ASSUMED. g2_r.json is consumed by the reader
+# and by every falsification arm, but no checked-in script produces it -- it was
+# a work-directory artifact. An input the whole bank rests on cannot be
+# unreproducible, so the exact bytes are banked as evidence/g1_projection.json
+# and the workdir copy must match them.
+if ! cmp -s "$W/g2_r.json" "$G/evidence/g1_projection.json"; then
+  echo "  G1 projection in the workdir differs from the banked copy"
+  echo "    workdir $(sha "$W/g2_r.json")"
+  echo "    banked  $(sha "$G/evidence/g1_projection.json")"
+  rc=1
+fi
+
+# ---------------------------------------------------------------- 1. producer
+R="$W/route2_replay"; rm -rf "$R"; mkdir -p "$R"
+for f in "${FILES[@]}"; do mkdir -p "$R/$(dirname "$f")"; git -C "$D" show "$T:$f" > "$R/$f"; done
+( cd "$R" && patch -p1 -s -F0 --no-backup-if-mismatch < "$G/instrumentation/0001-g5-aot-capability-note.patch" ) || rc=1
+: > "$R/0002"
+for f in "${FILES[@]}"; do
+  diff -u --label "a/$f" --label "b/$f" "$R/$f" "$D/$f" >> "$R/0002" || true
+done
+if ! cmp -s "$R/0002" "$G/instrumentation/0002-g5-inlining-relation.patch"; then
+  echo "  banked 0002 differs from the tree; refreshing it"
+  cp "$R/0002" "$G/instrumentation/0002-g5-inlining-relation.patch"
+fi
+
+V="$W/route2_verify"; rm -rf "$V"; mkdir -p "$V"
+for f in "${FILES[@]}"; do mkdir -p "$V/$(dirname "$f")"; git -C "$D" show "$T:$f" > "$V/$f"; done
+( cd "$V" && patch -p1 -s -F0 --no-backup-if-mismatch < "$G/instrumentation/0001-g5-aot-capability-note.patch" \
+          && patch -p1 -s -F0 --no-backup-if-mismatch < "$G/instrumentation/0002-g5-inlining-relation.patch" ) || rc=1
+replay_ok=1
+for f in "${FILES[@]}"; do
+  [ "$(sha "$V/$f")" = "$(sha "$D/$f")" ] || { replay_ok=0; rc=1; }
+done
+
+# --------------------------------------------------------------- 2. two AOTs
+for n in app_release app_release_b; do
+  rm -f "$W/$n.aot" "$W/$n.json"
+  "$GS" --snapshot_kind=app-aot-elf --patchable_static_calls \
+        --elf="$W/$n.aot" "$W/release3.dill" >/dev/null 2>&1 \
+    || { echo "  gen_snapshot failed for $n"; rc=1; }
+  python3 "$G/lib/read_inlining.py" "$W/$n.aot" "$W/g2_r.json" - \
+      "$W/$n.json" >/dev/null || rc=1
+done
+cp "$W/app_release.json" "$G/evidence/inlining_state.json" || rc=1
+
+# Determinism and replay are ASSERTED here; the transcript merely shows them.
+det=$(python3 "$G/lib/_det.py" "$W/app_release.json" "$W/app_release_b.json")
+want 'note section bytes identical across the two builds' note "$(echo "$det" | cut -d' ' -f1)"
+want 'record count identical across the two builds' recs "$(echo "$det" | cut -d' ' -f2)"
+want 'reader verdicts identical across the two builds' states "$(echo "$det" | cut -d' ' -f3)"
+want 'whole-AOT hashes differ (byte reproducibility NOT claimed)' aotdiff "$(echo "$det" | cut -d' ' -f4)"
+for f in "${FILES[@]}"; do
+  want "replay reproduces $f" "$(sha "$D/$f")" "$(sha "$V/$f")"
+done
+
+# --------------------------------------------------- 3. reader state transcript
+{
+  echo "SM1-G5 route 2 -- strict reader state over the schema-6 note"
+  echo "generated $(date -u +%Y-%m-%dT%H:%M:%SZ) by run_route2.sh"
+  echo
+  echo "PRODUCER AND SUBJECT"
+  echo "  $(sha "$G/instrumentation/0001-g5-aot-capability-note.patch")  0001-g5-aot-capability-note.patch"
+  echo "  $(sha "$G/instrumentation/0002-g5-inlining-relation.patch")  0002-g5-inlining-relation.patch"
+  echo "  $(sha "$GS")  gen_snapshot (frozen + 0001 + 0002)"
+  echo "  $(sha "$W/release3.dill")  release3.dill (the patchable release kernel)"
+  echo "  $(sha "$W/app_release.aot")  app_release.aot"
+  echo "  recipe: gen_snapshot --snapshot_kind=app-aot-elf --patchable_static_calls \\"
+  echo "            --elf=app_release.aot release3.dill"
+  echo
+  echo "REPLAY: frozen (recovered by git) + 0001 + 0002 vs the built clone"
+  for f in "${FILES[@]}"; do
+    a=$(sha "$V/$f"); b=$(sha "$D/$f")
+    printf '  %-52s %s\n' "$f" "$([ "$a" = "$b" ] && echo equal || echo DIFFERENT)"
+    echo "    replayed $a"
+    echo "    built    $b"
+  done
+  echo "  all_files_equal=$([ "$replay_ok" = 1 ] && echo true || echo false)"
+  echo
+  echo "NOTE DETERMINISM (same input kernel, two runs of the same producer)"
+  python3 - "$W/app_release.json" "$W/app_release_b.json" <<'PY'
+import json, sys
+a, b = (json.load(open(p)) for p in sys.argv[1:3])
+da, db = a['diagnostics'], b['diagnostics']
+for k in ('records', 'note_section_sha256', 'aot_sha256'):
+    print(f"  {k:20} {'equal' if da[k] == db[k] else 'DIFFER'}")
+    print(f"    A {da[k]}")
+    print(f"    B {db[k]}")
+print(f"  states identical     {a['states'] == b['states']}")
+print()
+print("  Deterministic NOTE CONTENT and identical verdicts -- not")
+print("  byte-reproducible whole-AOT output: the two AOT hashes differ.")
+PY
+  echo
+  echo "READER STATE"
+  python3 - "$G/evidence/inlining_state.json" <<'PY'
+import collections, json, sys
+d = json.load(open(sys.argv[1]))
+print(f"  note_validated            {d['note_validated']}")
+print(f"  note_error_code           {d['note_error_code']}")
+print(f"  note_complete_projection  {d['note_complete_projection']}")
+print(f"  in-scope unprojected      {d['unprojected_count']}")
+print(f"  out-of-scope records      {d['out_of_scope_records']}")
+print()
+print("  ACCOUNTING (asserted by the reader, which exits non-zero if it fails)")
+a = d['accounting']
+for k in ('total_g1_rows', 'INLINED', 'NOT_INLINED', 'UNKNOWN', 'NO_BODY',
+          'accounted'):
+    print(f"    {k:16} {a[k]:>4}")
+assert a['accounted'] == a['total_g1_rows']
+print(f"    identity         accounted == total_g1_rows == "
+      f"INLINED+NOT_INLINED+UNKNOWN+NO_BODY")
+print()
+by = collections.defaultdict(list)
+for s in d['states']:
+    by[s['state']].append(
+        (f"{s['kind']} {s['owner'] + '.' if s['owner'] else ''}{s['name']}",
+         s['code']))
+for st in ('INLINED', 'NOT_INLINED', 'UNKNOWN'):
+    print(f"  {st}")
+    for n, c in sorted(by[st]):
+        print(f"    {n:34} {c}")
+    print()
+print("  NO_BODY")
+for r in sorted(d['no_body_rows'], key=lambda r: r['name'] or ''):
+    print(f"    {r['kind']} {r['name']:30} {r['reason']}")
+print()
+print("  codes given for refusal:")
+seen = {}
+for s in d['states']:
+    if s['state'] == 'UNKNOWN':
+        seen.setdefault(s['code'], s['reason'])
+for c, r in sorted(seen.items()):
+    print(f"    {c}")
+    print(f"      {r}")
+PY
+  echo
+  echo "WHY NOT_INLINED IS AVAILABLE ONLY TO SOME KINDS"
+  cat <<'TXT'
+  See evidence/recorder_completeness.md and .txt. Every copy of a body's IL
+  into another function is registered through exactly one function with exactly
+  one caller, and the recorder reads that registry in the one AOT
+  code-generation path. A second family of operations -- the CallSpecializer
+  replacements -- materializes a callee's semantics without registering
+  anything; its gates close for recognized methods and for operators on
+  application classes, but NOT for a field's VM-synthesized implicit accessors.
+  So field, constructor and factory rows are candidates that refuse, class rows
+  are reported as declaring no body, and only method/getter/setter/operator can
+  carry NOT_INLINED.
+TXT
+} > "$G/evidence/reader_state.txt" 2>&1
+
+# ------------------------------------------------------- 4. falsification set
+python3 - "$G/lib/read_inlining.py" "$W/weak_reader.py" "$W/generic_reader.py" <<'PY'
+import pathlib, re, sys
+s = pathlib.Path(sys.argv[1]).read_text()
+
+# Control A: a reader that trusts an unvalidated note.
+a = s.replace('    complete = note_ok and not unprojected',
+              '    complete = True  # WEAKENED: trust the note unconditionally')
+b = a.replace("        elif not note_ok:", "        elif False:  # WEAKENED")
+assert b != a != s, 'weakening anchors not found in the reader'
+pathlib.Path(sys.argv[2]).write_text(b)
+
+# Control B: a reader that refuses correctly but collapses every refusal into
+# one generic code. [A-Z0-9_]+ matters: codes carry digits (UTF8, ELF32, G1),
+# and a first version of this control used [A-Z_]+ and silently left six codes
+# specific, which made six arms pass a control they should have failed.
+g = re.sub(r"raise NoteError\('[A-Z0-9_]+',", "raise NoteError('GENERIC_FAILURE',", s)
+g = re.sub(r"return None, '[A-Z0-9_]+',", "return None, 'GENERIC_FAILURE',", g)
+g = g.replace("raise NoteError(code, f'{what} wants",
+              "raise NoteError('GENERIC_FAILURE', f'{what} wants")
+g = g.replace("note_code = 'UNMODELED_PARSER_EXCEPTION'",
+              "note_code = 'GENERIC_FAILURE'")
+left = re.findall(r"(?:raise NoteError|return None,) '(?!GENERIC_FAILURE)[A-Z0-9_]+'", g)
+assert not left, f'codes left specific: {left}'
+pathlib.Path(sys.argv[3]).write_text(g)
+PY
+{
+  echo "SM1-G5 route 2 -- adversarial falsification of the strict reader"
+  echo "generated $(date -u +%Y-%m-%dT%H:%M:%SZ) by run_route2.sh"
+  echo
+  echo "PROVENANCE"
+  echo "  $(sha "$G/lib/read_inlining.py")  lib/read_inlining.py"
+  echo "  $(sha "$G/lib/falsify_reader.py")  lib/falsify_reader.py"
+  echo "  $(sha "$W/app_release.aot")  app_release.aot (THE canonical subject)"
+  echo "  $(sha "$W/g2_r.json")  g2_r.json (G1 projection)"
+  echo
+  echo "WHAT EACH ARM ASSERTS"
+  cat <<'TXT'
+  1. the reader produced output -- a parser exception must resolve to a modeled
+     UNKNOWN, never a crash. A crash writes no rows, and an absent row must
+     never be read as a safe row.
+  2. note_validated equals the value the arm expects. ELF/framing arms expect
+     False; arms that mutate only the G1 projection expect True, because the
+     note itself is still validly framed -- a False there would mean the arm
+     tested something other than what it claims.
+  3. the projection is reported incomplete.
+  3b. THE REFUSAL CARRIES THE ARM'S OWN CODE. Asserting only "something was
+     refused" would be passed by a reader that collapsed every problem into a
+     single generic UNKNOWN, and would let one gate silently mask another.
+     Every arm names the code it expects; an arm that names none fails.
+  4. NO candidate is reported NOT_INLINED. NOT_INLINED is the safety fact this
+     gate wants to use, so no mutation may be able to manufacture one.
+  Arms that name a declaration additionally assert it is not INLINED.
+TXT
+  echo
+  echo "=========================== RUN: shipped reader ==========================="
+  python3 "$G/lib/falsify_reader.py" "$W/app_release.aot" "$W/g2_r.json" "$W"
+  echo "exit=$?  (asserted: 0)"
+  echo
+  echo "============= POSITIVE CONTROL A: a reader that trusts the note ==========="
+  cat <<'TXT'
+A falsification set that cannot fail certifies nothing. The same arms are
+re-run against a copy of the shipped reader with exactly two edits --
+
+    complete = note_ok and not unprojected   ->   complete = True
+    elif not note_ok:                        ->   elif False:
+
+-- i.e. a reader that trusts an unvalidated note. The arms must flip to FAIL
+and say so by naming the manufactured NOT_INLINED rows.
+TXT
+  echo
+  SM1_READER="$W/weak_reader.py" python3 "$G/lib/falsify_reader.py" \
+      "$W/app_release.aot" "$W/g2_r.json" "$W"
+  echo "exit=$?  (asserted: non-zero)"
+  echo
+  echo "======== POSITIVE CONTROL B: a reader that refuses without saying why ====="
+  cat <<'TXT'
+Control A cannot detect the OTHER way this suite could be vacuous: a reader
+that refuses everything correctly but reports one generic cause, so that one
+gate masks another and no arm proves the gate it aimed at. The same arms run
+against a copy whose refusal CODES are all rewritten to GENERIC_FAILURE, prose
+untouched. Every arm except the baseline must flip, naming the code it wanted.
+TXT
+  echo
+  SM1_READER="$W/generic_reader.py" python3 "$G/lib/falsify_reader.py" \
+      "$W/app_release.aot" "$W/g2_r.json" "$W"
+  echo "exit=$?  (asserted: non-zero)"
+  echo
+  echo "WITHDRAWN EARLIER RUN, AND THE THREE DEFECTS IT WAS HIDING"
+  cat <<'TXT'
+An earlier version of this harness read its output file without deleting it
+first. A run that crashed before writing therefore reported the PREVIOUS arm's
+result, so two arms were recorded as correctly caught when the reader had in
+fact crashed. That run is withdrawn, not annotated. Deleting the output first
+exposed three real reader defects:
+
+  1. an out-of-bounds e_shoff raised struct.error, killing the process instead
+     of resolving to UNKNOWN;
+  2. an unterminated section name raised ValueError, likewise;
+  3. found while writing the new arms -- the reader checked that only one
+     SECTION carried the note name, but never that the note consumed its
+     section, so a second Shorebird note appended inside the same section
+     would have been silently ignored.
+
+All three are fixed and each now has its own arm above. Every read is
+bounds-checked, every decode is modeled, an unreadable file is modeled, and a
+backstop turns any remaining parser exception into a labeled UNKNOWN rather
+than a crash.
+
+SUBJECT CHANGED. Earlier runs used app_s6.aot, whose input kernel could no
+longer be identified in the work directory, so its note was not reproducible
+from a recorded recipe.
+
+SUBJECT CORRECTED AGAIN. The run after that used app_s6r.aot, built from
+prepass3.dill. That kernel is the PRE-PASS one, compiled WITHOUT
+--dynamic-interface: the AOT runs and reports a build id, but a patch against it
+fails at attach with "Unable to find function DateTime.now", because the
+dynamic-module retention the interface drives is absent. It was therefore never
+the patchable release and could not carry a dispatch demonstration.
+
+THIS run uses app_release.aot, built from release3.dill -- the kernel compiled
+WITH the interface -- and hands that exact file to run_dispatch_experiment.sh.
+Per-declaration verdicts are identical across all three subjects, so no verdict
+was traded away by either correction.
+
+(An earlier edit of this paragraph was itself wrong: a blanket rename swept the
+HISTORICAL sentence too, leaving it claiming the pre-pass subject was
+app_release.aot from release3.dill -- which contradicted its own next sentence.)
+TXT
+} > "$G/evidence/reader_falsification.txt" 2>&1
+# The three runs are asserted independently: the shipped reader must refuse
+# every arm, and BOTH controls must fail. A control that quietly starts passing
+# would otherwise leave this script green.
+python3 "$G/lib/falsify_reader.py" "$W/app_release.aot" "$W/g2_r.json" "$W" >/dev/null 2>&1
+want 'shipped reader refuses every arm' 0 "$?"
+SM1_READER="$W/weak_reader.py" python3 "$G/lib/falsify_reader.py" \
+    "$W/app_release.aot" "$W/g2_r.json" "$W" >/dev/null 2>&1
+want 'control A (trusts the note) fails the arms' 1 "$?"
+SM1_READER="$W/generic_reader.py" python3 "$G/lib/falsify_reader.py" \
+    "$W/app_release.aot" "$W/g2_r.json" "$W" >/dev/null 2>&1
+want 'control B (one generic code) fails the arms' 1 "$?"
+want 'falsification transcript records ALL_ARMS_REFUSED' 1 \
+     "$(grep -c 'SM1_G5_READER_FALSIFICATION: ALL_ARMS_REFUSED' \
+          "$G/evidence/reader_falsification.txt")"
+
+# Arm counts are asserted too, so an arm that stops running -- or a control
+# that only fails a couple of arms -- cannot pass as "the controls failed".
+arms=$(grep -m1 -o 'arms=[0-9]*' "$G/evidence/reader_falsification.txt" | cut -d= -f2)
+want 'the suite still runs every arm' "$ARMS_EXPECTED" "$arms"
+fails=$(grep -o 'failed=[0-9]*' "$G/evidence/reader_falsification.txt" | cut -d= -f2 | tr '\n' ' ')
+want 'shipped 0 failures, then both controls failing all but the baseline' \
+     "0 $((ARMS_EXPECTED - 1)) $((ARMS_EXPECTED - 1)) " "$fails"
+
+# ---------------------------------------------------- 5. completeness enumeration
+{
+  echo "SM1-G5 route 2 -- recorder completeness, re-derived from source"
+  echo "generated $(date -u +%Y-%m-%dT%H:%M:%SZ) by run_route2.sh"
+  echo "The enumeration in evidence/recorder_completeness.md is not transcribed;"
+  echo "this run re-derives every count and gate from the tree."
+  echo
+  echo "PROVENANCE"
+  echo "  $(sha "$G/lib/verify_completeness.sh")  lib/verify_completeness.sh"
+  echo "  $(sha "$G/lib/falsify_completeness.sh")  lib/falsify_completeness.sh"
+  echo "  $(sha "$G/evidence/recorder_completeness.md")  evidence/recorder_completeness.md"
+  echo "  effective Dart tree 7b04b01bdc10ec990143257f0d28580571c2122f"
+  echo "  revision            9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c"
+  echo
+  echo "falsify_completeness.sh runs BOTH halves -- the baseline enumeration"
+  echo "over the built tree and the planted control -- and asserts each. It is"
+  echo "the only thing invoked here, so this transcript carries exactly one"
+  echo "ENUMERATION_HOLDS (baseline) and one ENUMERATION_DRIFTED (control)."
+  echo
+  "$G/lib/falsify_completeness.sh" "$D" "$W/route2_ctl"
+  echo "exit=$?  (asserted: 0 -- baseline holds, control tree proven complete,"
+  echo "the plant proven observable, and EXACTLY the two NextInlineId checks"
+  echo "flipped)"
+  echo
+  echo "NOTE ON A WITHDRAWN CONTROL"
+  cat <<'TXT'
+The first version of this control was INVALID and its transcript is withdrawn.
+It built the control tree with `cp -c -R src dst`, which fails across volumes;
+the `|| cp -R` fallback then ran with the destination already partly created
+and nested the tree at vm/vm/..., so `grep -r` still found content while every
+direct path was missing. The result: the enumeration reported DRIFTED because
+files were absent, while the two NextInlineId checks it was supposed to flip
+actually PASSED. A missing file had been allowed to masquerade as a flipped
+check.
+
+falsify_completeness.sh now refuses to run unless twelve named files are
+present in the control tree, proves the planted call site is observable
+(NextInlineId mentions in inliner.cc go from 2 to 3), and requires the flipped
+set to be EXACTLY the two NextInlineId checks -- every other check must still
+pass.
+TXT
+} > "$G/evidence/recorder_completeness.txt" 2>&1
+"$G/lib/verify_completeness.sh" "$D" >/dev/null 2>&1
+want 'completeness enumeration holds on the built tree' 0 "$?"
+"$G/lib/falsify_completeness.sh" "$D" "$W/route2_ctl" >/dev/null 2>&1
+want 'completeness control is valid and sensitive' 0 "$?"
+want 'completeness transcript records ENUMERATION_HOLDS' 1 \
+     "$(grep -c 'SM1_G5_RECORDER_COMPLETENESS: ENUMERATION_HOLDS' \
+          "$G/evidence/recorder_completeness.txt")"
+want 'completeness control transcript records VALID_AND_SENSITIVE' 1 \
+     "$(grep -c 'SM1_G5_COMPLETENESS_CONTROL: VALID_AND_SENSITIVE' \
+          "$G/evidence/recorder_completeness.txt")"
+
+# ------------------------------------------------------------- 6. manifest
+python3 - "$G" "$D" "$GS" "$W" "$V" <<'PY'
+import hashlib, json, os, pathlib, re, subprocess, sys
+G, D, GS, W, V = sys.argv[1:6]
+sha = lambda p: hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
+T = '7b04b01bdc10ec990143257f0d28580571c2122f'
+FILES = ['runtime/vm/elf.h', 'runtime/vm/elf.cc',
+         'runtime/vm/compiler/backend/flow_graph_compiler.cc']
+m = json.load(open(f'{G}/instrumentation/MANIFEST.json'))
+m['base']['frozen_file_sha256'] = {
+    f: hashlib.sha256(subprocess.run(
+        ['git', '-C', D, 'show', f'{T}:{f}'], capture_output=True).stdout).hexdigest()
+    for f in FILES}
+m['built']['instrumented_gen_snapshot_sha256_schema6'] = sha(GS)
+m['delta_2']['sha256'] = sha(f'{G}/instrumentation/0002-g5-inlining-relation.patch')
+st = json.load(open(f'{W}/app_release.json'))
+m['route2_witness']['records'] = st['diagnostics']['records']
+
+# THE SUBJECT IS AUTHORED, NOT PATCHED. The previous writer only .update()d the
+# digests, so a new AOT SHA was written onto the withdrawn subject's filename,
+# kernel, kernel SHA and recipe -- a manifest that was internally
+# contradictory while every digest in it was individually correct. Every
+# semantic field is set here from the artifact actually produced.
+m['route2_witness']['subject'] = {
+    'aot': 'app_release.aot',
+    'aot_sha256': sha(f'{W}/app_release.aot'),
+    'input_kernel': 'release3.dill',
+    'input_kernel_sha256': sha(f'{W}/release3.dill'),
+    'recipe': 'gen_snapshot --snapshot_kind=app-aot-elf '
+              '--patchable_static_calls --elf=app_release.aot release3.dill',
+    'why_this_kernel': 'release3.dill is compiled WITH --dynamic-interface and '
+                       'is therefore the PATCHABLE release. The same file is '
+                       'handed unchanged to run_dispatch_experiment.sh.',
+}
+m['route2_witness']['withdrawn_subjects'] = [
+    {'aot': 'app_s6.aot',
+     'why': 'its input kernel could not be identified in the work directory, '
+            'so its note was not reproducible from a recorded recipe'},
+    {'aot': 'app_s6r.aot', 'input_kernel': 'prepass3.dill',
+     'why': 'reproducible from a recorded recipe, but prepass3.dill is the '
+            'PRE-PASS kernel, compiled WITHOUT --dynamic-interface. Its AOT '
+            'runs and reports a build id, yet a patch against it fails at '
+            'attach with "Unable to find function DateTime.now" because the '
+            'dynamic-module retention the interface drives is absent. It was '
+            'never the patchable release and could not carry a dispatch '
+            'demonstration.'},
+]
+m['route2_witness']['determinism'].update({
+    'build_a': {'aot': 'app_release.aot', 'aot_sha256': sha(f'{W}/app_release.aot')},
+    'build_b': {'aot': 'app_release_b.aot', 'aot_sha256': sha(f'{W}/app_release_b.aot')},
+    'note_section_sha256': st['diagnostics']['note_section_sha256']})
+
+# FALSIFICATION METADATA IS DERIVED FROM THE TRANSCRIPT, never transcribed: the
+# manifest said 28 arms and "27 of 28" long after the suite reached 34.
+fals = pathlib.Path(f'{G}/evidence/reader_falsification.txt').read_text()
+counts = re.findall(r'arms=(\d+) passed=(\d+) failed=(\d+)', fals)
+m['reader_falsification'] = {
+    'harness': 'lib/falsify_reader.py',
+    'transcript': 'evidence/reader_falsification.txt',
+    'arms': int(counts[0][0]),
+    'shipped_failed': int(counts[0][2]),
+    'result': ('ALL_ARMS_REFUSED' if 'ALL_ARMS_REFUSED' in fals
+               else 'DEFECTS_PRESENT'),
+    'controls': [
+        {'name': 'A: trusts an unvalidated note',
+         'passed': int(counts[1][1]), 'failed': int(counts[1][2])},
+        {'name': 'B: collapses every refusal into one generic code',
+         'passed': int(counts[2][1]), 'failed': int(counts[2][2])},
+    ],
+}
+m['replay']['per_file'] = {
+    f: {'replayed_sha256': sha(os.path.join(V, f)),
+        'built_sha256': sha(os.path.join(D, f)),
+        'equal': sha(os.path.join(V, f)) == sha(os.path.join(D, f))}
+    for f in FILES}
+m['replay']['all_files_equal'] = all(v['equal'] for v in m['replay']['per_file'].values())
+m['regenerated_by'] = 'run_route2.sh'
+json.dump(m, open(f'{G}/instrumentation/MANIFEST.json', 'w'), indent=2)
+print('  manifest digests recomputed')
+PY
+want 'the manifest step succeeded' 0 "$?"
+want 'banked manifest digests match the live artifacts' ok \
+     "$(python3 "$G/lib/_check_manifest.py" "$G" "$D" "$GS" "$W" | tail -1)"
+# A manifest whose hashes are all correct can still be internally
+# contradictory. This control mutates a COPY per arm -- right hash, wrong
+# filename / kernel / recipe -- and requires the checker to refuse each one.
+MSEM=$(python3 "$G/lib/falsify_manifest.py" "$G" "$D" "$GS" "$W" 2>&1)
+want 'the manifest checker refuses every semantic swap' 0 "$?"
+want 'the semantic-swap control ran every arm' 'failed=0' \
+     "$(echo "$MSEM" | grep -o 'failed=0')"
+{
+  echo
+  echo "=========== MANIFEST SEMANTIC IDENTITY, AND ITS CONTROL ==========="
+  echo "$MSEM"
+} >> "$G/evidence/reader_state.txt"
+
+echo
+echo "ASSERTIONS (${#ASSERTIONS[@]} checked)"
+printf '%s\n' "${ASSERTIONS[@]}"
+echo
+echo "replay_reproduces_clone=$([ "$replay_ok" = 1 ] && echo true || echo false)"
+echo "SM1_G5_ROUTE2_REGENERATION: $([ "$rc" = 0 ] && echo COMPLETE || echo FAILED)"
+exit "$rc"

@@ -1,0 +1,109 @@
+<!-- cspell:words semantic linker dartaotruntime aot -->
+# SEMANTIC-LINKER-1 — runtime feasibility  ·  **CLOSED / PROCEED**
+
+Tracker: [#36](https://github.com/mml555/shorebird/issues/36) — **closed 2026-09-06**. All ten gates closed; verdict `PROCEED`.
+
+**Feasibility only.** Nothing here changes the supported cell, the production
+CLI, the patch format, the signing model, the control plane, or the physical
+qualification state. Every artifact in this directory is experiment-only.
+
+## The question
+
+Can a patch-defined Dart object or function execute as bytecode, call retained
+AOT code, be called from AOT, share a heap with AOT objects, preserve identity
+and GC safety, cross typed AOT boundaries, and survive real AOT optimizer
+assumptions?
+
+It is the next question after the two the fork has already answered on host
+macOS/arm64:
+
+- [`../killgate/`](../killgate) — an AOT function's body **can** be repointed at
+  interpreted bytecode and execute (2026-08-04), and patch bytecode **does**
+  bind into the base program when retention is declared (Spike B, 2026-08-05).
+- [`../dynmod/`](../dynmod) — dynamic modules are **additive**, not a
+  replacement mechanism. That is prior evidence this lane depends on and must
+  not contradict.
+
+## Gates
+
+| | gate | state |
+|---|---|---|
+| [#37](https://github.com/mml555/shorebird/issues/37) | G0 freeze the baseline and source provenance | **ACCEPTED / CLOSED** — [`g0_freeze/`](runtime_feasibility/g0_freeze) |
+| [#38](https://github.com/mml555/shorebird/issues/38) | G1 matched Dynamic Modules OFF/ON substrate | **ACCEPTED / CLOSED** — [`g1_substrate/`](runtime_feasibility/g1_substrate) |
+| [#39](https://github.com/mml555/shorebird/issues/39) | G2 AOT ↔ bytecode execution, shared heap identity | **PASS, awaiting PM decision** — [`g2_execution/`](runtime_feasibility/g2_execution) |
+| [#40](https://github.com/mml555/shorebird/issues/40) | G3 class, type, generic, GC interoperability | **PASS, awaiting PM decision** — [`g3_types_gc/`](runtime_feasibility/g3_types_gc) |
+| [#41](https://github.com/mml555/shorebird/issues/41) | G4 optimizer adversity, required compiler fences | **COMPLETE, awaiting PM decision** — [`g4_optimizer/`](runtime_feasibility/g4_optimizer) |
+| [#42](https://github.com/mml555/shorebird/issues/42) | G5 replay on pinned current Dart | CLOSED / NOT TRIGGERED |
+| [#43](https://github.com/mml555/shorebird/issues/43) | G6A categorized negative controls | **CLOSED / ACCEPTED** — [`g6a_negatives/`](runtime_feasibility/g6a_negatives) |
+| [#44](https://github.com/mml555/shorebird/issues/44) | G6B substrate/interface/module/execution cost | **COMPLETE incl. allocation/GC addendum** — [`g6b_cost/`](runtime_feasibility/g6b_cost) |
+| [#45](https://github.com/mml555/shorebird/issues/45) | G6C one-command reproduction harness | |
+| [#46](https://github.com/mml555/shorebird/issues/46) | FINAL classified verdict and lane routing | |
+
+## Verdict
+
+**`PROCEED`** — published 2026-09-06, [`final/RESULT.md`](runtime_feasibility/final/RESULT.md).
+Next lane: **`SEMANTIC-MAP-1`**, which is *not* begun here.
+
+Carried forward as mandatory constraints: the patchability-contract invariant;
+module-side dynamic-interface validation must become fail-closed before this
+design is production-safe; and explain tooling must not classify module failures
+from the VM error string alone.
+
+## What SEMANTIC-MAP-1 inherits
+
+The next lane is authorized and is **not started here**. It inherits three
+mandatory constraints, each with the evidence that produced it:
+
+1. **Patchable members must carry the `can-be-overridden` contract.** Without
+   it the precompiler devirtualizes every call site and, at a field receiver,
+   inlines the body outright — [`g4_optimizer/RESULT.md`](runtime_feasibility/g4_optimizer/RESULT.md).
+2. **Module-side dynamic-interface validation must become fail-closed** before
+   production. It is unenforced today in both shipped tools —
+   [`g6a_negatives/RESULT.md`](runtime_feasibility/g6a_negatives/RESULT.md).
+3. **Module failure classification cannot rely on VM error strings alone.**
+   Corrupt bytecode reports as an import-resolution failure — same document.
+
+The Dart durability repair is [#47](https://github.com/mml555/shorebird/issues/47),
+independent of this lane and of the next: nothing qualified is rebuilt for it.
+
+## Reproducing everything
+
+    selfhost/engine/semantic_linker/runtime_feasibility/g6c_harness/reproduce.sh --mode full
+
+Re-clones the frozen source, rebuilds all four engine configurations, applies the
+banked experiment patches, and reruns every gate. `falsify.sh` beside it proves
+the harness refuses missing or mutated evidence rather than reporting success.
+
+## Hard prerequisite for #46
+
+Module-side dynamic-interface validation must become **fail-closed** before this
+design is production-safe. Patch compilation has to invoke the CFE with the
+dynamic-interface specification so a violating module is refused before it
+reaches the runtime. See the obligation below and
+[`g6a_negatives/RESULT.md`](runtime_feasibility/g6a_negatives/RESULT.md).
+
+## The second obligation G6A produced
+
+Dynamic-interface **policy is not enforced anywhere in this toolchain path**.
+The validator exists (`KernelTarget.validateDynamicModule`) but runs only when
+the CFE is handed `dynamicInterfaceSpecificationUri` while compiling the
+*module*, and neither `dart2bytecode` nor `gen_kernel` does that. Until module
+compilation routes through such an invocation, a contract violation loads
+silently — and for `can-be-overridden` it produces silently wrong behaviour.
+
+## The contract obligation G4 produced
+
+Release tooling must emit `can-be-overridden` for **every patchable member**.
+`extendable` on the class and `callable` on the member are *not* sufficient: the
+bypassed arms carried both and the precompiler still devirtualized, and at a
+field receiver with inlining permitted it inlined the body outright. See
+[`g4_optimizer/RESULT.md`](runtime_feasibility/g4_optimizer/RESULT.md).
+
+## The one thing to carry forward from G0
+
+The Dart source that produced the supported cell is **`7b04b01b`** — a tree
+object, not a commit. `dart_revision: 9e8c898a` names a commit that is missing
+15 lines which are demonstrably compiled into the shipped `dart2bytecode.aot`,
+and that commit is on no remote anywhere. Build from the bank in
+[`runtime_feasibility/g0_freeze/banked_source/`](runtime_feasibility/g0_freeze/banked_source),
+and see [`FREEZE.md`](runtime_feasibility/g0_freeze/FREEZE.md).

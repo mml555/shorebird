@@ -1,0 +1,229 @@
+=== PREFLIGHT ===
+   preflight 1 at 14:24:53: load 12.89 / 21.66 / 32.95  competitors: none
+   preflight 2 at 14:25:54: load 9.36 / 19.17 / 31.26  competitors: none
+   two clean observations 60s apart; load is recorded as context, not as a gate
+work samples 20, startup samples 12 x 100 launches
+
+=== WORKLOAD: startup, batched ===
+
+--- startup: dart2wasm ---
+    NOT MEASURABLE WITH THIS HARNESS: no supported invocation exits 0 without compiling; covered by the work workload
+
+--- startup: analysis_server ---
+    NOT MEASURABLE WITH THIS HARNESS: a server -- enters its stdio event loop and never returns; --help, --version, --sdk and --protocol were all probed
+
+--- startup:nst ---
+    command: --help
+    A and C agree: rc 0/0, 181/181 bytes of stdout, identical: True
+
+--- startup:nst ---
+    selected 396, of which 288 have >=1 #67-lowered site, 108 reached only through the trampoline
+    each sample is 100 consecutive launches
+    effect  A vs C
+    n    order            A ms         C ms      ratio     load
+    0    A->C          2237.88      2226.70     0.9950      9.4
+    1    C->A          2214.00      2255.13     1.0186     17.0
+    2    A->C          2277.47      2206.79     0.9690     24.7
+    3    C->A          2208.09      2255.02     1.0213     36.0
+    4    A->C          2296.90      2287.13     0.9957     46.7
+    5    C->A          2255.76      2253.89     0.9992     58.1
+    6    A->C          2225.63      2262.92     1.0168     67.7
+    7    C->A          2232.72      2218.85     0.9938     83.8
+    8    A->C          2223.25      2296.72     1.0330     94.4
+    9    C->A          2235.08      2282.20     1.0211     97.0
+    10   A->C          2178.66      2423.65     1.1124    102.5
+    11   C->A          2235.75      2322.09     1.0386    117.9
+    median   A 2233.90   C 2259.03 ms
+    paired   median +1.77%   min -3.10%   max +11.24%
+    direction 7 of 12 pairs positive, 5 negative
+    floor   A vs A
+    n    order           A1 ms        A2 ms      ratio     load
+    0    A->C          2254.92      2313.16     1.0258    123.5
+    1    C->A          2310.64      2248.83     0.9733    125.2
+    2    A->C          2244.27      2238.00     0.9972    127.0
+    3    C->A          2233.47      2200.97     0.9855    127.0
+    4    A->C          2251.17      2272.01     1.0093    132.5
+    5    C->A          2270.03      2283.74     1.0060    137.9
+    6    A->C          2254.21      2262.30     1.0036    148.2
+    7    C->A          2278.27      2235.05     0.9810    151.5
+    8    A->C          2325.06      2241.03     0.9639    152.1
+    9    C->A          2219.49      2297.55     1.0352    156.6
+    10   A->C          2283.48      2236.97     0.9796    157.7
+    11   C->A          2270.80      2250.31     0.9910    158.6
+    median   A1 2262.47   A2 2249.57 ms
+    paired   median -0.59%   min -3.61%   max +3.52%
+    direction 5 of 12 pairs positive, 7 negative
+    EFFECT  C vs A  median +1.77%  (min -3.10%, max +11.24%)
+    FLOOR   A vs A  median -0.59%  envelope 3.61%
+    VERDICT: inside the noise, not quotable
+    samples discarded: none
+
+--- startup:gen_kernel ---
+    command: --help
+    A and C agree: rc 0/0, 4711/4711 bytes of stdout, identical: True
+
+--- startup:gen_kernel ---
+    selected 1853, of which 1110 have >=1 #67-lowered site, 743 reached only through the trampoline
+    each sample is 100 consecutive launches
+    effect  A vs C
+    n    order            A ms         C ms      ratio     load
+    0    A->C          2636.75      2959.17     1.1223    163.3
+    1    C->A          2587.71      2796.56     1.0807    167.9
+    2    A->C          2677.82      2649.23     0.9893    167.6
+    3    C->A          2726.51      2886.64     1.0587    163.4
+    4    A->C          2581.57      2705.94     1.0482    164.1
+    5    C->A          2646.05      2811.68     1.0626    165.0
+    6    A->C          2612.04      3015.38     1.1544    166.9
+    7    C->A          2779.74      2838.75     1.0212    162.0
+    8    A->C          2730.60      2957.09     1.0829    156.5
+    9    C->A          3710.05      5631.46     1.5179    150.3
+    10   A->C          3411.98      3503.49     1.0268    140.7
+    11   C->A          3213.25      3557.41     1.1071    145.5
+    median   A 2702.16   C 2921.87 ms
+    paired   median +7.17%   min -1.07%   max +51.79%
+    direction 11 of 12 pairs positive, 1 negative
+    floor   A vs A
+    n    order           A1 ms        A2 ms      ratio     load
+    0    A->C          3346.58      3324.85     0.9935    137.6
+    1    C->A          3158.09      3251.16     1.0295    134.2
+    2    A->C          3353.68      3146.64     0.9383    135.3
+    3    C->A          3299.39      3280.64     0.9943    136.1
+    4    A->C          3198.06      3165.31     0.9898    134.2
+    5    C->A          3213.46      3269.67     1.0175    130.6
+    6    A->C          3447.37      3260.22     0.9457    123.8
+    7    C->A          3337.81      3277.81     0.9820    120.8
+    8    A->C          3285.50      3319.44     1.0103    115.5
+    9    C->A          3197.02      3205.60     1.0027    121.9
+    10   A->C          3379.99      3239.85     0.9585    121.4
+    11   C->A          3197.53      3250.11     1.0164    130.0
+    median   A1 3292.45   A2 3255.69 ms
+    paired   median -0.61%   min -6.17%   max +2.95%
+    direction 5 of 12 pairs positive, 7 negative
+    EFFECT  C vs A  median +7.17%  (min -1.07%, max +51.79%)
+    FLOOR   A vs A  median -0.61%  envelope 6.17%
+    VERDICT: separates -- |7.17%| exceeds the 6.17% envelope
+    samples discarded: none
+
+=== WORKLOAD: application work ===
+
+--- work:gen_kernel ---
+    A and C agree: rc 0/0, 0/0 bytes of stdout, identical: True
+
+--- work:gen_kernel ---
+    selected 1853, of which 1110 have >=1 #67-lowered site, 743 reached only through the trampoline
+    effect  A vs C
+    n    order            A ms         C ms      ratio     load
+    0    A->C           345.66       338.38     0.9789    130.9
+    1    C->A           343.49       344.35     1.0025    126.2
+    2    A->C           339.56       347.92     1.0246    126.2
+    3    C->A           336.83       347.41     1.0314    126.2
+    4    A->C           335.23       344.60     1.0279    126.2
+    5    C->A           338.10       339.86     1.0052    126.2
+    6    A->C           342.12       346.75     1.0135    126.2
+    7    C->A           337.20       342.90     1.0169    120.6
+    8    A->C           342.12       338.44     0.9893    120.6
+    9    C->A           345.48       342.99     0.9928    120.6
+    10   A->C           345.01       336.07     0.9741    120.6
+    11   C->A           340.06       339.17     0.9974    120.6
+    12   A->C           343.88       341.58     0.9933    114.3
+    13   C->A           334.53       344.68     1.0303    114.3
+    14   A->C           341.66       331.74     0.9710    114.3
+    15   C->A           340.59       338.11     0.9927    114.3
+    16   A->C           348.13       337.04     0.9681    114.3
+    17   C->A           339.37       339.73     1.0011    114.3
+    18   A->C           335.11       332.68     0.9928    106.8
+    19   C->A           335.19       346.26     1.0330    106.8
+    median   A 340.33   C 340.72 ms
+    paired   median -0.08%   min -3.19%   max +3.30%
+    direction 10 of 20 pairs positive, 10 negative
+    floor   A vs A
+    n    order           A1 ms        A2 ms      ratio     load
+    0    A->C           334.02       340.91     1.0206    106.8
+    1    C->A           340.06       340.69     1.0019    106.8
+    2    A->C           330.78       340.15     1.0283    106.8
+    3    C->A           343.50       347.08     1.0104    106.8
+    4    A->C           334.80       349.37     1.0435     99.8
+    5    C->A           332.76       337.84     1.0153     99.8
+    6    A->C           340.70       338.14     0.9925     99.8
+    7    C->A           339.11       342.59     1.0103     99.8
+    8    A->C           292.55       338.51     1.1571     99.8
+    9    C->A           293.27       343.39     1.1709     99.8
+    10   A->C           343.62       340.64     0.9913     92.1
+    11   C->A           336.74       331.63     0.9848     92.1
+    12   A->C           338.17       343.39     1.0154     92.1
+    13   C->A           331.56       342.48     1.0329     92.1
+    14   A->C           336.77       345.70     1.0265     92.1
+    15   C->A           292.44       341.65     1.1683     92.1
+    16   A->C           331.14       335.84     1.0142     86.1
+    17   C->A           343.01       337.86     0.9850     86.1
+    18   A->C           336.83       337.54     1.0021     86.1
+    19   C->A           341.80       338.14     0.9893     86.1
+    median   A1 336.75   A2 340.66 ms
+    paired   median +1.47%   min -1.52%   max +17.09%
+    direction 15 of 20 pairs positive, 5 negative
+    EFFECT  C vs A  median -0.08%  (min -3.19%, max +3.30%)
+    FLOOR   A vs A  median +1.47%  envelope 17.09%
+    VERDICT: inside the noise, not quotable
+    samples discarded: none
+
+--- work:dart2wasm ---
+    A and C agree: rc 0/0, 0/0 bytes of stdout, identical: True
+
+--- work:dart2wasm ---
+    selected 1906, of which 1309 have >=1 #67-lowered site, 597 reached only through the trampoline
+    effect  A vs C
+    n    order            A ms         C ms      ratio     load
+    0    A->C           342.69       336.44     0.9818     79.9
+    1    C->A           345.07       343.74     0.9962     79.9
+    2    A->C           343.56       385.62     1.1224     79.9
+    3    C->A           341.90       344.41     1.0074     79.9
+    4    A->C           339.55       396.30     1.1671     79.9
+    5    C->A           341.23       344.53     1.0097     79.9
+    6    A->C           338.80       344.85     1.0179     73.8
+    7    C->A           336.44       390.12     1.1596     73.8
+    8    A->C           388.74       337.41     0.8680     73.8
+    9    C->A           347.11       388.98     1.1206     73.8
+    10   A->C           346.29       336.74     0.9724     73.8
+    11   C->A           339.83       344.48     1.0137     73.8
+    12   A->C           338.02       343.10     1.0150     68.5
+    13   C->A           343.02       344.06     1.0030     68.5
+    14   A->C           339.58       342.51     1.0086     68.5
+    15   C->A           342.88       387.32     1.1296     68.5
+    16   A->C           390.83       383.05     0.9801     68.5
+    17   C->A           344.09       346.93     1.0082     63.5
+    18   A->C           385.39       342.86     0.8896     63.5
+    19   C->A           385.07       384.87     0.9995     63.5
+    median   A 342.95   C 344.51 ms
+    paired   median +0.84%   min -13.20%   max +16.71%
+    direction 13 of 20 pairs positive, 7 negative
+    floor   A vs A
+    n    order           A1 ms        A2 ms      ratio     load
+    0    A->C           337.70       339.78     1.0062     63.5
+    1    C->A           339.61       343.50     1.0115     63.5
+    2    A->C           344.15       342.58     0.9954     63.5
+    3    C->A           342.53       350.41     1.0230     58.8
+    4    A->C           347.17       340.20     0.9799     58.8
+    5    C->A           343.36       340.11     0.9905     58.8
+    6    A->C           394.42       338.45     0.8581     58.8
+    7    C->A           341.81       387.74     1.1344     58.8
+    8    A->C           386.82       343.35     0.8876     54.3
+    9    C->A           391.17       349.75     0.8941     54.3
+    10   A->C           388.93       388.85     0.9998     54.3
+    11   C->A           337.83       338.65     1.0024     54.3
+    12   A->C           340.23       344.21     1.0117     54.3
+    13   C->A           386.84       340.84     0.8811     54.3
+    14   A->C           338.15       333.66     0.9867     50.2
+    15   C->A           398.11       348.16     0.8745     50.2
+    16   A->C           387.61       343.26     0.8856     50.2
+    17   C->A           338.81       336.43     0.9930     50.2
+    18   A->C           387.20       387.35     1.0004     50.2
+    19   C->A           388.82       345.00     0.8873     50.2
+    median   A1 345.66   A2 343.30 ms
+    paired   median -0.83%   min -14.19%   max +13.44%
+    direction 7 of 20 pairs positive, 13 negative
+    EFFECT  C vs A  median +0.84%  (min -13.20%, max +16.71%)
+    FLOOR   A vs A  median -0.83%  envelope 14.19%
+    VERDICT: inside the noise, not quotable
+    samples discarded: none
+
+final observation: {'t': '14:31:36', 'l1': 46.5869140625, 'l5': 77.7080078125, 'l15': 59.84619140625, 'comp': []}

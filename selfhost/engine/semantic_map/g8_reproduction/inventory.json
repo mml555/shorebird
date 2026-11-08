@@ -1,0 +1,489 @@
+{
+  "schema": "semantic-map-1/g8-inventory/1",
+  "gate": "SM1-G8",
+  "issue": 57,
+  "why": "ONE mandatory inventory. Each gate owns its adversarial arms; this declares which must exist, and the checker proves declared == tested == caught. An arm that is declared but never run, run but never caught failing, or caught without being declared, is a finding.",
+  "dimensions": {
+    "artifacts": "evidence a clean reproduction must produce",
+    "positive": "the verdict a healthy run must record",
+    "negative": "the verdict its CONTROL must record -- proof the arm can fail"
+  },
+  "gates": {
+    "g5_patchability": {
+      "scripts": [
+        "run_route2.sh",
+        "run_dispatch_experiment.sh",
+        "run_predictor_bank.sh",
+        "run_subset.sh",
+        "run_corpora.sh"
+      ],
+      "artifacts": [
+        "evidence/reader_state.txt",
+        "evidence/reader_falsification.txt",
+        "evidence/recorder_completeness.txt",
+        "evidence/recorder_completeness.md",
+        "evidence/dispatch_experiment.txt",
+        "evidence/predictor_falsification.txt",
+        "evidence/subset_check.txt",
+        "evidence/corpora.txt",
+        "evidence/inlining_state.json",
+        "evidence/g1_projection.json",
+        "evidence/corpus_localsend.json",
+        "evidence/corpus_wonderous.json",
+        "evidence/final_manifest.json",
+        "instrumentation/MANIFEST.json",
+        "RESULT.md"
+      ],
+      "positive": [
+        "SM1_G5_COMPLETENESS_CONTROL: VALID_AND_SENSITIVE",
+        "SM1_G5_CORPORA: ALL_EMPTY_AND_FAIL_CLOSED",
+        "SM1_G5_DISPATCH_EXPERIMENT: COMPLETE",
+        "SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED",
+        "SM1_G5_MANIFEST_SEMANTICS: ALL_SWAPS_REFUSED",
+        "SM1_G5_PREDICTOR_BANK: COMPLETE",
+        "SM1_G5_PREDICTOR_FALSIFICATION: EVERY_REASON_ARMED_AND_SENSITIVE",
+        "SM1_G5_READER_FALSIFICATION: ALL_ARMS_REFUSED",
+        "SM1_G5_RECORDER_COMPLETENESS: ENUMERATION_HOLDS",
+        "SM1_G5_SUBSET: SUBSET_HOLDS_VACUOUSLY",
+        "SM1_G5_SUBSET_BANK: ADVERSARIAL_CORPUS_ONLY",
+        "SM1_G5_SUBSET_FALSIFICATION: SCORER_IS_SENSITIVE"
+      ],
+      "negative": [
+        "SM1_G5_READER_FALSIFICATION: DEFECTS_PRESENT",
+        "SM1_G5_RECORDER_COMPLETENESS: ENUMERATION_DRIFTED",
+        "SM1_G5_PREDICTOR_FALSIFICATION: DEFECTS_PRESENT",
+        "SM1_G5_DISPATCH_PREDICATE: DEFECTS_PRESENT",
+        "SM1_G5_SUBSET: FAIL_OPEN"
+      ]
+    },
+    "g6_binding": {
+      "scripts": [
+        "run_g6.sh"
+      ],
+      "artifacts": [
+        "evidence/g6_binding.txt",
+        "evidence/map_probe.json",
+        "evidence/verify_probe.json"
+      ],
+      "positive": [
+        "SM1_G6: BINDING_ENFORCED",
+        "SM1_G6_BINDING_FALSIFICATION: EVERY_SWAP_REFUSED"
+      ],
+      "negative": [
+        "SM1_G6_BINDING_FALSIFICATION: DEFECTS_PRESENT"
+      ]
+    },
+    "g7_cost": {
+      "scripts": [
+        "run_g7.sh"
+      ],
+      "artifacts": [
+        "evidence/g7_cost.txt",
+        "evidence/families.json",
+        "evidence/samples.jsonl"
+      ],
+      "positive": [
+        "SM1_G7: COST_REPORTED"
+      ],
+      "negative": []
+    }
+  },
+  "known_fail_open_findings": {
+    "why": "#57 requires the reproduction to re-derive known FAIL_OPEN findings AS FINDINGS. These are refusals the programme depends on; if a clean rebuild stopped producing them the gate would be passing for the wrong reason. Each names the EXACT form its evidence takes -- a marker line in one place, an arm outcome in another -- because assuming a single form made this check look failed when the finding was present in a different shape.",
+    "findings": [
+      {
+        "id": "subset-over-claim-arms",
+        "gate": "g5_patchability",
+        "where": "evidence/subset_check.txt",
+        "pattern": "over-claim:.*\\bFAIL_OPEN\\b",
+        "min_count": 3,
+        "means": "the scorer refuses a predicted-patchable declaration that is not demonstrated: one partly stale, one wholly stale, one with no demonstration row"
+      },
+      {
+        "id": "corpora-over-claim-marker",
+        "gate": "g5_patchability",
+        "where": "evidence/corpora.txt",
+        "pattern": "SM1_G5_SUBSET: FAIL_OPEN",
+        "min_count": 2,
+        "means": "an injected admitted row is refused on each real corpus"
+      },
+      {
+        "id": "reader-control-defects",
+        "gate": "g5_patchability",
+        "where": "evidence/reader_falsification.txt",
+        "pattern": "SM1_G5_READER_FALSIFICATION: DEFECTS_PRESENT",
+        "min_count": 2,
+        "means": "both weakened readers fail the arms, so the suite is not vacuous"
+      }
+    ]
+  },
+  "deterministic_bindings": {
+    "why": "#57 binds these EXACTLY. They are artifact-derived and reproduced byte-for-byte across rebuilds; the timing families are machine state and are bound structurally instead.",
+    "g7_cost": {
+      "retention_measured_delta_bytes": 4330120,
+      "retention_measured_delta_pct": 8.719,
+      "g4_projection_bytes": 2922310,
+      "g4_projection_pct": 5.884,
+      "measured_over_projected": 1.482,
+      "map_bytes": 9467041,
+      "map_over_aot_pct": 19.063
+    }
+  },
+  "structural_bindings": {
+    "why": "Timing is machine state. Presence, shape and provenance are required; no wall-clock value or resulting classification is.",
+    "g7_cost": {
+      "required_stages": [
+        "base_gen_kernel",
+        "base_gen_snapshot",
+        "map_g1",
+        "map_g3",
+        "map_g4",
+        "map_refs",
+        "map_contract",
+        "map_reader",
+        "map_bound"
+      ],
+      "required_orders": [
+        "base_first",
+        "map_first"
+      ],
+      "min_reps_per_order": 3,
+      "required_sample_fields": [
+        "label",
+        "order",
+        "rep",
+        "ms",
+        "exit"
+      ],
+      "required_classifier_inputs": [
+        "ratio",
+        "gap_ms",
+        "within_order_spread_ms",
+        "exceeds_10pct",
+        "exceeds_noise_floor",
+        "order_dependent"
+      ],
+      "zero_producer_failures": true,
+      "no_required_wall_clock_value": true
+    }
+  },
+  "product_directories": {
+    "why": "#57 requires proof the product is untouched. packages/, bin/ and route_b/ plus compatibility.yaml are the minimum; scripts/ is additional coverage. This lane writes only under selfhost/engine/semantic_map/.",
+    "paths": [
+      "packages",
+      "bin",
+      "selfhost/engine/route_b",
+      "selfhost/compatibility.yaml",
+      "scripts"
+    ]
+  },
+  "falsifiable": {
+    "why": "One inventory drives the negatives, and its COVERAGE is derived rather than curated. #57 requires every mandatory item to refuse when missing or corrupted; a hand-picked subset cannot establish that, and the literal equality was previously over 15 chosen mutations while 21 artifacts were declared mandatory. The falsifier now DERIVES one delete arm per mandatory artifact from the gates' artifact lists, and the entries below are the additional SEMANTIC corruptions -- a lost verdict, a control that stops failing, a drifted binding -- which cannot be derived because they depend on what each file means.",
+    "mutations": {
+      "delete": "remove the artifact",
+      "empty": "truncate it to zero bytes",
+      "sub": "byte substitution: from -> to",
+      "drop_lines_containing": "remove every line containing a token"
+    },
+    "entries": [
+      {
+        "id": "g7-samples-emptied",
+        "target": "g7_cost/evidence/samples.jsonl",
+        "mutation": "empty",
+        "expect_code": "ARTIFACT_MISSING_OR_EMPTY"
+      },
+      {
+        "id": "g6-positive-verdict-lost",
+        "target": "g6_binding/evidence/g6_binding.txt",
+        "mutation": "sub",
+        "from": "SM1_G6: BINDING_ENFORCED",
+        "to": "SM1_G6: SOMETHING_ELSE",
+        "expect_code": "DECLARED_POSITIVE_NOT_TESTED"
+      },
+      {
+        "id": "g6-control-stops-failing",
+        "target": "g6_binding/evidence/g6_binding.txt",
+        "mutation": "sub",
+        "from": "SM1_G6_BINDING_FALSIFICATION: DEFECTS_PRESENT",
+        "to": "SM1_G6_BINDING_FALSIFICATION: EVERY_SWAP_REFUSED",
+        "expect_code": "DECLARED_CONTROL_NEVER_FAILED"
+      },
+      {
+        "id": "g5-reader-control-stops-failing",
+        "target": "g5_patchability/evidence/reader_falsification.txt",
+        "mutation": "sub",
+        "from": "SM1_G5_READER_FALSIFICATION: DEFECTS_PRESENT",
+        "to": "SM1_G5_READER_FALSIFICATION: ALL_ARMS_REFUSED",
+        "expect_code": "DECLARED_CONTROL_NEVER_FAILED"
+      },
+      {
+        "id": "g5-fail-open-finding-lost",
+        "target": "g5_patchability/evidence/corpora.txt",
+        "mutation": "sub",
+        "from": "SM1_G5_SUBSET: FAIL_OPEN",
+        "to": "SM1_G5_SUBSET: OK",
+        "expect_code": "FAIL_OPEN_FINDING_NOT_REPRODUCED"
+      },
+      {
+        "id": "g5-subset-overclaim-arms-lost",
+        "target": "g5_patchability/evidence/subset_check.txt",
+        "mutation": "drop_lines_containing",
+        "token": "over-claim:",
+        "expect_code": "FAIL_OPEN_FINDING_NOT_REPRODUCED"
+      },
+      {
+        "id": "g7-deterministic-binding-drifts",
+        "target": "g7_cost/evidence/families.json",
+        "mutation": "sub",
+        "from": "4330120",
+        "to": "4330121",
+        "expect_code": "DETERMINISTIC_BINDING_CHANGED"
+      },
+      {
+        "id": "g7-timing-stage-vanishes",
+        "target": "g7_cost/evidence/samples.jsonl",
+        "mutation": "drop_lines_containing",
+        "token": "\"map_reader\"",
+        "expect_code": "TIMING_STAGE_MISSING"
+      },
+      {
+        "id": "g7-schedule-side-vanishes",
+        "target": "g7_cost/evidence/samples.jsonl",
+        "mutation": "drop_lines_containing",
+        "token": "\"map_first\"",
+        "expect_code": "TIMING_ORDER_MISSING"
+      },
+      {
+        "id": "g7-producer-recorded-failed",
+        "target": "g7_cost/evidence/samples.jsonl",
+        "mutation": "sub",
+        "from": "\"exit\": 0",
+        "to": "\"exit\": 1",
+        "count": 1,
+        "expect_code": "TIMING_PRODUCER_FAILED"
+      },
+      {
+        "id": "g7-stale-summary",
+        "target": "g7_cost/evidence/families.json",
+        "mutation": "sub",
+        "from": "\"samples\":",
+        "to": "\"samples\": 999,\"_\":",
+        "count": 1,
+        "expect_code": "SUMMARY_NOT_FROM_SAMPLES"
+      }
+    ],
+    "derived_coverage": {
+      "rule": "one delete arm per artifact in gates[*].artifacts, id auto-<gate>-<artifact basename>-deleted, expecting ARTIFACT_MISSING_OR_EMPTY",
+      "why": "so adding a mandatory artifact automatically adds its negative; coverage cannot silently fall behind the inventory"
+    }
+  },
+  "classifier_controls": {
+    "why": "#57 required three deterministic sensitivity controls on the timing classifier. They are declared here so they are inventory driven like every other negative, and exercised through g7_cost/lib/classify_order.py rather than by running a seven-minute measurement.",
+    "entries": [
+      {
+        "id": "clf-beyond-noise-flags",
+        "a": {
+          "n": 3,
+          "median_ms": 100.0,
+          "stdev_ms": 1.0
+        },
+        "z": {
+          "n": 3,
+          "median_ms": 130.0,
+          "stdev_ms": 1.0
+        },
+        "expect_order_dependent": true,
+        "means": "ratio 1.30 with gap 30 over noise 1"
+      },
+      {
+        "id": "clf-inside-noise-does-not-flag",
+        "a": {
+          "n": 3,
+          "median_ms": 100.0,
+          "stdev_ms": 50.0
+        },
+        "z": {
+          "n": 3,
+          "median_ms": 130.0,
+          "stdev_ms": 50.0
+        },
+        "expect_order_dependent": false,
+        "means": "ratio 1.30 but gap 30 under noise 50"
+      },
+      {
+        "id": "clf-missing-side-undecidable",
+        "a": {
+          "n": 3,
+          "median_ms": 100.0,
+          "stdev_ms": 1.0
+        },
+        "z": {
+          "n": 0
+        },
+        "expect_order_dependent": null,
+        "means": "absence of a comparison is not absence of an effect"
+      }
+    ]
+  },
+  "self_coverage": {
+    "why": "G8 is deliberately NOT in its own artifact inventory. The checker reads each gate's transcripts, and G8's transcript is mid-write while the checker runs inside it -- a self-entry would validate a partial file, which is the stale/absent-input class this gate exists to detect. Instead run_g8.sh asserts its own outputs after the run completes, which is a real check without the circularity. evidence/g8_result.json joins that list rather than the artifact inventory for the same reason: it is derived from the transcript while the transcript is still open, so a self-entry would digest a partial file. Its own negatives live in lib/falsify_result.py, which falsifies the reporting path in report-only mode -- a stronger check for a derived artifact than a delete/corrupt pair, because it proves each partition discriminates rather than merely that the file is present.",
+    "asserted_after_run": [
+      "evidence/g8_reproduction.txt",
+      "evidence/inventory_check.json",
+      "evidence/negative_outcomes.json",
+      "evidence/g8_result.json"
+    ]
+  },
+  "reproducibility_expectations": {
+    "why": "Two consecutive full G8 runs were compared. What must be identical, and what may legitimately move, is recorded here so a future difference is read correctly instead of investigated as a regression.",
+    "identical_across_runs": [
+      "every deterministic binding in g7_cost/evidence/families.json",
+      "the falsifier outcome ids and their counts",
+      "the rebuilt probe identities, including the canonical AOT",
+      "the G5 reader accounting and subset verdict"
+    ],
+    "may_move_across_runs": [
+      "timing samples and every summary derived from them",
+      "the order-dependent label set -- observed moving from [map_refs] to none between two runs even WITH the noise gate, so the gate narrows the instability without removing it at n=3",
+      "generated-at timestamps"
+    ]
+  },
+  "production_prerequisites": {
+    "why": "#57's reporting contract requires a generated PRODUCTION_PREREQUISITES partition, and CLEAN_REPRODUCTION must not be readable as 'the patchability model is clean'. Each entry therefore carries a BINDING to evidence that already exists: emit_result.py resolves the binding and refuses when it does not hold. An entry whose evidence cannot be found does NOT become resolved -- it becomes EVIDENCE_MISSING and takes the whole partition to UNDERIVABLE, because a prerequisite that cannot be checked is not a prerequisite that has been met. Statuses are never derived from prose in this file; the prose explains a status the binding proves. The binding also declares implies_status: the emitter DERIVES each status from the evidence and treats a declared status that contradicts it as STATUS_CONTRADICTS_EVIDENCE, so editing this file cannot promote a prerequisite to RESOLVED.",
+    "status_vocabulary": {
+      "UNRESOLVED": "blocks production; the named consequence was observed",
+      "CARRY_FORWARD": "not a blocker but constrains any later design",
+      "RESOLVED": "the gate demonstrated the requirement is met",
+      "EVIDENCE_MISSING": "derived, never declared: the binding did not resolve"
+    },
+    "entries": [
+      {
+        "id": "NON_STATIC_DISPATCH_PATCHABILITY",
+        "status": "UNRESOLVED",
+        "severity": "BLOCKING_FOR_PRODUCTION",
+        "statement": "A patch must be observable at every call site that reaches the patched member, including virtual and instance dispatch.",
+        "why": "G5's isolated experiment attached a patch to Base.work and the C++ invoke of the target returned PATCHED-w, yet viaVirtual still read OLD-w. So a call site reading OLD-w is not a failed attachment -- the attachment succeeded and the site does not observe it.",
+        "observed_consequence": "NOT_INLINED cannot be read as patchable. The banked contract is narrower: no covered body-copy mechanism was witnessed.",
+        "binding": {
+          "kind": "text",
+          "gate": "g5_patchability",
+          "where": "evidence/dispatch_experiment.txt",
+          "pattern": "after\\s+.*virtual=OLD-w.*direct=PATCHED-w",
+          "min_count": 1,
+          "implies_status": "UNRESOLVED"
+        },
+        "consumed_by": 60
+      },
+      {
+        "id": "POST_HOC_REDIRECTABILITY_UNDECIDABLE",
+        "status": "UNRESOLVED",
+        "severity": "BLOCKING_FOR_PRODUCTION",
+        "statement": "Deciding whether a compiled call site is redirectable must not depend on reading tagged entry-point offsets back out of a finished snapshot.",
+        "why": "UntaggedFunction::entry_point_@8 / unchecked_entry_point_@16 alias UntaggedCode::entry_point_@8 / monomorphic_entry_point_@16, so tagged #0x7 and #0xf are ambiguous between the two layouts. Only GenerateStaticDartCall's early return through FUNCTION_REG is redirectable; PC-relative branch and Code-pool slot forms are not.",
+        "observed_consequence": "The dispatch predicate fails closed rather than classifying, which is why the predictor admits zero declarations.",
+        "binding": {
+          "kind": "text",
+          "gate": "g5_patchability",
+          "where": "evidence/dispatch_experiment.txt",
+          "pattern": "SM1_G5_DISPATCH_PREDICATE: FAIL_CLOSED",
+          "min_count": 1,
+          "implies_status": "UNRESOLVED"
+        },
+        "consumed_by": 60
+      },
+      {
+        "id": "INLINING_EVIDENCE_MUST_COME_FROM_THE_SHIPPED_RELEASE",
+        "status": "UNRESOLVED",
+        "severity": "BLOCKING_FOR_PRODUCTION",
+        "statement": "The Route-2 inlining note a release consumes must have been produced by that exact release, proven by digest, not by build recipe.",
+        "why": "The reader treats a note from any other build as unusable rather than approximate. A note that merely looks right is the one input that could turn UNKNOWN into a false patchable.",
+        "observed_consequence": "INLINING_EVIDENCE_RELEASE_MISMATCH is a live refusal code with a passing falsification arm, and the weakened predictor fails that same arm -- so the refusal is enforced, not decorative.",
+        "binding": {
+          "kind": "text",
+          "gate": "g5_patchability",
+          "where": "evidence/predictor_falsification.txt",
+          "pattern": "INLINING_EVIDENCE_RELEASE_MISMATCH\\s+pass\\b",
+          "min_count": 1,
+          "implies_status": "UNRESOLVED"
+        },
+        "consumed_by": 58
+      },
+      {
+        "id": "COST_FIGURES_DO_NOT_EXTRAPOLATE",
+        "status": "CARRY_FORWARD",
+        "severity": "DESIGN_CONSTRAINT",
+        "statement": "No cost decision may be made from a projection or from fixture-scale measurement; the figure must come from the scale being shipped.",
+        "why": "G4's own retention curve (40912 byte floor + ~82 bytes/member) projects 2,922,310 bytes where measurement found 4,330,120 -- low by 1.482x. Independently, the reader projection that was complete at 36 rows is incomplete at 35,139.",
+        "observed_consequence": "G7 reports cost rather than certifying affordability, and G5 classified REDUCE_SCOPE instead of extrapolating.",
+        "binding": {
+          "kind": "json",
+          "gate": "g7_cost",
+          "where": "evidence/families.json",
+          "path": [
+            "families",
+            "retention_cost_at_scale",
+            "measured_over_projected"
+          ],
+          "expect_gt": 1.0,
+          "implies_status": "CARRY_FORWARD"
+        },
+        "consumed_by": 56
+      },
+      {
+        "id": "ORDER_DEPENDENCE_IS_A_COST_DIAGNOSTIC_ONLY",
+        "status": "CARRY_FORWARD",
+        "severity": "DESIGN_CONSTRAINT",
+        "statement": "The max(stdev(A), stdev(B)) order-dependence rule may inform cost diagnosis and must not be cited as a safety or causality claim.",
+        "why": "PM ruling on G7. At n=3 the labelled set still moves between identical runs; the noise floor narrows the instability without removing it, so the label is a hint about measurement, not a statement about the compiler.",
+        "observed_consequence": "reproducibility_expectations records the label set as may_move_across_runs, so a future difference is read correctly instead of investigated.",
+        "binding": {
+          "kind": "json",
+          "gate": "g7_cost",
+          "where": "evidence/families.json",
+          "path": [
+            "order_dependence_scope"
+          ],
+          "expect_present": true,
+          "implies_status": "CARRY_FORWARD"
+        },
+        "consumed_by": 56
+      },
+      {
+        "id": "HOST_AND_MODULE_IDENTITY_BOUND_AT_APPLY",
+        "status": "RESOLVED",
+        "severity": "BLOCKING_FOR_PRODUCTION",
+        "statement": "A map may only be applied to the host it was generated against, and a module may only be accepted if its integrity holds.",
+        "why": "G6 enforces HOST_IDENTITY and MODULE_INTEGRITY structurally, and 29 falsification arms plus a weakened verifier show the enforcement is not vacuous.",
+        "observed_consequence": "Every swap the falsifier attempts is refused; the weakened verifier fails the arms it should fail.",
+        "binding": {
+          "kind": "text",
+          "gate": "g6_binding",
+          "where": "evidence/g6_binding.txt",
+          "pattern": "SM1_G6: BINDING_ENFORCED",
+          "min_count": 1,
+          "implies_status": "RESOLVED"
+        },
+        "consumed_by": 55
+      },
+      {
+        "id": "MUTABLE_AOT_GATED_ON_SEMANTIC_MAP_FINAL",
+        "status": "CARRY_FORWARD",
+        "severity": "PROCESS_CONSTRAINT",
+        "statement": "No Mutable-AOT implementation work may begin before SEMANTIC-MAP FINAL.",
+        "why": "PM ruling closing #59. The direction was accepted; the implementation was not authorized, because the map is what would decide which declarations such a runtime may reuse.",
+        "observed_consequence": "Recorded so a CLEAN_REPRODUCTION here cannot be cited as a green light for that lane.",
+        "binding": {
+          "kind": "json",
+          "gate": "g5_patchability",
+          "where": "evidence/subset.json",
+          "path": [
+            "predicted_patchable"
+          ],
+          "expect_eq": 0,
+          "implies_status": "CARRY_FORWARD"
+        },
+        "consumed_by": 59
+      }
+    ]
+  }
+}

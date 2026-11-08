@@ -1,0 +1,15 @@
+# Route B 4a payload provenance. Regenerate with:
+#   selfhost/engine/route_b/build_4a_payload.sh
+#
+# The payload is compiled against the APP'S OWN pre-AOT kernel. It is therefore
+# release-specific: change lib/main.dart and this file is stale, and a stale
+# payload fails as "attach returned false" or binds nothing -- which reads like
+# a broken mechanism rather than a stale artifact. Regenerate before every
+# release that touches the app's Dart.
+built_at:        2026-08-10T18:21:00Z
+app_version:     2.1.0+1
+target_function: routeBValue  (package:airgap_probe/main.dart)
+replacement:     returns 'NEW'
+platform_dill:   flutter_patched_sdk_product (Route B tree, engine b4817db8)
+sha256:          db7fa18fc4e8a0d02480e548ab6ccf0e8bcdbb9260ce8de39ed9624661f7f7da
+bytes:           409

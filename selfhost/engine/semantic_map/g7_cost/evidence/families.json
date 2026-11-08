@@ -1,0 +1,591 @@
+{
+  "schema": "semantic-map-1/g7-cost/1",
+  "gate": "SM1-G7",
+  "issue": 56,
+  "corpus": "localsend",
+  "retention_pair_built_by_this_run": true,
+  "declarations_in_scope": 35139,
+  "samples": 60,
+  "failed_samples": 0,
+  "threshold_imposed": false,
+  "families": {
+    "map_size": {
+      "map_bytes": 9467041,
+      "release_aot_bytes": 49662560,
+      "map_over_aot_pct": 19.063,
+      "note": "the map is JSON here; no compact encoding is claimed"
+    },
+    "generation_time": {
+      "per_stage": {
+        "base_gen_kernel": {
+          "n": 6,
+          "min_ms": 15447.0,
+          "median_ms": 15638.4,
+          "max_ms": 15683.0,
+          "mean_ms": 15613.7,
+          "stdev_ms": 87.4
+        },
+        "base_gen_snapshot": {
+          "n": 6,
+          "min_ms": 13171.7,
+          "median_ms": 13265.6,
+          "max_ms": 13432.4,
+          "mean_ms": 13277.9,
+          "stdev_ms": 86.7
+        },
+        "map_bound": {
+          "n": 6,
+          "min_ms": 556.5,
+          "median_ms": 560.7,
+          "max_ms": 574.6,
+          "mean_ms": 562.2,
+          "stdev_ms": 6.4
+        },
+        "map_contract": {
+          "n": 6,
+          "min_ms": 1732.8,
+          "median_ms": 1749.3,
+          "max_ms": 1821.6,
+          "mean_ms": 1759.3,
+          "stdev_ms": 31.9
+        },
+        "map_g1": {
+          "n": 6,
+          "min_ms": 3089.1,
+          "median_ms": 3135.7,
+          "max_ms": 3214.8,
+          "mean_ms": 3140.8,
+          "stdev_ms": 43.3
+        },
+        "map_g3": {
+          "n": 6,
+          "min_ms": 2789.5,
+          "median_ms": 2826.4,
+          "max_ms": 2894.9,
+          "mean_ms": 2829.2,
+          "stdev_ms": 36.7
+        },
+        "map_g4": {
+          "n": 6,
+          "min_ms": 1517.1,
+          "median_ms": 1553.0,
+          "max_ms": 1556.1,
+          "mean_ms": 1546.2,
+          "stdev_ms": 14.8
+        },
+        "map_reader": {
+          "n": 6,
+          "min_ms": 1481.6,
+          "median_ms": 1504.8,
+          "max_ms": 1534.2,
+          "mean_ms": 1505.4,
+          "stdev_ms": 19.8
+        },
+        "map_refs": {
+          "n": 6,
+          "min_ms": 1370.4,
+          "median_ms": 1393.6,
+          "max_ms": 1407.8,
+          "mean_ms": 1392.4,
+          "stdev_ms": 13.1
+        },
+        "ret_aot_noret": {
+          "n": 1,
+          "min_ms": 13477.9,
+          "median_ms": 13477.9,
+          "max_ms": 13477.9,
+          "mean_ms": 13477.9,
+          "stdev_ms": 0.0
+        },
+        "ret_aot_ret": {
+          "n": 1,
+          "min_ms": 14866.4,
+          "median_ms": 14866.4,
+          "max_ms": 14866.4,
+          "mean_ms": 14866.4,
+          "stdev_ms": 0.0
+        },
+        "ret_interface": {
+          "n": 1,
+          "min_ms": 1269.5,
+          "median_ms": 1269.5,
+          "max_ms": 1269.5,
+          "mean_ms": 1269.5,
+          "stdev_ms": 0.0
+        },
+        "ret_kernel_noret": {
+          "n": 1,
+          "min_ms": 15643.7,
+          "median_ms": 15643.7,
+          "max_ms": 15643.7,
+          "mean_ms": 15643.7,
+          "stdev_ms": 0.0
+        },
+        "ret_kernel_pre": {
+          "n": 1,
+          "min_ms": 8803.3,
+          "median_ms": 8803.3,
+          "max_ms": 8803.3,
+          "mean_ms": 8803.3,
+          "stdev_ms": 0.0
+        },
+        "ret_kernel_ret": {
+          "n": 1,
+          "min_ms": 16489.3,
+          "median_ms": 16489.3,
+          "max_ms": 16489.3,
+          "mean_ms": 16489.3,
+          "stdev_ms": 0.0
+        }
+      },
+      "per_stage_by_order": {
+        "base_gen_kernel": {
+          "base_first": {
+            "n": 3,
+            "min_ms": 15599.8,
+            "median_ms": 15625.0,
+            "max_ms": 15651.8,
+            "mean_ms": 15625.5,
+            "stdev_ms": 26.0
+          },
+          "map_first": {
+            "n": 3,
+            "min_ms": 15447.0,
+            "median_ms": 15675.6,
+            "max_ms": 15683.0,
+            "mean_ms": 15601.9,
+            "stdev_ms": 134.2
+          }
+        },
+        "base_gen_snapshot": {
+          "base_first": {
+            "n": 3,
+            "min_ms": 13171.7,
+            "median_ms": 13238.0,
+            "max_ms": 13432.4,
+            "mean_ms": 13280.7,
+            "stdev_ms": 135.5
+          },
+          "map_first": {
+            "n": 3,
+            "min_ms": 13252.8,
+            "median_ms": 13278.4,
+            "max_ms": 13293.8,
+            "mean_ms": 13275.0,
+            "stdev_ms": 20.7
+          }
+        },
+        "map_bound": {
+          "base_first": {
+            "n": 3,
+            "min_ms": 556.5,
+            "median_ms": 561.2,
+            "max_ms": 574.6,
+            "mean_ms": 564.1,
+            "stdev_ms": 9.4
+          },
+          "map_first": {
+            "n": 3,
+            "min_ms": 558.3,
+            "median_ms": 560.1,
+            "max_ms": 562.7,
+            "mean_ms": 560.4,
+            "stdev_ms": 2.2
+          }
+        },
+        "map_contract": {
+          "base_first": {
+            "n": 3,
+            "min_ms": 1732.8,
+            "median_ms": 1747.5,
+            "max_ms": 1760.9,
+            "mean_ms": 1747.1,
+            "stdev_ms": 14.0
+          },
+          "map_first": {
+            "n": 3,
+            "min_ms": 1741.8,
+            "median_ms": 1751.1,
+            "max_ms": 1821.6,
+            "mean_ms": 1771.5,
+            "stdev_ms": 43.6
+          }
+        },
+        "map_g1": {
+          "base_first": {
+            "n": 3,
+            "min_ms": 3089.1,
+            "median_ms": 3140.7,
+            "max_ms": 3157.8,
+            "mean_ms": 3129.2,
+            "stdev_ms": 35.7
+          },
+          "map_first": {
+            "n": 3,
+            "min_ms": 3112.0,
+            "median_ms": 3130.6,
+            "max_ms": 3214.8,
+            "mean_ms": 3152.5,
+            "stdev_ms": 54.8
+          }
+        },
+        "map_g3": {
+          "base_first": {
+            "n": 3,
+            "min_ms": 2789.5,
+            "median_ms": 2836.5,
+            "max_ms": 2894.9,
+            "mean_ms": 2840.3,
+            "stdev_ms": 52.8
+          },
+          "map_first": {
+            "n": 3,
+            "min_ms": 2801.4,
+            "median_ms": 2823.6,
+            "max_ms": 2829.2,
+            "mean_ms": 2818.1,
+            "stdev_ms": 14.7
+          }
+        },
+        "map_g4": {
+          "base_first": {
+            "n": 3,
+            "min_ms": 1517.1,
+            "median_ms": 1553.3,
+            "max_ms": 1554.0,
+            "mean_ms": 1541.5,
+            "stdev_ms": 21.1
+          },
+          "map_first": {
+            "n": 3,
+            "min_ms": 1544.1,
+            "median_ms": 1552.7,
+            "max_ms": 1556.1,
+            "mean_ms": 1551.0,
+            "stdev_ms": 6.2
+          }
+        },
+        "map_reader": {
+          "base_first": {
+            "n": 3,
+            "min_ms": 1487.2,
+            "median_ms": 1508.3,
+            "max_ms": 1519.6,
+            "mean_ms": 1505.0,
+            "stdev_ms": 16.4
+          },
+          "map_first": {
+            "n": 3,
+            "min_ms": 1481.6,
+            "median_ms": 1501.4,
+            "max_ms": 1534.2,
+            "mean_ms": 1505.7,
+            "stdev_ms": 26.6
+          }
+        },
+        "map_refs": {
+          "base_first": {
+            "n": 3,
+            "min_ms": 1370.4,
+            "median_ms": 1392.3,
+            "max_ms": 1407.8,
+            "mean_ms": 1390.2,
+            "stdev_ms": 18.8
+          },
+          "map_first": {
+            "n": 3,
+            "min_ms": 1386.6,
+            "median_ms": 1394.8,
+            "max_ms": 1402.2,
+            "mean_ms": 1394.5,
+            "stdev_ms": 7.8
+          }
+        },
+        "ret_aot_noret": {
+          "base_first": {
+            "n": 0,
+            "min_ms": null,
+            "median_ms": null,
+            "max_ms": null,
+            "mean_ms": null,
+            "stdev_ms": null
+          },
+          "map_first": {
+            "n": 0,
+            "min_ms": null,
+            "median_ms": null,
+            "max_ms": null,
+            "mean_ms": null,
+            "stdev_ms": null
+          }
+        },
+        "ret_aot_ret": {
+          "base_first": {
+            "n": 0,
+            "min_ms": null,
+            "median_ms": null,
+            "max_ms": null,
+            "mean_ms": null,
+            "stdev_ms": null
+          },
+          "map_first": {
+            "n": 0,
+            "min_ms": null,
+            "median_ms": null,
+            "max_ms": null,
+            "mean_ms": null,
+            "stdev_ms": null
+          }
+        },
+        "ret_interface": {
+          "base_first": {
+            "n": 0,
+            "min_ms": null,
+            "median_ms": null,
+            "max_ms": null,
+            "mean_ms": null,
+            "stdev_ms": null
+          },
+          "map_first": {
+            "n": 0,
+            "min_ms": null,
+            "median_ms": null,
+            "max_ms": null,
+            "mean_ms": null,
+            "stdev_ms": null
+          }
+        },
+        "ret_kernel_noret": {
+          "base_first": {
+            "n": 0,
+            "min_ms": null,
+            "median_ms": null,
+            "max_ms": null,
+            "mean_ms": null,
+            "stdev_ms": null
+          },
+          "map_first": {
+            "n": 0,
+            "min_ms": null,
+            "median_ms": null,
+            "max_ms": null,
+            "mean_ms": null,
+            "stdev_ms": null
+          }
+        },
+        "ret_kernel_pre": {
+          "base_first": {
+            "n": 0,
+            "min_ms": null,
+            "median_ms": null,
+            "max_ms": null,
+            "mean_ms": null,
+            "stdev_ms": null
+          },
+          "map_first": {
+            "n": 0,
+            "min_ms": null,
+            "median_ms": null,
+            "max_ms": null,
+            "mean_ms": null,
+            "stdev_ms": null
+          }
+        },
+        "ret_kernel_ret": {
+          "base_first": {
+            "n": 0,
+            "min_ms": null,
+            "median_ms": null,
+            "max_ms": null,
+            "mean_ms": null,
+            "stdev_ms": null
+          },
+          "map_first": {
+            "n": 0,
+            "min_ms": null,
+            "median_ms": null,
+            "max_ms": null,
+            "mean_ms": null,
+            "stdev_ms": null
+          }
+        }
+      },
+      "map_total_ms": {
+        "base_first": {
+          "n": 3,
+          "min_ms": 12547.5,
+          "median_ms": 12764.6,
+          "max_ms": 12840.2,
+          "mean_ms": 12717.4,
+          "stdev_ms": 151.9
+        },
+        "map_first": {
+          "n": 3,
+          "min_ms": 12653.4,
+          "median_ms": 12770.6,
+          "max_ms": 12836.9,
+          "mean_ms": 12753.6,
+          "stdev_ms": 93.0
+        }
+      }
+    },
+    "release_build_impact": {
+      "base_total_ms": {
+        "base_first": {
+          "n": 3,
+          "min_ms": 28771.5,
+          "median_ms": 28889.8,
+          "max_ms": 29057.4,
+          "mean_ms": 28906.2,
+          "stdev_ms": 143.6
+        },
+        "map_first": {
+          "n": 3,
+          "min_ms": 28725.4,
+          "median_ms": 28928.4,
+          "max_ms": 28976.8,
+          "mean_ms": 28876.9,
+          "stdev_ms": 133.4
+        }
+      },
+      "map_total_ms": {
+        "base_first": {
+          "n": 3,
+          "min_ms": 12547.5,
+          "median_ms": 12764.6,
+          "max_ms": 12840.2,
+          "mean_ms": 12717.4,
+          "stdev_ms": 151.9
+        },
+        "map_first": {
+          "n": 3,
+          "min_ms": 12653.4,
+          "median_ms": 12770.6,
+          "max_ms": 12836.9,
+          "mean_ms": 12753.6,
+          "stdev_ms": 93.0
+        }
+      },
+      "added_pct_median": 44.2
+    },
+    "retention_cost_at_scale": {
+      "aot_without_retention_bytes": 49662560,
+      "aot_with_retention_bytes": 53992680,
+      "measured_delta_bytes": 4330120,
+      "measured_delta_pct": 8.719,
+      "g4_projection_bytes": 2922310,
+      "g4_projection_pct": 5.884,
+      "measured_over_projected": 1.482,
+      "g4_curve": "40912 byte floor + ~82 bytes/member"
+    },
+    "aot_size_impact": {
+      "kernel_without_retention_bytes": 64775640,
+      "kernel_with_retention_bytes": 67535616,
+      "dynamic_interface_bytes": 3273255
+    }
+  },
+  "order_dependence": {
+    "base_gen_kernel": {
+      "decidable": true,
+      "base_first_median_ms": 15625.0,
+      "map_first_median_ms": 15675.6,
+      "ratio": 1.003,
+      "gap_ms": 50.6,
+      "within_order_spread_ms": 134.2,
+      "exceeds_10pct": false,
+      "exceeds_noise_floor": false,
+      "order_dependent": false
+    },
+    "base_gen_snapshot": {
+      "decidable": true,
+      "base_first_median_ms": 13238.0,
+      "map_first_median_ms": 13278.4,
+      "ratio": 1.003,
+      "gap_ms": 40.4,
+      "within_order_spread_ms": 135.5,
+      "exceeds_10pct": false,
+      "exceeds_noise_floor": false,
+      "order_dependent": false
+    },
+    "map_bound": {
+      "decidable": true,
+      "base_first_median_ms": 561.2,
+      "map_first_median_ms": 560.1,
+      "ratio": 0.998,
+      "gap_ms": 1.1,
+      "within_order_spread_ms": 9.4,
+      "exceeds_10pct": false,
+      "exceeds_noise_floor": false,
+      "order_dependent": false
+    },
+    "map_contract": {
+      "decidable": true,
+      "base_first_median_ms": 1747.5,
+      "map_first_median_ms": 1751.1,
+      "ratio": 1.002,
+      "gap_ms": 3.6,
+      "within_order_spread_ms": 43.6,
+      "exceeds_10pct": false,
+      "exceeds_noise_floor": false,
+      "order_dependent": false
+    },
+    "map_g1": {
+      "decidable": true,
+      "base_first_median_ms": 3140.7,
+      "map_first_median_ms": 3130.6,
+      "ratio": 0.997,
+      "gap_ms": 10.1,
+      "within_order_spread_ms": 54.8,
+      "exceeds_10pct": false,
+      "exceeds_noise_floor": false,
+      "order_dependent": false
+    },
+    "map_g3": {
+      "decidable": true,
+      "base_first_median_ms": 2836.5,
+      "map_first_median_ms": 2823.6,
+      "ratio": 0.995,
+      "gap_ms": 12.9,
+      "within_order_spread_ms": 52.8,
+      "exceeds_10pct": false,
+      "exceeds_noise_floor": false,
+      "order_dependent": false
+    },
+    "map_g4": {
+      "decidable": true,
+      "base_first_median_ms": 1553.3,
+      "map_first_median_ms": 1552.7,
+      "ratio": 1.0,
+      "gap_ms": 0.6,
+      "within_order_spread_ms": 21.1,
+      "exceeds_10pct": false,
+      "exceeds_noise_floor": false,
+      "order_dependent": false
+    },
+    "map_reader": {
+      "decidable": true,
+      "base_first_median_ms": 1508.3,
+      "map_first_median_ms": 1501.4,
+      "ratio": 0.995,
+      "gap_ms": 6.9,
+      "within_order_spread_ms": 26.6,
+      "exceeds_10pct": false,
+      "exceeds_noise_floor": false,
+      "order_dependent": false
+    },
+    "map_refs": {
+      "decidable": true,
+      "base_first_median_ms": 1392.3,
+      "map_first_median_ms": 1394.8,
+      "ratio": 1.002,
+      "gap_ms": 2.5,
+      "within_order_spread_ms": 18.8,
+      "exceeds_10pct": false,
+      "exceeds_noise_floor": false,
+      "order_dependent": false
+    }
+  },
+  "order_dependence_scope": "labels sampled in both timed orders; the retention-pair stages run once and are excluded rather than counted as unaffected",
+  "order_dependent_labels": [],
+  "exceeds_10pct_but_within_noise": []
+}

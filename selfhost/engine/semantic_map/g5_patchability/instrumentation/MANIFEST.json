@@ -1,0 +1,164 @@
+{
+  "schema": "semantic-map-1/g5-instrumentation/2",
+  "gate": "SM1-G5",
+  "issue": 54,
+  "why": "The capability marker is only credible if the PRODUCER can be rebuilt. This banks the exact source delta, the base it applies to, and the binary it produced, so the causal claim -- the compiler emitted the value from its own parsed flag -- is checkable rather than asserted.",
+  "base": {
+    "dart_revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+    "dart_head_tree": "aa55ff960f07682fd098195e4884f2cbcb4f5f27",
+    "frozen_effective_tree": "7b04b01bdc10ec990143257f0d28580571c2122f",
+    "note": "The frozen lineage is NEVER modified. G0-G4 verify the effective tree, so instrumenting it in place would invalidate every earlier gate.",
+    "elf_cc_sha256": "3fe477c978320f43884d459589df86762d82ab4f34ba63dc55445d0de59a2378",
+    "frozen_file_sha256": {
+      "runtime/vm/elf.h": "aed0257f099746a417062e2e7023235269f7f294d4e291b26c93eb9b3cba3aa4",
+      "runtime/vm/elf.cc": "3fe477c978320f43884d459589df86762d82ab4f34ba63dc55445d0de59a2378",
+      "runtime/vm/compiler/backend/flow_graph_compiler.cc": "106e4d05eb4f718e1cbcef067f6b7e3476a424076db9f34fc3d78502f0fb8a31"
+    },
+    "recoverable_from_git": "git -C flutter/third_party/dart show <frozen_tree>:<path> reproduces each frozen file; the elf.cc digest recorded here was re-derived that way and matches the value banked before any instrumentation existed."
+  },
+  "delta": {
+    "path": "instrumentation/0001-g5-aot-capability-note.patch",
+    "sha256": "c0a982fab70900aff92bc03602a3a9447f75fe26a27d853c8bc5b6176a5dac3a",
+    "files": [
+      "runtime/vm/elf.h",
+      "runtime/vm/elf.cc"
+    ],
+    "applies_to": "flutter/third_party/dart within the engine checkout"
+  },
+  "built": {
+    "worktree": "/Volumes/build/g5_marker/src (APFS clone, local-disk only)",
+    "target": "ninja gen_snapshot",
+    "instrumented_gen_snapshot_sha256": "fe1f523a43dd03429532e31e929d235bdea54c529aea6900929c06343ad81eda",
+    "frozen_gen_snapshot_sha256": "4310aebd39be52ec9fd30adf801e698b599cfb7c2eba69e26d2af1b08e39812b",
+    "build_shim": "vpython3 -> python3; depot_tools wrapper fails on Python 3.13",
+    "instrumented_gen_snapshot_sha256_with_delta_2": "e0ada2216becd46b38f2cb75a1df144d0d58431939a49d41c7dfff3d1c684fd8",
+    "instrumented_gen_snapshot_sha256_schema6": "b307906fe7dc9ef254231023e0862c89da23840e7fef3911cfd10308abc4a81a",
+    "out_dir": "out/host_release_arm64"
+  },
+  "delta_2": {
+    "path": "instrumentation/0002-g5-inlining-relation.patch",
+    "sha256": "078d9d4d497f3ae13c5cc72ac009ffcaf34d5f14ea66bc91799903eae8a26286",
+    "files": [
+      "runtime/vm/elf.h",
+      "runtime/vm/elf.cc",
+      "runtime/vm/compiler/backend/flow_graph_compiler.cc"
+    ],
+    "what": "route 2 schema 6: FlowGraphCompiler records the inliner's own inline_id_to_function decisions, emitting for each side the VM coordinates for G1 projection (library URI, owner, VM kind, declared name), the same four for the synthetic parent, and each side's EXACT declaring-library private key. ElfWriter emits them as .note.shorebird.inlining -- sorted, de-duplicated, length-prefixed, and sealed against late appends.",
+    "bug_found_and_fixed": "A ZoneGrowableArray global segfaulted gen_snapshot: it allocates in the current zone, which does not outlive one compilation, so the pointer dangled by the time the ELF writer ran. Malloc-backed storage persists for the process.",
+    "semantics": "incremental, applies after 0001",
+    "schema_6_change": "Schema 5 forced the reader to strip a private VM name by pattern. Schema 6 carries the declaring library's key per side, so the reader removes that exact key or refuses -- no regex over @<digits>, and never String::ScrubName, which also rewrites get:/set:."
+  },
+  "route2_witness": {
+    "note": ".note.shorebird.inlining",
+    "note_schema_version": 6,
+    "fields_per_record": 20,
+    "records": 3353,
+    "encoding": "header lines, then records=N, then N records of 20 length-prefixed \"<len>:<bytes>\" fields: per side the VM coordinates for G1 projection (library URI, owner, VM kind, declared name), the same four for the synthetic parent when that side is an implicit closure, and each side's exact declaring-library private key.",
+    "sealed_after_emission": true,
+    "note_sha256_covers": "the full note SECTION bytes (header + owner + payload)",
+    "determinism": {
+      "build_a": {
+        "aot": "app_release.aot",
+        "aot_sha256": "7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34"
+      },
+      "build_b": {
+        "aot": "app_release_b.aot",
+        "aot_sha256": "a7a123e471aa18e7235f0f741cc5c8ce28c2d2adcc9d28c5737004eada21d759"
+      },
+      "same_input_kernel": true,
+      "note_section_sha256": "3b0339a417e38433abdcfa6908fcba5f135a5e977afd2bd74b8ca2bdd5737af6",
+      "note_sha256_equal": true,
+      "aot_sha256_equal": false,
+      "reader_states_identical": true,
+      "note": "what is demonstrated is deterministic NOTE CONTENT and identical verdicts, not byte-reproducible whole-AOT output; the two AOT hashes differ."
+    },
+    "not_g1_identity": "These are VM coordinates, NOT G1 identity. RegularFunction is VM vocabulary where G1 distinguishes method from operator; a private name still carries its library key (_state@17145467) rather than G1's declared name; and an extension member can appear with a synthetic top-level owner while G1 recovers the extension owner. Projection onto G1 is the reader's job, against G1's retained vmName/loweredName, and anything not uniquely projectable is UNKNOWN.",
+    "subject": {
+      "aot": "app_release.aot",
+      "aot_sha256": "7010c68d7ba14ac9a666a012436fb6b131f8a066c43e14a8375974c85992ea34",
+      "input_kernel": "release3.dill",
+      "input_kernel_sha256": "564571cf8fe19db2dff795f86a0d3c2c579e48b24d275173d11e50f7238819a1",
+      "recipe": "gen_snapshot --snapshot_kind=app-aot-elf --patchable_static_calls --elf=app_release.aot release3.dill",
+      "why_this_kernel": "release3.dill is compiled WITH --dynamic-interface and is therefore the PATCHABLE release. The same file is handed unchanged to run_dispatch_experiment.sh."
+    },
+    "withdrawn_subjects": [
+      {
+        "aot": "app_s6.aot",
+        "why": "its input kernel could not be identified in the work directory, so its note was not reproducible from a recorded recipe"
+      },
+      {
+        "aot": "app_s6r.aot",
+        "input_kernel": "prepass3.dill",
+        "why": "reproducible from a recorded recipe, but prepass3.dill is the PRE-PASS kernel, compiled WITHOUT --dynamic-interface. Its AOT runs and reports a build id, yet a patch against it fails at attach with \"Unable to find function DateTime.now\" because the dynamic-module retention the interface drives is absent. It was never the patchable release and could not carry a dispatch demonstration."
+      }
+    ]
+  },
+  "replay": {
+    "order": [
+      "instrumentation/0001-g5-aot-capability-note.patch",
+      "instrumentation/0002-g5-inlining-relation.patch"
+    ],
+    "semantics": "INCREMENTAL, applied in order with patch -p1 from the frozen base recovered via git. 0001 patches the frozen files; 0002 patches frozen+0001, NOT cumulatively.",
+    "verified": "frozen + 0001 + 0002 reproduces the built clone byte for byte across all three files; regenerated for schema 6.",
+    "per_file": {
+      "runtime/vm/elf.h": {
+        "replayed_sha256": "67b24ba39bd97cdb4e6ae38aa17d8c0df3c9c79eb3eacf1ad7781ea907ba1ee3",
+        "built_sha256": "67b24ba39bd97cdb4e6ae38aa17d8c0df3c9c79eb3eacf1ad7781ea907ba1ee3",
+        "equal": true
+      },
+      "runtime/vm/elf.cc": {
+        "replayed_sha256": "2c14752121704bb89a73728427a576e2f09497d144ec41a2df40e8f82cc912c8",
+        "built_sha256": "2c14752121704bb89a73728427a576e2f09497d144ec41a2df40e8f82cc912c8",
+        "equal": true
+      },
+      "runtime/vm/compiler/backend/flow_graph_compiler.cc": {
+        "replayed_sha256": "1165ccfe9a4e30eb839d9ccb935ef901ddcf61b1764747d0789cb066116939eb",
+        "built_sha256": "1165ccfe9a4e30eb839d9ccb935ef901ddcf61b1764747d0789cb066116939eb",
+        "equal": true
+      }
+    },
+    "all_files_equal": true
+  },
+  "implicit_closure_arm": {
+    "transcript": "evidence/implicit_closure_arm.txt",
+    "aot": "app_s5.aot",
+    "aot_sha256": "ba5ed2c50958ef0d260e18e4331b147be51efcdfcd1347eb6d77e033460de58c",
+    "note_section_sha256": "127fe69331eccf5a980c388d07c4ec2d37ac853dc3edead095f55e668aa1667b",
+    "release_kernel_sha256": "a93b4be09e7efa06279f42860e64208d86d7b7a0ab7e71156960f50bf2bfd888",
+    "patch_sbrb_sha256": "0f5a386040475f8e9b9eec0eecb7a3a37f570e448e9644d65716825bc8ad0bd5",
+    "replacement_kbc_sha256": "51be8d1481e4f2998242d583fe71a5287f9a8c34ecda8a7470dec52c6a8362da",
+    "replacement_source": "probe/repl_tearOffTarget.dart",
+    "target_selector": "package:dynamic_modules/callsite_target.dart#tearOffTarget",
+    "declared_regular_function_is_inlinee": false,
+    "implicit_closure_is_inlinee": true,
+    "verdict": "behaviour moved 72 -> 172, so the synthetic-parent relation is harmless FOR THIS SHAPE: a top-level function torn off inside its own library and called immediately. Not generalised."
+  },
+  "recorder_completeness": {
+    "argument": "evidence/recorder_completeness.md",
+    "transcript": "evidence/recorder_completeness.txt",
+    "verifier": "lib/verify_completeness.sh",
+    "claim": "Every copy of a Dart body's IL into another function is registered by FlowGraphInliner::NextInlineId, which has exactly one caller; the recorder reads that registry in the FlowGraphCompiler constructor, and AOT has exactly one FlowGraphCompiler construction site.",
+    "bypasses": "The CallSpecializer replacements materialize callee semantics without an inline id. Their gates close for recognized methods (assigned only from a closed macro list of built-in VM libraries) and for operators on application classes, but NOT for a field's VM-synthesized implicit accessors. The reader therefore admits NOT_INLINED only for method/getter/setter/operator.",
+    "derived_not_transcribed": "lib/verify_completeness.sh re-derives every count and gate from the tree and exits non-zero on drift. It caught one error in the document while being written."
+  },
+  "reader_falsification": {
+    "harness": "lib/falsify_reader.py",
+    "transcript": "evidence/reader_falsification.txt",
+    "arms": 34,
+    "shipped_failed": 0,
+    "result": "ALL_ARMS_REFUSED",
+    "controls": [
+      {
+        "name": "A: trusts an unvalidated note",
+        "passed": 1,
+        "failed": 33
+      },
+      {
+        "name": "B: collapses every refusal into one generic code",
+        "passed": 1,
+        "failed": 33
+      }
+    ]
+  },
+  "regenerated_by": "run_route2.sh"
+}

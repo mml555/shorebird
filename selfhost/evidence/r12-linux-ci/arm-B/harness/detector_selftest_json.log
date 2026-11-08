@@ -1,0 +1,1 @@
+{"status":"error","error":{"code":"interactive_prompt_required","message":"Which app flavor?","hint":"Re-run with a TTY-attached stdout, or provide the required input via a command-line flag."},"meta":{"version":"1.6.115+selfhost.1","command":"preview"}}

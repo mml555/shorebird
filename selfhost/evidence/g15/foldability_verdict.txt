@@ -1,0 +1,126 @@
+FOLDABILITY — PAIRED CONTROL: VERDICT, 2026-08-17
+==================================================
+
+Precommitted in foldability_precommit.md before the fixture was edited. Neither
+that behavioural table nor its separate pool table is edited here.
+
+THE BEHAVIOURAL RESULT — scored first, and alone
+--------------------------------------------------
+
+    const fold   : OLD-CONST        <- foldConst(),  foldable guard
+    opaque fold  : NEW-OPAQUE       <- foldOpaque(), opaque guard
+    route B value: OLD-rel          <- unpatched control, unchanged
+    private class: OLD-pc           <- unpatched control, unchanged
+    code patch   : 1
+
+`screen_OLD-CONST_NEW-OPAQUE.png`, release 41 (`41.0.0+1`), patch 1.
+
+Per the precommitted table, second row: **`OLD-CONST` + `NEW-OPAQUE` →
+FOLDABILITY ISOLATED AS THE DISCRIMINATOR.**
+
+Both functions are top-level, zero-argument, identically signed, called from the
+same caller on adjacent lines, stored and displayed symmetrically, patched in ONE
+container, and neither carries a pragma. **The only intentional difference is
+whether the guard is compile-time foldable, and the behaviour split along it.**
+
+AND `OLD-CONST` IS NOT "NEVER ATTACHED"
+----------------------------------------
+    sel=foldConst   rc=0 bc_post=1 uep_post_is_interpret_call=1
+    sel=foldOpaque  rc=0 bc_post=1 uep_post_is_interpret_call=1
+    report: targets=2, applied 2/2 targets, zero REFUSED
+
+**The foldable target's replacement attached exactly as successfully as the
+opaque one** — same return code, bytecode present, entry point moved to
+`InterpretCall`. It simply never executed. That is the "attaches but the old
+value executes" phenomenon, reproduced deliberately and on demand.
+
+THE POOL RESULT — scored SECOND and separately
+------------------------------------------------
+    sel=foldConst   tpool_status=3 ABSENT   matches=0  index=-1
+    sel=foldOpaque  tpool_status=4 UNIQUE   matches=1  index=6799
+                    tpool_scanned=15472 (both)
+
+Per the precommitted pool table, first row: *"const ABSENT + opaque UNIQUE, with
+`OLD-CONST` / `NEW-OPAQUE` on screen — the strongest available result:
+foldability, pool presence and behaviour all split together in one controlled
+specimen."*
+
+**That is what happened.**
+
+THE STATIC PRE-CHECK — required, and it passed BEFORE the device run
+----------------------------------------------------------------------
+Recorded in `static_precheck.txt`, on release 41's shipped bytes:
+
+    foldOpaque   0xd15b4-0xd1630  (124 bytes)   1 call site LOCATED, CONSUMED
+    foldConst    0x12c7d4-0x12c7e0 (12 bytes)   0 call sites — NOT LOCATED
+
+So `foldConst` is not merely a source-level label: **its result is statically
+substituted at the caller and no call site survives in the release artifact**,
+while `foldOpaque` retains a real, consumed call. The precommit required this
+asymmetry be established before the device run, and it was.
+
+THE THREE MEASUREMENTS AGREE, ACROSS THREE INDEPENDENT LAYERS
+---------------------------------------------------------------
+| target | STATIC (release bytes) | POOL (runtime scan) | SCREEN (behaviour) |
+|---|---|---|---|
+| `foldConst` | 0 surviving call sites | `ABSENT` | `OLD-CONST` |
+| `foldOpaque` | 1 call site, CONSUMED | `UNIQUE` idx 6799 | `NEW-OPAQUE` |
+
+Three layers, measured by three different instruments — a disassembly-based call
+site probe, the in-engine derived pool scan, and a photograph — split the same
+way on the same specimen.
+
+**A COHERENT MECHANISM, now measured rather than argued:**
+
+    a foldable-constant body has its RESULT substituted at every call site
+      -> no call site survives to reach the Function
+      -> nothing in the global object pool references it        (ABSENT)
+      -> Route B attaches to the Function successfully          (rc=0)
+      -> and nobody ever calls it                               (OLD on screen)
+
+WHAT THIS MEANS FOR THE FAILING TARGET — INFERENCE, NOT VERDICT
+-----------------------------------------------------------------
+`killswitch_probe`'s `routeBValue() => 'OLD-kill'` is a foldable constant with no
+pragma, and it measured `TPOOL_ABSENT` while rendering `OLD-kill` with a
+successful attach — **the same signature this experiment produced deliberately.**
+
+**That is a strong inference and it is NOT a verdict.** The killswitch target has
+not itself been re-tested with an opaque body. `gate5_arms_precommit.md` still
+requires `NEW-kill` on screen for arm A's PASS, so **arm A remains INCONCLUSIVE**
+as a gate — but its phenomenon now has a measured mechanism where before it had
+none.
+
+**THE CONFIRMING RUN, and it is one line of fixture:** change `killswitch_probe`'s
+`routeBValue` body to the opaque guard, keeping the target, its name, its caller
+and its display unchanged, and patch it. If `NEW-kill` appears, the mechanism is
+confirmed on the specimen that has failed for the entire investigation.
+
+HISTORY THIS RECONCILES
+------------------------
+* `gate5_armA_fold_refuted.txt` rejected the fold/inlining family because release
+  91 "worked" with the same shape. `manual_launch_control_verdict.txt` withdrew
+  that baseline, and this experiment now supplies the positive evidence the fold
+  hypothesis never had. **The 2026-08-16 refutation was correct on its evidence
+  and wrong in its conclusion** — the objection, not the hypothesis, was faulty.
+* Every PROVEN specimen uses `airgap_probe`'s `DateTime.now()` guard, and the
+  fixture's own comment (`lib/main.dart:52-56`) records WHY: *"a literal is
+  constant-folded by the type-flow analysis even under vm:never-inline: the call
+  still runs, its RESULT is simply replaced at the call site, and the gate then
+  reports a working mechanism as OLD."* **The mechanism was documented in the
+  fixture from the beginning**, discovered on the host, and never connected to
+  the device failure.
+
+WHAT THIS DOES NOT CLAIM
+------------------------
+* NOT that arm A is explained as a gate — see above; it is INCONCLUSIVE until a
+  screen shows `NEW-kill`.
+* NOT that pool presence is the mechanism rather than its consequence. ABSENT and
+  the missing call site are two views of the same substitution; this experiment
+  cannot order them causally.
+* NOT that foldability is the ONLY way to produce this phenomenon.
+* NOT anything about the third corpus difference (pragma presence). Both halves
+  here were pragma-free, so it stayed controlled and untested.
+* Target kind remains **REFUTED**; Route B iOS end-to-end execution remains
+  **PROVEN** (now seven specimens); release-91 `NEW-kill` remains **contradicted**;
+  Claim 1 remains **instrument established and positive locator proven**, with
+  `AMBIGUOUS` still unexercised.

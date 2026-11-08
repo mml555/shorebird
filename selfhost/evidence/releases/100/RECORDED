@@ -1,0 +1,13 @@
+release        : 100
+preserved from : build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+preserved at   : 2026-08-19T04:28:19Z
+LC_UUID        : d748bb65db6d31329f3bc3295119ca33
+patchable      : 5,806  (1,810 per MB)
+size           : 3362800 bytes
+
+These are the RELEASE's own bytes. Compare later patches against them:
+
+  assert_installed_release.sh <app-or-archive> --expect d748bb65db6d31329f3bc3295119ca33
+
+The working archive is NOT a substitute: `shorebird patch ios` re-archives over
+build/ios/archive, so after the first patch it holds the patch build instead.

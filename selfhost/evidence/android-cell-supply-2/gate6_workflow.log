@@ -1,0 +1,92 @@
+WORK=/Volumes/build/route-b/acs2/gate6.yn4H0W
+
+0. recording origin -> the real CDN, and a throwaway control plane
+  PASS  the recording origin reaches the new cell through the CDN
+
+1. an ordinary flutter create, on the cache as it comes
+  PASS  flutter create succeeded
+  added shorebird.yaml to flutter assets
+  PASS  shorebird doctor --fix added the INTERNET permission
+
+2. NOW switch the cell and empty the engine hydration surface
+  PASS  engine.version = f85251f344600ae08196925a174e9cff8f0ff18e
+  PASS  and it is a COMMITTED blob, not an uncommitted edit
+  PASS  no engine artifacts cached
+  PASS  no engine stamp, so hydration cannot be skipped
+  PASS  GRADLE_USER_HOME is empty (/Volumes/build/route-b/acs2/gate6.yn4H0W/gradle)
+
+3. shorebird release android --artifact apk, against the new cell
+  exit=0
+  --- hydration / engine / download lines ---
+    | 3:Starting Downloading aot-tools.dill......
+    | 6:Starting Running flutter precache...
+    | 7:Done Running flutter precache
+    | 8:Starting Downloading aot-tools.dill......
+    | 11:Downloading packages...
+    | 30:Downloading packages...
+    | 45:Starting Downloading aot-tools.dill......
+    | 46:Starting Downloading aot-tools.dill......
+    | 47:Starting Downloading aot-tools.dill......
+  --- tail ---
+    | 
+    | ✅ Published Release 1.0.0+1!
+    | Your next step is to upload the app bundle to the Play Store:
+    | /Volumes/build/route-b/acs2/gate6.yn4H0W/app/build/app/outputs/bundle/release/app-release.aab
+    | 
+    | Or distribute the apk:
+    | /Volumes/build/route-b/acs2/gate6.yn4H0W/app/build/app/outputs/flutter-apk/app-release.apk
+    | 
+    | For information on uploading to the Play Store, see:
+    | https://support.google.com/googleplay/android-developer/answer/9859152?hl=en
+    | 
+    | To create a patch for this release, run shorebird patch --platforms=android --release-version=1.0.0+1
+  PASS  the release completed (exit 0)
+  PASS  an APK was produced ( 48M)
+
+4. ATTRIBUTION: every identity member came from the new cell
+    requests recorded: 39   distinct paths: 34
+    android identity members: 14   from the new cell: 14   not requested: 0   mismatched: 0
+    identity requests answered via a redirect: 0
+    fallback-served paths: 10
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-arm-profile/artifacts.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-arm-profile/darwin-x64.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-arm/artifacts.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-arm64-profile/artifacts.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-arm64-profile/darwin-x64.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-arm64/artifacts.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-x64-profile/artifacts.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-x64-profile/darwin-x64.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-x64/artifacts.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-x86/artifacts.zip
+    non-200/302 answers: 2
+      400 /
+      404 /download.shorebird.dev/shorebird/f85251f344600ae08196925a174e9cff8f0ff18e/aot-tools.dill
+  PASS  all 14 Android identity members served from the new cell, none via fallback
+
+4b. THE CLOSURE: 24 required objects, and the split is the measured one
+    identity-bearing resolved : 14
+    cache/transport resolved  : 10
+    workflow closure resolved : 24
+  PASS  24 of 24 measured workflow objects resolved (14 identity + 10 transport)
+
+4c-pre. the discriminator is not vacuous
+    the fallback engine names its own revision 1 time(s) in libflutter.so
+  PASS  a fallback engine is identifiable by its revision string
+
+4c. the engine INSIDE the APK is ours, not the fallback's
+    arm64-v8a    OURS     13878552 bytes (8% of the unstripped jar)   producer x1, fallback x0
+    armeabi-v7a  OURS      9870112 bytes (6% of the unstripped jar)   producer x1, fallback x0
+    x86_64       OURS     15572672 bytes (9% of the unstripped jar)   producer x1, fallback x0
+  PASS  all three ABIs ship OUR engine and a libapp.so
+
+5. the cell still verifies after a real build hydrated from it
+  PASS  30/30
+  PASS  supported state still verified (the frozen stack is untouched)
+
+6. the qualified checkout was only ever read
+  PASS  the qualified checkout still selects cd848320
+
+RESULT
+  requests: /Volumes/build/route-b/acs2/gate6.yn4H0W/requests.jsonl
+  logs:     /Volumes/build/route-b/acs2/gate6.yn4H0W
+  GATE 6 PASSED

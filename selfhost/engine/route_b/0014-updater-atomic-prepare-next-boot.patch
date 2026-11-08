@@ -1,0 +1,377 @@
+Route B patch 0014 (updater half) — atomic validate + select + attribute.
+========================================================================
+
+Applies to the UPDATER repo, which is a separate git repo nested at
+`engine/src/flutter/third_party/updater` inside the engine tree — NOT to
+`vendor/updater`. `UPDATER_CONTRACT.md` records why: the updater our own Route B
+cells ship diverged from the vendored pin, and this tree is the one whose bytes
+run on the device.
+
+    consumed revision before : f729f958e9be
+    consumed revision after  : af6e842ccf87
+
+ONE CONCEPTUAL CHANGE: `UpdaterState::prepare_next_boot()` — validate, then
+select, then attribute, in one `with_mut_state` transition — plus
+`updater::prepare_next_boot()` and the C symbol
+`shorebird_prepare_next_boot_patch`. The engine half is
+`0014-atomic-prepare-next-boot.patch`.
+
+The invariant, true by construction rather than by ordering luck:
+
+    currently_booting_patch == the patch number of the returned path
+
+A candidate failing validation is NOT a failure of this call: it is tombstoned,
+the pointer recomputed, and the fallback returned. What fails closed is being
+unable to persist the tombstone or to record the boot start for the selected
+patch — in which case the rejected candidate is never returned. Over the C API,
+NULL means the base release, which covers both a genuine absence and an internal
+error.
+
+RETENTION IS UNCHANGED, and deliberately so. With correct attribution a
+successful boot promotes the patch that actually booted, so `cleanup_older_than`
+cannot reach it. No retention exception was needed; the earlier reading that
+cleanup was "too eager" was wrong — `record_boot_success` was told the wrong
+patch had succeeded.
+
+MUTATION-TESTED. Restoring the old attribute-before-validate ordering fails three
+of the five prepare rows while the two happy-path rows still pass. That asymmetry
+is exactly why the defect survived: the two facts agreed whenever nothing was
+rejected.
+
+diff --git a/library/include/updater_engine.h b/library/include/updater_engine.h
+index 0c5503e..35cba9d 100644
+--- a/library/include/updater_engine.h
++++ b/library/include/updater_engine.h
+@@ -115,6 +115,29 @@ SHOREBIRD_EXPORT void shorebird_validate_next_boot_patch(void);
+  */
+ SHOREBIRD_EXPORT char *shorebird_next_boot_patch_path(void);
+ 
++/**
++ * Prepares the next boot and returns the path the engine must ACTUALLY execute,
++ * or NULL for the base release. The caller must free the returned string with
++ * `shorebird_free_string`.
++ *
++ * This is the ONLY boot-preparation entry point the production engine should
++ * use. It replaces the three-call sequence
++ * `shorebird_report_launch_start` → `shorebird_validate_next_boot_patch` →
++ * `shorebird_next_boot_patch_path`, which attributed the launch to the
++ * PRE-VALIDATION candidate: a patch rejected for a bad signature was correctly
++ * not executed, yet stayed credited, so a later boot-success promoted it and
++ * cleanup deleted the fallback that had really booted. Measured on device in
++ * `selfhost/evidence/p6-signing/ARM_C_EXECUTION_IDENTITY.md`.
++ *
++ * Here validation, selection and attribution happen in one state transition, so
++ * the patch recorded as booting is by construction the patch whose path is
++ * returned. A rejected candidate is tombstoned and the fallback returned; that
++ * is success, not failure. Returning NULL on an internal error is fail-closed:
++ * the engine boots the base release rather than an artifact the updater could
++ * not vouch for.
++ */
++SHOREBIRD_EXPORT char *shorebird_prepare_next_boot_patch(void);
++
+ /**
+  * Start a thread to download an update if one is available.
+  */
+diff --git a/library/src/c_api/engine.rs b/library/src/c_api/engine.rs
+index 434f49b..c8176f2 100644
+--- a/library/src/c_api/engine.rs
++++ b/library/src/c_api/engine.rs
+@@ -178,6 +178,37 @@ pub extern "C" fn shorebird_next_boot_patch_path() -> *mut c_char {
+     )
+ }
+ 
++/// Prepares the next boot and returns the path the engine must ACTUALLY execute,
++/// or NULL for the base release. The caller must free the returned string with
++/// `shorebird_free_string`.
++///
++/// This is the ONLY boot-preparation entry point the production engine should
++/// use. It replaces the three-call sequence
++/// `shorebird_report_launch_start` → `shorebird_validate_next_boot_patch` →
++/// `shorebird_next_boot_patch_path`, which attributed the launch to the
++/// PRE-VALIDATION candidate: a patch rejected for a bad signature was correctly
++/// not executed, yet stayed credited, so a later boot-success promoted it and
++/// cleanup deleted the fallback that had really booted. Measured on device in
++/// `selfhost/evidence/p6-signing/ARM_C_EXECUTION_IDENTITY.md`.
++///
++/// Here validation, selection and attribution happen in one state transition, so
++/// the patch recorded as booting is by construction the patch whose path is
++/// returned. A rejected candidate is tombstoned and the fallback returned; that
++/// is success, not failure. Returning NULL on an internal error is fail-closed:
++/// the engine boots the base release rather than an artifact the updater could
++/// not vouch for.
++#[no_mangle]
++pub extern "C" fn shorebird_prepare_next_boot_patch() -> *mut c_char {
++    log_on_error(
++        || {
++            let maybe_path = updater::prepare_next_boot()?.map(|p| p.path);
++            path_to_c_string(maybe_path)
++        },
++        "preparing next boot patch",
++        std::ptr::null_mut(),
++    )
++}
++
+ /// Start a thread to download an update if one is available.
+ #[no_mangle]
+ pub extern "C" fn shorebird_start_update_thread() {
+diff --git a/library/src/cache/updater_state.rs b/library/src/cache/updater_state.rs
+index 04c8a8d..805590e 100644
+--- a/library/src/cache/updater_state.rs
++++ b/library/src/cache/updater_state.rs
+@@ -427,6 +427,37 @@ impl UpdaterState {
+             .validate_next_boot_patch(self.patch_public_key.as_deref(), self.verification_mode)
+     }
+ 
++    /// Validates, selects and ATTRIBUTES the next boot in one transition, and
++    /// returns the patch that must actually be executed.
++    ///
++    /// The invariant, true by construction rather than by ordering luck:
++    ///
++    ///   currently_booting_patch == the patch number of the returned PatchInfo
++    ///
++    /// The old boot surface established attribution BEFORE validation, so a
++    /// candidate rejected for a bad signature stayed credited; a later
++    /// `record_boot_success` then promoted it and `cleanup_older_than` deleted
++    /// the fallback that had actually booted. Measured on device in
++    /// `selfhost/evidence/p6-signing/ARM_C_EXECUTION_IDENTITY.md`.
++    ///
++    /// Rejecting a candidate is a NORMAL outcome, not an error: the patch is
++    /// tombstoned, the pointer recomputed, and the fallback returned. Failure to
++    /// persist that tombstone, or to record the boot start for the selected
++    /// patch, propagates — the rejected candidate is never returned.
++    pub fn prepare_next_boot(&mut self) -> Result<Option<PatchInfo>> {
++        if let Err(e) = self.validate_next_boot_patch() {
++            shorebird_info!("Next boot candidate rejected: {:?}", e);
++        }
++
++        // Read the pointer only AFTER validation has had its say.
++        let selected = self.next_boot_patch();
++        self.set_running_patch(selected.as_ref().map(|p| p.number));
++        if let Some(patch) = &selected {
++            self.record_boot_start_for_patch(patch.number)?;
++        }
++        Ok(selected)
++    }
++
+     /// Moves the inflated artifact at `patch.path` into the lifecycle's
+     /// installed location, validates the signature in `InstallOnly`
+     /// mode, transitions the patch to `Installed`, and promotes it to
+@@ -661,6 +692,156 @@ mod tests {
+         )
+     }
+ 
++    /// Installs `number` and makes it the next boot candidate.
++    fn install(state: &mut UpdaterState, tmp: &TempDir, number: usize) {
++        let p = fake_artifact(tmp, number);
++        state.install_patch(&p, "hash", None).unwrap();
++        state.save().unwrap();
++    }
++
++    /// Re-opens the state in Strict mode under `TEST_PUBLIC_KEY`, which nothing
++    /// installed by `install()` is signed by. A candidate therefore fails for a
++    /// SIGNATURE reason -- the Arm C device defect -- rather than a size one.
++    fn reopen_strict(tmp: &TempDir) -> UpdaterState {
++        load_with_verification(tmp, Some(TEST_PUBLIC_KEY), PatchVerificationMode::Strict)
++    }
++
++    // ---- prepare_next_boot ---------------------------------------------------
++    // Every row asserts BOTH halves -- the returned patch AND the attribution --
++    // because the surface this replaces had them agree in the happy path and
++    // disagree exactly when a candidate was rejected, which is how the defect
++    // survived.
++
++    #[test]
++    fn prepare_returns_the_candidate_when_it_validates() {
++        let tmp = TempDir::new().unwrap();
++        let mut state = load(&tmp, "1.0.0+1");
++        install(&mut state, &tmp, 1);
++        install(&mut state, &tmp, 2);
++
++        let selected = state.prepare_next_boot().unwrap();
++        assert_eq!(selected.map(|p| p.number), Some(2));
++        assert_eq!(state.lifecycle.pointers().currently_booting_patch, Some(2));
++        assert_eq!(state.running_patch().map(|p| p.number), Some(2));
++    }
++
++    #[test]
++    fn prepare_falls_back_and_attributes_the_fallback_not_the_candidate() {
++        // THE LOAD-BEARING REGRESSION. Patch 1 known-good, patch 2 present but
++        // unverifiable. The old surface credited patch 2 here.
++        let tmp = TempDir::new().unwrap();
++        let mut state = load(&tmp, "1.0.0+1");
++        install(&mut state, &tmp, 1);
++        state.lifecycle.record_boot_start(1).unwrap();
++        state.lifecycle.record_boot_success().unwrap();
++        install(&mut state, &tmp, 2);
++
++        let mut strict = reopen_strict(&tmp);
++        let selected = strict.prepare_next_boot().unwrap();
++
++        assert_eq!(
++            selected.map(|p| p.number),
++            Some(1),
++            "must return the fallback, not the rejected candidate"
++        );
++        assert_eq!(
++            strict.lifecycle.pointers().currently_booting_patch,
++            Some(1),
++            "attribution must name the patch actually selected"
++        );
++        assert!(
++            matches!(
++                strict.lifecycle.read_state(2),
++                Some(PatchState::Bad {
++                    reason: BadReason::ValidationFailed,
++                    ..
++                })
++            ),
++            "the rejected candidate must be tombstoned"
++        );
++    }
++
++    #[test]
++    fn prepare_success_after_fallback_keeps_the_fallback_installed() {
++        // The consequence the device run exposed: with correct attribution a
++        // successful boot promotes patch 1, so cleanup_older_than(1) cannot
++        // delete patch 1 and no retention exception is needed.
++        let tmp = TempDir::new().unwrap();
++        let mut state = load(&tmp, "1.0.0+1");
++        install(&mut state, &tmp, 1);
++        state.lifecycle.record_boot_start(1).unwrap();
++        state.lifecycle.record_boot_success().unwrap();
++        install(&mut state, &tmp, 2);
++
++        let mut strict = reopen_strict(&tmp);
++        strict.prepare_next_boot().unwrap();
++        let success = strict.lifecycle.record_boot_success().unwrap();
++
++        assert_eq!(success.patch, 1);
++        assert_eq!(strict.lifecycle.pointers().last_booted_patch, Some(1));
++        assert!(
++            matches!(
++                strict.lifecycle.read_state(1),
++                Some(PatchState::Installed { .. })
++            ),
++            "patch 1 must survive: it is what booted"
++        );
++        assert!(
++            strict.lifecycle.installed_artifact_path(1).exists(),
++            "the fallback ARTIFACT must survive, not just its state record"
++        );
++        assert!(matches!(
++            strict.lifecycle.read_state(2),
++            Some(PatchState::Bad { .. })
++        ));
++    }
++
++    #[test]
++    fn prepare_returns_base_when_the_only_candidate_is_rejected() {
++        let tmp = TempDir::new().unwrap();
++        let mut state = load(&tmp, "1.0.0+1");
++        install(&mut state, &tmp, 1);
++
++        let mut strict = reopen_strict(&tmp);
++        let selected = strict.prepare_next_boot().unwrap();
++        assert!(selected.is_none(), "no usable patch means the base release");
++        assert_eq!(
++            strict.lifecycle.pointers().currently_booting_patch,
++            None,
++            "the base release must not be attributed to a patch"
++        );
++        assert_eq!(strict.running_patch().map(|p| p.number), None);
++    }
++
++    #[test]
++    fn prepare_attribution_survives_a_later_pointer_change() {
++        // Why attribution is bound to the RETURNED patch and not re-read later:
++        // next_boot_patch may legitimately change after preparation (update
++        // thread, promotion). The patch being booted must not.
++        let tmp = TempDir::new().unwrap();
++        let mut state = load(&tmp, "1.0.0+1");
++        install(&mut state, &tmp, 1);
++
++        let selected = state.prepare_next_boot().unwrap();
++        assert_eq!(selected.map(|p| p.number), Some(1));
++
++        // A newer patch is installed and promoted before the launch succeeds.
++        install(&mut state, &tmp, 3);
++        assert_eq!(state.next_boot_patch().map(|p| p.number), Some(3));
++
++        assert_eq!(
++            state.lifecycle.pointers().currently_booting_patch,
++            Some(1),
++            "the patch being booted must not follow a later pointer change"
++        );
++        let success = state.lifecycle.record_boot_success().unwrap();
++        assert_eq!(
++            success.patch, 1,
++            "launch success must credit the patch that ran, not the newest one"
++        );
++        assert_eq!(state.lifecycle.pointers().last_booted_patch, Some(1));
++    }
++
+     #[test]
+     fn release_version_change_wipes_patch_state() {
+         // Ports `patch_manager.rs::reset_tests::deletes_patches_dir_and_resets_patches_state`.
+diff --git a/library/src/updater.rs b/library/src/updater.rs
+index f7714d6..dc50099 100644
+--- a/library/src/updater.rs
++++ b/library/src/updater.rs
+@@ -1204,6 +1204,54 @@ pub fn report_launch_start() -> anyhow::Result<()> {
+     })
+ }
+ 
++/// Prepares the next boot as ONE atomic state transition, and returns the patch
++/// the engine must actually execute.
++///
++/// WHY THIS EXISTS. Boot preparation used to be three independent operations:
++///
++///   report_launch_start()        records next_boot_patch as "currently booting"
++///   validate_next_boot_patch()   may reject that patch and recompute the pointer
++///   next_boot_patch_path()       returns whatever the pointer now names
++///
++/// Because attribution happened FIRST, a rejected candidate stayed credited.
++/// Measured on device (selfhost `ARM_C_EXECUTION_IDENTITY.md`): a patch whose
++/// signature failed verification was correctly NOT executed — the engine ran the
++/// fallback — yet `Launch success for patch 2` was recorded, `last_booted_patch`
++/// became 2, and `cleanup_older_than(2)` then deleted the fallback itself. The
++/// next launch had nothing to fall back to and dropped to the base release.
++///
++/// `record_boot_success` was not at fault: it was told the wrong patch had
++/// succeeded. So the invariant this function exists to make true BY
++/// CONSTRUCTION, not by luck of ordering, is:
++///
++///   currently_booting_patch == the patch number of the returned path
++///
++/// Both come out of the same `with_mut_state` transition, so no state change can
++/// land between validation, selection and attribution. Moving
++/// `report_launch_start` a few lines later would not achieve this: `update()`
++/// and the update thread may change `next_boot_patch` at any time, so anything
++/// that re-reads the pointer after selection can still disagree with the bytes
++/// the VM was handed.
++///
++/// A candidate failing validation is NOT a failure of this call. Rejecting it,
++/// tombstoning it and choosing a safe fallback is success. What must fail closed
++/// is being unable to persist the tombstone, unable to recompute a selection, or
++/// unable to establish the selected artifact — in which case the rejected
++/// candidate is never returned.
++pub fn prepare_next_boot() -> anyhow::Result<Option<PatchInfo>> {
++    shorebird_info!("Preparing next boot.");
++
++    // ONE state transition. Nothing can land between validation, selection and
++    // attribution -- which is the whole point, since `update()` and the update
++    // thread may change `next_boot_patch` at any moment.
++    let selected = with_mut_state(|state| state.prepare_next_boot())?;
++    match &selected {
++        Some(patch) => shorebird_info!("Prepared boot of patch {}.", patch.number),
++        None => shorebird_info!("Prepared boot of the base release."),
++    }
++    Ok(selected)
++}
++
+ /// Report that the current active path failed to launch.
+ /// This will mark the patch as bad and activate the next best patch.
+ pub fn report_launch_failure() -> anyhow::Result<()> {
+-- 
+2.55.0
+

@@ -1,0 +1,2578 @@
+{
+  "schema": "maot.m3.evidence/2",
+  "issue": 67,
+  "generated_by": {
+    "run_id": "2026-09-16T16:21:41Z",
+    "gate_sha256": "32f7379c2090b24586a8f8b17b7627d64d3d606e2b147e8b9204385ca6ccf35e",
+    "verdict_sha256": "1998e7102ec0196a95bae34044d037918826f5a352fdb62c77e9e256123ebd22",
+    "fixture_sha256": "83c5e003b3d5bcb712c59f1f963c5bf430708d78a753ee817f33f4ce460c608c"
+  },
+  "identities": {
+    "shorebird_revision": "828e99d63590450fdca438dd4a0bda6986ab62d6",
+    "shorebird_tree": "61ba2eb3d9ad0f4e4715be5ad4e2e0ab6db010f1",
+    "fork_commit": "ca96854daed14aefde546a25a54c9225162a5e54",
+    "fork_tree": "2091ba61f4169871543d4bf744d114907e1a43ee",
+    "fork_worktree_entries": [
+      "?? third_party/binaryen/.DS_Store"
+    ],
+    "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "target_arch": "arm64",
+    "lowering_site": "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc",
+    "depends_on": {
+      "issue_66": "RUNTIME_IMPLEMENTATION_REGISTRY_ESTABLISHED"
+    }
+  },
+  "observations": {
+    "expected_namespace": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "target_arch": "arm64",
+    "build_digest": {
+      "files": {
+        "runtime/vm/maot_registry.cc": "60c7477738989f8e340636ac3643d588698238ba89e8306b057c89f4c055af17",
+        "runtime/vm/maot_registry.h": "d61e08afd71cd9b6997e2334ccde6cde5d5a8176b08eadb42f18de273a0609a1",
+        "runtime/vm/kernel_loader.cc": "6ded9b83769b2d64a3c63f9b72ab4237f351cd42193b70ccedd30517a166d9db",
+        "runtime/vm/object_store.h": "f0ccb348e996eacb79b58f3033b3168012ef7f9b1ab9905028c8b9d50ed5edc5",
+        "runtime/vm/dart.cc": "76221ab91bfe8a5d882288c7b535b1caa5ee33f263d6bb0b7240d948c5c365af",
+        "runtime/vm/compiler/aot/precompiler.cc": "bb2fe67a0e19f8bce75b410dcee02f138132c605e923e39afda0c9ea49624acb",
+        "runtime/vm/compiler/aot/precompiler.h": "6a701d12b4ca0213710d21dabb289351d25ad2233983eb23ec17a9da199b25f1",
+        "runtime/vm/compiler/frontend/kernel_translation_helper.cc": "3c7c2ac4cb9e8a04736c184ec1b2a02cea253f5186f45218351594e831f9d96f",
+        "runtime/vm/compiler/frontend/kernel_translation_helper.h": "d2726b4c489f025dfef242673006b79d5a21a9663aeae90281e28ffd7cbdb330",
+        "runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc": "c3104248b28c413d9d26a02f01d039ed5956a9b722982e4287f3275db0348c0f",
+        "runtime/vm/compiler/backend/inliner.cc": "67c9f537e52578ec548da0b0787576e6bf93f2709883e5e3cf3864f33ce75410",
+        "runtime/vm/compiler/frontend/kernel_binary_flowgraph.cc": "9e922e29501bdd02acbcb65d65c494341afa9197ae7d362a6654ca9544e2ca37",
+        "pkg/vm/lib/metadata/maot_declaration_id.dart": "96e1bce90cf4765f3355889bb4003f56e0b64eaeb038476f088e0e167c9b7dd9",
+        "pkg/vm/lib/transformations/type_flow/transformer.dart": "848956217a5aebe4848828dd7191ee524d11e096988efceeff8f28df9b7e87d0",
+        "pkg/vm/lib/transformations/pragma.dart": "882a80a8bb700145fbb7eb5026f2d7f6d8b6c6432e14661b6f52545bdfcde22a",
+        "pkg/vm/lib/modular/target/vm.dart": "82c464b114770687a2868b51d7d93405d0d347dedf8da4604d1c2f56723c1885"
+      },
+      "fork_commit": "ca96854daed14aefde546a25a54c9225162a5e54",
+      "fork_tree": "2091ba61f4169871543d4bf744d114907e1a43ee",
+      "fork_sources_match_head": "1",
+      "built_at": "2026-09-16T16:20:04Z"
+    },
+    "build_provenance_mismatches": [],
+    "build_digest_matches": true,
+    "fork_identity": {
+      "head": "ca96854daed14aefde546a25a54c9225162a5e54",
+      "tree": "2091ba61f4169871543d4bf744d114907e1a43ee",
+      "branch": "maot/build",
+      "worktree_dirty_paths": [
+        "third_party/binaryen/.DS_Store"
+      ]
+    },
+    "source_commit_binding_mismatches": [],
+    "sources_match_named_commit": true,
+    "t0_row_linkage": {
+      "EB-01": {
+        "row_title": "top-level function body",
+        "covered_by_issue_67": {
+          "dispatch": [
+            "direct"
+          ],
+          "compilation": [
+            "aot"
+          ],
+          "heat": [
+            "cold",
+            "hot"
+          ],
+          "target_arch": [
+            "arm64"
+          ]
+        },
+        "not_covered": [
+          "tearoff_pre",
+          "tearoff_post",
+          "dynamic",
+          "jit"
+        ],
+        "row_result_after_67": "UNMODELED",
+        "why": "a row is proven when every mode it names is proven; #67 proves one dispatch mode on one architecture in one compilation mode. #69 and #70 own the rest."
+      },
+      "EB-02": {
+        "row_title": "static method body",
+        "covered_by_issue_67": {
+          "dispatch": [
+            "direct"
+          ],
+          "compilation": [
+            "aot"
+          ],
+          "heat": [
+            "cold",
+            "hot"
+          ],
+          "target_arch": [
+            "arm64"
+          ]
+        },
+        "not_covered": [
+          "tearoff_pre",
+          "tearoff_post",
+          "dynamic",
+          "jit"
+        ],
+        "row_result_after_67": "UNMODELED",
+        "why": "same; the static arm is proven for direct calls only."
+      }
+    },
+    "indirect_call_site_trace_lines": 18,
+    "snapshot_sha256_before": "6e0585a00ef512fefa54fbb0cc572b98ded3bd9360b7c35ac82c21c7d34d7b73",
+    "snapshot_sha256_after": "6e0585a00ef512fefa54fbb0cc572b98ded3bd9360b7c35ac82c21c7d34d7b73",
+    "calls": {
+      "process.pid": 64271,
+      "top.call.0": "OLD",
+      "static.call.0": "OLD-STATIC",
+      "untouched.call.0": "UNTOUCHED",
+      "plain.call.0": "PLAIN",
+      "top.version.0": "AOT:v1",
+      "static.version.0": "AOT:v1",
+      "refuse.unknown.id": -1,
+      "refuse.wrong.namespace": -3,
+      "refuse.abi.mismatch": -3,
+      "refuse.version.not.advancing": -3,
+      "top.call.after_refusals": "OLD",
+      "top.version.after_refusals": "AOT:v1",
+      "install.top.v2": 0,
+      "top.call.1": "NEW",
+      "top.call.1.repeat": "NEW",
+      "top.version.1": "PATCH_CODE:v2",
+      "static.call.after_top_install": "OLD-STATIC",
+      "untouched.call.after_top_install": "UNTOUCHED",
+      "install.top.v3": 0,
+      "top.call.2": "NEW2",
+      "top.version.2": "PATCH_CODE:v3",
+      "install.static.v2": 0,
+      "static.call.1": "NEW-STATIC",
+      "static.call.1.repeat": "NEW-STATIC",
+      "static.version.1": "PATCH_CODE:v2",
+      "install.static.v3": 0,
+      "static.call.2": "NEW2-STATIC",
+      "static.version.2": "PATCH_CODE:v3",
+      "untouched.call.final": "UNTOUCHED",
+      "plain.call.final": "PLAIN",
+      "top.call.final": "NEW2",
+      "hot.iterations": 1000000,
+      "hot.top.value": "NEW2",
+      "hot.static.value": "NEW2-STATIC",
+      "bench.iterations": 2000000,
+      "bench.top.mutable.us.0": 1988,
+      "bench.top.control.us.0": 1868,
+      "bench.static.mutable.us.0": 2556,
+      "bench.static.control.us.0": 2128,
+      "bench.top.mutable.us.1": 2021,
+      "bench.top.control.us.1": 1869,
+      "bench.static.mutable.us.1": 2028,
+      "bench.static.control.us.1": 1861,
+      "bench.top.mutable.us.2": 2016,
+      "bench.top.control.us.2": 1897,
+      "bench.static.mutable.us.2": 2040,
+      "bench.static.control.us.2": 1886,
+      "process.pid.final": 64271
+    },
+    "runtime_stderr_tail": "",
+    "registry_before": {
+      "schema": "maot.registry/1",
+      "schema_version": 1,
+      "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+      "runtime_mode": "precompiled",
+      "entry_count": 8,
+      "diverged_implementations": 0,
+      "selected_seen_at_materialization": -1,
+      "retained_at_materialization": -1,
+      "dropped_at_materialization": -1,
+      "entries": [
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'work': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 7,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+            "implementation_name_diagnostic": "Function 'work': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'work': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'work': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 8,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+            "implementation_name_diagnostic": "Function 'work': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'work': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'workNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+            "implementation_name_diagnostic": "Function 'workNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'workNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'workNew2': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+            "implementation_name_diagnostic": "Function 'workNew2': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'workNew2': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'staticNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+            "implementation_name_diagnostic": "Function 'staticNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'staticNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'staticNew2': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+            "implementation_name_diagnostic": "Function 'staticNew2': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'staticNew2': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'untouchedMutable': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 3,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+            "implementation_name_diagnostic": "Function 'untouchedMutable': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'untouchedMutable': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'wrongAbi': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+            "implementation_name_diagnostic": "Function 'wrongAbi': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'wrongAbi': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p2/2;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+          "has_staged": false
+        }
+      ],
+      "optimizer_decisions": [
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:benchStaticMutable",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:benchTopMutable",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:hotObserveStatic",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:hotObserveTop",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        }
+      ],
+      "optimizer_decision_count": 18
+    },
+    "registry_after": {
+      "schema": "maot.registry/1",
+      "schema_version": 1,
+      "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+      "runtime_mode": "precompiled",
+      "entry_count": 8,
+      "diverged_implementations": 0,
+      "selected_seen_at_materialization": -1,
+      "retained_at_materialization": -1,
+      "dropped_at_materialization": -1,
+      "entries": [
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "selected": true,
+          "current": {
+            "kind": "PATCH_CODE",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 3,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'staticNew2': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 7,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": false,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+            "implementation_name_diagnostic": "Function 'work': static.",
+            "still_represented": true,
+            "is_current": false
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'staticNew2': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "selected": true,
+          "current": {
+            "kind": "PATCH_CODE",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 3,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'workNew2': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 8,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": false,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+            "implementation_name_diagnostic": "Function 'work': static.",
+            "still_represented": true,
+            "is_current": false
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'workNew2': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'workNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+            "implementation_name_diagnostic": "Function 'workNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'workNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'workNew2': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+            "implementation_name_diagnostic": "Function 'workNew2': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'workNew2': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'staticNew': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+            "implementation_name_diagnostic": "Function 'staticNew': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'staticNew': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'staticNew2': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+            "implementation_name_diagnostic": "Function 'staticNew2': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'staticNew2': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'untouchedMutable': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 3,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+            "implementation_name_diagnostic": "Function 'untouchedMutable': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'untouchedMutable': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+          "has_staged": false
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+          "selected": true,
+          "current": {
+            "kind": "AOT",
+            "implementation_code_pinned": true,
+            "pinned_code_is_current": true,
+            "pinned_code_size": 8,
+            "version": 1,
+            "implementation_present": "yes",
+            "executable": true,
+            "implementation_size": 8,
+            "has_code": true,
+            "implementation_name_diagnostic": "Function 'wrongAbi': static."
+          },
+          "optimizer_escapes": 0,
+          "first_escape_reason": "<none>",
+          "installable": true,
+          "blocking_records": "<none>",
+          "indirect_call_sites_emitted": 0,
+          "inline_refusals": 0,
+          "inline_admissions": 0,
+          "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+          "dispatch_cell_length": 2,
+          "dispatch_cell_has_code": true,
+          "dispatch_cell_halves_agree": true,
+          "current_implementation_is_the_declaration_itself": true,
+          "release": {
+            "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+            "implementation_name_diagnostic": "Function 'wrongAbi': static.",
+            "still_represented": true,
+            "is_current": true
+          },
+          "dispatch_cell": {
+            "present": true,
+            "holds_diagnostic": "Function 'wrongAbi': static.",
+            "agrees_with_current": true
+          },
+          "abi": "k3;p2/2;n;r;t0;norecv;onogen;b",
+          "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+          "has_staged": false
+        }
+      ],
+      "optimizer_decisions": [
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:benchStaticMutable",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:benchTopMutable",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:hotObserveStatic",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        },
+        {
+          "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "caller_id": "lib:package:m3app/fixture_m3.dart::fn:hotObserveTop",
+          "optimization_class": "static-call-lowering",
+          "decision": "dispatch-cell indirection emitted",
+          "disposition": "SLOT_PRESERVING",
+          "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+        }
+      ],
+      "optimizer_decision_count": 18
+    },
+    "measurements": {
+      "benchmark_iterations": 2000000,
+      "direct_call_ns_mutable": 0.994,
+      "direct_call_ns_control": 0.934,
+      "static_call_ns_mutable": 1.014,
+      "static_call_ns_control": 0.93,
+      "direct_call_ns_overhead": 0.06,
+      "static_call_ns_overhead": 0.08,
+      "benchmark_elapsed_us_samples": {
+        "bench.top.mutable.us": [
+          1988,
+          2021,
+          2016
+        ],
+        "bench.top.control.us": [
+          1868,
+          1869,
+          1897
+        ],
+        "bench.static.mutable.us": [
+          2556,
+          2028,
+          2040
+        ],
+        "bench.static.control.us": [
+          2128,
+          1861,
+          1886
+        ]
+      },
+      "benchmark_spread_us": {
+        "bench.top.mutable.us": 33,
+        "bench.top.control.us": 29,
+        "bench.static.mutable.us": 528,
+        "bench.static.control.us": 267
+      },
+      "overhead_is_within_noise": true,
+      "overhead_note": "the per-call overhead measures at a few hundredths of a nanosecond while the spread ACROSS SAMPLES OF THE SAME ARM is larger than the difference between arms -- one arm even measured faster than its own control. So the honest statement is that the indirection costs two extra instructions per call and that its cost is not resolvable above scheduling noise at this iteration count, not that it costs 0.06 ns. A resolvable figure needs a quieter harness, which belongs with #68 where the call shape is what is under test.",
+      "benchmark_note": "nanoseconds per call: the minimum of three samples over the stated iteration count, measured in the running release AFTER installation, so the mutable arms are dispatching to a replacement. The controls are non-selected functions marked vm:never-inline -- an inlined control is not a call, and would make the indirection look arbitrarily expensive. The accumulator is folded into the result so the loop cannot be eliminated.",
+      "aot_elf_bytes_with_maot": 862216,
+      "aot_elf_bytes_control_no_pragmas": 861584,
+      "aot_elf_delta_bytes": 632,
+      "indirect_call_sites_total": 18,
+      "aot_elf_delta_bytes_note": "includes six replacement bodies the no-pragma control shakes away; not divisible by call sites",
+      "aot_elf_bytes_bypass_same_bodies": 862216,
+      "aot_elf_call_site_delta_bytes": 0,
+      "aot_elf_call_site_delta_bytes_per_site": 0.0,
+      "aot_elf_call_site_delta_note": "measured 0 at this fixture size, which does not mean free: the emission replaces one pc-relative branch with a pool load, a compressed load and an indirect branch -- about two extra instructions per site, or roughly 8 bytes x 18 sites -- and ELF section alignment absorbs that entirely. A per-site byte figure needs a fixture large enough to cross an alignment boundary.",
+      "indirect_call_site_instructions": 3,
+      "direct_call_site_instructions": 1,
+      "registry_bytes": 1088,
+      "registry_entries": 8,
+      "registry_slots_per_entry": 17,
+      "startup_ms_with_maot": 47.31,
+      "startup_ms_control": 37.81,
+      "note": "diagnostic only; no threshold is compared anywhere"
+    },
+    "falsifications_failed": [],
+    "live_arm_count": 15,
+    "acceptance_ledger": [
+      {
+        "item": "exact #64 linkage for the demonstrated modes, with EB-01 and EB-02 left unpromoted",
+        "met": true,
+        "evidence": "t0_row_linkage records dispatch=direct, compilation=aot, heat=cold+hot, target_arch=arm64; both rows still report UNMODELED with their uncovered modes named. G18 refuses a whole-row promotion."
+      },
+      {
+        "item": "one release process performs OLD -> install -> NEW for a precompiled top-level direct call, and the same for a static method call",
+        "met": true,
+        "evidence": "same pid and byte-identical snapshot across the run"
+      },
+      {
+        "item": "#65 id and #66 version visible in structured evidence",
+        "met": true,
+        "evidence": "structural DeclarationIds for target and replacement"
+      },
+      {
+        "item": "compiler/runtime path evidence proves the mechanism is traversed",
+        "met": true,
+        "evidence": "per-declaration emitted indirect call-site counts"
+      },
+      {
+        "item": "wrong ID / release / ABI fails closed",
+        "met": true,
+        "evidence": "refused in-process with the release answer intact"
+      },
+      {
+        "item": "falsification arms discriminate",
+        "met": true,
+        "evidence": "15 live arms"
+      },
+      {
+        "item": "direct and static call latency measured",
+        "met": true,
+        "evidence": "numeric ns/call for both forms against never-inlined controls, with the overhead flagged as within noise"
+      }
+    ],
+    "acceptance_items_unmet": []
+  },
+  "registry_before": {
+    "schema": "maot.registry/1",
+    "schema_version": 1,
+    "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "runtime_mode": "precompiled",
+    "entry_count": 8,
+    "diverged_implementations": 0,
+    "selected_seen_at_materialization": -1,
+    "retained_at_materialization": -1,
+    "dropped_at_materialization": -1,
+    "entries": [
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'work': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 7,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "implementation_name_diagnostic": "Function 'work': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'work': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'work': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 8,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "implementation_name_diagnostic": "Function 'work': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'work': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'workNew': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+          "implementation_name_diagnostic": "Function 'workNew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'workNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'workNew2': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+          "implementation_name_diagnostic": "Function 'workNew2': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'workNew2': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'staticNew': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+          "implementation_name_diagnostic": "Function 'staticNew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'staticNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'staticNew2': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+          "implementation_name_diagnostic": "Function 'staticNew2': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'staticNew2': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'untouchedMutable': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 3,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "implementation_name_diagnostic": "Function 'untouchedMutable': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'untouchedMutable': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'wrongAbi': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+          "implementation_name_diagnostic": "Function 'wrongAbi': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'wrongAbi': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p2/2;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+        "has_staged": false
+      }
+    ],
+    "optimizer_decisions": [
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:benchStaticMutable",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:benchTopMutable",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:hotObserveStatic",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:hotObserveTop",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      }
+    ],
+    "optimizer_decision_count": 18
+  },
+  "registry_after": {
+    "schema": "maot.registry/1",
+    "schema_version": 1,
+    "namespace_identity": "ec782f4bc74f19fe85cb6348a5a448960590a183cfe2a6ed6f7962cb8e5f6b0e",
+    "runtime_mode": "precompiled",
+    "entry_count": 8,
+    "diverged_implementations": 0,
+    "selected_seen_at_materialization": -1,
+    "retained_at_materialization": -1,
+    "dropped_at_materialization": -1,
+    "entries": [
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "selected": true,
+        "current": {
+          "kind": "PATCH_CODE",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 3,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'staticNew2': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 7,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": false,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+          "implementation_name_diagnostic": "Function 'work': static.",
+          "still_represented": true,
+          "is_current": false
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'staticNew2': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "selected": true,
+        "current": {
+          "kind": "PATCH_CODE",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 3,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'workNew2': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 8,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": false,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+          "implementation_name_diagnostic": "Function 'work': static.",
+          "still_represented": true,
+          "is_current": false
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'workNew2': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'workNew': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew",
+          "implementation_name_diagnostic": "Function 'workNew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'workNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'workNew2': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:workNew2",
+          "implementation_name_diagnostic": "Function 'workNew2': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'workNew2': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'staticNew': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew",
+          "implementation_name_diagnostic": "Function 'staticNew': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'staticNew': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'staticNew2': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:staticNew2",
+          "implementation_name_diagnostic": "Function 'staticNew2': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'staticNew2': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'untouchedMutable': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 3,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+          "implementation_name_diagnostic": "Function 'untouchedMutable': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'untouchedMutable': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p0/0;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed0;regs0;nofactory;args;rett",
+        "has_staged": false
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+        "selected": true,
+        "current": {
+          "kind": "AOT",
+          "implementation_code_pinned": true,
+          "pinned_code_is_current": true,
+          "pinned_code_size": 8,
+          "version": 1,
+          "implementation_present": "yes",
+          "executable": true,
+          "implementation_size": 8,
+          "has_code": true,
+          "implementation_name_diagnostic": "Function 'wrongAbi': static."
+        },
+        "optimizer_escapes": 0,
+        "first_escape_reason": "<none>",
+        "installable": true,
+        "blocking_records": "<none>",
+        "indirect_call_sites_emitted": 0,
+        "inline_refusals": 0,
+        "inline_admissions": 0,
+        "current_implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+        "dispatch_cell_length": 2,
+        "dispatch_cell_has_code": true,
+        "dispatch_cell_halves_agree": true,
+        "current_implementation_is_the_declaration_itself": true,
+        "release": {
+          "implementation_id": "lib:package:m3app/fixture_m3.dart::fn:wrongAbi",
+          "implementation_name_diagnostic": "Function 'wrongAbi': static.",
+          "still_represented": true,
+          "is_current": true
+        },
+        "dispatch_cell": {
+          "present": true,
+          "holds_diagnostic": "Function 'wrongAbi': static.",
+          "agrees_with_current": true
+        },
+        "abi": "k3;p2/2;n;r;t0;norecv;onogen;b",
+        "call_convention": "cc1;fixed2;regs0;nofactory;argstt;rett",
+        "has_staged": false
+      }
+    ],
+    "optimizer_decisions": [
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:untouchedMutable",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:main",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:benchStaticMutable",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:benchTopMutable",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::cls:StaticTarget::method:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:hotObserveStatic",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      },
+      {
+        "declaration_id": "lib:package:m3app/fixture_m3.dart::fn:work",
+        "caller_id": "lib:package:m3app/fixture_m3.dart::fn:hotObserveTop",
+        "optimization_class": "static-call-lowering",
+        "decision": "dispatch-cell indirection emitted",
+        "disposition": "SLOT_PRESERVING",
+        "consumed_by": "no install decision reads a slot-preserving record; it is positive evidence that the boundary survived"
+      }
+    ],
+    "optimizer_decision_count": 18
+  },
+  "falsification": [
+    {
+      "id": "G01",
+      "kind": "live",
+      "description": "the call site bypasses the dispatch cell and binds to the release implementation, while the descriptor still advances",
+      "why": "a call permanently bound to the release implementation is the failure this whole issue exists to rule out; it must never end with the descriptor claiming a replacement the program is not running",
+      "result": "pass",
+      "observed": "without the indirection: 8 optimizer escapes recorded, install refused (-3), the descriptor stays at AOT:v1, and the call still returns OLD -- caught at the install boundary rather than left to diverge",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G11",
+      "kind": "live",
+      "description": "the expected strings match while no indirect call site was ever emitted",
+      "why": "output strings are not evidence of a path; a run with no emitted indirect call site must be refused on the path evidence alone",
+      "result": "pass",
+      "observed": "the bypass build emitted 0 indirect call sites for fn:work, and the condition reads False"
+    },
+    {
+      "id": "G02",
+      "kind": "live",
+      "description": "the result of a mutable call is constant-folded, so every caller keeps the release answer although the call is made",
+      "why": "the call is made, reaches the cell, and the caller still uses the release answer because the RESULT was folded",
+      "result": "pass",
+      "observed": "8 call sites emitted and the result observed is NEW; with the result folded back to OLD the verdict is NOT_ESTABLISHED",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G03",
+      "kind": "live",
+      "description": "a selected declaration is inlined, so the caller never reaches the cell",
+      "why": "an inlined copy of a selected declaration is a caller that never reaches the cell",
+      "result": "pass",
+      "observed": "with every emitted call site removed the path condition reads False",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G04",
+      "kind": "live",
+      "description": "the version advances with no implementation change",
+      "why": "a version bump with no implementation change is not a replacement",
+      "result": "pass",
+      "observed": "non-advancing version returned -3 (-3 = refused by StageReplacement)"
+    },
+    {
+      "id": "G05",
+      "kind": "live",
+      "description": "the implementation changes with no version advance",
+      "why": "an implementation change the version does not record leaves the evidence describing a program that is not running",
+      "result": "pass",
+      "observed": "version and body move together: PATCH_CODE:v2 with NEW",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G06",
+      "kind": "live",
+      "description": "a patch names the wrong release namespace",
+      "why": "a patch built against another release must not bind here",
+      "result": "pass",
+      "observed": "wrong namespace returned -3 and the call still returns OLD"
+    },
+    {
+      "id": "G07",
+      "kind": "live",
+      "description": "a patch names a declaration that does not exist",
+      "why": "an unknown declaration must be refused, never created",
+      "result": "pass",
+      "observed": "unknown id returned -1 (-1 = not found)"
+    },
+    {
+      "id": "G08",
+      "kind": "live",
+      "description": "a patch whose ABI differs is installed",
+      "why": "an incompatible ABI must be refused before anything is visible",
+      "result": "pass",
+      "observed": "ABI mismatch returned -3 and the descriptor is still AOT:v1"
+    },
+    {
+      "id": "G09",
+      "kind": "live",
+      "description": "only one of the two call forms is proven and the other is assumed",
+      "why": "top-level and static are independent arms; proving one cannot prove the other",
+      "result": "pass",
+      "observed": "with the static arm left at its release answer the verdict is NOT_ESTABLISHED",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G10",
+      "kind": "live",
+      "description": "the process restarted or the release was rebuilt between the OLD and NEW observations",
+      "why": "a rebuilt snapshot or a second process would make the whole observation meaningless",
+      "result": "pass",
+      "observed": "one pid (64271) and one snapshot (6e0585a00ef5...) across the whole run; a changed hash or a changed pid each fail the condition"
+    },
+    {
+      "id": "G16",
+      "kind": "live",
+      "description": "a measurement condition is satisfied by a non-numeric placeholder, or by only one of the two call forms",
+      "why": "a measurement condition satisfied by a non-null field accepts a sentence explaining that nothing was measured",
+      "result": "pass",
+      "observed": "direct 0.994 ns vs control 0.934 ns; static 1.014 ns vs control 0.93 ns. A prose value and a missing static arm each fail the condition.",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G17",
+      "kind": "live",
+      "description": "the binaries were built from different source bytes than the record names",
+      "why": "a run that measures binaries built from other source bytes names a program it did not test",
+      "result": "pass",
+      "observed": "the toolchain matches all 16 MAOT sources; against one edited source the guard reports 1 mismatch (flow_graph_compiler_arm64.cc)",
+      "verdict_under_defect": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "G18",
+      "kind": "live",
+      "description": "a whole #64 row is promoted from evidence covering one of its dispatch modes",
+      "why": "promoting a whole #64 row from one dispatch mode is an overclaim; each row spans direct, tearoff_pre, tearoff_post and dynamic, across JIT and AOT",
+      "result": "pass",
+      "observed": "2 rows linked at the `direct` mode under AOT on arm64; each still reports UNMODELED, with dynamic, jit, tearoff_post, tearoff_pre recorded as not covered"
+    },
+    {
+      "id": "G19",
+      "kind": "live",
+      "description": "the acceptance ledger cannot report an unmet item, so issue closure rests on prose rather than on a check",
+      "why": "an acceptance ledger that cannot report NOT MET makes closure rest on prose again -- and an arm whose baseline was already failing proves nothing about the injection",
+      "result": "pass",
+      "observed": "baseline closure=READY with 0 unmet; injecting only a false architecture claim gives linkage=False, ledger item met=False, unmet=1, closure=NOT_READY; required_falsifications_detected is True in BOTH, so the flip is not confounded",
+      "verdict_under_defect": "NOT_READY"
+    }
+  ],
+  "falsification_bank": {
+    "live": [
+      "G01",
+      "G02",
+      "G03",
+      "G04",
+      "G05",
+      "G06",
+      "G07",
+      "G08",
+      "G09",
+      "G10",
+      "G11",
+      "G16",
+      "G17",
+      "G18",
+      "G19"
+    ],
+    "historical": [
+      "G12",
+      "G13",
+      "G14",
+      "G15"
+    ],
+    "historical_note": "defects this implementation actually hit while being built. The code can no longer express them, and an arm that cannot be built is not the same as a defect that never happened."
+  },
+  "findings": [],
+  "consumers": {
+    "map": {
+      "verdict": "the gate exit code, the slice claim, and separately whether #67 may be closed",
+      "observations": "every condition in the verdict",
+      "registry_before": "the release state the calls started from",
+      "registry_after": "the call-site, descriptor and release-representation conditions",
+      "falsification": "required_falsifications_detected",
+      "falsification_bank": "whether every live bank entry has an arm",
+      "findings": "verdict.blocking_findings and the gate exit code",
+      "identities": "whether any of this may be quoted",
+      "schema": "readers and later issues consuming this record",
+      "issue": "readers and later issues consuming this record",
+      "generated_by": "reproducing this record",
+      "consumers": "this check itself, in both directions"
+    },
+    "unconsumed_or_undeclared": []
+  },
+  "verdict": {
+    "arm64_aot_direct_static_vertical_slice": "ESTABLISHED",
+    "issue_67_closure": "READY",
+    "target_arch": "arm64",
+    "acceptance_items_unmet": [],
+    "acceptance_ledger": [
+      {
+        "item": "exact #64 linkage for the demonstrated modes, with EB-01 and EB-02 left unpromoted",
+        "met": true,
+        "evidence": "t0_row_linkage records dispatch=direct, compilation=aot, heat=cold+hot, target_arch=arm64; both rows still report UNMODELED with their uncovered modes named. G18 refuses a whole-row promotion."
+      },
+      {
+        "item": "one release process performs OLD -> install -> NEW for a precompiled top-level direct call, and the same for a static method call",
+        "met": true,
+        "evidence": "same pid and byte-identical snapshot across the run"
+      },
+      {
+        "item": "#65 id and #66 version visible in structured evidence",
+        "met": true,
+        "evidence": "structural DeclarationIds for target and replacement"
+      },
+      {
+        "item": "compiler/runtime path evidence proves the mechanism is traversed",
+        "met": true,
+        "evidence": "per-declaration emitted indirect call-site counts"
+      },
+      {
+        "item": "wrong ID / release / ABI fails closed",
+        "met": true,
+        "evidence": "refused in-process with the release answer intact"
+      },
+      {
+        "item": "falsification arms discriminate",
+        "met": true,
+        "evidence": "15 live arms"
+      },
+      {
+        "item": "direct and static call latency measured",
+        "met": true,
+        "evidence": "numeric ns/call for both forms against never-inlined controls, with the overhead flagged as within noise"
+      }
+    ],
+    "t0_row_linkage": {
+      "EB-01": {
+        "row_title": "top-level function body",
+        "covered_by_issue_67": {
+          "dispatch": [
+            "direct"
+          ],
+          "compilation": [
+            "aot"
+          ],
+          "heat": [
+            "cold",
+            "hot"
+          ],
+          "target_arch": [
+            "arm64"
+          ]
+        },
+        "not_covered": [
+          "tearoff_pre",
+          "tearoff_post",
+          "dynamic",
+          "jit"
+        ],
+        "row_result_after_67": "UNMODELED",
+        "why": "a row is proven when every mode it names is proven; #67 proves one dispatch mode on one architecture in one compilation mode. #69 and #70 own the rest."
+      },
+      "EB-02": {
+        "row_title": "static method body",
+        "covered_by_issue_67": {
+          "dispatch": [
+            "direct"
+          ],
+          "compilation": [
+            "aot"
+          ],
+          "heat": [
+            "cold",
+            "hot"
+          ],
+          "target_arch": [
+            "arm64"
+          ]
+        },
+        "not_covered": [
+          "tearoff_pre",
+          "tearoff_post",
+          "dynamic",
+          "jit"
+        ],
+        "row_result_after_67": "UNMODELED",
+        "why": "same; the static arm is proven for direct calls only."
+      }
+    },
+    "conditions": {
+      "top_level_replacement_observed": true,
+      "static_replacement_observed": true,
+      "arms_are_independent": true,
+      "no_restart_or_recompile": true,
+      "call_sites_traverse_the_mechanism": true,
+      "installation_is_descriptor_state": true,
+      "identity_visible_in_evidence": true,
+      "release_implementation_still_represented": true,
+      "unrelated_declarations_unchanged": true,
+      "refusals_before_visible_mutation": true,
+      "repeated_calls_stay_replaced": true,
+      "required_falsifications_detected": true,
+      "call_latency_measured_numerically": true,
+      "size_measurements_recorded": true,
+      "build_provenance_bound": true,
+      "target_architecture_recorded": true,
+      "cold_and_hot_observed": true,
+      "t0_linkage_exact_and_unpromoted": true
+    },
+    "conditions_failed": [],
+    "condition_meanings": {
+      "top_level_replacement_observed": "did a precompiled top-level direct call return OLD, then NEW after installation, then NEW2 after a second installation?",
+      "static_replacement_observed": "the same for a precompiled static method call, proven independently?",
+      "arms_are_independent": "did installing one arm leave the other arm at its release answer, in both directions? (one arm cannot stand in for the other)",
+      "no_restart_or_recompile": "was it one process throughout -- same pid, one snapshot, no rebuild between the OLD and NEW observations?",
+      "call_sites_traverse_the_mechanism": "did the compiler emit indirect call sites through the dispatch cell for every replaced declaration? (zero means no caller can reach it, whatever the program printed)",
+      "installation_is_descriptor_state": "did the #66 version and kind advance, and does the dispatch cell still agree with the descriptor?",
+      "identity_visible_in_evidence": "does the record carry, structurally, the target DeclarationId, the REPLACEMENT DeclarationId, the release namespace, the ABI, and kind+version before and after -- rather than a Function-name diagnostic?",
+      "release_implementation_still_represented": "after replacement, can the descriptor still name what the release shipped, for rollback and version history?",
+      "unrelated_declarations_unchanged": "did a selected-but-not-replaced declaration and a non-selected one both keep their release answers?",
+      "refusals_before_visible_mutation": "were unknown id, wrong release namespace, ABI mismatch and a non-advancing version each refused with the release answer intact?",
+      "repeated_calls_stay_replaced": "does calling again after installation still reach the replacement?",
+      "required_falsifications_detected": "did every required falsification actually fire?",
+      "call_latency_measured_numerically": "are direct AND static call latencies real numbers from a running program, each with a never-inlined non-mutable control? Prose saying a thing was not measured is not a measurement.",
+      "size_measurements_recorded": "are the code-size and registry measurements present? No threshold is compared; absence is the only failure.",
+      "build_provenance_bound": "three claims, not one: were the binaries built from the exact MAOT source bytes the record names; are those bytes what the named fork COMMIT contains; and is that commit the one the fork is on now? The first alone passed while the evidence named a parent commit whose bytes had never been measured.",
+      "target_architecture_recorded": "does the record say which architecture the lowering was proven on?",
+      "cold_and_hot_observed": "does a heavily-executed call site observe the replacement too, measured after a million iterations rather than inferred from the benchmark running a lot?",
+      "t0_linkage_exact_and_unpromoted": "does the record link exactly the demonstrated modes -- direct, AOT, cold+hot, arm64 -- while leaving both whole rows UNMODELED?"
+    },
+    "blocking_findings": [],
+    "slice_blocking_findings": [],
+    "verdict_rule": "arm64_aot_direct_static_vertical_slice == ESTABLISHED iff every condition above holds AND no blocking finding was raised. issue_67_closure == READY iff that AND no acceptance item is unmet. Both are conjunctions; no count, ratio or threshold is compared anywhere in this module, and no outcome string is reachable unconditionally. The two are separate because a true technical result must not be able to carry an untrue milestone claim.",
+    "not_claimed": [
+      "Proven on arm64 only. The lowering is in flow_graph_compiler_arm64.cc and no other architecture has one.",
+      "No #64 row is promoted. #67 covers the `direct` dispatch mode of EB-01 and EB-02 under AOT; each row also requires tearoff_pre, tearoff_post and dynamic, across JIT and AOT. See t0_row_linkage.",
+      "No virtual, interface or super dispatch. #69 owns those.",
+      "No universal no-bypass claim. The posture here is the blunt rule that a selected declaration is neither inlined nor constant-folded through; #68 owns the real optimizer contract.",
+      "The replacement implementation is another AOT-compiled Dart body present in the release image, selected by descriptor. Delivering an externally-built body is #72/#77.",
+      "No additions, no class-shape work, no transaction architecture beyond what #66 exposes, and no production CLI or package format."
+    ]
+  }
+}

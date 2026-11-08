@@ -42,6 +42,23 @@ void main() {
       ).called(1);
     });
 
+    test('fetches from manifestBaseUrl when provided', () async {
+      client = ArtifactManifestClient(
+        httpClient: httpClient,
+        manifestBaseUrl: 'http://cdn-cache:8080/download.shorebird.dev',
+      );
+
+      client.getManifest(revision).ignore();
+
+      verify(
+        () => httpClient.get(
+          Uri.parse(
+            'http://cdn-cache:8080/download.shorebird.dev/shorebird/$revision/artifacts_manifest.yaml',
+          ),
+        ),
+      ).called(1);
+    });
+
     test('throws when manifest does not exist', () async {
       when(() => httpClient.get(any())).thenAnswer((_) async {
         return http.Response('', HttpStatus.notFound);

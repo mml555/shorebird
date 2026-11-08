@@ -1,0 +1,27 @@
+# Frozen-surface baseline — recorded at the Epoch B activation commit.
+# Regenerate ONLY with an explicit decision to change what is frozen.
+activation_commit f9d784ad23b05e74bedee4ee305b6eee0f0e1370
+certified_cell 4792f0eca461f3761001a1adbe131b4b115e3684
+certified_engine_source 619fdad176ff457331b50230b9511e7230a6ed93
+certified_updater_source af6e842ccf87a083d1598b1e7c9e0868c5731931
+
+# --- shipping updater (engine tree; NOT in this repo) ---
+engine_updater library/src/cache/lifecycle.rs d047dda3467ff6b72fbc5d36f4fecb9b4326d2915d4c802b70a9aac3d624756b
+engine_updater library/src/cache/updater_state.rs 422628d66594ce5a48132311469bcc9c48f99883e8056197abdd084b519a6d2c
+engine_updater library/src/updater.rs d404cb7a6da99fb06676f074f34d44fa503a45054d4f5ce3d5e4a7d0d0621155
+engine_updater library/src/events.rs 91472bb7c1ddc9cc262e5e7dd55a9e247b985d1d4ddefca71a51fe82009f54c6
+engine_updater library/src/c_api/engine.rs d3fd8085a5dd814e0f0dc6b9be7a13d52c9089a5928a2bc342f256f91e7169c0
+
+# --- engine C++ boot path ---
+engine_cxx shell/common/shorebird/updater.cc c42f04197ab6fd66183743fcc4d99c936a770c10ecbaacc4ca2efaf4da96c337
+engine_cxx shell/common/shorebird/updater.h 0c4d21ec8ffab01cfb72f865aba3be755c1184118ffa598c259ce83372f2f50e
+engine_cxx shell/common/shorebird/shorebird.cc dd18d4cdc7fa077978883d924ab7d6c6c960a4b57a67eebb5e586b0d9d6fbf1c
+engine_cxx runtime/dart_snapshot.cc 2cce02ddefc2b627c6a3ae478d95e0b57dddb27a55c3402f475fc8e35bf21522
+
+# --- vendored updater mirror of the lifecycle surface ---
+vendor_updater library/src/cache/lifecycle.rs 4ac796eb813332a59056f2028f93ea9bd49a1297cf3d9ded465626cbe3720bf5
+vendor_updater library/src/cache/updater_state.rs f7b0ce77204f9564304c9e99e0ed540521ff9f69dedc71e5dad9761dd4424a18
+vendor_updater library/src/updater.rs 2591508a81ad3f384bc54894e23bca4af81698e4d9a9326facb36d2b2bad75cc
+
+# --- policy surface (in this repo) ---
+policy packages/code_push_server/lib/src/repository.dart b63880dbf77871c9841534b6445b8a41618aea0cc5cdff967bfcc4c3122a177b

@@ -1,0 +1,49 @@
+# cspell:words crashreports irst Siri
+# Raw crash-report dumps contain unrelated DEVICE telemetry -- SiriSearchFeedback,
+# DifferentialPrivacy, Analytics-*, log-aggregated and friends are the operator's
+# personal device data, not evidence for this investigation, and they do not
+# belong in the repo.
+#
+# What IS evidence: reports attributable to OUR app, plus the NEW-since-arm
+# listings the harness writes (those live outside these directories, so they are
+# not matched here).
+#
+# The `**/` prefix is load-bearing: a pattern containing a slash is anchored to
+# THIS file's directory, so `crashreports_*/*` would only match a run folder
+# literally named crashreports_* beside this file -- and every dump would sail
+# straight into the commit, which is exactly what happened the first time.
+**/crashreports_*/**
+!**/crashreports_*/Runner*
+!**/crashreports_*/Jetsam*
+!**/crashreports_*/*irstActivation*
+
+# RAW syslog is NEVER committed.
+#
+# `idevicesyslog` unfiltered captures EVERYTHING the phone logs -- every app, every
+# daemon, network and account activity -- so it is the operator's personal device
+# data, not evidence for this investigation. It is also enormous: one armed run
+# accumulated 546,528 lines / 80 MB in under an hour, and it was committed and
+# pushed to a PUBLIC fork before this rule existed.
+#
+# The filtered `syslog.log` that `collect` derives IS the evidence, and it is kept.
+**/syslog_raw.log
+
+# CONTAINER PULLS: drop the non-evidence subtrees explicitly.
+#
+# `ios-deploy --download` retrieves the WHOLE app container, so a naive add swept
+# in Library/Caches, SplashBoard launch snapshots (.ktx images of the app's
+# screen) and Saved Application State. None of it is evidence.
+#
+# EXCLUDED BY SUBTREE, not by excluding the container and re-including the good
+# parts: git cannot re-include a path whose parent directory is excluded, so the
+# `!` form was silently inert and 294 junk files stayed staged.
+**/pre_state/Library/Caches/**
+**/post_state/Library/Caches/**
+**/pre_state/Library/SplashBoard/**
+**/post_state/Library/SplashBoard/**
+**/pre_state/Library/Saved Application State/**
+**/post_state/Library/Saved Application State/**
+**/pre_state/Library/Preferences/**
+**/post_state/Library/Preferences/**
+**/pre_state/tmp/**
+**/post_state/tmp/**

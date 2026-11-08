@@ -1,0 +1,8 @@
+# ninja repair — BEFORE
+date_utc      : 2026-09-01T00:26:16Z
+brew --version: Homebrew 6.0.20
+list ninja    : (not installed)
+which ninja   : ninja not found
+(none on PATH)
+ninja --version: (not runnable)
+opt/ninja     : (no symlink) -> DANGLING

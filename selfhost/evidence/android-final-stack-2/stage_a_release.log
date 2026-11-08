@@ -1,0 +1,77 @@
+
+0. a scratch CLI clone
+  PASS  the qualified checkout is untouched (still cd848320)
+  PASS  scratch clone at /Volumes/build/route-b/afs2/cli
+
+1. control plane on :55113 (reachable from the device), recording origin on :55114
+  PASS  adb reverse tcp:55113 -> host
+  PASS  the recording origin reaches the new cell
+
+2. an ordinary app with an unmistakable, non-foldable marker
+  PASS  flutter create succeeded
+  added shorebird.yaml to flutter assets
+  PASS  shorebird doctor --fix added the INTERNET permission
+
+3. NOW bind to the new cell, and empty the engine hydration surface
+  PASS  engine.version = f85251f344600ae08196925a174e9cff8f0ff18e
+  PASS  and it is a COMMITTED blob, not an uncommitted edit
+  PASS  no engine artifacts and no engine stamp — nothing can be skipped
+  PASS  GRADLE_USER_HOME is empty, so no cached io.flutter module can satisfy Maven
+
+4. shorebird release android --artifact apk
+  exit=0
+    | 
+    | Or distribute the apk:
+    | /Volumes/build/route-b/afs2/work.865TmY/app/build/app/outputs/flutter-apk/app-release.apk
+    | 
+    | For information on uploading to the Play Store, see:
+    | https://support.google.com/googleplay/android-developer/answer/9859152?hl=en
+    | 
+    | To create a patch for this release, run shorebird patch --platforms=android --release-version=1.0.0+1
+  PASS  the release completed
+  PASS  APK produced ( 47M)
+
+5. RELEASE IDENTITY, as the control plane records it
+    release id        1
+    version           1.0.0+1
+    flutter_revision  e64eb0af52e1c43c3b21a39556d789538d0df9b3
+    arm            android        3195468  7a7e74ebfb75deedc4196f34dc18ec11
+    aarch64        android        2884496  4b0bb057043092b346465663b30e2c49
+    x86_64         android        3015568  e065acea70bca0e2f9f9bd7ac078fae9
+    aab            android       46728030  b877799973da5cdc9a65a4ec45d4c323
+    android_supplement android            244  2abca4e849385898544d8061407773bd
+    release artifacts recorded: 5
+  PASS  engine.version binds the release to f85251f344600ae08196925a174e9cff8f0ff18e
+  PASS  Flutter selector e64eb0af52e1c43c3b21a39556d789538d0df9b3
+
+6. THE SHIPPED ENGINE, before anything is installed
+    APK sha256  27827fe11c0a6a094386959d1ca40d323ed9bced619e95d6daeb25f6d1158782
+    arm64-v8a    OURS  libflutter.so   13878552 (8% of jar) producer x1 fallback x0   libapp.so 4b0bb057043092b3
+    armeabi-v7a  OURS  libflutter.so    9870112 (6% of jar) producer x1 fallback x0   libapp.so 7a7e74ebfb75deed
+    x86_64       OURS  libflutter.so   15572672 (9% of jar) producer x1 fallback x0   libapp.so e065acea70bca0e2
+  PASS  all three ABIs carry the producer revision and not the fallback
+
+7. NETWORK ATTRIBUTION for the release build
+    requests recorded: 39   distinct paths: 34
+    android identity members: 14   from the new cell: 14   not requested: 0   mismatched: 0
+    identity requests answered via a redirect: 0
+    fallback-served paths: 10
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-arm-profile/artifacts.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-arm-profile/darwin-x64.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-arm/artifacts.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-arm64-profile/artifacts.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-arm64-profile/darwin-x64.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-arm64/artifacts.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-x64-profile/artifacts.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-x64-profile/darwin-x64.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-x64/artifacts.zip
+      fallback  flutter_infra_release/flutter/f85251f344600ae08196925a174e9cff8f0ff18e/android-x86/artifacts.zip
+    non-200/302 answers: 2
+      400 /
+      404 /download.shorebird.dev/shorebird/f85251f344600ae08196925a174e9cff8f0ff18e/aot-tools.dill
+  PASS  14/14 Android identity members from f85251f344600ae08196925a174e9cff8f0ff18e, none via fallback
+
+RESULT
+  app_id=90068cb6-80e3-c102-a9d9-8fe6aeaa09b4  release_id=1  cell=f85251f344600ae08196925a174e9cff8f0ff18e
+  work=/Volumes/build/route-b/afs2/work.865TmY
+  STAGE A PASSED

@@ -1,0 +1,17 @@
+# Template. selfhost/scripts/prepare_flavored_fixture.sh writes the real
+# shorebird.yaml from this shape.
+#
+# app_id is NOT committed because it is server-generated: POST /api/v1/apps
+# ignores a requested id, so it differs per control-plane instance.
+#
+# foo and bar map to the SAME app_id ON PURPOSE. patch_command.dart:206
+# resolves appId via getAppId(flavor:) and shorebird_yaml.dart:69-72 returns
+# `flavors[flavor] ?? appId`, so distinct ids make `patch --flavor bar` query a
+# DIFFERENT app and fail "release not found" BEFORE the fingerprint is
+# compared. That is a refusal for the wrong reason, and a wrong-reason refusal
+# in the mismatch arm reads exactly like the right one.
+app_id: REPLACE-ME
+flavors:
+  foo: REPLACE-ME
+  bar: REPLACE-ME
+base_url: http://localhost:18080

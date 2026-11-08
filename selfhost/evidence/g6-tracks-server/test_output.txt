@@ -1,0 +1,12 @@
+# G6 lane B — code_push_server suite, full run
+# identity
+commit:              13092e26 (implementation staged on top of this)
+code_push_server:    1.3.0
+dart:                Dart SDK version: 3.12.2 (stable) (Tue Jun 9 01:11:39 2026 -0700) on "macos_arm64"
+command:             dart test -x integration   (CI's exact command, code_push_server.yaml:58)
+date:                2026-08-13 16:14:08 EDT
+
+00:24 +273: test/api_test.dart: independent live patches per track each track serves its own patch, and promotion is per track
+00:24 +274: test/api_test.dart: independent live patches per track named tracks are independent, and promotion adds rather than moves
+00:24 +275: test/api_test.dart: independent live patches per track the CLI-visible track reflects promotion and withdrawal
+00:27 +291: All tests passed!

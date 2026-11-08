@@ -1,0 +1,65 @@
+{
+  "schema": "semantic-map-1/corpus-expectations/1",
+  "purpose": "Declared INTENT for each mutant, frozen in G0 so later gates check the map against a stated expectation rather than against whatever the map happens to say. These are expectations, not results: SM1-G1 checks the declaration_id column, SM1-G2 checks abi_equal and body_equal.",
+  "subject": "the declaration under observation in each mutant; unrelated-mutation cases observe 'topLevel' precisely because it was NOT touched",
+  "columns": {
+    "declaration_id_stable": "the SUBJECT's DECLARATION_ID must be unchanged from base",
+    "abi_equal": "the SUBJECT's ABI_FINGERPRINT must equal base",
+    "body_equal": "the SUBJECT's BODY_FINGERPRINT must equal base",
+    "expected_classification": "candidate_unchanged | changed_existing_declaration | not_reusable_under_old_abi"
+  },
+  "mutants": [
+    { "id": "body_only", "subject": "corpus.app::topLevel", "dimension": "body-only mutation",
+      "declaration_id_stable": true, "abi_equal": true, "body_equal": false,
+      "expected_classification": "changed_existing_declaration",
+      "note": "the load-bearing case: a body change must NOT move the declaration id, or the map cannot say 'same declaration, new implementation'" },
+
+    { "id": "abi_added_positional", "subject": "corpus.app::Shape.area", "dimension": "added required positional",
+      "declaration_id_stable": true, "abi_equal": false, "body_equal": false,
+      "expected_classification": "not_reusable_under_old_abi" },
+    { "id": "abi_nullability", "subject": "corpus.app::topLevel", "dimension": "T -> T?",
+      "declaration_id_stable": true, "abi_equal": false, "body_equal": true,
+      "expected_classification": "not_reusable_under_old_abi",
+      "note": "body is textually identical; only the return type moved. If the map reports abi_equal here it is deriving ABI from the body." },
+    { "id": "abi_positional_to_named", "subject": "corpus.app::Shape.area", "dimension": "positional -> named",
+      "declaration_id_stable": true, "abi_equal": false, "body_equal": true,
+      "expected_classification": "not_reusable_under_old_abi",
+      "note": "also inside the ROADMAP P2 refusal boundary; the map must state the refusal rather than mis-classify" },
+    { "id": "abi_generic_bound", "subject": "corpus.app::Box", "dimension": "generic bound change",
+      "declaration_id_stable": true, "abi_equal": false, "body_equal": true,
+      "expected_classification": "not_reusable_under_old_abi" },
+    { "id": "abi_return_type", "subject": "corpus.app::Shape.perimeter", "dimension": "return type (getter)",
+      "declaration_id_stable": true, "abi_equal": false, "body_equal": true,
+      "expected_classification": "not_reusable_under_old_abi" },
+
+    { "id": "reorder", "subject": "corpus.app::topLevel", "dimension": "declaration reorder",
+      "declaration_id_stable": true, "abi_equal": true, "body_equal": true,
+      "expected_classification": "candidate_unchanged",
+      "note": "the anti-order-dependence case: an index- or offset-derived identity fails here" },
+    { "id": "unrelated_added", "subject": "corpus.app::topLevel", "dimension": "unrelated declaration added",
+      "declaration_id_stable": true, "abi_equal": true, "body_equal": true,
+      "expected_classification": "candidate_unchanged" },
+    { "id": "unrelated_removed", "subject": "corpus.app::topLevel", "dimension": "unrelated declaration removed",
+      "declaration_id_stable": true, "abi_equal": true, "body_equal": true,
+      "expected_classification": "candidate_unchanged" },
+    { "id": "unrelated_renamed", "subject": "corpus.app::topLevel", "dimension": "a different declaration renamed",
+      "declaration_id_stable": true, "abi_equal": true, "body_equal": true,
+      "expected_classification": "candidate_unchanged" },
+
+    { "id": "field_added", "subject": "corpus.app::Shape.area", "dimension": "field added to the owning class",
+      "declaration_id_stable": true, "abi_equal": true, "body_equal": true,
+      "expected_classification": "candidate_unchanged",
+      "note": "the METHOD is unchanged. Whether the owning class's layout change makes the method unsafe to reuse is a SEPARATE question owned by SM1-G5, and must not be smuggled into the fingerprints." },
+    { "id": "private_other_domain", "subject": "corpus.app::usesPrivate", "dimension": "private body changed in a DIFFERENT library",
+      "declaration_id_stable": true, "abi_equal": true, "body_equal": true,
+      "expected_classification": "candidate_unchanged",
+      "note": "corpus.helper::_privateHelper and corpus.app::_privateHelper share a simple name across privacy domains; a map that confuses them will report app's caller as changed" }
+  ],
+  "dimensions_owned_elsewhere": [
+    { "dimension": "retention withheld", "owner_gate": "SM1-G4",
+      "why": "a contract-level withholding, not a source mutation" },
+    { "dimension": "patchability capability withheld", "owner_gate": "SM1-G5", "why": "contract-level" },
+    { "dimension": "can-be-overridden withheld", "owner_gate": "SM1-G5", "why": "contract-level" },
+    { "dimension": "map/release identity mismatch", "owner_gate": "SM1-G6", "why": "binding-level, not a program property" }
+  ]
+}

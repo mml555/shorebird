@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
+import 'package:shorebird_ci/src/action_versions.dart';
 import 'package:shorebird_ci/src/commands/commands.dart';
+import 'package:shorebird_ci/src/version.dart';
 import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';
 
@@ -56,6 +58,23 @@ void main() {
           ),
         ).existsSync(),
         isFalse,
+      );
+    });
+
+    test('pins shorebird_ci to the version that generated it', () async {
+      // Unpinned, every shorebird_ci release changes every generated
+      // workflow the moment it's published.
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir);
+
+      expect(
+        _readMain(tempDir),
+        contains(
+          '      - run: dart pub global activate shorebird_ci '
+          '$packageVersion\n',
+        ),
       );
     });
 
@@ -135,7 +154,17 @@ void main() {
       final yaml = _readMain(tempDir);
 
       expect(yaml, contains('cspell:'));
-      expect(yaml, contains('streetsidesoftware/cspell-action'));
+      expect(
+        yaml,
+        matches(
+          RegExp(
+            r'run: npx --yes cspell@\d+\.\d+\.\d+ '
+            r'--config \.cspell\.json --no-progress "\*\*"\n',
+          ),
+        ),
+      );
+      expect(yaml, contains('persist-credentials: false'));
+      expect(yaml, isNot(contains('cspell-action')));
     });
 
     test('returns 1 when no packages discovered', () async {
@@ -277,6 +306,315 @@ void main() {
         File(p.join(workflows, '_shorebird_ci_flutter.yaml')).existsSync(),
         isFalse,
       );
+    });
+
+    test('static filters include the workspace root pubspec files', () async {
+      createWorkspaceRoot(tempDir, members: ['packages/foo']);
+      createPackage(tempDir, 'packages/foo', 'foo', useWorkspace: true);
+      createPackage(tempDir, 'tools/solo', 'solo');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+
+      final content = File(
+        p.join(tempDir.path, '.github', 'workflows', 'shorebird_ci.yaml'),
+      ).readAsStringSync();
+      expect(
+        content,
+        contains(
+          '            foo:\n'
+          '              - .github/workflows/_shorebird_ci_dart.yaml\n'
+          '              - packages/foo/**\n'
+          '              - pubspec.lock\n'
+          '              - pubspec.yaml\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '            solo:\n'
+          '              - .github/workflows/_shorebird_ci_dart.yaml\n'
+          '              - tools/solo/**\n',
+        ),
+      );
+    });
+
+    test('static workflow pins shorebird_ci to its version', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+
+      expect(
+        _readMain(tempDir),
+        contains(
+          '      - run: dart pub global activate shorebird_ci '
+          '$packageVersion\n',
+        ),
+      );
+    });
+
+    test('--linux-runner moves only trusted ubuntu legs', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      createPackage(tempDir, 'packages/bar', 'bar', flutterLine: 'any');
+      initGitRepo(tempDir);
+
+      await runGenerate(
+        tempDir,
+        extra: [
+          '--style',
+          'static',
+          '--linux-runner',
+          '["self-hosted","linux","x64"]',
+        ],
+      );
+
+      for (final name in [
+        '_shorebird_ci_dart.yaml',
+        '_shorebird_ci_flutter.yaml',
+      ]) {
+        final content = File(
+          p.join(tempDir.path, '.github', 'workflows', name),
+        ).readAsStringSync();
+        expect(
+          content,
+          contains(
+            r"runs-on: ${{ matrix.os == 'ubuntu-latest' && "
+            "(github.event_name != 'pull_request' || "
+            'github.event.pull_request.head.repo.full_name == '
+            'github.repository) && '
+            '''fromJSON('["self-hosted","linux","x64"]') || matrix.os }}''',
+          ),
+          reason: name,
+        );
+        expect(content, contains("matrix.os == 'ubuntu-latest'"));
+      }
+    });
+
+    test('--linux-runner rejects what is not a JSON array', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+
+      final code = await runGenerate(
+        tempDir,
+        extra: ['--style', 'static', '--linux-runner', 'self-hosted'],
+      );
+
+      expect(code, 64);
+    });
+
+    group('--hosted-runners-var', () {
+      String readWorkflow(String name) => File(
+        p.join(tempDir.path, '.github', 'workflows', name),
+      ).readAsStringSync();
+
+      const trusted =
+          "(github.event_name != 'pull_request' || "
+          'github.event.pull_request.head.repo.full_name == '
+          'github.repository)';
+
+      test('gates hosted legs and untrusted pull requests', () async {
+        createPackage(tempDir, 'packages/foo', 'foo');
+        initGitRepo(tempDir);
+
+        await runGenerate(
+          tempDir,
+          extra: [
+            '--style',
+            'static',
+            '--required',
+            '--linux-runner',
+            '["self-hosted","linux","x64"]',
+            '--hosted-runners-var',
+            'HOSTED_RUNNERS',
+          ],
+        );
+
+        final reusable = readWorkflow('_shorebird_ci_dart.yaml');
+        expect(
+          reusable,
+          contains(
+            r'if: ${{ '
+            "$trusted || vars.HOSTED_RUNNERS == 'true' }}",
+          ),
+        );
+        expect(
+          reusable,
+          contains(
+            r'os: ${{ fromJSON(github.event_name == '
+            """'pull_request' && '["ubuntu-latest"]' || """
+            "(vars.HOSTED_RUNNERS == 'true' && inputs.runners || "
+            """'["ubuntu-latest"]')) }}""",
+          ),
+        );
+
+        final main = _readMain(tempDir);
+        expect(
+          main,
+          contains(
+            "if: \${{ $trusted || vars.HOSTED_RUNNERS == 'true' }}\n"
+            '    runs-on: \${{ $trusted && '
+            """fromJSON('["self-hosted","linux","x64"]') || """
+            "'ubuntu-latest' }}",
+          ),
+        );
+        // The aggregator runs at home for every event, checks nothing out,
+        // and fails a fork pull request that no job ran for.
+        final required = main.substring(main.indexOf('  required:'));
+        expect(required, contains(r'    if: ${{ !cancelled() }}'));
+        expect(
+          required,
+          contains(
+            r"""runs-on: ${{ fromJSON('["self-hosted","linux","x64"]') }}""",
+          ),
+        );
+        expect(required, isNot(contains('checkout')));
+        expect(required, contains('Refuse an outside pull request'));
+        expect(
+          required,
+          contains(
+            'github.event.pull_request.head.repo.full_name != '
+            "github.repository && vars.HOSTED_RUNNERS != 'true'",
+          ),
+        );
+        expect(required, contains('Outside PR: CI did not run'));
+      });
+
+      test('without --linux-runner the variable gates every job', () async {
+        createPackage(tempDir, 'packages/foo', 'foo');
+        initGitRepo(tempDir);
+
+        await runGenerate(
+          tempDir,
+          extra: ['--style', 'static', '--hosted-runners-var', 'HOSTED'],
+        );
+
+        expect(
+          readWorkflow('_shorebird_ci_dart.yaml'),
+          contains(r"if: ${{ vars.HOSTED == 'true' }}"),
+        );
+        expect(
+          _readMain(tempDir),
+          contains(
+            "    if: \${{ vars.HOSTED == 'true' }}\n"
+            '    runs-on: ubuntu-latest',
+          ),
+        );
+      });
+
+      test('is absent by default', () async {
+        createPackage(tempDir, 'packages/foo', 'foo');
+        initGitRepo(tempDir);
+
+        await runGenerate(tempDir, extra: ['--style', 'static']);
+
+        expect(
+          readWorkflow('_shorebird_ci_dart.yaml'),
+          isNot(contains('vars.')),
+        );
+      });
+
+      test('rejects what is not a variable name', () async {
+        createPackage(tempDir, 'packages/foo', 'foo');
+        initGitRepo(tempDir);
+
+        final code = await runGenerate(
+          tempDir,
+          extra: ['--style', 'static', '--hosted-runners-var', 'a b'],
+        );
+
+        expect(code, 64);
+      });
+    });
+
+    test('needs_redis starts Redis on a free port and stops it', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      File(
+        p.join(tempDir.path, 'packages', 'foo', 'pubspec.yaml'),
+      ).writeAsStringSync(
+        'shorebird_ci:\n  needs_redis: true\n',
+        mode: FileMode.append,
+      );
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+
+      final content = File(
+        p.join(tempDir.path, '.github', 'workflows', '_shorebird_ci_dart.yaml'),
+      ).readAsStringSync();
+      expect(content, contains('-p 127.0.0.1::6379'));
+      expect(content, contains('echo "REDIS_PORT='));
+      expect(content, isNot(contains('6379:6379')));
+      expect(content, contains(r'docker rm -f "$REDIS_CONTAINER"'));
+    });
+
+    test('without --linux-runner every leg runs on matrix.os', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+
+      final content = File(
+        p.join(tempDir.path, '.github', 'workflows', '_shorebird_ci_dart.yaml'),
+      ).readAsStringSync();
+      expect(content, contains(r'runs-on: ${{ matrix.os }}'));
+    });
+
+    test('static workflow triggers on merge_group', () async {
+      // Branch protection's required contexts only gate a merge if they
+      // report on the queue's temp branch too.
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+
+      final yaml = _readMain(tempDir);
+      expect(yaml, contains('  merge_group:\n    types: [checks_requested]'));
+    });
+
+    test('static workflow cancels a superseded PR run', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+
+      final yaml = _readMain(tempDir);
+      _expectPrOnlyConcurrency(yaml);
+    });
+
+    test('every workflow gets a read-only token', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      createPackage(tempDir, 'packages/bar', 'bar', flutterLine: 'any');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+
+      final workflows = Directory(p.join(tempDir.path, '.github', 'workflows'));
+      for (final name in [
+        'shorebird_ci.yaml',
+        '_shorebird_ci_dart.yaml',
+        '_shorebird_ci_flutter.yaml',
+      ]) {
+        final doc =
+            loadYaml(File(p.join(workflows.path, name)).readAsStringSync())
+                as YamlMap;
+        expect(doc['permissions'], {'contents': 'read'}, reason: name);
+      }
+    });
+
+    test('only the changes job gets more than the workflow token', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      createPackage(tempDir, 'packages/bar', 'bar', flutterLine: 'any');
+      File(p.join(tempDir.path, '.cspell.json')).writeAsStringSync('{}');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static', '--required']);
+
+      final jobs = _expectReadOnlyJobs(tempDir, except: 'changes');
+      expect((jobs['changes']! as YamlMap)['permissions'], {
+        'contents': 'read',
+        'pull-requests': 'read',
+      });
     });
 
     test('emits main + both reusables for mixed repo', () async {
@@ -455,7 +793,17 @@ void main() {
       final yaml = _readMain(tempDir);
 
       expect(yaml, contains('cspell:'));
-      expect(yaml, contains('streetsidesoftware/cspell-action'));
+      expect(
+        yaml,
+        matches(
+          RegExp(
+            r'run: npx --yes cspell@\d+\.\d+\.\d+ '
+            r'--config \.cspell\.json --no-progress "\*\*"\n',
+          ),
+        ),
+      );
+      expect(yaml, contains('persist-credentials: false'));
+      expect(yaml, isNot(contains('cspell-action')));
     });
 
     test(
@@ -645,6 +993,122 @@ void main() {
     );
   });
 
+  group('bloc lint', () {
+    /// Gives the package at [relativePath] a bloc_lint dev dependency.
+    void addBlocLint(String relativePath) {
+      File(
+        p.join(tempDir.path, relativePath, 'pubspec.yaml'),
+      ).writeAsStringSync(
+        'dev_dependencies:\n  bloc_lint: ^0.3.0\n',
+        mode: FileMode.append,
+      );
+    }
+
+    String readWorkflow(String name) => File(
+      p.join(tempDir.path, '.github', 'workflows', name),
+    ).readAsStringSync();
+
+    test('dynamic: no bloc steps when no package uses bloc_lint', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      createPackage(tempDir, 'packages/bar', 'bar', flutterLine: 'any');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir);
+
+      final yaml = _readMain(tempDir);
+      expect(yaml, isNot(contains('bloc')));
+    });
+
+    test('dynamic: bloc steps only in the job whose SDK uses it', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      createPackage(tempDir, 'packages/bar', 'bar', flutterLine: 'any');
+      addBlocLint('packages/bar');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir);
+
+      final yaml = loadYaml(_readMain(tempDir)) as YamlMap;
+      final jobs = yaml['jobs'] as YamlMap;
+      List<Object?> stepNames(String job) => [
+        for (final step in (jobs[job] as YamlMap)['steps'] as YamlList)
+          (step as YamlMap)['name'],
+      ];
+      expect(stepNames('flutter_ci'), contains('Setup Bloc Tools'));
+      expect(stepNames('flutter_ci'), contains('Bloc Lint'));
+      expect(stepNames('dart_ci'), isNot(contains('Setup Bloc Tools')));
+      expect(stepNames('dart_ci'), isNot(contains('Bloc Lint')));
+    });
+
+    test('static: no bloc input or steps when no package uses it', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      createPackage(tempDir, 'packages/bar', 'bar', flutterLine: 'any');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+
+      expect(_readMain(tempDir), isNot(contains('bloc')));
+      expect(readWorkflow('_shorebird_ci_dart.yaml'), isNot(contains('bloc')));
+      expect(
+        readWorkflow('_shorebird_ci_flutter.yaml'),
+        isNot(contains('bloc')),
+      );
+    });
+
+    test('static: passes has_bloc_lint only to packages that use it', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      createPackage(tempDir, 'packages/baz', 'baz');
+      addBlocLint('packages/baz');
+      createPackage(tempDir, 'packages/bar', 'bar', flutterLine: 'any');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+
+      final jobs = (loadYaml(_readMain(tempDir)) as YamlMap)['jobs'] as YamlMap;
+      YamlMap withOf(String job) => (jobs[job] as YamlMap)['with'] as YamlMap;
+      expect(withOf('baz')['has_bloc_lint'], isTrue);
+      expect(withOf('foo').containsKey('has_bloc_lint'), isFalse);
+
+      final dart = readWorkflow('_shorebird_ci_dart.yaml');
+      expect(dart, contains('has_bloc_lint:'));
+      expect(
+        dart,
+        matches(
+          RegExp(
+            r'run: dart pub global activate bloc_tools \d+\.\d+\.\d+\S*\n',
+          ),
+        ),
+      );
+      expect(dart, contains('run: bloc lint .'));
+      expect(
+        readWorkflow('_shorebird_ci_flutter.yaml'),
+        isNot(contains('bloc')),
+      );
+    });
+
+    test('static: Flutter-only bloc goes to the Flutter reusable', () async {
+      createPackage(tempDir, 'packages/bar', 'bar', flutterLine: 'any');
+      addBlocLint('packages/bar');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+
+      final flutter = readWorkflow('_shorebird_ci_flutter.yaml');
+      final inputs =
+          ((loadYaml(flutter) as YamlMap)['on'] as YamlMap)['workflow_call']
+              as YamlMap;
+      expect((inputs['inputs'] as YamlMap).containsKey('has_bloc_lint'), true);
+      expect(
+        flutter,
+        matches(
+          RegExp(
+            r'run: dart pub global activate bloc_tools \d+\.\d+\.\d+\S*\n',
+          ),
+        ),
+      );
+      expect(flutter, contains('run: bloc lint .'));
+    });
+  });
+
   group('dependabot.yml', () {
     test('creates dependabot.yml when missing', () async {
       createPackage(tempDir, 'packages/foo', 'foo');
@@ -681,16 +1145,19 @@ void main() {
   });
 
   group('--update-actions (auto-bump)', () {
-    test('rewrites action pins in place when enabled', () async {
-      // Inject a resolver that bumps every action to v99 so we can
+    // cspell:disable-next-line
+    const sha99 = 'abcdefabcdefabcdefabcdefabcdefabcdef9999';
+    Future<ActionRelease?> resolve99(String _) async =>
+        const ActionRelease(tag: 'v99.0.0', sha: sha99);
+
+    test('pins each action to its latest release when enabled', () async {
+      // Inject a resolver that reports v99 for every action so we can
       // confirm the post-write step actually runs and mutates the file.
       createPackage(tempDir, 'packages/foo', 'foo');
       initGitRepo(tempDir);
 
       final runner = CommandRunner<int>('test', 'test')
-        ..addCommand(
-          GenerateCommand(resolveLatestMajor: (_) async => 'v99'),
-        );
+        ..addCommand(GenerateCommand(resolveLatestRelease: resolve99));
       final code = await runner.run([
         'generate',
         '--repo-root',
@@ -700,22 +1167,18 @@ void main() {
 
       expect(code, 0);
       final yaml = _readMain(tempDir);
-      // setup-dart and checkout were emitted at @v1/@v6 by the generator;
-      // resolver bumps them both to @v99.
-      expect(yaml, contains('actions/checkout@v99'));
-      expect(yaml, contains('dart-lang/setup-dart@v99'));
+      expect(yaml, contains('uses: actions/checkout@$sha99 # v99.0.0'));
+      expect(yaml, contains('uses: dart-lang/setup-dart@$sha99 # v99.0.0'));
     });
 
-    test('--no-update-actions skips the bump', () async {
+    test('--no-update-actions writes the built-in SHA pins', () async {
       createPackage(tempDir, 'packages/foo', 'foo');
       initGitRepo(tempDir);
 
       // Resolver would bump to v99 if called; --no-update-actions should
-      // prevent that, leaving the generator's @v6/@v1 pins untouched.
+      // prevent that, leaving the generator's built-in pins untouched.
       final runner = CommandRunner<int>('test', 'test')
-        ..addCommand(
-          GenerateCommand(resolveLatestMajor: (_) async => 'v99'),
-        );
+        ..addCommand(GenerateCommand(resolveLatestRelease: resolve99));
       final code = await runner.run([
         'generate',
         '--repo-root',
@@ -725,12 +1188,105 @@ void main() {
 
       expect(code, 0);
       final yaml = _readMain(tempDir);
-      expect(yaml, isNot(contains('@v99')));
-      expect(yaml, contains('actions/checkout@v6'));
+      expect(yaml, isNot(contains('v99')));
+      expect(yaml, contains('uses: $checkoutAction'));
+    });
+
+    test('every generated uses: ref is pinned to a commit SHA', () async {
+      // Covers both styles, Flutter and Dart, codecov, bloc and cspell,
+      // so every action the templates can emit is checked.
+      createPackage(tempDir, 'packages/foo', 'foo');
+      createPackage(tempDir, 'packages/bar', 'bar', flutterLine: 'any');
+      for (final pkg in ['foo', 'bar']) {
+        File(
+          p.join(tempDir.path, 'packages', pkg, 'pubspec.yaml'),
+        ).writeAsStringSync(
+          'dev_dependencies:\n  bloc_lint: ^0.3.0\n',
+          mode: FileMode.append,
+        );
+      }
+      File(p.join(tempDir.path, 'codecov.yml')).writeAsStringSync('');
+      File(p.join(tempDir.path, 'cspell.config.yaml')).writeAsStringSync('');
+      initGitRepo(tempDir);
+
+      final usesLine = RegExp(r'uses:\s+(\S+)(.*)');
+      final pinned = RegExp(r'^[\w.-]+/[\w.-]+@[0-9a-f]{40}$');
+      for (final style in ['dynamic', 'static']) {
+        final runner = CommandRunner<int>('test', 'test')
+          ..addCommand(GenerateCommand());
+        final code = await runner.run([
+          'generate',
+          '--repo-root',
+          tempDir.path,
+          '--style',
+          style,
+          '--no-update-actions',
+        ]);
+        expect(code, 0);
+        final dir = Directory(p.join(tempDir.path, '.github', 'workflows'));
+        final repos = <String>{};
+        for (final file in dir.listSync().whereType<File>()) {
+          for (final m in usesLine.allMatches(file.readAsStringSync())) {
+            final ref = m.group(1)!;
+            if (ref.startsWith('./')) continue;
+            repos.add(ref.split('@').first);
+            expect(ref, matches(pinned), reason: '${file.path}: $ref');
+            expect(m.group(2), matches(RegExp(r'^ # v\d+\.\d+\.\d+$')));
+          }
+        }
+        expect(unpinnedActionRefs(_readAll(dir)), isEmpty);
+        // Every action the templates can emit showed up, so each was
+        // checked.
+        expect(
+          repos,
+          containsAll([
+            'actions/checkout',
+            'dart-lang/setup-dart',
+            'codecov/codecov-action',
+            'subosito/flutter-action',
+            if (style == 'static') 'dorny/paths-filter',
+          ]),
+        );
+      }
     });
   });
 
   group('setup-job runner ergonomics', () {
+    test('dynamic workflow triggers on merge_group', () async {
+      // Branch protection's required contexts only gate a merge if they
+      // report on the queue's temp branch too.
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+      await runGenerate(tempDir);
+      final yaml = _readMain(tempDir);
+      expect(yaml, contains('  merge_group:\n    types: [checks_requested]'));
+    });
+
+    test('dynamic workflow cancels a superseded PR run', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+      await runGenerate(tempDir);
+      final yaml = _readMain(tempDir);
+      _expectPrOnlyConcurrency(yaml);
+    });
+
+    test('dynamic workflow gets a read-only token', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+      await runGenerate(tempDir);
+      final doc = loadYaml(_readMain(tempDir)) as YamlMap;
+      expect(doc['permissions'], {'contents': 'read'});
+    });
+
+    test('dynamic jobs get no more than the workflow token', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      createPackage(tempDir, 'packages/bar', 'bar', flutterLine: 'any');
+      File(p.join(tempDir.path, '.cspell.json')).writeAsStringSync('{}');
+      initGitRepo(tempDir);
+      await runGenerate(tempDir, extra: ['--required']);
+      _expectReadOnlyJobs(tempDir);
+    });
+
     test('dynamic workflow has workflow_dispatch trigger', () async {
       createPackage(tempDir, 'packages/foo', 'foo');
       initGitRepo(tempDir);
@@ -785,7 +1341,7 @@ void main() {
       createPackage(tempDir, 'packages/foo', 'foo');
       initGitRepo(tempDir);
       final runner = CommandRunner<int>('test', 'test')
-        ..addCommand(GenerateCommand(resolveLatestMajor: (_) async => null));
+        ..addCommand(GenerateCommand(resolveLatestRelease: (_) async => null));
       await runner.run([
         'generate',
         '--repo-root',
@@ -842,8 +1398,9 @@ void main() {
           ),
         ),
       );
-      // Always-run and treats skipped sub-jobs as success.
-      expect(yaml, contains(r'if: ${{ always() }}'));
+      // Runs unless the run was cancelled (a superseded PR head), and
+      // treats skipped sub-jobs as success.
+      expect(yaml, contains(r'if: ${{ !cancelled() }}'));
       expect(yaml, contains("contains(needs.*.result, 'failure')"));
       expect(yaml, contains("contains(needs.*.result, 'cancelled')"));
     });
@@ -976,10 +1533,340 @@ void main() {
       expect(exitCode, 0);
     });
   });
+
+  group('v0.3.0 features', () {
+    String readWorkflow(String name) => File(
+      p.join(tempDir.path, '.github', 'workflows', name),
+    ).readAsStringSync();
+
+    test('--filters-only updates dorny/paths-filter in place', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      createPackage(tempDir, 'packages/bar', 'bar');
+      final workflowsDir = Directory(
+        p.join(tempDir.path, '.github', 'workflows'),
+      )..createSync(recursive: true);
+      final workflowFile = File(p.join(workflowsDir.path, 'shorebird_ci.yaml'))
+        ..writeAsStringSync('''
+name: Custom CI
+jobs:
+  changes:
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            foo:
+              - old/path/**
+  custom_job:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "preserved"
+''');
+      initGitRepo(tempDir);
+
+      final exitCode = await runGenerate(
+        tempDir,
+        extra: ['--filters-only'],
+      );
+      expect(exitCode, 0);
+
+      final updated = workflowFile.readAsStringSync();
+      expect(updated, contains('name: Custom CI'));
+      expect(updated, contains('custom_job:'));
+      expect(
+        updated,
+        contains(
+          '          filters: |\n'
+          '            bar:\n'
+          '              - packages/bar/**\n'
+          '            foo:\n'
+          '              - packages/foo/**\n',
+        ),
+      );
+    });
+
+    test('--filters-only --dry-run does not modify disk', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      final workflowsDir = Directory(
+        p.join(tempDir.path, '.github', 'workflows'),
+      )..createSync(recursive: true);
+      const original = '''
+name: Custom CI
+jobs:
+  changes:
+    steps:
+      - uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            foo:
+              - old/path/**
+''';
+      final workflowFile = File(p.join(workflowsDir.path, 'shorebird_ci.yaml'))
+        ..writeAsStringSync(original);
+      initGitRepo(tempDir);
+
+      final exitCode = await runGenerate(
+        tempDir,
+        extra: ['--filters-only', '--dry-run'],
+      );
+      expect(exitCode, 0);
+      expect(workflowFile.readAsStringSync(), original);
+    });
+
+    test('--filters-only fails when workflow file is missing', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+
+      final exitCode = await runGenerate(
+        tempDir,
+        extra: ['--filters-only'],
+      );
+      expect(exitCode, 1);
+    });
+
+    test(
+      '--filters-only fails when workflow has no filters: | block',
+      () async {
+        createPackage(tempDir, 'packages/foo', 'foo');
+        final workflowsDir = Directory(
+          p.join(tempDir.path, '.github', 'workflows'),
+        )..createSync(recursive: true);
+        File(
+          p.join(workflowsDir.path, 'shorebird_ci.yaml'),
+        ).writeAsStringSync('name: CI\njobs: {}\n');
+        initGitRepo(tempDir);
+
+        final exitCode = await runGenerate(
+          tempDir,
+          extra: ['--filters-only'],
+        );
+        expect(exitCode, 1);
+      },
+    );
+
+    test(
+      '--fatal-infos appends --fatal-infos in static and dynamic modes',
+      () async {
+        createPackage(tempDir, 'packages/foo', 'foo');
+        createPackage(
+          tempDir,
+          'packages/flutter_pkg',
+          'flutter_pkg',
+          flutterLine: 'any',
+        );
+        initGitRepo(tempDir);
+
+        await runGenerate(
+          tempDir,
+          extra: ['--style', 'static', '--fatal-infos'],
+        );
+        expect(
+          readWorkflow('_shorebird_ci_dart.yaml'),
+          contains('dart analyze --fatal-infos .'),
+        );
+        expect(
+          readWorkflow('_shorebird_ci_flutter.yaml'),
+          contains('flutter analyze --fatal-infos .'),
+        );
+
+        await runGenerate(tempDir, extra: ['--fatal-infos']);
+        final dynamicYaml = _readMain(tempDir);
+        expect(
+          dynamicYaml,
+          contains('dart analyze --fatal-infos .'),
+        );
+        expect(dynamicYaml, contains('flutter analyze --fatal-infos .'));
+      },
+    );
+
+    test(
+      'submodules: recursive is emitted only when .gitmodules exists',
+      () async {
+        createPackage(tempDir, 'packages/foo', 'foo');
+        createPackage(
+          tempDir,
+          'packages/flutter_pkg',
+          'flutter_pkg',
+          flutterLine: 'any',
+        );
+        initGitRepo(tempDir);
+
+        await runGenerate(tempDir, extra: ['--style', 'static']);
+        expect(
+          readWorkflow('_shorebird_ci_dart.yaml'),
+          isNot(contains('submodules: recursive')),
+        );
+        expect(
+          readWorkflow('_shorebird_ci_flutter.yaml'),
+          isNot(contains('submodules: recursive')),
+        );
+
+        File(p.join(tempDir.path, '.gitmodules')).writeAsStringSync(
+          '[submodule "sub"]\n\tpath = sub\n',
+        );
+        await runGenerate(tempDir, extra: ['--style', 'static']);
+        expect(
+          readWorkflow('_shorebird_ci_dart.yaml'),
+          contains('submodules: recursive'),
+        );
+        expect(
+          readWorkflow('_shorebird_ci_flutter.yaml'),
+          contains('submodules: recursive'),
+        );
+
+        await runGenerate(tempDir);
+        expect(_readMain(tempDir), contains('submodules: recursive'));
+      },
+    );
+
+    test('dorny/paths-filter passes merge_group base_ref', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+      expect(
+        _readMain(tempDir),
+        contains(r"base: ${{ github.event.merge_group.base_ref || '' }}"),
+      );
+    });
+
+    test(
+      'declarative shorebird_ci pubspec config flows into static jobs',
+      () async {
+        createPackage(tempDir, 'packages/foo', 'foo', addTestDir: true);
+        File(
+          p.join(tempDir.path, 'packages/foo/pubspec.yaml'),
+        ).writeAsStringSync(
+          '''
+shorebird_ci:
+  min_coverage: 100
+  runners:
+    - ubuntu-latest
+    - macos-latest
+    - windows-latest
+  needs_redis: true
+  report_on: lib/ bin/ routes/
+  coverage_excludes: "**/*.g.dart **/*.freezed.dart"
+  total_shards: 4
+''',
+          mode: FileMode.append,
+        );
+        initGitRepo(tempDir);
+
+        await runGenerate(tempDir, extra: ['--style', 'static']);
+        final mainYaml = _readMain(tempDir);
+        expect(mainYaml, contains('min_coverage: "100"'));
+        expect(
+          mainYaml,
+          contains(
+            'runners: \'["ubuntu-latest", "macos-latest", "windows-latest"]\'',
+          ),
+        );
+        expect(mainYaml, contains('needs_redis: true'));
+        expect(mainYaml, contains('report_on: "lib/ bin/ routes/"'));
+        expect(
+          mainYaml,
+          contains('coverage_excludes: "**/*.g.dart **/*.freezed.dart"'),
+        );
+        expect(mainYaml, contains('total_shards: 4'));
+        expect(
+          readWorkflow('_shorebird_ci_dart.yaml'),
+          contains('redis/redis-stack-server:latest'),
+        );
+      },
+    );
+
+    test(
+      'reusable workflows contain matrix, coverage, sharding, and routes',
+      () async {
+        createPackage(tempDir, 'packages/foo', 'foo', addTestDir: true);
+        createPackage(
+          tempDir,
+          'packages/flutter_pkg',
+          'flutter_pkg',
+          flutterLine: 'any',
+          addTestDir: true,
+        );
+        initGitRepo(tempDir);
+
+        await runGenerate(tempDir, extra: ['--style', 'static']);
+        final dartYaml = readWorkflow('_shorebird_ci_dart.yaml');
+        final flutterYaml = readWorkflow('_shorebird_ci_flutter.yaml');
+
+        for (final yaml in [dartYaml, flutterYaml]) {
+          expect(
+            yaml,
+            contains(
+              r"os: ${{ fromJSON(github.event_name == 'pull_request' && "
+              '\'["ubuntu-latest"]\' || inputs.runners) }}',
+            ),
+          );
+          expect(yaml, contains('defaults:\n      run:\n        shell: bash'));
+          expect(yaml, contains('set -f'));
+          expect(yaml, contains('xargs -n 50'));
+          expect(
+            yaml,
+            contains(r'COVERAGE_DIR="$(pwd -W 2>/dev/null || pwd)/coverage"'),
+          );
+          expect(
+            yaml,
+            contains(
+              'shorebird_ci check_coverage coverage/lcov.info '
+              r'--min "$MIN_COVERAGE"',
+            ),
+          );
+          expect(() => loadYaml(yaml), returnsNormally);
+        }
+
+        expect(dartYaml, contains('package_config_scoped.json'));
+        expect(dartYaml, contains('routes/.well-known'));
+      },
+    );
+  });
 }
 
 String _readMain(Directory repoRoot) {
   return File(
     p.join(repoRoot.path, '.github', 'workflows', 'shorebird_ci.yaml'),
   ).readAsStringSync();
+}
+
+String _readAll(Directory dir) => [
+  for (final f in dir.listSync().whereType<File>()) f.readAsStringSync(),
+].join('\n');
+
+/// Expects every job in every workflow under [repoRoot] to stay at
+/// `contents: read`, leaving out jobs named [except]. Returns the jobs, keyed
+/// by name.
+Map<String, Object?> _expectReadOnlyJobs(Directory repoRoot, {String? except}) {
+  final workflows = Directory(p.join(repoRoot.path, '.github', 'workflows'));
+  final jobs = <String, Object?>{};
+  for (final file in workflows.listSync().whereType<File>()) {
+    final doc = loadYaml(file.readAsStringSync()) as YamlMap;
+    jobs.addAll((doc['jobs'] as YamlMap).cast<String, Object?>());
+  }
+  expect(jobs, isNotEmpty);
+  for (final MapEntry(key: name, value: job) in jobs.entries) {
+    if (name == except) continue;
+    final permissions = (job! as YamlMap)['permissions'];
+    if (permissions != null) {
+      expect(permissions, {'contents': 'read'}, reason: name);
+    }
+  }
+  return jobs;
+}
+
+/// The main workflow cancels a superseded PR run, and only PR runs share a
+/// group.
+void _expectPrOnlyConcurrency(String yaml) {
+  final doc = loadYaml(yaml) as YamlMap;
+  final concurrency = doc['concurrency'] as YamlMap;
+  expect(
+    concurrency['group'],
+    [
+      r'${{ github.workflow }}',
+      r'${{ github.event.pull_request.number || github.run_id }}',
+    ].join('-'),
+  );
+  expect(concurrency['cancel-in-progress'], isTrue);
 }

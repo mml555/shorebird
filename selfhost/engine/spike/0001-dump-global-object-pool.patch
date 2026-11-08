@@ -1,0 +1,140 @@
+--- a/runtime/vm/compiler/aot/precompiler.cc
++++ b/runtime/vm/compiler/aot/precompiler.cc
+@@ -94,7 +94,17 @@
+ // against a plausible-looking empty table. Writing *something* matters because
+ // the release flow collects these paths as "supplement" artifacts.
+ //
++// SELFHOST spike (Spike A, selfhost/engine/spike/README.md): write the
++// finalized global object pool as JSONL — one entry per line with type,
++// patchability, class id, ToCString, and the structural material a
++// cross-build differ needs (array elements for ArgumentsDescriptors,
++// qualified name + token position for Functions/Closures, raw values for
++// immediates). Measurement only; never ship this flag.
+ DEFINE_FLAG(charp,
++            dump_global_object_pool_to,
++            nullptr,
++            "SELFHOST spike: dump the global object pool as JSONL");
++DEFINE_FLAG(charp,
+             print_class_table_link_info_to,
+             nullptr,
+             "SELFHOST stub: accepted for flutter_tools compatibility");
+@@ -153,6 +163,107 @@
+   file_close(file);
+ }
+ 
++// SELFHOST spike (Spike A): JSON-escape into a text buffer.
++[[maybe_unused]] void SelfhostJsonEscapeInto(BaseTextBuffer* buf,
++                                             const char* s) {
++  for (const char* p = s; *p != '\0'; p++) {
++    const uint8_t c = static_cast<uint8_t>(*p);
++    switch (c) {
++      case '"':
++        buf->AddString("\\\"");
++        break;
++      case '\\':
++        buf->AddString("\\\\");
++        break;
++      case '\n':
++        buf->AddString("\\n");
++        break;
++      case '\r':
++        buf->AddString("\\r");
++        break;
++      case '\t':
++        buf->AddString("\\t");
++        break;
++      default:
++        if (c < 0x20 || c >= 0x7f) {
++          buf->Printf("\\u%04x", c);
++        } else {
++          buf->Printf("%c", c);
++        }
++    }
++  }
++}
++
++// SELFHOST spike (Spike A): the structured pool dump behind
++// --dump_global_object_pool_to. Walks the FINALIZED pool (same site as
++// FLAG_disassemble's DebugPrint) so it sees exactly what the snapshot ships.
++[[maybe_unused]] void SelfhostDumpGlobalObjectPoolTo(const ObjectPool& pool,
++                                                     const char* filename) {
++  auto file_open = Dart::file_open_callback();
++  auto file_write = Dart::file_write_callback();
++  auto file_close = Dart::file_close_callback();
++  if ((file_open == nullptr) || (file_write == nullptr) ||
++      (file_close == nullptr)) {
++    OS::PrintErr("warning: Could not access file callbacks.\n");
++    return;
++  }
++  void* file = file_open(filename, /*write=*/true);
++  if (file == nullptr) {
++    OS::PrintErr("warning: Failed to write pool dump: %s\n", filename);
++    return;
++  }
++  Thread* thread = Thread::Current();
++  Zone* zone = thread->zone();
++  Object& obj = Object::Handle(zone);
++  Array& arr = Array::Handle(zone);
++  Object& elem = Object::Handle(zone);
++  Function& fn = Function::Handle(zone);
++  Closure& closure = Closure::Handle(zone);
++  for (intptr_t i = 0; i < pool.Length(); i++) {
++    TextBuffer line(256);
++    line.Printf("{\"i\":%" Pd ",\"type\":%d,\"patchable\":%d", i,
++                static_cast<int>(pool.TypeAt(i)),
++                static_cast<int>(pool.PatchableAt(i)));
++    if (pool.TypeAt(i) == ObjectPool::EntryType::kTaggedObject) {
++      obj = pool.ObjectAt(i);
++      line.Printf(",\"cid\":%" Pd, static_cast<intptr_t>(obj.GetClassId()));
++      line.AddString(",\"s\":\"");
++      SelfhostJsonEscapeInto(&line, obj.ToCString());
++      line.AddString("\"");
++      if (obj.IsArray() || (obj.GetClassId() == kImmutableArrayCid)) {
++        arr ^= obj.ptr();
++        line.Printf(",\"len\":%" Pd ",\"elems\":[", arr.Length());
++        const intptr_t n = arr.Length() < 16 ? arr.Length() : 16;
++        for (intptr_t j = 0; j < n; j++) {
++          elem = arr.At(j);
++          if (j > 0) line.AddString(",");
++          line.AddString("\"");
++          SelfhostJsonEscapeInto(&line, elem.ToCString());
++          line.AddString("\"");
++        }
++        line.AddString("]");
++      } else if (obj.IsFunction()) {
++        fn ^= obj.ptr();
++        line.AddString(",\"fq\":\"");
++        SelfhostJsonEscapeInto(&line, fn.ToLibNamePrefixedQualifiedCString());
++        line.Printf("\",\"tok\":%d",
++                    static_cast<int>(fn.token_pos().Serialize()));
++      } else if (obj.IsClosure()) {
++        closure ^= obj.ptr();
++        fn = closure.function();
++        line.AddString(",\"fq\":\"");
++        SelfhostJsonEscapeInto(&line, fn.ToLibNamePrefixedQualifiedCString());
++        line.Printf("\",\"tok\":%d",
++                    static_cast<int>(fn.token_pos().Serialize()));
++      }
++    } else {
++      line.Printf(",\"imm\":%" Pd, static_cast<intptr_t>(pool.RawValueAt(i)));
++    }
++    line.AddString("}\n");
++    file_write(line.buffer(), line.length(), file);
++  }
++  file_close(file);
++}
+ }  // namespace
+ 
+ DECLARE_FLAG(bool, print_flow_graph);
+@@ -670,6 +781,11 @@
+         if (FLAG_disassemble) {
+           THR_Print("Global object pool:\n");
+           pool.DebugPrint();
++        }
++        // SELFHOST spike (Spike A): structured JSONL dump of the same pool.
++        if (FLAG_dump_global_object_pool_to != nullptr) {
++          SelfhostDumpGlobalObjectPoolTo(pool,
++                                         FLAG_dump_global_object_pool_to);
+         }
+       }
+ 

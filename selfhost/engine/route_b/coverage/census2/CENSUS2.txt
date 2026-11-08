@@ -1,0 +1,125 @@
+==============================================================================
+D-CENSUS-2 -- narrow-v1 super admissibility, measured separately from
+mechanism lowerability. Read the module docstring before the numbers.
+==============================================================================
+
+------------------------------------------------------------------------------
+airgap_app
+------------------------------------------------------------------------------
+  censusVersion 2   analysisVersion 11   releaseIsSelf True   linked True
+
+  D0 REPRODUCTION  considered 19 vs 19, lowerable 18 vs 18 -> EXACT
+
+  Metric                               D0   D-CENSUS-2
+  ----------------------------------------------------
+  Total instance procedures            19           19
+  Fully lowerable                      18           19
+  Lowerability %                   94.74%      100.00%
+  Blocked                               1            0
+  Super mechanism-capable               0            1
+  Super narrow-v1 admissible            0            1
+
+  SUPER DETAIL -- the two numbers, not collapsed
+    methods containing a super site           1
+    super sites                               1
+      source shape zeroArguments               1
+    mechanism-capable methods                 1
+    narrow-v1 ADMISSIBLE methods              1
+    gap (capable but not admissible)          0
+
+  REMAINING BLOCKERS, after narrow-v1 admissibility
+  blocker                           occur  methods % corpus     SOLE % blocked
+  ------------------------------------------------------------------------------
+    blocked methods after narrow-v1           0
+
+------------------------------------------------------------------------------
+Wonderous
+------------------------------------------------------------------------------
+  censusVersion 2   analysisVersion 11   releaseIsSelf True   linked True
+
+  D0 REPRODUCTION  considered 1282 vs 1282, lowerable 1179 vs 1179 -> EXACT
+
+  Metric                               D0   D-CENSUS-2
+  ----------------------------------------------------
+  Total instance procedures          1282         1282
+  Fully lowerable                    1179         1208
+  Lowerability %                   91.97%       94.23%
+  Blocked                             103           74
+  Super mechanism-capable               0           34
+  Super narrow-v1 admissible            0           34
+
+  SUPER DETAIL -- the two numbers, not collapsed
+    methods containing a super site          43
+    super sites                              43
+      source shape hasArguments                9
+      source shape zeroArguments              34
+    mechanism-capable methods                34
+    narrow-v1 ADMISSIBLE methods             34
+    gap (capable but not admissible)          0
+    why a super method is not admissible:
+      shape:hasArguments                        9
+
+  REMAINING BLOCKERS, after narrow-v1 admissibility
+  blocker                           occur  methods % corpus     SOLE % blocked
+  ------------------------------------------------------------------------------
+  construct.method_tearoff             89       53    4.13%       49    66.22%
+  construct.super                      10       10    0.78%        8    10.81%
+  abi.named_parameters                  8        8    0.62%        7     9.46%
+  abi.generic                           2        2    0.16%        2     2.70%
+  receiver.compound_same_offset         6        2    0.16%        2     2.70%
+  construct.this_escape                 2        2    0.16%        1     1.35%
+  abi.optional_positionals              1        1    0.08%        1     1.35%
+    blocked methods after narrow-v1          74
+
+------------------------------------------------------------------------------
+localsend
+------------------------------------------------------------------------------
+  censusVersion 2   analysisVersion 11   releaseIsSelf True   linked True
+
+  D0 REPRODUCTION  considered 584 vs 584, lowerable 539 vs 539 -> EXACT
+
+  Metric                               D0   D-CENSUS-2
+  ----------------------------------------------------
+  Total instance procedures           584          584
+  Fully lowerable                     539          560
+  Lowerability %                   92.29%       95.89%
+  Blocked                              45           24
+  Super mechanism-capable               0           29
+  Super narrow-v1 admissible            0           29
+
+  SUPER DETAIL -- the two numbers, not collapsed
+    methods containing a super site          30
+    super sites                              30
+      source shape hasArguments                1
+      source shape zeroArguments              29
+    mechanism-capable methods                29
+    narrow-v1 ADMISSIBLE methods             29
+    gap (capable but not admissible)          0
+    why a super method is not admissible:
+      shape:hasArguments                        1
+
+  REMAINING BLOCKERS, after narrow-v1 admissibility
+  blocker                           occur  methods % corpus     SOLE % blocked
+  ------------------------------------------------------------------------------
+  construct.this_escape                12       12    2.05%       12    50.00%
+  abi.optional_positionals              3        3    0.51%        3    12.50%
+  construct.method_tearoff              4        3    0.51%        3    12.50%
+  receiver.compound_same_offset         3        3    0.51%        3    12.50%
+  abi.named_parameters                  2        2    0.34%        2     8.33%
+  construct.super                       1        1    0.17%        1     4.17%
+    blocked methods after narrow-v1          24
+
+==============================================================================
+REPLICATION -- sole-blocked after narrow-v1 admissibility
+==============================================================================
+  blocker                               Wonderous      localsend  replicated?
+  ------------------------------------------------------------------------------
+  construct.method_tearoff                     49              3  YES
+  construct.this_escape                         1             12  YES
+  abi.named_parameters                          7              2  YES
+  construct.super                               8              1  YES
+  receiver.compound_same_offset                 2              3  YES
+  abi.optional_positionals                      1              3  YES
+  abi.generic                                   2              0  no
+
+  "Replicated" means sole-blocked in BOTH, nothing about magnitude.

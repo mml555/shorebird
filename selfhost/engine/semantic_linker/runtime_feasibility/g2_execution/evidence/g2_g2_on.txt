@@ -1,0 +1,113 @@
+SL1-G2 mixed-execution probe -- arm g2_on
+out  : /Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_g2_on
+date : 2026-09-06T20:24:31Z
+dm   : 1 line(s) in args.gn
+sha256 cab2fa026bb4f7a77be00533a23e21e0fba8414606f39df0eafe7cfea20e49f4  gen_snapshot
+sha256 29145a47bb202679bc0d8bcf0e20c5134de561380b5da90b9fe12be27d8f7692  dartaotruntime
+sha256 544ac5e5dbb42814306afe558d298cf446520df3471af7f15dcc51fcd302e4f8  vm_platform.dill
+
+== host kernel + AOT snapshot ==
+   gen_kernel exit=0
+   gen_snapshot exit=0
+== pre-AOT import kernel (modules compile against the host's kernel) ==
+   gen_kernel(import) exit=0
+
+=================== TEST sanity ===================
+   dart2bytecode exit=0
+   bytecode sha256 b3d1fd3f0d58c48d9be965632376e0795d88278b0386500db695833fcdcf67c8 bytes 414
+   ORACLE: callHandler -> AOT
+   MODE ok   before attach: target: attachTarget -> AOT (want AOT)
+   MODE ok   before attach: knownHost: knownHost -> AOT (want AOT)
+   ATTACH: function noSuchFunctionAnywhere not found in package:dynamic_modules/g2_host.dart
+   MODE ok   nonexistent symbol: noSuchFunctionAnywhere -> NOT_FOUND (want NOT_FOUND)
+   ATTACH: library not found: package:dynamic_modules/nope.dart
+   MODE ok   nonexistent library: knownHost -> NOT_FOUND (want NOT_FOUND)
+   ATTACH: before -> IsInterpreted=0 HasBytecode=0
+   ATTACH: after  -> IsInterpreted=1 HasBytecode=1
+   ATTACH: pool len=1792, rewrote 0 slot(s) (other Code slots=120)
+   ATTACH: C++ invoke of target returned: NEW
+   CHECK ok   attach succeeded: true
+   MODE ok   after attach: target: attachTarget -> INTERPRETED (want INTERPRETED)
+   MODE ok   after attach: knownHost UNCHANGED: knownHost -> AOT (want AOT)
+   ATTACH: function noSuchFunctionAnywhere not found in package:dynamic_modules/g2_host.dart
+   MODE ok   after attach: nonexistent still NOT_FOUND: noSuchFunctionAnywhere -> NOT_FOUND (want NOT_FOUND)
+   G2-TEST PASS
+   run exit=0
+
+=================== TEST dispatch ===================
+   dart2bytecode exit=0
+   bytecode sha256 9e81efc015cd90ceb39348077856e2bf0b5be2b31131e0adb0e482f9b8da9ae0 bytes 606
+   ORACLE: callHandler -> AOT
+   CHECK ok   module returned a Handler: PatchHandler
+   MODE ok   module implementation is interpreted: PatchHandler.execute -> INTERPRETED (want INTERPRETED)
+   MODE ok   the AOT caller is still AOT: callHandler -> AOT (want AOT)
+   CHECK ok   AOT caller received the bytecode result: FROM-BYTECODE
+   MODE ok   caller still AOT after the round trip: callHandler -> AOT (want AOT)
+   G2-TEST PASS
+   run exit=0
+
+=================== TEST callback ===================
+   dart2bytecode exit=0
+   bytecode sha256 df99d19e8474685b942aa1428de8eb9596d4f6ecb2b78d64779bc3617ffb2cee bytes 506
+   ORACLE: callHandler -> AOT
+   MODE ok   module entry is interpreted: entry -> INTERPRETED (want INTERPRETED)
+   MODE ok   multiply is RETAINED AOT, not interpreted: multiply -> AOT (want AOT)
+   CHECK ok   bytecode call reached AOT multiply: 40
+   CHECK ok   multiply captured a stack trace
+   TRACE-BEGIN multiply
+   #0      multiply (package:dynamic_modules/g2_host.dart:61)
+   #1      entry (file:///var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.6YpKo68yxy/m_callback.dart)
+   #2      _loadDynamicModule (dart:_internal-patch/internal_patch.dart:477)
+   #3      loadDynamicModule (dart:_internal-patch/internal_patch.dart:470)
+   #4      main (package:dynamic_modules/g2_host.dart:182)
+   #5      _delayEntrypointInvocation.<anonymous closure> (dart:isolate-patch/isolate_patch.dart:311)
+   #6      _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:192)
+   TRACE-END
+   G2-TEST PASS
+   run exit=0
+
+=================== TEST identity ===================
+   dart2bytecode exit=0
+   bytecode sha256 38bfd99325a1f1417446a0d381708eefcfa870f7afc78eebccdaa80e1c72a479 bytes 850
+   ORACLE: callHandler -> AOT
+   CHECK ok   module returned the very same Box (identity, not equality): true
+   CHECK ok   module mutation B->A is visible to AOT: 99
+   CHECK ok   AOT retains a patch-defined object: PatchPayload
+   CHECK ok   patch retains the AOT object, by identity: true
+   CHECK ok   AOT mutation A->B is visible through the same reference: 7
+   G2-TEST PASS
+   run exit=0
+
+=================== TEST throw ===================
+   dart2bytecode exit=0
+   bytecode sha256 3d42c2d271b806409394a7a6824953483fb10b7aed247fd960041dd2dbd2a53a bytes 813
+   ORACLE: callHandler -> AOT
+   CHECK ok   AOT caught a throw that originated in bytecode: ModuleException
+   CHECK ok   it is the patch-DEFINED type, carrying its own payload: ModuleException(from-module)
+   CHECK ok   the throw produced a stack trace
+   TRACE-BEGIN module-throw
+   #0      raise (file:///var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.6YpKo68yxy/m_throw.dart)
+   #1      entry (file:///var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.6YpKo68yxy/m_throw.dart)
+   #2      _loadDynamicModule (dart:_internal-patch/internal_patch.dart:477)
+   #3      loadDynamicModule (dart:_internal-patch/internal_patch.dart:470)
+   #4      main (package:dynamic_modules/g2_host.dart:182)
+   #5      _delayEntrypointInvocation.<anonymous closure> (dart:isolate-patch/isolate_patch.dart:311)
+   #6      _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:192)
+   TRACE-END
+   MODE ok   multiply still AOT after a bytecode throw unwound into AOT: multiply -> AOT (want AOT)
+   CHECK ok   AOT still executes correctly after the unwind: 42
+   G2-TEST PASS
+   run exit=0
+
+=================== TEST catch ===================
+   dart2bytecode exit=0
+   bytecode sha256 77782472493002024ea35647c92532825ce5afa016f09a03c3137f58f07d1243 bytes 828
+   ORACLE: callHandler -> AOT
+   CHECK ok   module caught the host exception: MODULE-CAUGHT:HostException(from-host)|FINALLY:HOST-FINALLY-RAN|AGAIN:80
+   CHECK ok   the host finally ran during unwinding: HOST-FINALLY-RAN
+   MODE ok   multiply still AOT after exceptions crossed the boundary: multiply -> AOT (want AOT)
+   G2-TEST PASS
+   run exit=0
+
+SUMMARY arm=g2_on tests=6 failed=0
+G2 ARM PASS

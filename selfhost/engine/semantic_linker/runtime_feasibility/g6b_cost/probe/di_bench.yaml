@@ -1,0 +1,25 @@
+extendable:
+  - library: 'package:dynamic_modules/bench_host.dart'
+    class: 'Base'
+can-be-used-as-type:
+  - library: 'package:dynamic_modules/bench_host.dart'
+    class: 'Base'
+can-be-overridden:
+  - library: 'package:dynamic_modules/bench_host.dart'
+    class: 'Base'
+    member: 'work'
+callable:
+  - library: 'package:dynamic_modules/bench_host.dart'
+    class: 'Base'
+    member: ''
+  - library: 'package:dynamic_modules/bench_host.dart'
+    class: 'Base'
+    member: 'work'
+  - library: 'package:dynamic_modules/bench_host.dart'
+    member: 'hostCallee'
+  - library: 'package:dynamic_modules/bench_host.dart'
+    member: 'patchLoop'
+  - library: 'package:dynamic_modules/bench_host.dart'
+    member: 'patchSelfLoop'
+  - library: 'package:dynamic_modules/bench_host.dart'
+    member: 'patchWork'

@@ -1,0 +1,59 @@
+Route B (selfhost) -- allow ONE positional parameter on a dynamic-module entry
+point, so a replacement can name the receiver.
+
+Rung C was blocked here and nowhere else. A Route B replacement for an instance
+method is compiled as a synthetic TOP-LEVEL function, so the only way it can
+ever see the receiver is as an ordinary first parameter -- and the contract
+refused any parameter at all, before the interpreter was ever reached.
+
+Exactly one assumption changes. Still static, still no type parameters, still no
+named parameters, and TWO positional parameters are still refused, so this
+cannot quietly become a general arity change. No receiver intrinsic and no VM
+change accompanies it: the experiment is whether the EXISTING calling convention
+already delivers the receiver in argument 0.
+
+It does, on the host, against the reference installer:
+
+  C0  String value(RouteBThing self) => 'NEW-C0'   (self ignored)  -> NEW-C0
+  C1  String value(RouteBThing self) => self.label                 -> NEW-C1
+
+Contract pinned by probes/c_entrypoint_arity.sh (6/6), behaviour by
+probes/c_receiver.sh (4/4).
+
+Applies to third_party/dart @ 6b58bb3a, on top of 0001-patchable-static-calls.
+
+---
+diff --git a/pkg/dart2bytecode/lib/bytecode_generator.dart b/pkg/dart2bytecode/lib/bytecode_generator.dart
+index 7ba96aed..4e9f93e2 100644
+--- a/pkg/dart2bytecode/lib/bytecode_generator.dart
++++ b/pkg/dart2bytecode/lib/bytecode_generator.dart
+@@ -729,12 +729,27 @@ class BytecodeGenerator extends RecursiveVisitor {
+           if (dynModuleEntryPoint != null) {
+             throw 'Duplicate Dynamic Module Entry Points: $dynModuleEntryPoint and $member';
+           }
++          // Route B (selfhost): zero OR ONE positional parameter.
++          //
++          // The single relaxation being tested, and deliberately nothing more.
++          // A Route B replacement for an INSTANCE method is compiled as a
++          // synthetic top-level function, so the only way it can ever name the
++          // receiver is as an ordinary first parameter. Everything else about
++          // the contract is unchanged: still static, still no type parameters,
++          // still no named parameters, and two positional parameters are still
++          // refused so "relax the restriction" cannot quietly become a general
++          // arity change.
++          //
++          // No receiver intrinsic and no VM change accompanies this: the point
++          // is to find out whether the existing calling convention already
++          // delivers the receiver in argument 0.
+           if (!(member is Procedure &&
+               member.isStatic &&
+               function.typeParameters.isEmpty &&
+-              function.positionalParameters.isEmpty &&
++              function.positionalParameters.length <= 1 &&
+               function.namedParameters.isEmpty)) {
+-            throw 'Dynamic Module Entry Point should be a static no-argument method: $member';
++            throw 'Dynamic Module Entry Point should be a static method with '
++                'at most one positional parameter: $member';
+           }
+           dynModuleEntryPoint = member;
+           bytecodeComponent.dynModuleEntryPoint = objectTable.getHandle(member);

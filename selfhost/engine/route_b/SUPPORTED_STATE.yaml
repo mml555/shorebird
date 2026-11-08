@@ -1,0 +1,848 @@
+# cspell:words productionization localsend
+# ROUTE-B-PRODUCTIONIZATION-1 — the supported Route B iOS stack.
+#
+# One record. Future upgrades diff against this file rather than against a
+# conversation. Every identity below was verified in place, not transcribed:
+# the selector chain was read out of the artifacts, and the cell was audited.
+#
+# Regenerate the checks with:
+#   selfhost/engine/route_b/verify_supported_state.sh
+
+schema: route-b-supported-state/1
+qualified: 2026-09-03
+
+lineage:
+  # The revision this stack was QUALIFIED at. It cannot name the commit that
+  # writes it, so the verifier requires it to be an ancestor of (or equal to)
+  # HEAD rather than equal to it. Commits after it must not change product code
+  # without re-qualification; the repair commit that follows adds verification
+  # only.
+  # Re-qualified 2026-09-03 (FLUTTER-STORAGE-AUTHORITY-1). The previous
+  # identity was cba35016 / tree e3ebed51…, and it is superseded rather than
+  # deleted so a reader can tell WHICH product tree an older evidence document
+  # was measured against:
+  #   superseded: cli_revision cba3501615f80aa2c0f0c631366639899b0a7241
+  #               packages_shorebird_cli e3ebed51cabcc05423b85b4ea4b146fc734a5413
+  # What moved: `ArtifactOrigin` became the single artifact-storage authority,
+  # and the one call that downloads engine artifacts stopped escaping it. The
+  # SELECTORS did not move — same Flutter revision, same cell, same compiler
+  # archive, same analyzer, same updater — so this re-qualifies the producer
+  # tree, not the toolchain.
+  # Re-qualified 2026-09-04 (SELFHOST-DISTRIBUTION-1 gates 1-2). Previous
+  # identity retained rather than deleted, so an older evidence document naming
+  # it stays readable:
+  #   superseded: cli_revision 5920a8bf0a992618bfe7d1680c5439abd7a4f55f
+  #               bin_internal 67bb0a85a83177ad8afcf1765403e42a913e0377
+  # What moved: bin/internal/flutter.version now names a Flutter revision an
+  # operator can actually FETCH, and third_party/flutter/bin/internal/shared.sh
+  # clones from the fork that carries it. The CELL did not move, the compiler
+  # archive did not move, the analyzer did not move -- so this re-qualifies the
+  # selector, not the toolchain.
+  # Re-qualified 2026-09-04 (CI-NONINTERACTIVE-1). Previous identity retained:
+  #   superseded: cli_revision 46ee70af56c3814d079cc2466b092481c7904e76
+  #               packages_shorebird_cli 6c76e79a3ad1c86658a41b144dececb07ff5d3ca
+  # What moved: a REQUESTED confirmation now refuses instead of approving
+  # itself. release_command.dart and patch_command.dart guarded
+  # `logger.confirm` with `&& canAcceptUserInput`, so with nothing able to
+  # answer the confirmation was skipped and the mutation proceeded -- measured,
+  # `--confirm` with fd 0 closed published successfully. The cell, the compiler
+  # archive, the analyzer and the selector did not move.
+  cli_revision: 5cc178ef070cf74f4b9420e8905319e667da04ef
+  cli_contains: 6b4f6c422bab55143ef04c8f43f92015ee3b3feb   # private-name resolution for constructions
+  # THE FLUTTER REVISION, and it is now the one that actually selects the
+  # supported cell. e64eb0af's own engine.version names the SUPERSEDED cell
+  # cd848320; SELFHOST-CLEANROOM-1 found the record naming e64eb0af while the
+  # running checkout's HEAD carried the supported cell, and the verifier passed
+  # because it read HEAD's blob. It now reads the blob AT THIS REVISION.
+  #
+  #   superseded: flutter_selector e64eb0af52e1c43c3b21a39556d789538d0df9b3
+  flutter_selector: 5b180d224df04a267a19888c3f344474e243b382
+  flutter_selector_durability:
+    remote: https://github.com/mml555/shorebird-flutter.git
+    refs:
+      - refs/heads/selfhost/3.44.8-v13-cell-f85251f3
+      - refs/tags/selfhost-flutter-cell-f85251f3   # annotated; immutable intent
+    parent: e64eb0af52e1c43c3b21a39556d789538d0df9b3
+    tree: 0c265f64c428e94d0a1a5afcbd6431ea6a302b1e
+    delta_from_parent: >-
+      exactly one file and one line -- bin/internal/engine.version, cd848320…
+      -> f85251f3…. Nothing else.
+    # PROVENANCE NOTE, stated because the two are not the same commit. The
+    # ANDROID-FINAL-STACK-2 physical run built from 7b253b2a0a47d8eacb52e50c
+    # 78c2c548ba1e5d44, made in a clone; this revision was made in the qualified
+    # checkout. Same parent, and the IDENTICAL tree 0c265f64 -- and Flutter's
+    # behaviour depends on the blob in the tree, not on which commit object
+    # points at it. Recorded rather than glossed, so nobody has to rediscover it.
+    physically_qualified_commit: 7b253b2a0a47d8eacb52e50c78c2c548ba1e5d44
+    same_tree_as_qualified: true
+    # THE REMOTE MUST ALSO CARRY UPSTREAM'S VERSION TAGS. Flutter derives its
+    # version with `git describe --match '*.*.*' --first-parent --long --tags`;
+    # a remote with none yields 0.0.0-unknown, `flutter pub get` then refuses
+    # flutter_test, and NO APP CAN BE BUILT. Moving the default clone URL to
+    # this fork in SELFHOST-DISTRIBUTION-1 did not carry the tags across -- the
+    # fork had 3 where upstream has 1102 -- and artifact hydration does not
+    # notice, because precache needs no version solving. Found by
+    # CI-NONINTERACTIVE-1, fixed by pushing the tags, and now asserted by
+    # bootstrap_selfhost.sh so it cannot regress silently.
+    version_tags_on_remote: 1101
+    version_resolves_to: 3.46.0-1.0.pre-167
+    clone_url_default: >-
+      third_party/flutter/bin/internal/shared.sh defaults to this fork.
+      shorebirdtech/flutter does NOT carry the selector, and a clean bootstrap
+      against it died with "upload-pack: not our ref".
+      SHOREBIRD_FLUTTER_GIT_URL still overrides for a local mirror.
+  # MOVED 2026-09-04 by ANDROID-FINAL-STACK-2, from
+  # cd848320d605ff8af5060cabf9a8d1b35853f752. The predecessor is NOT deleted --
+  # it is the cell every iOS qualification in this record was measured against,
+  # and it is retained under `cells:` below with that role stated. What changed
+  # is that the supported cell now also carries Android, and the Android
+  # release -> patch -> physical activation sequence was qualified against it.
+  #
+  # The 16 macOS/iOS members are the BYTE-IDENTICAL bytes cd848320 published, so
+  # this move does not disturb any iOS claim in this file; it widens the cell.
+  cell_address: f85251f344600ae08196925a174e9cff8f0ff18e
+  compiler_archive_sha256: 7975b27c724240e720f77d338c80fcace5296148bd78c17588cee1b089e3fb22
+  compiler_archive_bytes: 19256864
+  analyzer_sha256: 67741a082fcde5a9e2067fdfad1deb7ad69cb89b8d23aba78ed31b5afb6c2f5d
+  updater_revision: af6e842ccf87
+
+  # THE QUALIFIED CLI PRODUCT TREE, as git tree objects at cli_revision.
+  #
+  # Ancestry is not enough. A descendant can change route_b_producer.dart, leave
+  # flutter.version alone, keep a clean checkout, and still satisfy "cli_revision
+  # is an ancestor of HEAD" -- while the patch producer in use is no longer the
+  # qualified one. That is precisely the drift this record exists to catch, so it
+  # is the BYTES that answer, not a judgement about whether a commit was
+  # "verification-only".
+  #
+  # Deliberately whole-package, tests included: a change to the producer's tests
+  # is a change to what "qualified" was established against. Re-qualifying is a
+  # matter of re-running the verifier and updating two lines here.
+  cli_product_tree:
+    packages_shorebird_cli: 486a7714320f795d5d8d3f9f132f192b58b29641
+    bin_internal: 8ae6081fb375ed33515e8ae0d61bc4ecdb51b990
+  producer_engine_revision: dfa2b24ac38477f3705ff0357530f33fe09474b8   # built in; NOT the address
+  fallback_engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b
+  dart_revision: 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+
+# CELLS PUBLISHED BY THIS PROGRAMME, and what each one's identity actually
+# covers. `lineage.cell_address` above names the SUPPORTED cell and is
+# unchanged; this block exists because a second cell now exists and a reader
+# must be able to tell them apart without reading a conversation.
+cells:
+  cd848320d605ff8af5060cabf9a8d1b35853f752:
+    scope: macos-ios
+    members: 16
+    status: >-
+      SUPERSEDED 2026-09-04 — the PREVIOUS iOS-qualified cell. Retained, not
+      deleted: every iOS qualification recorded in this file was measured
+      against it, so an older evidence document naming this address is still
+      readable. Its 16 members are byte-identical to 14 of the successor's plus
+      engine_stamp.json in canonical form, so nothing in the iOS record is
+      invalidated by the move.
+    producer_lineage: dfa2b24ac38477f3705ff0357530f33fe09474b8
+    android: none published; a release-mode Android request 404s by design
+
+  f85251f344600ae08196925a174e9cff8f0ff18e:
+    scope: macos-ios-android
+    members: 30
+    minted: 2026-09-04 (ANDROID-CELL-SUPPLY-2)
+    status: SUPPORTED — this is lineage.cell_address (moved here 2026-09-04)
+    # `proven` below is the RELEASE-side evidence from the mint
+    # (ANDROID-CELL-SUPPLY-2); `physically_qualified` is the device evidence
+    # that licensed the selector move (ANDROID-FINAL-STACK-2). Both are current.
+    #
+    # This comment previously said an Android PATCH had not been qualified and
+    # that the cell was therefore not the supported stack. That was true when
+    # the cell was minted and stopped being true on 2026-09-04; it is replaced
+    # rather than annotated, because a status line that contradicts the
+    # authoritative fields below is worse than no comment at all.
+    proven: >-
+      `shorebird release android --artifact apk` exit 0 from an empty engine
+      cache and an empty Gradle home; the 24-object measured workflow closure
+      resolved as 14 identity-bearing from this cell and 10 cache/transport via
+      fallback; zero identity requests answered by a redirect; all three ABIs in
+      the APK carry OUR engine revision and none carries the fallback's.
+    physically_qualified: >-
+      2026-09-04 (ANDROID-FINAL-STACK-2) on a wired CPH2551. Fresh release ->
+      ordinary bidiff patch -> self-hosted discovery/download -> STAGED BUT NOT
+      EXECUTING -> restart -> patched code executing. Markers read mechanically
+      from the accessibility tree and corroborated by screenshots; the updater
+      reported installs=1, install_failures=0, update_failures=0 for a single
+      client. See evidence/android-final-stack-2/RESULT.md.
+    # PROVENANCE IS PER-PLATFORM. There is deliberately NO single
+    # producer_engine_revision here: 16 of the 30 members are the byte-identical
+    # bytes cd848320 published, produced by dfa2b24a, and relabelling them with
+    # the Android producer would be a false claim about 16 artifacts.
+    producer_lineage:
+      macos_ios_members: dfa2b24ac38477f3705ff0357530f33fe09474b8
+      android_members: f1a59b8a1609c51397601c36d586ad7763d57153
+      android_parent: dfa2b24ac38477f3705ff0357530f33fe09474b8
+      android_delta: >-
+        one file, engine/src/flutter/lib/snapshot/BUILD.gn — an applicability
+        gate so analyze_snapshot is not demanded for a 32-bit target Dart
+        declines to build it for. 76 changed lines. Reviewable at
+        selfhost/engine/route_b/patches/0001-gate-macos-analyze-snapshot-applicability.patch
+      # SOURCE DURABILITY. A cell whose executable members were produced by a
+      # commit that exists on one machine is authenticated but not
+      # repository-closed: nobody can rebuild or review the bytes. Both
+      # producers are on the durable engine fork, and each is advertised at a
+      # ref that points AT the commit -- reachability is not enough, because a
+      # force-push takes reachability away and a ref pointing at the commit does
+      # not. Checked by verify_engine_producer_durable.sh, which
+      # verify_supported_state.sh now runs.
+      durable_remote: https://github.com/mml555/shorebird-flutter.git
+      durable_refs:
+        android_members:
+          - refs/heads/route-b-2c-android
+          - refs/tags/acs2-android-producer      # annotated; immutable intent
+        macos_ios_members:
+          - refs/heads/route-b-2c-candidate
+          - refs/tags/acs2-macos-ios-producer    # annotated; immutable intent
+      durability_strength: >-
+        the Android producer is checked at FULL strength — the published diff
+        must equal the banked patch, so a rebuilt or amended commit with the
+        same message fails. The macOS/iOS producer is upstream-derived and this
+        repo banks no patch for it, so the honest claim there is reachability.
+    member_provenance:
+      byte_identical_to_cd848320: 14
+      identical_in_canonical_form: 1     # engine_stamp.json, template vs rendered
+      regenerated: 1                     # artifacts_manifest.yaml, target ios -> ios+android
+      newly_built_by_us: 14
+    fallback_engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b
+    evidence: evidence/android-cell-supply-2/
+
+# The chain a build actually walks. Each link was read from the artifact itself.
+selector_chain:
+  links:
+    - "CLI bin/internal/flutter.version        -> e64eb0af52e1c43c3b21a39556d789538d0df9b3"
+    - "F4  bin/internal/engine.version         -> f85251f344600ae08196925a174e9cff8f0ff18e"
+    - "cell f85251f3 route-b-compiler-darwin-arm64.zip -> 7975b27c…fb22"
+  # The compiler archive digest is UNCHANGED across the move, and that is the
+  # point: it is one of the 14 members carried over byte-for-byte, so the Route
+  # B compiler the iOS qualification was performed with is the same file.
+  #   superseded: F4 engine.version -> cd848320d605ff8af5060cabf9a8d1b35853f752
+  # F4's engine.version is a COMMITTED blob at F4's HEAD and its tree is clean.
+  # No uncommitted engine.version is part of this lineage.
+  engine_version_committed: true
+
+analysis_versions:
+  known: [11, 12, 13]
+  # A document declaring anything else is REFUSED. A missing v11 field is never
+  # read as an empty list -- absent, empty and populated are three states.
+  unknown_version_behaviour: refuse
+  v12_adds: privateConstructions
+  v13_adds: releasePrivateConstructions
+
+retention_policy:
+  policy: p2
+  # Private classes are retained so their members are patch-targetable;
+  # construction is withheld separately and granted per constructor.
+  constructor_grants: derived automatically from the release's own census
+  blanket_constructor_grants: rejected   # measured +8.35% AOT at 200 classes
+
+supported:
+  - instance method body replacement, lowered to a top-level function
+  - exact narrow-v1 `super.method()`
+  - private member access where the release manifest retained that exact member
+  - private construction, EXACT constructor, where the RELEASE version of that
+    same method already constructed it and the manifest retained it
+
+unsupported:
+  # Refused clearly, not silently. Each was measured, not assumed.
+  - candidate-introduced private construction (a constructor the released
+    version of that same method never used, even if globally retained)
+  - method tear-offs
+  - named / optional-positional parameter shape changes
+  - private non-construction references (private methods, private top-levels)
+    that the manifest did not retain
+  - blanket private-constructor access
+  - receiver rewrites the lowering cannot express
+
+# WHERE THE CELL BYTES COME FROM. The descriptor below authenticates 30 member
+# digests, but a digest is not a byte source: SELFHOST-CLEANROOM-1 found all 30
+# absent from a fresh clone, with no release asset and no recorded location, and
+# established that rebuilding is not an alternative because the address is a
+# digest over exact bytes and the compiler archive is non-byte-reproducible.
+#
+# So the cell is DISTRIBUTION-ONLY, and this is the distribution. The bytes are
+# the ones already published and qualified -- not a rebuild, which would be a
+# different cell.
+cell_distribution:
+  cell_address: f85251f344600ae08196925a174e9cff8f0ff18e
+  members: 30
+  bundle: cell-f85251f344600ae08196925a174e9cff8f0ff18e.tar
+  bundle_sha256: 63f3104d6c45a0d1a937ae0814a32361a07bd920067a8c105c35fff93898d333
+  bundle_bytes: 550801920
+  layout_sha256: 476982bed83ae4206d3352209faa288bb1612dc5c5a3bf4eb2e25a581cba7f77
+  descriptor_sha256: f85251f344600ae08196925a174e9cff8f0ff18e62de25fd8c03db748be1f84b
+  # NOT "immutable" -- GitHub reports this release as `immutable: false`, and
+  # that was checked rather than assumed. The guarantee is the one that matters
+  # and it is stronger in the way that matters: DURABLY DISTRIBUTED,
+  # CONTENT-ADDRESSED, AND FAIL-CLOSED AGAINST REPLACEMENT. The bundle digest is
+  # committed here and the cell address authenticates its members, so a replaced
+  # asset stops matching bundle_sha256, stops reconstructing the address, and
+  # fails verification instead of silently becoming the supported cell.
+  location:
+    kind: github-release-asset
+    repo: https://github.com/mml555/shorebird
+    tag: cell-f85251f3
+    assets:
+      - cell-f85251f344600ae08196925a174e9cff8f0ff18e.tar
+      - cell_manifest.v2
+      - LAYOUT.txt
+      - MANIFEST.sha256
+      - CELL.txt
+  # LAYOUT.txt gives each member's overlay-relative path, RAW sha256 and size,
+  # so a consumer reconstructs the CDN hierarchy without knowing anything about
+  # our tree. cell_manifest.v2 carries the CANONICAL-form digests the address is
+  # computed over -- the two differ for the three members that embed the address
+  # itself, which is why both are shipped.
+  reconstruct: selfhost/scripts/sd1_hydrate_cell.sh
+  verify: selfhost/engine/route_b/verify_cell_members.sh <address> --overlay <dir>
+  evidence: evidence/distribution-1/RESULT.md
+
+# CAN ANOTHER OPERATOR DEPLOY THIS STACK? A separate question from whether the
+# stack works, and it currently has a different answer.
+#
+# Kept distinct from product_surfaces below ON PURPOSE. Those statuses are about
+# MECHANISMS physically qualified on the supported cell, and they stand. This
+# field is about DISTRIBUTION, and it does not. Collapsing the two would let a
+# reader conclude from "iOS: SUPPORTED" that a third party can deploy iOS, which
+# is false today.
+#
+#   capability qualified  !=  product distributable
+distribution:
+  # SELFHOST-DISTRIBUTION-1 closed every defect CLEANROOM-1 found, and
+  # SELFHOST-CLEANROOM-2 re-proved the whole path in the same hostile room --
+  # against the published tag, not merely its parent. This comment previously
+  # said the repairs were "not yet re-proven" and that the status was therefore
+  # not OK; that was true between the two lanes and stopped being true when
+  # CLEANROOM-2 passed. Replaced rather than annotated, because a comment
+  # contradicting the field below it is worse than no comment.
+  status: OK
+  reason: SELFHOST-CLEANROOM-2 reproduced the stack in a sealed cleanroom
+  assessed: 2026-09-04 (SELFHOST-CLEANROOM-1, negative)
+  repaired: 2026-09-04 (SELFHOST-DISTRIBUTION-1)
+  reproved: 2026-09-04 (SELFHOST-CLEANROOM-2)
+  cleanroom_reproducible: true
+  # What "true" rests on, measured with the qualification machine's paths and
+  # caches provably unreadable (a Seatbelt profile, with the denial asserted per
+  # path AND the control that those paths are readable outside it):
+  #   an annotated selfhost tag (immutable intent) resolves anonymously
+  #   the bootstrap completes from that tag alone
+  #   the record lints clean with no external dependency
+  #   cli_revision and flutter_selector resolve
+  #   the RECORDED selector's engine.version IS the recorded cell
+  #   the cell hydrates 30/30 from the durable distribution
+  #   SUPPORTED STATE VERIFIED
+  #   iOS and Android release-side artifacts hydrate, no devices
+  #   18 of 18 distributed objects served from the hydrated overlay,
+  #     0 from upstream, 0 non-200 responses
+  # The cleanroom found two real defects in the repair before passing -- a
+  # bootstrap that hydrated where neither consumer reads, and an audit script
+  # with a hard-coded path on the qualification machine. Both are fixed; that
+  # is the argument for running it at all.
+  cleanroom_evidence: evidence/cleanroom-2/RESULT.md
+  proven_at_revision: df037532d3ce613651e22274abbd82bedf1820e2
+  # And re-proven against the published tag itself, which is what an operator
+  # pins. The tag had to be cut after the first passing run -- a commit cannot
+  # name itself -- so this line is the confirmation that the pinned artifact,
+  # not merely its parent, reproduces.
+  proven_at_tag: selfhost-v1.1.1
+  proven_at_tag_revision: bdb234ab938fc0570e499d800928a0c3d640bfe1
+  evidence: evidence/cleanroom-1/RESULT.md
+  repair_evidence: evidence/distribution-1/RESULT.md
+  repairs:
+    - >-
+      a durable distribution ref: selfhost-v1.1.1 (annotated, immutable intent)
+      carries the current record, the cell-distribution metadata, the corrected
+      selector and the bootstrap path. A bare clone no longer has to know about
+      a branch. DO NOT PIN selfhost-v1.1.0 -- an earlier bullet here named it,
+      and its bootstrap cannot complete: it hydrated the cell where neither the
+      verifier nor the CDN reads. It is kept because refs are provenance, and
+      bootstrap_selfhost.sh auto-discovers the NEWEST selfhost-v* tag so an
+      operator following the documented path does not land on it.
+    - >-
+      the 30 cell member BYTES are published as release cell-f85251f3 with the
+      bundle digest committed here. Proven: downloaded into an empty directory,
+      hydrated 30/30, address recomputed, and served 30/30 through a real Caddy
+      CDN whose overlay is the reconstructed tree -- with the local overlay
+      provably denied by a Seatbelt profile.
+    - >-
+      the Flutter selector is now 5b180d22, pushed to the fork at a branch and
+      an annotated tag, and shared.sh clones from that fork by default. The old
+      selector e64eb0af selected the SUPERSEDED cell and was unfetchable.
+    - >-
+      the verifier reads engine.version at the RECORDED selector rather than at
+      HEAD, and checks HEAD IS that selector. Falsified against the exact state
+      CLEANROOM-1 found.
+    - >-
+      SHOREBIRD_ROOT has no machine-specific default: environment, then
+      .runtime_root written by the bootstrap, then a failure naming both.
+    - >-
+      the record's format check no longer needs PyYAML (lib/record_lint.py,
+      pure stdlib), so a missing module can no longer be reported as a defect
+      in the record.
+  # NOT repaired, and it is not a defect -- it is a property. The cell address
+  # is a digest over exact bytes and the compiler archive is
+  # non-byte-reproducible, so the cell can be DISTRIBUTED but never re-derived.
+  # Recorded here so nobody plans a "rebuild it" recovery path.
+  cell_is_distribution_only: true
+  # THE 2026-09-04 CLEANROOM-1 ASSESSMENT, kept as history. Every item under
+  # `not_durable_at_assessment` has since been repaired -- see `repairs` below
+  # and `cleanroom_evidence` for the re-proof. Retained rather than deleted so
+  # an older evidence document naming these gaps stays readable.
+  durable_at_assessment:
+    - both repositories clone anonymously
+    - cli_revision resolves in the durable repository
+    - both engine producers resolve at refs pointing AT the commit
+    - the cell DESCRIPTOR is committed, so membership and all 30 digests are durable
+    - the cell address recomputes from that descriptor inside the cleanroom
+  not_durable_at_assessment:   # ALL REPAIRED — see `repairs`
+    - >-
+      all 30 addressed cell member BYTES are absent from a fresh clone.
+      selfhost/cdn/overlay/* is gitignored, no release asset carries them, and
+      the record names no location to fetch them from. The CDN that serves them
+      reads that same local directory, so it is not an independent source.
+    - >-
+      rebuilding is NOT an equivalent recovery path: the address is a digest
+      over exact bytes and the Route B compiler archive is recorded as
+      non-byte-reproducible, so a rebuild yields a DIFFERENT address. The cell
+      is distribution-only.
+    - >-
+      flutter_selector e64eb0af… is not fetchable from any durable remote (the
+      CLI bootstrap fails with "not our ref"), and it selects the SUPERSEDED
+      cell cd848320…. The revision that selects the supported cell,
+      5b180d224df04a267a19888c3f344474e243b382, is unrecorded and unpushed.
+    - >-
+      no immutable ref names the current record: the newest selfhost-v* tag
+      carries none, and only the mutable tip of a non-default branch describes
+      the current stack.
+  # The one-line summary a reader should take away. It said "the self-hosted
+  # distribution is not reproducible from durable sources" until 2026-09-04,
+  # which was the CLEANROOM-1 verdict and is now false -- and it sat directly
+  # under `status: OK`, contradicting it.
+  summary: >-
+    the runtime stack is qualified AND the self-hosted distribution reproduces
+    from durable sources: an annotated tag, two anonymously-cloneable
+    repositories, and a content-addressed cell distribution. Verified in a
+    sealed cleanroom with the qualification machine unreadable.
+
+# CAN AN AUTOMATED JOB RUN THIS WITHOUT A HUMAN? Certified 2026-09-04 by
+# CI-NONINTERACTIVE-1: bootstrap -> authenticate -> release -> patch ->
+# publish/promote, with file descriptor 0 CLOSED for every invocation.
+ci_noninteractive:
+  status: CERTIFIED
+  qualified: 2026-09-04 (CI-NONINTERACTIVE-1)
+  evidence: evidence/ci-noninteractive-1/RESULT.md
+  # STDIN CLOSED MEANS `0<&-`, NOT `< /dev/null`. Dart classifies stdin by
+  # st_mode and /dev/null is a character device, which it reports as a
+  # terminal -- so under /dev/null `stdin.hasTerminal` is TRUE and the CLI
+  # believes it can prompt. A contract written against /dev/null tests the
+  # wrong thing. Measured both ways in this lane.
+  certified_stdin_shape: fd 0 closed (0<&-)
+  # The full declared environment. env -i strips everything, so this list IS
+  # the contract: nothing reaches the CLI by accident.
+  required_environment:
+    - SHOREBIRD_TOKEN            # an sb_api_ key; never printed
+    - SHOREBIRD_HOSTED_URL       # the operator's control plane
+    - SHOREBIRD_ARTIFACT_ORIGIN  # or FLUTTER_STORAGE_BASE_URL
+    - ANDROID_HOME               # and ANDROID_SDK_ROOT
+    - JAVA_HOME
+    - GRADLE_USER_HOME           # HOME does NOT cover this -- see below
+    - CI                         # any value; presence alone suppresses prompting
+  # Found by failure, in this order, and each fails closed with its remedy
+  # named rather than prompting:
+  prerequisites:
+    - >-
+      the app needs the INTERNET permission; a `flutter create` app lacks it.
+      `shorebird doctor --fix` supplies it and runs unattended (exit 0).
+    - >-
+      GRADLE_USER_HOME must be set explicitly. Gradle is a Java process and
+      resolves user.home from PASSWD, not from the HOME environment variable,
+      so pointing HOME at a clean directory still sends Gradle to the invoking
+      user's ~/.gradle. This stays invisible on any machine where that
+      directory happens to be readable and warm.
+    - >-
+      the Flutter remote must carry upstream's version tags, or the SDK
+      resolves 0.0.0-unknown and `flutter pub get` refuses flutter_test. See
+      lineage.flutter_selector_durability.
+  # Every mutable target is explicit or refused. Nothing is ever chosen for you.
+  deterministic_selection:
+    app: shorebird.yaml app_id
+    release: >-
+      --release-version. Omitted non-interactively the CLI does NOT prompt and
+      does NOT pick the first object: it warns and DERIVES the version from
+      pubspec, then proceeds; if that version has no release it exits 70.
+      Measured with four releases present. CI should pass the flag, because
+      derivation depends on a mutable pubspec.
+    track: >-
+      --track on `patch` publishes and assigns the track, auto-creating the
+      channel. `patches set-track` moves a patch to an EXISTING channel. Both
+      unattended. `patches promote` is deprecated in favour of set-track.
+    mandatory_args: >-
+      `patches set-track` declares --release, --patch and --track mandatory, so
+      the arg parser refuses before the command runs -- deterministic by
+      construction, not by a runtime check. Measured: omitting one exits 70.
+  confirmation:
+    contract: >-
+      an ordinary invocation does not prompt at all: `confirm` comes from a
+      hidden --confirm flag that defaults to false (upstream #3223). When
+      --confirm IS passed and nothing can answer, the CLI now REFUSES (exit 64)
+      and names the prompt. It previously approved itself silently, which is
+      the defect this lane fixed.
+    bypass: --no-confirm
+  # The one place a genuine prompt remains, and it refuses rather than hanging.
+  documented_refusals:
+    - >-
+      `patches set-track --track <NEW>` asks "No channel named X found. Do you
+      want to create it?" and has no flag to skip it. It refuses with exit 64
+      and names the prompt. Create the channel by publishing a patch with
+      --track=<name>, which auto-creates it.
+  secret_handling: >-
+      the token appears in 0 captured stdout/stderr files, and 0 audit rows
+      contain it. Every mutation is attributed to a credential FINGERPRINT
+      (actor_credential, e.g. bootstrap:1b1486344a85) with a request_id.
+  proven_run:
+    release_id: 10
+    patch_numbers: [1, 2]
+    audit_events: 35
+    interactive_prompts_on_the_certified_path: 0
+
+product_surfaces:
+  # WHICH INTEGRATION SHAPES this stack supports, as distinct from which Dart
+  # constructs. Recorded because "unsupported construct" and "unsupported
+  # surface" have different remediations and collapsing them hides the second.
+  standalone_flutter_app:
+    ios: SUPPORTED — physically qualified, see physical_device_qualification
+    android:
+      status: SUPPORTED — physically qualified 2026-09-04 against cell f85251f3…
+      qualified: 2026-09-04 (ANDROID-FINAL-STACK-2)
+      cell: f85251f344600ae08196925a174e9cff8f0ff18e
+      # WHAT WAS PROVEN, in one line each, because "SUPPORTED" is the strongest
+      # word in this file and it should be readable without opening the lane
+      # document:
+      #   release  — `shorebird release android --artifact apk` exit 0 from an
+      #              empty engine cache and an empty Gradle home; all 14 Android
+      #              identity members served from the cell, none via fallback;
+      #              all three packaged libflutter.so carry OUR producer
+      #              revision and not the fallback's
+      #   patch    — ordinary bidiff producer, patch 1, three artifacts each
+      #              ~0.2% of the release artifact they patch; the AOT linker
+      #              artifact 404'd throughout and no Route B compiler was
+      #              fetched
+      #   device   — CPH2551: release marker, then STILL the release marker
+      #              after download/install, then the patched marker only after
+      #              a restart; installs=1, install_failures=0,
+      #              update_failures=0, one client
+      # The middle observation is the load-bearing one: without it a changed
+      # marker is equally consistent with a rebuilt install.
+      what_is_not_covered: >-
+        iOS Add-to-App (separately UNSUPPORTED, below), Android app-bundle
+        distribution through the Play Store, and any Android ABI beyond the
+        three shipped (armeabi-v7a, arm64-v8a, x86_64).
+      evidence: evidence/android-final-stack-2/RESULT.md
+      supporting_evidence: evidence/android-cell-supply-2/RESULT.md
+
+      # HISTORY, nested so it cannot be read as current and cannot collide with
+      # the keys above.
+      #
+      # A DEFECT THIS RESTRUCTURE FIXES, recorded because it is the more serious
+      # of the two problems here. The 2026-09-04 wording pass added a current
+      # `evidence:` key while leaving the older `evidence:` line at the SAME
+      # level, so the mapping had a duplicate key and the last one won -- the
+      # authoritative `evidence` for a SUPPORTED surface silently resolved to
+      # the document of the lane that had measured it UNSUPPORTED. A YAML
+      # duplicate key does not error, it just quietly takes the wrong value,
+      # which is exactly why the record's own machine-readability check exists.
+      # Two forward-looking keys (`to_support`, `remaining_for_support`) were
+      # also left at the authoritative level, where they contradicted the status
+      # line above them.
+      superseded_assessment:
+        status: UNSUPPORTED ON THIS CELL
+        assessed: 2026-09-03 (ANDROID-FINAL-STACK-1)
+        cell: cd848320d605ff8af5060cabf9a8d1b35853f752
+        evidence: evidence/android-final-stack-1/RESULT.md
+        # Still true OF THAT CELL, and that is why the move took a new cell
+        # rather than a fix: `shorebird release android` cannot build against
+        # cd848320 because the cell publishes NO Android engine artifacts, the
+        # pinned Flutter's engine.version IS the cell, and
+        # `android-arm64-release/` is in the CDN's @must_be_local matcher — so
+        # the 404 is a deliberate protection, not a gap to route around.
+        finding: >-
+          the Android release → patch → discovery → download → physical
+          activation path was already sound on that day's CLI, producer and
+          control plane, proven end to end on a STOCK engine (309dd657…) with an
+          on-screen marker change on a physical CPH2551. What was missing was a
+          cell that served Android engine artifacts. Android patching is bidiff;
+          it needs neither Route B nor the AOT linker.
+        what_it_asked_for: >-
+          publish and qualify Android engine artifacts for the cell (at minimum
+          android-arm64-release, which @must_be_local requires be genuinely
+          ours). DONE 2026-09-04 on cell f85251f3…, for all three release ABIs
+          and the four Maven modules.
+        # An earlier version of this row read "SUPPORTED — see ANDROID rows in
+        # WORKFLOW_CERTIFICATION.md", written during the ADD-TO-APP-1 wording
+        # pass. That was an over-claim: the re-certification against the final
+        # stack is entirely iOS (rows 1 and 7 via 6F/6G, the rest carried
+        # forward), and ANDROID-FINAL-STACK-1 then measured the opposite.
+
+  ios_add_to_app:
+    status: UNSUPPORTED
+    assessed: 2026-09-03 (ADD-TO-APP-1)
+    # Assessed, not implemented. Four independent blockers, measured:
+    #  1 the cell publishes a device-only Flutter.xcframework, so
+    #    `flutter build ios-framework` cannot assemble the module's
+    #    App.xcframework (its simulator slice builds against the debug engine)
+    #  2 the control plane refuses to ACTIVATE a release whose only arch is
+    #    `xcframework` (Api._requiredArchs is the full-app set)
+    #  3 Route B is not implemented for ios-framework at all
+    #  4 an ios-framework CODE patch needs Shorebird's AOT linker, which this
+    #    stack does not have
+    note: assets-only behaviour does NOT qualify as Route B code push — it
+      carries no code. Implementing this is a SECOND Route B product surface
+      for embedded Flutter, not a simulator slice plus a small API fix.
+    evidence: evidence/addtoapp1/RESULT.md
+  android_add_to_app_aar:
+    status: UNSUPPORTED
+    assessed: 2026-09-03 (ADD-TO-APP-1, control-plane half only)
+    note: an `aar` release is refused activation for the same reason as
+      `xcframework` (Api._requiredArchs gates android on {aab}). The build and
+      patch halves were NOT assessed.
+    evidence: evidence/addtoapp1/RESULT.md
+
+operational_requirements:
+  # Product handles it, refuses clearly, or it is named here. No tribal knowledge.
+  local_network_permission:
+    applies_to: iOS with a LAN HTTP base_url
+    symptom_if_missing: updater fetches nothing; no request reaches the server;
+      app stays on the release build with no error
+    status: DOCUMENTED (WORKFLOW_CERTIFICATION.md §0); observed again in 6G
+  published_ios_engine_dir:
+    var: SHOREBIRD_PUBLISHED_IOS_ENGINE_DIR
+    role: coherence authority for the iOS engine a release is built against
+    status: DOCUMENTED
+  selfhost_endpoint_authority:
+    role: bundled flutter_assets/shorebird.yaml base_url is what the device uses
+    status: DOCUMENTED; fail-closed on mismatch
+  older_cells:
+    note: cells minted before the constructor census carry no grants, so they are
+      strictly narrower. Not retrofitted; they remain historical evidence.
+    status: DOCUMENTED
+  control_plane_jwt_issuer:
+    status: KNOWN DEBT — pre-existing control-plane configuration, not a Route B defect
+  control_plane_request_logging:
+    status: KNOWN GAP — cps-ios emits no HTTP request log, so "absent from the log"
+      is not evidence of anything. Do not build checks on it.
+
+physical_device_qualification:
+  date: 2026-09-03
+  device: iPhone 7, iOS 15.8.8 (19H422), udid 8cb4bc982ddf6437b1952520edee80f898196c74
+  release: 142 / 1.0.3+4
+  release_artifact_sha256: bbea5b9c72a6e25b7d20ba41abaafff9b0392da108b26f7ed673bb61489ff8b2
+  patch: id 106, number 1
+  patch_artifact_sha256: 89052f9d0811fd4c591bdfffe1091b49525c7ff24c19b03db0380f2ee3a576d3
+  baseline_observed: "BOXED[9]:APP-STATE"
+  activated_observed: "BOXED[11]:P:APP-STATE"
+  updater_state_after: {last_booted_patch: 1, boot_attempt_count: 0}
+  crash_reports: none dated 2026-09-03
+
+# BACKUP-RESTORE-1. Both persistence profiles, certified independently and by
+# a re-runnable script that was also run against the PRE-REPAIR code to confirm
+# it can fail (single 20/12, scale 14/15 -- every guard added is a check that
+# fails without it).
+backup_restore:
+  status: CERTIFIED
+  qualified: 2026-09-04 (BACKUP-RESTORE-1)
+  evidence: selfhost/backup_restore/CERTIFICATION.md
+  # State the claim precisely. This is NOT full disaster recovery: .env, the
+  # image tag, TLS material and the host topology are external prerequisites.
+  claim: control-plane data backup and restore
+  boundary: selfhost/backup_restore/SECRETS_BOUNDARY.md
+  profiles:
+    single:
+      subject: setup.sh --backup / --restore
+      harness: selfhost/scripts/br1_certify_single.sh
+      result: 32 passed, 0 failed
+    scale:
+      subject: ops/backup.sh / ops/restore.sh
+      harness: selfhost/scripts/br1_certify_scale.sh
+      result: 30 passed, 0 failed
+  # THE CONSISTENCY PREDICATE IS NOT "the halves disagree". An artifact row is
+  # INSERTed before its bytes are written, so a `pending` row with no object is
+  # a FAITHFUL capture of an upload in flight, and scoring it as damage
+  # produced a false finding in this lane before it was caught. Only states the
+  # live system can never occupy count (selfhost/scripts/br1_tear_check.sh):
+  torn_states:
+    - object present, no row at all
+    - object present, row says pending
+    - row says verified, object absent
+  # Why the scale pair needs a shared id and the single archive does not.
+  causal_defects_repaired:
+    - >-
+      scale: pg_dump and mc mirror were taken at different instants with no
+      quiescing. Every backup taken while serving held at least one object no
+      row accounted for (4 of 4 runs).
+    - >-
+      scale: restore compared nothing. One run's dump with another's objects
+      exited 0 silently and produced an artifact reported `verified` that
+      answered 404 -- patches/check handed devices a URL that did not resolve.
+      Filenames sharing a timestamp are not provenance; nothing read them.
+    - >-
+      single: the target volume was resolved by a host-wide `grep cps_data$`.
+      A --restore run in a directory with NO deployment wiped a different,
+      live, healthy deployment's volume.
+    - >-
+      single: restore wiped /data BEFORE reading the archive, so a truncated
+      backup destroyed the copy the operator still had. A well-formed archive
+      with no database restored with exit 0, a green tick and a healthy server
+      holding zero apps, releases and audit records.
+    - >-
+      both: quiescing was `stop server || true`. From a foreign directory the
+      server stayed up for 94 of 94 requests and the backup reported success.
+    - >-
+      single: the FIRST repair guarded --backup and left --restore fail-open --
+      it validated the archive, stopped the server, and wiped /data without
+      ever checking the stop worked. Falsified with a container holding the
+      volume: the unguarded restore proceeded and the durable state changed.
+      A refusal now also restarts the deployment, so the safety check cannot
+      cause the outage it exists to prevent.
+  # The backup file is a credential store: api_keys.key holds the PLAINTEXT
+  # key, so rotating the env API_KEY does NOT revoke what a leaked backup
+  # carries. Measured: after rotation the old bootstrap key 403s but a
+  # DB-stored collaborator key still authenticates.
+  backup_is_a_secret: true
+
+# UPGRADE-ROLLBACK-1. Both database backends, certified independently by a
+# harness that was also run against the pre-guard binary to confirm it can fail
+# (29/3, and the three failures are in the dangerous direction: the old binary
+# answered 200 over a schema it could not serve).
+upgrade_rollback:
+  status: CERTIFIED
+  qualified: 2026-09-06 (UPGRADE-ROLLBACK-1)
+  evidence: selfhost/upgrade_rollback/CERTIFICATION.md
+  harness: selfhost/scripts/ur1_certify.sh
+  backends:
+    sqlite: 40 passed, 0 failed
+    postgres: 40 passed, 0 failed
+  # The upgrade actually exercised, rather than a version bump with no DDL.
+  measured_migration:
+    from: {image: "ghcr.io/mml555/code-push-server:1.2.0", schema: 7}
+    to: {image: built from this checkout, schema: 12}
+    migrations: 5 (new crash_reports table, columns on events and audit_log)
+  # IMAGE TAGS ARE NOT A STATEMENT ABOUT THE CODE INSIDE THEM. The git tag
+  # code_push_server-v1.3.0 carries a tree whose highest migration is 8; the
+  # published :1.3.0 image applies 12.
+  #
+  # This field claimed "digest" for one commit while both restore paths
+  # compared only the reference string -- a guarantee written down and not
+  # implemented. It now means what it says: restore resolves the selected image
+  # to the identities it answers to and requires the manifest's
+  # server_image_id to be one of them, refusing rather than falling back to the
+  # tag when the image cannot be resolved at all.
+  image_identity:
+    recorded: server_image (reference) and server_image_id (digest)
+    enforced: >-
+      digest, on both profiles, before any destructive mutation. Falsified by a
+      control that publishes ONE reference over TWO builds -- the case a
+      reference comparison passes and this project has already shipped once.
+      Against the commit that recorded the digest without enforcing it, that
+      control reports "restoring under the same tag but a DIFFERENT build was
+      accepted" and the restore migrates the database to a schema the backup
+      never held.
+    pre_identity_manifests: tag-only comparison, so older archives still restore
+  causal_defects_repaired:
+    - >-
+      an old binary met a database a newer release had migrated and simply
+      carried on: healthz 200, readyz 200, reads 200, patches/check 500. An
+      orchestrator saw a ready server while every device saw a broken one.
+      Repaired with SchemaTooNewException -> FATAL and exit 65 (EX_DATAERR),
+      unit-tested in test/schema_guard_test.dart.
+    - >-
+      restoring the pre-upgrade backup with the successor image still selected
+      printed a green tick, came up healthy, and had already migrated the
+      restored database back to the schema being rolled back FROM. The manifest
+      now records server_image/server_image_id and restore refuses a mismatch
+      on both profiles.
+    - >-
+      the recorded image DIGEST was not enforced: both restore paths compared
+      the reference string, so one tag republished over a different build was
+      accepted. Measured on the single profile: exit 0, green tick, and the
+      restored database migrated from schema 12 to 13.
+    - >-
+      pg_restore --clean drops only what the dump mentions, so a scale rollback
+      left the newer schema's crash_reports table behind. ops/restore.sh now
+      resets the schema first -- safe only because the dump's digest has
+      already been verified against its manifest.
+  # THE UPGRADE IS NOT ATOMIC EVEN THOUGH EACH MIGRATION IS. Measured on both
+  # engines: a failure at version 13 leaves 8..12 committed, no partial DDL,
+  # nothing serving -- and the database NOT at the version it started from.
+  failed_upgrade:
+    partial_ddl_survives: {sqlite: false, postgres: false}
+    serves_afterwards: {sqlite: false, postgres: false}
+    schema_left_at: "the last migration that committed, not the starting version"
+    supported_recovery: >-
+      stop the candidate, select the old image, restore the pre-upgrade
+      certified backup. NOT "put the old image back" (that only appears to work
+      while the intervening migrations happen to be additive) and NOT "retry".
+  fixtures: >-
+    every shipped migration is additive, so an old binary survives them by
+    accident and a rollback test would pass for the wrong reason. The break is
+    manufactured by scratch successors applied to a COPY of the package
+    (selfhost/upgrade_rollback/fixtures/), never by a migration in the
+    permanent history.
+
+# SERVER-IMAGE-PROVENANCE-1. The release process behind U-0: a semantic image
+# tag that does not name the release it is named after.
+release_provenance:
+  status: CERTIFIED
+  qualified: 2026-09-06 (SERVER-IMAGE-PROVENANCE-1)
+  evidence: selfhost/release_provenance/CERTIFICATION.md
+  harness: selfhost/scripts/spp1_certify.sh
+  result: 36 passed, 0 failed (22/14 against the publisher it replaces)
+  invariant: >-
+    a server version names one source revision, one multi-arch manifest digest,
+    and one permanently retrievable set of bytes.
+  # Measured from GHCR, not inferred. Left in place on purpose: this is the
+  # evidence, and re-pointing the tag would be a third silent move.
+  historical_defect:
+    "ghcr.io/mml555/code-push-server:code_push_server-v1.3.0":
+      digest: sha256:a6e8bde71d5e4bfe8cbcd6b24e03ab61bf3225fb9f35536a34a5079cb1fb0cf9
+      schema: 8
+      source: cf74eeda3e432a7d69175fdcec95f5c0dbe28d43
+      note: the actual 1.3.0 release
+    "ghcr.io/mml555/code-push-server:1.3.0":
+      digest: sha256:320338b891c4471d47a2e92a37898666ae21cac3b03606083264a982379f76b9
+      schema: 12
+      also_tagged: [selfhost-v1.1.1, latest]
+      note: >-
+        a distribution tag whose pubspec also said 1.3.0. The publisher fired on
+        selfhost-v* too, read version: from the ref it built, and re-tagged
+        unconditionally, so the last one to run won.
+  enforced:
+    - only code_push_server-vX.Y.Z may create :X.Y.Z or move :latest
+    - the tag's X.Y.Z must equal pubspec.yaml at the commit the tag resolves to
+    - a semantic tag is write-once; a differing digest refuses, a matching one is idempotent
+    - every publish also gets :source-<full commit>, never reused, never moved
+    - both architecture child digests are read back out of the published manifest
+    - every reference is resolved back from the registry after publishing
+  # THE OTHER HALF OF RECOVERABILITY. Refusing the wrong build is not enough if
+  # the right one is gone: a backup records a digest, and those bytes must stay
+  # obtainable for as long as the backup is considered restorable.
+  retention:
+    reference: "<image>:source-<full commit>"
+    certified: >-
+      after a later release and with every local image deleted, release A pulls
+      by its recorded digest alone, verifies against its banked provenance
+      record, and the digest-enforced restore accepts it -- while a different
+      release is refused in its place.
+    tie_to_backups: >-
+      a backup's server_image_id IS the release record's manifest_digest, so the
+      two systems name the same object rather than agreeing in spirit.
+
+historical_compatibility:
+  # D-PRODUCER-DEMAND-2, producer truth over real commit history.
+  wonderous: {observations: 20, producer_compatibility: "50.00%"}
+  localsend: {observations: 232, producer_compatibility: "92.67%"}
+  note: constructor retention unblocked exactly ONE method across 252 observations.

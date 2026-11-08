@@ -1,0 +1,9 @@
+# Template for the GENERATED shorebird.yaml. Never commit the generated file:
+# app_id is server-generated (POST /api/v1/apps ignores a requested id) and
+# base_url is a per-run LAN address — `localhost` on a device is the PHONE, not
+# the Mac, which has cost this project a debugging session before.
+#
+#   app_id:   from `shorebird apps create` against the control plane under test
+#   base_url: the Mac's LAN address, e.g. http://10.0.0.7:18080
+app_id: REPLACE_WITH_SERVER_GENERATED_APP_ID
+base_url: REPLACE_WITH_LAN_BASE_URL

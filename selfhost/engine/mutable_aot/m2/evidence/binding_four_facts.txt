@@ -1,0 +1,10 @@
+[maot] HIT  rel=71 corr=0 libstart=19 abs=90 name=compute
+[maot] HIT  rel=119 corr=0 libstart=19 abs=138 name=untouched
+[maot] HIT  rel=182 corr=0 libstart=19 abs=201 name=mutableTopLevel
+[maot] HIT  rel=225 corr=0 libstart=19 abs=244 name=notMutable
+[maot] HIT  rel=261 corr=0 libstart=19 abs=280 name=main
+[maot] register id=lib:package:m2app/app.dart::cls:Widget::method:compute selected=1 fn=Function 'compute':.
+[maot] register id=lib:package:m2app/app.dart::cls:Widget::method:untouched selected=0 fn=Function 'untouched':.
+[maot] register id=lib:package:m2app/app.dart::fn:mutableTopLevel selected=1 fn=Function 'mutableTopLevel': static.
+[maot] register id=lib:package:m2app/app.dart::fn:notMutable selected=0 fn=Function 'notMutable': static.
+[maot] register id=lib:package:m2app/app.dart::fn:main selected=0 fn=Function 'main': static.

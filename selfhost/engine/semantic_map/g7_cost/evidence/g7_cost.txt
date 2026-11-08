@@ -1,0 +1,124 @@
+SM1-G7 -- cost at release scale
+generated 2026-09-09T05:24:50Z by run_g7.sh
+corpus: LocalSend, a real application (35,139 declarations in scope)
+reps per order: 3   orders: base-first and map-first
+
+METHOD
+
+  Arms are INTERLEAVED within a repetition, and the whole schedule is then run
+  with the arm order REVERSED. SEMANTIC-LINKER-1 reported an apparent 2x that
+  turned out to be machine drift, and RSS deltas that looked like a per-mode
+  property until the order was reversed -- so order-dependence is tested here
+  rather than assumed.
+
+  Every sample is appended raw to evidence/samples.jsonl. The summaries below
+  are derived from that file; no ratio is reported without the samples behind
+  it.
+
+  gen_snapshot runs with --deterministic for the SIZE families, because G5
+  measured that whole-AOT output is otherwise not byte-reproducible and sizes
+  would carry build-to-build noise.
+
+  NO THRESHOLD IS IMPOSED. Costs are reported as orders of magnitude; whether
+  one is acceptable is a product decision against a real application profile.
+
+WHAT THE "ORDER" AXIS ACTUALLY VARIES -- stated because the label would
+otherwise imply more than was done. The map arm consumes the base arm's kernel
+and AOT, so base still runs first WITHIN a repetition; a true A-then-B /
+B-then-A reversal is not possible without measuring a different thing. What
+reverses is the position of each arm in the overall SCHEDULE -- whether the map
+work runs early on a cooler machine or late on a warmer one. That is enough to
+expose drift of the kind SL1 hit, and it is not a claim of full arm-order
+independence.
+
+############ RETENTION PAIR, BUILT HERE ############
+  The retention family compares an AOT built WITH the dynamic-interface
+  contract against one built WITHOUT it. Both are produced here, from the
+  application worktree, rather than read from a work directory -- an inherited
+  size pair cannot be reproduced from empty state, and a cost family that
+  cannot be rebuilt is a number without provenance.
+
+      noret.dill      64775640 bytes
+        pre.dill     115525864 bytes
+         di.yaml       3273255 bytes
+        ret.dill      67535616 bytes
+       noret.aot      49662560 bytes
+         ret.aot      53992680 bytes
+
+############ TIMED SCHEDULE ############
+  order=base_first rep=1
+  order=base_first rep=2
+  order=base_first rep=3
+  order=map_first rep=1
+  order=map_first rep=2
+  order=map_first rep=3
+
+############ FAMILY 1 -- MAP SIZE ############
+  map                     9,467,041 bytes
+  release AOT            49,662,560 bytes
+  map / AOT                  19.063 %
+  the map is JSON here; no compact encoding is claimed
+
+############ FAMILY 2 -- GENERATION TIME (per stage, ms) ############
+  stage                    n       min    median       max     stdev
+  base_gen_kernel          6   15447.0   15638.4   15683.0      87.4
+  base_gen_snapshot        6   13171.7   13265.6   13432.4      86.7
+  map_bound                6     556.5     560.7     574.6       6.4
+  map_contract             6    1732.8    1749.3    1821.6      31.9
+  map_g1                   6    3089.1    3135.7    3214.8      43.3
+  map_g3                   6    2789.5    2826.4    2894.9      36.7
+  map_g4                   6    1517.1    1553.0    1556.1      14.8
+  map_reader               6    1481.6    1504.8    1534.2      19.8
+  map_refs                 6    1370.4    1393.6    1407.8      13.1
+  ret_aot_noret            1   13477.9   13477.9   13477.9       0.0
+  ret_aot_ret              1   14866.4   14866.4   14866.4       0.0
+  ret_interface            1    1269.5    1269.5    1269.5       0.0
+  ret_kernel_noret         1   15643.7   15643.7   15643.7       0.0
+  ret_kernel_pre           1    8803.3    8803.3    8803.3       0.0
+  ret_kernel_ret           1   16489.3   16489.3   16489.3       0.0
+
+############ FAMILY 3 -- RELEASE BUILD IMPACT ############
+  base_first  base total median    28889.8 ms   map total median    12764.6 ms
+  map_first   base total median    28928.4 ms   map total median    12770.6 ms
+  map work as a share of the base build: 44.2 % (median)
+
+############ FAMILY 4 -- RETENTION COST AT SCALE ############
+  AOT without retention     49,662,560 bytes
+  AOT with retention        53,992,680 bytes
+  measured delta             4,330,120 bytes (+8.72 %)
+  G4 projection              2,922,310 bytes (+5.88 %)
+  measured / projected           1.482 x
+  G4 curve consumed     40912 byte floor + ~82 bytes/member
+
+############ FAMILY 5 -- AOT SIZE IMPACT OF THE CONTRACT ############
+  kernel without retention     64,775,640 bytes
+  kernel with retention        67,535,616 bytes
+  dynamic interface             3,273,255 bytes
+
+############ ORDER DEPENDENCE, TESTED ############
+  stage                   base_first   map_first   ratio      gap    noise  verdict
+  base_gen_kernel            15625.0     15675.6   1.003     50.6    134.2  no
+  base_gen_snapshot          13238.0     13278.4   1.003     40.4    135.5  no
+  map_bound                    561.2       560.1   0.998      1.1      9.4  no
+  map_contract                1747.5      1751.1   1.002      3.6     43.6  no
+  map_g1                      3140.7      3130.6   0.997     10.1     54.8  no
+  map_g3                      2836.5      2823.6   0.995     12.9     52.8  no
+  map_g4                      1553.3      1552.7   1.000      0.6     21.1  no
+  map_reader                  1508.3      1501.4   0.995      6.9     26.6  no
+  map_refs                    1392.3      1394.8   1.002      2.5     18.8  no
+
+  order-dependent (>10% AND beyond noise): none
+  >10% but inside the noise floor: none
+  failed samples: 0
+
+ASSERTIONS (8 checked)
+  pass  no timed sample failed
+  pass  samples were retained raw
+  pass  every family is reported
+  pass  both timed orders were run
+  pass  the derived summary is from THIS run
+  pass  the retention projection was checked against a measurement
+  pass  order dependence was tested, not assumed
+  pass  no threshold is imposed
+
+SM1_G7: COST_REPORTED

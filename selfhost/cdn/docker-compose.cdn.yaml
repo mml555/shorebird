@@ -5,7 +5,7 @@
 #                    Flutter engine artifact path it decides stock-vs-shorebird
 #                    and 302-redirects to storage.googleapis.com. This is exactly
 #                    what download.shorebird.dev runs.
-#   cdn-cache      : an nginx caching reverse proxy in front of artifact-proxy
+#   cdn-cache      : a Caddy caching reverse proxy in front of artifact-proxy
 #                    AND storage.googleapis.com. It rewrites the proxy's 302s
 #                    back through itself and caches the final artifact bytes, so
 #                    after one warm build everything is served from local disk.
@@ -17,8 +17,8 @@
 #   docker compose -f selfhost/cdn/docker-compose.cdn.yaml up --build
 # Then (with the CDN_INDEPENDENCE.md source patches applied) build once to warm
 # the cache:
-#   export SHOREBIRD_FLUTTER_STORAGE_BASE_URL=http://localhost:8081
-#   export SHOREBIRD_STORAGE_BASE_URL=http://localhost:8081
+#   export FLUTTER_STORAGE_BASE_URL=http://localhost:8085
+#   export SHOREBIRD_STORAGE_BASE_URL=http://localhost:8085
 #   export SHOREBIRD_STORAGE_BUCKET=download.shorebird.dev
 #   shorebird release android   # first run pulls through, later runs hit cache
 
@@ -32,21 +32,50 @@ services:
       dockerfile: Dockerfile
     environment:
       - PORT=8080
+      # The manifest fetch is server-side — it never passes through cdn-cache
+      # on its own — so route it through the cache explicitly. The path shape
+      # matches the Caddyfile's Flow-B matcher, which means the manifest is
+      # cached and overlay-servable like any other Flow-B artifact, and a
+      # sealed mirror keeps working with upstream unreachable.
+      - MANIFEST_BASE_URL=http://cdn-cache:8080/download.shorebird.dev
     expose:
       - "8080"
     restart: unless-stopped
 
   cdn-cache:
-    image: nginx:1.27-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile
     depends_on:
       - artifact-proxy
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - cdn-cache-data:/var/cache/nginx/cdn
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Locally built experimental engines, served before anything upstream.
+      # Populated by selfhost/engine/overlay_publish.sh.
+      - ./overlay:/overlay:ro
+      # <expHash> -> <pinnedHash> fallback table, also written by that script.
+      # Caddy reads it at startup, so recreate cdn-cache after publishing.
+      - ./experimental_hashes.map:/etc/caddy/experimental_hashes.map:ro
+      # TLS listener, off by default. Point this at tls/listen-enabled.caddy and
+      # run tls/generate.sh to serve https as well as http. Needed because
+      # Gradle 8+ refuses insecure Maven repositories, which is what
+      # FLUTTER_STORAGE_BASE_URL becomes during an Android release build.
+      - ./tls/listen-disabled.caddy:/etc/caddy/tls_listen.caddy:ro
+      # Upstream reachability, ENABLED by default. Overridden to
+      # upstream/sealed.caddy by docker-compose.cdn.sealed.yaml (or by editing
+      # this mount): sealed mode refuses every upstream GCS fetch with a
+      # greppable "sealed:" 502 while still serving cache hits and overlay
+      # files — the air-gap acceptance mode.
+      - ./upstream/enabled.caddy:/etc/caddy/upstream_gcs.caddy:ro
+      - ./tls:/etc/caddy/tls:ro
+      - cdn-cache-data:/var/cache/caddy/cdn
     ports:
-      # Host 8081 -> this is what you point FLUTTER_STORAGE_BASE_URL /
+      # Host 8085 -> this is what you point FLUTTER_STORAGE_BASE_URL /
       # SHOREBIRD_STORAGE_BASE_URL at. (8080 is left free for code_push_server.)
       - "8085:8080"
+      # https, serving the same content. Only listening when the TLS listener is
+      # enabled; harmless to publish either way.
+      - "8443:8443"
     restart: unless-stopped
 
 volumes:

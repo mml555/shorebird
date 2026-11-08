@@ -1,0 +1,91 @@
+# cspell:words dynmod
+# SL1-G3 dynamic interface. Every host declaration the modules touch, in
+# upstream's schema.
+#
+# NAME SPELLING, settled by the CFE's own errors rather than guessed: a getter
+# is `get:name`, a FIELD is its bare name, and a CONSTRUCTOR is the empty string.
+#
+# `extendable` + `can-be-overridden` are load-bearing here, not decoration:
+# without them AOT's type-flow analysis may devirtualize or inline Base.execute
+# and Iface.tag, and a patch subclass would never be reached. That is dynmod's
+# finding used as designed. Deliberately adversarial call shapes belong to #41.
+extendable:
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Iface'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Base'
+can-be-used-as-type:
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Iface'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Base'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Holder'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Tracked'
+can-be-overridden:
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Iface'
+    member: 'tag'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Base'
+    member: 'execute'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Base'
+    member: 'inherited'
+callable:
+  # SDK retention. Without this the identity checks die at load with
+  # bytecode_reader.cc:1172 -- Spike B's canonical failure. Listing it is the
+  # designed mechanism, not a workaround.
+  - library: 'dart:core'
+    member: 'identical'
+  # The AOT surface the modules call.
+  - library: 'package:dynamic_modules/g3_host.dart'
+    member: 'makeTracked'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    member: 'weakOf'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    member: 'dispatchBase'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    member: 'dispatchIface'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    member: 'castToBase'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    member: 'echo'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    member: 'addToList'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    member: 'putInMap'
+  # Fields the modules read or write, by bare name.
+  - library: 'package:dynamic_modules/g3_host.dart'
+    member: 'aotHolder'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    member: 'patchProbe'
+  # Types the modules construct or reach through.
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Holder'
+    member: ''
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Holder'
+    member: 'ref'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Tracked'
+    member: 'read'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Tracked'
+    member: 'v'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Base'
+    member: ''
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Base'
+    member: 'execute'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Base'
+    member: 'inherited'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Base'
+    member: 'n'
+  - library: 'package:dynamic_modules/g3_host.dart'
+    class: 'Iface'
+    member: 'tag'

@@ -1,0 +1,21 @@
+
+[1m1. the measured closure is SUFFICIENT[0m
+  precache exit=0   requests=16
+  [32mPASS[0m precache succeeded against the strict origin alone
+  [32mPASS[0m every request was served locally (0 absences)
+
+[1m2. NO REQUEST ESCAPES — the origin is the only source[0m
+  [32mPASS[0m the precache log names no upstream host
+
+[1m3. LOAD-BEARING — delete one required member[0m
+  precache exit=1
+  [32mPASS[0m precache FAILED with that one member absent
+  [32mPASS[0m it failed naming that exact object
+        ├─ [4/6] android-arm64-release/darwin-x64                          3ms
+
+[1m4. UNRELATED FILES CANNOT RESCUE IT[0m
+  precache exit=1
+  [32mPASS[0m decoys next to the hole did not rescue it
+
+[1mRESULT[0m
+  6 passed, 0 failed

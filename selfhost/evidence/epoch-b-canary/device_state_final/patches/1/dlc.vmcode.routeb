@@ -1,0 +1,5 @@
+hook entered
+parsed, targets=1, built-for=3b47c14781853e2182a336605fcd48b4
+running=3b47c14781853e2182a336605fcd48b4
+assert-pool-offset supplied=0xd4a8
+applied 1/1 targets, entering main

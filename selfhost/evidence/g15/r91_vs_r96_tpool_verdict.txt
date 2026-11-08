@@ -1,0 +1,111 @@
+RELEASE 91 vs 96 — TARGET→POOL COMPARISON, 2026-08-17
+======================================================
+
+Precommitted in r91_tpool_precommit.md, including the admissibility conditions,
+BEFORE release 91 was fetched. That table is not edited here.
+
+THE RESULT
+----------
+
+    release 91 (WORKED — NEW-kill twice, arm2_verdict.txt)
+      tpool_status=3 (ABSENT)  tpool_matches=0  tpool_scanned=12403
+
+    release 96 (FAILED — this cycle)
+      tpool_status=3 (ABSENT)  tpool_matches=0  tpool_scanned=12478
+
+**BOTH ABSENT. THE WORKING AND FAILING SPECIMENS SHARE THE TARGET-POOL SHAPE.**
+
+Per the precommitted table, first row: *"inlining loses causal force. Working and
+failing specimens share the target-pool shape, exactly as they shared the
+consumption shape. The differentiator is elsewhere."*
+
+**This is the fold refutation's shape, repeated on a different measurement.**
+gate5_armA_fold_refuted.txt killed result-consumption as the differentiator by
+showing 91 and 95 share it. This kills target-pool-absence the same way.
+
+ADMISSIBILITY — ALL FOUR CONDITIONS MET, checked not assumed
+--------------------------------------------------------------
+The measurement required a HYBRID (release 91's shipped `App.framework` under the
+`0012/0013` engine), because release 91's own engine predates the scan. Its
+precommitted conditions:
+
+1. **the snapshot LOADS** — YES. No "Wrong full snapshot version"; the app ran,
+   Dart executed, the patch attached. Predicted by the measured
+   `SNAPSHOT_HASH` match (`21139db2770724220da55c72db00acdc`, identical in both
+   engines), which is `0012`'s design intent — keeping its code out of
+   `VM_SNAPSHOT_FILES` — holding.
+2. **running build id is release 91's** — YES, and it is proven by the attach
+   itself rather than by a label. `shorebird.cc` checks
+   `Dart_RouteBReleaseBuildId()` against the container's `release_build_id` and
+   returns REFUSED (`wrong-release`) BEFORE any target resolution. A trace with
+   `rc=0` therefore cannot exist unless the running snapshot is the one the patch
+   was built for — release 91's. Corroborated by the updater's own
+   `state.json: release_version 1.0.2+1`.
+3. **patch attaches rc=0** — YES: `rc=0 attach_entered=1 attach_returned=1
+   bc_pre=0 bc_post=1 interp_post=1 uep_post_is_interpret_call=1`.
+4. **tpool_scanned > 0, status admissible** — YES: 12,403 entries scanned,
+   status ABSENT.
+
+**INDEPENDENT PROOF THE TWO TRACES ARE DIFFERENT SNAPSHOTS, not one measured
+twice:** `pool_length` is **12403** for release 91 and **12478** for release 96,
+and `fn` differs (`0x106a51891` vs `0x10ad92f01`). Two different object pools,
+two different Function objects, same verdict.
+
+The patch used was release 91's OWN patch 59 — arm 2's exact 531 B artifact,
+promoted from `[no track]` to `stable` so the updater would fetch it. Its bytes
+were not modified; the promotion is reversible via `patches set-track` and is
+recorded here as a deliberate change.
+
+WHAT "ABSENT" DOES AND DOES NOT ESTABLISH
+-------------------------------------------
+ABSENT means: the `Function` object the patch attached to does not appear, by
+pointer identity, in any of the global object pool's tagged entries.
+
+It is worth naming a second reading, because the comparison does not depend on
+which is true and an unstated alternative tends to get quietly assumed away:
+
+* (a) no call site reaches the target through the global pool — the inlining
+  reading; or
+* (b) call sites reach it through a different object identity than the one
+  `ResolvePatchTarget` returns.
+
+**The comparison is unaffected either way**: whatever ABSENT means, both the
+working and the failing release exhibit it, so it does not distinguish them. That
+is the finding, and it holds under both readings.
+
+CONSEQUENCES
+------------
+1. **The inlining hypothesis loses its causal force for arm A.** It was recorded
+   in gate5_armA_fold_refuted.txt as a hypothesis with the release-91 objection
+   attached. The objection is now a MEASUREMENT: release 91 worked while showing
+   the same ABSENT signature. Inlining cannot be why 96 fails if 91 succeeded in
+   the same state.
+2. **The differentiator is elsewhere, and the untested candidates are unchanged**
+   — cell `cd137db6` (patch 0011), the CLI at `98f84c17`, the rebuilt platform
+   dill, and now this cycle's own cell `50bdae36`.
+3. **Two independent structural measurements now fail to separate 91 from the
+   failing releases** (consumption, and target-pool). Both were the leading
+   explanation when proposed; both died the same way. That pattern is itself
+   worth carrying: the remaining candidates are in delivery/lineage, not in the
+   target's own compiled structure.
+
+ARM A
+-----
+**UNCHANGED. Still INCONCLUSIVE, target unchanged, `OLD-kill` unexplained.**
+`gate5_arms_precommit.md` requires `NEW-kill` on screen for a PASS. No scan of any
+release is a screen, and this file does not re-score arm A.
+
+WHAT THIS DOES NOT CLAIM
+------------------------
+* NOT that the derived locator is proven. **It returned ABSENT on both specimens,
+  so a correct positive `TPOOL_UNIQUE` location has STILL never been emitted in
+  the field.** "Instrument established" remains justified; "positive locator
+  proven" remains not. That distinction is unchanged by this run.
+* NOT anything about the tombstone-after-one-kill observation. This run captured
+  boot-counter state mid-flight (see r91_hybrid_device/state/), which is data that
+  experiment will want — but it is NOT read here and is NOT an `OLD-kill`
+  explanation.
+* NOT that release 91 under its OWN engine would report the same. It cannot be
+  asked: that engine has no scan. The hybrid is the only way to point the proven
+  instrument at this snapshot, and its admissibility is argued above rather than
+  assumed.

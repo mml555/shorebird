@@ -1,0 +1,88 @@
+
+== 1 - the immutable distribution ref
+    using ref: df037532d3ce613651e22274abbd82bedf1820e2
+
+== 2 - clone the repository at that ref
+  PASS  checked out df037532d3ce613651e22274abbd82bedf1820e2 (df037532)
+  PASS  the supported-state record is present at that ref
+
+== 3 - read the identities the record names
+    cli_revision           46ee70af56c3814d079cc2466b092481c7904e76
+    flutter_selector       5b180d224df04a267a19888c3f344474e243b382
+    cell_address           f85251f344600ae08196925a174e9cff8f0ff18e
+    cell_distribution      cell-f85251f3
+
+== 4 - create the runtime CLI checkout at cli_revision
+Note: switching to 'df037532d3ce613651e22274abbd82bedf1820e2'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+  PASS  runtime checkout at 46ee70af56c3814d079cc2466b092481c7904e76
+  PASS  runtime checkout is clean
+
+== 5 - hydrate the cell from the RECORDED durable distribution
+  PASS  the bundle matches the digest committed in the record
+  PASS  cell hydrated and verified 30/30 into /Volumes/build/cleanroom2/boot/shorebird/selfhost/cdn/overlay
+
+== 6 - bootstrap the CLI, which fetches the exact Flutter selector
+  PREREQ serve $ROOT/overlay with the CDN in selfhost/cdn (docker compose -f selfhost/cdn/docker-compose.cdn.yaml up), then set SHOREBIRD_ARTIFACT_ORIGIN to it
+    SHOREBIRD_ARTIFACT_ORIGIN is unset, so the artifact step is skipped.
+    Cloning the selector alone is still checked:
+  PASS  the Flutter selector fetched and checked out
+  PASS  and its engine.version selects the recorded cell
+
+== 7 - derive SHOREBIRD_ROOT mechanically, so nothing has to be known
+  PASS  wrote .runtime_root = /Volumes/build/cleanroom2/boot/runtime
+
+== 8 - verify the supported state
+      ok      record format is clean (no duplicate keys, coherent indentation)
+      --      PyYAML absent; the stricter load was skipped (not required)
+      ok      recorded cli_revision exists in this repository
+      ok      cli_revision is in this branch's history
+      ok      cli_revision contains 6b4f6c42 (private-name resolution)
+      ok      CLI flutter.version (committed blob at cli_revision) selects the recorded Flutter
+      ok      repo HEAD product tree packages/shorebird_cli
+      ok      runtime checkout product tree packages/shorebird_cli
+      ok      repo HEAD product tree bin/internal
+      ok      runtime checkout product tree bin/internal
+      ok      runtime checkout has no uncommitted changes at all
+      ok      runtime checkout's flutter.version matches the committed selector
+      ok      runtime checkout's bin/internal is clean
+      ok      Flutter engine.version at the RECORDED selector selects the recorded cell
+      ok      the Flutter checkout's HEAD IS the recorded selector
+      ok      Flutter checkout is clean
+      ok      compiler archive digest
+      ok      compiler archive size
+      ok      analyzer digest (extracted from the published archive)
+      ok      producer engine revision
+      ok      dart revision
+      --      analyzer not resolved into this root's cache (archive already verified)
+      ok      v2 manifest recomputes to the cell address
+      ok      all addressed cell members match the bytes served
+      ok      fallback engine revision
+      ok      updater revision agrees with selfhost/compatibility.yaml
+      ok      engine producer f1a59b8a1609 durable AND matches the banked patch, parent dfa2b24ac384
+      ok      engine producer dfa2b24ac384 is reachable on the remote
+      ok      audit_route_b_compiler: AUDIT CLEAN
+    
+    SUPPORTED STATE VERIFIED
+  PASS  SUPPORTED STATE VERIFIED
+
+== RESULT
+  clone    /Volumes/build/cleanroom2/boot/shorebird
+  runtime  /Volumes/build/cleanroom2/boot/runtime
+  overlay  /Volumes/build/cleanroom2/boot/shorebird/selfhost/cdn/overlay
+  BOOTSTRAP COMPLETE

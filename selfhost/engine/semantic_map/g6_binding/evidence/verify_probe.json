@@ -1,0 +1,12 @@
+{
+  "schema": "semantic-map-1/g6-binding/1",
+  "gate": "SM1-G6",
+  "issue": 55,
+  "map": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g6/map_a.json",
+  "release": "probe",
+  "verdict": "BOUND",
+  "categories": [],
+  "codes": [],
+  "findings": [],
+  "classified_from": "structured field comparison, not message text"
+}

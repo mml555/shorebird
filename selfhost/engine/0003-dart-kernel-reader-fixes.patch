@@ -1,0 +1,38 @@
+# cspell:words flowgraph tearoff
+#
+# DIAGNOSTIC ONLY — NOT APPLIED IN ANY SHIPPED BUILD, and not needed to build iOS.
+#
+# History, so nobody re-derives it: this patch used to carry a second hunk in
+# runtime/vm/kernel.cc that made ReadParameterCovariance return early when the
+# reader landed on a kField tag, to get past "Unexpected tag 4 (Field)". That was
+# treating a symptom. The real cause was a tear-off selector applied to a field's
+# implicit accessor, which overwrites the accessor's Field pointer — fixed in
+# 0004-dart-tearoff-selector-guard.patch. With 0004 applied, the kernel.cc hunk
+# is dead code (verified: reverse-applying it leaves gen_snapshot's output
+# identical apart from its own embedded build hash), and it was also subtly
+# wrong — it reported "not covariant" for a covariant field's implicit setter.
+#
+# What remains here is the better ReportUnexpectedTag diagnostic. Stock prints
+# "in ?" and names neither the member nor the offset. Apply it by hand if you are
+# ever chasing a kernel-reader offset again; do not carry it in a build.
+diff --git a/runtime/vm/compiler/frontend/kernel_translation_helper.cc b/runtime/vm/compiler/frontend/kernel_translation_helper.cc
+index 4d22555e..535a863e 100644
+--- a/runtime/vm/compiler/frontend/kernel_translation_helper.cc
++++ b/runtime/vm/compiler/frontend/kernel_translation_helper.cc
+@@ -2302,6 +2302,16 @@ void KernelReaderHelper::SkipInterfaceMemberNameReference() {
+ }
+
+ void KernelReaderHelper::ReportUnexpectedTag(const char* variant, Tag tag) {
++  // SELFHOST DIAGNOSTIC: the stock message names neither the member nor the
++  // offset ("in ?"), which makes this failure unactionable. Print where in the
++  // kernel image we actually are. A reader offset landing on the wrong node kind
++  // means the offset was computed against a different program image than the one
++  // being read, so data_program_offset_ is the number that matters.
++  OS::PrintErr("SELFHOST: unexpected tag %d (%s), expected %s"
++               " | ReaderOffset=%" Pd " data_program_offset=%" Pd
++               " absolute=%" Pd "\n",
++               tag, Reader::TagName(tag), variant, ReaderOffset(),
++               data_program_offset_, ReaderOffset() + data_program_offset_);
+   FATAL("Unexpected tag %d (%s) in ?, expected %s", tag, Reader::TagName(tag),
+         variant);
+ }

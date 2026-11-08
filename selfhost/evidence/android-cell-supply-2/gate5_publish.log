@@ -1,0 +1,27 @@
+
+== 1 - address
+  address: f85251f344600ae08196925a174e9cff8f0ff18e
+  (verify only: steps 2-5 skipped, nothing published or rewired)
+
+== 6 - the verifier, on the live overlay
+      ok      manifest authenticates the address
+      ok      30 of 30 addressed members match the bytes served
+      ok      4 Maven POM(s) declare the version they are served under
+    
+    CELL MEMBERS VERIFIED (30/30)
+  PASS  30/30 on disk
+
+== 7 - FETCH BACK THROUGH THE CDN and compare bytes
+  PASS  30 of 30 members fetched back identical over HTTP
+
+== 8 - the donor cell is untouched
+  PASS  donor still 16/16
+
+== 9 - overlay audit for the new cell
+    missing-required:  0
+    AUDIT CLEAN for f85251f344600ae08196925a174e9cff8f0ff18e (macos-ios-android)
+  PASS  missing-required: 0
+  PASS  denied-present: none
+
+  ADDRESS: f85251f344600ae08196925a174e9cff8f0ff18e
+RESULT: macos-ios-android CELL PUBLISHED AND SERVED

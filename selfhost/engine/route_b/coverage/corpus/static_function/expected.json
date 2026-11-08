@@ -1,0 +1,14 @@
+{
+  "note": "The baseline. A top-level function is static-shaped, so AOT emits the patchable call form and the target is genuinely representable.",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#routeBValue"
+  ],
+  "patchable": [
+    "package:corpus/main.dart#routeBValue"
+  ],
+  "conditional": [],
+  "unreachable": [],
+  "added": [],
+  "rejectionReasons": []
+}

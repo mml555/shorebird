@@ -1,0 +1,23 @@
+{
+  "schema": "maot.t0.fixture/1",
+  "row_id": "EB-08",
+  "gate_id": "T0/EB-08",
+  "title": "generative constructor body",
+  "executable": true,
+  "placeholder_reason": null,
+  "dispatch_modes": [
+    "direct"
+  ],
+  "optimizer_modes": [
+    "jit",
+    "aot"
+  ],
+  "heat_modes": [
+    "cold",
+    "hot"
+  ],
+  "expected_pre": "1",
+  "expected_post": "2",
+  "old_state_required": false,
+  "subject_note": "generative constructor body"
+}

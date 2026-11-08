@@ -1,0 +1,25 @@
+# Local-HTTPS override: also serve the mirror on https://:8443.
+#
+# Needed because Gradle 8+ refuses insecure Maven repositories, which is what
+# FLUTTER_STORAGE_BASE_URL becomes during an Android release build.
+#
+# Run tls/generate.sh first (and tls/trust.sh on each build host that must
+# trust the generated CA).
+#
+# Usage — this is an OVERLAY on the base compose, not a standalone file:
+#   docker compose -f selfhost/cdn/docker-compose.cdn.yaml \
+#                  -f selfhost/cdn/docker-compose.cdn.tlslocal.yaml up -d
+# Combine with docker-compose.cdn.sealed.yaml for a sealed HTTPS mirror.
+#
+# It was previously a full standalone service definition, which meant every
+# new mount or env var added to the base had to be mirrored here by hand —
+# and one silently was not (the upstream_gcs.caddy mount the Caddyfile now
+# imports), which would have failed at startup. Compose merges volume mounts
+# by container target path, so an overlay carrying ONLY the difference cannot
+# drift from the base.
+name: shorebird-cdn
+
+services:
+  cdn-cache:
+    volumes:
+      - ./tls/listen-enabled.caddy:/etc/caddy/tls_listen.caddy:ro

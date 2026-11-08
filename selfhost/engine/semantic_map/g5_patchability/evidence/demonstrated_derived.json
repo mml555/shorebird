@@ -1,0 +1,260 @@
+{
+  "schema": "semantic-map-1/g5-demonstration/2",
+  "aot": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/app_release.aot",
+  "runtime": "/Volumes/build/g5_marker/src/out/host_release_arm64/dartaotruntime",
+  "derived_from_predictor": false,
+  "how": "single-target diff of the program's own observable state; a field still showing a value the patch moved elsewhere is a stale site",
+  "call_site_map": {
+    "package:dynamic_modules/callsite_target.dart##method#alpha": [
+      "alpha"
+    ],
+    "package:dynamic_modules/callsite_target.dart#Base#method#work": [
+      "direct",
+      "inlined",
+      "virtual"
+    ],
+    "package:dynamic_modules/callsite_target.dart##method#smallTarget": [],
+    "package:dynamic_modules/callsite_target.dart##method#tearOffTarget": [
+      "tearOff"
+    ]
+  },
+  "printed_fields": [
+    "alpha",
+    "beta",
+    "callsSmall",
+    "direct",
+    "inlined",
+    "other",
+    "small",
+    "tearOff",
+    "virtual"
+  ],
+  "excluded_printed_fields": {},
+  "exercised_fields_only": true,
+  "rows": [
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#alpha",
+      "declaration_id": "dbcb9971475a4d212e95035ad5e2edb7fd28456250b0380391882116705d4799",
+      "patch": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/patch_alpha.sbrb",
+      "target": "package:dynamic_modules/callsite_target.dart##method#alpha",
+      "derivation": "single-target diff; no call-site map",
+      "observed_fields": [
+        "alpha",
+        "beta",
+        "callsSmall",
+        "direct",
+        "inlined",
+        "other",
+        "small",
+        "tearOff",
+        "virtual"
+      ],
+      "moved_values": [
+        "OLD-a"
+      ],
+      "state_before": {
+        "alpha": "OLD-a",
+        "beta": "OLD-b",
+        "callsSmall": "42",
+        "direct": "OLD-w",
+        "inlined": "OLD-w",
+        "other": "OTHER-w",
+        "small": "41",
+        "tearOff": "72",
+        "virtual": "OLD-w"
+      },
+      "state_after": {
+        "alpha": "PATCHED-a",
+        "beta": "OLD-b",
+        "callsSmall": "42",
+        "direct": "OLD-w",
+        "inlined": "OLD-w",
+        "other": "OTHER-w",
+        "small": "41",
+        "tearOff": "72",
+        "virtual": "OLD-w"
+      },
+      "call_sites": [
+        {
+          "name": "alpha",
+          "ordinary": true,
+          "before": "OLD-a",
+          "after": "PATCHED-a",
+          "moved": true
+        }
+      ],
+      "sites_expected": 1,
+      "attach_ok": true,
+      "direct_invoke": "PATCHED-a"
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart#Base#method#work",
+      "declaration_id": "0d9096c2ad9a4f444e5ae3e6ad508fa01b72ac8c39689ee4e5ccc1fe12adefa6",
+      "patch": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/patch_basework.sbrb",
+      "target": "package:dynamic_modules/callsite_target.dart#Base#method#work",
+      "derivation": "single-target diff; no call-site map",
+      "observed_fields": [
+        "alpha",
+        "beta",
+        "callsSmall",
+        "direct",
+        "inlined",
+        "other",
+        "small",
+        "tearOff",
+        "virtual"
+      ],
+      "moved_values": [
+        "OLD-w"
+      ],
+      "state_before": {
+        "alpha": "OLD-a",
+        "beta": "OLD-b",
+        "callsSmall": "42",
+        "direct": "OLD-w",
+        "inlined": "OLD-w",
+        "other": "OTHER-w",
+        "small": "41",
+        "tearOff": "72",
+        "virtual": "OLD-w"
+      },
+      "state_after": {
+        "alpha": "OLD-a",
+        "beta": "OLD-b",
+        "callsSmall": "42",
+        "direct": "PATCHED-w",
+        "inlined": "OLD-w",
+        "other": "OTHER-w",
+        "small": "41",
+        "tearOff": "72",
+        "virtual": "OLD-w"
+      },
+      "call_sites": [
+        {
+          "name": "direct",
+          "ordinary": true,
+          "before": "OLD-w",
+          "after": "PATCHED-w",
+          "moved": true
+        },
+        {
+          "name": "inlined",
+          "ordinary": true,
+          "before": "OLD-w",
+          "after": "OLD-w",
+          "moved": false
+        },
+        {
+          "name": "virtual",
+          "ordinary": true,
+          "before": "OLD-w",
+          "after": "OLD-w",
+          "moved": false
+        }
+      ],
+      "sites_expected": 3,
+      "attach_ok": true,
+      "direct_invoke": "PATCHED-w"
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#smallTarget",
+      "declaration_id": "bff08abe1a4b769035bcb6842e341d84aaf49f557eec8068960c57a455444ad0",
+      "patch": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/patch_smallTarget.sbrb",
+      "target": "package:dynamic_modules/callsite_target.dart##method#smallTarget",
+      "derivation": "single-target diff; no call-site map",
+      "observed_fields": [
+        "alpha",
+        "beta",
+        "callsSmall",
+        "direct",
+        "inlined",
+        "other",
+        "small",
+        "tearOff",
+        "virtual"
+      ],
+      "moved_values": [],
+      "state_before": {
+        "alpha": "OLD-a",
+        "beta": "OLD-b",
+        "callsSmall": "42",
+        "direct": "OLD-w",
+        "inlined": "OLD-w",
+        "other": "OTHER-w",
+        "small": "41",
+        "tearOff": "72",
+        "virtual": "OLD-w"
+      },
+      "state_after": {
+        "alpha": "OLD-a",
+        "beta": "OLD-b",
+        "callsSmall": "42",
+        "direct": "OLD-w",
+        "inlined": "OLD-w",
+        "other": "OTHER-w",
+        "small": "41",
+        "tearOff": "72",
+        "virtual": "OLD-w"
+      },
+      "call_sites": [],
+      "sites_expected": 0,
+      "attach_ok": true,
+      "direct_invoke": "141"
+    },
+    {
+      "key": "package:dynamic_modules/callsite_target.dart##method#tearOffTarget",
+      "declaration_id": "b6a0c33f10c0cf408403c6d5b12946f8c3f42cbc02000b355b253212ccea3b00",
+      "patch": "/var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//sm1_g5_in/patch_tearOffTarget.sbrb",
+      "target": "package:dynamic_modules/callsite_target.dart##method#tearOffTarget",
+      "derivation": "single-target diff; no call-site map",
+      "observed_fields": [
+        "alpha",
+        "beta",
+        "callsSmall",
+        "direct",
+        "inlined",
+        "other",
+        "small",
+        "tearOff",
+        "virtual"
+      ],
+      "moved_values": [
+        "72"
+      ],
+      "state_before": {
+        "alpha": "OLD-a",
+        "beta": "OLD-b",
+        "callsSmall": "42",
+        "direct": "OLD-w",
+        "inlined": "OLD-w",
+        "other": "OTHER-w",
+        "small": "41",
+        "tearOff": "72",
+        "virtual": "OLD-w"
+      },
+      "state_after": {
+        "alpha": "OLD-a",
+        "beta": "OLD-b",
+        "callsSmall": "42",
+        "direct": "OLD-w",
+        "inlined": "OLD-w",
+        "other": "OTHER-w",
+        "small": "41",
+        "tearOff": "172",
+        "virtual": "OLD-w"
+      },
+      "call_sites": [
+        {
+          "name": "tearOff",
+          "ordinary": true,
+          "before": "72",
+          "after": "172",
+          "moved": true
+        }
+      ],
+      "sites_expected": 1,
+      "attach_ok": true,
+      "direct_invoke": "171"
+    }
+  ]
+}

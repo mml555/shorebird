@@ -11,32 +11,30 @@ import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
 import 'package:shorebird_cli/src/artifact_builder/shorebird_tracer.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
-import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/shorebird_android_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
-import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:test/test.dart';
 
 import '../fakes.dart';
+import '../helpers.dart';
 import '../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(ArtifactBuilder, () {
     late Directory projectRoot;
     late Apple apple;
     late ArtifactManager artifactManager;
     late ShorebirdLogger logger;
-    late OperatingSystemInterface operatingSystemInterface;
     late ShorebirdAndroidArtifacts shorebirdAndroidArtifacts;
     late ShorebirdArtifacts shorebirdArtifacts;
     late ShorebirdEnv shorebirdEnv;
     late ShorebirdFlutter shorebirdFlutter;
     late ShorebirdProcess shorebirdProcess;
-    late ShorebirdProcessResult pubGetProcessResult;
     late ArtifactBuilder builder;
 
     R runWithOverrides<R>(R Function() body) {
@@ -49,7 +47,6 @@ void main() {
             () => BuildTraceSession(commandStartedAt: DateTime.now()),
           ),
           loggerRef.overrideWith(() => logger),
-          osInterfaceRef.overrideWith(() => operatingSystemInterface),
           processRef.overrideWith(() => shorebirdProcess),
           shorebirdArtifactsRef.overrideWith(() => shorebirdArtifacts),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
@@ -72,8 +69,6 @@ void main() {
       apple = MockApple();
       artifactManager = MockArtifactManager();
       logger = MockShorebirdLogger();
-      operatingSystemInterface = MockOperatingSystemInterface();
-      pubGetProcessResult = MockProcessResult();
       shorebirdAndroidArtifacts = MockShorebirdAndroidArtifacts();
       shorebirdArtifacts = MockShorebirdArtifacts();
       shorebirdEnv = MockShorebirdEnv();
@@ -87,17 +82,6 @@ void main() {
         () => shorebirdFlutter.resolveFlutterVersion(any()),
       ).thenAnswer((_) async => Version(3, 0, 0));
 
-      when(
-        () => shorebirdProcess.run('flutter', [
-          '--no-version-check',
-          'pub',
-          'get',
-          '--offline',
-        ], useVendedFlutter: false),
-      ).thenAnswer((_) async => pubGetProcessResult);
-      when(
-        () => pubGetProcessResult.exitCode,
-      ).thenReturn(ExitCode.success.code);
       // Default stub for the `flutter build <command> -h` probe used by
       // `_supportsTraceFlag`. Returns help text that includes
       // `--shorebird-trace` so that trace tests pass when tracing is enabled.
@@ -129,9 +113,6 @@ void main() {
 
       when(() => logger.progress(any())).thenReturn(MockProgress());
       when(() => logger.info(any())).thenReturn(null);
-      when(
-        () => operatingSystemInterface.which('flutter'),
-      ).thenReturn('/path/to/flutter');
       when(() => shorebirdEnv.flutterRevision).thenReturn('1234');
       when(
         () => shorebirdEnv.buildDirectory,
@@ -142,62 +123,69 @@ void main() {
       builder = ArtifactBuilder();
     });
 
-    void verifyCorrectFlutterPubGet(Future<void> Function() testCall) {
-      group('when flutter is installed', () {
-        setUp(() {
-          when(
-            () => operatingSystemInterface.which('flutter'),
-          ).thenReturn('/path/to/flutter');
-        });
+    void verifyNoSystemFlutterPubGet(Future<void> Function() testCall) {
+      test('does not run pub get with the system Flutter', () async {
+        await testCall();
 
-        test('runs flutter pub get with system flutter', () async {
-          await testCall();
-
-          verify(
-            () => shorebirdProcess.run('flutter', [
-              '--no-version-check',
-              'pub',
-              'get',
-              '--offline',
-            ], useVendedFlutter: false),
-          ).called(1);
-        });
-
-        test('prints error message if system flutter pub get fails', () async {
-          when(() => pubGetProcessResult.exitCode).thenReturn(1);
-
-          await testCall();
-
-          verify(
-            () => logger.warn('''
-Build was successful, but `flutter pub get` failed to run after the build completed. You may see unexpected behavior in VS Code.
-
-Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCodeUrl.toLink()}.
-'''),
-          ).called(1);
-        });
+        verifyNever(
+          () => shorebirdProcess.run(
+            'flutter',
+            any(that: containsAllInOrder(['pub', 'get'])),
+            useVendedFlutter: any(named: 'useVendedFlutter'),
+            runInShell: any(named: 'runInShell'),
+            environment: any(named: 'environment'),
+            workingDirectory: any(named: 'workingDirectory'),
+          ),
+        );
       });
+    }
 
-      group('when flutter is not installed', () {
-        setUp(() {
-          when(
-            () => operatingSystemInterface.which('flutter'),
-          ).thenReturn(null);
-        });
+    /// Writes what an Apple build leaves in `.dart_tool/flutter_build/[hash]`
+    /// when [aotTargetName] compiles its kernel to machine code: an app.dill
+    /// and the target's stamp, modified [after] now. Returns the app.dill.
+    File writeAppleKernel({
+      required String hash,
+      required String aotTargetName,
+      Duration after = const Duration(seconds: 10),
+    }) {
+      final hashDir = p.join(
+        projectRoot.path,
+        '.dart_tool',
+        'flutter_build',
+        hash,
+      );
+      final modified = DateTime.now().add(after);
+      File(p.join(hashDir, '$aotTargetName.stamp'))
+        ..createSync(recursive: true)
+        ..setLastModifiedSync(modified);
+      return File(p.join(hashDir, 'app.dill'))
+        ..createSync(recursive: true)
+        ..setLastModifiedSync(modified);
+    }
 
-        test('does not attempt to run flutter pub get', () async {
-          await testCall();
-
-          verifyNever(
-            () => shorebirdProcess.run(
-              'flutter',
-              ['--no-version-check', 'pub', 'get', '--offline'],
-              useVendedFlutter: false,
-              runInShell: any(named: 'runInShell'),
-            ),
-          );
-        });
-      });
+    /// Writes an app.dill to `.dart_tool/flutter_build/[hash]` as a build
+    /// that doesn't AOT compile it for an Apple platform would (another
+    /// platform's build, or a debug build), modified [after] now.
+    File writeOtherKernel({
+      required String hash,
+      required List<String> stampNames,
+      Duration after = const Duration(seconds: 5),
+    }) {
+      final hashDir = p.join(
+        projectRoot.path,
+        '.dart_tool',
+        'flutter_build',
+        hash,
+      );
+      final modified = DateTime.now().add(after);
+      for (final name in stampNames) {
+        File(p.join(hashDir, '$name.stamp'))
+          ..createSync(recursive: true)
+          ..setLastModifiedSync(modified);
+      }
+      return File(p.join(hashDir, 'app.dill'))
+        ..createSync(recursive: true)
+        ..setLastModifiedSync(modified);
     }
 
     group('buildAppBundle', () {
@@ -359,10 +347,11 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
           when(
             () => shorebirdFlutter.resolveFlutterVersion(any()),
           ).thenAnswer((_) async => Version(3, 41, 7));
-          // Flutter registers --shorebird-trace with `hide: !verboseHelp`, so it
-          // only appears in verbose help. Model that: plain `-h` omits the flag,
-          // `-h -v` includes it. Probing without `-v` (the original bug) would
-          // miss it and silently disable tracing on every supported build.
+          // Flutter registers --shorebird-trace with `hide: !verboseHelp`,
+          // so it only appears in verbose help. Model that: plain `-h` omits
+          // the flag, `-h -v` includes it. Probing without `-v` (the
+          // original bug) would miss it and silently disable tracing on
+          // every supported build.
           when(
             () => shorebirdProcess.run(
               'flutter',
@@ -524,7 +513,7 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
               isA<ArtifactBuildException>().having(
                 (e) => e.message,
                 'message',
-                '''Build succeeded, but it generated multiple AABs in the build directory. (a, b)''',
+                '''Build succeeded, but it generated multiple AABs in the build directory. (${File('a').path}, ${File('b').path})''',
               ),
             ),
           );
@@ -573,7 +562,7 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
             ).thenAnswer((_) async => ExitCode.success.code);
           });
 
-          verifyCorrectFlutterPubGet(
+          verifyNoSystemFlutterPubGet(
             () => runWithOverrides(() => builder.buildAppBundle()),
           );
 
@@ -589,7 +578,7 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
               ).thenAnswer((_) async => ExitCode.software.code);
             });
 
-            verifyCorrectFlutterPubGet(
+            verifyNoSystemFlutterPubGet(
               () => expectLater(
                 () => runWithOverrides(() => builder.buildAppBundle()),
                 throwsA(
@@ -605,6 +594,43 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
                 ),
               ),
             );
+
+            group('when a plugin references the legacy flutter.jar', () {
+              setUp(() {
+                final pluginRoot = Directory(
+                  p.join(projectRoot.path, 'huawei_location'),
+                );
+                Directory(
+                  p.join(pluginRoot.path, 'android'),
+                ).createSync(recursive: true);
+                File(
+                  p.join(pluginRoot.path, 'android', 'build.gradle'),
+                ).writeAsStringSync('compileOnly files("...flutter.jar")');
+                File(
+                  p.join(projectRoot.path, '.flutter-plugins-dependencies'),
+                ).writeAsStringSync(
+                  '{"plugins": {"android": [{"name": "huawei_location", '
+                  '"path": "${pluginRoot.path.replaceAll(r'\', r'\\')}", '
+                  '"native_build": true, "dependencies": []}]}}',
+                );
+              });
+
+              test('prepends a targeted hint to the recommendation', () async {
+                await expectLater(
+                  () => runWithOverrides(() => builder.buildAppBundle()),
+                  throwsA(
+                    isA<ArtifactBuildException>().having(
+                      (e) => e.fixRecommendation,
+                      'recommendation',
+                      allOf(
+                        contains('legacy `flutter.jar`'),
+                        contains('• huawei_location'),
+                      ),
+                    ),
+                  ),
+                );
+              });
+            });
           });
         });
       });
@@ -799,9 +825,9 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
                 jsonDecode(summaryFile.readAsStringSync())
                     as Map<String, Object?>;
             expect(summary['platform'], 'android');
-            expect(summary['version'], 8);
+            expect(summary['version'], 9);
             // 500ms kernel + 200ms aot
-            expect((summary['dart'] as Map)['totalMs'], 700);
+            expect((summary['dart']! as Map)['totalMs'], 700);
             expect(summary['flutterBuildMs'], 3000);
             expect(summary['shorebirdOverheadMs'], isNonNegative);
             final dart = summary['dart']! as Map<String, Object?>;
@@ -889,7 +915,7 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
               isA<ArtifactBuildException>().having(
                 (e) => e.message,
                 'message',
-                '''Build succeeded, but it generated multiple APKs in the build directory. (a, b)''',
+                '''Build succeeded, but it generated multiple APKs in the build directory. (${File('a').path}, ${File('b').path})''',
               ),
             ),
           );
@@ -938,7 +964,7 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
             ).thenAnswer((_) async => ExitCode.success.code);
           });
 
-          verifyCorrectFlutterPubGet(
+          verifyNoSystemFlutterPubGet(
             () => runWithOverrides(() => builder.buildApk()),
           );
 
@@ -954,7 +980,7 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
               ).thenAnswer((_) async => ExitCode.software.code);
             });
 
-            verifyCorrectFlutterPubGet(
+            verifyNoSystemFlutterPubGet(
               () => expectLater(
                 () => runWithOverrides(() => builder.buildApk()),
                 throwsA(
@@ -991,7 +1017,7 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
               runInShell: false,
             ),
           ).thenAnswer(
-            (_) async => ShorebirdProcessResult(
+            (_) async => const ShorebirdProcessResult(
               exitCode: 0,
               stdout: 'no trace flag here',
               stderr: '',
@@ -1113,7 +1139,7 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
             ).thenAnswer((_) async => ExitCode.success.code);
           });
 
-          verifyCorrectFlutterPubGet(
+          verifyNoSystemFlutterPubGet(
             () async => runWithOverrides(
               () => builder.buildAar(buildNumber: buildNumber),
             ),
@@ -1131,7 +1157,7 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
               ).thenAnswer((_) async => ExitCode.software.code);
             });
 
-            verifyCorrectFlutterPubGet(
+            verifyNoSystemFlutterPubGet(
               () async => expectLater(
                 () async => runWithOverrides(
                   () => builder.buildAar(buildNumber: buildNumber),
@@ -1193,7 +1219,7 @@ Either run `flutter pub get` manually, or follow the steps in ${cannotRunInVSCod
               runInShell: false,
             ),
           ).thenAnswer(
-            (_) async => ShorebirdProcessResult(
+            (_) async => const ShorebirdProcessResult(
               exitCode: 0,
               stdout: 'no trace flag here',
               stderr: '',
@@ -1347,11 +1373,10 @@ Reason: Exited with code 70.'''),
             onStart: any(named: 'onStart'),
           ),
         ).thenAnswer((_) async {
-          appDill = File(p.join(projectRoot.path, '.dart_tool', 'app.dill'))
-            ..createSync(recursive: true)
-            ..setLastModifiedSync(
-              DateTime.now().add(const Duration(seconds: 10)),
-            );
+          appDill = writeAppleKernel(
+            hash: 'h',
+            aotTargetName: 'compile_macos_framework',
+          );
 
           return ExitCode.success.code;
         });
@@ -1370,7 +1395,7 @@ Reason: Exited with code 70.'''),
               runInShell: false,
             ),
           ).thenAnswer(
-            (_) async => ShorebirdProcessResult(
+            (_) async => const ShorebirdProcessResult(
               exitCode: 0,
               stdout: 'no trace flag here',
               stderr: '',
@@ -1399,16 +1424,130 @@ Reason: Exited with code 70.'''),
       );
 
       group('when .dart_tool directory exists', () {
-        late File foo;
+        late File packageConfig;
+        late File buildRunnerCache;
+        late File versionFile;
+        late List<File> platformStamps;
+        late File platformKernel;
+        late List<File> otherBuildFiles;
         setUp(() {
-          foo = File(p.join(projectRoot.path, '.dart_tool', 'foo.txt'))
-            ..createSync(recursive: true);
+          File dartToolFile(List<String> parts) => File(
+            p.joinAll([projectRoot.path, '.dart_tool', ...parts]),
+          )..createSync(recursive: true);
+          packageConfig = dartToolFile(['package_config.json']);
+          buildRunnerCache = dartToolFile([
+            'build',
+            'entrypoint',
+            'build.dart',
+          ]);
+          versionFile = dartToolFile(['version']);
+          platformStamps = [
+            dartToolFile([
+              'flutter_build',
+              'old',
+              'release_unpack_macos.stamp',
+            ]),
+            dartToolFile([
+              'flutter_build',
+              'old',
+              'kernel_snapshot_program.stamp',
+            ]),
+          ];
+          platformKernel = dartToolFile(['flutter_build', 'old', 'app.dill']);
+          otherBuildFiles = [
+            dartToolFile([
+              'flutter_build',
+              'android',
+              'android_aot_release_android-arm64.stamp',
+            ]),
+            dartToolFile([
+              'flutter_build',
+              'android',
+              'kernel_snapshot_program.stamp',
+            ]),
+            dartToolFile(['flutter_build', 'android', 'app.dill']),
+            dartToolFile(['flutter_build', 'ios', 'release_unpack_ios.stamp']),
+            dartToolFile(['flutter_build', 'ios', 'app.dill']),
+          ];
         });
 
-        test('deletes .dart_tool directory before building', () async {
-          expect(foo.existsSync(), isTrue);
+        test("deletes the stamps of this platform's builds", () async {
           await runWithOverrides(builder.buildMacos);
-          expect(foo.existsSync(), isFalse);
+          for (final stamp in platformStamps) {
+            expect(stamp.existsSync(), isFalse, reason: stamp.path);
+          }
+          expect(platformKernel.existsSync(), isTrue);
+        });
+
+        test("keeps other platforms' builds", () async {
+          await runWithOverrides(builder.buildMacos);
+          for (final file in otherBuildFiles) {
+            expect(file.existsSync(), isTrue, reason: file.path);
+          }
+        });
+
+        test('deletes .dart_tool/version so pub get re-runs', () async {
+          await runWithOverrides(builder.buildMacos);
+          expect(versionFile.existsSync(), isFalse);
+        });
+
+        test('keeps the rest of .dart_tool', () async {
+          await runWithOverrides(builder.buildMacos);
+          expect(packageConfig.existsSync(), isTrue);
+          expect(buildRunnerCache.existsSync(), isTrue);
+        });
+      });
+
+      group('when Flutter copies the kernel it compiled', () {
+        File kernelCopy() => File(
+          p.join(
+            projectRoot.path,
+            'build',
+            'macos',
+            'shorebird_kernel',
+            'app.dill',
+          ),
+        );
+
+        test('uses the copy, not a flutter_build app.dill', () async {
+          when(
+            () => shorebirdProcess.stream(
+              any(),
+              any(),
+              environment: any(named: 'environment'),
+              runInShell: any(named: 'runInShell'),
+              onStart: any(named: 'onStart'),
+            ),
+          ).thenAnswer((_) async {
+            writeAppleKernel(
+              hash: 'h',
+              aotTargetName: 'compile_macos_framework',
+            );
+            kernelCopy().createSync(recursive: true);
+            return ExitCode.success.code;
+          });
+
+          final result = await runWithOverrides(builder.buildMacos);
+
+          expect(result.kernelFile.path, equals(kernelCopy().path));
+        });
+
+        test('ignores a copy left by a previous build', () async {
+          kernelCopy().createSync(recursive: true);
+
+          final result = await runWithOverrides(builder.buildMacos);
+
+          expect(kernelCopy().existsSync(), isFalse);
+          expect(
+            result.kernelFile.path,
+            p.join(
+              projectRoot.path,
+              '.dart_tool',
+              'flutter_build',
+              'h',
+              'app.dill',
+            ),
+          );
         });
       });
 
@@ -1544,7 +1683,7 @@ Reason: Exited with code 70.'''),
 
       group('after a build', () {
         group('when the build is successful', () {
-          verifyCorrectFlutterPubGet(
+          verifyNoSystemFlutterPubGet(
             () async =>
                 runWithOverrides(() => builder.buildMacos(codesign: false)),
           );
@@ -1561,7 +1700,7 @@ Reason: Exited with code 70.'''),
               ).thenAnswer((_) async => ExitCode.software.code);
             });
 
-            verifyCorrectFlutterPubGet(
+            verifyNoSystemFlutterPubGet(
               () async => expectLater(
                 () async =>
                     runWithOverrides(() => builder.buildMacos(codesign: false)),
@@ -1585,28 +1724,302 @@ Reason: Exited with code 70.'''),
             onStart: any(named: 'onStart'),
           ),
         ).thenAnswer((_) async {
-          appDill = File(p.join(projectRoot.path, '.dart_tool', 'app.dill'))
-            ..createSync(recursive: true)
-            ..setLastModifiedSync(
-              DateTime.now().add(const Duration(seconds: 10)),
-            );
+          appDill = writeAppleKernel(
+            hash: 'h',
+            aotTargetName: 'aot_assembly_release',
+          );
 
           return ExitCode.success.code;
         });
       });
 
       group('when .dart_tool directory exists', () {
-        late File foo;
+        late File packageConfig;
+        late File buildRunnerCache;
+        late File versionFile;
+        late List<File> platformStamps;
+        late File platformKernel;
+        late List<File> otherBuildFiles;
         setUp(() {
-          foo = File(p.join(projectRoot.path, '.dart_tool', 'foo.txt'))
-            ..createSync(recursive: true);
+          File dartToolFile(List<String> parts) => File(
+            p.joinAll([projectRoot.path, '.dart_tool', ...parts]),
+          )..createSync(recursive: true);
+          packageConfig = dartToolFile(['package_config.json']);
+          buildRunnerCache = dartToolFile([
+            'build',
+            'entrypoint',
+            'build.dart',
+          ]);
+          versionFile = dartToolFile(['version']);
+          platformStamps = [
+            dartToolFile(['flutter_build', 'old', 'release_unpack_ios.stamp']),
+            dartToolFile([
+              'flutter_build',
+              'old',
+              'kernel_snapshot_program.stamp',
+            ]),
+          ];
+          platformKernel = dartToolFile(['flutter_build', 'old', 'app.dill']);
+          otherBuildFiles = [
+            dartToolFile([
+              'flutter_build',
+              'android',
+              'android_aot_release_android-arm64.stamp',
+            ]),
+            dartToolFile([
+              'flutter_build',
+              'android',
+              'kernel_snapshot_program.stamp',
+            ]),
+            dartToolFile(['flutter_build', 'android', 'app.dill']),
+            dartToolFile([
+              'flutter_build',
+              'macos',
+              'release_unpack_macos.stamp',
+            ]),
+            dartToolFile(['flutter_build', 'macos', 'app.dill']),
+          ];
         });
 
-        test('deletes .dart_tool directory before building', () async {
-          expect(foo.existsSync(), isTrue);
+        test("deletes the stamps of this platform's builds", () async {
           await runWithOverrides(builder.buildIpa);
-          expect(foo.existsSync(), isFalse);
+          for (final stamp in platformStamps) {
+            expect(stamp.existsSync(), isFalse, reason: stamp.path);
+          }
+          expect(platformKernel.existsSync(), isTrue);
         });
+
+        test("keeps other platforms' builds", () async {
+          await runWithOverrides(builder.buildIpa);
+          for (final file in otherBuildFiles) {
+            expect(file.existsSync(), isTrue, reason: file.path);
+          }
+        });
+
+        test('deletes .dart_tool/version so pub get re-runs', () async {
+          await runWithOverrides(builder.buildIpa);
+          expect(versionFile.existsSync(), isFalse);
+        });
+
+        test('keeps the rest of .dart_tool', () async {
+          await runWithOverrides(builder.buildIpa);
+          expect(packageConfig.existsSync(), isTrue);
+          expect(buildRunnerCache.existsSync(), isTrue);
+        });
+
+        test('ignores app.dill files outside flutter_build', () async {
+          when(
+            () => shorebirdProcess.stream(
+              any(),
+              any(),
+              environment: any(named: 'environment'),
+              runInShell: any(named: 'runInShell'),
+              onStart: any(named: 'onStart'),
+            ),
+          ).thenAnswer((_) async {
+            File(p.join(projectRoot.path, '.dart_tool', 'build', 'app.dill'))
+              ..createSync(recursive: true)
+              ..setLastModifiedSync(
+                DateTime.now().add(const Duration(seconds: 10)),
+              );
+            return ExitCode.success.code;
+          });
+
+          await expectLater(
+            () => runWithOverrides(builder.buildIpa),
+            throwsA(
+              isA<ArtifactBuildException>().having(
+                (e) => e.message,
+                'message',
+                'Unable to find app.dill file.',
+              ),
+            ),
+          );
+        });
+      });
+
+      group('when Flutter copies the kernel it compiled', () {
+        File kernelCopy() => File(
+          p.join(
+            projectRoot.path,
+            'build',
+            'ios',
+            'shorebird_kernel',
+            'app.dill',
+          ),
+        );
+
+        test('uses the copy, not a flutter_build app.dill', () async {
+          when(
+            () => shorebirdProcess.stream(
+              any(),
+              any(),
+              environment: any(named: 'environment'),
+              runInShell: any(named: 'runInShell'),
+              onStart: any(named: 'onStart'),
+            ),
+          ).thenAnswer((_) async {
+            writeAppleKernel(hash: 'h', aotTargetName: 'aot_assembly_release');
+            kernelCopy().createSync(recursive: true);
+            return ExitCode.success.code;
+          });
+
+          final result = await runWithOverrides(builder.buildIpa);
+
+          expect(result.kernelFile.path, equals(kernelCopy().path));
+        });
+
+        test('ignores a copy left by a previous build', () async {
+          kernelCopy().createSync(recursive: true);
+
+          final result = await runWithOverrides(builder.buildIpa);
+
+          expect(kernelCopy().existsSync(), isFalse);
+          expect(
+            result.kernelFile.path,
+            p.join(
+              projectRoot.path,
+              '.dart_tool',
+              'flutter_build',
+              'h',
+              'app.dill',
+            ),
+          );
+        });
+      });
+
+      group('when another build runs at the same time', () {
+        test(
+          "ignores the kernel another platform's build wrote first",
+          () async {
+            late File iosKernel;
+            when(
+              () => shorebirdProcess.stream(
+                any(),
+                any(),
+                environment: any(named: 'environment'),
+                runInShell: any(named: 'runInShell'),
+                onStart: any(named: 'onStart'),
+              ),
+            ).thenAnswer((_) async {
+              writeOtherKernel(
+                hash: 'android',
+                stampNames: [
+                  'kernel_snapshot_program',
+                  'android_aot_release_android-arm64',
+                ],
+              );
+              iosKernel = writeAppleKernel(
+                hash: 'ios',
+                aotTargetName: 'aot_assembly_release',
+              );
+              return ExitCode.success.code;
+            });
+
+            final result = await runWithOverrides(builder.buildIpa);
+
+            expect(result.kernelFile.path, equals(iosKernel.path));
+          },
+        );
+
+        test('throws when another iOS build compiled a kernel', () async {
+          when(
+            () => shorebirdProcess.stream(
+              any(),
+              any(),
+              environment: any(named: 'environment'),
+              runInShell: any(named: 'runInShell'),
+              onStart: any(named: 'onStart'),
+            ),
+          ).thenAnswer((_) async {
+            writeAppleKernel(hash: 'a', aotTargetName: 'aot_assembly_release');
+            writeAppleKernel(hash: 'b', aotTargetName: 'aot_assembly_release');
+            return ExitCode.success.code;
+          });
+
+          await expectLater(
+            () => runWithOverrides(builder.buildIpa),
+            throwsA(
+              isA<ArtifactBuildException>()
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    allOf(
+                      startsWith(
+                        'Found kernels from more than one IPA build in ',
+                      ),
+                      contains('a, b'),
+                    ),
+                  )
+                  .having(
+                    (e) => e.fixRecommendation,
+                    'fixRecommendation',
+                    'Another build for this platform ran in this project at '
+                        'the same time. Wait for it to finish, then run this '
+                        'command again.',
+                  ),
+            ),
+          );
+        });
+      });
+
+      group('when no AOT target ran during the build', () {
+        test('ignores a kernel from an earlier build', () async {
+          writeAppleKernel(
+            hash: 'h',
+            aotTargetName: 'aot_assembly_release',
+            after: const Duration(seconds: -10),
+          );
+          when(
+            () => shorebirdProcess.stream(
+              any(),
+              any(),
+              environment: any(named: 'environment'),
+              runInShell: any(named: 'runInShell'),
+              onStart: any(named: 'onStart'),
+            ),
+          ).thenAnswer((_) async => ExitCode.success.code);
+
+          await expectLater(
+            () => runWithOverrides(builder.buildIpa),
+            throwsA(
+              isA<ArtifactBuildException>().having(
+                (e) => e.message,
+                'message',
+                'Unable to find app.dill file.',
+              ),
+            ),
+          );
+        });
+      });
+
+      test('throws when the AOT target left no app.dill', () async {
+        when(
+          () => shorebirdProcess.stream(
+            any(),
+            any(),
+            environment: any(named: 'environment'),
+            runInShell: any(named: 'runInShell'),
+            onStart: any(named: 'onStart'),
+          ),
+        ).thenAnswer((_) async {
+          writeAppleKernel(
+            hash: 'h',
+            aotTargetName: 'aot_assembly_release',
+          ).deleteSync();
+          return ExitCode.success.code;
+        });
+
+        await expectLater(
+          () => runWithOverrides(builder.buildIpa),
+          throwsA(
+            isA<ArtifactBuildException>().having(
+              (e) => e.message,
+              'message',
+              'Unable to find app.dill file.',
+            ),
+          ),
+        );
       });
 
       group('with default arguments', () {
@@ -1785,7 +2198,7 @@ Reason: Exited with code 70.'''),
 
       group('after a build', () {
         group('when the build is successful', () {
-          verifyCorrectFlutterPubGet(
+          verifyNoSystemFlutterPubGet(
             () async =>
                 runWithOverrides(() => builder.buildIpa(codesign: false)),
           );
@@ -1802,7 +2215,7 @@ Reason: Exited with code 70.'''),
               ).thenAnswer((_) async => ExitCode.software.code);
             });
 
-            verifyCorrectFlutterPubGet(
+            verifyNoSystemFlutterPubGet(
               () async => expectLater(
                 () async =>
                     runWithOverrides(() => builder.buildIpa(codesign: false)),
@@ -1836,11 +2249,10 @@ Reason: Exited with code 70.'''),
             onStart: any(named: 'onStart'),
           ),
         ).thenAnswer((_) async {
-          appDill = File(p.join(projectRoot.path, '.dart_tool', 'app.dill'))
-            ..createSync(recursive: true)
-            ..setLastModifiedSync(
-              DateTime.now().add(const Duration(seconds: 10)),
-            );
+          appDill = writeAppleKernel(
+            hash: 'h',
+            aotTargetName: 'aot_assembly_release',
+          );
 
           return ExitCode.success.code;
         });
@@ -1859,7 +2271,7 @@ Reason: Exited with code 70.'''),
               runInShell: false,
             ),
           ).thenAnswer(
-            (_) async => ShorebirdProcessResult(
+            (_) async => const ShorebirdProcessResult(
               exitCode: 0,
               stdout: 'no trace flag here',
               stderr: '',
@@ -1889,16 +2301,131 @@ Reason: Exited with code 70.'''),
       );
 
       group('when .dart_tool directory exists', () {
-        late File foo;
+        late File packageConfig;
+        late File buildRunnerCache;
+        late File versionFile;
+        late List<File> platformStamps;
+        late File platformKernel;
+        late List<File> otherBuildFiles;
         setUp(() {
-          foo = File(p.join(projectRoot.path, '.dart_tool', 'foo.txt'))
-            ..createSync(recursive: true);
+          File dartToolFile(List<String> parts) => File(
+            p.joinAll([projectRoot.path, '.dart_tool', ...parts]),
+          )..createSync(recursive: true);
+          packageConfig = dartToolFile(['package_config.json']);
+          buildRunnerCache = dartToolFile([
+            'build',
+            'entrypoint',
+            'build.dart',
+          ]);
+          versionFile = dartToolFile(['version']);
+          platformStamps = [
+            dartToolFile(['flutter_build', 'old', 'release_unpack_ios.stamp']),
+            dartToolFile([
+              'flutter_build',
+              'old',
+              'kernel_snapshot_program.stamp',
+            ]),
+          ];
+          platformKernel = dartToolFile(['flutter_build', 'old', 'app.dill']);
+          otherBuildFiles = [
+            dartToolFile([
+              'flutter_build',
+              'android',
+              'android_aot_release_android-arm64.stamp',
+            ]),
+            dartToolFile([
+              'flutter_build',
+              'android',
+              'kernel_snapshot_program.stamp',
+            ]),
+            dartToolFile(['flutter_build', 'android', 'app.dill']),
+            dartToolFile([
+              'flutter_build',
+              'macos',
+              'release_unpack_macos.stamp',
+            ]),
+            dartToolFile(['flutter_build', 'macos', 'app.dill']),
+          ];
         });
 
-        test('deletes .dart_tool directory before building', () async {
-          expect(foo.existsSync(), isTrue);
+        test("deletes the stamps of this platform's builds", () async {
           await runWithOverrides(builder.buildIosFramework);
-          expect(foo.existsSync(), isFalse);
+          for (final stamp in platformStamps) {
+            expect(stamp.existsSync(), isFalse, reason: stamp.path);
+          }
+          expect(platformKernel.existsSync(), isTrue);
+        });
+
+        test("keeps other platforms' builds", () async {
+          await runWithOverrides(builder.buildIosFramework);
+          for (final file in otherBuildFiles) {
+            expect(file.existsSync(), isTrue, reason: file.path);
+          }
+        });
+
+        test('deletes .dart_tool/version so pub get re-runs', () async {
+          await runWithOverrides(builder.buildIosFramework);
+          expect(versionFile.existsSync(), isFalse);
+        });
+
+        test('keeps the rest of .dart_tool', () async {
+          await runWithOverrides(builder.buildIosFramework);
+          expect(packageConfig.existsSync(), isTrue);
+          expect(buildRunnerCache.existsSync(), isTrue);
+        });
+      });
+
+      group('when the module has generated Xcode properties', () {
+        const vendedRoot = '/shorebird/bin/cache/flutter/1234';
+        late File xcconfig;
+        late File exportEnvironment;
+
+        void writeProperties({required String flutterRoot}) {
+          final flutterDir = p.join(projectRoot.path, '.ios', 'Flutter');
+          xcconfig = File(p.join(flutterDir, 'Generated.xcconfig'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync('''
+// This is a generated file; do not edit or check into version control.
+FLUTTER_ROOT=$flutterRoot
+FLUTTER_APPLICATION_PATH=${projectRoot.path}
+''');
+          exportEnvironment = File(
+            p.join(flutterDir, 'flutter_export_environment.sh'),
+          )..writeAsStringSync('export "FLUTTER_ROOT=$flutterRoot"\n');
+        }
+
+        setUp(() {
+          when(
+            () => shorebirdEnv.flutterDirectory,
+          ).thenReturn(Directory(vendedRoot));
+        });
+
+        test('deletes them when they name another Flutter', () async {
+          writeProperties(flutterRoot: '/Users/me/Developer/flutter');
+
+          await runWithOverrides(builder.buildIosFramework);
+
+          expect(xcconfig.existsSync(), isFalse);
+          expect(exportEnvironment.existsSync(), isFalse);
+        });
+
+        test('deletes them when they name no Flutter', () async {
+          writeProperties(flutterRoot: vendedRoot);
+          xcconfig.writeAsStringSync('FLUTTER_APPLICATION_PATH=/app\n');
+
+          await runWithOverrides(builder.buildIosFramework);
+
+          expect(xcconfig.existsSync(), isFalse);
+          expect(exportEnvironment.existsSync(), isFalse);
+        });
+
+        test("keeps them when they name Shorebird's Flutter", () async {
+          writeProperties(flutterRoot: vendedRoot);
+
+          await runWithOverrides(builder.buildIosFramework);
+
+          expect(xcconfig.existsSync(), isTrue);
+          expect(exportEnvironment.existsSync(), isTrue);
         });
       });
 
@@ -1917,6 +2444,87 @@ Reason: Exited with code 70.'''),
         expect(result.kernelFile.path, equals(appDill.path));
       });
 
+      group('when Flutter copies the kernel it compiled', () {
+        File kernelCopy() => File(
+          p.join(
+            projectRoot.path,
+            'build',
+            'ios',
+            'shorebird_kernel',
+            'app.dill',
+          ),
+        );
+
+        test('uses the copy, not a flutter_build app.dill', () async {
+          when(
+            () => shorebirdProcess.stream(
+              any(),
+              any(),
+              environment: any(named: 'environment'),
+              runInShell: any(named: 'runInShell'),
+              onStart: any(named: 'onStart'),
+            ),
+          ).thenAnswer((_) async {
+            writeAppleKernel(hash: 'h', aotTargetName: 'aot_assembly_release');
+            kernelCopy().createSync(recursive: true);
+            return ExitCode.success.code;
+          });
+
+          final result = await runWithOverrides(builder.buildIosFramework);
+
+          expect(result.kernelFile.path, equals(kernelCopy().path));
+        });
+
+        test('ignores a copy left by a previous build', () async {
+          kernelCopy().createSync(recursive: true);
+
+          final result = await runWithOverrides(builder.buildIosFramework);
+
+          expect(kernelCopy().existsSync(), isFalse);
+          expect(
+            result.kernelFile.path,
+            p.join(
+              projectRoot.path,
+              '.dart_tool',
+              'flutter_build',
+              'h',
+              'app.dill',
+            ),
+          );
+        });
+      });
+
+      test(
+        'uses the release kernel, not the debug simulator kernel',
+        () async {
+          late File releaseKernel;
+          when(
+            () => shorebirdProcess.stream(
+              any(),
+              any(),
+              environment: any(named: 'environment'),
+              runInShell: any(named: 'runInShell'),
+              onStart: any(named: 'onStart'),
+            ),
+          ).thenAnswer((_) async {
+            releaseKernel = writeAppleKernel(
+              hash: 'release',
+              aotTargetName: 'aot_assembly_release',
+              after: const Duration(seconds: 20),
+            );
+            writeOtherKernel(
+              hash: 'debug',
+              stampNames: ['debug_unpack_ios', 'debug_universal_framework'],
+            );
+            return ExitCode.success.code;
+          });
+
+          final result = await runWithOverrides(builder.buildIosFramework);
+
+          expect(result.kernelFile.path, equals(releaseKernel.path));
+        },
+      );
+
       test('forward arguments to flutter build', () async {
         await runWithOverrides(
           () => builder.buildIosFramework(args: ['--foo', 'bar']),
@@ -1932,6 +2540,27 @@ Reason: Exited with code 70.'''),
               '--no-profile',
               '--foo',
               'bar',
+            ],
+            runInShell: false,
+            onStart: any(named: 'onStart'),
+          ),
+        ).called(1);
+      });
+
+      test('passes the target to flutter build', () async {
+        await runWithOverrides(
+          () => builder.buildIosFramework(target: 'lib/main_prod.dart'),
+        );
+
+        verify(
+          () => shorebirdProcess.stream(
+            'flutter',
+            [
+              'build',
+              'ios-framework',
+              '--no-debug',
+              '--no-profile',
+              '--target=lib/main_prod.dart',
             ],
             runInShell: false,
             onStart: any(named: 'onStart'),
@@ -1961,7 +2590,7 @@ Reason: Exited with code 70.'''),
 
       group('after a build', () {
         group('when the build is successful', () {
-          verifyCorrectFlutterPubGet(
+          verifyNoSystemFlutterPubGet(
             () => runWithOverrides(builder.buildIosFramework),
           );
 
@@ -2009,7 +2638,7 @@ Reason: Exited with code 70.'''),
               ).thenAnswer((_) async => ExitCode.software.code);
             });
 
-            verifyCorrectFlutterPubGet(
+            verifyNoSystemFlutterPubGet(
               () => expectLater(
                 () => runWithOverrides(builder.buildIosFramework),
                 throwsA(
@@ -2151,7 +2780,7 @@ Reason: Exited with code 70.'''),
               runInShell: false,
             ),
           ).thenAnswer(
-            (_) async => ShorebirdProcessResult(
+            (_) async => const ShorebirdProcessResult(
               exitCode: 0,
               stdout: 'no trace flag here',
               stderr: '',

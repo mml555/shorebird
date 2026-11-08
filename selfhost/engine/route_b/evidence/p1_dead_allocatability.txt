@@ -1,0 +1,160 @@
+cspell:words allocatability dispatchable ungranted redirecting
+cspell:words Cctl Cfix cctl cfix CFIX KCTOR callability sbrb
+
+P1.1b -- private-class allocatability: does retention grant construction?
+=========================================================================
+probes/p1_dead_allocatability.sh, host only (no device, no mint, no cell).
+Run 2026-08-25 against /Volumes/build/route-b/flutter/engine/src,
+out/host_release_arm64, dart-sdk fork 9e8c898a4d2. One release built PER ARM, so
+the grant set is the only variable.
+
+VERDICT: GREEN against the precommitted table -- 8 pass / 0 fail / 3 classified.
+
+THE DIAGNOSIS, ESTABLISHED BEFORE ANY CHANGE
+--------------------------------------------
+Four hypotheses were on the table. The answer is the fourth, and it is not a bug:
+
+  1 retaining a class implicitly retains all constructors        -- NO
+  2 constructor retention falls out of finalization/allocation   -- NO
+  3 the binder treats construction unlike member lookup          -- NO
+  4 the dynamic interface DEFINES a `callable:` class item as
+    "this class AND ITS PUBLIC MEMBERS are callable"              -- YES
+
+`pkg/vm/lib/transformations/dynamic_interface_annotator.dart` is UPSTREAM DART,
+unmodified by this fork (`git diff d684a576a6a..9e8c898a4d2` does not touch it),
+and `_Annotator.visitClass` reads:
+
+    void visitClass(Class node) {
+      annotateClass(node);
+      if (annotateMembers) {
+        _visitPublicMembers(node.constructors);   <-- here
+        _visitPublicMembers(node.procedures);
+        _visitPublicMembers(node.fields);
+      }
+    }
+
+`callable:` is parsed with `allowStaticDeclarations: true`, so `annotateMembers`
+is on; a class's implicit unnamed constructor is PUBLIC (name text is empty, so
+`Name.isPrivate` is false). Construction is therefore granted through the
+ordinary member-annotation path.
+
+**So the authority is decided by what WE emit.** `gen_dynamic_interface.dart`
+puts every private class into `callable:` as a bare `class:` item, because that
+is the only section it emits — and its own comment already says "Each item also
+retains the class's PUBLIC members."
+
+THE MEASURED TABLE
+------------------
+| arm   | grants for the class                    | attempt          | outcome |
+|-------|-----------------------------------------|------------------|---------|
+| Cctl  | `can-be-used-as-type` only              | use as a TYPE    | PASS    |
+| C0    | `can-be-used-as-type` only              | `_Dead()`        | refused |
+| C1    | bare `class:` under `callable:`         | `_Dead()`        | PASS    |
+| C2    | bare `class:` under `callable:`         | `_Dead._mk()`    | refused |
+| C3    | class + `member: '_mk'`                 | `_Dead._mk()`    | PASS    |
+| C4    | bare `class:` under `callable:`         | `_Dead.made()`   | PASS *  |
+| C5    | bare `class:` under `callable:`         | `_Dead.redirect()`| PASS * |
+| Cfix  | `can-be-used-as-type` + private members | patch a method   | ATTACH  |
+| Cfix2 | same as Cfix                            | `_Kept()`        | refused |
+| Cfix3 | `member: 'show'` + private members,     | patch `_Kept.show`| PASS   |
+|       | NO bare class item                      | reading a private |         |
+| Cfix4 | same as Cfix3                           | `_Kept()`        | refused |
+
+  * C4/C5 were CLASSIFIED, not precommitted. See below.
+
+C1 reproduces the reported hole: a bare `class:` item grants the unnamed
+constructor of a private class the release never constructs. C3 shows the
+converse — a PRIVATE named constructor needs its own explicit grant, exactly as
+`_visitPublicMembers` implies.
+
+`Cctl` IS WHAT MAKES C0 MEAN ANYTHING. Under C0's grant set the class's identity
+is still reachable (a patch used `_Dead` as a type and ran), so C0's refusal is
+attributable to the constructor grant and not to the class having vanished. This
+control exists because the bind-arm probe was bitten by exactly that: a member
+believed "withheld but live" had actually been inlined away.
+
+C4/C5 CLASSIFIED AGAINST THE PRECOMMITTED RULE
+----------------------------------------------
+The rule, fixed before running: *construction is permitted only if every callable
+constructor/factory edge the invocation requires is represented by an explicit
+capability grant.*
+
+  C4 factory `_Dead.made()`      -> PASS. `made` is a PUBLIC factory, so the bare
+                                    class item annotates it. It calls the private
+                                    `_mk` internally and that needs no grant,
+                                    because the edge the PATCH invokes is `made`.
+  C5 redirecting `_Dead.redirect()` -> PASS, same shape: a public generative
+                                    constructor that redirects to private `_mk`.
+
+Consistent with the rule rather than an exception to it: both are public
+constructors, and the class item grants public members. Under the fix below,
+neither is granted unless it is named.
+
+THE FIX, MEASURED -- AND THE FIRST CANDIDATE WAS REFUTED
+--------------------------------------------------------
+Candidate 1 (Cfix): move private classes to `can-be-used-as-type:`, keeping
+member grants. **REFUTED.** It gives type identity (Cctl) but a patch cannot
+ATTACH to a method of the class:
+
+    APPLY refused: target _Kept.show did not attach; rolled back 0 already applied
+
+Candidate 2 (Cfix3/Cfix4): keep the class in `callable:` but name its MEMBERS
+individually -- including the methods a patch may target -- and emit NO bare
+`class:` item. **HOLDS, on both halves:**
+
+  * Cfix3: the patch attached to `_Kept.show` and ran, reading a private field
+    (`kept=NEW-KEPT3K`);
+  * Cfix4: `_Kept()` under that same grant set is refused.
+
+So the two authorities ARE separable, and separable **entirely inside
+`gen_dynamic_interface.dart`** -- no upstream CFE change, and no producer
+blacklist standing in as the boundary. The invariant becomes expressible:
+
+    retain class identity  !=  grant constructor invocation
+                           !=  grant member invocation
+
+Cfix's `expect` is demoted from PASS to CLASSIFY in the probe so it can still
+serve as a regression gate. **That demotion records a refutation; it is not a
+retune to make the probe green** -- the refuted hypothesis stays in the header
+because "move them out of callable:" is the obvious wrong fix.
+
+REFUSAL SHAPE: THESE ARE CRASHES, NOT DECLINES
+----------------------------------------------
+Every "refused" above is a process ABORT, not a catchable error:
+
+  C2  bytecode_reader.cc:1172: error: Unable to find function
+      _Dead@...._mk@... in Library:'...' Class: _Dead    <- named and attributable
+  C0  object.cc:5500: error: unreachable code            <- no diagnostic at all
+
+The second is the worse shape: the class is present as a type, its constructor
+body is the unreachable stub, and calling it hits that stub. **So an ungranted
+construction does not "refuse" at run time -- it kills the process.** Two
+consequences worth carrying:
+
+  * this must be gated PRE-PUBLICATION (P4's refusal gates), because there is no
+    graceful runtime outcome to fall back on;
+  * it is a sharper failure than the ungranted-MEMBER case, which threw a
+    catchable NoSuchMethodError (`p1_bind_private_receiver.txt`, B4/B4b). Member
+    reach and construction fail with different severity as well as through
+    different mechanisms.
+
+TWO HARNESS FAULTS FOUND AND FIXED, BOTH MINE
+---------------------------------------------
+* `sed -n 's/^after alpha=...'` matched ONE space; `_state('after ')` prints a
+  trailing space in its label, so the line reads `after  alpha=`. Every arm read
+  as `<no value>`, which turned two PASSES into STOP rows and would have been
+  reported as "the mechanism does not work". A false negative from the harness,
+  caught only because two STOP rows firing at once was implausible.
+* A batch of edits to this probe aborted at its first failed match, so five later
+  edits silently never applied -- the patch target stayed `alpha` while the arm
+  believed it was patching `_Kept.show`. The tell was in the stack trace
+  (`#2 alpha`), not in any assertion.
+
+WHAT THIS DOES NOT SHOW
+-----------------------
+* Interface SIZE cost of naming members individually is not measured here --
+  `measure_retention.sh` is the tool, and the number belongs with the generator
+  change.
+* No device. Host AOT runtime only.
+* The generator change itself is not made yet; this run establishes which change
+  to make.

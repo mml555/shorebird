@@ -1,0 +1,64 @@
+SELFHOST-CLEANROOM-2 run 2026-09-04T19:45:08Z pid 12978
+
+== 0 - the sealed cleanroom
+  PASS  denied: /Volumes/build/route-b
+  PASS  denied: /Users/mendell/shorebird
+  PASS  denied: /Users/mendell/.shorebird
+  PASS  denied: /Users/mendell/.pub-cache
+  PASS  denied: /Users/mendell/.gradle
+  PASS  5 of them ARE readable outside the sandbox, so the denial is what stops them
+  PASS  fresh HOME has no .shorebird
+  PASS  fresh HOME has no .pub-cache
+  PASS  fresh HOME has no .gradle
+
+== 1 - the immutable selfhost tag RESOLVES
+    newest selfhost-v* on the remote: selfhost-v1.1.1
+  PASS  an immutable selfhost tag resolves anonymously
+
+== 2 - bootstrap from that tag alone
+  PASS  the tag checks out (bdb234ab)
+  PASS  the tag carries the bootstrap path
+  PASS  BOOTSTRAP COMPLETE
+
+== 3 - the acceptance table
+    record                             CURRENT (cell f85251f344600ae08196925a174e9cff8f0ff18e)
+    record format                      duplicate-free
+  PASS  the record lints clean with no external dependency
+    cli_revision                       RESOLVES
+  PASS  cli_revision resolves
+    flutter_selector                   RESOLVES
+  PASS  the selector was fetched and is checked out
+    selector -> cell                   MATCH
+  PASS  the recorded selector's engine.version IS the recorded cell
+    cell members                       30/30
+    cell address                       f85251f344600ae08196925a174e9cff8f0ff18e
+  PASS  the cell hydrated 30/30 from the durable distribution
+    SUPPORTED STATE VERIFIED           YES
+  PASS  SUPPORTED STATE VERIFIED in the cleanroom
+
+== 4 - release-side artifact hydration, BOTH platforms, no devices
+  PASS  the bootstrapped Flutter is executable
+    flutter precache --ios exit=0
+  PASS  release-side artifacts hydrated for ios
+    flutter precache --android exit=0
+  PASS  release-side artifacts hydrated for android
+
+== 4b - ATTRIBUTION: every cell object came from the distribution
+    requests total                              36
+    for objects IN the distribution             18
+      served from the hydrated overlay          18
+      served by upstream                        0
+    for objects NOT in the distribution         18
+      of those, under the cell path (rewritten) 10
+    non-200 responses                           0
+  PASS  every distributed object came from the hydrated overlay; every response 200
+  PASS  engine artifacts present on disk: artifacts/engine/ios-release
+  PASS  engine artifacts present on disk: artifacts/engine/android-arm64-release
+
+== 5 - and no /Volumes/build read could have helped
+  PASS  /Volumes/build/route-b still denied
+  PASS  the development checkout still denied
+
+== RESULT
+  cleanroom: /Volumes/build/cleanroom2
+  CLEANROOM REPRODUCIBLE

@@ -1,0 +1,5 @@
+release 102 / killswitch_probe 1.2.0+1
+App.framework LC_UUID   : D06B410E-9C99-38BD-952E-AD4A345A7908
+Flutter LC_UUID (engine): 4C4C44C0-5555-3144-A1DD-7EB2A7564480  (= BEFORE engine, cell mintstage_0013)
+export method           : development
+fixture                 : four-mode lifecycle harness

@@ -1,0 +1,37 @@
+
+== 1 - CONFIRMATION: is a mutation approved without an explicit flag?
+
+== 2 - SELECTION: the chooser, with ambiguity it cannot shortcut
+    releases now on the control plane: 4
+
+== 3 - APP IDENTITY: what happens with no app_id at all
+
+== 4 - CREDENTIALS: missing and invalid, and where they fail
+  cred_missing             exit=67  built=0   You must be logged in
+  cred_garbage             exit=70  built=0   Failed to parse SHOREBIRD_TOKEN
+  cred_wrongshape          exit=70  built=0   
+
+== 5 - THE SECRET must not appear in any captured output
+    log files containing the literal token: 0
+
+== RESULT
+    confirmation       conf_noflag                                               conf_noflag              stdin=closed  exit=0   Published Release 2.0.0+1
+    0                  stdin CLOSED, no --no-confirm: does it approve itself?
+    confirmation       conf_flag                                                 conf_flag                stdin=closed  exit=0   Published Release 2.1.0+1
+    0                  stdin CLOSED, --no-confirm: the candidate mechanism
+    confirmation       conf_devnull                                              conf_devnull             stdin=devnull exit=0   Published Release 2.2.0+1
+    0                  stdin=/dev/null, no flag: CONTRAST only
+    release_selection  sel_derivable                                             sel_derivable            stdin=closed  exit=0   not specified
+    0                  no --release-version; pubspec 2.1.0+1 HAS a release
+    release_selection  sel_nomatch                                               sel_nomatch              stdin=closed  exit=70  not specified
+    70                 no --release-version; pubspec 9.9.9+1 has NO release
+    release_selection  sel_explicit                                              sel_explicit             stdin=closed  exit=0   Published Patch 2
+    0                  explicit --release-version: the deterministic form
+    app_selection      ident_missing                                             ident_missing            stdin=closed  exit=70  
+    70                 shorebird.yaml with NO app_id
+    authentication     cred_missing                                            67                                                                           token='<unset>'; build attempts=0
+    authentication     cred_garbage                                            70                                                                           token='not-a-key'; build attempts=0
+    authentication     cred_wrongshape                                         70                                                                           token='sb_api_deadbeef'; build attempts=0
+    secret             token_in_logs                                           0                                                                            must be 0
+
+  logs: /Volumes/build/ci1/logs

@@ -1,0 +1,125 @@
+CLAIM 2 — ARM A TARGET MEASUREMENT, 2026-08-17
+===============================================
+
+Precommitted in next_cycle_precommit.md. That outcome table is not edited here.
+
+**ARM A IS NOT RE-SCORED BY THIS CYCLE.** Its precommitted table
+(gate5_arms_precommit.md) is unchanged and still requires `NEW-kill` on screen
+for a PASS. What follows is a MEASUREMENT of where the target lives. It is not an
+explanation of `OLD-kill`, and the two must not be conflated.
+
+THE MEASUREMENT
+---------------
+    tpool_status  = 3   (ABSENT)
+    tpool_matches = 0
+    tpool_index   = -1
+    tpool_index2  = -1
+    tpool_scanned = 12478
+    tpool_offset  = -1  (unset, consistent with ABSENT)
+
+release 96 (1.0.7+1), cell 50bdae36…, target `routeBValue` in
+`package:killswitch_probe/main.dart`, patch attached successfully
+(`rc=0 attach_entered=1 attach_returned=1 bc_post=1 uep_post_is_interpret_call=1`).
+
+**The patched `Function` does not appear anywhere in the global object pool.**
+Every one of 12,478 entries was visited; zero hold it.
+
+WHAT THE PRECOMMIT SAYS THIS LICENSES, AND NOTHING MORE
+--------------------------------------------------------
+    "tpool_status=ABSENT | the patched Function is not in the global pool. That
+     is the inlining hypothesis's signature and would be the first positive
+     evidence for it — but it must then explain why release 91 worked, and until
+     it does it is a lead"
+
+So: **this is the first positive evidence for the inlining hypothesis**, which
+until now was recorded in gate5_armA_fold_refuted.txt as a hypothesis with an
+objection attached and no measurement behind it. It is now a hypothesis with an
+objection attached and ONE measurement behind it.
+
+**THE RELEASE-91 CONTRADICTION IS RETAINED IN FULL AND IS NOT WEAKENED BY THIS.**
+Release 91 rendered `NEW-kill` on this same target (arm2_verdict.txt, 2026-08-14,
+twice). If the target were simply inlined everywhere and nothing called the
+out-of-line `Function`, release 91 could not have worked. ABSENT on release 96
+therefore does NOT explain arm A; it deepens the 91-vs-95-vs-96 delta, which
+remains the open question. Untested candidates named in
+gate5_armA_fold_refuted.txt — cell `cd137db6` (patch 0011), the CLI at
+`98f84c17`, the rebuilt platform dill — are untouched by this and now joined by
+this cycle's own cell.
+
+`--pool-offset` WAS NOT FED, AND MUST NOT BE
+----------------------------------------------
+The precommit's UNIQUE branch would have fed `tpool_offset` to
+`assert_result_consumed.sh --pool-offset` against release 95's preserved `App`.
+**ABSENT supplies no offset** (`tpool_offset=-1`), so nothing was fed and no
+consumption verdict was produced. `routeBValue`'s result-consumption remains
+UNMEASURED, exactly as gate5_armA_site_identity.txt left it.
+
+The probe and its inputs were readied and rehearsed this cycle — release 95 was
+fetched from the control plane and preserved at `evidence/releases/95/` with
+three-way UUID provenance (`3A9A05AB-864F-37EA-8615-D5B4773A33F7`), and the probe
+reproduced two known prior measurements against it (`routeBValue` at `0xe9ff4`
+NOT LOCATED; `--pool-offset 0x8440` CONSUMED). So the instrument is ready and the
+input is what is missing, not the reverse.
+
+THE SCREEN OBSERVATION FROM THIS CYCLE IS NOT ARM A EVIDENCE
+--------------------------------------------------------------
+Launch 6 (`hlfn90ouek`) rendered `route B value: OLD-kill`
+(`cycle96_device/screen_launch_hlfn90ouek.png`). **That screen does not bear on
+arm A, and reading it as "arm A reproduced" would be wrong.**
+
+By that launch the patch had been TOMBSTONED:
+
+    state_final/patches/1/state.json   {"kind":"Bad","reason":"BootCrash",...}
+    state_final/pointers.json          next_boot_patch: null
+
+A tombstoned patch is not active, so `OLD-kill` on launch 6 is the ORDINARY
+reading of an unpatched release — fully explained without invoking arm A's
+mystery at all. Arm A's `OLD-kill` is interesting precisely because it happened
+with the patch ACTIVE; this one did not.
+
+**No launch in this cycle produced arm A's precommitted observation.** The one
+launch that both rendered AND had the patch active (launch 4, `hlfn5gt0tb`,
+`arm:render` + `first-frame`, patch `Installed`, `last_booted_patch: 1`) was not
+screenshotted — the screen was captured two launches too late. That is a
+collection miss in this cycle's execution, and it is recorded as one rather than
+patched over with the launch-6 image.
+
+VERDICT
+-------
+**MEASURED: the target is ABSENT from the global object pool on release 96.**
+
+**ARM A: UNCHANGED — still INCONCLUSIVE, target unchanged, `OLD-kill`
+unexplained, consumption UNMEASURED.** This cycle produced a measurement and no
+screen, so it retires nothing and confirms nothing about arm A.
+
+WHAT WOULD ACTUALLY MOVE THIS
+-------------------------------
+1. **Screenshot the render launch WHILE the patch is active.** Cheap, and this
+   cycle missed it. The alternation makes render launches every other boot, and
+   the patch must not yet be tombstoned — so the window is the first render
+   launch after the patch installs.
+2. **Run the same derived scan against release 91**, where the patch demonstrably
+   worked. If 91 also reports ABSENT, inlining is refuted as the differentiator
+   the same way the fold was — by showing the working and failing releases share
+   the shape. If 91 reports UNIQUE, the delta is located. **This is the single
+   highest-value next measurement, and it needs no new instrument** — only a
+   release-91 build on this cell, or the cell 91 was cut on.
+3. The caller scan remains unrequested (`caller_scan_status=0`). It would answer
+   a different question — does a NAMED caller's own pool hold the target — and
+   nothing has yet required it.
+
+AN UNRELATED OBSERVATION, RECORDED BUT NOT SCORED
+---------------------------------------------------
+The patch was marked `Bad{BootCrash}` after this cycle's kill launches. In
+arm2_verdict.txt (cell `80e493e4`, release 91) a good patch survived the same
+alternating SIGKILL and was RETRIED rather than tombstoned — that was arm 2's
+PASS. Here, on cell `50bdae36`, launch 4 booted the patch successfully
+(`first-frame`), launch 5 killed with it active, and by launch 6 it was
+tombstoned with `next_boot_patch: null`.
+
+**This is one observation, the counter was 0 at both pulls so the threshold
+arithmetic was never caught in flight, and the two runs differ in cell, release
+and CLI.** It is NOT a re-score of arm 2 and NOT a regression claim. It is
+flagged because it is the kind of difference that, if real, would matter more
+than anything else in this file, and it should be run deliberately rather than
+noticed in passing.

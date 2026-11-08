@@ -1,0 +1,111 @@
+cspell:words dispatchable devirtualization devirtualize allocatability
+cspell:words PUBH FLDF GETG MTHM
+
+P1 bind-time qualification -- the idiomatic Flutter private-State shape
+======================================================================
+probes/p1_bind_private_receiver.sh, host only (no device, no mint, no cell).
+Run 2026-08-25 against /Volumes/build/route-b/flutter/engine/src,
+out/host_release_arm64, dart-sdk fork 9e8c898a4d2 (= the SDK in the shipped
+release-108 cell 2c4443ce). Release build id 97c212a3..., interface --policy p2
+with two members withheld by hand.
+
+WHY BIND AND NOT COMPILE. The producer lowers a private receiver class to
+`dynamic`, and the front end accepts any member name on a dynamic receiver with
+no privacy test -- so for this shape `self._x` compiles with or without
+`--resolve-private-names-in-library`. Compile success is not evidence. Everything
+below is scored on the running program.
+
+VERDICT: GREEN, 8 pass / 0 fail / 0 invalid.
+
+| arm | replacement body reaches                    | outcome | displayed  |
+|-----|---------------------------------------------|---------|------------|
+| B0  | a PUBLIC member of the private class        | PASS    | NEW-PUBH   |
+| B1  | a granted private FIELD `_secret`           | PASS    | NEW-FLDF   |
+| B2  | a granted private GETTER `_privateGetter`   | PASS    | NEW-GETG   |
+| B3  | a granted private METHOD `_privateMethod()` | PASS    | NEW-MTHM   |
+| B4  | `_ungranted()` -- withheld from the interface| BIND    | refused    |
+| B4b | `_ungrantedKept()` -- withheld AND still     | BIND    | refused    |
+|     | dispatchable in the release                  |         |            |
+| B5  | a SECOND library's private `_secondSecret`  | COMPILE | refused    |
+| B6  | `_doesNotExistAnywhere()`                    | BIND    | refused    |
+
+Premises asserted before scoring, not assumed:
+    interface: _secret=1 _privateGetter=1 _privateMethod=1
+               _ungranted=0 _ungrantedKept=0
+    baseline : alpha=OLD-a beta=OLD-b foo=OLD live=U kept=K
+The unrelated control `live=U` was checked unmoved on every arm.
+
+THE HEADLINE: THE IDIOMATIC SHAPE WORKS
+---------------------------------------
+A patch to a method of a conventionally PRIVATE State class binds and executes,
+and its new body reads a private field, a private getter and a private method of
+that class. That is the shape Phase 0 said dominates real patches -- 7 of 14
+blocked emit-targets were methods of one `_FullscreenVideoViewerState` -- and it
+is the shape the existing device specimen did NOT cover: release 31.0.0+1 patch 2
+proved a private field on a PUBLIC class.
+
+THE CAPABILITY QUESTION, ANSWERED THE GOOD WAY
+----------------------------------------------
+B4b is the sharp arm. `_ungrantedKept` is:
+
+  * ABSENT from the dynamic interface (asserted: `_ungrantedKept=0`), and
+  * PRESENT and DISPATCHABLE in the release -- the release calls it through a
+    dynamic receiver, which no devirtualization or inlining can serve, and the
+    baseline prints `kept=K` to prove it ran.
+
+A patch still could not reach it:
+
+    NoSuchMethodError: Class '_FooState' has no instance method '_ungrantedKept'.
+    Receiver: Instance of '_FooState'
+
+**So the interface grant -- not mere retention, and not the private-name key --
+is what gates a patch's reach.** The class's members are filtered to the granted
+set from the patch's point of view, even for a member the release itself is
+dispatching by name at that very moment. No capability leak on the member axis.
+
+That is a stronger boundary than the `_Dead()` class-allocatability gap suggested,
+and the two are now known to be different axes: MEMBER reach is gated by the
+interface; CONSTRUCTIBILITY is not (see PARITY.md's private-members table).
+
+ONE HARNESS ARTIFACT, RECORDED SO NOBODY CHASES IT AGAIN
+--------------------------------------------------------
+`attachBytecodeToFunction` smoke-invokes the freshly attached function from C++
+with a NULL receiver, so every arm whose body touches `self` prints
+
+    ATTACH: C++ invoke error: ... NoSuchMethodError: ... Receiver: null
+
+*including the arms that pass.* It cost a full detour: read against a passing
+arm's log it looks like the replacement cannot see its receiver at all, and read
+against B4 it looks like the refusal happened for the wrong reason. The program's
+own call is the one AFTER the `APPLY` line, and that is where this probe now reads
+both the value and the exception. Every refusal arm additionally has to show a
+REAL receiver (`Instance of '_FooState'`) or it is scored INVALID -- a
+null-receiver failure would refuse every body ever written and would say nothing
+about capability.
+
+ONE FIXTURE PREMISE THAT TURNED OUT FALSE, AND WHY IT MATTERED
+--------------------------------------------------------------
+B4's member was originally described as "withheld but still live, because the
+release calls it". It is not: the release's direct call was inlined, so the
+MEMBER was gone from the class while its behaviour survived at the call site
+(`live=U` still prints). B4 therefore only ever tested "ungranted, and not
+retained as a member". B4b was added to test the intended thing -- and it is the
+arm that actually answers the capability question.
+
+STAGE OF EACH REFUSAL, because they are not interchangeable
+-----------------------------------------------------------
+  B5  COMPILE  -- a second library's private cannot even be named; it never
+                  reaches bind. (Consistent with p1_private_scope_controls A4.)
+  B4  BIND     -- ungranted and not retained: the member is not in the class.
+  B4b BIND     -- ungranted but retained: the member is in the class and is
+                  still not reachable from a patch.
+  B6  BIND     -- the vacuity control. If a member that exists nowhere had
+                  bound, no refusal above would mean anything.
+
+WHAT THIS DOES NOT SHOW
+-----------------------
+* No device. This is the host AOT runtime; the device arm for the private
+  getter/method path is still owed (P1.4).
+* Writes are out of scope by decision -- Phase 0 saw compound writes zero times.
+* Nothing here revisits `_Dead()` class allocatability, which is a separate axis
+  and still open.

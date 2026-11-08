@@ -35,6 +35,7 @@ import '../../matchers.dart';
 import '../../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(AarPatcher, () {
     const packageName = 'com.example.my_flutter_module';
     const buildNumber = '1.0';
@@ -106,6 +107,11 @@ void main() {
       artifactManager = MockArtifactManager();
       codePushClientWrapper = MockCodePushClientWrapper();
       codeSigner = MockCodeSigner();
+      when(
+        () => codeSigner.canonicalPublicKeyPem(any()),
+      ).thenAnswer(
+        (invocation) => invocation.positionalArguments.single as String,
+      );
       patchDiffChecker = MockPatchDiffChecker();
       progress = MockProgress();
       projectRoot = Directory.systemTemp.createTempSync();
@@ -150,10 +156,21 @@ void main() {
       });
     });
 
+    group('minimumFlutterVersion', () {
+      test('is null', () {
+        // Patches of existing releases on any Flutter version are allowed.
+        expect(patcher.minimumFlutterVersion, isNull);
+      });
+    });
+
     group('primaryReleaseArtifactArch', () {
       test('is aar', () {
         expect(patcher.primaryReleaseArtifactArch, equals('aar'));
       });
+    });
+
+    test('requires --release-version', () {
+      expect(patcher.requiresReleaseVersionArg, isTrue);
     });
 
     group('assertPreconditions', () {
@@ -185,15 +202,15 @@ void main() {
             when(() => shorebirdEnv.androidPackageName).thenReturn(null);
           });
 
-          test('logs error and exits with code 64', () async {
+          test('exits with a config error naming the fix', () async {
             await expectLater(
               () => runWithOverrides(patcher.assertPreconditions),
-              exitsWithCode(ExitCode.config),
+              exitsWithError(
+                message: 'Could not find androidPackage in pubspec.yaml.',
+                hint: contains('androidPackage:'),
+                exitCode: ExitCode.config,
+              ),
             );
-            verify(
-              () =>
-                  logger.err('Could not find androidPackage in pubspec.yaml.'),
-            ).called(1);
           });
         });
       });
@@ -251,8 +268,32 @@ void main() {
             archiveDiffer: any(named: 'archiveDiffer'),
             allowAssetChanges: any(named: 'allowAssetChanges'),
             allowNativeChanges: any(named: 'allowNativeChanges'),
+            showDexDiff: any(named: 'showDexDiff'),
           ),
         ).thenAnswer((_) async => diffStatus);
+      });
+
+      test('passes --show-dex-diff through to the checker', () async {
+        when(() => argResults['show-dex-diff']).thenReturn(true);
+
+        await runWithOverrides(
+          () => patcher.assertUnpatchableDiffs(
+            releaseArtifact: FakeReleaseArtifact(),
+            releaseArchive: File(''),
+            patchArchive: File(''),
+          ),
+        );
+
+        verify(
+          () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+            localArchive: any(named: 'localArchive'),
+            releaseArchive: any(named: 'releaseArchive'),
+            archiveDiffer: any(named: 'archiveDiffer'),
+            allowAssetChanges: any(named: 'allowAssetChanges'),
+            allowNativeChanges: any(named: 'allowNativeChanges'),
+            showDexDiff: true,
+          ),
+        ).called(1);
       });
 
       test('forwards result from patchDiffChecker', () async {
@@ -271,6 +312,7 @@ void main() {
             archiveDiffer: any(named: 'archiveDiffer'),
             allowAssetChanges: any(named: 'allowAssetChanges'),
             allowNativeChanges: any(named: 'allowNativeChanges'),
+            showDexDiff: any(named: 'showDexDiff'),
           ),
         ).called(1);
       });
@@ -353,10 +395,47 @@ void main() {
           });
         });
 
+        test('builds only the architectures the release has', () async {
+          final release = MockRelease();
+          when(() => release.id).thenReturn(42);
+          when(
+            () => codePushClientWrapper.getReleaseArtifacts(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              architectures: any(named: 'architectures'),
+              platform: any(named: 'platform'),
+            ),
+          ).thenAnswer((_) async => {Arch.arm64: FakeReleaseArtifact()});
+          when(
+            () => artifactBuilder.buildAar(
+              buildNumber: any(named: 'buildNumber'),
+              targetPlatforms: any(named: 'targetPlatforms'),
+              args: any(named: 'args'),
+              base64PublicKey: any(named: 'base64PublicKey'),
+              ddMaxBytes: any(named: 'ddMaxBytes'),
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(() async {
+            await patcher.prepareForRelease(appId: 'app-id', release: release);
+            await patcher.buildPatchArtifact();
+          });
+
+          verify(
+            () => artifactBuilder.buildAar(
+              buildNumber: buildNumber,
+              targetPlatforms: [Arch.arm64],
+              args: any(named: 'args'),
+              base64PublicKey: any(named: 'base64PublicKey'),
+              ddMaxBytes: any(named: 'ddMaxBytes'),
+            ),
+          ).called(1);
+        });
+
         group('when the key pair is provided', () {
           setUp(() {
             when(
-              () => codeSigner.base64PublicKey(any()),
+              () => codeSigner.base64PublicKeyFromPem(any()),
             ).thenReturn('public_key_encoded');
           });
 
@@ -375,6 +454,31 @@ void main() {
               () => argResults[CommonArguments.publicKeyArg.name],
             ).thenReturn(key.path);
             await runWithOverrides(patcher.buildPatchArtifact);
+
+            verify(
+              () => artifactBuilder.buildAar(
+                buildNumber: buildNumber,
+                args: any(named: 'args'),
+                base64PublicKey: 'public_key_encoded',
+              ),
+            ).called(1);
+          });
+
+          test('passes a key from --public-key-cmd to buildAar', () async {
+            when(
+              () => argResults[CommonArguments.publicKeyCmd.name],
+            ).thenReturn('print-key');
+            when(
+              () => argResults.wasParsed(CommonArguments.publicKeyCmd.name),
+            ).thenReturn(true);
+            when(
+              () => codeSigner.runPublicKeyCmd('print-key'),
+            ).thenAnswer((_) async => 'pem-from-cmd');
+            await runWithOverrides(patcher.buildPatchArtifact);
+
+            verify(
+              () => codeSigner.base64PublicKeyFromPem('pem-from-cmd'),
+            ).called(1);
 
             verify(
               () => artifactBuilder.buildAar(
@@ -430,7 +534,6 @@ void main() {
         hash: '#',
         size: 42,
         url: 'https://example.com',
-        podfileLockHash: null,
         canSideload: true,
       );
 
@@ -440,7 +543,10 @@ void main() {
       setUp(() {
         releaseArtifactFile = File('');
         when(
-          () => artifactManager.downloadFile(any()),
+          () => artifactManager.downloadReleaseArtifact(
+            any(),
+            message: any(named: 'message'),
+          ),
         ).thenAnswer((_) async => releaseArtifactFile);
 
         when(
@@ -482,12 +588,16 @@ void main() {
       });
 
       group('when release artifact download fails', () {
-        final exception = Exception('error');
         setUp(() {
-          when(() => artifactManager.downloadFile(any())).thenThrow(exception);
+          when(
+            () => artifactManager.downloadReleaseArtifact(
+              any(),
+              message: any(named: 'message'),
+            ),
+          ).thenThrow(Exception('error'));
         });
 
-        test('logs error and exits with code 70', () async {
+        test('exits naming the failed download', () async {
           await expectLater(
             () => runWithOverrides(
               () => patcher.createPatchArtifacts(
@@ -496,10 +606,79 @@ void main() {
                 releaseArtifact: releaseArtifactFile,
               ),
             ),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message: startsWith('Could not download the release artifact: '),
+              hint: 'Run the command again once that is fixed.',
+              exitCode: ExitCode.software,
+            ),
           );
 
-          verify(() => progress.fail('Exception: error')).called(1);
+          verifyNever(
+            () => shorebirdAndroidArtifacts.extractAar(
+              packageName: any(named: 'packageName'),
+              buildNumber: any(named: 'buildNumber'),
+              unzipFn: any(named: 'unzipFn'),
+            ),
+          );
+        });
+      });
+
+      group('when one arch is missing from the patch build', () {
+        setUp(() {
+          patchArtifactForArch(extractedAarDirectory, Arch.arm32).deleteSync();
+        });
+
+        test('skips missing arch and returns bundles for the rest', () async {
+          final result = await runWithOverrides(
+            () => patcher.createPatchArtifacts(
+              appId: appId,
+              releaseId: releaseId,
+              releaseArtifact: releaseArtifactFile,
+            ),
+          );
+
+          expect(result.keys, unorderedEquals([Arch.arm64, Arch.x86_64]));
+          verifyNever(() => progress.fail(any()));
+          verify(
+            () => logger.warn(
+              any(
+                that: allOf(
+                  contains(
+                    'This patch does not cover every architecture in the '
+                    'release.',
+                  ),
+                  contains('Skipped: ${Arch.arm32.androidBuildPath}'),
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+      });
+
+      group('when every arch is missing from the patch build', () {
+        setUp(() {
+          for (final arch in Arch.values) {
+            patchArtifactForArch(extractedAarDirectory, arch).deleteSync();
+          }
+        });
+
+        test('fails progress and exits with an error', () async {
+          await expectLater(
+            () => runWithOverrides(
+              () => patcher.createPatchArtifacts(
+                appId: appId,
+                releaseId: releaseId,
+                releaseArtifact: releaseArtifactFile,
+              ),
+            ),
+            exitsWithError(
+              message: startsWith('No patch artifacts produced'),
+              hint: 'Re-run with --verbose to see the build output.',
+              exitCode: ExitCode.software,
+            ),
+          );
+
+          verify(() => progress.fail()).called(1);
         });
       });
 
@@ -513,7 +692,7 @@ void main() {
           ).thenThrow(Exception('error'));
         });
 
-        test('logs error and exits with code 70', () async {
+        test('fails progress and exits with the error', () async {
           await expectLater(
             () => runWithOverrides(
               () => patcher.createPatchArtifacts(
@@ -522,10 +701,13 @@ void main() {
                 releaseArtifact: releaseArtifactFile,
               ),
             ),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message: 'Failed to create the patch diff: Exception: error',
+              exitCode: ExitCode.software,
+            ),
           );
 
-          verify(() => progress.fail('Exception: error')).called(1);
+          verify(() => progress.fail()).called(1);
         });
       });
 

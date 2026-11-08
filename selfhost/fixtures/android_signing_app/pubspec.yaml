@@ -1,0 +1,22 @@
+name: android_signing_app
+description: "B2 fixture: Android release signing preservation."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    # Required by the CLI: the updater reads app_id and base_url out of the
+    # bundled copy at runtime.
+    - shorebird.yaml

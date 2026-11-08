@@ -1,0 +1,14 @@
+{
+  "note": "An instance member on a class with no subclasses. Comes out CONDITIONAL and ships. Whether the site devirtualizes is decided per-call-site by the precompiler and is not in this kernel, so the analysis cannot say more.",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#Greeter.value"
+  ],
+  "patchable": [],
+  "conditional": [
+    "package:corpus/main.dart#Greeter.value"
+  ],
+  "unreachable": [],
+  "added": [],
+  "rejectionReasons": []
+}

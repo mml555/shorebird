@@ -1,0 +1,14 @@
+# SM1-G4 retention arm: the COMPLETE contract with exactly one class
+# WITHHELD. Every other entry is byte-identical to di_full.yaml, so a
+# failure is attributable to the withheld class and to nothing else.
+# WITHHELD: callable
+extendable:
+  - library: 'package:dynamic_modules/host.dart'
+    class: 'Target'
+can-be-used-as-type:
+  - library: 'package:dynamic_modules/host.dart'
+    class: 'Target'
+can-be-overridden:
+  - library: 'package:dynamic_modules/host.dart'
+    class: 'Target'
+    member: 'work'

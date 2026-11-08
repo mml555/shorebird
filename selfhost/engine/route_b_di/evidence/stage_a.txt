@@ -1,0 +1,174 @@
+ROUTE-B-DI-1 / Stage A -- the existing validator, actually invoked
+generated 2026-09-09T19:23:13Z by run_stage_a.sh
+build /Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_g3_on
+
+############ 0. THE SPECIFICATIONS ############
+  The three restricted specifications are G6A's own, inherited byte-for-byte.
+  The three added ones are DERIVED from di_full.yaml by the generator, because
+  a hand-written specification could differ from di_full in more ways than its
+  name claims -- which would make a refusal unattributable.
+
+  inherited:
+    e61e3f8f9ace6cfe  di_full.yaml
+    93866fdf59b35129  di_no_callable.yaml
+    9dc2b19ce7c3e9b1  di_no_extendable.yaml
+    8c524bf32d608787  di_no_overridable.yaml
+    852cfeb9ac98d369  di_no_type.yaml
+  derived:
+    14769da4a5ad7ff3  di_broken.yaml
+    f134172e516763fe  di_empty.yaml
+    6d7415318eb9a096  di_mf_no_extendable.yaml
+    02d69a184ce4f4fd  di_mf_no_overridable.yaml
+    82086c5fbaed6be8  di_mf_no_type.yaml
+    2956a5c32cb6d5eb  di_mf_plus.yaml
+    0af5e36281961790  di_module_full.yaml
+    441151071f4ae6b5  m_type.dart
+  dart:core entries added to make the POSITIVE valid:
+    callable: - library: 'dart:core'
+      demanded by: Cannot invoke member 'override' / 'pragma.' from a dynamic module -- @override and @pragma are dart:
+    can-be-used-as-type: - library: 'dart:core'
+    class: 'Object'
+  - library: 'dar
+      demanded by: Cannot use class 'Object' / 'String' as a type in a dynamic module -- the module's entry() returns O
+
+############ 1. THE IMPORT DILL (shared by every arm) ############
+  import dill exit=0  bytes=    2832
+
+############ 2. ARMS ############
+  Every arm: same module source, same host source, same platform, same import
+  dill, same work directory. The specification is the only variable, except in
+  the flag control where the specification is held fixed and the flag is
+  dropped instead.
+
+  -- positive controls, which must SUCCEED --
+  positive_full              spec=di_module_full.yaml      mod=m_ok.dart   validate=yes module=0 produced=true  load=0 dispatch=PATCH-CHILD
+  positive_full_plus         spec=di_mf_plus.yaml          mod=m_ok.dart   validate=yes module=0 produced=true  load=0 dispatch=PATCH-CHILD
+
+  -- the three policy arms this issue owns, which must REFUSE --
+  policy_no_extendable       spec=di_mf_no_extendable.yaml mod=m_ok.dart   validate=yes module=254 produced=false load=null dispatch=null
+  policy_no_type             spec=di_mf_no_type.yaml       mod=m_ok.dart   validate=yes module=0 produced=true  load=0 dispatch=PATCH-CHILD
+  policy_no_overridable      spec=di_mf_no_overridable.yaml mod=m_ok.dart   validate=yes module=254 produced=false load=null dispatch=null
+
+  -- adjacent arm, classified INDEPENDENTLY (not folded into policy) --
+  adjacent_no_callable       spec=di_no_callable.yaml      mod=m_ok.dart   validate=yes module=254 produced=false load=null dispatch=null
+
+  -- the HOST specification, handed to the module validator as-is --
+    G6A's di_full.yaml was written for gen_kernel --dynamic-interface, which
+    ANNOTATES rather than validates, so it never had to be complete. Handed to
+    dart2bytecode --validate it refuses the POSITIVE module on dart:core
+    grounds unrelated to any negative. That is a finding about specification
+    completeness, banked as its own arm rather than hidden inside the choice
+    of a different base.
+  host_spec_as_module_spec   spec=di_full.yaml             mod=m_ok.dart   validate=yes module=254 produced=false load=null dispatch=null
+
+  -- specification INPUT integrity, a separate category from policy --
+  input_empty                spec=di_empty.yaml            mod=m_ok.dart   validate=yes module=254 produced=false load=null dispatch=null
+  input_unparseable          spec=di_broken.yaml           mod=m_ok.dart   validate=yes module=255 produced=false load=null dispatch=null
+  input_missing              spec=di_absent.yaml           mod=m_ok.dart   validate=yes module=254 produced=false load=null dispatch=null
+
+  -- is the can-be-used-as-type RULE enforced at all? --
+    m_ok.dart never uses Base as a TYPE -- it only EXTENDS it, which the
+    validator governs under `extendable`. So G6A's no_type arm withdraws a
+    permission the module does not exercise, and there is nothing to refuse.
+    These two arms use m_type.dart, which is m_ok plus one type annotation, to
+    settle whether the RULE is enforced. They are NEW arms and do not replace
+    the historical one.
+  rule_type_positive         spec=di_module_full.yaml      mod=m_type.dart validate=yes module=0 produced=true  load=0 dispatch=PATCH-CHILD
+  rule_type_withdrawn        spec=di_mf_no_type.yaml       mod=m_type.dart validate=yes module=254 produced=false load=null dispatch=null
+
+  -- the flag control: same restricted spec, --validate OMITTED --
+  control_no_validate        spec=di_mf_no_extendable.yaml mod=m_ok.dart   validate=no  module=0 produced=true  load=0 dispatch=null
+
+############ 3. CLASSIFICATION, DERIVED FROM THE RECORDS ############
+  ATTRIBUTION PRECONDITIONS (all three must hold before any arm counts)
+    True   HARNESS_POSITIVE_HEALTHY
+           positive_full=COMPILED_AND_LOADED, dispatch=PATCH-CHILD (PATCH-CHILD proves the module really ran and overrode the host)
+    True   VALIDATOR_IGNORES_IRRELEVANT_SPEC_DELTA
+           positive_full_plus=COMPILED_AND_LOADED -- an entry the module never uses was added and it still compiled and ran
+    True   REFUSAL_IS_CAUSED_BY_THE_FLAG
+           control_no_validate=COMPILED_AND_LOADED -- the same restricted specification with --validate dropped still produced a module, so a refusal with the flag is attributable to the flag
+
+  attribution established: True
+
+  OWNED POLICY ARMS
+    CLOSED  policy_no_extendable     REFUSED_AT_COMPILE               exit=254 produced=False load=None
+            diagnostic (evidence only): /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:5:7: Error: Cannot extend, implement or mix-in class 'Base' in a dynamic module.
+    OPEN    policy_no_type           COMPILED_AND_LOADED              exit=0 produced=True load=0
+    CLOSED  policy_no_overridable    REFUSED_AT_COMPILE               exit=254 produced=False load=None
+            diagnostic (evidence only): /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T/tmp.DKbo5r6uuz/m_ok.dart:7:10: Error: Cannot override member 'Base.execute' in a dynamic module.
+
+  closed=2/3  vacuous=1  still_open=0  silent_bypass_survives=False
+
+  VACUOUS ARMS -- the module does not exercise the withdrawn permission
+    policy_no_type
+      m_ok.dart never uses n_host.Base as a type, so withdrawing can-be-used-as-type withdraws a permission the module does not exercise. The historical FAIL_OPEN measured nothing.
+      rule enforced on a module that DOES exercise it: positive=COMPILED_AND_LOADED, withdrawn=REFUSED_AT_COMPILE
+
+  SPECIFICATION INPUT ARMS (separate category from policy)
+    REFUSED  input_empty            REFUSED_AT_COMPILE
+    REFUSED  input_unparseable      REFUSED_AT_COMPILE
+    REFUSED  input_missing          REFUSED_AT_COMPILE
+
+  ADJACENT: adjacent_no_callable = REFUSED_AT_COMPILE (load_exit=None) -- not counted
+
+STAGE_A: VALIDATOR_CLOSES_ALL_EXERCISED_ONE_ARM_VACUOUS
+
+############ 4. THE CLASSIFIER, FALSIFIED ############
+  The arms take minutes each because they build a host AOT, so the classifier
+  is falsified by MUTATING the recorded evidence rather than re-running them.
+  A classifier that reported VALIDATOR_CLOSES_* regardless of its input would
+  certify this prerequisite closed, which makes it the most expensive vacuous
+  check in the lane.
+
+ROUTE-B-DI-1 / Stage A -- classifier falsification
+  10 arms, mutating the recorded evidence only.
+
+  baseline: VALIDATOR_CLOSES_ALL_EXERCISED_ONE_ARM_VACUOUS
+  attribution=True closed=['policy_no_extendable', 'policy_no_overridable'] vacuous=['policy_no_type']
+
+  pass  weakened-producer-drops-validate             -> VALIDATOR_CLOSES_SOME
+        #61 requirement 4: a producer that drops --validate must be caught. Arms that ran without the flag are void, whatever they observed.
+  pass  positive-does-not-load                       -> BASELINE_OR_ATTRIBUTION_NOT_ESTABLISHED
+        A negative that "fails" in a harness where the positive does not work proves nothing, so no arm may be counted closed.
+  pass  positive-loads-but-host-answered             -> BASELINE_OR_ATTRIBUTION_NOT_ESTABLISHED
+        The module must actually override: AOT-BASE means the host answered, so the positive did not demonstrate what it claims.
+  pass  validator-refuses-irrelevant-delta           -> BASELINE_OR_ATTRIBUTION_NOT_ESTABLISHED
+        If adding an entry the module never uses causes a refusal, the validator refuses on any specification difference and every negative is closed for the wrong reason.
+  pass  flag-control-also-refuses                    -> BASELINE_OR_ATTRIBUTION_NOT_ESTABLISHED
+        If the restricted specification refuses even WITHOUT --validate, the refusal is not attributable to the flag -- it broke something else.
+  pass  silent-bypass-survives                       -> VALIDATOR_CLOSES_SOME
+        The historical FAIL_OPEN_SILENT_BYPASS built AND loaded. That is the exact failure this issue exists to eliminate and must not read as closed.
+  pass  type-rule-not-enforced-so-arm-not-vacuous    -> VALIDATOR_CLOSES_SOME
+        Vacuity is only an excuse if the RULE is separately shown enforced. With a module that does exercise it still compiling, no_type is a real gap.
+  pass  specification-input-accepted                 -> SPECIFICATION_INPUT_NOT_FAIL_CLOSED
+        An unparseable specification that still produces a module means the producer compiled unvalidated.
+  pass  policy-arm-missing-entirely                  -> VALIDATOR_CLOSES_SOME
+        An arm that never ran must be reported missing, never counted as absent of violations.
+  pass  adjacent-arm-not-folded-into-policy          -> VALIDATOR_CLOSES_ALL_EXERCISED_ONE_ARM_VACUOUS
+        #61: the import-resolution arm stays independently classified and must not be converted into a policy pass to make the lane green.
+
+  CONTROL -- a classifier hard-coding the baseline must fail every arm
+    arms the weakened classifier still satisfies: 0
+    pass  it satisfies none
+
+  arms=10 failed=0
+STAGE_A_FALSIFICATION: EVERY_ARM_DISCRIMINATES
+
+############ 5. ASSERTIONS ############
+  pass  the specification generator ran
+  pass  the shared import dill built
+  pass  every declared arm produced a record
+  pass  the attribution preconditions hold
+  pass  the positive module ran and OVERRODE the host
+  pass  no owned policy arm is still open
+  pass  the silent bypass does not survive
+  pass  every specification-input arm refuses
+  pass  the adjacent arm is not counted as policy
+  pass  every counted arm passed --validate
+  pass  the classifier decided from structure, not prose
+  pass  the classifier is falsified
+  pass  the classification succeeded
+
+ASSERTIONS (13 checked: 13 pass, 0 fail)
+
+STAGE_A_GATE: VALIDATOR_CLOSES_ALL_EXERCISED_ONE_ARM_VACUOUS

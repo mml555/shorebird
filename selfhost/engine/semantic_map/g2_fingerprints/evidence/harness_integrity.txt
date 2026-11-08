@@ -1,0 +1,17 @@
+SM1-G2 harness integrity — the transcript and the JSON must come from ONE run
+date : 2026-09-07T16:22:46Z
+
+WHY: score_g2.py writes evidence/g2_fingerprints.json at a fixed path, but the
+transcript depended on the CALLER redirecting stdout. The two therefore drifted
+during this gate: g2_fingerprints.txt was left by an earlier invocation and was
+missing g2_unsupported_baseline_side, which g2_fingerprints.json had already
+scored. Nothing detected the disagreement. run_g2.sh now writes its own
+transcript from the same invocation.
+
+############ the tee wrapper must not swallow a failure exit code ############
+$ SRC=/nonexistent bash run_g2.sh   (no toolchain -> must fail, not exit 0)
+  exit=1   (0 here would mean the pipeline hid the failure)
+
+############ and the transcript it wrote records that failure ############
+    analyzer pin          : 67741a082fcde5a9e2067fdfad1deb7ad69cb89b8d23aba78ed31b5afb6c2f5d
+  could not produce base rows

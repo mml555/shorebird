@@ -1,0 +1,2559 @@
+From 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c Mon Sep 17 00:00:00 2001
+From: mml555 <29288598+mml555@users.noreply.github.com>
+Date: Tue, 18 Aug 2026 16:48:02 -0400
+Subject: [PATCH 2/2] Route B: Dart SDK support, bytecode producer, and the
+ target->pool instrument
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The Dart half of the self-hosted Route B toolchain, committed to version control
+for the first time. Until now it existed ONLY as uncommitted working-tree edits
+in a shallow (depth-1) checkout cloned from a local mirror — no history, no
+offsite copy, and no way to rebase onto a future Dart revision.
+
+Base: 6b58bb3a (dart.googlesource.com/sdk)
+
+WHAT IS HERE
+
+  runtime/include/dart_route_b_trace.h    the v5 trace record (NEW). Deliberately
+                                          a separate header from dart_api.h
+  runtime/lib/object.cc                   Dart_RouteBActivatePatchTraced, the
+                                          derived target->pool scan, the demoted
+                                          supplied-offset assertion
+  runtime/vm/object.{cc,h}                patchable static call support
+  runtime/vm/compiler/...                 AOT: call specializer, dispatch table,
+                                          precompiler, flow-graph (arm64)
+  pkg/dart2bytecode/...                   the bytecode producer
+  pkg/front_end/...                       private-name resolution, compiler opts
+  sdk/lib/_internal/vm/, sdk/lib/internal internal patches
+
+A NOTE ON SNAPSHOT_HASH, because it governs whether shipped patches keep working
+
+runtime/vm/object.{cc,h} are in VM_SNAPSHOT_FILES, so these edits DO move
+SNAPSHOT_HASH away from vanilla Dart. That is fine and is not new: every Route B
+cell carries them, which is why the hash is IDENTICAL across cells 80e493e4,
+87130ae8, cd137db6 and 50bdae36 (21139db2770724220da55c72db00acdc) — the property
+that made the release-91 hybrid measurement admissible at all.
+
+The 0012 instrument was deliberately kept OUT of those files, in
+runtime/lib/object.cc, precisely so adding it could not move the hash and break
+already-published App snapshots. Anything added here in future must respect the
+same boundary.
+
+These are the exact bytes behind every G15 result in selfhost/evidence/g15.
+
+ONE COMMIT, for the same reason as the engine-side commit: the .patch stack
+decomposes this logically, but the tree carries it merged, and these are the
+bytes with device evidence behind them. A reconstructed decomposition would be
+plausible but unbuilt. Future changes get their own commits.
+
+NOT INCLUDED: third_party/binaryen/.DS_Store.
+
+STILL SHALLOW at this commit. `git fetch --unshallow` from
+https://dart.googlesource.com/sdk.git is required before this branch can rebase
+onto a newer Dart revision — there is no common ancestor to rebase through yet.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01QL1Y48RHmW4EevHrpP5RyC
+---
+ pkg/dart2bytecode/lib/bytecode_generator.dart |  43 +-
+ pkg/dart2bytecode/lib/dart2bytecode.dart      |  20 +
+ .../src/api_prototype/compiler_options.dart   |  28 +
+ .../lib/src/base/processed_options.dart       |   4 +
+ .../lib/src/source/source_loader.dart         |  35 +-
+ runtime/bin/gen_snapshot.cc                   |  40 +-
+ runtime/include/dart_api.h                    |  59 ++
+ runtime/include/dart_route_b_trace.h          | 256 ++++++
+ runtime/lib/object.cc                         | 788 ++++++++++++++++++
+ runtime/vm/bootstrap_natives.h                |   3 +
+ .../vm/compiler/aot/aot_call_specializer.cc   |  34 +
+ .../compiler/aot/dispatch_table_generator.cc  |  60 +-
+ runtime/vm/compiler/aot/precompiler.cc        | 512 +++++++++++-
+ runtime/vm/compiler/aot/precompiler.h         |  26 +
+ .../compiler/backend/flow_graph_compiler.cc   |  18 +
+ .../backend/flow_graph_compiler_arm64.cc      |  61 ++
+ runtime/vm/object.cc                          |  13 +
+ runtime/vm/object.h                           |   9 +
+ sdk/lib/_internal/vm/lib/internal_patch.dart  |  27 +
+ sdk/lib/internal/internal.dart                |  33 +
+ 20 files changed, 2059 insertions(+), 10 deletions(-)
+ create mode 100644 runtime/include/dart_route_b_trace.h
+
+diff --git a/pkg/dart2bytecode/lib/bytecode_generator.dart b/pkg/dart2bytecode/lib/bytecode_generator.dart
+index 7ba96aed5f4..4e9c7dc6c77 100644
+--- a/pkg/dart2bytecode/lib/bytecode_generator.dart
++++ b/pkg/dart2bytecode/lib/bytecode_generator.dart
+@@ -729,12 +729,51 @@ class BytecodeGenerator extends RecursiveVisitor {
+           if (dynModuleEntryPoint != null) {
+             throw 'Duplicate Dynamic Module Entry Points: $dynModuleEntryPoint and $member';
+           }
++          // Route B (selfhost), G3.7: ANY number of REQUIRED POSITIONAL
++          // parameters.
++          //
++          // The narrowing this removes was deliberate, so removing it has to be
++          // too. Upstream allowed zero. Patch 0004 relaxed it to "zero or one",
++          // because a replacement for an INSTANCE method is compiled as a
++          // synthetic top-level function and the only way it can name the
++          // receiver is as an ordinary first parameter -- and it capped there on
++          // purpose, so that "relax the restriction" could not quietly become a
++          // general arity change before anyone had measured one.
++          //
++          // This IS that general arity change, measured on its own. A target with
++          // its own parameters lowers to `f(Receiver self, T1 a, ...)`, so the cap
++          // at one is precisely what made the largest measured slice of real
++          // methods unpatchable: 33.2 % structural reach, and parameters appear in
++          // 6 of 10 real patches.
++          //
++          // WHAT STAYS REFUSED, each for its own reason:
++          //   * non-static           a dynamic module entry point is resolved
++          //                          without a receiver; instance-ness needs a
++          //                          different resolution path.
++          //   * type parameters      generic instantiation is not carried by the
++          //                          payload.
++          //   * named parameters     the call site passes them through an
++          //                          ArgumentsDescriptor whose names must match;
++          //                          not exercised, so not allowed.
++          //   * optional positionals their default values live in the AOT
++          //                          function the replacement stands in for, and
++          //                          nothing carries them across yet. This is why
++          //                          the test is requiredParameterCount ==
++          //                          positionalParameters.length rather than a
++          //                          bare length check.
++          //
++          // Still no receiver intrinsic and no VM change: the AOT call site
++          // already pushes (receiver, a, b, ...) per its own ArgumentsDescriptor,
++          // and what this answers is whether the interpreted entry point binds
++          // them positionally as they arrive.
+           if (!(member is Procedure &&
+               member.isStatic &&
+               function.typeParameters.isEmpty &&
+-              function.positionalParameters.isEmpty &&
++              function.requiredParameterCount ==
++                  function.positionalParameters.length &&
+               function.namedParameters.isEmpty)) {
+-            throw 'Dynamic Module Entry Point should be a static no-argument method: $member';
++            throw 'Dynamic Module Entry Point should be a static method with '
++                'only required positional parameters: $member';
+           }
+           dynModuleEntryPoint = member;
+           bytecodeComponent.dynModuleEntryPoint = objectTable.getHandle(member);
+diff --git a/pkg/dart2bytecode/lib/dart2bytecode.dart b/pkg/dart2bytecode/lib/dart2bytecode.dart
+index 3cc4d6d3459..72c6b5a4d9a 100644
+--- a/pkg/dart2bytecode/lib/dart2bytecode.dart
++++ b/pkg/dart2bytecode/lib/dart2bytecode.dart
+@@ -86,6 +86,16 @@ final ArgParser _argParser = ArgParser(allowTrailingOptions: true)
+     help: 'Import libraries from existing dill file',
+     defaultsTo: null,
+   )
++  ..addOption(
++    'resolve-private-names-in-library',
++    help:
++        'Import URI of a library from --import-dill whose PRIVATE namespace the '
++        'input may resolve names in, as well as its own. Dart privacy is '
++        'library-scoped, so generated code compiled as its own library cannot '
++        'otherwise name an application private member. Off by default; the '
++        'library must be present in --import-dill.',
++    defaultsTo: null,
++  )
+   ..addFlag(
+     'enable-asserts',
+     help: 'Whether asserts will be enabled.',
+@@ -183,6 +193,8 @@ Future<int> runCompilerWithCommandLineArguments(List<String> arguments) async {
+   }
+ 
+   final String? importDill = options['import-dill'];
++  final String? resolvePrivateNamesInLibrary =
++      options['resolve-private-names-in-library'];
+   final String? validateDynamicInterface = options['validate'];
+   final String messageVerbosity = options['verbosity'];
+   final String cfeInvocationModes = options['invocation-modes'];
+@@ -197,6 +209,7 @@ Future<int> runCompilerWithCommandLineArguments(List<String> arguments) async {
+     targetName: targetName,
+     packages: packages,
+     importDill: importDill,
++    resolvePrivateNamesInLibrary: resolvePrivateNamesInLibrary,
+     validateDynamicInterface: validateDynamicInterface,
+     enableAsserts: enableAsserts,
+     experimentalFlags: experimentalFlags,
+@@ -222,6 +235,7 @@ Future<int> runCompilerWithOptions({
+   required String targetName,
+   String? packages,
+   String? importDill,
++  String? resolvePrivateNamesInLibrary,
+   String? validateDynamicInterface,
+   bool enableAsserts = false,
+   List<String>? experimentalFlags,
+@@ -275,6 +289,12 @@ Future<int> runCompilerWithOptions({
+     ..additionalDills = additionalDills
+     ..packagesFileUri = packagesUri
+     ..dynamicInterfaceSpecificationUri = dynamicInterfaceSpecificationUri
++    // Parsed with Uri.parse, not resolveInputUri: this is a library IMPORT URI
++    // (package:app/main.dart), not a filesystem path, and resolving it against
++    // the CWD would produce a file: URI that matches no dill library.
++    ..resolvePrivateNamesInLibrary = resolvePrivateNamesInLibrary == null
++        ? null
++        : Uri.parse(resolvePrivateNamesInLibrary)
+     ..explicitExperimentalFlags = parseExperimentalFlags(
+       parseExperimentalArguments(experimentalFlags),
+       onError: printMessage,
+diff --git a/pkg/front_end/lib/src/api_prototype/compiler_options.dart b/pkg/front_end/lib/src/api_prototype/compiler_options.dart
+index f39e501604c..95b05d1ce34 100644
+--- a/pkg/front_end/lib/src/api_prototype/compiler_options.dart
++++ b/pkg/front_end/lib/src/api_prototype/compiler_options.dart
+@@ -96,6 +96,28 @@ class CompilerOptions {
+   /// restrictions.
+   Uri? dynamicInterfaceSpecificationUri;
+ 
++  /// Import URI of a library whose private namespace the compiled sources may
++  /// resolve names in.
++  ///
++  /// Dart privacy is library-scoped, so code compiled as its own library cannot
++  /// name another library's private members however it is spelled. The front end
++  /// already has the mechanism to lift that -- `resolveInLibrary`, used for
++  /// debugger expression evaluation, where an expression typed at a breakpoint
++  /// must see the private namespace of the library it is evaluated in. Normal
++  /// compilation hard-codes it off.
++  ///
++  /// Setting this makes that mechanism available outside the debugger: every
++  /// source compilation unit also resolves names in the named library's own
++  /// namespace. The named library must be available to the compile, which in
++  /// practice means it arrives via [additionalDills].
++  ///
++  /// This exists for generated code that must behave as if it belonged to a
++  /// library it is not textually in -- a hot-patch replacement body compiled
++  /// against an already-shipped application. It is deliberately opt-in and off
++  /// by default, because it widens name resolution and should never be enabled
++  /// for an ordinary compile.
++  Uri? resolvePrivateNamesInLibrary;
++
+   /// The declared variables for use by configurable imports and constant
+   /// evaluation.
+   Map<String, String>? declaredVariables;
+@@ -320,6 +342,12 @@ class CompilerOptions {
+         other.dynamicInterfaceSpecificationUri) {
+       return false;
+     }
++    // Two option sets differing only here are NOT equivalent: this one changes
++    // which names resolve, so reusing a component compiled without it would
++    // silently produce different code.
++    if (resolvePrivateNamesInLibrary != other.resolvePrivateNamesInLibrary) {
++      return false;
++    }
+     if (!equalMaps(declaredVariables, other.declaredVariables)) return false;
+     if (fileSystem != other.fileSystem) return false;
+     if (compileSdk != other.compileSdk) return false;
+diff --git a/pkg/front_end/lib/src/base/processed_options.dart b/pkg/front_end/lib/src/base/processed_options.dart
+index ba54d1c4908..00621dc889e 100644
+--- a/pkg/front_end/lib/src/base/processed_options.dart
++++ b/pkg/front_end/lib/src/base/processed_options.dart
+@@ -134,6 +134,10 @@ class ProcessedOptions {
+   Uri? get dynamicInterfaceSpecificationUri =>
+       _raw.dynamicInterfaceSpecificationUri;
+ 
++  /// Import URI of a library whose private namespace the compiled sources may
++  /// also resolve names in. See [CompilerOptions.resolvePrivateNamesInLibrary].
++  Uri? get resolvePrivateNamesInLibrary => _raw.resolvePrivateNamesInLibrary;
++
+   String? _dynamicInterfaceSpecificationContents;
+   bool _triedLoadingDynamicInterfaceSpecification = false;
+ 
+diff --git a/pkg/front_end/lib/src/source/source_loader.dart b/pkg/front_end/lib/src/source/source_loader.dart
+index 73a7e24ef07..665bf9884f9 100644
+--- a/pkg/front_end/lib/src/source/source_loader.dart
++++ b/pkg/front_end/lib/src/source/source_loader.dart
+@@ -414,6 +414,39 @@ class SourceLoader extends Loader implements ProblemReportingHelper {
+     required bool mayImplementRestrictedTypes,
+   }) {
+     final bool isDartLib = importUri.isScheme('dart');
++    // Normally null: a source library resolves names in its own namespace only,
++    // which is what Dart's library-scoped privacy means.
++    //
++    // `CompilerOptions.resolvePrivateNamesInLibrary` opts a compile into the same
++    // mechanism the debugger uses for expression evaluation, where an expression
++    // typed at a breakpoint must see the private namespace of the library it is
++    // evaluated in (see `IncrementalCompiler`, which passes a `LibraryBuilder`
++    // here directly). The target arrives as a dill, so this is a dill library
++    // builder -- and a dill library's OWN namespace does contain its privates;
++    // it is the EXPORT namespace that filters them.
++    //
++    // Never applied to `dart:` libraries: the option exists to let generated code
++    // act as part of an application library, and nothing should be able to widen
++    // resolution into the platform this way.
++    LibraryBuilder? resolveInLibrary;
++    final Uri? resolvePrivateNamesIn =
++        target.context.options.resolvePrivateNamesInLibrary;
++    if (resolvePrivateNamesIn != null && !isDartLib) {
++      resolveInLibrary = target.dillTarget.loader.lookupLibraryBuilder(
++        resolvePrivateNamesIn,
++      );
++      if (resolveInLibrary == null) {
++        // Fail loudly rather than compiling with narrower resolution than asked
++        // for: silently ignoring this yields "private member not found" errors
++        // pointing at the replacement source, which sends the reader to debug
++        // the wrong half.
++        throw new StateError(
++          "resolvePrivateNamesInLibrary was set to '$resolvePrivateNamesIn' "
++          "but no such library is available to this compile. It must be "
++          "supplied via additionalDills (--import-dill).",
++        );
++      }
++    }
+     return new SourceCompilationUnitImpl(
+       importUri: importUri,
+       fileUri: fileUri,
+@@ -422,7 +455,7 @@ class SourceLoader extends Loader implements ProblemReportingHelper {
+       packageLanguageVersion: packageLanguageVersion,
+       loader: this,
+       augmentationRoot: origin,
+-      resolveInLibrary: null,
++      resolveInLibrary: resolveInLibrary,
+       indexedLibrary: referencesFromIndex,
+       referenceIsPartOwner: referenceIsPartOwner,
+       conditionalImportSupported:
+diff --git a/runtime/bin/gen_snapshot.cc b/runtime/bin/gen_snapshot.cc
+index ab04917dc5f..84b4131994b 100644
+--- a/runtime/bin/gen_snapshot.cc
++++ b/runtime/bin/gen_snapshot.cc
+@@ -114,7 +114,8 @@ static const char* const kSnapshotKindNames[] = {
+   V(macho_object, macho_object_filename)                                       \
+   V(loading_unit_manifest, loading_unit_manifest_filename)                     \
+   V(save_debugging_info, debugging_info_filename)                              \
+-  V(save_obfuscation_map, obfuscation_map_filename)
++  V(save_obfuscation_map, obfuscation_map_filename)                            \
++  V(load_obfuscation_map, load_obfuscation_map_filename)
+ 
+ #define BOOL_OPTIONS_LIST(V)                                                   \
+   V(compile_all, compile_all)                                                  \
+@@ -170,6 +171,7 @@ static void PrintUsage() {
+ "[--obfuscate]                                                               \n"
+ "[--save-debugging-info=<debug-filename>]                                    \n"
+ "[--save-obfuscation-map=<map-filename>]                                     \n"
++"[--load-obfuscation-map=<map-filename>]                                     \n"
+ "<dart-kernel-file>                                                          \n"
+ "                                                                            \n"
+ "To create an AOT application snapshot as an ELF shared library:             \n"
+@@ -179,6 +181,7 @@ static void PrintUsage() {
+ "[--obfuscate]                                                               \n"
+ "[--save-debugging-info=<debug-filename>]                                    \n"
+ "[--save-obfuscation-map=<map-filename>]                                     \n"
++"[--load-obfuscation-map=<map-filename>]                                     \n"
+ "<dart-kernel-file>                                                          \n"
+ "                                                                            \n"
+ "To create an AOT application snapshot as an Mach-O dynamic library (dylib): \n"
+@@ -188,13 +191,16 @@ static void PrintUsage() {
+ "[--obfuscate]                                                               \n"
+ "[--save-debugging-info=<debug-filename>]                                    \n"
+ "[--save-obfuscation-map=<map-filename>]                                     \n"
++"[--load-obfuscation-map=<map-filename>]                                     \n"
+ "<dart-kernel-file>                                                          \n"
+ "                                                                            \n"
+ "AOT snapshots can be obfuscated: that is all identifiers will be renamed    \n"
+ "during compilation. This mode is enabled with --obfuscate flag. Mapping     \n"
+ "between original and obfuscated names can be serialized as a JSON array     \n"
+-"using --save-obfuscation-map=<filename> option. See dartbug.com/30524       \n"
+-"for implementation details and limitations of the obfuscation pass.         \n"
++"using --save-obfuscation-map=<filename> option. A previously saved map can  \n"
++"be loaded using --load-obfuscation-map=<filename> to ensure consistent      \n"
++"obfuscation across separate compilations. See dartbug.com/30524 for         \n"
++"implementation details and limitations of the obfuscation pass.             \n"
+ "                                                                            \n"
+ "\n");
+   if (verbose) {
+@@ -317,6 +323,34 @@ static int ParseArguments(int argc,
+     return -1;
+   }
+ 
++  // SELFHOST: mirror of the check above. The wording (and the correctly
++  // hyphenated flag name, where save's neighbour above has a long-standing
++  // "-obfuscation_map=" typo) is reproduced verbatim from the Shorebird fork
++  // binary's string table — see 0008's header for the derivation.
++  if (!obfuscate && load_obfuscation_map_filename != nullptr) {
++    Syslog::PrintErr(
++        "--load-obfuscation-map=<...> should only be specified when "
++        "obfuscation is enabled by the --obfuscate flag.\n\n");
++    return -1;
++  }
++
++  // SELFHOST: hand the path to the VM instead of reading it here.
++  //
++  // This is NOT a stylistic choice. The obfuscation state is seeded during
++  // isolate bootstrap: measured under lldb, the first Obfuscator is built at
++  //   Obfuscator::Obfuscator -> BootstrapFromKernelSingleProgram
++  //     -> Object::Init -> CreateIsolate -> Dart_CreateIsolateGroupFromKernel
++  //     -> dart::bin::main
++  // i.e. INSIDE Dart_CreateIsolateGroupFromKernel, before this embedder ever
++  // regains control and long before Dart_Precompile. Any embedder-side API
++  // call could therefore only merge into a live, already-renaming map — which
++  // would accept the flag and then rename INCONSISTENTLY, the one outcome
++  // worse than not supporting it at all.
++  if (load_obfuscation_map_filename != nullptr) {
++    vm_options->AddArgument(Utils::SCreate("--load_obfuscation_map=%s",
++                                           load_obfuscation_map_filename));
++  }
++
+   if (!IsSnapshottingForPrecompilation()) {
+     if (obfuscate) {
+       Syslog::PrintErr(
+diff --git a/runtime/include/dart_api.h b/runtime/include/dart_api.h
+index 253ad86c317..793919a201e 100644
+--- a/runtime/include/dart_api.h
++++ b/runtime/include/dart_api.h
+@@ -4318,6 +4318,65 @@ Dart_GetObfuscationMap(uint8_t** buffer, intptr_t* buffer_length);
+  */
+ DART_EXPORT bool Dart_IsPrecompiledRuntime(void);
+ 
++/**
++ * Route B (selfhost): why an activation attempt ended the way it did.
++ *
++ * Distinct codes rather than a bool because every one of these has a different
++ * cause and a different fix, and collapsing them is how a stale payload ends up
++ * reported as a mechanism failure. In particular kTargetMissing (a retention or
++ * URI problem) must never be confused with kInvalidBytecode (a producer or
++ * corruption problem).
++ */
++typedef enum {
++  Dart_RouteB_Ok = 0,
++  Dart_RouteB_NoIsolate = 1,
++  Dart_RouteB_EmptyPayload = 2,
++  Dart_RouteB_InvalidBytecode = 3,
++  Dart_RouteB_TargetMissing = 4,
++  Dart_RouteB_AlreadyInterpreted = 5,
++  Dart_RouteB_AttachFailed = 6,
++  Dart_RouteB_Unsupported = 7,
++  Dart_RouteB_OutOfMemory = 8,
++} Dart_RouteBResult;
++
++/**
++ * Route B (selfhost): activate a patch on the CURRENT isolate.
++ *
++ * Replaces the body of \p target_name in \p library_uri with \p payload,
++ * to be executed by the interpreter, and records the original Code so the
++ * change can be reverted.
++ *
++ * Intended to be called from the embedder's root-isolate-create callback --
++ * after the isolate reaches Phase::Ready and before the Dart entrypoint runs --
++ * so a patch is live before any user Dart executes and no app cooperation is
++ * required. The isolate must be current.
++ *
++ * The embedder supplies the bytes AND validates the container they came from:
++ * I/O and format belong to the embedder, attachment belongs to the VM. This
++ * function knows nothing about containers, releases or JSON.
++ *
++ * \return Dart_RouteB_Ok on success. On any failure nothing is attached, so
++ * the caller may proceed into unpatched app code.
++ */
++DART_EXPORT int32_t Dart_RouteBActivatePatch(const uint8_t* payload,
++                                             intptr_t payload_length,
++                                             const char* library_uri,
++                                             const char* target_name);
++
++/**
++ * Route B (selfhost): the running snapshot's GNU build ID as lowercase hex.
++ *
++ * The release identity a patch container must match. Callable from the
++ * root-isolate-create callback, which is the only place the check can happen
++ * early enough to refuse a wrong-release patch before any target is resolved.
++ *
++ * \return a malloc'd string the caller must free(), or NULL if this build has
++ * no snapshot identity (a JIT run, or a snapshot without a build ID). NULL
++ * means "no identity", never "any identity" -- callers must refuse rather than
++ * proceed.
++ */
++DART_EXPORT char* Dart_RouteBReleaseBuildId(void);
++
+ /**
+  *  Print a native stack trace. Used for crash handling.
+  *
+diff --git a/runtime/include/dart_route_b_trace.h b/runtime/include/dart_route_b_trace.h
+new file mode 100644
+index 00000000000..46d7e07f498
+--- /dev/null
++++ b/runtime/include/dart_route_b_trace.h
+@@ -0,0 +1,256 @@
++// Copyright (c) 2026, the Shorebird self-host fork. All rights reserved.
++//
++// Route B: the post-attach state of a patched Function, as a POD record.
++//
++// WHY THIS FILE EXISTS AT ALL. On device, `Dart_RouteBActivatePatch` returns
++// `Dart_RouteB_Ok` and the embedder reports `applied 1/1 targets` — and the app
++// goes on executing the original AOT body. Reproduced with a private-member body
++// AND with a public one, so the fault is common to all replacements. `applied
++// 1/1` proves exactly one thing: that call returned success. What happened to the
++// Function between `RouteBSaveOriginalCode` and the return is unobserved, and
++// every surviving hypothesis lives in that gap.
++//
++// WHY IT IS A POD THE VM FILLS AND THE EMBEDDER WRITES. The attach runs while
++// holding `program_lock()` as a writer, inside a DARTSCOPE, before main. Opening
++// a file there would add I/O under a write lock on the isolate group. So the VM
++// fills fixed-width fields and `shorebird.cc` writes them out afterwards, which
++// is the division `lib/object.cc` already documents: "I/O is deliberately the
++// embedder's: it passes bytes, the VM attaches them."
++//
++// WHY IT IS A NEW HEADER RATHER THAN A CHANGE TO dart_api.h. `include/dart_api.h`
++// is included across the whole runtime, so editing it turns a two-file rebuild
++// into a whole-runtime one. More importantly `runtime/vm/object.{cc,h}` are in
++// `VM_SNAPSHOT_FILES` (`tools/make_version.py:20-36`, read and confirmed):
++// editing them changes `SNAPSHOT_HASH`, and the ALREADY-PUBLISHED App.framework
++// snapshot then refuses to load with "Wrong full snapshot version". That would
++// surface as a brand-new device failure on the very run meant to explain one —
++// instrumentation manufacturing a fifth false cause, and the first one that would
++// have looked like data. So nothing here touches either file: the existing
++// four-argument export keeps its signature and a traced sibling is added beside
++// it in `runtime/lib/object.cc`, which is NOT a snapshot file.
++#ifndef RUNTIME_INCLUDE_DART_ROUTE_B_TRACE_H_
++#define RUNTIME_INCLUDE_DART_ROUTE_B_TRACE_H_
++
++#include <stdint.h>
++
++// Spelled out rather than reusing `DART_EXPORT`, so this header needs no
++// `dart_api.h` include and the coupling to it stays at zero. Same effect for the
++// platforms Route B builds for.
++// `extern "C"` is the load-bearing half, and leaving it out cost a full iOS link:
++// the DEFINITION lives inside `namespace dart`, so without C linkage it becomes
++// `dart::Dart_RouteBActivatePatchTraced` and the embedder's call fails with
++// `undefined symbol`. `DART_EXPORT` works precisely because it expands to
++// `DART_EXTERN_C ...` -- extern "C" ignores the enclosing namespace for linkage.
++#if defined(__cplusplus)
++#define DART_ROUTE_B_EXTERN_C extern "C"
++#else
++#define DART_ROUTE_B_EXTERN_C
++#endif
++
++#if defined(_WIN32)
++#define DART_ROUTE_B_EXPORT DART_ROUTE_B_EXTERN_C __declspec(dllexport)
++#else
++#define DART_ROUTE_B_EXPORT                                                    \
++  DART_ROUTE_B_EXTERN_C __attribute__((visibility("default")))                 \
++      __attribute((used))
++#endif
++
++#if defined(__cplusplus)
++extern "C" {
++#endif
++
++// Every field is fixed-width and set unconditionally to a known sentinel before
++// use, so a field that was never reached reads as "not observed" rather than as
++// stack garbage that happens to look plausible.
++#define DART_ROUTE_B_TRACE_UNSET (-1)
++
++typedef struct {
++  // The existing return code, carried here so the record is self-contained: a
++  // reader must never have to correlate two sources to know what the call said.
++  int32_t result;
++
++  // Reached the attach at all, and returned from it. These bracket the ONE
++  // statement whose effect is in question, so `attach_entered=1
++  // attach_returned=0` would mean it did not come back — which no other field
++  // could tell you.
++  int32_t attach_entered;
++  int32_t attach_returned;
++
++  // `Function::HasBytecode()` and `Function::IsInterpreted()`. The `pre` values
++  // matter because `AttachBytecode` asserts the slot is empty and that assert is
++  // compiled out in a release build: if `pre` is already set, the attach silently
++  // overwrote something.
++  int32_t has_bytecode_pre;
++  int32_t has_bytecode_post;
++  int32_t is_interpreted_pre;
++  int32_t is_interpreted_post;
++
++  // THE PATCHER-SIDE FUNCTION IDENTITY. Without it the caller/patcher comparison
++  // is impossible, which is what stalled v1: the trace could say the field moved
++  // but never which OBJECT's field.
++  uint64_t function_ptr;
++
++  // Code object IDENTITY, not contents: the raw pointer is enough to tell "the
++  // same Code is still installed" from "a different one is".
++  uint64_t code_pre;
++  uint64_t code_post;
++  int64_t code_pre_size;
++
++  // TWO LAYERS, NEVER COLLAPSED. v1 labelled Code accessors as if they were the
++  // Function's fields, and the mismatch that produced looked exactly like a real
++  // VM anomaly -- it sent an investigation after a Function-identity bug that the
++  // data never supported. The generated call reads the FUNCTION field, so that is
++  // what has to be measured; the Code values are kept beside it precisely so the
++  // two can be compared instead of confused.
++  //
++  // `fn_*` are read out of UntaggedFunction at the VM's own offsets -- the same
++  // bytes, at the same addresses, that `ldur x30,[x0,#0x7]` and `[x0,#0xf]` load.
++  uint64_t fn_entry_point_pre;
++  uint64_t fn_entry_point_post;
++  uint64_t fn_unchecked_entry_point_pre;
++  uint64_t fn_unchecked_entry_point_post;
++
++  // `code_*` are Code::EntryPoint()/UncheckedEntryPoint() -- what v1 actually
++  // recorded under the fn_ names.
++  uint64_t code_entry_point_pre;
++  uint64_t code_entry_point_post;
++  uint64_t code_unchecked_entry_point_pre;
++  uint64_t code_unchecked_entry_point_post;
++
++// EXACT-ENTRY IDENTITY, which replaces the pool SCAN.
++//
++// Release 29 returned NULL_POOL: AOT runs bare-instructions mode with ONE global
++// object pool, so Code::object_pool() is null and "the caller's pool" does not
++// exist. But a scan was never the right instrument anyway -- it could only answer
++// "is the patched Function in the pool at all", not "is it the entry THIS call site
++// loads". The identifying fact is the call site's pool OFFSET, which release 26's
++// disassembly supplies: 0xd4a8 at the kUnchecked site.
++//
++// The index is derived with ObjectPool::IndexFromOffset(), the VM's own rule
++// (object.h:5820), never by dividing the offset by an assumed slot width. This
++// investigation has already shown twice that plausible layout arithmetic is not
++// evidence.
++//
++// A MISMATCH VERDICT REQUIRES TWO POSITIVELY IDENTIFIED FUNCTIONS. Not-a-Function,
++// out-of-range and unreadable are their own states and must never collapse into
++// "different".
++#define DART_ROUTE_B_POOL_NOT_REQUESTED 0
++#define DART_ROUTE_B_POOL_NULL 1
++#define DART_ROUTE_B_POOL_INDEX_OUT_OF_RANGE 2
++#define DART_ROUTE_B_POOL_ENTRY_NOT_TAGGED 3
++#define DART_ROUTE_B_POOL_ENTRY_NOT_FUNCTION 4
++#define DART_ROUTE_B_POOL_READ 5
++
++// WHY THE SCAN REPORTS A STATE AND NOT JUST COUNTS.
++//
++// Release 28 resolved the caller and left the counters at their UNSET sentinel,
++// because the scan was gated on Function::HasCode() and that returned false. Had
++// the counters defaulted to 0 the record would have read "0 pooled Functions, 0
++// matching" -- an identity MISMATCH, the exact conclusion under test, produced by
++// a branch that never ran. The sentinel caught it; a state makes it impossible.
++//
++// Six states, because "did not scan" has five distinguishable causes and they have
++// different remedies. Only SCANNED licenses reading the counters at all.
++#define DART_ROUTE_B_SCAN_NOT_REQUESTED 0
++#define DART_ROUTE_B_SCAN_CALLER_UNRESOLVED 1
++#define DART_ROUTE_B_SCAN_CALLER_RESOLVED_NO_CODE 2
++#define DART_ROUTE_B_SCAN_NULL_POOL 3
++#define DART_ROUTE_B_SCAN_EMPTY_POOL 4
++#define DART_ROUTE_B_SCAN_SCANNED 5
++
++// THE TARGET->POOL SCAN. A SEPARATE INSTRUMENT, DELIBERATELY.
++//
++// The caller scan above answers a question about a NAMED caller, and only when a
++// name is supplied. This answers a different question that needs no name: WHERE
++// DOES THE PATCHED FUNCTION ITSELF APPEAR IN THE POOL.
++//
++// It exists because `pool_offset` had a CONSUMER and no PRODUCER. The offset was
++// a fixture-specific constant handed in by the embedder -- release 26's 0xd4a8,
++// hard-coded against one selector -- so the field echoed its own argument and
++// every other specimen reported NOT_REQUESTED. Deriving the location from the
++// target's identity makes it a measurement.
++//
++// MULTIPLICITY IS PRESERVED ON PURPOSE. "Scan until entry == target and report
++// the offset" would silently pick the first of several, and a Function object can
++// legitimately occupy more than one pool entry. One reported offset that was
++// really one of three is a confident wrong answer -- the failure mode this
++// investigation has spent its whole length retracting. So zero, one and many are
++// three DIFFERENT states, and only UNIQUE licenses reading the index as identity.
++//
++// ABSENT is a RESULT, not an error. It says the patched Function is not in the
++// scanned pool at all, which is precisely what a caller that inlined it would
++// look like -- so the state a diagnosis most needs must not be collapsed into a
++// failure code.
++#define DART_ROUTE_B_TPOOL_NOT_REQUESTED 0
++#define DART_ROUTE_B_TPOOL_NULL_POOL 1
++#define DART_ROUTE_B_TPOOL_EMPTY_POOL 2
++#define DART_ROUTE_B_TPOOL_ABSENT 3
++#define DART_ROUTE_B_TPOOL_UNIQUE 4
++#define DART_ROUTE_B_TPOOL_AMBIGUOUS 5
++
++  // THE CALLER-SIDE IDENTITY, so the comparison needs no external pool reader.
++  // When a caller name is supplied, its Code's object pool is scanned for
++  // Function entries: how many were seen, how many are THIS target, and the
++  // first pointer that is not.
++  // NOT_REQUESTED is the zero value on purpose: a future bug that forgets to set
++  // this reads as "did not scan", which the classifier refuses, rather than as a
++  // measurement.
++  int32_t caller_scan_status;
++
++  // Exact-entry identity. pool_offset is the call-site offset handed in;
++  // pool_index is what the VM's IndexFromOffset makes of it.
++  int32_t pool_status;
++  int64_t pool_offset;
++  int64_t pool_index;
++  int64_t pool_length;
++  uint64_t pool_entry_ptr;
++  int32_t pool_entry_is_function;
++  int32_t pool_entry_equals_target;
++  int32_t caller_resolved;
++  int32_t caller_pool_functions;
++  int32_t caller_pool_matches_target;
++  uint64_t caller_pool_other_fn;
++
++  // TARGET->POOL IDENTITY. Derived, never supplied.
++  //
++  // `target_pool_matches` is the multiplicity and is authoritative for reading
++  // the rest: index and offset are meaningful ONLY when the status is UNIQUE.
++  // At AMBIGUOUS they carry the FIRST match and `target_pool_index_second` the
++  // next, so the ambiguity is visible in the record rather than resolved by the
++  // reader's optimism.
++  int32_t target_pool_status;
++  int32_t target_pool_matches;
++  int64_t target_pool_index;
++  int64_t target_pool_offset;
++  int64_t target_pool_index_second;
++  int64_t target_pool_scanned;
++
++  // The value `entry_point_post` is SUPPOSED to equal, captured in the same run
++  // rather than compared against a constant recorded elsewhere — stub addresses
++  // are per-snapshot and a stale expectation would read as a mismatch.
++  uint64_t interpret_call_entry_point;
++  int32_t entry_point_post_is_interpret_call;
++
++  int64_t bytecode_size;
++} Dart_RouteBTrace;
++
++// The traced sibling of `Dart_RouteBActivatePatch`.
++//
++// Identical behaviour and identical return values; `trace` may be null, and when
++// it is this is the original function. It is deliberately NOT a gate: the attach
++// path's decisions are unchanged, because a diagnostic that alters what it
++// measures cannot settle what the un-instrumented build does.
++DART_ROUTE_B_EXPORT int32_t Dart_RouteBActivatePatchTraced(
++    const uint8_t* payload,
++    intptr_t payload_length,
++    const char* library_uri,
++    const char* target_name,
++    Dart_RouteBTrace* trace,
++    const char* caller_name,
++    int64_t pool_offset);
++
++#if defined(__cplusplus)
++}  // extern "C"
++#endif
++
++#endif  // RUNTIME_INCLUDE_DART_ROUTE_B_TRACE_H_
+diff --git a/runtime/lib/object.cc b/runtime/lib/object.cc
+index 39d530beeb9..5ac9a4e90c4 100644
+--- a/runtime/lib/object.cc
++++ b/runtime/lib/object.cc
+@@ -4,10 +4,14 @@
+ 
+ #include "vm/bootstrap_natives.h"
+ 
++#include "platform/text_buffer.h"
++
+ #include "lib/invocation_mirror.h"
+ #include "vm/bytecode_reader.h"
+ #include "vm/code_patcher.h"
++#include "include/dart_api.h"
+ #include "vm/dart_api_impl.h"
++#include "vm/dart_api_state.h"
+ #include "vm/dart_entry.h"
+ #include "vm/exceptions.h"
+ #include "vm/heap/heap.h"
+@@ -17,6 +21,10 @@
+ #include "vm/resolver.h"
+ #include "vm/runtime_entry.h"
+ #include "vm/stack_frame.h"
++#include "vm/stub_code.h"
++
++// Route B post-attach trace record. A NEW header, so dart_api.h is untouched.
++#include "include/dart_route_b_trace.h"
+ #include "vm/symbols.h"
+ 
+ namespace dart {
+@@ -627,6 +635,786 @@ DEFINE_NATIVE_ENTRY(Internal_loadDynamicModule, 0, 1) {
+ #endif  // defined(DART_DYNAMIC_MODULES)
+ }
+ 
++#if defined(DART_DYNAMIC_MODULES)
++// Resolve a Route B patch target: "name" is a top-level function, "Class.name"
++// a class member. Returns a null Function and prints why, on failure.
++//
++// Shared by attach and detach on purpose. A rollback that resolved targets even
++// slightly differently from the activation could revert the wrong thing, and
++// would do so only in the cases where the two disagreed -- the worst possible
++// place for a divergence to hide.
++//
++// GATE-side machinery: it leans on library dictionaries, which survive only
++// because Route B step 2 retains them. A real linker resolves targets from the
++// snapshot's own tables at build time and needs none of this.
++// Where a patched function's ORIGINAL Code is kept, so rollback can put it back.
++//
++// A process-wide table of persistent handles rather than an ObjectStore field.
++// Appending a field to OBJECT_STORE_FIELD_LIST looked like the tidy answer and
++// is a trap: the AOT deserializer leaves the appended slot holding a raw C
++// nullptr -- not the Dart null object -- so Object::IsNull() reports false and
++// the first use segfaults at offset 0xf. Worse, the slot may sit past the end
++// of the deserialized ObjectStore's allocation, so writing to it would corrupt
++// the heap rather than crash honestly.
++//
++// Persistent handles are GC roots and survive compaction, which is what this
++// needs: the entries have to outlive the attach call and stay valid across
++// collections.
++//
++// GATE-SCOPED. A process-wide static is wrong for a multi-isolate-group
++// embedder; the product belongs in the engine's patch installer, which already
++// owns per-app lifecycle state. Every access here happens under the program
++// lock, which is what makes the static safe in this harness.
++struct RouteBSavedCode {
++  PersistentHandle* function;
++  PersistentHandle* code;
++};
++static MallocGrowableArray<RouteBSavedCode>* route_b_saved_code = nullptr;
++
++static void RouteBSaveOriginalCode(Thread* thread,
++                                   const Function& function,
++                                   const Code& original) {
++  if (route_b_saved_code == nullptr) {
++    route_b_saved_code = new MallocGrowableArray<RouteBSavedCode>();
++  }
++  auto* const api_state = thread->isolate_group()->api_state();
++  auto* const fn_handle = api_state->AllocatePersistentHandle();
++  fn_handle->set_ptr(function.ptr());
++  auto* const code_handle = api_state->AllocatePersistentHandle();
++  code_handle->set_ptr(original.ptr());
++  route_b_saved_code->Add({fn_handle, code_handle});
++}
++
++// Returns the saved Code and forgets the entry, so a second detach of the same
++// target reports "nothing saved" rather than restoring a stale Code.
++static CodePtr RouteBTakeOriginalCode(const Function& function) {
++  if (route_b_saved_code == nullptr) return Code::null();
++  for (intptr_t i = route_b_saved_code->length() - 1; i >= 0; i--) {
++    const auto entry = (*route_b_saved_code)[i];
++    if (entry.function->ptr() != function.ptr()) continue;
++    const CodePtr result = Code::RawCast(entry.code->ptr());
++    auto* const api_state = IsolateGroup::Current()->api_state();
++    api_state->FreePersistentHandle(entry.function);
++    api_state->FreePersistentHandle(entry.code);
++    // Order is not meaningful, so fill the hole from the end rather than
++    // shifting; leaving holes would let a later lookup match a dead row.
++    (*route_b_saved_code)[i] =
++        (*route_b_saved_code)[route_b_saved_code->length() - 1];
++    route_b_saved_code->RemoveLast();
++    return result;
++  }
++  return Code::null();
++}
++
++static FunctionPtr ResolvePatchTarget(Thread* thread,
++                                      Zone* zone,
++                                      const String& library_uri,
++                                      const String& target_name) {
++  const auto& lib =
++      Library::Handle(zone, Library::LookupLibrary(thread, library_uri));
++  if (lib.IsNull()) {
++    OS::PrintErr("ATTACH: library not found: %s\n", library_uri.ToCString());
++    return Function::null();
++  }
++
++  intptr_t dot = -1;
++  for (intptr_t i = 0; i < target_name.Length(); i++) {
++    if (target_name.CharAt(i) == '.') {
++      dot = i;
++      break;
++    }
++  }
++  if (dot <= 0) {
++    const auto& fn =
++        Function::Handle(zone, lib.LookupFunctionAllowPrivate(target_name));
++    if (fn.IsNull()) {
++      OS::PrintErr("ATTACH: function %s not found in %s\n",
++                   target_name.ToCString(), library_uri.ToCString());
++    }
++    return fn.ptr();
++  }
++
++  const auto& class_name =
++      String::Handle(zone, String::SubString(thread, target_name, 0, dot));
++  const auto& member_name = String::Handle(
++      zone, String::SubString(thread, target_name, dot + 1,
++                              target_name.Length() - dot - 1));
++  const auto& cls = Class::Handle(zone, lib.LookupClassAllowPrivate(class_name));
++  if (cls.IsNull()) {
++    OS::PrintErr("ATTACH: class %s not found in %s\n", class_name.ToCString(),
++                 library_uri.ToCString());
++    return Function::null();
++  }
++  // EnsureIsFinalized: LookupFunctionAllowPrivate walks the class's function
++  // array, which a class that is not yet finalized may not have populated.
++  if (cls.EnsureIsFinalized(thread) != Error::null()) {
++    OS::PrintErr("ATTACH: could not finalize class %s\n",
++                 class_name.ToCString());
++    return Function::null();
++  }
++  const auto& fn =
++      Function::Handle(zone, cls.LookupFunctionAllowPrivate(member_name));
++  if (fn.IsNull()) {
++    OS::PrintErr("ATTACH: member %s not found on %s\n",
++                 member_name.ToCString(), class_name.ToCString());
++  }
++  return fn.ptr();
++}
++#endif  // defined(DART_DYNAMIC_MODULES)
++
++DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
++#if defined(DART_DYNAMIC_MODULES)
++  GET_NON_NULL_NATIVE_ARGUMENT(TypedDataBase, module_bytes,
++                               arguments->NativeArgAt(0));
++  GET_NON_NULL_NATIVE_ARGUMENT(String, library_uri, arguments->NativeArgAt(1));
++  GET_NON_NULL_NATIVE_ARGUMENT(String, target_name, arguments->NativeArgAt(2));
++
++  // Copy into malloc'd memory owned by an ExternalTypedData, exactly as
++  // Internal_loadDynamicModule does: the loader keeps a reference to these
++  // bytes beyond this call, so they cannot live in the Dart heap.
++  const intptr_t length = module_bytes.LengthInBytes();
++  uint8_t* data = reinterpret_cast<uint8_t*>(::malloc(length));
++  if (data == nullptr) {
++    const auto& exception = Instance::Handle(
++        zone, thread->isolate_group()->object_store()->out_of_memory());
++    Exceptions::Throw(thread, exception);
++  }
++  {
++    NoSafepointScope no_safepoint;
++    memcpy(data, module_bytes.DataAddr(0), length);  // NOLINT
++  }
++  const ExternalTypedData& typed_data = ExternalTypedData::Handle(
++      zone,
++      ExternalTypedData::New(kExternalTypedDataUint8ArrayCid, data, length));
++
++  auto& loaded = Function::Handle(zone);
++  auto& target = Function::Handle(zone);
++
++  {
++    // AttachBytecode asserts the caller is the program_lock writer, and the
++    // loader requires it too.
++    SafepointWriteRwLocker ml(thread, thread->isolate_group()->program_lock());
++
++    bytecode::BytecodeLoader loader(thread, typed_data);
++    loaded = loader.LoadBytecode();
++    if (loaded.IsNull()) {
++      OS::PrintErr("ATTACH: LoadBytecode returned null\n");
++      return Bool::False().ptr();
++    }
++
++    // Resolve the function to be replaced in the already-compiled program.
++    target = ResolvePatchTarget(thread, zone, library_uri, target_name);
++    if (target.IsNull()) {
++      return Bool::False().ptr();
++    }
++
++    // The gate's premise: the target is an ordinary AOT-compiled function.
++    // If it is already interpreted, the test proves nothing.
++    if (target.IsInterpreted()) {
++      OS::PrintErr("ATTACH: target already interpreted\n");
++      return Bool::False().ptr();
++    }
++
++    const auto& bc = Bytecode::Handle(zone, loaded.GetBytecode());
++    if (bc.IsNull()) {
++      OS::PrintErr("ATTACH: loaded entry carries no bytecode (%s)\n", loaded.ToCString());
++      return Bool::False().ptr();
++    }
++
++    // Save the original Code BEFORE attaching, because nothing else will.
++    // AttachBytecode overwrites Function.code_ and keeps no record of what it
++    // replaced, and upstream's undo -- ClearBytecode -> ClearCode -- is
++    // UNREACHABLE under DART_PRECOMPILED_RUNTIME and installs the LazyCompile
++    // stub in the JIT, which is meaningless in a runtime with no compiler. AOT
++    // rollback is therefore ours to provide, and this is the only moment the
++    // original is still in hand.
++    RouteBSaveOriginalCode(thread, target, Code::Handle(zone,
++                                                        target.CurrentCode()));
++
++    // This is the operation under test: repoint an AOT function's entry at the
++    // InterpretCall stub, with this bytecode as its body.
++    OS::PrintErr("ATTACH: before -> IsInterpreted=%d HasBytecode=%d\n",
++                 target.IsInterpreted() ? 1 : 0, target.HasBytecode() ? 1 : 0);
++    // Captured BEFORE the attach: object pool slots still reference this Code,
++    // and AttachBytecode does not touch them.
++    const auto& old_code = Code::Handle(zone, target.CurrentCode());
++    target.AttachBytecode(bc);
++    // Confirm the VM state actually changed. If this says IsInterpreted=1 and
++    // callers still reach the old body, the gap is call-site binding, not the
++    // primitive.
++    OS::PrintErr("ATTACH: after  -> IsInterpreted=%d HasBytecode=%d\n",
++                 target.IsInterpreted() ? 1 : 0, target.HasBytecode() ? 1 : 0);
++
++    // THE BINDER, in miniature. AttachBytecode repoints Function.code_ and the
++    // entry point, but a pool slot was baked with its target resolved at snapshot
++    // time and still holds the old Code -- which is why every call shape kept
++    // running the old body. AOT uses one global pool, so this is a single walk.
++    //
++    // Pool entries are DATA, which is what makes this legal on iOS: no executable
++    // page is written. PC-relative call sites cannot be fixed this way at all,
++    // which is why the release has to be built with --force_indirect_calls (or a
++    // loading-unit split) for a patch to be able to land.
++    const auto& new_code = Code::Handle(zone, target.CurrentCode());
++    const auto& pool = ObjectPool::Handle(
++        zone, thread->isolate_group()->object_store()->global_object_pool());
++    if (pool.IsNull()) {
++      OS::PrintErr("ATTACH: no global object pool\n");
++    } else {
++      intptr_t rewritten = 0;
++      intptr_t code_slots = 0;
++      auto& entry = Object::Handle(zone);
++      for (intptr_t i = 0; i < pool.Length(); i++) {
++        if (pool.TypeAt(i) != ObjectPool::EntryType::kTaggedObject) continue;
++        entry = pool.ObjectAt(i);
++        if (entry.ptr() == old_code.ptr()) {
++          pool.SetObjectAt(i, new_code);
++          rewritten++;
++        } else if (entry.IsCode()) {
++          code_slots++;
++        }
++      }
++      OS::PrintErr("ATTACH: pool len=%" Pd ", rewrote %" Pd " slot(s) "
++                   "(other Code slots=%" Pd ")\n",
++                   pool.Length(), rewritten, code_slots);
++    }
++  }
++
++  // Invoke the target from C++, OUTSIDE the program_lock (invoking Dart while
++  // holding it would deadlock). This is the discriminator: if this prints NEW,
++  // the interpreter executes the attached bytecode correctly and every Dart-side
++  // call shape is simply bound to the old code. If it prints OLD, the attach
++  // changed state that nothing consults.
++  {
++    const auto& result =
++        Object::Handle(zone, DartEntry::InvokeFunction(target, Object::empty_array()));
++    if (result.IsError()) {
++      OS::PrintErr("ATTACH: C++ invoke error: %s\n", Error::Cast(result).ToErrorCString());
++    } else {
++      OS::PrintErr("ATTACH: C++ invoke of target returned: %s\n", result.ToCString());
++    }
++  }
++
++  return Bool::True().ptr();
++#else
++  // Built without dart_dynamic_modules: report it rather than pretending.
++  return Bool::False().ptr();
++#endif  // defined(DART_DYNAMIC_MODULES)
++}
++
++DEFINE_NATIVE_ENTRY(Internal_detachBytecodeFromFunction, 0, 2) {
++#if defined(DART_DYNAMIC_MODULES)
++  GET_NON_NULL_NATIVE_ARGUMENT(String, library_uri, arguments->NativeArgAt(0));
++  GET_NON_NULL_NATIVE_ARGUMENT(String, target_name, arguments->NativeArgAt(1));
++
++  SafepointWriteRwLocker ml(thread, thread->isolate_group()->program_lock());
++
++  const auto& target = Function::Handle(
++      zone, ResolvePatchTarget(thread, zone, library_uri, target_name));
++  if (target.IsNull()) {
++    return Bool::False().ptr();
++  }
++  // Not an error, and worth keeping distinguishable: a transactional apply
++  // unwinds by detaching whatever it already attached, and the target it fails
++  // on has nothing attached yet. Treating that as a failure would turn a clean
++  // rollback into a second, louder failure.
++  if (!target.HasBytecode()) {
++    return Bool::False().ptr();
++  }
++
++  // NOT Function::ClearBytecode(): it calls ClearCode(), which is UNREACHABLE
++  // under DART_PRECOMPILED_RUNTIME and, in the JIT, installs the LazyCompile
++  // stub -- correct there, meaningless here. Restore the Code the release
++  // actually shipped, which the attach path saved for exactly this.
++  const auto& original = Code::Handle(zone, RouteBTakeOriginalCode(target));
++  if (original.IsNull()) {
++    OS::PrintErr("ATTACH: no saved code for this target\n");
++    return Bool::False().ptr();
++  }
++  target.RestoreCodeFromBytecode(original);
++  return Bool::True().ptr();
++#else
++  Exceptions::ThrowUnsupportedError(
++      "Detaching bytecode is not supported.");
++  return Object::null();
++#endif  // defined(DART_DYNAMIC_MODULES)
++}
++
++// Route B (selfhost): activate a patch on the current isolate, from C++.
++//
++// SEAM 6. The embedder calls this from settings.root_isolate_create_callback --
++// after the root isolate reaches Phase::Ready and inside its scope, but before
++// RunFromLibrary invokes main (dart_isolate.cc:163 vs :174). That window is what
++// lets a patch be live before ANY user Dart runs, so the app needs no
++// cooperation and there is no app-visible unpatched first frame.
++//
++// It lives beside the native rather than in dart_api_impl.cc so it can reuse
++// the same resolver and the same original-Code table the 4a device gate proved.
++// The delivery path must terminate in exactly this attach, never a second
++// mechanism.
++//
++// I/O is deliberately the embedder's: it passes bytes, the VM attaches them.
++// Defined below. Declared here because the four-argument export delegates to it
++// and C++ needs the shape first.
++static int32_t RouteBActivatePatchImpl(const uint8_t* payload,
++                                       intptr_t payload_length,
++                                       const char* library_uri,
++                                       const char* target_name,
++                                       Dart_RouteBTrace* trace,
++                                       const char* caller_name,
++                                       int64_t pool_offset);
++
++// Read a uword field out of a Function at the VM's OWN offset, i.e. the exact
++// bytes the generated call loads. Not an accessor on Function because adding one
++// would mean editing vm/object.h, which is a VM_SNAPSHOT_FILES member.
++//
++// GUARDED, because its only callers are inside the DART_DYNAMIC_MODULES block
++// below. Unguarded, a dart_dynamic_modules=false build fails with
++// "error: unused function 'RouteBFunctionField' [-Werror,-Wunused-function]" --
++// measured 2026-08-14 on the first attempt to build R3's host toolchain without
++// dynamic modules, which is what G15 gate 3a needs in order to publish a
++// platform dill from the tree that owns the engine.
++#if defined(DART_DYNAMIC_MODULES)
++static uword RouteBFunctionField(const Function& fn, intptr_t offset) {
++  return *reinterpret_cast<uword*>(static_cast<uword>(fn.ptr()) -
++                                   kHeapObjectTag + offset);
++}
++#endif  // defined(DART_DYNAMIC_MODULES)
++
++// The original four-argument entry point, unchanged in signature and behaviour.
++//
++// Kept as a delegating wrapper so `include/dart_api.h` needs no edit: that header
++// is included across the runtime, and more to the point `vm/object.{cc,h}` are in
++// VM_SNAPSHOT_FILES, so drifting toward them changes SNAPSHOT_HASH and the
++// already-published App.framework stops loading. Everything the trace needs is
++// reachable from here, which is not a snapshot file.
++DART_EXPORT int32_t Dart_RouteBActivatePatch(const uint8_t* payload,
++                                             intptr_t payload_length,
++                                             const char* library_uri,
++                                             const char* target_name) {
++  return Dart_RouteBActivatePatchTraced(payload, payload_length, library_uri,
++                                        target_name, nullptr, nullptr, 0);
++}
++
++DART_ROUTE_B_EXPORT int32_t Dart_RouteBActivatePatchTraced(
++    const uint8_t* payload,
++    intptr_t payload_length,
++    const char* library_uri,
++    const char* target_name,
++    Dart_RouteBTrace* trace,
++    const char* caller_name,
++    int64_t pool_offset) {
++  // EVERY FIELD SET BEFORE ANY CAN BE READ. An unreached field must read as "not
++  // observed", never as whatever the caller's stack happened to hold -- a
++  // plausible-looking zero here would be indistinguishable from a real
++  // measurement, which is the failure mode this whole record exists to end.
++  if (trace != nullptr) {
++    const Dart_RouteBTrace empty = {
++        /*result=*/DART_ROUTE_B_TRACE_UNSET,
++        /*attach_entered=*/0,
++        /*attach_returned=*/0,
++        /*has_bytecode_pre=*/DART_ROUTE_B_TRACE_UNSET,
++        /*has_bytecode_post=*/DART_ROUTE_B_TRACE_UNSET,
++        /*is_interpreted_pre=*/DART_ROUTE_B_TRACE_UNSET,
++        /*is_interpreted_post=*/DART_ROUTE_B_TRACE_UNSET,
++        /*function_ptr=*/0,
++        /*code_pre=*/0,
++        /*code_post=*/0,
++        /*code_pre_size=*/DART_ROUTE_B_TRACE_UNSET,
++        /*fn_entry_point_pre=*/0,
++        /*fn_entry_point_post=*/0,
++        /*fn_unchecked_entry_point_pre=*/0,
++        /*fn_unchecked_entry_point_post=*/0,
++        /*code_entry_point_pre=*/0,
++        /*code_entry_point_post=*/0,
++        /*code_unchecked_entry_point_pre=*/0,
++        /*code_unchecked_entry_point_post=*/0,
++        /*caller_scan_status=*/DART_ROUTE_B_SCAN_NOT_REQUESTED,
++        /*pool_status=*/DART_ROUTE_B_POOL_NOT_REQUESTED,
++        /*pool_offset=*/0,
++        /*pool_index=*/DART_ROUTE_B_TRACE_UNSET,
++        /*pool_length=*/DART_ROUTE_B_TRACE_UNSET,
++        /*pool_entry_ptr=*/0,
++        /*pool_entry_is_function=*/DART_ROUTE_B_TRACE_UNSET,
++        /*pool_entry_equals_target=*/DART_ROUTE_B_TRACE_UNSET,
++        /*caller_resolved=*/DART_ROUTE_B_TRACE_UNSET,
++        /*caller_pool_functions=*/DART_ROUTE_B_TRACE_UNSET,
++        /*caller_pool_matches_target=*/DART_ROUTE_B_TRACE_UNSET,
++        /*caller_pool_other_fn=*/0,
++        /*target_pool_status=*/DART_ROUTE_B_TPOOL_NOT_REQUESTED,
++        /*target_pool_matches=*/DART_ROUTE_B_TRACE_UNSET,
++        /*target_pool_index=*/DART_ROUTE_B_TRACE_UNSET,
++        /*target_pool_offset=*/DART_ROUTE_B_TRACE_UNSET,
++        /*target_pool_index_second=*/DART_ROUTE_B_TRACE_UNSET,
++        /*target_pool_scanned=*/DART_ROUTE_B_TRACE_UNSET,
++        /*interpret_call_entry_point=*/0,
++        /*entry_point_post_is_interpret_call=*/DART_ROUTE_B_TRACE_UNSET,
++        /*bytecode_size=*/DART_ROUTE_B_TRACE_UNSET,
++    };
++    *trace = empty;
++  }
++  const int32_t rc = RouteBActivatePatchImpl(payload, payload_length,
++                                             library_uri, target_name, trace,
++                                             caller_name, pool_offset);
++  if (trace != nullptr) trace->result = rc;
++  return rc;
++}
++
++static int32_t RouteBActivatePatchImpl(const uint8_t* payload,
++                                       intptr_t payload_length,
++                                       const char* library_uri,
++                                       const char* target_name,
++                                       Dart_RouteBTrace* trace,
++                                       const char* caller_name,
++                                       int64_t pool_offset) {
++#if defined(DART_DYNAMIC_MODULES)
++  Thread* thread = Thread::Current();
++  if (thread == nullptr || thread->isolate() == nullptr) {
++    OS::PrintErr("ROUTEB: no current isolate\n");
++    return Dart_RouteB_NoIsolate;
++  }
++  DARTSCOPE(thread);
++  Zone* zone = thread->zone();
++
++  if (payload == nullptr || payload_length <= 0) {
++    OS::PrintErr("ROUTEB: empty payload\n");
++    return Dart_RouteB_EmptyPayload;
++  }
++
++  // Copy into malloc'd memory owned by an ExternalTypedData: the loader keeps a
++  // reference beyond this call, so the embedder's buffer cannot back it.
++  uint8_t* data = reinterpret_cast<uint8_t*>(::malloc(payload_length));
++  if (data == nullptr) return Dart_RouteB_OutOfMemory;
++  memcpy(data, payload, payload_length);  // NOLINT
++  const ExternalTypedData& typed_data = ExternalTypedData::Handle(
++      zone, ExternalTypedData::New(kExternalTypedDataUint8ArrayCid, data,
++                                   payload_length));
++
++  const String& uri = String::Handle(zone, String::New(library_uri));
++  const String& name = String::Handle(zone, String::New(target_name));
++
++  auto& loaded = Function::Handle(zone);
++  auto& target = Function::Handle(zone);
++  {
++    SafepointWriteRwLocker ml(thread, thread->isolate_group()->program_lock());
++
++    bytecode::BytecodeLoader loader(thread, typed_data);
++    loaded = loader.LoadBytecode();
++    if (loaded.IsNull()) {
++      OS::PrintErr("ROUTEB: LoadBytecode returned null\n");
++      return Dart_RouteB_InvalidBytecode;
++    }
++    target = ResolvePatchTarget(thread, zone, uri, name);
++    if (target.IsNull()) {
++      // Distinct from a bytecode problem on purpose: this one is almost always
++      // a retention failure (the dynamic interface did not keep the symbol) or
++      // a library-URI typo, and reporting it as "attach failed" is exactly the
++      // opaque outcome Route B keeps having to dig itself out of.
++      OS::PrintErr("ROUTEB: target %s not found in %s\n", target_name,
++                   library_uri);
++      return Dart_RouteB_TargetMissing;
++    }
++    if (target.IsInterpreted()) {
++      OS::PrintErr("ROUTEB: %s already interpreted\n", target_name);
++      return Dart_RouteB_AlreadyInterpreted;
++    }
++    const auto& bc = Bytecode::Handle(zone, loaded.GetBytecode());
++    if (bc.IsNull()) {
++      OS::PrintErr("ROUTEB: payload carries no bytecode\n");
++      return Dart_RouteB_InvalidBytecode;
++    }
++
++    // Everything validated before anything is mutated. A failure above leaves
++    // the program pristine, which is what lets the embedder proceed into main
++    // running unpatched AOT rather than a half-patched app.
++    const auto& original = Code::Handle(zone, target.CurrentCode());
++
++    // THE STATE BEFORE. Sampled here and not earlier: this is the last moment at
++    // which the Function is still untouched, so anything recorded now is what the
++    // attach is about to act on.
++    if (trace != nullptr) {
++      trace->bytecode_size = bc.Size();
++      trace->has_bytecode_pre = target.HasBytecode() ? 1 : 0;
++      trace->is_interpreted_pre = target.IsInterpreted() ? 1 : 0;
++      trace->code_pre = static_cast<uint64_t>(original.ptr());
++      trace->code_pre_size = original.IsNull() ? DART_ROUTE_B_TRACE_UNSET
++                                               : original.Size();
++      trace->function_ptr = static_cast<uint64_t>(target.ptr());
++      // FUNCTION fields, at the VM's own offsets -- the bytes the call loads.
++      trace->fn_entry_point_pre = static_cast<uint64_t>(
++          RouteBFunctionField(target, Function::entry_point_offset()));
++      trace->fn_unchecked_entry_point_pre = static_cast<uint64_t>(
++          RouteBFunctionField(target, Function::unchecked_entry_point_offset()));
++      // CODE values, kept separate. v1 recorded these under the fn_ names.
++      trace->code_entry_point_pre =
++          original.IsNull() ? 0 : static_cast<uint64_t>(original.EntryPoint());
++      trace->code_unchecked_entry_point_pre =
++          original.IsNull()
++              ? 0
++              : static_cast<uint64_t>(original.UncheckedEntryPoint());
++      // Captured in the SAME run rather than compared against a remembered
++      // constant: stub addresses are per-snapshot, so a stale expectation would
++      // read as a mismatch and invent a failure.
++      trace->interpret_call_entry_point =
++          static_cast<uint64_t>(StubCode::InterpretCall().EntryPoint());
++      trace->attach_entered = 1;
++    }
++
++    RouteBSaveOriginalCode(thread, target, original);
++    target.AttachBytecode(bc);
++
++    // THE STATE AFTER, sampled before the write lock is released so nothing else
++    // can have run in between. `AttachBytecode` ends in
++    // `SetInstructions(StubCode::InterpretCall())`, so a real attach MUST show
++    // `entry_point_post == interpret_call_entry_point`. Recording both values
++    // rather than just the comparison keeps the raw evidence: a reader can tell
++    // "moved to the wrong place" from "did not move at all".
++    if (trace != nullptr) {
++      trace->attach_returned = 1;
++      trace->has_bytecode_post = target.HasBytecode() ? 1 : 0;
++      trace->is_interpreted_post = target.IsInterpreted() ? 1 : 0;
++      const auto& after = Code::Handle(zone, target.CurrentCode());
++      trace->code_post = static_cast<uint64_t>(after.ptr());
++      trace->fn_entry_point_post = static_cast<uint64_t>(
++          RouteBFunctionField(target, Function::entry_point_offset()));
++      trace->fn_unchecked_entry_point_post = static_cast<uint64_t>(
++          RouteBFunctionField(target, Function::unchecked_entry_point_offset()));
++      trace->code_entry_point_post =
++          after.IsNull() ? 0 : static_cast<uint64_t>(after.EntryPoint());
++      trace->code_unchecked_entry_point_post =
++          after.IsNull() ? 0
++                         : static_cast<uint64_t>(after.UncheckedEntryPoint());
++      // THE FIELD THE FAILING SITE ACTUALLY LOADS is the unchecked one, so that
++      // is what this compares -- v1 compared the normal entry and could not have
++      // caught a stale unchecked field.
++      trace->entry_point_post_is_interpret_call =
++          (trace->fn_unchecked_entry_point_post ==
++           trace->interpret_call_entry_point)
++              ? 1
++              : 0;
++
++      // TARGET->POOL IDENTITY, DERIVED. Where does the patched Function itself
++      // appear in the global pool?
++      //
++      // This is the PRODUCER `pool_offset` never had. The block below reads one
++      // entry named by an offset the caller supplies; this one derives the
++      // location from the target's own identity, so it needs no caller name, no
++      // fixture-specific constant, and works for every specimen.
++      //
++      // MULTIPLICITY IS NOT COLLAPSED. The scan does not stop at the first hit:
++      // it counts every match, so one-of-three can never be reported as the
++      // answer. Only UNIQUE licenses reading the index as an identity, and
++      // ABSENT is a result -- it is what a caller that inlined the target looks
++      // like, which is the state a diagnosis most needs.
++      {
++        const auto& gpool = ObjectPool::Handle(
++            zone, thread->isolate_group()->object_store()->global_object_pool());
++        if (gpool.IsNull()) {
++          trace->target_pool_status = DART_ROUTE_B_TPOOL_NULL_POOL;
++        } else if (gpool.Length() == 0) {
++          trace->target_pool_status = DART_ROUTE_B_TPOOL_EMPTY_POOL;
++          trace->target_pool_scanned = 0;
++        } else {
++          const intptr_t len = gpool.Length();
++          intptr_t matches = 0;
++          intptr_t first = -1, second = -1;
++          auto& gentry = Object::Handle(zone);
++          for (intptr_t i = 0; i < len; i++) {
++            if (gpool.TypeAt(i) != ObjectPool::EntryType::kTaggedObject) {
++              continue;
++            }
++            gentry = gpool.ObjectAt(i);
++            if (gentry.ptr() != target.ptr()) {
++              continue;
++            }
++            matches++;
++            if (first < 0) {
++              first = i;
++            } else if (second < 0) {
++              second = i;
++            }
++          }
++          trace->target_pool_scanned = len;
++          trace->target_pool_matches = static_cast<int32_t>(matches);
++          if (matches == 0) {
++            trace->target_pool_status = DART_ROUTE_B_TPOOL_ABSENT;
++          } else {
++            trace->target_pool_index = first;
++            trace->target_pool_offset = ObjectPool::OffsetFromIndex(first);
++            trace->target_pool_status = (matches == 1)
++                                            ? DART_ROUTE_B_TPOOL_UNIQUE
++                                            : DART_ROUTE_B_TPOOL_AMBIGUOUS;
++            if (matches > 1) {
++              trace->target_pool_index_second = second;
++            }
++          }
++        }
++      }
++
++      // EXACT-ENTRY IDENTITY, AN ASSERTION AND NO LONGER A SOURCE.
++      //
++      // Demoted deliberately. When an offset is supplied this answers exactly
++      // one question -- DOES THIS SLOT HOLD THE TARGET -- and nothing else. It is
++      // no longer where `pool_offset` comes from; the derived scan above is.
++      // Feeding it a stale constant now produces a visible mismatch rather than
++      // a confident identity, which is the whole point of separating them.
++      if (pool_offset != 0) {
++        trace->pool_offset = pool_offset;
++        const auto& pool = ObjectPool::Handle(
++            zone, thread->isolate_group()->object_store()->global_object_pool());
++        if (pool.IsNull()) {
++          trace->pool_status = DART_ROUTE_B_POOL_NULL;
++        } else {
++          // The VM's own rule, not arithmetic of mine.
++          const intptr_t idx = ObjectPool::IndexFromOffset(
++              static_cast<intptr_t>(pool_offset));
++          trace->pool_index = idx;
++          trace->pool_length = pool.Length();
++          if (idx < 0 || idx >= pool.Length()) {
++            trace->pool_status = DART_ROUTE_B_POOL_INDEX_OUT_OF_RANGE;
++          } else if (pool.TypeAt(idx) != ObjectPool::EntryType::kTaggedObject) {
++            trace->pool_status = DART_ROUTE_B_POOL_ENTRY_NOT_TAGGED;
++          } else {
++            const auto& entry = Object::Handle(zone, pool.ObjectAt(idx));
++            trace->pool_entry_ptr = static_cast<uint64_t>(entry.ptr());
++            if (!entry.IsFunction()) {
++              // NOT a mismatch. A mismatch means two positively identified
++              // Functions were compared.
++              trace->pool_entry_is_function = 0;
++              trace->pool_status = DART_ROUTE_B_POOL_ENTRY_NOT_FUNCTION;
++            } else {
++              trace->pool_entry_is_function = 1;
++              trace->pool_entry_equals_target =
++                  (entry.ptr() == target.ptr()) ? 1 : 0;
++              trace->pool_status = DART_ROUTE_B_POOL_READ;
++            }
++          }
++        }
++      }
++
++      // CALLER-SIDE IDENTITY, so no external pool reader is needed. Scan the
++      // caller's own object pool for Function entries and compare them with the
++      // Function just patched.
++      if (caller_name != nullptr) {
++        const String& cname = String::Handle(zone, String::New(caller_name));
++        const auto& caller =
++            Function::Handle(zone, ResolvePatchTarget(thread, zone, uri, cname));
++        trace->caller_resolved = caller.IsNull() ? 0 : 1;
++        if (caller.IsNull()) {
++          trace->caller_scan_status = DART_ROUTE_B_SCAN_CALLER_UNRESOLVED;
++        } else {
++          // NOT gated on HasCode(). That gate is what silently skipped release
++          // 28's scan, and replacing it with another predicate would repeat the
++          // mistake in a new costume. The code is read the same way the target's
++          // is read a few lines above, and a null result is REPORTED rather than
++          // treated as a reason to do nothing.
++          const auto& ccode = Code::Handle(zone, caller.CurrentCode());
++          if (ccode.IsNull()) {
++            trace->caller_scan_status =
++                DART_ROUTE_B_SCAN_CALLER_RESOLVED_NO_CODE;
++          } else {
++            const auto& pool = ObjectPool::Handle(zone, ccode.object_pool());
++            if (pool.IsNull()) {
++              trace->caller_scan_status = DART_ROUTE_B_SCAN_NULL_POOL;
++            } else {
++              int32_t seen = 0, matches = 0;
++              auto& entry = Object::Handle(zone);
++              for (intptr_t i = 0; i < pool.Length(); i++) {
++                if (pool.TypeAt(i) != ObjectPool::EntryType::kTaggedObject) {
++                  continue;
++                }
++                entry = pool.ObjectAt(i);
++                if (!entry.IsFunction()) continue;
++                seen++;
++                if (entry.ptr() == target.ptr()) {
++                  matches++;
++                } else if (trace->caller_pool_other_fn == 0) {
++                  trace->caller_pool_other_fn =
++                      static_cast<uint64_t>(entry.ptr());
++                }
++              }
++              trace->caller_pool_functions = seen;
++              trace->caller_pool_matches_target = matches;
++              // EMPTY_POOL is distinct from SCANNED: a pool with no Function
++              // entries at all cannot answer an identity question, and calling it
++              // "scanned, 0 matches" would be the same false attribution the
++              // sentinel prevented.
++              trace->caller_scan_status =
++                  (seen > 0) ? DART_ROUTE_B_SCAN_SCANNED
++                             : DART_ROUTE_B_SCAN_EMPTY_POOL;
++            }
++          }
++        }
++      }
++    }
++  }
++  OS::PrintErr("ROUTEB: activated %s in %s before main\n", target_name,
++               library_uri);
++  return Dart_RouteB_Ok;
++#else
++  OS::PrintErr("ROUTEB: build lacks DART_DYNAMIC_MODULES\n");
++  return Dart_RouteB_Unsupported;
++#endif
++}
++
++// The release identity of the running snapshot, as lowercase hex, or nullptr.
++//
++// Same GNU build ID that Internal_releaseBuildId exposes to Dart. It is
++// duplicated as a C API rather than shared because the caller is the embedder's
++// pre-main hook: it must reject a patch built for another release BEFORE
++// resolving targets, and at that point no Dart has run and none can be run.
++//
++// The returned string is owned by the caller and must be freed with free().
++DART_EXPORT char* Dart_RouteBReleaseBuildId() {
++#if defined(DART_PRECOMPILED_RUNTIME)
++  Thread* thread = Thread::Current();
++  if (thread == nullptr || thread->isolate() == nullptr) return nullptr;
++  auto* const instructions = reinterpret_cast<const uint8_t*>(
++      thread->isolate_group()->source()->snapshot_instructions);
++  if (instructions == nullptr) return nullptr;
++  const auto& build_id = OS::GetAppBuildId(instructions);
++  if (build_id.data == nullptr || build_id.len <= 0) return nullptr;
++  char* out = reinterpret_cast<char*>(::malloc(2 * build_id.len + 1));
++  if (out == nullptr) return nullptr;
++  for (intptr_t i = 0; i < build_id.len; i++) {
++    snprintf(out + 2 * i, 3, "%2.2x", build_id.data[i]);
++  }
++  out[2 * build_id.len] = '\0';
++  return out;
++#else
++  // A JIT run has no AOT snapshot to identify. Null rather than a fabricated
++  // value, so callers cannot mistake "no identity" for "some identity".
++  return nullptr;
++#endif
++}
++
++DEFINE_NATIVE_ENTRY(Internal_releaseBuildId, 0, 0) {
++#if defined(DART_PRECOMPILED_RUNTIME)
++  // Route B's release identity. Patch bytecode is compiled against one specific
++  // release's kernel, so applying it to a different build is undefined rather
++  // than merely unsupported -- and the failure would surface as a corrupt
++  // interpreted body, not as a clean error. The toolchain already emits a GNU
++  // build ID into the snapshot, so the check costs nothing to carry.
++  auto* const instructions = reinterpret_cast<const uint8_t*>(
++      thread->isolate_group()->source()->snapshot_instructions);
++  if (instructions == nullptr) {
++    return Object::null();
++  }
++  const auto& build_id = OS::GetAppBuildId(instructions);
++  if (build_id.data == nullptr || build_id.len <= 0) {
++    return Object::null();
++  }
++  TextBuffer buffer(2 * build_id.len + 1);
++  for (intptr_t i = 0; i < build_id.len; i++) {
++    buffer.Printf("%2.2x", build_id.data[i]);
++  }
++  return String::New(buffer.buffer());
++#else
++  // A JIT run has no AOT snapshot to identify. Null rather than a fabricated
++  // value, so callers cannot mistake "no identity" for "some identity".
++  return Object::null();
++#endif  // defined(DART_PRECOMPILED_RUNTIME)
++}
++
+ DEFINE_NATIVE_ENTRY(Internal_ensureDeeplyImmutable, 0, 1) {
+   GET_NATIVE_ARGUMENT(Instance, value, arguments->NativeArgAt(0));
+   value.EnsureDeeplyImmutable(zone);
+diff --git a/runtime/vm/bootstrap_natives.h b/runtime/vm/bootstrap_natives.h
+index c6bfb48c430..7aba3a1e31a 100644
+--- a/runtime/vm/bootstrap_natives.h
++++ b/runtime/vm/bootstrap_natives.h
+@@ -273,6 +273,9 @@ namespace dart {
+   V(Internal_prependTypeArguments, 4)                                          \
+   V(Internal_instantiateClosure, 2)                                            \
+   V(Internal_loadDynamicModule, 1)                                             \
++  V(Internal_attachBytecodeToFunction, 3)                                      \
++  V(Internal_detachBytecodeFromFunction, 2)                                    \
++  V(Internal_releaseBuildId, 0)                                                \
+   V(Internal_allocateOneByteString, 1)                                         \
+   V(Internal_allocateTwoByteString, 1)                                         \
+   V(Internal_writeIntoOneByteString, 3)                                        \
+diff --git a/runtime/vm/compiler/aot/aot_call_specializer.cc b/runtime/vm/compiler/aot/aot_call_specializer.cc
+index 6f3f550905e..e2b81f55d1e 100644
+--- a/runtime/vm/compiler/aot/aot_call_specializer.cc
++++ b/runtime/vm/compiler/aot/aot_call_specializer.cc
+@@ -1189,10 +1189,44 @@ void AotCallSpecializer::TryReplaceWithDispatchTableCall(
+     return;
+   }
+ 
++  // SELFHOST: the _HashVMBase slot accessors must never become a call of any
++  // kind. They are @pragma("vm:recognized", "graph-intrinsic") `external`
++  // declarations with NO callable body — the only valid lowering is the
++  // intrinsic's LoadField/StoreField — so a real call returns garbage instead
++  // of the field.
++  //
++  // Observed: reading `_table._data` twice in ONE expression produced two
++  // non-identical objects with different identity hashes whose `.length` was
++  // null. _isModifiedSince then reported a bogus "Concurrent modification
++  // during iteration" and killed every widget build before first frame.
++  //
++  // Keep this list narrow. Excluding *all* recognized methods also excludes
++  // _Array.[] and _Array.get:length, which do have bodies and DO need their
++  // dispatch-table entries — dropping those brings back the
++  // NoSuchMethodError in Map._fromLiteral that 0004 fixed.
++  switch (interface_target.recognized_kind()) {
++    case MethodRecognizer::kLinkedHashBase_getIndex:
++    case MethodRecognizer::kLinkedHashBase_setIndex:
++    case MethodRecognizer::kLinkedHashBase_getData:
++    case MethodRecognizer::kLinkedHashBase_setData:
++    case MethodRecognizer::kLinkedHashBase_getUsedData:
++    case MethodRecognizer::kLinkedHashBase_setUsedData:
++    case MethodRecognizer::kLinkedHashBase_getHashMask:
++    case MethodRecognizer::kLinkedHashBase_setHashMask:
++    case MethodRecognizer::kLinkedHashBase_getDeletedKeys:
++    case MethodRecognizer::kLinkedHashBase_setDeletedKeys:
++    case MethodRecognizer::kImmutableLinkedHashBase_getData:
++    case MethodRecognizer::kImmutableLinkedHashBase_getIndex:
++      return;
++    default:
++      break;
++  }
++
+   Value* receiver = call->ArgumentValueAt(call->FirstArgIndex());
+   const compiler::TableSelector* selector =
+       precompiler_->selector_map()->GetSelector(interface_target);
+ 
++
+   if (selector == nullptr) {
+ #if defined(DEBUG)
+     if (!interface_target.IsDynamicallyOverridden()) {
+diff --git a/runtime/vm/compiler/aot/dispatch_table_generator.cc b/runtime/vm/compiler/aot/dispatch_table_generator.cc
+index 1863badc37b..489cbbfa5ab 100644
+--- a/runtime/vm/compiler/aot/dispatch_table_generator.cc
++++ b/runtime/vm/compiler/aot/dispatch_table_generator.cc
+@@ -381,6 +381,12 @@ const TableSelector* SelectorMap::GetSelector(
+ const TableSelector* SelectorMap::GetSelector(int32_t sid) const {
+   if (sid == kInvalidSelectorId) return nullptr;
+   const TableSelector* selector = &selectors_[sid];
++  // SELFHOST: upstream. The IsUsed() test was removed here for a while, to
++  // survive a table-selector metadata table full of zeroed call counts. That
++  // was a symptom of feeding Shorebird's forked frontend_server's dill to this
++  // vanilla backend; with a frontend from this same tree the counts are real
++  // and the test is correct. Never remove it again without also checking
++  // `bin/cache/dart-sdk/revision` — see selfhost/TFA_ROOT_CAUSE.md.
+   if (!selector->IsUsed()) return nullptr;
+   if (selector->offset == kInvalidSelectorOffset) return nullptr;
+   return selector;
+@@ -587,7 +593,42 @@ void DispatchTableGenerator::SetupSelectorRows() {
+               };
+               MakeIntervals(function, sid);
+ 
+-              if (selector_map_.selectors_[sid].torn_off) {
++              // SELFHOST: an implicit accessor must never be closurized. A
++              // selector is shared by every member with the same name, so a
++              // getter selector is marked torn_off as soon as ANY method of
++              // that name is torn off somewhere in the program — including
++              // when the member here is a field's implicit getter. Creating a
++              // method extractor for that forces
++              // Function::ImplicitClosureFunction() onto the accessor, whose
++              // data slot holds its Field; set_implicit_closure_function()
++              // then overwrites the Field with the closure. The ASSERT at
++              // object.cc:8762 says exactly that this is illegal, but it is
++              // compiled out in a release VM, so the corruption is silent and
++              // only shows up later as a crash in the compiler.
++              //
++              // Keep the guard this narrow. Skipping ALL non-regular functions
++              // here also drops legitimate tear-off entries and leaves the
++              // dispatch table incomplete — the app then dies at startup with
++              // a NoSuchMethodError from a map literal in
++              // PlatformDispatcher._.
++              //
++              // Only a REGULAR method can be torn off. Dart has no tear-off of
++              // a getter or a setter, and letting one through here corrupts the
++              // table: a setter's ProcedureAttributes.getter_selector_id names
++              // its FIELD'S getter, so the extractor for `set:_data` was
++              // written into `get:_data`'s row. `_table._data` then returned a
++              // fresh `(List<dynamic>) => void` closure on every read instead
++              // of the field, which is what produced the bogus
++              // "Concurrent modification during iteration". The
++              // `tearoff_sid != sid` check below does NOT catch this, because
++              // the two selectors really are different.
++              //
++              // `torn_off` is upstream's gate and is kept. Only the added
++              // IsRegularFunction() is ours, and it is about language
++              // semantics rather than metadata quality: it is what keeps a
++              // setter out of this branch.
++              if (selector_map_.selectors_[sid].torn_off &&
++                  function.IsRegularFunction()) {
+                 const String& method_name = String::Handle(Z, function.name());
+                 const String& getter_name =
+                     String::Handle(Z, Field::GetterName(method_name));
+@@ -595,7 +636,17 @@ void DispatchTableGenerator::SetupSelectorRows() {
+                     Z, function.GetMethodExtractor(getter_name));
+                 const int32_t tearoff_sid = selector_map_.SelectorId(tearoff);
+ 
+-                if (tearoff_sid != SelectorMap::kInvalidSelectorId) {
++                // SELFHOST: `tearoff_sid != sid` is load-bearing.
++                // ProcedureAttributes.getter_selector_id can come back as the
++                // method's OWN selector (Object.get:hashCode does), and writing
++                // the extractor into that row displaces the method itself — the
++                // symptom was `elements[i]` in Map._fromLiteral landing inside
++                // _Array.[], and parsing the two-byte JSON document `{}` ending
++                // in "Out of Memory" inside _LinkedHashMapMixin._populateUnsafe.
++                // Creating the extractor above is what we actually need; the row
++                // only belongs to a genuinely distinct getter selector.
++                if (tearoff_sid != SelectorMap::kInvalidSelectorId &&
++                    tearoff_sid != sid) {
+                   MakeIntervals(tearoff, tearoff_sid);
+                 }
+               }
+@@ -607,6 +658,11 @@ void DispatchTableGenerator::SetupSelectorRows() {
+   }
+ 
+   // Retain all selectors that contain implementation intervals.
++  //
++  // SELFHOST: upstream, IsUsed() included. Dropping it here was how we survived
++  // a dill whose call counts were all zero — see the note in GetSelector and
++  // selfhost/TFA_ROOT_CAUSE.md. Correct again once the frontend comes from this
++  // same tree.
+   for (intptr_t i = 0; i < num_selectors_; i++) {
+     const TableSelector& selector = selector_map_.selectors_[i];
+     if (selector.IsUsed() && selector_rows[i].Finalize()) {
+diff --git a/runtime/vm/compiler/aot/precompiler.cc b/runtime/vm/compiler/aot/precompiler.cc
+index a1501f76cdb..8a6c4c060fa 100644
+--- a/runtime/vm/compiler/aot/precompiler.cc
++++ b/runtime/vm/compiler/aot/precompiler.cc
+@@ -34,6 +34,7 @@
+ #include "vm/compiler/frontend/flow_graph_builder.h"
+ #include "vm/compiler/frontend/kernel_to_il.h"
+ #include "vm/compiler/jit/compiler.h"
++#include "vm/dart.h"
+ #include "vm/dart_entry.h"
+ #include "vm/exceptions.h"
+ #include "vm/ffi/native_assets.h"
+@@ -79,6 +80,82 @@ DEFINE_FLAG(charp,
+             nullptr,
+             "Print reasons for retaining objects to the given file");
+ 
++// SELFHOST: Shorebird's private Dart fork defines these six, and their
++// flutter_tools passes ALL of them on every iOS/macOS AOT build —
++// packages/flutter_tools/lib/src/base/build.dart, gated only on
++// `usesLinker = (platform == ios || darwin)`. A vanilla gen_snapshot rejects
++// them outright ("Setting VM flags failed: Unrecognized flags: ...") and exits
++// 255, which makes EVERY iOS release unbuildable on vanilla Dart — not merely
++// un-patchable. Registering them is what lets an iOS release build at all.
++//
++// Upstream they dump the class/field/dispatch table layout so a later patch can
++// be linked against the same layout. We have no linker yet (UPSTREAM_INDEPENDENCE
++// item 7), so we accept the flags and write a file that is deliberately NOT link
++// info: a real linker fed this must fail loudly rather than quietly mislink
++// against a plausible-looking empty table. Writing *something* matters because
++// the release flow collects these paths as "supplement" artifacts.
++//
++DEFINE_FLAG(charp,
++            print_class_table_link_info_to,
++            nullptr,
++            "SELFHOST stub: accepted for flutter_tools compatibility");
++DEFINE_FLAG(charp,
++            print_class_table_link_debug_info_to,
++            nullptr,
++            "SELFHOST stub: accepted for flutter_tools compatibility");
++DEFINE_FLAG(charp,
++            print_field_table_link_info_to,
++            nullptr,
++            "SELFHOST stub: accepted for flutter_tools compatibility");
++DEFINE_FLAG(charp,
++            print_field_table_link_debug_info_to,
++            nullptr,
++            "SELFHOST stub: accepted for flutter_tools compatibility");
++DEFINE_FLAG(charp,
++            print_dispatch_table_link_info_to,
++            nullptr,
++            "SELFHOST stub: accepted for flutter_tools compatibility");
++DEFINE_FLAG(charp,
++            print_dispatch_table_link_debug_info_to,
++            nullptr,
++            "SELFHOST stub: accepted for flutter_tools compatibility");
++
++namespace {
++// Writes a self-describing marker to `filename`, chosen so nothing can mistake
++// it for real link info: it is not a table, and any parser expecting one rejects
++// it.
++// [[maybe_unused]]: this file is also compiled into the JIT compiler variant
++// (libdart_compiler_jit), where the call site below sits inside a
++// DART_PRECOMPILER guard and disappears. Without this, -Werror=unused-function
++// breaks any host build that compiles the JIT variant — which the iOS-only
++// build does not, so it compiles clean there and fails later somewhere else.
++[[maybe_unused]] void WriteSelfhostLinkInfoStub(const char* filename,
++                                                const char* which) {
++  auto file_open = Dart::file_open_callback();
++  auto file_write = Dart::file_write_callback();
++  auto file_close = Dart::file_close_callback();
++  if ((file_open == nullptr) || (file_write == nullptr) ||
++      (file_close == nullptr)) {
++    OS::PrintErr("warning: Could not access file callbacks.\n");
++    return;
++  }
++  void* file = file_open(filename, /*write=*/true);
++  if (file == nullptr) {
++    OS::PrintErr("warning: Failed to write link info stub: %s\n", filename);
++    return;
++  }
++  char buffer[512];
++  const intptr_t len = Utils::SNPrint(
++      buffer, sizeof(buffer),
++      "{\"selfhost_link_info\":\"unimplemented\",\"table\":\"%s\","
++      "\"note\":\"No AOT linker in this build; not link info.\"}\n",
++      which);
++  file_write(buffer, len, file);
++  file_close(file);
++}
++
++}  // namespace
++
+ DECLARE_FLAG(bool, print_flow_graph);
+ DECLARE_FLAG(bool, print_flow_graph_optimized);
+ DECLARE_FLAG(bool, trace_compiler);
+@@ -88,6 +165,34 @@ DECLARE_FLAG(bool, trace_failed_optimization_attempts);
+ DECLARE_FLAG(bool, trace_inlining_intervals);
+ DECLARE_FLAG(int, inlining_hotness);
+ DECLARE_FLAG(int, inlining_size_threshold);
++
++// SELFHOST: --load_obfuscation_map, the VM half of gen_snapshot's
++// --load-obfuscation-map=<file>. The help text is reproduced verbatim from the
++// Shorebird fork binary's string table (see 0008's header): that binary also
++// carried the option as a VM flag, forwarded from bin/ as
++// "--load_obfuscation_map=%s", which is why no new Dart_* API exists in it.
++DEFINE_FLAG(charp,
++            load_obfuscation_map,
++            nullptr,
++            "Path to a JSON obfuscation map file to load before kernel "
++            "translation. Used for consistent obfuscation across patch builds.");
++
++// SELFHOST: an instrument, not a knob. The JSON map carries PAIRS ONLY, so the
++// rename cursor must be reconstructed; a cursor that lands even slightly early
++// silently reissues obfuscated names the release already spent. Mode 1 is the
++// only correct setting and is the default. Modes 0 and 2 exist so that
++// probes/g43_obfuscation_map_load.sh can demonstrate it can SEE the failure --
++// a probe that cannot fail proves nothing.
++//
++//   0  do not restore the cursor (restart at 'a') -- the naive implementation
++//   1  restore correctly (bijective base-52, little-endian)  [DEFAULT, ships]
++//   2  restore using lowercase-only ordering -- a REFUTED rule, kept only so
++//      the probe can show it distinguishes "correct" from "almost correct"
++DEFINE_FLAG(int,
++            obfuscation_cursor_mode,
++            1,
++            "SELFHOST probe instrument: 0=no cursor restore, 1=correct "
++            "(default), 2=refuted lowercase-only rule");
+ DECLARE_FLAG(int, inlining_callee_size_threshold);
+ DECLARE_FLAG(int, inline_getters_setters_smaller_than);
+ DECLARE_FLAG(int, inlining_depth_threshold);
+@@ -475,6 +580,26 @@ void Precompiler::DoCompileAll() {
+         IG->class_table()->PrintObjectLayout(FLAG_print_object_layout_to);
+       }
+ 
++      // SELFHOST: satisfy the six link-info paths flutter_tools always passes on
++      // Apple targets. See the flag declarations above for why these are stubs.
++      struct {
++        const char* path;
++        const char* which;
++      } selfhost_link_info[] = {
++          {FLAG_print_class_table_link_info_to, "class_table"},
++          {FLAG_print_class_table_link_debug_info_to, "class_table_debug"},
++          {FLAG_print_field_table_link_info_to, "field_table"},
++          {FLAG_print_field_table_link_debug_info_to, "field_table_debug"},
++          {FLAG_print_dispatch_table_link_info_to, "dispatch_table"},
++          {FLAG_print_dispatch_table_link_debug_info_to,
++           "dispatch_table_debug"},
++      };
++      for (const auto& entry : selfhost_link_info) {
++        if (entry.path != nullptr) {
++          WriteSelfhostLinkInfoStub(entry.path, entry.which);
++        }
++      }
++
+       ClassFinalizer::SortClasses();
+ 
+       // Collects type usage information which allows us to decide when/how to
+@@ -1734,9 +1859,12 @@ void Precompiler::CheckForNewDynamicFunctions() {
+             metadata = kernel::ProcedureAttributesOf(function, Z);
+             found_metadata = true;
+ 
++            // SELFHOST: upstream, has_tearoff_uses gate included. Dropping it
++            // was how we survived a dill whose tear-off flags were not real —
++            // see selfhost/TFA_ROOT_CAUSE.md. Correct again once the frontend
++            // comes from this same tree.
+             if (metadata.has_tearoff_uses) {
+-              // Closurization.
+-              // Function is foo and somewhere get:foo is called.
++              // Closurization: function is foo and somewhere get:foo is called.
+               function2 = function.ImplicitClosureFunction();
+               AddFunction(function2, RetainReasons::kImplicitClosure);
+ 
+@@ -3717,6 +3845,350 @@ void Precompiler::CompileFunction(Precompiler* precompiler,
+   }
+ }
+ 
++// SELFHOST: --load_obfuscation_map support begins here.
++//
++// Seeds the renaming map from a JSON map written by an earlier
++// --save-obfuscation-map run, so a patch build reproduces the release's naming
++// exactly. See selfhost/engine/0008-dart-load-obfuscation-map.patch's header
++// for the derivation and for why this lives here rather than behind a Dart_*
++// API called from bin/.
++
++namespace {
++
++// The rename alphabet, read off NextName() below: inc(a)=b .. inc(z)=A ..
++// inc(Z)=a & carry, and a fresh position starts at 'a'. name_[0] is therefore
++// the LEAST significant digit and the generated order is
++//   a, b, .. z, A, .. Z, aa, ba, ca, ..
++// i.e. a bijective base-52 numeral written little-endian. Two consequences
++// that a "greatest-looking string" rule gets wrong:
++//   * the alphabet is [a-zA-Z], not [a-z]. Restricting to lowercase discards
++//     every value carrying an uppercase digit; against a 19,830-pair map
++//     (release 35's) that lands the cursor ~2,400 names early, and each of
++//     those names is already bound to a different identifier.
++//   * the most significant digit is the LAST character, so plain lexicographic
++//     comparison reads the numeral backwards.
++constexpr intptr_t kCursorLowercaseDigits = 26;
++
++// Rank of a cursor digit in generation order, or -1 if not a cursor digit.
++intptr_t CursorDigitRank(char c) {
++  if (c >= 'a' && c <= 'z') return c - 'a';
++  if (c >= 'A' && c <= 'Z') return kCursorLowercaseDigits + (c - 'A');
++  return -1;
++}
++
++bool IsCursorWord(const char* s, intptr_t len) {
++  if (len <= 0) return false;
++  for (intptr_t i = 0; i < len; i++) {
++    if (CursorDigitRank(s[i]) < 0) return false;
++  }
++  return true;
++}
++
++// True if |a| comes strictly later than |b| in NextName()'s order. Length
++// first -- the numeral is bijective, so a longer name is always later -- then
++// digits from the most significant end, which is the last character.
++bool CursorLater(const char* a, intptr_t alen, const char* b, intptr_t blen) {
++  if (alen != blen) return alen > blen;
++  for (intptr_t i = alen - 1; i >= 0; i--) {
++    const intptr_t ra = CursorDigitRank(a[i]);
++    const intptr_t rb = CursorDigitRank(b[i]);
++    if (ra != rb) return ra > rb;
++  }
++  return false;
++}
++
++// The REFUTED rule, reachable only via --obfuscation_cursor_mode=2. Kept so
++// probes/g43_obfuscation_map_load.sh can show it distinguishes "correct" from
++// "almost correct" rather than merely "present" from "absent". Wrong twice
++// over: it discards uppercase-bearing values, and it compares a little-endian
++// numeral as if it were big-endian.
++bool CursorLaterLowercaseOnly(const char* a,
++                              intptr_t alen,
++                              const char* b,
++                              intptr_t blen) {
++  if (alen != blen) return alen > blen;
++  return strncmp(a, b, alen) > 0;
++}
++
++bool IsAllLowercase(const char* s, intptr_t len) {
++  for (intptr_t i = 0; i < len; i++) {
++    if (s[i] < 'a' || s[i] > 'z') return false;
++  }
++  return len > 0;
++}
++
++// Reduce an obfuscated VALUE to the bare generated name it was built from,
++// returning false if it was not produced by NewAtomicRename.
++//
++// BuildRename composes: Rename(get:foo) = get:Rename(foo),
++// Rename(set:foo) = set:Rename(foo), Rename(_ident@key) =
++// Rename(_ident)@private_key, and NewAtomicRename prefixes '_' for private
++// names. So: drop a get:/set: prefix, cut at '@', then drop a leading '_'.
++bool GeneratedNameOf(const char* v,
++                     intptr_t vlen,
++                     const char** out,
++                     intptr_t* out_len) {
++  if (vlen >= 4 &&
++      (strncmp(v, "get:", 4) == 0 || strncmp(v, "set:", 4) == 0)) {
++    v += 4;
++    vlen -= 4;
++  }
++  for (intptr_t i = 0; i < vlen; i++) {
++    if (v[i] == '@') {
++      vlen = i;
++      break;
++    }
++  }
++  if (vlen > 0 && v[0] == '_') {
++    v++;
++    vlen--;
++  }
++  if (!IsCursorWord(v, vlen)) return false;
++  *out = v;
++  *out_len = vlen;
++  return true;
++}
++
++// A hand-written parser for the flat JSON array of strings that
++// Dart_GetObfuscationMap writes (dart_api_impl.cc: '[' then comma-separated
++// '"'-quoted AddEscapedString values then ']'). Measured against the real
++// 629 KB map our own engine produced for release 35: a flat array of even
++// length, consecutive [original, renamed] pairs, 39,660 entries, and it DOES
++// contain empty-string pairs -- which are tolerated, not rejected.
++//
++// The four diagnostic strings are reproduced verbatim from the Shorebird fork
++// binary's string table.
++class ObfuscationMapParser : public ValueObject {
++ public:
++  ObfuscationMapParser(Zone* zone, const char* buffer, intptr_t length)
++      : zone_(zone), p_(buffer), end_(buffer + length) {}
++
++  void ParseInto(GrowableArray<const char*>* out) {
++    SkipWhitespace();
++    if (p_ >= end_ || *p_ != '[') {
++      FATAL("Invalid obfuscation map: expected '['");
++    }
++    p_++;
++    SkipWhitespace();
++    if (p_ < end_ && *p_ == ']') {
++      return;  // A legitimately empty map.
++    }
++    for (;;) {
++      SkipWhitespace();
++      out->Add(ParseString());
++      SkipWhitespace();
++      if (p_ < end_ && *p_ == ',') {
++        p_++;
++        continue;
++      }
++      break;
++    }
++    if ((out->length() % 2) != 0) {
++      FATAL("Invalid obfuscation map: odd number of entries (expected pairs)");
++    }
++  }
++
++ private:
++  void SkipWhitespace() {
++    while (p_ < end_ && (*p_ == ' ' || *p_ == '\t' || *p_ == '\n' ||
++                         *p_ == '\r')) {
++      p_++;
++    }
++  }
++
++  // The writer emits bytes >= 0x80 raw (text_buffer.cc, AddEscapedUTF8) and
++  // uses \u only for ASCII control units, so no surrogate pairing is needed.
++  void AppendUtf8(ZoneTextBuffer* out, uint32_t rune) {
++    if (rune < 0x80) {
++      out->AddChar(static_cast<char>(rune));
++    } else if (rune < 0x800) {
++      out->AddChar(static_cast<char>(0xC0 | (rune >> 6)));
++      out->AddChar(static_cast<char>(0x80 | (rune & 0x3F)));
++    } else {
++      out->AddChar(static_cast<char>(0xE0 | (rune >> 12)));
++      out->AddChar(static_cast<char>(0x80 | ((rune >> 6) & 0x3F)));
++      out->AddChar(static_cast<char>(0x80 | (rune & 0x3F)));
++    }
++  }
++
++  const char* ParseString() {
++    if (p_ >= end_ || *p_ != '"') {
++      FATAL("Invalid obfuscation map: expected '\"'");
++    }
++    p_++;
++    ZoneTextBuffer out(zone_);
++    for (;;) {
++      if (p_ >= end_) {
++        FATAL("Invalid obfuscation map: unterminated string");
++      }
++      const char c = *p_++;
++      if (c == '"') break;
++      if (c != '\\') {
++        out.AddChar(c);
++        continue;
++      }
++      if (p_ >= end_) {
++        FATAL("Invalid obfuscation map: unterminated string");
++      }
++      const char e = *p_++;
++      switch (e) {
++        case 'b': out.AddChar('\b'); break;
++        case 'f': out.AddChar('\f'); break;
++        case 'n': out.AddChar('\n'); break;
++        case 'r': out.AddChar('\r'); break;
++        case 't': out.AddChar('\t'); break;
++        case 'u': {
++          if (end_ - p_ < 4) {
++            FATAL("Invalid obfuscation map: unterminated string");
++          }
++          uint32_t rune = 0;
++          for (intptr_t i = 0; i < 4; i++) {
++            const char h = *p_++;
++            rune <<= 4;
++            if (h >= '0' && h <= '9') {
++              rune |= (h - '0');
++            } else if (h >= 'a' && h <= 'f') {
++              rune |= (h - 'a' + 10);
++            } else if (h >= 'A' && h <= 'F') {
++              rune |= (h - 'A' + 10);
++            } else {
++              FATAL("Invalid obfuscation map: expected '\"'");
++            }
++          }
++          AppendUtf8(&out, rune);
++          break;
++        }
++        default:
++          // Covers the writer's '"', '\\' and '/' cases, and is forgiving of
++          // any other escape rather than rejecting a map we could still use.
++          out.AddChar(e);
++          break;
++      }
++    }
++    return out.buffer();
++  }
++
++  Zone* zone_;
++  const char* p_;
++  const char* end_;
++};
++
++// Guards a second seed within one process. Unreachable through gen_snapshot,
++// which builds a single isolate group, but the fork binary carried this
++// diagnostic and it is a real guard rather than a dead string.
++bool obfuscation_map_loaded = false;
++
++}  // namespace
++
++void Obfuscator::LoadObfuscationMapFromFile(const char* filename) {
++  Thread* thread = Thread::Current();
++  Zone* zone = thread->zone();
++
++  if (obfuscation_map_loaded) {
++    FATAL("Obfuscation map is already initialized.");
++  }
++  obfuscation_map_loaded = true;
++
++  Dart_FileOpenCallback file_open = Dart::file_open_callback();
++  Dart_FileReadCallback file_read = Dart::file_read_callback();
++  Dart_FileCloseCallback file_close = Dart::file_close_callback();
++  if (file_open == nullptr || file_read == nullptr || file_close == nullptr) {
++    FATAL("Could not load obfuscation map: file callbacks not set");
++  }
++
++  void* stream = file_open(filename, /*write=*/false);
++  if (stream == nullptr) {
++    FATAL("Could not open obfuscation map file: %s", filename);
++  }
++  uint8_t* buffer = nullptr;
++  intptr_t length = 0;
++  file_read(&buffer, &length, stream);
++  file_close(stream);
++  if (buffer == nullptr || length < 0) {
++    FATAL("Could not open obfuscation map file: %s", filename);
++  }
++
++  GrowableArray<const char*> entries;
++  {
++    ObfuscationMapParser parser(zone, reinterpret_cast<const char*>(buffer),
++                                length);
++    parser.ParseInto(&entries);
++  }
++  free(buffer);
++
++  // Install the pairs. Interning with Symbols::New is load-bearing:
++  // ObfuscationMapTraits hashes on content but matches on POINTER IDENTITY, so
++  // plain Strings would produce a map that looks populated and renames as if
++  // it were empty.
++  String& original = String::Handle(zone);
++  String& renamed = String::Handle(zone);
++  for (intptr_t i = 0; i + 1 < entries.length(); i += 2) {
++    if (entries[i][0] == '\0') {
++      continue;  // Empty-string pairs occur in real maps and carry nothing.
++    }
++    original = Symbols::New(thread, entries[i]);
++    renamed = Symbols::New(thread, entries[i + 1]);
++    state_->InsertLoadedRename(original, renamed);
++  }
++
++  if (FLAG_obfuscation_cursor_mode == 0) {
++    // The naive implementation: restart the sequence at 'a'. Retained as a
++    // probe mode precisely because it is wrong -- by NewAtomicRename's
++    // do/while, which rejects only IDENTITY renames, it hands a second
++    // identifier a name the release already spent.
++    return;
++  }
++
++  // Reconstruct the cursor as the greatest name the loaded map shows as
++  // having been generated. Names skipped by NewAtomicRename's identity check
++  // were never inserted, so this can trail the true cursor -- but only across
++  // names that are identity renames in this very map, which the same check
++  // will skip again. The reconstruction is therefore exact in effect.
++  const char* best = nullptr;
++  intptr_t best_len = 0;
++  for (intptr_t i = 0; i + 1 < entries.length(); i += 2) {
++    const char* key = entries[i];
++    const char* value = entries[i + 1];
++    if (key[0] == '\0') continue;
++    // Identity renames are PreventRenaming entries -- real Dart identifiers
++    // such as "dynamic" or "_RandomAccessFileOpsImpl", not generated names.
++    // Counting them would push the cursor arbitrarily far.
++    if (strcmp(key, value) == 0) continue;
++
++    const char* cand = nullptr;
++    intptr_t cand_len = 0;
++    if (!GeneratedNameOf(value, strlen(value), &cand, &cand_len)) continue;
++
++    if (FLAG_obfuscation_cursor_mode == 2) {
++      if (!IsAllLowercase(cand, cand_len)) continue;
++      if (best == nullptr ||
++          CursorLaterLowercaseOnly(cand, cand_len, best, best_len)) {
++        best = cand;
++        best_len = cand_len;
++      }
++    } else if (best == nullptr ||
++               CursorLater(cand, cand_len, best, best_len)) {
++      best = cand;
++      best_len = cand_len;
++    }
++  }
++
++  if (best == nullptr) return;  // Nothing generated yet; 'a' is correct.
++
++  // name_ is char[100] and NextName()'s carry loop terminates only on the
++  // zero tail, while String::ToUTF8's bound is an ASSERT that is compiled out
++  // in release builds. Refuse rather than overrun.
++  if (best_len >= 64) {
++    FATAL("Invalid obfuscation map: implausible rename cursor of %" Pd
++          " characters",
++          best_len);
++  }
++  char cursor[64];
++  memmove(cursor, best, best_len);
++  cursor[best_len] = '\0';
++  state_->SetCursor(cursor);
++}
++
+ Obfuscator::Obfuscator(Thread* thread, const String& private_key)
+     : state_(nullptr) {
+   auto isolate_group = thread->isolate_group();
+@@ -3745,6 +4217,24 @@ Obfuscator::Obfuscator(Thread* thread, const String& private_key)
+     // We are just starting the obfuscation. Initialize the renaming map.
+     // Note: InitializeRenamingMap uses state_.
+     InitializeRenamingMap();
++
++    // SELFHOST: and, if asked, seed it from a previously saved map.
++    //
++    // This branch is the only moment at which the obfuscation state comes
++    // into existence, and it is reached from kernel bootstrap -- measured:
++    //   InitializeRenamingMap <- Obfuscator::Obfuscator
++    //     <- BootstrapFromKernelSingleProgram <- Object::Init
++    //     <- CreateIsolate <- Dart_CreateIsolateGroupFromKernel <- bin::main
++    // so an embedder-side API could only ever merge into a map that is
++    // already renaming. Hence a VM flag, and hence here.
++    //
++    // Seeding AFTER InitializeRenamingMap rather than instead of it is
++    // deliberate: a saved map already carries those identity renames (they
++    // were serialized with it), so the two agree; and a hand-made map that
++    // omits them still gets the keywords protected.
++    if (FLAG_load_obfuscation_map != nullptr) {
++      LoadObfuscationMapFromFile(FLAG_load_obfuscation_map);
++    }
+   }
+ }
+ 
+@@ -3895,6 +4385,24 @@ void Obfuscator::ObfuscationState::SaveState() {
+   thread_->isolate_group()->object_store()->set_obfuscation_map(saved_state_);
+ }
+ 
++// SELFHOST: see the declarations in precompiler.h.
++void Obfuscator::ObfuscationState::InsertLoadedRename(const String& original,
++                                                      const String& renamed) {
++  // Not a style assertion: ObfuscationMapTraits::IsMatch compares by pointer
++  // identity, so only canonical Symbols can ever be found again by RenameImpl
++  // or by NewAtomicRename's identity check.
++  ASSERT(original.IsSymbol());
++  ASSERT(renamed.IsSymbol());
++  renames_.UpdateOrInsert(original, renamed);
++}
++
++void Obfuscator::ObfuscationState::SetCursor(const char* cursor) {
++  const intptr_t len = strlen(cursor);
++  RELEASE_ASSERT(len < static_cast<intptr_t>(sizeof(name_)));
++  memset(name_, 0, sizeof(name_));
++  memmove(name_, cursor, len);
++}
++
+ void Obfuscator::ObfuscationState::PreventRenaming(const char* name) {
+   string_ = Symbols::New(thread_, name);
+   PreventRenaming(string_);
+diff --git a/runtime/vm/compiler/aot/precompiler.h b/runtime/vm/compiler/aot/precompiler.h
+index 44d049ffdaa..58283d5dc19 100644
+--- a/runtime/vm/compiler/aot/precompiler.h
++++ b/runtime/vm/compiler/aot/precompiler.h
+@@ -508,6 +508,15 @@ class Obfuscator : public ValueObject {
+   // (or in other words: with those names that should not be renamed).
+   void InitializeRenamingMap();
+ 
++  // SELFHOST: seed the renaming map from --load_obfuscation_map=<file>.
++  //
++  // Called ONLY on the fresh-start path of the constructor below, which is the
++  // single point at which the obfuscation state comes into existence. By the
++  // time any embedder-side API could run, kernel bootstrap has already built
++  // an Obfuscator and started issuing renames, so this is the only correct
++  // seam. See 0008's header.
++  void LoadObfuscationMapFromFile(const char* filename);
++
+   // ObjectStore::obfuscation_map() is an Array with two elements:
+   // first element is the last used rename and the second element is
+   // renaming map.
+@@ -549,6 +558,23 @@ class Obfuscator : public ValueObject {
+ 
+     void SaveState();
+ 
++    // SELFHOST: install one [original, renamed] pair from a loaded map.
++    //
++    // Both are interned with Symbols::New by the caller: ObfuscationMapTraits
++    // hashes on String CONTENT but matches on POINTER IDENTITY
++    // (precompiler.h, IsMatch is `a.ptr() == b.ptr()`), so a pair built from
++    // plain Strings would hash into the right bucket and never match --
++    // yielding a map that looks populated and renames as if it were empty.
++    void InsertLoadedRename(const String& original, const String& renamed);
++
++    // SELFHOST: restore the rename cursor from a reconstructed value.
++    // |cursor| must be NUL-terminated, [a-zA-Z] only, and shorter than
++    // sizeof(name_); the caller enforces this.
++    void SetCursor(const char* cursor);
++
++    // SELFHOST: the cursor, for the probe's benefit.
++    const char* cursor() const { return name_; }
++
+     // Return a rename for the given |name|.
+     //
+     // Note: |name| *must* be a Symbol.
+diff --git a/runtime/vm/compiler/backend/flow_graph_compiler.cc b/runtime/vm/compiler/backend/flow_graph_compiler.cc
+index fea1f23e281..0ebbba122c2 100644
+--- a/runtime/vm/compiler/backend/flow_graph_compiler.cc
++++ b/runtime/vm/compiler/backend/flow_graph_compiler.cc
+@@ -62,6 +62,24 @@ DEFINE_FLAG(bool,
+             force_indirect_calls,
+             false,
+             "Do not emit PC relative calls.");
++// Route B (selfhost). AOT resolves a static call to its callee at compile time,
++// either as a PC-relative branch or as a pool slot the binder patches to hold
++// the callee's Code. Both bake the target, so Function::AttachBytecode -- which
++// repoints Function.code_ and Function.entry_point_ -- cannot redirect them.
++// That is precisely what the kill gate observed: IsInterpreted flipped to 1 and
++// every Dart call shape still ran the old body.
++//
++// Under this flag a static call instead loads the callee's Function and
++// branches through Function.entry_point_. Normally that field IS the AOT
++// implementation, so nothing changes except the call sequence; after
++// AttachBytecode it is the InterpretCall stub, and existing callers start
++// running patched Dart. See selfhost/ROUTE_B.md.
++DEFINE_FLAG(bool,
++            patchable_static_calls,
++            false,
++            "AOT/arm64: dispatch static Dart calls through the callee's "
++            "Function so AttachBytecode can redirect them (Route B). "
++            "Requires a build with dart_dynamic_modules=true.");
+ 
+ DECLARE_FLAG(charp, deoptimize_filter);
+ DECLARE_FLAG(bool, intrinsify);
+diff --git a/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc b/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
+index 0f90cbc2b08..ea888316c8c 100644
+--- a/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
++++ b/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc
+@@ -27,6 +27,7 @@ namespace dart {
+ 
+ DEFINE_FLAG(bool, trap_on_deoptimization, false, "Trap on deoptimization.");
+ DECLARE_FLAG(bool, enable_simd_inline);
++DECLARE_FLAG(bool, patchable_static_calls);
+ 
+ void FlowGraphCompiler::ArchSpecificInitialization() {
+   if (FLAG_precompiled_mode) {
+@@ -401,6 +402,54 @@ void FlowGraphCompiler::GenerateStaticDartCall(intptr_t deopt_id,
+                                                const Function& target,
+                                                Code::EntryKind entry_kind) {
+   ASSERT(CanCallDart());
++#if defined(DART_DYNAMIC_MODULES)
++  if (FLAG_precompiled_mode && FLAG_patchable_static_calls) {
++    // Route B: the third call form. The two below both resolve the callee at
++    // compile time -- a PC-relative branch bakes its address, and the pool slot
++    // is patched by ProgramVisitor::BindStaticCalls to hold the callee's Code.
++    // Neither consults the Function, so Function::AttachBytecode cannot
++    // redirect them, which is what the kill gate kept observing: IsInterpreted
++    // flipped to 1 while every Dart call shape still ran the old body.
++    //
++    // This form dispatches through the Function itself:
++    //
++    //     R0 (FUNCTION_REG) <- the callee's Function, from the object pool
++    //     blr [R0 + Function::entry_point_]
++    //
++    // Normally entry_point_ IS the callee's AOT implementation, so the only
++    // cost is one pool entry and one extra load, and the callee is unchanged --
++    // a normal Dart entry does not read R0. After AttachBytecode, entry_point_
++    // is the InterpretCall stub, whose register contract is exactly what is in
++    // place here: R0 the Function, R4 the arguments descriptor.
++    //
++    // BOTH callers guarantee R4. EmitOptimizedStaticCall loads it above (its
++    // arguments_descriptor is never null -- GenerateStaticCall dereferences it
++    // in ASSERTs before passing it), and EmitTestAndCall loads it in
++    // EmitTestAndCallLoadReceiver. If a third caller ever appears, check that
++    // before assuming this still holds: the failure mode is a patched callee
++    // reading a stale descriptor, which will not look like a call-emission bug.
++    //
++    // R0 is safe to write. For a static call, LocationSummary is kCall, so
++    // every volatile register is clobbered and R0 is the call's *output*. For
++    // EmitTestAndCall, R0 holds the receiver only as scratch for the smi test,
++    // which has already happened by the time any branch calls; the cid lives in
++    // R2, and the arguments the callee reads are on the stack.
++    //
++    // Deliberately NOT calling AddStaticCallTarget. That records a
++    // Code::kCallViaCode site, and BindStaticCalls would then run
++    // CodePatcher::PatchStaticCallAt over a sequence that is not the pool-load
++    // shape that patcher expects. Nothing here needs patching anyway -- the
++    // indirection is resolved at run time, on every call -- and the Function
++    // stays alive through the object-pool reference this emits.
++    __ LoadObject(FUNCTION_REG, target);
++    CLOBBERS_LR(__ Call(compiler::FieldAddress(
++        FUNCTION_REG,
++        compiler::target::Function::entry_point_offset(entry_kind))));
++    EmitCallsiteMetadata(source, deopt_id, kind, locs,
++                         pending_deoptimization_env_);
++    return;
++  }
++#endif  // defined(DART_DYNAMIC_MODULES)
+   if (CanPcRelativeCall(target)) {
+     __ GenerateUnRelocatedPcRelativeCall();
+     AddPcRelativeCallTarget(target, entry_kind);
+@@ -607,6 +656,18 @@ void FlowGraphCompiler::EmitOptimizedStaticCall(
+   ASSERT(!function.IsClosureFunction());
+   if (function.PrologueNeedsArgumentsDescriptor()) {
+     __ LoadObject(ARGS_DESC_REG, arguments_descriptor);
++#if defined(DART_DYNAMIC_MODULES)
++  } else if (FLAG_precompiled_mode && !arguments_descriptor.IsNull()) {
++    // Patchability (selfhost): if this callee's body is later replaced with
++    // bytecode, the call enters through the InterpretCall stub, which reads the
++    // arguments descriptor out of ARGS_DESC_REG. Nothing else supplies it for a
++    // resolved static call in AOT, so the stub read garbage and faulted.
++    //
++    // The descriptor is a compile-time constant here, so this costs one pool
++    // entry plus one load per static call site, and only when dynamic modules
++    // are enabled -- stock builds are untouched.
++    __ LoadObject(ARGS_DESC_REG, arguments_descriptor);
++#endif
+   } else {
+     if (!FLAG_precompiled_mode) {
+       __ LoadImmediate(ARGS_DESC_REG, 0);  // GC safe smi zero because of stub.
+diff --git a/runtime/vm/object.cc b/runtime/vm/object.cc
+index f8109ed0986..a8523832fee 100644
+--- a/runtime/vm/object.cc
++++ b/runtime/vm/object.cc
+@@ -8430,6 +8430,19 @@ void Function::ClearBytecode() const {
+   ClearCode();
+ }
+ 
++void Function::RestoreCodeFromBytecode(const Code& original) const {
++  ASSERT(IsolateGroup::Current()->program_lock()->IsCurrentThreadWriter());
++  ASSERT(HasBytecode());
++  ASSERT(!original.IsNull());
++  untag()->set_ic_data_array_or_bytecode(Object::null());
++  // SetInstructions, not AttachCode: AttachCode asserts the Code's function
++  // back-pointer, and an AOT Code object's function() is already this function
++  // -- but going through SetInstructions keeps this a pure restore of code_,
++  // entry_point_ and unchecked_entry_point_, which is exactly what
++  // AttachBytecode overwrote and nothing more.
++  SetInstructions(original);
++}
++
+ bool Function::IsInterpreted(FunctionPtr function) {
+   return function->untag()->code() == StubCode::InterpretCall().ptr();
+ }
+diff --git a/runtime/vm/object.h b/runtime/vm/object.h
+index f8bc544ea62..b902aec64c1 100644
+--- a/runtime/vm/object.h
++++ b/runtime/vm/object.h
+@@ -3284,6 +3284,15 @@ class Function : public Object {
+ #if defined(DART_DYNAMIC_MODULES)
+   void AttachBytecode(const Bytecode& bytecode) const;
+   void ClearBytecode() const;
++
++  // Route B (selfhost): the AOT-safe counterpart of ClearBytecode.
++  //
++  // ClearBytecode calls ClearCode, which is UNREACHABLE under
++  // DART_PRECOMPILED_RUNTIME and installs the LazyCompile stub in the JIT --
++  // correct there, meaningless in a runtime with no compiler. Rollback in AOT
++  // therefore has to put back the Code the release actually shipped, which the
++  // caller saved before attaching.
++  void RestoreCodeFromBytecode(const Code& original) const;
+   inline BytecodePtr GetBytecode() const;
+   static inline BytecodePtr GetBytecode(FunctionPtr function);
+   inline bool HasBytecode() const;
+diff --git a/sdk/lib/_internal/vm/lib/internal_patch.dart b/sdk/lib/_internal/vm/lib/internal_patch.dart
+index d13d7f8ed31..9614b0664a9 100644
+--- a/sdk/lib/_internal/vm/lib/internal_patch.dart
++++ b/sdk/lib/_internal/vm/lib/internal_patch.dart
+@@ -476,6 +476,33 @@ Future<Object?> loadDynamicModule({Uri? uri, Uint8List? bytes}) {
+ @pragma("vm:external-name", "Internal_loadDynamicModule")
+ external Object? _loadDynamicModule(Uint8List bytes);
+ 
++@patch
++bool attachBytecodeToFunction(
++  Uint8List bytecode,
++  String libraryUri,
++  String targetName,
++) => _attachBytecodeToFunction(bytecode, libraryUri, targetName);
++
++@pragma("vm:external-name", "Internal_attachBytecodeToFunction")
++external bool _attachBytecodeToFunction(
++  Uint8List bytecode,
++  String libraryUri,
++  String targetName,
++);
++
++@patch
++bool detachBytecodeFromFunction(String libraryUri, String targetName) =>
++    _detachBytecodeFromFunction(libraryUri, targetName);
++
++@pragma("vm:external-name", "Internal_detachBytecodeFromFunction")
++external bool _detachBytecodeFromFunction(String libraryUri, String targetName);
++
++@patch
++String? releaseBuildId() => _releaseBuildId();
++
++@pragma("vm:external-name", "Internal_releaseBuildId")
++external String? _releaseBuildId();
++
+ @patch
+ @pragma("vm:entry-point")
+ abstract interface class IsolateGroup {
+diff --git a/sdk/lib/internal/internal.dart b/sdk/lib/internal/internal.dart
+index 6df7e6c21a5..07733691e01 100644
+--- a/sdk/lib/internal/internal.dart
++++ b/sdk/lib/internal/internal.dart
+@@ -1146,6 +1146,39 @@ bool isToStringVisiting(Object object) {
+ /// Returns a future containing the result of the entry point method.
+ external Future<Object?> loadDynamicModule({Uri? uri, Uint8List? bytes});
+ 
++/// Replaces the body of an already-compiled [targetName] in [libraryUri] with
++/// the function contained in [bytecode], which is then run interpreted.
++///
++/// Added for the self-hosted iOS code-push kill gate: unlike
++/// [loadDynamicModule], which runs a module's own entry point, this REPLACES an
++/// existing function. Returns false if the target or bytecode cannot be
++/// resolved, so a harness error stays distinguishable from a VM refusal.
++external bool attachBytecodeToFunction(
++  Uint8List bytecode,
++  String libraryUri,
++  String targetName,
++);
++
++/// Undoes [attachBytecodeToFunction] for [targetName] in [libraryUri],
++/// restoring the AOT body the release shipped with.
++///
++/// Route B step 4 needs this to be a real operation rather than a reinstall:
++/// activation has to be reversible for the same reason Shorebird's existing
++/// patch lifecycle is -- a patch that boots badly must be reversible without
++/// a store round trip. Returns false when the target is not currently
++/// interpreted, so "nothing to revert" stays distinguishable from a failure.
++external bool detachBytecodeFromFunction(String libraryUri, String targetName);
++
++/// The GNU build ID of the running AOT snapshot, lowercase hex, or null when
++/// the snapshot carries none.
++///
++/// This is Route B's release identity. Patch bytecode is compiled against one
++/// specific release's kernel, so applying it to a different build is undefined
++/// rather than merely unsupported; the build ID is emitted by the toolchain and
++/// readable at run time, which lets the check happen before anything is
++/// attached instead of as a crash afterwards.
++external String? releaseBuildId();
++
+ /// Helper class to create `bool Function(Object?)` functions which
+ /// perform an `v is T` type test.
+ ///

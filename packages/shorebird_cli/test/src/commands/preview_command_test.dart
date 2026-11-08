@@ -5,10 +5,11 @@ import 'dart:io' hide Platform;
 
 import 'package:archive/archive_io.dart';
 import 'package:args/args.dart';
+import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
-import 'package:platform/platform.dart';
+import 'package:platform/testing.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/auth/auth.dart';
@@ -20,6 +21,7 @@ import 'package:shorebird_cli/src/deployment_track.dart';
 import 'package:shorebird_cli/src/executables/devicectl/apple_device.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/http_client/http_client.dart';
+import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
@@ -30,9 +32,11 @@ import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.da
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
+import '../helpers.dart';
 import '../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(PreviewCommand, () {
     const appId = 'test-app-id';
     const appDisplayName = 'Test App';
@@ -52,7 +56,7 @@ void main() {
     late CodePushClientWrapper codePushClientWrapper;
     late ShorebirdLogger logger;
     late Directory previewDirectory;
-    late Platform platform;
+    late TestNativePlatform platform;
     late Progress progress;
     late Release release;
     late ReleaseArtifact releaseArtifact;
@@ -186,6 +190,7 @@ void main() {
             cacheRef.overrideWith(() => cache),
             codePushClientWrapperRef.overrideWith(() => codePushClientWrapper),
             httpClientRef.overrideWith(() => httpClient),
+            isJsonModeRef.overrideWith(() => false),
             loggerRef.overrideWith(() => logger),
             platformRef.overrideWith(() => platform),
             shorebirdEnvRef.overrideWith(() => shorebirdEnv),
@@ -226,14 +231,18 @@ void main() {
       cache = MockCache();
       codePushClientWrapper = MockCodePushClientWrapper();
       logger = MockShorebirdLogger();
-      platform = MockPlatform();
+      platform = TestNativePlatform(
+        operatingSystem: unsupportedOperatingSystem,
+      );
       previewDirectory = Directory.systemTemp.createTempSync();
       progress = MockProgress();
       release = MockRelease();
       releaseArtifact = MockReleaseArtifact();
       shorebirdEnv = MockShorebirdEnv();
       shorebirdValidator = MockShorebirdValidator();
-      command = PreviewCommand()..testArgResults = argResults;
+      command = PreviewCommand()
+        ..testArgResults = argResults
+        ..testRunner = usageRunner();
 
       when(() => argResults.wasParsed('app-id')).thenReturn(true);
       when(() => argResults['app-id']).thenReturn(appId);
@@ -268,12 +277,22 @@ void main() {
       when(() => release.id).thenReturn(releaseId);
       when(() => release.version).thenReturn(releaseVersion);
       when(() => release.createdAt).thenReturn(DateTime(2023));
-      when(() => release.platformStatuses).thenReturn({
-        ReleasePlatform.android: ReleaseStatus.active,
-        ReleasePlatform.ios: ReleaseStatus.active,
-        ReleasePlatform.linux: ReleaseStatus.active,
-        ReleasePlatform.macos: ReleaseStatus.active,
-        ReleasePlatform.windows: ReleaseStatus.active,
+      when(() => release.platforms).thenReturn({
+        ReleasePlatform.android: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
+        ReleasePlatform.ios: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
+        ReleasePlatform.linux: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
+        ReleasePlatform.macos: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
+        ReleasePlatform.windows: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
       });
       when(() => logger.progress(any())).thenReturn(progress);
       when(() => progress.fail(any())).thenReturn(null);
@@ -283,10 +302,11 @@ void main() {
           checkUserIsAuthenticated: any(named: 'checkUserIsAuthenticated'),
         ),
       ).thenAnswer((_) async {});
+    });
 
-      when(() => platform.isLinux).thenReturn(false);
-      when(() => platform.isMacOS).thenReturn(false);
-      when(() => platform.isWindows).thenReturn(false);
+    test('accepts --channel as an alias of --track', () {
+      final results = command.argParser.parse(['--channel', 'beta']);
+      expect(results['track'], equals('beta'));
     });
 
     group('when --staging is passed', () {
@@ -294,20 +314,19 @@ void main() {
         when(() => argResults.wasParsed('staging')).thenReturn(true);
       });
 
-      test(
-        '''warns that staging flag will be deprecated and exits with usage code''',
-        () async {
-          await expectLater(
-            runWithOverrides(command.run),
-            completion(equals(ExitCode.usage.code)),
-          );
-          verify(
-            () => logger.err(
-              '''The --staging flag is deprecated and will be removed in a future release. Use --track=staging instead.''',
+      test('throws a usage exception naming --track=staging', () async {
+        await expectLater(
+          runWithOverrides(command.run),
+          throwsA(
+            isA<UsageException>().having(
+              (e) => e.message,
+              'message',
+              'The --staging flag has been removed. '
+                  'Use --track=staging instead.',
             ),
-          ).called(1);
-        },
-      );
+          ),
+        );
+      });
     });
 
     group('when validation fails', () {
@@ -368,7 +387,12 @@ void main() {
         final result = await runWithOverrides(command.run);
         expect(result, ExitCode.usage.code);
         verify(
-          () => logger.err('No previewable releases found for this app'),
+          () => logger.err('No previewable releases found for app $appId.'),
+        ).called(1);
+        verify(
+          () => logger.info(
+            '''Create one with ${lightCyan.wrap('shorebird release <platform>')}, or pass --app-id=<app-id> to preview a different app.''',
+          ),
         ).called(1);
       });
     });
@@ -391,7 +415,12 @@ void main() {
         expect(result, ExitCode.usage.code);
         verify(
           () => logger.err(
-            'No previewable releases found for version not-a-real-version',
+            'No previewable release found for version not-a-real-version.',
+          ),
+        ).called(1);
+        verify(
+          () => logger.info(
+            '''Previewable versions: $releaseVersion. Pass one with --release-version=<version> or omit it to choose interactively.''',
           ),
         ).called(1);
       });
@@ -399,21 +428,50 @@ void main() {
 
     group('when release is not supported on the current OS', () {
       setUp(() {
-        when(() => platform.isLinux).thenReturn(false);
-        when(() => platform.isMacOS).thenReturn(false);
-        when(() => platform.isWindows).thenReturn(true);
+        platform = platform.copyWith(operatingSystem: NativePlatform.windows);
 
         when(
-          () => release.platformStatuses,
-        ).thenReturn({ReleasePlatform.ios: ReleaseStatus.active});
+          () => release.platforms,
+        ).thenReturn({
+          ReleasePlatform.ios: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+        });
       });
 
-      test('prints error message and exits with code 70', () async {
+      test('prints error message and exits with usage code', () async {
         final result = await runWithOverrides(command.run);
         expect(result, ExitCode.usage.code);
         verify(
           () => logger.err(
-            'This release can only be previewed on platforms that support iOS',
+            '''Release $releaseVersion only has iOS artifacts, which cannot be previewed from windows.''',
+          ),
+        ).called(1);
+        verify(
+          () => logger.info(
+            '''Platforms previewable from this machine: Android, Windows. iOS releases can only be previewed from macOS.''',
+          ),
+        ).called(1);
+      });
+
+      test('refuses a macOS release from Windows', () async {
+        // A desktop preview launches the release's own executable, so macOS
+        // is no more previewable from Windows than iOS is. It used to be
+        // offered here: the supported list excluded iOS and nothing else.
+        when(
+          () => release.platforms,
+        ).thenReturn({
+          ReleasePlatform.macos: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+        });
+
+        final result = await runWithOverrides(command.run);
+
+        expect(result, ExitCode.usage.code);
+        verify(
+          () => logger.err(
+            '''Release $releaseVersion only has macOS artifacts, which cannot be previewed from windows.''',
           ),
         ).called(1);
       });
@@ -423,6 +481,7 @@ void main() {
       const releasePlatform = ReleasePlatform.android;
       const releaseArtifactUrl = 'https://example.com/release.aab';
       const packageName = 'com.example.app';
+      const logTimestamp = '10-24 12:56:32.517';
 
       late Adb adb;
       late Bundletool bundletool;
@@ -434,6 +493,7 @@ void main() {
             body,
             values: {
               adbRef.overrideWith(() => adb),
+              isJsonModeRef.overrideWith(() => false),
               artifactManagerRef.overrideWith(() => artifactManager),
               authRef.overrideWith(() => auth),
               bundletoolRef.overrideWith(() => bundletool),
@@ -491,7 +551,7 @@ void main() {
           ),
         ).thenAnswer((_) async {});
         when(
-          () => adb.clearAppData(
+          () => adb.uninstallApp(
             package: any(named: 'package'),
             deviceId: any(named: 'deviceId'),
           ),
@@ -503,9 +563,13 @@ void main() {
           ),
         ).thenAnswer((_) async {});
         when(
+          () => adb.latestLogTimestamp(deviceId: any(named: 'deviceId')),
+        ).thenAnswer((_) async => logTimestamp);
+        when(
           () => adb.logcat(
             filter: any(named: 'filter'),
             deviceId: any(named: 'deviceId'),
+            since: any(named: 'since'),
           ),
         ).thenAnswer((_) async => process);
         when(
@@ -515,9 +579,13 @@ void main() {
         when(() => process.stderr).thenAnswer((_) => const Stream.empty());
         when(() => releaseArtifact.url).thenReturn(releaseArtifactUrl);
         when(() => releaseArtifact.arch).thenReturn('app');
-        when(() => release.platformStatuses).thenReturn({
-          ReleasePlatform.android: ReleaseStatus.active,
-          ReleasePlatform.ios: ReleaseStatus.active,
+        when(() => release.platforms).thenReturn({
+          ReleasePlatform.android: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+          ReleasePlatform.ios: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
         });
       });
 
@@ -527,9 +595,9 @@ void main() {
         'when release has a mix of supported and unsupported platforms',
         () {
           setUp(() {
-            when(() => platform.isLinux).thenReturn(false);
-            when(() => platform.isMacOS).thenReturn(false);
-            when(() => platform.isWindows).thenReturn(true);
+            platform = platform.copyWith(
+              operatingSystem: NativePlatform.windows,
+            );
 
             when(
               () => artifactManager.extractZip(
@@ -538,9 +606,13 @@ void main() {
               ),
             ).thenAnswer(setupAndroidShorebirdYaml);
 
-            when(() => release.platformStatuses).thenReturn({
-              ReleasePlatform.ios: ReleaseStatus.active,
-              ReleasePlatform.android: ReleaseStatus.active,
+            when(() => release.platforms).thenReturn({
+              ReleasePlatform.ios: const ReleasePlatformDetails(
+                status: ReleaseStatus.active,
+              ),
+              ReleasePlatform.android: const ReleasePlatformDetails(
+                status: ReleaseStatus.active,
+              ),
             });
           });
 
@@ -602,13 +674,32 @@ void main() {
             });
 
             test('exits with usage error', () async {
-              final result = await runWithOverrides(command.run);
-              expect(result, equals(ExitCode.usage.code));
+              await expectLater(
+                runWithOverrides(command.run),
+                throwsA(
+                  isA<UsageException>().having(
+                    (e) => e.message,
+                    'message',
+                    '''--ks requires --ks-pass (e.g. --ks-pass=pass:<password> or --ks-pass=file:<path>).''',
+                  ),
+                ),
+              );
 
-              verify(
-                () => logger.err('You must provide a keystore password.'),
-              ).called(1);
-
+              // Keystore arguments are checked before anything is fetched.
+              verifyNever(
+                () => codePushClientWrapper.getReleases(
+                  appId: any(named: 'appId'),
+                  sideloadableOnly: any(named: 'sideloadableOnly'),
+                ),
+              );
+              verifyNever(
+                () => codePushClientWrapper.getReleaseArtifact(
+                  appId: any(named: 'appId'),
+                  releaseId: any(named: 'releaseId'),
+                  arch: any(named: 'arch'),
+                  platform: any(named: 'platform'),
+                ),
+              );
               verifyNever(
                 () => bundletool.buildApks(
                   bundle: aabPath(),
@@ -632,12 +723,16 @@ void main() {
             });
 
             test('exits with usage error', () async {
-              final result = await runWithOverrides(command.run);
-              expect(result, equals(ExitCode.usage.code));
-
-              verify(
-                () => logger.err('You must provide a key alias.'),
-              ).called(1);
+              await expectLater(
+                runWithOverrides(command.run),
+                throwsA(
+                  isA<UsageException>().having(
+                    (e) => e.message,
+                    'message',
+                    '--ks requires --ks-key-alias=<alias>.',
+                  ),
+                ),
+              );
 
               verifyNever(
                 () => bundletool.buildApks(
@@ -666,14 +761,16 @@ void main() {
             });
 
             test('exits with usage error', () async {
-              final result = await runWithOverrides(command.run);
-              expect(result, equals(ExitCode.usage.code));
-
-              verify(
-                () => logger.err(
-                  'Keystore password must start with "pass:" or "file:".',
+              await expectLater(
+                runWithOverrides(command.run),
+                throwsA(
+                  isA<UsageException>().having(
+                    (e) => e.message,
+                    'message',
+                    '''--ks-pass must start with "pass:" or "file:" (e.g. --ks-pass=pass:<password> or --ks-pass=file:<path>).''',
+                  ),
                 ),
-              ).called(1);
+              );
 
               verifyNever(
                 () => bundletool.buildApks(
@@ -702,14 +799,16 @@ void main() {
             });
 
             test('exits with usage error', () async {
-              final result = await runWithOverrides(command.run);
-              expect(result, equals(ExitCode.usage.code));
-
-              verify(
-                () => logger.err(
-                  'Key password must start with "pass:" or "file:".',
+              await expectLater(
+                runWithOverrides(command.run),
+                throwsA(
+                  isA<UsageException>().having(
+                    (e) => e.message,
+                    'message',
+                    '''--ks-key-pass must start with "pass:" or "file:" (e.g. --ks-key-pass=pass:<password> or --ks-key-pass=file:<path>).''',
+                  ),
                 ),
-              ).called(1);
+              );
 
               verifyNever(
                 () => bundletool.buildApks(
@@ -841,7 +940,6 @@ channel: ${track.channel}
       });
 
       group('when querying for release artifact fails', () {
-        final exception = Exception('oops');
         setUp(() {
           when(
             () => codePushClientWrapper.getReleaseArtifact(
@@ -850,12 +948,14 @@ channel: ${track.channel}
               arch: any(named: 'arch'),
               platform: any(named: 'platform'),
             ),
-          ).thenThrow(exception);
+          ).thenThrow(ProcessExit(ExitCode.software.code));
         });
 
-        test('exits with code 70', () async {
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
+        test('propagates the ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
           verify(
             () => codePushClientWrapper.getReleaseArtifact(
               appId: appId,
@@ -879,10 +979,22 @@ channel: ${track.channel}
           ).thenThrow(exception);
         });
 
-        test('exits with code 70', () async {
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
-          verify(() => logger.err('$exception')).called(1);
+        test('logs the failure and throws ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
+          final arch = releaseArtifact.arch;
+          verify(
+            () => logger.err(
+              'Failed to download the $arch artifact: $exception',
+            ),
+          ).called(1);
+          verify(
+            () => logger.info('Re-run the command to try the download again.'),
+          ).called(1);
+          // The partial .aab must not be mistaken for a cached download.
+          expect(File(aabPath()).existsSync(), isFalse);
         });
       });
 
@@ -964,11 +1076,9 @@ channel: ${track.channel}
         });
       });
 
-      // Clearing data is best-effort: the app is already installed by this
-      // point, so a device that refuses `pm clear` must still get a launched
-      // app. Several vendor ROMs deny CLEAR_APP_USER_DATA to the adb shell
-      // user (shorebirdtech/shorebird#1839).
-      group('when clearing app data fails', () {
+      group('when uninstalling the app fails', () {
+        final exception = Exception('oops');
+
         setUp(() {
           when(
             () => artifactManager.extractZip(
@@ -978,17 +1088,51 @@ channel: ${track.channel}
           ).thenAnswer(setupAndroidShorebirdYaml);
 
           when(
-            () => adb.clearAppData(package: any(named: 'package')),
-          ).thenThrow(ClearAppDataException(stderr: 'oops'));
+            () => adb.uninstallApp(package: any(named: 'package')),
+          ).thenThrow(exception);
         });
 
-        test('still starts the app and warns', () async {
+        test('exits with code 70 without installing', () async {
+          final result = await runWithOverrides(command.run);
+          expect(result, equals(ExitCode.software.code));
+          verify(() => adb.uninstallApp(package: packageName)).called(1);
+          verifyNever(
+            () => bundletool.installApks(apks: any(named: 'apks')),
+          );
+        });
+      });
+
+      // Self-hosted fork: removing the old install is best-effort. The apks
+      // are still installed over it and the app still starts, so a device that
+      // refuses (several vendor ROMs deny the adb shell user the right to
+      // clear data or remove packages, shorebirdtech/shorebird#1839) still
+      // gets a launched app and a warning.
+      group('when the device refuses to uninstall the app', () {
+        setUp(() {
+          when(
+            () => artifactManager.extractZip(
+              zipFile: any(named: 'zipFile'),
+              outputDirectory: any(named: 'outputDirectory'),
+            ),
+          ).thenAnswer(setupAndroidShorebirdYaml);
+
+          when(
+            () => adb.uninstallApp(package: any(named: 'package')),
+          ).thenThrow(UninstallAppException('oops'));
+        });
+
+        test('still installs and starts the app and warns', () async {
           final result = await runWithOverrides(command.run);
           expect(result, equals(ExitCode.success.code));
-          verify(() => adb.clearAppData(package: packageName)).called(1);
+          verify(() => adb.uninstallApp(package: packageName)).called(1);
+          verify(
+            () => bundletool.installApks(apks: any(named: 'apks')),
+          ).called(1);
           verify(() => adb.startApp(package: packageName)).called(1);
           verify(
-            () => logger.warn(any(that: contains('Could not clear the app'))),
+            () => logger.warn(
+              any(that: contains('Could not reinstall the app cleanly')),
+            ),
           ).called(1);
         });
 
@@ -1005,25 +1149,24 @@ channel: ${track.channel}
           'names the device restriction when permission was denied',
           () async {
             when(
-              () => adb.clearAppData(package: any(named: 'package')),
+              () => adb.uninstallApp(package: any(named: 'package')),
             ).thenThrow(
-              ClearAppDataException(
-                stderr:
-                    'java.lang.SecurityException: PID 1 does not have '
-                    'permission android.permission.CLEAR_APP_USER_DATA',
+              UninstallAppException(
+                'java.lang.SecurityException: PID 1 does not have '
+                'permission android.permission.CLEAR_APP_USER_DATA',
               ),
             );
             await runWithOverrides(command.run);
             verify(
-              () => logger.info(any(that: contains('CLEAR_APP_USER_DATA'))),
+              () => logger.info(any(that: contains('device refused'))),
             ).called(1);
           },
         );
 
-        test('surfaces adb stderr when the cause is not a denial', () async {
+        test('surfaces adb output when the cause is not a denial', () async {
           when(
-            () => adb.clearAppData(package: any(named: 'package')),
-          ).thenThrow(ClearAppDataException(stderr: 'device offline'));
+            () => adb.uninstallApp(package: any(named: 'package')),
+          ).thenThrow(UninstallAppException('device offline'));
           await runWithOverrides(command.run);
           verify(
             () => logger.info(any(that: contains('device offline'))),
@@ -1068,8 +1211,29 @@ channel: ${track.channel}
         test('exits with non-zero exit code', () async {
           final result = await runWithOverrides(command.run);
           expect(result, equals(1));
-          verify(() => adb.logcat(filter: 'flutter')).called(1);
+          verify(
+            () => adb.logcat(filter: 'flutter', since: logTimestamp),
+          ).called(1);
         });
+      });
+
+      test('reads the device log from just before the app starts', () async {
+        when(
+          () => artifactManager.extractZip(
+            zipFile: any(named: 'zipFile'),
+            outputDirectory: any(named: 'outputDirectory'),
+          ),
+        ).thenAnswer(setupAndroidShorebirdYaml);
+
+        await runWithOverrides(command.run);
+
+        verifyInOrder([
+          () => adb.uninstallApp(package: packageName),
+          () => bundletool.installApks(apks: apksPath()),
+          () => adb.latestLogTimestamp(),
+          () => adb.startApp(package: packageName),
+          () => adb.logcat(filter: 'flutter', since: logTimestamp),
+        ]);
       });
 
       test('pipes stdout output to logger', () async {
@@ -1164,6 +1328,29 @@ channel: ${track.channel}
           );
           verifyNever(() => codePushClientWrapper.getApps());
         });
+
+        group('when --flavor is passed', () {
+          setUp(() {
+            when(() => argResults['flavor']).thenReturn('prod');
+          });
+
+          test('exits with a usage error before fetching', () async {
+            final exitCode = await runWithOverrides(command.run);
+
+            expect(exitCode, equals(ExitCode.usage.code));
+            verify(
+              () => logger.err(
+                '''The project does not have any flavors defined (no "flavors" in shorebird.yaml), but --flavor was provided. Re-run without --flavor, or run "shorebird init" to detect flavors.''',
+              ),
+            ).called(1);
+            verifyNever(
+              () => codePushClientWrapper.getReleases(
+                appId: any(named: 'appId'),
+                sideloadableOnly: any(named: 'sideloadableOnly'),
+              ),
+            );
+          });
+        });
       });
 
       group('when in shorebird project with flavors', () {
@@ -1177,8 +1364,11 @@ channel: ${track.channel}
           when(() => argResults.wasParsed('app-id')).thenReturn(false);
           when(() => argResults['app-id']).thenReturn(null);
           when(
-            () =>
-                logger.chooseOne<String>(any(), choices: any(named: 'choices')),
+            () => logger.chooseOne<String>(
+              any(),
+              choices: any(named: 'choices'),
+              hint: any(named: 'hint'),
+            ),
           ).thenReturn('dev');
         });
 
@@ -1186,8 +1376,98 @@ channel: ${track.channel}
           await runWithOverrides(command.run);
 
           verify(
-            () => logger.chooseOne<String>(any(), choices: ['dev', 'prod']),
+            () => logger.chooseOne<String>(
+              'Which app flavor?',
+              choices: ['dev', 'prod'],
+              hint:
+                  'Pass --flavor=<flavor> to preview a specific flavor '
+                  'without prompting.',
+            ),
           ).called(1);
+          verify(
+            () => codePushClientWrapper.getReleases(appId: 'dev-app-id'),
+          ).called(1);
+        });
+
+        group('when --flavor is passed', () {
+          setUp(() {
+            when(() => argResults['flavor']).thenReturn('prod');
+          });
+
+          test('uses that flavor without prompting', () async {
+            await runWithOverrides(command.run);
+
+            verifyNever(
+              () => logger.chooseOne<String>(
+                any(),
+                choices: any(named: 'choices'),
+                hint: any(named: 'hint'),
+              ),
+            );
+            verify(
+              () => codePushClientWrapper.getReleases(appId: 'prod-app-id'),
+            ).called(1);
+          });
+        });
+
+        group('when --flavor is not defined in shorebird.yaml', () {
+          setUp(() {
+            when(() => argResults['flavor']).thenReturn('missing');
+          });
+
+          test('exits with a usage error before fetching', () async {
+            final exitCode = await runWithOverrides(command.run);
+
+            expect(exitCode, equals(ExitCode.usage.code));
+            verify(
+              () => logger.err(
+                'This project does not have a flavor named "missing". Pass '
+                'one of: dev, prod (from "flavors" in shorebird.yaml).',
+              ),
+            ).called(1);
+            verifyNever(
+              () => codePushClientWrapper.getReleases(
+                appId: any(named: 'appId'),
+                sideloadableOnly: any(named: 'sideloadableOnly'),
+              ),
+            );
+          });
+        });
+
+        group('when --app-id is also passed', () {
+          setUp(() {
+            when(() => argResults['flavor']).thenReturn('missing');
+            when(() => argResults['app-id']).thenReturn('explicit-app-id');
+          });
+
+          test('uses --app-id and ignores --flavor', () async {
+            await runWithOverrides(command.run);
+
+            verify(
+              () => codePushClientWrapper.getReleases(appId: 'explicit-app-id'),
+            ).called(1);
+          });
+        });
+      });
+
+      group('when --flavor is passed outside a shorebird project', () {
+        setUp(() {
+          when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(null);
+          when(() => argResults['app-id']).thenReturn(null);
+          when(() => argResults['flavor']).thenReturn('prod');
+        });
+
+        test('exits with a usage error without prompting', () async {
+          final exitCode = await runWithOverrides(command.run);
+
+          expect(exitCode, equals(ExitCode.usage.code));
+          verify(
+            () => logger.err(
+              '--flavor needs a shorebird.yaml to read the app ID from. Run '
+              'this from your Shorebird project, or pass --app-id instead.',
+            ),
+          ).called(1);
+          verifyNever(() => codePushClientWrapper.getApps());
         });
       });
 
@@ -1228,6 +1508,34 @@ channel: ${track.channel}
           expect(captured(app), equals(app.displayName));
           verify(() => codePushClientWrapper.getApps()).called(1);
         });
+
+        test('shows the app id of apps that share a display name', () async {
+          final twin = MockAppMetadata();
+          final other = MockAppMetadata();
+          when(() => twin.appId).thenReturn('twin-app-id');
+          when(() => twin.displayName).thenReturn(app.displayName);
+          when(() => other.appId).thenReturn('other-app-id');
+          when(() => other.displayName).thenReturn('Other App');
+          when(
+            () => codePushClientWrapper.getApps(),
+          ).thenAnswer((_) async => [app, twin, other]);
+
+          await runWithOverrides(command.run);
+
+          final display =
+              verify(
+                    () => logger.chooseOne<AppMetadata>(
+                      any(),
+                      choices: any(named: 'choices'),
+                      display: captureAny(named: 'display'),
+                      hint: any(named: 'hint'),
+                    ),
+                  ).captured.single
+                  as String Function(AppMetadata);
+          expect(display(app), equals('${app.displayName} ($appId)'));
+          expect(display(twin), equals('${app.displayName} (twin-app-id)'));
+          expect(display(other), equals('Other App'));
+        });
       });
 
       group('when release-version is not specified', () {
@@ -1239,9 +1547,13 @@ channel: ${track.channel}
           when(() => otherRelease.version).thenReturn(releaseVersion);
           when(() => otherRelease.createdAt).thenReturn(DateTime(2023));
           when(() => otherRelease.displayName).thenReturn('2.0.0+1');
-          when(() => otherRelease.platformStatuses).thenReturn({
-            ReleasePlatform.macos: ReleaseStatus.active,
-            ReleasePlatform.windows: ReleaseStatus.active,
+          when(() => otherRelease.platforms).thenReturn({
+            ReleasePlatform.macos: const ReleasePlatformDetails(
+              status: ReleaseStatus.active,
+            ),
+            ReleasePlatform.windows: const ReleasePlatformDetails(
+              status: ReleaseStatus.active,
+            ),
           });
           when(() => argResults['release-version']).thenReturn(null);
           when(() => argResults['platform']).thenReturn(releasePlatform.name);
@@ -1286,7 +1598,7 @@ channel: ${track.channel}
             ),
           ).thenAnswer(setupAndroidShorebirdYaml);
           // We only prompt when there are multiple platforms to choose from
-          when(() => platform.isMacOS).thenReturn(true);
+          platform = platform.copyWith(operatingSystem: NativePlatform.macOS);
 
           when(() => argResults['platform']).thenReturn(null);
           when(
@@ -1374,7 +1686,9 @@ channel: ${track.channel}
             ),
           ).called(1);
           verify(
-            () => logger.err('No previewable Android releases found'),
+            () => logger.err(
+              'No previewable Android releases found for app $appId.',
+            ),
           ).called(1);
         });
       });
@@ -1404,8 +1718,10 @@ channel: ${track.channel}
           when(() => otherRelease.id).thenReturn(999);
           when(() => otherRelease.version).thenReturn('0.0.1');
           when(() => otherRelease.createdAt).thenReturn(DateTime(2022));
-          when(() => otherRelease.platformStatuses).thenReturn({
-            ReleasePlatform.android: ReleaseStatus.active,
+          when(() => otherRelease.platforms).thenReturn({
+            ReleasePlatform.android: const ReleasePlatformDetails(
+              status: ReleaseStatus.active,
+            ),
           });
           when(
             () => codePushClientWrapper.getReleases(
@@ -1462,10 +1778,12 @@ channel: ${track.channel}
             deviceId: deviceId,
           ),
         ).called(1);
+        verify(() => adb.latestLogTimestamp(deviceId: deviceId)).called(1);
         verify(
           () => adb.logcat(
             filter: any(named: 'filter'),
             deviceId: deviceId,
+            since: logTimestamp,
           ),
         ).called(1);
       });
@@ -1479,15 +1797,14 @@ channel: ${track.channel}
               arch: any(named: 'arch'),
               platform: any(named: 'platform'),
             ),
-          ).thenThrow(Exception('oops'));
+          ).thenThrow(ProcessExit(ExitCode.software.code));
         });
 
-        test('returns error and logs', () async {
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
-          verify(
-            () => logger.err('Error getting release artifact: Exception: oops'),
-          ).called(1);
+        test('propagates the ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
         });
       });
     });
@@ -1564,13 +1881,17 @@ channel: ${track.channel}
             deviceId: any(named: 'deviceId'),
           ),
         ).thenAnswer((_) async => ExitCode.success.code);
-        when(() => release.platformStatuses).thenReturn({
-          ReleasePlatform.android: ReleaseStatus.active,
-          ReleasePlatform.ios: ReleaseStatus.active,
+        when(() => release.platforms).thenReturn({
+          ReleasePlatform.android: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+          ReleasePlatform.ios: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
         });
         when(() => releaseArtifact.url).thenReturn(releaseArtifactUrl);
         when(() => releaseArtifact.arch).thenReturn('app');
-        when(() => platform.isMacOS).thenReturn(true);
+        platform = platform.copyWith(operatingSystem: NativePlatform.macOS);
       });
 
       test('ensures ios-deploy is installed', () async {
@@ -1580,7 +1901,6 @@ channel: ${track.channel}
 
       group('when querying for release artifact fails', () {
         setUp(() {
-          final exception = Exception('oops');
           when(
             () => codePushClientWrapper.getReleaseArtifact(
               appId: any(named: 'appId'),
@@ -1588,12 +1908,14 @@ channel: ${track.channel}
               arch: any(named: 'arch'),
               platform: any(named: 'platform'),
             ),
-          ).thenThrow(exception);
+          ).thenThrow(ProcessExit(ExitCode.software.code));
         });
 
-        test('exits with code 70', () async {
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
+        test('propagates the ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
           verify(
             () => codePushClientWrapper.getReleaseArtifact(
               appId: appId,
@@ -1617,10 +1939,20 @@ channel: ${track.channel}
           ).thenThrow(exception);
         });
 
-        test('exits with code 70', () async {
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
-          verify(() => logger.err('$exception')).called(1);
+        test('logs the failure and throws ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
+          final arch = releaseArtifact.arch;
+          verify(
+            () => logger.err(
+              'Failed to download the $arch artifact: $exception',
+            ),
+          ).called(1);
+          verify(
+            () => logger.info('Re-run the command to try the download again.'),
+          ).called(1);
         });
       });
 
@@ -1635,10 +1967,20 @@ channel: ${track.channel}
           ).thenThrow(exception);
         });
 
-        test('exits with code 70', () async {
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
-          verify(() => logger.err('$exception')).called(1);
+        test('logs the failure and throws ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
+          final arch = releaseArtifact.arch;
+          verify(
+            () => logger.err(
+              'Failed to download the $arch artifact: $exception',
+            ),
+          ).called(1);
+          verify(
+            () => logger.info('Re-run the command to try the download again.'),
+          ).called(1);
         });
       });
 
@@ -1694,6 +2036,9 @@ channel: ${track.channel}
               ),
             ).called(1);
             verify(
+              () => logger.info(PreviewCommand.iosSimulatorNotSupportedMessage),
+            ).called(1);
+            verify(
               () => iosDeploy.installAndLaunchApp(
                 bundlePath: iosRunnerPath(),
                 deviceId: 'not-a-device-id',
@@ -1725,6 +2070,9 @@ channel: ${track.channel}
               deviceId: any(named: 'deviceId'),
             ),
           );
+          verifyNever(
+            () => logger.info(PreviewCommand.iosSimulatorNotSupportedMessage),
+          );
         });
       });
 
@@ -1747,6 +2095,11 @@ channel: ${track.channel}
           when(
             () => devicectl.listAllIosDevices(),
           ).thenAnswer((_) async => [unreachableDevice]);
+          // The device never comes back, so the wait exhausts its attempts.
+          when(
+            () => devicectl.listAvailableIosDevices(),
+          ).thenAnswer((_) async => []);
+          command.deviceWaitDelayFactor = Duration.zero;
           setupIOSShorebirdYaml();
         });
 
@@ -1761,16 +2114,27 @@ channel: ${track.channel}
           );
         });
 
-        test('shows the device name and OS version in the failure', () async {
+        test('says what it is waiting for, then that it gave up', () async {
           await runWithOverrides(command.run);
+          verify(
+            () => logger.progress(
+              any(
+                that: stringContainsInOrder([
+                  'Waiting for',
+                  'Locked iPhone',
+                  '17.4.1',
+                  'reachable',
+                ]),
+              ),
+            ),
+          ).called(1);
           verify(
             () => progress.fail(
               any(
                 that: stringContainsInOrder([
                   'Locked iPhone',
                   '17.4.1',
-                  'paired',
-                  'unreachable',
+                  'did not become reachable',
                 ]),
               ),
             ),
@@ -1785,8 +2149,9 @@ channel: ${track.channel}
               () => logger.info(
                 any(
                   that: stringContainsInOrder([
-                    'Connect it via USB',
                     'Unlock the device',
+                    'connect it via USB',
+                    'continue on its own',
                     'ios-deploy',
                     'iOS 17',
                   ]),
@@ -1795,6 +2160,30 @@ channel: ${track.channel}
             ).called(1);
           },
         );
+
+        group('when the device becomes reachable while waiting', () {
+          setUp(() {
+            final reachable = MockAppleDevice();
+            when(() => reachable.name).thenReturn('Locked iPhone');
+            when(() => reachable.udid).thenReturn('UNREACHABLE-UDID');
+            when(() => reachable.isAvailable).thenReturn(true);
+            when(() => devicectl.listAvailableIosDevices()).thenAnswer(
+              (_) async => [reachable],
+            );
+          });
+
+          test('installs on it instead of giving up', () async {
+            final result = await runWithOverrides(command.run);
+            expect(result, equals(ExitCode.success.code));
+            verify(
+              () => devicectl.installAndLaunchApp(
+                runnerAppDirectory: any(named: 'runnerAppDirectory'),
+                device: any(named: 'device'),
+              ),
+            ).called(1);
+            verifyNever(() => progress.fail(any()));
+          });
+        });
 
         group('when --device-id matches the unreachable device', () {
           setUp(() {
@@ -1870,6 +2259,9 @@ channel: ${track.channel}
               bundlePath: any(named: 'bundlePath'),
               deviceId: any(named: 'deviceId'),
             ),
+          ).called(1);
+          verify(
+            () => logger.info(PreviewCommand.iosSimulatorNotSupportedMessage),
           ).called(1);
         });
       });
@@ -1987,21 +2379,14 @@ channel: ${DeploymentTrack.staging.channel}
               arch: any(named: 'arch'),
               platform: any(named: 'platform'),
             ),
-          ).thenThrow(Exception('oops'));
+          ).thenThrow(ProcessExit(ExitCode.software.code));
         });
 
-        test('returns error and logs', () async {
-          when(
-            () => iosDeploy.installAndLaunchApp(
-              bundlePath: any(named: 'bundlePath'),
-              deviceId: any(named: 'deviceId'),
-            ),
-          ).thenAnswer((_) async => ExitCode.success.code);
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
-          verify(
-            () => logger.err('Error getting release artifact: Exception: oops'),
-          ).called(1);
+        test('propagates the ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
         });
       });
 
@@ -2012,13 +2397,21 @@ channel: ${DeploymentTrack.staging.channel}
           when(
             () => releaseWithAllPlatforms.version,
           ).thenReturn(releaseVersion);
-          when(() => releaseWithAllPlatforms.platformStatuses).thenReturn({
-            ReleasePlatform.ios: ReleaseStatus.active,
-            ReleasePlatform.android: ReleaseStatus.active,
+          when(() => releaseWithAllPlatforms.platforms).thenReturn({
+            ReleasePlatform.ios: const ReleasePlatformDetails(
+              status: ReleaseStatus.active,
+            ),
+            ReleasePlatform.android: const ReleasePlatformDetails(
+              status: ReleaseStatus.active,
+            ),
           });
           when(
-            () => release.platformStatuses,
-          ).thenReturn({ReleasePlatform.ios: ReleaseStatus.active});
+            () => release.platforms,
+          ).thenReturn({
+            ReleasePlatform.ios: const ReleasePlatformDetails(
+              status: ReleaseStatus.active,
+            ),
+          });
           when(
             () => codePushClientWrapper.getReleases(
               appId: any(named: 'appId'),
@@ -2049,13 +2442,21 @@ channel: ${DeploymentTrack.staging.channel}
           when(
             () => releaseWithAllPlatforms.version,
           ).thenReturn(releaseVersion);
-          when(() => releaseWithAllPlatforms.platformStatuses).thenReturn({
-            ReleasePlatform.ios: ReleaseStatus.active,
-            ReleasePlatform.android: ReleaseStatus.active,
+          when(() => releaseWithAllPlatforms.platforms).thenReturn({
+            ReleasePlatform.ios: const ReleasePlatformDetails(
+              status: ReleaseStatus.active,
+            ),
+            ReleasePlatform.android: const ReleasePlatformDetails(
+              status: ReleaseStatus.active,
+            ),
           });
           when(
-            () => release.platformStatuses,
-          ).thenReturn({ReleasePlatform.android: ReleaseStatus.active});
+            () => release.platforms,
+          ).thenReturn({
+            ReleasePlatform.android: const ReleasePlatformDetails(
+              status: ReleaseStatus.active,
+            ),
+          });
           when(
             () => codePushClientWrapper.getReleases(
               appId: any(named: 'appId'),
@@ -2076,7 +2477,9 @@ channel: ${DeploymentTrack.staging.channel}
             );
 
             verify(
-              () => logger.err('No previewable iOS releases found'),
+              () => logger.err(
+                'No previewable iOS releases found for app $appId.',
+              ),
             ).called(1);
           },
         );
@@ -2136,6 +2539,8 @@ channel: ${DeploymentTrack.staging.channel}
         process = MockProcess();
         linuxReleaseArtifact = MockReleaseArtifact();
 
+        platform = platform.copyWith(operatingSystem: NativePlatform.linux);
+
         final tempDir = Directory.systemTemp.createTempSync();
         releaseArtifactFile = File(p.join(tempDir.path, 'Release.zip'));
 
@@ -2165,8 +2570,12 @@ channel: ${DeploymentTrack.staging.channel}
         when(() => linuxReleaseArtifact.arch).thenReturn('app');
 
         when(
-          () => release.platformStatuses,
-        ).thenReturn({ReleasePlatform.linux: ReleaseStatus.active});
+          () => release.platforms,
+        ).thenReturn({
+          ReleasePlatform.linux: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+        });
 
         when(
           () => codePushClientWrapper.getReleaseArtifact(
@@ -2187,12 +2596,14 @@ channel: ${DeploymentTrack.staging.channel}
               arch: any(named: 'arch'),
               platform: any(named: 'platform'),
             ),
-          ).thenThrow(Exception('oops'));
+          ).thenThrow(ProcessExit(ExitCode.software.code));
         });
 
-        test('returns code 70', () async {
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
+        test('propagates the ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
           verify(
             () => codePushClientWrapper.getReleaseArtifact(
               appId: appId,
@@ -2215,15 +2626,29 @@ channel: ${DeploymentTrack.staging.channel}
           ).thenThrow(Exception('oops'));
         });
 
-        test('returns code 70', () async {
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
+        test('logs the failure, removes the partial download, and throws '
+            'ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
           verify(
             () => artifactManager.downloadWithProgressUpdates(
               Uri.parse(releaseArtifactUrl),
               message: 'Downloading app',
             ),
           ).called(1);
+          verify(
+            () => logger.err(
+              'Failed to download the app artifact: Exception: oops',
+            ),
+          ).called(1);
+          verify(
+            () => logger.info('Re-run the command to try the download again.'),
+          ).called(1);
+          // Nothing should be left behind that a later run would treat as a
+          // cached artifact.
+          expect(previewDirectory.listSync(recursive: true), isEmpty);
         });
       });
 
@@ -2290,6 +2715,15 @@ channel: ${DeploymentTrack.staging.channel}
           ).called(1);
           verify(() => logger.info('hello world')).called(1);
           verify(() => logger.err('hello error')).called(1);
+          // Recorded so that pruning keeps the preview just launched.
+          verify(
+            () => cache.markPreviewUsed(
+              p.join(
+                previewDirectory.path,
+                'linux_${releaseVersion}_$releaseArtifactId',
+              ),
+            ),
+          ).called(1);
         });
       });
 
@@ -2429,11 +2863,15 @@ channel: ${DeploymentTrack.staging.channel}
           ),
         ).thenAnswer((_) async {});
         when(
-          () => release.platformStatuses,
-        ).thenReturn({ReleasePlatform.macos: ReleaseStatus.active});
+          () => release.platforms,
+        ).thenReturn({
+          ReleasePlatform.macos: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+        });
         when(() => releaseArtifact.url).thenReturn(releaseArtifactUrl);
         when(() => releaseArtifact.arch).thenReturn('app');
-        when(() => platform.isMacOS).thenReturn(true);
+        platform = platform.copyWith(operatingSystem: NativePlatform.macOS);
         when(
           () => open.newApplication(path: any(named: 'path')),
         ).thenAnswer((_) async => Stream.value(utf8.encode('hello world')));
@@ -2441,7 +2879,6 @@ channel: ${DeploymentTrack.staging.channel}
 
       group('when querying for release artifact fails', () {
         setUp(() {
-          final exception = Exception('oops');
           when(
             () => codePushClientWrapper.getReleaseArtifact(
               appId: any(named: 'appId'),
@@ -2449,12 +2886,14 @@ channel: ${DeploymentTrack.staging.channel}
               arch: any(named: 'arch'),
               platform: any(named: 'platform'),
             ),
-          ).thenThrow(exception);
+          ).thenThrow(ProcessExit(ExitCode.software.code));
         });
 
-        test('exits with code 70', () async {
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
+        test('propagates the ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
           verify(
             () => codePushClientWrapper.getReleaseArtifact(
               appId: appId,
@@ -2478,10 +2917,20 @@ channel: ${DeploymentTrack.staging.channel}
           ).thenThrow(exception);
         });
 
-        test('exits with code 70', () async {
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
-          verify(() => logger.err('$exception')).called(1);
+        test('logs the failure and throws ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
+          final arch = releaseArtifact.arch;
+          verify(
+            () => logger.err(
+              'Failed to download the $arch artifact: $exception',
+            ),
+          ).called(1);
+          verify(
+            () => logger.info('Re-run the command to try the download again.'),
+          ).called(1);
         });
       });
 
@@ -2496,10 +2945,27 @@ channel: ${DeploymentTrack.staging.channel}
           ).thenThrow(exception);
         });
 
-        test('exits with code 70', () async {
+        test('logs the failure and throws ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
+          verify(
+            () => logger.err('Failed to download the app artifact: $exception'),
+          ).called(1);
+          expect(previewDirectory.listSync(recursive: true), isEmpty);
+        });
+      });
+
+      group('when setting channel on app fails', () {
+        test('returns code 70', () async {
           final result = await runWithOverrides(command.run);
           expect(result, equals(ExitCode.software.code));
-          verify(() => logger.err('$exception')).called(1);
+          verify(() => logger.progress('Using stable track')).called(1);
+          verify(
+            () => progress.fail('Exception: Unable to find shorebird.yaml'),
+          ).called(1);
+          verifyNever(() => open.newApplication(path: any(named: 'path')));
         });
       });
 
@@ -2533,6 +2999,7 @@ channel: ${DeploymentTrack.staging.channel}
           final result = await runWithOverrides(command.run);
           expect(result, equals(ExitCode.success.code));
           verify(() => logger.info('hello world')).called(1);
+          verify(() => logger.progress('Using stable track')).called(1);
         });
       });
 
@@ -2660,6 +3127,8 @@ channel: ${DeploymentTrack.staging.channel}
         shorebirdProcess = MockShorebirdProcess();
         process = MockProcess();
         windowsMock = MockWindows();
+
+        platform = platform.copyWith(operatingSystem: NativePlatform.windows);
         when(
           () => windowsMock.findExecutable(
             releaseDirectory: any(named: 'releaseDirectory'),
@@ -2702,8 +3171,12 @@ channel: ${DeploymentTrack.staging.channel}
         when(() => windowsReleaseArtifact.arch).thenReturn('app');
 
         when(
-          () => release.platformStatuses,
-        ).thenReturn({ReleasePlatform.windows: ReleaseStatus.active});
+          () => release.platforms,
+        ).thenReturn({
+          ReleasePlatform.windows: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+        });
 
         when(
           () => codePushClientWrapper.getReleaseArtifact(
@@ -2724,12 +3197,14 @@ channel: ${DeploymentTrack.staging.channel}
               arch: any(named: 'arch'),
               platform: any(named: 'platform'),
             ),
-          ).thenThrow(Exception('oops'));
+          ).thenThrow(ProcessExit(ExitCode.software.code));
         });
 
-        test('returns code 70', () async {
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
+        test('propagates the ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
           verify(
             () => codePushClientWrapper.getReleaseArtifact(
               appId: appId,
@@ -2752,15 +3227,63 @@ channel: ${DeploymentTrack.staging.channel}
           ).thenThrow(Exception('oops'));
         });
 
-        test('returns code 70', () async {
-          final result = await runWithOverrides(command.run);
-          expect(result, equals(ExitCode.software.code));
+        test('logs the failure, removes the partial download, and throws '
+            'ProcessExit', () async {
+          await expectLater(
+            runWithOverrides(command.run),
+            throwsA(isA<ProcessExit>()),
+          );
           verify(
             () => artifactManager.downloadWithProgressUpdates(
               Uri.parse(releaseArtifactUrl),
               message: 'Downloading app',
             ),
           ).called(1);
+          verify(
+            () => logger.err(
+              'Failed to download the app artifact: Exception: oops',
+            ),
+          ).called(1);
+          verify(
+            () => logger.info('Re-run the command to try the download again.'),
+          ).called(1);
+          // Nothing should be left behind that a later run would treat as a
+          // cached artifact.
+          expect(previewDirectory.listSync(recursive: true), isEmpty);
+        });
+      });
+
+      group('when setting channel on app fails', () {
+        setUp(() {
+          when(
+            () => artifactManager.downloadWithProgressUpdates(
+              any(),
+              message: any(named: 'message'),
+              outputPath: any(named: 'outputPath'),
+            ),
+          ).thenAnswer((_) async => releaseArtifactFile);
+          when(
+            () => artifactManager.extractZip(
+              zipFile: any(named: 'zipFile'),
+              outputDirectory: any(named: 'outputDirectory'),
+            ),
+          ).thenAnswer((invocation) async {
+            final outDirectory =
+                invocation.namedArguments[#outputDirectory] as Directory;
+            File(
+              p.join(outDirectory.path, 'runner.exe'),
+            ).createSync(recursive: true);
+          });
+        });
+
+        test('returns code 70', () async {
+          final result = await runWithOverrides(command.run);
+          expect(result, equals(ExitCode.software.code));
+          verify(() => logger.progress('Using stable track')).called(1);
+          verify(
+            () => progress.fail('Exception: Unable to find shorebird.yaml'),
+          ).called(1);
+          verifyNever(() => shorebirdProcess.start(any(), any()));
         });
       });
 
@@ -2803,6 +3326,7 @@ channel: ${DeploymentTrack.staging.channel}
           ).called(1);
           verify(() => logger.info('hello world')).called(1);
           verify(() => logger.err('hello error')).called(1);
+          verify(() => logger.progress('Using stable track')).called(1);
         });
       });
 
@@ -2946,9 +3470,13 @@ channel: ${DeploymentTrack.staging.channel}
             deviceId: any(named: 'deviceId'),
           ),
         ).thenAnswer((_) async => ExitCode.success.code);
-        when(() => release.platformStatuses).thenReturn({
-          ReleasePlatform.android: ReleaseStatus.active,
-          ReleasePlatform.ios: ReleaseStatus.active,
+        when(() => release.platforms).thenReturn({
+          ReleasePlatform.android: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+          ReleasePlatform.ios: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
         });
 
         when(() => iosReleaseArtifact.id).thenReturn(iosArtifactId);
@@ -2991,7 +3519,7 @@ channel: ${DeploymentTrack.staging.channel}
           ),
         ).thenAnswer((_) async => androidReleaseArtifact);
 
-        when(() => platform.isMacOS).thenReturn(true);
+        platform = platform.copyWith(operatingSystem: NativePlatform.macOS);
       });
 
       group('when the user chooses ios at the prompt', () {
@@ -3035,13 +3563,21 @@ channel: ${DeploymentTrack.staging.channel}
             when(
               () => releaseWithAllPlatforms.version,
             ).thenReturn(releaseVersion);
-            when(() => releaseWithAllPlatforms.platformStatuses).thenReturn({
-              ReleasePlatform.ios: ReleaseStatus.active,
-              ReleasePlatform.android: ReleaseStatus.active,
+            when(() => releaseWithAllPlatforms.platforms).thenReturn({
+              ReleasePlatform.ios: const ReleasePlatformDetails(
+                status: ReleaseStatus.active,
+              ),
+              ReleasePlatform.android: const ReleasePlatformDetails(
+                status: ReleaseStatus.active,
+              ),
             });
             when(
-              () => release.platformStatuses,
-            ).thenReturn({ReleasePlatform.ios: ReleaseStatus.active});
+              () => release.platforms,
+            ).thenReturn({
+              ReleasePlatform.ios: const ReleasePlatformDetails(
+                status: ReleaseStatus.active,
+              ),
+            });
             when(
               () => codePushClientWrapper.getReleases(
                 appId: any(named: 'appId'),
@@ -3104,7 +3640,7 @@ channel: ${DeploymentTrack.staging.channel}
             ),
           ).thenAnswer((_) async {});
           when(
-            () => adb.clearAppData(
+            () => adb.uninstallApp(
               package: any(named: 'package'),
               deviceId: any(named: 'deviceId'),
             ),
@@ -3116,9 +3652,13 @@ channel: ${DeploymentTrack.staging.channel}
             ),
           ).thenAnswer((_) async {});
           when(
+            () => adb.latestLogTimestamp(deviceId: any(named: 'deviceId')),
+          ).thenAnswer((_) async => '01-01 00:00:00.000');
+          when(
             () => adb.logcat(
               filter: any(named: 'filter'),
               deviceId: any(named: 'deviceId'),
+              since: any(named: 'since'),
             ),
           ).thenAnswer((_) async => process);
           when(() => process.stdout).thenAnswer((_) => const Stream.empty());
@@ -3136,6 +3676,12 @@ channel: ${DeploymentTrack.staging.channel}
           expect(exitCode, equals(ExitCode.success.code));
 
           verify(
+            () => adb.uninstallApp(
+              package: androidPackageName,
+              deviceId: deviceId,
+            ),
+          ).called(1);
+          verify(
             () => bundletool.installApks(
               apks: any(named: 'apks'),
               deviceId: deviceId,
@@ -3150,13 +3696,21 @@ channel: ${DeploymentTrack.staging.channel}
             when(
               () => releaseWithAllPlatforms.version,
             ).thenReturn(releaseVersion);
-            when(() => releaseWithAllPlatforms.platformStatuses).thenReturn({
-              ReleasePlatform.ios: ReleaseStatus.active,
-              ReleasePlatform.android: ReleaseStatus.active,
+            when(() => releaseWithAllPlatforms.platforms).thenReturn({
+              ReleasePlatform.ios: const ReleasePlatformDetails(
+                status: ReleaseStatus.active,
+              ),
+              ReleasePlatform.android: const ReleasePlatformDetails(
+                status: ReleaseStatus.active,
+              ),
             });
             when(
-              () => release.platformStatuses,
-            ).thenReturn({ReleasePlatform.android: ReleaseStatus.active});
+              () => release.platforms,
+            ).thenReturn({
+              ReleasePlatform.android: const ReleasePlatformDetails(
+                status: ReleaseStatus.active,
+              ),
+            });
             when(
               () => codePushClientWrapper.getReleases(
                 appId: any(named: 'appId'),
@@ -3201,18 +3755,34 @@ channel: ${DeploymentTrack.staging.channel}
       final releaseWithAllPlatforms = MockRelease();
       final release = MockRelease();
 
-      when(() => releaseWithAllPlatforms.platformStatuses).thenReturn({
-        ReleasePlatform.android: ReleaseStatus.active,
-        ReleasePlatform.ios: ReleaseStatus.active,
-        ReleasePlatform.linux: ReleaseStatus.active,
-        ReleasePlatform.macos: ReleaseStatus.active,
-        ReleasePlatform.windows: ReleaseStatus.active,
+      when(() => releaseWithAllPlatforms.platforms).thenReturn({
+        ReleasePlatform.android: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
+        ReleasePlatform.ios: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
+        ReleasePlatform.linux: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
+        ReleasePlatform.macos: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
+        ReleasePlatform.windows: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
       });
 
-      when(() => release.platformStatuses).thenReturn({
-        ReleasePlatform.android: ReleaseStatus.active,
-        ReleasePlatform.linux: ReleaseStatus.active,
-        ReleasePlatform.windows: ReleaseStatus.active,
+      when(() => release.platforms).thenReturn({
+        ReleasePlatform.android: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
+        ReleasePlatform.linux: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
+        ReleasePlatform.windows: const ReleasePlatformDetails(
+          status: ReleaseStatus.active,
+        ),
       });
 
       runWithOverrides(
@@ -3256,18 +3826,34 @@ channel: ${DeploymentTrack.staging.channel}
         final releaseWithAllPlatforms = MockRelease();
         final release = MockRelease();
 
-        when(() => releaseWithAllPlatforms.platformStatuses).thenReturn({
-          ReleasePlatform.android: ReleaseStatus.active,
-          ReleasePlatform.ios: ReleaseStatus.active,
-          ReleasePlatform.linux: ReleaseStatus.active,
-          ReleasePlatform.macos: ReleaseStatus.active,
-          ReleasePlatform.windows: ReleaseStatus.active,
+        when(() => releaseWithAllPlatforms.platforms).thenReturn({
+          ReleasePlatform.android: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+          ReleasePlatform.ios: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+          ReleasePlatform.linux: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+          ReleasePlatform.macos: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+          ReleasePlatform.windows: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
         });
 
-        when(() => release.platformStatuses).thenReturn({
-          ReleasePlatform.android: ReleaseStatus.active,
-          ReleasePlatform.linux: ReleaseStatus.active,
-          ReleasePlatform.windows: ReleaseStatus.active,
+        when(() => release.platforms).thenReturn({
+          ReleasePlatform.android: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+          ReleasePlatform.linux: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
+          ReleasePlatform.windows: const ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
         });
         expect(
           () => runWithOverrides(

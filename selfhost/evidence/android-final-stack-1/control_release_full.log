@@ -1,0 +1,78 @@
+[WARN] No patch public key was provided. Patches for this release will not be cryptographically verified on the device.
+To enable verification, provide --public-key-path or --public-key-cmd.
+Starting Downloading aot-tools.dill......
+Starting Fetching apps...
+Done Fetching apps
+Starting Running flutter precache...
+Done Running flutter precache
+Building Android app bundle with Flutter 3.44.7 (309dd6573a)
+Resolving dependencies...
+Downloading packages...
+  clock 1.1.2 (1.1.3 available)
+  matcher 0.12.19 (0.12.20 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.18.0 (1.19.0 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  test_api 0.7.11 (0.7.14 available)
+  vector_math 2.2.0 (2.4.2 available)
+Got dependencies!
+7 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Running Gradle task 'bundleRelease'...                          
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 1096 bytes (99.9% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Running Gradle task 'bundleRelease'...                             54.3s
+Shorebird build trace written to /private/tmp/android1.Fyj85M/app/build/shorebird/debug/build-trace-android.json. View at https://ui.perfetto.dev
+libapp.so.sym or libapp.so.dbg not present when checking final appbundle for debug symbols. Play Console will not receive Dart crash symbols for this build. To enable, remove `packaging.jniLibs.keepDebugSymbols.add("**/libapp.so")` from android/app/build.gradle.kts.
+✓ Built build/app/outputs/bundle/release/app-release.aab (46.5MB)
+Building APK
+Resolving dependencies...
+Downloading packages...
+  clock 1.1.2 (1.1.3 available)
+  matcher 0.12.19 (0.12.20 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.18.0 (1.19.0 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  test_api 0.7.11 (0.7.14 available)
+  vector_math 2.2.0 (2.4.2 available)
+Got dependencies!
+7 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Running Gradle task 'assembleRelease'...                            5.7s
+Shorebird build trace written to /private/tmp/android1.Fyj85M/app/build/shorebird/debug/build-trace-android.json. View at https://ui.perfetto.dev
+✓ Built build/app/outputs/flutter-apk/app-release.apk (48.9MB)
+Starting Determining release version...
+Done Release version: 1.0.0+1
+Starting Fetching releases...
+Done Fetching releases
+
+🚀 Ready to create a new release!
+
+📱 App: android-final-stack-1 (65ca0d46-5143-0406-dfab-b5d008927e4b)
+📦 Release Version: 1.0.0+1
+🕹️  Platform: android
+🐦 Flutter Version: 3.44.7 (309dd6573a)
+
+Starting Fetching releases...
+Done Fetching releases
+Starting Creating release...
+Done Creating release
+Starting Updating release status...
+Done Updating release status
+Starting Uploading artifacts...
+Done Uploading artifacts
+Starting Uploading supplement artifacts...
+Done Uploading supplement artifacts
+Starting Updating release status...
+Done Updating release status
+
+✅ Published Release 1.0.0+1!
+Your next step is to upload the app bundle to the Play Store:
+/private/tmp/android1.Fyj85M/app/build/app/outputs/bundle/release/app-release.aab
+
+Or distribute the apk:
+/private/tmp/android1.Fyj85M/app/build/app/outputs/flutter-apk/app-release.apk
+
+For information on uploading to the Play Store, see:
+https://support.google.com/googleplay/android-developer/answer/9859152?hl=en
+
+To create a patch for this release, run shorebird patch --platforms=android --release-version=1.0.0+1

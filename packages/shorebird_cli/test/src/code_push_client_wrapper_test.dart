@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
-import 'package:platform/platform.dart';
+import 'package:platform/testing.dart';
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/api_error_exit.dart';
 import 'package:shorebird_cli/src/auth/auth.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/deployment_track.dart';
@@ -14,6 +17,7 @@ import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
+import 'package:shorebird_cli/src/server_notices.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_web_console.dart';
@@ -21,16 +25,19 @@ import 'package:shorebird_cli/src/version.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
+import 'commands/enterprises/enterprise_fixtures.dart';
 import 'fakes.dart';
+import 'helpers.dart';
 import 'matchers.dart';
 import 'mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group('scoped', () {
     late Auth auth;
     late http.Client httpClient;
     late ShorebirdLogger logger;
-    late Platform platform;
+    late TestNativePlatform platform;
     late Progress progress;
     late ShorebirdEnv shorebirdEnv;
     late ShorebirdFlutter shorebirdFlutter;
@@ -43,7 +50,7 @@ void main() {
       auth = MockAuth();
       httpClient = MockHttpClient();
       logger = MockShorebirdLogger();
-      platform = MockPlatform();
+      platform = TestNativePlatform();
       progress = MockProgress();
       shorebirdEnv = MockShorebirdEnv();
       shorebirdFlutter = MockShorebirdFlutter();
@@ -75,6 +82,7 @@ void main() {
         values: {
           codePushClientWrapperRef,
           authRef.overrideWith(() => auth),
+          serverNoticesRef,
           platformRef.overrideWith(() => platform),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
@@ -98,6 +106,37 @@ void main() {
 
       expect(request.headers['x-cli-version'], equals(packageVersion));
     });
+    test('hands the notices its client receives to serverNotices', () async {
+      when(() => httpClient.send(any())).thenAnswer(
+        (_) async => http.StreamedResponse(
+          Stream.value(
+            utf8.encode(json.encode(const GetAppsResponse(apps: []).toJson())),
+          ),
+          HttpStatus.ok,
+          headers: {'shorebird-notice': '"Patches are paused."'},
+        ),
+      );
+      final notices = _MockServerNotices();
+      // Built fresh: the ref holds one instance for the whole run, and an
+      // earlier test's would carry that test's client.
+      final instance = runScoped(
+        buildCodePushClientWrapper,
+        values: {
+          authRef.overrideWith(() => auth),
+          platformRef.overrideWith(() => platform),
+          serverNoticesRef.overrideWith(() => notices),
+          shorebirdEnvRef.overrideWith(() => shorebirdEnv),
+          shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
+        },
+      );
+
+      await runScoped(
+        instance.getApps,
+        values: {loggerRef.overrideWith(() => logger)},
+      );
+
+      verify(() => notices.add('Patches are paused.')).called(1);
+    });
   });
 
   group(CodePushClientWrapper, () {
@@ -112,7 +151,7 @@ void main() {
     final channel = Channel(id: 0, appId: appId, name: track.channel);
     const patchId = 1;
     const patchNumber = 2;
-    const patch = Patch(id: patchId, number: patchNumber);
+    const patch = CreatePatchResponse(id: patchId, number: patchNumber);
     const releasePlatform = ReleasePlatform.ios;
     const releaseId = 123;
     const arch = Arch.arm64;
@@ -127,7 +166,7 @@ void main() {
       flutterRevision: flutterRevision,
       flutterVersion: flutterVersion,
       displayName: displayName,
-      platformStatuses: const {},
+      platforms: const {},
       createdAt: DateTime(2023),
       updatedAt: DateTime(2023),
     );
@@ -158,7 +197,7 @@ void main() {
     late ShorebirdFlutter shorebirdFlutter;
     late Progress progress;
     late CodePushClientWrapper codePushClientWrapper;
-    late Platform platform;
+    late TestNativePlatform platform;
     late Directory projectRoot;
 
     R runWithOverrides<R>(R Function() body) {
@@ -177,13 +216,25 @@ void main() {
     setUpAll(() {
       registerFallbackValue(ReleasePlatform.android);
       registerFallbackValue(ReleaseStatus.draft);
+      registerFallbackValue(
+        const ArtifactSigningRequest(mode: ReleaseSigningMode.unsigned),
+      );
     });
 
     setUp(() {
       codePushClient = MockCodePushClient();
       ditto = MockDitto();
       logger = MockShorebirdLogger();
-      platform = MockPlatform();
+      platform = TestNativePlatform(
+        script: Uri.file(
+          p.join(
+            Directory.systemTemp.createTempSync().path,
+            'bin',
+            'cache',
+            'shorebird.snapshot',
+          ),
+        ),
+      );
       progress = MockProgress();
       projectRoot = Directory.systemTemp.createTempSync();
 
@@ -201,16 +252,6 @@ void main() {
         ),
       ).thenAnswer((_) async {});
       when(() => logger.progress(any())).thenReturn(progress);
-      when(() => platform.script).thenReturn(
-        Uri.file(
-          p.join(
-            Directory.systemTemp.createTempSync().path,
-            'bin',
-            'cache',
-            'shorebird.snapshot',
-          ),
-        ),
-      );
 
       when(
         () => shorebirdFlutter.getVersionForRevision(
@@ -298,9 +339,15 @@ void main() {
 
           await expectLater(
             () async => runWithOverrides(codePushClientWrapper.getCurrentUser),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message: 'No Shorebird account found for these credentials.',
+              hint: allOf(
+                contains('console.shorebird.dev'),
+                contains('SHOREBIRD_TOKEN'),
+              ),
+              exitCode: ExitCode.software,
+            ),
           );
-          verify(() => logger.err('Could not find current user.')).called(1);
         });
 
         test('returns the current user on success', () async {
@@ -318,6 +365,32 @@ void main() {
           );
 
           expect(user, equals(expectedUser));
+          verify(() => progress.complete()).called(1);
+        });
+      });
+
+      group('getPlanLevel', () {
+        test('exits with code 70 when getting the plan fails', () async {
+          const error = 'something went wrong';
+          when(() => codePushClient.getPlanLevel()).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(codePushClientWrapper.getPlanLevel),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+
+        test('returns the plan level on success', () async {
+          when(
+            () => codePushClient.getPlanLevel(),
+          ).thenAnswer((_) async => 'enterprise');
+
+          final level = await runWithOverrides(
+            codePushClientWrapper.getPlanLevel,
+          );
+
+          expect(level, equals('enterprise'));
           verify(() => progress.complete()).called(1);
         });
       });
@@ -365,6 +438,147 @@ void main() {
         });
       });
 
+      group('findAppOrganization', () {
+        final first = OrganizationMembership(
+          organization: organizationForTest(id: 1),
+          role: Role.owner,
+        );
+        final second = OrganizationMembership(
+          organization: organizationForTest(id: 2),
+          role: Role.admin,
+        );
+        AppMetadata appWithId(String id) => AppMetadata(
+          appId: id,
+          displayName: id,
+          createdAt: DateTime(2023),
+          updatedAt: DateTime(2023),
+        );
+
+        setUp(() {
+          when(
+            () => codePushClient.getOrganizationApps(organizationId: 1),
+          ).thenAnswer((_) async => [appWithId('other')]);
+          when(
+            () => codePushClient.getOrganizationApps(organizationId: 2),
+          ).thenAnswer((_) async => [appWithId('target')]);
+        });
+
+        test(
+          'returns the membership whose organization lists the app',
+          () async {
+            final membership = await runWithOverrides(
+              () => codePushClientWrapper.findAppOrganization(
+                appId: 'target',
+                memberships: [first, second],
+              ),
+            );
+            expect(membership, equals(second));
+            verify(() => progress.complete()).called(1);
+          },
+        );
+
+        group('when the app names its organization', () {
+          test('returns that membership without listing apps', () async {
+            final membership = await runWithOverrides(
+              () => codePushClientWrapper.findAppOrganization(
+                appId: 'target',
+                organizationId: 2,
+                memberships: [first, second],
+              ),
+            );
+            expect(membership, equals(second));
+            verifyNever(
+              () => codePushClient.getOrganizationApps(
+                organizationId: any(named: 'organizationId'),
+              ),
+            );
+          });
+
+          test('returns null when the user is not a member of it', () async {
+            final membership = await runWithOverrides(
+              () => codePushClientWrapper.findAppOrganization(
+                appId: 'target',
+                organizationId: 3,
+                memberships: [first, second],
+              ),
+            );
+            expect(membership, isNull);
+          });
+        });
+
+        test('stops at the first organization that lists the app', () async {
+          final membership = await runWithOverrides(
+            () => codePushClientWrapper.findAppOrganization(
+              appId: 'other',
+              memberships: [first, second],
+            ),
+          );
+          expect(membership, equals(first));
+          verifyNever(
+            () => codePushClient.getOrganizationApps(organizationId: 2),
+          );
+        });
+
+        test('returns null when no organization lists the app', () async {
+          final membership = await runWithOverrides(
+            () => codePushClientWrapper.findAppOrganization(
+              appId: 'missing',
+              memberships: [first, second],
+            ),
+          );
+          expect(membership, isNull);
+        });
+
+        group('when listing one organization fails', () {
+          const error = CodePushException(message: 'listing failed');
+
+          setUp(() {
+            when(
+              () => codePushClient.getOrganizationApps(organizationId: 1),
+            ).thenThrow(error);
+          });
+
+          test('still finds the app in another organization', () async {
+            final membership = await runWithOverrides(
+              () => codePushClientWrapper.findAppOrganization(
+                appId: 'target',
+                memberships: [first, second],
+              ),
+            );
+            expect(membership, equals(second));
+          });
+
+          test('fails when no other organization has the app', () async {
+            await expectLater(
+              () => runWithOverrides(
+                () => codePushClientWrapper.findAppOrganization(
+                  appId: 'missing',
+                  memberships: [first, second],
+                ),
+              ),
+              exitsWithCode(ExitCode.software),
+            );
+          });
+        });
+
+        test('exits with code 70 when listing apps fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.getOrganizationApps(organizationId: 1),
+          ).thenThrow(error);
+          await expectLater(
+            () => runWithOverrides(
+              () => codePushClientWrapper.findAppOrganization(
+                appId: 'target',
+                memberships: [first, second],
+              ),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+      });
+
       group('getApps', () {
         test('exits with code 70 when getting apps fails', () async {
           const error = 'something went wrong';
@@ -377,8 +591,109 @@ void main() {
           verify(() => progress.fail(error)).called(1);
         });
 
+        test('reports the server error code and exits with an '
+            'ApiErrorExit when the API call fails', () async {
+          const error = CodePushException(
+            message: 'Plan lacks this feature.',
+            response: ErrorResponse(
+              code: 'shorebird_plan_insufficient_tier',
+              message: 'Plan lacks this feature.',
+            ),
+          );
+          when(() => codePushClient.getApps()).thenThrow(error);
+
+          await expectLater(
+            () => runWithOverrides(codePushClientWrapper.getApps),
+            throwsA(
+              isA<ApiErrorExit>()
+                  .having((e) => e.error, 'error', same(error))
+                  .having(
+                    (e) => e.exitCode,
+                    'exitCode',
+                    ExitCode.software.code,
+                  ),
+            ),
+          );
+          verify(() => progress.fail('$error')).called(1);
+          verify(
+            () => logger.info('Error code: shorebird_plan_insufficient_tier'),
+          ).called(1);
+        });
+
         test(
-          '''prints upgrade message when client throws CodePushUpgradeRequiredException''',
+          'prints the server message, details and documentation on a 426',
+          () async {
+            when(codePushClient.getApps).thenThrow(
+              CodePushUpgradeRequiredException(
+                message: 'shorebird CLI 1.6.0 or newer is required.',
+                details: 'You are on 1.5.0.',
+                response: ErrorResponse(
+                  code: 'upgrade_required',
+                  message: 'shorebird CLI 1.6.0 or newer is required.',
+                  documentationUrl: Uri.parse(
+                    'https://docs.shorebird.dev/deprecations',
+                  ),
+                ),
+              ),
+            );
+            await expectLater(
+              () async =>
+                  runWithOverrides(() => codePushClientWrapper.getApps()),
+              exitsWithCode(ExitCode.software),
+            );
+            verify(() => progress.fail()).called(1);
+            verify(
+              () => logger.err('shorebird CLI 1.6.0 or newer is required.'),
+            ).called(1);
+            verify(() => logger.info('You are on 1.5.0.')).called(1);
+            verify(
+              () => logger.info('See: https://docs.shorebird.dev/deprecations'),
+            ).called(1);
+            verify(
+              () => logger.info(
+                '''Run ${lightCyan.wrap('shorebird upgrade')} to get the latest version.''',
+              ),
+            ).called(1);
+            verifyNever(
+              () => logger.err('Your version of shorebird is out of date.'),
+            );
+          },
+        );
+
+        test(
+          '''doesn't repeat the upgrade command when the server names it''',
+          () async {
+            when(codePushClient.getApps).thenThrow(
+              const CodePushUpgradeRequiredException(
+                message: 'Flutter 3.41.9 requires a newer CLI.',
+                details: 'Run `shorebird upgrade` and retry.',
+                response: ErrorResponse(
+                  code: 'cli_flutter_incompatible',
+                  message: 'Flutter 3.41.9 requires a newer CLI.',
+                ),
+              ),
+            );
+            await expectLater(
+              () async =>
+                  runWithOverrides(() => codePushClientWrapper.getApps()),
+              exitsWithCode(ExitCode.software),
+            );
+            verify(
+              () => logger.err('Flutter 3.41.9 requires a newer CLI.'),
+            ).called(1);
+            verify(
+              () => logger.info('Run `shorebird upgrade` and retry.'),
+            ).called(1);
+            verifyNever(
+              () => logger.info(
+                '''Run ${lightCyan.wrap('shorebird upgrade')} to get the latest version.''',
+              ),
+            );
+          },
+        );
+
+        test(
+          '''prints the generic upgrade message on a 426 without an error body''',
           () async {
             when(codePushClient.getApps).thenThrow(
               const CodePushUpgradeRequiredException(
@@ -414,10 +729,44 @@ void main() {
         });
       });
 
+      group('getSigningKey', () {
+        const signingKey = SigningKey(id: 7, publicKeyPem: 'pem');
+
+        test('returns the key', () async {
+          when(
+            () => codePushClient.getSigningKey(appId: any(named: 'appId')),
+          ).thenAnswer((_) async => signingKey);
+
+          final key = await runWithOverrides(
+            () => codePushClientWrapper.getSigningKey(appId: appId),
+          );
+
+          expect(key, equals(signingKey));
+          verify(() => progress.complete()).called(1);
+        });
+
+        test('exits with code 70 when the fetch fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.getSigningKey(appId: any(named: 'appId')),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.getSigningKey(appId: appId),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+      });
+
       group('getApp', () {
         test('exits with code 70 when getting app fails', () async {
           const error = 'something went wrong';
-          when(() => codePushClient.getApps()).thenThrow(error);
+          when(
+            () => codePushClient.getApp(appId: any(named: 'appId')),
+          ).thenThrow(error);
 
           await expectLater(
             () async => runWithOverrides(
@@ -429,25 +778,28 @@ void main() {
         });
 
         test('exits with code 70 when app does not exist', () async {
-          when(() => codePushClient.getApps()).thenAnswer((_) async => []);
+          when(
+            () => codePushClient.getApp(appId: any(named: 'appId')),
+          ).thenAnswer((_) async => null);
 
           await expectLater(
             () async => runWithOverrides(
               () => codePushClientWrapper.getApp(appId: appId),
             ),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message: contains('Could not find app with id: "$appId"'),
+              hint: contains('shorebird apps list'),
+              exitCode: ExitCode.software,
+            ),
           );
 
           verify(() => progress.complete()).called(1);
-          verify(
-            () => logger.err(
-              any(that: contains('Could not find app with id: "$appId"')),
-            ),
-          ).called(1);
         });
 
         test('returns app when app exists', () async {
-          when(() => codePushClient.getApps()).thenAnswer((_) async => [app]);
+          when(
+            () => codePushClient.getApp(appId: any(named: 'appId')),
+          ).thenAnswer((_) async => app);
 
           final result = await runWithOverrides(
             () => codePushClientWrapper.getApp(appId: appId),
@@ -459,9 +811,24 @@ void main() {
       });
 
       group('maybeGetApp', () {
-        test('exits with code 70 when fetching apps fails', () async {
+        test('requests the single app rather than the whole account', () async {
+          when(
+            () => codePushClient.getApp(appId: any(named: 'appId')),
+          ).thenAnswer((_) async => app);
+
+          await runWithOverrides(
+            () => codePushClientWrapper.maybeGetApp(appId: appId),
+          );
+
+          verify(() => codePushClient.getApp(appId: appId)).called(1);
+          verifyNever(() => codePushClient.getApps());
+        });
+
+        test('exits with code 70 when fetching the app fails', () async {
           const error = 'something went wrong';
-          when(() => codePushClient.getApps()).thenThrow(error);
+          when(
+            () => codePushClient.getApp(appId: any(named: 'appId')),
+          ).thenThrow(error);
 
           await expectLater(
             () async => runWithOverrides(
@@ -473,7 +840,23 @@ void main() {
         });
 
         test('succeeds if app does not exist', () async {
-          when(() => codePushClient.getApps()).thenAnswer((_) async => []);
+          when(
+            () => codePushClient.getApp(appId: any(named: 'appId')),
+          ).thenAnswer((_) async => null);
+
+          final result = await runWithOverrides(
+            () => codePushClientWrapper.maybeGetApp(appId: appId),
+          );
+
+          expect(result, isNull);
+          verify(() => progress.complete()).called(1);
+          verifyNever(() => logger.err(any()));
+        });
+
+        test('returns null if the app belongs to someone else', () async {
+          when(
+            () => codePushClient.getApp(appId: any(named: 'appId')),
+          ).thenThrow(CodePushForbiddenException(message: 'nope'));
 
           final result = await runWithOverrides(
             () => codePushClientWrapper.maybeGetApp(appId: appId),
@@ -485,13 +868,944 @@ void main() {
         });
 
         test('returns app when app exists', () async {
-          when(() => codePushClient.getApps()).thenAnswer((_) async => [app]);
+          when(
+            () => codePushClient.getApp(appId: any(named: 'appId')),
+          ).thenAnswer((_) async => app);
 
           final result = await runWithOverrides(
             () => codePushClientWrapper.maybeGetApp(appId: appId),
           );
 
           expect(result, app);
+          verify(() => progress.complete()).called(1);
+        });
+      });
+
+      group('getReceivedInvitations', () {
+        test('exits with code 70 when fetching invitations fails', () async {
+          const error = 'something went wrong';
+          when(() => codePushClient.getReceivedInvitations()).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              codePushClientWrapper.getReceivedInvitations,
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+
+        test('returns the invitations', () async {
+          final invitation = ReceivedInvitation(
+            id: 'id',
+            organizationId: 1,
+            targetName: 'Acme',
+            inviterEmail: 'admin@shorebird.dev',
+            role: Role.developer,
+            createdAt: DateTime.utc(2026, 4, 20),
+            expiresAt: DateTime.utc(2026, 5, 4),
+          );
+          when(
+            () => codePushClient.getReceivedInvitations(),
+          ).thenAnswer((_) async => [invitation]);
+
+          final invitations = await runWithOverrides(
+            codePushClientWrapper.getReceivedInvitations,
+          );
+
+          expect(invitations, equals([invitation]));
+          verify(() => progress.complete()).called(1);
+        });
+      });
+
+      group('acceptInvitation', () {
+        test('exits with code 70 when accepting fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.acceptInvitation(
+              invitationId: any(named: 'invitationId'),
+            ),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.acceptInvitation(invitationId: 'id'),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+
+        test('completes when the invitation is accepted', () async {
+          when(
+            () => codePushClient.acceptInvitation(invitationId: 'id'),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.acceptInvitation(invitationId: 'id'),
+          );
+
+          verify(() => progress.complete()).called(1);
+        });
+      });
+
+      group('declineInvitation', () {
+        test('exits with code 70 when declining fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.declineInvitation(
+              invitationId: any(named: 'invitationId'),
+            ),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.declineInvitation(invitationId: 'id'),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+
+        test('completes when the invitation is declined', () async {
+          when(
+            () => codePushClient.declineInvitation(invitationId: 'id'),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.declineInvitation(invitationId: 'id'),
+          );
+
+          verify(() => progress.complete()).called(1);
+        });
+      });
+
+      group('account', () {
+        group('service accounts', () {
+          final account = ServiceAccount(
+            id: 383,
+            organizationId: 42,
+            name: 'release-bot',
+            label: 'release-bot[bot]',
+            role: ServiceAccountRole.developer,
+            createdAt: DateTime(2026),
+            createdByUserId: null,
+            createdByEmail: null,
+            lastAuthAt: null,
+          );
+          final key = ServiceAccountKey(
+            id: 12,
+            name: 'ci',
+            createdAt: DateTime(2026),
+            lastUsedAt: null,
+            expiresAt: null,
+            scopes: const [],
+          );
+
+          test('getServiceAccounts returns the accounts', () async {
+            when(
+              () => codePushClient.getServiceAccounts(organizationId: 42),
+            ).thenAnswer((_) async => [account]);
+            await expectLater(
+              runWithOverrides(
+                () => codePushClientWrapper.getServiceAccounts(
+                  organizationId: 42,
+                ),
+              ),
+              completion([account]),
+            );
+            verify(() => progress.complete()).called(1);
+          });
+
+          test('createServiceAccount returns the new account', () async {
+            when(
+              () => codePushClient.createServiceAccount(
+                organizationId: 42,
+                name: 'release-bot',
+                role: ServiceAccountRole.viewer,
+              ),
+            ).thenAnswer((_) async => account);
+            await expectLater(
+              runWithOverrides(
+                () => codePushClientWrapper.createServiceAccount(
+                  organizationId: 42,
+                  name: 'release-bot',
+                  role: ServiceAccountRole.viewer,
+                ),
+              ),
+              completion(account),
+            );
+          });
+
+          test('updateServiceAccount returns the updated account', () async {
+            when(
+              () => codePushClient.updateServiceAccount(
+                organizationId: 42,
+                serviceAccountId: 383,
+                role: ServiceAccountRole.viewer,
+              ),
+            ).thenAnswer((_) async => account);
+            await expectLater(
+              runWithOverrides(
+                () => codePushClientWrapper.updateServiceAccount(
+                  organizationId: 42,
+                  serviceAccountId: 383,
+                  role: ServiceAccountRole.viewer,
+                ),
+              ),
+              completion(account),
+            );
+          });
+
+          test('deleteServiceAccount deletes the account', () async {
+            when(
+              () => codePushClient.deleteServiceAccount(
+                organizationId: 42,
+                serviceAccountId: 383,
+              ),
+            ).thenAnswer((_) async {});
+            await runWithOverrides(
+              () => codePushClientWrapper.deleteServiceAccount(
+                organizationId: 42,
+                serviceAccountId: 383,
+              ),
+            );
+            verify(() => progress.complete()).called(1);
+          });
+
+          test('getServiceAccountKeys returns the keys', () async {
+            when(
+              () => codePushClient.getServiceAccountKeys(
+                organizationId: 42,
+                serviceAccountId: 383,
+              ),
+            ).thenAnswer((_) async => [key]);
+            await expectLater(
+              runWithOverrides(
+                () => codePushClientWrapper.getServiceAccountKeys(
+                  organizationId: 42,
+                  serviceAccountId: 383,
+                ),
+              ),
+              completion([key]),
+            );
+          });
+
+          test('revokeServiceAccountKey revokes the key', () async {
+            when(
+              () => codePushClient.revokeServiceAccountKey(
+                organizationId: 42,
+                serviceAccountId: 383,
+                keyId: 12,
+              ),
+            ).thenAnswer((_) async {});
+            await runWithOverrides(
+              () => codePushClientWrapper.revokeServiceAccountKey(
+                organizationId: 42,
+                serviceAccountId: 383,
+                keyId: 12,
+              ),
+            );
+            verify(() => progress.complete()).called(1);
+          });
+
+          test('trust rule calls pass through', () async {
+            final rule = ServiceAccountTrustRule(
+              id: 7,
+              provider: TrustRuleProvider.github,
+              createdAt: DateTime(2026),
+              createdByUserId: null,
+              lastUsedAt: null,
+              github: const GithubTrustRule(
+                repositoryOwner: 'acme',
+                repositoryOwnerId: 1,
+                repositoryName: 'app',
+                workflowPath: '.github/workflows/release.yml',
+                environment: null,
+                refPattern: null,
+              ),
+            );
+            const request = CreateServiceAccountTrustRuleRequest(
+              provider: TrustRuleProvider.github,
+              repositoryOwner: 'acme',
+              repositoryName: 'app',
+              workflowPath: '.github/workflows/release.yml',
+            );
+            when(
+              () => codePushClient.getServiceAccountTrustRules(
+                organizationId: 42,
+                serviceAccountId: 383,
+              ),
+            ).thenAnswer((_) async => [rule]);
+            when(
+              () => codePushClient.createServiceAccountTrustRule(
+                organizationId: 42,
+                serviceAccountId: 383,
+                rule: request,
+              ),
+            ).thenAnswer((_) async => rule);
+            when(
+              () => codePushClient.deleteServiceAccountTrustRule(
+                organizationId: 42,
+                serviceAccountId: 383,
+                ruleId: 7,
+              ),
+            ).thenAnswer((_) async {});
+
+            await runWithOverrides(() async {
+              expect(
+                await codePushClientWrapper.getServiceAccountTrustRules(
+                  organizationId: 42,
+                  serviceAccountId: 383,
+                ),
+                [rule],
+              );
+              expect(
+                await codePushClientWrapper.createServiceAccountTrustRule(
+                  organizationId: 42,
+                  serviceAccountId: 383,
+                  rule: request,
+                ),
+                rule,
+              );
+              await codePushClientWrapper.deleteServiceAccountTrustRule(
+                organizationId: 42,
+                serviceAccountId: 383,
+                ruleId: 7,
+              );
+            });
+            verify(() => progress.complete()).called(3);
+          });
+
+          test('exits with code 70 when a call fails', () async {
+            when(
+              () => codePushClient.getServiceAccounts(organizationId: 42),
+            ).thenThrow('boom');
+            await expectLater(
+              () async => runWithOverrides(
+                () => codePushClientWrapper.getServiceAccounts(
+                  organizationId: 42,
+                ),
+              ),
+              exitsWithCode(ExitCode.software),
+            );
+            verify(() => progress.fail('boom')).called(1);
+          });
+        });
+
+        test('createOrganization returns the new organization', () async {
+          final organization = Organization(
+            id: 42,
+            name: 'Acme Corp',
+            organizationType: OrganizationType.team,
+            createdAt: DateTime(2026),
+            updatedAt: DateTime(2026),
+          );
+          when(
+            () => codePushClient.createOrganization(name: 'Acme Corp'),
+          ).thenAnswer((_) async => organization);
+          await expectLater(
+            runWithOverrides(
+              () => codePushClientWrapper.createOrganization(
+                name: 'Acme Corp',
+              ),
+            ),
+            completion(equals(organization)),
+          );
+          verify(() => progress.complete()).called(1);
+        });
+
+        test('updateOrganization sends the name', () async {
+          when(
+            () => codePushClient.updateOrganization(
+              organizationId: 42,
+              name: 'Acme Corp',
+            ),
+          ).thenAnswer((_) async {});
+          await runWithOverrides(
+            () => codePushClientWrapper.updateOrganization(
+              organizationId: 42,
+              name: 'Acme Corp',
+            ),
+          );
+          verify(
+            () => codePushClient.updateOrganization(
+              organizationId: 42,
+              name: 'Acme Corp',
+            ),
+          ).called(1);
+          verify(() => progress.complete()).called(1);
+        });
+
+        test('member calls pass through and complete progress', () async {
+          const member = OrganizationUser(
+            user: PublicUser(id: 7, email: 'bob@acme.com'),
+            role: Role.developer,
+          );
+          final invite = InvitationSummary(
+            id: 'inv-1',
+            email: 'carol@acme.com',
+            role: Role.viewer,
+            createdAt: DateTime.utc(2026),
+            expiresAt: DateTime.utc(2026, 2),
+          );
+          const added = CreateInvitationResponse(email: 'dan@acme.com');
+          when(
+            () => codePushClient.getOrganizationUsers(organizationId: 42),
+          ).thenAnswer((_) async => [member]);
+          when(
+            () => codePushClient.getOrganizationInvitations(organizationId: 42),
+          ).thenAnswer((_) async => [invite]);
+          when(
+            () => codePushClient.getOrganizationInvitations(organizationId: 9),
+          ).thenThrow(CodePushForbiddenException(message: 'no'));
+          when(
+            () => codePushClient.createOrganizationInvitation(
+              organizationId: 42,
+              email: 'dan@acme.com',
+              role: Role.admin,
+            ),
+          ).thenAnswer((_) async => added);
+          when(
+            () => codePushClient.revokeOrganizationInvitation(
+              organizationId: 42,
+              invitationId: 'inv-1',
+            ),
+          ).thenAnswer((_) async {});
+          when(
+            () => codePushClient.updateOrganizationUser(
+              organizationId: 42,
+              userId: 7,
+              role: Role.admin,
+            ),
+          ).thenAnswer((_) async {});
+          when(
+            () => codePushClient.removeOrganizationUser(
+              organizationId: 42,
+              userId: 7,
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(() async {
+            expect(
+              await codePushClientWrapper.getOrganizationUsers(
+                organizationId: 42,
+              ),
+              [member],
+            );
+            expect(
+              await codePushClientWrapper.maybeGetOrganizationInvitations(
+                organizationId: 42,
+              ),
+              [invite],
+            );
+            expect(
+              await codePushClientWrapper.maybeGetOrganizationInvitations(
+                organizationId: 9,
+              ),
+              isNull,
+            );
+            expect(
+              await codePushClientWrapper.createOrganizationInvitation(
+                organizationId: 42,
+                email: 'dan@acme.com',
+                role: Role.admin,
+              ),
+              added,
+            );
+            await codePushClientWrapper.revokeOrganizationInvitation(
+              organizationId: 42,
+              invitationId: 'inv-1',
+            );
+            await codePushClientWrapper.updateOrganizationUser(
+              organizationId: 42,
+              userId: 7,
+              role: Role.admin,
+            );
+            await codePushClientWrapper.removeOrganizationUser(
+              organizationId: 42,
+              userId: 7,
+            );
+          });
+          verify(() => progress.complete()).called(7);
+        });
+
+        test('enterprise calls pass through and complete progress', () async {
+          final member = EnterpriseFixtures.member();
+          when(
+            () => codePushClient.getEnterprises(),
+          ).thenAnswer((_) async => [EnterpriseFixtures.acme]);
+          when(
+            () => codePushClient.getEnterprise(enterpriseId: 7),
+          ).thenAnswer((_) async => EnterpriseFixtures.acmeEnterprise);
+          when(
+            () => codePushClient.getEnterpriseOrganizations(enterpriseId: 7),
+          ).thenAnswer((_) async => [EnterpriseFixtures.mobile]);
+          when(
+            () => codePushClient.getEnterpriseApps(enterpriseId: 7),
+          ).thenAnswer((_) async => [EnterpriseFixtures.app]);
+          when(
+            () => codePushClient.getEnterpriseMembers(enterpriseId: 7),
+          ).thenAnswer((_) async => [member]);
+          when(
+            () => codePushClient.getEnterpriseGuests(enterpriseId: 7),
+          ).thenAnswer((_) async => [EnterpriseFixtures.guest]);
+          when(
+            () => codePushClient.setEnterpriseMemberRole(
+              enterpriseId: 7,
+              userId: 9,
+              role: EnterpriseRole.admin,
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(() async {
+            expect(await codePushClientWrapper.getEnterprises(), [
+              EnterpriseFixtures.acme,
+            ]);
+            expect(
+              await codePushClientWrapper.getEnterprise(enterpriseId: 7),
+              EnterpriseFixtures.acmeEnterprise,
+            );
+            expect(
+              await codePushClientWrapper.getEnterpriseOrganizations(
+                enterpriseId: 7,
+              ),
+              [EnterpriseFixtures.mobile],
+            );
+            expect(
+              await codePushClientWrapper.getEnterpriseApps(enterpriseId: 7),
+              [EnterpriseFixtures.app],
+            );
+            expect(
+              await codePushClientWrapper.getEnterpriseMembers(
+                enterpriseId: 7,
+              ),
+              [member],
+            );
+            expect(
+              await codePushClientWrapper.getEnterpriseGuests(enterpriseId: 7),
+              [EnterpriseFixtures.guest],
+            );
+            await codePushClientWrapper.setEnterpriseMemberRole(
+              enterpriseId: 7,
+              userId: 9,
+              role: EnterpriseRole.admin,
+            );
+          });
+          verify(() => progress.complete()).called(7);
+        });
+
+        test('getOrganizationAuditLogs passes the filters through', () async {
+          const page = GetOrganizationAuditLogsResponse(data: []);
+          when(
+            () => codePushClient.getOrganizationAuditLogs(
+              organizationId: 42,
+              perPage: 10,
+              cursor: 'c',
+              order: AuditLogOrder.asc,
+              appId: 'app',
+              actorId: 12,
+              operation: 'organization.rename',
+            ),
+          ).thenAnswer((_) async => page);
+          await expectLater(
+            runWithOverrides(
+              () => codePushClientWrapper.getOrganizationAuditLogs(
+                organizationId: 42,
+                perPage: 10,
+                cursor: 'c',
+                order: AuditLogOrder.asc,
+                appId: 'app',
+                actorId: 12,
+                operation: 'organization.rename',
+              ),
+            ),
+            completion(equals(page)),
+          );
+          verify(() => progress.complete()).called(1);
+        });
+
+        group('maybeGetOrganizationUsage', () {
+          test('returns null when the role may not see usage', () async {
+            when(
+              () => codePushClient.getOrganizationUsage(organizationId: 42),
+            ).thenThrow(CodePushForbiddenException(message: 'no'));
+            await expectLater(
+              runWithOverrides(
+                () => codePushClientWrapper.maybeGetOrganizationUsage(
+                  organizationId: 42,
+                ),
+              ),
+              completion(isNull),
+            );
+            verify(() => progress.complete()).called(1);
+          });
+
+          test('exits on any other failure', () async {
+            when(
+              () => codePushClient.getOrganizationUsage(organizationId: 42),
+            ).thenThrow(const CodePushException(message: 'boom'));
+            await expectLater(
+              () => runWithOverrides(
+                () => codePushClientWrapper.maybeGetOrganizationUsage(
+                  organizationId: 42,
+                ),
+              ),
+              exitsWithCode(ExitCode.software),
+            );
+          });
+        });
+
+        test('getOrganizationUsage returns the usage', () async {
+          const usage = GetUsageResponse(
+            apps: [],
+            position: AccountPosition(
+              includedInstalls: 100,
+              installs: 5,
+              includedInstallsUsed: 5,
+              includedExhausted: false,
+              overageInstalls: 0,
+              installCeiling: null,
+              remainingInstalls: null,
+              atCeiling: false,
+              nearingLimit: false,
+              consumingOverage: false,
+              accruedOverageAmount: null,
+            ),
+            reportedOverage: null,
+          );
+          when(
+            () => codePushClient.getOrganizationUsage(organizationId: 42),
+          ).thenAnswer((_) async => usage);
+          await expectLater(
+            runWithOverrides(
+              () => codePushClientWrapper.getOrganizationUsage(
+                organizationId: 42,
+              ),
+            ),
+            completion(equals(usage)),
+          );
+          verify(() => progress.complete()).called(1);
+        });
+
+        test('getEnterpriseServiceAccounts passes through', () async {
+          when(
+            () => codePushClient.getEnterpriseServiceAccounts(enterpriseId: 7),
+          ).thenAnswer((_) async => []);
+          await expectLater(
+            runWithOverrides(
+              () => codePushClientWrapper.getEnterpriseServiceAccounts(
+                enterpriseId: 7,
+              ),
+            ),
+            completion(isEmpty),
+          );
+          verify(() => progress.complete()).called(1);
+        });
+
+        test('enterprise audit log and billing pass through', () async {
+          const page = GetOrganizationAuditLogsResponse(data: []);
+          final billing = EnterpriseBilling.fromJson(const {
+            'has_billing_account': false,
+            'plan': null,
+            'position': null,
+          });
+          when(
+            () => codePushClient.getEnterpriseAuditLogs(
+              enterpriseId: 7,
+              perPage: 100,
+              cursor: 'c2',
+              order: AuditLogOrder.asc,
+              startDate: DateTime.utc(2026, 10),
+              endDate: DateTime.utc(2026, 11),
+              appId: 'app-1',
+              actorId: 9,
+              operation: 'app.create',
+            ),
+          ).thenAnswer((_) async => page);
+          when(
+            () => codePushClient.getEnterpriseBilling(enterpriseId: 7),
+          ).thenAnswer((_) async => billing);
+          when(
+            () => codePushClient.getEnterpriseBillingOrganizations(
+              enterpriseId: 7,
+            ),
+          ).thenAnswer((_) async => []);
+          await runWithOverrides(() async {
+            expect(
+              await codePushClientWrapper.getEnterpriseAuditLogs(
+                enterpriseId: 7,
+                perPage: 100,
+                cursor: 'c2',
+                order: AuditLogOrder.asc,
+                startDate: DateTime.utc(2026, 10),
+                endDate: DateTime.utc(2026, 11),
+                appId: 'app-1',
+                actorId: 9,
+                operation: 'app.create',
+              ),
+              page,
+            );
+            expect(
+              await codePushClientWrapper.getEnterpriseBilling(enterpriseId: 7),
+              billing,
+            );
+            expect(
+              await codePushClientWrapper.getEnterpriseBillingOrganizations(
+                enterpriseId: 7,
+              ),
+              isEmpty,
+            );
+          });
+          verify(() => progress.complete()).called(3);
+        });
+
+        test('updateCurrentUser sends the display name', () async {
+          when(
+            () => codePushClient.updateCurrentUser(
+              displayName: any(named: 'displayName'),
+            ),
+          ).thenAnswer((_) async {});
+          await runWithOverrides(
+            () => codePushClientWrapper.updateCurrentUser(
+              displayName: 'Jane Doe',
+            ),
+          );
+          verify(
+            () => codePushClient.updateCurrentUser(displayName: 'Jane Doe'),
+          ).called(1);
+          verify(() => progress.complete()).called(1);
+        });
+
+        test('getEmailNotificationsEnabled returns the setting', () async {
+          when(
+            () => codePushClient.getEmailNotificationsEnabled(),
+          ).thenAnswer((_) async => true);
+          await expectLater(
+            runWithOverrides(
+              codePushClientWrapper.getEmailNotificationsEnabled,
+            ),
+            completion(isTrue),
+          );
+        });
+
+        test('setEmailNotificationsEnabled sends the setting', () async {
+          when(
+            () => codePushClient.setEmailNotificationsEnabled(
+              enabled: any(named: 'enabled'),
+            ),
+          ).thenAnswer((_) async {});
+          await runWithOverrides(
+            () => codePushClientWrapper.setEmailNotificationsEnabled(
+              enabled: false,
+            ),
+          );
+          verify(
+            () => codePushClient.setEmailNotificationsEnabled(enabled: false),
+          ).called(1);
+        });
+      });
+
+      group('updateApp', () {
+        test('exits with code 70 when renaming app fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.updateApp(
+              appId: any(named: 'appId'),
+              displayName: any(named: 'displayName'),
+            ),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.updateApp(
+                appId: appId,
+                displayName: displayName,
+              ),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+
+        test('completes when app is successfully renamed', () async {
+          when(
+            () => codePushClient.updateApp(
+              appId: appId,
+              displayName: displayName,
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.updateApp(
+              appId: appId,
+              displayName: displayName,
+            ),
+          );
+
+          verify(() => progress.complete()).called(1);
+        });
+      });
+
+      group('deleteApp', () {
+        test('exits with code 70 when deleting app fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.deleteApp(appId: any(named: 'appId')),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.deleteApp(appId: appId),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+
+        test('completes when app is successfully deleted', () async {
+          when(
+            () => codePushClient.deleteApp(appId: appId),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.deleteApp(appId: appId),
+          );
+
+          verify(() => progress.complete()).called(1);
+        });
+      });
+
+      group('deleteRelease', () {
+        const releaseId = 42;
+
+        test('exits with code 70 when deleting the release fails', () async {
+          final error = CodePushForbiddenException(message: 'Forbidden');
+          when(
+            () => codePushClient.deleteRelease(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+            ),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.deleteRelease(
+                appId: appId,
+                releaseId: releaseId,
+              ),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail('$error')).called(1);
+        });
+
+        test('completes when the release is successfully deleted', () async {
+          when(
+            () => codePushClient.deleteRelease(
+              appId: appId,
+              releaseId: releaseId,
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.deleteRelease(
+              appId: appId,
+              releaseId: releaseId,
+            ),
+          );
+
+          verify(() => progress.complete()).called(1);
+        });
+      });
+
+      group('deleteReleaseArtifacts', () {
+        const releaseId = 42;
+
+        test('exits with code 70 when deleting artifacts fails', () async {
+          final error = CodePushForbiddenException(message: 'Forbidden');
+          when(
+            () => codePushClient.deleteReleaseArtifacts(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              platform: any(named: 'platform'),
+            ),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.deleteReleaseArtifacts(
+                appId: appId,
+                releaseId: releaseId,
+                platform: ReleasePlatform.ios,
+              ),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail('$error')).called(1);
+        });
+
+        test('completes when the artifacts are successfully deleted', () async {
+          when(
+            () => codePushClient.deleteReleaseArtifacts(
+              appId: appId,
+              releaseId: releaseId,
+              platform: ReleasePlatform.ios,
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.deleteReleaseArtifacts(
+              appId: appId,
+              releaseId: releaseId,
+              platform: ReleasePlatform.ios,
+            ),
+          );
+
+          verify(
+            () => logger.progress('Deleting ios release artifacts'),
+          ).called(1);
+          verify(() => progress.complete()).called(1);
+        });
+      });
+
+      group('transferApp', () {
+        test('exits with code 70 when transferring app fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.transferApp(
+              organizationId: any(named: 'organizationId'),
+              appId: any(named: 'appId'),
+            ),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.transferApp(
+                organizationId: organizationId,
+                appId: appId,
+              ),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+
+        test('completes when app is successfully transferred', () async {
+          when(
+            () => codePushClient.transferApp(
+              organizationId: organizationId,
+              appId: appId,
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.transferApp(
+              organizationId: organizationId,
+              appId: appId,
+            ),
+          );
+
           verify(() => progress.complete()).called(1);
         });
       });
@@ -591,6 +1905,77 @@ void main() {
           verify(() => progress.complete()).called(1);
         });
       });
+
+      group('getChannels', () {
+        test('exits with code 70 when fetching channels fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.getChannels(appId: any(named: 'appId')),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.getChannels(appId: appId),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+
+        test('returns channels when channels are fetched', () async {
+          when(
+            () => codePushClient.getChannels(appId: appId),
+          ).thenAnswer((_) async => [channel]);
+
+          final result = await runWithOverrides(
+            () => codePushClientWrapper.getChannels(appId: appId),
+          );
+
+          expect(result, [channel]);
+          verify(() => progress.complete()).called(1);
+        });
+      });
+
+      group('deleteChannel', () {
+        test('exits with code 70 when deleting channel fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.deleteChannel(
+              appId: any(named: 'appId'),
+              channelId: any(named: 'channelId'),
+            ),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.deleteChannel(
+                appId: appId,
+                channelId: channel.id,
+              ),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+
+        test('completes when channel is successfully deleted', () async {
+          when(
+            () => codePushClient.deleteChannel(
+              appId: appId,
+              channelId: channel.id,
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.deleteChannel(
+              appId: appId,
+              channelId: channel.id,
+            ),
+          );
+
+          verify(() => progress.complete()).called(1);
+        });
+      });
     });
 
     group('release', () {
@@ -608,8 +1993,10 @@ void main() {
                     flutterRevision: flutterRevision,
                     flutterVersion: flutterVersion,
                     displayName: displayName,
-                    platformStatuses: const {
-                      releasePlatform: ReleaseStatus.active,
+                    platforms: const {
+                      releasePlatform: ReleasePlatformDetails(
+                        status: ReleaseStatus.active,
+                      ),
                     },
                     createdAt: DateTime(2023),
                     updatedAt: DateTime(2023),
@@ -619,7 +2006,9 @@ void main() {
               ),
               exitsWithCode(ExitCode.software),
             );
-            final uri = ShorebirdWebConsole.appReleaseUri(appId, releaseId);
+            final uri = runWithOverrides(
+              () => ShorebirdWebConsole.appReleaseUri(appId, releaseId),
+            );
 
             verify(
               () => logger.err(
@@ -646,7 +2035,7 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                     flutterRevision: flutterRevision,
                     flutterVersion: flutterVersion,
                     displayName: displayName,
-                    platformStatuses: const {},
+                    platforms: const {},
                     createdAt: DateTime(2023),
                     updatedAt: DateTime(2023),
                   ),
@@ -671,8 +2060,10 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                     flutterRevision: flutterRevision,
                     flutterVersion: flutterVersion,
                     displayName: displayName,
-                    platformStatuses: const {
-                      releasePlatform: ReleaseStatus.draft,
+                    platforms: const {
+                      releasePlatform: ReleasePlatformDetails(
+                        status: ReleaseStatus.draft,
+                      ),
                     },
                     createdAt: DateTime(2023),
                     updatedAt: DateTime(2023),
@@ -771,15 +2162,14 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                 releaseVersion: releaseVersion,
               ),
             ),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message: contains('Release not found: "$releaseVersion"'),
+              hint: contains('shorebird releases list --app-id $appId'),
+              exitCode: ExitCode.software,
+            ),
           );
 
           verify(() => progress.complete()).called(1);
-          verify(
-            () => logger.err(
-              any(that: contains('Release not found: "$releaseVersion"')),
-            ),
-          ).called(1);
         });
 
         test('returns release when release exists', () async {
@@ -1274,72 +2664,6 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
           ).called(1);
         });
 
-        test('exits with code 70 when artifact creation fails', () async {
-          const error = 'something went wrong';
-          when(
-            () => codePushClient.createReleaseArtifact(
-              appId: any(named: 'appId'),
-              artifactPath: any(named: 'artifactPath'),
-              releaseId: any(named: 'releaseId'),
-              arch: any(named: 'arch'),
-              platform: any(named: 'platform'),
-              hash: any(named: 'hash'),
-              canSideload: any(named: 'canSideload'),
-              podfileLockHash: any(named: 'podfileLockHash'),
-            ),
-          ).thenThrow(error);
-          setUpProjectRoot();
-
-          await expectLater(
-            () async => runWithOverrides(
-              () async => codePushClientWrapper.createAndroidReleaseArtifacts(
-                appId: app.appId,
-                releaseId: releaseId,
-                platform: releasePlatform,
-                projectRoot: projectRoot.path,
-                aabPath: p.join(projectRoot.path, aabPath),
-                architectures: Arch.values,
-              ),
-            ),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(() => progress.fail(any(that: contains(error)))).called(1);
-        });
-
-        test('exits with code 70 when aab artifact creation fails', () async {
-          const error = 'something went wrong';
-          when(
-            () => codePushClient.createReleaseArtifact(
-              appId: any(named: 'appId'),
-              artifactPath: any(named: 'artifactPath', that: endsWith('aab')),
-              releaseId: any(named: 'releaseId'),
-              arch: any(named: 'arch'),
-              platform: any(named: 'platform'),
-              hash: any(named: 'hash'),
-              canSideload: any(named: 'canSideload'),
-              podfileLockHash: any(named: 'podfileLockHash'),
-            ),
-          ).thenThrow(error);
-          setUpProjectRoot();
-
-          await expectLater(
-            () async => runWithOverrides(
-              () async => codePushClientWrapper.createAndroidReleaseArtifacts(
-                appId: app.appId,
-                releaseId: releaseId,
-                platform: releasePlatform,
-                projectRoot: projectRoot.path,
-                aabPath: p.join(projectRoot.path, aabPath),
-                architectures: Arch.values,
-              ),
-            ),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(() => progress.fail(any(that: contains(error)))).called(1);
-        });
-
         test(
           'logs message when uploading release artifact that already exists',
           () async {
@@ -1378,40 +2702,46 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
           },
         );
 
-        test('logs message when uploading aab that already exists', () async {
-          const error = 'something went wrong';
-          when(
-            () => codePushClient.createReleaseArtifact(
-              appId: any(named: 'appId'),
-              artifactPath: any(named: 'artifactPath', that: endsWith('.aab')),
-              releaseId: any(named: 'releaseId'),
-              arch: any(named: 'arch'),
-              platform: any(named: 'platform'),
-              hash: any(named: 'hash'),
-              canSideload: any(named: 'canSideload'),
-              podfileLockHash: any(named: 'podfileLockHash'),
-            ),
-          ).thenThrow(const CodePushConflictException(message: error));
-          setUpProjectRoot();
+        test(
+          'exits with code 70 when storage rejects an upload with a 409',
+          () async {
+            when(
+              () => codePushClient.createReleaseArtifact(
+                appId: any(named: 'appId'),
+                artifactPath: any(named: 'artifactPath'),
+                releaseId: any(named: 'releaseId'),
+                arch: any(named: 'arch'),
+                platform: any(named: 'platform'),
+                hash: any(named: 'hash'),
+                canSideload: any(named: 'canSideload'),
+                podfileLockHash: any(named: 'podfileLockHash'),
+              ),
+            ).thenThrow(
+              const CodePushUploadException(
+                message: 'Failed to upload artifact (Conflict 409)',
+                statusCode: HttpStatus.conflict,
+              ),
+            );
+            setUpProjectRoot();
 
-          await runWithOverrides(
-            () async => codePushClientWrapper.createAndroidReleaseArtifacts(
-              appId: app.appId,
-              releaseId: releaseId,
-              platform: releasePlatform,
-              projectRoot: projectRoot.path,
-              aabPath: p.join(projectRoot.path, aabPath),
-              architectures: Arch.values,
-            ),
-          );
-
-          verify(
-            () => logger.info(
-              any(that: contains('aab artifact already exists, continuing...')),
-            ),
-          ).called(1);
-          verifyNever(() => progress.fail(error));
-        });
+            await expectLater(
+              () => runWithOverrides(
+                () => codePushClientWrapper.createAndroidReleaseArtifacts(
+                  appId: app.appId,
+                  releaseId: releaseId,
+                  platform: releasePlatform,
+                  projectRoot: projectRoot.path,
+                  aabPath: p.join(projectRoot.path, aabPath),
+                  architectures: Arch.values,
+                ),
+              ),
+              exitsWithCode(ExitCode.software),
+            );
+            verifyNever(
+              () => logger.info(any(that: contains('already exists'))),
+            );
+          },
+        );
 
         test('completes successfully when all artifacts are created', () async {
           when(
@@ -1441,6 +2771,35 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
 
           verify(() => progress.complete()).called(1);
           verifyNever(() => progress.fail(any()));
+          for (final arch in Arch.values) {
+            verify(
+              () => codePushClient.createReleaseArtifact(
+                appId: app.appId,
+                artifactPath: any(
+                  named: 'artifactPath',
+                  that: endsWith(p.join(arch.androidBuildPath, 'libapp.so')),
+                ),
+                releaseId: releaseId,
+                arch: arch.arch,
+                platform: releasePlatform,
+                hash: any(named: 'hash'),
+                canSideload: false,
+                podfileLockHash: null,
+              ),
+            ).called(1);
+          }
+          verify(
+            () => codePushClient.createReleaseArtifact(
+              appId: app.appId,
+              artifactPath: p.join(projectRoot.path, aabPath),
+              releaseId: releaseId,
+              arch: 'aab',
+              platform: releasePlatform,
+              hash: any(named: 'hash'),
+              canSideload: true,
+              podfileLockHash: null,
+            ),
+          ).called(1);
         });
 
         test('completes successfully when a flavor is provided', () async {
@@ -1496,7 +2855,7 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
             setUpProjectRoot();
             // Simulate AGP filtering: remove armeabi-v7a libapp.so to mirror
             // a project with ndk.abiFilters that excludes arm32.
-            final missingArch = Arch.arm32;
+            const missingArch = Arch.arm32;
             File(
               p.join(
                 projectRoot.path,
@@ -1637,20 +2996,26 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
             }
             // A real aab containing base/lib/<arch>/libapp.so for three arches.
             final aab = File(
-              p.join('test', 'fixtures', 'aabs', 'changed_asset.aab'),
+              p.join(fixturesDirectory, 'aabs', 'changed_asset.aab'),
             );
 
-            await runWithOverrides(
-              () async => codePushClientWrapper.createAndroidReleaseArtifacts(
-                appId: app.appId,
-                releaseId: releaseId,
-                platform: releasePlatform,
-                projectRoot: projectRoot.path,
-                aabPath: aab.path,
-                architectures: Arch.values,
+            final systemTemp = createSystemTemp();
+            await runWithSystemTemp(
+              systemTemp,
+              () => runWithOverrides(
+                () async => codePushClientWrapper.createAndroidReleaseArtifacts(
+                  appId: app.appId,
+                  releaseId: releaseId,
+                  platform: releasePlatform,
+                  projectRoot: projectRoot.path,
+                  aabPath: aab.path,
+                  architectures: Arch.values,
+                ),
               ),
             );
 
+            // The directory the aab was extracted into is deleted afterwards.
+            expect(systemTemp.listSync(), isEmpty);
             // Each per-arch artifact was uploaded from the directory the aab
             // was extracted into, not from the empty strip output.
             verify(
@@ -1672,84 +3037,57 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
             verifyNever(() => progress.fail(any()));
           },
         );
-      });
 
-      group('createWindowsReleaseArtifacts', () {
-        late File releaseZip;
-        setUp(() {
-          releaseZip = File(
-            p.join(projectRoot.path, 'path', 'to', 'release.zip'),
-          )..createSync(recursive: true);
-        });
+        test(
+          'fails with an accurate message when the aab has no libapp.so',
+          () async {
+            // A real aab that packages a native lib but no libapp.so, as
+            // happens when a custom Gradle build drops the Dart library before
+            // bundling (https://github.com/shorebirdtech/shorebird/issues/3813).
+            final archive = Archive()
+              ..addFile(
+                ArchiveFile.string('base/lib/arm64-v8a/libflutter.so', 'so'),
+              );
+            final aab = File(p.join(projectRoot.path, 'no_libapp.aab'))
+              ..createSync(recursive: true)
+              ..writeAsBytesSync(ZipEncoder().encode(archive));
 
-        group('when release artifact already exists', () {
-          setUp(() {
-            when(
-              () => codePushClient.createReleaseArtifact(
-                artifactPath: any(named: 'artifactPath'),
-                appId: any(named: 'appId'),
-                releaseId: any(named: 'releaseId'),
-                arch: any(named: 'arch'),
-                platform: any(named: 'platform'),
-                hash: any(named: 'hash'),
-                canSideload: any(named: 'canSideload'),
-                podfileLockHash: any(named: 'podfileLockHash'),
-              ),
-            ).thenThrow(
-              const CodePushConflictException(message: 'already exists'),
-            );
-          });
-
-          test('logs message and continues', () async {
-            await runWithOverrides(
-              () => codePushClientWrapper.createWindowsReleaseArtifacts(
-                appId: app.appId,
-                releaseId: releaseId,
-                projectRoot: projectRoot.path,
-                releaseZipPath: releaseZip.path,
-              ),
-            );
-
-            verify(
-              () => logger.info(
-                any(that: contains('already exists, continuing...')),
-              ),
-            ).called(1);
-            verifyNever(() => progress.fail(any()));
-          });
-        });
-
-        group('when createReleaseArtifact fails', () {
-          setUp(() {
-            when(
-              () => codePushClient.createReleaseArtifact(
-                artifactPath: any(named: 'artifactPath'),
-                appId: any(named: 'appId'),
-                releaseId: any(named: 'releaseId'),
-                arch: any(named: 'arch'),
-                platform: any(named: 'platform'),
-                hash: any(named: 'hash'),
-                canSideload: any(named: 'canSideload'),
-                podfileLockHash: any(named: 'podfileLockHash'),
-              ),
-            ).thenThrow(Exception('something went wrong'));
-          });
-
-          test('exits with code 70', () async {
             await expectLater(
               () async => runWithOverrides(
-                () => codePushClientWrapper.createWindowsReleaseArtifacts(
+                () async => codePushClientWrapper.createAndroidReleaseArtifacts(
                   appId: app.appId,
                   releaseId: releaseId,
+                  platform: releasePlatform,
                   projectRoot: projectRoot.path,
-                  releaseZipPath: releaseZip.path,
+                  aabPath: aab.path,
+                  architectures: Arch.values,
                 ),
               ),
               exitsWithCode(ExitCode.software),
             );
 
-            verify(() => progress.fail(any())).called(1);
-          });
+            verify(
+              () => progress.fail(
+                any(
+                  that: contains(
+                    'does not contain libapp.so for any architecture',
+                  ),
+                ),
+              ),
+            ).called(1);
+          },
+        );
+      });
+
+      group('createWindowsReleaseArtifacts', () {
+        late Directory releaseDirectory;
+        setUp(() {
+          releaseDirectory = Directory(
+            p.join(projectRoot.path, 'path', 'to', 'Release'),
+          )..createSync(recursive: true);
+          File(
+            p.join(releaseDirectory.path, 'app.exe'),
+          ).writeAsStringSync('exe');
         });
 
         group('when createReleaseArtifact succeeds', () {
@@ -1773,8 +3111,7 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               () async => codePushClientWrapper.createWindowsReleaseArtifacts(
                 appId: app.appId,
                 releaseId: releaseId,
-                projectRoot: projectRoot.path,
-                releaseZipPath: releaseZip.path,
+                releaseDirectory: releaseDirectory,
               ),
             );
 
@@ -1782,7 +3119,10 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
             verifyNever(() => progress.fail(any()));
             verify(
               () => codePushClient.createReleaseArtifact(
-                artifactPath: releaseZip.path,
+                artifactPath: any(
+                  named: 'artifactPath',
+                  that: endsWith('.zip'),
+                ),
                 appId: appId,
                 releaseId: releaseId,
                 arch: primaryWindowsReleaseArtifactArch,
@@ -1792,6 +3132,22 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
                 podfileLockHash: null,
               ),
             ).called(1);
+          });
+
+          test('deletes the zipped release', () async {
+            final systemTemp = createSystemTemp();
+            await runWithSystemTemp(
+              systemTemp,
+              () => runWithOverrides(
+                () => codePushClientWrapper.createWindowsReleaseArtifacts(
+                  appId: app.appId,
+                  releaseId: releaseId,
+                  releaseDirectory: releaseDirectory,
+                ),
+              ),
+            );
+
+            expect(systemTemp.listSync(), isEmpty);
           });
         });
       });
@@ -1842,149 +3198,6 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
           ).thenAnswer((_) async {});
         });
 
-        test('exits with code 70 when artifact creation fails', () async {
-          const error = 'something went wrong';
-          when(
-            () => codePushClient.createReleaseArtifact(
-              appId: any(named: 'appId'),
-              artifactPath: any(named: 'artifactPath'),
-              releaseId: any(named: 'releaseId'),
-              arch: any(named: 'arch'),
-              platform: any(named: 'platform'),
-              hash: any(named: 'hash'),
-              canSideload: any(named: 'canSideload'),
-              podfileLockHash: any(named: 'podfileLockHash'),
-            ),
-          ).thenThrow(error);
-          setUpProjectRoot();
-
-          await expectLater(
-            () async => runWithOverrides(
-              () async =>
-                  codePushClientWrapper.createAndroidArchiveReleaseArtifacts(
-                    appId: app.appId,
-                    releaseId: releaseId,
-                    platform: releasePlatform,
-                    aarPath: p.join(projectRoot.path, aarPath),
-                    extractedAarDir: p.join(projectRoot.path, extractedAarPath),
-                    architectures: Arch.values,
-                  ),
-            ),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(() => progress.fail(any(that: contains(error)))).called(1);
-        });
-
-        test('exits with code 70 when aar artifact creation fails', () async {
-          const error = 'something went wrong';
-          when(
-            () => codePushClient.createReleaseArtifact(
-              appId: any(named: 'appId'),
-              artifactPath: any(named: 'artifactPath', that: endsWith('aar')),
-              releaseId: any(named: 'releaseId'),
-              arch: any(named: 'arch'),
-              platform: any(named: 'platform'),
-              hash: any(named: 'hash'),
-              canSideload: any(named: 'canSideload'),
-              podfileLockHash: any(named: 'podfileLockHash'),
-            ),
-          ).thenThrow(error);
-          setUpProjectRoot();
-
-          await expectLater(
-            () async => runWithOverrides(
-              () async =>
-                  codePushClientWrapper.createAndroidArchiveReleaseArtifacts(
-                    appId: app.appId,
-                    releaseId: releaseId,
-                    platform: releasePlatform,
-                    aarPath: p.join(projectRoot.path, aarPath),
-                    extractedAarDir: p.join(projectRoot.path, extractedAarPath),
-                    architectures: Arch.values,
-                  ),
-            ),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(() => progress.fail(any(that: contains(error)))).called(1);
-        });
-
-        test(
-          'logs message when uploading release artifact that already exists',
-          () async {
-            const error = 'something went wrong';
-            when(
-              () => codePushClient.createReleaseArtifact(
-                appId: any(named: 'appId'),
-                artifactPath: any(named: 'artifactPath'),
-                releaseId: any(named: 'releaseId'),
-                arch: any(named: 'arch'),
-                platform: any(named: 'platform'),
-                hash: any(named: 'hash'),
-                canSideload: any(named: 'canSideload'),
-                podfileLockHash: any(named: 'podfileLockHash'),
-              ),
-            ).thenThrow(const CodePushConflictException(message: error));
-            setUpProjectRoot();
-
-            await runWithOverrides(
-              () async =>
-                  codePushClientWrapper.createAndroidArchiveReleaseArtifacts(
-                    appId: app.appId,
-                    releaseId: releaseId,
-                    platform: releasePlatform,
-                    aarPath: p.join(projectRoot.path, aarPath),
-                    extractedAarDir: p.join(projectRoot.path, extractedAarPath),
-                    architectures: Arch.values,
-                  ),
-            );
-
-            // 1 for each arch, 1 for the aab
-            final numArtifactsUploaded = Arch.values.length + 1;
-            verify(
-              () => logger.info(any(that: contains('already exists'))),
-            ).called(numArtifactsUploaded);
-            verifyNever(() => progress.fail(error));
-          },
-        );
-
-        test('logs message when uploading aar that already exists', () async {
-          const error = 'something went wrong';
-          when(
-            () => codePushClient.createReleaseArtifact(
-              appId: any(named: 'appId'),
-              artifactPath: any(named: 'artifactPath', that: endsWith('.aar')),
-              releaseId: any(named: 'releaseId'),
-              arch: any(named: 'arch'),
-              platform: any(named: 'platform'),
-              hash: any(named: 'hash'),
-              canSideload: any(named: 'canSideload'),
-              podfileLockHash: any(named: 'podfileLockHash'),
-            ),
-          ).thenThrow(const CodePushConflictException(message: error));
-          setUpProjectRoot();
-
-          await runWithOverrides(
-            () async =>
-                codePushClientWrapper.createAndroidArchiveReleaseArtifacts(
-                  appId: app.appId,
-                  releaseId: releaseId,
-                  platform: releasePlatform,
-                  aarPath: p.join(projectRoot.path, aarPath),
-                  extractedAarDir: p.join(projectRoot.path, extractedAarPath),
-                  architectures: Arch.values,
-                ),
-          );
-
-          verify(
-            () => logger.info(
-              any(that: contains('aar artifact already exists, continuing...')),
-            ),
-          ).called(1);
-          verifyNever(() => progress.fail(error));
-        });
-
         test('completes successfully when all artifacts are created', () async {
           when(
             () => codePushClient.createReleaseArtifact(
@@ -2014,6 +3227,35 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
 
           verify(() => progress.complete()).called(1);
           verifyNever(() => progress.fail(any()));
+          for (final arch in Arch.values) {
+            verify(
+              () => codePushClient.createReleaseArtifact(
+                appId: app.appId,
+                artifactPath: any(
+                  named: 'artifactPath',
+                  that: endsWith(p.join(arch.androidBuildPath, 'libapp.so')),
+                ),
+                releaseId: releaseId,
+                arch: arch.arch,
+                platform: releasePlatform,
+                hash: any(named: 'hash'),
+                canSideload: false,
+                podfileLockHash: null,
+              ),
+            ).called(1);
+          }
+          verify(
+            () => codePushClient.createReleaseArtifact(
+              appId: app.appId,
+              artifactPath: p.join(projectRoot.path, aarPath),
+              releaseId: releaseId,
+              arch: 'aar',
+              platform: releasePlatform,
+              hash: any(named: 'hash'),
+              canSideload: false,
+              podfileLockHash: null,
+            ),
+          ).called(1);
         });
 
         test('completes successfully when a flavor is provided', () async {
@@ -2059,6 +3301,110 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
           verify(() => progress.complete()).called(1);
           verifyNever(() => progress.fail(any()));
         });
+
+        test('skips archs with no libapp.so and uploads the rest', () async {
+          setUpProjectRoot();
+          const missingArch = Arch.x86_64;
+          File(
+            p.join(
+              projectRoot.path,
+              extractedAarPath,
+              'jni',
+              missingArch.androidBuildPath,
+              'libapp.so',
+            ),
+          ).deleteSync();
+
+          await runWithOverrides(
+            () async =>
+                codePushClientWrapper.createAndroidArchiveReleaseArtifacts(
+                  appId: app.appId,
+                  releaseId: releaseId,
+                  platform: releasePlatform,
+                  aarPath: p.join(projectRoot.path, aarPath),
+                  extractedAarDir: p.join(projectRoot.path, extractedAarPath),
+                  architectures: Arch.values,
+                ),
+          );
+
+          // One upload per surviving arch, plus one for the aar.
+          verify(
+            () => codePushClient.createReleaseArtifact(
+              appId: any(named: 'appId'),
+              artifactPath: any(named: 'artifactPath'),
+              releaseId: any(named: 'releaseId'),
+              arch: any(named: 'arch'),
+              platform: any(named: 'platform'),
+              hash: any(named: 'hash'),
+              canSideload: any(named: 'canSideload'),
+              podfileLockHash: any(named: 'podfileLockHash'),
+            ),
+          ).called(Arch.values.length);
+          verifyNever(
+            () => codePushClient.createReleaseArtifact(
+              appId: any(named: 'appId'),
+              artifactPath: any(named: 'artifactPath'),
+              releaseId: any(named: 'releaseId'),
+              arch: missingArch.arch,
+              platform: any(named: 'platform'),
+              hash: any(named: 'hash'),
+              canSideload: any(named: 'canSideload'),
+              podfileLockHash: any(named: 'podfileLockHash'),
+            ),
+          );
+          verify(() => progress.complete()).called(1);
+          verifyNever(() => progress.fail(any()));
+        });
+
+        test(
+          'exits with code 70 when every requested arch is missing',
+          () async {
+            File(p.join(projectRoot.path, aarPath)).createSync(recursive: true);
+
+            await expectLater(
+              () async => runWithOverrides(
+                () async =>
+                    codePushClientWrapper.createAndroidArchiveReleaseArtifacts(
+                      appId: app.appId,
+                      releaseId: releaseId,
+                      platform: releasePlatform,
+                      aarPath: p.join(projectRoot.path, aarPath),
+                      extractedAarDir: p.join(
+                        projectRoot.path,
+                        extractedAarPath,
+                      ),
+                      architectures: Arch.values,
+                    ),
+              ),
+              exitsWithCode(ExitCode.software),
+            );
+
+            verify(
+              () => progress.fail(
+                any(
+                  that: allOf(
+                    contains('No architecture artifacts found to upload'),
+                    // ABI names, not paths: the directory searched may be
+                    // a temporary one deleted before the command exits.
+                    contains('  - ${Arch.arm64.androidBuildPath}\n'),
+                  ),
+                ),
+              ),
+            ).called(1);
+            verifyNever(
+              () => codePushClient.createReleaseArtifact(
+                appId: any(named: 'appId'),
+                artifactPath: any(named: 'artifactPath'),
+                releaseId: any(named: 'releaseId'),
+                arch: any(named: 'arch'),
+                platform: any(named: 'platform'),
+                hash: any(named: 'hash'),
+                canSideload: any(named: 'canSideload'),
+                podfileLockHash: any(named: 'podfileLockHash'),
+              ),
+            );
+          },
+        );
       });
     });
 
@@ -2090,123 +3436,6 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
           ),
         ).thenAnswer((_) async {});
       });
-
-      test(
-        'exits with code 70 when xcarchive artifact creation fails',
-        () async {
-          const error = 'something went wrong';
-          when(
-            () => codePushClient.createReleaseArtifact(
-              appId: any(named: 'appId'),
-              artifactPath: any(
-                named: 'artifactPath',
-                that: endsWith('.xcarchive.zip'),
-              ),
-              releaseId: any(named: 'releaseId'),
-              arch: any(named: 'arch'),
-              platform: any(named: 'platform'),
-              hash: any(named: 'hash'),
-              canSideload: any(named: 'canSideload'),
-              podfileLockHash: any(named: 'podfileLockHash'),
-            ),
-          ).thenThrow(error);
-          setUpProjectRoot();
-
-          await expectLater(
-            () async => runWithOverrides(
-              () async => codePushClientWrapper.createIosReleaseArtifacts(
-                appId: app.appId,
-                releaseId: releaseId,
-                xcarchivePath: p.join(projectRoot.path, xcarchivePath),
-                runnerPath: p.join(projectRoot.path, runnerPath),
-                isCodesigned: true,
-                podfileLockHash: podfileLockHash,
-              ),
-            ),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(() => progress.fail(any(that: contains(error)))).called(1);
-        },
-      );
-
-      test(
-        'exits with code 70 when uploading xcarchive that already exists',
-        () async {
-          const error = 'something went wrong';
-          when(
-            () => codePushClient.createReleaseArtifact(
-              appId: any(named: 'appId'),
-              artifactPath: any(
-                named: 'artifactPath',
-                that: endsWith('.xcarchive.zip'),
-              ),
-              releaseId: any(named: 'releaseId'),
-              arch: any(named: 'arch'),
-              platform: any(named: 'platform'),
-              hash: any(named: 'hash'),
-              canSideload: any(named: 'canSideload'),
-              podfileLockHash: any(named: 'podfileLockHash'),
-            ),
-          ).thenThrow(const CodePushConflictException(message: error));
-          setUpProjectRoot();
-
-          await expectLater(
-            () async => runWithOverrides(
-              () async => codePushClientWrapper.createIosReleaseArtifacts(
-                appId: app.appId,
-                releaseId: releaseId,
-                xcarchivePath: p.join(projectRoot.path, xcarchivePath),
-                runnerPath: p.join(projectRoot.path, runnerPath),
-                isCodesigned: false,
-                podfileLockHash: podfileLockHash,
-              ),
-            ),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(() => progress.fail(any(that: contains(error)))).called(1);
-        },
-      );
-
-      test(
-        'exits with code 70 when xcarchive artifact creation fails',
-        () async {
-          const error = 'something went wrong';
-          when(
-            () => codePushClient.createReleaseArtifact(
-              appId: any(named: 'appId'),
-              artifactPath: any(
-                named: 'artifactPath',
-                that: endsWith('runner.app.zip'),
-              ),
-              releaseId: any(named: 'releaseId'),
-              arch: any(named: 'arch'),
-              platform: any(named: 'platform'),
-              hash: any(named: 'hash'),
-              canSideload: any(named: 'canSideload'),
-              podfileLockHash: any(named: 'podfileLockHash'),
-            ),
-          ).thenThrow(error);
-          setUpProjectRoot();
-
-          await expectLater(
-            () async => runWithOverrides(
-              () async => codePushClientWrapper.createIosReleaseArtifacts(
-                appId: app.appId,
-                releaseId: releaseId,
-                xcarchivePath: p.join(projectRoot.path, xcarchivePath),
-                runnerPath: p.join(projectRoot.path, runnerPath),
-                isCodesigned: false,
-                podfileLockHash: podfileLockHash,
-              ),
-            ),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(() => progress.fail(any(that: contains(error)))).called(1);
-        },
-      );
 
       test('completes successfully when artifact is created', () async {
         when(
@@ -2244,14 +3473,84 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               that: endsWith('.xcarchive.zip'),
             ),
             releaseId: releaseId,
-            arch: any(named: 'arch'),
-            platform: releasePlatform,
+            arch: 'xcarchive',
+            platform: ReleasePlatform.ios,
             hash: any(named: 'hash'),
-            canSideload: any(named: 'canSideload'),
+            canSideload: false,
+            podfileLockHash: podfileLockHash,
+          ),
+        ).called(1);
+        verify(
+          () => codePushClient.createReleaseArtifact(
+            appId: app.appId,
+            artifactPath: any(
+              named: 'artifactPath',
+              that: endsWith('runner.app.zip'),
+            ),
+            releaseId: releaseId,
+            arch: 'runner',
+            platform: ReleasePlatform.ios,
+            hash: any(named: 'hash'),
+            canSideload: true,
             podfileLockHash: podfileLockHash,
           ),
         ).called(1);
       });
+
+      test('deletes the thinned archive and zips it creates', () async {
+        setUpProjectRoot();
+
+        final systemTemp = createSystemTemp();
+        await runWithSystemTemp(
+          systemTemp,
+          () => runWithOverrides(
+            () => codePushClientWrapper.createIosReleaseArtifacts(
+              appId: app.appId,
+              releaseId: releaseId,
+              xcarchivePath: p.join(projectRoot.path, xcarchivePath),
+              runnerPath: p.join(projectRoot.path, runnerPath),
+              isCodesigned: true,
+              podfileLockHash: podfileLockHash,
+            ),
+          ),
+        );
+
+        expect(systemTemp.listSync(), isEmpty);
+      });
+
+      test(
+        'marks the runner as not sideloadable when not codesigned',
+        () async {
+          setUpProjectRoot();
+
+          await runWithOverrides(
+            () async => codePushClientWrapper.createIosReleaseArtifacts(
+              appId: app.appId,
+              releaseId: releaseId,
+              xcarchivePath: p.join(projectRoot.path, xcarchivePath),
+              runnerPath: p.join(projectRoot.path, runnerPath),
+              isCodesigned: false,
+              podfileLockHash: podfileLockHash,
+            ),
+          );
+
+          verify(
+            () => codePushClient.createReleaseArtifact(
+              appId: app.appId,
+              artifactPath: any(
+                named: 'artifactPath',
+                that: endsWith('runner.app.zip'),
+              ),
+              releaseId: releaseId,
+              arch: 'runner',
+              platform: ReleasePlatform.ios,
+              hash: any(named: 'hash'),
+              canSideload: false,
+              podfileLockHash: podfileLockHash,
+            ),
+          ).called(1);
+        },
+      );
     });
 
     group('createLinuxReleaseArtifacts', () {
@@ -2261,38 +3560,6 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
         releaseBundle = Directory(
           p.join(projectRoot.path, 'path', 'to', 'bundle'),
         )..createSync(recursive: true);
-      });
-
-      group('when createReleaseArtifact fails', () {
-        setUp(() {
-          when(
-            () => codePushClient.createReleaseArtifact(
-              artifactPath: any(named: 'artifactPath'),
-              appId: any(named: 'appId'),
-              releaseId: any(named: 'releaseId'),
-              arch: any(named: 'arch'),
-              platform: any(named: 'platform'),
-              hash: any(named: 'hash'),
-              canSideload: any(named: 'canSideload'),
-              podfileLockHash: any(named: 'podfileLockHash'),
-            ),
-          ).thenThrow(Exception('something went wrong'));
-        });
-
-        test('exits with code 70', () async {
-          await expectLater(
-            () async => runWithOverrides(
-              () => codePushClientWrapper.createLinuxReleaseArtifacts(
-                appId: app.appId,
-                releaseId: releaseId,
-                bundle: releaseBundle,
-              ),
-            ),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(() => progress.fail(any())).called(1);
-        });
       });
 
       group('when createReleaseArtifact succeeds', () {
@@ -2307,6 +3574,7 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               hash: any(named: 'hash'),
               canSideload: any(named: 'canSideload'),
               podfileLockHash: any(named: 'podfileLockHash'),
+              signing: any(named: 'signing'),
             ),
           ).thenAnswer((_) async {});
         });
@@ -2334,6 +3602,51 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               podfileLockHash: null,
             ),
           ).called(1);
+        });
+
+        test('records how the build is signed', () async {
+          const signing = ArtifactSigningRequest(
+            mode: ReleaseSigningMode.managed,
+            keyId: 7,
+          );
+          await runWithOverrides(
+            () async => codePushClientWrapper.createLinuxReleaseArtifacts(
+              appId: app.appId,
+              releaseId: releaseId,
+              bundle: releaseBundle,
+              signing: signing,
+            ),
+          );
+
+          verify(
+            () => codePushClient.createReleaseArtifact(
+              artifactPath: any(named: 'artifactPath'),
+              appId: appId,
+              releaseId: releaseId,
+              arch: primaryLinuxReleaseArtifactArch,
+              platform: ReleasePlatform.linux,
+              hash: any(named: 'hash'),
+              canSideload: true,
+              podfileLockHash: null,
+              signing: signing,
+            ),
+          ).called(1);
+        });
+
+        test('deletes the zipped bundle', () async {
+          final systemTemp = createSystemTemp();
+          await runWithSystemTemp(
+            systemTemp,
+            () => runWithOverrides(
+              () => codePushClientWrapper.createLinuxReleaseArtifacts(
+                appId: app.appId,
+                releaseId: releaseId,
+                bundle: releaseBundle,
+              ),
+            ),
+          );
+
+          expect(systemTemp.listSync(), isEmpty);
         });
       });
     });
@@ -2372,34 +3685,6 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
         setUpProjectRoot();
       });
 
-      test('exits with code 70 when creating app artifact fails', () async {
-        when(
-          () => codePushClient.createReleaseArtifact(
-            artifactPath: any(named: 'artifactPath'),
-            appId: any(named: 'appId'),
-            releaseId: any(named: 'releaseId'),
-            arch: any(named: 'arch'),
-            platform: any(named: 'platform'),
-            hash: any(named: 'hash'),
-            canSideload: any(named: 'canSideload'),
-            podfileLockHash: any(named: 'podfileLockHash'),
-          ),
-        ).thenThrow(Exception('oh no'));
-
-        await expectLater(
-          () async => runWithOverrides(
-            () => codePushClientWrapper.createMacosReleaseArtifacts(
-              appId: app.appId,
-              releaseId: releaseId,
-              appPath: p.join(projectRoot.path, appPath),
-              isCodesigned: false,
-              podfileLockHash: null,
-            ),
-          ),
-          exitsWithCode(ExitCode.software),
-        );
-      });
-
       test('completes successfully when release artifact is created', () async {
         await expectLater(
           runWithOverrides(
@@ -2407,12 +3692,43 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               appId: app.appId,
               releaseId: releaseId,
               appPath: p.join(projectRoot.path, appPath),
-              isCodesigned: false,
-              podfileLockHash: null,
+              podfileLockHash: 'podfile-lock-hash',
             ),
           ),
           completes,
         );
+        verify(
+          () => codePushClient.createReleaseArtifact(
+            appId: app.appId,
+            artifactPath: any(
+              named: 'artifactPath',
+              that: endsWith('Runner.app.zip'),
+            ),
+            releaseId: releaseId,
+            arch: 'app',
+            platform: ReleasePlatform.macos,
+            hash: any(named: 'hash'),
+            canSideload: true,
+            podfileLockHash: 'podfile-lock-hash',
+          ),
+        ).called(1);
+      });
+
+      test('deletes the archived app', () async {
+        final systemTemp = createSystemTemp();
+        await runWithSystemTemp(
+          systemTemp,
+          () => runWithOverrides(
+            () => codePushClientWrapper.createMacosReleaseArtifacts(
+              appId: app.appId,
+              releaseId: releaseId,
+              appPath: p.join(projectRoot.path, appPath),
+              podfileLockHash: 'podfile-lock-hash',
+            ),
+          ),
+        );
+
+        expect(systemTemp.listSync(), isEmpty);
       });
     });
 
@@ -2441,35 +3757,6 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
         setUpProjectRoot();
       });
 
-      test(
-        'exits with code 70 when creating xcframework artifact fails',
-        () async {
-          when(
-            () => codePushClient.createReleaseArtifact(
-              artifactPath: any(named: 'artifactPath'),
-              appId: any(named: 'appId'),
-              releaseId: any(named: 'releaseId'),
-              arch: any(named: 'arch'),
-              platform: any(named: 'platform'),
-              hash: any(named: 'hash'),
-              canSideload: any(named: 'canSideload'),
-              podfileLockHash: any(named: 'podfileLockHash'),
-            ),
-          ).thenThrow(Exception('oh no'));
-
-          await expectLater(
-            () async => runWithOverrides(
-              () => codePushClientWrapper.createIosFrameworkReleaseArtifacts(
-                appId: app.appId,
-                releaseId: releaseId,
-                appFrameworkPath: p.join(projectRoot.path, frameworkPath),
-              ),
-            ),
-            exitsWithCode(ExitCode.software),
-          );
-        },
-      );
-
       test('completes successfully when release artifact is created', () async {
         await expectLater(
           runWithOverrides(
@@ -2481,6 +3768,150 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
           ),
           completes,
         );
+        verify(
+          () => codePushClient.createReleaseArtifact(
+            appId: app.appId,
+            artifactPath: any(named: 'artifactPath', that: endsWith('.zip')),
+            releaseId: releaseId,
+            arch: 'xcframework',
+            platform: ReleasePlatform.ios,
+            hash: any(named: 'hash'),
+            canSideload: false,
+            podfileLockHash: null,
+          ),
+        ).called(1);
+      });
+
+      test('deletes the zipped framework', () async {
+        final systemTemp = createSystemTemp();
+        await runWithSystemTemp(
+          systemTemp,
+          () => runWithOverrides(
+            () => codePushClientWrapper.createIosFrameworkReleaseArtifacts(
+              appId: app.appId,
+              releaseId: releaseId,
+              appFrameworkPath: p.join(projectRoot.path, frameworkPath),
+            ),
+          ),
+        );
+
+        expect(systemTemp.listSync(), isEmpty);
+      });
+    });
+
+    group('createSupplementReleaseArtifact', () {
+      late Directory supplementDirectory;
+
+      setUp(() {
+        supplementDirectory = Directory(
+          p.join(projectRoot.path, 'path', 'to', 'supplement'),
+        )..createSync(recursive: true);
+      });
+
+      Future<void> createSupplement() => runWithOverrides(
+        () => codePushClientWrapper.createSupplementReleaseArtifact(
+          appId: app.appId,
+          releaseId: releaseId,
+          platform: ReleasePlatform.ios,
+          supplementDirectoryPath: supplementDirectory.path,
+          arch: 'ios_supplement',
+        ),
+      );
+
+      void stubCreateReleaseArtifact(Object? error) {
+        final stub = when(
+          () => codePushClient.createReleaseArtifact(
+            artifactPath: any(named: 'artifactPath'),
+            appId: any(named: 'appId'),
+            releaseId: any(named: 'releaseId'),
+            arch: any(named: 'arch'),
+            platform: any(named: 'platform'),
+            hash: any(named: 'hash'),
+            canSideload: any(named: 'canSideload'),
+            podfileLockHash: any(named: 'podfileLockHash'),
+          ),
+        );
+        if (error == null) {
+          stub.thenAnswer((_) async {});
+        } else {
+          stub.thenThrow(error);
+        }
+      }
+
+      // Every release artifact upload goes through the same helper, so these
+      // tests cover the failure and conflict handling for every platform.
+      test('exits with code 70 when creating the artifact fails', () async {
+        stubCreateReleaseArtifact(Exception('oh no'));
+
+        await expectLater(createSupplement, exitsWithCode(ExitCode.software));
+        verify(
+          () => progress.fail(
+            'Error uploading supplement artifact: Exception: oh no',
+          ),
+        ).called(1);
+        verifyNever(() => progress.complete());
+      });
+
+      test('logs and continues when the artifact already exists', () async {
+        stubCreateReleaseArtifact(
+          const CodePushConflictException(message: 'exists'),
+        );
+
+        await createSupplement();
+
+        verify(
+          () => logger.info(
+            any(
+              that: contains('supplement artifact already exists, continuing'),
+            ),
+          ),
+        ).called(1);
+        verify(() => progress.complete()).called(1);
+        verifyNever(() => progress.fail(any()));
+      });
+
+      test('completes successfully when the artifact is created', () async {
+        stubCreateReleaseArtifact(null);
+
+        await createSupplement();
+
+        verify(() => progress.complete()).called(1);
+        verifyNever(() => progress.fail(any()));
+        verify(
+          () => codePushClient.createReleaseArtifact(
+            appId: app.appId,
+            artifactPath: any(
+              named: 'artifactPath',
+              that: endsWith('ios_supplement.zip'),
+            ),
+            releaseId: releaseId,
+            arch: 'ios_supplement',
+            platform: ReleasePlatform.ios,
+            hash: any(named: 'hash'),
+            canSideload: false,
+            podfileLockHash: null,
+          ),
+        ).called(1);
+      });
+
+      test('deletes the zipped supplement after uploading it', () async {
+        stubCreateReleaseArtifact(null);
+
+        final systemTemp = createSystemTemp();
+        await runWithSystemTemp(systemTemp, createSupplement);
+
+        expect(systemTemp.listSync(), isEmpty);
+      });
+
+      test('deletes the zipped supplement when the upload fails', () async {
+        stubCreateReleaseArtifact(Exception('oh no'));
+
+        final systemTemp = createSystemTemp();
+        await expectLater(
+          () => runWithSystemTemp(systemTemp, createSupplement),
+          exitsWithCode(ExitCode.software),
+        );
+        expect(systemTemp.listSync(), isEmpty);
       });
     });
 
@@ -2668,6 +4099,206 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
         });
       });
 
+      group('rollbackPatch', () {
+        const releaseId = 7;
+        const patchNumber = 1;
+
+        test('exits with code 70 when rollback fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.rollbackPatch(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              patchId: any(named: 'patchId'),
+            ),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.rollbackPatch(
+                appId: appId,
+                releaseId: releaseId,
+                patchId: patchId,
+                patchNumber: patchNumber,
+              ),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+
+        test('completes progress when patch is rolled back', () async {
+          when(
+            () => codePushClient.rollbackPatch(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              patchId: any(named: 'patchId'),
+            ),
+          ).thenAnswer((_) async => true);
+
+          final changed = await runWithOverrides(
+            () => codePushClientWrapper.rollbackPatch(
+              appId: appId,
+              releaseId: releaseId,
+              patchId: patchId,
+              patchNumber: patchNumber,
+            ),
+          );
+
+          expect(changed, isTrue);
+          verify(() => progress.complete()).called(1);
+        });
+
+        test('forwards the no-op result from the client', () async {
+          when(
+            () => codePushClient.rollbackPatch(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              patchId: any(named: 'patchId'),
+            ),
+          ).thenAnswer((_) async => false);
+
+          final changed = await runWithOverrides(
+            () => codePushClientWrapper.rollbackPatch(
+              appId: appId,
+              releaseId: releaseId,
+              patchId: patchId,
+              patchNumber: patchNumber,
+            ),
+          );
+
+          expect(changed, isFalse);
+          verify(
+            () => progress.complete(
+              'No change: patch $patchNumber was already rolled back',
+            ),
+          ).called(1);
+        });
+
+        test(
+          'omits patch number from progress label when not provided',
+          () async {
+            when(
+              () => codePushClient.rollbackPatch(
+                appId: any(named: 'appId'),
+                releaseId: any(named: 'releaseId'),
+                patchId: any(named: 'patchId'),
+              ),
+            ).thenAnswer((_) async => true);
+
+            await runWithOverrides(
+              () => codePushClientWrapper.rollbackPatch(
+                appId: appId,
+                releaseId: releaseId,
+                patchId: patchId,
+              ),
+            );
+
+            verify(() => logger.progress('Rolling back patch')).called(1);
+          },
+        );
+      });
+
+      group('rollforwardPatch', () {
+        const releaseId = 7;
+        const patchNumber = 1;
+
+        test('exits with code 70 when rollforward fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.rollforwardPatch(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              patchId: any(named: 'patchId'),
+            ),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.rollforwardPatch(
+                appId: appId,
+                releaseId: releaseId,
+                patchId: patchId,
+                patchNumber: patchNumber,
+              ),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+          verify(() => progress.fail(error)).called(1);
+        });
+
+        test('completes progress when patch is rolled forward', () async {
+          when(
+            () => codePushClient.rollforwardPatch(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              patchId: any(named: 'patchId'),
+            ),
+          ).thenAnswer((_) async => true);
+
+          final changed = await runWithOverrides(
+            () => codePushClientWrapper.rollforwardPatch(
+              appId: appId,
+              releaseId: releaseId,
+              patchId: patchId,
+              patchNumber: patchNumber,
+            ),
+          );
+
+          expect(changed, isTrue);
+          verify(() => progress.complete()).called(1);
+        });
+
+        test('forwards the no-op result from the client', () async {
+          when(
+            () => codePushClient.rollforwardPatch(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              patchId: any(named: 'patchId'),
+            ),
+          ).thenAnswer((_) async => false);
+
+          final changed = await runWithOverrides(
+            () => codePushClientWrapper.rollforwardPatch(
+              appId: appId,
+              releaseId: releaseId,
+              patchId: patchId,
+              patchNumber: patchNumber,
+            ),
+          );
+
+          expect(changed, isFalse);
+          verify(
+            () => progress.complete(
+              'No change: patch $patchNumber was already active',
+            ),
+          ).called(1);
+        });
+
+        test(
+          'omits patch number from progress label when not provided',
+          () async {
+            when(
+              () => codePushClient.rollforwardPatch(
+                appId: any(named: 'appId'),
+                releaseId: any(named: 'releaseId'),
+                patchId: any(named: 'patchId'),
+              ),
+            ).thenAnswer((_) async => true);
+
+            await runWithOverrides(
+              () => codePushClientWrapper.rollforwardPatch(
+                appId: appId,
+                releaseId: releaseId,
+                patchId: patchId,
+              ),
+            );
+
+            verify(() => logger.progress('Rolling forward patch')).called(1);
+          },
+        );
+      });
+
       group('createPatchArtifacts', () {
         test('exits with code 70 when creating patch artifact fails', () async {
           const error = 'something went wrong';
@@ -2729,6 +4360,175 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               hash: patchArtifactBundle.hash,
             ),
           ).called(1);
+        });
+      });
+
+      group('createPatchAssetArtifact', () {
+        late Directory tempDir;
+        late File bundle;
+
+        setUp(() {
+          tempDir = Directory.systemTemp.createTempSync();
+          bundle = File(p.join(tempDir.path, 'assets.zip'))
+            ..writeAsBytesSync([1, 2, 3, 4]);
+        });
+
+        test('uploads the bundle tagged as assets, not as an arch', () async {
+          when(
+            () => codePushClient.createPatchArtifact(
+              appId: any(named: 'appId'),
+              patchId: any(named: 'patchId'),
+              artifactPath: any(named: 'artifactPath'),
+              arch: any(named: 'arch'),
+              platform: any(named: 'platform'),
+              hash: any(named: 'hash'),
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.createPatchAssetArtifact(
+              appId: appId,
+              patch: patch,
+              platform: releasePlatform,
+              bundle: bundle,
+            ),
+          );
+
+          // The whole point: it rides the existing artifact endpoint, so the
+          // only thing distinguishing it from code is the arch tag.
+          verify(
+            () => codePushClient.createPatchArtifact(
+              appId: appId,
+              patchId: patchId,
+              artifactPath: bundle.path,
+              arch: assetsArch,
+              platform: releasePlatform,
+              hash: sha256.convert(bundle.readAsBytesSync()).toString(),
+            ),
+          ).called(1);
+          verify(() => progress.complete()).called(1);
+        });
+
+        test('carries the supplied signature on the assets artifact, and '
+            'none without one', () async {
+          when(
+            () => codePushClient.createPatchArtifact(
+              appId: any(named: 'appId'),
+              patchId: any(named: 'patchId'),
+              artifactPath: any(named: 'artifactPath'),
+              arch: any(named: 'arch'),
+              platform: any(named: 'platform'),
+              hash: any(named: 'hash'),
+              hashSignature: any(named: 'hashSignature'),
+            ),
+          ).thenAnswer((_) async {});
+          final hash = sha256.convert(bundle.readAsBytesSync()).toString();
+
+          await runWithOverrides(
+            () => codePushClientWrapper.createPatchAssetArtifact(
+              appId: appId,
+              patch: patch,
+              platform: releasePlatform,
+              bundle: bundle,
+              hashSignature: 'c2ln',
+            ),
+          );
+          verify(
+            () => codePushClient.createPatchArtifact(
+              appId: appId,
+              patchId: patchId,
+              artifactPath: bundle.path,
+              arch: assetsArch,
+              platform: releasePlatform,
+              hash: hash,
+              hashSignature: 'c2ln',
+            ),
+          ).called(1);
+
+          await runWithOverrides(
+            () => codePushClientWrapper.createPatchAssetArtifact(
+              appId: appId,
+              patch: patch,
+              platform: releasePlatform,
+              bundle: bundle,
+            ),
+          );
+          verify(
+            () => codePushClient.createPatchArtifact(
+              appId: appId,
+              patchId: patchId,
+              artifactPath: bundle.path,
+              arch: assetsArch,
+              platform: releasePlatform,
+              hash: hash,
+              hashSignature: null,
+            ),
+          ).called(1);
+        });
+
+        test('retains debug symbols under the symbols tag', () async {
+          final symbols = File(p.join(tempDir.path, 'patch-debug.zip'))
+            ..writeAsBytesSync([9, 9, 9]);
+          when(
+            () => codePushClient.createPatchArtifact(
+              appId: any(named: 'appId'),
+              patchId: any(named: 'patchId'),
+              artifactPath: any(named: 'artifactPath'),
+              arch: any(named: 'arch'),
+              platform: any(named: 'platform'),
+              hash: any(named: 'hash'),
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.createPatchSymbolArtifact(
+              appId: appId,
+              patch: patch,
+              platform: releasePlatform,
+              symbols: symbols,
+            ),
+          );
+
+          // Distinguished from assets and from code by the arch tag alone.
+          verify(
+            () => codePushClient.createPatchArtifact(
+              appId: appId,
+              patchId: patchId,
+              artifactPath: symbols.path,
+              arch: symbolsArch,
+              platform: releasePlatform,
+              hash: sha256.convert(symbols.readAsBytesSync()).toString(),
+            ),
+          ).called(1);
+          expect(symbolsArch, isNot(assetsArch));
+        });
+
+        test('exits with code 70 when the upload fails', () async {
+          const error = 'something went wrong';
+          when(
+            () => codePushClient.createPatchArtifact(
+              appId: any(named: 'appId'),
+              patchId: any(named: 'patchId'),
+              artifactPath: any(named: 'artifactPath'),
+              arch: any(named: 'arch'),
+              platform: any(named: 'platform'),
+              hash: any(named: 'hash'),
+            ),
+          ).thenThrow(error);
+
+          await expectLater(
+            () async => runWithOverrides(
+              () => codePushClientWrapper.createPatchAssetArtifact(
+                appId: appId,
+                patch: patch,
+                platform: releasePlatform,
+                bundle: bundle,
+              ),
+            ),
+            exitsWithCode(ExitCode.software),
+          );
+
+          verify(() => progress.fail(error)).called(1);
         });
       });
 
@@ -2805,6 +4605,217 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               channelId: channel.id,
             ),
           ).called(1);
+        });
+
+        group('sidecars', () {
+          late File assetsBundle;
+          late File symbolsBundle;
+
+          setUp(() {
+            final tempDir = Directory.systemTemp.createTempSync();
+            assetsBundle = File(p.join(tempDir.path, 'assets.zip'))
+              ..writeAsBytesSync([1, 2, 3, 4]);
+            symbolsBundle = File(p.join(tempDir.path, 'symbols.zip'))
+              ..writeAsBytesSync([5, 6, 7, 8]);
+          });
+
+          test('uploads nothing extra by default', () async {
+            await runWithOverrides(
+              () => codePushClientWrapper.publishPatch(
+                appId: appId,
+                releaseId: releaseId,
+                track: track,
+                patchArtifactBundles: {releasePlatform: patchArtifactBundles},
+                metadata: {'foo': 'bar'},
+              ),
+            );
+
+            // Stock behavior: only the code artifact goes up.
+            verifyNever(
+              () => codePushClient.createPatchArtifact(
+                appId: any(named: 'appId'),
+                patchId: any(named: 'patchId'),
+                artifactPath: any(named: 'artifactPath'),
+                arch: any(named: 'arch', that: isIn([assetsArch, symbolsArch])),
+                platform: any(named: 'platform'),
+                hash: any(named: 'hash'),
+              ),
+            );
+          });
+
+          test('uploads assets and symbols for the platform that has '
+              'them', () async {
+            await runWithOverrides(
+              () => codePushClientWrapper.publishPatch(
+                appId: appId,
+                releaseId: releaseId,
+                track: track,
+                patchArtifactBundles: {releasePlatform: patchArtifactBundles},
+                metadata: {'foo': 'bar'},
+                sidecars: {
+                  releasePlatform: (
+                    assets: assetsBundle,
+                    assetsHashSignature: null,
+                    symbols: symbolsBundle,
+                  ),
+                },
+              ),
+            );
+
+            verify(
+              () => codePushClient.createPatchArtifact(
+                appId: appId,
+                patchId: patchId,
+                artifactPath: assetsBundle.path,
+                arch: assetsArch,
+                platform: releasePlatform,
+                hash: any(named: 'hash'),
+              ),
+            ).called(1);
+            verify(
+              () => codePushClient.createPatchArtifact(
+                appId: appId,
+                patchId: patchId,
+                artifactPath: symbolsBundle.path,
+                arch: symbolsArch,
+                platform: releasePlatform,
+                hash: any(named: 'hash'),
+              ),
+            ).called(1);
+          });
+
+          test('uploads only what a platform actually contributed', () async {
+            await runWithOverrides(
+              () => codePushClientWrapper.publishPatch(
+                appId: appId,
+                releaseId: releaseId,
+                track: track,
+                patchArtifactBundles: {releasePlatform: patchArtifactBundles},
+                metadata: {'foo': 'bar'},
+                sidecars: {
+                  releasePlatform: (
+                    assets: null,
+                    assetsHashSignature: null,
+                    symbols: symbolsBundle,
+                  ),
+                },
+              ),
+            );
+
+            verify(
+              () => codePushClient.createPatchArtifact(
+                appId: appId,
+                patchId: patchId,
+                artifactPath: symbolsBundle.path,
+                arch: symbolsArch,
+                platform: releasePlatform,
+                hash: any(named: 'hash'),
+              ),
+            ).called(1);
+            verifyNever(
+              () => codePushClient.createPatchArtifact(
+                appId: any(named: 'appId'),
+                patchId: any(named: 'patchId'),
+                artifactPath: any(named: 'artifactPath'),
+                arch: assetsArch,
+                platform: any(named: 'platform'),
+                hash: any(named: 'hash'),
+              ),
+            );
+          });
+
+          test('uploads them before the patch is promoted', () async {
+            // A patch is invisible until promotion, so sidecars uploaded
+            // beforehand are in place for the first device that can see it.
+            var promoted = false;
+            when(
+              () => codePushClient.promotePatch(
+                appId: any(named: 'appId'),
+                patchId: any(named: 'patchId'),
+                channelId: any(named: 'channelId'),
+              ),
+            ).thenAnswer((_) async {
+              promoted = true;
+            });
+            var assetsUploadedAfterPromotion = false;
+            when(
+              () => codePushClient.createPatchArtifact(
+                appId: any(named: 'appId'),
+                patchId: any(named: 'patchId'),
+                artifactPath: assetsBundle.path,
+                arch: any(named: 'arch'),
+                platform: any(named: 'platform'),
+                hash: any(named: 'hash'),
+              ),
+            ).thenAnswer((_) async {
+              assetsUploadedAfterPromotion = promoted;
+            });
+
+            await runWithOverrides(
+              () => codePushClientWrapper.publishPatch(
+                appId: appId,
+                releaseId: releaseId,
+                track: track,
+                patchArtifactBundles: {releasePlatform: patchArtifactBundles},
+                metadata: {'foo': 'bar'},
+                sidecars: {
+                  releasePlatform: (
+                    assets: assetsBundle,
+                    assetsHashSignature: null,
+                    symbols: null,
+                  ),
+                },
+              ),
+            );
+
+            expect(assetsUploadedAfterPromotion, isFalse);
+          });
+
+          test('uploads each platform its own sidecars', () async {
+            const platforms = [ReleasePlatform.android, ReleasePlatform.ios];
+
+            await runWithOverrides(
+              () => codePushClientWrapper.publishPatch(
+                appId: appId,
+                releaseId: releaseId,
+                track: track,
+                patchArtifactBundles: {
+                  for (final platform in platforms)
+                    platform: patchArtifactBundles,
+                },
+                metadata: {'foo': 'bar'},
+                // Only android contributed assets; ios must not inherit them.
+                sidecars: {
+                  ReleasePlatform.android: (
+                    assets: assetsBundle,
+                    assetsHashSignature: null,
+                    symbols: null,
+                  ),
+                },
+              ),
+            );
+
+            verify(
+              () => codePushClient.createPatchArtifact(
+                appId: appId,
+                patchId: patchId,
+                artifactPath: assetsBundle.path,
+                arch: assetsArch,
+                platform: ReleasePlatform.android,
+                hash: any(named: 'hash'),
+              ),
+            ).called(1);
+            verifyNever(
+              () => codePushClient.createPatchArtifact(
+                appId: any(named: 'appId'),
+                patchId: any(named: 'patchId'),
+                artifactPath: any(named: 'artifactPath'),
+                arch: assetsArch,
+                platform: ReleasePlatform.ios,
+                hash: any(named: 'hash'),
+              ),
+            );
+          });
         });
 
         test('creates channel if none exists', () async {
@@ -2974,3 +4985,5 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
     });
   });
 }
+
+class _MockServerNotices extends Mock implements ServerNotices {}

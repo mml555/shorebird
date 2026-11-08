@@ -1,7 +1,9 @@
 import 'package:shorebird_cli/src/executables/devicectl/nserror.dart';
 import 'package:test/test.dart';
+import '../../helpers.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(NSError, () {
     test('(de)serialization', () {
       const error = NSError(
@@ -40,6 +42,7 @@ NSError(
   description: description,
   localizedDescription: localizedDescription,
   localizedFailureReason: localizedFailureReason,
+  localizedRecoverySuggestion: null,
   underlyingError: null
 )
 )''');
@@ -74,6 +77,7 @@ UserInfo(
   description: description,
   localizedDescription: localizedDescription,
   localizedFailureReason: localizedFailureReason,
+  localizedRecoverySuggestion: null,
   underlyingError: null
 )''');
       });
@@ -142,6 +146,7 @@ NSUnderlyingError(
   description: description,
   localizedDescription: localizedDescription,
   localizedFailureReason: localizedFailureReason,
+  localizedRecoverySuggestion: null,
   underlyingError: null
 )
 )

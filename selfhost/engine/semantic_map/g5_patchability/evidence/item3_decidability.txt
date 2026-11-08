@@ -1,0 +1,374 @@
+SM1-G5 item 3 — is the unsafe call-site condition mechanically decidable
+                per declaration from the exact release?
+IN PROGRESS. No classification is made in this file.
+
+THE QUESTION, from #54's authorization:
+  * if a sound, fail-closed release analysis can decide a declaration has no
+    stale inlined/devirtualized copies -> REDUCE_SCOPE remains viable;
+  * if representing that distinction requires adding release-level call-site
+    facts to the semantic-map model -> MODIFY_MAP_DESIGN.
+  Source pragmas, symbol absence and "probably not inlined" are insufficient,
+  and unknown must remain refusal.
+
+############ FINDING A — the fact is not a property of the declaration ############
+
+  The same declaration, from the same source, has different call-site treatment
+  in two releases that differ only by a gen_snapshot flag:
+
+    --patchable_static_calls      static call becomes an indirect call through
+                                  the object pool (ldr x0,[x27,#..] / blr x30)
+    without it                    the same site is a direct bl
+
+  Both were measured in this gate (evidence/capability_marker.txt, arms 1-2 and
+  evidence/inlined_target.txt). So "is this declaration reachable by a
+  redirectable call" is a property of the (declaration, RELEASE) pair.
+
+  WHAT THAT DOES AND DOES NOT DISPROVE. It disproves that a SOURCE-ONLY
+  per-declaration fact can answer it -- the same reason a build transcript could
+  not answer the capability question. It does NOT disprove that a
+  per-declaration fact can answer it at all: the semantic map describes ONE
+  SPECIFIC RELEASE, so a fact DERIVED from that exact release still belongs in a
+  declaration row. The predictor already works that way, combining
+  per-declaration G2/G3/G4 rows with exact-release evidence to produce one
+  verdict per declaration.
+
+    release-global              patchable_static_calls(release)
+    release-derived per-decl    call_site_safety(declaration, release)
+
+  The second is what route 2 has to produce.
+
+############ FINDING B — the artifact does retain the inlining relation ############
+
+  runtime/vm/code_descriptors.h: "A CodeSourceMap maps from pc offsets to a
+  stack of inlined functions", retained in AOT so stack traces can be
+  symbolized. The information therefore EXISTS in the shipped snapshot.
+
+############ FINDING C — no shipped tool exposes it (a negative result) ############
+
+  analyze_snapshot, which ships in the same out/ directory, was run against the
+  item-2 release:
+
+    objects        12550
+    Function       1911      each carrying a `code` id
+    Code           1901
+    ObjectPool     1
+
+  It does NOT surface the inlining relation. Every occurrence of "inlin" in its
+  1.1 MB output is one of this corpus's own identifiers (`_inlineHelper`,
+  " inlined="), and `CodeSourceMap` appears only as a Class name, never as
+  decoded content.
+
+  The single ObjectPool object exposes a flat `references` array of 7284 ids
+  rather than typed pool slots, and none of the four target Code objects
+  (smallTarget 5650, alpha 5602/5600, callsSmall 5658, beta 5611) appears in it.
+  So pool membership as dumped is not a usable "has a redirectable call site"
+  signal either.
+
+  STATED AS A NEGATIVE RESULT, NOT A PROOF OF IMPOSSIBILITY. This says the
+  existing tool does not answer the question; it does not establish that no
+  sound analysis could. Two routes remain open and neither has been built:
+    1. decode the CodeSourceMap / inlining intervals out of the snapshot --
+       possible in principle, but VM-internal and version-coupled;
+    2. have gen_snapshot emit the relation, as it now emits the capability
+       marker, since the compiler knows exactly what it inlined.
+
+############ WHAT THIS BEARS ON, WITHOUT DECIDING IT ############
+
+  CORRECTION TO THIS FILE'S FIRST VERSION. It argued that release-level facts
+  imply MODIFY_MAP_DESIGN. That does not follow. MODIFY_MAP_DESIGN applies only
+  if the map CANNOT REPRESENT the required distinction -- and a
+  release-derived per-declaration predicate is representable in the existing
+  model, as a column on a row describing one specific release. Whether the
+  facts are emitted by the compiler (route 2) or extracted from the artifact
+  (route 1) is an implementation choice and does not by itself decide the
+  classification.
+
+  What is NOT yet established, and what item 3 still owes:
+    * whether either route yields a SOUND, fail-closed decision -- in
+      particular whether "no inlined copies" can be proven rather than merely
+      not-observed;
+    * whether devirtualized dispatch (the virtual/OLD-w arm) is decidable by
+      the same mechanism or needs a separate one;
+    * a predictor that CONSUMES the answer, which #54 requires before any
+      subset scoring.
+
+  No REDUCE_SCOPE or MODIFY_MAP_DESIGN classification is made here.
+
+############ ROUTE 2, BUILT — the compiler emits its own inlining decisions ############
+date : 2026-09-08T04:10:34Z
+
+  FlowGraphCompiler already receives inlining_info.inline_id_to_function, where
+  index 0 is the function being compiled and every later entry is a function the
+  inliner COPIED INTO it. That is the compiler's own post-optimization decision:
+  not a pragma, not source shape, not inferred from symbol absence.
+
+  Those pairs are now recorded and emitted as an ELF note:
+
+    .note.shorebird.inlining     owner Shorebird, note type 2
+    payload  schema_version=1, then one "inlinee<TAB>caller" line per decision
+
+  On the item-2 release:
+
+    note size            532,011 bytes
+    inlining pairs       4,785
+    distinct inlinees    970
+    bound to AOT         033c9bb04193bda6...  (full hash in instrumentation/MANIFEST.json)
+
+  THE TWO CLASSIFICATIONS THAT MATTER, read mechanically out of that note:
+
+    smallTarget   inlinee somewhere?  TRUE    <- the subject whose patch was
+                                                 silently bypassed in item 2
+    alpha         inlinee somewhere?  FALSE   <- the patch-sensitive control that
+                                                 moved OLD-a -> PATCHED-a
+    beta          inlinee somewhere?  FALSE
+    Base.work     inlinee somewhere?  FALSE
+
+  The relation records smallTarget inlined into BOTH of its source-level call
+  sites:
+
+    ::_smallTarget   INTO   ::__state
+    ::_smallTarget   INTO   ::_callsSmall
+
+  So the compiler-derived fact agrees with every behavioural observation in item
+  2, and it distinguishes the unsafe declaration from the safe one without
+  consulting a pragma.
+
+  INSTANCE/VIRTUAL DISPATCH IS SEPARATE, as required. Base.work is NOT an
+  inlinee, yet its virtual call site still read OLD-w after patching. That is a
+  DISPATCH question, not an inlining one, and this note does not answer it. No
+  claim is made here that viaDirect was "devirtualized" -- that was a
+  source-level description and the exact transformation has not been proved.
+
+  A BUG WORTH RECORDING. The first version used a ZoneGrowableArray as a
+  process-global and segfaulted gen_snapshot: a zone does not outlive one
+  compilation, so the pointer dangled by the time the ELF writer read it.
+  Malloc-backed storage fixed it. Recorded because a crash here would otherwise
+  look like an unrelated toolchain failure.
+
+############ WHAT ROUTE 2 STILL OWES ############
+
+  1. every G2 candidate mapped to an explicit state, with missing evidence
+     UNKNOWN rather than safe -- the note's names are the VM's mangled
+     qualified form (e.g. "::_smallTarget"), so a mapping to the map's
+     library#owner#kind#name identity is required, and any declaration that
+     cannot be mapped must refuse;
+  2. the predictor consuming that state in place of CALL_SITE_SHAPE_UNPROVEN;
+  3. a separate mechanism for the virtual/dispatch hazard;
+  4. falsification arms for the note itself, as the capability marker has.
+
+  No REDUCE_SCOPE / MODIFY_MAP_DESIGN / MODIFY_ANALYZER / ABANDON_OR_REDESIGN
+  classification is made. What route 2 establishes so far is that a
+  release-derived per-declaration inlining fact IS obtainable from the compiler
+  and agrees with observed behaviour -- which is evidence about feasibility, not
+  a classification.
+
+############ ROUTE 2, HARDENED — three blockers closed ############
+date : 2026-09-08T04:37:20Z
+
+  1. THE RECORDER COULD SILENTLY LOSE ENTRIES, which made every FALSE
+     untrustworthy. The mutex was created lazily OUTSIDE any synchronization,
+     so two compiler threads could each construct their own and then mutate the
+     shared registry under different locks. A dropped record reads as "not
+     inlined" -- the false-safe condition this gate exists to prevent.
+
+     The mutex is now a function-local static, whose initialization C++11
+     guarantees thread-safe and which lives for the process. All registry
+     access is under it.
+
+     DETERMINISM, since scheduling must not change the artifact: entries are
+     sorted and de-duplicated at emission. Verified by building the same
+     release twice --
+
+       note schema_version=2, 3348 lines
+       sorted: True    deduplicated: True
+       identical across two builds: True
+
+     (The pre-dedup count was 4785; the difference is repeated pairs, not lost
+     ones.)
+
+  2. THE NAME STRING WAS NOT JOINABLE. ToLibNamePrefixedQualifiedCString()
+     selects library.name(), while SM1-G1 keys on the library URI -- so the
+     canonical URI was simply absent, and no reverse parser could recover it.
+     Identity is now emitted STRUCTURED, from the compiler's own handles:
+
+       library URI # owner # kind # declared name
+
+     e.g. the subject and its two call sites:
+
+       package:dynamic_modules/callsite_target.dart##RegularFunction#smallTarget
+           INTO  package:dynamic_modules/callsite_target.dart##RegularFunction#callsSmall
+       package:dynamic_modules/callsite_target.dart##RegularFunction#smallTarget
+           INTO  package:dynamic_modules/callsite_target.dart##RegularFunction#_state@17145467
+
+     Owner is empty for a top-level member, matching G1, which records no owner
+     for those. A function whose owner is not a Class is emitted as
+     "<unknown>#<unknown>" rather than guessed -- the consumer must treat those
+     as UNKNOWN, never as not-inlined.
+
+     STILL UNRESOLVED, and deliberately not papered over: the kind vocabulary is
+     the VM's (RegularFunction, GetterFunction, Constructor,
+     ImplicitClosureFunction), not G1's (method, getter, constructor); private
+     names carry a library-hash suffix (_state@17145467); and the same declared
+     name appears under more than one kind (RegularFunction and
+     ImplicitClosureFunction for smallTarget). Mapping these to G1 identity, with
+     anything not uniquely mappable refusing as UNKNOWN, is the next task and is
+     NOT done.
+
+  3. THE REPLAY RECIPE WAS AMBIGUOUS. 0002 was generated against the frozen base
+     and so re-contained 0001's changes, leaving it unclear whether it was
+     cumulative or incremental. 0002 is now a TRUE INCREMENTAL patch against
+     frozen+0001, and the stack is verified:
+
+       frozen + 0001 + 0002  ==  the built clone, byte for byte, all three files
+
+  BOUND TO THE ARTIFACT: full AOT sha256 in instrumentation/MANIFEST.json under
+  route2_witness.
+
+  NOT DONE, and not authorized yet: an explicit INLINED / NOT_INLINED / UNKNOWN
+  state for every G2 candidate; note validation and its corruption, duplicate,
+  schema, type and owner falsifications; proof that absence is COMPLETE rather
+  than merely not-observed; predictor consumption. The virtual/instance dispatch
+  hazard remains its own separate mechanism. No classification is made.
+
+############ ROUTE 2, SCHEMA 3 — unambiguous encoding, and a seal ############
+date : 2026-09-08T05:13:05Z
+
+  1. '#' WAS NOT A SAFE SEPARATOR. VM and extension naming can contain '#', so
+     the schema-2 record "library#owner#kind#name" was ambiguous exactly where
+     identity matters. Schema 3 is LENGTH-PREFIXED and separator-free:
+
+       schema_version=3
+       fields_per_record=8
+       records=3348
+       <then 3348 records of eight "<len>:<bytes>" fields>
+
+     No byte sequence inside a field can be read as structure, and the declared
+     record count is an independent cross-check on the parse. Verified: 3348
+     records parsed, matching the header exactly.
+
+  2. A SEAL, so absence can mean something. The registry is sealed once the note
+     bytes are built; any pair recorded after that point is FATAL rather than
+     dropped:
+
+       "an inlining pair was recorded AFTER the note was written. Absence from
+        the note would no longer prove not-inlined, so this is fatal rather
+        than dropped."
+
+     The build completed with no FATAL, which establishes for THIS artifact that
+     no inlining decision was made after emission. It is a per-build guarantee
+     enforced by the producer, not an argument about compiler phase order.
+
+  3. DETERMINISM AND REPLAY, banked as hashes rather than asserted:
+
+       note sha256, build A == build B      True
+       frozen + 0001 + 0002 == built clone  True, per file
+       full AOT sha256                      recorded
+
+     All in instrumentation/MANIFEST.json. The manifest also records that the
+     note hash covers the FULL note section bytes, not the stripped payload, so
+     the two different values that appear in transcripts for one artifact are
+     not a contradiction.
+
+  THE SUBJECT, in schema 3:
+
+    INLINEE lib=package:dynamic_modules/callsite_target.dart owner='' kind=RegularFunction name=smallTarget
+      INTO  lib=package:dynamic_modules/callsite_target.dart owner='' kind=RegularFunction name=callsSmall
+      INTO  lib=package:dynamic_modules/callsite_target.dart owner='' kind=RegularFunction name=_state@17145467
+      INTO  lib=package:dynamic_modules/callsite_target.dart owner='' kind=ImplicitClosureFunction name=smallTarget
+
+############ STILL NOT DONE — the reader and mapper ############
+
+  Authorized but unbuilt, and no NOT_INLINED negative is trusted until they are:
+
+    * strict note validation: section name, SHT_NOTE, exact "Shorebird\0"
+      owner, note type 2, schema version, uniqueness;
+    * exactly one state per G2 candidate -- INLINED / NOT_INLINED / UNKNOWN;
+    * no cross-kind fallback and no private-name guessing; any ambiguity is
+      UNKNOWN. The open cases remain the VM kind vocabulary
+      (RegularFunction/GetterFunction/ImplicitClosureFunction vs G1's
+      method/getter), the library-hash suffix on private names
+      (_state@17145467), and one declared name appearing under several kinds;
+    * falsifications: delete a known smallTarget pair, wrong URI, wrong kind,
+      ambiguous mapping, malformed record, missing / duplicate / conflicting
+      note, wrong owner, wrong type, wrong schema.
+
+  Predictor consumption stays unauthorized. Virtual/instance dispatch remains a
+  separate unresolved mechanism. No classification is made.
+
+############ SCHEMA 5 — full parent identity, and the implicit-closure verdict ############
+
+  THE POLICY CORRECTION ACCEPTED. "Same declared name under two VM kinds =>
+  UNKNOWN" was too coarse. An ImplicitClosureFunction is a tear-off wrapper, not
+  a competing identity for the declaration; only the RegularFunction is an
+  eligible DIRECT mapping.
+
+  SCHEMA 4 WAS NOT ENOUGH, and is superseded. It carried only parent kind and
+  name, which would have forced the reader to assume a child and its parent
+  always share library and owner. That invariant is unstated and unproven, so
+  schema 5 emits the parent's OWN library and owner too:
+
+    schema_version=5, fields_per_record=16
+    per side: library URI, owner, VM kind, declared name,
+              then the same four for the synthetic parent
+
+  THESE ARE VM COORDINATES, NOT G1 IDENTITY, and the note now says so.
+  RegularFunction is VM vocabulary where G1 distinguishes method from operator;
+  a private name still carries its library key (_state@17145467) rather than
+  G1's declared name; an extension member can appear with a synthetic top-level
+  owner while G1 recovers the extension owner. What schema 5 provides is the
+  full set of coordinates needed to PROJECT onto G1, against G1's retained
+  vmName/loweredName. The projection is the reader's job, and anything not
+  uniquely projectable is UNKNOWN.
+
+  Measured rather than assumed -- and on this corpus they do agree, which is a
+  result rather than a premise.
+
+  Constructor kinds are disambiguated at the source, for both a function and a
+  synthetic parent, since the VM's Constructor covers both:
+  "Constructor:generative" vs "Constructor:factory", by staticness.
+
+############ THE ADVERSARIAL ARM — full transcript banked ############
+
+  evidence/implicit_closure_arm.txt carries the authoritative run: every input
+  and output hash, the decoded schema-5 rows, and the verbatim execution. The
+  numbers below are quoted from it, not restated from memory.
+
+  The decoded rows show exactly the ambiguous shape:
+
+    inlinee  lib=package:dynamic_modules/callsite_target.dart owner='' kind=ImplicitClosureFunction name=tearOffTarget
+      parent lib='package:dynamic_modules/callsite_target.dart' owner='' kind='RegularFunction' name='tearOffTarget'
+      INTO     lib=package:dynamic_modules/callsite_target.dart owner='' kind=RegularFunction name=callsViaTearOff
+
+    declared RegularFunction tearOffTarget in the INLINEE column : False
+    its ImplicitClosureFunction in the INLINEE column            : True
+
+  and the run, patching the DECLARED function 71 -> 171:
+
+    before  tearOff=72
+    ATTACH: C++ invoke of target returned: 171
+    APPLY ok: 1 target(s)
+    after   tearOff=172
+
+  VERDICT: the synthetic-parent relation is HARMLESS for this shape. Behaviour
+  moved, so a declaration whose only inlining involvement is through its
+  implicit closure does NOT require UNKNOWN on that account.
+
+  THE LIMIT OF THAT CLAIM. One shape: a top-level function torn off inside its
+  own library and called immediately. It does not cover an instance-method
+  tear-off, a tear-off stored and called later, or one crossing a library
+  boundary. The finding REDUCES required conservatism, which is the direction
+  where over-generalising would silently authorise patches, so it stays a
+  per-shape result rather than a rule.
+
+  Contrast with the smallTarget arm, where the DECLARED function was itself the
+  inlinee and behaviour did NOT move:
+
+    declared function is an inlinee            -> patch does not reach the copies
+    only its implicit closure is an inlinee    -> patch still reaches behaviour
+                                                  (this shape)
+
+  DETERMINISM AND REPLAY, regenerated for the schema-5 producer and banked as
+  hashes in instrumentation/MANIFEST.json: note-section sha256 equal across two
+  builds; frozen + 0001 + 0002 equal to the built clone per file; full AOT
+  sha256 recorded. The two AOT hashes DIFFER, so what is shown is deterministic
+  NOTE CONTENT, not byte-reproducible whole-AOT output.

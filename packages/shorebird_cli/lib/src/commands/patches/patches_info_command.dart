@@ -1,19 +1,23 @@
-import 'package:collection/collection.dart';
 import 'package:mason_logger/mason_logger.dart';
-import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/commands/app_scoped_command.dart';
+import 'package:shorebird_cli/src/commands/patches/patch_lookup.dart';
+import 'package:shorebird_cli/src/commands/patches/patch_number_argument.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
-import 'package:shorebird_cli/src/formatters/file_size_formatter.dart';
+import 'package:shorebird_cli/src/formatters/formatters.dart';
 import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/shorebird_command.dart';
-import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
-import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
+
+const _jsonExample =
+    'shorebird patches info --release-version 1.0.0+1 '
+    '--patch-number 1 --app-id <id> --json';
 
 /// {@template patches_info_command}
 /// `shorebird patches info`
 /// Show details for a specific patch.
 /// {@endtemplate}
-class PatchesInfoCommand extends ShorebirdCommand {
+class PatchesInfoCommand extends ShorebirdCommand
+    with AppScopedCommand, PatchNumberArgument, PatchLookup {
   /// {@macro patches_info_command}
   PatchesInfoCommand() {
     argParser
@@ -23,18 +27,11 @@ class PatchesInfoCommand extends ShorebirdCommand {
         mandatory: true,
       )
       ..addOption(
-        'patch-number',
+        CommonArguments.patchNumberArg.name,
         help: 'The patch number to show details for (e.g. "1").',
         mandatory: true,
-      )
-      ..addOption(
-        CommonArguments.appIdArg.name,
-        help: CommonArguments.appIdArg.description,
-      )
-      ..addOption(
-        CommonArguments.flavorArg.name,
-        help: 'The product flavor to query patches for (e.g. "prod").',
       );
+    addAppScopeOptions();
   }
 
   @override
@@ -53,7 +50,7 @@ class PatchesInfoCommand extends ShorebirdCommand {
       '    android  arm64-v8a    1.20 MB\n'
       '    android  armeabi-v7a  1.10 MB\n'
       '    ios      arm64        896 KB\n\n'
-      '${ShorebirdCommand.jsonHint('shorebird patches info --release-version 1.0.0+1 --patch-number 1 --app-id <id> --json')}';
+      '${ShorebirdCommand.jsonHint(_jsonExample)}';
 
   @override
   Future<int> run() async {
@@ -62,73 +59,31 @@ class PatchesInfoCommand extends ShorebirdCommand {
 
     final releaseVersion =
         results[CommonArguments.releaseVersionArg.name] as String;
-    final patchNumber = int.parse(results['patch-number'] as String);
+    final (:patchNumber, errorCode: patchNumberError) = resolvePatchNumber();
+    if (patchNumber == null) return patchNumberError!;
 
-    final Release release;
-    final List<ReleasePatch> patches;
-    try {
-      release = await codePushClientWrapper.getRelease(
-        appId: appId,
-        releaseVersion: releaseVersion,
-      );
-      patches = await codePushClientWrapper.getReleasePatches(
-        appId: appId,
-        releaseId: release.id,
-      );
-    } on ProcessExit catch (e) {
-      if (isJsonMode) {
-        emitJsonError(
-          code: JsonErrorCode.fetchFailed,
-          message:
-              'Failed to fetch patch $patchNumber '
-              'for release "$releaseVersion".',
-        );
-        return e.exitCode;
-      }
-      rethrow;
-    }
+    final fetched = await fetchReleasePatches(
+      appId: appId,
+      releaseVersion: releaseVersion,
+      fetchFailedMessage:
+          'Failed to fetch patch $patchNumber '
+          'for release "$releaseVersion".',
+    );
+    if (fetched.errorCode case final errorCode?) return errorCode;
 
-    final patch = patches.firstWhereOrNull((p) => p.number == patchNumber);
-    if (patch == null) {
-      if (isJsonMode) {
-        emitJsonError(
-          code: JsonErrorCode.usageError,
-          message:
-              'No patch found with number $patchNumber '
-              'for release "$releaseVersion".',
-        );
-        return ExitCode.usage.code;
-      }
-      logger
-        ..err('No patch found with number $patchNumber.')
-        ..info(
-          'Available patches: ${patches.map((p) => p.number).join(', ')}',
-        );
-      return ExitCode.usage.code;
-    }
+    final (:patch, errorCode: lookupError) = findPatchOrReport(
+      patches: fetched.patches,
+      patchNumber: patchNumber,
+      releaseVersion: releaseVersion,
+    );
+    if (patch == null) return lookupError!;
 
     if (isJsonMode) {
       emitJsonSuccess({'patch': patch.toJson()});
       return ExitCode.success.code;
     }
 
-    logger.info('ID:          ${patch.id}');
-    logger.info('Number:      ${patch.number}');
-    if (patch.channel != null) {
-      logger.info('Track:       ${patch.channel}');
-    }
-    logger.info('Rolled back: ${patch.isRolledBack ? 'yes' : 'no'}');
-    if (patch.notes != null) {
-      logger.info('Notes:       ${patch.notes}');
-    }
-    if (patch.artifacts.isNotEmpty) {
-      logger.info('Artifacts:');
-      for (final artifact in patch.artifacts) {
-        final platform = artifact.platform.value.padRight(8);
-        final arch = artifact.arch.padRight(12);
-        logger.info('  $platform $arch ${formatBytes(artifact.size)}');
-      }
-    }
+    formatPatchDetails(patch).forEach(logger.info);
 
     return ExitCode.success.code;
   }

@@ -1,3 +1,4 @@
+// cspell:words pkce queryability unactivated
 import 'dart:convert';
 import 'dart:math';
 
@@ -70,12 +71,16 @@ class PatchRow {
     this.status, {
     this.notes,
     this.metadata,
+    this.createdAt,
   });
   final int id;
   final String appId;
   final int releaseId;
   final int number;
   final PatchStatus status;
+
+  /// When the patch was created, ISO-8601 UTC.
+  final String? createdAt;
 
   /// Freeform operator-supplied patch notes, surfaced by
   /// `shorebird patches info`. Null when never set.
@@ -88,10 +93,14 @@ class PatchRow {
 }
 
 class ChannelRow {
-  ChannelRow(this.id, this.appId, this.name);
+  ChannelRow(this.id, this.appId, this.name, {this.deleted = false});
   final int id;
   final String appId;
   final String name;
+
+  /// Soft-deleted: hidden from listings and promotion, but patch-check still
+  /// answers for it so devices on it keep receiving rollback signals.
+  final bool deleted;
 }
 
 class ChannelPatchRow {
@@ -127,6 +136,8 @@ class ArtifactRow {
     required this.status,
     required this.storageKey,
     required this.createdAt,
+    this.signingMode,
+    this.signingKeyId,
   });
   final int id;
   final String token;
@@ -145,6 +156,27 @@ class ArtifactRow {
   /// When the artifact row was created, ISO-8601 UTC. Part of the CLI's
   /// `PatchArtifact` wire contract, which requires it.
   final String createdAt;
+
+  /// `managed`, `customer` or `unsigned` for a release artifact whose build
+  /// reported its signing; null otherwise (see migration 14).
+  final String? signingMode;
+
+  /// The `signing_keys` row a `managed` artifact's build embeds.
+  final int? signingKeyId;
+}
+
+/// A managed patch-signing key. [privateKeyEncrypted] never leaves the server.
+class SigningKeyRow {
+  SigningKeyRow(
+    this.id,
+    this.orgId,
+    this.publicKeyPem,
+    this.privateKeyEncrypted,
+  );
+  final int id;
+  final int orgId;
+  final String publicKeyPem;
+  final String privateKeyEncrypted;
 }
 
 class UserRow {
@@ -174,6 +206,98 @@ class MembershipRow {
 // ---------------------------------------------------------------------------
 // Repository — backend-agnostic (Postgres or SQLite via [Db])
 // ---------------------------------------------------------------------------
+
+/// A policy epoch: one lifecycle behaviour, one sample.
+///
+/// WHY THIS IS NOT A GROWING ALLOW-LIST. It used to be a single flat set, and
+/// a flat set has one fatal property — adding a revision to it silently POOLS
+/// that revision's clients with every earlier one. That is exactly the mistake
+/// this shape exists to make impossible: six months from now, adding both
+/// revisions to one set would recombine two samples that are not comparable,
+/// and nothing would complain.
+///
+/// Epochs are therefore closed, not extended.
+enum PolicyEpoch {
+  /// CLOSED. Preserved as instrumentation and behavioural evidence; its
+  /// clients must never count toward a later epoch's threshold.
+  a(
+    updaterRevisions: {'f729f958e9be'},
+    cell: '2c4443cedd654fad8eebd877bbc215edbdd11615',
+    closed: true,
+  ),
+
+  /// CURRENT — ACTIVATED 2026-08-27. Collecting from ZERO.
+  ///
+  /// Activated only after the checklist in `selfhost/MEASUREMENT_MODE.md` was
+  /// discharged against a real production specimen, not the Signing fixture:
+  /// `killswitch-g15` release 1.9.0+1 (server id 134) cut on this cell, its
+  /// PUBLISHED artifact fetched back, `af6e842ccf87` read out of THAT app's
+  /// shipped engine bytes, and real `__patch_download__` / `__patch_install__`
+  /// rows persisted from a fresh non-rig client
+  /// (`e0af82b8-0b05-4e22-a1cd-e10f98870584`) and read back out of the database.
+  /// Evidence: `selfhost/evidence/epoch-b-canary/CANARY_EVIDENCE.md`.
+  ///
+  /// EXPECT `bootLifecycleMetrics` TO BE EMPTY FOR A WHILE. The canary produced
+  /// transport events only, and lifecycle rows require a real ambiguous boot.
+  /// Zero rows here means "no client has hit a first ambiguity yet", NOT that
+  /// activation failed — and an ambiguity must never be manufactured to make
+  /// this query non-empty.
+  b(
+    updaterRevisions: {'af6e842ccf87'},
+    cell: '4792f0eca461f3761001a1adbe131b4b115e3684',
+    closed: false,
+  );
+
+  const PolicyEpoch({
+    required this.updaterRevisions,
+    required this.cell,
+    required this.closed,
+  });
+
+  /// The revisions whose clients belong to this epoch. Never union these across
+  /// epochs — see the class comment.
+  final Set<String> updaterRevisions;
+
+  /// The engine cell this epoch's lifecycle behaviour shipped in.
+  final String cell;
+
+  /// Whether this epoch is finished collecting.
+  final bool closed;
+}
+
+/// {@template schema_too_new}
+/// Thrown when the database has been migrated by a newer server than this
+/// binary implements. Rolling a release back does not roll its schema back, so
+/// this is the ordinary consequence of starting an old image against a
+/// database a newer one has already upgraded.
+///
+/// The supported recovery is the one PRODUCTION.md documents and
+/// UPGRADE-ROLLBACK-1 certifies: restore the pre-upgrade backup taken with the
+/// image you are rolling back to, then start that image.
+/// {@endtemplate}
+class SchemaTooNewException implements Exception {
+  /// {@macro schema_too_new}
+  const SchemaTooNewException({required this.applied, required this.known});
+
+  /// The highest migration version recorded in the database.
+  final int applied;
+
+  /// The highest migration version this binary implements.
+  final int known;
+
+  @override
+  String toString() =>
+      'database schema is at version $applied but this server implements only '
+      'up to $known. It has been migrated by a newer release. Start that '
+      'release, or restore the backup taken before the upgrade with the image '
+      'you are rolling back to.';
+}
+
+/// How long after a patch of a release was withdrawn (rolled back, or
+/// superseded) the release cannot be deleted without `?force=true`: devices
+/// that have not checked in since learn to drop the patch from its
+/// `channel_patches` row, which deleting the release removes. Whole days.
+const releaseDeleteGrace = Duration(days: 7);
 
 class Repository {
   Repository(this._db);
@@ -286,6 +410,172 @@ class Repository {
         'ALTER TABLE patches ADD COLUMN metadata TEXT',
       ],
     ),
+    (
+      8,
+      [
+        // Crash reports posted by devices. Shorebird's boot-crash detection
+        // already rolls a bad patch back, but the stack trace that explains WHY
+        // never leaves the device — the CLI only emits symbols for third-party
+        // crash tools. This is the store behind zero-config crash reporting:
+        // reports land keyed to (app, release_version, patch_number, arch) so a
+        // symbol set retained for the same tuple can resolve them later.
+        //
+        // `raw` keeps the exact payload. Everything else is a projection for
+        // querying, mirroring how `events` is shaped — the same reasoning
+        // applies (a device wire format we do not control should be stored
+        // verbatim and indexed opportunistically).
+        //
+        // dedupe_key is UNIQUE: crash reporters retry, and a device that cannot
+        // reach the server buffers and re-posts. Without it a single crash loop
+        // would flood the table.
+        '''CREATE TABLE IF NOT EXISTS crash_reports(
+              id SERIAL PRIMARY KEY, dedupe_key TEXT UNIQUE, raw TEXT NOT NULL,
+              app_id TEXT, client_id TEXT, release_version TEXT,
+              patch_number INTEGER, platform TEXT, arch TEXT,
+              kind TEXT, message TEXT, stack TEXT, ts BIGINT,
+              received_at TIMESTAMPTZ NOT NULL DEFAULT now())''',
+        'CREATE INDEX IF NOT EXISTS crash_reports_app_idx ON crash_reports(app_id)',
+        'CREATE INDEX IF NOT EXISTS crash_reports_tuple_idx '
+            'ON crash_reports(app_id, release_version, patch_number)',
+      ],
+    ),
+    (
+      9,
+      [
+        // Boot-lifecycle observations. The device already reports TERMINAL
+        // outcomes (`__patch_install_failure__`), which is survivor bias: we
+        // hear about patches that were retired and never about the ones that
+        // hit one ambiguous unfinished boot and then recovered. The retry
+        // threshold cannot be justified from retirements alone, because the
+        // recoveries are exactly what justify HAVING a threshold.
+        //
+        // These columns are extracted from the raw body for queryability. They
+        // are all nullable and unset for every pre-existing event type, so a
+        // deployment that never receives a lifecycle event is unaffected.
+        'ALTER TABLE events ADD COLUMN outcome TEXT',
+        'ALTER TABLE events ADD COLUMN ambiguous_attempt_count INTEGER',
+        'ALTER TABLE events ADD COLUMN boot_failure_threshold INTEGER',
+        // Retained even though policy currently IGNORES boot age, so we can
+        // later determine whether a 40ms unfinished boot and a 40-day stale
+        // breadcrumb are the same population BEFORE changing the age rule.
+        'ALTER TABLE events ADD COLUMN boot_started_at BIGINT',
+        'CREATE INDEX IF NOT EXISTS events_lifecycle_idx '
+            'ON events(app_id, release_version, patch_number, outcome)',
+      ],
+    ),
+    (
+      10,
+      [
+        // The updater revision that produced the event. Eligibility for
+        // lifecycle-policy analysis is a property of the BEHAVIOUR-BEARING CLIENT
+        // CODE — whether it shipped the event-loss fixes — and inferring that from
+        // an app release version is a proxy that only holds for one app.
+        'ALTER TABLE events ADD COLUMN updater_revision TEXT',
+        'CREATE INDEX IF NOT EXISTS events_updater_rev_idx '
+            'ON events(app_id, updater_revision)',
+      ],
+    ),
+    (
+      11,
+      [
+        // Makes `audit_log` a queryable record of control-plane MUTATIONS
+        // rather than a scattering of free-text notes.
+        //
+        // The columns an operator has to be able to answer from, without
+        // reconstructing anything from database side effects: who acted, on
+        // which app/release/patch, with what outcome, and which request caused
+        // it. `action`, `actor`, `target` and `detail` are unchanged, so every
+        // pre-existing row still reads.
+        //
+        // All nullable. A row with `result IS NULL` is either a pre-migration
+        // row or a DETAIL row — a sub-fact of the request named by its
+        // `request_id`, not that request's outcome. Only `result IS NOT NULL`
+        // rows are request-outcome events, and there is exactly one per
+        // audited mutating request.
+        'ALTER TABLE audit_log ADD COLUMN request_id TEXT',
+        'ALTER TABLE audit_log ADD COLUMN route TEXT',
+        'ALTER TABLE audit_log ADD COLUMN method TEXT',
+        'ALTER TABLE audit_log ADD COLUMN actor_id INTEGER',
+        'ALTER TABLE audit_log ADD COLUMN actor_credential TEXT',
+        'ALTER TABLE audit_log ADD COLUMN app_id TEXT',
+        'ALTER TABLE audit_log ADD COLUMN release_id INTEGER',
+        'ALTER TABLE audit_log ADD COLUMN patch_id INTEGER',
+        'ALTER TABLE audit_log ADD COLUMN patch_number INTEGER',
+        'ALTER TABLE audit_log ADD COLUMN track TEXT',
+        'ALTER TABLE audit_log ADD COLUMN result TEXT',
+        'ALTER TABLE audit_log ADD COLUMN http_status INTEGER',
+        // The access paths `GET /admin/audit` exposes. `(action, id)` carries
+        // the ceiling control: "no `patch.create` row above id N".
+        'CREATE INDEX IF NOT EXISTS audit_log_action_id ON audit_log(action, id)',
+        'CREATE INDEX IF NOT EXISTS audit_log_app ON audit_log(app_id, id)',
+        'CREATE INDEX IF NOT EXISTS audit_log_release ON audit_log(release_id, id)',
+        'CREATE INDEX IF NOT EXISTS audit_log_patch ON audit_log(patch_id, id)',
+        'CREATE INDEX IF NOT EXISTS audit_log_request ON audit_log(request_id)',
+      ],
+    ),
+    (
+      12,
+      [
+        // Identity and tenancy mutations become first-class audit outcomes
+        // too — who was invited, whose role changed, which app someone was
+        // given access to, which credential was issued. That state decides who
+        // may mutate releases and patches at all, so recording it as an
+        // untyped free-text note was the weakest link in the trail.
+        //
+        // An identity mutation's SUBJECT is not an app/release/patch, so it
+        // needs its own columns. `target` already existed as free text; paired
+        // with `target_kind` it becomes queryable, and a row without
+        // `target_kind` is a legacy note whose `target` nobody can type.
+        'ALTER TABLE audit_log ADD COLUMN org_id INTEGER',
+        'ALTER TABLE audit_log ADD COLUMN target_kind TEXT',
+        'CREATE INDEX IF NOT EXISTS audit_log_org ON audit_log(org_id, id)',
+        'CREATE INDEX IF NOT EXISTS audit_log_target '
+            'ON audit_log(target_kind, target, id)',
+      ],
+    ),
+    (
+      13,
+      [
+        // Channel delete is a SOFT delete. `channel_patches` references
+        // `channels(id)`, and cascading would erase deployment history along
+        // with the rollback signal: devices still on a deleted channel could
+        // never again be told to revert a patch. See
+        // selfhost/upstream/ADOPTION-1.6.123.md §5.
+        'ALTER TABLE channels ADD COLUMN deleted_at TIMESTAMPTZ',
+      ],
+    ),
+    (
+      14,
+      [
+        // Managed patch signing (upstream 1.6.138). One RSA key per ORGANIZATION,
+        // created on the first `GET /apps/{app}/signing-key` (upstream's client
+        // documents "the organization's key"). `private_key_enc` is a JWE, never
+        // plaintext, and no route returns it.
+        '''CREATE TABLE IF NOT EXISTS signing_keys(
+              id SERIAL PRIMARY KEY,
+              org_id INTEGER NOT NULL REFERENCES organizations(id),
+              public_key_pem TEXT NOT NULL,
+              private_key_enc TEXT NOT NULL,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+              UNIQUE(org_id))''',
+        // How a release artifact's build is signed: `managed`, `customer` or
+        // `unsigned`; NULL for every artifact registered before this migration
+        // or by a CLI that does not report signing. NULL means "embeds no
+        // Shorebird-managed key", so its patches are never server-signed.
+        'ALTER TABLE artifacts ADD COLUMN signing_mode TEXT',
+        'ALTER TABLE artifacts ADD COLUMN signing_key_id INTEGER',
+      ],
+    ),
+    (
+      15,
+      [
+        // PKCE (RFC 7636): the S256 code challenge a login asked for, kept with
+        // the auth code (and across the external-IdP round trip) so `/token`
+        // can check the verifier. NULL for a login that sent none (older CLIs).
+        'ALTER TABLE auth_codes ADD COLUMN code_challenge TEXT',
+        'ALTER TABLE idp_states ADD COLUMN code_challenge TEXT',
+      ],
+    ),
   ];
 
   /// Indexes for the access paths that would otherwise scan. `events` is the
@@ -317,6 +607,24 @@ class Repository {
     final applied = (await _q(
       'SELECT version FROM schema_migrations',
     )).map((m) => _int(m['version'])).toSet();
+
+    // A database migrated by a NEWER server than this one. The migration loop
+    // below simply skips versions it does not know, so without this the old
+    // binary boots, answers /healthz AND /readyz with 200, serves every table
+    // the newer schema did not touch -- and 500s the device update path.
+    // Measured 2026-09-06 against a schema this binary did not implement:
+    // healthz 200, readyz 200, apps 200, releases 200, patches/check 500.
+    // An orchestrator sees a ready server; every device sees a broken one.
+    //
+    // Refusing to boot is the safer failure. A control plane that cannot serve
+    // patch checks must not be in rotation, and being down is visible in a way
+    // that a 500 on one route is not.
+    final maxKnown = _migrations.fold<int>(0, (a, m) => m.$1 > a ? m.$1 : a);
+    final maxApplied = applied.fold<int>(0, (a, v) => v > a ? v : a);
+    if (maxApplied > maxKnown) {
+      throw SchemaTooNewException(applied: maxApplied, known: maxKnown);
+    }
+
     for (final (version, statements) in _migrations) {
       if (applied.contains(version)) continue;
       await _db.tx((s) async {
@@ -697,6 +1005,29 @@ class Repository {
         .toList();
   }
 
+  /// [userId]'s role in [orgId], or null if not a member.
+  ///
+  /// Exists so a role change can bank the role it REPLACED. "admin -> owner"
+  /// and "developer -> owner" are very different events, and an audit row that
+  /// records only the new value cannot tell them apart.
+  Future<String?> memberRole(int orgId, int userId) async {
+    final r = await _q(
+      'SELECT role FROM org_members WHERE org_id = @o AND user_id = @u',
+      {'o': orgId, 'u': userId},
+    );
+    return r.isEmpty ? null : r.first['role'] as String?;
+  }
+
+  /// [userId]'s role on [appId], or null if not a collaborator. Same purpose
+  /// as [memberRole]: the before value of a grant.
+  Future<String?> collaboratorRole(String appId, int userId) async {
+    final r = await _q(
+      'SELECT role FROM app_collaborators WHERE app_id = @a AND user_id = @u',
+      {'a': appId, 'u': userId},
+    );
+    return r.isEmpty ? null : r.first['role'] as String?;
+  }
+
   Future<void> setMemberRole(int orgId, int userId, String role) => _q(
     'UPDATE org_members SET role = @r WHERE org_id = @o AND user_id = @u',
     {'r': role, 'o': orgId, 'u': userId},
@@ -829,6 +1160,18 @@ class Repository {
       _ts(m['updated_at']),
     );
   }
+
+  Future<void> renameApp(String appId, String displayName) => _q(
+    'UPDATE apps SET display_name = @d, updated_at = now() WHERE app_id = @a',
+    {'a': appId, 'd': displayName},
+  );
+
+  /// Moves [appId] into [orgId]. Access through org membership follows the
+  /// app; `app_collaborators` grants are per-app and move with it.
+  Future<void> transferApp(String appId, int orgId) => _q(
+    'UPDATE apps SET org_id = @o, updated_at = now() WHERE app_id = @a',
+    {'a': appId, 'o': orgId},
+  );
 
   /// Apps visible to [orgIds] (org ownership); if [orgIds] is null, all apps.
   Future<List<AppRow>> apps({List<int>? orgIds}) async {
@@ -983,6 +1326,58 @@ class Repository {
     });
   }
 
+  /// Deletes [releaseId] with every platform's artifacts and every patch of it
+  /// (their artifacts and channel deployments included), in one transaction.
+  /// Returns the storage keys of the removed artifacts so the caller can delete
+  /// the objects. Device events keep their history.
+  Future<List<String>> deleteRelease(int releaseId) => _db.tx((s) async {
+    const mine =
+        "((owner_kind = 'release' AND owner_id = @r) OR (owner_kind = 'patch' "
+        'AND owner_id IN (SELECT id FROM patches WHERE release_id = @r)))';
+    final p = {'r': releaseId};
+    final keys = (await s.query(
+      'SELECT storage_key FROM artifacts WHERE $mine',
+      p,
+    )).map((m) => m['storage_key'] as String).toList();
+    await s.query('DELETE FROM artifacts WHERE $mine', p);
+    await s.query(
+      'DELETE FROM channel_patches WHERE patch_id IN '
+      '(SELECT id FROM patches WHERE release_id = @r)',
+      p,
+    );
+    await s.query('DELETE FROM patches WHERE release_id = @r', p);
+    await s.query(
+      'DELETE FROM release_platform_status WHERE release_id = @r',
+      p,
+    );
+    await s.query('DELETE FROM releases WHERE id = @r', p);
+    return keys;
+  });
+
+  /// Removes [platform] from [releaseId]: its release artifacts and its status
+  /// row. The release and its other platforms stay. Returns the storage keys
+  /// of the removed artifacts.
+  Future<List<String>> deleteReleasePlatform(
+    int releaseId,
+    String platform,
+  ) => _db.tx((s) async {
+    final p = {'r': releaseId, 'p': platform};
+    const where = "owner_kind = 'release' AND owner_id = @r AND platform = @p";
+    final keys = (await s.query(
+      'SELECT storage_key FROM artifacts WHERE $where',
+      p,
+    )).map((m) => m['storage_key'] as String).toList();
+    await s.query('DELETE FROM artifacts WHERE $where', p);
+    await s.query(
+      'DELETE FROM release_platform_status WHERE release_id = @r AND platform = @p',
+      p,
+    );
+    await s.query('UPDATE releases SET updated_at = now() WHERE id = @r', {
+      'r': releaseId,
+    });
+    return keys;
+  });
+
   // ---- Patches ----
 
   Future<PatchRow> createPatch(
@@ -1044,13 +1439,16 @@ class Repository {
     PatchStatus.parse(m['status'] as String),
     notes: m['notes'] as String?,
     metadata: _decodeMetadata(m['metadata']),
+    createdAt: m['created_at'] == null ? null : _ts(m['created_at']),
   );
 
   /// Per-channel deployment state for [patchId]: `{channel, status, rollout,
-  /// rolled_back}` per row (newest promotion first). Empty = not promoted.
+  /// rolled_back, channel_deleted}` per row (newest promotion first).
+  /// Empty = not promoted.
   Future<List<Map<String, Object?>>> patchDeployments(int patchId) async {
     final r = await _q(
-      'SELECT c.name AS channel, cp.status, cp.rollout, cp.rolled_back '
+      'SELECT c.name AS channel, c.deleted_at, cp.status, cp.rollout, '
+      'cp.rolled_back '
       'FROM channel_patches cp JOIN channels c ON c.id = cp.channel_id '
       'WHERE cp.patch_id = @p ORDER BY cp.promoted_at DESC',
       {'p': patchId},
@@ -1062,6 +1460,7 @@ class Repository {
             'status': m['status'],
             'rollout': _int(m['rollout']),
             'rolled_back': asDbBool(m['rolled_back']),
+            'channel_deleted': m['deleted_at'] != null,
           },
         )
         .toList();
@@ -1077,6 +1476,40 @@ class Repository {
       {'p': patchId},
     );
     return r.isNotEmpty;
+  }
+
+  /// True if any patch of [releaseId] is live on a channel right now: a
+  /// `channel_patches` row still `active`. A rolled-back (or superseded) row
+  /// is `withdrawn`, so rolling a patch back is the first step to deleting its
+  /// release, which then waits out [releaseDeleteGrace] (7 days) after the
+  /// rollback unless forced.
+  Future<bool> releaseHasLivePatch(int releaseId) async {
+    final r = await _q(
+      'SELECT 1 FROM channel_patches WHERE status = @a AND patch_id IN '
+      '(SELECT id FROM patches WHERE release_id = @r) LIMIT 1',
+      {'r': releaseId, 'a': ChannelPatchStatus.active.name},
+    );
+    return r.isNotEmpty;
+  }
+
+  /// When the newest withdrawal (a rollback, or a patch superseded on its
+  /// channel) of any patch of [releaseId] happened, if that was less than
+  /// [releaseDeleteGrace] ago; null if there is none that recent.
+  ///
+  /// Deleting the release deletes its `channel_patches` rows, rolled-back ones
+  /// included, and a device that has not checked in since a rollback learns to
+  /// drop the patch only from such a row. The comparison is in SQL because
+  /// `withdrawn_at` is a `DateTime` on Postgres and a `String` on SQLite.
+  Future<DateTime?> releaseRecentWithdrawal(int releaseId) async {
+    final r = await _q(
+      'SELECT MAX(cp.withdrawn_at) AS w FROM channel_patches cp '
+      'JOIN patches p ON p.id = cp.patch_id WHERE p.release_id = @r '
+      "AND cp.withdrawn_at > now() - interval '${releaseDeleteGrace.inDays} days'",
+      {'r': releaseId},
+    );
+    final w = r.isEmpty ? null : r.first['w'];
+    if (w == null) return null;
+    return w is DateTime ? w.toUtc() : DateTime.parse(w.toString()).toUtc();
   }
 
   /// True if [patchId] has been rolled back on any channel.
@@ -1107,43 +1540,77 @@ class Repository {
     return ChannelRow(_int(r.first['id']), appId, name);
   }
 
-  Future<ChannelRow?> channel(String appId, String name) async {
+  ChannelRow _chFrom(Map<String, Object?> m) => ChannelRow(
+    _int(m['id']),
+    m['app_id'] as String,
+    m['name'] as String,
+    deleted: m['deleted_at'] != null,
+  );
+
+  /// The channel named [name] on [appId]. A soft-deleted channel is returned
+  /// only with [includeDeleted]: patch-check needs it, so devices on it still
+  /// learn about rollbacks, and channel create needs it to restore rather than
+  /// collide with `UNIQUE(app_id, name)`.
+  Future<ChannelRow?> channel(
+    String appId,
+    String name, {
+    bool includeDeleted = false,
+  }) async {
     final r = await _q(
-      'SELECT * FROM channels WHERE app_id = @a AND name = @n',
+      'SELECT * FROM channels WHERE app_id = @a AND name = @n'
+      '${includeDeleted ? '' : ' AND deleted_at IS NULL'}',
       {'a': appId, 'n': name},
     );
-    if (r.isEmpty) return null;
-    final m = r.first;
-    return ChannelRow(
-      _int(m['id']),
-      m['app_id'] as String,
-      m['name'] as String,
-    );
+    return r.isEmpty ? null : _chFrom(r.first);
   }
 
-  Future<ChannelRow?> channelById(int id) async {
-    final r = await _q('SELECT * FROM channels WHERE id = @id', {'id': id});
-    if (r.isEmpty) return null;
-    final m = r.first;
-    return ChannelRow(
-      _int(m['id']),
-      m['app_id'] as String,
-      m['name'] as String,
+  Future<ChannelRow?> channelById(int id, {bool includeDeleted = false}) async {
+    final r = await _q(
+      'SELECT * FROM channels WHERE id = @id'
+      '${includeDeleted ? '' : ' AND deleted_at IS NULL'}',
+      {'id': id},
     );
+    return r.isEmpty ? null : _chFrom(r.first);
   }
 
+  /// Live channels on [appId]; soft-deleted ones are not listed.
   Future<List<ChannelRow>> channels(String appId) async {
-    final r = await _q('SELECT * FROM channels WHERE app_id = @a ORDER BY id', {
-      'a': appId,
-    });
-    return r.map((m) {
-      return ChannelRow(
-        _int(m['id']),
-        m['app_id'] as String,
-        m['name'] as String,
-      );
-    }).toList();
+    final r = await _q(
+      'SELECT * FROM channels WHERE app_id = @a AND deleted_at IS NULL '
+      'ORDER BY id',
+      {'a': appId},
+    );
+    return r.map(_chFrom).toList();
   }
+
+  /// Soft-deletes [channelId]. Its `channel_patches` rows are left exactly as
+  /// they are, so a later rollback of a patch that was live here still marks
+  /// this channel and still reaches its devices through patch-check.
+  Future<void> deleteChannel(int channelId) => _q(
+    'UPDATE channels SET deleted_at = now() '
+    'WHERE id = @id AND deleted_at IS NULL',
+    {'id': channelId},
+  );
+
+  /// Restores a soft-deleted channel when its name is created again. Devices
+  /// know a channel only by name, so this is the same channel to them. Whatever
+  /// was active at deletion is withdrawn first (superseded, not rolled back),
+  /// so a restored channel serves nothing until something is promoted to it.
+  Future<ChannelRow> restoreChannel(ChannelRow channel) => _db.tx((s) async {
+    await s.query(
+      'UPDATE channel_patches SET status = @w, withdrawn_at = now() '
+      'WHERE channel_id = @c AND status = @a',
+      {
+        'w': ChannelPatchStatus.withdrawn.name,
+        'a': ChannelPatchStatus.active.name,
+        'c': channel.id,
+      },
+    );
+    await s.query('UPDATE channels SET deleted_at = NULL WHERE id = @c', {
+      'c': channel.id,
+    });
+    return ChannelRow(channel.id, channel.appId, channel.name);
+  });
 
   // ---- ChannelPatches ----
 
@@ -1242,6 +1709,37 @@ class Repository {
     return _cpFrom(r.first);
   }
 
+  /// Previously-promoted, never-rolled-back channel patches for [channelId],
+  /// newest first.
+  ///
+  /// Exists for one narrow case: the active patch is of a kind this client
+  /// cannot install (an assets-only patch reaching a stock updater), and
+  /// offering it nothing would silently strip a patch it was already entitled
+  /// to. Superseded patches are still perfectly good code — they were replaced,
+  /// not withdrawn for being broken — whereas a rolled-back patch was pulled
+  /// deliberately and must never be served again.
+  Future<List<ChannelPatchRow>> supersededChannelPatches(
+    int channelId, {
+    String? platform,
+  }) async {
+    final r = await _q(
+      'SELECT cp.* FROM channel_patches cp JOIN patches p ON p.id = cp.patch_id '
+      'WHERE cp.channel_id = @c AND cp.status = @s AND cp.rolled_back = false '
+      '${platform == null ? '' : 'AND EXISTS ('
+                '  SELECT 1 FROM artifacts a'
+                "  WHERE a.owner_kind = 'patch' AND a.owner_id = cp.patch_id"
+                '    AND a.platform = @plat'
+                ') '}'
+      'ORDER BY p.number DESC',
+      {
+        'c': channelId,
+        's': ChannelPatchStatus.withdrawn.name,
+        if (platform != null) 'plat': platform,
+      },
+    );
+    return r.map(_cpFrom).toList();
+  }
+
   Future<ChannelPatchRow?> activeChannelPatchForPatch(
     int channelId,
     int patchId,
@@ -1289,6 +1787,24 @@ class Repository {
     },
   );
 
+  /// [withdraw] with `rollback: true` on every channel where [patchId] is
+  /// active, for the release-scoped upstream rollback route, which names no
+  /// channel. One statement, so a concurrent caller cannot also claim the
+  /// change: the loser sees no rows. Returns the channel ids it rolled back;
+  /// empty means nothing was active.
+  Future<List<int>> rollbackActive(int patchId) async {
+    final r = await _q(
+      'UPDATE channel_patches SET status = @w, withdrawn_at = now(), rolled_back = true '
+      'WHERE patch_id = @p AND status = @a RETURNING channel_id',
+      {
+        'w': ChannelPatchStatus.withdrawn.name,
+        'p': patchId,
+        'a': ChannelPatchStatus.active.name,
+      },
+    );
+    return r.map((m) => _int(m['channel_id'])).toList();
+  }
+
   Future<List<int>> rolledBackPatchNumbers(int channelId, int releaseId) async {
     final r = await _q(
       'SELECT p.number AS n FROM channel_patches cp JOIN patches p ON p.id = cp.patch_id '
@@ -1310,13 +1826,16 @@ class Repository {
     String? hashSignature,
     String? podfileLockHash,
     bool canSideload = false,
+    String? signingMode,
+    int? signingKeyId,
   }) async {
     final token = newToken();
     final storageKey = '$ownerKind/$ownerId/$token';
     final r = await _q(
       'INSERT INTO artifacts(token, owner_kind, owner_id, arch, platform, hash, size, '
-      'hash_signature, podfile_lock_hash, can_sideload, status, storage_key) '
-      'VALUES (@t,@ok,@oi,@ar,@pl,@h,@sz,@hs,@ph,@cs,@st,@sk) RETURNING id',
+      'hash_signature, podfile_lock_hash, can_sideload, status, storage_key, '
+      'signing_mode, signing_key_id) '
+      'VALUES (@t,@ok,@oi,@ar,@pl,@h,@sz,@hs,@ph,@cs,@st,@sk,@sm,@sk2) RETURNING id',
       {
         't': token,
         'ok': ownerKind,
@@ -1330,6 +1849,8 @@ class Repository {
         'cs': canSideload,
         'st': ArtifactStatus.pending.name,
         'sk': storageKey,
+        'sm': signingMode,
+        'sk2': signingKeyId,
       },
     );
     return (await _artifactById(_int(r.first['id'])))!;
@@ -1382,6 +1903,10 @@ class Repository {
     status: ArtifactStatus.parse(m['status'] as String),
     storageKey: m['storage_key'] as String,
     createdAt: _ts(m['created_at']),
+    signingMode: m['signing_mode'] as String?,
+    signingKeyId: m['signing_key_id'] == null
+        ? null
+        : _int(m['signing_key_id']),
   );
 
   Future<void> setArtifactStatus(int artifactId, ArtifactStatus status) => _q(
@@ -1410,6 +1935,82 @@ class Repository {
     );
     return r.map(_artifactFrom).toList();
   }
+
+  /// How each platform of [releaseId] was signed, from its live (non-`failed`)
+  /// release artifacts: platform -> (mode, key id). A platform whose artifacts
+  /// reported no signing (anything registered before migration 14, or by an
+  /// older CLI) is absent, which callers must read as "not signed by us".
+  Future<Map<String, ({String mode, int? keyId})>> releaseSigning(
+    int releaseId,
+  ) async {
+    final r = await _q(
+      "SELECT platform, signing_mode, signing_key_id FROM artifacts "
+      "WHERE owner_kind = 'release' AND owner_id = @o AND status <> 'failed' "
+      "AND signing_mode IS NOT NULL ORDER BY id",
+      {'o': releaseId},
+    );
+    final out = <String, ({String mode, int? keyId})>{};
+    for (final m in r) {
+      out.putIfAbsent(
+        m['platform'] as String,
+        () => (
+          mode: m['signing_mode'] as String,
+          keyId: m['signing_key_id'] == null ? null : _int(m['signing_key_id']),
+        ),
+      );
+    }
+    return out;
+  }
+
+  // ---- Managed patch-signing keys ----
+
+  Future<SigningKeyRow?> signingKeyById(int id) async {
+    final r = await _q('SELECT * FROM signing_keys WHERE id = @id', {'id': id});
+    return r.isEmpty ? null : _signingKeyFrom(r.first);
+  }
+
+  /// Any one stored key (the oldest).
+  Future<SigningKeyRow?> anySigningKey() async {
+    final r = await _q('SELECT * FROM signing_keys ORDER BY id LIMIT 1', {});
+    return r.isEmpty ? null : _signingKeyFrom(r.first);
+  }
+
+  /// Every stored key, oldest first, for the boot-time trial decrypt (the
+  /// table has at most one row per org, so it is small).
+  Future<List<SigningKeyRow>> allSigningKeys() async {
+    final r = await _q('SELECT * FROM signing_keys ORDER BY id', {});
+    return [for (final row in r) _signingKeyFrom(row)];
+  }
+
+  Future<SigningKeyRow?> signingKeyForOrg(int orgId) async {
+    final r = await _q('SELECT * FROM signing_keys WHERE org_id = @o', {
+      'o': orgId,
+    });
+    return r.isEmpty ? null : _signingKeyFrom(r.first);
+  }
+
+  /// Stores [publicKeyPem] / [privateKeyEncrypted] as [orgId]'s key unless the
+  /// org already has one, and returns whichever key the org ends up with, so
+  /// two racing first fetches converge on one key.
+  Future<SigningKeyRow> insertSigningKeyIfAbsent(
+    int orgId,
+    String publicKeyPem,
+    String privateKeyEncrypted,
+  ) async {
+    await _q(
+      'INSERT INTO signing_keys(org_id, public_key_pem, private_key_enc) '
+      'VALUES (@o,@pub,@priv) ON CONFLICT(org_id) DO NOTHING',
+      {'o': orgId, 'pub': publicKeyPem, 'priv': privateKeyEncrypted},
+    );
+    return (await signingKeyForOrg(orgId))!;
+  }
+
+  SigningKeyRow _signingKeyFrom(Map<String, Object?> m) => SigningKeyRow(
+    _int(m['id']),
+    _int(m['org_id']),
+    m['public_key_pem'] as String,
+    m['private_key_enc'] as String,
+  );
 
   Future<List<ArtifactRow>> patchArtifacts(int patchId) async {
     final r = await _q(
@@ -1445,10 +2046,17 @@ class Repository {
     String? arch,
     String? releaseVersion,
     int? ts,
+    String? outcome,
+    int? ambiguousAttemptCount,
+    int? bootFailureThreshold,
+    int? bootStartedAt,
+    String? updaterRevision,
   }) async {
     final r = await _q(
       'INSERT INTO events(dedupe_key, raw, app_id, client_id, type, patch_number, '
-      'platform, arch, release_version, ts) VALUES (@dk,@raw,@a,@c,@t,@pn,@pl,@ar,@rv,@ts) '
+      'platform, arch, release_version, ts, outcome, ambiguous_attempt_count, '
+      'boot_failure_threshold, boot_started_at, updater_revision) '
+      'VALUES (@dk,@raw,@a,@c,@t,@pn,@pl,@ar,@rv,@ts,@oc,@aac,@bft,@bsa,@ur) '
       'ON CONFLICT(dedupe_key) DO NOTHING RETURNING id',
       {
         'dk': dedupeKey,
@@ -1461,27 +2069,115 @@ class Repository {
         'ar': arch,
         'rv': releaseVersion,
         'ts': ts,
+        'oc': outcome,
+        'aac': ambiguousAttemptCount,
+        'bft': bootFailureThreshold,
+        'bsa': bootStartedAt,
+        'ur': updaterRevision,
       },
     );
     return r.isNotEmpty;
   }
 
+  // ---- Crash reports (device-posted, deduped) ----
+
+  /// Stores a crash report. Returns false when [dedupeKey] was already seen,
+  /// which is the normal case for a retrying reporter or a crash loop rather
+  /// than an error.
+  Future<bool> insertCrashReport({
+    required String raw,
+    String? dedupeKey,
+    String? appId,
+    String? clientId,
+    String? releaseVersion,
+    int? patchNumber,
+    String? platform,
+    String? arch,
+    String? kind,
+    String? message,
+    String? stack,
+    int? ts,
+  }) async {
+    final r = await _q(
+      'INSERT INTO crash_reports(dedupe_key, raw, app_id, client_id, '
+      'release_version, patch_number, platform, arch, kind, message, stack, ts) '
+      'VALUES (@dk,@raw,@a,@c,@rv,@pn,@pl,@ar,@k,@m,@st,@ts) '
+      'ON CONFLICT(dedupe_key) DO NOTHING RETURNING id',
+      {
+        'dk': dedupeKey,
+        'raw': raw,
+        'a': appId,
+        'c': clientId,
+        'rv': releaseVersion,
+        'pn': patchNumber,
+        'pl': platform,
+        'ar': arch,
+        'k': kind,
+        'm': message,
+        'st': stack,
+        'ts': ts,
+      },
+    );
+    return r.isNotEmpty;
+  }
+
+  /// Crash reports for an app, newest first. [releaseVersion] and [patchNumber]
+  /// narrow to the tuple a symbol set would be retained against.
+  Future<List<Map<String, Object?>>> crashReports(
+    String appId, {
+    String? releaseVersion,
+    int? patchNumber,
+    int limit = 100,
+  }) async {
+    final where = <String>['app_id = @a'];
+    final args = <String, Object?>{'a': appId, 'lim': limit};
+    if (releaseVersion != null) {
+      where.add('release_version = @rv');
+      args['rv'] = releaseVersion;
+    }
+    if (patchNumber != null) {
+      where.add('patch_number = @pn');
+      args['pn'] = patchNumber;
+    }
+    return _q(
+      'SELECT * FROM crash_reports WHERE ${where.join(' AND ')} '
+      'ORDER BY id DESC LIMIT @lim',
+      args,
+    );
+  }
+
   // ---- OAuth codes + refresh tokens (persisted, single-use) ----
 
-  Future<void> insertAuthCode(String code, String email, DateTime expiresAt) =>
-      _q('INSERT INTO auth_codes(code, email, expires_at) VALUES (@c,@e,@x)', {
-        'c': code,
-        'e': email,
-        'x': expiresAt,
-      });
+  Future<void> insertAuthCode(
+    String code,
+    String email,
+    DateTime expiresAt, {
+    String? codeChallenge,
+  }) => _q(
+    'INSERT INTO auth_codes(code, email, expires_at, code_challenge) '
+    'VALUES (@c,@e,@x,@cc)',
+    {'c': code, 'e': email, 'x': expiresAt, 'cc': codeChallenge},
+  );
 
   /// Atomically consumes an unexpired auth code, returning its email (or null).
-  Future<String?> consumeAuthCode(String code) async {
+  Future<String?> consumeAuthCode(String code) async =>
+      (await consumeAuthCodeGrant(code))?.email;
+
+  /// Like [consumeAuthCode], also returning the PKCE challenge the login asked
+  /// for (null when it sent none).
+  Future<({String email, String? codeChallenge})?> consumeAuthCodeGrant(
+    String code,
+  ) async {
     final r = await _q(
-      'DELETE FROM auth_codes WHERE code = @c AND expires_at > now() RETURNING email',
+      'DELETE FROM auth_codes WHERE code = @c AND expires_at > now() '
+      'RETURNING email, code_challenge',
       {'c': code},
     );
-    return r.isEmpty ? null : r.first['email'] as String;
+    if (r.isEmpty) return null;
+    return (
+      email: r.first['email'] as String,
+      codeChallenge: r.first['code_challenge'] as String?,
+    );
   }
 
   Future<void> insertRefreshToken(String token, String email) => _q(
@@ -1510,20 +2206,33 @@ class Repository {
   Future<void> insertIdpState(
     String state,
     String continueUrl,
-    DateTime expiresAt,
-  ) => _q(
-    'INSERT INTO idp_states(state, continue_url, expires_at) VALUES (@s,@c,@x)',
-    {'s': state, 'c': continueUrl, 'x': expiresAt},
+    DateTime expiresAt, {
+    String? codeChallenge,
+  }) => _q(
+    'INSERT INTO idp_states(state, continue_url, expires_at, code_challenge) '
+    'VALUES (@s,@c,@x,@cc)',
+    {'s': state, 'c': continueUrl, 'x': expiresAt, 'cc': codeChallenge},
   );
 
   /// Atomically consumes an unexpired IdP state, returning its `continue` URL.
-  Future<String?> consumeIdpState(String state) async {
+  Future<String?> consumeIdpState(String state) async =>
+      (await consumeIdpStateGrant(state))?.continueUrl;
+
+  /// Like [consumeIdpState], also returning the PKCE challenge to carry onto
+  /// the auth code issued at the end of the round trip.
+  Future<({String continueUrl, String? codeChallenge})?> consumeIdpStateGrant(
+    String state,
+  ) async {
     final r = await _q(
       'DELETE FROM idp_states WHERE state = @s AND expires_at > now() '
-      'RETURNING continue_url',
+      'RETURNING continue_url, code_challenge',
       {'s': state},
     );
-    return r.isEmpty ? null : r.first['continue_url'] as String;
+    if (r.isEmpty) return null;
+    return (
+      continueUrl: r.first['continue_url'] as String,
+      codeChallenge: r.first['code_challenge'] as String?,
+    );
   }
 
   /// Drops IdP states abandoned mid-login (call periodically).
@@ -1559,6 +2268,124 @@ class Repository {
   }
 
   // ---- Metrics (event-derived) ----
+
+  /// Client releases whose lifecycle telemetry is NOT valid for policy analysis.
+  ///
+  /// THE TELEMETRY VALIDITY EPOCH. Recovery metrics are meaningful only for
+  /// clients that shipped BOTH halves of the fix:
+  ///
+  ///   * outcome-aware event dedupe on the server (schema migration 9), without
+  ///     which a recovery arriving in the same second as its retry was discarded
+  ///     as a duplicate;
+  ///   * exact event acknowledgement in the client, without which the event
+  ///     flusher wiped the whole queue after sending a batch captured earlier,
+  ///     destroying anything enqueued during the send.
+  ///
+  /// Both bugs zeroed the RECOVERY NUMERATOR while leaving the ambiguity
+  /// DENOMINATOR intact, so pre-epoch rows do not merely add noise — they bias
+  /// P(recovery | first ambiguity) toward zero. They stay queryable as evidence of
+  /// the instrumentation failures and must never enter an estimator.
+  ///
+  /// ~~LIMITATION, stated rather than hidden: the correct predicate is the CLIENT's
+  /// updater revision, and events do not carry it. Until they do, the epoch can
+  /// only be enforced by naming the affected releases for this deployment. Adding
+  /// an updater-revision field to the event envelope is the durable fix, and is
+  /// what would make this list unnecessary.~~
+  ///
+  /// CLOSED: events carry `updater_revision` (migration 10), and the durable fix
+  /// named above is the field immediately below. The release-name list is now
+  /// defence in depth, not the predicate. Kept rather than deleted because it
+  /// records that the proxy was known to be a proxy while it was in use.
+  /// Updater revisions known to carry ALL the event-loss fixes: outcome-aware
+  /// dedupe on the server side is ours, but the client must also have exact event
+  /// acknowledgement and failure rotation, or recovery events are destroyed or
+  /// censored before they are sent.
+  ///
+  /// This is the AUTHORITATIVE eligibility predicate. `preEpochReleaseVersions`
+  /// below is the legacy proxy, kept only for events recorded before the client
+  /// reported its revision — those carry NULL and are treated as ineligible,
+  /// because an unknown client cannot be assumed to have the fixes.
+  /// The epoch a query answers for unless told otherwise.
+  ///
+  /// WHY THE EPOCH MOVED from A to B, and it is NOT merely the rejection fix:
+  /// `af6e842ccf87` made boot attribution atomic with boot selection, which moves
+  /// WHEN A BOOT BECOMES ATTRIBUTABLE. Under `f729f958e9be`,
+  /// `report_launch_start` ran BEFORE validation, so a process that died during
+  /// validation left a breadcrumb and was counted as an ambiguity. Under
+  /// `af6e842ccf87`, validation precedes attribution, so the same death leaves no
+  /// breadcrumb and is not an ambiguity at all.
+  ///
+  /// The counters, the retry threshold and the emission path are untouched. The
+  /// DEFINITION OF THE MEASURED POPULATION is not. Pooling the two would carry a
+  /// small but entirely avoidable semantic discontinuity into the one number the
+  /// threshold decision rests on, and the 100-distinct-client minimum means there
+  /// was never any upside to accepting it.
+  static const activePolicyEpoch = PolicyEpoch.b;
+
+  /// Revisions eligible for [activePolicyEpoch].
+  ///
+  /// Empty while epoch B is unactivated, and callers must handle that rather than
+  /// interpolate an empty SQL `IN ()`.
+  static Set<String> get eligibleUpdaterRevisions =>
+      activePolicyEpoch.updaterRevisions;
+
+  static const preEpochReleaseVersions = <String>[
+    '1.4.0+1', // recovery arrived; pre-migration-9 server deduped it away
+    '1.5.0+1', // recovery destroyed client-side by the queue wipe
+    '1.6.0+1', // recovery destroyed client-side by the queue wipe
+  ];
+
+  /// Boot-lifecycle rates for an app, the numbers that decide whether the
+  /// retry threshold is defensible.
+  ///
+  /// Terminal failure events alone cannot answer this: they are survivor-biased,
+  /// showing only patches that were RETIRED and never the ones that hit a single
+  /// ambiguous unfinished boot and then recovered — which are exactly the cases
+  /// that justify having a threshold at all.
+  ///
+  /// Counts DISTINCT clients rather than rows, so a device that re-reports does
+  /// not inflate the denominator.
+  ///
+  ///   P(recovery | first ambiguity) = recovered        / first_ambiguity
+  ///   P(second   | first ambiguity) = second_ambiguity / first_ambiguity
+  Future<List<Map<String, dynamic>>> bootLifecycleMetrics(
+    String appId, {
+    PolicyEpoch epoch = activePolicyEpoch,
+  }) async {
+    // An unactivated epoch has no eligible clients, and that is an ANSWER, not a
+    // failure: "epoch B has not started" is exactly zero rows. Returning early
+    // also avoids interpolating `IN ()`, which is a SQL syntax error rather than
+    // an empty match — so a naive build would fail loudly at the database instead
+    // of here, and a careless "fix" could easily have dropped the predicate
+    // altogether and pooled every revision.
+    if (epoch.updaterRevisions.isEmpty) return const [];
+    final r = await _q(
+      "SELECT release_version, patch_number, "
+      "COUNT(DISTINCT CASE WHEN outcome = 'ambiguous_boot_retry' "
+      "  AND ambiguous_attempt_count = 1 THEN client_id END) AS first_ambiguity, "
+      "COUNT(DISTINCT CASE WHEN outcome = 'ambiguous_boot_retry' "
+      "  AND ambiguous_attempt_count >= 2 THEN client_id END) AS second_ambiguity, "
+      "COUNT(DISTINCT CASE WHEN outcome = 'recovered_after_ambiguity' "
+      "  THEN client_id END) AS recovered, "
+      "COUNT(DISTINCT CASE WHEN outcome = 'retired_after_ambiguity' "
+      "  THEN client_id END) AS retired "
+      "FROM events WHERE app_id = @a AND outcome IS NOT NULL "
+      // AUTHORITATIVE PREDICATE: the client must report an updater revision known
+      // to carry the event-loss fixes. NULL is ineligible — an unknown client
+      // cannot be ASSUMED to have them, and assuming would re-import the bias the
+      // epoch exists to exclude. This deliberately excludes the closure run's rows,
+      // which predate the field; they were an integration proof, never a fleet
+      // estimate, and the 100-client minimum already disqualified them.
+      "AND updater_revision IN (${epoch.updaterRevisions.map((v) => "'$v'").join(',')}) "
+      // Defence in depth. Now subsumed by the revision predicate, kept because the
+      // cost is zero and it documents which releases were affected.
+      "AND release_version NOT IN (${preEpochReleaseVersions.map((v) => "'$v'").join(',')}) "
+      "GROUP BY release_version, patch_number "
+      "ORDER BY release_version, patch_number",
+      {'a': appId},
+    );
+    return r;
+  }
 
   /// Per-patch download/install counts and unique clients for an app, sourced
   /// from the append-only events table. Event types are device-verified
@@ -1643,13 +2470,175 @@ class Repository {
 
   // ---- Audit log ----
 
-  Future<void> audit(
+  /// Appends one row to `audit_log` and returns its id.
+  ///
+  /// Append-only by construction: nothing in this class updates or deletes a
+  /// row except [purgeOldAuditLog], which an operator opts into with
+  /// `AUDIT_RETENTION_DAYS`.
+  ///
+  /// [action] is the operation name; the remaining fields are the structured
+  /// record (see migration 11). A caller that supplies [result] is recording a
+  /// request OUTCOME; one that omits it is recording a detail sub-fact of the
+  /// request named by [requestId].
+  Future<int> audit(
     String action, {
     String? actor,
     String? target,
     String? detail,
-  }) => _q(
-    'INSERT INTO audit_log(actor, action, target, detail) VALUES (@ac,@an,@tg,@dt)',
-    {'ac': actor, 'an': action, 'tg': target, 'dt': detail},
-  );
+    String? requestId,
+    String? route,
+    String? method,
+    int? actorId,
+    String? actorCredential,
+    String? appId,
+    int? releaseId,
+    int? patchId,
+    int? patchNumber,
+    String? track,
+    int? orgId,
+    String? targetKind,
+    String? result,
+    int? httpStatus,
+  }) async {
+    final r = await _q(
+      'INSERT INTO audit_log(actor, action, target, detail, request_id, route, '
+      'method, actor_id, actor_credential, app_id, release_id, patch_id, '
+      'patch_number, track, org_id, target_kind, result, http_status) '
+      'VALUES (@ac,@an,@tg,@dt,@rq,@rt,@mt,@ai,@cr,@ap,@rl,@pt,@pn,@tk,@og,@tp,'
+      '@rs,@hs) '
+      'RETURNING id',
+      {
+        'ac': actor,
+        'an': action,
+        'tg': target,
+        'dt': detail,
+        'rq': requestId,
+        'rt': route,
+        'mt': method,
+        'ai': actorId,
+        'cr': actorCredential,
+        'ap': appId,
+        'rl': releaseId,
+        'pt': patchId,
+        'pn': patchNumber,
+        'tk': track,
+        'og': orgId,
+        'tp': targetKind,
+        'rs': result,
+        'hs': httpStatus,
+      },
+    );
+    return _int(r.first['id']);
+  }
+
+  /// The highest audit id written so far, or 0 when the log is empty.
+  ///
+  /// This is the CEILING an operator snapshots before running something they
+  /// expect to write nothing: "no `patch.create` row exists above this id"
+  /// is a falsifiable claim, whereas "I saw nothing in the log" is not.
+  Future<int> auditCeiling() async {
+    final r = await _q('SELECT MAX(id) AS m FROM audit_log');
+    final m = r.first['m'];
+    return m == null ? 0 : _int(m);
+  }
+
+  /// Audit rows matching the given filters, oldest first.
+  ///
+  /// Every filter is AND-ed and every one is optional. [after] is exclusive, so
+  /// pairing it with a ceiling from [auditCeiling] answers "what happened
+  /// since?". [operations] matches `action` exactly.
+  Future<List<Map<String, Object?>>> auditEvents({
+    String? appId,
+    int? releaseId,
+    int? patchId,
+    int? orgId,
+    String? targetKind,
+    String? target,
+    String? requestId,
+    List<String> operations = const [],
+    String? result,
+    int? after,
+    DateTime? since,
+    int limit = 100,
+  }) async {
+    final where = <String>[];
+    final params = <String, Object?>{};
+    void eq(String column, String name, Object? value) {
+      if (value == null) return;
+      where.add('$column = @$name');
+      params[name] = value;
+    }
+
+    eq('app_id', 'ap', appId);
+    eq('release_id', 'rl', releaseId);
+    eq('patch_id', 'pt', patchId);
+    eq('org_id', 'og', orgId);
+    eq('target_kind', 'tp', targetKind);
+    eq('target', 'tg', target);
+    eq('request_id', 'rq', requestId);
+    eq('result', 'rs', result);
+    if (after != null) {
+      where.add('id > @after');
+      params['after'] = after;
+    }
+    if (since != null) {
+      where.add('created_at >= @since');
+      params['since'] = since.toUtc().toIso8601String();
+    }
+    if (operations.isNotEmpty) {
+      // Named placeholders, so the operation strings are bound, never
+      // interpolated: they arrive from a query parameter.
+      final names = <String>[];
+      for (var i = 0; i < operations.length; i++) {
+        names.add('@op$i');
+        params['op$i'] = operations[i];
+      }
+      where.add('action IN (${names.join(',')})');
+    }
+    final clause = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')} ';
+    // `limit` is clamped by the caller and interpolated because the SQLite
+    // adapter binds parameters positionally and LIMIT placeholders are not
+    // portable across both backends.
+    final rows = await _q(
+      'SELECT id, created_at, request_id, action, route, method, actor, '
+      'actor_id, actor_credential, app_id, release_id, patch_id, patch_number, '
+      'track, org_id, target_kind, result, http_status, target, detail '
+      'FROM audit_log '
+      '${clause}ORDER BY id ASC LIMIT ${limit.clamp(0, 1000)}',
+      params,
+    );
+    return [
+      for (final r in rows)
+        {
+          'id': _int(r['id']),
+          'timestamp': _ts(r['created_at']),
+          'request_id': r['request_id'],
+          // `request` rows carry the outcome of one HTTP request; `detail`
+          // rows are sub-facts correlated to it by `request_id` (and, before
+          // migration 11, every row was a detail row).
+          'kind': r['result'] == null ? 'detail' : 'request',
+          'operation': r['action'],
+          'route': r['route'],
+          'method': r['method'],
+          'actor': r['actor'],
+          'actor_id': r['actor_id'] == null ? null : _int(r['actor_id']),
+          'actor_credential': r['actor_credential'],
+          'app_id': r['app_id'],
+          'release_id': r['release_id'] == null ? null : _int(r['release_id']),
+          'patch_id': r['patch_id'] == null ? null : _int(r['patch_id']),
+          'patch_number': r['patch_number'] == null
+              ? null
+              : _int(r['patch_number']),
+          'track': r['track'],
+          'org_id': r['org_id'] == null ? null : _int(r['org_id']),
+          'target_kind': r['target_kind'],
+          'result': r['result'],
+          'http_status': r['http_status'] == null
+              ? null
+              : _int(r['http_status']),
+          'target': r['target'],
+          'detail': r['detail'],
+        },
+    ];
+  }
 }

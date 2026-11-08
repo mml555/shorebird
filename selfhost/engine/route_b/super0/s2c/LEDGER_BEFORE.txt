@@ -1,0 +1,22 @@
+# 2C shared-state ledger — recorded BEFORE any candidate mutation
+
+date_utc            : 2026-08-31T23:33:32Z
+repo HEAD           : 2daeb5c801bdcb1ca9e74576697fb83e0115a92e
+
+## certified identities that must not move
+engine (fork HEAD)  : 619fdad176ff457331b50230b9511e7230a6ed93
+certified engine    : 619fdad176ff457331b50230b9511e7230a6ed93
+published cell 4792 : 0696da541c2b9a9d70334cb210f4c14b9fb5b13f65a574bd154f48586e653164
+compatibility.yaml  : 42a970f46a23479478b3b9f8b9693b57f949e49acd7f0186c997d5ae21698858
+
+## shared rig state
+installed CLI HEAD  : 207c4a7ac91f937ed39c08f3e3cc13d860cb612c
+installed CLI stamp : 167685e7c1b14c1e9eca5d523f30b462c6c86fa9a2a93a7d4dc39bda78d0c555
+experimental map    : 7bdc97bf9ed27082f097c8da7058c6083ca7161aa76e7194bb869f09cddd932c
+map entries         : 43
+overlay hash dirs   : 46
+
+## running services
+cps-ios  Up 29 hours (healthy)
+shorebird-cdn-cdn-cache-1  Up 29 hours
+shorebird-cdn-artifact-proxy-1  Up 29 hours

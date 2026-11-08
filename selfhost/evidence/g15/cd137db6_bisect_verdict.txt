@@ -1,0 +1,126 @@
+cd137db6 BISECT — VERDICT, 2026-08-17
+======================================
+
+*** WITHDRAWN, SAME DAY, BY hybrid_method_control_verdict.txt ***
+==================================================================
+**THE LINEAGE CONCLUSIONS BELOW ARE NOT SUPPORTED. Read that file first.**
+
+The bisect compared hybrid, `idevicedebug`-launched runs against a `NEW-kill`
+reference that was a NON-hybrid, BY-HAND, historical observation. The method was
+never controlled. When it was, a run on the byte-identical engine binary to the
+one that produced `NEW-kill` produced `OLD-kill` instead — so these runs do not
+measure cell lineage.
+
+**Specifically withdrawn:** that `0012`/`0013` are exonerated as the cause of the
+flip; that the flip is "present at `cd137db6`" in any lineage sense; and the
+framing of `87130ae8` as the missing bisect point (it carries the SAME engine
+binary as `80e493e4`, so it was never a distinct lineage point at all).
+
+**What survives:** the OBSERVATION that this configuration rendered `OLD-kill`
+with the patch Installed and attached, and the engine-identity check (`v=4`)
+confirming which binary ran.
+
+Original text left UNEDITED below.
+==================================================================
+
+Precommitted in cd137db6_bisect_precommit.md before the run. That table is not
+edited here.
+
+THE RESULT
+----------
+
+**`cd137db6` RENDERS `OLD-kill`.**
+
+    screen        "G15 arm 2" / "route B value: OLD-kill"
+    engine        cell cd137db6 (patch 0011, the _runMain seam)
+    trace         rbtrace **v=4**, rc=0, attach_entered=1, attach_returned=1,
+                  bc_post=1, interp_post=1, uep_post_is_interpret_call=1
+    patch state   Installed, bracketed BEFORE and AFTER
+    trace delta   0 -> 1 on this launch
+
+Per the precommitted table, first row: *"the flip is ALREADY PRESENT with `0011`.
+Focus goes directly to the `_runMain` seam and the other engine changes
+introduced in that cell."*
+
+**`0012`/`0013` ARE EXONERATED AS THE CAUSE OF THE FLIP.** The behavior was
+already broken one cell earlier, before either existed.
+
+ADMISSIBILITY — ALL FOUR MET, PLUS AN ENGINE-IDENTITY CHECK
+-------------------------------------------------------------
+| # | required | observed |
+|---|---|---|
+| 1 | rendered UI, NO `launch <id>` line | `screen_cd137db6_OLD-kill.png` — release 91's UI |
+| 2 | trace line-count delta | **0 → 1** on this launch |
+| 3 | `Installed` before AND after | `Installed` / `Installed` |
+| 4 | patch active, `rc=0` | `currently_booting_patch: 1`, `rc=0` |
+
+**And the engine identity is proven by the trace itself: `rbtrace v=4`.** The
+precommit required v=4 and stated that a v=5 line would invalidate the run,
+because v5 exists only from `0012`. The trace also carries the v4 sentinels
+`caller_scan_status=0 pool_status=0 pool_index=-1 pool_offset=0x0` — exactly the
+state `routeb_caller_scan_gap.txt` documented, and further confirmation that this
+is the pre-`0012` engine. Feasibility was checked before install:
+`SNAPSHOT_HASH 21139db2770724220da55c72db00acdc`, matching release 91's.
+
+THE WINDOW IS HALVED, NOT CLOSED — AND `0011` IS NOT YET ISOLATED
+------------------------------------------------------------------
+The lineage, with what is now known:
+
+    80e493e4   0009 + 0010                   **NEW-kill x2**  (arm2_verdict.txt)
+    87130ae8   0009 + 0010, ENGINE BINARY     ** UNTESTED **
+               CHANGED vs its donor 80e493e4
+    cd137db6   0011 _runMain seam            **OLD-kill**     (this run)
+    50bdae36   0012 + 0013                   **OLD-kill**     (r91_behavioral_verdict.txt)
+
+**The flip lies between `80e493e4` and `cd137db6`, and `87130ae8` sits inside
+that window untested.** So the honest statement is *the flip is present at
+`cd137db6`* — NOT *the flip was introduced by `0011`*.
+
+`87130ae8` deserves particular suspicion rather than being treated as a formality:
+its map entry carries **the same patch note as `80e493e4`** (0009 + 0010) while
+recording that its **engine binary CHANGED** (`ios_artifacts_sha256
+4302bf4d…`, donor `80e493e4` supplying every other artifact). A cell claiming the
+same patches with a different binary is exactly the kind of difference that hides
+a cause.
+
+THE DECISIVE NEXT RUN, and it is one cycle
+--------------------------------------------
+Same hybrid, same patch 59, same admissibility requirements, engine
+`87130ae8`:
+
+* **`87130ae8` → `NEW-kill`** — the flip is introduced by `cd137db6`, i.e. by
+  `0011`/the `_runMain` seam. Isolated to a single cell and a single patch.
+* **`87130ae8` → `OLD-kill`** — the flip PREDATES `0011` and lies in whatever
+  changed `87130ae8`'s engine binary from `80e493e4`, despite both claiming the
+  same patches. That would redirect the investigation away from the seam
+  entirely.
+
+Either way the window closes to one cell.
+
+SCORING RESTRICTIONS OBSERVED
+-------------------------------
+* **`TPOOL_ABSENT` did not participate in scoring.** It could not: `tpool_*` does
+  not exist before `0012`, and this engine emits v4. It has already been shown
+  invariant across both behavioral outcomes, so it is a consistency check only.
+* **Arm A remains exactly where it was: INCONCLUSIVE, engine-lineage-localized.**
+  `gate5_arms_precommit.md` still requires `NEW-kill` on screen for release 96's
+  specimen. A bisect narrows which change to study; it produces no mechanism.
+* **Claim 1 is untouched** — instrument established; **positive locator not yet
+  proven.** This run could not bear on it: the instrument does not exist in this
+  engine.
+* The boot-counter state produced here (`boot_attempt_count: 1`,
+  `currently_booting_patch: 1`) belongs to the **separate** tombstone/retry lane
+  and is not read.
+
+WHAT THIS DOES NOT CLAIM
+------------------------
+* NOT that `0011` causes the flip — `87130ae8` is untested and inside the window.
+* NOT a mechanism for `OLD-kill`, at any cell.
+* NOT that `0012`/`0013` are behaviorally inert in general — only that they are
+  not the cause of THIS flip, which was already present before them.
+
+DELIBERATE DEVIATIONS — identical to the previous run, and precommitted there
+------------------------------------------------------------------------------
+Updater state DELETED (`--rmtree`) and re-reached by real download, nothing
+asserted; render arm forced via the fixture's own `g15_armed` marker; patch 59 on
+`stable`. The app was not uninstalled, so Local Network consent survived.

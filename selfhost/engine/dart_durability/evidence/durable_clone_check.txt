@@ -1,0 +1,90 @@
+DART-DURABILITY-1 -- fresh anonymous clone
+generated 2026-09-09T04:41:22Z by verify_durable.sh
+
+  remote      https://github.com/mml555/dart-sdk-shorebird-lineage.git
+  scratch     /var/folders/bn/jq675y6x5m1d1x83vyh99f5c0000gn/T//dd1_fresh/clone
+  wanted tree 7b04b01bdc10ec990143257f0d28580571c2122f
+
+############ 1. CLONE WITH NO CREDENTIALS AND NO LOCAL OBJECTS ############
+  clone exit  0
+  it resolved:
+    origin	https://github.com/mml555/dart-sdk-shorebird-lineage.git (fetch)
+    origin	https://github.com/mml555/dart-sdk-shorebird-lineage.git (push)
+  no local-path remote survives: 0  (0 is required)
+  alternates configured: none
+
+############ 2. DOES THE PRODUCING TREE RESOLVE FROM THE CLONE? ############
+  tag object type                    tag
+  tag -> commit                      5f37e75fbe0891fcaf5442481348ce7f61cb5616
+  tag -> tree                        7b04b01bdc10ec990143257f0d28580571c2122f
+  provenance branch head             5f37e75fbe0891fcaf5442481348ce7f61cb5616
+  recorded revision                  commit
+  recorded head tree                 tree
+  recorded effective tree            tree
+
+############ 3. RECONSTRUCT FROM THE CLONE, NOT FROM THIS MACHINE ############
+  The same reconstruction verify_lineage.sh did locally, re-run against the
+  fresh clone's object database: head tree, plus the banked guard, applied
+  through a temporary index. If this holds here, the banked patch and the
+  durable remote together are sufficient -- the local disk is not needed.
+
+  reconstructed in the fresh clone  7b04b01bdc10ec990143257f0d28580571c2122f
+  the frozen record's effective tree 7b04b01bdc10ec990143257f0d28580571c2122f
+
+############ 4. NEGATIVE CONTROL ############
+  A clone that answers "yes" to everything proves nothing. Two controls: a
+  tree hash that was never published must NOT resolve, and the tag must not be
+  movable by this operator without a force (the branch is protected, so a
+  non-fast-forward push has to be refused by the server, not by politeness).
+
+  a one-nibble-different tree hash: 7b04b01bdc10ec990143257f0d28580571c21220
+    resolves as: UNRESOLVABLE   (UNRESOLVABLE is required)
+  control 2a -- an ANONYMOUS push must be refused.
+    This proves only that the repository is not world-writable. It cannot
+    prove the branch is protected, because an unauthenticated push is refused
+    before protection is ever consulted. Reported separately for that reason.
+    remote: No anonymous write access.
+    fatal: Authentication failed for 'https://github.com/mml555/dart-sdk-shorebird-lineage.git/'
+    refused: 1  (non-zero required)
+
+  control 2b -- an AUTHENTICATED, NON-FORCE rewind must be refused.
+    The operator holds a token with push rights, so this is not refused for
+    lack of credentials. It pushes the branch's own parent, which is a
+    non-fast-forward.
+
+    WHAT THIS DOES NOT SHOW. It does not isolate branch protection: an
+    ordinary non-fast-forward is refused with or without protection. The
+    force-push variant, which protection alone can stop, was NOT exercised --
+    this environment blocks force-pushes outright, and working around that to
+    obtain a nicer transcript would be the wrong trade. So protection itself
+    rests on 2c, the configuration as the API reports it, and that is stated
+    rather than implied.
+    hint: Updates were rejected because the tip of your current branch is behind
+    hint: its remote counterpart. If you want to integrate the remote changes,
+    hint: use 'git pull' before pushing again.
+    hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+    refused: 1  (non-zero required)
+
+  control 2c -- protection flags as the GitHub API reports them:
+    allow_force_pushes = False   (False required)
+    allow_deletions    = False   (False required)
+  branch still points at the published commit: 5f37e75fbe0891fcaf5442481348ce7f61cb5616
+
+ASSERTIONS (15 checked)
+  pass  a fresh anonymous clone succeeds
+  pass  no local-path remote survives in the clone
+  pass  the clone borrows no local object store
+  pass  the canonical ref is an annotated tag
+  pass  the tag resolves to the effective tree
+  pass  the protected provenance branch exists
+  pass  the recorded revision resolves from the remote
+  pass  the recorded head tree resolves from the remote
+  pass  the guard reconstructs the tree inside the fresh clone
+  pass  an unpublished tree hash does not resolve
+  pass  an anonymous push is refused
+  pass  an authenticated non-fast-forward rewind is refused
+  note  force-push control NOT_EXERCISED_ENVIRONMENT_BLOCKS_FORCE_PUSH
+  pass  the API reports force-push and deletion both disabled
+  pass  the branch still points at the published commit after the attacks
+
+DD1_DURABILITY: DURABLE_AND_ANONYMOUSLY_FETCHABLE

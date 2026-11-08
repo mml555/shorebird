@@ -5,8 +5,13 @@ unmodified, pinned Shorebird CLI and on-device updater talk to this server, so n
 runtime code-push request depends on `api.shorebird.dev` — and there's no
 per-app/per-user pricing.
 
-Device-verified end-to-end on Android, iOS, and macOS (release → patch → boot →
-rollback, signed patches).
+Device-verified end-to-end on **Android and iOS** (release → patch → boot →
+rollback). Corrected 2026-08-13: this line also claimed **macOS** and **signed
+patches**, and the status authority holds neither — `selfhost/PARITY.md:2570`
+lists macOS `DEFERRED` in every column, and `:2236-2237` list signed
+Android/iOS release+patch as `NOT VALIDATED`. The server does pass
+`hash_signature` through end to end (see the feature table below); what is
+unvalidated is the signed *workflow* on device, which is a different claim.
 
 ---
 
@@ -17,9 +22,12 @@ cd packages/code_push_server
 ./setup.sh
 ```
 
-That's it. `setup.sh` generates all secrets, starts everything in Docker
-(server + Postgres + MinIO), waits until it's healthy, and prints your server
-URL, API key, and the exact commands to ship an app. No Dart SDK, no manual
+That's it. `setup.sh` generates all secrets, starts **one container** in
+Docker — embedded SQLite + local-disk artifacts — waits until it's healthy, and
+prints your server URL, API key, and the exact commands to ship an app.
+(Corrected 2026-08-13: this said "server + Postgres + MinIO". That is the
+`--scale` stack, and the claim contradicted *Two ways to run* below, which
+correctly calls one container the default.) No Dart SDK, no manual
 config, no editing secrets by hand.
 
 Then, from your Flutter app:
@@ -48,8 +56,11 @@ checks; the published placeholder `API_KEY` / `URL_SIGNING_SECRET` are refused
 in every mode). Only when you need horizontal scale do you add Postgres + S3/MinIO with
 `./setup.sh --scale --domain …`.
 
-Backups: `./setup.sh --backup` snapshots the data volume, `--restore <file>`
-restores it. Behind your own reverse proxy or using your own Postgres/S3? See
+Backups: `./setup.sh --backup` stops the server, snapshots the data volume with
+a manifest of every file's sha256, and starts it again; `--restore <file>`
+verifies the archive against that manifest **before** it overwrites anything.
+The archive contains plaintext API keys — store it as you would a password.
+Behind your own reverse proxy or using your own Postgres/S3? See
 [`../../selfhost/INTEGRATION.md`](../../selfhost/INTEGRATION.md). Full ops runbook in
 [`PRODUCTION.md`](PRODUCTION.md) and [`../../selfhost/GO_LIVE.md`](../../selfhost/GO_LIVE.md).
 
@@ -69,7 +80,9 @@ restores it. Behind your own reverse proxy or using your own Postgres/S3? See
 | **Org domain restriction** | optionally limit an org to your own email domains, so a personal account can't be added |
 | **Login** | `shorebird login` via self-consent or a real IdP (Google/Microsoft) |
 | **Analytics** | adoption / version / install metrics + a web console at `/console` |
-| **Ops** | signed download URLs, migrations, audit log, rate limiting, health checks, backups |
+| **Boot-lifecycle telemetry** | non-terminal `__patch_boot_lifecycle__` events with outcome-aware dedupe, so a patch that merely failed to FINISH booting is visible as a retry-and-recovery rather than only as a retirement. Terminal events alone are survivor-biased. See [`../../selfhost/LIFECYCLE_POLICY.md`](../../selfhost/LIFECYCLE_POLICY.md) |
+| **Audit trail** | every mutating operation — patch lifecycle (create, upload, promote, channel change, withdraw, rollout) *and* the identity/tenancy state that decides who may do those things (users, API keys, invitations, org roles, app collaborators, email policy) — recorded with actor, credential fingerprint, subject, before/after roles, outcome, HTTP status and request id. Queryable at `GET /admin/audit`; see [`../../selfhost/API_REFERENCE.md`](../../selfhost/API_REFERENCE.md#audit-log) |
+| **Ops** | signed download URLs, migrations, rate limiting, health checks, backups |
 
 Everything except billing (intentionally omitted — a self-host doesn't bill itself).
 
@@ -118,8 +131,11 @@ in [`../../selfhost/IOS_ONDEVICE.md`](../../selfhost/IOS_ONDEVICE.md).
   one volume.
 - **Scale — Postgres + S3/MinIO.** For horizontal scale (multiple stateless
   replicas) or an existing managed database. Selected automatically the moment
-  `DATABASE_URL` / `S3_ENDPOINT` are set (that's what `./setup.sh --domain` and
-  `docker-compose.prod.yaml` do). Same features, same wire contract, same code —
+  `DATABASE_URL` / `S3_ENDPOINT` are set — which is what `./setup.sh --scale
+  --domain <host>` and `docker-compose.prod.yaml` do (**corrected 2026-08-13**:
+  this said `./setup.sh --domain`, which starts the single-container stack with
+  a TLS overlay and sets neither variable; the Quick-start section above already
+  had it right, so this file disagreed with itself). Same features, same wire contract, same code —
   only the storage backends differ. Advanced analytics charts require this mode.
 
 ## How it fits together

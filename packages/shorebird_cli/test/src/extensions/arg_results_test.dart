@@ -1,25 +1,27 @@
 // cspell:ignore qwer
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
+import 'package:shorebird_cli/src/flutter_build_options.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/release_type.dart';
-import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:test/test.dart';
 
-class MockCodeSigner extends Mock implements CodeSigner {}
-
-class MockShorebirdLogger extends Mock implements ShorebirdLogger {}
-
-class FakeFile extends Fake implements File {}
+import '../fakes.dart';
+import '../helpers.dart';
+import '../matchers.dart';
+import '../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   setUpAll(() {
     registerFallbackValue(FakeFile());
   });
@@ -220,7 +222,67 @@ void main() {
           CommonArguments.obfuscateArg.name,
           negatable: false,
         )
-        ..addFlag('verbose', abbr: 'v');
+        ..addFlag('verbose', abbr: 'v')
+        ..addFlutterBuildOptions();
+    });
+
+    group('flutter build options', () {
+      test('forwards flags given without --', () {
+        final result = parser.parse([
+          'android',
+          '--no-tree-shake-icons',
+          '--pub',
+          '--ignore-deprecation',
+        ]);
+        expect(result.forwardedArgs, [
+          '--ignore-deprecation',
+          '--pub',
+          '--no-tree-shake-icons',
+        ]);
+      });
+
+      test('forwards every value of an option, commas intact', () {
+        final result = parser.parse([
+          'android',
+          '-P',
+          'a=1,2',
+          '--android-project-arg=b=3',
+          '--code-size-directory',
+          'sizes',
+        ]);
+        expect(result.forwardedArgs, [
+          '--android-project-arg=a=1,2',
+          '--android-project-arg=b=3',
+          '--code-size-directory=sizes',
+        ]);
+      });
+
+      test('keeps args after -- alongside them', () {
+        final result = parser.parse([
+          'android',
+          '--no-pub',
+          '--',
+          '--extra-gen-snapshot-options=--foo',
+        ]);
+        expect(result.forwardedArgs, [
+          '--extra-gen-snapshot-options=--foo',
+          '--no-pub',
+        ]);
+      });
+
+      test('forwards nothing for options not passed', () {
+        final result = parser.parse(['android']);
+        expect(result.forwardedArgs, isEmpty);
+      });
+
+      test('are hidden from --help', () {
+        expect(parser.usage, isNot(contains('tree-shake-icons')));
+      });
+
+      test('none is registered twice', () {
+        final names = flutterBuildOptions.map((o) => o.name);
+        expect(names.toSet(), hasLength(names.length));
+      });
     });
 
     test('returns an empty list when rest is empty', () {
@@ -245,6 +307,18 @@ void main() {
       final args = ['--platforms', 'android', '--', '--verbose'];
       final result = parser.parse(args);
       expect(result.forwardedArgs, ['--verbose']);
+    });
+
+    test('does not forward a .dart positional target', () {
+      final args = ['android', 'lib/main_prod.dart', '--', '--verbose'];
+      final result = parser.parse(args);
+      expect(result.forwardedArgs, ['--verbose']);
+    });
+
+    test('forwards a .dart path that comes after --', () {
+      final args = ['android', '--', 'lib/main_prod.dart'];
+      final result = parser.parse(args);
+      expect(result.forwardedArgs, ['lib/main_prod.dart']);
     });
 
     test('forwards args when no platforms are specified', () {
@@ -419,14 +493,12 @@ void main() {
   });
 
   group('CodeSign', () {
-    final cryptoFixturesBasePath = p.join('test', 'fixtures', 'crypto');
+    final cryptoFixturesBasePath = p.join(fixturesDirectory, 'crypto');
     final publicKeyFile = File(p.join(cryptoFixturesBasePath, 'public.pem'));
 
     late ArgParser parser;
-    late ShorebirdLogger logger;
 
     setUp(() {
-      logger = MockShorebirdLogger();
       parser = ArgParser()
         ..addOption(CommonArguments.publicKeyArg.name)
         ..addOption(CommonArguments.privateKeyArg.name)
@@ -434,145 +506,59 @@ void main() {
         ..addOption(CommonArguments.signCmd.name);
     });
 
-    group('assertAbsentOrValidKeyPairOrCommands', () {
-      test('succeeds when no signing arguments provided', () {
-        final args = <String>[];
-        final result = parser.parse(args);
-        expect(result.assertAbsentOrValidKeyPairOrCommands, returnsNormally);
-      });
-
-      test('throws when both public key sources provided', () {
-        final args = [
-          '--${CommonArguments.publicKeyArg.name}=${publicKeyFile.path}',
-          '--${CommonArguments.publicKeyCmd.name}=get-key-cmd',
-          '--${CommonArguments.signCmd.name}=sign-cmd',
-        ];
-        final result = parser.parse(args);
-
-        runScoped(
-          () {
-            expect(
-              result.assertAbsentOrValidKeyPairOrCommands,
-              throwsA(isA<ProcessExit>()),
-            );
-          },
-          values: {loggerRef.overrideWith(() => logger)},
-        );
-      });
-
-      test('throws when both signing methods provided', () {
-        final privateKeyFile = File(
-          p.join(cryptoFixturesBasePath, 'private.pem'),
-        );
-        final args = [
-          '--${CommonArguments.publicKeyArg.name}=${publicKeyFile.path}',
-          '--${CommonArguments.privateKeyArg.name}=${privateKeyFile.path}',
-          '--${CommonArguments.signCmd.name}=sign-cmd',
-        ];
-        final result = parser.parse(args);
-
-        runScoped(
-          () {
-            expect(
-              result.assertAbsentOrValidKeyPairOrCommands,
-              throwsA(isA<ProcessExit>()),
-            );
-          },
-          values: {loggerRef.overrideWith(() => logger)},
-        );
-      });
-
-      test('throws when sign-cmd provided without any public key', () {
-        final args = ['--${CommonArguments.signCmd.name}=sign-cmd'];
-        final result = parser.parse(args);
-
-        runScoped(
-          () {
-            expect(
-              result.assertAbsentOrValidKeyPairOrCommands,
-              throwsA(isA<ProcessExit>()),
-            );
-          },
-          values: {loggerRef.overrideWith(() => logger)},
-        );
-      });
-
-      test('succeeds when both cmd arguments provided', () {
-        final args = [
-          '--${CommonArguments.publicKeyCmd.name}=get-key-cmd',
-          '--${CommonArguments.signCmd.name}=sign-cmd',
-        ];
-        final result = parser.parse(args);
-        expect(result.assertAbsentOrValidKeyPairOrCommands, returnsNormally);
-      });
-
-      test('succeeds with public-key-path + sign-cmd (mixed)', () {
-        final args = [
-          '--${CommonArguments.publicKeyArg.name}=${publicKeyFile.path}',
-          '--${CommonArguments.signCmd.name}=sign-cmd',
-        ];
-        final result = parser.parse(args);
-        expect(result.assertAbsentOrValidKeyPairOrCommands, returnsNormally);
-      });
-
-      test('succeeds when both file arguments provided with valid files', () {
-        final privateKeyFile = File(
-          p.join(cryptoFixturesBasePath, 'private.pem'),
-        );
-        final args = [
-          '--${CommonArguments.publicKeyArg.name}=${publicKeyFile.path}',
-          '--${CommonArguments.privateKeyArg.name}=${privateKeyFile.path}',
-        ];
-        final result = parser.parse(args);
-        expect(result.assertAbsentOrValidKeyPairOrCommands, returnsNormally);
-      });
-    });
-
-    group('assertAbsentOrValidPublicKeyOrCmd', () {
-      test('succeeds when no public key arguments provided', () {
-        final args = <String>[];
-        final result = parser.parse(args);
-        expect(result.assertAbsentOrValidPublicKeyOrCmd, returnsNormally);
-      });
-
-      test('succeeds when only public-key-path provided', () {
-        final args = [
-          '--${CommonArguments.publicKeyArg.name}=${publicKeyFile.path}',
-        ];
-        final result = parser.parse(args);
-        expect(result.assertAbsentOrValidPublicKeyOrCmd, returnsNormally);
-      });
-
-      test('succeeds when only public-key-cmd provided', () {
-        final args = ['--${CommonArguments.publicKeyCmd.name}=get-key-cmd'];
-        final result = parser.parse(args);
-        expect(result.assertAbsentOrValidPublicKeyOrCmd, returnsNormally);
-      });
-
-      test('throws when both public-key-path and public-key-cmd provided', () {
-        final args = [
-          '--${CommonArguments.publicKeyArg.name}=${publicKeyFile.path}',
-          '--${CommonArguments.publicKeyCmd.name}=get-key-cmd',
-        ];
-        final result = parser.parse(args);
-
-        runScoped(
-          () {
-            expect(
-              result.assertAbsentOrValidPublicKeyOrCmd,
-              throwsA(isA<ProcessExit>()),
-            );
-          },
-          values: {loggerRef.overrideWith(() => logger)},
-        );
-      });
-    });
-
     group('getEncodedPublicKey', () {
       late CodeSigner codeSigner;
 
       setUp(() {
         codeSigner = MockCodeSigner();
+        when(
+          () => codeSigner.canonicalPublicKeyPem(any()),
+        ).thenAnswer(
+          (invocation) => invocation.positionalArguments.single as String,
+        );
+      });
+
+      test('runs --public-key-cmd once per parse', () async {
+        final result = parser.parse([
+          '--${CommonArguments.publicKeyCmd.name}=print-key',
+        ]);
+        when(
+          () => codeSigner.runPublicKeyCmd(any()),
+        ).thenAnswer((_) async => 'pem');
+        when(
+          () => codeSigner.base64PublicKeyFromPem(any()),
+        ).thenReturn('encoded-key');
+
+        await runScoped(
+          () async {
+            expect(await result.getEncodedPublicKey(), equals('encoded-key'));
+            expect(await result.getEncodedPublicKey(), equals('encoded-key'));
+            expect(await result.resolvePublicKeyPem(), equals('pem'));
+            verify(() => codeSigner.runPublicKeyCmd('print-key')).called(1);
+          },
+          values: {codeSignerRef.overrideWith(() => codeSigner)},
+        );
+      });
+
+      test('resolves each parse separately', () async {
+        final first = parser.parse([
+          '--${CommonArguments.publicKeyCmd.name}=print-key',
+        ]);
+        final second = parser.parse([
+          '--${CommonArguments.publicKeyCmd.name}=print-key',
+        ]);
+        when(
+          () => codeSigner.runPublicKeyCmd(any()),
+        ).thenAnswer((_) async => 'pem');
+
+        await runScoped(
+          () async {
+            await first.resolvePublicKeyPem();
+            await second.resolvePublicKeyPem();
+            verify(() => codeSigner.runPublicKeyCmd('print-key')).called(2);
+          },
+          values: {codeSignerRef.overrideWith(() => codeSigner)},
+        );
       });
 
       test('returns null when no public key configured', () async {
@@ -634,6 +620,209 @@ void main() {
             },
             values: {codeSignerRef.overrideWith(() => codeSigner)},
           );
+        },
+      );
+
+      group('when the public key is malformed', () {
+        late ShorebirdLogger logger;
+
+        setUp(() {
+          logger = MockShorebirdLogger();
+          when(
+            () => codeSigner.base64PublicKeyFromPem(any()),
+          ).thenThrow(RangeError('bad key'));
+        });
+
+        Future<void> expectInvalidKey(ArgResults result) => runScoped(
+          () => expectLater(
+            result.getEncodedPublicKey,
+            exitsWithCode(ExitCode.software),
+          ),
+          values: {
+            codeSignerRef.overrideWith(() => codeSigner),
+            loggerRef.overrideWith(() => logger),
+          },
+        );
+
+        test('names --public-key-path for a bad key file', () async {
+          final result = parser.parse([
+            '--${CommonArguments.publicKeyArg.name}=${publicKeyFile.path}',
+          ]);
+
+          await expectInvalidKey(result);
+
+          verify(
+            () => logger.err(
+              any(
+                that: startsWith(
+                  'The --${CommonArguments.publicKeyArg.name} file is not a '
+                  'valid public key',
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+
+        group('when --public-key-path is a private key', () {
+          for (final name in ['private.pem', 'private_pkcs1.pem']) {
+            test('refuses $name without printing it', () async {
+              final privateKeyFile = File(
+                p.join(cryptoFixturesBasePath, name),
+              );
+              final keyLine = const LineSplitter()
+                  .convert(privateKeyFile.readAsStringSync())
+                  .firstWhere((line) => !line.startsWith('-----'));
+              final publicKeyArg =
+                  '--${CommonArguments.publicKeyArg.name}='
+                  '${privateKeyFile.path}';
+              final result = parser.parse([publicKeyArg]);
+
+              await runScoped(
+                () => expectLater(
+                  result.getEncodedPublicKey,
+                  exitsWithCode(ExitCode.software),
+                ),
+                // The real signer, so the key is checked, not stubbed.
+                values: {
+                  codeSignerRef.overrideWith(CodeSigner.new),
+                  loggerRef.overrideWith(() => logger),
+                },
+              );
+
+              final printed = [
+                ...verify(() => logger.err(captureAny())).captured,
+                ...verify(() => logger.info(captureAny())).captured,
+              ].join('\n');
+              expect(
+                printed,
+                startsWith(
+                  'The --${CommonArguments.publicKeyArg.name} file contains '
+                  'a private key.',
+                ),
+              );
+              expect(printed, contains('--private-key-path'));
+              expect(printed, isNot(contains(keyLine)));
+            });
+          }
+        });
+
+        test('names --public-key-cmd for bad command output', () async {
+          final result = parser.parse([
+            '--${CommonArguments.publicKeyCmd.name}=get-key-cmd',
+          ]);
+          when(
+            () => codeSigner.runPublicKeyCmd(any()),
+          ).thenAnswer((_) async => 'not-a-key');
+
+          await expectInvalidKey(result);
+
+          verify(
+            () => logger.err(
+              any(
+                that: startsWith(
+                  'The --${CommonArguments.publicKeyCmd.name} output is not a '
+                  'valid public key',
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+      });
+    });
+  });
+
+  group('AppleArgs', () {
+    late ArgResults argResults;
+    late ShorebirdLogger logger;
+    late Directory tempDir;
+
+    R runWithOverrides<R>(R Function() body) {
+      return runScoped(
+        body,
+        values: {loggerRef.overrideWith(() => logger)},
+      );
+    }
+
+    setUp(() {
+      argResults = MockArgResults();
+      logger = MockShorebirdLogger();
+      tempDir = Directory.systemTemp.createTempSync('apple_args_');
+    });
+
+    tearDown(() {
+      tempDir.deleteSync(recursive: true);
+    });
+
+    group('appleCodesign', () {
+      test('is true only when the flag is true', () {
+        when(() => argResults['codesign']).thenReturn(true);
+        expect(argResults.appleCodesign, isTrue);
+
+        when(() => argResults['codesign']).thenReturn(false);
+        expect(argResults.appleCodesign, isFalse);
+
+        when(() => argResults['codesign']).thenReturn(null);
+        expect(argResults.appleCodesign, isFalse);
+      });
+    });
+
+    group('assertValidExportOptionsPlistArg', () {
+      void stubExportOptionsPlist(String? body) {
+        String? path;
+        if (body != null) {
+          path =
+              (File(p.join(tempDir.path, 'ExportOptions.plist'))
+                    ..writeAsStringSync('''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+$body
+</dict>
+</plist>
+'''))
+                  .path;
+        }
+        when(
+          () => argResults[CommonArguments.exportOptionsPlistArg.name],
+        ).thenReturn(path);
+      }
+
+      test('returns normally when no plist is passed', () {
+        stubExportOptionsPlist(null);
+        expect(
+          () => runWithOverrides(argResults.assertValidExportOptionsPlistArg),
+          returnsNormally,
+        );
+      });
+
+      test(
+        'returns normally when manageAppVersionAndBuildNumber is absent',
+        () {
+          stubExportOptionsPlist('<key>method</key><string>app-store</string>');
+          expect(
+            () => runWithOverrides(argResults.assertValidExportOptionsPlistArg),
+            returnsNormally,
+          );
+        },
+      );
+
+      test(
+        'logs error and exits with usage when '
+        'manageAppVersionAndBuildNumber is true',
+        () {
+          stubExportOptionsPlist(
+            '<key>manageAppVersionAndBuildNumber</key><true/>',
+          );
+          expect(
+            () => runWithOverrides(argResults.assertValidExportOptionsPlistArg),
+            exitsWithCode(ExitCode.usage),
+          );
+          verify(
+            () => logger.err(
+              any(that: contains('manageAppVersionAndBuildNumber')),
+            ),
+          ).called(1);
         },
       );
     });

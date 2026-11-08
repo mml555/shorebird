@@ -1,0 +1,288 @@
+Aug 26 16:24:49.386761 Runner(Flutter)[37979] <Notice>: [shorebird] Reporting launch start.
+Aug 26 16:24:49.386933 Runner(Flutter)[37979] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 16:24:49.387031 Runner(Flutter)[37979] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 16:24:49.387118 Runner(Flutter)[37979] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 16:24:49.470917 Runner(Flutter)[37979] <Notice>: [shorebird] Reporting successful launch.
+Aug 26 16:25:32.594207 Runner(Flutter)[37935] <Notice>: [shorebird] Reporting launch start.
+Aug 26 16:25:32.594241 Runner(Flutter)[37935] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=545794 vm_insns_size=43584 iso_insns_size=1791600 total=2386156
+Aug 26 16:25:32.594276 Runner(Flutter)[37935] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 26 16:25:32.595585 Runner(Flutter)[37935] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(658)] Shorebird updater: active path: /private/var/mobile/Containers/Data/Application/85C2B51B-8CF6-4A87-8341-185F9363ED5B/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode
+Aug 26 16:25:32.595620 Runner(Flutter)[37935] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(681)] Shorebird updater: active patch is a Route B container
+Aug 26 16:25:32.595654 Runner(Flutter)[37935] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 16:25:32.596513 Runner(Flutter)[37935] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "stable", release_version: "1.9.0+1", platform: "ios", arch: "aarch64", client_id: "c5f049c3-f4e8-417c-8a16-8c8b706c3c88", current_patch_number: Some(1) }
+Aug 26 16:25:32.622922 Runner(Flutter)[37935] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 26 16:25:32.622995 Runner(Flutter)[37935] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=2d87177559d83ba2a15c1239160c8b66
+Aug 26 16:25:32.623109 Runner(Flutter)[37935] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=2d87177559d83ba2a15c1239160c8b66
+Aug 26 16:25:32.623204 Runner(Flutter)[37935] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 26 16:25:32.623313 Runner(Flutter)[37935] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 26 16:25:32.624518 Runner(Flutter)[37935] <Fault>: [shorebird] Update failed: Patch check request failed due to network error. Please check your internet connection.
+Aug 26 16:25:32.624838 Runner(Flutter)[37935] <Notice>: [shorebird] Update thread finished with status: Update had error
+Aug 26 16:25:32.725338 Runner(Flutter)[37935] <Notice>: [shorebird] Reporting successful launch.
+Aug 26 16:25:32.725444 Runner(Flutter)[37935] <Notice>: [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+Aug 26 16:25:36.138973 Runner(Flutter)[37987] <Notice>: [shorebird] Reporting launch start.
+Aug 26 16:25:36.139130 Runner(Flutter)[37987] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 16:25:36.143170 Runner(Flutter)[37987] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 16:25:36.143203 Runner(Flutter)[37987] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 16:25:36.162526 Runner(Flutter)[37987] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "beta", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "23d73a05-811e-4575-be50-e980f16b3131", current_patch_number: None }
+Aug 26 16:25:36.249681 Runner(Flutter)[37987] <Fault>: [shorebird] Update failed: Patch check request failed due to network error. Please check your internet connection.
+Aug 26 16:25:36.249733 Runner(Flutter)[37987] <Notice>: [shorebird] Update thread finished with status: Update had error
+Aug 26 16:30:52.427423 Runner(Flutter)[38025] <Notice>: [shorebird] Reporting launch start.
+Aug 26 16:30:52.431439 Runner(Flutter)[38025] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 16:30:52.431534 Runner(Flutter)[38025] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 16:30:52.431627 Runner(Flutter)[38025] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 16:30:52.495533 Runner(Flutter)[38025] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "alpha", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "06ecaea8-0dd4-4268-8228-e889cdfd7ccf", current_patch_number: None }
+Aug 26 16:30:52.499682 Runner(Flutter)[38025] <Fault>: [shorebird] Update failed: Patch check request failed due to network error. Please check your internet connection.
+Aug 26 16:30:52.499838 Runner(Flutter)[38025] <Notice>: [shorebird] Update thread finished with status: Update had error
+Aug 26 16:31:18.290798 Runner(Flutter)[38028] <Notice>: [shorebird] Reporting launch start.
+Aug 26 16:31:18.291058 Runner(Flutter)[38028] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=545794 vm_insns_size=43584 iso_insns_size=1791600 total=2386156
+Aug 26 16:31:18.291524 Runner(Flutter)[38028] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 26 16:31:18.291562 Runner(Flutter)[38028] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(658)] Shorebird updater: active path: /private/var/mobile/Containers/Data/Application/85C2B51B-8CF6-4A87-8341-185F9363ED5B/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode
+Aug 26 16:31:18.291651 Runner(Flutter)[38028] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(681)] Shorebird updater: active patch is a Route B container
+Aug 26 16:31:18.291707 Runner(Flutter)[38028] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 16:31:18.306186 Runner(Flutter)[38028] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "stable", release_version: "1.9.0+1", platform: "ios", arch: "aarch64", client_id: "c5f049c3-f4e8-417c-8a16-8c8b706c3c88", current_patch_number: Some(1) }
+Aug 26 16:31:18.306461 Runner(Flutter)[38028] <Fault>: [shorebird] Update failed: Patch check request failed due to network error. Please check your internet connection.
+Aug 26 16:31:18.313672 Runner(Flutter)[38028] <Notice>: [shorebird] Update thread finished with status: Update had error
+Aug 26 16:31:18.358372 Runner(Flutter)[38028] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 26 16:31:18.366499 Runner(Flutter)[38028] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=2d87177559d83ba2a15c1239160c8b66
+Aug 26 16:31:18.366581 Runner(Flutter)[38028] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=2d87177559d83ba2a15c1239160c8b66
+Aug 26 16:31:18.366669 Runner(Flutter)[38028] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 26 16:31:18.375030 Runner(Flutter)[38028] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 26 16:31:18.396811 Runner(Flutter)[38028] <Notice>: [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+Aug 26 16:40:52.334902 Runner(Flutter)[38096] <Notice>: [shorebird] Reporting launch start.
+Aug 26 16:40:52.334978 Runner(Flutter)[38096] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 16:40:52.335102 Runner(Flutter)[38096] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 16:40:52.335137 Runner(Flutter)[38096] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 16:40:52.341420 Runner(Flutter)[38096] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "alpha", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "06ecaea8-0dd4-4268-8228-e889cdfd7ccf", current_patch_number: None }
+Aug 26 16:41:04.882874 Runner(Flutter)[38098] <Notice>: [shorebird] Reporting launch start.
+Aug 26 16:41:04.882972 Runner(Flutter)[38098] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 16:41:04.883059 Runner(Flutter)[38098] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 16:41:04.885443 Runner(Flutter)[38098] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 16:41:04.980392 Runner(Flutter)[38098] <Fault>: [shorebird] Update failed: Patch check request failed due to network error. Please check your internet connection.
+Aug 26 16:41:04.981560 Runner(Flutter)[38098] <Notice>: [shorebird] Update thread finished with status: Update had error
+Aug 26 16:45:34.864621 Runner(Flutter)[38145] <Notice>: [shorebird] Reporting launch start.
+Aug 26 16:45:34.864801 Runner(Flutter)[38145] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 16:45:34.866595 Runner(Flutter)[38145] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 16:45:34.866701 Runner(Flutter)[38145] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 16:45:34.871313 Runner(Flutter)[38145] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "alpha", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "06ecaea8-0dd4-4268-8228-e889cdfd7ccf", current_patch_number: None }
+Aug 26 16:45:34.872994 Runner(Flutter)[38145] <Fault>: [shorebird] Update failed: Patch check request failed due to network error. Please check your internet connection.
+Aug 26 16:45:34.891128 Runner(Flutter)[38145] <Notice>: [shorebird] Update thread finished with status: Update had error
+Aug 26 16:45:34.933280 Runner(Flutter)[38145] <Notice>: [shorebird] Reporting successful launch.
+Aug 26 16:45:57.143517 Runner(Flutter)[38149] <Notice>: [shorebird] Reporting launch start.
+Aug 26 16:45:57.143763 Runner(Flutter)[38149] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 16:45:57.147497 Runner(Flutter)[38149] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 16:45:57.147645 Runner(Flutter)[38149] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 16:45:57.292020 Runner(Flutter)[38149] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "alpha", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "06ecaea8-0dd4-4268-8228-e889cdfd7ccf", current_patch_number: None }
+Aug 26 16:45:57.292266 Runner(Flutter)[38149] <Fault>: [shorebird] Update failed: Patch check request failed due to network error. Please check your internet connection.
+Aug 26 16:45:57.292355 Runner(Flutter)[38149] <Notice>: [shorebird] Reporting successful launch.
+Aug 26 16:45:57.299690 Runner(Flutter)[38149] <Notice>: [shorebird] Update thread finished with status: Update had error
+Aug 26 16:46:57.995713 Runner(Flutter)[38157] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "beta", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "23d73a05-811e-4575-be50-e980f16b3131", current_patch_number: None }
+Aug 26 16:46:57.995917 Runner(Flutter)[38157] <Fault>: [shorebird] Update failed: Patch check request failed due to network error. Please check your internet connection.
+Aug 26 16:46:57.996012 Runner(Flutter)[38157] <Notice>: [shorebird] Update thread finished with status: Update had error
+Aug 26 16:46:58.053326 Runner(Flutter)[38157] <Notice>: [shorebird] Reporting successful launch.
+Aug 26 16:48:22.657526 Runner(Flutter)[38167] <Notice>: [shorebird] Reporting launch start.
+Aug 26 16:48:22.657613 Runner(Flutter)[38167] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 16:48:22.657702 Runner(Flutter)[38167] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 16:48:22.657792 Runner(Flutter)[38167] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 16:48:22.711235 Runner(Flutter)[38167] <Notice>: [shorebird] Update thread finished with status: Update had error
+Aug 26 17:00:20.119317 Runner(Flutter)[38258] <Notice>: [shorebird] No existing state file found: File /private/var/mobile/Containers/Data/Application/1D86482B-BFCB-466E-B5FE-2FB101339CCD/Library/Application Support/shorebird/shorebird_updater/state.json does not exist, creating new state.
+Aug 26 17:00:20.126723 Runner(Flutter)[38258] <Notice>: [shorebird] Reporting launch start.
+Aug 26 17:00:20.137773 Runner(Flutter)[38258] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 17:00:20.139488 Runner(Flutter)[38258] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 17:00:20.139648 Runner(Flutter)[38258] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 17:00:20.145463 Runner(Flutter)[38258] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "alpha", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "42b44b12-c485-4059-b9bc-1f08c24c8d42", current_patch_number: None }
+Aug 26 17:00:20.148231 Runner(Flutter)[38258] <Fault>: [shorebird] Update failed: Patch check request failed due to network error. Please check your internet connection.
+Aug 26 17:00:20.148675 Runner(Flutter)[38258] <Notice>: [shorebird] Update thread finished with status: Update had error
+Aug 26 17:00:20.537856 Runner(Flutter)[38258] <Notice>: [shorebird] Reporting successful launch.
+Aug 26 17:00:56.873668 Runner(Flutter)[38266] <Notice>: [shorebird] No existing state file found: File /private/var/mobile/Containers/Data/Application/911636CD-C8C8-49E3-AC8D-609A1132F901/Library/Application Support/shorebird/shorebird_updater/state.json does not exist, creating new state.
+Aug 26 17:00:56.887437 Runner(Flutter)[38266] <Notice>: [shorebird] Reporting launch start.
+Aug 26 17:00:56.887855 Runner(Flutter)[38266] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 17:00:56.887927 Runner(Flutter)[38266] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 17:00:56.888305 Runner(Flutter)[38266] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 17:00:56.890285 Runner(Flutter)[38266] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "beta", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "8ce6ece3-5769-4d37-94dd-94cac6155b43", current_patch_number: None }
+Aug 26 17:00:56.891907 Runner(Flutter)[38266] <Fault>: [shorebird] Update failed: Patch check request failed due to network error. Please check your internet connection.
+Aug 26 17:00:56.891993 Runner(Flutter)[38266] <Notice>: [shorebird] Update thread finished with status: Update had error
+Aug 26 17:00:57.245702 Runner(Flutter)[38266] <Notice>: [shorebird] Reporting successful launch.
+Aug 26 17:01:07.936118 Runner(Flutter)[38270] <Notice>: [shorebird] Reporting launch start.
+Aug 26 17:01:07.936201 Runner(Flutter)[38270] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 17:01:07.936305 Runner(Flutter)[38270] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 17:01:07.936394 Runner(Flutter)[38270] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 17:01:07.968093 Runner(Flutter)[38270] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "beta", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "8ce6ece3-5769-4d37-94dd-94cac6155b43", current_patch_number: None }
+Aug 26 17:01:08.017133 Runner(Flutter)[38270] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 26 17:01:08.017223 Runner(Flutter)[38270] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 26 17:02:41.154798 Runner(Flutter)[38282] <Notice>: [shorebird] Reporting launch start.
+Aug 26 17:02:41.154851 Runner(Flutter)[38282] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 17:02:41.155096 Runner(Flutter)[38282] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 17:02:41.157003 Runner(Flutter)[38282] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 17:02:41.167748 Runner(Flutter)[38282] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "alpha", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "42b44b12-c485-4059-b9bc-1f08c24c8d42", current_patch_number: None }
+Aug 26 17:02:41.213924 Runner(Flutter)[38282] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 26 17:02:41.214001 Runner(Flutter)[38282] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 26 17:03:02.241852 Runner(Flutter)[38285] <Notice>: [shorebird] Reporting launch start.
+Aug 26 17:03:02.242100 Runner(Flutter)[38285] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 17:03:02.243118 Runner(Flutter)[38285] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 17:03:02.243230 Runner(Flutter)[38285] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 17:03:02.319963 Runner(Flutter)[38285] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "alpha", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "42b44b12-c485-4059-b9bc-1f08c24c8d42", current_patch_number: None }
+Aug 26 17:12:05.964917 Runner(Flutter)[38362] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "alpha", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "42b44b12-c485-4059-b9bc-1f08c24c8d42", current_patch_number: None }
+Aug 26 17:12:05.978926 Runner(Flutter)[38362] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "a267464ea82bef42c8f557df8d3d2629d40b6cd659784d902d95598f366140cc", download_url: "http://10.0.0.7:18080/download/b9c8828940bd016de1a194765018d934?exp=1787779025&sig=6000ae9707f826e41e5b0edfad0f23a711876030707bf2dfe9507b8154c01177", hash_signature: None }), rolled_back_patch_numbers: Some([]) }
+Aug 26 17:12:05.979359 Runner(Flutter)[38362] <Notice>: [shorebird] Downloading patch 1 for app 1c99c679-8650-ba82-3899-681349a59416 (version 1.10.0+1)
+Aug 26 17:12:05.981319 Runner(Flutter)[38362] <Notice>: [shorebird] Downloading patch from: http://10.0.0.7:18080/download/b9c8828940bd016de1a194765018d934?exp=1787779025&sig=6000ae9707f826e41e5b0edfad0f23a711876030707bf2dfe9507b8154c01177
+Aug 26 17:12:06.014297 Runner(Flutter)[38362] <Notice>: [shorebird] Reporting successful launch.
+Aug 26 17:12:06.053842 Runner(Flutter)[38362] <Notice>: [shorebird] Downloaded patch to: "/private/var/mobile/Containers/Data/Application/1D86482B-BFCB-466E-B5FE-2FB101339CCD/Library/Application Support/shorebird/shorebird_updater/downloads/1" (1063 bytes)
+Aug 26 17:12:06.060815 Runner(Flutter)[38362] <Notice>: [shorebird] Inflating patch from "/private/var/mobile/Containers/Data/Application/1D86482B-BFCB-466E-B5FE-2FB101339CCD/Library/Application Support/shorebird/shorebird_updater/downloads/1" (1063 bytes)
+Aug 26 17:12:06.084681 Runner(Flutter)[38362] <Notice>: [shorebird] Patch successfully applied to "/private/var/mobile/Containers/Data/Application/1D86482B-BFCB-466E-B5FE-2FB101339CCD/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode". patch_file=1063b base_size=2389020b decompressed_into_pipe=1716b decompressed_out_of_pipe=1716b base_read=0b base_last_seek_pos=0 base_seeks=1 output_written=1704b
+Aug 26 17:12:06.084824 Runner(Flutter)[38362] <Notice>: [shorebird] Patch 1 successfully downloaded. It will be launched when the app next restarts.
+Aug 26 17:12:06.084922 Runner(Flutter)[38362] <Notice>: [shorebird] Update thread finished with status: Update installed
+Aug 26 17:12:24.578464 Runner(Flutter)[38365] <Notice>: [shorebird] Reporting launch start.
+Aug 26 17:12:24.578632 Runner(Flutter)[38365] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 17:12:24.578714 Runner(Flutter)[38365] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 26 17:12:24.580996 Runner(Flutter)[38365] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(658)] Shorebird updater: active path: /private/var/mobile/Containers/Data/Application/1D86482B-BFCB-466E-B5FE-2FB101339CCD/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode
+Aug 26 17:12:24.581090 Runner(Flutter)[38365] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(681)] Shorebird updater: active patch is a Route B container
+Aug 26 17:12:24.581150 Runner(Flutter)[38365] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 17:12:24.608384 Runner(Flutter)[38365] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "alpha", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "42b44b12-c485-4059-b9bc-1f08c24c8d42", current_patch_number: Some(1) }
+Aug 26 17:12:24.652282 Runner(Flutter)[38365] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 26 17:12:24.652388 Runner(Flutter)[38365] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=a9d9478e623b32dfb4b3b2de72ac8f7e
+Aug 26 17:12:24.652447 Runner(Flutter)[38365] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=a9d9478e623b32dfb4b3b2de72ac8f7e
+Aug 26 17:12:24.652585 Runner(Flutter)[38365] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 26 17:12:24.658413 Runner(Flutter)[38365] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 26 17:12:24.728642 Runner(Flutter)[38365] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 26 17:12:24.729277 Runner(Flutter)[38365] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 26 17:12:39.988826 Runner(Flutter)[38368] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 26 17:12:39.988860 Runner(Flutter)[38368] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 26 17:13:08.682873 Runner(Flutter)[38372] <Notice>: [shorebird] Reporting launch start.
+Aug 26 17:13:08.683011 Runner(Flutter)[38372] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 17:13:08.687116 Runner(Flutter)[38372] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 17:13:08.687194 Runner(Flutter)[38372] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 17:13:08.748411 Runner(Flutter)[38372] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "beta", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "8ce6ece3-5769-4d37-94dd-94cac6155b43", current_patch_number: None }
+Aug 26 17:13:08.781575 Runner(Flutter)[38372] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 26 17:13:08.781816 Runner(Flutter)[38372] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 26 17:13:26.368010 Runner(Flutter)[38376] <Notice>: [shorebird] Reporting launch start.
+Aug 26 17:13:26.374303 Runner(Flutter)[38376] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 17:13:26.374760 Runner(Flutter)[38376] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 17:13:26.374856 Runner(Flutter)[38376] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 17:13:26.422585 Runner(Flutter)[38376] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "beta", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "8ce6ece3-5769-4d37-94dd-94cac6155b43", current_patch_number: None }
+Aug 26 17:13:26.457535 Runner(Flutter)[38376] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 26 17:13:26.457670 Runner(Flutter)[38376] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 26 17:18:20.245949 Runner(Flutter)[38417] <Notice>: [shorebird] Reporting launch start.
+Aug 26 17:18:20.246040 Runner(Flutter)[38417] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 17:18:20.246136 Runner(Flutter)[38417] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 26 17:18:20.246244 Runner(Flutter)[38417] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 17:18:20.272628 Runner(Flutter)[38417] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "beta", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "8ce6ece3-5769-4d37-94dd-94cac6155b43", current_patch_number: None }
+Aug 26 17:18:20.275817 Runner(Flutter)[38417] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "a267464ea82bef42c8f557df8d3d2629d40b6cd659784d902d95598f366140cc", download_url: "http://10.0.0.7:18080/download/b9c8828940bd016de1a194765018d934?exp=1787779400&sig=5a02c75125dd47ed200722616f5a8d65940b9dedcd01233de779443843bc3810", hash_signature: None }), rolled_back_patch_numbers: Some([]) }
+Aug 26 17:18:20.275909 Runner(Flutter)[38417] <Notice>: [shorebird] Downloading patch 1 for app 1c99c679-8650-ba82-3899-681349a59416 (version 1.10.0+1)
+Aug 26 17:18:20.277473 Runner(Flutter)[38417] <Notice>: [shorebird] Downloading patch from: http://10.0.0.7:18080/download/b9c8828940bd016de1a194765018d934?exp=1787779400&sig=5a02c75125dd47ed200722616f5a8d65940b9dedcd01233de779443843bc3810
+Aug 26 17:18:20.292823 Runner(Flutter)[38417] <Notice>: [shorebird] Downloaded patch to: "/private/var/mobile/Containers/Data/Application/911636CD-C8C8-49E3-AC8D-609A1132F901/Library/Application Support/shorebird/shorebird_updater/downloads/1" (1063 bytes)
+Aug 26 17:18:20.292907 Runner(Flutter)[38417] <Notice>: [shorebird] Inflating patch from "/private/var/mobile/Containers/Data/Application/911636CD-C8C8-49E3-AC8D-609A1132F901/Library/Application Support/shorebird/shorebird_updater/downloads/1" (1063 bytes)
+Aug 26 17:18:20.292967 Runner(Flutter)[38417] <Notice>: [shorebird] Patch successfully applied to "/private/var/mobile/Containers/Data/Application/911636CD-C8C8-49E3-AC8D-609A1132F901/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode". patch_file=1063b base_size=2389020b decompressed_into_pipe=1716b decompressed_out_of_pipe=1716b base_read=0b base_last_seek_pos=0 base_seeks=1 output_written=1704b
+Aug 26 17:18:20.293031 Runner(Flutter)[38417] <Notice>: [shorebird] Patch 1 successfully downloaded. It will be launched when the app next restarts.
+Aug 26 17:18:20.293088 Runner(Flutter)[38417] <Notice>: [shorebird] Update thread finished with status: Update installed
+Aug 26 17:18:20.339286 Runner(Flutter)[38417] <Notice>: [shorebird] Reporting successful launch.
+Aug 26 17:18:39.688123 Runner(Flutter)[38420] <Notice>: [shorebird] Reporting launch start.
+Aug 26 17:18:39.688497 Runner(Flutter)[38420] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 17:18:39.692243 Runner(Flutter)[38420] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 26 17:18:39.692514 Runner(Flutter)[38420] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(658)] Shorebird updater: active path: /private/var/mobile/Containers/Data/Application/911636CD-C8C8-49E3-AC8D-609A1132F901/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode
+Aug 26 17:18:39.692625 Runner(Flutter)[38420] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(681)] Shorebird updater: active patch is a Route B container
+Aug 26 17:18:39.693766 Runner(Flutter)[38420] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 17:18:39.747492 Runner(Flutter)[38420] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "beta", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "8ce6ece3-5769-4d37-94dd-94cac6155b43", current_patch_number: Some(1) }
+Aug 26 17:18:39.758961 Runner(Flutter)[38420] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 26 17:18:39.759039 Runner(Flutter)[38420] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=a9d9478e623b32dfb4b3b2de72ac8f7e
+Aug 26 17:18:39.759094 Runner(Flutter)[38420] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=a9d9478e623b32dfb4b3b2de72ac8f7e
+Aug 26 17:18:39.759152 Runner(Flutter)[38420] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 26 17:18:39.759319 Runner(Flutter)[38420] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 26 17:18:39.781193 Runner(Flutter)[38420] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 26 17:18:39.781266 Runner(Flutter)[38420] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 26 17:21:17.633366 Runner(Flutter)[38428] <Notice>: [shorebird] Reporting launch start.
+Aug 26 17:21:17.633437 Runner(Flutter)[38428] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=546546 vm_insns_size=43584 iso_insns_size=1793712 total=2389020
+Aug 26 17:21:17.633499 Runner(Flutter)[38428] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 26 17:21:17.634286 Runner(Flutter)[38428] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(658)] Shorebird updater: active path: /private/var/mobile/Containers/Data/Application/1D86482B-BFCB-466E-B5FE-2FB101339CCD/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode
+Aug 26 17:21:17.634339 Runner(Flutter)[38428] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(681)] Shorebird updater: active patch is a Route B container
+Aug 26 17:21:17.634399 Runner(Flutter)[38428] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 26 17:21:17.638635 Runner(Flutter)[38428] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "1c99c679-8650-ba82-3899-681349a59416", channel: "alpha", release_version: "1.10.0+1", platform: "ios", arch: "aarch64", client_id: "42b44b12-c485-4059-b9bc-1f08c24c8d42", current_patch_number: Some(1) }
+Aug 26 17:21:17.645471 Runner(Flutter)[38428] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 26 17:21:17.653573 Runner(Flutter)[38428] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 26 17:21:17.653698 Runner(Flutter)[38428] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 26 17:21:17.653910 Runner(Flutter)[38428] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=a9d9478e623b32dfb4b3b2de72ac8f7e
+Aug 26 17:21:17.654436 Runner(Flutter)[38428] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=a9d9478e623b32dfb4b3b2de72ac8f7e
+Aug 26 17:21:17.654492 Runner(Flutter)[38428] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 26 17:21:17.655200 Runner(Flutter)[38428] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 26 17:21:17.700749 Runner(Flutter)[38428] <Notice>: [shorebird] Reporting successful launch.
+Aug 26 17:21:17.700811 Runner(Flutter)[38428] <Notice>: [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+Aug 26 16:24:49.501873 UserEventAgent(com.apple.networkextension)[30] <Info>: Got local network blocked notification: pid: 37979, uuid: BB02BCB5-82C5-3979-8222-9356C9611EF6, bundle_id: (null)
+Aug 26 16:24:49.551791 nehelper[112] <Info>: Local network allowed by preference for Flavored Probe (dev.selfhost.flavoredProbe.foo)
+Aug 26 16:24:49.551878 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo with allowed: 1
+Aug 26 16:24:49.551962 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo
+Aug 26 16:25:32.596821 UserEventAgent(com.apple.networkextension)[30] <Info>: Got local network blocked notification: pid: 37935, uuid: BB02BCB5-82C5-3979-8222-9356C9611EF6, bundle_id: (null)
+Aug 26 16:25:32.805816 nehelper[112] <Info>: Local network allowed by preference for Flavored Probe (dev.selfhost.flavoredProbe.foo)
+Aug 26 16:25:32.805889 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo with allowed: 1
+Aug 26 16:25:32.805976 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo
+Aug 26 16:25:36.265264 UserEventAgent(com.apple.networkextension)[30] <Info>: Got local network blocked notification: pid: 37987, uuid: BB02BCB5-82C5-3979-8222-9356C9611EF6, bundle_id: (null)
+Aug 26 16:25:36.274255 nehelper[112] <Info>: Local network allowed by preference for Flavored Probe (dev.selfhost.flavoredProbe.foo)
+Aug 26 16:25:36.274325 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo with allowed: 1
+Aug 26 16:25:36.274696 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo
+Aug 26 16:30:52.567922 UserEventAgent(com.apple.networkextension)[30] <Info>: Got local network blocked notification: pid: 38025, uuid: BB02BCB5-82C5-3979-8222-9356C9611EF6, bundle_id: (null)
+Aug 26 16:30:52.590864 nehelper[112] <Info>: Local network allowed by preference for Flavored Probe (dev.selfhost.flavoredProbe.foo)
+Aug 26 16:30:52.590944 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo with allowed: 1
+Aug 26 16:30:52.591039 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo
+Aug 26 16:31:18.407593 UserEventAgent(com.apple.networkextension)[30] <Info>: Got local network blocked notification: pid: 38028, uuid: BB02BCB5-82C5-3979-8222-9356C9611EF6, bundle_id: (null)
+Aug 26 16:31:18.440823 nehelper[112] <Info>: Local network allowed by preference for Flavored Probe (dev.selfhost.flavoredProbe.foo)
+Aug 26 16:31:18.440915 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo with allowed: 1
+Aug 26 16:31:18.440975 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo
+Aug 26 16:40:52.479190 nehelper[112] <Info>: Local network allowed by preference for Flavored Probe (dev.selfhost.flavoredProbe.foo)
+Aug 26 16:40:52.479264 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo with allowed: 1
+Aug 26 16:40:52.479337 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo
+Aug 26 16:41:05.024799 UserEventAgent(com.apple.networkextension)[30] <Info>: Got local network blocked notification: pid: 38098, uuid: BB02BCB5-82C5-3979-8222-9356C9611EF6, bundle_id: (null)
+Aug 26 16:41:05.062791 nehelper[112] <Info>: Local network allowed by preference for Flavored Probe (dev.selfhost.flavoredProbe.foo)
+Aug 26 16:41:05.062849 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo with allowed: 1
+Aug 26 16:41:05.062949 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo
+Aug 26 16:45:34.983371 nehelper[112] <Info>: Local network allowed by preference for Flavored Probe (dev.selfhost.flavoredProbe.foo)
+Aug 26 16:45:34.983415 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo with allowed: 1
+Aug 26 16:45:34.983461 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo
+Aug 26 16:45:57.283535 UserEventAgent(com.apple.networkextension)[30] <Info>: Got local network blocked notification: pid: 38149, uuid: BB02BCB5-82C5-3979-8222-9356C9611EF6, bundle_id: (null)
+Aug 26 16:45:57.350853 nehelper[112] <Info>: Local network allowed by preference for Flavored Probe (dev.selfhost.flavoredProbe.foo)
+Aug 26 16:45:57.350924 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo with allowed: 1
+Aug 26 16:45:57.351021 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo
+Aug 26 16:46:58.008848 UserEventAgent(com.apple.networkextension)[30] <Info>: Got local network blocked notification: pid: 38157, uuid: BB02BCB5-82C5-3979-8222-9356C9611EF6, bundle_id: (null)
+Aug 26 16:46:58.089994 nehelper[112] <Info>: Local network allowed by preference for Flavored Probe (dev.selfhost.flavoredProbe.foo)
+Aug 26 16:46:58.090069 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo with allowed: 1
+Aug 26 16:46:58.090145 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo
+Aug 26 16:48:22.716624 UserEventAgent(com.apple.networkextension)[30] <Info>: Got local network blocked notification: pid: 38167, uuid: BB02BCB5-82C5-3979-8222-9356C9611EF6, bundle_id: (null)
+Aug 26 16:48:22.729593 nehelper[112] <Info>: Local network allowed by preference for Flavored Probe (dev.selfhost.flavoredProbe.foo)
+Aug 26 16:48:22.729675 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo with allowed: 1
+Aug 26 16:48:22.730105 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo
+Aug 26 16:50:31.585404 nehelper[112] <Debug>: Installing default local network access policies
+Aug 26 16:50:50.344263 nehelper[112] <Debug>: Installing default local network access policies
+Aug 26 17:00:20.146740 UserEventAgent(com.apple.networkextension)[30] <Info>: Got local network blocked notification: pid: 38258, uuid: 6517B902-D6E6-C6C4-DE04-7029CBF14F3E, bundle_id: (null)
+Aug 26 17:00:20.183553 nehelper[112] <Info>: Local network preference not yet set, prompting for Tracks A (dev.selfhost.flavoredProbe.foo.tka)
+Aug 26 17:00:20.184413 nehelper(CoreFoundation)[112] <Debug>: Bundle: <private>, key: APP_WANTS_LOCAL_NETWORK_HEADER, value: APP_WANTS_LOCAL_NETWORK_HEADER, table: Localizable, localizationName: en, result: “%@” would like to find and connect to devices on your local network.
+Aug 26 17:00:20.186801 SpringBoard[62] <Notice>: Received request to activate alertItem: <SBUserNotificationAlert: 0x112b1f6a0; title: “Tracks A” would like to find and connect to devices on your local network.; source: nehelper; pid: 112>
+Aug 26 17:00:20.186997 SpringBoard[62] <Notice>: Activation - Pending activation of <SBUserNotificationAlert: 0x112b1f6a0; title: “Tracks A” would like to find and connect to devices on your local network.; source: nehelper; pid: 112> due to reason: (
+Aug 26 17:00:20.558561 SpringBoard[62] <Notice>: Activation - Presenting <SBUserNotificationAlert: 0x112b1f6a0; title: “Tracks A” would like to find and connect to devices on your local network.; source: nehelper; pid: 112> with presenter: <SBUnlockedAlertItemPresenter: 0x2835e2e40>
+Aug 26 17:00:20.639888 SpringBoard(UIKitCore)[62] <Notice>: _willShowAlertController: <_SBAlertController: 0x10134b800; title: "“Tracks A” would like to find and connect to devices on your local network.">
+Aug 26 17:00:20.651265 SpringBoard(UIKitCore)[62] <Notice>: _addAlertControllerToStack: Adding Alert to stack : <_SBAlertController: 0x10134b800; title: "“Tracks A” would like to find and connect to devices on your local network.">
+Aug 26 17:00:21.292769 SpringBoard[62] <Notice>: Will deactivate alertItem: <SBUserNotificationAlert: 0x112b1f6a0; title: “Tracks A” would like to find and connect to devices on your local network.; source: nehelper> for reason: Button Pressed
+Aug 26 17:00:21.294007 nehelper[112] <Info>: User responded with local network: 1
+Aug 26 17:00:21.294114 nehelper[112] <Debug>: Local network decision: {
+Aug 26 17:00:21.303582 SpringBoard[62] <Notice>: Will deactivate alertItem: <SBUserNotificationAlert: 0x112b1f6a0; title: “Tracks A” would like to find and connect to devices on your local network.; source: nehelper> for reason: User Dismissed
+Aug 26 17:00:21.303678 SpringBoard[62] <Notice>: Deactivated alertItem: <SBUserNotificationAlert: 0x112b1f6a0; title: “Tracks A” would like to find and connect to devices on your local network.; source: nehelper; pid: 112>
+Aug 26 17:00:21.304382 SpringBoard(UIKitCore)[62] <Notice>: _removeAlertControllerFromStack: Removing Alert from stack : <_SBAlertController: 0x10134b800; title: "“Tracks A” would like to find and connect to devices on your local network.">
+Aug 26 17:00:21.307896 nehelper[112] <Info>: Got local network response: 1, delivering reply
+Aug 26 17:00:21.308053 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo.tka with allowed: 1
+Aug 26 17:00:21.308795 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo.tka
+Aug 26 17:00:21.762447 SpringBoard(UIKitCore)[62] <Notice>: _didHideAlertController: <_SBAlertController: 0x10134b800; title: "“Tracks A” would like to find and connect to devices on your local network.">
+Aug 26 17:00:21.783105 SpringBoard[62] <Notice>: Deactivated alertItem: <SBUserNotificationAlert: 0x112b1f6a0; title: “Tracks A” would like to find and connect to devices on your local network.; source: nehelper; pid: 112>
+Aug 26 17:00:56.891021 UserEventAgent(com.apple.networkextension)[30] <Info>: Got local network blocked notification: pid: 38266, uuid: EA8934A0-8FA4-1396-3AAE-6AD873477F41, bundle_id: (null)
+Aug 26 17:00:57.384180 nehelper[112] <Info>: Local network preference not yet set, prompting for Tracks B (dev.selfhost.flavoredProbe.foo.tkb)
+Aug 26 17:00:57.394047 nehelper(CoreFoundation)[112] <Debug>: Bundle: <private>, key: APP_WANTS_LOCAL_NETWORK_HEADER, value: APP_WANTS_LOCAL_NETWORK_HEADER, table: Localizable, localizationName: en, result: “%@” would like to find and connect to devices on your local network.
+Aug 26 17:00:57.781344 SpringBoard[62] <Notice>: Received request to activate alertItem: <SBUserNotificationAlert: 0x112b25650; title: “Tracks B” would like to find and connect to devices on your local network.; source: nehelper; pid: 112>
+Aug 26 17:00:57.781381 SpringBoard[62] <Notice>: Activation - Presenting <SBUserNotificationAlert: 0x112b25650; title: “Tracks B” would like to find and connect to devices on your local network.; source: nehelper; pid: 112> with presenter: <SBUnlockedAlertItemPresenter: 0x2835e2e40>
+Aug 26 17:00:57.838793 SpringBoard(UIKitCore)[62] <Notice>: _willShowAlertController: <_SBAlertController: 0x1010f5600; title: "“Tracks B” would like to find and connect to devices on your local network.">
+Aug 26 17:00:57.843771 SpringBoard(UIKitCore)[62] <Notice>: _addAlertControllerToStack: Adding Alert to stack : <_SBAlertController: 0x1010f5600; title: "“Tracks B” would like to find and connect to devices on your local network.">
+Aug 26 17:00:58.610479 SpringBoard[62] <Notice>: Will deactivate alertItem: <SBUserNotificationAlert: 0x112b25650; title: “Tracks B” would like to find and connect to devices on your local network.; source: nehelper> for reason: Button Pressed
+Aug 26 17:00:58.610666 nehelper[112] <Info>: User responded with local network: 1
+Aug 26 17:00:58.610997 nehelper[112] <Debug>: Local network decision: {
+Aug 26 17:00:58.622507 SpringBoard[62] <Notice>: Will deactivate alertItem: <SBUserNotificationAlert: 0x112b25650; title: “Tracks B” would like to find and connect to devices on your local network.; source: nehelper> for reason: User Dismissed
+Aug 26 17:00:58.622708 SpringBoard[62] <Notice>: Deactivated alertItem: <SBUserNotificationAlert: 0x112b25650; title: “Tracks B” would like to find and connect to devices on your local network.; source: nehelper; pid: 112>
+Aug 26 17:00:58.623246 SpringBoard(UIKitCore)[62] <Notice>: _removeAlertControllerFromStack: Removing Alert from stack : <_SBAlertController: 0x1010f5600; title: "“Tracks B” would like to find and connect to devices on your local network.">
+Aug 26 17:00:58.674078 nehelper[112] <Info>: Got local network response: 1, delivering reply
+Aug 26 17:00:58.674128 nehelper[112] <Debug>: Draining local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo.tkb with allowed: 1
+Aug 26 17:00:58.678716 nehelper[112] <Debug>: Drained 1 local network replies for SK85S6YZP9.dev.selfhost.flavoredProbe.foo.tkb
+Aug 26 17:00:59.068345 SpringBoard(UIKitCore)[62] <Notice>: _didHideAlertController: <_SBAlertController: 0x1010f5600; title: "“Tracks B” would like to find and connect to devices on your local network.">
+Aug 26 17:00:59.084748 SpringBoard[62] <Notice>: Deactivated alertItem: <SBUserNotificationAlert: 0x112b25650; title: “Tracks B” would like to find and connect to devices on your local network.; source: nehelper; pid: 112>

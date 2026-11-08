@@ -1,0 +1,1 @@
+{"total_events":2,"unique_clients":1,"events_by_type":{"__patch_download__":1,"__patch_install__":1},"patches":[{"patch_number":1,"downloads":1,"installs":1,"install_failures":0,"update_failures":0,"unique_clients":1}]}

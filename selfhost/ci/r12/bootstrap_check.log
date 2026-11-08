@@ -1,0 +1,50 @@
+
+== preflight (host side) ==
+  ok      shape: 40 lowercase hex
+  ok      resolves to a published cell in the overlay
+  ok      publishes android-arm64-release/linux-x64.zip (2.0M)
+  ok      CDN serves it: HTTP 200
+  REVISION ACCEPTED  fc184af6509a93eaf6fc068c6820639b324175a8
+   owned flutter mirror     : serves a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
+   CDN                      : http://host.docker.internal:8085/flutter_infra_release/flutter/f -> 200
+   control-plane            : http://host.docker.internal:18081/ -> 200
+
+== arm BOOTSTRAP-CHECK — fresh container, no host mounts ==
+
+== container cleanliness ==
+   arm label                : BOOTSTRAP-CHECK
+   uname                    : Linux/x86_64
+   HOME                     : /r12home
+   flutter/dart/shorebird   : absent from PATH (as required)
+   caches                   : none present
+   CI detection vars        : none set
+
+== bootstrap the OWNED toolchain ==
+   repo                     : https://github.com/mml555/shorebird.git
+   sha                      : 36d74a667fd47deed2775b41b9f6fcfa64ad509e
+   checked out              : 36d74a667fd47deed2775b41b9f6fcfa64ad509e
+   flutter.version (pinned) : a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
+   flutter git url          : git://host.docker.internal:9418/flutter.git
+   artifact CDN             : http://host.docker.internal:8085
+
+== first shorebird invocation (this is what performs the bootstrap) ==
+   BOOTSTRAP FAILED — classifying before anything else runs
+     | Updating Flutter...
+     | Cloning into '/r12src/bin/cache/flutter/a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61'...
+     | HEAD is now at a4a3c0d1b shorebird_yaml: carry channel: into the compiled bundle
+     | Shorebird Engine • revision 69f9831c360d9152862ec3897c67fb09ae843f3b
+     | Downloading Linux x64 Dart SDK from Flutter engine 69f9831c360d9152862ec3897c67fb09ae843f3b...
+     |   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+     |                                  Dload  Upload   Total   Spent    Left  Speed
+     |   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+     |   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:02 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:03 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:04 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:05 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:06 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:07 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:08 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:09 --:--:--     0  0  140M    0    21    0     0      2      0 850d 14h  0:00:10 850d 14h     4
+     | curl: (18) end of response with 146984962 bytes missing
+
+STOP: R12 prerequisite: the supported self-hosted Flutter toolchain did not
+     bootstrap on Linux/x64 from owned bytes. NO upstream substitution was
+     attempted, by design. Classify this before changing anything.
+
+== collecting evidence ==
+   evidence                 : /Users/mendell/shorebird/selfhost/ci/r12/../../evidence/r12-linux-ci/arm-BOOTSTRAP-CHECK
+
+== arm BOOTSTRAP-CHECK exit 1 ==

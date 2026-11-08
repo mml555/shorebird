@@ -1,0 +1,6 @@
+native launch
+native engine
+dart hliyw8tz4z dart-main-entered
+dart hliyw8tz4z boot-probe-returned:boot-ok
+dart hliyw8tz4z mode:success
+dart hliyw8tz4z first-frame

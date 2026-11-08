@@ -31,6 +31,7 @@ class CreatePatchMetadata extends Equatable {
     required this.inferredReleaseVersion,
     required this.environment,
     required this.isSigned,
+    this.usedDefaultTrack = false,
   });
 
   // coverage:ignore-start
@@ -42,6 +43,7 @@ class CreatePatchMetadata extends Equatable {
     bool usedIgnoreNativeChangesFlag = false,
     bool inferredReleaseVersion = false,
     bool isSigned = false,
+    bool usedDefaultTrack = false,
     BuildEnvironmentMetadata? environment,
   }) => CreatePatchMetadata(
     platforms:
@@ -50,6 +52,7 @@ class CreatePatchMetadata extends Equatable {
     usedIgnoreAssetChangesFlag: usedIgnoreAssetChangesFlag,
     usedIgnoreNativeChangesFlag: usedIgnoreNativeChangesFlag,
     isSigned: isSigned,
+    usedDefaultTrack: usedDefaultTrack,
     inferredReleaseVersion: inferredReleaseVersion,
     environment: environment ?? BuildEnvironmentMetadata.forTest(),
   );
@@ -70,6 +73,7 @@ class CreatePatchMetadata extends Equatable {
     bool? usedIgnoreNativeChangesFlag,
     bool? inferredReleaseVersion,
     bool? isSigned,
+    bool? usedDefaultTrack,
     BuildEnvironmentMetadata? environment,
   }) => CreatePatchMetadata(
     platforms: platforms ?? this.platforms,
@@ -80,6 +84,7 @@ class CreatePatchMetadata extends Equatable {
     inferredReleaseVersion:
         inferredReleaseVersion ?? this.inferredReleaseVersion,
     isSigned: isSigned ?? this.isSigned,
+    usedDefaultTrack: usedDefaultTrack ?? this.usedDefaultTrack,
     environment: environment ?? this.environment,
   );
 
@@ -123,6 +128,13 @@ class CreatePatchMetadata extends Equatable {
   /// issues.
   final bool isSigned;
 
+  /// Whether the patch went to the stable track only because no --track was
+  /// given and the CLI could not ask for one.
+  ///
+  /// Reason: that default is deprecated; this counts who still relies on it
+  /// before it becomes an error.
+  final bool usedDefaultTrack;
+
   /// Properties about the environment in which the patch was created.
   ///
   /// Shared across platforms: one invocation builds every platform on one
@@ -138,6 +150,7 @@ class CreatePatchMetadata extends Equatable {
     usedIgnoreAssetChangesFlag,
     usedIgnoreNativeChangesFlag,
     inferredReleaseVersion,
+    usedDefaultTrack,
     isSigned,
     environment,
   ];

@@ -1,0 +1,74 @@
+{
+  "VOID": true,
+  "void_reason": "Minted from an engine tree carrying 18 uncommitted files of in-progress G3.6e work that does not compile. Provenance is not reproducible. See the retraction in COMPATIBILITY_STUDY.md. The cell stays published because cells are immutable; it must not be used as a baseline.",
+  "phase0_analysis_version": 6,
+  "baseline_analysis_version": 6,
+  "phase0_analyzer_hash": "4023835b353908bbf5b1e15ee45b81cfff8a16c727d11e93314159c59cc95de6",
+  "baseline_analyzer_hash": "4023835b353908bbf5b1e15ee45b81cfff8a16c727d11e93314159c59cc95de6",
+  "phase0_comparable": "yes",
+  "reason": "same analyzer version and same binary hash: Phase 0 is directly comparable.",
+  "cell_hash_published": "50d58cc313fdb9850452a28948cd56f4e2632827",
+  "cell_address_recomputed": "50d58cc313fdb9850452a28948cd56f4e2632827",
+  "cell_address_matches": true,
+  "cell_file_digests": {
+    "dart2bytecode.aot": "54fb8772a037aaec97f3f472d33c96a8529b2decfac70332020f325fb2c1016d",
+    "dartaotruntime": "ec93b3e4353c55509899ac13ff973d0ccdcbf4591cd21201fa6e922402a27203",
+    "vm_platform.dill": "2f4beac62eeed3d9d3584d941df0f5d6eec07d7957762390fc005848d78c41be",
+    "route_b_analyze.aot": "4023835b353908bbf5b1e15ee45b81cfff8a16c727d11e93314159c59cc95de6",
+    "route_b_gen_kernel.aot": "ab70b2bf980ed9ca1a2b22d825837e2135d5487cbc20fb6584a7ad874beeb01c",
+    "route_b_gen_dynamic_interface.aot": "f7c8da1592cfdd7d36d409e4456b43f50e928e6f1023479d4d7e5d81c6f4859c",
+    "flutter_platform_strong.dill": "9f5a5f754a93dd8ec4aa3e94c25ef9f802b073eb962b8595ab33593a002bc5a7"
+  },
+  "analyzer": {
+    "version": 6,
+    "sha256": "4023835b353908bbf5b1e15ee45b81cfff8a16c727d11e93314159c59cc95de6",
+    "source_commit": {
+      "commit": "cb50590d68be936561cd870e1d00aa64ec924b6c",
+      "date": "2026-08-11T18:07:17-04:00",
+      "subject": "feat(selfhost): lower receiver writes, and refuse one token doing two jobs (G3.3)"
+    }
+  },
+  "gen_dynamic_interface": {
+    "sha256": "f7c8da1592cfdd7d36d409e4456b43f50e928e6f1023479d4d7e5d81c6f4859c",
+    "source_commit": {
+      "commit": "a2927e412cdbf1b293fe3ab6e0a2bdcc07aaab89",
+      "date": "2026-08-11T21:10:22-04:00",
+      "subject": "feat(selfhost): a patch replaces a method on a PRIVATE class, and the retention is load-bearing"
+    }
+  },
+  "producer_commit": {
+    "commit": "a28ba1d9ab516229e04311d6772825857bf946c5",
+    "date": "2026-08-11T20:11:47-04:00",
+    "subject": "feat(cli): a private receiver class lowers to `dynamic` (G3.6c), and its other half named"
+  },
+  "coverage_reader_commit": {
+    "commit": "cb50590d68be936561cd870e1d00aa64ec924b6c",
+    "date": "2026-08-11T18:07:17-04:00",
+    "subject": "feat(selfhost): lower receiver writes, and refuse one token doing two jobs (G3.3)"
+  },
+  "releaser_commit": {
+    "commit": "c57c6537e484c963322d8071c4ea87205a3ebf3d",
+    "date": "2026-08-11T17:28:22-04:00",
+    "subject": "fix(cli): refuse to release an .ipa left over from an earlier build"
+  },
+  "patcher_commit": {
+    "commit": "3d853b7adbad2291d49f79252dc13df820dd23b2",
+    "date": "2026-08-11T13:44:19-04:00",
+    "subject": "fix(cli): the replacement library must import the library it patches into"
+  },
+  "working_tree_clean": true,
+  "working_tree_dirty_paths": [],
+  "preconditions": {
+    "checked_at_repo_head": "0bbc3dd585657df6332ebccd423b4d0a75828bbd",
+    "parity_r3_rows_verbatim": [
+      "| `R3` route-b tree | \u2014 | \u2014 | released 2026-08-12 | **free.** Taken briefly by the study session for the baseline-A mint (`50d58cc3\u2026`) while the docs session was paused, and released on the same commit. The prior read-only `G3.6a` claim was stale \u2014 its holder had stopped without clearing the row |"
+    ],
+    "parity_g36_complete_mentions_verbatim": [],
+    "note": "R3 must read as unclaimed/released and G3.6 as complete before this baseline is used. Read the rows above; this script records them and does not decide them."
+  },
+  "corpus": {
+    "seed": null,
+    "app_eligible_sha256": null,
+    "fork_eligible_sha256": null
+  }
+}

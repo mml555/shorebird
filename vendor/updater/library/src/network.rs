@@ -217,6 +217,31 @@ pub struct Patch {
     /// The signature of `hash`, if this patch is signed. None otherwise.
     #[serde(default)]
     pub hash_signature: Option<String>,
+    /// What this patch's payload contains.
+    ///
+    /// Defaults to code so a server that predates the field is understood
+    /// exactly as before. The server only ever sends `assets` to a client that
+    /// advertised support in [`PatchCheckRequest::supported_patch_kinds`], so
+    /// an unexpected `assets` here means the two disagree — treated as
+    /// unusable rather than guessed at.
+    #[serde(default)]
+    pub kind: PatchPayloadKind,
+}
+
+/// The payload shape of a patch, as reported by `patches/check`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum PatchPayloadKind {
+    /// Dart code, applied as a binary diff against the release snapshot.
+    #[default]
+    Code,
+    /// Assets only. Nothing to link or interpret, which is what lets this ship
+    /// on platforms where code cannot.
+    Assets,
+    /// A kind this build does not know. Reachable only if a server ignores the
+    /// capability list; the patch is skipped rather than misapplied.
+    #[serde(other)]
+    Unknown,
 }
 
 /// Any edits to this struct should be made carefully and in accordance
@@ -255,6 +280,14 @@ pub struct PatchCheckRequest {
     /// this field instead.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current_patch_number: Option<usize>,
+    /// Payload kinds this updater can install.
+    ///
+    /// A capability, not a preference. Omitting `assets` is what protects an
+    /// older updater: handed an assets-only patch it would inflate the archive
+    /// as a binary diff, fail, and tombstone the patch as permanently bad for
+    /// the release. The server therefore withholds kinds the client did not
+    /// name.
+    pub supported_patch_kinds: Vec<String>,
 }
 
 impl PatchCheckRequest {
@@ -271,6 +304,7 @@ impl PatchCheckRequest {
             arch: current_arch().to_string(),
             client_id: client_id.to_string(),
             current_patch_number,
+            supported_patch_kinds: vec!["code".to_string(), "assets".to_string()],
         }
     }
 }
@@ -416,6 +450,7 @@ mod tests {
                 arch: "".to_string(),
                 client_id: "".to_string(),
                 current_patch_number: None,
+                supported_patch_kinds: Vec::new(),
             },
         );
         assert!(result.is_err());

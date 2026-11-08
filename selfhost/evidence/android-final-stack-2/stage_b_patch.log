@@ -1,0 +1,110 @@
+
+7b. the release record and the APK are the SAME artifact
+    arm      -> armeabi-v7a  release=7a7e74ebfb75deedc4196f34dc18ec11  apk=7a7e74ebfb75deedc4196f34dc18ec11  MATCH
+    aarch64  -> arm64-v8a    release=4b0bb057043092b346465663b30e2c49  apk=4b0bb057043092b346465663b30e2c49  MATCH
+    x86_64   -> x86_64       release=e065acea70bca0e2f9f9bd7ac078fae9  apk=e065acea70bca0e2f9f9bd7ac078fae9  MATCH
+  PASS  all three release artifacts are the libapp.so copies in the APK
+
+8. one line changes, inside the never-inline function
+    marker now AFS2-V2-PATCHED
+  PASS  the source now carries the patched marker
+  PASS  and the release marker is gone from the source
+
+9. shorebird patch android — the ordinary bidiff producer
+  exit=0
+    | Starting Creating patch...
+    | Done Creating patch
+    | Starting Uploading Android artifacts...
+    | Done Uploading Android artifacts
+    | Starting Fetching channels...
+    | Done Fetching channels
+    | Starting Creating channel...
+    | Done Creating channel
+    | Starting Promoting patch to stable...
+    | Done Promoting patch to stable
+    | 
+    | ✅ Published Patch 1!
+  PASS  the patch completed
+
+9b. THE ORDINARY PRODUCER: bidiff, not Route B and not the AOT linker
+    aot-tools.dill requests: 7  statuses: [404]
+    Route B compiler artifact requests: 0
+  PASS  the linker artifact 404'd and no Route B compiler was fetched, yet the patch succeeded
+
+10. PATCH IDENTITY, as the control plane records it
+    patch id=1 number=1 status=ready channel=stable
+      artifact arm            android        6126 bytes  sha256=76991f2dab762a0f38a6b30755be0b7bbba62ec50b32a30067739ebc502a8685
+      artifact aarch64        android        6082 bytes  sha256=b514bb25aa2cdeae0c7f118b29eb4c4bc0f44187d5f336fcf30ba36d67fa1f86
+      artifact x86_64         android        6144 bytes  sha256=e9e0d7849abf90e3d3e65b6ceed609ba71dc04c3cdad7decd7b8c5bbbd0f9960
+    patch artifacts: 3
+  PASS  exactly three patch artifacts (one per shipped ABI)
+  PASS  it is patch number 1
+
+10b. the patch artifacts are DIFFS, not snapshots
+    arm      patch     6126 vs release   3195468  = 0.192%  DIFF
+    aarch64  patch     6082 vs release   2884496  = 0.211%  DIFF
+    x86_64   patch     6144 vs release   3015568  = 0.204%  DIFF
+  PASS  each patch artifact is well under 5% of the release artifact it patches
+
+11. no identity-bearing artifact was fallback-served
+    scope: requests made during the patch build
+    artifact requests during the patch: 26
+      404 /download.shorebird.dev/shorebird/f85251f344600ae08196925a174e9cff8f0ff18e/aot-tools.dill
+      404 /download.shorebird.dev/shorebird/f85251f344600ae08196925a174e9cff8f0ff18e/aot-tools.dill
+      200 /download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-f85251f344600ae08196925a174e9cff8f0f
+      200 /download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/a
+      200 /download.flutter.io/io/flutter/x86_64_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/x86_64
+      200 /download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/arm
+      404 /download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/a
+      404 /download.flutter.io/io/flutter/x86_64_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/x86_64
+      404 /download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-f85251f344600ae08196925a174e9cff8f0f
+      404 /download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/arm
+      200 /download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/a
+      200 /download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/arm
+      200 /download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-f85251f344600ae08196925a174e9cff8f0f
+      200 /download.flutter.io/io/flutter/x86_64_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/x86_64
+      200 /download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-f85251f344600ae08196925a174e9cff8f0f
+      404 /download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-f85251f344600ae08196925a174e9cff8f0f
+      200 /download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-f85251f344600ae08196925a174e9cff8f0f
+      200 /download.flutter.io/io/flutter/x86_64_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/x86_64
+      404 /download.flutter.io/io/flutter/x86_64_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/x86_64
+      200 /download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/arm
+      404 /download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/arm
+      200 /download.flutter.io/io/flutter/x86_64_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/x86_64
+      200 /download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/a
+      404 /download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/a
+      200 /download.flutter.io/io/flutter/arm64_v8a_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/arm
+      200 /download.flutter.io/io/flutter/armeabi_v7a_release/1.0.0-f85251f344600ae08196925a174e9cff8f0ff18e/a
+    identity-bearing artifact requests during the patch: 24
+  PASS  no identity-bearing artifact was fallback-served during the patch
+
+12. the audit trail
+    app.create                   success  200  patch=None
+    release.create               success  200  patch=None
+    release.update               success  204  patch=None
+    release.update               success  204  patch=None
+    release.artifact.create      success  200  patch=None
+    artifact.upload              success  204  patch=None
+    release.artifact.create      success  200  patch=None
+    artifact.upload              success  204  patch=None
+    release.artifact.create      success  200  patch=None
+    artifact.upload              success  204  patch=None
+    release.artifact.create      success  200  patch=None
+    artifact.upload              success  204  patch=None
+    release.artifact.create      success  200  patch=None
+    artifact.upload              success  204  patch=None
+    release.ready                None     None patch=None
+    release.update               success  204  patch=None
+    patch.create                 success  200  patch=1   
+    patch.artifact.create        success  200  patch=1   
+    artifact.upload              success  204  patch=1   
+    patch.artifact.create        success  200  patch=1   
+    artifact.upload              success  204  patch=1   
+    patch.artifact.create        success  200  patch=1   
+    artifact.upload              success  204  patch=1   
+    channel.create               success  200  patch=None
+    patch.promote                success  204  patch=1   
+    events: 25   non-success: 1
+
+RESULT
+  STAGE B PASSED

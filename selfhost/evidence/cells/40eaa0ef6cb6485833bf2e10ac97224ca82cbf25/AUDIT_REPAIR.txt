@@ -1,0 +1,31 @@
+M0 steps 8-9 — sky packages published+protected, policy set filled
+===============================================================
+date: 2026-08-14
+
+THE DEFECT REPAIRED. sky_engine.zip and flutter_gpu.zip were ABSENT from
+the overlay under BOTH cells, so both 302'd to stock — stock Dart-SDK patch
+sources were being SERVED and CONSUMED under our own hashes. AUDIT CLEAN,
+3/3 and 5/5 all passed while this was true, because none of them look at
+that path.
+
+                       pre-repair        post-repair
+  40eaa0ef   5 missing / 2 unprot      1 missing / 0 unprot
+  4df8f9b6   5 missing / 2 unprot      1 missing / 0 unprot
+
+The one remaining finding is patch-linux-x64.zip, which needs R12 (the
+Linux builder). Per M0 step 9 the best achievable state on this host is
+one finding; AUDIT CLEAN is unreachable here.
+
+CONSUMED BYTES, the check that actually matters:
+  bin/cache/pkg/sky_engine/lib/_internal/vm/lib/internal_patch.dart
+    attachBytecodeToFunction: 4   (was 0 = stock; our tree has 4)
+  lib/internal/internal.dart: 2
+  sky_engine.zip over HTTP  : 200 from disk (was 302 to stock)
+
+WARM PRESERVED (precondition 8) across the purge+refetch:
+  ios-release Flutter: 19071568 bytes, sha e828f8efeb623d1d
+  gen_snapshot --load-obfuscation-map hits: 10
+  engine.version == engine.stamp == 40eaa0ef6cb6485833bf2e10ac97224ca82cbf25
+  assert_diagnostic_engine.sh: 5/5
+
+TWO TOOLING DEFECTS FOUND AND FIXED — see the commit message.

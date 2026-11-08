@@ -1,0 +1,13 @@
+=== MAOT-2 (#66) runtime implementation registry ===
+run  2026-09-16T16:21:12Z
+fork ca96854daed14aefde546a25a54c9225162a5e54
+
+fork            ca96854daed14aefde546a25a54c9225162a5e54
+selected        25
+registry        25
+arms            23 (0 failed)
+blocking        0
+conditions      24 (0 failed)
+VERDICT         runtime_implementation_registry = ESTABLISHED
+
+gate exit 0

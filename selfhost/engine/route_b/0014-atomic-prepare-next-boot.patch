@@ -1,0 +1,861 @@
+Route B patch 0014 — boot preparation becomes ONE call.
+=======================================================
+
+ONE CONCEPTUAL CHANGE: `Updater::PrepareNextBootPatch()` replaces the sequence
+`ValidateNextBootPatch()` → `NextBootPatchPath()` → `ReportLaunchStart()`.
+
+WHY. The three steps read the candidate pointer at three different times, and on
+iOS they were interleaved in the worst possible order. `ConfigureShorebird` calls
+`SetBaseSnapshot()`, which resolves the base isolate snapshot and therefore
+reached `ResolveIsolateData()` in `runtime/dart_snapshot.cc` — where launch start
+was reported — ONE LINE before `ValidateNextBootPatch()` ran. So the launch was
+attributed to a candidate that had not been checked yet.
+
+On device (Arm C, iPhone 7 / iOS 15.8.8, release 1.1.0+1) that produced:
+
+    15:21:13.164  Reporting launch start.            <- records next_boot = 2
+    15:21:13.165  Verifying patch signature...
+    15:21:13.176  Patch signature is invalid
+    15:21:13.178  active path: …/patches/1/dlc.vmcode  <- SELECTION CORRECT
+    15:21:13.208  Launch success for patch 2         <- ATTRIBUTION WRONG
+
+Patch 2's bytes never executed — no security defect. But `record_boot_success`
+promoted the rejected patch and `cleanup_older_than` then deleted patch 1, the
+artifact the fallback depended on, so the NEXT launch dropped to the base
+release. Full evidence: `selfhost/evidence/p6-signing/ARM_C_EXECUTION_IDENTITY.md`.
+
+WHY NOT JUST MOVE THE CALL. `update()` and the update thread may change
+`next_boot_patch` at any moment, so anything that re-reads the pointer after
+selection can still disagree with the bytes the VM was handed. Attribution has to
+be bound to the RETURNED patch inside one state transition. The updater-side half
+of that lives in the updater repo (see
+`0014-updater-atomic-prepare-next-boot.patch`).
+
+THE TWO ACCESSORS ARE REMOVED, not left unused. While they exist a future caller
+can reassemble the broken ordering without noticing.
+
+WHAT THE GUARD NOW MEANS. Once-per-process protects PREPARATION, and a second
+engine gets the FIRST call's path back, cached. Re-preparing would re-attribute
+the launch to whatever has since been downloaded; returning an empty string would
+silently downgrade a later engine to the base release. Both are pinned by test,
+including concurrent callers.
+
+TEST TARGET CHANGE, and it is not incidental. `updater_unittests.cc` was only
+ever compiled by `shorebird_unittests`, which does not link on the host build
+(`Shorebird_ReadLinkHeader` comes from Shorebird's private Dart fork) — so all 14
+of those tests had never EXECUTED. They are added to `shorebird_arming_unittests`,
+the slim target `0008` created for exactly this reason, and now run: 21/21 pass,
+and removing the once-per-process cache fails 5 of them.
+
+TWO SHELL TESTS KEEP THEIR SUBJECT, NOT THEIR ASSERTION. They used to prove that
+creating a Shell reported launch start exactly once. Production no longer reports
+from there, so asserting the same thing would be asserting a fiction; they now
+prove the ABSENCE — no snapshot-resolution path may re-enter the updater's launch
+lifecycle. That is the regression guard against reintroducing this ordering.
+
+Applies to the engine tree (`/Volumes/build/route-b/flutter`), engine commit
+619fdad176 on top of 2c7b8c3ea5.
+
+diff --git a/engine/src/flutter/runtime/dart_snapshot.cc b/engine/src/flutter/runtime/dart_snapshot.cc
+index fc70f63a34..f0afdb40e1 100644
+--- a/engine/src/flutter/runtime/dart_snapshot.cc
++++ b/engine/src/flutter/runtime/dart_snapshot.cc
+@@ -17,7 +17,6 @@
+ #if SHOREBIRD_USE_INTERPRETER
+ #include "flutter/runtime/shorebird/patch_cache.h"  // nogncheck
+ #endif
+-#include "flutter/shell/common/shorebird/updater.h"  // nogncheck
+ 
+ namespace flutter {
+ 
+@@ -152,12 +151,15 @@ static std::shared_ptr<const fml::Mapping> ResolveIsolateData(
+                                                 true      // dontneed_safe
+   );
+ #else  // DART_SNAPSHOT_STATIC_LINK
+-  // Tell the Rust updater we're booting from whatever patch it selected.
+-  // This copies next_boot → current_boot in the Rust state. The call is
+-  // guarded inside Updater to execute at most once per process — see the
+-  // Updater class comment for why this matters in add-to-app and
+-  // FlutterEngineGroup scenarios.
+-  shorebird::Updater::Instance().ReportLaunchStart();
++  // NO LAUNCH REPORTING HERE. Attribution belongs to
++  // Updater::PrepareNextBootPatch(), which records the patch it returns.
++  //
++  // This is where the defect lived. On iOS, ConfigureShorebird() calls
++  // SetBaseSnapshot() -> IsolateSnapshotFromSettings() -> here, ONE LINE before
++  // it validated the candidate. So the launch was attributed to the unvalidated
++  // next_boot patch; when validation then rejected it, nothing corrected the
++  // attribution, and the following ReportLaunchSuccess() promoted a patch that
++  // never ran. See selfhost/evidence/p6-signing/ARM_C_EXECUTION_IDENTITY.md.
+ #if SHOREBIRD_USE_INTERPRETER
+   // Try loading from a Shorebird patch first.
+   if (auto mapping = TryLoadFromPatch(settings.application_library_paths,
+diff --git a/engine/src/flutter/runtime/shorebird/patch_cache.cc b/engine/src/flutter/runtime/shorebird/patch_cache.cc
+index 8c5cc3a83f..e7ec52926f 100644
+--- a/engine/src/flutter/runtime/shorebird/patch_cache.cc
++++ b/engine/src/flutter/runtime/shorebird/patch_cache.cc
+@@ -151,8 +151,8 @@ std::shared_ptr<const fml::Mapping> TryLoadFromPatch(
+ 
+   FML_LOG(INFO) << "Loading symbol from patch: " << symbol_name;
+ 
+-  // ReportLaunchStart is now called from ResolveIsolateData in
+-  // dart_snapshot.cc, which runs before TryLoadFromPatch on all platforms.
++  // No launch reporting anywhere on this path. Attribution happens inside
++  // Updater::PrepareNextBootPatch(), which is also what chose `patch_path`.
+ 
+   if (symbol == kIsolateDataSymbol) {
+     return PatchMapping::CreateIsolateData(cache_entry);
+diff --git a/engine/src/flutter/shell/common/shell_unittests.cc b/engine/src/flutter/shell/common/shell_unittests.cc
+index 06e787a2cd..c5b73a9320 100644
+--- a/engine/src/flutter/shell/common/shell_unittests.cc
++++ b/engine/src/flutter/shell/common/shell_unittests.cc
+@@ -5113,21 +5113,29 @@ TEST_F(ShellTest, ShoulDiscardLayerTreeIfFrameIsSizedIncorrectly) {
+   DestroyShell(std::move(shell), task_runners);
+ }
+ 
+-// G15: creating a Shell reports launch START and nothing else.
++// Shell creation must make NO updater lifecycle calls at all.
+ //
+-// ~~"then ReportLaunchSuccess from the Shell constructor"~~ — that assertion is
+-// gone, and it had ALREADY stopped describing this tree. Patch 0009 moved
+-// success out of the constructor into `Shell::RunEngine`, which
+-// `ShellTest::CreateShell` never calls, so this test was asserting a call that
+-// could no longer happen here. Corrected rather than deleted, because the thing
+-// it was pinning — that the boot flow reports exactly once — still matters.
++// It used to make exactly one: `ResolveIsolateData` in runtime/dart_snapshot.cc
++// reported launch start while resolving the isolate snapshot. That is precisely
++// what broke attribution -- on iOS, `ConfigureShorebird` resolves the base
++// snapshot via `SetBaseSnapshot()` one line BEFORE it validates the candidate,
++// so the launch was credited to a patch that had not been checked yet, and a
++// patch later rejected for a bad signature stayed credited. See
++// selfhost/evidence/p6-signing/ARM_C_EXECUTION_IDENTITY.md.
+ //
+-// Success is now reported from DART, whichever comes first: `main` completing
+-// or the first framework frame (`lib/ui/hooks.dart`). It is therefore not
+-// observable from a C++ shell test that never runs a Dart entrypoint, and the
+-// absence asserted below is the correct expectation rather than missing
+-// coverage. The device gate is where success gets proven.
+-TEST_F(ShellTest, ShorebirdBootFlowCallsLaunchStartOnly) {
++// Validation, selection and attribution are now one call,
++// `Updater::PrepareNextBootPatch()`, made from `ConfigureShorebird` -- which a
++// unit test cannot reach (it opens with an FML_CHECK on the VM snapshot; the
++// same limitation is documented in shorebird/shorebird_unittests.cc). So what a
++// shell test can still prove, and what is worth proving, is the ABSENCE: no
++// snapshot-resolution path may re-enter the updater's launch lifecycle. This is
++// the regression guard against reintroducing the ordering that caused the bug.
++//
++// Success reporting comes from Dart (`main` completing or the first framework
++// frame in lib/ui/hooks.dart), which no shell test runs, so its absence here is
++// also the correct expectation rather than missing coverage. The device gate is
++// where the positive path gets proven.
++TEST_F(ShellTest, ShorebirdShellCreationMakesNoUpdaterLifecycleCalls) {
+   auto mock = std::make_unique<shorebird::MockUpdater>();
+   auto* mock_ptr = mock.get();
+   shorebird::Updater::SetInstanceForTesting(std::move(mock));
+@@ -5138,31 +5146,27 @@ TEST_F(ShellTest, ShorebirdBootFlowCallsLaunchStartOnly) {
+   auto shell = CreateShell(settings, task_runners);
+   ASSERT_TRUE(shell);
+ 
+-  const auto& log = mock_ptr->call_log();
+-  ASSERT_EQ(log.size(), 1u);
+-  EXPECT_EQ(log[0], "ReportLaunchStart");
++  EXPECT_TRUE(mock_ptr->call_log().empty())
++      << "boot preparation belongs to ConfigureShorebird, not to snapshot "
++         "resolution; a call here means the ordering defect is back";
++  EXPECT_EQ(mock_ptr->prepare_count(), 0);
+   // Neither outcome may be banked before user Dart has had its chance: success
+   // and failure share ONE latch, so a success recorded here would make the Dart
+   // seam permanently unreachable.
+   EXPECT_EQ(mock_ptr->launch_success_count(), 0);
++  EXPECT_EQ(mock_ptr->launch_failure_count(), 0);
+ 
+   DestroyShell(std::move(shell), task_runners);
+   shorebird::Updater::ResetLaunchStateForTesting();
+   shorebird::Updater::ResetInstanceForTesting();
+ }
+ 
+-// In add-to-app, multiple engines may be created within a single process.
+-// Only the first engine should report launch start to the Rust updater. This
+-// prevents the updater from promoting a newly-downloaded patch to
+-// "current_boot" when subsequent engines are still running the original
+-// snapshot that was selected at process init time.
+-//
+-// G15: the success half of this expectation moved to Dart, so what is pinned
+-// here is the START guard. Note that the once-per-PROCESS guard means a second
+-// engine's `main` completing does not re-report either — correct, since both
+-// engines boot from the same snapshot, but it is why the two-engine gate reads
+-// per-engine `rbtrace` records rather than launch reports.
+-TEST_F(ShellTest, ShorebirdUpdaterReportsOnlyOnceForMultipleShells) {
++// The add-to-app shape: several engines in one process. None of them may reach
++// the updater's launch lifecycle from Shell creation, so the count stays at zero
++// however many shells exist. The per-engine behaviour that DOES vary is Route B
++// activation, which is why the two-engine gate reads per-engine `rbtrace`
++// records rather than launch reports.
++TEST_F(ShellTest, ShorebirdMultipleShellsMakeNoUpdaterLifecycleCalls) {
+   auto mock = std::make_unique<shorebird::MockUpdater>();
+   auto* mock_ptr = mock.get();
+   shorebird::Updater::SetInstanceForTesting(std::move(mock));
+@@ -5170,26 +5174,18 @@ TEST_F(ShellTest, ShorebirdUpdaterReportsOnlyOnceForMultipleShells) {
+ 
+   auto settings = CreateSettingsForFixture();
+ 
+-  // Create first shell — gets Start. Success comes from Dart, which no shell
+-  // test runs, so it must stay at zero throughout.
+   auto task_runners1 = GetTaskRunnersForFixture();
+   auto shell1 = CreateShell(settings, task_runners1);
+   ASSERT_TRUE(shell1);
+-  EXPECT_EQ(mock_ptr->launch_start_count(), 1);
+-  EXPECT_EQ(mock_ptr->launch_success_count(), 0);
++  EXPECT_TRUE(mock_ptr->call_log().empty());
+ 
+-  // Create second shell — guarded, no additional Start.
+   auto task_runners2 = GetTaskRunnersForFixture();
+   auto shell2 = CreateShell(settings, task_runners2);
+   ASSERT_TRUE(shell2);
+-  EXPECT_EQ(mock_ptr->launch_start_count(), 1);
++  EXPECT_TRUE(mock_ptr->call_log().empty());
++  EXPECT_EQ(mock_ptr->prepare_count(), 0);
+   EXPECT_EQ(mock_ptr->launch_success_count(), 0);
+ 
+-  // Exactly one Start in the call log, and nothing else.
+-  const auto& log = mock_ptr->call_log();
+-  ASSERT_EQ(log.size(), 1u);
+-  EXPECT_EQ(log[0], "ReportLaunchStart");
+-
+   DestroyShell(std::move(shell1), task_runners1);
+   DestroyShell(std::move(shell2), task_runners2);
+ 
+diff --git a/engine/src/flutter/shell/common/shorebird/BUILD.gn b/engine/src/flutter/shell/common/shorebird/BUILD.gn
+index e9de500f16..bf4b1ffb0b 100644
+--- a/engine/src/flutter/shell/common/shorebird/BUILD.gn
++++ b/engine/src/flutter/shell/common/shorebird/BUILD.gn
+@@ -178,7 +178,17 @@ if (enable_unittests) {
+   executable("shorebird_arming_unittests") {
+     testonly = true
+ 
+-    sources = [ "shorebird_unittests.cc" ]
++    # updater_unittests.cc joins this target for the SAME reason the target
++    # exists: it is compiled by shorebird_unittests, which does not link here,
++    # so those tests had never executed either. They need only updater.h and
++    # gtest -- no patch_cache -- so they link in this slim target and now
++    # actually run. The boot-preparation invariant they pin (attribution equals
++    # the returned patch, and a second engine gets the same answer without
++    # re-preparing) is not something to hold on paper.
++    sources = [
++      "shorebird_unittests.cc",
++      "updater_unittests.cc",
++    ]
+ 
+     deps = [
+       ":shorebird",
+diff --git a/engine/src/flutter/shell/common/shorebird/shorebird.cc b/engine/src/flutter/shell/common/shorebird/shorebird.cc
+index 149395ef44..50e99a2bb8 100644
+--- a/engine/src/flutter/shell/common/shorebird/shorebird.cc
++++ b/engine/src/flutter/shell/common/shorebird/shorebird.cc
+@@ -178,7 +178,7 @@ std::string GetValueFromYaml(const std::string& yaml, const std::string& key) {
+ // HOW a Route B patch becomes live. That ownership split is why this is a
+ // separate hook armed from the tail of ConfigureShorebird rather than more code
+ // inside it, and it is why the path handed in here is the one
+-// NextBootPatchPath() already chose.
++// PrepareNextBootPatch() already chose.
+ //
+ // TIMING. root_isolate_create_callback fires at dart_isolate.cc:163, inside a
+ // tonic::DartState::Scope: after the isolate exists and its libraries are
+@@ -569,8 +569,11 @@ bool ConfigureShorebird(const ShorebirdConfigArgs& args,
+   // https://github.com/shorebirdtech/shorebird/issues/950
+ 
+   FML_LOG(INFO) << "Checking for active patch";
+-  shorebird::Updater::Instance().ValidateNextBootPatch();
+-  std::string active_path = shorebird::Updater::Instance().NextBootPatchPath();
++  // ONE call: validate, select, attribute. See the Updater class comment --
++  // splitting these apart is what let a rejected patch stay credited as the
++  // booting patch and get the last-known-good one deleted.
++  std::string active_path =
++      shorebird::Updater::Instance().PrepareNextBootPatch();
+   if (!active_path.empty()) {
+     patch_path = active_path;
+     FML_LOG(INFO) << "Shorebird updater: patch path: " << patch_path;
+@@ -578,10 +581,9 @@ bool ConfigureShorebird(const ShorebirdConfigArgs& args,
+     FML_LOG(INFO) << "Shorebird updater: no active patch.";
+   }
+ 
+-  // Note: shorebird_report_launch_start() is now called from TryLoadFromPatch()
+-  // in runtime/shorebird/patch_cache.cc, right before the patched snapshot is
+-  // actually loaded. This fixes issues with FlutterEngineGroup and other cases
+-  // where ConfigureShorebird() is called but no Shell is created.
++  // Launch attribution is no longer a separate step: PrepareNextBootPatch()
++  // above recorded the patch it returned as the one booting, which is the only
++  // way to keep those two facts from disagreeing.
+   if (!init_result) {
+     return false;
+   }
+@@ -647,8 +649,11 @@ void ConfigureShorebird(std::string code_cache_path,
+   SetBaseSnapshot(settings);
+ #endif
+ 
+-  shorebird::Updater::Instance().ValidateNextBootPatch();
+-  std::string active_path = shorebird::Updater::Instance().NextBootPatchPath();
++  // ONE call: validate, select, attribute. See the Updater class comment --
++  // splitting these apart is what let a rejected patch stay credited as the
++  // booting patch and get the last-known-good one deleted.
++  std::string active_path =
++      shorebird::Updater::Instance().PrepareNextBootPatch();
+ 
+   // The Route B container this boot will activate, if the active artifact is
+   // one. Empty otherwise, which leaves the hook inert.
+@@ -707,10 +712,8 @@ void ConfigureShorebird(std::string code_cache_path,
+     FML_LOG(INFO) << "Shorebird updater: no active patch.";
+   }
+ 
+-  // Note: shorebird_report_launch_start() is now called from TryLoadFromPatch()
+-  // in runtime/shorebird/patch_cache.cc, right before the patched snapshot is
+-  // actually loaded. This fixes issues with FlutterEngineGroup and other cases
+-  // where ConfigureShorebird() is called but no Shell is created.
++  // Launch attribution is no longer a separate step: PrepareNextBootPatch()
++  // above recorded the patch it returned as the one booting.
+ 
+   // SEAM 6: the lifecycle above has decided WHICH patch is active, and the
+   // content sniff decided whether it is a Route B container. Arming the hook
+@@ -739,15 +742,16 @@ void ConfigureShorebird(std::string code_cache_path,
+   //   * second call  -- the updater is already initialized from the first, so
+   //                     the patch resolution above ran normally and
+   //                     `route_b_path` is correct.
+-  //   * genuine init failure -- `NextBootPatchPath` yields nothing, so
++  //   * genuine init failure -- `PrepareNextBootPatch` yields nothing, so
+   //                     `route_b_path` is empty and
+   //                     `InstallRouteBActivationHook` returns inert.
+   //
+-  // Note the precedent directly above: `shorebird_report_launch_start` was moved
+-  // out of here for the same class of reason ("FlutterEngineGroup and other cases
+-  // where ConfigureShorebird() is called but no Shell is created"). The launch
+-  // reporting was fixed for multi-engine; the Route B arming was left behind the
+-  // guard.
++  // Note the precedent directly above: `shorebird_report_launch_start` was once
++  // moved out of here for the same class of reason ("FlutterEngineGroup and other
++  // cases where ConfigureShorebird() is called but no Shell is created"). That
++  // move is what put launch attribution ahead of validation on iOS; attribution
++  // now lives inside PrepareNextBootPatch() instead, and the multi-engine
++  // concern is handled by that call's cache rather than by relocating it.
+   InstallRouteBActivationHook(settings, route_b_path);
+ 
+   if (!init_result) {
+diff --git a/engine/src/flutter/shell/common/shorebird/updater.cc b/engine/src/flutter/shell/common/shorebird/updater.cc
+index 2ca435febc..3111554821 100644
+--- a/engine/src/flutter/shell/common/shorebird/updater.cc
++++ b/engine/src/flutter/shell/common/shorebird/updater.cc
+@@ -16,7 +16,9 @@ namespace shorebird {
+ // Static member definitions
+ std::unique_ptr<Updater> Updater::instance_;
+ std::mutex Updater::instance_mutex_;
+-std::atomic<bool> Updater::launch_started_{false};
++std::mutex Updater::prepare_mutex_;
++bool Updater::boot_prepared_ = false;
++std::string Updater::prepared_path_;
+ std::atomic<bool> Updater::launch_completed_{false};
+ 
+ Updater& Updater::Instance() {
+@@ -42,18 +44,26 @@ void Updater::ResetInstanceForTesting() {
+ }
+ 
+ void Updater::ResetLaunchStateForTesting() {
+-  launch_started_.store(false);
++  {
++    std::lock_guard<std::mutex> lock(prepare_mutex_);
++    boot_prepared_ = false;
++    prepared_path_.clear();
++  }
+   launch_completed_.store(false);
+ }
+ 
+-void Updater::ReportLaunchStart() {
+-  // Guard: only the first engine in a process should promote next_boot →
+-  // current_boot in the Rust updater. See class-level comment for rationale.
+-  bool expected = false;
+-  if (!launch_started_.compare_exchange_strong(expected, true)) {
+-    return;
++std::string Updater::PrepareNextBootPatch() {
++  // Guard: only the first engine in a process prepares a boot. A later engine
++  // gets the SAME answer -- not a fresh preparation (which would re-attribute
++  // the launch to whatever has since been downloaded) and not an empty string
++  // (which would silently downgrade it to the base release).
++  std::lock_guard<std::mutex> lock(prepare_mutex_);
++  if (boot_prepared_) {
++    return prepared_path_;
+   }
+-  DoReportLaunchStart();
++  prepared_path_ = DoPrepareNextBootPatch();
++  boot_prepared_ = true;
++  return prepared_path_;
+ }
+ 
+ void Updater::ReportLaunchSuccess() {
+@@ -103,12 +113,11 @@ bool RealUpdater::Init(const AppConfig& config) {
+   return shorebird_init(&params, rust_callbacks, config.yaml_config.c_str());
+ }
+ 
+-void RealUpdater::ValidateNextBootPatch() {
+-  shorebird_validate_next_boot_patch();
+-}
+-
+-std::string RealUpdater::NextBootPatchPath() {
+-  char* c_path = shorebird_next_boot_patch_path();
++std::string RealUpdater::DoPrepareNextBootPatch() {
++  // NULL means "boot the base release". That covers both a genuine absence of
++  // any usable patch and an internal updater error, which is the fail-closed
++  // direction: never hand the VM an artifact the updater could not vouch for.
++  char* c_path = shorebird_prepare_next_boot_patch();
+   if (c_path == nullptr) {
+     return "";
+   }
+@@ -117,10 +126,6 @@ std::string RealUpdater::NextBootPatchPath() {
+   return path;
+ }
+ 
+-void RealUpdater::DoReportLaunchStart() {
+-  shorebird_report_launch_start();
+-}
+-
+ void RealUpdater::DoReportLaunchSuccess() {
+   shorebird_report_launch_success();
+ }
+@@ -148,21 +153,12 @@ bool MockUpdater::Init(const AppConfig& config) {
+   return init_result_;
+ }
+ 
+-void MockUpdater::ValidateNextBootPatch() {
+-  validate_count_++;
+-  call_log_.push_back("ValidateNextBootPatch");
+-}
+-
+-std::string MockUpdater::NextBootPatchPath() {
+-  call_log_.push_back("NextBootPatchPath");
++std::string MockUpdater::DoPrepareNextBootPatch() {
++  prepare_count_++;
++  call_log_.push_back("PrepareNextBootPatch");
+   return next_boot_patch_path_;
+ }
+ 
+-void MockUpdater::DoReportLaunchStart() {
+-  launch_start_count_++;
+-  call_log_.push_back("ReportLaunchStart");
+-}
+-
+ void MockUpdater::DoReportLaunchSuccess() {
+   launch_success_count_++;
+   call_log_.push_back("ReportLaunchSuccess");
+@@ -185,8 +181,7 @@ void MockUpdater::StartUpdateThread() {
+ 
+ void MockUpdater::Reset() {
+   init_count_ = 0;
+-  validate_count_ = 0;
+-  launch_start_count_ = 0;
++  prepare_count_ = 0;
+   launch_success_count_ = 0;
+   launch_failure_count_ = 0;
+   start_update_thread_count_ = 0;
+diff --git a/engine/src/flutter/shell/common/shorebird/updater.h b/engine/src/flutter/shell/common/shorebird/updater.h
+index aeb2d1f2d9..a001151de5 100644
+--- a/engine/src/flutter/shell/common/shorebird/updater.h
++++ b/engine/src/flutter/shell/common/shorebird/updater.h
+@@ -54,26 +54,55 @@ struct AppConfig {
+ /// 2. Future migration from Rust to C++ implementation
+ /// 3. Test instrumentation (call counting, logging)
+ ///
+-/// ## Launch lifecycle (start/success/failure)
++/// ## Boot preparation is ONE operation, not a sequence
+ ///
+-/// The Rust updater uses a start/success/failure protocol to detect crashes:
+-/// - `ReportLaunchStart` copies `next_boot` → `current_boot` in the Rust
+-///   state. If the app crashes before `ReportLaunchSuccess`, the updater
+-///   assumes the patch caused the crash and rolls back on the next launch.
++/// `PrepareNextBootPatch()` validates the candidate, tombstones it if it is
++/// unusable, selects what will actually run, records that selection as the
++/// booting patch, and returns its path — all inside a single updater state
++/// transition. The invariant it exists to hold:
+ ///
+-/// These calls are guarded to execute at most once per process because:
+-/// 1. The Rust updater is a process-global singleton — calling
+-///    `report_launch_start` multiple times would repeatedly copy `next_boot`
+-///    → `current_boot`, which could promote a newly-downloaded (but not yet
+-///    booted) patch to "current" even though the running engine loaded the
+-///    old snapshot.
+-/// 2. In add-to-app, multiple FlutterEngines may be created and destroyed
+-///    within a single process. Each engine creation resolves snapshots and
+-///    constructs a Shell, but we must only report launch start/success once
+-///    — for the first engine that actually boots. Without this guard, a
+-///    background update that completes between engine creations would get
+-///    promoted to "current" by the second engine's `ReportLaunchStart`,
+-///    even though that engine is still running the old snapshot.
++///   the patch recorded as `currently_booting` == the patch whose path is
++///   returned here == the patch the VM is handed
++///
++/// This REPLACES the former three-call sequence `ValidateNextBootPatch()` →
++/// `NextBootPatchPath()` → `ReportLaunchStart()`, which could not hold that
++/// invariant because the three steps read the candidate pointer at three
++/// different times. On iOS they were interleaved in the worst possible order:
++/// `SetBaseSnapshot()` resolves the base isolate snapshot, which reached
++/// `ResolveIsolateData()` in runtime/dart_snapshot.cc and reported launch start
++/// one line BEFORE `ValidateNextBootPatch()` ran. A patch rejected for a bad
++/// signature was therefore correctly refused execution while remaining credited
++/// as the booting patch; the next `ReportLaunchSuccess()` promoted it, and
++/// `cleanup_older_than` then deleted the last-known-good patch that had really
++/// booted, dropping the following launch to the base release.
++///
++/// Measured on device, with the log excerpt, in
++/// `selfhost/evidence/p6-signing/ARM_C_EXECUTION_IDENTITY.md`. There was no
++/// security defect — the rejected bytes never executed — but the bookkeeping
++/// destroyed the fallback the refusal exists to preserve. The single-call shape
++/// is what makes that class of disagreement unrepresentable rather than merely
++/// unlikely.
++///
++/// The old two accessors are deliberately GONE from this interface rather than
++/// left in place unused: while they exist, a future caller can reassemble the
++/// broken ordering without noticing.
++///
++/// ## Once per process
++///
++/// Preparation and success/failure reporting are each guarded to run at most
++/// once per process, because:
++/// 1. The Rust updater is a process-global singleton — preparing twice would
++///    re-read `next_boot` and could promote a newly-downloaded (but not yet
++///    booted) patch even though the running engine loaded the old snapshot.
++/// 2. In add-to-app, multiple FlutterEngines may be created and destroyed in
++///    one process. Each creation resolves snapshots and constructs a Shell, but
++///    only the first actually boots.
++///
++/// A second `PrepareNextBootPatch()` call therefore does NOT re-prepare: it
++/// returns the path the first call returned, cached. Returning an empty string
++/// instead would silently downgrade a later engine to the base release, and
++/// re-preparing would break the invariant above. Both halves matter, so both
++/// are pinned by test.
+ ///
+ /// Tests can call `ResetLaunchStateForTesting()` to re-enable the guards.
+ class Updater {
+@@ -86,17 +115,21 @@ class Updater {
+   /// @return true if initialization succeeded
+   virtual bool Init(const AppConfig& config) = 0;
+ 
+-  /// Validate the next boot patch. If invalid, falls back to last good state.
+-  virtual void ValidateNextBootPatch() = 0;
+-
+-  /// Get the path to the patch that will boot on next run.
+-  /// @return Path to patch, or empty string if no patch available
+-  virtual std::string NextBootPatchPath() = 0;
++  /// Prepare the next boot and return the path the VM must ACTUALLY execute.
++  ///
++  /// Validation, selection and launch attribution happen together; see the
++  /// class comment. A rejected candidate yields the last-known-good patch, and
++  /// that is a success, not an error.
++  ///
++  /// Guarded to run at most once per process: a second call returns the first
++  /// call's path without touching updater state.
++  ///
++  /// @return Path to the patch to boot, or empty string for the base release.
++  std::string PrepareNextBootPatch();
+ 
+   // Boot lifecycle methods — guarded to run at most once per process.
+   // Callers may call these freely; subsequent calls after the first are
+   // silently ignored.
+-  void ReportLaunchStart();
+   void ReportLaunchSuccess();
+   void ReportLaunchFailure();
+ 
+@@ -119,7 +152,7 @@ class Updater {
+   Updater() = default;
+ 
+   // Subclass hooks — called by the public guarded methods above.
+-  virtual void DoReportLaunchStart() = 0;
++  virtual std::string DoPrepareNextBootPatch() = 0;
+   virtual void DoReportLaunchSuccess() = 0;
+   virtual void DoReportLaunchFailure() = 0;
+ 
+@@ -127,8 +160,12 @@ class Updater {
+   static std::unique_ptr<Updater> instance_;
+   static std::mutex instance_mutex_;
+ 
+-  // Once-per-process guards for launch lifecycle.
+-  static std::atomic<bool> launch_started_;
++  // Once-per-process guards for the launch lifecycle. `prepare_mutex_` also
++  // protects `prepared_path_`, so a second engine racing the first observes the
++  // finished result rather than an empty string mid-preparation.
++  static std::mutex prepare_mutex_;
++  static bool boot_prepared_;
++  static std::string prepared_path_;
+   static std::atomic<bool> launch_completed_;
+ };
+ 
+@@ -140,9 +177,7 @@ class NoOpUpdater : public Updater {
+   ~NoOpUpdater() override = default;
+ 
+   bool Init(const AppConfig& config) override { return true; }
+-  void ValidateNextBootPatch() override {}
+-  std::string NextBootPatchPath() override { return ""; }
+-  void DoReportLaunchStart() override {}
++  std::string DoPrepareNextBootPatch() override { return ""; }
+   void DoReportLaunchSuccess() override {}
+   void DoReportLaunchFailure() override {}
+   bool ShouldAutoUpdate() override { return false; }
+@@ -158,9 +193,7 @@ class RealUpdater : public Updater {
+   ~RealUpdater() override = default;
+ 
+   bool Init(const AppConfig& config) override;
+-  void ValidateNextBootPatch() override;
+-  std::string NextBootPatchPath() override;
+-  void DoReportLaunchStart() override;
++  std::string DoPrepareNextBootPatch() override;
+   void DoReportLaunchSuccess() override;
+   void DoReportLaunchFailure() override;
+   bool ShouldAutoUpdate() override;
+@@ -176,9 +209,7 @@ class MockUpdater : public Updater {
+   ~MockUpdater() override = default;
+ 
+   bool Init(const AppConfig& config) override;
+-  void ValidateNextBootPatch() override;
+-  std::string NextBootPatchPath() override;
+-  void DoReportLaunchStart() override;
++  std::string DoPrepareNextBootPatch() override;
+   void DoReportLaunchSuccess() override;
+   void DoReportLaunchFailure() override;
+   bool ShouldAutoUpdate() override;
+@@ -186,8 +217,7 @@ class MockUpdater : public Updater {
+ 
+   // Test accessors
+   int init_count() const { return init_count_; }
+-  int validate_count() const { return validate_count_; }
+-  int launch_start_count() const { return launch_start_count_; }
++  int prepare_count() const { return prepare_count_; }
+   int launch_success_count() const { return launch_success_count_; }
+   int launch_failure_count() const { return launch_failure_count_; }
+   int start_update_thread_count() const { return start_update_thread_count_; }
+@@ -211,8 +241,7 @@ class MockUpdater : public Updater {
+ 
+  private:
+   int init_count_ = 0;
+-  int validate_count_ = 0;
+-  int launch_start_count_ = 0;
++  int prepare_count_ = 0;
+   int launch_success_count_ = 0;
+   int launch_failure_count_ = 0;
+   int start_update_thread_count_ = 0;
+diff --git a/engine/src/flutter/shell/common/shorebird/updater_unittests.cc b/engine/src/flutter/shell/common/shorebird/updater_unittests.cc
+index def93050e8..612c2dd6dc 100644
+--- a/engine/src/flutter/shell/common/shorebird/updater_unittests.cc
++++ b/engine/src/flutter/shell/common/shorebird/updater_unittests.cc
+@@ -4,6 +4,10 @@
+ 
+ #include "flutter/shell/common/shorebird/updater.h"
+ 
++#include <string>
++#include <thread>
++#include <vector>
++
+ #include "gtest/gtest.h"
+ 
+ namespace flutter {
+@@ -30,17 +34,65 @@ class UpdaterTest : public ::testing::Test {
+   MockUpdater* mock_ = nullptr;
+ };
+ 
+-// ReportLaunchStart is guarded to run at most once per process.
+-// The second call should be silently ignored.
+-TEST_F(UpdaterTest, ReportLaunchStartOnlyCallsOnce) {
+-  EXPECT_EQ(mock_->launch_start_count(), 0);
++// PrepareNextBootPatch reaches the updater exactly once per process...
++TEST_F(UpdaterTest, PrepareNextBootPatchOnlyPreparesOnce) {
++  mock_->set_next_boot_patch_path("/patches/1/dlc.vmcode");
++  EXPECT_EQ(mock_->prepare_count(), 0);
++
++  EXPECT_EQ(Updater::Instance().PrepareNextBootPatch(),
++            "/patches/1/dlc.vmcode");
++  EXPECT_EQ(mock_->prepare_count(), 1);
++
++  Updater::Instance().PrepareNextBootPatch();
++  EXPECT_EQ(mock_->prepare_count(), 1);
++}
++
++// ...and the second caller must get the FIRST call's answer. Returning an empty
++// string here would silently downgrade a second engine to the base release,
++// which is why this is asserted separately from the call count above.
++TEST_F(UpdaterTest, SecondPrepareReturnsTheSamePathWithoutRepreparing) {
++  mock_->set_next_boot_patch_path("/patches/1/dlc.vmcode");
++  const std::string first = Updater::Instance().PrepareNextBootPatch();
++
++  // A background update lands and the updater would now hand out patch 3.
++  mock_->set_next_boot_patch_path("/patches/3/dlc.vmcode");
++
++  const std::string second = Updater::Instance().PrepareNextBootPatch();
++  EXPECT_EQ(second, first);
++  EXPECT_EQ(second, "/patches/1/dlc.vmcode");
++  EXPECT_EQ(mock_->prepare_count(), 1)
++      << "a later engine must not re-attribute the launch to a newer patch";
++}
+ 
+-  Updater::Instance().ReportLaunchStart();
+-  EXPECT_EQ(mock_->launch_start_count(), 1);
++// The base-release case must be cached as a real answer, not mistaken for
++// "not yet prepared" -- otherwise every engine re-enters the updater.
++TEST_F(UpdaterTest, EmptyPathIsStillARealPreparedResult) {
++  mock_->set_next_boot_patch_path("");
++  EXPECT_EQ(Updater::Instance().PrepareNextBootPatch(), "");
++  EXPECT_EQ(Updater::Instance().PrepareNextBootPatch(), "");
++  EXPECT_EQ(mock_->prepare_count(), 1);
++}
+ 
+-  // Second call is a no-op due to the once-per-process guard.
+-  Updater::Instance().ReportLaunchStart();
+-  EXPECT_EQ(mock_->launch_start_count(), 1);
++// Concurrent engine creation must not produce two preparations, and must not
++// let either caller observe a half-finished result.
++TEST_F(UpdaterTest, ConcurrentPrepareYieldsOnePreparationAndOneAnswer) {
++  mock_->set_next_boot_patch_path("/patches/1/dlc.vmcode");
++  constexpr int kThreads = 8;
++  std::vector<std::string> results(kThreads);
++  std::vector<std::thread> threads;
++  threads.reserve(kThreads);
++  for (int i = 0; i < kThreads; i++) {
++    threads.emplace_back([&results, i] {
++      results[i] = Updater::Instance().PrepareNextBootPatch();
++    });
++  }
++  for (auto& t : threads) {
++    t.join();
++  }
++  EXPECT_EQ(mock_->prepare_count(), 1);
++  for (int i = 0; i < kThreads; i++) {
++    EXPECT_EQ(results[i], "/patches/1/dlc.vmcode") << "thread " << i;
++  }
+ }
+ 
+ TEST_F(UpdaterTest, ReportLaunchSuccessOnlyCallsOnce) {
+@@ -80,101 +132,99 @@ TEST_F(UpdaterTest, MockUpdaterTracksStartUpdateThreadCalls) {
+   EXPECT_EQ(mock_->start_update_thread_count(), 1);
+ }
+ 
++// The boot sequence a production launch performs, in order. There is no
++// separate launch-start step to get out of order any more -- that is the point.
+ TEST_F(UpdaterTest, MockUpdaterCallLogRecordsSequence) {
+   EXPECT_TRUE(mock_->call_log().empty());
+ 
+-  Updater::Instance().ReportLaunchStart();
++  Updater::Instance().PrepareNextBootPatch();
+   Updater::Instance().ShouldAutoUpdate();
+   Updater::Instance().ReportLaunchSuccess();
+ 
+   const auto& log = mock_->call_log();
+   ASSERT_EQ(log.size(), 3u);
+-  EXPECT_EQ(log[0], "ReportLaunchStart");
++  EXPECT_EQ(log[0], "PrepareNextBootPatch");
+   EXPECT_EQ(log[1], "ShouldAutoUpdate");
+   EXPECT_EQ(log[2], "ReportLaunchSuccess");
+ }
+ 
+ TEST_F(UpdaterTest, MockUpdaterResetClearsState) {
+-  Updater::Instance().ReportLaunchStart();
++  Updater::Instance().PrepareNextBootPatch();
+   Updater::Instance().ReportLaunchSuccess();
+   mock_->set_should_auto_update(true);
+ 
+-  EXPECT_EQ(mock_->launch_start_count(), 1);
++  EXPECT_EQ(mock_->prepare_count(), 1);
+   EXPECT_EQ(mock_->launch_success_count(), 1);
+   EXPECT_TRUE(mock_->ShouldAutoUpdate());
+ 
+   mock_->Reset();
+ 
+-  EXPECT_EQ(mock_->launch_start_count(), 0);
++  EXPECT_EQ(mock_->prepare_count(), 0);
+   EXPECT_EQ(mock_->launch_success_count(), 0);
+   // Check call_log before ShouldAutoUpdate() since the method adds to call_log
+   EXPECT_TRUE(mock_->call_log().empty());
+   EXPECT_FALSE(mock_->ShouldAutoUpdate());
+ }
+ 
+-// ReportLaunchStart and ReportLaunchSuccess are paired once per process.
+-// The Rust updater no-ops both when no patch is booting.
+-TEST_F(UpdaterTest, LaunchStartAndSuccessArePairedOncePerProcess) {
+-  Updater::Instance().ReportLaunchStart();
++// Preparation and success reporting are paired once per process.
++TEST_F(UpdaterTest, PrepareAndSuccessArePairedOncePerProcess) {
++  Updater::Instance().PrepareNextBootPatch();
+   Updater::Instance().ReportLaunchSuccess();
+ 
+-  EXPECT_EQ(mock_->launch_start_count(), 1);
++  EXPECT_EQ(mock_->prepare_count(), 1);
+   EXPECT_EQ(mock_->launch_success_count(), 1);
+   const auto& log = mock_->call_log();
+   ASSERT_EQ(log.size(), 2u);
+-  EXPECT_EQ(log[0], "ReportLaunchStart");
++  EXPECT_EQ(log[0], "PrepareNextBootPatch");
+   EXPECT_EQ(log[1], "ReportLaunchSuccess");
+ }
+ 
+-// ReportLaunchStart and ReportLaunchFailure are paired once per process.
+-TEST_F(UpdaterTest, LaunchStartAndFailureArePairedOncePerProcess) {
+-  Updater::Instance().ReportLaunchStart();
++TEST_F(UpdaterTest, PrepareAndFailureArePairedOncePerProcess) {
++  Updater::Instance().PrepareNextBootPatch();
+   Updater::Instance().ReportLaunchFailure();
+ 
+-  EXPECT_EQ(mock_->launch_start_count(), 1);
++  EXPECT_EQ(mock_->prepare_count(), 1);
+   EXPECT_EQ(mock_->launch_failure_count(), 1);
+   const auto& log = mock_->call_log();
+   ASSERT_EQ(log.size(), 2u);
+-  EXPECT_EQ(log[0], "ReportLaunchStart");
++  EXPECT_EQ(log[0], "PrepareNextBootPatch");
+   EXPECT_EQ(log[1], "ReportLaunchFailure");
+ }
+ 
+-// Simulates the add-to-app scenario: multiple engines call ReportLaunchStart
+-// and ReportLaunchSuccess, but only the first should actually reach the
+-// updater. This prevents the Rust updater from promoting a newly-downloaded
+-// patch to "current_boot" when subsequent engines are still running the
+-// original snapshot.
++// The add-to-app scenario: multiple engines run the boot sequence, but only the
++// first reaches the updater. This prevents promoting a newly-downloaded patch
++// to "current_boot" while subsequent engines still run the original snapshot.
+ TEST_F(UpdaterTest, MultipleEnginesOnlyReportOnce) {
+   // First engine boots.
+-  Updater::Instance().ReportLaunchStart();
++  Updater::Instance().PrepareNextBootPatch();
+   Updater::Instance().ReportLaunchSuccess();
+ 
+   // Second engine boots — these should be no-ops.
+-  Updater::Instance().ReportLaunchStart();
++  Updater::Instance().PrepareNextBootPatch();
+   Updater::Instance().ReportLaunchSuccess();
+ 
+-  EXPECT_EQ(mock_->launch_start_count(), 1);
++  EXPECT_EQ(mock_->prepare_count(), 1);
+   EXPECT_EQ(mock_->launch_success_count(), 1);
+ 
+   const auto& log = mock_->call_log();
+   ASSERT_EQ(log.size(), 2u);
+-  EXPECT_EQ(log[0], "ReportLaunchStart");
++  EXPECT_EQ(log[0], "PrepareNextBootPatch");
+   EXPECT_EQ(log[1], "ReportLaunchSuccess");
+ }
+ 
+ // ResetLaunchStateForTesting re-enables the guards, allowing tests to
+ // verify launch calls on a fresh state.
+ TEST_F(UpdaterTest, ResetLaunchStateReenablesGuards) {
+-  Updater::Instance().ReportLaunchStart();
++  Updater::Instance().PrepareNextBootPatch();
+   Updater::Instance().ReportLaunchSuccess();
+-  EXPECT_EQ(mock_->launch_start_count(), 1);
++  EXPECT_EQ(mock_->prepare_count(), 1);
+   EXPECT_EQ(mock_->launch_success_count(), 1);
+ 
+   Updater::ResetLaunchStateForTesting();
+ 
+-  Updater::Instance().ReportLaunchStart();
++  Updater::Instance().PrepareNextBootPatch();
+   Updater::Instance().ReportLaunchSuccess();
+-  EXPECT_EQ(mock_->launch_start_count(), 2);
++  EXPECT_EQ(mock_->prepare_count(), 2);
+   EXPECT_EQ(mock_->launch_success_count(), 2);
+ }
+ 
+-- 
+2.55.0
+

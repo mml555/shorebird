@@ -1,0 +1,141 @@
+{
+  "schema": "semantic-map-1/final-source-facts/1",
+  "gate": "SM1-FINAL",
+  "issue": 58,
+  "generated": "2026-09-09T08:00:52Z",
+  "why": "Source-level routing facts, produced as evidence rather than written as prose, so the provenance manifest digests them, Family A can falsify them, and losing them degrades the row to NOT_ESTABLISHED instead of leaving a claim standing.",
+  "source_identity": {
+    "dart_revision": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+    "effective_tree": "7b04b01bdc10ec990143257f0d28580571c2122f",
+    "deps_pinned_base": "d684a576a6aa954ae107a03b2b4e1d61c3bebe93",
+    "dart_git_dir": "/Volumes/build/g5_marker/src/flutter/third_party/dart"
+  },
+  "reads_frozen_tree_not_worktree": true,
+  "files": {
+    "effective_tree:pkg/dart2bytecode/lib/dart2bytecode.dart": {
+      "read": true,
+      "origin": "git show 7b04b01bdc10:pkg/dart2bytecode/lib/dart2bytecode.dart",
+      "sha256": "35a5d8abab9bd35a9c5a1f1c62e41c3b5809dc6ee5e8f2fa99fc5aa26c0f57d3",
+      "git_blob": "72c6b5a4d9a6dae001add6d3136d584ab8469f4a",
+      "bytes": 12214
+    },
+    "effective_tree:pkg/front_end/lib/src/kernel/kernel_target.dart": {
+      "read": true,
+      "origin": "git show 7b04b01bdc10:pkg/front_end/lib/src/kernel/kernel_target.dart",
+      "sha256": "6e8d5cc794efc62c8328322fd04dd90f4e618cca56c3d71b705c8eda94a4cb15",
+      "git_blob": "a32b50cd8c5ba7ee91454060d0fce457d917a144",
+      "bytes": 72611
+    },
+    "deps_pinned_base:pkg/dart2bytecode/lib/dart2bytecode.dart": {
+      "read": true,
+      "origin": "git show d684a576a6aa:pkg/dart2bytecode/lib/dart2bytecode.dart",
+      "sha256": "24f3b2e61fc76c1316216b457d919a851f6b8b1d4dc18175a2bf5f3de74276e2",
+      "git_blob": "3cc4d6d3459bcea07818b1d26938607a5ce10341",
+      "bytes": 11184
+    },
+    "worktree:selfhost/engine/route_b/build_4a_payload.sh": {
+      "read": true,
+      "origin": "repository working tree",
+      "sha256": "595cc05b929100316e8ff27df1289020066aec15666689d908d96b7c5d8ff455",
+      "git_blob": null,
+      "bytes": 1531
+    },
+    "worktree:selfhost/engine/route_b/build_4b_artifact.sh": {
+      "read": true,
+      "origin": "repository working tree",
+      "sha256": "d314e92a513bb5a5bc8ca64e65f03c21b85415f8ee075fc0cce317fa0557fa5e",
+      "git_blob": null,
+      "bytes": 5487
+    }
+  },
+  "facts": {
+    "D2B_REGISTERS_VALIDATE_OPTION": {
+      "value": true,
+      "where": "effective_tree:pkg/dart2bytecode/lib/dart2bytecode.dart",
+      "pattern": "\\.\\.addOption\\(\\s*\\n?\\s*'validate',",
+      "matches": 1,
+      "first_line": 131,
+      "expect_present": true,
+      "means": "dart2bytecode registers a --validate option. SL1-G6C's premise that it has no such option does not hold against this tree."
+    },
+    "D2B_ASSIGNS_DYNAMIC_INTERFACE_URI": {
+      "value": true,
+      "where": "effective_tree:pkg/dart2bytecode/lib/dart2bytecode.dart",
+      "pattern": "\\.\\.dynamicInterfaceSpecificationUri\\s*=\\s*dynamicInterfaceSpecificationUri",
+      "matches": 1,
+      "first_line": 291,
+      "expect_present": true,
+      "means": "the option reaches the CFE options object. This is a SOURCE fact and is not evidence that validation then rejects anything."
+    },
+    "VALIDATION_IS_CONDITIONAL_ON_URI": {
+      "value": true,
+      "where": "effective_tree:pkg/front_end/lib/src/kernel/kernel_target.dart",
+      "pattern": "Future<void> validateDynamicModule\\(\\) async \\{\\s*\\n\\s*final Uri\\? dynamicInterfaceSpecificationUri =\\s*\\n\\s*_options\\.dynamicInterfaceSpecificationUri;\\s*\\n\\s*if \\(dynamicInterfaceSpecificationUri != null\\) \\{",
+      "matches": 1,
+      "first_line": 1815,
+      "expect_present": true,
+      "means": "validateDynamicModule early-returns unless the URI is set, so without the flag no validation runs. This is what SL1 got right."
+    },
+    "OPTION_PREDATES_THE_FORK": {
+      "value": true,
+      "where": "deps_pinned_base:pkg/dart2bytecode/lib/dart2bytecode.dart",
+      "pattern": "\\.\\.addOption\\(\\s*\\n?\\s*'validate',",
+      "matches": 1,
+      "first_line": 121,
+      "expect_present": true,
+      "means": "the option is present in the DEPS-pinned upstream base, so it is upstream and not something this fork added."
+    },
+    "ROUTE_B_4A_OMITS_VALIDATE": {
+      "value": true,
+      "where": "worktree:selfhost/engine/route_b/build_4a_payload.sh",
+      "pattern": "dart2bytecode\\.dart(?:(?!\\n\\n)[\\s\\S])*?--validate",
+      "matches": 0,
+      "first_line": null,
+      "expect_present": false,
+      "means": "Route B's payload build invokes dart2bytecode without --validate."
+    },
+    "ROUTE_B_4B_OMITS_VALIDATE": {
+      "value": true,
+      "where": "worktree:selfhost/engine/route_b/build_4b_artifact.sh",
+      "pattern": "dart2bytecode\\.dart(?:(?!\\n\\n)[\\s\\S])*?--validate",
+      "matches": 0,
+      "first_line": null,
+      "expect_present": false,
+      "means": "Route B's artifact build invokes dart2bytecode without --validate."
+    },
+    "ROUTE_B_4A_INVOKES_DART2BYTECODE": {
+      "value": true,
+      "where": "worktree:selfhost/engine/route_b/build_4a_payload.sh",
+      "pattern": "dart2bytecode\\.dart",
+      "matches": 1,
+      "first_line": 34,
+      "expect_present": true,
+      "means": "the invocation exists, so its lack of --validate is an omission rather than an absent call site."
+    },
+    "ROUTE_B_4B_INVOKES_DART2BYTECODE": {
+      "value": true,
+      "where": "worktree:selfhost/engine/route_b/build_4b_artifact.sh",
+      "pattern": "dart2bytecode\\.dart",
+      "matches": 1,
+      "first_line": 96,
+      "expect_present": true,
+      "means": "the invocation exists, so its lack of --validate is an omission rather than an absent call site."
+    }
+  },
+  "summary": {
+    "resolved": [
+      "D2B_REGISTERS_VALIDATE_OPTION",
+      "D2B_ASSIGNS_DYNAMIC_INTERFACE_URI",
+      "VALIDATION_IS_CONDITIONAL_ON_URI",
+      "OPTION_PREDATES_THE_FORK",
+      "ROUTE_B_4A_OMITS_VALIDATE",
+      "ROUTE_B_4B_OMITS_VALIDATE",
+      "ROUTE_B_4A_INVOKES_DART2BYTECODE",
+      "ROUTE_B_4B_INVOKES_DART2BYTECODE"
+    ],
+    "refuted": [],
+    "unresolved": []
+  },
+  "notes": [],
+  "does_not_claim": "That passing --validate makes the DYNAMIC_INTERFACE_POLICY negatives fail closed. Every fact here is about source text; none is a behavioural result."
+}

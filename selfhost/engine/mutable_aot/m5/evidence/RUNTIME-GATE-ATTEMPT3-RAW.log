@@ -1,0 +1,5 @@
+=== PREFLIGHT ===
+   preflight 1 at 13:35:32: load 194.42 / 199.47 / 150.25  competitors: xcodebuild x1
+
+REFUSING TO MEASURE: a competing build is running.
+GATE EXIT=2

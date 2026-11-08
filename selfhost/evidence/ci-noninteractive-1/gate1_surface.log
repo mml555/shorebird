@@ -1,0 +1,46 @@
+
+== 0 - the services an unattended job needs, from the TAG's own tree
+  control plane up on :64992 (from the tag's tree)
+  artifact origin up on :64993 (overlay + upstream fallthrough)
+
+== 1 - a fresh app, and a THROWAWAY control-plane app record
+  app_id=9ca71483-5bf7-f933-00d5-7bfd3baadb8f
+  declared operator config: ANDROID_HOME=/Users/mendell/Library/Android/sdk
+  declared operator config: GRADLE_USER_HOME=/Volumes/build/ci1/gradle (fresh)
+  declared operator config: JAVA_HOME=
+
+== 2 - is stdin actually closed? the two shapes, measured
+  closed   stdin.hasTerminal=false stdin.echoMode threw: StdinException stdout.hasTerminal=false 
+  devnull  stdin.hasTerminal=true stdin.echoMode threw: StdinException stdout.hasTerminal=false 
+  tty      (not measured: this harness never has a TTY) 
+
+== 3a - PREFLIGHT: what the workflow demands of the PROJECT
+    INTERNET permission entries after doctor --fix: 1
+
+== 3 - the ordinary release, with nothing able to answer
+
+== 3b - PATCH, including the case a CI job must never be asked
+
+== 4 - what each arm actually asked for
+  --- doctor_fix
+      19:  [✗] Failed to get shorebird version. Error: fatal: HEAD does not point to a branch
+  --- release_noflag
+  --- release_devnull
+  --- release_noconfirm
+  --- patch_noversion
+
+== RESULT
+  workspace: /Volumes/build/ci1
+  inventory: /Volumes/build/ci1/inventory.txt
+    environment          doctor_fix                         stdin=closed  exit=0   
+    0                  doctor --fix adds the INTERNET permission; mutates the project
+    release              release_noflag                     stdin=closed  exit=0   
+    0                  no --no-confirm, stdin closed
+    release              release_devnull                    stdin=devnull exit=70  
+    70                 no --no-confirm, stdin=/dev/null
+    release              release_noconfirm                  stdin=closed  exit=70  
+    70                 --no-confirm, stdin closed
+    release_selection    patch_noversion                    stdin=closed  exit=0   
+    0                  no --release-version, one release exists
+    authentication       patch_noauth                       stdin=closed  exit=0   
+    0                  with a valid token, for contrast

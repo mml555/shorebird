@@ -1,0 +1,102 @@
+SL1-G6B cost measurement
+date  : 2026-09-06T23:30:15Z
+arm   : g3_on   iters=10000000 reps=5
+host  : Apple M1 Max
+
+=================== FAMILY A — runtime substrate (DM OFF vs ON) ===================
+Measured BEFORE any module is loaded: this is what every build pays.
+artifact                          OFF             ON      delta
+dartaotruntime                6297392        6471040     +2.76%
+gen_snapshot                  6875632        7007248     +1.91%
+vm_platform.dill              8270936        8270936     +0.00%
+dart-sdk/bin/dart             5364224        5537856     +3.24%
+
+tiny.aot (off) bytes=841480
+  rep1 TINY micros=19371 peak_rss=14860288
+  rep2 TINY micros=19447 peak_rss=14909440
+  rep3 TINY micros=19737 peak_rss=14942208
+  rep4 TINY micros=19405 peak_rss=14958592
+  rep5 TINY micros=19715 peak_rss=14876672
+  startup: 17268 micros/run over 20 runs (empty main)
+tiny.aot (on) bytes=841488
+  rep1 TINY micros=19860 peak_rss=14974976
+  rep2 TINY micros=19393 peak_rss=14925824
+  rep3 TINY micros=19965 peak_rss=14909440
+  rep4 TINY micros=20399 peak_rss=14991360
+  rep5 TINY micros=19588 peak_rss=14942208
+  startup: 17423 micros/run over 20 runs (empty main)
+
+=================== FAMILY B — dynamic-interface / patchability cost ===================
+The SAME host with and without the required contract (G4's fenced/unfenced
+solo pair). This is the cost of declaring a member patchable.
+  host.aot fenced: dill=4561408 aot=907000
+  host.aot unfenced: dill=4561536 aot=890296
+  retained-AOT cost of the contract: 16704 bytes (+1.876%)
+  lost devirtualization: the fenced build keeps a dispatch-table call at
+  every one of G4's five shapes; the unfenced build devirtualizes them
+  (and inlines one). That is the same difference, measured as code shape
+  in G4 and as bytes here.
+
+=================== FAMILY C + D — module and execution ===================
+  bench.aot bytes=925464  module bytes=965
+
+--- rep 1 ---
+   BENCH aot_to_aot_direct iters=10000000 micros=22782 ns_per_call=2.28
+   BENCH aot_to_aot_virtual iters=10000000 micros=25100 ns_per_call=2.51
+   MODULE bytes=965
+   LOAD micros=81 rss_before=15220736 rss_after=15335424 rss_delta=114688
+   BENCH aot_to_bytecode iters=10000000 micros=208956 ns_per_call=20.90
+   BENCH bytecode_to_aot iters=10000000 micros=282528 ns_per_call=28.25
+   BENCH bytecode_to_bytecode iters=10000000 micros=283886 ns_per_call=28.39
+   RSS_STEADY 15335424
+   SINK 10000000
+--- rep 2 ---
+   BENCH aot_to_aot_direct iters=10000000 micros=22642 ns_per_call=2.26
+   BENCH aot_to_aot_virtual iters=10000000 micros=25008 ns_per_call=2.50
+   MODULE bytes=965
+   LOAD micros=75 rss_before=15171584 rss_after=15302656 rss_delta=131072
+   BENCH aot_to_bytecode iters=10000000 micros=206126 ns_per_call=20.61
+   BENCH bytecode_to_aot iters=10000000 micros=278879 ns_per_call=27.89
+   BENCH bytecode_to_bytecode iters=10000000 micros=277813 ns_per_call=27.78
+   RSS_STEADY 15302656
+   SINK 0
+--- rep 3 ---
+   BENCH aot_to_aot_direct iters=10000000 micros=22523 ns_per_call=2.25
+   BENCH aot_to_aot_virtual iters=10000000 micros=25305 ns_per_call=2.53
+   MODULE bytes=965
+   LOAD micros=90 rss_before=15138816 rss_after=15253504 rss_delta=114688
+   BENCH aot_to_bytecode iters=10000000 micros=207811 ns_per_call=20.78
+   BENCH bytecode_to_aot iters=10000000 micros=278442 ns_per_call=27.84
+   BENCH bytecode_to_bytecode iters=10000000 micros=294116 ns_per_call=29.41
+   RSS_STEADY 15253504
+   SINK 10000000
+--- rep 4 ---
+   BENCH aot_to_aot_direct iters=10000000 micros=22675 ns_per_call=2.27
+   BENCH aot_to_aot_virtual iters=10000000 micros=25233 ns_per_call=2.52
+   MODULE bytes=965
+   LOAD micros=89 rss_before=15237120 rss_after=15368192 rss_delta=131072
+   BENCH aot_to_bytecode iters=10000000 micros=208229 ns_per_call=20.82
+   BENCH bytecode_to_aot iters=10000000 micros=279951 ns_per_call=28.00
+   BENCH bytecode_to_bytecode iters=10000000 micros=283224 ns_per_call=28.32
+   RSS_STEADY 15368192
+   SINK 0
+--- rep 5 ---
+   BENCH aot_to_aot_direct iters=10000000 micros=23795 ns_per_call=2.38
+   BENCH aot_to_aot_virtual iters=10000000 micros=25885 ns_per_call=2.59
+   MODULE bytes=965
+   LOAD micros=90 rss_before=15171584 rss_after=15302656 rss_delta=131072
+   BENCH aot_to_bytecode iters=10000000 micros=206398 ns_per_call=20.64
+   BENCH bytecode_to_aot iters=10000000 micros=279416 ns_per_call=27.94
+   BENCH bytecode_to_bytecode iters=10000000 micros=287273 ns_per_call=28.73
+   RSS_STEADY 15302656
+   SINK 10000000
+
+=================== SUMMARY (medians over 5 reps) ===================
+mode                      ns/call (median)       min       max  x direct
+aot_to_aot_direct                     2.27      2.25      2.38      1.0x
+aot_to_aot_virtual                    2.52      2.50      2.59      1.1x
+aot_to_bytecode                      20.78     20.61     20.90      9.2x
+bytecode_to_aot                      27.94     27.84     28.25     12.3x
+bytecode_to_bytecode                 28.39     27.78     29.41     12.5x
+load latency (us)                     89.0      75.0      90.0
+rss delta (bytes)                 131072.0  114688.0  131072.0

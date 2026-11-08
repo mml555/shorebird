@@ -1,0 +1,35 @@
+SM1-G0 fail-closed proofs — the release-dill checks exercised through the verifier
+date : 2026-09-07T04:30:05Z
+
+############ 1. baseline: verify must PASS ############
+  ok      all 34 frozen inputs re-hashed and unchanged (27 adversarial_corpus_file, 2 real_world_corpus_pin, 4 reference_implementation, 1 supported_record)
+  ok      shipped analyzer unchanged since the freeze
+  ok      adversarial corpus aggregate digest unchanged
+  ok      release dill rebuilt and matches the frozen release identity
+  ok      no supported artifact, selector or cell modified
+
+G0 FREEZE VERIFIED
+exit=0
+
+############ 2. SKIP_DILL=1 --verify must NOT be green ############
+$ SKIP_DILL=1 freeze.sh --verify
+  FAILED  SKIP_DILL is not honoured on --verify: the release-dill proof is mandatory
+  FAILED  release-dill proof was SKIPPED this run (SKIP_DILL) — mandatory on verify; a skipped proof is not a passed one
+G0 FREEZE FAILED: 2 check(s)
+exit=1   <- nonzero: a skipped mandatory proof is not a passed one
+
+############ 3. mutated dill REFUSED by the verifier, in isolation ############
+$ DILL_SOURCE=corpus/mutants/body_only freeze.sh --verify
+   every frozen corpus FILE is untouched, so the ONLY failing check is the
+   release identity -- which is what makes this a refusal and not noise
+  ok      release dill is deterministic across rebuilds (control; source body_only)
+  --      mutation sub-arm not applicable: DILL_SOURCE is body_only, not base (refusal-exercise mode)
+  ok      all 34 frozen inputs re-hashed and unchanged (27 adversarial_corpus_file, 2 real_world_corpus_pin, 4 reference_implementation, 1 supported_record)
+  FAILED  release dill does not match the frozen identity: fe114c0f64be != f0944ebc7760
+G0 FREEZE FAILED: 1 check(s)
+exit=1
+
+############ 4. restored: verify must PASS again ############
+
+G0 FREEZE VERIFIED
+exit=0

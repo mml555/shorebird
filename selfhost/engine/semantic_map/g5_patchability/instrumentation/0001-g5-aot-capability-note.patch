@@ -1,0 +1,76 @@
+--- a/runtime/vm/elf.h	2026-08-03 16:52:14
++++ b/runtime/vm/elf.h	2026-09-07 19:54:29
+@@ -86,6 +86,10 @@
+                                 const ElfWriter* debug_info);
+ 
+   static constexpr const char kBuildIdNoteName[] = ".note.gnu.build-id";
++  // SM1-G5 evidence instrumentation: a compiler-owned record of the patch
++  // capabilities this snapshot was actually compiled with.
++  static constexpr const char kCapabilitiesNoteName[] =
++      ".note.shorebird.capabilities";
+   static constexpr const char kTextName[] = ".text";
+   static constexpr const char kDataName[] = ".rodata";
+   static constexpr const char kBssName[] = ".bss";
+@@ -93,6 +97,7 @@
+ 
+   void CreateBSS();
+   void GenerateBuildId();
++  void GenerateCapabilities();
+   void InitializeSymbolTables();
+   void FinalizeDwarfSections();
+   void FinalizeEhFrame();
+--- a/runtime/vm/elf.cc	2026-08-03 16:52:14
++++ b/runtime/vm/elf.cc	2026-09-07 19:54:29
+@@ -1565,6 +1565,7 @@
+ void ElfWriter::Finalize() {
+   // Generate the build ID now that we have all user-provided sections.
+   GenerateBuildId();
++  GenerateCapabilities();
+ 
+   // We add a BSS section in all cases, even to the separate debugging
+   // information, to ensure that relocated addresses are consistent between ELF
+@@ -1727,6 +1728,44 @@
+ static constexpr intptr_t kBuildIdHeaderSize =
+     sizeof(elf::Note) + sizeof(elf::ELF_NOTE_GNU);
+ 
++// SM1-G5 EVIDENCE INSTRUMENTATION.
++//
++// G5 measured that a release built WITHOUT --patchable_static_calls attaches a
++// replacement, reports "APPLY ok", and then keeps running the old body. So
++// patchability depends on how the RELEASE BINARY was produced, and its absence
++// is a silent bypass. A build transcript is not evidence of that: it records
++// what someone typed, not what the compiler did.
++//
++// This writes the compiler's OWN parsed flag state into the artifact, so the
++// fact can be read back off the exact bytes that will ship. It is versioned so
++// a reader can distinguish "false" from "written by a schema I do not know".
++DECLARE_FLAG(bool, patchable_static_calls);
++
++static constexpr char kShorebirdNoteOwner[] = "Shorebird";
++
++void ElfWriter::GenerateCapabilities() {
++  ASSERT(section_table_->Find(kCapabilitiesNoteName) == nullptr);
++  const char* const payload =
++      FLAG_patchable_static_calls
++          ? "schema_version=1;patchable_static_calls=true"
++          : "schema_version=1;patchable_static_calls=false";
++  const intptr_t description_length = strlen(payload) + 1;
++  ZoneWriteStream stream(
++      zone(), sizeof(elf::Note) + sizeof(kShorebirdNoteOwner) +
++                  description_length);
++  stream.WriteFixed<decltype(elf::Note::name_size)>(
++      sizeof(kShorebirdNoteOwner));
++  stream.WriteFixed<decltype(elf::Note::description_size)>(description_length);
++  stream.WriteFixed<decltype(elf::Note::type)>(
++      static_cast<elf::NoteType>(1));
++  stream.WriteBytes(kShorebirdNoteOwner, sizeof(kShorebirdNoteOwner));
++  stream.WriteBytes(reinterpret_cast<const uint8_t*>(payload),
++                    description_length);
++  auto* const container = new (zone_) NoteSection();
++  container->AddPortion(stream.buffer(), stream.bytes_written());
++  section_table_->Add(container, kCapabilitiesNoteName);
++}
++
+ void ElfWriter::GenerateBuildId() {
+   // Not idempotent.
+   ASSERT(section_table_->Find(kBuildIdNoteName) == nullptr);

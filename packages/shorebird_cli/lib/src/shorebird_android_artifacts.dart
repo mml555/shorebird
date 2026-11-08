@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/executables/bundletool.dart';
+import 'package:shorebird_cli/src/extensions/directory.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/shorebird_command.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -140,14 +141,27 @@ class ShorebirdAndroidArtifacts {
       flavor != null ? '${flavor}Release' : 'release',
     );
 
+    // Gradle writes each variant's bundle to its own directory, so the .aab
+    // there is the one just built, whatever `base.archivesName` named it.
+    // Flutter finds the bundle the same way (by directory, not file name).
+    // Gradle doesn't clear the directory, so with several (left from an
+    // earlier build under another name) the newest is the one just built.
+    final directory = Directory(buildDir);
+    if (directory.existsSync()) {
+      final bundles = directory.listSync().whereType<File>().where(
+        (file) => p.extension(file.path) == '.aab',
+      );
+      final newest = bundles
+          .sortedBy((file) => file.lastModifiedSync())
+          .lastOrNull;
+      if (newest != null) return newest;
+    }
+
     final artifactName = flavor == null
         ? 'app-release.aab'
         : 'app-$flavor-release.aab';
 
-    return _findArtifact(
-      directory: Directory(buildDir),
-      artifactName: artifactName,
-    );
+    return _findArtifact(directory: directory, artifactName: artifactName);
   }
 
   /// Find the apk in the provided [project] [Directory].
@@ -227,17 +241,23 @@ class ShorebirdAndroidArtifacts {
     );
 
     final zipDir = Directory.systemTemp.createTempSync();
-    final zipPath = p.join(zipDir.path, 'flutter_release-$buildNumber.zip');
-    logger.detail('Extracting $aarPath to $zipPath');
+    try {
+      final zipPath = p.join(zipDir.path, 'flutter_release-$buildNumber.zip');
+      logger.detail('Extracting $aarPath to $zipPath');
 
-    // Copy the .aar file to a .zip file so package:archive knows how to read it
-    File(aarPath).copySync(zipPath);
-    final extractedZipDir = p.join(
-      aarDirectory,
-      'flutter_release-$buildNumber',
-    );
-    // Unzip the .zip file to a directory so we can read the .so files
-    await unzipFn(zipPath, extractedZipDir);
-    return Directory(extractedZipDir);
+      // Copy the .aar file to a .zip file so package:archive knows how to read
+      // it.
+      File(aarPath).copySync(zipPath);
+      final extractedZipDir = p.join(
+        aarDirectory,
+        'flutter_release-$buildNumber',
+      );
+      // Unzip the .zip file to a directory so we can read the .so files. The
+      // result lives next to the .aar, so the temporary copy can go after.
+      await unzipFn(zipPath, extractedZipDir);
+      return Directory(extractedZipDir);
+    } finally {
+      zipDir.deleteTemporarySync();
+    }
   }
 }

@@ -12,6 +12,9 @@ const flutterVersionUrl = '$docsUrl/getting-started/flutter-version';
 const supportedFlutterVersionsUrl =
     '$flutterVersionUrl#supported-flutter-versions';
 
+/// Link to the service accounts page, where CI gets its credentials.
+const serviceAccountsUrl = '$docsUrl/account/service-accounts/';
+
 /// Link to the troubleshooting page on the Shorebird documentation.
 const troubleshootingUrl = '$docsUrl/code-push/troubleshooting';
 
@@ -19,11 +22,6 @@ const troubleshootingUrl = '$docsUrl/code-push/troubleshooting';
 /// Unsupported class file major version
 const unsupportedClassFileVersionUrl =
     '$troubleshootingUrl#unsupported-class-file-major-version-65';
-
-/// Link to the troubleshooting section which covers the
-/// not being able to run the app in VS Code after installing Shorebird.
-const cannotRunInVSCodeUrl =
-    '''$troubleshootingUrl#cant-run-my-app-in-vs-code''';
 
 /// Link to the troubleshooting section which provides more information about
 /// what causes the asset changes warning and what to do about it.

@@ -1,8 +1,5 @@
 # This is a demo of what a shorebird_ci.yaml file might look like. The format is
 # very much subject to change.
-
-pre:
-  - name: 🐳 Run Redis
-    run: |
-      docker pull redis/redis-stack-server:latest
-      docker run --name test_redis -d -p 6379:6379 --rm -e REDIS_ARGS="--requirepass password" redis/redis-stack-server:latest
+#
+# Redis for the tests is started by _shorebird_ci_dart.yaml (needs_redis), not
+# here.

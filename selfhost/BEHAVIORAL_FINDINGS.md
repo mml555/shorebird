@@ -1,3 +1,5 @@
+<!-- cspell:words getpid scorable -->
+
 # Behavioral findings — Shorebird updater vs. self-hosted control plane
 
 Status legend: `device-verified` = observed on a real device/emulator against our
@@ -241,9 +243,57 @@ behavior.
 | ios-framework (iOS add-to-app) | server-verified | `shorebird release ios-framework` → `xcframework` + supplement stored/verified. No device boot (library). |
 | Windows / Linux | server-generic, untested | server has no platform/arch literals; must be built on those hosts (see selfhost/DESKTOP_PLATFORMS.md). |
 
+## Boot-lifecycle behaviour — `device-verified` 2026-08-19/20, iPhone, Route B cells
+
+Answers the first "still open" item below, on iOS. **Scope, stated exactly:** this
+was observed on our own Route B engine cells with updater `f729f958e9be`, **not** on
+the pinned engine — so it is device-verified for what we ship on that path and says
+nothing about the pinned updater, whose single-strike behaviour
+[`UPDATER_CONTRACT.md`](UPDATER_CONTRACT.md) §5 still describes correctly.
+
+* **An explicit failure and an ambiguous disappearance are observably different
+  events**, needing no new engine to tell apart: different report timing, breadcrumb
+  state, classifying process and wire message.
+* **`dart-fail`** (explicit Dart-phase failure) → retired on the FIRST bad launch,
+  event reaches the control plane, next launch runs the release. It **hangs rather
+  than crashing** — the error is forwarded so the app's own reporting survives — so
+  the user force-quits one launch.
+* **A pre-success SIGKILL** → no explicit failure event, breadcrumb still set, next
+  start classifies it as AMBIGUITY, patch stays `Installed`, and the retry is
+  reported as `ambiguous_boot_retry` with `ambiguous_attempt_count: 1`.
+* **The recovery is positively observed**, not inferred from silence:
+  `recovered_after_ambiguity` on the launch that then succeeds. *"No second failure
+  arrived"* is not recovery — the device may simply never have launched again.
+* **Both outcomes persist as distinct server rows** under one correlation identity,
+  in the same timestamp-second, and `bootLifecycleMetrics()` counts the recovery.
+
+**Paired-run discipline, because this is the row that matters:** identical fixture
+source, checkpoints, kill primitive, observer and scoring — **only the engine
+differed**. Five controls held (success, success-then-kill, success, `hard-kill`,
+`dart-fail`) and only the ambiguous row flipped: single-strike retirement BEFORE,
+survival plus `recovered_after_ambiguity` AFTER. Evidence: `evidence/g15/CL_row5/`,
+`evidence/g15/closure_run/`, `evidence/g15/layer3_closure_verdict.md`,
+`evidence/g15/armB_crash_backout_verdict.txt`.
+
+**The method is part of the finding.** Kills are checkpoint-driven, never
+timer-driven, via an uncatchable `kill(getpid(), SIGKILL)` over FFI to libSystem —
+because a human trying to kill a phone inside a ~60 ms window was unmeasurable on
+this rig. The receipt line AFTER the kill can only be written if the signal did not
+land, so a vacuous run is detectable rather than scorable. Durable on-device
+witnesses (`success_diag.log`, `state_diag.log`) exist so absence from a 191 MB
+syslog can never be mistaken for absence of execution.
+
+**Do not read event counts as fleet data.** Three separate defects each silently
+zeroed the recovery numerator while leaving the denominator intact, and none logged
+a loss — see [`SESSION_SUMMARY_lifecycle.md`](SESSION_SUMMARY_lifecycle.md). Releases
+`1.4`-`1.6` are kept visible showing one ambiguity and zero recoveries each; they are
+evidence of the instrumentation failures, and must never enter an estimator.
+
 ## Still open (later)
 
-- Boot success/failure + local-rollback events (types, timing).
+- ~~Boot success/failure + local-rollback events (types, timing).~~ **Answered for
+  our Route B cells 2026-08-19/20 — see the section above.** Still open on the
+  **pinned** engine, where the single-strike behaviour is unchanged.
 - What `rolled_back_patch_numbers` (non-empty) makes the device do; behavior of
   an already-installed patch after server-side withdraw.
 - Mid-download failure / HTTP range support / retry+offline queueing.

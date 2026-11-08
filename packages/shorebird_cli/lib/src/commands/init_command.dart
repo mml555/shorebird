@@ -1,12 +1,16 @@
 import 'dart:io';
 
-import 'package:collection/collection.dart';
+import 'package:checked_yaml/checked_yaml.dart';
 import 'package:mason_logger/mason_logger.dart';
+import 'package:path/path.dart' as p;
+import 'package:shorebird_cli/src/android_sdk.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/commands/organization_id.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
 import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
+import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/pubspec_editor.dart';
@@ -40,7 +44,13 @@ class InitCommand extends ShorebirdCommand {
             'Must be between 1 and '
             '${CommonArguments.appDisplayNameMaxLength} characters.',
       )
-      ..addOption('organization-id', help: 'The organization ID to use.');
+      // `--organization-id` was this command's original name; kept as a
+      // hidden alias so existing scripts keep working.
+      ..addOption(
+        CommonArguments.orgIdArg.name,
+        aliases: const ['organization-id'],
+        help: 'The id of the organization the app belongs to (e.g. "42").',
+      );
   }
 
   @override
@@ -56,7 +66,7 @@ class InitCommand extends ShorebirdCommand {
         checkUserIsAuthenticated: true,
       );
     } on PreconditionFailedException catch (e) {
-      return e.exitCode.code;
+      return reportPreconditionFailure(e);
     }
 
     try {
@@ -68,57 +78,27 @@ Please make sure you are running "shorebird init" from within your Flutter proje
         return ExitCode.noInput.code;
       }
     } on Exception catch (error) {
-      logger.err('Error parsing "pubspec.yaml": $error');
+      logger
+        ..err('Error parsing "pubspec.yaml": $error')
+        ..info('Fix the YAML error above and re-run "shorebird init".');
       return ExitCode.software.code;
     }
 
     final organizationMemberships = await codePushClientWrapper
         .getOrganizationMemberships();
     if (organizationMemberships.isEmpty) {
-      logger.err(
-        '''You do not have any organizations. This should never happen. Please contact us on Discord or send us an email at contact@shorebird.dev.''',
-      );
-      return ExitCode.software.code;
-    }
-
-    final Organization organization;
-    final orgIdArg = results['organization-id'] as String?;
-    if (orgIdArg != null) {
-      final orgId = int.tryParse(orgIdArg);
-      if (orgId == null) {
-        logger.err('Invalid organization ID: "$orgIdArg"');
-        return ExitCode.usage.code;
-      }
-
-      final organizationMembership = organizationMemberships.firstWhereOrNull(
-        (o) => o.organization.id == orgId,
-      );
-      if (organizationMembership == null) {
-        logger.err('Organization with ID "$orgId" not found.');
-        _logAvailableOrganizations(organizationMemberships);
-        return ExitCode.usage.code;
-      }
-      organization = organizationMembership.organization;
-    } else if (organizationMemberships.length > 1) {
-      if (!shorebirdEnv.canAcceptUserInput) {
-        logger.err(
-          'Multiple organizations found. '
-          'Use --organization-id to specify one:',
-        );
-        _logAvailableOrganizations(organizationMemberships);
-        return ExitCode.usage.code;
-      }
-      organization = logger.chooseOne(
-        'Which organization should this app belong to?',
-        choices: organizationMemberships.map((o) => o.organization).toList(),
-        display: (o) => o.name,
+      return reportError(
+        message: 'You are not a member of any organization.',
         hint:
-            'Pass --organization-id=<id> to select an organization without '
-            'prompting.',
+            'Run `shorebird orgs create "<name>"` to create one, or ask an '
+            'organization admin to invite you, then run "shorebird init" '
+            'again.',
+        code: JsonErrorCode.processExit,
+        exitCode: ExitCode.software.code,
       );
-    } else {
-      organization = organizationMemberships.first.organization;
     }
+    // Checked up front so a bad --org-id fails before any slow setup.
+    final namedMembership = _membershipNamedByOrgId(organizationMemberships);
 
     final force = results['force'] == true;
 
@@ -127,37 +107,54 @@ Please make sure you are running "shorebird init" from within your Flutter proje
     Set<String>? macosFlavors;
     var productFlavors = <String>{};
     final projectRoot = shorebirdEnv.getFlutterProjectRoot()!;
-    final initializeGradleProgress = logger.progress('Initializing gradlew');
-    final bool shouldStartGradleDaemon;
-    try {
-      shouldStartGradleDaemon = await _shouldStartGradleDaemon(
-        projectRoot.path,
+    final missingAndroidTool = _missingAndroidTool(projectRoot.path);
+    if (missingAndroidTool != null) {
+      logger.warn(
+        '''Skipping Android flavor detection: $missingAndroidTool. Once Android builds work on this machine, re-run ${lightCyan.wrap('shorebird init')} to add any Android flavors.''',
       );
-    } on Exception {
-      initializeGradleProgress.fail();
-      logger.err('Unable to initialize gradlew.');
-      return ExitCode.software.code;
-    }
-    initializeGradleProgress.complete();
-
-    if (shouldStartGradleDaemon) {
+    } else {
+      final initializeGradleProgress = logger.progress('Initializing gradlew');
+      final bool shouldStartGradleDaemon;
       try {
-        await gradlew.startDaemon(projectRoot.path);
-      } on Exception {
-        logger.err('Unable to start gradle daemon.');
+        shouldStartGradleDaemon = await _shouldStartGradleDaemon(
+          projectRoot.path,
+        );
+      } on Exception catch (error) {
+        initializeGradleProgress.fail();
+        logger
+          ..err('Unable to initialize gradlew: $error')
+          ..info(
+            '''Fix the Gradle error above (run ${lightCyan.wrap('./gradlew --status')} in the android directory to reproduce it), then re-run "shorebird init".''',
+          );
         return ExitCode.software.code;
+      }
+      initializeGradleProgress.complete();
+
+      if (shouldStartGradleDaemon) {
+        try {
+          await gradlew.startDaemon(projectRoot.path);
+        } on Exception catch (error) {
+          logger
+            ..err('Unable to start the gradle daemon: $error')
+            ..info(
+              '''Fix the Gradle error above (run ${lightCyan.wrap('./gradlew --daemon')} in the android directory to reproduce it), then re-run "shorebird init".''',
+            );
+          return ExitCode.software.code;
+        }
       }
     }
 
     final detectFlavorsProgress = logger.progress('Detecting product flavors');
     try {
-      androidFlavors = await _maybeGetAndroidFlavors(projectRoot.path);
+      androidFlavors = missingAndroidTool == null
+          ? await _maybeGetAndroidFlavors(projectRoot.path)
+          : null;
       iosFlavors = apple.flavors(platform: ApplePlatform.ios);
       macosFlavors = apple.flavors(platform: ApplePlatform.macos);
       productFlavors = <String>{
-        if (androidFlavors != null) ...androidFlavors,
-        if (iosFlavors != null) ...iosFlavors,
-        if (macosFlavors != null) ...macosFlavors,
+        ...?androidFlavors,
+        ...?iosFlavors,
+        ...?macosFlavors,
       };
       if (productFlavors.isEmpty) {
         detectFlavorsProgress.complete('No product flavors detected.');
@@ -171,7 +168,11 @@ Please make sure you are running "shorebird init" from within your Flutter proje
       }
     } on Exception catch (error) {
       detectFlavorsProgress.fail();
-      logger.err('Unable to extract product flavors.\n$error');
+      logger
+        ..err('Unable to detect product flavors.\n$error')
+        ..info(
+          '''Fix the build error above (run ${lightCyan.wrap('./gradlew app:tasks --all')} in the android directory to reproduce it), then re-run "shorebird init".''',
+        );
       return ExitCode.software.code;
     }
 
@@ -195,19 +196,78 @@ Please make sure you are running "shorebird init" from within your Flutter proje
     // don't care about which flavors are new.
     if (!force && newFlavors.isNotEmpty) {
       logger.info('New flavors detected: ${newFlavors.join(', ')}');
+
+      // maybeGetApp rather than getApp, because getApp reports a missing app
+      // and a failed lookup the same way -- both exit through ProcessExit --
+      // and the remedy below is only right for the first. A network failure,
+      // an expired token, or a required upgrade still exits from the fetch
+      // with its own message, and without advice about app_id.
+      final existingApp = await codePushClientWrapper.maybeGetApp(
+        appId: shorebirdYaml!.appId,
+      );
+      if (existingApp == null) {
+        logger
+          ..err('''
+Could not find app with id: "${shorebirdYaml.appId}".
+This app may not exist or you may not have permission to view it.''')
+          ..info(
+            '''Fix the app_id in shorebird.yaml, or run ${lightCyan.wrap('shorebird init --force')} to create a new app.''',
+          );
+        return ExitCode.software.code;
+      }
+
+      // Flavor apps belong with the app they are flavors of, wherever that
+      // is, rather than wherever a new app would go.
+      final appMembership = await codePushClientWrapper.findAppOrganization(
+        appId: existingApp.appId,
+        organizationId: existingApp.organizationId,
+        memberships: organizationMemberships,
+      );
+      if (appMembership == null && existingApp.organizationId != null) {
+        logger
+          ..err(
+            'App "${existingApp.displayName}" (${existingApp.appId}) is in '
+            'organization ${existingApp.organizationId}, which you are not a '
+            'member of.',
+          )
+          ..info(
+            'Ask an owner or admin of that organization to add you, then run '
+            'init again.',
+          );
+        return ExitCode.noPerm.code;
+      }
+      if (appMembership == null) {
+        logger
+          ..err(
+            'Could not find which of your organizations app '
+            '"${existingApp.displayName}" (${existingApp.appId}) is in.',
+          )
+          ..info(
+            '''Check the app_id in shorebird.yaml, or run ${lightCyan.wrap('shorebird init --force')} to create a new app.''',
+          );
+        return ExitCode.software.code;
+      }
+      final organization = appMembership.organization;
+      if (!_canCreateApps(appMembership.role)) {
+        logger
+          ..err(
+            'You cannot create apps in ${_describe(organization)}, which '
+            '"${existingApp.displayName}" is in: ${_roleIn(appMembership)}.',
+          )
+          ..info(_askForRole);
+        return ExitCode.noPerm.code;
+      }
+      if (namedMembership != null &&
+          namedMembership.organization.id != organization.id) {
+        logger.warn(
+          'Ignoring --${CommonArguments.orgIdArg.name}: new flavors go in '
+          '${_describe(organization)} with "${existingApp.displayName}".',
+        );
+      }
+
       final updateShorebirdYamlProgress = logger.progress(
         'Adding flavors to shorebird.yaml',
       );
-
-      final AppMetadata existingApp;
-      try {
-        existingApp = await codePushClientWrapper.getApp(
-          appId: shorebirdYaml!.appId,
-        );
-      } on Exception catch (e) {
-        updateShorebirdYamlProgress.fail('Failed to get existing app info: $e');
-        return ExitCode.software.code;
-      }
 
       final deflavoredAppName = existingApp.displayName
           .replaceAll(RegExp(r'\(.*\)'), '')
@@ -238,29 +298,34 @@ Please make sure you are running "shorebird init" from within your Flutter proje
       return ExitCode.software.code;
     }
 
+    final organization = _chooseOrganization(
+      organizationMemberships,
+      named: namedMembership,
+    );
+    if (organization == null) return ExitCode.noPerm.code;
+
+    final needsConfirmation = !force && shorebirdEnv.canAcceptUserInput;
+    final pubspecName = shorebirdEnv.getPubspecYaml()!.name;
+    var displayName = results['display-name'] as String?;
+    displayName ??= needsConfirmation
+        ? logger.prompt(
+            '${lightGreen.wrap('?')} How should we refer to this app?',
+            defaultValue: pubspecName,
+            hint:
+                'Pass --display-name=<name> to set the app name without '
+                'prompting.',
+          )
+        : pubspecName;
+    final nameError = CommonArguments.nameError(
+      label: 'App display name',
+      value: displayName,
+      maxLength: CommonArguments.appDisplayNameMaxLength,
+    );
+    if (nameError != null) usageException(nameError);
+
     final String appId;
     Map<String, String>? flavors;
     try {
-      final needsConfirmation = !force && shorebirdEnv.canAcceptUserInput;
-      final pubspecName = shorebirdEnv.getPubspecYaml()!.name;
-      var displayName = results['display-name'] as String?;
-      displayName ??= needsConfirmation
-          ? logger.prompt(
-              '${lightGreen.wrap('?')} How should we refer to this app?',
-              defaultValue: pubspecName,
-              hint:
-                  'Pass --display-name=<name> to set the app name without '
-                  'prompting.',
-            )
-          : pubspecName;
-      if (displayName.isEmpty ||
-          displayName.length > CommonArguments.appDisplayNameMaxLength) {
-        logger.err(
-          'App display name must be between 1 and '
-          '${CommonArguments.appDisplayNameMaxLength} characters.',
-        );
-        return ExitCode.usage.code;
-      }
       final hasNoFlavors = productFlavors.isEmpty;
       final hasSomeFlavors =
           productFlavors.isNotEmpty &&
@@ -307,7 +372,11 @@ Please make sure you are running "shorebird init" from within your Flutter proje
         appId = flavors.values.first;
       }
     } on Exception catch (error) {
-      logger.err('$error');
+      logger
+        ..err('Failed to create the app: $error')
+        ..info(
+          '''Re-run "shorebird init" once the error above is resolved. If it persists, contact us on Discord or at contact@shorebird.dev.''',
+        );
       return ExitCode.software.code;
     }
 
@@ -347,6 +416,41 @@ For more information about Shorebird, visit ${link(uri: Uri.parse('https://shore
     return ExitCode.success.code;
   }
 
+  /// Why gradlew can't run for the Android project at [projectPath] (such
+  /// as on a Mac set up only for iOS), or null when it has no Android project
+  /// or has what gradlew needs.
+  String? _missingAndroidTool(String projectPath) {
+    if (!Directory(p.join(projectPath, 'android')).existsSync()) return null;
+    if (androidSdk.path == null && !_hasLocalPropertiesSdk(projectPath)) {
+      return 'no Android SDK found (set ANDROID_HOME if you have one)';
+    }
+    // macOS ships a /usr/bin/java stub that fails without a JDK, so check
+    // that java runs rather than that it exists.
+    final String? javaVersion;
+    try {
+      javaVersion = java.version;
+    } on ProcessException {
+      // A JAVA_HOME without a java in it; gradlew says what's wrong.
+      return null;
+    }
+    if (javaVersion == null) return 'no Java runtime found';
+    return null;
+  }
+
+  /// Whether `android/local.properties` (written by Flutter from
+  /// `flutter config --android-sdk`) points at an SDK directory that exists.
+  bool _hasLocalPropertiesSdk(String projectPath) {
+    final file = File(p.join(projectPath, 'android', 'local.properties'));
+    if (!file.existsSync()) return false;
+    for (final line in file.readAsLinesSync()) {
+      final trimmed = line.trim();
+      if (!trimmed.startsWith('sdk.dir=')) continue;
+      final sdkDir = trimmed.substring('sdk.dir='.length).trim();
+      return sdkDir.isNotEmpty && Directory(sdkDir).existsSync();
+    }
+    return false;
+  }
+
   Future<bool> _shouldStartGradleDaemon(String projectPath) async {
     try {
       final isAvailable = await gradlew.isDaemonAvailable(projectPath);
@@ -361,6 +465,113 @@ For more information about Shorebird, visit ${link(uri: Uri.parse('https://shore
       return await gradlew.productFlavors(projectPath);
     } on MissingAndroidProjectException {
       return null;
+    }
+  }
+
+  /// The membership `--org-id` names among [memberships], or null without
+  /// `--org-id`. Throws a usage exception when it names no organization the
+  /// user is in.
+  OrganizationMembership? _membershipNamedByOrgId(
+    List<OrganizationMembership> memberships,
+  ) {
+    final orgIdArg = results[CommonArguments.orgIdArg.name] as String?;
+    if (orgIdArg == null) return null;
+    final (id: orgId, error: parseError) = parseOrganizationId(
+      orgIdArg,
+      memberships: memberships,
+    );
+    if (parseError != null) {
+      usageException('${parseError.message}\n${parseError.hint}');
+    }
+    final (:membership, error: membershipError) = findOrganizationMembership(
+      id: orgId!,
+      memberships: memberships,
+    );
+    if (membershipError != null) {
+      usageException('${membershipError.message}\n${membershipError.hint}');
+    }
+    return membership;
+  }
+
+  /// Chooses the organization a new app goes in, from [memberships]: the
+  /// [named] one (from `--org-id`), the only one the user can create apps in,
+  /// or the one they pick. Returns null, having said why, when the user
+  /// cannot create apps in it.
+  Organization? _chooseOrganization(
+    List<OrganizationMembership> memberships, {
+    required OrganizationMembership? named,
+  }) {
+    // Only these roles hold the server's create-apps permission; offering
+    // other organizations would just defer the refusal to createApp.
+    final creatableMemberships = memberships
+        .where((m) => _canCreateApps(m.role))
+        .toList();
+    final skippedMemberships = memberships
+        .where((m) => !_canCreateApps(m.role))
+        .toList();
+
+    if (named != null) {
+      final membership = named;
+      if (!_canCreateApps(membership.role)) {
+        logger
+          ..err(
+            'You cannot create apps in ${_describe(membership.organization)}: '
+            '${_roleIn(membership)}.',
+          )
+          ..info(
+            creatableMemberships.isEmpty
+                ? _askForRole
+                : availableOrganizations(
+                    creatableMemberships,
+                    label: _creatableLabel,
+                  ),
+          );
+        return null;
+      }
+      return membership.organization;
+    } else if (creatableMemberships.isEmpty) {
+      logger
+        ..err('You cannot create apps in any of your organizations.')
+        ..info(
+          '${_rolesIn(memberships)}\n$_askForRole',
+        );
+      return null;
+    } else {
+      if (skippedMemberships.isNotEmpty) {
+        logger.info(
+          'Skipping organizations you cannot create apps in. '
+          '${_rolesIn(skippedMemberships)}',
+        );
+      }
+      if (creatableMemberships.length > 1) {
+        if (!shorebirdEnv.canAcceptUserInput) {
+          final creatable = availableOrganizations(
+            creatableMemberships,
+            label: _creatableLabel,
+          );
+          usageException(
+            'You can create apps in multiple organizations. '
+            'Pass --org-id=<id> to choose one.\n$creatable',
+          );
+        }
+        return logger.chooseOne<Organization>(
+          'Which organization should this app belong to?',
+          choices: creatableMemberships.map((o) => o.organization).toList(),
+          display: (o) => o.name,
+          hint:
+              'Pass --org-id=<id> to select an organization without '
+              'prompting.',
+        );
+      } else {
+        final organization = creatableMemberships.single.organization;
+        if (skippedMemberships.isNotEmpty) {
+          logger.info(
+            'Creating the app in ${_describe(organization)}, the only '
+            'organization you can create apps in.',
+          );
+        }
+        return organization;
+      }
     }
   }
 
@@ -387,24 +598,61 @@ app_id:
 # auto_update: false
 ''';
 
-    final editor = YamlEditor(content)..update(['app_id'], appId);
+    final file = shorebirdEnv.getShorebirdYamlFile(cwd: projectRoot);
+
+    // EDIT AN EXISTING FILE IN PLACE; only fall back to the template when there
+    // is nothing to preserve.
+    //
+    // This path is reached when `init` adds newly detected flavors to a project
+    // that ALREADY has a shorebird.yaml. Rebuilding from `content` there
+    // silently discarded every key the template does not mention — `base_url`,
+    // a real `auto_update`, and `channel` — so adding a flavor to a self-hosted
+    // app repointed it at the default control plane. The keys are not
+    // re-serialised from `ShorebirdYaml` either, because that would rewrite the
+    // user's comments and formatting; a YamlEditor on their own text touches
+    // only the nodes being changed.
+    final existing = file.existsSync() ? file.readAsStringSync() : null;
+    final editor = YamlEditor(existing ?? content)..update(['app_id'], appId);
 
     if (flavors != null) editor.update(['flavors'], flavors);
 
-    shorebirdEnv
-        .getShorebirdYamlFile(cwd: projectRoot)
-        .writeAsStringSync(editor.toString());
+    file.writeAsStringSync(editor.toString());
 
-    return ShorebirdYaml(appId: appId);
+    // Parse what was just written rather than constructing from `appId` alone,
+    // so the returned model reflects everything the file actually carries.
+    return checkedYamlDecode(
+      editor.toString(),
+      (m) => ShorebirdYaml.fromJson(m!),
+    );
   }
+}
 
-  void _logAvailableOrganizations(
-    List<OrganizationMembership> memberships,
-  ) {
-    logger.info('Available organizations:');
-    for (final membership in memberships) {
-      final org = membership.organization;
-      logger.info('  ${org.name} (id: ${org.id})');
-    }
-  }
+/// Whether [role] in an organization lets its holder create apps there,
+/// matching the server's `create(apps)` permission.
+bool _canCreateApps(Role role) =>
+    role == Role.owner || role == Role.admin || role == Role.appManager;
+
+const _creatableLabel = 'Organizations you can create apps in';
+
+const _askForRole =
+    'Ask an owner or admin of the organization to make you an admin.';
+
+String _describe(Organization organization) =>
+    '${organization.name} (id: ${organization.id})';
+
+/// The user's standing in [membership]'s organization, in words.
+///
+/// [Role.none] means the user only reaches the organization through a role
+/// granted on one of its apps, so they are not a member at all.
+String _roleIn(OrganizationMembership membership) =>
+    membership.role == Role.none
+    ? 'you are not a member, you only have access to some of its apps'
+    : 'your role is ${membership.role}';
+
+/// Lists the user's standing in each of [memberships]' organizations.
+String _rolesIn(List<OrganizationMembership> memberships) {
+  final roles = memberships.map(
+    (m) => '${_describe(m.organization)}: ${_roleIn(m)}',
+  );
+  return 'Your access: ${roles.join('; ')}.';
 }

@@ -15,6 +15,7 @@ import '../helpers.dart';
 import '../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group('currentRunLogFile', () {
     late ShorebirdEnv shorebirdEnv;
     late Directory logsDirectory;
@@ -103,6 +104,106 @@ void main() {
             contains(message),
           );
         });
+      });
+    });
+
+    group('confirm', () {
+      late Stdin stdin;
+      late Stdout stdout;
+      late List<String> written;
+
+      /// Answers the prompt with [answers] in turn. An answer that is a
+      /// [FormatException] is thrown, as stdin does for input that isn't text.
+      bool confirm(List<Object?> answers, {bool defaultValue = false}) {
+        final remaining = [...answers];
+        when(() => stdin.readLineSync()).thenAnswer((_) {
+          final answer = remaining.removeAt(0);
+          if (answer is FormatException) throw answer;
+          return answer as String?;
+        });
+        // A Logger keeps the stdout it was created with, so create one inside
+        // the overrides.
+        return IOOverrides.runZoned(
+          () => runWithOverrides(
+            () => ShorebirdLogger().confirm(
+              'Continue?',
+              defaultValue: defaultValue,
+            ),
+          ),
+          stdin: () => stdin,
+          stdout: () => stdout,
+        );
+      }
+
+      setUp(() {
+        stdin = MockStdin();
+        stdout = MockStdout();
+        written = [];
+        when(() => shorebirdEnv.canAcceptUserInput).thenReturn(true);
+        when(() => stdout.supportsAnsiEscapes).thenReturn(false);
+        when(() => stdout.write(any())).thenAnswer((invocation) {
+          written.add(invocation.positionalArguments.single.toString());
+        });
+        when(() => stdout.writeln(any())).thenAnswer((invocation) {
+          written.add(invocation.positionalArguments.single.toString());
+        });
+      });
+
+      test('returns true for a yes answer, in any case', () {
+        expect(confirm(['y']), isTrue);
+        expect(confirm(['YES']), isTrue);
+        expect(confirm([' Yep ']), isTrue);
+      });
+
+      test('returns false for a no answer, in any case', () {
+        expect(confirm(['n'], defaultValue: true), isFalse);
+        expect(confirm(['No'], defaultValue: true), isFalse);
+      });
+
+      test('returns the default for an empty answer', () {
+        expect(confirm(['']), isFalse);
+        expect(confirm([''], defaultValue: true), isTrue);
+      });
+
+      test('returns the default at the end of input', () {
+        expect(confirm([null]), isFalse);
+        expect(confirm([null], defaultValue: true), isTrue);
+      });
+
+      test('asks again after an answer it does not recognize', () {
+        expect(confirm(['nop', 'yeah']), isTrue);
+        expect(
+          written.where((line) => line.startsWith('Continue?')),
+          hasLength(2),
+        );
+        expect(written, contains(contains('Please answer y or n.')));
+      });
+
+      test('asks again after an answer that is not text', () {
+        expect(confirm([const FormatException(), 'y']), isTrue);
+        expect(written, contains(contains('Please answer y or n.')));
+      });
+
+      test('ends the line at the end of input', () {
+        confirm([null]);
+        expect(written[written.length - 2], equals('\n'));
+      });
+
+      test('shows the answer taken on the prompt line', () {
+        confirm(['yes']);
+        expect(written.last, endsWith('Continue? (y/N) Yes\n'));
+        confirm(['']);
+        expect(written.last, endsWith('Continue? (y/N) No\n'));
+        confirm([null], defaultValue: true);
+        expect(written.last, endsWith('Continue? (Y/n) Yes\n'));
+      });
+
+      test('shows the default in the prompt', () {
+        confirm(['y']);
+        expect(written.first, contains('y/N'));
+        written.clear();
+        confirm(['y'], defaultValue: true);
+        expect(written.first, contains('Y/n'));
       });
     });
 
@@ -219,19 +320,6 @@ void main() {
         });
       });
 
-      group('when stdout has no terminal', () {
-        test('confirm throws even though canAcceptUserInput is true', () {
-          expect(
-            () => runUnderScope(
-              () => logger.confirm('Continue?', hint: 'Pass --force.'),
-              canAcceptUserInput: true,
-              hasTerminal: false,
-            ),
-            throwsPromptRequired(withHint: 'Pass --force.'),
-          );
-        });
-      });
-
       group('when --json is active', () {
         test('confirm throws with the per-site hint', () {
           expect(
@@ -261,7 +349,7 @@ void main() {
       });
 
       test('the exception toString surfaces both the prompt and the hint', () {
-        final exception = InteractivePromptRequiredException(
+        const exception = InteractivePromptRequiredException(
           promptText: 'Continue?',
           hint: 'Pass --force.',
         );
@@ -319,11 +407,10 @@ void main() {
         });
 
         test('emits a "Done" line on complete with no update', () {
-          final progress = runUnderScope(
+          runUnderScope(
             () => logger.progress('fetching apps'),
             hasTerminal: false,
-          );
-          progress.complete();
+          ).complete();
           expect(stdoutOutput, isEmpty);
           expect(
             stderrOutput,
@@ -332,40 +419,37 @@ void main() {
         });
 
         test('emits a "Done" line with the update text on complete', () {
-          final progress = runUnderScope(
+          runUnderScope(
             () => logger.progress('fetching apps'),
             hasTerminal: false,
-          );
-          progress.complete('found 3 apps');
+          ).complete('found 3 apps');
           expect(stderrOutput.last, equals('Done found 3 apps'));
         });
 
         test('emits a "Failed" line on fail', () {
-          final progress = runUnderScope(
+          runUnderScope(
             () => logger.progress('fetching apps'),
             hasTerminal: false,
-          );
-          progress.fail('network error');
+          ).fail('network error');
           expect(stderrOutput.last, equals('Failed network error'));
         });
 
         test('emits an update line and remembers the new message', () {
-          final progress = runUnderScope(
-            () => logger.progress('fetching apps'),
-            hasTerminal: false,
-          );
-          progress.update('still fetching');
-          progress.complete();
+          runUnderScope(
+              () => logger.progress('fetching apps'),
+              hasTerminal: false,
+            )
+            ..update('still fetching')
+            ..complete();
           expect(stderrOutput, contains('still fetching...'));
           expect(stderrOutput.last, equals('Done still fetching'));
         });
 
         test('emits no carriage returns or ANSI escapes', () {
-          final progress = runUnderScope(
+          runUnderScope(
             () => logger.progress('fetching apps'),
             hasTerminal: false,
-          );
-          progress.complete();
+          ).complete();
           for (final line in stderrOutput) {
             expect(line, isNot(contains('\r')));
             expect(line, isNot(contains('\u001b')));
@@ -375,12 +459,11 @@ void main() {
 
       group('under --json', () {
         test('routes static progress to stderr', () {
-          final progress = runUnderScope(
+          runUnderScope(
             () => logger.progress('fetching apps'),
             hasTerminal: true,
             jsonMode: true,
-          );
-          progress.complete();
+          ).complete();
           expect(stdoutOutput, isEmpty);
           expect(stderrOutput, contains('Starting fetching apps...'));
           expect(stderrOutput, contains('Done fetching apps'));
@@ -389,12 +472,11 @@ void main() {
 
       group('under --json with a TTY', () {
         test('still produces static lines on stderr (no spinner)', () {
-          final progress = runUnderScope(
+          runUnderScope(
             () => logger.progress('fetching apps'),
             hasTerminal: true,
             jsonMode: true,
-          );
-          progress.complete();
+          ).complete();
           expect(stdoutOutput, isEmpty);
           expect(stderrOutput, contains('Starting fetching apps...'));
           expect(stderrOutput, contains('Done fetching apps'));
@@ -404,11 +486,10 @@ void main() {
       group('when the log level is above info', () {
         test('suppresses output entirely', () {
           logger.level = Level.warning;
-          final progress = runUnderScope(
+          runUnderScope(
             () => logger.progress('fetching apps'),
             hasTerminal: false,
-          );
-          progress.complete();
+          ).complete();
           expect(stdoutOutput, isEmpty);
         });
       });

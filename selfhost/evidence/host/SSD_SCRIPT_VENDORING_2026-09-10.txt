@@ -1,0 +1,429 @@
+cspell:words keyguard Lockscreen parameterisation
+
+SSD script vendoring -- 2026-09-10
+==================================
+
+GOAL: nothing irreplaceable may live only on /Volumes/build, an external SSD
+that MEDIA_PRESERVATION.md:5-8 records as having physically detached
+mid-operation twice.
+
+SCOPE: the 13 scripts at the top level of /Volumes/build/route-b. Everything
+else on the drive is either a rebuildable checkout (route-b, ios-engine,
+g5_*, semantic-*) or the media, which is a separate problem -- see
+evidence/host/SSD_BACKUP_RECLAIM_2026-08-14.txt.
+
+THE SWEEP (md5 of each SSD script against every git-tracked file)
+  addtoapp1.sh                 byte-identical to selfhost/scripts/addtoapp1_workflow.sh
+  android1_device.sh           NO byte-identical copy; name match: selfhost/scripts/android1_device.sh
+  android1_patch.sh            NO byte-identical copy; name match: selfhost/scripts/android1_patch.sh
+  android1_release.sh          NO byte-identical copy; name match: selfhost/scripts/android1_release.sh
+  build_flutter_platform.sh    NO byte-identical copy; name match: none
+  build_host_release_nodm.sh   NO byte-identical copy; name match: none
+  build_host_zips.sh           NO byte-identical copy; name match: none
+  build_ios_release.sh         NO byte-identical copy; name match: none
+  build_ios_seam6.sh           NO byte-identical copy; name match: none
+  fsa_qualify.sh               NO byte-identical copy; name match: selfhost/scripts/fsa_qualify.sh
+  run_mint_build.sh            NO byte-identical copy; name match: none
+  watch_ios.sh                 NO byte-identical copy; name match: none
+  origin_probe.py              byte-identical to selfhost/scripts/lib/origin_probe.py
+
+DISPOSITION
+
+  already safe, byte-identical in git:
+    addtoapp1.sh        -> selfhost/scripts/addtoapp1_workflow.sh
+    origin_probe.py     -> selfhost/scripts/lib/origin_probe.py
+
+  already safe, repo copy AHEAD of the SSD copy (cspell headers, and
+  fsa_qualify.sh's PROBE= repointed from the SSD to selfhost/scripts/lib):
+    android1_patch.sh, android1_release.sh, fsa_qualify.sh
+
+  android1_device.sh -- the SSD copy carries a 14-line keyguard refusal block
+  the repo copy does not. NOT a loss: the mechanism was carried forward into
+  the successor stage, selfhost/scripts/afs2_device.sh:58-61, and HANDOFF.md:374
+  records it ("device stage now exits 2 unless mDreamingLockscreen=false").
+  The repo's android1_device.sh keeps `keyguard` in its cspell header as a
+  leftover of that move. Left alone: android1_* is a superseded stage.
+
+  build_ios_release.sh -- ALREADY VENDORED, under another name. diff against
+  selfhost/engine/route_b/build_ios.sh is ONE header comment line. This
+  collapses the premise of M0 open question 1, which called it "also SSD-only"
+  and therefore a blocker on vendoring the driver.
+
+  VENDORED HERE (previously the only copy in existence):
+    run_mint_build.sh, build_host_release_nodm.sh, build_host_zips.sh,
+    build_flutter_platform.sh, build_ios_seam6.sh, watch_ios.sh
+  all into selfhost/engine/route_b/.
+
+FULL DIFFS, SSD ORIGINAL -> VENDORED COPY
+(the only changes are headers, the house ROOT/TOOLS ${VAR:-default} form from
+build_host.sh:17-18, and the guards each file's own header enumerates)
+
+---- /Volumes/build/route-b/build_flutter_platform.sh  ->  selfhost/engine/route_b/build_flutter_platform.sh
+@@ -1,14 +1,25 @@
+ #!/usr/bin/env bash
+-# Build the Flutter platform dill + frontend_server in the Route B tree, so the
+-# step 7 size measurement can run against a REAL Flutter app instead of a toy.
++# cspell:words depot
++#
++# build_flutter_platform.sh -- build the Flutter platform dill + frontend_server
++# in the Route B tree, so the step 7 size measurement can run against a REAL
++# Flutter app instead of a toy.
++#
++# VENDORED 2026-09-10 from /Volumes/build/route-b/build_flutter_platform.sh,
++# previously the only copy. Changes from that original, all of them here:
++# ROOT/TOOLS take the house ${VAR:-default} form (build_host.sh:17-18), and the
++# bare `cd "$SRC"` gained an `|| exit 1` -- without it a missing tree does not
++# stop the script, it builds whatever happens to be in the caller's cwd. Full
++# diff: evidence/host/SSD_SCRIPT_VENDORING_2026-09-10.txt.
+ set -u
+-ROOT=/Volumes/build/route-b
++ROOT=${ROOT:-/Volumes/build/route-b}
++TOOLS=${TOOLS:-/Volumes/build/ios-engine}   # depot_tools + gitconfig are shared: tools, not state
+ SRC=$ROOT/flutter/engine/src
+ LOG=$ROOT/logs/flutter_platform_$(date +%Y%m%d-%H%M%S).log
+ mkdir -p "$(dirname "$LOG")"
+-export PATH=/Volumes/build/ios-engine/depot_tools:$PATH DEPOT_TOOLS_UPDATE=0
+-export GIT_CONFIG_GLOBAL=/Volumes/build/ios-engine/gitconfig
+-cd "$SRC"
++export PATH="$TOOLS/depot_tools:$PATH" DEPOT_TOOLS_UPDATE=0
++export GIT_CONFIG_GLOBAL="$TOOLS/gitconfig"
++cd "$SRC" || exit 1
+ {
+   echo "=== started $(date -u +%FT%TZ) ==="
+   time nice -n 5 ninja -C out/host_release_arm64 -j8 \
+
+---- /Volumes/build/route-b/build_host_release_nodm.sh  ->  selfhost/engine/route_b/build_host_release_nodm.sh
+@@ -1,8 +1,15 @@
+ #!/usr/bin/env bash
+-# G15 gate 3a -- build R3's host toolchain WITHOUT dart_dynamic_modules, so the
+-# platform dill an app build downloads can come from the tree that owns the iOS
+-# engine and the Route B Dart patches.
++# cspell:words dartaotruntime killgate dynmod nodm depot caffeinate
+ #
++# build_host_release_nodm.sh -- G15 gate 3a: build R3's host toolchain WITHOUT
++# dart_dynamic_modules, so the platform dill an app build downloads can come
++# from the tree that owns the iOS engine and the Route B Dart patches.
++#
++# VENDORED 2026-09-10 from /Volumes/build/route-b/build_host_release_nodm.sh,
++# previously the only copy. One change from that original: ROOT/TOOLS take the
++# house ${VAR:-default} form (build_host.sh:17-18). The body is byte-identical.
++# Full diff: evidence/host/SSD_SCRIPT_VENDORING_2026-09-10.txt.
++#
+ # THE DEFECT THIS EXISTS TO FIX. `flutter_patched_sdk_product.zip` is published
+ # from publish_ios_overlay.sh's HOST_REL default, which points at R4
+ # (out/host_release_arm64_nodm). R4's Dart tree carries ZERO of the Route B
+@@ -31,17 +38,18 @@
+ # produce a usable dill rather than inventing one.
+ #
+ # Run detached, NEVER as a harness background task:
+-#   screen -dmS r3nodm bash -c 'caffeinate -is /Volumes/build/route-b/build_host_release_nodm.sh'
++#   screen -dmS r3nodm bash -c 'caffeinate -is selfhost/engine/route_b/build_host_release_nodm.sh'
+ set -uo pipefail
+ 
+-ROOT=/Volumes/build/route-b
++ROOT=${ROOT:-/Volumes/build/route-b}
++TOOLS=${TOOLS:-/Volumes/build/ios-engine}   # depot_tools + gitconfig are shared: tools, not state
+ SRC=$ROOT/flutter/engine/src
+ SRCDIR=out/host_release_arm64
+ OUTDIR=out/host_release_arm64_nodm
+ LOG=$ROOT/logs/host_release_nodm_$(date +%Y%m%d-%H%M%S).log
+ mkdir -p "$(dirname "$LOG")"
+-export PATH=/Volumes/build/ios-engine/depot_tools:$PATH
+-export GIT_CONFIG_GLOBAL=/Volumes/build/ios-engine/gitconfig
++export PATH="$TOOLS/depot_tools:$PATH"
++export GIT_CONFIG_GLOBAL="$TOOLS/gitconfig"
+ export DEPOT_TOOLS_UPDATE=0
+ cd "$SRC" || exit 1
+ 
+
+---- /Volumes/build/route-b/build_host_zips.sh  ->  selfhost/engine/route_b/build_host_zips.sh
+@@ -1,6 +1,15 @@
+ #!/usr/bin/env bash
+-# Build the host toolchain zips FROM THE ROUTE B TREE.
++# cspell:words dartaotruntime killgate nodm depot
+ #
++# build_host_zips.sh -- build the host toolchain zips FROM THE ROUTE B TREE.
++#
++# VENDORED 2026-09-10 from /Volumes/build/route-b/build_host_zips.sh, previously
++# the only copy. Changes from that original, all of them here: ROOT/TOOLS take
++# the house ${VAR:-default} form (build_host.sh:17-18); `mkdir -p` on the log
++# dir, which the original omitted and got away with only because logs/ already
++# existed; and `|| exit 1` on the `cd`. Full diff:
++# evidence/host/SSD_SCRIPT_VENDORING_2026-09-10.txt.
++#
+ # publish_ios_overlay.sh defaults HOST_REL to the shipping tree's
+ # host_release_arm64_nodm, which does NOT carry the killgate SDK edits. That is
+ # correct for the shipping engine and wrong here: it published a
+@@ -9,12 +18,14 @@
+ # then compiles against a platform dill that cannot see the symbol its own
+ # sources declare.
+ set -uo pipefail
+-ROOT=/Volumes/build/route-b
++ROOT=${ROOT:-/Volumes/build/route-b}
++TOOLS=${TOOLS:-/Volumes/build/ios-engine}   # depot_tools + gitconfig are shared: tools, not state
+ SRC=$ROOT/flutter/engine/src
+ LOG=$ROOT/logs/host_zips_$(date +%Y%m%d-%H%M%S).log
+-export PATH=/Volumes/build/ios-engine/depot_tools:$PATH DEPOT_TOOLS_UPDATE=0
+-export GIT_CONFIG_GLOBAL=/Volumes/build/ios-engine/gitconfig
+-cd "$SRC"
++mkdir -p "$(dirname "$LOG")"
++export PATH="$TOOLS/depot_tools:$PATH" DEPOT_TOOLS_UPDATE=0
++export GIT_CONFIG_GLOBAL="$TOOLS/gitconfig"
++cd "$SRC" || exit 1
+ {
+   echo "=== started $(date -u +%FT%TZ) ==="
+   time nice -n 5 ninja -C out/host_release_arm64 -j8 \
+
+---- /Volumes/build/route-b/build_ios_seam6.sh  ->  selfhost/engine/route_b/build_ios_seam6.sh
+@@ -1,8 +1,27 @@
+ #!/usr/bin/env bash
++# cspell:words depot seam
++#
++# build_ios_seam6.sh -- bare incremental relink of out/ios_release.
++#
++# VENDORED 2026-09-10 from /Volumes/build/route-b/build_ios_seam6.sh, previously
++# the only copy. Changes from that original, all of them here: ROOT/TOOLS take
++# the house ${VAR:-default} form (build_host.sh:17-18); `mkdir -p` on the log
++# dir, which the original omitted; and `|| exit 1` on the `cd`. Full diff:
++# evidence/host/SSD_SCRIPT_VENDORING_2026-09-10.txt.
++#
++# NO gn STEP, deliberately: this reuses the args.gn build_ios.sh already
++# generated, so it is the fast path for re-ninja after a source edit and NOT a
++# substitute for build_ios.sh on a fresh tree. It also writes a differently
++# named log (ios_seam6_*, not ios_release_*), so run_mint_build.sh will not pick
++# it up -- a build driven through here does not update mint_build.status, and
++# probes/assert_mint_ready.sh's staleness guard is what catches that.
+ set -uo pipefail
+-SRC=/Volumes/build/route-b/flutter/engine/src
+-LOG=/Volumes/build/route-b/logs/ios_seam6_$(date +%Y%m%d-%H%M%S).log
+-export PATH=/Volumes/build/ios-engine/depot_tools:$PATH DEPOT_TOOLS_UPDATE=0
+-export GIT_CONFIG_GLOBAL=/Volumes/build/ios-engine/gitconfig
+-cd "$SRC"
++ROOT=${ROOT:-/Volumes/build/route-b}
++TOOLS=${TOOLS:-/Volumes/build/ios-engine}   # depot_tools + gitconfig are shared: tools, not state
++SRC=$ROOT/flutter/engine/src
++LOG=$ROOT/logs/ios_seam6_$(date +%Y%m%d-%H%M%S).log
++mkdir -p "$(dirname "$LOG")"
++export PATH="$TOOLS/depot_tools:$PATH" DEPOT_TOOLS_UPDATE=0
++export GIT_CONFIG_GLOBAL="$TOOLS/gitconfig"
++cd "$SRC" || exit 1
+ { echo "=== started $(date -u +%FT%TZ) ==="; time nice -n 5 ninja -C out/ios_release -j8; echo "=== ninja exit=$? ==="; echo "=== DONE ==="; } >>"$LOG" 2>&1
+
+---- /Volumes/build/route-b/watch_ios.sh  ->  selfhost/engine/route_b/watch_ios.sh
+@@ -1,10 +1,23 @@
+ #!/usr/bin/env bash
+-# Watch the iOS build for its BINARY outcome. On failure, capture the full
+-# surrounding context and the exact failing command line -- "Unexpected tag 4
+-# (Field)" as a headline says nothing about which reader/writer contract
+-# disagrees, and ninja prints the whole invocation under FAILED:.
++# cspell:words
++#
++# watch_ios.sh -- watch the iOS build for its BINARY outcome. On failure,
++# capture the full surrounding context and the exact failing command line --
++# "Unexpected tag 4 (Field)" as a headline says nothing about which
++# reader/writer contract disagrees, and ninja prints the whole invocation
++# under FAILED:.
++#
++# VENDORED 2026-09-10 from /Volumes/build/route-b/watch_ios.sh, previously the
++# only copy. Changes from that original, all of them here: ROOT and MOUNT take
++# the house ${VAR:-default} form (build_host.sh:17), and an abort when no
++# ios_release_*.log matches -- the original bound L to the empty string and then
++# watched it forever, which reads on screen exactly like a build still running.
++# Full diff: evidence/host/SSD_SCRIPT_VENDORING_2026-09-10.txt.
+ set -uo pipefail
+-L=$(ls -t /Volumes/build/route-b/logs/ios_release_*.log | head -1)
++ROOT=${ROOT:-/Volumes/build/route-b}
++MOUNT=${MOUNT:-/Volumes/build}
++L=$(ls -t "$ROOT"/logs/ios_release_*.log 2>/dev/null | head -1)
++[ -n "$L" ] || { echo "ABORT: no $ROOT/logs/ios_release_*.log to watch" >&2; exit 2; }
+ while true; do
+   if grep -q "=== ninja exit=" "$L" 2>/dev/null; then
+     rc=$(grep -m1 "=== ninja exit=" "$L" | sed 's/.*exit=\([0-9]*\).*/\1/')
+@@ -19,8 +32,11 @@
+     fi
+     exit 0
+   fi
+-  if ! mount | grep -q "on /Volumes/build "; then
+-    echo "ALERT: /Volumes/build detached during the iOS build."
++  # The build volume is external and has detached mid-write twice
++  # (MEDIA_PRESERVATION.md:5-8). A vanished mount looks exactly like a build
++  # that has simply not finished, so name it rather than wait forever.
++  if ! mount | grep -q "on $MOUNT "; then
++    echo "ALERT: $MOUNT detached during the iOS build."
+     exit 1
+   fi
+   sleep 120
+
+---- /Volumes/build/route-b/run_mint_build.sh  ->  selfhost/engine/route_b/run_mint_build.sh
+@@ -1,10 +1,29 @@
+ #!/usr/bin/env bash
+-# Detached driver for the mint's iOS engine build.
++# cspell:words caffeinate interpretcall routebios
+ #
+-# WHY A WRAPPER AT ALL. build_ios_release.sh wraps its whole body in
++# run_mint_build.sh -- detached driver for the mint's iOS engine build.
++#
++# VENDORED 2026-09-10 from /Volumes/build/route-b/run_mint_build.sh, which until
++# then was the only copy in existence. It is the sole writer of
++# logs/mint_build.status -- the file probes/assert_mint_ready.sh gates the mint
++# on -- and it lived on media MEDIA_PRESERVATION.md:5-8 records as having
++# physically detached mid-operation twice. Losing the drive lost the gate's
++# input. Changes from the SSD original, all of them here:
++#   * ROOT/TOOLS take the house ${VAR:-default} form (build_host.sh:17-18), and
++#     are EXPORTED so the child builds the tree this then reads the log of;
++#   * BUILD_SCRIPT defaults to this directory's build_ios.sh instead of
++#     $ROOT/build_ios_release.sh. Those two files are byte-identical apart from
++#     one header comment line -- diffed, not assumed;
++#   * an executable check on BUILD_SCRIPT before the status file claims
++#     state=running;
++#   * root= and build_script= recorded in the status, so a reader can tell which
++#     tree and which script the verdict is about.
++# Full diff: evidence/host/SSD_SCRIPT_VENDORING_2026-09-10.txt.
++#
++# WHY A WRAPPER AT ALL. build_ios.sh wraps its whole body in
+ # `{ ... } >>"$LOG" 2>&1`, and the last statement inside that block is an `echo`.
+ # With `set -uo pipefail` and no `-e`, the script therefore exits 0 WHETHER OR NOT
+-# ninja succeeded. Reading its exit status would report success for a failed build —
++# ninja succeeded. Reading its exit status would report success for a failed build --
+ # the worst shape available here, because the mint that follows would then be built
+ # from a stale or partial out/ios_release.
+ #
+@@ -15,21 +34,36 @@
+ #
+ # So this driver records THAT, plus whether the Flutter framework actually exists
+ # afterwards, into one status file the next step can gate on.
++#
++# Run detached, NEVER as a harness background task:
++#   screen -dmS routebios bash -c 'caffeinate -is selfhost/engine/route_b/run_mint_build.sh'
+ set -uo pipefail
+ 
+-ROOT=/Volumes/build/route-b
++ROOT=${ROOT:-/Volumes/build/route-b}
++TOOLS=${TOOLS:-/Volumes/build/ios-engine}   # depot_tools + gitconfig are shared: tools, not state
++BUILD_SCRIPT=${BUILD_SCRIPT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/build_ios.sh}
+ OUT_DIR=$ROOT/flutter/engine/src/out/ios_release
+ STATUS=$ROOT/logs/mint_build.status
+ 
++# The child reads the same two knobs. Exporting is what makes ROOT a real
++# parameter rather than a default that silently disagrees between the driver and
++# the build it drives -- the log this then parses is $ROOT/logs/ios_release_*.log,
++# so a child building elsewhere would have its status read from the wrong tree.
++export ROOT TOOLS
++
++[ -x "$BUILD_SCRIPT" ] || { echo "ABORT: build script not executable: $BUILD_SCRIPT" >&2; exit 2; }
++
+ mkdir -p "$ROOT/logs"
+ {
+   echo "state=running"
+   echo "started=$(date -u +%FT%TZ)"
++  echo "root=$ROOT"
++  echo "build_script=$BUILD_SCRIPT"
+ } > "$STATUS"
+ 
+-# caffeinate -is: the build outlives idle sleep. Not backgrounded here — screen
++# caffeinate -is: the build outlives idle sleep. Not backgrounded here -- screen
+ # already detached us, and backgrounding again would orphan the status write.
+-caffeinate -is "$ROOT/build_ios_release.sh"
++caffeinate -is "$BUILD_SCRIPT"
+ driver_rc=$?
+ 
+ log=$(ls -t "$ROOT"/logs/ios_release_*.log 2>/dev/null | head -1)
+@@ -40,6 +74,8 @@
+ 
+ {
+   echo "state=finished"
++  echo "root=$ROOT"
++  echo "build_script=$BUILD_SCRIPT"
+   echo "log=$log"
+   echo "driver_rc=$driver_rc"
+   echo "ninja_rc=${ninja_rc:-unknown}"
+
+---- /Volumes/build/route-b/build_ios_release.sh  ->  selfhost/engine/route_b/build_ios.sh
+@@ -1,6 +1,9 @@
+ #!/usr/bin/env bash
+-# Route B step 8 prerequisite: build the iOS device engine FROM THE ROUTE B TREE.
++# cspell:words killgate dynmod caffeinate routebios regated regen
+ #
++# build_ios.sh -- Route B step 8 prerequisite: the iOS device engine, built
++# FROM THE ROUTE B TREE.
++#
+ # This is the build ROUTE_B.md trap #1 predicts will fail. The killgate patch
+ # edits sdk/lib/_internal/vm/lib/internal_patch.dart and sdk/lib/internal/
+ # internal.dart, which compile into platform_strong.dill regardless of the GN
+@@ -8,17 +11,27 @@
+ # with "Unexpected tag 4 (Field)". Finding out is the point -- the dedicated
+ # checkout exists so that failure cannot contaminate the shipping iOS tree.
+ #
+-# Run detached, NEVER as a harness background task:
+-#   screen -dmS routebios bash -c 'caffeinate -is /Volumes/build/route-b/build_ios_release.sh'
++# THIS IS THE VENDORED COPY OF THE SSD'S build_ios_release.sh, under a
++# different name. The two were diffed on 2026-09-10 and are identical apart from
++# one header comment line (evidence/host/SSD_SCRIPT_VENDORING_2026-09-10.txt),
++# so every reference elsewhere to `build_ios_release.sh` -- notably
++# probes/assert_mint_ready.sh:12-17 on why its exit status must not be trusted
++# -- describes this file. Do not re-vendor it under the old name; that would
++# fork one script into two.
++#
++# Run detached, NEVER as a harness background task -- and prefer
++# run_mint_build.sh, which records the ninja exit this script swallows:
++#   screen -dmS routebios bash -c 'caffeinate -is selfhost/engine/route_b/run_mint_build.sh'
+ set -uo pipefail
+ 
+-ROOT=/Volumes/build/route-b
++ROOT=${ROOT:-/Volumes/build/route-b}
++TOOLS=${TOOLS:-/Volumes/build/ios-engine}   # depot_tools + gitconfig are shared: tools, not state
+ SRC=$ROOT/flutter/engine/src
+ OUT=ios_release
+ LOG=$ROOT/logs/ios_release_$(date +%Y%m%d-%H%M%S).log
+ mkdir -p "$(dirname "$LOG")"
+-export PATH=/Volumes/build/ios-engine/depot_tools:$PATH
+-export GIT_CONFIG_GLOBAL=/Volumes/build/ios-engine/gitconfig
++export PATH="$TOOLS/depot_tools:$PATH"
++export GIT_CONFIG_GLOBAL="$TOOLS/gitconfig"
+ export DEPOT_TOOLS_UPDATE=0
+ cd "$SRC" || exit 1
+ 
+
+VERIFICATION -- the vendored driver and the gate, exercised on a temp ROOT
+(both arms, because a gate that only ever passes certifies nothing)
+
+  arm 1, build succeeds:
+    ROOT=$T BUILD_SCRIPT=$T/fake_build.sh run_mint_build.sh
+      -> status: state=finished ninja_rc=0 framework_bytes=4242 VERDICT=ok
+    ROOT=$T assert_mint_ready.sh
+      -> VERDICT=success, exit 0
+
+  arm 2, ninja fails and the child STILL exits 0 (the swallowed-failure shape
+  the driver exists to catch):
+    -> status: ninja_rc=1, framework absent, VERDICT=failed
+    ROOT=$T assert_mint_ready.sh
+      -> "ninja : exit 1 <- NOT SUCCESS", "artifact: MISSING", VERDICT=failed,
+         exit 1
+
+  arm 3, BUILD_SCRIPT missing:
+    -> "ABORT: build script not executable", exit 2, and no status file is
+       left claiming state=running.
+
+  Neither arm touched /Volumes/build. ROOT alone redirected the driver, the
+  build, the log it parses, and the gate -- which is the whole point of the
+  parameterisation.
+
+SEPARATE FINDING, PRE-EXISTING, NOT CAUSED BY THIS PASS
+  Running the gate against the live SSD default reports a STALE STATUS:
+    /Volumes/build/route-b/logs/mint_build.status is from
+    ios_release_20260817-000423.log and records framework_bytes=19089496,
+    while the artifact on disk is 19104576 bytes.
+  So out/ios_release was rebuilt after 2026-08-17 WITHOUT going through
+  run_mint_build.sh -- exactly the path build_ios_seam6.sh takes. The staleness
+  guard (assert_mint_ready.sh:83-99) catches it and the gate says VERDICT=failed
+  with a DISAGREEMENT. Nothing may be minted from this tree until it is re-run
+  through the driver. Reported, not fixed: re-running it is a multi-hour build,
+  and which of the two is wanted is the owner's call.
+
+WHAT THIS DOES NOT DO
+  The SSD is still required. This closes the SCRIPTS half only; the media half
+  (/Volumes/build/media, 513 GB, sole surviving copy since the 2026-08-14
+  reclaim) is untouched and is the reason the drive cannot be retired.
+  The 208 GB route-b checkout also still lives only there, but it is
+  reproducible from create_checkout.sh + the pinned revisions -- expensive to
+  lose, not impossible.

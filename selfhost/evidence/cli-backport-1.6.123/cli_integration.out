@@ -1,0 +1,99 @@
+## rollback
+PASS [0] rollback patch 1
+        | Track:       stable
+        | Rolled back: yes
+        | Artifacts:
+        |   android  aarch64      3 B
+PASS       device check rolled_back_patch_numbers = [1]
+PASS [0] rollback repeat reports already rolled back (304)
+        | Number:      1
+        | Rolled back: yes
+        | Artifacts:
+        |   android  aarch64      3 B
+PASS [64] rollback repeat --require-change fails
+        | Patch 1 is already rolled back
+        | If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+        | You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+        | <log>
+PASS [0] rollback --json
+        | Done Fetching patches
+        | Starting Rolling back patch 1...
+        | Done No change: patch 1 was already rolled back
+        | {"status":"success","data":{"release_version":"1.0.0","patch_number":1,"action":"rollback","changed":false,"patch":{"id":1,"number":1,"channel":null,"artifacts":[{"id":1,"patch_id":1,"arch":"aarch64","platform":"android","hash":"x","size":3,"created_at":"2026-09-25T19:41:43.600Z"}],"is_rolled_back":true,"notes":null}},"meta":{"version":"1.6.115+selfhost.1","command":"patches rollback"}}
+PASS [0] patches list shows rolled back
+        | Done Fetching releases
+        | Starting Fetching patches...
+        | Done Fetching patches
+        | 1  #1  [no track]  [rolled back]
+## rollforward (intentionally unsupported)
+PASS [70] rollforward fails explicitly
+        | Failed Rollforward is not supported by this self-hosted server: a rolled-back patch is withdrawn permanently. Publish a new patch instead.
+        | If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+        | You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+        | <log>
+PASS [70] rollforward --json fails explicitly
+        | Done Fetching patches
+        | Starting Rolling forward patch 1...
+        | Failed Rollforward is not supported by this self-hosted server: a rolled-back patch is withdrawn permanently. Publish a new patch instead.
+        | {"status":"error","error":{"code":"software_error","message":"Failed to roll forward patch 1 of release \"1.0.0\"."},"meta":{"version":"1.6.115+selfhost.1","command":"patches rollforward"}}
+PASS       patch still rolled back after rollforward = [1]
+## apps rename
+PASS [0] apps rename
+        | Done Fetching apps
+        | Starting Renaming app...
+        | Done Renaming app
+        | Renamed "backport-app" to "Backport Renamed".
+PASS       server display_name = Backport Renamed
+## channels
+PASS [0] channels create qa
+        | Done Fetching channels
+        | Starting Creating channel...
+        | Done Creating channel
+        | Created channel "qa".
+PASS [0] channels list shows qa
+        | Starting Fetching channels...
+        | Done Fetching channels
+        | 1  stable
+        | 2  qa
+PASS [64] channels delete without confirm refused
+        | Re-run with --confirm-name="qa".
+        | If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+        | You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+        | <log>
+PASS [70] channels delete stable refused (built-in)
+        | Failed The stable channel is permanent
+        | If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+        | You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+        | <log>
+PASS [0] channels delete qa
+        | Done Fetching channels
+        | Starting Deleting channel...
+        | Done Deleting channel
+        | Deleted channel "qa".
+PASS       qa hidden from server listing = False
+## apps transfer
+PASS [0] transfer into current org is a no-op
+        | Done Fetching organizations
+        | Starting Transferring app...
+        | Done Transferring app
+        | Moved "Backport Renamed" into "self-host".
+PASS [64] transfer into an org the caller is not in is refused
+        | Run: shorebird account orgs
+        | If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+        | You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+        | <log>
+## apps delete (no server route; see matrix)
+PASS [70] apps delete
+        | Failed No route DELETE /api/v1/apps/2c01f09a-47ce-df1a-0b16-910bc26d8302
+        | If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+        | You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+        | <log>
+PASS       app still exists = 1
+## unchanged surface
+PASS [0] account whoami (no /plan call)
+        | Email:          owner@self-host.local
+        | Display name:   Owner
+        | Plan:           paid
+        | Overage limit:  none
+
+TOTAL pass=22 fail=0

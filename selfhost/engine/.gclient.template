@@ -1,29 +1,65 @@
-# .gclient template for syncing vendor/flutter's engine dependencies.
+# .gclient template for syncing the engine dependencies of a Shorebird Flutter
+# checkout.
 #
-# The captured vendor/flutter is a flat SOURCE snapshot; the ~30-50GB of
-# DEPS-pinned engine deps (Skia, dart-sdk, buildtools, …) are fetched by
-# `gclient sync`. This is a STANDARD Flutter-engine step, not Shorebird-specific.
+# A Shorebird Flutter checkout (like vendor/flutter) is only the SOURCE; the
+# ~40-60GB of DEPS-pinned engine deps (Skia, dart-sdk, buildtools, the Android
+# NDK/SDK, ...) are fetched by `gclient sync`. This is a STANDARD Flutter-engine
+# step, not Shorebird-specific.
+#
+# LAYOUT — the part that is easy to get wrong. Flutter's DEPS does NOT set
+# `use_relative_paths`, and its entries are of the form
+# `engine/src/flutter/third_party/<dep>` — i.e. relative to the gclient ROOT.
+# So the solution name is "." and this file lives AT THE ROOT OF THE FLUTTER
+# CHECKOUT, not in its parent:
+#
+#   <checkout>/.gclient          <- this file
+#   <checkout>/DEPS
+#   <checkout>/engine/src/flutter/...
+#
+# This is upstream's own instruction ("copy one of the engine/scripts/*.gclient
+# to the repository root as .gclient") — see
+# docs/engine/contributing/Setting-up-the-Engine-development-environment.md.
+# The authoritative template ships inside the checkout at
+# `engine/scripts/standard.gclient`; this file is that template with the `url`
+# pointed at Shorebird's fork. Prefer copying the in-tree one and editing the
+# url, so the layout tracks whatever upstream does next.
 #
 # ONE-TIME farm bootstrap:
 #   1. Install depot_tools; add to PATH.
-#   2. Place a `.gclient` (based on this template) so its checkout resolves to
-#      vendor/flutter/engine/src/flutter. Because the engine is merged into the
-#      Flutter monorepo, follow Flutter's current "Setting up the engine
-#      development environment" for the pinned revision — the exact solution
-#      name/layout tracks upstream and should be VERIFIED against the docs for
-#      flutter_revision 309dd657, not assumed.
-#   3. cd vendor/flutter/engine/src && gclient sync -D
+#   2. Rewrite the SSH remote DEPS uses for the Dart SDK fork, so no GitHub key
+#      is needed on the build host (DEPS pins
+#      dart_sdk_git = git@github.com:shorebirdtech/dart-sdk.git):
+#        git config --global url."https://github.com/".insteadOf git@github.com:
+#      On a SHARED host, scope that to the build shell instead of the login
+#      account by redirecting git's "global" config to your own file (git >=
+#      2.32) BEFORE running the command above:
+#        export GIT_CONFIG_GLOBAL=/data/shorebird-engine/gitconfig
+#      If the clone then 404s, that repo is private and a read-only deploy key
+#      is required instead — better to find out here than mid-sync.
+#   3. Copy this file (or engine/scripts/standard.gclient) to <checkout>/.gclient
+#   4. cd <checkout> && gclient sync --no-history
 #
-# Typical monorepo shape (verify before use):
+# `--no-history` is upstream's documented mitigation for flaky large fetches and
+# saves considerable disk. No `custom_vars` are needed for Android:
+# `download_android_deps` already defaults to true on linux-x64 and mac (DEPS),
+# so the NDK and Android SDK come from gclient rather than the host.
+#
+# NOTE: no revision is pinned here. `managed: False` means gclient does not
+# touch the checkout's own git state — you check out the revision you want
+# (e.g. the `flutter_revision` in selfhost/compatibility.yaml) yourself, then
+# sync. A revision baked into this template only ever goes stale.
 solutions = [
   {
-    "name": "flutter",
-    "url": "https://github.com/shorebirdtech/flutter.git@309dd6573a9fe716410489284cd325a34b950375",
-    "managed": False,
     "custom_deps": {},
-    "custom_vars": {
-      "download_android_deps": True,
-      "download_windows_deps": False,
-    },
+    "deps_file": "DEPS",
+    "managed": False,
+    "name": ".",
+    "safesync_url": "",
+    "url": "https://github.com/shorebirdtech/flutter.git",
+
+    # Uncomment if you need to build the web engine.
+    # "custom_vars": {
+    #   "download_emsdk": True,
+    # },
   },
 ]

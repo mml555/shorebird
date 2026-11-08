@@ -10,6 +10,7 @@ Config _cfg({
   String urlSigningSecret = 'a-real-url-signing-secret',
   String publicBaseUrl = 'https://cps.example.com',
   String dbSslMode = 'disable',
+  String? patchSigningKeySecret = 'a-real-patch-signing-key-secret-0123456789',
 }) {
   return Config(
     port: 8080,
@@ -38,6 +39,7 @@ Config _cfg({
     idpTokenUrl: '',
     idpScopes: 'openid email',
     production: production,
+    patchSigningKeySecret: patchSigningKeySecret,
     dbBackend: 'postgres',
     storageBackend: 's3',
     dataDir: './data',
@@ -144,6 +146,17 @@ void main() {
           reason: bad,
         );
       }
+    });
+
+    test('production requires PATCH_SIGNING_KEY_SECRET; elsewhere it is '
+        'optional', () {
+      final prod = _cfg(patchSigningKeySecret: null).validate();
+      expect(prod, hasLength(1));
+      expect(prod.single, contains('PATCH_SIGNING_KEY_SECRET is required'));
+      expect(
+        _cfg(production: false, patchSigningKeySecret: null).validate(),
+        isEmpty,
+      );
     });
 
     test('every documented DB_SSL_MODE value is accepted', () {

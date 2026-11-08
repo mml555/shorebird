@@ -1,0 +1,118 @@
+########## s1_virtual (solo_unfenced) : DIRECT_CALL_DEVIRTUALIZED
+000000000009fbc8 <s1_virtual>:
+   9fbc8:      	stp	x29, x30, [x15, #-0x10]!
+   9fbcc:      	mov	x29, x15
+   9fbd0:      	sub	x15, x15, #0x8
+   9fbd4:      	ldr	x16, [x26, #0x48]
+   9fbd8:      	cmp	x15, x16
+   9fbdc:      	b.ls	 <L1>
+<L0>:
+   9fbe0:      	ldr	x16, [x29, #0x10]
+   9fbe4:      	str	x16, [x15]
+   9fbe8:      	ldr	x4, [x27, #0x60]
+   9fbec:      	bl	 <Base.execute+0x18>
+   9fbf0:      	ldr	x0, [x27, #0x900]
+   9fbf4:      	mov	x15, x29
+   9fbf8:      	ldp	x29, x30, [x15], #0x10
+   9fbfc:      	ret
+
+########## s2_monomorphic (solo_unfenced) : DEDUPED_INTO_s1_virtual
+00000000000a0108 <s2_monomorphic>:
+   a0108:      	stp	x29, x30, [x15, #-0x10]!
+   a010c:      	mov	x29, x15
+   a0110:      	sub	x15, x15, #0x8
+   a0114:      	ldr	x16, [x26, #0x48]
+   a0118:      	cmp	x15, x16
+   a011c:      	b.ls	 <L1>
+<L0>:
+   a0120:      	ldr	x16, [x29, #0x10]
+   a0124:      	str	x16, [x15]
+   a0128:      	ldr	x4, [x27, #0x60]
+   a012c:      	bl	 <s1_virtual>
+   a0130:      	mov	x15, x29
+   a0134:      	ldp	x29, x30, [x15], #0x10
+   a0138:      	ret
+
+########## s3_chain_a (solo_unfenced) : DEDUPED_INTO_s1_virtual
+00000000000a00cc <s3_chain_a>:
+   a00cc:      	stp	x29, x30, [x15, #-0x10]!
+   a00d0:      	mov	x29, x15
+   a00d4:      	sub	x15, x15, #0x8
+   a00d8:      	ldr	x16, [x26, #0x48]
+   a00dc:      	cmp	x15, x16
+   a00e0:      	b.ls	 <L1>
+<L0>:
+   a00e4:      	ldr	x16, [x29, #0x10]
+   a00e8:      	str	x16, [x15]
+   a00ec:      	ldr	x4, [x27, #0x60]
+   a00f0:      	bl	 <s1_virtual>
+   a00f4:      	mov	x15, x29
+   a00f8:      	ldp	x29, x30, [x15], #0x10
+   a00fc:      	ret
+
+########## s4_generic (solo_unfenced) : DEDUPED_INTO_s1_virtual
+00000000000a0038 <s4_generic>:
+   a0038:      	stp	x29, x30, [x15, #-0x10]!
+   a003c:      	mov	x29, x15
+   a0040:      	sub	x15, x15, #0x10
+   a0044:      	ldur	x0, [x4, #0x17]
+   a0048:      	cbnz	x0,  <L0>
+   a004c:      	mov	x2, x22
+   a0050:      	b	 <L1>
+<L0>:
+   a0054:      	ldur	x1, [x4, #0x27]
+   a0058:      	add	x2, x29, x1, lsl #2
+   a005c:      	ldr	x2, [x2, #0x10]
+<L1>:
+   a0060:      	ldr	x1, [x29, #0x18]
+   a0064:      	ldur	x3, [x1, #0x17]
+   a0068:      	ldr	x16, [x26, #0xa8]
+   a006c:      	cmp	x3, x16
+   a0070:      	b.ne	 <L2>
+   a0074:      	mov	x1, x2
+   a0078:      	b	 <L3>
+<L2>:
+   a007c:      	mov	x1, x3
+<L3>:
+   a0080:      	ldr	x16, [x26, #0x48]
+   a0084:      	cmp	x15, x16
+   a0088:      	b.ls	 <L7>
+<L4>:
+   a008c:      	cbnz	x0,  <L5>
+   a0090:      	ldr	x16, [x26, #0xa8]
+   a0094:      	cmp	x3, x16
+   a0098:      	b.ne	 <L5>
+   a009c:      	ldr	x0, [x27, #0x908]
+   a00a0:      	b	 <L6>
+<L5>:
+   a00a4:      	mov	x0, x1
+<L6>:
+   a00a8:      	ldr	x16, [x29, #0x10]
+   a00ac:      	stp	x16, x0, [x15]
+   a00b0:      	ldr	x4, [x27, #0x910]
+   a00b4:      	bl	 <s1_virtual>
+   a00b8:      	mov	x15, x29
+   a00bc:      	ldp	x29, x30, [x15], #0x10
+   a00c0:      	ret
+
+########## s5_fieldCall (solo_unfenced) : DIRECT_CALL_DEVIRTUALIZED
+000000000009f8e8 <s5_fieldCall>:
+   9f8e8:      	stp	x29, x30, [x15, #-0x10]!
+   9f8ec:      	mov	x29, x15
+   9f8f0:      	sub	x15, x15, #0x8
+   9f8f4:      	ldr	x16, [x26, #0x48]
+   9f8f8:      	cmp	x15, x16
+   9f8fc:      	b.ls	 <L1>
+<L0>:
+   9f900:      	ldr	x0, [x26, #0x70]
+   9f904:      	ldr	x0, [x0, #0x758]
+   9f908:      	cmp	x0, x22
+   9f90c:      	b.eq	 <L2>
+   9f910:      	str	x0, [x15]
+   9f914:      	ldr	x4, [x27, #0x60]
+   9f918:      	bl	 <Base.execute+0x18>
+   9f91c:      	ldr	x0, [x27, #0x900]
+   9f920:      	mov	x15, x29
+   9f924:      	ldp	x29, x30, [x15], #0x10
+   9f928:      	ret
+

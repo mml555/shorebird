@@ -1,0 +1,68 @@
+Aug 27 14:36:26.316512 Runner(Flutter)[47587] <Notice>: [shorebird] No existing state file found: File /private/var/mobile/Containers/Data/Application/8F9776FA-84AC-4657-9473-CFDD7EE99F5A/Library/Application Support/shorebird/shorebird_updater/state.json does not exist, creating new state.
+Aug 27 14:36:26.316845 Runner(Flutter)[47587] <Notice>: [shorebird] Reporting launch start.
+Aug 27 14:36:26.317161 Runner(Flutter)[47587] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=545516 vm_insns_size=43584 iso_insns_size=1791280 total=2385558
+Aug 27 14:36:26.317343 Runner(Flutter)[47587] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 27 14:36:26.317423 Runner(Flutter)[47587] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 27 14:36:26.319374 Runner(Flutter)[47587] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "525b41fe-d97d-1163-4416-8b0345980f49", channel: "stable", release_version: "1.0.0+1", platform: "ios", arch: "aarch64", client_id: "6e83e1be-ab44-4bfb-97b2-a3d5711aea59", current_patch_number: None }
+Aug 27 14:36:26.354706 Runner(Flutter)[47587] <Fault>: [shorebird] Update failed: Patch check request failed due to network error. Please check your internet connection.
+Aug 27 14:36:26.354790 Runner(Flutter)[47587] <Notice>: [shorebird] Update thread finished with status: Update had error
+Aug 27 14:36:26.849703 Runner(Flutter)[47587] <Notice>: [shorebird] Reporting successful launch.
+Aug 27 14:37:32.992206 Runner(Flutter)[47587] <Fault>: [shorebird] Failed to initialize logging: attempted to set a logger after the logging system was already initialized
+Aug 27 14:37:32.992535 Runner(Flutter)[47587] <Fault>: [shorebird] Error initializing updater: Shorebird has already been initialized.
+Aug 27 14:37:39.122038 Runner(Flutter)[47598] <Notice>: [shorebird] Reporting launch start.
+Aug 27 14:37:39.122177 Runner(Flutter)[47598] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=545516 vm_insns_size=43584 iso_insns_size=1791280 total=2385558
+Aug 27 14:37:39.209659 Runner(Flutter)[47598] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "c0feccc1e0f7965d19e0f0449b3fff2b15ed7fdf77f1144c76e76bd18fa4b202", download_url: "http://10.0.0.7:18080/download/5fc5d83a44dbd7d7a31bad533f9c0dfe?exp=1787856158&sig=fcda06ffd0cd2a22f06684a0d37db096c946d68375c74b9d540a272de9ba78e3", hash_signature: Some("dWOkmNtOGAW8l4rKwjwjEr0hz3sPQV2hjTPf/TaM/UPTVTo3sLjhzh+spukv58qpFokKkL1z2PEkt7Q/7VIL6DH/KQqLeW5LjWExaNlkmsg6eiw6sL/PmvWyOAg6ocbSzxymnswf/9mRsxLIAlj3JG0H5x/uwZ/Et+QVuYcxeizhcdbx3ZtvTTDPCGxlPp7hm6LnCGvLnqog9R3zzS/uKYRTkDCVW7ZPk6OEJ+HOBzJEZcbwFhDe8BMhZxlIiuzNr77vxrO3iOo+Pfq9bKxM0pqWMtHPzBCpJkQmAkFgdk0c1UtRCeD1sOFvRE9xVY2mfx1pHEvFRbRbReX6Epo70g==") }), rolled_back_patch_numbers: Some([]) }
+Aug 27 14:37:39.214271 Runner(Flutter)[47598] <Notice>: [shorebird] Downloading patch 1 for app 525b41fe-d97d-1163-4416-8b0345980f49 (version 1.0.0+1)
+Aug 27 14:37:39.215404 Runner(Flutter)[47598] <Notice>: [shorebird] Downloading patch from: http://10.0.0.7:18080/download/5fc5d83a44dbd7d7a31bad533f9c0dfe?exp=1787856158&sig=fcda06ffd0cd2a22f06684a0d37db096c946d68375c74b9d540a272de9ba78e3
+Aug 27 14:37:39.260768 Runner(Flutter)[47598] <Notice>: [shorebird] Downloaded patch to: "/private/var/mobile/Containers/Data/Application/8F9776FA-84AC-4657-9473-CFDD7EE99F5A/Library/Application Support/shorebird/shorebird_updater/downloads/1" (1050 bytes)
+Aug 27 14:37:39.268458 Runner(Flutter)[47598] <Notice>: [shorebird] Inflating patch from "/private/var/mobile/Containers/Data/Application/8F9776FA-84AC-4657-9473-CFDD7EE99F5A/Library/Application Support/shorebird/shorebird_updater/downloads/1" (1050 bytes)
+Aug 27 14:37:39.268630 Runner(Flutter)[47598] <Notice>: [shorebird] Patch successfully applied to "/private/var/mobile/Containers/Data/Application/8F9776FA-84AC-4657-9473-CFDD7EE99F5A/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode". patch_file=1050b base_size=2385558b decompressed_into_pipe=1699b decompressed_out_of_pipe=1699b base_read=0b base_last_seek_pos=0 base_seeks=1 output_written=1687b
+Aug 27 14:37:39.269270 Runner(Flutter)[47598] <Notice>: [shorebird] Patch 1 successfully downloaded. It will be launched when the app next restarts.
+Aug 27 14:37:39.269709 Runner(Flutter)[47598] <Notice>: [shorebird] Update thread finished with status: Update installed
+Aug 27 14:38:02.151625 Runner(Flutter)[47601] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 27 14:38:02.152566 Runner(Flutter)[47601] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 27 14:38:02.152832 Runner(Flutter)[47601] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=177c9ce9898b3ab79369ecc87f7085ee
+Aug 27 14:38:02.152942 Runner(Flutter)[47601] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 27 14:38:02.153051 Runner(Flutter)[47601] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=177c9ce9898b3ab79369ecc87f7085ee
+Aug 27 14:38:02.153160 Runner(Flutter)[47601] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 27 14:38:02.153247 Runner(Flutter)[47601] <Notice>: ROUTEB: activated signState in package:sign_probe_app/main.dart before main
+Aug 27 14:38:02.153337 Runner(Flutter)[47601] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 27 14:38:02.177498 Runner(Flutter)[47601] <Notice>: [shorebird] Reporting successful launch.
+Aug 27 14:38:02.177556 Runner(Flutter)[47601] <Notice>: [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+Aug 27 14:38:09.552443 Runner(Flutter)[47607] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "525b41fe-d97d-1163-4416-8b0345980f49", channel: "stable", release_version: "1.0.0+1", platform: "ios", arch: "aarch64", client_id: "6e83e1be-ab44-4bfb-97b2-a3d5711aea59", current_patch_number: Some(1) }
+Aug 27 14:38:09.676814 Runner(Flutter)[47607] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 27 14:38:09.680840 Runner(Flutter)[47607] <Notice>: [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+Aug 27 14:45:37.969894 Runner(Flutter)[47668] <Notice>: [shorebird] Reporting launch start.
+Aug 27 14:45:37.970001 Runner(Flutter)[47668] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=545516 vm_insns_size=43584 iso_insns_size=1791280 total=2385558
+Aug 27 14:45:37.970109 Runner(Flutter)[47668] <Notice>: [shorebird] Verifying patch signature...
+Aug 27 14:45:37.977425 Runner(Flutter)[47668] <Notice>: [shorebird] Patch signature is valid
+Aug 27 14:45:37.977524 Runner(Flutter)[47668] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(658)] Shorebird updater: active path: /private/var/mobile/Containers/Data/Application/8F9776FA-84AC-4657-9473-CFDD7EE99F5A/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode
+Aug 27 14:45:37.977626 Runner(Flutter)[47668] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(681)] Shorebird updater: active patch is a Route B container
+Aug 27 14:45:37.977730 Runner(Flutter)[47668] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 27 14:45:38.068462 Runner(Flutter)[47668] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "525b41fe-d97d-1163-4416-8b0345980f49", channel: "stable", release_version: "1.0.0+1", platform: "ios", arch: "aarch64", client_id: "6e83e1be-ab44-4bfb-97b2-a3d5711aea59", current_patch_number: Some(1) }
+Aug 27 14:45:38.091105 Runner(Flutter)[47668] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: hook entered
+Aug 27 14:45:38.091194 Runner(Flutter)[47668] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: parsed, targets=1, built-for=177c9ce9898b3ab79369ecc87f7085ee
+Aug 27 14:45:38.091546 Runner(Flutter)[47668] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=177c9ce9898b3ab79369ecc87f7085ee
+Aug 27 14:45:38.091828 Runner(Flutter)[47668] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 27 14:45:38.093152 Runner(Flutter)[47668] <Notice>: ROUTEB: activated signState in package:sign_probe_app/main.dart before main
+Aug 27 14:45:38.093275 Runner(Flutter)[47668] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 27 14:45:38.152959 Runner(Flutter)[47668] <Notice>: [shorebird] Downloaded patch to: "/private/var/mobile/Containers/Data/Application/8F9776FA-84AC-4657-9473-CFDD7EE99F5A/Library/Application Support/shorebird/shorebird_updater/downloads/2" (1049 bytes)
+Aug 27 14:45:38.153365 Runner(Flutter)[47668] <Notice>: [shorebird] Inflating patch from "/private/var/mobile/Containers/Data/Application/8F9776FA-84AC-4657-9473-CFDD7EE99F5A/Library/Application Support/shorebird/shorebird_updater/downloads/2" (1049 bytes)
+Aug 27 14:45:38.153814 Runner(Flutter)[47668] <Notice>: [shorebird] Patch successfully applied to "/private/var/mobile/Containers/Data/Application/8F9776FA-84AC-4657-9473-CFDD7EE99F5A/Library/Application Support/shorebird/shorebird_updater/patches/2/dlc.vmcode". patch_file=1049b base_size=2385558b decompressed_into_pipe=1699b decompressed_out_of_pipe=1699b base_read=0b base_last_seek_pos=0 base_seeks=1 output_written=1687b
+Aug 27 14:45:38.156812 Runner(Flutter)[47668] <Notice>: [shorebird] Patch 2 successfully downloaded. It will be launched when the app next restarts.
+Aug 27 14:45:38.156980 Runner(Flutter)[47668] <Notice>: [shorebird] Update thread finished with status: Update installed
+Aug 27 14:45:55.348465 Runner(Flutter)[47671] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "525b41fe-d97d-1163-4416-8b0345980f49", channel: "stable", release_version: "1.0.0+1", platform: "ios", arch: "aarch64", client_id: "6e83e1be-ab44-4bfb-97b2-a3d5711aea59", current_patch_number: Some(2) }
+Aug 27 14:45:55.376097 Runner(Flutter)[47671] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: running=177c9ce9898b3ab79369ecc87f7085ee
+Aug 27 14:45:55.376278 Runner(Flutter)[47671] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Aug 27 14:45:55.376804 Runner(Flutter)[47671] <Notice>: ROUTEB: activated signState in package:sign_probe_app/main.dart before main
+Aug 27 14:45:55.376872 Runner(Flutter)[47671] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(210)] ROUTEB: applied 1/1 targets, entering main
+Aug 27 14:56:59.777398 Runner(Flutter)[47753] <Notice>: [shorebird] Reporting launch start.
+Aug 27 14:56:59.799861 Runner(Flutter)[47753] <Fault>: [shorebird] Error reporting launch start: record_boot_start(1) expected Installed, got None
+Aug 27 14:56:59.800035 Runner(Flutter)[47753] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=545516 vm_insns_size=43584 iso_insns_size=1791280 total=2385558
+Aug 27 14:56:59.800326 Runner(Flutter)[47753] <Fault>: [shorebird] Patch 1 failed validation: Patch 1 is not Installed: None
+Aug 27 14:56:59.800664 Runner(Flutter)[47753] <Fault>: [shorebird] Error validating next_boot_patch: Patch 1 is not Installed: None
+Aug 27 14:56:59.808779 Runner(Flutter)[47753] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(707)] Shorebird updater: no active patch.
+Aug 27 14:56:59.809463 Runner(Flutter)[47753] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(758)] Starting Shorebird update
+Aug 27 14:56:59.951231 Runner(Flutter)[47753] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 2, hash: "6d0d20683fba5b56c5cb4117baec7e28ab4d78bbafe1215d86d972766aeb3e8b", download_url: "http://10.0.0.7:18080/download/7edeff694ec49cc3d1db3a0082e7440a?exp=1787857319&sig=0425701af7e25a1d80313345c6b7f7903ddd980c1bf4cfec785d278a009eec4f", hash_signature: Some("BlN7NDBlTWuEhPnaTZ5y+DKrppUJ9nGASeLMz5djeVvzqP1NrYdDYrpwEQas1xowBBvQm0cqvWahIkfSB9eIryI00czTQ+WefiGKHoXy50KNaVJYPcOcRYGMf9xBdd/a5Ib55GqzhZ3RKd1jadB7/xEvauV8M9KYCLBgQNT9iRkcbbBWWiCoQ/Bfz9gTDEisYoFEbR6dh1o3YZQXmz9NwBdU0lafcz6ftWwN/3KAqJtwi6IUeoIuaBVa1u/ADP1tLSj1UvS9IBQOWnbySYy2stgNs/1HYrpsOZA+sKCcfbQV5WUFWzqbkKPMx1NV2nHk9uyy1Y81cVUWIQzKHNv9AA==") }), rolled_back_patch_numbers: Some([]) }
+Aug 27 14:56:59.951869 Runner(Flutter)[47753] <Notice>: [shorebird] Patch 2 is known bad, skipping.
+Aug 27 14:56:59.952386 Runner(Flutter)[47753] <Notice>: [shorebird] Update thread finished with status: Update available but previously failed to install. Not installing.

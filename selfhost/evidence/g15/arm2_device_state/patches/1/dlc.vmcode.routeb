@@ -1,0 +1,12 @@
+hook entered
+parsed, targets=1, built-for=e8665b59fa7f39338006007fd00cc28e
+running=f71ccbf899943e4383f8cea99f1834df
+REFUSED (wrong-release): built for e8665b59fa7f39338006007fd00cc28e, running f71ccbf899943e4383f8cea99f1834df
+hook entered
+parsed, targets=1, built-for=e8665b59fa7f39338006007fd00cc28e
+running=f71ccbf899943e4383f8cea99f1834df
+REFUSED (wrong-release): built for e8665b59fa7f39338006007fd00cc28e, running f71ccbf899943e4383f8cea99f1834df
+hook entered
+parsed, targets=1, built-for=e8665b59fa7f39338006007fd00cc28e
+running=f71ccbf899943e4383f8cea99f1834df
+REFUSED (wrong-release): built for e8665b59fa7f39338006007fd00cc28e, running f71ccbf899943e4383f8cea99f1834df

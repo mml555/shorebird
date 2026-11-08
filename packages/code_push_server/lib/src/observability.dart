@@ -13,7 +13,15 @@ void configureLogging({required bool json}) => _json = json;
 /// Whether JSON logging is currently active.
 bool get jsonLogging => _json;
 
-void _emit(Map<String, Object?> obj) => stdout.writeln(jsonEncode(obj));
+/// Where log lines are written.
+///
+/// Replaceable so a test can assert on the EXACT bytes an operator's log sink
+/// would receive. That matters for the audit trail specifically: "we never log
+/// secrets" is a claim about output, and the only way to measure it is to
+/// capture the output and search it. Production leaves this as stdout.
+void Function(String line) logSink = stdout.writeln;
+
+void _emit(Map<String, Object?> obj) => logSink(jsonEncode(obj));
 
 /// A structured info line (server lifecycle, migrations, housekeeping). In text
 /// mode [message] is printed verbatim, with any [fields] appended as `k=v`.
@@ -21,10 +29,10 @@ void logInfo(String message, [Map<String, Object?> fields = const {}]) {
   if (_json) {
     _emit({'level': 'info', 'msg': message, ...fields});
   } else if (fields.isEmpty) {
-    stdout.writeln(message);
+    logSink(message);
   } else {
     final extra = fields.entries.map((e) => '${e.key}=${e.value}').join(' ');
-    stdout.writeln('$message $extra');
+    logSink('$message $extra');
   }
 }
 
@@ -33,7 +41,7 @@ void logError(String message, Object error, StackTrace st) {
   if (_json) {
     _emit({'level': 'error', 'msg': message, 'error': '$error'});
   } else {
-    stdout.writeln('  [error] $message: $error');
+    logSink('  [error] $message: $error');
   }
   stderr.writeln(st);
 }
@@ -53,7 +61,17 @@ class Observability {
 
   /// Records + logs a completed request. Health/metrics probes are recorded but
   /// not logged (they'd otherwise flood the log at the scrape interval).
-  void request(String method, String path, int status, int durationMs) {
+  ///
+  /// [requestId] is echoed to the caller in `X-Request-Id` and stored on any
+  /// audit event the request produced, so a log line, a client-side error and
+  /// an audit row can be tied together.
+  void request(
+    String method,
+    String path,
+    int status,
+    int durationMs, {
+    String? requestId,
+  }) {
     metrics.record(method, status, durationMs);
     if (_isProbe(path)) return;
     if (_json) {
@@ -64,10 +82,50 @@ class Observability {
         'path': '/$path',
         'status': status,
         'duration_ms': durationMs,
+        if (requestId != null) 'request_id': requestId,
       });
     } else {
-      stdout.writeln('$method /$path -> $status (${durationMs}ms)');
+      final rid = requestId == null ? '' : ' [$requestId]';
+      logSink('$method /$path -> $status (${durationMs}ms)$rid');
     }
+  }
+
+  /// Emits one audit event to the operational log sink.
+  ///
+  /// The durable record is the `audit_log` table; this line is the shipped-log
+  /// copy, so an operator whose stack forwards stdout to a log system can query
+  /// mutations there too — and so an audit event still reaches an operator if
+  /// the database write is the thing that failed.
+  ///
+  /// In JSON mode the whole event is one object with `"msg":"audit"`, which is
+  /// the queryable form. In text mode it is a single `audit ` line of `k=v`
+  /// pairs; every value has already been through `auditSafeText`, so none of
+  /// them can contain a newline and forge a second line.
+  void audit(Map<String, Object?> event) {
+    metrics.auditEvents++;
+    if (_json) {
+      _emit({'level': 'info', 'msg': 'audit', ...event});
+      return;
+    }
+    final pairs = event.entries
+        .where((e) => e.value != null)
+        .map(
+          (e) => '${e.key}=${e.value is Map ? jsonEncode(e.value) : e.value}',
+        )
+        .join(' ');
+    logSink('audit $pairs');
+  }
+
+  /// Reports that an audit event could not be persisted to `audit_log`.
+  ///
+  /// Loud on purpose, and counted: the mutation has already happened by this
+  /// point, so refusing the response would not un-apply it. What must not
+  /// happen is that the gap goes unnoticed — a silently-missing row is what
+  /// makes "nothing was logged" mean nothing.
+  void auditWriteFailed(Map<String, Object?> event, Object err, StackTrace st) {
+    metrics.auditWriteFailures++;
+    logError('AUDIT WRITE FAILED (event emitted to log only)', err, st);
+    audit({...event, 'audit_persisted': false});
   }
 
   void error(String message, Object err, StackTrace st) =>
@@ -109,6 +167,12 @@ class Metrics {
   double _durationSum = 0;
 
   int inFlight = 0;
+
+  /// Audit events emitted (log sink), and the subset whose `audit_log` write
+  /// failed. `code_push_audit_write_failures_total` above zero means the
+  /// durable trail has holes and is worth alerting on.
+  int auditEvents = 0;
+  int auditWriteFailures = 0;
 
   /// Requests that carried an `X-Forwarded-For` from a peer not listed in
   /// `TRUSTED_PROXIES`, so the header was ignored and the peer's own address
@@ -171,6 +235,18 @@ class Metrics {
     );
     b.writeln('# TYPE code_push_untrusted_forwarded_for_total counter');
     b.writeln('code_push_untrusted_forwarded_for_total $untrustedForwardedFor');
+    b.writeln(
+      '# HELP code_push_audit_events_total Control-plane mutation audit '
+      'events emitted.',
+    );
+    b.writeln('# TYPE code_push_audit_events_total counter');
+    b.writeln('code_push_audit_events_total $auditEvents');
+    b.writeln(
+      '# HELP code_push_audit_write_failures_total Audit events that could '
+      'not be persisted to audit_log.',
+    );
+    b.writeln('# TYPE code_push_audit_write_failures_total counter');
+    b.writeln('code_push_audit_write_failures_total $auditWriteFailures');
     return b.toString();
   }
 }

@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
@@ -12,21 +14,30 @@ import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/commands/release/release.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
+import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
+import 'package:shorebird_cli/src/extensions/arg_results.dart';
+import 'package:shorebird_cli/src/flutter_version_constraints.dart';
+import 'package:shorebird_cli/src/json_output.dart';
+import 'package:shorebird_cli/src/interactive_mode.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
+import 'package:shorebird_cli/src/runtime_endpoint.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
+import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
+import '../../helpers.dart';
 import '../../matchers.dart';
 import '../../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(ReleaseCommand, () {
     const appId = 'test-app-id';
     const appDisplayName = 'Test App';
@@ -50,7 +61,7 @@ void main() {
       flutterRevision: flutterRevision,
       flutterVersion: flutterVersionString,
       displayName: '1.2.3+1',
-      platformStatuses: const {},
+      platforms: const {},
       createdAt: DateTime(2023),
       updatedAt: DateTime(2023),
     );
@@ -58,6 +69,7 @@ void main() {
     late ArgResults argResults;
     late ArtifactBuilder artifactBuilder;
     late Cache cache;
+    late DartSdkCompatibility dartSdkCompatibility;
     late CodePushClientWrapper codePushClientWrapper;
     late Directory shorebirdRoot;
     late Directory projectRoot;
@@ -65,6 +77,8 @@ void main() {
     late Progress progress;
     late Releaser releaser;
     late ShorebirdEnv shorebirdEnv;
+    late RuntimeEndpoint runtimeEndpoint;
+    late ToolchainCoherence toolchainCoherence;
     late ShorebirdFlutter shorebirdFlutter;
     late ShorebirdValidator shorebirdValidator;
 
@@ -79,11 +93,18 @@ void main() {
             () => BuildTraceSession(commandStartedAt: DateTime(2023)),
           ),
           cacheRef.overrideWith(() => cache),
+          dartSdkCompatibilityRef.overrideWith(
+            () => dartSdkCompatibility,
+          ),
           codePushClientWrapperRef.overrideWith(() => codePushClientWrapper),
           loggerRef.overrideWith(() => logger),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
           shorebirdValidatorRef.overrideWith(() => shorebirdValidator),
+          runtimeEndpointRef.overrideWith(() => runtimeEndpoint),
+          toolchainCoherenceRef.overrideWith(
+            () => toolchainCoherence,
+          ),
         },
       );
     }
@@ -106,19 +127,37 @@ void main() {
       ).thenAnswer((_) async {});
       when(artifactBuilder.writeBuildTraceSummary).thenReturn(null);
       cache = MockCache();
+      dartSdkCompatibility = MockDartSdkCompatibility();
       codePushClientWrapper = MockCodePushClientWrapper();
       logger = MockShorebirdLogger();
       progress = MockProgress();
       releaser = MockReleaser();
+      when(() => releaser.minimumFlutterVersion).thenReturn(Version(0, 0, 0));
       shorebirdRoot = Directory.systemTemp.createTempSync();
       projectRoot = Directory.systemTemp.createTempSync();
       shorebirdEnv = MockShorebirdEnv();
+      // The producer's coherence gate is exercised by
+      // toolchain_coherence_test.dart, including its refusal path; here it is
+      // stubbed coherent so these tests keep testing the command.
+      runtimeEndpoint = MockRuntimeEndpoint();
+      toolchainCoherence = MockToolchainCoherence();
+      when(
+        () => toolchainCoherence.check(
+          flutterDirectory: any(named: 'flutterDirectory'),
+          engineRevision: any(named: 'engineRevision'),
+          platform: any(named: 'platform'),
+          publishedDartSdkZip: any(named: 'publishedDartSdkZip'),
+        ),
+      ).thenReturn([]);
       shorebirdFlutter = MockShorebirdFlutter();
       shorebirdValidator = MockShorebirdValidator();
 
       when(() => argResults['dry-run']).thenReturn(false);
       when(() => argResults['platforms']).thenReturn(['android']);
       when(() => argResults['flutter-version']).thenReturn('latest');
+      when(
+        () => argResults[CommonArguments.patchSigningArg.name],
+      ).thenReturn(true);
       when(() => argResults.wasParsed(any())).thenReturn(true);
       when(
         () => argResults.wasParsed(CommonArguments.publicKeyCmd.name),
@@ -173,9 +212,16 @@ void main() {
         ),
       ).thenAnswer((_) async => {});
       when(
+        () => releaser.uploadSupplementArtifact(
+          appId: any(named: 'appId'),
+          releaseId: any(named: 'releaseId'),
+        ),
+      ).thenAnswer((_) async {});
+      when(
         () => releaser.postReleaseInstructions,
       ).thenReturn(postReleaseInstructions);
       when(() => releaser.releaseType).thenReturn(ReleaseType.android);
+      when(() => releaser.useObfuscation).thenReturn(false);
       when(
         () => releaser.updatedReleaseMetadata(any()),
       ).thenAnswer((_) async => UpdateReleaseMetadata.forTest());
@@ -196,14 +242,19 @@ void main() {
         () => shorebirdEnv.getShorebirdProjectRoot(),
       ).thenReturn(projectRoot);
       when(() => shorebirdEnv.flutterRevision).thenReturn(flutterRevision);
+      when(
+        () => shorebirdEnv.shorebirdEngineRevision,
+      ).thenReturn('test-engine-revision');
       when(() => shorebirdEnv.usesShorebirdCodePushPackage).thenReturn(true);
 
       when(
         () => shorebirdFlutter.getVersionAndRevision(),
       ).thenAnswer((_) async => flutterRevision);
       when(
-        () =>
-            shorebirdFlutter.installRevision(revision: any(named: 'revision')),
+        () => shorebirdFlutter.installRevision(
+          revision: any(named: 'revision'),
+          releasePlatform: any(named: 'releasePlatform'),
+        ),
       ).thenAnswer((_) async => {});
       when(
         () => shorebirdFlutter.fetchRemoteRefs(),
@@ -220,11 +271,21 @@ void main() {
       ).thenAnswer((_) async => {});
 
       command = ReleaseCommand(resolveReleaser: (_) => releaser)
-        ..testArgResults = argResults;
+        ..testArgResults = argResults
+        ..testRunner = usageRunner();
     });
 
     test('has non-empty description', () {
       expect(command.description, isNotEmpty);
+    });
+
+    test('accepts hidden --no-confirm and --confirm', () {
+      final parser = ReleaseCommand().argParser;
+      expect(parser.options['no-confirm']!.hide, isTrue);
+      expect(parser.options['confirm']!.hide, isTrue);
+      expect(() => parser.parse(['--no-confirm']), returnsNormally);
+      expect(parser.parse(['--confirm'])['confirm'], isTrue);
+      expect(parser.parse([])['confirm'], isFalse);
     });
 
     group('getReleaser', () {
@@ -255,10 +316,16 @@ void main() {
         ).thenReturn('/path/to/nonexistent/file');
       });
 
-      test('exits with usage code', () async {
+      test('throws a usage exception naming the flag', () async {
         await expectLater(
           runWithOverrides(command.run),
-          exitsWithCode(ExitCode.usage),
+          throwsA(
+            isA<UsageException>().having(
+              (e) => e.message,
+              'message',
+              '--public-key-path: no file found at /path/to/nonexistent/file.',
+            ),
+          ),
         );
 
         verifyNever(
@@ -275,8 +342,10 @@ void main() {
         flutterRevision: flutterRevision,
         flutterVersion: flutterVersionString,
         displayName: '1.2.3+1',
-        platformStatuses: const {
-          ReleasePlatform.android: ReleaseStatus.active,
+        platforms: const {
+          ReleasePlatform.android: ReleasePlatformDetails(
+            status: ReleaseStatus.active,
+          ),
         },
         createdAt: DateTime(2023),
         updatedAt: DateTime(2023),
@@ -319,6 +388,76 @@ void main() {
       });
     });
 
+    group('when the Dart SDK does not match the engine', () {
+      setUp(() {
+        when(() => dartSdkCompatibility.validate()).thenThrow(
+          DartSdkMismatchException(
+            engineRevision: '70974f81',
+            expectedDartSdkRevision: '6b58bb3a',
+            actualDartSdkRevision: 'db98bdaa',
+            flutterDirectory: '/flutter',
+            shorebirdRoot: '/shorebird',
+          ),
+        );
+      });
+
+      test('fails with the remediation instead of building', () async {
+        await expectLater(
+          () => runWithOverrides(command.run),
+          exitsWithError(
+            message: contains('bin/internal/engine.version'),
+            exitCode: ExitCode.config,
+          ),
+        );
+        verifyNever(() => releaser.buildReleaseArtifacts());
+      });
+    });
+
+    // The runtime-endpoint gate, asserted at the ENTRYPOINT. Its rules are
+    // covered by runtime_endpoint_test, including the upstream control; these
+    // prove the release COMMAND consults it, and that it does so before
+    // anything is built.
+    group('runtime endpoint gate', () {
+      test('is consulted BEFORE any artifact is built', () async {
+        final exitCode = await runWithOverrides(command.run);
+        expect(exitCode, equals(ExitCode.success.code));
+
+        verifyInOrder([
+          runtimeEndpoint.assertShippable,
+          cache.updateAll,
+          () => releaser.buildReleaseArtifacts(),
+        ]);
+      });
+
+      test('a refusal aborts before anything is built', () async {
+        when(runtimeEndpoint.assertShippable).thenThrow(
+          ProcessExit(ExitCode.config.code),
+        );
+
+        await expectLater(
+          () => runWithOverrides(command.run),
+          throwsA(
+            isA<ProcessExit>().having(
+              (e) => e.exitCode,
+              'exitCode',
+              ExitCode.config.code,
+            ),
+          ),
+        );
+
+        // The point of refusing early: nothing is fetched, nothing is built,
+        // and no release is created that could not reach its control plane.
+        verifyNever(() => releaser.buildReleaseArtifacts());
+        verifyNever(
+          () => releaser.uploadReleaseArtifacts(
+            release: any(named: 'release'),
+            appId: any(named: 'appId'),
+          ),
+        );
+        verifyNever(cache.updateAll);
+      });
+    });
+
     test('executes commands in order, completes successfully', () async {
       final exitCode = await runWithOverrides(command.run);
       expect(exitCode, equals(ExitCode.success.code));
@@ -340,6 +479,10 @@ void main() {
           releaseArtifactRoot: any(named: 'releaseArtifactRoot'),
         ),
         () => releaser.uploadReleaseArtifacts(release: release, appId: appId),
+        () => releaser.uploadSupplementArtifact(
+          appId: appId,
+          releaseId: release.id,
+        ),
         () => logger.success('''
 
 ✅ Published Release ${release.version}!'''),
@@ -350,6 +493,57 @@ void main() {
       ]);
     });
 
+    group("when the app's enterprise requires patch signing", () {
+      setUp(() {
+        when(
+          () => codePushClientWrapper.getApp(appId: any(named: 'appId')),
+        ).thenAnswer(
+          (_) async => AppMetadata(
+            appId: appId,
+            displayName: appDisplayName,
+            createdAt: DateTime(2023),
+            updatedAt: DateTime(2023),
+            patchSigningRequired: true,
+            enterpriseName: 'Acme Corp',
+          ),
+        );
+      });
+
+      test('refuses --no-patch-signing before building', () async {
+        when(
+          () => argResults[CommonArguments.patchSigningArg.name],
+        ).thenReturn(false);
+        for (final arg in [
+          CommonArguments.publicKeyArg.name,
+          CommonArguments.publicKeyCmd.name,
+        ]) {
+          when(() => argResults.wasParsed(arg)).thenReturn(false);
+        }
+
+        await expectLater(
+          () => runWithOverrides(command.run),
+          exitsWithError(
+            message:
+                "Acme Corp requires patch signing, so a release can't be "
+                'built without it.',
+            hint: 'Release again without --no-patch-signing.',
+            exitCode: ExitCode.noPerm,
+          ),
+        );
+        verifyNever(
+          () => shorebirdFlutter.installRevision(
+            revision: any(named: 'revision'),
+          ),
+        );
+        verifyNever(() => releaser.buildReleaseArtifacts());
+      });
+
+      test('releases when patches are signed', () async {
+        final exitCode = await runWithOverrides(command.run);
+        expect(exitCode, equals(ExitCode.success.code));
+      });
+    });
+
     group('when build fails', () {
       setUp(() {
         when(
@@ -357,15 +551,24 @@ void main() {
         ).thenThrow(Exception('oops'));
       });
 
-      test('exits with code 70', () async {
+      test('exits with an error saying the build failed', () async {
         await expectLater(
           () => runWithOverrides(command.run),
-          exitsWithCode(ExitCode.software),
+          exitsWithError(
+            message: 'Failed to build release artifacts: Exception: oops',
+            exitCode: ExitCode.software,
+          ),
         );
-        verify(
-          () =>
-              logger.err('Failed to build release artifacts: Exception: oops'),
-        ).called(1);
+      });
+
+      test('passes on an exit that was already reported', () async {
+        final exit = ProcessExit(ExitCode.unavailable.code);
+        when(() => releaser.buildReleaseArtifacts()).thenThrow(exit);
+
+        await expectLater(
+          () => runWithOverrides(command.run),
+          throwsA(same(exit)),
+        );
       });
 
       group('when failure is an ArtifactBuildException', () {
@@ -382,13 +585,144 @@ void main() {
             when(() => exception.fixRecommendation).thenReturn('fix it');
           });
 
-          test('logs fix recommendation at the info level', () async {
+          test('exits with the fix recommendation as the hint', () async {
             await expectLater(
               () => runWithOverrides(command.run),
-              exitsWithCode(ExitCode.software),
+              exitsWithError(
+                message: 'oops',
+                hint: 'fix it',
+                exitCode: ExitCode.software,
+              ),
             );
-            verify(() => logger.info('fix it')).called(1);
           });
+        });
+      });
+    });
+
+    group('--json', () {
+      Future<T> runJson<T>(Future<T> Function() body) => runScoped(
+        body,
+        values: {isJsonModeRef.overrideWith(() => true)},
+      );
+
+      setUp(() {
+        when(
+          () => codePushClientWrapper.maybeGetRelease(
+            appId: any(named: 'appId'),
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        ).thenAnswer((_) async => release);
+      });
+
+      // The release is already published by the time the refresh runs, so a
+      // failure there must not turn a successful run into a failed one --
+      // and getRelease, which this used to call, exits the process with a
+      // message about publishing patches.
+      test(
+        'falls back to the release in hand when the refetch fails',
+        () async {
+          var calls = 0;
+          when(
+            () => codePushClientWrapper.maybeGetRelease(
+              appId: any(named: 'appId'),
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          ).thenAnswer((_) async {
+            // ensureVersionIsReleasable and getOrCreateRelease each look the
+            // version up before the build; the refresh is the one after it.
+            if (++calls <= 2) return release;
+            throw ProcessExit(ExitCode.software.code);
+          });
+
+          final (:exitCode, :json) = await captureJson(
+            () => runJson(() => runWithOverrides(command.run)),
+          );
+
+          expect(exitCode, equals(ExitCode.success.code));
+          expect(json['status'], equals('success'));
+          expect(
+            (json['data'] as Map<String, dynamic>)['releases'],
+            equals([release.toJson()]),
+          );
+        },
+      );
+
+      test('emits the published release, re-fetched after finalize', () async {
+        final finalized = Release(
+          id: release.id,
+          appId: release.appId,
+          version: release.version,
+          flutterRevision: release.flutterRevision,
+          displayName: release.displayName,
+          platforms: const {
+            ReleasePlatform.android: ReleasePlatformDetails(
+              status: ReleaseStatus.active,
+            ),
+          },
+          createdAt: release.createdAt,
+          updatedAt: release.updatedAt,
+        );
+        when(
+          () => codePushClientWrapper.maybeGetRelease(
+            appId: any(named: 'appId'),
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        ).thenAnswer((_) async => finalized);
+
+        final (:exitCode, :json) = await captureJson(
+          () => runJson(() => runWithOverrides(command.run)),
+        );
+
+        expect(exitCode, equals(ExitCode.success.code));
+        expect(json['status'], equals('success'));
+        expect(
+          json['data'],
+          equals({
+            'app_id': appId,
+            'platforms': ['android'],
+            'releases': [finalized.toJson()],
+          }),
+        );
+      });
+
+      test('emits nothing but the envelope on stdout', () async {
+        // Human progress lines are still logged; the runner routes them to
+        // stderr in JSON mode. Here the logger is a mock, so the check is
+        // that the command itself writes only the envelope.
+        await captureJson(
+          () => runJson(() => runWithOverrides(command.run)),
+        );
+      });
+
+      group('with --dry-run', () {
+        setUp(() {
+          when(() => argResults['dry-run']).thenReturn(true);
+        });
+
+        test('emits what would have been released', () async {
+          final captured = <String>[];
+          await expectLater(
+            captureStdout(
+              () => runJson(() => runWithOverrides(command.run)),
+              captured: captured,
+            ),
+            exitsWithCode(ExitCode.success),
+          );
+
+          expect(captured, hasLength(1));
+          final envelope = jsonDecode(captured.single) as Map<String, dynamic>;
+          expect(envelope['status'], equals('success'));
+          expect(
+            envelope['data'],
+            equals({
+              'dry_run': true,
+              'app_id': appId,
+              'platform': 'android',
+              'release_version': release.version,
+              'flutter_revision': flutterRevision,
+            }),
+          );
+          verifyNever(() => logger.info('No issues detected.'));
         });
       });
     });
@@ -412,82 +746,6 @@ void main() {
             version: any(named: 'version'),
             flutterRevision: any(named: 'flutterRevision'),
             platform: any(named: 'platform'),
-          ),
-        );
-      });
-    });
-
-    // This isn't really needed anymore since we don't prompt for confirmation.
-    // but we do accept a --no-confirm argument for backwards compatibility.
-    group('when --no-confirm is specified', () {
-      setUp(() {
-        when(() => argResults['confirm']).thenReturn(false);
-      });
-
-      test('does not prompt for confirmation', () async {
-        await runWithOverrides(command.run);
-        verifyNever(() => logger.confirm(any()));
-      });
-    });
-
-    group('when --confirm is passed', () {
-      setUp(() {
-        when(() => argResults['confirm']).thenReturn(true);
-        when(() => shorebirdEnv.canAcceptUserInput).thenReturn(true);
-      });
-
-      group('when user confirms', () {
-        setUp(() {
-          when(
-            () => logger.confirm(
-              any(),
-              defaultValue: any(named: 'defaultValue'),
-            ),
-          ).thenReturn(true);
-        });
-
-        test('continues', () async {
-          await runWithOverrides(command.run);
-          verify(
-            () => logger.confirm(
-              'Would you like to continue?',
-              defaultValue: true,
-            ),
-          ).called(1);
-        });
-      });
-
-      group('when user declines', () {
-        setUp(() {
-          when(
-            () => logger.confirm(
-              any(),
-              defaultValue: any(named: 'defaultValue'),
-            ),
-          ).thenReturn(false);
-        });
-
-        test('exits with success and prints Aborting.', () async {
-          await expectLater(
-            runWithOverrides(command.run),
-            exitsWithCode(ExitCode.success),
-          );
-          verify(() => logger.info('Aborting.')).called(1);
-        });
-      });
-    });
-
-    group('when --confirm is not passed', () {
-      setUp(() {
-        when(() => argResults['confirm']).thenReturn(false);
-      });
-
-      test('does not prompt for confirmation', () async {
-        await runWithOverrides(command.run);
-        verifyNever(
-          () => logger.confirm(
-            any(),
-            defaultValue: any(named: 'defaultValue'),
           ),
         );
       });
@@ -540,13 +798,31 @@ void main() {
               flavorArg: any(named: 'flavorArg'),
               releasePlatform: any(named: 'releasePlatform'),
             ),
-          ).thenThrow(ValidationFailedException());
+          ).thenThrow(
+            ValidationFailedException(
+              message: 'Flavors are not supported on this platform.',
+            ),
+          );
         });
 
         test('exits with code 78 (config)', () async {
           await expectLater(
             () => runWithOverrides(command.run),
             exitsWithCode(ExitCode.config),
+          );
+        });
+
+        test('carries the flavor failure for the runner to report as '
+            'precondition_failed', () async {
+          await expectLater(
+            () => runWithOverrides(command.run),
+            throwsA(
+              isA<PreconditionFailedExit>().having(
+                (e) => e.failure.message,
+                'failure.message',
+                'Flavors are not supported on this platform.',
+              ),
+            ),
           );
         });
       });
@@ -573,7 +849,7 @@ void main() {
             flutterRevision: 'different',
             flutterVersion: '3.12.1',
             displayName: '1.2.3+1',
-            platformStatuses: const {},
+            platforms: const {},
             createdAt: DateTime(2023),
             updatedAt: DateTime(2023),
           );
@@ -598,12 +874,24 @@ void main() {
           ).thenReturn('3.12.1');
         });
 
-        test('logs error and exits with code 70', () async {
-          await expectLater(
-            () => runWithOverrides(command.run),
-            exitsWithCode(ExitCode.software),
-          );
-        });
+        test(
+          'exits with an error naming the existing release Flutter',
+          () async {
+            await expectLater(
+              () => runWithOverrides(command.run),
+              exitsWithError(
+                message: allOf(
+                  startsWith('Release $releaseVersion was built with Flutter'),
+                  endsWith(
+                    'All platforms of a release must use the same Flutter.',
+                  ),
+                ),
+                hint: startsWith('Re-run with --flutter-version=different,'),
+                exitCode: ExitCode.software,
+              ),
+            );
+          },
+        );
       });
 
       group('when the release uses the same version of Flutter', () {
@@ -647,16 +935,17 @@ void main() {
           ).thenThrow(exception);
         });
 
-        test('exits with code 70', () async {
+        test('exits with an error saying the revision is unknown', () async {
           await expectLater(
             () => runWithOverrides(command.run),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message:
+                  'Unable to determine the revision for Flutter '
+                  '$flutterVersion: $exception',
+              hint: 'Run: shorebird flutter versions list',
+              exitCode: ExitCode.software,
+            ),
           );
-          verify(
-            () => logger.err('''
-Unable to determine revision for Flutter version: $flutterVersion.
-$exception'''),
-          ).called(1);
         });
       });
 
@@ -667,16 +956,17 @@ $exception'''),
           ).thenAnswer((_) async => null);
         });
 
-        test('exits with code 70', () async {
+        test('exits with an error saying the version is unavailable', () async {
           await expectLater(
             () => runWithOverrides(command.run),
-            exitsWithCode(ExitCode.software),
-          );
-          verify(
-            () => logger.err(
-              any(that: contains('Version $flutterVersion not found.')),
+            exitsWithError(
+              message: startsWith(
+                'Flutter $flutterVersion is not available to Shorebird.',
+              ),
+              hint: 'Run: shorebird flutter versions list',
+              exitCode: ExitCode.software,
             ),
-          ).called(1);
+          );
         });
       });
 
@@ -699,7 +989,10 @@ $exception'''),
           await runWithOverrides(command.run);
 
           verify(
-            () => shorebirdFlutter.installRevision(revision: revision),
+            () => shorebirdFlutter.installRevision(
+              revision: revision,
+              releasePlatform: any(named: 'releasePlatform'),
+            ),
           ).called(1);
         });
 
@@ -708,6 +1001,7 @@ $exception'''),
             when(
               () => shorebirdFlutter.installRevision(
                 revision: any(named: 'revision'),
+                releasePlatform: any(named: 'releasePlatform'),
               ),
             ).thenThrow(Exception('oops'));
           });
@@ -718,12 +1012,125 @@ $exception'''),
               exitsWithCode(ExitCode.software),
             );
             verify(
-              () => shorebirdFlutter.installRevision(revision: revision),
+              () => shorebirdFlutter.installRevision(
+                revision: revision,
+                releasePlatform: any(named: 'releasePlatform'),
+              ),
             ).called(1);
           });
         });
       });
     });
+
+    /// Shared expectations for the `--flutter-version` values that ask the
+    /// user's toolchain which Flutter version to build with.
+    void testFlutterVersionAlias({
+      required String arg,
+      required String versionCommand,
+      required Future<String?> Function() Function() getVersion,
+    }) {
+      group('when flutter-version is "$arg"', () {
+        const reportedVersion = '3.32.4';
+        const revision = '771d07b2cf';
+
+        setUp(() {
+          when(() => argResults['flutter-version']).thenReturn(arg);
+          when(
+            () => shorebirdFlutter.resolveFlutterRevision(any()),
+          ).thenAnswer((_) async => revision);
+        });
+
+        test('builds with the Shorebird revision for the reported '
+            'version', () async {
+          when(getVersion()).thenAnswer((_) async => reportedVersion);
+
+          await runWithOverrides(command.run);
+
+          // The reported version is looked up like any other version, so we
+          // still build with Shorebird's Flutter fork rather than the user's.
+          verify(
+            () => shorebirdFlutter.resolveFlutterRevision(reportedVersion),
+          ).called(1);
+          // Self-hosted fork: installRevision also hydrates the target
+          // platform's engine artifacts, so it carries the release platform.
+          verify(
+            () => shorebirdFlutter.installRevision(
+              revision: revision,
+              releasePlatform: any(named: 'releasePlatform'),
+            ),
+          ).called(1);
+          verify(
+            () => logger.info(
+              'Using Flutter $reportedVersion, as reported by '
+              '`$versionCommand`.',
+            ),
+          ).called(1);
+        });
+
+        test('only asks for the version once', () async {
+          when(getVersion()).thenAnswer((_) async => reportedVersion);
+
+          await runWithOverrides(command.run);
+
+          verify(getVersion()).called(1);
+        });
+
+        group('when the version lookup fails', () {
+          final exception = Exception('oops');
+          setUp(() {
+            when(getVersion()).thenThrow(exception);
+          });
+
+          test('exits with an error saying the lookup failed', () async {
+            await expectLater(
+              () => runWithOverrides(command.run),
+              exitsWithError(
+                message:
+                    'Unable to determine the Flutter version from '
+                    '`$versionCommand`: $exception',
+                hint:
+                    'Pass a version with --flutter-version=<version> instead. '
+                    'Run: shorebird flutter versions list',
+                exitCode: ExitCode.software,
+              ),
+            );
+          });
+        });
+
+        group('when the version cannot be parsed', () {
+          setUp(() {
+            when(getVersion()).thenAnswer((_) async => null);
+          });
+
+          test('exits with an error when the version is unparsable', () async {
+            await expectLater(
+              () => runWithOverrides(command.run),
+              exitsWithError(
+                message:
+                    'Unable to parse a Flutter version from the output of '
+                    '`$versionCommand`.',
+                hint:
+                    'Pass a version with --flutter-version=<version> instead. '
+                    'Run: shorebird flutter versions list',
+                exitCode: ExitCode.software,
+              ),
+            );
+          });
+        });
+      });
+    }
+
+    testFlutterVersionAlias(
+      arg: 'system',
+      versionCommand: 'flutter --version',
+      getVersion: () => shorebirdFlutter.getSystemVersion,
+    );
+
+    testFlutterVersionAlias(
+      arg: 'fvm',
+      versionCommand: 'fvm',
+      getVersion: () => shorebirdFlutter.getFvmVersion,
+    );
 
     group('when a patch signing public key is provided', () {
       const keyName = 'test-key-path.pem';
@@ -744,19 +1151,387 @@ $exception'''),
       });
     });
 
+    group('patch_verification', () {
+      const brokenEngineRevision = '6eae37c3bd60906cfaa3b026b3271b896a76e46f';
+      const goodEngineRevision = '145c457f310dc800caa96f163cfde167df18f0da';
+
+      setUp(() {
+        // A Shorebird-hosted server. On a self-hosted one install_only is
+        // refused earlier, by assertArgsAreValid.
+        when(
+          () => shorebirdEnv.hostedEnvironment,
+        ).thenReturn(productionEnvironment);
+      });
+
+      void setUpYaml(PatchVerification? patchVerification) {
+        when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(
+          ShorebirdYaml(appId: appId, patchVerification: patchVerification),
+        );
+      }
+
+      group('when install_only is set on an engine where it is broken', () {
+        setUp(() {
+          setUpYaml(PatchVerification.installOnly);
+          when(
+            () => shorebirdEnv.shorebirdEngineRevision,
+          ).thenReturn(brokenEngineRevision);
+        });
+
+        test('refuses the release before building', () async {
+          await expectLater(
+            () => runWithOverrides(command.run),
+            throwsA(
+              isA<PreconditionFailedExit>()
+                  .having((e) => e.exitCode, 'exitCode', ExitCode.config.code)
+                  .having(
+                    (e) => e.failure.message,
+                    'failure.message',
+                    contains('does not check patch signatures'),
+                  ),
+            ),
+          );
+          verify(
+            () => logger.err(
+              any(that: contains('`patch_verification: install_only`')),
+            ),
+          ).called(1);
+          verify(
+            () => logger.info(any(that: contains('--flutter-version=3.41.8'))),
+          ).called(1);
+          verifyNever(() => releaser.buildReleaseArtifacts());
+        });
+      });
+
+      group('when install_only is set on an engine where it works', () {
+        setUp(() {
+          setUpYaml(PatchVerification.installOnly);
+          when(
+            () => shorebirdEnv.shorebirdEngineRevision,
+          ).thenReturn(goodEngineRevision);
+        });
+
+        test('releases', () async {
+          final exitCode = await runWithOverrides(command.run);
+          expect(exitCode, equals(ExitCode.success.code));
+        });
+      });
+
+      group('when strict is set on an engine where install_only is broken', () {
+        setUp(() {
+          setUpYaml(PatchVerification.strict);
+          when(
+            () => shorebirdEnv.shorebirdEngineRevision,
+          ).thenReturn(brokenEngineRevision);
+        });
+
+        test('releases', () async {
+          final exitCode = await runWithOverrides(command.run);
+          expect(exitCode, equals(ExitCode.success.code));
+        });
+      });
+    });
+
     group('when no platform argument is provided', () {
       setUp(() {
         when(() => argResults['platforms']).thenReturn(const <String>[]);
+        command.testRunner = usageRunner();
       });
 
-      test('fails and log the correct message', () async {
-        final exitCode = await runWithOverrides(command.run);
+      test('throws a usage exception listing the valid platforms', () async {
+        await expectLater(
+          runWithOverrides(command.run),
+          throwsA(
+            isA<UsageException>().having(
+              (e) => e.message,
+              'message',
+              '''
+No platform was provided.
+Valid platforms: aar, android, ios, ios-framework, linux, macos, windows''',
+            ),
+          ),
+        );
+      });
+    });
 
-        expect(exitCode, equals(ExitCode.usage.code));
+    group('when the platform argument is invalid', () {
+      setUp(() {
+        when(() => argResults.wasParsed('platforms')).thenReturn(false);
+        when(() => argResults.arguments).thenReturn(['list']);
+        when(() => argResults.rest).thenReturn(['list']);
+        command.testRunner = usageRunner(commands: {});
+      });
+
+      test('throws a usage exception without a subcommand hint', () async {
+        await expectLater(
+          runWithOverrides(command.run),
+          throwsA(
+            isA<UsageException>().having(
+              (e) => e.message,
+              'message',
+              '''
+Invalid platform: "list".
+Valid platforms: aar, android, ios, ios-framework, linux, macos, windows''',
+            ),
+          ),
+        );
+      });
+    });
+
+    group('when a version is given as a positional', () {
+      void stubArgs(List<String> args) {
+        when(() => argResults.wasParsed('platforms')).thenReturn(false);
+        when(() => argResults.arguments).thenReturn(args);
+        when(() => argResults.rest).thenReturn(args);
+      }
+
+      setUp(() {
+        command.testRunner = usageRunner();
+      });
+
+      test('suggests --build-name and --build-number for android', () async {
+        stubArgs(['android', '1.0.0+1']);
+        await expectLater(
+          runWithOverrides(command.run),
+          throwsA(
+            isA<UsageException>().having(
+              (e) => e.message,
+              'message',
+              '''
+Unexpected argument: "1.0.0+1".
+Did you mean --build-name=1.0.0 --build-number=1?''',
+            ),
+          ),
+        );
+      });
+
+      test('suggests --build-name alone without a build number', () async {
+        stubArgs(['android', '1.0.0']);
+        await expectLater(
+          runWithOverrides(command.run),
+          throwsA(
+            isA<UsageException>().having(
+              (e) => e.message,
+              'message',
+              '''
+Unexpected argument: "1.0.0".
+Did you mean --build-name=1.0.0?''',
+            ),
+          ),
+        );
+      });
+
+      test('suggests --release-version for aar', () async {
+        stubArgs(['aar', '1.0.0+1']);
+        await expectLater(
+          runWithOverrides(command.run),
+          throwsA(
+            isA<UsageException>().having(
+              (e) => e.message,
+              'message',
+              '''
+Unexpected argument: "1.0.0+1".
+Did you mean --release-version=1.0.0+1?''',
+            ),
+          ),
+        );
+      });
+
+      test('suggests --release-version for ios-framework', () async {
+        stubArgs(['ios-framework', '1.0.0+1']);
+        await expectLater(
+          runWithOverrides(command.run),
+          throwsA(
+            isA<UsageException>().having(
+              (e) => e.message,
+              'message',
+              contains('--release-version=1.0.0+1'),
+            ),
+          ),
+        );
+      });
+    });
+
+    group('when a .dart target is given as a positional', () {
+      setUp(() {
+        when(() => argResults.wasParsed('platforms')).thenReturn(false);
+        when(() => argResults.wasParsed('target')).thenReturn(false);
+        when(
+          () => argResults.arguments,
+        ).thenReturn(['android', 'lib/main_prod.dart']);
+        when(
+          () => argResults.rest,
+        ).thenReturn(['android', 'lib/main_prod.dart']);
+        command.testRunner = usageRunner();
+      });
+
+      test('uses it as the target and says so', () {
+        expect(
+          runWithOverrides(() => command.target),
+          equals('lib/main_prod.dart'),
+        );
+        verify(
+          () => logger.info(
+            'Using lib/main_prod.dart as the target '
+            '(--target lib/main_prod.dart).',
+          ),
+        ).called(1);
+      });
+
+      test('throws a usage exception when --target is also given', () {
+        when(() => argResults.wasParsed('target')).thenReturn(true);
+        when(() => argResults['target']).thenReturn('lib/main.dart');
+        expect(
+          () => runWithOverrides(() => command.target),
+          throwsA(
+            isA<UsageException>().having(
+              (e) => e.message,
+              'message',
+              'Both --target lib/main.dart and the positional '
+                  'lib/main_prod.dart name a target. Pass only one.',
+            ),
+          ),
+        );
+      });
+    });
+
+    group('--patch-signing', () {
+      test('is on by default', () {
+        expect(
+          command.argParser.parse([])[CommonArguments.patchSigningArg.name],
+          isTrue,
+        );
+      });
+
+      test('is turned off by --no-patch-signing', () {
+        expect(
+          command.argParser.parse([
+            '--no-patch-signing',
+          ])[CommonArguments.patchSigningArg.name],
+          isFalse,
+        );
+      });
+    });
+
+    group('printReleaseSummary', () {
+      Future<void> printSummary(ReleaseSigningMode mode) => runWithOverrides(
+        () => command.printReleaseSummary(
+          app: appMetadata,
+          releaseVersion: '1.0.0+1',
+          flutterVersion: 'deadbeef',
+          releasePlatform: ReleasePlatform.android,
+          signing: ArtifactSigningRequest(mode: mode),
+        ),
+      );
+
+      for (final (mode, description) in [
+        (ReleaseSigningMode.managed, 'Shorebird-managed key'),
+        (ReleaseSigningMode.customer, 'your key'),
+      ]) {
+        test('describes $mode patch signing', () async {
+          await printSummary(mode);
+
+          verify(
+            () => logger.info(
+              any(
+                that: contains(
+                  '🔏 Patch Signing: ${lightCyan.wrap(description)}',
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+      }
+
+      group('--confirm', () {
+        setUp(() {
+          when(() => argResults['confirm']).thenReturn(true);
+        });
+
+        test('goes on when the user confirms', () async {
+          when(
+            () => logger.confirm(
+              any(),
+              defaultValue: any(named: 'defaultValue'),
+              hint: any(named: 'hint'),
+            ),
+          ).thenReturn(true);
+
+          await printSummary(ReleaseSigningMode.managed);
+
+          verify(
+            () => logger.confirm(
+              'Would you like to continue?',
+              defaultValue: true,
+              hint: any(named: 'hint'),
+            ),
+          ).called(1);
+        });
+
+        test(
+          'stops with exit 0 and an info line when the user declines',
+          () async {
+            when(
+              () => logger.confirm(
+                any(),
+                defaultValue: any(named: 'defaultValue'),
+                hint: any(named: 'hint'),
+              ),
+            ).thenReturn(false);
+
+            await expectLater(
+              printSummary(ReleaseSigningMode.managed),
+              throwsA(
+                isA<ProcessExit>().having(
+                  (e) => e.exitCode,
+                  'exitCode',
+                  ExitCode.success.code,
+                ),
+              ),
+            );
+            verify(() => logger.info('Aborting.')).called(1);
+            verifyNever(() => logger.err('Aborting.'));
+          },
+        );
+
+        test('refuses when nothing can answer, instead of approving', () async {
+          when(
+            () => logger.confirm(
+              any(),
+              defaultValue: any(named: 'defaultValue'),
+              hint: any(named: 'hint'),
+            ),
+          ).thenThrow(
+            const InteractivePromptRequiredException(
+              promptText: 'Would you like to continue?',
+              hint: 'hint',
+            ),
+          );
+
+          await expectLater(
+            printSummary(ReleaseSigningMode.managed),
+            throwsA(isA<InteractivePromptRequiredException>()),
+          );
+        });
+      });
+
+      test('does not prompt without --confirm', () async {
+        await printSummary(ReleaseSigningMode.managed);
+
+        verifyNever(
+          () => logger.confirm(
+            any(),
+            defaultValue: any(named: 'defaultValue'),
+            hint: any(named: 'hint'),
+          ),
+        );
+      });
+
+      test('says patch signing is off for an unsigned release', () async {
+        await printSummary(ReleaseSigningMode.unsigned);
 
         verify(
-          () => logger.err(
-            '''No platforms were provided. Use the --platforms argument to provide one or more platforms''',
+          () => logger.info(
+            any(that: contains('🔏 Patch Signing: ${yellow.wrap('off')}')),
           ),
         ).called(1);
       });
@@ -765,47 +1540,232 @@ $exception'''),
     group('assertArgsAreValid', () {
       test('calls releaser.assertArgsAreValid', () async {
         final releaser = MockReleaser();
+        when(() => releaser.minimumFlutterVersion).thenReturn(Version(0, 0, 0));
+        when(() => releaser.useObfuscation).thenReturn(false);
         when(releaser.assertArgsAreValid).thenAnswer((_) async => {});
         await runWithOverrides(() => command.assertArgsAreValid(releaser));
         verify(releaser.assertArgsAreValid).called(1);
       });
 
-      group(
-        'when patch_verification is set but public-key-path is not provided',
-        () {
-          setUp(() {
-            when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(
-              const ShorebirdYaml(
-                appId: appId,
-                patchVerification: PatchVerification.strict,
-              ),
-            );
-            when(
-              () => argResults.wasParsed(CommonArguments.publicKeyArg.name),
-            ).thenReturn(false);
-          });
+      group('patch verification policy', () {
+        const unsignedWarning =
+            'No patch public key was provided. Patches for this release will '
+            'not be cryptographically verified on the device.\n'
+            'To enable verification, provide '
+            '--public-key-path or --public-key-cmd.';
 
-          test('logs a warning', () async {
-            final releaser = MockReleaser();
-            when(releaser.assertArgsAreValid).thenAnswer((_) async => {});
-            await runWithOverrides(() => command.assertArgsAreValid(releaser));
+        void withYaml(PatchVerification? mode) {
+          when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(
+            ShorebirdYaml(appId: appId, patchVerification: mode),
+          );
+        }
+
+        void withKey({required bool path, bool cmd = false}) {
+          when(
+            () => argResults.wasParsed(CommonArguments.publicKeyArg.name),
+          ).thenReturn(path);
+          when(
+            () => argResults.wasParsed(CommonArguments.publicKeyCmd.name),
+          ).thenReturn(cmd);
+        }
+
+        Future<void> run() async {
+          final releaser = MockReleaser();
+          when(
+            () => releaser.minimumFlutterVersion,
+          ).thenReturn(Version(0, 0, 0));
+          when(() => releaser.useObfuscation).thenReturn(false);
+          when(releaser.assertArgsAreValid).thenAnswer((_) async => {});
+          await runWithOverrides(() => command.assertArgsAreValid(releaser));
+        }
+
+        Future<void> expectRefusal() async {
+          final releaser = MockReleaser();
+          when(
+            () => releaser.minimumFlutterVersion,
+          ).thenReturn(Version(0, 0, 0));
+          when(() => releaser.useObfuscation).thenReturn(false);
+          when(releaser.assertArgsAreValid).thenAnswer((_) async => {});
+          await expectLater(
+            () => runWithOverrides(() => command.assertArgsAreValid(releaser)),
+            exitsWithCode(ExitCode.config),
+          );
+        }
+
+        group('install_only is REFUSED', () {
+          // Not "not yet certified": the self-hosted updater has no production
+          // install-time verification at all, so a release cut this way yields
+          // clients that never verify. Refusing at patch time would be too
+          // late for a client already in the field, which is why the refusal
+          // lives in the RELEASE path.
+          test('with no key', () async {
+            withYaml(PatchVerification.installOnly);
+            withKey(path: false);
+            await expectRefusal();
             verify(
-              () => logger.warn(
-                'patch_verification is set in shorebird.yaml but '
-                'no public key was provided '
-                '(--${CommonArguments.publicKeyArg.name} '
-                'or --${CommonArguments.publicKeyCmd.name}).\n'
-                'patch_verification configuration will have no effect.',
+              () => logger.err(
+                any(that: contains('install_only is unsupported')),
               ),
             ).called(1);
           });
-        },
-      );
 
-      test('exits with code 64 if flutter version is not supported', () async {
+          test('with --public-key-path', () async {
+            withYaml(PatchVerification.installOnly);
+            withKey(path: true);
+            await expectRefusal();
+          });
+
+          test('with --public-key-cmd', () async {
+            withYaml(PatchVerification.installOnly);
+            withKey(path: false, cmd: true);
+            await expectRefusal();
+          });
+
+          test('and emits NO unsigned warning first', () async {
+            // Ordering matters: a command that will fail for an unsupported
+            // verification mode must not also emit signing noise.
+            withYaml(PatchVerification.installOnly);
+            withKey(path: false);
+            await expectRefusal();
+            verifyNever(() => logger.warn(unsignedWarning));
+          });
+        });
+
+        test(
+          'install_only refuses BEFORE anything is built or created',
+          () async {
+            // The refusal must land in the validation phase. If it only fired
+            // later, a release could already have been created or artifacts
+            // uploaded, and the whole point is that the shipped configuration is
+            // what determines what the device verifies.
+            withYaml(PatchVerification.installOnly);
+            withKey(path: false);
+            await expectLater(
+              () => runWithOverrides(command.run),
+              exitsWithCode(ExitCode.config),
+            );
+            verifyNever(() => releaser.buildReleaseArtifacts());
+            verifyNever(
+              () => codePushClientWrapper.createRelease(
+                appId: any(named: 'appId'),
+                version: any(named: 'version'),
+                flutterRevision: any(named: 'flutterRevision'),
+                platform: any(named: 'platform'),
+              ),
+            );
+          },
+        );
+
+        group('unsigned releases warn whenever no key is provided', () {
+          test('when patch_verification is OMITTED', () async {
+            // The case the previous condition left silent, and the most common
+            // one. Strict-without-a-key skips verification outright, so this
+            // release verifies nothing either.
+            withYaml(null);
+            withKey(path: false);
+            await run();
+            verify(() => logger.warn(unsignedWarning)).called(1);
+          });
+
+          test('when patch_verification is strict', () async {
+            withYaml(PatchVerification.strict);
+            withKey(path: false);
+            await run();
+            verify(() => logger.warn(unsignedWarning)).called(1);
+          });
+        });
+
+        group('no warning when a key IS provided', () {
+          test('with patch_verification omitted', () async {
+            withYaml(null);
+            withKey(path: true);
+            await run();
+            verifyNever(() => logger.warn(unsignedWarning));
+          });
+
+          test('with patch_verification strict', () async {
+            withYaml(PatchVerification.strict);
+            withKey(path: true);
+            await run();
+            verifyNever(() => logger.warn(unsignedWarning));
+          });
+        });
+      });
+      group('when patch_verification is set', () {
+        late Releaser releaser;
+
+        setUp(() {
+          when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(
+            const ShorebirdYaml(
+              appId: appId,
+              patchVerification: PatchVerification.strict,
+            ),
+          );
+          when(
+            () => argResults.wasParsed(CommonArguments.publicKeyArg.name),
+          ).thenReturn(false);
+          releaser = MockReleaser();
+          when(
+            () => releaser.minimumFlutterVersion,
+          ).thenReturn(Version(0, 0, 0));
+          when(() => releaser.useObfuscation).thenReturn(false);
+          when(releaser.assertArgsAreValid).thenAnswer((_) async => {});
+        });
+
+        test('warns with --no-patch-signing', () async {
+          when(
+            () => argResults[CommonArguments.patchSigningArg.name],
+          ).thenReturn(false);
+          await runWithOverrides(() => command.assertArgsAreValid(releaser));
+          verify(
+            () => logger.warn(
+              'patch_verification is set in shorebird.yaml but '
+              '--no-patch-signing builds a release whose patches are '
+              'unsigned.\n'
+              'patch_verification configuration will have no effect.',
+            ),
+          ).called(1);
+        });
+
+        test('does not warn when patches are signed', () async {
+          when(
+            () => shorebirdEnv.hostedEnvironment,
+          ).thenReturn(productionEnvironment);
+          await runWithOverrides(() => command.assertArgsAreValid(releaser));
+          verifyNever(() => logger.warn(any()));
+        });
+      });
+
+      test('rejects --no-patch-signing with a public key', () async {
+        when(
+          () => argResults[CommonArguments.patchSigningArg.name],
+        ).thenReturn(false);
+        when(
+          () => argResults.wasParsed(CommonArguments.publicKeyArg.name),
+        ).thenReturn(true);
+        when(
+          () => argResults[CommonArguments.publicKeyArg.name],
+        ).thenReturn(null);
         final releaser = MockReleaser();
-        const releaseType = ReleaseType.android;
-        when(() => releaser.releaseType).thenReturn(releaseType);
+        await expectLater(
+          () => runWithOverrides(() => command.assertArgsAreValid(releaser)),
+          throwsA(
+            isA<UsageException>().having(
+              (e) => e.message,
+              'message',
+              '--no-patch-signing builds a release whose patches are '
+                  'unsigned, so it cannot be combined with '
+                  '--public-key-path or --public-key-cmd.',
+            ),
+          ),
+        );
+      });
+
+      test('exits with an error if flutter version is not supported', () async {
+        final releaser = MockReleaser();
+        when(
+          () => releaser.releaseType,
+        ).thenReturn(ReleaseType.iosFramework);
         when(releaser.assertArgsAreValid).thenAnswer((_) async => {});
         final laterFlutterVersion = Version(3, 23, 0);
         expect(laterFlutterVersion, greaterThan(flutterVersion));
@@ -814,13 +1774,105 @@ $exception'''),
         ).thenReturn(laterFlutterVersion);
         await expectLater(
           () => runWithOverrides(() => command.assertArgsAreValid(releaser)),
-          exitsWithCode(ExitCode.usage),
+          exitsWithError(
+            message:
+                'At least Flutter $laterFlutterVersion is required to release '
+                'with `ios-framework` (see $supportedFlutterVersionsUrl).',
+            hint: isNull,
+          ),
         );
-        verify(
-          () => logger.err('''
-At least Flutter $laterFlutterVersion is required to release with `${releaseType.name}`.
-For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
-        ).called(1);
+      });
+
+      test(
+        'suggests dropping --flutter-version when it names an old Flutter',
+        () async {
+          final releaser = MockReleaser();
+          when(
+            () => releaser.releaseType,
+          ).thenReturn(ReleaseType.iosFramework);
+          when(releaser.assertArgsAreValid).thenAnswer((_) async => {});
+          when(() => argResults['flutter-version']).thenReturn('3.22.0');
+          final laterFlutterVersion = Version(3, 23, 0);
+          expect(laterFlutterVersion, greaterThan(flutterVersion));
+          when(
+            () => releaser.minimumFlutterVersion,
+          ).thenReturn(laterFlutterVersion);
+          await expectLater(
+            () => runWithOverrides(() => command.assertArgsAreValid(releaser)),
+            exitsWithError(
+              message:
+                  'At least Flutter $laterFlutterVersion is required to '
+                  'release with `ios-framework` '
+                  '(see $supportedFlutterVersionsUrl).',
+              hint:
+                  'Drop --flutter-version to release with the latest supported '
+                  'Flutter. Run: shorebird release ios-framework '
+                  '--release-version=$releaseVersionExample',
+            ),
+          );
+        },
+      );
+
+      group('when obfuscating below the obfuscation map floor', () {
+        late MockReleaser releaser;
+        final oldFlutterVersion = Version(3, 38, 9);
+
+        setUp(() {
+          expect(oldFlutterVersion, lessThan(minimumObfuscationFlutterVersion));
+          releaser = MockReleaser();
+          when(() => releaser.useObfuscation).thenReturn(true);
+          when(
+            () => releaser.minimumFlutterVersion,
+          ).thenReturn(Version(0, 0, 0));
+          when(releaser.assertArgsAreValid).thenAnswer((_) async => {});
+          when(
+            () => shorebirdFlutter.resolveFlutterVersion(any()),
+          ).thenAnswer((_) async => oldFlutterVersion);
+        });
+
+        test('exits for iOS, whose patches link against the release', () async {
+          when(() => releaser.releaseType).thenReturn(ReleaseType.ios);
+          await expectLater(
+            () => runWithOverrides(() => command.assertArgsAreValid(releaser)),
+            exitsWithError(
+              message:
+                  'Obfuscation on iOS requires Flutter '
+                  '$minimumObfuscationFlutterVersion or later '
+                  '(current: $oldFlutterVersion).',
+              hint:
+                  'Run: shorebird release ios --obfuscate '
+                  '--flutter-version=$minimumObfuscationFlutterVersion',
+              exitCode: ExitCode.unavailable,
+            ),
+          );
+        });
+
+        test('allows Android, whose patches are complete snapshots', () async {
+          when(() => releaser.releaseType).thenReturn(ReleaseType.android);
+          await runWithOverrides(() => command.assertArgsAreValid(releaser));
+          verify(releaser.assertArgsAreValid).called(1);
+        });
+
+        test('checks the --flutter-version target, not the CLI pin', () async {
+          when(() => releaser.releaseType).thenReturn(ReleaseType.ios);
+          when(() => argResults['flutter-version']).thenReturn('3.38.9');
+          await expectLater(
+            () => runWithOverrides(() => command.assertArgsAreValid(releaser)),
+            exitsWithCode(ExitCode.unavailable),
+          );
+          verify(() => shorebirdFlutter.resolveFlutterVersion('3.38.9'));
+        });
+
+        test('checks the CLI pin when no --flutter-version is given', () async {
+          when(() => releaser.releaseType).thenReturn(ReleaseType.ios);
+          await expectLater(
+            () => runWithOverrides(() => command.assertArgsAreValid(releaser)),
+            exitsWithCode(ExitCode.unavailable),
+          );
+          verify(
+            () => shorebirdFlutter.resolveFlutterVersion(flutterRevision),
+          );
+        });
       });
     });
 
@@ -881,5 +1933,21 @@ For more information see: ${supportedFlutterVersionsUrl.toLink()}'''),
         });
       });
     });
+  });
+
+  test('ReleaseCommand accepts flutter build options without --', () {
+    final results = ReleaseCommand().argParser.parse([
+      'android',
+      '--no-tree-shake-icons',
+      '-D',
+      'FOO=a,b',
+      '-P',
+      'key=value',
+    ]);
+    expect(results.forwardedArgs, [
+      '--dart-define=FOO=a,b',
+      '--android-project-arg=key=value',
+      '--no-tree-shake-icons',
+    ]);
   });
 }

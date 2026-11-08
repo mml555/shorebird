@@ -1,20 +1,20 @@
 import 'dart:io';
 
-import 'package:collection/collection.dart';
 import 'package:mason_logger/mason_logger.dart';
+import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/command_error.dart';
+import 'package:shorebird_cli/src/commands/build_preconditions.dart';
 import 'package:shorebird_cli/src/commands/release/release.dart';
 import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/doctor.dart';
-import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/shorebird_android_artifacts.dart';
-import 'package:shorebird_cli/src/shorebird_validator.dart';
-import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
+import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 
 /// {@template android_releaser}
@@ -41,22 +41,9 @@ class AndroidReleaser extends Releaser {
   String get artifactDisplayName => 'Android app bundle';
 
   /// The architectures to build for.
-  Set<Arch> get architectures =>
-      (argResults['target-platform'] as List<String>).map((platform) {
-        final arch = AndroidArch.availableAndroidArchs.firstWhereOrNull(
-          (arch) => arch.targetPlatformCliArg == platform,
-        );
-        if (arch == null) {
-          final availablePlatforms = AndroidArch.availableAndroidArchs
-              .map((a) => a.targetPlatformCliArg)
-              .join(', ');
-          throw Exception(
-            'Unknown target platform: $platform. '
-            'Available platforms: $availablePlatforms',
-          );
-        }
-        return arch;
-      }).toSet();
+  Set<Arch> get architectures => AndroidArch.fromTargetPlatformArgs(
+    argResults['target-platform'] as List<String>,
+  );
 
   /// Whether to generate an APK in addition to the AAB.
   late bool generateApk = argResults['artifact'] as String == 'apk';
@@ -66,63 +53,50 @@ class AndroidReleaser extends Releaser {
   late bool splitApk = argResults['split-per-abi'] == true;
 
   @override
-  Future<void> assertPreconditions() async {
-    try {
-      await shorebirdValidator.validatePreconditions(
-        checkUserIsAuthenticated: true,
-        checkShorebirdInitialized: true,
-        validators: doctor.androidCommandValidators,
-      );
-    } on PreconditionFailedException catch (e) {
-      throw ProcessExit(e.exitCode.code);
-    }
-  }
+  Future<void> assertPreconditions() => assertBuildPreconditions(
+    validators: doctor.androidCommandValidators,
+  );
 
   @override
   Future<void> assertArgsAreValid() async {
-    if (argResults.wasParsed('release-version')) {
-      logger.err(
-        '''
-The "--release-version" flag is only supported for aar and ios-framework releases.
-        
-To change the version of this release, change your app's version in your pubspec.yaml.''',
-      );
-      throw ProcessExit(ExitCode.usage.code);
-    }
+    assertReleaseVersionFlagNotProvided();
 
     if (generateApk && splitApk) {
-      logger
-        ..err(
-          'Shorebird does not support the split-per-abi option at this time',
-        )
-        ..info(
-          '''
-Split APKs are each given a different release version than what is specified in the pubspec.yaml.
-
-See ${link(uri: Uri.parse('https://github.com/flutter/flutter/issues/39817'))} for more information about this issue.
-Please comment and upvote ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/1141'))} if you would like shorebird to support this.''',
-        );
-      throw ProcessExit(ExitCode.unavailable.code);
+      throw CommandError(
+        message:
+            'Shorebird does not support --split-per-abi: each split APK gets '
+            'a different version than the one in your pubspec.yaml.',
+        hint:
+            'Re-run without --split-per-abi. To ask for support, upvote '
+            'https://github.com/shorebirdtech/shorebird/issues/1141.',
+        exitCode: ExitCode.unavailable,
+      );
     }
-
-    await assertObfuscationIsSupported();
   }
 
   @override
   Future<FileSystemEntity> buildReleaseArtifacts() async {
-    final base64PublicKey = await getEncodedPublicKey();
-    final buildArgs = [...argResults.forwardedArgs];
-    addSplitDebugInfoDefault(buildArgs);
-    await addObfuscationMapArgs(buildArgs);
-    final aab = await artifactBuilder.buildAppBundle(
-      flavor: flavor,
-      target: target,
-      targetPlatforms: architectures,
-      args: buildArgs,
-      base64PublicKey: base64PublicKey,
+    // The APK is built after the obfuscation map check, with the same
+    // arguments as the AAB.
+    final (aab, buildArgs, base64PublicKey) = await runReleaseBuild(
+      (buildArgs, base64PublicKey) async => (
+        await artifactBuilder.buildAppBundle(
+          flavor: flavor,
+          target: target,
+          targetPlatforms: architectures,
+          args: buildArgs,
+          base64PublicKey: base64PublicKey,
+        ),
+        buildArgs,
+        base64PublicKey,
+      ),
     );
-
-    verifyObfuscationMap();
+    // Recorded from the SAME buildArgs this release just compiled with (the
+    // split-debug-info and obfuscation defaults already folded in), so a
+    // patch can later be compared against it. Written after the build rather
+    // than before it, so a Flutter that clears the supplement directory
+    // itself cannot delete it.
+    recordEffectiveBuildConfig(buildArgs);
 
     if (generateApk) {
       logger.info('Building APK');
@@ -152,11 +126,35 @@ Please comment and upvote ${link(uri: Uri.parse('https://github.com/shorebirdtec
           .extractReleaseVersionFromAppBundle(releaseArtifactRoot.path);
       releaseVersionProgress.complete('Release version: $releaseVersion');
     } on Exception catch (error) {
-      releaseVersionProgress.fail('$error');
-      throw ProcessExit(ExitCode.software.code);
+      releaseVersionProgress.fail();
+      throw CommandError(
+        message:
+            'Unable to read the release version from the app bundle: '
+            '$error',
+        exitCode: ExitCode.software,
+      );
     }
 
+    _explainVersionNameNotOnIos(releaseVersion);
     return releaseVersion;
+  }
+
+  /// Explains, for an app that also builds for iOS, that an Android version
+  /// name iOS can't have (a flavor's `versionNameSuffix`, a pre-release
+  /// version) makes this a different Shorebird release from any iOS build,
+  /// which customers otherwise find out from the console. iOS versions are
+  /// only digits and dots: Flutter drops everything else from the build name.
+  void _explainVersionNameNotOnIos(String releaseVersion) {
+    final projectRoot = shorebirdEnv.getShorebirdProjectRoot();
+    if (projectRoot == null ||
+        !Directory(p.join(projectRoot.path, 'ios')).existsSync()) {
+      return;
+    }
+    final versionName = releaseVersion.split('+').first;
+    if (RegExp(r'^[0-9.]+$').hasMatch(versionName)) return;
+    logger.info(
+      '''Android's version name $versionName has characters iOS versions can't (they are only digits and dots), so an iOS release of this build will be a different Shorebird release, and each needs its own patches. To share one release across platforms, drop the versionNameSuffix in android/app/build.gradle (or build.gradle.kts) and any pre-release part of the version.''',
+    );
   }
 
   @override
@@ -176,9 +174,8 @@ Please comment and upvote ${link(uri: Uri.parse('https://github.com/shorebirdtec
       platform: releaseType.releasePlatform,
       architectures: architectures,
       flavor: flavor,
+      signing: signing,
     );
-
-    await uploadSupplementArtifact(appId: appId, releaseId: release.id);
   }
 
   @override
@@ -193,19 +190,18 @@ Please comment and upvote ${link(uri: Uri.parse('https://github.com/shorebirdtec
       flavor: flavor,
     );
 
-    final String? apkText;
+    final String apkText;
     if (generateApk) {
       final apkFile = shorebirdAndroidArtifacts.findApk(
         project: projectRoot,
         flavor: flavor,
       );
-      apkText = generateApk
-          ? '''
+      apkText =
+          '''
 
 Or distribute the apk:
 ${lightCyan.wrap(apkFile.path)}
-'''
-          : '';
+''';
     } else {
       apkText = '';
     }

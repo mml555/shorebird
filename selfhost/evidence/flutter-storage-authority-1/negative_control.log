@@ -1,0 +1,41 @@
+# FSA-1 NEGATIVE CONTROL
+#
+# Real product code mutated beneath the new qualification (a comment added to
+# `route_b_producer.dart`), selectors and the record left untouched, committed
+# in a scratch git WORKTREE so the main tree was never touched. A `git stash`
+# was correctly refused by this environment's destructive-git hook.
+#
+# THE CONTROL IS THE FIRST FAILED LINE: the product-tree guard fired with the
+# exact drift, which is what it exists for.
+#
+# The three later failures are the SCRATCH WORKTREE, not the control: the
+# 19 MB published compiler archive under selfhost/cdn/overlay/ is untracked, so
+# a fresh worktree cannot have it. The verifier failing rather than skipping is
+# its documented rule — "MISSING EVIDENCE IS NEVER A PASS".
+#
+verify_supported_state -- record /Volumes/build/route-b/fsa-neg/selfhost/engine/route_b/SUPPORTED_STATE.yaml
+  ok      record parses as YAML
+  shorebird root : /Volumes/build/route-b/shorebird-candidate
+  ok      recorded cli_revision exists in this repository
+  ok      cli_revision is in this branch's history
+  ok      cli_revision contains 6b4f6c42 (private-name resolution)
+  ok      CLI flutter.version (committed blob at cli_revision) selects the recorded Flutter
+  FAILED  repo HEAD product tree packages/shorebird_cli: record says 6c76e79a3ad1c86658a41b144dececb07ff5d3ca, artifact is 18cb0ed9cff71d994a09a215a4646f2743f37418
+  ok      runtime checkout product tree packages/shorebird_cli
+  ok      repo HEAD product tree bin/internal
+  ok      runtime checkout product tree bin/internal
+  ok      runtime checkout has no uncommitted changes at all
+  ok      runtime checkout's flutter.version matches the committed selector
+  ok      runtime checkout's bin/internal is clean
+  ok      Flutter engine.version (committed blob) selects the recorded cell
+  ok      Flutter checkout is clean
+  FAILED  no published compiler archive at /Volumes/build/route-b/fsa-neg/selfhost/cdn/overlay/download.shorebird.dev/shorebird/cd848320d605ff8af5060cabf9a8d1b35853f752/route-b-compiler-darwin-arm64.zip
+  FAILED  cannot verify the analyzer: no published archive
+  ok      analyzer digest (as resolved into the runtime cache)
+  ok      v2 manifest recomputes to the cell address
+  FAILED  cell member drift — run verify_cell_members.sh cd848320d605ff8af5060cabf9a8d1b35853f752 for the detail
+  ok      fallback engine revision
+  ok      updater revision agrees with selfhost/compatibility.yaml
+  ok      audit_route_b_compiler: AUDIT CLEAN
+
+SUPPORTED STATE FAILED: 4 check(s)

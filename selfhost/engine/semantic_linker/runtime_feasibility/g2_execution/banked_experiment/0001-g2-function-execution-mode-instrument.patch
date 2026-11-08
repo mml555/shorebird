@@ -1,0 +1,107 @@
+diff --git a/runtime/lib/object.cc b/runtime/lib/object.cc
+index 5ac9a4e90c4..75d589f025e 100644
+--- a/runtime/lib/object.cc
++++ b/runtime/lib/object.cc
+@@ -901,6 +901,52 @@ DEFINE_NATIVE_ENTRY(Internal_attachBytecodeToFunction, 0, 3) {
+ #endif  // defined(DART_DYNAMIC_MODULES)
+ }
+ 
++// SEMANTIC-LINKER-1 G2, EXPERIMENT-ONLY INSTRUMENT. Not part of Route B and
++// not shipped: it answers "in what mode would a call to this function execute
++// RIGHT NOW", which G2 requires as evidence because output alone cannot
++// distinguish an interpreted body from an AOT one that happens to agree.
++//
++// EVERY OUTCOME IS ITS OWN STATE. The fork has already paid for collapsing
++// states once (dart_route_b_trace.h records a counter defaulting to 0 that read
++// as a real mismatch produced by a branch that never ran). "Not found" is not
++// "not interpreted", and "built without dynamic modules" is neither -- so a
++// harness cannot mistake an unresolved name for a negative result.
++//
++//   -1 UNSUPPORTED  built without dart_dynamic_modules
++//    0 NOT_FOUND    the library/class/member did not resolve
++//    1 AOT          resolved, has Code, not interpreted
++//    2 INTERPRETED  resolved, Function::IsInterpreted()
++//    3 NO_CODE      resolved, but neither -- kept distinct rather than folded
++//                   into AOT, because "neither" is exactly what a wrong answer
++//                   would look like
++DEFINE_NATIVE_ENTRY(Internal_functionExecutionMode, 0, 2) {
++#if defined(DART_DYNAMIC_MODULES)
++  GET_NON_NULL_NATIVE_ARGUMENT(String, library_uri, arguments->NativeArgAt(0));
++  GET_NON_NULL_NATIVE_ARGUMENT(String, target_name, arguments->NativeArgAt(1));
++
++  // READ lock, not write: this observes and must not be able to mutate the
++  // thing it is observing. Instrumentation is treated as potentially causal
++  // until shown otherwise, and a writer lock here would be a real difference
++  // between an instrumented run and a plain one.
++  SafepointReadRwLocker ml(thread, thread->isolate_group()->program_lock());
++
++  const auto& target = Function::Handle(
++      zone, ResolvePatchTarget(thread, zone, library_uri, target_name));
++  if (target.IsNull()) {
++    return Smi::New(0);
++  }
++  if (target.IsInterpreted()) {
++    return Smi::New(2);
++  }
++  if (target.HasCode()) {
++    return Smi::New(1);
++  }
++  return Smi::New(3);
++#else
++  return Smi::New(-1);
++#endif  // defined(DART_DYNAMIC_MODULES)
++}
++
+ DEFINE_NATIVE_ENTRY(Internal_detachBytecodeFromFunction, 0, 2) {
+ #if defined(DART_DYNAMIC_MODULES)
+   GET_NON_NULL_NATIVE_ARGUMENT(String, library_uri, arguments->NativeArgAt(0));
+diff --git a/runtime/vm/bootstrap_natives.h b/runtime/vm/bootstrap_natives.h
+index 7aba3a1e31a..3a6fcaa07c4 100644
+--- a/runtime/vm/bootstrap_natives.h
++++ b/runtime/vm/bootstrap_natives.h
+@@ -275,6 +275,7 @@ namespace dart {
+   V(Internal_loadDynamicModule, 1)                                             \
+   V(Internal_attachBytecodeToFunction, 3)                                      \
+   V(Internal_detachBytecodeFromFunction, 2)                                    \
++  V(Internal_functionExecutionMode, 2)                                         \
+   V(Internal_releaseBuildId, 0)                                                \
+   V(Internal_allocateOneByteString, 1)                                         \
+   V(Internal_allocateTwoByteString, 1)                                         \
+diff --git a/sdk/lib/_internal/vm/lib/internal_patch.dart b/sdk/lib/_internal/vm/lib/internal_patch.dart
+index 9614b0664a9..a1980a3d491 100644
+--- a/sdk/lib/_internal/vm/lib/internal_patch.dart
++++ b/sdk/lib/_internal/vm/lib/internal_patch.dart
+@@ -497,6 +497,13 @@ bool detachBytecodeFromFunction(String libraryUri, String targetName) =>
+ @pragma("vm:external-name", "Internal_detachBytecodeFromFunction")
+ external bool _detachBytecodeFromFunction(String libraryUri, String targetName);
+ 
++@patch
++int functionExecutionMode(String libraryUri, String targetName) =>
++    _functionExecutionMode(libraryUri, targetName);
++
++@pragma("vm:external-name", "Internal_functionExecutionMode")
++external int _functionExecutionMode(String libraryUri, String targetName);
++
+ @patch
+ String? releaseBuildId() => _releaseBuildId();
+ 
+diff --git a/sdk/lib/internal/internal.dart b/sdk/lib/internal/internal.dart
+index 07733691e01..3b7463a3fa0 100644
+--- a/sdk/lib/internal/internal.dart
++++ b/sdk/lib/internal/internal.dart
+@@ -1169,6 +1169,15 @@ external bool attachBytecodeToFunction(
+ /// interpreted, so "nothing to revert" stays distinguishable from a failure.
+ external bool detachBytecodeFromFunction(String libraryUri, String targetName);
+ 
++/// SEMANTIC-LINKER-1 G2 instrument, experiment-only: the execution mode a call
++/// to [targetName] in [libraryUri] would take right now.
++///
++/// [targetName] is `member` or `Class.member`. Returns -1 unsupported (built
++/// without dynamic modules), 0 not found, 1 AOT, 2 interpreted, 3 resolved but
++/// neither. The states are deliberately distinct: a harness must never read
++/// "not found" as "not interpreted".
++external int functionExecutionMode(String libraryUri, String targetName);
++
+ /// The GNU build ID of the running AOT snapshot, lowercase hex, or null when
+ /// the snapshot carries none.
+ ///

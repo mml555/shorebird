@@ -1,0 +1,75 @@
+SM1-G5 — PAIRED CALL-SITE ARMS, same target, same patch
+date : 2026-09-07T23:39:33Z
+
+ONE patch target -- Base.work -- reached through four call-site shapes in the
+SAME release, patched by the SAME .sbrb. Any difference in observed effect is
+attributable to the call site and to nothing else.
+
+  viaVirtual(Base b) => b.work();        receiver the compiler cannot bind;
+                                         Other also implements work, so the
+                                         closed world holds two
+  viaDirect()        => Base().work();   concrete receiver constructed in place
+  viaInlined(b)      => _inlineHelper(b) helper is vm:prefer-inline, so the
+                                         optimizer is invited to inline it away
+  viaVirtual(Other()) => Other.work      a DIFFERENT declaration: the untargeted
+                                         control
+
+############ ARM A — release contract WITHOUT can-be-overridden ############
+  Base.work contract entries: ['dyn-module:callable']
+
+  before alpha=OLD-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w
+  APPLY ok: 1 target(s)
+  after  alpha=OLD-a beta=OLD-b virtual=OLD-w direct=PATCHED-w inlined=OLD-w other=OTHER-w
+
+############ ARM B — the SAME release plus can-be-overridden on Base.work ############
+  Base.work contract entries: ['dyn-module:callable', 'dyn-module:can-be-overridden']
+  The mutation is real, not inert: the AOT changed
+    app.aot      1035488 bytes  sha 62a17ab7ba56c36b
+    app_cbo.aot  1035496 bytes  sha a63398add9052b7f
+
+  before alpha=OLD-a beta=OLD-b virtual=OLD-w direct=OLD-w inlined=OLD-w other=OTHER-w
+  APPLY ok: 1 target(s)
+  after  alpha=OLD-a beta=OLD-b virtual=OLD-w direct=PATCHED-w inlined=OLD-w other=OTHER-w
+
+############ WHAT THE ARMS SHOW ############
+
+  1. OBSERVED PATCHABILITY DIFFERS BY CALL-SITE SHAPE, for one declaration,
+     one patch, one release:
+
+         direct   (devirtualizable)  PATCHED-w
+         virtual  (unbindable)       OLD-w
+         inlined  (prefer-inline)    OLD-w
+
+     The untargeted control (Other.work) stayed OTHER-w throughout, so the
+     change is attributable to the patch.
+
+  2. can-be-overridden DID NOT rescue the virtual or inlined sites. Adding it
+     changed the release bytes and the recorded contract entry, and changed
+     none of the four observed values.
+
+  3. The direction is the opposite of the naive expectation. It is the
+     DEVIRTUALIZED site that takes the patch, and the dispatched ones that do
+     not -- consistent with --patchable_static_calls making direct calls
+     patchable while an instance dispatch continues to reach the original AOT
+     code object.
+
+  NOT CLASSIFIED HERE. Whether this is REDUCE_SCOPE (the distinction is
+  mechanically decidable from the release and can be conservatively excluded) or
+  MODIFY_MAP_DESIGN (it is required for soundness but not representable per
+  declaration) is not decided in this run, and no such classification is made.
+
+############ AN UNRELATED FINDING, RECORDED BECAUSE IT IS SERIOUS ############
+
+  The two releases above are DIFFERENT ARTIFACTS with the SAME release identity:
+
+    app.aot      sha 62a17ab7ba56c36b   BUILD_ID 97c212a34226f975f1e700f8ac5b12e6
+    app_cbo.aot  sha a63398add9052b7f   BUILD_ID 97c212a34226f975f1e700f8ac5b12e6
+
+  Different bytes, different dynamic-interface contracts, identical GNU build
+  ID. Route B binds a patch to a release by that build ID -- pack_patch.dart
+  requires it and the container matches on it -- so a patch packed against one
+  of these releases is accepted by the other.
+
+  That is precisely the stale/swapped-proof hazard SM1-G6 exists to close, now
+  observed rather than hypothesised. Recorded here and carried to G6; this gate
+  does not act on it.

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words iosdev
 #
 # End-to-end on-device smoke test against a running code_push_server.
 # Drives the REAL Shorebird CLI + native updater through the full lifecycle:
@@ -23,6 +24,10 @@ APP_DIR="${APP_DIR:?set APP_DIR to the Flutter app dir}"
 # server now refuses to boot with (see Config.validate), so it could never
 # authenticate. Read the key setup.sh generated instead.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Device transport (install/launch). Defines functions only, so sourcing it on
+# the Android path costs nothing.
+# shellcheck source=lib/ios_device.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/ios_device.sh"
 KEY="${SHOREBIRD_TOKEN:-}"
 if [[ -z "$KEY" && -f "$ROOT/.env" ]]; then
   KEY="$(sed -n 's/^[[:space:]]*API_KEY=//p' "$ROOT/.env" | tail -1)"
@@ -85,8 +90,10 @@ else
   APP_BUNDLE=$(find "$APP_DIR/build/ios/archive" -name "Runner.app" -path "*Products/Applications*" 2>/dev/null | head -1)
   echo "app bundle: $APP_BUNDLE"
   IOS_DEVICE_UDID="$DEVICE" "$(dirname "$0")/ios_resign.sh" "$APP_BUNDLE" "${IOS_IDENTITY:-}" "$IOS_PROFILE"
-  xcrun devicectl device install app --device "$DEVICE" "$APP_BUNDLE" 2>&1 | grep -iE "installed|error|locked" | tail -3
-  xcrun devicectl device process launch --terminate-existing --device "$DEVICE" "$PKG" 2>&1 | grep -iE "launched|error" | tail -1 || true
+  # devicectl is iOS 17+ only and cannot even see an older device, so the
+  # transport is picked by OS version — an iPhone 7 stops at 15.8.
+  iosdev::install "$DEVICE" "$APP_BUNDLE" 2>&1 | grep -iE "installed|error|locked" | tail -3
+  iosdev::launch "$DEVICE" "$PKG" "$APP_BUNDLE" 2>&1 | grep -iE "launched|error|success" | tail -1 || true
   sleep 6
   echo "(iOS: verify via server events below; network pairing blocks screenshots)"
 fi
@@ -109,7 +116,7 @@ if [ "$PLATFORM" = android ]; then
   adb -s "$DEVICE" pull /sdcard/e2e_patched.png "$SHOTS/e2e_${PLATFORM}_patched.png" >/dev/null 2>&1
   echo "updater log:"; adb -s "$DEVICE" logcat -d 2>/dev/null | grep -iE "updater::.*applied|active path" | tail -2 || true
 else
-  for _ in 1 2; do xcrun devicectl device process launch --terminate-existing --device "$DEVICE" "$PKG" >/dev/null 2>&1 || true; sleep 10; done
+  for _ in 1 2; do iosdev::launch "$DEVICE" "$PKG" "$APP_BUNDLE" >/dev/null 2>&1 || true; sleep 10; done
   echo "iOS verification is via server events (updater's own reports):"
   grep -E "download/|__patch_(download|install)__|\"platform\": \"ios\"" /tmp/cps_e2e.log 2>/dev/null | tail -6 || true
 fi

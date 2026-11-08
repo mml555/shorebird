@@ -1,0 +1,119 @@
+G15 GATE 3a — THE PUBLICATION REPAIR: VERDICT, 2026-08-15
+==========================================================
+
+CHECK 4b IS GREEN, ON A REAL CELL, WITH THE SERVED BYTES VERIFIED OVER THE WIRE.
+
+    ok      served platform dill is the one the address was computed over
+    AUDIT CLEAN — this compiler cell is reconstructible
+
+New cell: **87130ae841e92d3e8bd4ea1759fb3cb474a6b3e4**, donor `80e493e4`.
+No engine was rebuilt. `hooks.dart` was not touched. Exactly one cell minted.
+
+WHAT WAS CHANGED, AND IT IS TWO LINES OF SUBSTANCE
+---------------------------------------------------
+1. `publish_ios_overlay.sh` — `PSDK_REL`, derived from `OUT` instead of from
+   `HOST_REL`. Publishing an engine from a tree now publishes THAT TREE's dill,
+   so passing `OUT` explicitly (already required by the R4-default trap) carries
+   the dill with it. For the default `OUT` the resolved path is unchanged, so
+   the edit is backward-compatible.
+
+2. `mint_route_b_cell.sh` — `PSDK_ZIP`, installed into the new cell after its
+   contained dill is compared BYTE-FOR-BYTE against `FLUTTER_PLATFORM`, the file
+   that participates in the address. Mismatch is fatal, with both digests
+   printed.
+
+**Why (2) was necessary and is not scope creep.** The instruction was to change
+only the dill source variable in the publish script. That alone cannot work: the
+mint builds a new cell's host artifacts by `cp -Rc`-cloning the DONOR's directory,
+so a corrected dill published under the engine's own hash never reaches the minted
+address. The clone is the mechanism that propagated the defect forward in the
+first place. (2) is the same discipline the script already applies to
+`ios_artifacts_sha256` — install the exact artifact that was hashed, then verify
+it in place — extended to the one other artifact whose digest is in the manifest.
+
+THE SEQUENCE, AND WHY THE LIVE CELLS SURVIVED IT
+--------------------------------------------------
+`publish_ios_overlay.sh`'s own refusal message documents the safe path, and it was
+followed: publish into a SCRATCH overlay, then hand that zip to the mint. The
+engine hash it derived was `7b85a286…` (sha1 of R3's `Flutter` binary — a
+different namespace from a minted cell address), and it landed only in scratch.
+**No existing cell was written to.**
+
+VERIFICATION, IN THE ORDER IT WAS DONE
+---------------------------------------
+Manifest — the address is computed over OUR dill:
+
+    flutter_platform_strong.dill 9f5a5f754a93dd8ec4aa3e94c25ef9f802b073eb96…
+    ios_artifacts_sha256         4302bf4dcd39d4488a55381b14bb7306743531c214…
+    -> cell address 87130ae841e92d3e8bd4ea1759fb3cb474a6b3e4
+
+Nothing unrelated moved. Every file in the new cell compared against the donor:
+
+    same:    dart-sdk-darwin-arm64.zip        <- still R4's, deliberately
+    same:    darwin-arm64/artifacts.zip       <- frontend_server, still R4's
+    same:    darwin-arm64/font-subset.zip
+    same:    engine_stamp.json
+    same:    flutter_gpu.zip
+    same:    flutter_patched_sdk.zip          <- the NON-product dill, untouched
+    DIFFERS: flutter_patched_sdk_product.zip  <- the repair
+    DIFFERS: ios-release/artifacts.zip        <- R3's engine
+    same:    sky_engine.zip, sky_engine.content-diff.txt,
+             sky_packages_provenance.txt
+    (no files present in the new cell that are absent from the donor)
+
+Two files differ and they are exactly the two intended ones.
+
+SERVED BYTES, not the local archive — after `docker restart
+shorebird-cdn-cdn-cache-1` so Caddy re-read `experimental_hashes.map`:
+
+    flutter_patched_sdk_product.zip   HTTP 200  X-Overlay: hit  served == overlay
+    ios-release/artifacts.zip         HTTP 200  X-Overlay: hit  served == overlay
+
+`X-Overlay: hit` matters as much as the 200: it proves the bytes came from our
+overlay rather than from a 302 fallback to stock, which is the failure mode that
+looks identical from the client's side.
+
+And the content actually delivered over the wire:
+
+    served dill (87130ae8) : 9f5a5f75…   attachBytecodeToFunction x8   <- OURS
+    served dill (80e493e4) : 55e02ed8…   attachBytecodeToFunction x0   <- donor
+
+The donor line is a LIVE CONTROL, fetched through the same mirror in the same
+minute. It shows the difference is real, is localised to the new cell, and that
+the donor was not quietly modified.
+
+WHAT THIS CLOSES, AND WHAT IT DOES NOT
+----------------------------------------
+CLOSED: a `dart:ui` or `dart:_internal` change made in the tree that owns the
+engine now reaches an app built on cell `87130ae8`. Gate 3's positive half already
+proved the mechanism end-to-end with the dill fed in by hand
+(`gate3_positive_verdict.txt`); this makes it a property of the published cell
+instead of a property of a hand-edited cache.
+
+NOT CLOSED, and deliberately:
+
+* **`dart-sdk-darwin-arm64.zip` still comes from R4.** The trivial-app AOT proved
+  this specific R3-dill / `40eaa0ef`-toolchain pairing builds clean. That is ONE
+  measured pairing; it does not relax the publish script's "all three come from
+  our tree or none of this is ours" rule, and widening the change is a separate
+  decision needing its own evidence.
+* **Every pre-existing cell still reports the `4b` finding**, correctly. They were
+  not retro-fixed, and `80e493e4` in particular is left byte-identical so that
+  gate 2's releases `1.0.4+1` and `1.0.5+1` remain reproducible against the cell
+  they were actually built on.
+* **No release has been cut against `87130ae8`.** The cell is published, audited
+  and served; nothing has consumed it. `~/.shorebird` is still stamped
+  `40eaa0ef` and was not touched by this work.
+* `engine_stamp.json` in the new cell is the donor's clone, as it is for every
+  minted cell. Pre-existing behaviour, not introduced here.
+
+FOR WHOEVER CUTS THE FIRST RELEASE ON THIS CELL
+-------------------------------------------------
+The mint's own two preconditions apply and both fail in the direction that looks
+like success: the mirror has been reloaded (done here), and the consuming Flutter
+checkout must have its caches CLEARED rather than its stamps written — a stamp
+asserts what the cache already holds, so writing it makes the build consume the
+OLD engine while every report names the new one. Then warm, confirm the
+`ios-release` Flutter binary exists, and only then cut: `isRouteBEngine` returns
+false when that binary is merely absent, so the first release after a clear
+silently takes the non-Route-B path and still reports success.

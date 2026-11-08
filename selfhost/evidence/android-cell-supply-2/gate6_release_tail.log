@@ -1,0 +1,60 @@
+  stack_trace 1.12.1 (1.12.2 available)
+  test_api 0.7.11 (0.7.14 available)
+  vector_math 2.2.0 (2.4.2 available)
+Got dependencies!
+7 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Running Gradle task 'bundleRelease'...                          
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 1368 bytes (99.9% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Running Gradle task 'bundleRelease'...                            130.1s
+Shorebird build trace written to /Volumes/build/route-b/acs2/gate6.yn4H0W/app/build/shorebird/debug/build-trace-android.json. View at https://ui.perfetto.dev
+libapp.so.sym or libapp.so.dbg not present when checking final appbundle for debug symbols. Play Console will not receive Dart crash symbols for this build. To enable, remove `packaging.jniLibs.keepDebugSymbols.add("**/libapp.so")` from android/app/build.gradle.kts.
+✓ Built build/app/outputs/bundle/release/app-release.aab (47.1MB)
+Building APK
+Resolving dependencies...
+Downloading packages...
+  clock 1.1.2 (1.1.3 available)
+  matcher 0.12.19 (0.12.20 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.18.0 (1.19.0 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  test_api 0.7.11 (0.7.14 available)
+  vector_math 2.2.0 (2.4.2 available)
+Got dependencies!
+7 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Running Gradle task 'assembleRelease'...                            3.8s
+Shorebird build trace written to /Volumes/build/route-b/acs2/gate6.yn4H0W/app/build/shorebird/debug/build-trace-android.json. View at https://ui.perfetto.dev
+✓ Built build/app/outputs/flutter-apk/app-release.apk (49.9MB)
+Starting Determining release version...
+Starting Downloading aot-tools.dill......
+Starting Downloading aot-tools.dill......
+Starting Downloading aot-tools.dill......
+Done Release version: 1.0.0+1
+Starting Fetching releases...
+Done Fetching releases
+🚀 Ready to create a new release!
+📱 App: acs2-gate6 (2a26f0c3-603a-fab0-452b-23b7d257d309)
+📦 Release Version: 1.0.0+1
+🕹️  Platform: android
+🐦 Flutter Version: unknown (e64eb0af52)
+Starting Fetching releases...
+Done Fetching releases
+Starting Creating release...
+Done Creating release
+Starting Updating release status...
+Done Updating release status
+Starting Uploading artifacts...
+Done Uploading artifacts
+Starting Uploading supplement artifacts...
+Done Uploading supplement artifacts
+Starting Updating release status...
+Done Updating release status
+✅ Published Release 1.0.0+1!
+Your next step is to upload the app bundle to the Play Store:
+/Volumes/build/route-b/acs2/gate6.yn4H0W/app/build/app/outputs/bundle/release/app-release.aab
+Or distribute the apk:
+/Volumes/build/route-b/acs2/gate6.yn4H0W/app/build/app/outputs/flutter-apk/app-release.apk
+For information on uploading to the Play Store, see:
+https://support.google.com/googleplay/android-developer/answer/9859152?hl=en
+To create a patch for this release, run shorebird patch --platforms=android --release-version=1.0.0+1

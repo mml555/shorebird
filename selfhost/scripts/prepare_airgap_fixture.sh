@@ -1,0 +1,224 @@
+#!/usr/bin/env bash
+# prepare_airgap_fixture.sh — materialize the canonical air-gap acceptance
+# fixture and its pub seed, so the sealed run never again depends on a path
+# somebody remembered.
+#
+# WHY THIS EXISTS
+#
+# The 2026-08-06 sealed acceptance passed against an iOS app that lived in a
+# session scratchpad. The scratchpad was cleaned, the path was never recorded,
+# and the run therefore could not be reproduced — the fixture was ephemeral,
+# which means the acceptance was too. Same for AIRGAP_PUB_CACHE, which was
+# passed as an ambient machine path.
+#
+# What is COMMITTED (selfhost/fixtures/airgap_app):
+#   pubspec.yaml, pubspec.lock, lib/main.dart, assets/probe.json,
+#   shorebird.yaml.template
+#
+# What is GENERATED here (gitignored, reproducible):
+#   ios/ android/ .dart_tool/   — `flutter create` output; bulky and derived
+#   the pub seed                 — a real resolved cache, from the lockfile
+#
+#   prepare_airgap_fixture.sh [--app-id <id>] [--hosted-url <url>]
+#                             [--seed-out <dir>] [--skip-seed]
+#
+# Afterwards:
+#   selfhost/scripts/airgap_run.sh -- selfhost/scripts/airgap_acceptance.sh \
+#     --ios --app selfhost/fixtures/airgap_app
+# (the harness defaults --app to that path, so it can usually be omitted)
+set -euo pipefail
+
+HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+FIXTURE="$HERE/../fixtures/airgap_app"
+SEED_OUT="$HERE/../fixtures/airgap/pub-cache"
+APP_ID=""; HOSTED_URL=""; SKIP_SEED=0
+# Which control-plane instance this config is for. The two legs run against
+# SEPARATE instances (cps-ios :18080, cps-android :18081) on purpose — that is
+# the real topology, it keeps one leg's releases from contaminating the other's
+# history, and it makes a sealed-run failure unambiguous about which rig it
+# came from. One canonical fixture source, two generated configs.
+LEG=""
+ACTIVATE=""
+SHOREBIRD="${SHOREBIRD:-$HOME/.shorebird/bin/shorebird}"
+
+die() { echo "ERROR: $*" >&2; exit 1; }
+note() { echo "==> $*"; }
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --app-id) APP_ID="${2:?}"; shift 2 ;;
+    --leg) LEG="${2:?}"; shift 2 ;;
+    --activate) ACTIVATE="${2:?}"; shift 2 ;;
+    --hosted-url) HOSTED_URL="${2:?}"; shift 2 ;;
+    --seed-out) SEED_OUT="${2:?}"; shift 2 ;;
+    --skip-seed) SKIP_SEED=1; shift ;;
+    -h|--help) sed -n '2,30p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    *) die "unknown argument: $1" ;;
+  esac
+done
+
+[[ -d "$FIXTURE" ]] || die "no fixture at $FIXTURE"
+command -v flutter >/dev/null || die "flutter is not on PATH"
+
+FIXTURE="$(cd "$FIXTURE" && pwd)"
+
+# --- platform scaffolding ------------------------------------------------------
+# `flutter create` over an existing directory fills in the missing platform
+# dirs and leaves committed files (pubspec.yaml, lib/, assets/) alone. It is
+# how the bulky generated tree stays out of git without the fixture being
+# unbuildable.
+if [[ ! -d "$FIXTURE/ios" || ! -d "$FIXTURE/android" ]]; then
+  note "materializing ios/ and android/ with flutter create"
+  ( cd "$FIXTURE" && flutter create --platforms=ios,android \
+      --project-name airgap_probe --org dev.selfhost . >/dev/null )
+else
+  note "ios/ and android/ already present"
+fi
+
+# --- iOS Info.plist: local network + cleartext ----------------------------------
+# ios/ is generated, so these have to be re-injected every time it is created.
+#
+# The control plane lives on the Mac at a LINK-LOCAL address over cleartext
+# HTTP. Two iOS policies stand in the way of an app talking to it, and both
+# fail QUIETLY — the app renders fine and the request simply never arrives,
+# which reads as "the beacon is broken" (observed 2026-08-07):
+#
+#   NSLocalNetworkUsageDescription  iOS 14+ gates local-network access behind a
+#                                   permission; without the key it is denied.
+#   NSAllowsLocalNetworking         App Transport Security blocks cleartext
+#                                   HTTP. This narrow form permits it for local
+#                                   names/addresses only — NOT
+#                                   NSAllowsArbitraryLoads, which would disable
+#                                   ATS wholesale for a test fixture.
+#
+# The native Shorebird updater reaches the same URL from its own HTTP stack, so
+# a working updater is NOT evidence that Dart-side networking is permitted.
+PLIST="$FIXTURE/ios/Runner/Info.plist"
+if [[ -f "$PLIST" ]]; then
+  /usr/libexec/PlistBuddy -c "Delete :NSLocalNetworkUsageDescription" "$PLIST" >/dev/null 2>&1 || true
+  /usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string Reaches the self-hosted control plane on this Mac over the USB link." "$PLIST" >/dev/null
+  /usr/libexec/PlistBuddy -c "Delete :NSAppTransportSecurity" "$PLIST" >/dev/null 2>&1 || true
+  /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" "$PLIST" >/dev/null
+  /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$PLIST" >/dev/null
+  note "Info.plist: local-network usage + NSAllowsLocalNetworking set"
+fi
+
+# --- shorebird.yaml, per leg ----------------------------------------------------
+# app_id is SERVER-GENERATED (POST /api/v1/apps ignores a requested id), so it
+# cannot be committed as a constant — it differs per control-plane instance.
+# Committed as shorebird.yaml.template; the real files are written here.
+#
+# Each leg gets its OWN generated config under .generated/, and the active
+# shorebird.yaml is a COPY of one of them, stamped immediately before that leg
+# runs. Before this, whichever config happened to be left behind by the last
+# invocation is the one the next leg would silently use — the same class of
+# ambient-state dependency that made the 2026-08-06 acceptance unreproducible.
+GEN_DIR="$FIXTURE/.generated"
+mkdir -p "$GEN_DIR"
+
+write_leg_config() {  # write_leg_config <leg> <app-id> <hosted-url>
+  cat > "$GEN_DIR/shorebird.$1.yaml" <<EOF
+# GENERATED by selfhost/scripts/prepare_airgap_fixture.sh — do not hand-edit.
+# Leg: $1. app_id is server-generated and instance-specific, which is exactly
+# why it is not a committed constant.
+app_id: $2
+base_url: $3
+EOF
+  note "wrote .generated/shorebird.$1.yaml (app_id $2, base_url $3)"
+}
+
+# The iOS device has no `adb reverse`. It reaches the Mac over the USB link,
+# which is an ordinary network interface with IPv4 link-local on both ends — so
+# base_url must be the Mac's LINK-LOCAL address, not localhost, or the app on
+# the phone cannot reach the control plane at all.
+#
+# And that address CHANGES when the device reconnects. On 2026-08-07 a warm run
+# hung uploading to 169.254.189.3 (a previous session's address) while the Mac
+# was actually on 169.254.94.102. base_url is baked into flutter_assets, so a
+# changed address means a NEW RELEASE BUILD — discover it here rather than
+# letting a stale constant waste a 15-minute build.
+mac_link_local() {
+  ifconfig 2>/dev/null | awk '/^[a-z0-9]+:/{i=$1} /inet 169\.254\./{print $2; exit}'
+}
+
+if [[ -n "$APP_ID" ]]; then
+  [[ -n "$LEG" ]] || die "--app-id needs --leg <ios|android> so the config is written per instance"
+  case "$LEG" in
+    ios)
+      if [[ -z "$HOSTED_URL" ]]; then
+        ll="$(mac_link_local)"
+        [[ -n "$ll" ]] || die "no 169.254.x link-local interface found — is the iPhone attached over USB?
+       The iOS leg needs the Mac's link-local address; localhost is unreachable
+       from the device. Pass --hosted-url explicitly to override."
+        HOSTED_URL="http://$ll:18080"
+        note "discovered USB link-local: $ll"
+        note "NOTE: cps-ios PUBLIC_BASE_URL must match this, or artifact uploads hang:"
+        note "  docker inspect cps-ios --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PUBLIC_BASE_URL"
+      fi ;;
+    android) : "${HOSTED_URL:=http://localhost:18081}" ;;
+    *) die "unknown --leg '$LEG' (expected ios or android)" ;;
+  esac
+  write_leg_config "$LEG" "$APP_ID" "$HOSTED_URL"
+fi
+
+# --activate <leg> stamps the active shorebird.yaml. Run it immediately before
+# the leg, never earlier — that is the whole point.
+if [[ -n "$ACTIVATE" ]]; then
+  src="$GEN_DIR/shorebird.$ACTIVATE.yaml"
+  [[ -f "$src" ]] || die "no config for leg '$ACTIVATE'. Generate it first:
+       prepare_airgap_fixture.sh --leg $ACTIVATE --app-id <id>"
+  cp -f "$src" "$FIXTURE/shorebird.yaml"
+  note "ACTIVE leg: $ACTIVATE -> $(awk '/^app_id:/{print $2}' "$FIXTURE/shorebird.yaml") @ $(awk '/^base_url:/{print $2}' "$FIXTURE/shorebird.yaml")"
+fi
+
+if [[ -z "$APP_ID" && -z "$ACTIVATE" ]]; then
+  if [[ -f "$FIXTURE/shorebird.yaml" ]] && ! grep -q 'REPLACE-ME' "$FIXTURE/shorebird.yaml"; then
+    note "active shorebird.yaml: $(awk '/^app_id:/{print $2}' "$FIXTURE/shorebird.yaml")"
+  else
+    die "no app_id yet. Register the fixture on each control plane, then:
+       prepare_airgap_fixture.sh --leg ios     --app-id <id>
+       prepare_airgap_fixture.sh --leg android --app-id <id>
+       prepare_airgap_fixture.sh --activate ios
+     Register with:
+         curl -sS -X POST <control-plane>/api/v1/apps \\
+           -H \"Authorization: Bearer \$TOKEN\" \\
+           -H 'Content-Type: application/json' \\
+           -d '{\"display_name\":\"airgap-fixture\"}'"
+  fi
+fi
+
+# --- pub seed ------------------------------------------------------------------
+# The ONE cache the sealed run is allowed to bring in. Resolved from the
+# COMMITTED lockfile into a dedicated directory, so the seed is a documented
+# output rather than whatever happens to be in ~/.pub-cache.
+if [[ $SKIP_SEED -eq 0 ]]; then
+  note "seeding pub cache from the committed lockfile -> $SEED_OUT"
+  mkdir -p "$SEED_OUT"
+  SEED_OUT="$(cd "$SEED_OUT" && pwd)"
+  ( cd "$FIXTURE" && PUB_CACHE="$SEED_OUT" flutter pub get >/dev/null ) \
+    || die "pub get into the seed failed"
+  # An index, so a later reader can tell whether the seed still matches the
+  # lockfile without re-resolving.
+  ( cd "$SEED_OUT" && find . -maxdepth 3 -type d -name "*-*" | sort ) \
+    > "$SEED_OUT/../pub-cache.index"
+  pkgs="$(wc -l < "$SEED_OUT/../pub-cache.index" | tr -d ' ')"
+  lock_sha="$(shasum -a 256 "$FIXTURE/pubspec.lock" 2>/dev/null | awk '{print $1}')"
+  cat > "$SEED_OUT/../SEED.txt" <<EOF
+# GENERATED by selfhost/scripts/prepare_airgap_fixture.sh
+seed_path:        $SEED_OUT
+resolved_from:    $FIXTURE/pubspec.lock
+pubspec_lock_sha: ${lock_sha:-unknown}
+package_dirs:     $pkgs
+index:            $(cd "$SEED_OUT/.." && pwd)/pub-cache.index
+
+# Use it:  AIRGAP_PUB_CACHE=$SEED_OUT
+# If pubspec.lock changes, re-run this script — the seed is derived, never
+# hand-maintained, and never an ambient ~/.pub-cache.
+EOF
+  note "seed ready: $pkgs package dirs; contract in $(cd "$SEED_OUT/.." && pwd)/SEED.txt"
+fi
+
+note "fixture ready: $FIXTURE"
+echo
+echo "  AIRGAP_PUB_CACHE=$SEED_OUT"
+echo "  --app $FIXTURE"

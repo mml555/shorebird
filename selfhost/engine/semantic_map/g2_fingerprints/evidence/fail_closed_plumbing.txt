@@ -1,0 +1,28 @@
+SM1-G2 fail-closed plumbing — both new checks must be able to FAIL
+date : 2026-09-07T15:48:01Z
+
+############ 1. ignore body_status: the refusal arm must break ############
+    FAILED  g2_unsupported_node        class changed_existing_declaration (want refused:unsupported_body)
+  SUMMARY checks_failed=1
+
+############ 2. only the VARIANT status checked: an unsupported BASELINE must break ############
+  (baseline g2_unsupported_node, variant g2_unsupported_base: the OLD body is
+   the unencodable one, so a variant-only check would call it reusable)
+    FAILED  g2_unsupported_baseline_side class changed_existing_declaration (want refused:unsupported_body)
+  SUMMARY checks_failed=1
+  restored both-sides check:
+    ok      g2_unsupported_baseline_side abi== body=≠ owner==  -> refused:unsupported_body
+  SUMMARY checks_failed=0
+
+############ 3. key owner ABI by bare class name: the two-library pair must break ############
+    FAILED  g2_twolib_untouched_owner  owner_abi differs (want equal); class not_reusable_under_old_abi (want candidate_unchanged)
+    ok      g2_twolib_moved_owner      abi== body== owner=≠  -> not_reusable_under_old_abi
+  SUMMARY checks_failed=1
+
+############ restored ############
+    ok      g2_unsupported_node        abi== body=≠ owner==  -> refused:unsupported_body
+    ok      g2_twolib_untouched_owner  abi== body== owner==  -> candidate_unchanged
+    ok      g2_twolib_moved_owner      abi== body== owner=≠  -> not_reusable_under_old_abi
+    ok      g2_unsupported_baseline_side abi== body=≠ owner==  -> refused:unsupported_body
+  SUMMARY checks_failed=0
+  G2 FINGERPRINTS VERIFIED

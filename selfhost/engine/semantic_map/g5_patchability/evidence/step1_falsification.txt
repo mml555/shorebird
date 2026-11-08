@@ -1,0 +1,122 @@
+SM1-G5 step 1 falsification — the predictor's inputs must be able to FAIL
+date : 2026-09-07T21:30:34Z
+
+############ 1. the body walker must FAIL CLOSED on an unmodelled node ############
+   Round 2 extended RecursiveVisitor and overrode selected node types, so
+   an unhandled construct traversed silently and the body read as clean.
+   Removing one kind from the allowlist must now refuse every body using it.
+    bodies=21 private-type-refs=0 private-writes=1 traversal-refused=14 -> /tmp/refs_bad.json
+  bodies refused: 14 of 21
+  example status: refused:ReturnStatement
+
+############ 2. an unmodelled TYPE must refuse, not be ignored ############
+   The first attempt at this mutation did not compile, so it tested nothing and
+   was replaced rather than reported. `case InterfaceType() when false:` makes
+   every interface type fall to the default branch, which must refuse.
+  bodies=21 private-type-refs=0 private-writes=1 traversal-refused=16 -> /tmp/refs_ty.json
+  bodies refusing an unmodelled type: 16 of 21
+  example: refused:Type:InterfaceType
+   (16 rather than 21 because five bodies -- constructors and fields with no
+   interface-typed node reached -- never present one to the walker. The check
+   fires wherever the fact exists, which is what it has to do.)
+
+############ 3. release identity must not merge a getter/setter pair ############
+  release rows: 17  ambiguous: 0  duplicate keys: none
+    Shape.perimeter  kind=getter  vm=get:perimeter  entries=['dyn-module:callable', 'dyn-module:can-be-overridden']
+    Shape.scale      kind=setter  vm=set:scale      entries=['dyn-module:callable', 'dyn-module:can-be-overridden']
+    Shape.scaled     kind=getter  vm=get:scaled     entries=['dyn-module:callable', 'dyn-module:can-be-overridden']
+  a getter and setter of the same name now hold DIFFERENT keys, so one
+  cannot serve as retention proof for the other.
+
+############ restored ############
+    bodies=21 private-type-refs=0 private-writes=1 traversal-refused=0 -> /tmp/refs_ok.json
+
+############ 4. private-reference identity must be EXACT ############
+   Corpus corpus_ext/g5_accessor_pair declares a private GETTER and a
+   private SETTER both named _x, so a reference resolved only to
+   (library, owner, name) cannot say which declaration it meant.
+
+   as built -- each reference carries the kind read off the resolved Member:
+      Holder.readIt   read   -> Holder#getter#_x
+      Holder.writeIt  write  -> Holder#setter#_x
+    Holder.readIt   -> ['MISSING_CAN_BE_OVERRIDDEN', 'RETENTION_UNPROVEN']
+    Holder.writeIt  -> ['MISSING_CAN_BE_OVERRIDDEN', 'RETENTION_UNPROVEN']
+
+   4a. REMOVE the recorded kind from every reference
+    Holder.readIt   -> ['MISSING_CAN_BE_OVERRIDDEN', 'PRIVATE_REFERENCE_UNRESOLVED', 'RETENTION_UNPROVEN']
+    Holder.writeIt  -> ['MISSING_CAN_BE_OVERRIDDEN', 'PRIVATE_REFERENCE_UNRESOLVED', 'RETENTION_UNPROVEN']
+
+   4b. CORRUPT the kind: the setter's write now points at the getter's row
+    Holder.readIt   -> ['MISSING_CAN_BE_OVERRIDDEN', 'RETENTION_UNPROVEN']
+    Holder.writeIt  -> ['MISSING_CAN_BE_OVERRIDDEN', 'PRIVATE_REFERENCE_UNGRANTED', 'RETENTION_UNPROVEN']
+      -> the getter row has no write key, so it refuses. A wrong row still
+         fails closed; it does not quietly authorise the write.
+
+   4c. WHICH G3 ROW EACH STRATEGY SELECTS
+   The first version of this arm claimed the reinstated fallback would silently
+   resolve; its own output refused instead, because the stale-input guard runs
+   before the fallback. Rather than leave a caption the evidence contradicts, the
+   arm is replaced with the direct comparison it was trying to make: for the same
+   reference, which G3 row does each lookup strategy pick?
+
+      Holder.readIt   read   exact-> getter  (write_key=False)   fallback-> getter  (write_key=False)
+      Holder.writeIt  write  exact-> setter  (write_key=True)   fallback-> getter  (write_key=False)
+
+      The fallback searches field -> method -> getter -> setter and stops at the
+      first hit, so BOTH the read and the write select the GETTER row. The write
+      would then be judged against a declaration that has no write key at all --
+      a different declaration from the one the body actually names. On this
+      corpus that happens to be less permissive, so the harm here is a wrong
+      attribution rather than an over-claim; the exact lookup removes the class
+      of error rather than relying on it landing safely.
+
+   restored:
+    Holder.readIt   -> ['MISSING_CAN_BE_OVERRIDDEN', 'RETENTION_UNPROVEN']
+    Holder.writeIt  -> ['MISSING_CAN_BE_OVERRIDDEN', 'RETENTION_UNPROVEN']
+
+############ 5. an ALLOWLISTED node with no fact-bearing visitor ############
+   Round 3 fail-closed on UNKNOWN node kinds but still allowlisted several nodes
+   that carry a member reference with no visitor. "Allowlisted" was being used
+   to mean "understood", and it was not: a private reference through such a node
+   was reported as no reference at all -- a false negative rather than a refusal.
+
+   An audit of every allowlisted kind for Reference/Name/Member fields split
+   them into modelled, removed, and genuinely referenceless. corpus_ext/
+   g5_tearoff reaches a private member through four of the previously unmodelled
+   shapes.
+
+   as built --
+      viaStaticTearOff     supported                  ['#method#_secret']
+      viaSuper             supported                  ['Base#method#_hidden']
+      viaInstanceTearOff   supported                  ['Base#method#_hidden']
+      viaDynamic           refused:DynamicInvocation  []
+
+   5a. DELETE visitInstanceTearOff, leaving InstanceTearOff allowlisted
+      viaInstanceTearOff   supported                  []
+      -> the private tear-off becomes INVISIBLE: status still "supported", no
+         reference recorded. This is the defect exactly.
+
+   5b. RE-ALLOWLIST the dynamic nodes, which carry a Name but no resolved target
+      viaDynamic           supported                  []
+      -> flips from refused to "supported" with nothing recorded. An unresolved
+         dynamic private access must never become "no private reference found",
+         which is why those kinds are removed rather than modelled: there is no
+         exact identity to record.
+
+   5c. A CORRECTION TO THIS ARM'S FIRST VERSION, kept rather than quietly fixed.
+   It deleted visitStaticTearOff alone and claimed the static tear-off would go
+   invisible. Its own output showed the reference still present, because in this
+   kernel the tear-off is ALSO carried as a StaticTearOffConstant, which the
+   constant walk records. Deleting both paths gives:
+
+      viaStaticTearOff     refused:Constant:StaticTearOffConstant  []
+
+   -- it REFUSES rather than going silent, because the constant walk's default
+   branch is fail-closed. So the static tear-off is covered twice over, and the
+   arm that actually demonstrates the false negative is 5a.
+
+   restored:
+      viaStaticTearOff     supported                  ['#method#_secret']
+      viaSuper             supported                  ['Base#method#_hidden']
+      viaInstanceTearOff   supported                  ['Base#method#_hidden']
+      viaDynamic           refused:DynamicInvocation  []

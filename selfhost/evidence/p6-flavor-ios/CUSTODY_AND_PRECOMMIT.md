@@ -1,0 +1,164 @@
+<!-- cspell:words privatestate killswitch twoengine assetprobe airgap precommitted noninteractive debugserver idevice -->
+
+# P6 · iOS flavor arm — rig custody, and the precommit
+
+**Nothing was built, installed or launched before this file existed.** The
+invariant: *no P6 launch occurs until the previous experiment has relinquished
+the rig in a recorded state.* Idle hardware is not a relinquishment.
+
+## 1 · Custody, established from the device and the precommits — not from memory
+
+| question | answer |
+|---|---|
+| previous owner / experiment | **this session's Route B P1/P2 lane**, fixture `privatestate_app` |
+| complete? | **yes.** `fixtures/privatestate_app/evidence/VERDICT.md` and `P2_VERDICT.md` are banked; the final observed state was ROLLED BACK (screenshots `04_rollback_pristine.png`, `06_p2_rollback.png`) |
+| peer sessions holding it | none. `ListAgents` shows no other shorebird session; the only busy peer is an unrelated project. **Recorded, not relied on** — the custody answer above is what releases the rig |
+| device | iPhone 7 / iOS 15.8.8 / `8cb4bc982ddf6437b1952520edee80f898196c74`, wired. Confirmed with `idevice_id -l` and `ios-deploy -c`, because `devicectl` is blind to iOS 15 |
+| installed fixtures | `dev.selfhost.privatestateProbe`, `dev.selfhost.killswitchProbe`, `dev.selfhost.twoengineProbe`, `dev.selfhost.airgapProbe`, `com.jewgo.assetprobe` |
+| **lifecycle-policy measurement** | **the rig is NOT part of the sample, by precommitment rather than by luck.** `THRESHOLD_ANALYSIS_PRECOMMIT.md` excludes *"the rig's own `client_id`s"* from the population, fixed in advance. So a new fixture on this device cannot contaminate the frozen threshold analysis |
+| **but one fixture's STATE is load-bearing** | `dev.selfhost.airgapProbe` carries `MEASUREMENT_MODE.md`'s specimen — release 108 / 1.8.0+1, patch 1, PATCHABLE. **It must not be touched.** The P6 arm uses a different bundle id, so it neither reads nor writes that app's state |
+| P6 fixture's prior state | `flavored_probe` is **not installed**. No prior patch, no updater state, nothing to preserve or disturb |
+| rig CLI provenance | `~/.shorebird` at `9125eb13`; pinned Flutter `c15ef637`, whose `engine.version` currently reads **`93a3756…`** |
+
+**Hand-back: the rig is claimed by the P6 iOS flavor arm as of this file.**
+
+## 2 · A prerequisite this gate found, and it is shared rather than local
+
+The rig CLI `9125eb13` is **24 commits behind** the tree and predates every gate
+built today. A release cut with it records **no snapshot profile, no profile
+binding, no contract revision and no release target** — so a patch built with the
+current CLI would refuse it, correctly, as `RELEASE_EVIDENCE_ABSENT` or as a
+release with no contract revision.
+
+So this arm cannot be run by pointing the old CLI at a flavored app. It needs:
+
+1. the rig CLI moved forward to a tree containing P4.1/P4.2/P4.3/P4.4/P5;
+2. `engine.version` repointed from `93a3756…` to the current cell `9b5f040c…`;
+3. the cache cleared and then **warmed**, because the mint's own precondition
+   records that the FIRST release after a clear silently takes the non-Route-B
+   path — `isRouteBEngine` reads the ios-release Flutter binary and returns false
+   when it does not yet exist.
+
+**This is not specific to flavor.** Every remaining device row in
+`WORKFLOW_CERTIFICATION.md` — flavor iOS, the defines REPLACEMENT link,
+obfuscation, tracks, the manual updater API — needs a release cut by a
+new-era CLI on the current cell. The P4/P5 hardening created an **epoch
+boundary**, and crossing it is one shared cost paid once, not five.
+
+## 3 · The arm, precommitted
+
+Exactly one flavor, `foo`, on both sides. The wrong-flavor negative stays at the
+host/product layer: P5 already owns that refusal and a deliberately mismatched
+flavor is not sent to the phone.
+
+| # | requirement | how it is observed |
+|---|---|---|
+| 1 | release built through the real flavored Xcode configuration/scheme | `xcodebuild` invoked with the `Foo` scheme / `Release-Foo` configuration |
+| 2 | release metadata records the intended flavor | `route_b.json` `buildConfig` carries `FLUTTER_APP_FLAVOR=foo` |
+| 3 | the patch's build configuration AGREES with the release's | `[route-b] build configuration matches the release (fingerprint …)` |
+| 4 | the exact current cell is in the lineage | `route_b.json` `engineRevision` = `9b5f040c…`, read from the SHIPPED sidecar |
+| 5 | P4 release evidence is present | `route_b_snapshot_profile.json` + `route_b_profile_binding.json` in the supplement, and the patch's probe verdict is `ONE_OR_MORE_QUALIFYING_CALLSITES` |
+| 6 | baseline visibly `FLAVORPROBE-V3` | screenshot |
+| 7 | the patch publishes through the real producer | patch id recorded, `ready` |
+| 8 | **manual icon launch only** | no `ios-deploy` debug session, no debugserver. The repo already requires tap-launches (`manual_launch_control_precommit.md`) |
+| 9 | the device renders `FLAVORPROBE-V4` | screenshot |
+| 10 | an unrelated control is unchanged | a second on-screen value that the patch does not touch |
+
+**STOP / INVALID conditions, fixed now.** If `isRouteBEngine` is false at release
+time, the release is not a Route B release and the arm is VOID — not a failure of
+flavors. If the shipped `route_b.json` names an engine other than `9b5f040c…`,
+the arm is VOID. If `V4` appears without requirement 8 being true, the run is
+VOID: a debugger-attached launch is a different execution path.
+
+**Rollback is NOT required for PASS.** It is already independently device-proven,
+including on this session's private-`State` specimens, and it is not the unique
+flavor seam. If shared-rig hygiene wants the fixture returned pristine, the
+rollback happens as part of hand-back and is **not** counted as P6 evidence.
+
+## 4 · Hand-back, to be performed after the arm
+
+    P6 flavor evidence captured
+    → withdraw/rollback the fixture patch
+    → verify the expected clean updater state
+    → terminate the fixture
+    → record the final device/app state here
+    → relinquish the rig
+
+
+---
+
+# Correction to §3's observables, 2026-08-26 — before any observation
+
+The precommit above said `FLAVORPROBE-V3 → V4`. **Those are the ANDROID arm's
+strings.** I wrote them from that arm's vocabulary without reading this fixture,
+and this fixture is built differently — better, in a way that matters.
+
+`flavored_app/lib/main.dart` carries **two independent** observables, precisely so
+that "the patch ran" and "the flavor arrived" cannot be read as one fact:
+
+    kReleaseState = 'FLAVORED-FIXTURE-V1'   <- a patch flips this to V2
+    flavorState() = 'V1/Foo'                <- the flavor observable
+
+So the arm's rows become:
+
+| # | requirement | observable |
+|---|---|---|
+| 6 | baseline visible | `FLAVORED-FIXTURE-V1` **and** `V1/Foo` |
+| 9 | the patch executed | `FLAVORED-FIXTURE-V2` |
+| 10 | control unchanged | `V1/Foo` still reads `V1/Foo` — the flavor did not move because the patch did |
+
+**The substance of §3 is unchanged**: baseline visible, the patch changes exactly
+one thing, an unrelated value stays put, tap-launch only, and the wrong-flavor
+negative stays at the P5 host layer. Only the string names were wrong, and they
+were wrong because I did not read the fixture before writing them down.
+
+Recording it because a precommit edited quietly after the fact is not a
+precommit. The correction is made **before** any device observation exists.
+
+# One invalidated launch, discarded
+
+`ios-deploy --bundle … --justlaunch` was used to install release 114. That
+installed correctly, but `--justlaunch` goes through lldb, and
+`evidence/g15/manual_launch_control_precommit.md` names it explicitly:
+*"`idevicedebug`, `ios-deploy -d`, `--justlaunch`, or any debugserver-attached
+path invalidates the run."*
+
+So **that launch is discarded as evidence.** Nothing was observed from it and
+nothing from it is banked. The install itself is unaffected — the app on the
+device is the signed release-114 bundle, `9b133a7e…`.
+
+Install-only from here, and every observation from a by-hand tap.
+
+
+# Second correction, also before the patch exists: target and control swap
+
+The correction above put the patch on `kReleaseState`. **That is not patchable,
+and the fixture never intended it to be.**
+
+`kReleaseState` is a top-level `const`, consumed inline at `main.dart:167` inside
+a widget `build`. Route B replaces FUNCTION BODIES; a const has no body, and its
+value is inlined at every use site. So "a patch flips this to V2" cannot be done
+by patching that declaration.
+
+The fixture's own header says what the target is: *"This one carries exactly one
+target, because the claim under test is configuration, not mechanism."* — and
+`flavorState()` is the member carrying every anti-folding property the file
+documents at length: `vm:entry-point`, `vm:never-inline`, called from
+`initState` on the live path, and a `DateTime.now()` guard so the RESULT cannot
+be folded into the call site.
+
+So the roles swap, and the arm is stronger for it:
+
+| role | observable | expectation |
+|---|---|---|
+| **target** | `flavorState()` → `V1/Foo` | becomes **`V2/Foo`** |
+| **control** | `release:` → `FLAVORED-FIXTURE-V1` | **unchanged** — proves the device is still on release 114 and did not quietly pick up a new release |
+| **control** | `asset:` → `BAKED-INTO-RELEASE` | **unchanged** |
+
+And the target keeps carrying the flavor: `V2/Foo` shows in one reading that the
+patch executed **and** that the flavor reached the patch's own compile. The
+release marker staying `V1` is what stops that being confused with a new release.
+
+Recorded before the patch is built. The baseline is already banked from a genuine
+tap (`evidence/01_baseline_tap.png`: `FLAVORED-FIXTURE-V1`, `V1/Foo`,
+`BAKED-INTO-RELEASE`).

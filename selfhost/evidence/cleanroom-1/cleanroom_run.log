@@ -1,0 +1,133 @@
+
+== 1 - the Seatbelt profile, and the proof that it bites
+    (version 1)
+    (allow default)
+    (deny file-read* (subpath "/Volumes/build"))
+    (deny file-read* (subpath "/Users/mendell/shorebird"))
+    (deny file-read* (subpath "/Users/mendell/.shorebird"))
+    (deny file-read* (subpath "/Users/mendell/.pub-cache"))
+    (deny file-read* (subpath "/Users/mendell/.gradle"))
+    (deny file-read* (subpath "/Users/mendell/Library/Caches/flutter"))
+    (allow file-read-metadata (literal "/Volumes/build/cleanroom1"))
+    (allow file-read-metadata (literal "/Volumes/build"))
+    (allow file-read-metadata (literal "/Volumes"))
+    (allow file-read* (subpath "/Volumes/build/cleanroom1"))
+  PASS  denied: /Volumes/build
+  PASS  denied: /Users/mendell/shorebird
+  PASS  denied: /Users/mendell/.shorebird
+  PASS  denied: /Users/mendell/.pub-cache
+  PASS  denied: /Users/mendell/.gradle
+    (absent on this machine, nothing to deny: /Users/mendell/Library/Caches/flutter)
+  PASS  5 of those paths ARE readable outside the sandbox, so the denial is what stops them
+  PASS  the cleanroom itself is readable
+
+== 2 - a fresh HOME, and an environment with nothing inherited
+    GIT_TERMINAL_PROMPT=0
+    HOME=/Volumes/build/cleanroom1/home
+    LANG=en_US.UTF-8
+    PATH=/usr/bin:/bin:/usr/sbin:/sbin
+    TERM=dumb
+    TMPDIR=/Volumes/build/cleanroom1/tmp
+  PASS  fresh HOME has no .shorebird
+  PASS  fresh HOME has no .pub-cache
+  PASS  fresh HOME has no .gradle
+  PASS  the fresh HOME is a different inode from the operator's
+
+== 3 - clone the durable repositories, anonymously
+  PASS  cloned https://github.com/mml555/shorebird.git anonymously
+    a bare clone lands on: main @ 098aa6cbe41c6bf0b4b50c34d5644e4d5b7a0b71
+  PASS  the supported cli_revision is present in the clone
+  PASS  engine producer f1a59b8a1609 is advertised by the durable engine repo
+  PASS  engine producer dfa2b24ac384 is advertised by the durable engine repo
+
+== 4 - WHICH REVISION DOES AN OPERATOR CHECK OUT to get the supported record?
+    CANDIDATE                                  REVISION       cell_address named there
+    selfhost-v1.0.0                            32e14c710a82   <no record here>
+    5920a8bf0a992618bfe7d1680c5439abd7a4f55f   5920a8bf0a99   cd848320d605ff8af5060cabf9a8d1b35853f752
+    654e595daffc09dd39a410eba324dfa75c81dd24   654e595daffc   f85251f344600ae08196925a174e9cff8f0ff18e
+  PASS  a revision carrying the current record exists: 654e595daffc
+  DEFECT the documented distribution pin is selfhost-v1.0.0, and the record at that tag names no cell at all, not f85251f344600ae08196925a174e9cff8f0ff18e. There is no immutable ref an operator can pin to obtain the CURRENT supported record -- only the mutable tip of a non-default branch.
+  PREREQ check out origin/experimental (a MUTABLE branch tip) to obtain the current record; `git clone` lands on main and the newest selfhost-v* tag is stale.
+  PASS  the supported-state record is readable in the cleanroom
+
+== 5 - the cell's 30 members: can a fresh operator OBTAIN them?
+  PASS  the cell DESCRIPTOR is in the repository (membership and digests are durable)
+    addressed members: 30   present in a fresh clone: 0   ABSENT: 30
+    gitignore: .gitignore:30:selfhost/cdn/overlay/*	selfhost/cdn/overlay/x
+  DEFECT 30 of 30 addressed cell members are absent from a fresh clone. selfhost/cdn/overlay/* is gitignored, the repository publishes no release asset carrying them, and the record names no durable location to fetch them from. The CDN that serves them reads that same local directory, so it is not an independent source.
+
+== 6 - could the missing bytes be REBUILT instead of fetched?
+    the repository's own statement about the compiler archive:
+      already proven non-byte-reproducible, so a qualification that rebuilds it and
+  DEFECT the cell address is a digest over exact bytes and the repository records the Route B compiler archive as non-byte-reproducible, so a rebuild yields a DIFFERENT address. Cell f85251f344600ae08196925a174e9cff8f0ff18e cannot be re-derived from source -- it can only be distributed as bytes, which makes the previous defect a hard blocker rather than a slow path.
+
+== 7 - the runtime checkout the verifier requires
+    the verifier's default SHOREBIRD_ROOT is: /Volumes/build/route-b/shorebird-candidate
+  DEFECT verify_supported_state.sh defaults SHOREBIRD_ROOT to /Volumes/build/route-b/shorebird-candidate -- an absolute path on the qualification machine. An operator elsewhere must know to override it; nothing in the record says so.
+  PREREQ provide a runtime CLI checkout (SHOREBIRD_ROOT) whose bin/cache/flutter/<selector> is bootstrapped, and whose Flutter engine.version is committed to the supported cell.
+
+== 8 - the tooling the verifier itself needs
+  PREREQ install PyYAML (pip install pyyaml). The stock macOS python3 has no yaml module, and without it the record's format check cannot run.
+    (the system python3 in this cleanroom has no yaml module)
+
+== 8b - is the supported FLUTTER SELECTOR obtainable?
+    https://github.com/mml555/shorebird-flutter.git      not fetchable
+    https://github.com/shorebirdtech/flutter.git         not fetchable
+    https://github.com/flutter/flutter.git               not fetchable
+  DEFECT the supported flutter_selector e64eb0af52e1c43c3b21a39556d789538d0df9b3 is not fetchable from ANY durable remote. On the qualification machine it is cloned from file:///…/selfhost/cdn/mirrors/flutter.git, which is gitignored, so the CLI cannot bootstrap anywhere else. This is a hard blocker, not a slow path.
+
+== 9 - can the CLI bootstrap itself in the cleanroom?
+    exit=128
+    | Updating Flutter...
+    | Cloning into '/Volumes/build/cleanroom1/shorebird/bin/cache/flutter/e64eb0af52e1c43c3b21a39556d789538d0df9b3'...
+    | fatal: remote error: upload-pack: not our ref e64eb0af52e1c43c3b21a39556d789538d0df9b3
+    | fatal: remote error: upload-pack: not our ref e64eb0af52e1c43c3b21a39556d789538d0df9b3
+    | fatal: remote error: upload-pack: not our ref e64eb0af52e1c43c3b21a39556d789538d0df9b3
+    | fatal: remote error: upload-pack: not our ref e64eb0af52e1c43c3b21a39556d789538d0df9b3
+    | fatal: unable to read tree (e64eb0af52e1c43c3b21a39556d789538d0df9b3)
+  FAIL  the CLI could not bootstrap in the cleanroom (exit 128) — logs/cli_bootstrap.log
+
+== 10 - run the record's own verifier in the cleanroom, and read it honestly
+      FAILED  record is not cleanly machine-readable — it either fails to parse or carries a duplicate key (a duplicate PARSES and silently keeps the last value, which is how an authoritative field gets shadowed); rerun the check by hand for the line number: python3 - /Volumes/build/cleanroom1/shorebird/selfhost/engine/route_b/SUPPORTED_STATE.yaml < the DUPPY heredoc in this script
+      ok      recorded cli_revision exists in this repository
+      ok      cli_revision is in this branch's history
+      ok      cli_revision contains 6b4f6c42 (private-name resolution)
+      ok      CLI flutter.version (committed blob at cli_revision) selects the recorded Flutter
+      ok      repo HEAD product tree packages/shorebird_cli
+      FAILED  runtime checkout product tree packages/shorebird_cli: record says 6c76e79a3ad1c86658a41b144dececb07ff5d3ca, artifact is <none>
+      ok      repo HEAD product tree bin/internal
+      FAILED  runtime checkout product tree bin/internal: record says 67bb0a85a83177ad8afcf1765403e42a913e0377, artifact is <none>
+      ok      runtime checkout has no uncommitted changes at all
+      FAILED  runtime checkout's flutter.version matches the committed selector: record says e64eb0af52e1c43c3b21a39556d789538d0df9b3, artifact is <none>
+      ok      runtime checkout's bin/internal is clean
+      FAILED  no Flutter checkout at /Volumes/build/route-b/shorebird-candidate/bin/cache/flutter/e64eb0af52e1c43c3b21a39556d789538d0df9b3
+      FAILED  no published compiler archive at /Volumes/build/cleanroom1/shorebird/selfhost/cdn/overlay/download.shorebird.dev/shorebird/f85251f344600ae08196925a174e9cff8f0ff18e/route-b-compiler-darwin-arm64.zip
+      FAILED  cannot verify the analyzer: no published archive
+      --      analyzer not resolved into this root's cache (archive already verified)
+      ok      v2 manifest recomputes to the cell address
+      FAILED  cell member drift — run verify_cell_members.sh f85251f344600ae08196925a174e9cff8f0ff18e for the detail
+      ok      fallback engine revision
+      ok      updater revision agrees with selfhost/compatibility.yaml
+      ok      engine producer f1a59b8a1609 durable AND matches the banked patch, parent dfa2b24ac384
+      ok      engine producer dfa2b24ac384 is reachable on the remote
+      FAILED  audit_route_b_compiler reported findings for f85251f344600ae08196925a174e9cff8f0ff18e
+    
+    SUPPORTED STATE FAILED: 9 check(s)
+  FAIL  the verifier does not pass in the cleanroom (9 failed checks) — logs/verify.log
+
+== RESULT
+  cleanroom: /Volumes/build/cleanroom1
+
+  OPERATOR PREREQUISITES ENCOUNTERED (3):
+    1. check out origin/experimental (a MUTABLE branch tip) to obtain the current record; `git clone` lands on main and the newest selfhost-v* tag is stale.
+    2. provide a runtime CLI checkout (SHOREBIRD_ROOT) whose bin/cache/flutter/<selector> is bootstrapped, and whose Flutter engine.version is committed to the supported cell.
+    3. install PyYAML (pip install pyyaml). The stock macOS python3 has no yaml module, and without it the record's format check cannot run.
+
+  PRODUCTIZATION DEFECTS (5):
+    1. the documented distribution pin is selfhost-v1.0.0, and the record at that tag names no cell at all, not f85251f344600ae08196925a174e9cff8f0ff18e. There is no immutable ref an operator can pin to obtain the CURRENT supported record -- only the mutable tip of a non-default branch.
+    2. 30 of 30 addressed cell members are absent from a fresh clone. selfhost/cdn/overlay/* is gitignored, the repository publishes no release asset carrying them, and the record names no durable location to fetch them from. The CDN that serves them reads that same local directory, so it is not an independent source.
+    3. the cell address is a digest over exact bytes and the repository records the Route B compiler archive as non-byte-reproducible, so a rebuild yields a DIFFERENT address. Cell f85251f344600ae08196925a174e9cff8f0ff18e cannot be re-derived from source -- it can only be distributed as bytes, which makes the previous defect a hard blocker rather than a slow path.
+    4. verify_supported_state.sh defaults SHOREBIRD_ROOT to /Volumes/build/route-b/shorebird-candidate -- an absolute path on the qualification machine. An operator elsewhere must know to override it; nothing in the record says so.
+    5. the supported flutter_selector e64eb0af52e1c43c3b21a39556d789538d0df9b3 is not fetchable from ANY durable remote. On the qualification machine it is cloned from file:///…/selfhost/cdn/mirrors/flutter.git, which is gitignored, so the CLI cannot bootstrap anywhere else. This is a hard blocker, not a slow path.
+
+  CLEANROOM NOT REPRODUCIBLE: 2 failed check(s), 5 defect(s)

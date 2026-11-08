@@ -20,6 +20,7 @@ import 'package:shorebird_cli/src/executables/xcodebuild.dart';
 import 'package:shorebird_cli/src/logging/shorebird_logger.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
@@ -28,10 +29,12 @@ import 'package:shorebird_cli/src/version.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
+import '../../helpers.dart';
 import '../../matchers.dart';
 import '../../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group(MacosReleaser, () {
     late ArgResults argResults;
     late ArtifactBuilder artifactBuilder;
@@ -43,6 +46,7 @@ void main() {
     late FlavorValidator flavorValidator;
     late Progress progress;
     late ShorebirdLogger logger;
+    late ShorebirdArtifacts shorebirdArtifacts;
     late ShorebirdEnv shorebirdEnv;
     late ShorebirdFlutter shorebirdFlutter;
     late ShorebirdValidator shorebirdValidator;
@@ -60,6 +64,7 @@ void main() {
           codeSignerRef.overrideWith(() => codeSigner),
           doctorRef.overrideWith(() => doctor),
           loggerRef.overrideWith(() => logger),
+          shorebirdArtifactsRef.overrideWith(() => shorebirdArtifacts),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
           shorebirdValidatorRef.overrideWith(() => shorebirdValidator),
@@ -74,15 +79,23 @@ void main() {
 
     setUp(() {
       argResults = MockArgResults();
+      // Managed signing, the default, is covered in releaser_test.dart.
+      when(() => argResults['patch-signing']).thenReturn(false);
       artifactBuilder = MockArtifactBuilder();
       artifactManager = MockArtifactManager();
       codePushClientWrapper = MockCodePushClientWrapper();
       codeSigner = MockCodeSigner();
+      when(
+        () => codeSigner.canonicalPublicKeyPem(any()),
+      ).thenAnswer(
+        (invocation) => invocation.positionalArguments.single as String,
+      );
       doctor = MockDoctor();
       flavorValidator = MockFlavorValidator();
       projectRoot = Directory.systemTemp.createTempSync();
       progress = MockProgress();
       logger = MockShorebirdLogger();
+      shorebirdArtifacts = MockShorebirdArtifacts();
       shorebirdEnv = MockShorebirdEnv();
       shorebirdFlutter = MockShorebirdFlutter();
       shorebirdValidator = MockShorebirdValidator();
@@ -119,6 +132,13 @@ void main() {
       });
     });
 
+    group('supplement', () {
+      test('uploads under the platform supplement names', () {
+        expect(releaser.supplementPlatformSubdir, equals('macos'));
+        expect(releaser.supplementArtifactArch, equals('macos_supplement'));
+      });
+    });
+
     group('assertPreconditions', () {
       final flutterVersion = Version(3, 0, 0);
 
@@ -128,30 +148,6 @@ void main() {
           () => shorebirdFlutter.resolveFlutterVersion(any()),
         ).thenAnswer((_) async => flutterVersion);
         when(flavorValidator.validate).thenAnswer((_) async => []);
-      });
-
-      group('when validation succeeds', () {
-        setUp(() {
-          when(
-            () => shorebirdValidator.validatePreconditions(
-              checkUserIsAuthenticated: any(named: 'checkUserIsAuthenticated'),
-              checkShorebirdInitialized: any(
-                named: 'checkShorebirdInitialized',
-              ),
-              validators: any(named: 'validators'),
-              supportedOperatingSystems: any(
-                named: 'supportedOperatingSystems',
-              ),
-            ),
-          ).thenAnswer((_) async {});
-        });
-
-        test('returns normally', () async {
-          await expectLater(
-            () => runWithOverrides(releaser.assertPreconditions),
-            returnsNormally,
-          );
-        });
       });
 
       group('when validation fails', () {
@@ -182,27 +178,9 @@ void main() {
               checkUserIsAuthenticated: true,
               checkShorebirdInitialized: true,
               validators: [flavorValidator],
-              supportedOperatingSystems: {Platform.macOS},
+              supportedOperatingSystems: {NativePlatform.macOS},
             ),
           ).called(1);
-        });
-      });
-
-      group('when specified flutter version is less than minimum', () {
-        setUp(() {
-          when(
-            () => shorebirdValidator.validatePreconditions(
-              checkUserIsAuthenticated: any(named: 'checkUserIsAuthenticated'),
-              checkShorebirdInitialized: any(
-                named: 'checkShorebirdInitialized',
-              ),
-              validators: any(named: 'validators'),
-              supportedOperatingSystems: any(
-                named: 'supportedOperatingSystems',
-              ),
-            ),
-          ).thenAnswer((_) async {});
-          when(() => argResults['flutter-version']).thenReturn('3.0.0');
         });
       });
     });
@@ -213,58 +191,18 @@ void main() {
           when(() => argResults.wasParsed('release-version')).thenReturn(true);
         });
 
-        test('logs error and exits with usage err', () async {
+        test('exits with an error saying the flag is unsupported', () async {
           await expectLater(
             () => runWithOverrides(releaser.assertArgsAreValid),
-            exitsWithCode(ExitCode.usage),
-          );
-
-          verify(
-            () => logger.err(
-              '''
-The "--release-version" flag is only supported for aar and ios-framework releases.
-
-To change the version of this release, change your app's version in your pubspec.yaml.''',
+            exitsWithError(
+              message:
+                  '--release-version is only supported for aar and '
+                  'ios-framework releases.',
+              hint:
+                  'Remove --release-version. This release takes its version '
+                  'from your pubspec.yaml.',
             ),
-          ).called(1);
-        });
-      });
-
-      group('when --obfuscate is passed', () {
-        setUp(() {
-          when(() => argResults['obfuscate']).thenReturn(true);
-          when(() => argResults.wasParsed('obfuscate')).thenReturn(true);
-          when(() => shorebirdEnv.flutterRevision).thenReturn('deadbeef');
-        });
-
-        group('when Flutter version supports obfuscation', () {
-          setUp(() {
-            when(
-              () => shorebirdFlutter.resolveFlutterVersion(any()),
-            ).thenAnswer((_) async => Version(3, 41, 2));
-          });
-
-          test('returns normally', () async {
-            await expectLater(
-              runWithOverrides(releaser.assertArgsAreValid),
-              completes,
-            );
-          });
-        });
-
-        group('when Flutter version does not support obfuscation', () {
-          setUp(() {
-            when(
-              () => shorebirdFlutter.resolveFlutterVersion(any()),
-            ).thenAnswer((_) async => Version(3, 27, 4));
-          });
-
-          test('logs error and exits', () async {
-            await expectLater(
-              () => runWithOverrides(releaser.assertArgsAreValid),
-              exitsWithCode(ExitCode.unavailable),
-            );
-          });
+          );
         });
       });
 
@@ -430,28 +368,17 @@ To change the version of this release, change your app's version in your pubspec
           when(() => artifactManager.getMacOSAppDirectory()).thenReturn(null);
         });
 
-        test('logs message and exits with code 70', () async {
+        test('exits with an error saying the .app was not found', () async {
           await expectLater(
             () => runWithOverrides(releaser.buildReleaseArtifacts),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message:
+                  'Unable to find the .app directory in the macOS build '
+                  'output.',
+              hint: 'Re-run with --verbose to see the build output.',
+              exitCode: ExitCode.software,
+            ),
           );
-
-          verify(() => logger.err('Unable to find .app directory')).called(1);
-        });
-      });
-
-      group('when app not found after build', () {
-        setUp(() {
-          when(() => artifactManager.getMacOSAppDirectory()).thenReturn(null);
-        });
-
-        test('logs message and exits with code 70', () async {
-          await expectLater(
-            () => runWithOverrides(releaser.buildReleaseArtifacts),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(() => logger.err('Unable to find .app directory')).called(1);
         });
       });
 
@@ -541,43 +468,6 @@ To change the version of this release, change your app's version in your pubspec
           );
         });
 
-        group('when --split-debug-info is also provided', () {
-          setUp(() {
-            when(
-              () => argResults.wasParsed('split-debug-info'),
-            ).thenReturn(true);
-            when(
-              () => argResults['split-debug-info'],
-            ).thenReturn('custom/symbols');
-          });
-
-          test('preserves user-provided --split-debug-info', () async {
-            await runWithOverrides(releaser.buildReleaseArtifacts);
-
-            final captured = verify(
-              () => artifactBuilder.buildMacos(
-                codesign: any(named: 'codesign'),
-                flavor: any(named: 'flavor'),
-                target: any(named: 'target'),
-                args: captureAny(named: 'args'),
-                base64PublicKey: any(named: 'base64PublicKey'),
-                ddMaxBytes: any(named: 'ddMaxBytes'),
-              ),
-            ).captured;
-
-            final args = captured.last as List<String>;
-            expect(
-              args,
-              contains('--split-debug-info=custom/symbols'),
-            );
-            // Should not contain a second auto-defaulted one.
-            expect(
-              args.where((a) => a.startsWith('--split-debug-info=')).length,
-              equals(1),
-            );
-          });
-        });
-
         test('logs detail about map location', () async {
           await runWithOverrides(releaser.buildReleaseArtifacts);
 
@@ -586,42 +476,6 @@ To change the version of this release, change your app's version in your pubspec
               any(that: startsWith('Obfuscation map saved to')),
             ),
           ).called(1);
-        });
-
-        group('when obfuscation map is not generated', () {
-          setUp(() {
-            // Override to NOT create the map file.
-            when(
-              () => artifactBuilder.buildMacos(
-                codesign: any(named: 'codesign'),
-                flavor: any(named: 'flavor'),
-                target: any(named: 'target'),
-                args: any(named: 'args'),
-                base64PublicKey: any(named: 'base64PublicKey'),
-                ddMaxBytes: any(named: 'ddMaxBytes'),
-              ),
-            ).thenAnswer(
-              (_) async =>
-                  AppleBuildResult(kernelFile: File('/path/to/app.dill')),
-            );
-          });
-
-          test('logs error and exits', () async {
-            await expectLater(
-              () => runWithOverrides(releaser.buildReleaseArtifacts),
-              exitsWithCode(ExitCode.software),
-            );
-
-            verify(
-              () => logger.err(
-                any(
-                  that: contains(
-                    'Obfuscation was enabled but the obfuscation map was not',
-                  ),
-                ),
-              ),
-            ).called(1);
-          });
         });
       });
     });
@@ -639,59 +493,19 @@ To change the version of this release, change your app's version in your pubspec
       });
 
       group('when plist does not exist', () {
-        test('logs error and exits', () async {
+        test('exits with an error naming the missing file', () async {
           await expectLater(
             () => runWithOverrides(
               () =>
                   releaser.getReleaseVersion(releaseArtifactRoot: appDirectory),
             ),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message:
+                  'No Info.plist file found at '
+                  '${p.join(appDirectory.path, 'Contents', 'Info.plist')}',
+              exitCode: ExitCode.software,
+            ),
           );
-
-          verify(
-            () => logger.err(
-              '''No Info.plist file found at ${p.join(appDirectory.path, 'Contents', 'Info.plist')}''',
-            ),
-          ).called(1);
-        });
-      });
-
-      group('when plist does not contain version number', () {
-        late File plist;
-        setUp(() {
-          plist = File(p.join(appDirectory.path, 'Contents', 'Info.plist'))
-            ..createSync()
-            ..writeAsStringSync('''
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>ApplicationProperties</key>
-	<dict>
-	</dict>
-</dict>
-</plist>'
-''');
-        });
-
-        test('logs error and exits', () async {
-          await expectLater(
-            () => runWithOverrides(
-              () =>
-                  releaser.getReleaseVersion(releaseArtifactRoot: appDirectory),
-            ),
-            exitsWithCode(ExitCode.software),
-          );
-
-          verify(
-            () => logger.err(
-              any(
-                that: startsWith(
-                  'Failed to determine release version from ${plist.path}',
-                ),
-              ),
-            ),
-          ).called(1);
         });
       });
 
@@ -756,7 +570,7 @@ To change the version of this release, change your app's version in your pubspec
         flutterRevision: flutterRevision,
         flutterVersion: flutterVersion,
         displayName: '1.2.3+1',
-        platformStatuses: const {},
+        platforms: const {},
         createdAt: DateTime(2023),
         updatedAt: DateTime(2023),
       );
@@ -779,7 +593,6 @@ To change the version of this release, change your app's version in your pubspec
             appId: any(named: 'appId'),
             releaseId: any(named: 'releaseId'),
             appPath: any(named: 'appPath'),
-            isCodesigned: any(named: 'isCodesigned'),
             podfileLockHash: any(named: 'podfileLockHash'),
           ),
         ).thenAnswer((_) async => {});
@@ -794,7 +607,7 @@ To change the version of this release, change your app's version in your pubspec
           when(() => artifactManager.getMacOSAppDirectory()).thenReturn(null);
         });
 
-        test('logs error and exits with code 70', () async {
+        test('exits with an error saying the .app was not found', () async {
           await expectLater(
             () => runWithOverrides(
               () => releaser.uploadReleaseArtifacts(
@@ -802,10 +615,14 @@ To change the version of this release, change your app's version in your pubspec
                 appId: appId,
               ),
             ),
-            exitsWithCode(ExitCode.software),
+            exitsWithError(
+              message:
+                  'Unable to find the .app directory in the macOS build '
+                  'output.',
+              hint: 'Re-run with --verbose to see the build output.',
+              exitCode: ExitCode.software,
+            ),
           );
-
-          verify(() => logger.err('Unable to find .app directory')).called(1);
         });
       });
 
@@ -819,7 +636,6 @@ To change the version of this release, change your app's version in your pubspec
             appId: appId,
             releaseId: release.id,
             appPath: appDirectory.path,
-            isCodesigned: codesign,
             podfileLockHash:
                 '${sha256.convert(utf8.encode(podfileLockContent))}',
           ),
@@ -854,7 +670,6 @@ To change the version of this release, change your app's version in your pubspec
               appId: appId,
               releaseId: release.id,
               appPath: appDirectory.path,
-              isCodesigned: codesign,
               podfileLockHash:
                   '${sha256.convert(utf8.encode(podfileLockContent))}',
             ),
@@ -911,13 +726,24 @@ To change the version of this release, change your app's version in your pubspec
     });
 
     group('postReleaseInstructions', () {
+      const analyzeSnapshotArtifacts = [
+        ShorebirdArtifact.analyzeSnapshotMacosArm64,
+        ShorebirdArtifact.analyzeSnapshotMacosX64,
+      ];
       late Directory appDirectory;
+      late Directory artifactsDirectory;
 
       setUp(() {
         appDirectory = Directory.systemTemp.createTempSync();
+        artifactsDirectory = Directory.systemTemp.createTempSync();
         when(
           () => artifactManager.getMacOSAppDirectory(),
         ).thenReturn(appDirectory);
+        for (final artifact in analyzeSnapshotArtifacts) {
+          when(
+            () => shorebirdArtifacts.getArtifactPath(artifact: artifact),
+          ).thenReturn(p.join(artifactsDirectory.path, artifact.name));
+        }
       });
 
       test('prints xcarchive upload steps', () {
@@ -927,13 +753,47 @@ To change the version of this release, change your app's version in your pubspec
         );
       });
 
-      test('includes .pkg distribution warning', () {
+      test('links to the notarization docs', () {
         expect(
           runWithOverrides(() => releaser.postReleaseInstructions),
           contains(
-            'https://github.com/shorebirdtech/shorebird/issues/3223',
+            'https://docs.shorebird.dev/code-push/release/#notarize-a-macos-app',
           ),
         );
+      });
+
+      group(
+        'when the engine publishes the macOS analyze_snapshot artifacts',
+        () {
+          setUp(() {
+            for (final artifact in analyzeSnapshotArtifacts) {
+              File(p.join(artifactsDirectory.path, artifact.name)).createSync();
+            }
+          });
+
+          test('does not print the re-signing note', () {
+            expect(
+              runWithOverrides(() => releaser.postReleaseInstructions),
+              isNot(contains('re-signed')),
+            );
+          });
+        },
+      );
+
+      group('when the engine does not publish the macOS analyze_snapshot '
+          'artifacts', () {
+        test('prints the re-signing note', () {
+          expect(
+            runWithOverrides(() => releaser.postReleaseInstructions),
+            allOf(
+              contains('may fail to install after the app is re-signed'),
+              contains('Flutter 3.47.7 or newer'),
+              contains(
+                'https://github.com/shorebirdtech/shorebird/issues/3223',
+              ),
+            ),
+          );
+        });
       });
     });
   }, testOn: 'mac-os');

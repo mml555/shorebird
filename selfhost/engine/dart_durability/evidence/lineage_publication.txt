@@ -1,0 +1,83 @@
+DART-DURABILITY-1 -- lineage publication
+generated 2026-09-09T04:42:56Z by publish_lineage.sh
+mode: EXECUTE
+
+THE IDENTITY THAT MUST SURVIVE PUBLICATION
+  dart revision   9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+  head tree       aa55ff960f07682fd098195e4884f2cbcb4f5f27
+  effective tree  7b04b01bdc10ec990143257f0d28580571c2122f   <- what actually built the cell
+  upstream base   d684a576a6aa954ae107a03b2b4e1d61c3bebe93
+
+############ 1. WHAT IS IN THE DELTA BEING PUBLISHED ############
+  commits over the DEPS-pinned upstream base:
+    9e8c898a4d2 Route B: Dart SDK support, bytecode producer, and the target->pool instrument
+    6b58bb3a72e Add snapshot size accessors for code push
+
+  files those commits touch, plus the uncommitted guard:
+     sdk/lib/_internal/vm/lib/internal_patch.dart       |  27 +
+     sdk/lib/internal/internal.dart                     |  33 +
+     22 files changed, 2116 insertions(+), 10 deletions(-)
+    guard: 1 file(s), 16 added lines
+
+  scan of every added line for machine-specific or secret content:
+    matches: 0  (a non-zero count blocks publication)
+
+############ 2. MATERIALIZE THE EFFECTIVE TREE AS ONE COMMIT ############
+  The guard was never committed upstream, so the effective tree exists only as
+  head-tree-plus-patch. A durable remote cannot host a patch as an identity, so
+  the tree is written into the object database directly and committed with
+  `commit-tree` -- no working tree, no `git add`, which is what lost modes and
+  produced 1f8c25b3 instead of aa55ff96 the first time this was attempted.
+
+  tree written from head + guard   7b04b01bdc10ec990143257f0d28580571c2122f
+  tree the frozen record names     7b04b01bdc10ec990143257f0d28580571c2122f
+  IDENTICAL -- this tree is publishable as the producing source
+  pinned commit identity           Shorebird self-host provenance <provenance@selfhost.invalid>
+  pinned commit date               2026-08-18T16:48:02-04:00  (committer date of 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c)
+  commit object                    3bcdeb3ef6c38a9ebce0a239247cac927ecf700c
+  its tree                         7b04b01bdc10ec990143257f0d28580571c2122f
+
+############ 3. THE REFS THAT MAKE IT IMMUTABLE IN INTENT ############
+  branch  provenance/route-b-selfhost-v1.1.1   (protected, non-force-push)
+  tag     route-b-producing-source-selfhost-v1.1.1   (annotated)
+
+  creating mml555/dart-sdk-shorebird-lineage (public)
+    GraphQL: Name already exists on this account (createRepository)
+  REFUSING TO MOVE A PUBLISHED PROVENANCE REF.
+    on the remote  5f37e75fbe0891fcaf5442481348ce7f61cb5616
+    derived here   3bcdeb3ef6c38a9ebce0a239247cac927ecf700c
+  A protected provenance branch that this script would rewrite on a
+  whim is not immutable. If the remote ref is genuinely wrong it has
+  to be replaced deliberately, outside this script, and recorded.
+    Updated tag 'route-b-producing-source-selfhost-v1.1.1' (was 840530b4b15)
+  REFUSING TO MOVE A PUBLISHED CANONICAL TAG.
+    on the remote  9947f90f153386589632dba52cead360ebf1c68d
+    derived here   6c56dd6e51a4bf61ba894f43fd56f9c9bf50fe08
+  applying branch protection (no force-push, no deletion)
+    protection applied
+  protection as the API reports it: force_push=False deletion=False
+  the canonical tag is an tag object locally
+
+############ 4. WHAT STILL HAS TO BE PROVEN ELSEWHERE ############
+  Publishing is not the acceptance criterion. #47 asks that a FRESH ANONYMOUS
+  clone resolve the exact producing tree -- which this script cannot honestly
+  check, because it runs inside the clone that already has every object. That
+  proof is verify_durable.sh, which clones with no credentials into a scratch
+  directory and compares tree hashes there.
+
+ASSERTIONS (13 checked)
+  pass  the delta contains no machine-specific or secret content
+  pass  head plus the guard writes the effective tree
+  pass  the published commit carries exactly that tree
+  pass  the published commit descends from the recorded revision
+  pass  the tree is unmodified -- no provenance file was added
+  pass  the guard is the only path that differs from the head tree
+  pass  Dart's LICENSE is present in the published tree
+  pass  the provenance branch matches the recorded published ref
+  pass  the published ref carries the effective tree
+  pass  re-derivation is deterministic across runs
+  pass  the canonical tag exists on the remote
+  pass  the canonical tag is annotated, not lightweight
+  pass  the branch is protected against force-push and deletion
+
+DD1_PUBLICATION: PUBLISHED

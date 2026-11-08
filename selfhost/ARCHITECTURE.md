@@ -54,7 +54,25 @@ everything above them is written once against an interface.
 
 ## Data model
 
-Postgres/SQLite tables (created idempotently by migration 1, `repository.dart`):
+Postgres/SQLite tables (`repository.dart`). **Corrected 2026-08-13:** this said
+"created idempotently by migration 1" and listed 19 tables. The schema has **22
+across 8 migrations** — the three below were missing, and `crash_reports` backs a
+whole documented API surface (`POST /api/v1/crashes`, `GET /api/v1/apps/{id}/crashes`
+with symbolication), so a reader sizing a database or writing a backup script from
+this section came up short:
+
+> **Updated 2026-08-23: 22 tables across TEN migrations.** 9 and 10 add no tables —
+> they add columns and indexes to `events` for boot-lifecycle telemetry, so the table
+> count is unchanged and the migration count is not. A backup or schema-diff script
+> keyed to "8 migrations" will report drift against any current deployment. See the
+> `events` row below, and `selfhost/LIFECYCLE_POLICY.md` for what they are for.
+
+| table | migration | backs |
+|---|---|---|
+| `invitations` | 2 | org collaborator invites (console **Team** tab) |
+| `idp_states` | 4 | the OAuth/IdP authorize-callback state handshake |
+| `crash_reports` | 8 | crash reporting + symbolication |
+
 
 | Table | Holds |
 |---|---|
@@ -65,7 +83,7 @@ Postgres/SQLite tables (created idempotently by migration 1, `repository.dart`):
 | `patches` | one logical patch per `(release, number)` |
 | `channels`, `channel_patches` | deployment: which patch is active on a channel, its rollout %, rolled-back flag |
 | `artifacts` | byte metadata for release/patch artifacts (`owner_kind`+`owner_id`), status, `storage_key`, hash/size/signature |
-| `events` | append-only device events (dedupe key); source of all metrics/analytics |
+| `events` | append-only device events (dedupe key); source of all metrics/analytics. **Migrations 9-10 added five nullable boot-lifecycle columns** — `outcome`, `ambiguous_attempt_count`, `boot_failure_threshold`, `boot_started_at`, `updater_revision` — plus `events_lifecycle_idx` and `events_updater_rev_idx`. The dedupe key appends `outcome` when present, so pre-existing rows and types are unaffected |
 | `settings` | server singletons (e.g. the persisted OAuth signing key) |
 | `auth_codes`, `refresh_tokens` | single-use OAuth codes + rotating refresh tokens |
 | `rate_limits` | shared fixed-window counters (scale) |
@@ -86,8 +104,14 @@ transitions raise a `409`.
   non-failed artifact `verified` — finalize is **fail-closed**.
 - **Patch:** `draft → uploading → ready → invalidated`, plus `ready → uploading`
   (re-open for multi-arch registration). Promote requires `ready`.
-- **ChannelPatch (deployment):** `active → withdrawn`. Promoting supersedes any
-  other active patch on the channel in one transaction (exactly one active).
+- **ChannelPatch (deployment):** `active → withdrawn`. Promoting supersedes a
+  prior active patch in one transaction **per platform, not per channel**
+  (corrected 2026-08-13 — this said "exactly one active"). `promote` withdraws
+  the prior patch only when it has no platform outside the incoming patch's
+  platform set, so a channel legitimately holds several active `channel_patches`
+  at once, one per platform. "Exactly one active per channel" is precisely the
+  invariant the code deliberately does NOT enforce — an Android promote must not
+  silently withdraw the live iOS patch.
 
 ## Request lifecycle (`api.dart`)
 
@@ -102,9 +126,14 @@ A shelf `Pipeline` wraps the router:
    never the raw path — so they neither leak app ids nor explode the series
    count. Health/metrics probes are counted but not logged.
 2. **rate limit** — fixed window (`memory`, or `postgres` shared across
-   replicas), keyed by bearer for authenticated requests and by client IP
-   (`X-Forwarded-For` behind a proxy) for unauthenticated device requests, so
-   one device can't exhaust the fleet's window. Over-limit → `429`.
+   replicas). **Every request is charged against TWO buckets, not one**
+   (corrected 2026-08-13 — this described an either/or split by auth state):
+   a per-IP ceiling (`host:<ip>`, `RATE_LIMIT_IP_PER_MINUTE`, default 10x) plus a
+   principal bucket (`auth:<hash>` when a bearer is present, else `ip:<ip>`,
+   `RATE_LIMIT_PER_MINUTE`). The IP ceiling applies to authenticated traffic too,
+   deliberately: a bearer is caller-supplied and unvalidated at that point in the
+   pipeline, so a bucket keyed only on it could be rotated out of. Over-limit →
+   `429`.
 3. **auth** — resolves the bearer to a `userId` in `req.context`. Public routes
    (health, console, download, OAuth, device) bypass it. API key → its user (the
    bootstrap key → user 1); JWT → its `sub`/email.
@@ -164,7 +193,11 @@ entry to evolve the schema; it applies on next boot on both backends.
   `config` (production guard).
 - Backend integration on real SQLite: `db_test` (CRUD + rollback + idempotent
   events + persistence), `analytics_test` (every analytics endpoint + weekly
-  bucketing).
+  bucketing), `boot_lifecycle_events_test` (the dedupe-collision rule as a direct
+  unit on `eventDedupeKey`, plus the eligibility predicate proven **both ways** — an
+  ineligible or `NULL` revision must be excluded, an eligible one counted).
+- **301 tests pass** on `dart test -x integration`, verified 2026-08-23. `-x
+  integration` skips the arms needing live Postgres/MinIO.
 - `tool/smoke_test.sh` drives the full wire contract with curl (works against any
   running server, HTTP or TLS via `CURL_OPTS=-k`).
 

@@ -1,0 +1,39 @@
+SL1-G1 substrate probe -- arm g2_on
+out          : /Volumes/build/semantic-linker/sl1/flutter/engine/src/out/sl1_g2_on
+date         : 2026-09-06T20:20:59Z
+dm flag lines: 1
+sha256 cab2fa026bb4f7a77be00533a23e21e0fba8414606f39df0eafe7cfea20e49f4  gen_snapshot
+sha256 29145a47bb202679bc0d8bcf0e20c5134de561380b5da90b9fe12be27d8f7692  dartaotruntime
+sha256 bed94b8d4bf5e0cacfeddb0623d161964e7ad69943baad6c4a6b4558d6479fb9  dart-sdk/bin/dart
+sha256 544ac5e5dbb42814306afe558d298cf446520df3471af7f15dcc51fcd302e4f8  vm_platform.dill
+
+== 1. AOT kernel (with the banked dynamic interface) ==
+   gen_kernel exit=0
+   dynamic interface APPLIED:
+        extendable           [{'library': 'dart:core', 'class': '_Enum'}, {'library': 'dart:core', 'class': 'Object'}]
+        can-be-overridden    [{'library': 'dart:core', 'class': '_Enum', 'member': '_enumToString'}, {'library': 'dart:core', 'class': '_Enum', 'member': 'toString'}]
+        callable             [{'library': 'package:dynamic_modules/host_probe.dart', 'member': 'target'}, {'library': 'package:dynamic_modules/host_probe.dart', 'member': 'hostSuffix'}, {'library': 'dart:async', 'class': '_StreamIterator'}, {'library': 'dart:async', 'class': '_StreamIterator', 'member': ''}, {'library': 'dart:async', 'class': '_StreamIterator', 'member': 'current'}, {'library': 'dart:async', 'class': '_StreamIterator', 'member': 'moveNext'}, {'library': 'dart:async', 'class': '_StreamIterator', 'member': 'cancel'}, {'library': 'dart:async', 'class': '_StreamIterator', 'member': '_subscription'}, {'library': 'dart:async', 'class': '_SuspendState', 'member': '_functionData'}, {'library': 'dart:async', 'member': '_asyncStarMoveNextHelper'}, {'library': 'dart:_compact_hash', 'class': '_Map'}, {'library': 'dart:_compact_hash', 'class': '_Map', 'member': ''}, {'library': 'dart:_compact_hash', 'class': '_Map', 'member': 'addAll'}, {'library': 'dart:_compact_hash', 'class': '_Set'}, {'library': 'dart:_compact_hash', 'class': '_Set', 'member': ''}, {'library': 'dart:_compact_hash', 'class': '_Set', 'member': 'addAll'}, {'library': 'dart:_compact_hash', 'class': '_Set', 'member': 'cast'}, {'library': 'dart:_compact_hash', 'class': '_Set', 'member': 'toSet'}, {'library': 'dart:core', 'class': 'pragma', 'member': '_'}, {'library': 'dart:core', 'class': '_Enum'}, {'library': 'dart:core', 'class': '_Enum', 'member': ''}, {'library': 'dart:core', 'class': '_Enum', 'member': 'toString'}, {'library': 'dart:core', 'class': '_Enum', 'member': 'index'}, {'library': 'dart:core', 'class': '_Enum', 'member': '_name'}, {'library': 'dart:core', 'class': '_List', 'member': ''}, {'library': 'dart:core', 'class': '_List', 'member': 'empty'}, {'library': 'dart:core', 'class': '_List', 'member': 'filled'}, {'library': 'dart:core', 'class': '_List', 'member': 'generate'}, {'library': 'dart:core', 'class': '_GrowableList', 'member': ''}, {'library': 'dart:core', 'class': '_GrowableList', 'member': 'empty'}, {'library': 'dart:core', 'class': '_GrowableList', 'member': 'filled'}, {'library': 'dart:core', 'class': '_GrowableList', 'member': 'generate'}, {'library': 'dart:core', 'class': '_GrowableList', 'member': '_literal1'}, {'library': 'dart:core', 'class': '_GrowableList', 'member': '_literal2'}, {'library': 'dart:core', 'class': '_GrowableList', 'member': '_literal3'}, {'library': 'dart:core', 'class': '_GrowableList', 'member': '_literal4'}, {'library': 'dart:core', 'class': '_GrowableList', 'member': '_literal5'}, {'library': 'dart:core', 'class': '_GrowableList', 'member': '_literal6'}, {'library': 'dart:core', 'class': '_GrowableList', 'member': '_literal7'}, {'library': 'dart:core', 'class': '_GrowableList', 'member': '_literal8'}, {'library': 'dart:core', 'class': '_InvocationMirror'}, {'library': 'dart:core', 'class': '_InvocationMirror', 'member': ''}, {'library': 'dart:core', 'class': '_InvocationMirror', 'member': 'memberName'}, {'library': 'dart:core', 'class': '_InvocationMirror', 'member': 'typeArguments'}, {'library': 'dart:core', 'class': '_InvocationMirror', 'member': 'positionalArguments'}, {'library': 'dart:core', 'class': '_InvocationMirror', 'member': 'namedArguments'}, {'library': 'dart:core', 'class': '_InvocationMirror', 'member': 'isMethod'}, {'library': 'dart:core', 'class': '_InvocationMirror', 'member': 'isAccessor'}, {'library': 'dart:core', 'class': '_InvocationMirror', 'member': 'isGetter'}, {'library': 'dart:core', 'class': '_InvocationMirror', 'member': 'isSetter'}, {'library': 'dart:core', 'class': '_InvocationMirror', 'member': '_withType'}]
+        can-be-used-as-type  []
+== 2. AOT snapshot ==
+   gen_snapshot exit=0
+   host.aot sha256 a19578c935312ddf7026eab7dd104658d45e992a49d8e62e20ad3ba83991dcd4 bytes 889552
+== 3. normal-AOT check (no module) ==
+   AOT: target()=OLD hostSuffix()=HOST
+   PROBE: normal-AOT check only
+   exit=0
+== 4. replacement -> KBC bytecode ==
+   dart2bytecode exit=0
+   replacement.bytecode sha256 d9212390e3dcff62d87bfe4d6b14e177de5c92bd4341ced78933ad0dfa850515 bytes 411
+== 5. attach, in its own process ==
+   AOT: target()=OLD hostSuffix()=HOST
+   ATTACH: before -> IsInterpreted=0 HasBytecode=0
+   ATTACH: after  -> IsInterpreted=1 HasBytecode=1
+   ATTACH: pool len=1685, rewrote 0 slot(s) (other Code slots=117)
+   ATTACH: C++ invoke of target returned: NEW
+   ATTACH: returned=true
+   DART-CALL: target()=OLD
+   exit=0
+== 6. loadDynamicModule, in its own process ==
+   AOT: target()=OLD hostSuffix()=HOST
+   LOAD: returned=NEW
+   exit=0

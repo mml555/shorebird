@@ -1,0 +1,86 @@
+§4 WONDEROUS — PATCH ARM VERDICT, 2026-08-14
+=============================================
+
+A REAL THIRD-PARTY APP IS PATCHABLE — AND THE PATCHABLE SURFACE IS NARROWER THAN THE
+CALL-SITE COUNT SUGGESTS.
+
+Two arms, both against release 88 (Wonderous 2.2.7+236, cell 40eaa0ef). Outcomes were
+precommitted in patch_precommit.md and its addendum; neither table was edited.
+
+ARM 1 — STATIC METHOD: REFUSED  (precommitted outcome 2)
+--------------------------------------------------------
+target   StringUtils.getYrSuffix(int yr)   lib/logic/common/string_utils.dart:60
+         static, 6 live call sites, result rendered into Text() widgets
+body     static String getYrSuffix(int yr) => yr < 0 ? 'BCE-PATCHED' : 'CE-PATCHED';
+
+result   REFUSED, verbatim:
+
+           This patch changes a function this version of Shorebird cannot yet turn
+           into a replacement body:
+
+             package:wonders/logic/common/string_utils.dart#StringUtils.getYrSuffix
+                 the bytecode compiler refused its replacement body (exit 254)
+
+           The whole patch is refused. This is not a problem with your release.
+           Nothing was uploaded.
+
+         This is the DESIGNED failure mode working on real third-party code: refuse
+         wholesale rather than ship a partial or wrong patch. The refusal names the
+         function and the stage.
+
+ARM 2 — INSTANCE METHOD: PUBLISHED  (precommitted outcome 1)
+------------------------------------------------------------
+target   SearchData.write()   lib/logic/data/wonders_data/search/search_data.dart:16
+         instance method, literal body — the only deliberate variable vs arm 1
+body     String write() => 'WRITE-PATCHED';
+
+result   ✅ Published Patch 1 — id 57, status "ready", channel stable, rollout 100,
+         artifact arch aarch64, against release 88.
+
+ALL THREE ANTI-FALSE-GREEN CHECKS MET
+-------------------------------------
+1. The patch NAMES the target, and the lowered body proves the receiver was threaded:
+
+       @pragma('dyn-module:entry-point')
+       String write(SearchData self) => 'WRITE-PATCHED';
+
+   `(SearchData self)` is the instance lowering — the same shape §3 records for
+   proven instance targets.
+2. Non-trivial: replacement_0.bytecode 516 bytes, patch.sbrbptch 828 bytes.
+3. Cut against release 88 specifically (the patch is listed under release 88).
+
+THE READING, AND ITS LIMIT
+--------------------------
+Per the addendum's precommitted table, arm 2 publishing means:
+
+  THE BOUNDARY IS STATIC-VS-INSTANCE. The bytecode compiler refuses a static
+  method's replacement body while accepting an instance method's — so the
+  17,736 patchable call sites release 88 reported MATERIALLY OVERSTATES the
+  patchable surface.
+
+**The limit of that claim, stated plainly: n = 1 on each side.** One static method
+refused and one instance method accepted is a strong signal and the precommitted
+reading, but it is not a proof that static-ness per se is the discriminator. The
+bodies differed only in static-vs-instance and both were pure literals, which is what
+makes the pair worth anything at all; a wider corpus would be needed to call it a
+rule. Recorded as a finding to widen, not a law.
+
+Also NOT tree-shaken: `write()`'s only caller lives in `lib/_tools/`, and the
+precommitment listed "refused as not in the interface" as a distinct outcome. It did
+not occur — the target was present in the release's interface, so the arm is valid.
+
+WHAT IS NOT CLAIMED
+-------------------
+* NOTHING ABOUT RUNTIME. Release 88 was built --no-codesign and cannot be installed,
+  so the patch has never been applied, attached or executed. "Published" means the
+  producer accepted it and the control plane holds it — no more.
+* Patch 1 is left ACTIVE at 100% rollout on cps-ios for an app that cannot be
+  installed. Harmless on this rig; noted so nobody reads an active deployment as
+  evidence of a device run.
+
+WHAT THIS ADDS TO §4
+--------------------
+Release 88 answered "does a real third-party app BUILD". This answers "can one be
+PATCHED": yes, for an instance method, through the ordinary
+`shorebird patch ios` path — and no, for a static one, with a refusal that names the
+function rather than failing silently.

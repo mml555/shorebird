@@ -1,0 +1,3 @@
+http://127.0.0.1:49741/api/v1/apps
+https://download.shorebird.dev/flutter_infra_release/flutter/cd848320d605ff8af5060cabf9a8d1b35853f752/android-arm-profile/darwin-x64.zip.
+https://storage.googleapis.com/download.shorebird.dev/shorebird/cd848320d605ff8af5060cabf9a8d1b35853f752/aot-tools.dill

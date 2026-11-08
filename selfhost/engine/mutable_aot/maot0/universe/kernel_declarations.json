@@ -1,0 +1,3055 @@
+{
+  "schema": "maot0.universe/1",
+  "universe": "kernel",
+  "provenance": {
+    "dart_tree_head": "9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c",
+    "dart_tree_head_is_full_sha": true,
+    "extracted_paths_dirty": false,
+    "extracted_paths_dirty_detail": "",
+    "source_digests": {
+      "pkg/kernel/lib/src/ast/components.dart": "8014b430f3d47706c0cc50fbc7dcd12b5e464cb36f2e522b500c89fab522d8d6",
+      "pkg/kernel/lib/src/ast/constants.dart": "b058919a74d887f3818dddee751299022df87172b1195f95bac6de437691b0b6",
+      "pkg/kernel/lib/src/ast/declarations.dart": "7aa229aeb0347474248a4528e9765090b764602317d31bcad371ad888ced32cf",
+      "pkg/kernel/lib/src/ast/dummies.dart": "6a2124e16374265d7228e64c015f08f74cf15aad75e7bb0e29d647eb03899cce",
+      "pkg/kernel/lib/src/ast/expressions.dart": "e8158d4b813308d22626484565c68d341946f0fa8bf7a1c6579b20868b5fe646",
+      "pkg/kernel/lib/src/ast/functions.dart": "49cd60a941bfe203c3a610a162d5ca42ca8bda1b57ad7e2650e3b60ad475299c",
+      "pkg/kernel/lib/src/ast/helpers.dart": "c2b5896c213b4a41bb1523d7d29a43619925c9e39751a73cf046525fa51f066a",
+      "pkg/kernel/lib/src/ast/initializers.dart": "b03254f8d6072424e5010a2dd653a70e55e828e728fa39b462e3951088a8c552",
+      "pkg/kernel/lib/src/ast/libraries.dart": "04e1342fe218f33500e2e18f1bc099f2bf87ea207e91e9cc68a2fa1e2689a3f3",
+      "pkg/kernel/lib/src/ast/members.dart": "cc83cbc49272f6be9bb63a356110475597c695251a6b128f5bc6fb4d23e65f2f",
+      "pkg/kernel/lib/src/ast/misc.dart": "bf3b0c9018f00ce9f135c72f840555b55590cf1ca31217161b8829fac9b6fec1",
+      "pkg/kernel/lib/src/ast/names.dart": "e06a7f1c5eb3f0b75c3ff3edf591198dd0857827622547a53dabb1180f4e76a3",
+      "pkg/kernel/lib/src/ast/patterns.dart": "33d17446d3e2167df65b5157e2b43029c5950410a93c1d4bd07635072d908736",
+      "pkg/kernel/lib/src/ast/statements.dart": "4e7e0b4172d880e1bdfa33c77aa37094160c34d16f1ad950f4730e14c317abe9",
+      "pkg/kernel/lib/src/ast/typedefs.dart": "57fdc6d323042b5f089ac0f7ff59c40860f72b87ff8cff069752b38033142783",
+      "pkg/kernel/lib/src/ast/types.dart": "db20dfa98562f844deaabf4c35780b4179e5d70c67fb0f8a2f1362b4f8955a40",
+      "pkg/kernel/lib/src/ast/variables.dart": "103c6f1434b7894883cb480909ffd4675da00ee74d6f20c783eb090498ea61f2",
+      "runtime/vm/object.h": "df5027855cff43ce58d575d54a761ab19b7e9ad6f5a7a8004f0c629c0d22dcf3"
+    },
+    "extractor_sha256": "5029a13e95a93e1419693d694e1c3a29acd72cf391f937c52260271a59cc708c",
+    "kernel_ast_files_seen": [
+      "components.dart",
+      "constants.dart",
+      "declarations.dart",
+      "dummies.dart",
+      "expressions.dart",
+      "functions.dart",
+      "helpers.dart",
+      "initializers.dart",
+      "libraries.dart",
+      "members.dart",
+      "misc.dart",
+      "names.dart",
+      "patterns.dart",
+      "statements.dart",
+      "typedefs.dart",
+      "types.dart",
+      "variables.dart"
+    ],
+    "kernel_ast_files_expected_absent": [],
+    "tier_assignment": {
+      "components.dart": "program_structure",
+      "constants.dart": "constant",
+      "declarations.dart": "declaration",
+      "dummies.dart": "infrastructure",
+      "expressions.dart": "body_content",
+      "functions.dart": "declaration",
+      "helpers.dart": "infrastructure",
+      "initializers.dart": "body_content",
+      "libraries.dart": "declaration",
+      "members.dart": "declaration",
+      "misc.dart": "structural_base",
+      "names.dart": "identity",
+      "patterns.dart": "body_content",
+      "statements.dart": "body_content",
+      "typedefs.dart": "declaration",
+      "types.dart": "type",
+      "variables.dart": "declaration"
+    },
+    "note": "The tree path is deliberately NOT part of identity: it is a checkout location, not provenance. The head SHA and the per-file digests are. A re-derivation on any machine with the same tree must reproduce these digests exactly."
+  },
+  "duplicate_ids": [],
+  "tier_counts": {
+    "body_content": 186,
+    "constant": 23,
+    "declaration": 70,
+    "identity": 3,
+    "infrastructure": 5,
+    "program_structure": 4,
+    "structural_base": 8,
+    "type": 31
+  },
+  "total": 330,
+  "entries": [
+    {
+      "id": "K:components:Component",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Component",
+      "tier": "program_structure",
+      "source": "pkg/kernel/lib/src/ast/components.dart",
+      "line": 12
+    },
+    {
+      "id": "K:components:Location",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Location",
+      "tier": "program_structure",
+      "source": "pkg/kernel/lib/src/ast/components.dart",
+      "line": 193
+    },
+    {
+      "id": "K:components:MetadataRepository",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "MetadataRepository",
+      "tier": "program_structure",
+      "source": "pkg/kernel/lib/src/ast/components.dart",
+      "line": 332
+    },
+    {
+      "id": "K:components:Source",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Source",
+      "tier": "program_structure",
+      "source": "pkg/kernel/lib/src/ast/components.dart",
+      "line": 204
+    },
+    {
+      "id": "K:constants:AuxiliaryConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AuxiliaryConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 63
+    },
+    {
+      "id": "K:constants:BoolConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "BoolConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 126
+    },
+    {
+      "id": "K:constants:Constant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Constant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 11
+    },
+    {
+      "id": "K:constants:ConstantMapEntry",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ConstantMapEntry",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 381
+    },
+    {
+      "id": "K:constants:ConstructorTearOffConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ConstructorTearOffConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 877
+    },
+    {
+      "id": "K:constants:DoubleConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "DoubleConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 186
+    },
+    {
+      "id": "K:constants:InstanceConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InstanceConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 675
+    },
+    {
+      "id": "K:constants:InstantiationConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InstantiationConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 752
+    },
+    {
+      "id": "K:constants:IntConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "IntConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 156
+    },
+    {
+      "id": "K:constants:ListConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ListConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 411
+    },
+    {
+      "id": "K:constants:MapConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "MapConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 310
+    },
+    {
+      "id": "K:constants:NullConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NullConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 98
+    },
+    {
+      "id": "K:constants:PrimitiveConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "PrimitiveConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 80
+    },
+    {
+      "id": "K:constants:RecordConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RecordConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 539
+    },
+    {
+      "id": "K:constants:RedirectingFactoryTearOffConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RedirectingFactoryTearOffConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 939
+    },
+    {
+      "id": "K:constants:SetConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SetConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 475
+    },
+    {
+      "id": "K:constants:StaticTearOffConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "StaticTearOffConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 814
+    },
+    {
+      "id": "K:constants:StringConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "StringConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 222
+    },
+    {
+      "id": "K:constants:SymbolConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SymbolConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 258
+    },
+    {
+      "id": "K:constants:TearOffConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TearOffConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 808
+    },
+    {
+      "id": "K:constants:TypeLiteralConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TypeLiteralConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 1107
+    },
+    {
+      "id": "K:constants:TypedefTearOffConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TypedefTearOffConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 1001
+    },
+    {
+      "id": "K:constants:UnevaluatedConstant",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "UnevaluatedConstant",
+      "tier": "constant",
+      "source": "pkg/kernel/lib/src/ast/constants.dart",
+      "line": 1153
+    },
+    {
+      "id": "K:declarations:Class",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Class",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 26
+    },
+    {
+      "id": "K:declarations:Extension",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Extension",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 609
+    },
+    {
+      "id": "K:declarations:ExtensionMemberDescriptor",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ExtensionMemberDescriptor",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 747
+    },
+    {
+      "id": "K:declarations:ExtensionMemberKind",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "ExtensionMemberKind",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 744
+    },
+    {
+      "id": "K:declarations:ExtensionMemberKind.Field",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionMemberKind.Field",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 744
+    },
+    {
+      "id": "K:declarations:ExtensionMemberKind.Getter",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionMemberKind.Getter",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 744
+    },
+    {
+      "id": "K:declarations:ExtensionMemberKind.Method",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionMemberKind.Method",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 744
+    },
+    {
+      "id": "K:declarations:ExtensionMemberKind.Operator",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionMemberKind.Operator",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 744
+    },
+    {
+      "id": "K:declarations:ExtensionMemberKind.Setter",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionMemberKind.Setter",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 744
+    },
+    {
+      "id": "K:declarations:ExtensionTypeDeclaration",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ExtensionTypeDeclaration",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 838
+    },
+    {
+      "id": "K:declarations:ExtensionTypeMemberDescriptor",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ExtensionTypeMemberDescriptor",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 1061
+    },
+    {
+      "id": "K:declarations:ExtensionTypeMemberKind",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "ExtensionTypeMemberKind",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 1049
+    },
+    {
+      "id": "K:declarations:ExtensionTypeMemberKind.Constructor",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionTypeMemberKind.Constructor",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 1049
+    },
+    {
+      "id": "K:declarations:ExtensionTypeMemberKind.Factory",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionTypeMemberKind.Factory",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 1049
+    },
+    {
+      "id": "K:declarations:ExtensionTypeMemberKind.Field",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionTypeMemberKind.Field",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 1049
+    },
+    {
+      "id": "K:declarations:ExtensionTypeMemberKind.Getter",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionTypeMemberKind.Getter",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 1049
+    },
+    {
+      "id": "K:declarations:ExtensionTypeMemberKind.Method",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionTypeMemberKind.Method",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 1049
+    },
+    {
+      "id": "K:declarations:ExtensionTypeMemberKind.Operator",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionTypeMemberKind.Operator",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 1049
+    },
+    {
+      "id": "K:declarations:ExtensionTypeMemberKind.RedirectingFactory",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionTypeMemberKind.RedirectingFactory",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 1049
+    },
+    {
+      "id": "K:declarations:ExtensionTypeMemberKind.Setter",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ExtensionTypeMemberKind.Setter",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 1049
+    },
+    {
+      "id": "K:declarations:TypeDeclaration",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TypeDeclaration",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/declarations.dart",
+      "line": 12
+    },
+    {
+      "id": "K:expressions:AbstractSuperMethodInvocation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AbstractSuperMethodInvocation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2600
+    },
+    {
+      "id": "K:expressions:AbstractSuperPropertyGet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AbstractSuperPropertyGet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1000
+    },
+    {
+      "id": "K:expressions:AbstractSuperPropertySet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AbstractSuperPropertySet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1192
+    },
+    {
+      "id": "K:expressions:Arguments",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Arguments",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1533
+    },
+    {
+      "id": "K:expressions:AsExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AsExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3929
+    },
+    {
+      "id": "K:expressions:AuxiliaryExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AuxiliaryExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 125
+    },
+    {
+      "id": "K:expressions:AwaitExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AwaitExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4905
+    },
+    {
+      "id": "K:expressions:BasicLiteral",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "BasicLiteral",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4127
+    },
+    {
+      "id": "K:expressions:BlockExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "BlockExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 5211
+    },
+    {
+      "id": "K:expressions:BoolLiteral",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "BoolLiteral",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4242
+    },
+    {
+      "id": "K:expressions:CheckLibraryIsLoaded",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "CheckLibraryIsLoaded",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 5333
+    },
+    {
+      "id": "K:expressions:ConditionalExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ConditionalExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3293
+    },
+    {
+      "id": "K:expressions:ConstantExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ConstantExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 5080
+    },
+    {
+      "id": "K:expressions:ConstructorInvocation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ConstructorInvocation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2898
+    },
+    {
+      "id": "K:expressions:ConstructorTearOff",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ConstructorTearOff",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 5377
+    },
+    {
+      "id": "K:expressions:DoubleLiteral",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "DoubleLiteral",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4210
+    },
+    {
+      "id": "K:expressions:DynamicAccessKind",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "DynamicAccessKind",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 455
+    },
+    {
+      "id": "K:expressions:DynamicAccessKind.Dynamic",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "DynamicAccessKind.Dynamic",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 455
+    },
+    {
+      "id": "K:expressions:DynamicAccessKind.Invalid",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "DynamicAccessKind.Invalid",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 455
+    },
+    {
+      "id": "K:expressions:DynamicAccessKind.Never",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "DynamicAccessKind.Never",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 455
+    },
+    {
+      "id": "K:expressions:DynamicAccessKind.Unresolved",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "DynamicAccessKind.Unresolved",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 455
+    },
+    {
+      "id": "K:expressions:DynamicGet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "DynamicGet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 486
+    },
+    {
+      "id": "K:expressions:DynamicInvocation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "DynamicInvocation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1699
+    },
+    {
+      "id": "K:expressions:DynamicSet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "DynamicSet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 813
+    },
+    {
+      "id": "K:expressions:EqualsCall",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "EqualsCall",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2471
+    },
+    {
+      "id": "K:expressions:EqualsNull",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "EqualsNull",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2419
+    },
+    {
+      "id": "K:expressions:Expression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Expression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 11
+    },
+    {
+      "id": "K:expressions:FileUriConstantExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FileUriConstantExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 5129
+    },
+    {
+      "id": "K:expressions:FileUriExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FileUriExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3800
+    },
+    {
+      "id": "K:expressions:FunctionAccessKind",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "FunctionAccessKind",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2191
+    },
+    {
+      "id": "K:expressions:FunctionAccessKind.Function",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "FunctionAccessKind.Function",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2191
+    },
+    {
+      "id": "K:expressions:FunctionAccessKind.FunctionType",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "FunctionAccessKind.FunctionType",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2191
+    },
+    {
+      "id": "K:expressions:FunctionAccessKind.Inapplicable",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "FunctionAccessKind.Inapplicable",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2191
+    },
+    {
+      "id": "K:expressions:FunctionAccessKind.Nullable",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "FunctionAccessKind.Nullable",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2191
+    },
+    {
+      "id": "K:expressions:FunctionExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FunctionExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 5026
+    },
+    {
+      "id": "K:expressions:FunctionInvocation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FunctionInvocation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2237
+    },
+    {
+      "id": "K:expressions:FunctionTearOff",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FunctionTearOff",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 657
+    },
+    {
+      "id": "K:expressions:InstanceAccessKind",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "InstanceAccessKind",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1797
+    },
+    {
+      "id": "K:expressions:InstanceAccessKind.Inapplicable",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "InstanceAccessKind.Inapplicable",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1797
+    },
+    {
+      "id": "K:expressions:InstanceAccessKind.Instance",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "InstanceAccessKind.Instance",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1797
+    },
+    {
+      "id": "K:expressions:InstanceAccessKind.Nullable",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "InstanceAccessKind.Nullable",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1797
+    },
+    {
+      "id": "K:expressions:InstanceAccessKind.Object",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "InstanceAccessKind.Object",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1797
+    },
+    {
+      "id": "K:expressions:InstanceCreation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InstanceCreation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3668
+    },
+    {
+      "id": "K:expressions:InstanceGet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InstanceGet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 551
+    },
+    {
+      "id": "K:expressions:InstanceGetterInvocation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InstanceGetterInvocation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2020
+    },
+    {
+      "id": "K:expressions:InstanceInvocation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InstanceInvocation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1850
+    },
+    {
+      "id": "K:expressions:InstanceInvocationExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InstanceInvocationExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1695
+    },
+    {
+      "id": "K:expressions:InstanceSet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InstanceSet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 878
+    },
+    {
+      "id": "K:expressions:InstanceTearOff",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InstanceTearOff",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 709
+    },
+    {
+      "id": "K:expressions:Instantiation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Instantiation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3100
+    },
+    {
+      "id": "K:expressions:IntLiteral",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "IntLiteral",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4174
+    },
+    {
+      "id": "K:expressions:InvalidExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InvalidExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 140
+    },
+    {
+      "id": "K:expressions:InvocationExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InvocationExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1688
+    },
+    {
+      "id": "K:expressions:IsExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "IsExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3869
+    },
+    {
+      "id": "K:expressions:Let",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Let",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 5152
+    },
+    {
+      "id": "K:expressions:ListConcatenation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ListConcatenation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3450
+    },
+    {
+      "id": "K:expressions:ListLiteral",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ListLiteral",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4529
+    },
+    {
+      "id": "K:expressions:LoadLibrary",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "LoadLibrary",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 5286
+    },
+    {
+      "id": "K:expressions:LocalFunction",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "LocalFunction",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4988
+    },
+    {
+      "id": "K:expressions:LocalFunctionIdGenerator",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "LocalFunctionIdGenerator",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 5007
+    },
+    {
+      "id": "K:expressions:LocalFunctionInvocation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "LocalFunctionInvocation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2336
+    },
+    {
+      "id": "K:expressions:LogicalExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "LogicalExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3231
+    },
+    {
+      "id": "K:expressions:LogicalExpressionOperator",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "LogicalExpressionOperator",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3219
+    },
+    {
+      "id": "K:expressions:LogicalExpressionOperator.AND",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "LogicalExpressionOperator.AND",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3219
+    },
+    {
+      "id": "K:expressions:LogicalExpressionOperator.OR",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "LogicalExpressionOperator.OR",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3219
+    },
+    {
+      "id": "K:expressions:MapConcatenation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "MapConcatenation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3590
+    },
+    {
+      "id": "K:expressions:MapLiteral",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "MapLiteral",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4659
+    },
+    {
+      "id": "K:expressions:MapLiteralEntry",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "MapLiteralEntry",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4740
+    },
+    {
+      "id": "K:expressions:NamedExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NamedExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1634
+    },
+    {
+      "id": "K:expressions:Not",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Not",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3166
+    },
+    {
+      "id": "K:expressions:NullCheck",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NullCheck",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4072
+    },
+    {
+      "id": "K:expressions:NullLiteral",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NullLiteral",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4274
+    },
+    {
+      "id": "K:expressions:RecordIndexGet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RecordIndexGet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 326
+    },
+    {
+      "id": "K:expressions:RecordLiteral",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RecordLiteral",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4798
+    },
+    {
+      "id": "K:expressions:RecordNameGet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RecordNameGet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 384
+    },
+    {
+      "id": "K:expressions:RedirectingFactoryInvocation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RedirectingFactoryInvocation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3021
+    },
+    {
+      "id": "K:expressions:RedirectingFactoryTearOff",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RedirectingFactoryTearOff",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 5437
+    },
+    {
+      "id": "K:expressions:Rethrow",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Rethrow",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4426
+    },
+    {
+      "id": "K:expressions:SetConcatenation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SetConcatenation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3520
+    },
+    {
+      "id": "K:expressions:SetLiteral",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SetLiteral",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4594
+    },
+    {
+      "id": "K:expressions:StaticGet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "StaticGet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1366
+    },
+    {
+      "id": "K:expressions:StaticInvocation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "StaticInvocation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2808
+    },
+    {
+      "id": "K:expressions:StaticSet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "StaticSet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1471
+    },
+    {
+      "id": "K:expressions:StaticTearOff",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "StaticTearOff",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1416
+    },
+    {
+      "id": "K:expressions:StringConcatenation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "StringConcatenation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 3385
+    },
+    {
+      "id": "K:expressions:StringLiteral",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "StringLiteral",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4140
+    },
+    {
+      "id": "K:expressions:SuperMethodInvocation",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SuperMethodInvocation",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 2704
+    },
+    {
+      "id": "K:expressions:SuperPropertyGet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SuperPropertyGet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1086
+    },
+    {
+      "id": "K:expressions:SuperPropertySet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SuperPropertySet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 1281
+    },
+    {
+      "id": "K:expressions:SymbolLiteral",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SymbolLiteral",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4303
+    },
+    {
+      "id": "K:expressions:ThisExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ThisExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4390
+    },
+    {
+      "id": "K:expressions:Throw",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Throw",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4462
+    },
+    {
+      "id": "K:expressions:TypeLiteral",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TypeLiteral",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 4344
+    },
+    {
+      "id": "K:expressions:TypedefTearOff",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TypedefTearOff",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 5489
+    },
+    {
+      "id": "K:expressions:VariableGet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "VariableGet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 203
+    },
+    {
+      "id": "K:expressions:VariableSet",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "VariableSet",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/expressions.dart",
+      "line": 271
+    },
+    {
+      "id": "K:functions:AsyncMarker",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "AsyncMarker",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/functions.dart",
+      "line": 306
+    },
+    {
+      "id": "K:functions:AsyncMarker.Async",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "AsyncMarker.Async",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/functions.dart",
+      "line": 306
+    },
+    {
+      "id": "K:functions:AsyncMarker.AsyncStar",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "AsyncMarker.AsyncStar",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/functions.dart",
+      "line": 306
+    },
+    {
+      "id": "K:functions:AsyncMarker.Sync",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "AsyncMarker.Sync",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/functions.dart",
+      "line": 306
+    },
+    {
+      "id": "K:functions:AsyncMarker.SyncStar",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "AsyncMarker.SyncStar",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/functions.dart",
+      "line": 306
+    },
+    {
+      "id": "K:functions:FunctionNode",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FunctionNode",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/functions.dart",
+      "line": 15
+    },
+    {
+      "id": "K:helpers:BinarySink",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "BinarySink",
+      "tier": "infrastructure",
+      "source": "pkg/kernel/lib/src/ast/helpers.dart",
+      "line": 20
+    },
+    {
+      "id": "K:helpers:BinarySource",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "BinarySource",
+      "tier": "infrastructure",
+      "source": "pkg/kernel/lib/src/ast/helpers.dart",
+      "line": 34
+    },
+    {
+      "id": "K:helpers:DirtifyingList",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "DirtifyingList",
+      "tier": "infrastructure",
+      "source": "pkg/kernel/lib/src/ast/helpers.dart",
+      "line": 54
+    },
+    {
+      "id": "K:helpers:_ChildReplacer",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "_ChildReplacer",
+      "tier": "infrastructure",
+      "source": "pkg/kernel/lib/src/ast/helpers.dart",
+      "line": 101
+    },
+    {
+      "id": "K:helpers:_Hash",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "_Hash",
+      "tier": "infrastructure",
+      "source": "pkg/kernel/lib/src/ast/helpers.dart",
+      "line": 157
+    },
+    {
+      "id": "K:initializers:AssertInitializer",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AssertInitializer",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/initializers.dart",
+      "line": 367
+    },
+    {
+      "id": "K:initializers:AuxiliaryInitializer",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AuxiliaryInitializer",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/initializers.dart",
+      "line": 36
+    },
+    {
+      "id": "K:initializers:FieldInitializer",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FieldInitializer",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/initializers.dart",
+      "line": 113
+    },
+    {
+      "id": "K:initializers:Initializer",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Initializer",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/initializers.dart",
+      "line": 12
+    },
+    {
+      "id": "K:initializers:InvalidInitializer",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InvalidInitializer",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/initializers.dart",
+      "line": 48
+    },
+    {
+      "id": "K:initializers:LocalInitializer",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "LocalInitializer",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/initializers.dart",
+      "line": 325
+    },
+    {
+      "id": "K:initializers:RedirectingInitializer",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RedirectingInitializer",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/initializers.dart",
+      "line": 254
+    },
+    {
+      "id": "K:initializers:SuperInitializer",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SuperInitializer",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/initializers.dart",
+      "line": 179
+    },
+    {
+      "id": "K:libraries:Combinator",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Combinator",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/libraries.dart",
+      "line": 584
+    },
+    {
+      "id": "K:libraries:Library",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Library",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/libraries.dart",
+      "line": 11
+    },
+    {
+      "id": "K:libraries:LibraryDependency",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "LibraryDependency",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/libraries.dart",
+      "line": 406
+    },
+    {
+      "id": "K:libraries:LibraryPart",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "LibraryPart",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/libraries.dart",
+      "line": 536
+    },
+    {
+      "id": "K:members:Constructor",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Constructor",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 558
+    },
+    {
+      "id": "K:members:Field",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Field",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 267
+    },
+    {
+      "id": "K:members:Member",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Member",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 11
+    },
+    {
+      "id": "K:members:Procedure",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Procedure",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 917
+    },
+    {
+      "id": "K:members:ProcedureKind",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "ProcedureKind",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 1345
+    },
+    {
+      "id": "K:members:ProcedureKind.Factory",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureKind.Factory",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 1345
+    },
+    {
+      "id": "K:members:ProcedureKind.Getter",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureKind.Getter",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 1345
+    },
+    {
+      "id": "K:members:ProcedureKind.Method",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureKind.Method",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 1345
+    },
+    {
+      "id": "K:members:ProcedureKind.Operator",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureKind.Operator",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 1345
+    },
+    {
+      "id": "K:members:ProcedureKind.Setter",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureKind.Setter",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 1345
+    },
+    {
+      "id": "K:members:ProcedureStubKind",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "ProcedureStubKind",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 713
+    },
+    {
+      "id": "K:members:ProcedureStubKind.AbstractForwardingStub",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureStubKind.AbstractForwardingStub",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 713
+    },
+    {
+      "id": "K:members:ProcedureStubKind.AbstractMixinStub",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureStubKind.AbstractMixinStub",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 713
+    },
+    {
+      "id": "K:members:ProcedureStubKind.ConcreteForwardingStub",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureStubKind.ConcreteForwardingStub",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 713
+    },
+    {
+      "id": "K:members:ProcedureStubKind.ConcreteMixinStub",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureStubKind.ConcreteMixinStub",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 713
+    },
+    {
+      "id": "K:members:ProcedureStubKind.MemberSignature",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureStubKind.MemberSignature",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 713
+    },
+    {
+      "id": "K:members:ProcedureStubKind.NoSuchMethodForwarder",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureStubKind.NoSuchMethodForwarder",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 713
+    },
+    {
+      "id": "K:members:ProcedureStubKind.Regular",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureStubKind.Regular",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 713
+    },
+    {
+      "id": "K:members:ProcedureStubKind.RepresentationField",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ProcedureStubKind.RepresentationField",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 713
+    },
+    {
+      "id": "K:members:RedirectingFactoryTarget",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RedirectingFactoryTarget",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/members.dart",
+      "line": 1349
+    },
+    {
+      "id": "K:misc:Annotatable",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Annotatable",
+      "tier": "structural_base",
+      "source": "pkg/kernel/lib/src/ast/misc.dart",
+      "line": 174
+    },
+    {
+      "id": "K:misc:FileUriNode",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FileUriNode",
+      "tier": "structural_base",
+      "source": "pkg/kernel/lib/src/ast/misc.dart",
+      "line": 167
+    },
+    {
+      "id": "K:misc:GenericDeclaration",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "GenericDeclaration",
+      "tier": "structural_base",
+      "source": "pkg/kernel/lib/src/ast/misc.dart",
+      "line": 156
+    },
+    {
+      "id": "K:misc:GenericFunction",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "GenericFunction",
+      "tier": "structural_base",
+      "source": "pkg/kernel/lib/src/ast/misc.dart",
+      "line": 162
+    },
+    {
+      "id": "K:misc:NamedNode",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NamedNode",
+      "tier": "structural_base",
+      "source": "pkg/kernel/lib/src/ast/misc.dart",
+      "line": 133
+    },
+    {
+      "id": "K:misc:Node",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Node",
+      "tier": "structural_base",
+      "source": "pkg/kernel/lib/src/ast/misc.dart",
+      "line": 8
+    },
+    {
+      "id": "K:misc:TreeNode",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TreeNode",
+      "tier": "structural_base",
+      "source": "pkg/kernel/lib/src/ast/misc.dart",
+      "line": 57
+    },
+    {
+      "id": "K:misc:Version",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Version",
+      "tier": "structural_base",
+      "source": "pkg/kernel/lib/src/ast/misc.dart",
+      "line": 179
+    },
+    {
+      "id": "K:names:Name",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Name",
+      "tier": "identity",
+      "source": "pkg/kernel/lib/src/ast/names.dart",
+      "line": 21
+    },
+    {
+      "id": "K:names:_PrivateName",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "_PrivateName",
+      "tier": "identity",
+      "source": "pkg/kernel/lib/src/ast/names.dart",
+      "line": 81
+    },
+    {
+      "id": "K:names:_PublicName",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "_PublicName",
+      "tier": "identity",
+      "source": "pkg/kernel/lib/src/ast/names.dart",
+      "line": 110
+    },
+    {
+      "id": "K:patterns:AndPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AndPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 103
+    },
+    {
+      "id": "K:patterns:AssignedVariablePattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AssignedVariablePattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 886
+    },
+    {
+      "id": "K:patterns:CastPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "CastPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 214
+    },
+    {
+      "id": "K:patterns:ConstantPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ConstantPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 32
+    },
+    {
+      "id": "K:patterns:IfCaseStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "IfCaseStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 2220
+    },
+    {
+      "id": "K:patterns:InvalidPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InvalidPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1466
+    },
+    {
+      "id": "K:patterns:ListPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ListPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 364
+    },
+    {
+      "id": "K:patterns:MapPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "MapPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 969
+    },
+    {
+      "id": "K:patterns:MapPatternEntry",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "MapPatternEntry",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1513
+    },
+    {
+      "id": "K:patterns:MapPatternRestEntry",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "MapPatternRestEntry",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1577
+    },
+    {
+      "id": "K:patterns:NamedPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NamedPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1138
+    },
+    {
+      "id": "K:patterns:NullAssertPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NullAssertPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 267
+    },
+    {
+      "id": "K:patterns:NullCheckPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NullCheckPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 316
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "ObjectAccessKind",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind.Direct",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ObjectAccessKind.Direct",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind.Dynamic",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ObjectAccessKind.Dynamic",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind.Error",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ObjectAccessKind.Error",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind.Extension",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ObjectAccessKind.Extension",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind.ExtensionType",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ObjectAccessKind.ExtensionType",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind.FunctionTearOff",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ObjectAccessKind.FunctionTearOff",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind.Instance",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ObjectAccessKind.Instance",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind.Invalid",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ObjectAccessKind.Invalid",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind.Never",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ObjectAccessKind.Never",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind.Object",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ObjectAccessKind.Object",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind.RecordIndexed",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ObjectAccessKind.RecordIndexed",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectAccessKind.RecordNamed",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "ObjectAccessKind.RecordNamed",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1659
+    },
+    {
+      "id": "K:patterns:ObjectPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ObjectPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 611
+    },
+    {
+      "id": "K:patterns:OrPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "OrPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 157
+    },
+    {
+      "id": "K:patterns:Pattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Pattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 7
+    },
+    {
+      "id": "K:patterns:PatternAssignment",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "PatternAssignment",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 2153
+    },
+    {
+      "id": "K:patterns:PatternGuard",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "PatternGuard",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1698
+    },
+    {
+      "id": "K:patterns:PatternSwitchCase",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "PatternSwitchCase",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1752
+    },
+    {
+      "id": "K:patterns:PatternSwitchStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "PatternSwitchStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1860
+    },
+    {
+      "id": "K:patterns:PatternVariableDeclaration",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "PatternVariableDeclaration",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 2087
+    },
+    {
+      "id": "K:patterns:RecordPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RecordPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1264
+    },
+    {
+      "id": "K:patterns:RelationalAccessKind",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "RelationalAccessKind",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1641
+    },
+    {
+      "id": "K:patterns:RelationalAccessKind.Dynamic",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "RelationalAccessKind.Dynamic",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1641
+    },
+    {
+      "id": "K:patterns:RelationalAccessKind.Instance",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "RelationalAccessKind.Instance",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1641
+    },
+    {
+      "id": "K:patterns:RelationalAccessKind.Invalid",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "RelationalAccessKind.Invalid",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1641
+    },
+    {
+      "id": "K:patterns:RelationalAccessKind.Never",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "RelationalAccessKind.Never",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1641
+    },
+    {
+      "id": "K:patterns:RelationalAccessKind.Static",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "RelationalAccessKind.Static",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1641
+    },
+    {
+      "id": "K:patterns:RelationalPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RelationalPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 707
+    },
+    {
+      "id": "K:patterns:RelationalPatternKind",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "RelationalPatternKind",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 696
+    },
+    {
+      "id": "K:patterns:RelationalPatternKind.equals",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "RelationalPatternKind.equals",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 696
+    },
+    {
+      "id": "K:patterns:RelationalPatternKind.greaterThan",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "RelationalPatternKind.greaterThan",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 696
+    },
+    {
+      "id": "K:patterns:RelationalPatternKind.greaterThanEqual",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "RelationalPatternKind.greaterThanEqual",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 696
+    },
+    {
+      "id": "K:patterns:RelationalPatternKind.lessThan",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "RelationalPatternKind.lessThan",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 696
+    },
+    {
+      "id": "K:patterns:RelationalPatternKind.lessThanEqual",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "RelationalPatternKind.lessThanEqual",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 696
+    },
+    {
+      "id": "K:patterns:RelationalPatternKind.notEquals",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "RelationalPatternKind.notEquals",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 696
+    },
+    {
+      "id": "K:patterns:RestPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RestPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1415
+    },
+    {
+      "id": "K:patterns:SwitchExpression",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SwitchExpression",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 2012
+    },
+    {
+      "id": "K:patterns:SwitchExpressionCase",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SwitchExpressionCase",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1961
+    },
+    {
+      "id": "K:patterns:VariablePattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "VariablePattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 1344
+    },
+    {
+      "id": "K:patterns:WildcardPattern",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "WildcardPattern",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/patterns.dart",
+      "line": 832
+    },
+    {
+      "id": "K:statements:AssertBlock",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AssertBlock",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 147
+    },
+    {
+      "id": "K:statements:AssertStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AssertStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 218
+    },
+    {
+      "id": "K:statements:AuxiliaryStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AuxiliaryStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 26
+    },
+    {
+      "id": "K:statements:Block",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Block",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 85
+    },
+    {
+      "id": "K:statements:BreakStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "BreakStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 389
+    },
+    {
+      "id": "K:statements:Catch",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Catch",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 1235
+    },
+    {
+      "id": "K:statements:ContinueSwitchStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ContinueSwitchStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 1030
+    },
+    {
+      "id": "K:statements:DoStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "DoStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 485
+    },
+    {
+      "id": "K:statements:EmptyStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "EmptyStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 190
+    },
+    {
+      "id": "K:statements:ExpressionStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ExpressionStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 35
+    },
+    {
+      "id": "K:statements:ForInStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ForInStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 633
+    },
+    {
+      "id": "K:statements:ForStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ForStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 540
+    },
+    {
+      "id": "K:statements:FunctionDeclaration",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FunctionDeclaration",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 2079
+    },
+    {
+      "id": "K:statements:IfStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "IfStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 1064
+    },
+    {
+      "id": "K:statements:LabeledStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "LabeledStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 304
+    },
+    {
+      "id": "K:statements:LegacyVariableDeclaration",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "LegacyVariableDeclaration",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 1470
+    },
+    {
+      "id": "K:statements:LoopStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "LoopStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 424
+    },
+    {
+      "id": "K:statements:ReturnStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ReturnStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 1131
+    },
+    {
+      "id": "K:statements:Statement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Statement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 11
+    },
+    {
+      "id": "K:statements:SwitchCase",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SwitchCase",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 930
+    },
+    {
+      "id": "K:statements:SwitchStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SwitchStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 820
+    },
+    {
+      "id": "K:statements:TryCatch",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TryCatch",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 1182
+    },
+    {
+      "id": "K:statements:TryFinally",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TryFinally",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 1356
+    },
+    {
+      "id": "K:statements:VariableInitialization",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "VariableInitialization",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 2180
+    },
+    {
+      "id": "K:statements:VariableInitializationBase",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "VariableInitializationBase",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 2142
+    },
+    {
+      "id": "K:statements:VariableStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "VariableStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 1660
+    },
+    {
+      "id": "K:statements:WhileStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "WhileStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 428
+    },
+    {
+      "id": "K:statements:YieldStatement",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "YieldStatement",
+      "tier": "body_content",
+      "source": "pkg/kernel/lib/src/ast/statements.dart",
+      "line": 1412
+    },
+    {
+      "id": "K:typedefs:Typedef",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Typedef",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/typedefs.dart",
+      "line": 8
+    },
+    {
+      "id": "K:types:AuxiliaryType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "AuxiliaryType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 666
+    },
+    {
+      "id": "K:types:ClassTypeParameterType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ClassTypeParameterType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 2584
+    },
+    {
+      "id": "K:types:DartType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "DartType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 518
+    },
+    {
+      "id": "K:types:DynamicType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "DynamicType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 754
+    },
+    {
+      "id": "K:types:ExperimentalType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ExperimentalType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 683
+    },
+    {
+      "id": "K:types:ExtensionType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ExtensionType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 1532
+    },
+    {
+      "id": "K:types:FunctionType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FunctionType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 1090
+    },
+    {
+      "id": "K:types:FunctionTypeParameterType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FunctionTypeParameterType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 2512
+    },
+    {
+      "id": "K:types:FutureOrType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FutureOrType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 1455
+    },
+    {
+      "id": "K:types:InterfaceType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InterfaceType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 966
+    },
+    {
+      "id": "K:types:IntersectionType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "IntersectionType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 1801
+    },
+    {
+      "id": "K:types:InvalidType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "InvalidType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 701
+    },
+    {
+      "id": "K:types:NamedType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NamedType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 1728
+    },
+    {
+      "id": "K:types:NeverType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NeverType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 844
+    },
+    {
+      "id": "K:types:NominalParameter",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NominalParameter",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 133
+    },
+    {
+      "id": "K:types:NullType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NullType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 920
+    },
+    {
+      "id": "K:types:Nullability",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "Nullability",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 12
+    },
+    {
+      "id": "K:types:Nullability.nonNullable",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "Nullability.nonNullable",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 12
+    },
+    {
+      "id": "K:types:Nullability.nullable",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "Nullability.nullable",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 12
+    },
+    {
+      "id": "K:types:Nullability.undetermined",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "Nullability.undetermined",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 12
+    },
+    {
+      "id": "K:types:RecordType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "RecordType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 2304
+    },
+    {
+      "id": "K:types:StructuralParameter",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "StructuralParameter",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 307
+    },
+    {
+      "id": "K:types:StructuralParameterType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "StructuralParameterType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 2198
+    },
+    {
+      "id": "K:types:Supertype",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Supertype",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 441
+    },
+    {
+      "id": "K:types:TypeDeclarationType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TypeDeclarationType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 653
+    },
+    {
+      "id": "K:types:TypeParameter",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TypeParameter",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 49
+    },
+    {
+      "id": "K:types:TypeParameterType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TypeParameterType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 2107
+    },
+    {
+      "id": "K:types:TypeParameterTypeInterface",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TypeParameterTypeInterface",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 2507
+    },
+    {
+      "id": "K:types:TypeVariable",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TypeVariable",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 2446
+    },
+    {
+      "id": "K:types:TypedefType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "TypedefType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 1334
+    },
+    {
+      "id": "K:types:VoidType",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "VoidType",
+      "tier": "type",
+      "source": "pkg/kernel/lib/src/ast/types.dart",
+      "line": 799
+    },
+    {
+      "id": "K:variables:CaptureKind",
+      "universe": "kernel",
+      "kind": "node_kind_enum",
+      "name": "CaptureKind",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 1846
+    },
+    {
+      "id": "K:variables:CaptureKind.assertCaptured",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "CaptureKind.assertCaptured",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 1846
+    },
+    {
+      "id": "K:variables:CaptureKind.directCaptured",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "CaptureKind.directCaptured",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 1846
+    },
+    {
+      "id": "K:variables:CaptureKind.notCaptured",
+      "universe": "kernel",
+      "kind": "node_kind_value",
+      "name": "CaptureKind.notCaptured",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 1846
+    },
+    {
+      "id": "K:variables:CatchVariable",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "CatchVariable",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 507
+    },
+    {
+      "id": "K:variables:ContextConsumer",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ContextConsumer",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 1980
+    },
+    {
+      "id": "K:variables:FunctionParameter",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "FunctionParameter",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 806
+    },
+    {
+      "id": "K:variables:IVariable",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "IVariable",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 28
+    },
+    {
+      "id": "K:variables:LocalVariable",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "LocalVariable",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 197
+    },
+    {
+      "id": "K:variables:NamedParameter",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "NamedParameter",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 1143
+    },
+    {
+      "id": "K:variables:PositionalParameter",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "PositionalParameter",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 1006
+    },
+    {
+      "id": "K:variables:Scope",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "Scope",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 1912
+    },
+    {
+      "id": "K:variables:ScopeProvider",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ScopeProvider",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 1969
+    },
+    {
+      "id": "K:variables:SyntheticVariable",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "SyntheticVariable",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 1568
+    },
+    {
+      "id": "K:variables:ThisVariable",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "ThisVariable",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 1287
+    },
+    {
+      "id": "K:variables:VariableBase",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "VariableBase",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 8
+    },
+    {
+      "id": "K:variables:VariableContext",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "VariableContext",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 1851
+    },
+    {
+      "id": "K:variables:VariableDeclaration",
+      "universe": "kernel",
+      "kind": "node_class",
+      "name": "VariableDeclaration",
+      "tier": "declaration",
+      "source": "pkg/kernel/lib/src/ast/variables.dart",
+      "line": 75
+    }
+  ]
+}

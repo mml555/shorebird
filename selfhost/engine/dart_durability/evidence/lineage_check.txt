@@ -1,0 +1,56 @@
+DART-DURABILITY-1 -- lineage reconstruction check
+generated 2026-09-09T02:44:00Z by verify_lineage.sh
+
+THE LINEAGE THE FROZEN RECORD NAMES
+  dart revision   9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
+  head tree       aa55ff960f07682fd098195e4884f2cbcb4f5f27
+  effective tree  7b04b01bdc10ec990143257f0d28580571c2122f   (head plus the uncommitted guard)
+  banked delta    6b358f715e491bd9829e00fee0262ac7b637982f3bf66e748befcec84075262c
+
+############ 1. IS THE NAMED LINEAGE RESOLVABLE, AND FROM WHERE? ############
+  9e8c898a4d2a  commit
+  aa55ff960f07  tree
+  7b04b01bdc10  tree
+
+  remotes configured in that checkout:
+    origin	file:///Volumes/build/ios-engine/dart-sdk (fetch)
+    origin	file:///Volumes/build/ios-engine/dart-sdk (push)
+    upstream	https://dart.googlesource.com/sdk.git (fetch)
+    upstream	https://dart.googlesource.com/sdk.git (push)
+
+  remote branches containing the named revision:
+    NONE -- this is the durability defect #47 exists to close.
+    The objects resolve, but only out of a local clone whose origin is
+    a file:// path on one machine.
+
+############ 2. DOES THE BANKED DELTA RECONSTRUCT THE EXACT TREE? ############
+  index at head tree        aa55ff960f07682fd098195e4884f2cbcb4f5f27
+  index after the delta     7b04b01bdc10ec990143257f0d28580571c2122f
+  manifest effective tree   7b04b01bdc10ec990143257f0d28580571c2122f
+  RECONSTRUCTED EXACTLY
+
+############ 3. NEGATIVE CONTROL -- A ONE-BYTE MUTATION MUST FAIL ############
+  one byte flipped at offset 204, inside an added line
+  refused at apply time
+  banked delta digest   6b358f715e491bd9
+  mutated delta digest  2597cbdc7dc8ec10
+
+############ 4. WHAT REMAINS, AND WHY IT IS NOT DONE HERE ############
+  #47 asks for the lineage to be fetchable from a durable remote, with an
+  immutable-intent ref, provable by a FRESH ANONYMOUS CLONE. Every check above
+  reads a clone that already exists on this machine, so it establishes the
+  precondition and not the acceptance criterion.
+
+  Creating that remote publishes a Dart SDK tree to a host outside this
+  machine. That is outward-facing and hard to reverse, and #47 has never been
+  authorized -- it has been held off the SEMANTIC-MAP critical path throughout.
+  So it is reported, not performed.
+
+ASSERTIONS (5 checked)
+  pass  the banked delta digest matches the manifest
+  pass  the named revision resolves in the local clone
+  pass  the banked delta reconstructs the effective tree
+  pass  a one-byte mutation is refused
+  pass  no remote branch contains the named revision
+
+DD1_LINEAGE: RECONSTRUCTIBLE_BUT_NOT_DURABLE

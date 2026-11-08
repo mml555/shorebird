@@ -1,0 +1,10 @@
+== marker before release: TRACKPROBE-V1
+REL_EXIT=0
+== marker for patch 1 (stable): TRACKPROBE-STABLE
+PATCH_STABLE_EXIT=0
+== marker for patch 2 (beta, NEWER): TRACKPROBE-BETA
+PATCH_BETA_EXIT=0
+===== results =====
+✅ Published Patch 2!
+✅ Published Patch 1!
+✅ Published Release 4.0.0+1!

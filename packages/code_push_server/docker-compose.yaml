@@ -31,7 +31,7 @@ services:
     #   build:
     #     context: .
     #     dockerfile: Dockerfile
-    image: ghcr.io/mml555/code-push-server:1.2.0
+    image: ghcr.io/mml555/code-push-server:1.3.0
     restart: unless-stopped
     ports:
       - "${HOST_BIND:-127.0.0.1}:${PORT:-8080}:8080"
@@ -42,6 +42,11 @@ services:
       SHOREBIRD_JWT_ISSUER: "${PUBLIC_BASE_URL:-http://localhost:8080}"
       API_KEY: "${API_KEY:?run ./setup.sh, or set API_KEY to a random value}"
       URL_SIGNING_SECRET: "${URL_SIGNING_SECRET:?run ./setup.sh, or set URL_SIGNING_SECRET to a random value}"
+      # Encrypts managed patch-signing private keys at rest. Never derived
+      # from another secret: unset, managed signing answers 503 naming this
+      # variable (and PRODUCTION=true refuses to boot). Back it up, and never
+      # change it once a release has been built with a managed key.
+      PATCH_SIGNING_KEY_SECRET: "${PATCH_SIGNING_KEY_SECRET:-}"
       LOGIN_EMAIL: "${LOGIN_EMAIL:-you@example.com}"
       # Set by setup.sh --domain (HTTPS): adds the production-only checks
       # (real DB/S3 credentials, https PUBLIC_BASE_URL) on top of the

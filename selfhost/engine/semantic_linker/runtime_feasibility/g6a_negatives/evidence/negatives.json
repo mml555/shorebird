@@ -1,0 +1,104 @@
+{
+  "schema": "semantic-linker-1/g6a-negatives/2",
+  "gate": "SL1-G6A",
+  "issue": 43,
+  "arm": "g3_on",
+  "negatives": [
+    {
+      "name": "malformed_kbc",
+      "expected": "MODULE_INTEGRITY",
+      "observed": "IMPORT_RESOLUTION",
+      "exit": 134,
+      "outcome": "CLOSED_OTHER_CATEGORY",
+      "evidence": "../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1118: error: Unable to find class \u00b0\u009d\u0095\u009a\u009c\u008b in Library:'dart:core'\n"
+    },
+    {
+      "name": "truncated_kbc",
+      "expected": "MODULE_INTEGRITY",
+      "observed": "MODULE_INTEGRITY",
+      "exit": 134,
+      "outcome": "CLOSED_EXPECTED",
+      "evidence": "../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1080: error: unreachable code\n"
+    },
+    {
+      "name": "wrong_bytecode_version",
+      "expected": "MODULE_INTEGRITY",
+      "observed": "MODULE_INTEGRITY",
+      "exit": 134,
+      "outcome": "CLOSED_EXPECTED",
+      "evidence": "../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 905: error: Unsupported Dart bytecode format version 32638. This version of Dart VM supports bytecode format version 1.\n"
+    },
+    {
+      "name": "corrupt_digest",
+      "expected": "MODULE_INTEGRITY",
+      "observed": "NOT_APPLICABLE_AT_THIS_LAYER",
+      "exit": null,
+      "matched": "n/a",
+      "evidence": "loadDynamicModule takes raw bytes; no digest exists at this layer"
+    },
+    {
+      "name": "wrong_platform_dill",
+      "expected": "HOST_IDENTITY",
+      "observed": "UNCLASSIFIED",
+      "exit": 0,
+      "outcome": "FAIL_OPEN",
+      "evidence": "LOADED: Instance of 'PatchChild'\nDISPATCH: PATCH-CHILD\n"
+    },
+    {
+      "name": "wrong_runtime_build",
+      "expected": "HOST_IDENTITY",
+      "observed": "UNCLASSIFIED",
+      "exit": 0,
+      "outcome": "FAIL_OPEN",
+      "evidence": "LOADED: Instance of 'PatchChild'\nDISPATCH: PATCH-CHILD\n"
+    },
+    {
+      "name": "wrong_import_dill",
+      "expected": "HOST_IDENTITY",
+      "observed": "HOST_IDENTITY",
+      "exit": 255,
+      "outcome": "CLOSED_EXPECTED",
+      "evidence": "Unhandled exception:\nBad state: Unable to load dynamic module: library 'package:dynamic_modules/n_host.dart' is already loaded\n#0      _loadDynamicModule (dart:_internal-patch/internal_patch.dart:477)\n#1      loadDynamicModule (dart:_internal-patch/internal_patch.dart:470)\n#2      main (package:dynamic_modules/n_host.dart:35)\n#3      _delayEntrypointInvocation.<anonymous closure> (dart:isolate-patch/isolate_patch.dart:311)\n#4      _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:192)\n"
+    },
+    {
+      "name": "tree_shaken_target",
+      "expected": "IMPORT_RESOLUTION",
+      "observed": "IMPORT_RESOLUTION",
+      "exit": 134,
+      "outcome": "CLOSED_EXPECTED",
+      "evidence": "../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function shakenAway in Library:'package:dynamic_modules/n_host.dart' Class: ::\n"
+    },
+    {
+      "name": "missing_retained_import",
+      "expected": "IMPORT_RESOLUTION",
+      "observed": "IMPORT_RESOLUTION",
+      "exit": 134,
+      "outcome": "CLOSED_EXPECTED",
+      "evidence": "../../flutter/third_party/dart/runtime/vm/bytecode_reader.cc: 1172: error: Unable to find function retained in Library:'package:dynamic_modules/n_host.dart' Class: ::\n"
+    },
+    {
+      "name": "no_extendable",
+      "expected": "DYNAMIC_INTERFACE_POLICY",
+      "observed": "UNCLASSIFIED",
+      "exit": 0,
+      "outcome": "FAIL_OPEN",
+      "evidence": "LOADED: Instance of 'PatchChild'\n"
+    },
+    {
+      "name": "no_type",
+      "expected": "DYNAMIC_INTERFACE_POLICY",
+      "observed": "UNCLASSIFIED",
+      "exit": 0,
+      "outcome": "FAIL_OPEN",
+      "evidence": "LOADED: Instance of 'PatchChild'\nDISPATCH: PATCH-CHILD\n"
+    },
+    {
+      "name": "member_not_overridable",
+      "expected": "DYNAMIC_INTERFACE_POLICY",
+      "observed": "FAIL_OPEN_SILENT_BYPASS",
+      "exit": 0,
+      "outcome": "FAIL_OPEN",
+      "evidence": "LOADED: Instance of 'PatchChild'\nDISPATCH: AOT-BASE\n"
+    }
+  ]
+}

@@ -1,0 +1,375 @@
+--- a/runtime/vm/elf.h
++++ b/runtime/vm/elf.h
+@@ -18,6 +18,50 @@
+ 
+ namespace dart {
+ 
++// SM1-G5 route 2: recorded by FlowGraphCompiler as the inliner's own decisions,
++// emitted by ElfWriter::GenerateInliningRelation into the shipped artifact.
++// Structured VM coordinates, projectable onto SM1-G1's declaration identity
++// (library URI + owner + kind + declared name). The VM's
++// ToLibNamePrefixedQualifiedCString() is NOT usable for this: it selects
++// library.name(), while G1 keys on the library URI, so the canonical URI is
++// simply absent from that string.
++// Twenty fields. For each side this carries the FULL VM-SIDE COORDINATES
++// needed to PROJECT toward SM1-G1 identity -- library URI, owner, VM kind,
++// declared name -- and then the same four for the synthetic parent when that
++// side is an implicit closure.
++//
++// DELIBERATELY NOT CALLED "G1 IDENTITY". These are VM coordinates, not G1
++// identity: RegularFunction is VM vocabulary where G1 distinguishes method from
++// operator; a private name still carries its library key (_state@17145467)
++// rather than G1's declared name; and an extension member can appear here with
++// a synthetic top-level owner while G1 deliberately recovers the extension
++// owner. Projecting these onto G1 is the reader's job, against G1's retained
++// vmName/loweredName, and anything not uniquely projectable is UNKNOWN.
++//
++// Empty parent fields mean "not a synthetic child".
++//
++// SCHEMA 6 adds each side's DECLARING LIBRARY PRIVATE KEY, taken from
++// Library::private_key(). A private VM name carries that key as a suffix
++// (_state@17145467), and G5's reader must remove only the exact key -- a regex
++// over trailing digits could strip a legitimate name, and inferring the key
++// from the names it is supposed to validate would be circular. The compiler
++// knows it, so the compiler emits it. The wire contract changed, so the schema
++// version did too.
++// Schema 4 carried only parent kind and name, which would have forced the
++// reader to assume a child and its parent always share library and owner. That
++// invariant is unstated and unproven, so the parent's library and owner are
++// emitted too.
++void ShorebirdRecordInlined(const char* in_lib, const char* in_owner,
++                            const char* in_kind, const char* in_name,
++                            const char* in_plib, const char* in_powner,
++                            const char* in_pkind, const char* in_pname,
++                            const char* ca_lib, const char* ca_owner,
++                            const char* ca_kind, const char* ca_name,
++                            const char* ca_plib, const char* ca_powner,
++                            const char* ca_pkind, const char* ca_pname,
++                            const char* in_libkey, const char* in_plibkey,
++                            const char* ca_libkey, const char* ca_plibkey);
++
+ // The max page size on all supported architectures. Used to determine
+ // the alignment of load segments, so that they are guaranteed page-aligned,
+ // and no shared object section or segment should have a larger alignment.
+@@ -90,6 +134,10 @@
+   // capabilities this snapshot was actually compiled with.
+   static constexpr const char kCapabilitiesNoteName[] =
+       ".note.shorebird.capabilities";
++  // SM1-G5 route 2: the POST-OPTIMIZATION inlining relation, as the compiler
++  // actually decided it.
++  static constexpr const char kInliningNoteName[] =
++      ".note.shorebird.inlining";
+   static constexpr const char kTextName[] = ".text";
+   static constexpr const char kDataName[] = ".rodata";
+   static constexpr const char kBssName[] = ".bss";
+@@ -98,6 +146,7 @@
+   void CreateBSS();
+   void GenerateBuildId();
+   void GenerateCapabilities();
++  void GenerateInliningRelation();
+   void InitializeSymbolTables();
+   void FinalizeDwarfSections();
+   void FinalizeEhFrame();
+--- a/runtime/vm/elf.cc
++++ b/runtime/vm/elf.cc
+@@ -1566,6 +1566,7 @@
+   // Generate the build ID now that we have all user-provided sections.
+   GenerateBuildId();
+   GenerateCapabilities();
++  GenerateInliningRelation();
+ 
+   // We add a BSS section in all cases, even to the separate debugging
+   // information, to ensure that relocated addresses are consistent between ELF
+@@ -1742,7 +1743,95 @@
+ DECLARE_FLAG(bool, patchable_static_calls);
+ 
+ static constexpr char kShorebirdNoteOwner[] = "Shorebird";
++
++// SM1-G5 route 2 registry.
++//
++// THREE THINGS THIS HAS TO GET RIGHT, because ABSENCE from the relation is what
++// the map would treat as "not inlined":
++//
++// 1. RACE-FREE. The first version lazily created the mutex OUTSIDE any
++//    synchronization, so two compiler threads could each construct their own
++//    mutex and then mutate the shared registry under different locks. A dropped
++//    record reads as "not inlined", which is the false-safe condition this gate
++//    exists to prevent. The mutex is now a function-local static, whose
++//    initialization C++11 guarantees to be thread-safe and which lives for the
++//    process.
++//
++// 2. DETERMINISTIC. Entries are sorted and de-duplicated at emission, so
++//    compiler scheduling cannot change the artifact bytes.
++//
++// 3. A ZoneGrowableArray global segfaulted here: a zone does not outlive one
++//    compilation, so the pointer dangled by the time the ELF writer ran.
++//    Storage is malloc-backed.
++static Mutex* shorebird_mutex() {
++  static Mutex m;
++  return &m;
++}
++static MallocGrowableArray<const char*>* shorebird_inlining = nullptr;
++
++// LENGTH-PREFIXED, because '#' is not a safe separator: VM and extension
++// naming can itself contain '#', so a delimiter format is ambiguous exactly
++// where identity matters most. Each field is written "<len>:<bytes>" with no
++// separators, and the reader knows how many fields a record has -- so no byte
++// sequence inside a field can be mistaken for structure.
++static void shorebird_field(TextBuffer* buf, const char* v) {
++  buf->Printf("%" Pd ":%s", static_cast<intptr_t>(strlen(v)), v);
++}
++
++// Set when the note has been serialized. Any append after that point would be
++// a decision the artifact does not describe, so it is FATAL rather than
++// dropped: silently losing it is what would make absence-from-the-note stop
++// meaning not-inlined.
++static bool shorebird_sealed = false;
+ 
++void ShorebirdRecordInlined(const char* in_lib, const char* in_owner,
++                            const char* in_kind, const char* in_name,
++                            const char* in_plib, const char* in_powner,
++                            const char* in_pkind, const char* in_pname,
++                            const char* ca_lib, const char* ca_owner,
++                            const char* ca_kind, const char* ca_name,
++                            const char* ca_plib, const char* ca_powner,
++                            const char* ca_pkind, const char* ca_pname,
++                            const char* in_libkey, const char* in_plibkey,
++                            const char* ca_libkey, const char* ca_plibkey) {
++  MutexLocker ml(shorebird_mutex());
++  if (shorebird_sealed) {
++    FATAL(
++        "SM1-G5: an inlining pair was recorded AFTER the note was written. "
++        "Absence from the note would no longer prove not-inlined, so this is "
++        "fatal rather than dropped.");
++  }
++  if (shorebird_inlining == nullptr) {
++    shorebird_inlining = new MallocGrowableArray<const char*>();
++  }
++  TextBuffer rec(256);
++  shorebird_field(&rec, in_lib);
++  shorebird_field(&rec, in_owner);
++  shorebird_field(&rec, in_kind);
++  shorebird_field(&rec, in_name);
++  shorebird_field(&rec, in_plib);
++  shorebird_field(&rec, in_powner);
++  shorebird_field(&rec, in_pkind);
++  shorebird_field(&rec, in_pname);
++  shorebird_field(&rec, ca_lib);
++  shorebird_field(&rec, ca_owner);
++  shorebird_field(&rec, ca_kind);
++  shorebird_field(&rec, ca_name);
++  shorebird_field(&rec, ca_plib);
++  shorebird_field(&rec, ca_powner);
++  shorebird_field(&rec, ca_pkind);
++  shorebird_field(&rec, ca_pname);
++  shorebird_field(&rec, in_libkey);
++  shorebird_field(&rec, in_plibkey);
++  shorebird_field(&rec, ca_libkey);
++  shorebird_field(&rec, ca_plibkey);
++  shorebird_inlining->Add(Utils::StrDup(rec.buffer()));
++}
++
++static int shorebird_cmp(const char* const* a, const char* const* b) {
++  return strcmp(*a, *b);
++}
++
+ void ElfWriter::GenerateCapabilities() {
+   ASSERT(section_table_->Find(kCapabilitiesNoteName) == nullptr);
+   const char* const payload =
+@@ -1756,14 +1845,64 @@
+   stream.WriteFixed<decltype(elf::Note::name_size)>(
+       sizeof(kShorebirdNoteOwner));
+   stream.WriteFixed<decltype(elf::Note::description_size)>(description_length);
+-  stream.WriteFixed<decltype(elf::Note::type)>(
+-      static_cast<elf::NoteType>(1));
++  stream.WriteFixed<decltype(elf::Note::type)>(static_cast<elf::NoteType>(1));
+   stream.WriteBytes(kShorebirdNoteOwner, sizeof(kShorebirdNoteOwner));
+   stream.WriteBytes(reinterpret_cast<const uint8_t*>(payload),
+                     description_length);
+   auto* const container = new (zone_) NoteSection();
+   container->AddPortion(stream.buffer(), stream.bytes_written());
+   section_table_->Add(container, kCapabilitiesNoteName);
++}
++
++// One line per inlining decision: "inlinee<TAB>caller". A declaration that
++// appears in the FIRST column has at least one copy of its body somewhere else
++// in this release, so a patch to it cannot reach that copy.
++void ElfWriter::GenerateInliningRelation() {
++  ASSERT(section_table_->Find(kInliningNoteName) == nullptr);
++  TextBuffer buf(1024);
++  MutexLocker ml(shorebird_mutex());
++  // schema 6: header, then a record count, then that many records of TWENTY
++  // length-prefixed fields each -- per side the VM coordinates
++  // (lib/owner/kind/name) followed by the synthetic parent's. No separators, so
++  // no field content can be read as structure.
++  intptr_t unique = 0;
++  if (shorebird_inlining != nullptr) {
++    shorebird_inlining->Sort(shorebird_cmp);
++    const char* previous = nullptr;
++    for (intptr_t i = 0; i < shorebird_inlining->length(); i++) {
++      const char* rec = (*shorebird_inlining)[i];
++      if (previous != nullptr && strcmp(previous, rec) == 0) continue;
++      unique++;
++      previous = rec;
++    }
++  }
++  buf.Printf("schema_version=6\nfields_per_record=20\nrecords=%" Pd "\n", unique);
++  if (shorebird_inlining != nullptr) {
++    const char* previous = nullptr;
++    for (intptr_t i = 0; i < shorebird_inlining->length(); i++) {
++      const char* rec = (*shorebird_inlining)[i];
++      if (previous != nullptr && strcmp(previous, rec) == 0) continue;
++      buf.AddString(rec);
++      previous = rec;
++    }
++  }
++  // Sealed only after the bytes are built, so a racing append is caught.
++  shorebird_sealed = true;
++  const char* payload = buf.buffer();
++  const intptr_t description_length = strlen(payload) + 1;
++  ZoneWriteStream stream(
++      zone(), sizeof(elf::Note) + sizeof(kShorebirdNoteOwner) +
++                  description_length);
++  stream.WriteFixed<decltype(elf::Note::name_size)>(
++      sizeof(kShorebirdNoteOwner));
++  stream.WriteFixed<decltype(elf::Note::description_size)>(description_length);
++  stream.WriteFixed<decltype(elf::Note::type)>(static_cast<elf::NoteType>(2));
++  stream.WriteBytes(kShorebirdNoteOwner, sizeof(kShorebirdNoteOwner));
++  stream.WriteBytes(reinterpret_cast<const uint8_t*>(payload),
++                    description_length);
++  auto* const container = new (zone_) NoteSection();
++  container->AddPortion(stream.buffer(), stream.bytes_written());
++  section_table_->Add(container, kInliningNoteName);
+ }
+ 
+ void ElfWriter::GenerateBuildId() {
+--- a/runtime/vm/compiler/backend/flow_graph_compiler.cc
++++ b/runtime/vm/compiler/backend/flow_graph_compiler.cc
+@@ -3,6 +3,7 @@
+ // BSD-style license that can be found in the LICENSE file.
+ 
+ #include "vm/compiler/backend/flow_graph_compiler.h"
++#include "vm/elf.h"
+ #include "vm/globals.h"  // Needed here to get TARGET_ARCH_XXX.
+ 
+ #include "platform/utils.h"
+@@ -209,6 +210,119 @@
+ #else
+   const bool stack_traces_only = false;
+ #endif
++
++  // SM1-G5 EVIDENCE INSTRUMENTATION (route 2).
++  //
++  // inline_id_to_function[0] is the function being compiled; every entry after
++  // it is a function the inliner COPIED INTO it. This is the compiler's own
++  // decision, recorded after optimization -- not a pragma, not source shape,
++  // and not inferred from symbol absence.
++  //
++  // Identity is emitted STRUCTURED (library URI, owner, kind, declared name) so
++  // it joins exactly to SM1-G1's declaration identity. The VM's
++  // ToLibNamePrefixedQualifiedCString() cannot serve: it uses library.name(),
++  // not the URI G1 keys on.
++  {
++    const auto& info = flow_graph->inlining_info();
++    if (info.inline_id_to_function.length() > 1) {
++      auto describe = [](const Function& fn, const char** lib,
++                         const char** owner, const char** kind,
++                         const char** name, const char** parent_lib,
++                         const char** parent_owner, const char** parent_kind,
++                         const char** parent_name, const char** libkey,
++                         const char** parent_libkey) {
++        *kind = Function::KindToCString(fn.kind());
++        *name = fn.name() == String::null()
++                    ? "<null>"
++                    : String::Handle(fn.name()).ToCString();
++        // A generative constructor and a factory share the VM Constructor
++        // kind and are told apart by staticness, so the distinction is
++        // recorded rather than left for the reader to infer.
++        if (fn.IsConstructor()) {
++          *kind = fn.IsFactory() ? "Constructor:factory"
++                                 : "Constructor:generative";
++        }
++        // The parent an implicit closure was synthesised from. G5 treats such
++        // a closure as a tear-off wrapper rather than a second identity for
++        // the declaration, so the link has to travel with the record.
++        *parent_lib = "";
++        *parent_owner = "";
++        *parent_kind = "";
++        *parent_name = "";
++        *parent_libkey = "";
++        if (fn.IsImplicitClosureFunction()) {
++          const Function& parent = Function::Handle(fn.parent_function());
++          if (!parent.IsNull()) {
++            *parent_kind = parent.IsConstructor()
++                               ? (parent.IsFactory() ? "Constructor:factory"
++                                                     : "Constructor:generative")
++                               : Function::KindToCString(parent.kind());
++            *parent_name = parent.name() == String::null()
++                               ? "<null>"
++                               : String::Handle(parent.name()).ToCString();
++            // The parent's OWN library and owner, not inherited from the child:
++            // that the two always agree is an unstated invariant, so it is
++            // measured instead of assumed.
++            const Object& po = Object::Handle(parent.RawOwner());
++            if (po.IsClass()) {
++              const Class& pc = Class::Cast(po);
++              const Library& pl = Library::Handle(pc.library());
++              *parent_lib = pl.IsNull() || pl.url() == String::null()
++                                ? "<unknown>"
++                                : String::Handle(pl.url()).ToCString();
++              *parent_libkey = pl.IsNull() || pl.private_key() == String::null()
++                                   ? "<unknown>"
++                                   : String::Handle(pl.private_key()).ToCString();
++              *parent_owner = pc.IsTopLevel() ? "" : pc.ScrubbedNameCString();
++            } else {
++              *parent_lib = "<unknown>";
++              *parent_owner = "<unknown>";
++            }
++          } else {
++            *parent_lib = "<unknown>";
++            *parent_owner = "<unknown>";
++            // Unresolved synthetic parent: emitted as such so the mapper can
++            // refuse rather than assume the wrapper is unrelated.
++            *parent_kind = "<unknown>";
++            *parent_name = "<unknown>";
++          }
++        }
++        *libkey = "";
++        const Object& raw_owner = Object::Handle(fn.RawOwner());
++        if (raw_owner.IsClass()) {
++          const Class& cls = Class::Cast(raw_owner);
++          const Library& l = Library::Handle(cls.library());
++          *lib = l.IsNull() || l.url() == String::null()
++                     ? "<unknown>"
++                     : String::Handle(l.url()).ToCString();
++          // The declaring library's own private key, so the reader strips
++          // exactly this and nothing else.
++          *libkey = l.IsNull() || l.private_key() == String::null()
++                        ? "<unknown>"
++                        : String::Handle(l.private_key()).ToCString();
++          // A top-level member's owner class is the library's synthetic
++          // toplevel class; G1 records no owner for those.
++          *owner = cls.IsTopLevel() ? "" : cls.ScrubbedNameCString();
++        } else {
++          // Unmappable owner. Emitted as such rather than guessed: the
++          // consumer must treat it as UNKNOWN, never as not-inlined.
++          *lib = "<unknown>";
++          *owner = "<unknown>";
++        }
++      };
++      const char *cl, *co, *ck, *cn, *cpl, *cpo, *cpk, *cpn, *clk, *cplk;
++      describe(*info.inline_id_to_function[0], &cl, &co, &ck, &cn, &cpl, &cpo,
++               &cpk, &cpn, &clk, &cplk);
++      for (intptr_t i = 1; i < info.inline_id_to_function.length(); i++) {
++        const char *il, *io, *ik, *in_, *ipl, *ipo, *ipk, *ipn, *ilk, *iplk;
++        describe(*info.inline_id_to_function[i], &il, &io, &ik, &in_, &ipl,
++                 &ipo, &ipk, &ipn, &ilk, &iplk);
++        dart::ShorebirdRecordInlined(il, io, ik, in_, ipl, ipo, ipk, ipn, cl,
++                                     co, ck, cn, cpl, cpo, cpk, cpn, ilk, iplk,
++                                     clk, cplk);
++      }
++    }
++  }
+ 
+   const auto& inlining_info = flow_graph->inlining_info();
+   // Make sure that the function is at the position for inline_id 0.

@@ -1,0 +1,26 @@
+=== POST-CHANGE configuration, engine source f1a59b8a1609c51397601c36d586ad7763d57153 (parent dfa2b24ac38477f3705ff0357530f33fe09474b8) ===
+--- tree clean (the fix is COMMITTED, not a working-tree edit): ---
+    ?? .gcs_entries
+    (empty above = clean)
+--- arm ---
+Generating Xcode projects took 107ms
+Generating compile_commands took 55ms
+Done. Made 1309 targets from 362 files in 40876ms
+Generating GN files in: out/android_release
+  gn exit=
+  analyze_snapshot targets defined: 17
+--- arm64 ---
+Generating Xcode projects took 106ms
+Generating compile_commands took 63ms
+Done. Made 1355 targets from 362 files in 493ms
+Generating GN files in: out/android_release_arm64
+  gn exit=
+  analyze_snapshot targets defined: 81
+--- x64 ---
+Generating Xcode projects took 111ms
+Generating compile_commands took 65ms
+Done. Made 1335 targets from 362 files in 493ms
+Generating GN files in: out/android_release_x64
+  gn exit=
+  analyze_snapshot targets defined: 74
+=== done ===

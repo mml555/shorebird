@@ -1,0 +1,162 @@
+{
+  "schema": "semantic-map-1/final-verdict/1",
+  "gate": "SM1-FINAL",
+  "issue": 58,
+  "tracker": 48,
+  "generated": "2026-09-09T08:00:52Z",
+  "allowed_verdicts": [
+    "MODIFY_ANALYZER",
+    "MODIFY_MAP_DESIGN",
+    "REDUCE_SCOPE",
+    "ABANDON_OR_REDESIGN",
+    "PROCEED"
+  ],
+  "verdict": "MODIFY_MAP_DESIGN",
+  "selected_by_predicate": "DISTINCTION_NOT_REPRESENTABLE",
+  "precedence_applied": "#58's order: MODIFY_ANALYZER (valid-model analyzer bug), MODIFY_MAP_DESIGN (model cannot represent), REDUCE_SCOPE (decidable exclusion works), ABANDON_OR_REDESIGN (unsafe class unidentifiable). PROCEED is the fall-through, not the first rung: an otherwise-green state that also carries a valid-model analyzer defect must select MODIFY_ANALYZER.",
+  "ladder_trace": [
+    {
+      "verdict": "MODIFY_ANALYZER",
+      "predicate": "ANALYZER_DEFECT_UNDER_VALID_MODEL",
+      "value": false,
+      "selected": false
+    },
+    {
+      "verdict": "MODIFY_MAP_DESIGN",
+      "predicate": "DISTINCTION_NOT_REPRESENTABLE",
+      "value": true,
+      "selected": true
+    },
+    {
+      "verdict": "REDUCE_SCOPE",
+      "predicate": "DECIDABLE_EXCLUSION_YIELDS_NONEMPTY",
+      "value": false,
+      "selected": false
+    },
+    {
+      "verdict": "ABANDON_OR_REDESIGN",
+      "predicate": "UNSAFE_CLASS_NOT_IDENTIFIABLE",
+      "value": false,
+      "selected": false
+    },
+    {
+      "verdict": "PROCEED",
+      "predicate": "PROCEED_CONDITIONS_MET",
+      "value": false,
+      "selected": false
+    }
+  ],
+  "predicates": {
+    "EVERY_REQUIRED_ROW_POSITIVE": {
+      "value": false,
+      "from": "rows not in a positive category: ['RETENTION_CONTRACT', 'RETENTION_WITHHELD_FAILS_CLOSED', 'PATCHABILITY_SUBSET_PROPERTY', 'PATCHABILITY_DISTINCTION_REPRESENTABLE']"
+    },
+    "PATCHABILITY_POSITIVELY_ESTABLISHED": {
+      "value": false,
+      "from": "PATCHABILITY_SUBSET_PROPERTY=VACUOUS, admitted=0 of 36"
+    },
+    "SUBSET_PROPERTY_VACUOUS": {
+      "value": true,
+      "from": "the subset property holds only because the admitted set is empty; zero admitted is not positive patchability evidence"
+    },
+    "UNSAFE_CLASS_MECHANICALLY_ACCOUNTED": {
+      "value": true,
+      "from": "reader accounting 36 of 36 declarations; every declaration reaches a named state, so an empty admitted set is a decision rather than a coverage hole"
+    },
+    "REFUSAL_PATH_ENFORCED": {
+      "value": true,
+      "from": "OVER_CLAIM=REFUSAL_ENFORCED"
+    },
+    "BLOCKING_PREREQUISITES_UNRESOLVED": {
+      "value": true,
+      "from": "unresolved BLOCKING_FOR_PRODUCTION prerequisites: ['NON_STATIC_DISPATCH_PATCHABILITY', 'POST_HOC_REDIRECTABILITY_UNDECIDABLE', 'INLINING_EVIDENCE_MUST_COME_FROM_THE_SHIPPED_RELEASE']"
+    },
+    "ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE": {
+      "value": false,
+      "from": "gap entries attributing a shortfall to a tool or analyzer defect: none"
+    },
+    "MODEL_ROWS_ALL_ESTABLISHED": {
+      "value": true,
+      "from": "DECLARATION_ID_STABILITY=ESTABLISHED; DECLARATION_ID_COLLISIONS=ESTABLISHED; ABI_FINGERPRINT=ESTABLISHED; BODY_FINGERPRINT=ESTABLISHED; CLASSIFICATION_UNCHANGED=ESTABLISHED; CLASSIFICATION_CHANGED_BODY=ESTABLISHED; CLASSIFICATION_ABI_BREAK=ESTABLISHED"
+    },
+    "RETENTION_WITHHELD_MEASURED_NOT_FAILING_CLOSED": {
+      "value": true,
+      "from": "RETENTION_WITHHELD_FAILS_CLOSED=ESTABLISHED_NEGATIVE"
+    },
+    "REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE": {
+      "value": true,
+      "from": "PATCHABILITY_DISTINCTION_REPRESENTABLE=NOT_REPRESENTABLE"
+    },
+    "DISTINCTION_NOT_REPRESENTABLE": {
+      "value": true,
+      "from": "REPRESENTABILITY_EVIDENCE_SAYS_NOT_REPRESENTABLE alone. Neither the blocker count nor the size of the admitted set is an input: an unrelated prerequisite must not manufacture this verdict, and a non-empty admitted set must not suppress it.",
+      "corroborated_by": {
+        "SUBSET_PROPERTY_VACUOUS": true,
+        "UNSAFE_CLASS_MECHANICALLY_ACCOUNTED": true
+      }
+    },
+    "NAMED_DECIDABLE_EXCLUSION_PRESENT": {
+      "value": true,
+      "from": "DECIDABLE_EXCLUSIONS=NAMED_AND_FAIL_CLOSED -- the class is named in the map contract AND its refusal is reached, not merely representable"
+    },
+    "REPRESENTABILITY_DEFECT_ABSENT": {
+      "value": false,
+      "from": "PATCHABILITY_DISTINCTION_REPRESENTABLE=NOT_REPRESENTABLE. A scope reduction cannot repair a representability defect: if the model cannot represent the distinction, a smaller input set does not make it able to."
+    },
+    "ADMITTED_SET_IS_SOUND": {
+      "value": false,
+      "from": "non-empty, every declaration accounted for, and the over-claim refusal demonstrated -- a non-empty set that over-claims is not a reduced scope, it is an unsound one"
+    },
+    "ADMITTED_SET_IS_PROPER_SUBSET": {
+      "value": false,
+      "from": "admitted=0 of 36: strictly between empty and total, which is what \"after EXCLUDING a class\" means. A total admitted set excluded nothing and belongs to PROCEED."
+    },
+    "DECIDABLE_EXCLUSION_YIELDS_NONEMPTY": {
+      "value": false,
+      "from": "NAMED_DECIDABLE_EXCLUSION_PRESENT and REPRESENTABILITY_DEFECT_ABSENT and ADMITTED_SET_IS_SOUND and ADMITTED_SET_IS_PROPER_SUBSET -- all four, per the FINAL ruling"
+    },
+    "UNSAFE_CLASS_NOT_IDENTIFIABLE": {
+      "value": false,
+      "from": "the negation of UNSAFE_CLASS_MECHANICALLY_ACCOUNTED"
+    },
+    "ANALYZER_DEFECT_UNDER_VALID_MODEL": {
+      "value": false,
+      "from": "ANALYZER_DEFECT_ATTRIBUTED_BY_EVIDENCE and MODEL_ROWS_ALL_ESTABLISHED -- both, so an attribution against an invalid model falls through rather than selecting or resetting"
+    },
+    "ADMITTED_SET_IS_TOTAL": {
+      "value": false,
+      "from": "admitted=0 of 36: the whole declared surface, so no feature class had to be excluded"
+    },
+    "PROCEED_CONDITIONS_MET": {
+      "value": false,
+      "from": "every required row positive, patchability positively established, refusals enforced, the admitted set TOTAL (nothing excluded -- a proper subset belongs to REDUCE_SCOPE), and no blocking prerequisite open"
+    }
+  },
+  "rows_not_established": [],
+  "rows_not_positive": [
+    "RETENTION_CONTRACT",
+    "RETENTION_WITHHELD_FAILS_CLOSED",
+    "PATCHABILITY_SUBSET_PROPERTY",
+    "PATCHABILITY_DISTINCTION_REPRESENTABLE"
+  ],
+  "blocking_prerequisites": [
+    "NON_STATIC_DISPATCH_PATCHABILITY",
+    "POST_HOC_REDIRECTABILITY_UNDECIDABLE",
+    "INLINING_EVIDENCE_MUST_COME_FROM_THE_SHIPPED_RELEASE"
+  ],
+  "next_lane": [
+    "The map cannot decide patchability by inference from a finished AOT, so patchability has to become a BUILD-TIME guarantee rather than a post-hoc classification. #59 (Mutable AOT Dart) is the accepted direction for that and may be named here; no implementation begins in #58.",
+    "AOT-ASSUMPTIONS-1 owns the optimizer-contract half and is still un-instrumented; it was deliberately not started here.",
+    "RETENTION_WITHHELD_FAILS_CLOSED is a measured NEGATIVE, and NOT a new finding: every class that fails open has cause DYNAMIC_INTERFACE_POLICY, while the one that fails closed (callable) has a different cause. SL1-G6C named the root cause MODULE_SIDE_DYNAMIC_INTERFACE_VALIDATION as BLOCKING_FOR_PRODUCTION and SL1-FINAL carried it into this lane. SL1's PREMISE does not hold against the frozen source: dart2bytecode registers --validate (dart2bytecode.dart:131) and assigns dynamicInterfaceSpecificationUri (:291), upstream and predating this fork. Its CONCLUSION does hold: validateDynamicModule is conditional on that URI (kernel_target.dart:1815) and Route B omits the flag (build_4a_payload.sh:34, build_4b_artifact.sh:96). So the next lane is a change to our own build scripts, not a compiler option -- and whether passing the flag makes the negatives fail closed is UNTESTED, being that lane's first experiment. Independent of patchability; must close before any map is relied on.",
+    "Generation-time figures are current-run observations. Any schedule or budget derived from them needs a repeated measurement at the scale being shipped, not this sample."
+  ],
+  "non_proven_claims": [
+    "No declaration was mechanically established safely patchable. The subset property is VACUOUS with 0 of 36 admitted.",
+    "NOT_INLINED means no covered body-copy mechanism was witnessed. It does not mean every call site observes a patch: the isolated experiment attached a patch whose direct call read PATCHED-w while the virtual call still read OLD-w.",
+    "Pool-indirect and entry-point observations are non-safety facts. Tagged offsets alias between the Function and Code layouts, so redirectability is not decidable from a finished snapshot.",
+    "REPRODUCTION: PASS states that the evidence and its refusals rebuild. It is not a statement of production readiness; PRODUCTION_PREREQUISITES is a separate partition and remains UNRESOLVED.",
+    "The full AOT SHA-256 is the authoritative release identity. The GNU build ID is diagnostic only -- build ids hash four snapshot segments and collide across different AOTs.",
+    "Timing figures and the order-dependence label set are current-run observations. The max(stdev) classifier is a cost diagnostic, not causality or safety evidence.",
+    "G4's retention curve understates measured cost at scale, so the projection may not be substituted for a measurement."
+  ]
+}

@@ -1,0 +1,4 @@
+Input was required for the following prompt but the CLI is running in a non-interactive context:
+  Which app flavor?
+
+Hint: Re-run with a TTY-attached stdout, or provide the required input via a command-line flag.

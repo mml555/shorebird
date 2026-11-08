@@ -1,0 +1,27 @@
+verify_supported_state -- record /Volumes/build/cleanroom1/shorebird/selfhost/engine/route_b/SUPPORTED_STATE.yaml
+  FAILED  record is not cleanly machine-readable — it either fails to parse or carries a duplicate key (a duplicate PARSES and silently keeps the last value, which is how an authoritative field gets shadowed); rerun the check by hand for the line number: python3 - /Volumes/build/cleanroom1/shorebird/selfhost/engine/route_b/SUPPORTED_STATE.yaml < the DUPPY heredoc in this script
+  shorebird root : /Volumes/build/route-b/shorebird-candidate
+  ok      recorded cli_revision exists in this repository
+  ok      cli_revision is in this branch's history
+  ok      cli_revision contains 6b4f6c42 (private-name resolution)
+  ok      CLI flutter.version (committed blob at cli_revision) selects the recorded Flutter
+  ok      repo HEAD product tree packages/shorebird_cli
+  FAILED  runtime checkout product tree packages/shorebird_cli: record says 6c76e79a3ad1c86658a41b144dececb07ff5d3ca, artifact is <none>
+  ok      repo HEAD product tree bin/internal
+  FAILED  runtime checkout product tree bin/internal: record says 67bb0a85a83177ad8afcf1765403e42a913e0377, artifact is <none>
+  ok      runtime checkout has no uncommitted changes at all
+  FAILED  runtime checkout's flutter.version matches the committed selector: record says e64eb0af52e1c43c3b21a39556d789538d0df9b3, artifact is <none>
+  ok      runtime checkout's bin/internal is clean
+  FAILED  no Flutter checkout at /Volumes/build/route-b/shorebird-candidate/bin/cache/flutter/e64eb0af52e1c43c3b21a39556d789538d0df9b3
+  FAILED  no published compiler archive at /Volumes/build/cleanroom1/shorebird/selfhost/cdn/overlay/download.shorebird.dev/shorebird/f85251f344600ae08196925a174e9cff8f0ff18e/route-b-compiler-darwin-arm64.zip
+  FAILED  cannot verify the analyzer: no published archive
+  --      analyzer not resolved into this root's cache (archive already verified)
+  ok      v2 manifest recomputes to the cell address
+  FAILED  cell member drift — run verify_cell_members.sh f85251f344600ae08196925a174e9cff8f0ff18e for the detail
+  ok      fallback engine revision
+  ok      updater revision agrees with selfhost/compatibility.yaml
+  ok      engine producer f1a59b8a1609 durable AND matches the banked patch, parent dfa2b24ac384
+  ok      engine producer dfa2b24ac384 is reachable on the remote
+  FAILED  audit_route_b_compiler reported findings for f85251f344600ae08196925a174e9cff8f0ff18e
+
+SUPPORTED STATE FAILED: 9 check(s)

@@ -45,6 +45,15 @@ untested against our server.
 | **aar** (add-to-app) | `android` | `arm`, `aarch64`, `x86_64` (per-ABI `libapp.so`) → `false`; `aar` → `false`; `aar_supplement` (obfuscated only) → `false` | false | null | `createAndroidArchiveReleaseArtifacts` |
 | **ios-framework** (add-to-app) | `ios` | `xcframework` → `false`; `ios_framework_supplement` (obfuscated only) → `false` | false | null | `createIosFrameworkReleaseArtifacts` |
 
+> **ADD-TO-APP-1 (2026-09-03): neither add-to-app row is usable on the frozen
+> stack, and both were measured.** `shorebird release ios-framework` fails in
+> `flutter build` — the cell publishes a device-only `Flutter.xcframework` — and
+> even given the artifact, the control plane refuses to ACTIVATE a release whose
+> only arch is `xcframework` (or `aar`), because `Api._requiredArchs` gates on
+> the full-app sets. Route B is not implemented for `ios-framework` at all. See
+> [`evidence/addtoapp1/RESULT.md`](evidence/addtoapp1/RESULT.md). The rows below
+> describe the WIRE SHAPE, which is unchanged and still correct.
+
 Supplement arch strings per releaser (`Releaser.supplementArtifactArch`):
 `android_supplement`, `ios_supplement`, `macos_supplement`,
 `windows_supplement`, `linux_supplement`, `aar_supplement`,

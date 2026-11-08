@@ -1,0 +1,33 @@
+
+[1m0. throwaway control plane on :59432, reachable from the device[0m
+  up; adb reverse tcp:59432 -> host
+  device sees it: 200
+
+[1m1. a fresh ordinary Flutter app with an unmistakable marker[0m
+  marker: ANDROID-FINAL-V1-RELEASE
+  added shorebird.yaml to flutter assets
+  INTERNET permission entries: 1
+  app_id=82e21ff1-958d-c771-ae6c-cba3a3138420  base_url=http://localhost:59432
+
+[1m2. shorebird release android --artifact apk[0m
+  pubspec version: version: 1.0.0+1
+  FLUTTER_VER=<pinned selector>
+  exit=70
+  --- hydration / coherence / engine lines ---
+    | 3:Starting Downloading aot-tools.dill......
+    | 6:Starting Running flutter precache...
+    | 7:Failed Failed to precache Flutter null
+  --- tail ---
+    | [WARN] No patch public key was provided. Patches for this release will not be cryptographically verified on the device.
+    | To enable verification, provide --public-key-path or --public-key-cmd.
+    | Starting Downloading aot-tools.dill......
+    | Starting Fetching apps...
+    | Done Fetching apps
+    | Starting Running flutter precache...
+    | Failed Failed to precache Flutter null
+    | 
+    | If you aren't sure why this command failed, re-run with the --verbose flag to see more information.
+    | 
+    | You can also [file an issue](https://github.com/shorebirdtech/shorebird/issues/new/choose) if you think this is a bug. Please include the following log file in your report:
+    | /Users/mendell/Library/Application Support/shorebird/logs/1788476468635_shorebird.log
+    | 

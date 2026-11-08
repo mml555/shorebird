@@ -1,0 +1,46 @@
+Aug 20 11:41:15.701629 Runner(Flutter)[18860] <Notice>: [shorebird] No existing state file found: File /private/var/mobile/Containers/Data/Application/4664A735-D405-4A61-AB4F-F3DB776DA20D/Library/Application Support/shorebird/shorebird_updater/state.json does not exist, creating new state.
+Aug 20 11:41:15.704147 Runner(Flutter)[18860] <Notice>: [shorebird] Reporting launch start.
+Aug 20 11:41:15.705971 Runner(Flutter)[18860] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=550349 vm_insns_size=43584 iso_insns_size=1807248 total=2406359
+Aug 20 11:41:15.708974 Runner(Flutter)[18860] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3", channel: "stable", release_version: "1.4.0+1", platform: "ios", arch: "aarch64", client_id: "07a556e8-5b39-4abd-a844-e954094cf627", current_patch_number: None }
+Aug 20 11:41:15.784371 Runner(Flutter)[18860] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "570d1c4d4fca1942c3a54ead502a973366d4401fb103b2e2d598928cde75449a", download_url: "http://10.0.0.7:18080/download/b151d8ea79d302a7f17d3ec3077fb934?exp=1787240775&sig=4c454da6110fcf3d11e1cc22d8924677ec5d72cba36328dcda33a428e0b24baf", hash_signature: None }), rolled_back_patch_numbers: Some([]) }
+Aug 20 11:41:15.784438 Runner(Flutter)[18860] <Notice>: [shorebird] Downloading patch 1 for app 014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3 (version 1.4.0+1)
+Aug 20 11:41:15.784599 Runner(Flutter)[18860] <Notice>: [shorebird] Downloading patch from: http://10.0.0.7:18080/download/b151d8ea79d302a7f17d3ec3077fb934?exp=1787240775&sig=4c454da6110fcf3d11e1cc22d8924677ec5d72cba36328dcda33a428e0b24baf
+Aug 20 11:41:15.819243 Runner(Flutter)[18860] <Notice>: [shorebird] Downloaded patch to: "/private/var/mobile/Containers/Data/Application/4664A735-D405-4A61-AB4F-F3DB776DA20D/Library/Application Support/shorebird/shorebird_updater/downloads/1" (661 bytes)
+Aug 20 11:41:15.860518 Runner(Flutter)[18860] <Notice>: [shorebird] Inflating patch from "/private/var/mobile/Containers/Data/Application/4664A735-D405-4A61-AB4F-F3DB776DA20D/Library/Application Support/shorebird/shorebird_updater/downloads/1" (661 bytes)
+Aug 20 11:41:15.861054 Runner(Flutter)[18860] <Notice>: [shorebird] Patch successfully applied to "/private/var/mobile/Containers/Data/Application/4664A735-D405-4A61-AB4F-F3DB776DA20D/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode". patch_file=661b base_size=2406359b decompressed_into_pipe=875b decompressed_out_of_pipe=875b base_read=0b base_last_seek_pos=0 base_seeks=1 output_written=863b
+Aug 20 11:41:15.892039 Runner(Flutter)[18860] <Notice>: [shorebird] Patch 1 successfully downloaded. It will be launched when the app next restarts.
+Aug 20 11:41:15.892319 Runner(Flutter)[18860] <Notice>: [shorebird] Update thread finished with status: Update installed
+Aug 20 11:41:15.894534 Runner(Flutter)[18860] <Notice>: [shorebird] Reporting successful launch.
+Aug 20 11:45:11.227173 Runner(Flutter)[18891] <Notice>: [shorebird] Reporting launch start.
+Aug 20 11:45:11.229123 Runner(Flutter)[18891] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=550349 vm_insns_size=43584 iso_insns_size=1807248 total=2406359
+Aug 20 11:45:11.229272 Runner(Flutter)[18891] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 20 11:45:11.279436 Runner(Flutter)[18891] <Notice>: [shorebird] Reporting successful launch.
+Aug 20 11:45:11.286378 Runner(Flutter)[18891] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 20 11:45:11.286559 Runner(Flutter)[18891] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 20 11:46:18.174486 Runner(Flutter)[18905] <Notice>: [shorebird] Reporting launch start.
+Aug 20 11:46:18.174504 Runner(Flutter)[18905] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=550349 vm_insns_size=43584 iso_insns_size=1807248 total=2406359
+Aug 20 11:46:18.174522 Runner(Flutter)[18905] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 20 11:46:18.194826 Runner(Flutter)[18905] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3", channel: "stable", release_version: "1.4.0+1", platform: "ios", arch: "aarch64", client_id: "07a556e8-5b39-4abd-a844-e954094cf627", current_patch_number: Some(1) }
+Aug 20 11:46:18.224371 Runner(Flutter)[18905] <Notice>: [shorebird] Reporting successful launch.
+Aug 20 11:47:53.136613 Runner(Flutter)[18921] <Notice>: [shorebird] Reporting launch start.
+Aug 20 11:47:53.136670 Runner(Flutter)[18921] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=550349 vm_insns_size=43584 iso_insns_size=1807248 total=2406359
+Aug 20 11:47:53.136742 Runner(Flutter)[18921] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 20 11:47:53.269943 Runner(Flutter)[18921] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3", channel: "stable", release_version: "1.4.0+1", platform: "ios", arch: "aarch64", client_id: "07a556e8-5b39-4abd-a844-e954094cf627", current_patch_number: Some(1) }
+Aug 20 11:49:12.228686 Runner(Flutter)[18937] <Notice>: [shorebird] Reporting launch start.
+Aug 20 11:49:12.228736 Runner(Flutter)[18937] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=550349 vm_insns_size=43584 iso_insns_size=1807248 total=2406359
+Aug 20 11:49:12.228774 Runner(Flutter)[18937] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 20 11:49:12.255949 Runner(Flutter)[18937] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3", channel: "stable", release_version: "1.4.0+1", platform: "ios", arch: "aarch64", client_id: "07a556e8-5b39-4abd-a844-e954094cf627", current_patch_number: Some(1) }
+Aug 20 12:07:24.454999 Runner(Flutter)[18941] <Notice>: [shorebird] boot 1 of patch 1 did not record success; retrying (threshold 2)
+Aug 20 12:07:24.455377 Runner(Flutter)[18941] <Notice>: [shorebird] Reporting launch start.
+Aug 20 12:07:24.455416 Runner(Flutter)[18941] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=550349 vm_insns_size=43584 iso_insns_size=1807248 total=2406359
+Aug 20 12:07:24.455478 Runner(Flutter)[18941] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 20 12:07:24.536067 Runner(Flutter)[18941] <Notice>: [shorebird] Reporting successful launch.
+Aug 20 12:07:24.538981 Runner(Flutter)[18941] <Notice>: [shorebird] Sending patch check request: PatchCheckRequest { app_id: "014c8ed9-2dea-ec30-fe74-3a7f5e7a77e3", channel: "stable", release_version: "1.4.0+1", platform: "ios", arch: "aarch64", client_id: "07a556e8-5b39-4abd-a844-e954094cf627", current_patch_number: Some(1) }
+Aug 20 12:07:24.545501 Runner(Flutter)[18941] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 20 12:07:24.545538 Runner(Flutter)[18941] <Notice>: [shorebird] Update thread finished with status: No update
+Aug 20 12:11:47.249638 Runner(Flutter)[19118] <Notice>: [shorebird] Reporting launch start.
+Aug 20 12:11:47.249657 Runner(Flutter)[19118] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(112)] [shorebird] SetBaseSnapshot mappings: vm_data_size=5178 iso_data_size=550349 vm_insns_size=43584 iso_insns_size=1807248 total=2406359
+Aug 20 12:11:47.249675 Runner(Flutter)[19118] <Notice>: [shorebird] No public key configured; skipping signature verification
+Aug 20 12:11:47.309967 Runner(Flutter)[19118] <Notice>: [shorebird] Reporting failed launch.
+Aug 20 12:11:47.320771 Runner(Flutter)[19118] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Aug 20 12:11:47.320818 Runner(Flutter)[19118] <Notice>: [shorebird] Update thread finished with status: No update

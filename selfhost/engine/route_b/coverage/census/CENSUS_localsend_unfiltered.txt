@@ -1,0 +1,93 @@
+================================================================================
+STRUCTURAL BODY CENSUS -- NOT PATCH DEMAND
+================================================================================
+Each existing method counts once, regardless of how likely that method is to
+change in practice.
+
+Percentages measure current Route B refusal reachability over methods that
+EXIST. They do NOT estimate:
+  - patch success rate,
+  - frequency of real changes,
+  - user demand,
+  - or percentage of production fixes Route B can ship.
+
+Only the LOWERING stage was run. Reachability, release retention, the
+producer's own source-text refusals and the bytecode compiler are separate
+stages and were not evaluated. `lowerable` means this stage raised no
+objection, and nothing more.
+
+The two corpora are reported separately and are NOT pooled: one is a synthetic
+regression fixture written to exercise this mechanism, the other is an
+application written by people who had never heard of it.
+================================================================================
+
+--------------------------------------------------------------------------------
+localsend (ALL first-party, generated included)   (real application)
+--------------------------------------------------------------------------------
+  dill                        /private/tmp/claude-501/-Users-mendell-shorebird/8688bc8f-b3b0-49e5-b8b9-c4f9ab0a7854/scratchpad/d0/census3/localsend.dill
+  include                     package:localsend_app/, package:localsend_isolates/, package:typed_isolates/
+
+  instance procedures considered    19164
+    lowerable now                   18939    98.83%
+    blocked by >=1 reason             225     1.17%
+
+  excluded from the denominator, counted so the exclusion is visible:
+    static (no receiver to lower)     335
+    abstract / external (no body)     102
+    no usable source span              25
+
+  REFUSAL CATEGORIES
+  category                          methods % of all     SOLE  % unlock
+  --------------------------------------------------------------------------
+  receiver.unconsumed_this              147    0.77%      115    51.11%
+  abi.named_parameters                   76    0.40%       74    32.89%
+  abi.optional_positionals                3    0.02%        3     1.33%
+  receiver.compound_same_offset           3    0.02%        1     0.44%
+  receiver.super_call                    30    0.16%        0     0.00%
+
+  SOLE = methods for which this is the ONLY refusal. "% unlock" is that
+  count over the BLOCKED population: what closing this one category alone
+  would move. Categories overlap, so the "methods" column does not sum to
+  the blocked total and the "SOLE" column does not sum to it either --
+  the remainder is methods blocked by two or more categories at once.
+
+  INSIDE receiver.unconsumed_this -- by the PARENT of each `this`
+  kernel parent node                 occurrences sole-blocked
+  ------------------------------------------------------------
+  Arguments                                 108          102
+  InstanceTearOff                            64           44
+  SuperMethodInvocation                      30            0
+  SwitchStatement                             6            4
+  VariableSet                                 1            1
+
+  InstanceTearOff is `onPressed: _handleTap` -- `this` is the RECEIVER
+  of a tear-off, and the lowered spelling is the same textual edit as a
+  read. Arguments/VariableDeclaration/ReturnStatement are the receiver
+  genuinely escaping. Raw node names, so an unexamined shape cannot hide.
+
+  CONSTRUCTS, attributed once each  <-- PLAN FROM THIS TABLE
+  construct                         methods % of all     SOLE  % unlock
+  --------------------------------------------------------------------------
+  abi.named_parameters                   76    0.40%       74    32.89%
+  construct.this_escape                 115    0.60%       71    31.56%
+  construct.super                        30    0.16%       22     9.78%
+  construct.method_tearoff               44    0.23%        8     3.56%
+  abi.optional_positionals                3    0.02%        3     1.33%
+  receiver.compound_same_offset           3    0.02%        1     0.44%
+
+  TOP BLOCKER CO-OCCURRENCES
+      30   receiver.super_call + receiver.unconsumed_this
+       2   abi.named_parameters + receiver.unconsumed_this
+       2   receiver.compound_same_offset + receiver.super_call
+       2   receiver.compound_same_offset + receiver.unconsumed_this
+
+  These are why raw prevalence misleads: a pair that co-occurs often is a
+  pair where closing either one alone unlocks almost nothing.
+
+  D-HYGIENE EXERCISE COUNT (informational -- NOT a blocker)
+    declarations spelling `self`       70 of 19164 with readable source
+      of those, lowerable now          65
+    These lower CORRECTLY; they cost a capture-avoiding receiver rename.
+    Counting them as unsupported would put a solved problem back into the
+    ranking. The test is the producer's own conservative substring scan, so
+    it over-triggers on comments and on names like `selfTest`.

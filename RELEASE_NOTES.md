@@ -1,8 +1,607 @@
 # Release Notes
 
 <!--
-cspell:words pubspec erickzanardo xcframeworks cupertino codesign codecov rkishan appbundle proto tlsv kingdomseed Peetee Aditya serde bipatch GLES lipo
+cspell:words pubspec erickzanardo xcframeworks cupertino codesign codecov rkishan appbundle proto tlsv kingdomseed Peetee Aditya serde bipatch GLES lipo impellerc cmdline symbolicate VoiceOver OverlayPortal Reorderable XCUITest rustls webpki xcconfig boringssl NSURLSession HttpURLConnection DWARF dSYM notarization ContextMenuButtonKind monorepos symlinked GHSA
  -->
+
+## 1.6.138+selfhost.1 (unreleased)
+
+Fork build of upstream 1.6.138. Everything in the upstream 1.6.138 notes below
+applies, and the fork's own behavior is kept on top of it:
+
+- `shorebird patch --platforms=android,ios` still publishes **one** patch (one
+  patch number, one promotion) spanning every platform. Every platform is
+  checked, downloaded and configured before any is built, and nothing is
+  uploaded until all of them have built. The command's `--json` output lists
+  one entry per platform, all naming the same patch.
+- `SHOREBIRD_DOWNLOAD_URL` (upstream's setting) takes precedence for where the
+  toolchain downloads from. The fork's `FLUTTER_STORAGE_BASE_URL`,
+  `SHOREBIRD_ARTIFACT_ORIGIN`, `SHOREBIRD_STORAGE_BASE_URL` and
+  `SHOREBIRD_STORAGE_BUCKET` still work as aliases, and still resolve the
+  `selfhost/cdn` layout.
+- A self-hosted server has no managed patch-signing key, so releases to one are
+  unsigned unless you pass your own `--public-key-path`/`--public-key-cmd`.
+- `SHOREBIRD_JWT_ISSUER` no longer affects the CLI: the upstream login flow
+  does not validate the issuer on the client, and the CLI's own copy of the
+  setting is removed. Unset it on build hosts. The server still uses it (it
+  sets the `iss` its tokens carry), so keep it there.
+- `shorebird preview` keeps going when it cannot uninstall the previous copy of
+  the app, and warns that stale app data may remain.
+- `--confirm` on `release` and `patch` is accepted again, hidden. Upstream
+  removed it and prompts nowhere by default; here it asks `Would you like to
+  continue?` after the summary. With no terminal to answer it refuses (exit 64)
+  instead of going ahead, and declining prints `Aborting.` and exits 0, as the
+  1.6.123 backport did.
+
+## 1.6.138 (November 6, 2026)
+
+- ✨ `shorebird patch` stops when its dart-defines or target differ from the
+  release's
+- ✨ Updates can run once iOS unlocks protected data
+- 🐛 Xcode 27 keeps the debug map for Shorebird iOS builds
+- 🐛 Android Gradle Plugin can strip `libapp.so` again
+- 🐛 macOS apps no longer crash when `shorebird.yaml` can't be read
+- 🐛 `--no-codesign` iOS build failures show xcodebuild's output
+- 🐛 Xcode rebuilds keep the public key used to sign patches
+- 🐛 Installed patches are kept when the updater's state file can't be read
+- 🐛 The updater's state files are safe across processes
+- 🐛 Update failure messages lead with the root cause, and failed requests keep
+  the server's error code and message
+- 🐛 Android `shorebird patch` no longer warns that patches may be uninstalled
+  on the Flutter 3.24.1 revision that already has the fix
+- 🔧 `patch_verification` now defaults to `install_only`
+
+The fixes outside the CLI also reach anyone building with
+`--flutter-version=3.47.9`.
+
+## 1.6.137 (November 4, 2026)
+
+- ✨ `shorebird release` and `shorebird patch` accept common `flutter build`
+  options without `--`, such as `--no-tree-shake-icons`, `--no-pub`,
+  `-P`/`--android-project-arg` and `--enable-experiment`. `--` still works for
+  everything, and an unknown option's error shows your command with it moved
+  after `--`
+- ✨ `-D` works as the short form of `--dart-define`
+- 🐛 Obfuscated iOS and iOS framework patches built without
+  `--split-debug-info` now save the patch's own symbols to the default
+  directory, `build/shorebird/symbols`
+- 🐛 `shorebird patch` with no `--release-version` that can't prompt (CI,
+  `--json`) always rebuilds with the release's settings, so an obfuscated release no longer gets
+  an unobfuscated patch
+- 🔧 `--dart-define` values keep their commas, as in `flutter build`.
+  `--dart-define=A=1,B=2` used to set `A` and `B`; it now sets `A` to `1,B=2`.
+  Repeat the flag to pass several defines
+- 🔧 Guessing the release version in `shorebird patch` is deprecated and will be
+  removed in a release after January 1, 2027. Pass `--release-version=<version>`
+  or `--release-version=latest`. Until then, guessing takes an extra build
+- 🔧 CI sign-in hints point at service account keys instead of personal API keys
+
+## 1.6.136 (November 2, 2026)
+
+- ✨ Add `shorebird enterprise` for enterprise owners, admins and billing
+  managers: `get`, `members`, `guests`, `orgs list`, `apps list`,
+  `audit-log`, `usage` and `service-accounts list`
+- 🐛 Stop running `flutter pub get` with the Flutter on your PATH after builds.
+  This fixes Xcode's Product > Archive failing after `shorebird release`, and
+  concurrent builds on the same Flutter picking up each other's kernel
+- 🔧 With a Dart-Code (VS Code) extension older than v3.140, VS Code can pick
+  Shorebird's Flutter after a Shorebird build; run `flutter pub get` to switch
+  back
+
+## 1.6.135 (November 2, 2026)
+
+- 🐦 Flutter 3.47.9 / Dart 3.13.7 support
+  - Exit cleanly with an actionable error when a Windows path exceeds MAX_PATH
+  - Fix the StateError when native assets compile under pub workspaces,
+    monorepos or symlinked directories
+  - Add the extensible ContextMenuButtonKind so packages can add selection
+    menu actions without breaking exhaustive switches
+- 🔧 Apple patches now fail when they link below 20%. Pass
+  `--min-link-percentage=0` to accept any link percentage, as before
+- 🔧 `shorebird apps delete` opens the app's settings in the console instead of
+  deleting the app
+- 🔧 `shorebird auth token` rejects arguments and points key verbs at
+  `shorebird tokens`
+- 🔧 `shorebird preview` uninstalls the Android app instead of clearing its
+  data, so anything the app kept outside its data paths goes too
+- ✨ Manage organizations from the CLI: `shorebird orgs list`, `get`, `create`
+  and `update`
+- ✨ Manage members from the CLI: `shorebird members list`, `add`, `set-role`
+  and `remove`
+- ✨ Add `shorebird service-accounts`, including `trust`
+- ✨ Add `shorebird audit-log` and `shorebird usage`, with `audit-log --since`
+  taking how long ago (7d, 24h)
+- ✨ `shorebird tokens` and `shorebird account sessions` print the list;
+  `tokens`, `account sessions`, `account delete` and `logout --all` open the
+  console
+- ✨ Print the server's notices after patch and release, as GitHub Actions
+  warning annotations when running there
+- ✨ Ask for the track when `shorebird patch` has no `--track`
+- ✨ Warn when patching a release built on a Flutter revision with a known
+  problem
+- ✨ Warn when the iOS `--split-debug-info` dSYM has no DWARF
+- ✨ Name the canonical command when a run goes through an alias
+- ✨ Add the host CPU architecture to the User-Agent
+- ✨ Route updater HTTP through the platform stack: NSURLSession on iOS and
+  macOS, HttpURLConnection on Android, with BoringSSL signature checks
+  everywhere
+- ✨ Send every patch event through one queue, removed only once the server
+  has it
+- 🐛 Use the app.dill Flutter copied for Apple builds, and pick the build's
+  own kernel when another build runs
+- 🐛 Report blocked asset and native diffs as errors when the CLI can't prompt
+- 🐛 Check every platform before patching any
+- 🐛 Honor a user-provided `--save-obfuscation-map`
+- 🐛 Fail patch early when a signed release gets no key
+- 🐛 Find the app bundle when `base.archivesName` renames it
+- 🐛 Catch an Apple `--flavor` with no Xcode scheme before building
+- 🐛 `shorebird upgrade` sets up the new version before it exits, on Windows too
+- 🐛 `shorebird init` detects only buildable flavors with several flavor
+  dimensions
+- 🐛 Show the macOS re-signing note only for engines without the fix, and point
+  macOS release output at the notarization docs
+- 🐛 Say that `shorebird preview` can't use iOS simulators, say why the device
+  rejected the app, and tell apart apps with the same name
+- 🐛 Explain when an Android version name can't match any iOS release
+- 🐛 Name the next step for missing apps, releases and failed downloads
+- 🐛 Don't suggest `--app-id` in `shorebird patch`'s no-releases hint
+- 🐛 Don't warn about link details on Flutter versions without aot_tools
+  link_metadata
+- 🐛 Report release and patch errors in the CLI's newer error style
+- 🐛 Install the CLI's dependencies with `pub get --enforce-lockfile`
+- 🐛 Don't report the launch start when iOS configures the updater
+- 🐛 Hold the resolved base VM snapshot instead of re-resolving
+- 🐛 Build the updater for aarch64-apple-ios-sim on arm64 simulator engines
+- 🐛 Report a download cut off mid-body as a network failure, keeping the
+  underlying network error
+- 🐛 Roll zip to 9.0.5 for GHSA-m665-v7pm-7grj
+
+## 1.6.134 (October 27, 2026)
+
+- ✨ Warn when patching an install_only release whose Flutter skips signature
+  checks
+- ✨ Detect more CI providers (Codemagic, Xcode Cloud, Appcircle, Semaphore,
+  Harness, Drone, Woodpecker)
+- ✨ Reuse release artifacts downloaded by earlier patches
+- ✨ Build Android patches only for the release's architectures
+- ✨ Report boot-time patch validation failures, signature refusals as
+  invalid_signature
+- ✨ Reserve a trailing cid window on popular rows
+- ✨ Count base dispatch table offsets kept on a patch
+- 🐛 Clone Flutter with core.longpaths on Windows
+- 🐛 Don't say the build succeeded when the post-build pub get fails
+- 🐛 Say a GitHub OIDC 5xx is GitHub's error, not a permissions problem
+- 🐛 Say a GitHub OIDC refusal is a rejected request token, not missing
+  permissions
+- 🐛 Activate DD only where the base already did
+- 🐛 Skip PcOffsetOf's bound for discarded code in every build
+- 🐛 Match test names exactly; 'Prefix*' selects a group
+- 🐛 Restore the native snapshot loader; attribute the arm64 AOT status skips
+- 🐛 Call DLRT_ExitSafepoint on the clang stack
+- 🐛 Read the simulator's registers only while the thread simulates
+- 🐛 Keep future-listener frames whose closure Code was discarded
+- 🐛 Drop the fork's disassembler_mutex_
+
+Flutter 3.47.8 and Dart 3.13.7 are unchanged from 1.6.133.
+
+## 1.6.133 (October 25, 2026)
+
+- 🐦 Flutter 3.47.8 / Dart 3.13.7 support
+- 🐛 Trust Android 14+'s updatable root certificates in dart:io
+- 🐛 Roll BoringSSL to block compromised intermediate certificates and fix
+  X.509 path validation
+- 🐛 Boot the release when a desktop patch fails to load
+- 🐛 Pass Windows patch paths as UTF-8
+- 🐛 Always regenerate Generated.xcconfig in flutter build ios-framework
+- 🐛 Handle broken symlinks and existing files when creating plugin symlinks
+- 🐛 Guard against a missing VM service in debugDumpFocusTree and
+  debugDumpLayerTree
+
+## 1.6.132 (October 25, 2026)
+
+- ✨ Refuse install_only on Flutter builds that skip its signature check
+- ✨ Add --managed-signing to sign patches with a Shorebird-managed key
+- ✨ Add Release.platforms keyed by platform, deprecate platformStatuses, and
+  move the CLI to it
+- ✨ Sign patches with a Shorebird-managed key by default
+- ✨ Derive the auth service and console from the code push server
+- 🐛 Refuse a private key passed as the public key, without printing it
+- 🐛 Link the console for the API host in OIDC sign-in hints
+- 🐛 Don't print 'Cancelled' when flutter versions list succeeds
+- 🐛 Show the app's startup logs in shorebird preview on Android
+- 🐛 Pass shorebird's exit code through the Windows launcher
+- 🐛 Forward all arguments through bin/shorebird.bat
+- 🐛 Keep -- when PowerShell runs shorebird.ps1
+- 🐛 Return dart's exit code from shorebird.bat under cmd /c
+- 🐛 Bump rustls, rustls-webpki and rand for security advisories
+- 🐛 Report updater paths relative to its directories in failure events
+- 🐛 Verify patch signatures at install time in install_only mode
+- 🐛 Skip Android flavor detection in init when the Android SDK or Java is
+  missing
+- 🐛 Forward --no-codesign to flutter build ios-framework
+- 🐛 Regenerate the module's Xcode properties when they name another Flutter
+
+Flutter 3.47.7 and Dart 3.13.5 are unchanged from 1.6.131.
+
+## 1.6.131 (October 23, 2026)
+
+- ✨ `shorebird login` sends your browser to a styled page once the login
+  completes.
+- ✨ `SHOREBIRD_DOWNLOAD_URL` points Flutter and engine tool downloads at a
+  mirror, with separate overrides for the Flutter git URL and bundletool.
+- ✨ New Android and iOS releases require Flutter 3.24.0 or later.
+- ✨ When the server returns 426, the CLI prints the server's message instead
+  of a fixed line.
+- 🐛 Options before the platform now parse, so
+  `shorebird patch --release-version=1.0.0+1 android` works instead of failing
+  with `Invalid argument(s)`. `shorebird patch rollback` points at
+  `shorebird patches rollback`, and a version passed where a target belongs is
+  reported as a usage error.
+- 🐛 `shorebird release ios-framework --target` is honored instead of silently
+  building `lib/main.dart`.
+- 🐛 `shorebird preview` waits for a paired iOS device to become reachable
+  instead of exiting when the screen is locked.
+- 🐛 `shorebird init` only offers organizations you can create apps in, and a
+  new flavor is created in the existing app's organization.
+- 🐛 `shorebird doctor` probes the hosts the CLI actually uses.
+- 🐛 A yes/no prompt asks again when the answer is not recognized.
+- 🐛 Releasing an iOS framework into `release/` keeps the AAR.
+- 🐛 The temp directory `libapp.so` is extracted into from an `.aab` is cleaned
+  up.
+- 🐛 The `ios-framework` release instructions point at a section that exists.
+- 🔧 `patches`, `releases`, `apps` and `releases get-apks` carry example
+  invocations in their help.
+- 🔧 The per-install `client_id` no longer appears in the patch check log line.
+- 🔧 Refreshed the TLS root certificates the updater trusts.
+- 🔧 bundletool updated to 1.18.3, with a weekly check for new versions.
+
+Flutter 3.47.7 and Dart 3.13.5 are unchanged from 1.6.130.
+
+## 1.6.130 (October 17, 2026)
+
+- ✨ `shorebird invitations list`, `accept` and `decline` manage the
+  invitations sent to you.
+- ✨ Bare `shorebird account` shows who you are, your plan and which
+  credential is active (login session, `SHOREBIRD_TOKEN` or GitHub Actions
+  OIDC). `account whoami` shows the same.
+- ✨ `shorebird auth status` shows the active credential and who it acts as.
+  `shorebird auth token` prints the current access token.
+- ✨ `shorebird account update --name` changes your display name.
+  `shorebird account notifications` shows your email setting, and
+  `--email on|off` changes it.
+- ✨ `shorebird patches promote` is no longer hidden. It sets a patch's track,
+  `stable` by default, and accepts the same flags and `--json` as
+  `shorebird patches set-track`.
+- ✨ `--channel` is accepted as another name for `--track` on `patch`,
+  `preview`, `patches set-track` and `patches promote`.
+- ✨ `shorebird api` takes the HTTP method before the endpoint
+  (`shorebird api GET /apps`), and `--paginate` follows every page of a list
+  and prints one merged response.
+- ✨ When an Android patch is blocked by Java or Kotlin changes, the output
+  now names the classes, methods and fields that each changed method's
+  differing instructions reference, so a dependency bump can be read off the
+  failure. `shorebird patch --show-dex-diff` prints every changed method and
+  instruction in full, including string constants.
+- ✨ `shorebird api --jq` supports array and string slices (`.[1:3]`,
+  `.[2:]`, `.[:-1]`).
+- 🐛 Prompts no longer crash with `No terminal attached to stdout` when stdin
+  is a terminal but stdout cannot show a prompt (output redirected to
+  `/dev/null`, or a PTY with no window size). The command behaves as
+  non-interactive instead, and asks for `--yes` or `--confirm-name` where a
+  confirmation is needed.
+- 🐛 Declining a prompt no longer prints the generic "re-run with --verbose"
+  failure text.
+- 🐛 `shorebird doctor` and `shorebird upgrade` on a Shorebird checkout at a
+  commit, a tag or a branch with no upstream now say how to get back on
+  `stable` (`git -C <shorebird> checkout stable`, then `shorebird upgrade`)
+  instead of failing with a git error.
+- 🔧 `shorebird api` treats an endpoint that repeats `/api/v1` as the route
+  under it, and says so on stderr.
+- 🔧 `shorebird account apps` no longer lists apps. It prints
+  `shorebird apps list` and exits 64. Use `shorebird apps list` instead.
+- 🔧 `shorebird api` explains a 405 response when `-f`/`-F` fields switched
+  the default method to POST, and suggests `--method GET`.
+- 🔧 Every request the CLI makes sends a
+  `User-Agent: shorebird-cli/<version> (<os>; dart <version>)` header.
+- 🔧 The hidden `--confirm` flag is removed from `shorebird release` and
+  `shorebird patch`. Neither command prompts for confirmation. Passing
+  `--confirm` is now a usage error (exit 64). `--no-confirm` is still accepted
+  and does nothing, so existing scripts keep working.
+
+## 1.6.129 (October 16, 2026)
+
+- ✨ `shorebird api` sends an authenticated request to the Shorebird API and
+  prints the response, with `--jq` to filter it.
+- ✨ `shorebird metrics` shows patch installs, downloads, adoption, active
+  devices and the other metrics the console shows under Insights.
+- ✨ `shorebird releases delete` deletes a release, or one platform of it with
+  `--platform`.
+- ✨ On GitHub Actions, the CLI can sign in with the job's OIDC token instead
+  of a stored `SHOREBIRD_TOKEN`: grant the job `id-token: write`, set
+  `SHOREBIRD_PROJECT_ID`, and add a trust rule for the workflow to a service
+  account in that project.
+- 🐛 Apple builds (`ios`, `ios-framework`, `macos`) no longer delete the
+  project's whole `.dart_tool` directory, so `build_runner` caches and native
+  asset outputs survive a Shorebird build.
+- 🐛 Apple patches no longer leave copies of the app's binaries in the system
+  temp directory.
+- 🐛 AAR releases and patches skip architectures without `libapp.so`, as
+  Android does.
+- 🐛 iOS framework, Linux and Windows patches check the release's minimum
+  Flutter version before downloading anything, and every platform's message
+  names the command that creates a new release.
+- 🐛 Commands run in parallel from one login no longer refresh with a stale
+  token: a refresh uses the newest credentials on disk.
+- 🐛 Piping output into a reader that exits early (`| head -1`) now exits
+  with 141 instead of crashing with a stack trace.
+- 🐛 Error and progress messages no longer name temporary paths that are
+  deleted before the command finishes.
+- 🐛 The release chooser shows one hint for the action being taken, and
+  `shorebird patches promote --help` describes `--flavor` accurately.
+- 🔧 `shorebird channels delete` and `shorebird releases delete` prompt in a
+  terminal and take `-y, --yes` to skip the prompt, which is required when
+  not running interactively. `--confirm-name` is deprecated for them.
+  `shorebird apps delete` still requires the app's display name, typed at
+  the prompt or passed with `--confirm-name`.
+- 🔧 Declining a confirmation prompt (delete commands, `patches set-track`,
+  and `release` or `patch` with `--confirm`) exits 1 instead of 0.
+- 🔧 `--json`: every command writes exactly one envelope to stdout, including
+  `--help` and commands with no data. Failed API calls include the server's
+  `api_code` and `details`, and text output prints the error code.
+- 🔧 `shorebird account whoami` no longer prints `Subscription:`; `Plan:`
+  shows the plan level. In `--json`, `plan` is derived from `plan_level`.
+- 🔧 `shorebird patch --dd-max-bytes` replaces the
+  `SHOREBIRD_PATCH_DD_MAX_BYTES` environment variable.
+- 🔧 An OAuth error from the auth service when refreshing a login now always
+  asks you to run `shorebird login` again.
+- 🔧 `shorebird login` gets your email from the Shorebird API rather than
+  from the access token.
+- 🔧 A login made with a custom `AUTH_SERVICE_URL` is stored in its own file,
+  so it no longer replaces your login to the default auth service.
+- 🔧 `shorebird account orgs --help` lists every role.
+
+## 1.6.128 (October 11, 2026)
+
+- 🐦 Flutter 3.47.7 / Dart 3.13.5, with an updated Shorebird engine
+- 🐛 macOS: patches now install on apps that were re-signed after release
+  (Developer ID or Mac App Store). Create a new release with this version to
+  pick up the fix; releases built with earlier versions keep the old
+  behavior.
+- 🐛 `shorebird patch` now honors `--public-key-cmd` when building the patch,
+  and runs the command once per patch instead of once per architecture.
+- 🐛 An unknown `--flavor` is now an error instead of silently acting on the
+  default app.
+- 🐛 `shorebird release` clears `build/<platform>/shorebird/` before building
+  on every platform, so files from an earlier build are not uploaded with a
+  new release.
+- 🐛 Flavored macOS patches read the release version from the flavor's build.
+- 🐛 iOS framework patches honor `SHOREBIRD_PATCH_DD_MAX_BYTES`.
+- 🐛 Releases on iOS, iOS framework, macOS and Linux continue when an
+  artifact already exists, as Android and Windows did.
+- 🐛 `shorebird release`, `shorebird patch` and `shorebird preview` no longer
+  leave copies of the app in the system temp directory.
+- 🐛 Expired or revoked credentials are the only auth errors treated as
+  "logged out"; a malformed credentials file no longer crashes every
+  command, and it is now written owner-only (0600).
+- 🐛 `shorebird doctor --fix` shows every remaining issue after a fix, and the
+  fixable count is accurate. The INTERNET permission check handles
+  `tools:node` attributes.
+- 🐛 `shorebird patch aar` without `--release-version` in a non-interactive
+  shell fails up front instead of crashing after building.
+- 🐛 Ctrl-C works again after `shorebird preview` launches an iOS app.
+- 🔧 `--json`: every failing command writes an error envelope, and failed
+  preconditions (not logged in, not initialized) report
+  `precondition_failed` with a hint. `patches set-track`, `rollback` and
+  `rollforward` report `changed`.
+- 🔧 `shorebird patches set-track` succeeds when the patch is already on that
+  track.
+- 🔧 `shorebird preview` takes `--flavor`, like other app commands.
+- 🔧 `shorebird channels delete` refuses `stable`, `beta` and `staging` before
+  contacting the server.
+- 🔧 `shorebird patches promote` is hidden from help; use
+  `shorebird patches set-track`.
+
+## 1.6.127 (October 10, 2026)
+
+- 🐛 `shorebird login` no longer crashes with
+  `Bad state: read(ScopedRef<Browser>)` on 1.6.126.
+- 🐛 `shorebird patch linux` now runs the same checks as other platforms
+  (logged in, project initialized, `doctor`, host OS) before building.
+- 🐛 `shorebird patch linux` now builds with `--target` and arguments passed
+  after `--`, so the patch matches the release it targets.
+- 🐛 `shorebird doctor --verbose` no longer crashes when the Gradle version
+  lookup fails; it shows Gradle as not detected.
+- 🐛 `shorebird patches set-track` and `shorebird patches promote` report an
+  invalid patch number as a usage error instead of crashing.
+
+## 1.6.126 (October 9, 2026)
+
+- 🐦 Flutter 3.47.7 / Dart 3.13.5 support
+  - iOS: fix accessibility frames for `OverlayPortal`, which were shrunk by
+    the device pixel ratio and anchored top-left, so VoiceOver focus and
+    XCUITest taps missed the visible controls.
+  - iOS: fix VoiceOver focus jumping to the top left of the screen in a
+    `ReorderableListView`.
+- ✨ `shorebird login` opens your browser, and falls back to a device code
+  when no browser can be opened.
+- ✨ Unused Flutter installs, engine artifacts and previews are now pruned
+  automatically, so they stop piling up across upgrades and
+  `--flutter-version` builds. `shorebird cache clean --unused` prunes without
+  clearing the rest of the cache.
+- 🐛 macOS patches are now diffed against the Dart snapshot regions.
+- 🐛 `shorebird preview` streams iOS app logs with `devicectl --console`.
+
+## 1.6.125 (October 8, 2026)
+
+- ⚠️ Google and Microsoft sign-in and `shorebird login:ci` tokens are no
+  longer supported (the server stopped accepting them on October 1). Run
+  `shorebird login` to sign in again, and use an API key (`sb_api_...`) in
+  `SHOREBIRD_TOKEN` for CI.
+- 🔒 `shorebird login` now uses standard OAuth with PKCE and `state`, and
+  `shorebird logout` revokes the session on the server.
+- ✨ `shorebird release` and `shorebird patch` support `--json`.
+- ✨ Warn when an iOS app extension's version does not match the app's.
+- 🐛 Android: patching an obfuscated release built with Flutter older than
+  3.41.2 no longer fails with "Unrecognized flags: load_obfuscation_map".
+- 🐛 `shorebird login` now signs you in again when your stored credentials
+  have expired, instead of reporting that you are already logged in.
+- 🐛 Errors from `init`, `patch`, `preview` and the validators now name the
+  next step to take. `shorebird patch --force` points to
+  `--allow-native-diffs` and `--allow-asset-diffs`.
+
+## 1.6.124 (October 2, 2026)
+
+- 🐦 Flutter 3.47.6 / Dart 3.13.5 support
+  - Windows: fix a hang in production apps.
+- ✨ A patch with DEX diffs now names the dependency version changes behind
+  them.
+- 🐛 The Apple differ now closes its archive streams.
+
+## 1.6.123 (September 21, 2026)
+
+- 🐦 Flutter 3.47.5 / Dart 3.13.4 support
+  - iOS: fix an occasional crash when debugging on physical iOS 27 devices.
+  - Widget Previewer: fix a crash when re-expanding a preview group.
+  - Handle a Dart Development Service startup failure instead of crashing
+    with an unhandled FormatException.
+  - Roll `package:dds` to 5.4.0.
+- ✨ `--flutter-version` now accepts `fvm` and `system`.
+- 🐛 iOS `--split-debug-info` now writes a Mach-O dSYM, so symbol servers
+  ingest it and Dart frames symbolicate in production. Previously the file
+  was an ELF with no debug ID, and uploads reported finding nothing while
+  exiting cleanly.
+
+## 1.6.122 (September 16, 2026)
+
+- 🐦 Flutter 3.47.4 / Dart 3.13.3 support
+  - iOS: warn when Device Support Symbols are missing instead of failing
+    partway through a build.
+  - iOS: native assets now require iOS 15, raised from iOS 13.
+  - Windows: handle Application Control and security policy execution
+    blocks instead of failing.
+  - Fix a crash on non-JSON messages in the test stream parsers.
+  - Drop a redundant `--enable-experiment=record-use` flag.
+- 🐛 A device whose patch fails to load now checks for a replacement patch on
+  that same launch. Previously the failure report suppressed the check, so the
+  device ran base code and stayed on the bad patch until the next launch.
+- 🐛 Patch checks now report the patch the device is running, so Mission
+  Control attributes each device to the right patch. Update delivery is
+  unchanged, since the server does not read that field when serving a patch.
+- 🐛 An install can no longer retire a patch while that patch is still
+  booting for the first time.
+
+## 1.6.121 (September 14, 2026)
+
+- 🐦 Flutter 3.47.3 / Dart 3.13.3 support
+  - Android: fix license detection for cmdline-tools 23.0 and newer.
+  - iOS/macOS: handle a missing Xcode gracefully in `getInfo` and
+    `buildMacOS` instead of failing hard.
+  - Fix `Actions.handler` not forwarding the intent type to `maybeFind`.
+  - Denylist B-series PowerVR GPUs from Vulkan.
+  - Windows: fix Dart cross-compilation.
+- ✨ New `shorebird apps` commands: list, rename, delete and transfer.
+- ✨ New `shorebird channels` commands: create, list and delete.
+- ✨ `shorebird account whoami` now shows your plan level.
+- 🔧 `--shorebird-trace` now covers aar, ios-framework and desktop builds.
+- 🐛 Report when a patch is missing `libapp.so` instead of failing opaquely.
+- 🐛 iOS patcher errors now name the next step to take.
+- 🐛 Signing-flag mistakes are reported as usage errors that name the flag.
+- 🐛 Ignore asset catalog toolchain versions when diffing assets.
+- 🐛 Point users at plugins that reference the legacy `flutter.jar`.
+- 🐛 Keep a pubspec comment with its key during `shorebird init`.
+- 🐛 Build traces now measure download time.
+
+## 1.6.120 (August 28, 2026)
+
+- 🐦 Flutter 3.47.2 / Dart 3.13.2 support
+  - iOS/macOS: always update Swift package dependencies, and remove the Xcode
+    environment when building Swift tools in the pre-action.
+  - Windows: fix hot reload failing on mtime truncation.
+  - Fix crashes in the symbolize command on stream errors and during VM
+    service connection.
+  - Fix a crash migrating flow-style exclude lists in `analysis_options.yaml`.
+  - Forward `--build-name` and `--build-number` to the desktop `version.json`.
+  - Linux: read heading text through the AtkText interface, fix a GList leak
+    in FlTouchManager.
+  - Roll libpng to 1.6.58.
+- ✨ New `shorebird patches rollback` and `shorebird patches rollforward`
+  commands.
+- 🐛 Stop reporting layered icons as changed assets.
+
+## 1.6.119 (August 21, 2026)
+
+- 🐦 Flutter 3.47.1 / Dart 3.13.1 support
+  - iOS/macOS: fix a Swift Package Manager race condition during parallel
+    Xcode builds.
+  - Android: fix the tool misreading the ADB device list by parsing
+    connection state rather than column position.
+  - Windows: fix an `impellerc` crash on Unicode paths when compiling
+    shaders.
+  - Fix hot reload for workspace member packages under `lib/`.
+  - Validate plugin class and package identifiers, preventing injection
+    into `GeneratedPluginRegistrant`.
+
+## 1.6.118 (August 18, 2026)
+
+- 🐦 Flutter 3.47.0 / Dart 3.13.0 support
+  - 💥 Android: Gradle 8.14, AGP 8.11.1 and Kotlin 2.2.20 are now required,
+    not recommended. Builds that previously warned will now fail. Java 17
+    remains the minimum, unchanged. Pass
+    `-- --android-skip-build-dependency-validation` to bypass temporarily.
+- 📉 Better patch link percentages, with the largest gains on obfuscated
+  builds and on patches that shift dynamic dispatch.
+- 🔧 Updater (rolled into the Flutter 3.47 engine):
+  - Mark a patch bad and fall forward to the next one when it fails to load,
+    instead of silently running base code and retrying it every launch.
+- 🐛 Link failures now name the checks that actually ran (Dart SDK version,
+  build features) instead of the stale --dart-define/--obfuscate hint.
+
+## 1.6.117 (August 14, 2026)
+
+- 🐦 Flutter 3.44.9 / Dart 3.12.2 support
+  - iOS: fix a crash on patch boot when loading a patched snapshot.
+  - iOS: fix a crash in patched apps at call sites that switch between
+    base and patch code.
+  - Fix a null dereference in patched code aborting the process instead
+    of throwing.
+  - Reduce patch artifact size and memory use when creating patches for
+    large apps.
+
+## 1.6.116 (August 7, 2026)
+
+- 🐦 Flutter 3.44.9 / Dart 3.12.2 support
+  - iOS: fix the Flutter CLI hanging when a debugged app crashes. LLDB now
+    detaches and prints a stack trace on process stop, so crashing tests
+    report instead of hanging.
+## 1.6.115+selfhost.2 (unreleased)
+
+Fork build of upstream 1.6.115 carrying a **backport** of the compatible
+upstream 1.6.116–1.6.123 CLI surface. The toolchain is unchanged: Flutter
+3.44.8 (`a4a3c0d1`), engine `69f9831c`, Dart 3.12. This is **not** upstream
+1.6.123, and does not claim compatibility with it. The per-commit matrix is in
+[`selfhost/upstream/BACKPORT-1.6.123.md`](selfhost/upstream/BACKPORT-1.6.123.md).
+
+- New commands, all backed by the self-hosted server:
+  - `shorebird patches rollback` rolls a patch back on every channel where it
+    is live; devices are told to revert.
+  - `shorebird apps list`, `apps rename`, `apps transfer`.
+  - `shorebird channels list`, `channels create`, `channels delete`. Deletes
+    are soft on the server, and `stable`/`beta`/`staging` are permanent.
+- `shorebird patches rollforward` is present but **intentionally unsupported**:
+  a rolled-back patch stays withdrawn, and the command fails with the server's
+  explanation.
+- `shorebird apps delete` is present, but the server does not implement app
+  deletion. It currently fails without deleting anything, pending a decision.
+- `--flutter-version=fvm` and `=system` resolve to a version, then build with
+  Shorebird's fork at that version, subject to the same toolchain checks.
+- Fixes: signing-flag mistakes are usage errors naming the flag; a missing
+  `libapp.so` and legacy `flutter.jar` plugin references are diagnosed; layered
+  icons and asset-catalog toolchain versions no longer show as changed assets;
+  clearer link-failure and iOS patcher errors; pubspec comments survive `init`;
+  build traces time the Flutter clone and precache.
+- Not taken: `account whoami` plan level (`/plan` is not implemented),
+  upstream billing, and the Flutter precache stamp (`1ef0831dd`, deferred: it
+  conflicts with the fork's unconditional platform-scoped hydration).
 
 ## 1.6.115+selfhost.1 (July 29, 2026)
 
@@ -25,8 +624,8 @@ forward onto upstream's 1.6.115 base. Not an upstream release — see
 
   The warning states the consequence rather than just the error: leftover data
   can hold a patch from an earlier run, and the updater will launch it, so the
-  app on screen may not be the release just previewed. `Adb.clearAppData` throws
-  a typed `ClearAppDataException` whose `isPermissionDenied` separates a device
+  app on screen may not be the release just previewed. `Adb.uninstallApp` throws
+  a typed `UninstallAppException` whose `isPermissionDenied` separates a device
   restriction from an unrelated failure. Sent upstream as
   shorebirdtech/shorebird#1839.
 

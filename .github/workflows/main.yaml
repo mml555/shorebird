@@ -1,258 +1,234 @@
+# cspell:words clippy rustc
 name: ci
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # PRs only. A push run on main is the only place a commit's macOS and
+  # Windows legs run, and Detect Changes diffs only against the previous
+  # commit, so a cancelled main run would skip them for good.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
+  # Start CI by hand on any branch (Actions -> ci -> Run workflow).
+  workflow_dispatch:
   pull_request:
+  # Checks run on the queue's own temp branch, not the PR. Without this
+  # trigger the required contexts never report there and the queue
+  # ejects every PR at the timeout.
+  merge_group:
+    types: [checks_requested]
   push:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   license_check:
     name: 📄 License Check
-    runs-on: ubuntu-latest
+    # Self-hosted (ci-build, on the owner's home LAN) only for trusted events:
+    # a pull request from a fork keeps the hosted runner, so outside
+    # contributors' code never reaches the LAN.
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     steps:
       - name: 📚 Git Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: 👀 Check Licenses
         uses: ./.github/actions/license_check
         with:
           working_directory: ${{ github.workspace }}
 
-  semantic_pull_request:
-    name: ✅ Semantic Pull Request
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/semantic_pull_request.yml@v1
+  actionlint:
+    name: 🔍 Lint Workflows
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
+    # The image pull from Docker Hub is the only network step; bound it so a
+    # Docker Hub stall fails fast instead of holding the required check.
+    timeout-minutes: 5
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-  cspell:
-    name: 🔤 Check Spelling
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/spell_check.yml@v1
-    with:
-      config: cspell.config.yaml
+      # Catches a workflow GitHub would refuse to start (it fails such a
+      # workflow's runs with no jobs and no error on the PR), plus shellcheck
+      # over every run: script. The image bundles shellcheck; config is in
+      # .github/actionlint.yaml.
+      - name: 🔍 Run actionlint
+        run: docker run --rm -v "${GITHUB_WORKSPACE}:/repo" --workdir /repo rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -color # 1.7.12
+
+  # A SECOND, DEDICATED job rather than flipping the one above to
+  # modified_files_only: false. Three reasons, and the third is the one that
+  # matters most:
+  #   * the incremental job stays a known-green, fast regression signal;
+  #   * this job carries ONE unambiguous claim -- the declared full-tree scope is
+  #     clean -- instead of two claims sharing a name;
+  #   * failures stay attributable. Changing the semantics of a job whose history
+  #     people already read would make every past green mean something different.
+  #
+  # SCOPE IS DECLARED, NOT INHERITED. `--dot` is load-bearing: without it cspell
+  # does not traverse into dot-named files, and selfhost/engine/.gclient.template
+  # went unchecked for the life of the repo. Proven locally in both directions by
+  # selfhost/scripts/cspell_scope_control.sh -- an ordinary-file typo and a
+  # DOTFILE typo must each fail this exact command.
+  cspell_full_tree:
+    name: 🔤 Check Spelling (full tree)
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # npx pulls cspell's dependency tree unpinned on the home runner;
+          # leave it no token to find.
+          persist-credentials: false
+
+      - name: 🪄 Spell Check (declared full-tree scope)
+        run: npx --yes cspell@10.4.0 --dot --no-progress --no-summary selfhost packages/code_push_server/lib
 
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
+    permissions:
+      contents: read
+      # dorny/paths-filter lists a pull request's changed files through the API.
+      pull-requests: read
 
     outputs:
-      needs_cross_platform_dart_build: ${{ steps.needs_cross_platform_dart_build.outputs.changes }}
-      needs_dart_build: ${{ steps.needs_dart_build.outputs.changes }}
-      needs_redis_build: ${{ steps.needs_redis_build.outputs.changes }}
       needs_verify: ${{ steps.needs_verify.outputs.changes }}
+      updater_rust: ${{ steps.updater_rust.outputs.updater_rust }}
 
     name: 👀 Detect Changes
 
     steps:
       - name: 📚 Git Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: dorny/paths-filter@v4
-        name: Build Detection
-        id: needs_dart_build
-        with:
-          filters: |
-            artifact_proxy:
-              - ./.github/codecov.yml
-              - ./.github/workflows/main.yaml
-              - ./.github/actions/dart_package/action.yaml
-              - packages/artifact_proxy/**
-            discord_gcp_alerts:
-              - ./.github/codecov.yml
-              - ./.github/workflows/main.yaml
-              - ./.github/actions/dart_package/action.yaml
-              - packages/discord_gcp_alerts/**
-
-      - uses: dorny/paths-filter@v4
-        name: Build Detection
-        id: needs_cross_platform_dart_build
-        with:
-          filters: |
-            flutter_version_resolver:
-              - ./.github/codecov.yml
-              - ./.github/workflows/main.yaml
-              - ./.github/actions/dart_package/action.yaml
-              - packages/flutter_version_resolver/**
-            shorebird_cli:
-              - ./.github/codecov.yml
-              - ./.github/workflows/main.yaml
-              - ./.github/actions/dart_package/action.yaml
-              - packages/shorebird_cli/**
-              - packages/shorebird_code_push_client/**
-              - packages/shorebird_code_push_protocol/**
-            shorebird_code_push_client:
-              - ./.github/codecov.yml
-              - ./.github/workflows/main.yaml
-              - ./.github/actions/dart_package/action.yaml
-              - packages/shorebird_code_push_client/**
-              - packages/shorebird_code_push_protocol/**
-            shorebird_code_push_protocol:
-              - ./.github/codecov.yml
-              - ./.github/workflows/main.yaml
-              - ./.github/actions/dart_package/action.yaml
-              - packages/shorebird_code_push_protocol/**
-            jwt:
-              - ./.github/codecov.yml
-              - ./.github/workflows/main.yaml
-              - ./.github/actions/dart_package/action.yaml
-              - packages/jwt/**
-            scoped_deps:
-              - ./.github/codecov.yml
-              - ./.github/workflows/main.yaml
-              - ./.github/actions/dart_package/action.yaml
-              - packages/scoped_deps/**
-            shorebird_ci:
-              - ./.github/codecov.yml
-              - ./.github/workflows/main.yaml
-              - ./.github/actions/dart_package/action.yaml
-              - packages/shorebird_ci/**
-            stripe_api:
-              - ./.github/codecov.yml
-              - ./.github/workflows/main.yaml
-              - ./.github/actions/dart_package/action.yaml
-              - packages/stripe_api/**
-
-      - uses: dorny/paths-filter@v4
-        name: Redis Detection
-        id: needs_redis_build
-        with:
-          filters: |
-            redis_client:
-              - ./.github/codecov.yml
-              - ./.github/workflows/main.yaml
-              - ./.github/actions/dart_package/action.yaml
-              - packages/redis_client/**
-
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         name: Verify Detection
         id: needs_verify
         with:
+          # A manual run has no PR or push to diff, so compare with main.
+          base: ${{ github.event_name == 'workflow_dispatch' && 'main' || '' }}
           filters: |
             shorebird_cli:
-              - ./.github/codecov.yml
               - ./.github/workflows/main.yaml
               - ./.github/actions/verify_version/action.yaml
+              - packages/dex/**
+              - packages/scoped_deps/**
+              - packages/shorebird_build_trace/**
               - packages/shorebird_cli/**
+              - packages/shorebird_code_push_client/**
+              - packages/shorebird_code_push_protocol/**
+              - pubspec.lock
+              - pubspec.yaml
             shorebird_code_push_client:
-              - ./.github/codecov.yml
               - ./.github/workflows/main.yaml
               - ./.github/actions/verify_version/action.yaml
               - packages/shorebird_code_push_client/**
+              - packages/shorebird_code_push_protocol/**
+              - pubspec.lock
+              - pubspec.yaml
 
-  build_dart_packages:
-    needs: changes
-    if: ${{ needs.changes.outputs.needs_dart_build != '[]' }}
-
-    strategy:
-      matrix:
-        package: ${{ fromJSON(needs.changes.outputs.needs_dart_build) }}
-
-    runs-on: ubuntu-latest
-
-    name: 🎯 Build ${{ matrix.package }}
-
-    steps:
-      - name: 📚 Git Checkout
-        uses: actions/checkout@v7
-
-      - name: 🎯 Build ${{ matrix.package }}
-        uses: ./.github/actions/dart_package
+      # Its own step: needs_verify's output is a list of package names that
+      # verify_packages turns into a matrix, so this filter cannot join it.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        name: Updater (Rust) Detection
+        id: updater_rust
         with:
-          codecov_token: ${{ secrets.CODECOV_TOKEN }}
-          working_directory: packages/${{ matrix.package }}
-          workspace_root: ${{ github.workspace }}
-
-  build_cross_platform_dart_packages:
-    needs: changes
-    if: ${{ needs.changes.outputs.needs_cross_platform_dart_build != '[]' }}
-
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
-        package: ${{ fromJSON(needs.changes.outputs.needs_cross_platform_dart_build) }}
-
-    runs-on: ${{ matrix.os }}
-
-    name: 🎯 Build ${{ matrix.package }} (${{ matrix.os }})
-
-    steps:
-      - name: 📚 Git Checkout
-        uses: actions/checkout@v7
-
-      - name: 🎯 Build ${{ matrix.package }}
-        uses: ./.github/actions/dart_package
-        with:
-          codecov_token: ${{ secrets.CODECOV_TOKEN }}
-          working_directory: packages/${{ matrix.package }}
-          workspace_root: ${{ github.workspace }}
-
-  build_redis:
-    needs: changes
-    if: ${{ needs.changes.outputs.needs_redis_build != '[]' }}
-
-    permissions: write-all
-
-    strategy:
-      matrix:
-        package: ${{ fromJSON(needs.changes.outputs.needs_redis_build) }}
-
-    runs-on: ubuntu-latest
-
-    name: 🎯 Build ${{ matrix.package }}
-
-    steps:
-      - name: 📚 Git Checkout
-        uses: actions/checkout@v7
-
-      - name: 🐳 Run Redis
-        run: |
-          docker pull redis/redis-stack-server:latest
-          docker run --name test_redis -d -p 6379:6379 --rm -e REDIS_ARGS="--requirepass password" redis/redis-stack-server:latest
-
-      - name: 🎯 Build ${{ matrix.package }}
-        uses: ./.github/actions/dart_package
-        with:
-          codecov_token: ${{ secrets.CODECOV_TOKEN }}
-          working_directory: packages/${{ matrix.package }}
-          workspace_root: ${{ github.workspace }}
+          base: ${{ github.event_name == 'workflow_dispatch' && 'main' || '' }}
+          filters: |
+            updater_rust:
+              - ./.github/workflows/main.yaml
+              - vendor/updater/**
 
   verify_packages:
     needs: changes
-    if: ${{ needs.changes.outputs.needs_verify != '[]' }}
+    if: ${{ needs.changes.outputs.needs_verify != '[]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
 
     strategy:
       matrix:
         package: ${{ fromJSON(needs.changes.outputs.needs_verify) }}
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
 
     name: 🔎 Verify ${{ matrix.package }}
 
     steps:
       - name: 📚 Git Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: 🔎 Verify ${{ matrix.package }}
         uses: ./.github/actions/verify_version
         with:
           working_directory: packages/${{ matrix.package }}
 
+  # vendor/updater is a Cargo workspace (library, library_test_hooks, patch).
+  # Commands follow vendor/updater/CLAUDE.md; the lint pair is added on top.
+  # Cargo covers the Rust workspace only. vendor/updater/shorebird_code_push
+  # (the Dart package and its test/ files) is NOT run here or anywhere else:
+  # it needs the Flutter SDK (`dart pub get` refuses it), which no runner has,
+  # and it is vendored, so its pubspec is not ours to change. Re-vendoring
+  # from route-b-ca91f4b3 is the place to revisit that.
+  # cargo comes from rustup on the runner (the self-hosted host and the
+  # hosted image both have it with rustfmt and clippy).
+  updater_rust:
+    needs: changes
+    if: ${{ needs.changes.outputs.updater_rust == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
+    name: 🦀 Updater (cargo)
+    timeout-minutes: 45
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    defaults:
+      run:
+        working-directory: vendor/updater
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 🦀 Toolchain
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: 🎨 Format
+        run: cargo fmt --check
+
+      - name: 📎 Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      # One thread: #[serial] only orders tests against each other, and the
+      # unmarked tests still race the global updater config. In parallel,
+      # 4 of 5 runs on ci-build failed, a different c_api test each time;
+      # single-threaded, 5 of 5 passed. The whole suite runs in about 2s.
+      - name: 🧪 Test
+        run: cargo test --locked -- --test-threads=1
+
   ci:
     needs:
-      [
-        license_check,
-        semantic_pull_request,
-        build_cross_platform_dart_packages,
-        build_dart_packages,
-        build_redis,
-        verify_packages,
-      ]
-    if: ${{ always() }}
+      [actionlint, changes, cspell_full_tree, license_check, updater_rust, verify_packages]
+    # Not always(): that keeps this job alive through a run cancellation,
+    # so a superseded push would report ci red on the stale commit. A
+    # skipped required check reports success, which is the right answer
+    # for a run nothing is waiting on.
+    if: ${{ !cancelled() }}
 
-    runs-on: ubuntu-latest
+    # Always the home runner, and no checkout: this job only reads needs, so
+    # it also runs for a fork pull request, to say that no CI ran.
+    runs-on: ${{ fromJSON('["self-hosted","linux","x64","shorebird"]') }}
 
     steps:
-      - name: ⛔️ exit(1) on failure
-        if: ${{ contains(join(needs.*.result, ','), 'failure') }}
+      - name: Refuse an outside pull request
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && vars.HOSTED_RUNNERS != 'true' }}
+        run: |
+          echo "::error::Outside PR: CI did not run (no hosted runners). A maintainer must review the diff, including .github/, and run CI manually."
+          exit 1
+
+      - name: ⛔️ exit(1) on failure or cancellation
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: exit 1

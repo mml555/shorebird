@@ -1,0 +1,8 @@
+# Template. selfhost/scripts/prepare_twoengine_fixture.sh writes the real
+# shorebird.yaml from this shape.
+#
+# app_id is server-generated, so it is not committed. For experiment B (the
+# structural simulator run) the values are never contacted: the harness proves
+# two engines boot, which needs no control plane at all.
+app_id: REPLACE-ME
+base_url: http://localhost:18080

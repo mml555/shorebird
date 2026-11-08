@@ -1,0 +1,46 @@
+A2 post-fix device control — the fix is not "refuse everything"
+===============================================================
+2026-08-14. R2 = CPH2551 3f72a543. CLI under test 8f564f41 (contains A2).
+
+  release --flavor bar (2.1.0+1)   FLAVORPROBE-V3   flavor: bar
+  patch   --flavor bar (patch 1)   FLAVORPROBE-V4   flavor: bar
+
+Narrow by design, and every clause of the scope is an assertion:
+
+* MODERN RELEASE WITH COMPARABLE CONFIG. The supplement now carries
+  build_config.json (195 bytes) — end-to-end proof of A2 step 1, since this
+  release is UNOBFUSCATED and would previously have shipped no supplement at
+  all. Recorded content:
+      effectiveDefines: {FLUTTER_APP_FLAVOR: "bar"}   <- semantic
+      flavor: "bar"                                    <- audit-only, beside it
+      obfuscate: false      fingerprint: 6af7f0045a5e829c
+  That is invariants 1 and 2 made concrete rather than asserted.
+
+* MATCHING PATCH CONFIG, CLI PASSES THE NEW CHECK. `grep -c "effective build
+  configuration does not match"` in the patch log = 0. The check ran and did not
+  refuse — which is the whole point of this arm.
+
+* PATCH PUBLISHES. "Published Patch 1".
+
+* REGISTERED RELEASE BYTES INSTALLED, not the rewritten local AAB. The APK came
+  from the control plane's artifact for release 2.1.0+1 (46,553,055 bytes),
+  because `shorebird patch android` rewrites build/app/outputs/.../app-release.aab
+  — the trap recorded in G10.2's verdict.
+
+* COMPILED-DART MARKER CHANGE. V3 -> V4 is Dart that can only have come from the
+  patch. A patch number alone would not have shown it.
+
+THE PRESERVED SPECIMEN WAS NEVER TOUCHED, and this arm was designed so it could
+not be. `bar` carries applicationIdSuffix `.bar`, so this ran as
+dev.selfhost.flavorprobe.BAR while the before-fix specimen lives at
+dev.selfhost.flavorprobe.FOO. Both are installed; re-launched after the fix, the
+specimen still reads:
+
+      FLAVORPROBE-V2   flavor: bar        <- the MISMATCHED patch, still applied
+
+i.e. the pre-fix product gap is still demonstrable on the same handset, side by
+side with the fix that closes it.
+
+WHAT THIS DOES NOT CLAIM: nothing about iOS, and nothing about the mismatch arm
+on hardware — that was measured before the fix and is preserved rather than
+re-run.

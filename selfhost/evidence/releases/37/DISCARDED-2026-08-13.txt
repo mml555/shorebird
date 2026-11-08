@@ -1,0 +1,68 @@
+DISCARDED OBSERVATION — 2026-08-13, G3.7 one-parameter arm
+==========================================================
+
+WHAT WAS OBSERVED, AND WHY IT IS NOT EVIDENCE
+
+  18:45:42Z  GET /selfhost-beacon/state?release=AIRGAP-FIXTURE-V1
+             &asset=BAKED-INTO-RELEASE&assets_patch=none&code_patch=none
+             &route_b=OLD-rel&private_class=OLD-pc&param=PARAM-ARG -> 403
+
+`param=PARAM-ARG` is the value the arm predicted. It proves nothing, because the
+bundle that produced it was NOT release 37.
+
+  preserved release 37   LC_UUID 31869a1e971e37e085c8646ab2627e61
+  bundle actually run    LC_UUID 2da6f295023933b895815c59e4de98e9
+
+`shorebird patch ios` re-archives over `build/ios/archive`, and that archive is the
+PATCH BUILD: the edited source compiled straight into a fresh AOT binary. So
+`paramValue` returned 'PARAM-ARG' natively, with the interpreter, the bytecode
+container and the whole patch mechanism playing no part. This is the rig's strongest
+possible false positive, and it agrees with the arm's prediction exactly — which is
+what makes it dangerous rather than merely wrong.
+
+THE TELL WAS ON THE SAME LINE. `code_patch=none` reads
+`widget.runtime.patchNumber`, the updater's active patch. A patched device cannot
+report `none`. The corroborating row contradicted the headline row, and that is what
+prompted the identity check.
+
+THE GUARD ALREADY EXISTED, IN TWO PLACES
+
+  * PARITY.md:1417 — "the patch build re-archives over build/ios/archive, so after
+    patch 1 the archive holds the patch build"
+  * airgap_acceptance.sh `launch_fixture` — ten lines on exactly this, ending
+    "Installing the patch build instead would display the patched value with the
+    patch mechanism playing no part -- the strongest false positive this rig can
+    produce"
+
+Both were bypassed by hand-rolling `ios-deploy --bundle <archive>/Runner.app`
+instead of going through `launch_fixture`. `assert_installed_release.sh` was run,
+and passed — BEFORE the patch build, when the archive was still the release. A
+correct check at the wrong moment.
+
+The response is therefore not another note. `probes/launch_release_bytes.sh` makes
+identity a precondition of LAUNCHING: it takes the release number, resolves the
+.ipa (which the patch build leaves alone), compares against this directory's
+LC_UUID, refuses on mismatch, and names the archive's differing UUID out loud.
+
+WHAT SURVIVES, UNAFFECTED
+
+  * the specimen. Release 37's preserved bytes and dSYM are untouched; the .ipa
+    still carries 31869a1e971e37e085c8646ab2627e61.
+  * CONSUMPTION. `assert_result_consumed.sh --at 0xc0968` -> CONSUMED
+    (pool 0xd4e8, `stur x0, [x2, #0x2f]`).
+  * REACHABILITY, measured on release 37's own bytes at 18:41:07Z, before any
+    patch existed: `param=OLD-ARG` — a value DERIVED from the live caller's
+    argument, not the '—' placeholder.
+  * the producer's lowering, which is a host-side artifact and independent of any
+    device run: `String paramValue(RouteBThing self, String who) => 'PARAM-$who';`
+    — receiver inserted in front of a verbatim parameter list, concrete type.
+  * patch 1 (643 B) as published for release 37.
+
+WHAT IS STILL OUTSTANDING
+
+The device observation itself. After the discarded run the app was uninstalled to
+clear updater state, which reset iOS's Local Network consent; the fixture then
+blocks on the system modal before reaching any code — no patches/check, no patch
+download, no beacon, while ios-deploy still reports `success`. One tap on OK on the
+device clears it, and consent persists until the next uninstall. Do not uninstall
+between arms.

@@ -1,0 +1,176 @@
+{
+  "schema": "semantic-map-1/g3-expectations/1",
+  "gate": "SM1-G3",
+  "issue": 52,
+  "note": "Precommitted before scoring. Each case is (subject, requested mode, grant scope) -> the category the map must return. The two ACCEPT cases are load-bearing: a policy that refused everything would satisfy every refusal arm, so a refused positive control fails the gate.",
+  "base_corpus": "base",
+  "corpora": [
+    "base",
+    "g3_shaken",
+    "g3_privowner"
+  ],
+  "cases": [
+    {
+      "id": "positive_read_private_field",
+      "corpus": "base",
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "name": "_scaled",
+      "kind": "field",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "ACCEPT",
+      "note": "POSITIVE CONTROL. Same domain, retained, read granted. This is the one access mode ROADMAP P1.4 device-proved (release 32 patch 2, `value() => _secret`). It must be accepted or the refusals below prove nothing."
+    },
+    {
+      "id": "positive_invoke_private_method",
+      "corpus": "base",
+      "library": "package:corpus/app.dart",
+      "owner": null,
+      "name": "_privateHelper",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "ACCEPT",
+      "note": "Second positive control: an invoke of a retained same-domain private top-level."
+    },
+    {
+      "id": "cross_library_private",
+      "corpus": "base",
+      "library": "package:corpus/helper.dart",
+      "owner": null,
+      "name": "_privateHelper",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "CROSS_DOMAIN_PRIVATE",
+      "note": "A patch scoped to corpus/app.dart reaching corpus/helper.dart's private. The simple name is IDENTICAL to the app's own private, so a name-based check would have accepted it; only the derived domain separates them."
+    },
+    {
+      "id": "platform_library_grant",
+      "corpus": "base",
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "name": "_scaled",
+      "kind": "field",
+      "mode": "read",
+      "grant_scope": "dart:core",
+      "expected": "PLATFORM_DOMAIN_PRIVATE",
+      "note": "The grant NAMES a platform library. Refused before the scope comparison, so it cannot launder itself by matching the domain it names. The compiler-side truth for this arm is lib/assert_guard.sh, which proves the CFE's own StateError fires -- and that guard is uncommitted-but-shipped source, so its presence is asserted before this arm is trusted."
+    },
+    {
+      "id": "tree_shaken_private",
+      "corpus": "g3_shaken",
+      "library": "package:corpus/app.dart",
+      "owner": null,
+      "name": "_shakenAway",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "NOT_RETAINED",
+      "note": "Same domain and same grant as the accepted control, differing only in retention: --aot shook it out. NOT_RETAINED is a distinct category because its remedy is re-releasing, not a policy change."
+    },
+    {
+      "id": "private_write_read_only_grant",
+      "corpus": "base",
+      "library": "package:corpus/app.dart",
+      "owner": "Shape",
+      "name": "_scaled",
+      "kind": "field",
+      "mode": "write",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "WRITE_NOT_GRANTED",
+      "note": "THE SAME SUBJECT AND THE SAME GRANT AS positive_read_private_field, differing only in the requested mode. The manifest key is identical in both cases -- bare, because RouteBPrivateTarget keys a field bare -- so the shipped refuseInstanceMember cannot tell them apart. The map's capability_key_identifies_mode=false is what refuses the write."
+    },
+    {
+      "id": "privowner_public_method_same_library",
+      "corpus": "g3_privowner",
+      "library": "package:corpus/app.dart",
+      "owner": "_Hidden",
+      "name": "ping",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "ACCEPT",
+      "note": "A PUBLIC method of a PRIVATE class, accessed from its own library. Its own Name is public, so a member-only privacy model records domain `public`, compares that against the grant scope, and refuses a legitimate access as CROSS_DOMAIN_PRIVATE. The base corpus has no private class, so nothing exercised this."
+    },
+    {
+      "id": "privowner_public_method_foreign_scope",
+      "corpus": "g3_privowner",
+      "library": "package:corpus/app.dart",
+      "owner": "_Hidden",
+      "name": "ping",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/helper.dart",
+      "expected": "CROSS_DOMAIN_PRIVATE",
+      "note": "THE MINIMAL PAIR of the case above: same subject, same mode, only the grant scope moves. The owner's domain is what makes this cross-domain, so accepting the pair above must not be achieved by accepting everything with a public member name."
+    },
+    {
+      "id": "privowner_unnamed_constructor_same_library",
+      "corpus": "g3_privowner",
+      "library": "package:corpus/app.dart",
+      "owner": "_Hidden",
+      "name": "",
+      "kind": "constructor",
+      "mode": "construct",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "ACCEPT",
+      "note": "The unnamed constructor's Name text is the empty string, so `''.startsWith('_')` is false and its own privacy is public; under a private class its effective domain must still come from the owner. Its mode is CONSTRUCT, not read: the shipped manifest publishes constructibility in its own list with its own key shape (`#_Boxed.new`), and treating it as a read reported NO_SUCH_MODE for a legitimate construction."
+    },
+    {
+      "id": "privowner_second_library_same_class_name",
+      "corpus": "g3_privowner",
+      "library": "package:corpus/helper.dart",
+      "owner": "_Hidden",
+      "name": "ping",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "CROSS_DOMAIN_PRIVATE",
+      "note": "helper.dart declares its OWN private `_Hidden`. Same class simple name, same member simple name, same mode as the accepted case -- only the owner's library differs. If owner domains collided this would be accepted."
+    },
+    {
+      "id": "privowner_construction_withheld",
+      "corpus": "g3_privowner",
+      "library": "package:corpus/app.dart",
+      "owner": "_Hidden",
+      "name": "",
+      "kind": "constructor",
+      "mode": "construct",
+      "grant_scope": "package:corpus/app.dart",
+      "withhold_modes": [
+        "construct"
+      ],
+      "expected": "CONSTRUCT_NOT_GRANTED",
+      "note": "THE MINIMAL PAIR of privowner_unnamed_constructor_same_library: same subject, same mode, same scope, same retention -- the release simply did not publish the grant. Not hypothetical: the shipped manifest carries a `constructionWithheld` list for exactly this. Retaining a thing and granting it are different facts."
+    },
+    {
+      "id": "privowner_read_withheld",
+      "corpus": "g3_privowner",
+      "library": "package:corpus/app.dart",
+      "owner": "_Hidden",
+      "name": "ping",
+      "kind": "method",
+      "mode": "read",
+      "grant_scope": "package:corpus/app.dart",
+      "withhold_modes": [
+        "read"
+      ],
+      "expected": "READ_NOT_GRANTED",
+      "note": "THE MINIMAL PAIR of privowner_public_method_same_library: identical in every dimension except that the release withheld this member's grant. Distinct from NOT_RETAINED, whose remedy is re-releasing rather than a policy change."
+    },
+    {
+      "id": "privowner_write_final_field",
+      "corpus": "g3_privowner",
+      "library": "package:corpus/app.dart",
+      "owner": "_Hidden",
+      "name": "seed",
+      "kind": "field",
+      "mode": "write",
+      "grant_scope": "package:corpus/app.dart",
+      "expected": "NO_SUCH_MODE",
+      "note": "`seed` is final, so no write mode exists at all. NO_SUCH_MODE is deliberately not WRITE_NOT_GRANTED: 'this cannot be written by anyone' and 'this write was not granted by this release' have different remedies, and collapsing them would tell a patch author to seek a grant that could never exist."
+    }
+  ]
+}

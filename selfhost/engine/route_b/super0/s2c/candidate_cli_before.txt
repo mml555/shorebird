@@ -1,0 +1,18 @@
+# isolated candidate CLI — SOURCE state, banked before copying
+date_utc              : 2026-09-01T01:22:35Z
+source path           : /Users/mendell/.shorebird
+source CLI HEAD       : 207c4a7ac91f937ed39c08f3e3cc13d860cb612c
+source CLI branch     : 
+source CLI dirty      : 0 path(s)
+flutter.version       : a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
+flutter 309dd6573a9fe716410489284cd325a34b950375 engine.version : e1eaecbcac6d9a32cb5590c646e21cf21252cf19
+flutter a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61 engine.version : 4792f0eca461f3761001a1adbe131b4b115e3684
+flutter c15ef6379403a0a55531a058bdb2c8e55bc05c98 engine.version : ca7d2c0d43bf975db2c42cc0aa6351d527443abf
+flutter cd234ef8ece6e82da6bec9b9d811e818e8d8373a engine.version : 85009ad6ecb058715c24af4763f1bdb595913a19
+shorebird.stamp sha256: 167685e7c1b14c1e9eca5d523f30b462c6c86fa9a2a93a7d4dc39bda78d0c555
+
+candidate CLI revision (fixed, not a floating branch):
+  mml555/shorebird  e6e17095e434f2aeb88cfdf6d970bd440c0c6a38
+candidate copy path   : /Volumes/build/route-b/shorebird-candidate
+candidate engine SHA  : dfa2b24ac38477f3705ff0357530f33fe09474b8
+H (engine.version)    : a5a8be5854c529268378ce16762a16d6e31763e9

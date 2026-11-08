@@ -6,9 +6,11 @@ import 'package:shorebird_cli/src/shorebird_version.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
 import 'package:test/test.dart';
 
+import '../helpers.dart';
 import '../mocks.dart';
 
 void main() {
+  useTempWorkingDirectory();
   group('ShorebirdVersionValidator', () {
     late ShorebirdVersion shorebirdVersion;
     late ShorebirdVersionValidator validator;
@@ -24,6 +26,10 @@ void main() {
       shorebirdVersion = MockShorebirdVersion();
       validator = ShorebirdVersionValidator();
 
+      when(shorebirdVersion.hasUpstream).thenAnswer((_) async => true);
+      when(
+        () => shorebirdVersion.noUpstreamMessage,
+      ).thenReturn('Shorebird is not on a branch that receives updates.');
       when(shorebirdVersion.isLatest).thenAnswer((_) async => false);
     });
 
@@ -41,6 +47,42 @@ void main() {
       final results = await runWithOverrides(validator.validate);
 
       expect(results, isEmpty);
+    });
+
+    test('warns how to get updates when shorebird has no upstream', () async {
+      when(shorebirdVersion.hasUpstream).thenAnswer((_) async => false);
+
+      final results = await runWithOverrides(validator.validate);
+
+      expect(results, hasLength(1));
+      expect(results.first.severity, ValidationIssueSeverity.warning);
+      expect(
+        results.first.message,
+        'Shorebird is not on a branch that receives updates.',
+      );
+      verifyNever(shorebirdVersion.isLatest);
+    });
+
+    test('returns an error when the upstream cannot be determined', () async {
+      when(shorebirdVersion.hasUpstream).thenThrow(
+        const ProcessException(
+          'git',
+          [
+            'rev-parse',
+            '-q',
+            '--verify',
+            '@{upstream}',
+          ],
+          'fatal: detected dubious ownership in repository',
+          128,
+        ),
+      );
+
+      final results = await runWithOverrides(validator.validate);
+
+      expect(results, hasLength(1));
+      expect(results.first.severity, ValidationIssueSeverity.error);
+      expect(results.first.message, contains('dubious ownership'));
     });
 
     test(

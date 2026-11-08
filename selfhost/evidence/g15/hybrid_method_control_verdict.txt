@@ -1,0 +1,123 @@
+HYBRID-METHOD CONTROL — VERDICT: THE BISECT CHAIN IS CONFOUNDED, 2026-08-17
+=============================================================================
+
+Precommitted in hybrid_method_control_precommit.md. That table is not edited here.
+**This file withdraws an attribution I made earlier today.**
+
+THE MEASUREMENT THAT SETTLES IT
+--------------------------------
+The three cells' shipped `Flutter` binaries, digested directly:
+
+    80e493e4   f38b30596842910b66ed42ec5a0aeec55d05adc808b7cf7b5974b48f2724498b
+    87130ae8   f38b30596842910b66ed42ec5a0aeec55d05adc808b7cf7b5974b48f2724498b   <-- IDENTICAL
+    cd137db6   98ff255f855a99e1665e4d116fc155e448e9f6175c00e445c06e672d0b1a9ba2
+
+**`80e493e4` AND `87130ae8` SHIP THE SAME ENGINE BINARY, BYTE FOR BYTE.** Their
+`artifacts.zip` digests differ (`a7a92bfb…` vs `4302bf4d…`) — which is what the
+map's "Engine binary CHANGED" note was derived from — but the zip is not the
+binary, and the binary is what runs.
+
+CONSEQUENCE: THE CONTROL WAS ALREADY RUN, AND IT FAILED
+---------------------------------------------------------
+Today's `87130ae8` run was therefore, at the engine level, **a run on
+`80e493e4`'s exact engine** — the cell `arm2_verdict.txt` records rendering
+`NEW-kill` twice on 2026-08-14, on this same device, with this same release 91
+and this same patch 59.
+
+    2026-08-14   release 91, SHIPPED app, engine f38b3059…, BY-HAND launch   NEW-kill x2
+    2026-08-17   release 91, HYBRID app,  engine f38b3059…, idevicedebug     OLD-kill
+
+**Same engine binary. Same snapshot. Same patch bytes. Opposite behavior.**
+
+Per the precommitted table, second row: *"the method or the current device/OS
+state is itself sufficient to produce `OLD-kill`. All three bisect results are
+CONFOUNDED and must be withdrawn as lineage evidence."*
+
+WHAT IS WITHDRAWN
+-----------------
+**`r91_behavioral_verdict.txt`'s central claim is FALSE and is corrected there.**
+It said *"One variable, and the outcome flips."* That was wrong: the comparison
+carried at least two differences — the engine cell AND the assembly/launch method
+— and this control shows the engine was not the operative one.
+
+Specifically withdrawn:
+
+* that the current engine lineage is a behavioral discriminator;
+* that release-production lineage was removed from the leading set;
+* `cd137db6_bisect_verdict.txt`'s exoneration of `0012`/`0013`, and its
+  attribution of the flip to "present by `cd137db6`". **All three `OLD-kill`
+  observations remain FACTS about what those runs displayed; none of them is
+  evidence about cell lineage.**
+
+The three runs were not worthless — they were internally well-collected, and each
+met its admissibility requirements. They simply do not measure what I attributed
+them to.
+
+THE LEADING CANDIDATE FOR THE CONFOUND, AND IT WAS DOCUMENTED IN ADVANCE
+-------------------------------------------------------------------------
+**The launch method.** `arm2_verdict.txt` has a section titled WHY BY HAND:
+
+    "There is no automated launch path here. `ios-deploy --justlaunch` quits the
+     app when lldb detaches, and an attached `--debug` launch holds it at the
+     launch screen with the debugger intercepting signals — unusable for an arm
+     whose mechanism IS a signal."
+
+Every one of today's four behavioral runs was launched with **`idevicedebug run`,
+which attaches a debugserver.** The 2026-08-14 `NEW-kill` observations were
+by-hand taps with no debugger.
+
+A debugger-attached launch is a plausible cause of a patched `Function` not taking
+effect — it changes process startup, and Route B's mechanism is an entry-point
+redirection into an interpreter. **This is a hypothesis, not a finding.** It is
+named because it is the difference the prior evidence explicitly warned about, and
+because I read that warning, applied it to `--justlaunch`, and did not apply it to
+`idevicedebug`.
+
+Other unexcluded differences, none of them measured:
+
+* the hybrid assembly and my re-signing (vs the shipped, originally-signed app);
+* the updater-state reset and forced render arm (vs organic alternation);
+* three days of device/OS state.
+
+THE DECIDING RUN
+-----------------
+Release 91's **original, unmodified, originally-signed** `Runner.app` — no
+hybrid, no re-sign — installed and launched **BY HAND**, with the screen read at
+a launch where the patch is `Installed`. Same admissibility requirements.
+
+* renders `NEW-kill` -> `arm2_verdict` reproduces; the confound is in my method,
+  and each element (hybrid, re-sign, launch tool, state reset) can then be
+  reintroduced one at a time until the flip appears;
+* renders `OLD-kill` -> `arm2_verdict`'s configuration no longer reproduces at
+  all, which is a different and larger finding about the device or the control
+  plane, and would need its own investigation.
+
+Until that runs, **the correct status of the engine-lineage question is
+UNATTRIBUTED**, exactly as it was before today's behavioral runs.
+
+WHAT IS UNAFFECTED
+------------------
+* **The structural comparison stands.** `r91_vs_r96_tpool_verdict.txt` measured
+  `TPOOL_ABSENT` on both releases and did not depend on the launch method or on
+  any lineage attribution — the scan runs at attach, and the attach demonstrably
+  occurred (`rc=0`) in every trace. Inlining remains refuted as the
+  differentiator.
+* **Claim 1 is unaffected**: instrument established; **positive locator not yet
+  proven.**
+* **Arm A is unaffected and unchanged: INCONCLUSIVE.** It was never re-scored by
+  any of today's runs. It is NOT engine-lineage-localized — that phrase came from
+  the withdrawn attribution and must not be carried forward.
+* The tombstone/counter lane is untouched and still unread.
+
+HOW THIS WAS CAUGHT, AND WHEN IT SHOULD HAVE BEEN
+---------------------------------------------------
+It was caught by writing the method control's precommit before running it, which
+forced the question *what else differs between the NEW-kill run and mine?* — and
+then by digesting the engine binaries rather than trusting the map's
+"Engine binary CHANGED" note.
+
+It should have been caught before the first hybrid ran. The `NEW-kill` reference
+was always a non-hybrid, by-hand, historical observation, and I compared four
+hybrid debugger-launched runs against it without ever running the method through
+a control. `arm2_verdict.txt`'s WHY BY HAND section was in the Step Zero corpus
+for this cycle.

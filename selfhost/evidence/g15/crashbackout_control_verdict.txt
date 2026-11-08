@@ -1,0 +1,153 @@
+G15 CRASH-BACKOUT CONTROL — VERDICT, 2026-08-14
+================================================
+
+THE CONTROL DID NOT CLOSE, AND THE REASON MATTERS MORE THAN THE CONTROL DID.
+
+Precommitted in crashbackout_control_precommit.md. None of the four precommitted
+outcomes was reached, because a fifth condition holds that the precommit did not
+anticipate: THE FIXTURE NO LONGER RUNS DART AT ALL on release 1.0.3+1.
+
+IDENTITY
+--------
+device   R1 iPhone 7 / iOS 15.8.8, wired (8cb4bc98…), ioreg-confirmed
+app      dev.selfhost.killswitchProbe, release 1.0.3+1
+state    /Library/Application Support/shorebird/shorebird_updater/ holds
+         state.json ONLY — no pointers.json, no patches/. NO PATCH IN PLAY.
+         {"client_id":"0792c791…","release_version":"1.0.3+1","queued_events":[]}
+         Re-verified UNCHANGED after every launch below.
+tool     idevicedebug run + idevicescreenshot (NOT ios-deploy --justlaunch,
+         which quits the app — the trap this session already paid for)
+
+OBSERVED
+--------
+Three launches of killswitch_probe: BLANK WHITE SCREEN every time, no render.
+
+POSITIVE CONTROL, SAME INSTRUMENT — PASSES
+------------------------------------------
+airgap_probe (PROVEN on device) launched between them via the identical
+idevicedebug + idevicescreenshot path rendered its FULL UI:
+AIRGAP-FIXTURE-V1 / BAKED-INTO-RELEASE / NEW-OBF / OLD-pc / OLD-ARG / OLD-a-7 /
+code patch: 1. Saved as control_positive_airgap.png.
+
+Its status bar reads "◀ Killswitch Probe", iOS's back-to-app breadcrumb, which
+independently confirms killswitch_probe HAD been foregrounded. So the instrument
+launches apps and captures renders correctly. This is rule 1 of the handoff doing
+its job for the second session running — and this time it did NOT rescue the
+result, it sharpened it.
+
+THE DISCRIMINATOR THE BLANK SCREEN COULD NOT PROVIDE
+-----------------------------------------------------
+The fixture ALTERNATES on a marker file, /Documents/g15_armed:
+
+    absent  -> create it, then SIGKILL this launch   (blank screen, by design)
+    present -> delete it, then runApp                (renders)
+
+So the marker is a per-launch receipt that main() executed, independent of what
+the screen shows. It says which branch ran, and it survives the SIGKILL.
+
+    BEFORE the final launch:  /Documents/g15_armed  PRESENT
+    AFTER  the final launch:  /Documents/g15_armed  PRESENT  <-- UNCHANGED
+
+A launch that ran main() MUST have moved the marker — deleted it (render branch)
+or, had it been absent, created it. It did neither. Therefore:
+
+  **main() DID NOT RUN. Not the kill branch, not the render branch, not at all.**
+
+And the app did launch: the screen visibly changed from airgap_probe's rendered
+UI to killswitch's white launch screen. It starts, shows its launch image, and
+never reaches Dart.
+
+No native crash report exists for the bundle (idevicecrashreport, clean), which
+is consistent — SIGKILL leaves none, and neither does an isolate that never runs.
+
+WHAT THIS DOES TO THE CRASH-BACKOUT VERDICT
+--------------------------------------------
+The verdict's PRIMARY finding is UNTOUCHED and is now proven twice over:
+success was banked (last_booted_patch: 1, boot_attempt_count: 0, no
+PatchInstallFailure) at a point that cannot see a Dart-phase outcome. The source
+reading below establishes that independently of any device.
+
+The verdict's ATTRIBUTION is REFUTED as unproven. It reads:
+
+    "Three consecutive launches, by hand: blank white screen every time... That
+     is the patched bootProbe() throwing inside main()."
+
+That inference required the blank screen to be caused by the patch. The same
+blank screen occurs on the same release with NO PATCH INSTALLED, and the marker
+shows main() is not running in either configuration. The fixture cannot
+distinguish "the patch threw" from "Dart never started", so the arm cannot
+support the causal claim it made. It is not that the attribution is wrong — it is
+that this fixture, in this state, cannot produce evidence either way.
+
+The verdict's CONSEQUENCE — "a bad patch bricks the install", "cleared only by
+ios-deploy --rmtree" — DOES NOT SURVIVE. The --rmtree ran, and the app is STILL
+blank. Whatever is wrong was not cleared by wiping updater state, so it was
+probably never patch state. The claim that the install was bricked BY A PATCH,
+and rescued by the wipe, rests on a rescue that this control shows did not
+happen. Nobody looked after the wipe; that was the open control, and this is what
+it found.
+
+The server-side half stands on its own evidence: withdrawal with rollback=true
+returned {"withdrawn":true,"rolled_back":true} and cannot reach a client that
+does not poll. That is a structural fact about withdrawal, not an inference from
+this fixture.
+
+WHAT IS NOW KNOWN FROM SOURCE, WHICH NEEDS NO DEVICE
+-----------------------------------------------------
+Read in the R3 tree, /Volumes/build/route-b/flutter/engine/src/flutter:
+
+  dart_isolate.cc:882 InvokeMainEntrypoint -> dart:ui _runMain
+  lib/ui/hooks.dart:406 _runMain -> _startMainIsolate (dart:isolate)
+  third_party/dart/sdk/lib/_internal/vm/lib/isolate_patch.dart:298
+      _delayEntrypointInvocation:
+          final port = RawReceivePort();
+          port.handler = (_) { port.close(); entryPoint(); };
+          port.sendPort.send(null);
+
+main() is SCHEDULED ONTO THE MESSAGE QUEUE, not invoked. InvokeMainEntrypoint
+returns true once the message is posted; LaunchRootIsolate returns; Engine::Run
+returns RunStatus::Success (engine.cc:293) — ALL BEFORE ANY USER DART HAS RUN.
+
+So 0009's seam cannot observe a Dart-phase failure IN PRINCIPLE, not merely too
+early by a margin. This also corrects the crash-backout verdict's stated
+mechanism, which says the throw "executes while Engine::Run is still on the
+stack". It does not. Same observation, different cause — and the cause is what
+selects the next seam.
+
+WHERE THE SEAM ACTUALLY IS, LOCATED IN SOURCE
+----------------------------------------------
+third_party/tonic/dart_message_handler.cc, OnHandleMessage — one message-loop
+turn:
+
+    result = Dart_HandleMessage();          // line 115: THIS is where main runs
+    error  = CheckAndHandleError(result);
+    ...
+    if (error) { UnhandledError(result); }  // line 133: POSITIVE failure signal
+
+The first normal turn IS main(). An unhandled throw makes Dart_HandleMessage
+return an error handle, and UnhandledError fires before the isolate is shut down
+(it calls Dart_ShutdownIsolate itself, only for fatal errors, AFTER recording).
+
+That yields both signals the gate needs at ONE place, one turn after Run:
+  * FAILURE, positively reported, not inferred from silence
+  * SUCCESS, at the first turn that completes with error == false
+
+DEVICE STATE ON RELEASE
+------------------------
+R1 free. killswitch_probe installed, release 1.0.3+1, updater state = state.json
+only (no patch), /Documents/g15_armed PRESENT. airgap_probe installed and
+rendering normally. No idevicedebug left running. Nothing was uninstalled — doing
+so resets iOS Local Network consent and blocks the app on a modal before any code
+runs.
+
+WHAT THE NEXT SESSION MUST DO BEFORE ANY SEAM WORK
+----------------------------------------------------
+REPAIR OR REPLACE THE FIXTURE FIRST. A seam experiment run on a fixture that does
+not execute main() would measure nothing, and — because its failure mode is a
+blank screen — would look exactly like a crash the seam failed to catch. That is
+the same trap that produced this verdict's attribution, and it would produce a
+second one.
+
+The marker file is the instrument that caught it, and it should be promoted from
+an arm-2 implementation detail to the fixture's REQUIRED liveness receipt: every
+G15 arm should assert the marker moved, before reading the screen at all.

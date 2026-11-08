@@ -5,15 +5,16 @@ import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/command_error.dart';
+import 'package:shorebird_cli/src/commands/apple_build_helpers.dart';
 import 'package:shorebird_cli/src/commands/release/apple_releaser_mixin.dart';
 import 'package:shorebird_cli/src/commands/release/release.dart';
 import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/logging/shorebird_logger.dart';
-import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
-import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 
@@ -28,8 +29,9 @@ class MacosReleaser extends Releaser with AppleReleaserMixin {
     required super.target,
   });
 
-  /// Whether to codesign the release.
-  bool get codesign => argResults['codesign'] == true;
+  @override
+  ShorebirdArtifact? get ddGenSnapshotArtifact =>
+      ShorebirdArtifact.genSnapshotMacosArm64;
 
   @override
   ReleaseType get releaseType => ReleaseType.macos;
@@ -49,15 +51,11 @@ class MacosReleaser extends Releaser with AppleReleaserMixin {
   @override
   Future<void> assertArgsAreValid() async {
     assertReleaseVersionFlagNotProvided();
-    await assertObfuscationIsSupported();
   }
 
   @override
-  Version? get minimumFlutterVersion => minimumSupportedMacosFlutterVersion;
-
-  @override
   Future<FileSystemEntity> buildReleaseArtifacts() async {
-    if (!codesign) {
+    if (!argResults.appleCodesign) {
       logger
         ..info(
           '''Building for device with codesigning disabled. You will have to manually codesign before deploying to device.''',
@@ -67,27 +65,24 @@ class MacosReleaser extends Releaser with AppleReleaserMixin {
         );
     }
 
-    final base64PublicKey = await getEncodedPublicKey();
-
-    final buildArgs = [...argResults.forwardedArgs];
-    addSplitDebugInfoDefault(buildArgs);
-    await addObfuscationMapArgs(buildArgs);
-
-    await artifactBuilder.buildMacos(
-      codesign: codesign,
-      flavor: flavor,
-      target: target,
-      args: buildArgs,
-      base64PublicKey: base64PublicKey,
-      ddMaxBytes: ddMaxBytes,
+    await runReleaseBuild(
+      (buildArgs, base64PublicKey) => artifactBuilder.buildMacos(
+        codesign: argResults.appleCodesign,
+        flavor: flavor,
+        target: target,
+        args: buildArgs,
+        base64PublicKey: base64PublicKey,
+        ddMaxBytes: ddMaxBytes,
+      ),
     );
-
-    verifyObfuscationMap();
 
     final appDirectory = artifactManager.getMacOSAppDirectory(flavor: flavor);
     if (appDirectory == null) {
-      logger.err('Unable to find .app directory');
-      throw ProcessExit(ExitCode.software.code);
+      throw CommandError(
+        message: 'Unable to find the .app directory in the macOS build output.',
+        hint: 'Re-run with --verbose to see the build output.',
+        exitCode: ExitCode.software,
+      );
     }
 
     return appDirectory;
@@ -96,24 +91,10 @@ class MacosReleaser extends Releaser with AppleReleaserMixin {
   @override
   Future<String> getReleaseVersion({
     required FileSystemEntity releaseArtifactRoot,
-  }) async {
-    final plistFile = File(
-      p.join(releaseArtifactRoot.path, 'Contents', 'Info.plist'),
-    );
-    if (!plistFile.existsSync()) {
-      logger.err('No Info.plist file found at ${plistFile.path}');
-      throw ProcessExit(ExitCode.software.code);
-    }
-
-    try {
-      return Plist(file: plistFile).versionNumber;
-    } on Exception catch (error) {
-      logger.err(
-        '''Failed to determine release version from ${plistFile.path}: $error''',
-      );
-      throw ProcessExit(ExitCode.software.code);
-    }
-  }
+  }) async => readReleaseVersionFromInfoPlist(
+    File(p.join(releaseArtifactRoot.path, 'Contents', 'Info.plist')),
+    hint: 'Re-run with --verbose to see the build output.',
+  );
 
   @override
   Future<void> uploadReleaseArtifacts({
@@ -122,19 +103,20 @@ class MacosReleaser extends Releaser with AppleReleaserMixin {
   }) async {
     final appDirectory = artifactManager.getMacOSAppDirectory(flavor: flavor);
     if (appDirectory == null) {
-      logger.err('Unable to find .app directory');
-      throw ProcessExit(ExitCode.software.code);
+      throw CommandError(
+        message: 'Unable to find the .app directory in the macOS build output.',
+        hint: 'Re-run with --verbose to see the build output.',
+        exitCode: ExitCode.software,
+      );
     }
 
     await codePushClientWrapper.createMacosReleaseArtifacts(
       appId: appId,
       releaseId: release.id,
       appPath: appDirectory.path,
-      isCodesigned: codesign,
       podfileLockHash: shorebirdEnv.macosPodfileLockHash,
+      signing: signing,
     );
-
-    await uploadSupplementArtifact(appId: appId, releaseId: release.id);
   }
 
   @override
@@ -143,6 +125,12 @@ class MacosReleaser extends Releaser with AppleReleaserMixin {
 
 macOS app created at ${artifactManager.getMacOSAppDirectory(flavor: flavor)!.path}.
 
-${styleBold.wrap('Note:')} If you distribute your app via the Mac App Store using a .pkg installer, the packaging process may modify the binary and cause patch failures. See ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/3223'))} for more information.
+To distribute your app outside the Mac App Store, sign it with your Developer ID and notarize it: ${link(uri: Uri.parse('https://docs.shorebird.dev/code-push/release/#notarize-a-macos-app'))}
+${shorebirdArtifacts.macosPatchesSurviveResigning ? '' : _resigningNote}''';
+
+  String get _resigningNote =>
+      '''
+
+${styleBold.wrap('Note:')} Patches to this release may fail to install after the app is re-signed (Developer ID or a Mac App Store .pkg). Release with Flutter 3.47.7 or newer to avoid this. See ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/3223'))} for more information.
 ''';
 }
