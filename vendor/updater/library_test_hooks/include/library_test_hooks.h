@@ -54,7 +54,7 @@ int shorebird_test_check_signature(const char *message,
 
 /**
  * Test-only convenience wrapper around `shorebird_init` that builds
- * `AppParameters` and stub `FileCallbacks` internally. Dart tests
+ * `AppParameters` and `FileCallbacks` serving `libapp_path` internally. Dart tests
  * pass plain C strings instead of needing bindings for those
  * engine-API structs.
  */

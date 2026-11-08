@@ -1,12 +1,11 @@
 
 <div align=center>
- <img src= "https://raw.githubusercontent.com/shorebirdtech/brand/904722544742c13348f1854a5cc45f4ed223cd17/logo-wordmark/logo_wordmark.png" alt="Shorebird logo">
+ <img src= "https://shorebird.dev/shorebird-logo-wordmark.png" alt="Shorebird logo">
 <h1>Code Push </h1>
 
 [![Discord](https://img.shields.io/discord/1030243211995791380?style=for-the-badge&logo=discord&color=blue)](https://discord.gg/shorebird)
 
 [![ci](https://github.com/shorebirdtech/updater/actions/workflows/main.yaml/badge.svg)](https://github.com/shorebirdtech/updater/actions/workflows/main.yaml)
-[![codecov](https://codecov.io/gh/shorebirdtech/updater/branch/main/graph/badge.svg)](https://codecov.io/gh/shorebirdtech/updater)
 [![License: MIT][license_badge]][license_link]
 
 <p align=center> Instantly push updates to your Flutter app without lengthy app store review cycles. </p>
@@ -26,7 +25,7 @@ Explore this [interactive demo](https://docs.shorebird.dev/code-push/?utm_source
 ## Getting Started
 
 If your Flutter app does not already use Shorebird, follow our
-[Getting Started Guide]([https://docs.shorebird.dev/getting-started/?utm_source=pubdev]) to add code push to your
+[Getting Started Guide](https://docs.shorebird.dev/getting-started/?utm_source=pubdev) to add code push to your
 app.
 
 ## Installation

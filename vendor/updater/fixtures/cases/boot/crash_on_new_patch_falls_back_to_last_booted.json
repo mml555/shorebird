@@ -1,0 +1,79 @@
+{
+  "description": "Patch 2 crashed while booting; patch 1 booted before. Init tombstones 2 and falls back to 1. The breadcrumb carries a boot-attempt tally at the retire threshold (2): below it the updater treats a boot that did not finish as ambiguous and retries it (see boot/crash_below_threshold_retries_the_patch).",
+  "files": {
+    "storage/state.json": {
+      "json": {
+        "client_id": "00000000-0000-4000-8000-000000000001",
+        "release_version": "1.0.0+1",
+        "queued_events": []
+      }
+    },
+    "storage/pointers.json": {
+      "json": {
+        "next_boot_patch": 2,
+        "last_booted_patch": 1,
+        "currently_booting_patch": 2,
+        "boot_started_at": 1700000000,
+        "boot_attempt_count": 2,
+        "last_boot_attempt_patch": 2
+      }
+    },
+    "storage/patches/1/state.json": {
+      "json": {
+        "kind": "Installed",
+        "signature": null,
+        "size": 5
+      }
+    },
+    "storage/patches/1/dlc.vmcode": {
+      "text": "hello"
+    },
+    "storage/patches/2/state.json": {
+      "json": {
+        "kind": "Installed",
+        "signature": null,
+        "size": 5
+      }
+    },
+    "storage/patches/2/dlc.vmcode": {
+      "text": "hello"
+    }
+  },
+  "steps": [
+    {
+      "call": "init",
+      "expect": true
+    },
+    {
+      "call": "next_boot_patch_number",
+      "expect": 1,
+      "expect_files": {
+        "storage/pointers.json": {
+          "json": {
+            "next_boot_patch": 1,
+            "last_booted_patch": 1,
+            "currently_booting_patch": null,
+            "boot_started_at": null,
+            "boot_attempt_count": 0,
+            "last_boot_attempt_patch": null
+          }
+        },
+        "storage/patches/2/state.json": {
+          "json": {
+            "kind": "Bad",
+            "reason": "BootCrash",
+            "hash": null,
+            "signature": null,
+            "size": 5
+          }
+        },
+        "storage/patches/2/dlc.vmcode": {
+          "absent": true
+        },
+        "storage/patches/1/dlc.vmcode": {
+          "text": "hello"
+        }
+      }
+    }
+  ]
+}

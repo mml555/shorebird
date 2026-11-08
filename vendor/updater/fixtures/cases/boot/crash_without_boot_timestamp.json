@@ -1,0 +1,77 @@
+{
+  "description": "A breadcrumb with no boot_started_at (older writers) still rolls back; the event message omits boot_started_at. The breadcrumb carries a boot-attempt tally at the retire threshold (2): below it the updater treats a boot that did not finish as ambiguous and retries it (see boot/crash_below_threshold_retries_the_patch).",
+  "files": {
+    "storage/state.json": {
+      "json": {
+        "client_id": "00000000-0000-4000-8000-000000000001",
+        "release_version": "1.0.0+1",
+        "queued_events": []
+      }
+    },
+    "storage/pointers.json": {
+      "json": {
+        "next_boot_patch": 1,
+        "last_booted_patch": null,
+        "currently_booting_patch": 1,
+        "boot_started_at": null,
+        "boot_attempt_count": 2,
+        "last_boot_attempt_patch": 1
+      }
+    },
+    "storage/patches/1/state.json": {
+      "json": {
+        "kind": "Installed",
+        "signature": null,
+        "size": 5
+      }
+    },
+    "storage/patches/1/dlc.vmcode": {
+      "text": "hello"
+    }
+  },
+  "steps": [
+    {
+      "call": "init",
+      "expect": true,
+      "expect_files": {
+        "storage/state.json": {
+          "json": {
+            "client_id": "00000000-0000-4000-8000-000000000001",
+            "release_version": "1.0.0+1",
+            "queued_events": [
+              {
+                "app_id": "fixture-app-id",
+                "arch": "<arch>",
+                "client_id": "00000000-0000-4000-8000-000000000001",
+                "event_id": "<uuid>",
+                "type": "__patch_install_failure__",
+                "patch_number": 1,
+                "platform": "<platform>",
+                "release_version": "1.0.0+1",
+                "timestamp": "<number>",
+                "message": "<contains:,file_ok=true,file_size=5)>",
+                "updater_revision": "<string>"
+              },
+              {
+                "ambiguous_attempt_count": 2,
+                "app_id": "fixture-app-id",
+                "arch": "<arch>",
+                "boot_failure_threshold": 2,
+                "client_id": "00000000-0000-4000-8000-000000000001",
+                "event_id": "<uuid>",
+                "message": null,
+                "outcome": "retired_after_ambiguity",
+                "patch_number": 1,
+                "platform": "<platform>",
+                "release_version": "1.0.0+1",
+                "timestamp": "<number>",
+                "type": "__patch_boot_lifecycle__",
+                "updater_revision": "<string>"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

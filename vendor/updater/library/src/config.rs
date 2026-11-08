@@ -7,8 +7,7 @@ use crate::{ExternalFileProvider, UpdateError};
 use std::path::PathBuf;
 
 use anyhow::{bail, Result};
-use once_cell::sync::OnceCell;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 // cbindgen looks for const, ignore these so it doesn't warn about them.
 
@@ -23,9 +22,33 @@ const DEFAULT_BASE_URL: &str = "https://api.shorebird.dev";
 /// cbindgen:ignore
 const DEFAULT_CHANNEL: &str = "stable";
 
+/// Locks a global, recovering from poisoning **in test builds only**.
+///
+/// In production a poisoned lock means a thread panicked mid-mutation, and
+/// propagating that is correct — the config may be half-written.
+///
+/// In tests it is actively harmful. One panicking test poisons the mutex for the
+/// whole process, so every later test fails with `PoisonError` regardless of its
+/// own correctness. That is not a cascade of failures, it is a cascade of
+/// NOISE: on 2026-08-19 it turned ONE real failure into 48 and hid which one was
+/// real. Each test reinitialises the config it depends on anyway, so inherited
+/// contents are irrelevant — only the ability to take the lock matters.
+macro_rules! lock_global {
+    ($m:expr, $what:literal) => {{
+        #[cfg(any(test, feature = "test-hooks"))]
+        {
+            $m.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+        }
+        #[cfg(not(any(test, feature = "test-hooks")))]
+        {
+            $m.lock().expect($what)
+        }
+    }};
+}
+
 fn global_config() -> &'static Mutex<Option<UpdateConfig>> {
-    static INSTANCE: OnceCell<Mutex<Option<UpdateConfig>>> = OnceCell::new();
-    INSTANCE.get_or_init(|| Mutex::new(None))
+    static INSTANCE: Mutex<Option<UpdateConfig>> = Mutex::new(None);
+    &INSTANCE
 }
 
 /// Session-scoped patch number this process is using. Set by
@@ -39,20 +62,22 @@ fn global_config() -> &'static Mutex<Option<UpdateConfig>> {
 /// flutter_engine before `dart:ffi` is available, so the `None` window
 /// before launch start is not observable from Dart.
 fn global_running_patch() -> &'static Mutex<Option<usize>> {
-    static INSTANCE: OnceCell<Mutex<Option<usize>>> = OnceCell::new();
-    INSTANCE.get_or_init(|| Mutex::new(None))
+    static INSTANCE: Mutex<Option<usize>> = Mutex::new(None);
+    &INSTANCE
 }
 
 pub fn running_patch_number() -> Option<usize> {
-    *global_running_patch()
-        .lock()
-        .expect("Failed to acquire running_patch lock.")
+    *lock_global!(
+        global_running_patch(),
+        "Failed to acquire running_patch lock."
+    )
 }
 
 pub fn set_running_patch_number(patch_number: Option<usize>) {
-    *global_running_patch()
-        .lock()
-        .expect("Failed to acquire running_patch lock.") = patch_number;
+    *lock_global!(
+        global_running_patch(),
+        "Failed to acquire running_patch lock."
+    ) = patch_number;
 }
 
 /// Unit tests should call this to reset the config between tests.
@@ -61,10 +86,14 @@ pub fn set_running_patch_number(patch_number: Option<usize>) {
 /// state between scenarios without spawning a subprocess.
 #[cfg(any(test, feature = "test-hooks"))]
 pub fn testing_reset_config() {
+    // A flush left over from the last test would read and send this one's
+    // queue.
+    crate::updater::testing_wait_for_event_flushes();
     with_config_mut(|config| {
         *config = None;
     });
     set_running_patch_number(None);
+    crate::updater::testing_reset_unreadable_state();
 }
 
 pub fn check_initialized_and_call<F, R>(
@@ -86,9 +115,7 @@ where
 {
     // expect() here should be OK, it's job is to propagate a panic across
     // threads if the lock is poisoned.
-    let lock = global_config()
-        .lock()
-        .expect("Failed to acquire updater lock.");
+    let lock = lock_global!(global_config(), "Failed to acquire updater lock.");
     check_initialized_and_call(f, &lock)
 }
 
@@ -96,9 +123,7 @@ pub fn with_config_mut<F, R>(f: F) -> R
 where
     F: FnOnce(&mut Option<UpdateConfig>) -> R,
 {
-    let mut lock = global_config()
-        .lock()
-        .expect("Failed to acquire updater lock.");
+    let mut lock = lock_global!(global_config(), "Failed to acquire updater lock.");
     f(&mut lock)
 }
 
@@ -114,7 +139,7 @@ pub struct UpdateConfig {
     pub libapp_path: PathBuf,
     pub base_url: String,
     pub network_hooks: NetworkHooks,
-    pub file_provider: Box<dyn ExternalFileProvider>,
+    pub file_provider: Arc<dyn ExternalFileProvider>,
     pub patch_public_key: Option<String>,
     pub patch_verification: PatchVerificationMode,
 }
@@ -157,7 +182,7 @@ pub fn set_config(
                 .unwrap_or(DEFAULT_BASE_URL)
                 .to_owned(),
             network_hooks,
-            file_provider,
+            file_provider: Arc::from(file_provider),
             patch_public_key: yaml.patch_public_key.to_owned(),
             patch_verification: yaml.patch_verification.unwrap_or_default(),
         };

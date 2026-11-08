@@ -1,0 +1,104 @@
+{
+  "description": "A breadcrumb left by a crashed boot (no prior good patch): the next init tombstones the patch BootCrash, deletes its artifact, boots base, and queues __patch_install_failure__. The breadcrumb carries a boot-attempt tally at the retire threshold (2): below it the updater treats a boot that did not finish as ambiguous and retries it (see boot/crash_below_threshold_retries_the_patch).",
+  "files": {
+    "storage/state.json": {
+      "json": {
+        "client_id": "00000000-0000-4000-8000-000000000001",
+        "release_version": "1.0.0+1",
+        "queued_events": []
+      }
+    },
+    "storage/pointers.json": {
+      "json": {
+        "next_boot_patch": 1,
+        "last_booted_patch": null,
+        "currently_booting_patch": 1,
+        "boot_started_at": 1700000000,
+        "boot_attempt_count": 2,
+        "last_boot_attempt_patch": 1
+      }
+    },
+    "storage/patches/1/state.json": {
+      "json": {
+        "kind": "Installed",
+        "signature": null,
+        "size": 5
+      }
+    },
+    "storage/patches/1/dlc.vmcode": {
+      "text": "hello"
+    }
+  },
+  "steps": [
+    {
+      "call": "init",
+      "expect": true
+    },
+    {
+      "call": "next_boot_patch_number",
+      "expect": 0,
+      "expect_files": {
+        "storage/pointers.json": {
+          "json": {
+            "next_boot_patch": null,
+            "last_booted_patch": null,
+            "currently_booting_patch": null,
+            "boot_started_at": null,
+            "boot_attempt_count": 0,
+            "last_boot_attempt_patch": null
+          }
+        },
+        "storage/patches/1/state.json": {
+          "json": {
+            "kind": "Bad",
+            "reason": "BootCrash",
+            "hash": null,
+            "signature": null,
+            "size": 5
+          }
+        },
+        "storage/patches/1/dlc.vmcode": {
+          "absent": true
+        },
+        "storage/state.json": {
+          "json": {
+            "client_id": "00000000-0000-4000-8000-000000000001",
+            "release_version": "1.0.0+1",
+            "queued_events": [
+              {
+                "app_id": "fixture-app-id",
+                "arch": "<arch>",
+                "client_id": "00000000-0000-4000-8000-000000000001",
+                "event_id": "<uuid>",
+                "type": "__patch_install_failure__",
+                "patch_number": 1,
+                "platform": "<platform>",
+                "release_version": "1.0.0+1",
+                "timestamp": "<number>",
+                "message": "<prefix:crash_recovery: patch 1 failed to boot (detected_at=>",
+                "updater_revision": "<string>"
+              },
+              {
+                "ambiguous_attempt_count": 2,
+                "app_id": "fixture-app-id",
+                "arch": "<arch>",
+                "boot_failure_threshold": 2,
+                "boot_started_at": 1700000000,
+                "client_id": "00000000-0000-4000-8000-000000000001",
+                "event_id": "<uuid>",
+                "message": null,
+                "outcome": "retired_after_ambiguity",
+                "patch_number": 1,
+                "platform": "<platform>",
+                "release_version": "1.0.0+1",
+                "timestamp": "<number>",
+                "type": "__patch_boot_lifecycle__",
+                "updater_revision": "<string>"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -251,9 +251,10 @@ void main() {
     // revision silently merged its clients with every earlier one. These pin
     // that it cannot happen again.
 
-    test('the ACTIVE epoch is B, activated on af6e842ccf87 alone', () async {
+    test('the ACTIVE epoch is B: af6e842ccf87, plus 87c198d30f87 by the '
+        "owner's 2026-11-07 decision", () async {
       expect(Repository.activePolicyEpoch, PolicyEpoch.b);
-      expect(PolicyEpoch.b.updaterRevisions, {'af6e842ccf87'});
+      expect(PolicyEpoch.b.updaterRevisions, {'af6e842ccf87', '87c198d30f87'});
       // Activation did NOT widen the predicate: an Epoch A row is still
       // invisible to the active epoch.
       await put('ambiguous_boot_retry', attempt: 1);
@@ -274,6 +275,35 @@ void main() {
         a,
         isEmpty,
         reason: 'a closed epoch must not absorb later clients',
+      );
+    });
+
+    test('an 87c198d30f87 lifecycle row is visible to B, not to A', () async {
+      await put('ambiguous_boot_retry', attempt: 1, rev: '87c198d30f87');
+      final b = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.b);
+      expect(b, hasLength(1));
+      final a = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a);
+      expect(
+        a,
+        isEmpty,
+        reason: 'a closed epoch must not absorb later clients',
+      );
+    });
+
+    test('B is exactly its two revisions and shares none with A', () async {
+      // Guards the extension itself: a B widened past its list would still
+      // pass the two visibility tests above.
+      expect(
+        PolicyEpoch.a.updaterRevisions.intersection(
+          PolicyEpoch.b.updaterRevisions,
+        ),
+        isEmpty,
+      );
+      await put('ambiguous_boot_retry', attempt: 1, rev: '000000000000');
+      expect(
+        await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.b),
+        isEmpty,
+        reason: 'a revision outside B must not count toward B',
       );
     });
 

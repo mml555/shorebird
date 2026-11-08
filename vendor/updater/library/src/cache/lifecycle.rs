@@ -117,6 +117,10 @@ pub enum BadReason {
     InvalidPatchBytes,
     /// Inflated bytes' hash didn't match the server-claimed hash.
     InstallHashMismatch,
+    /// The offered signature was missing or did not verify against the
+    /// app's `patch_public_key`. Unlike the other reasons, this condemns
+    /// only the recorded (hash, signature) pair; see `decide_start`.
+    InvalidSignature,
     /// `validate_patch_is_bootable` failed at boot time (size mismatch
     /// vs Installed.size, or signature failed in Strict mode).
     ValidationFailed,
@@ -142,6 +146,92 @@ pub struct ReleasePointers {
 
     /// Unix timestamp (seconds) when `currently_booting_patch` was set.
     pub boot_started_at: Option<u64>,
+
+    /// Consecutive boots of `next_boot_patch` that did NOT record success.
+    /// Incremented by `record_boot_start`, reset by `record_boot_success`.
+    ///
+    /// G15: a still-set breadcrumb is an inference from ABSENCE OF EVIDENCE —
+    /// equally consistent with "the patch crashed Dart" and with "the process
+    /// died for reasons that have nothing to do with the patch" (the user
+    /// swiping the app away during launch, the iOS launch watchdog, jetsam
+    /// under memory pressure). No signal available WITHIN one boot separates
+    /// them, but one across boots does: a patch that genuinely breaks Dart
+    /// fails EVERY time, while a benign death does not repeat.
+    ///
+    /// So a single un-succeeded boot no longer tombstones a patch. See
+    /// [`BOOT_FAILURE_THRESHOLD`].
+    ///
+    /// `#[serde(default)]` so `pointers.json` files written before this field
+    /// existed still deserialize — they read as 0, which is the correct
+    /// starting count.
+    #[serde(default)]
+    pub boot_attempt_count: u32,
+
+    /// The patch `boot_attempt_count` is counting. Without this the tally is
+    /// ambiguous: a newly installed patch would inherit its predecessor's
+    /// count and could be tombstoned on its FIRST un-succeeded boot — turning
+    /// the threshold into a trap rather than a safeguard.
+    #[serde(default)]
+    pub last_boot_attempt_patch: Option<usize>,
+}
+
+/// Consecutive un-succeeded boots required before a patch is marked
+/// `Bad{BootCrash}`.
+///
+/// **Why not 1.** The two errors are not symmetric. Marking Bad too LATE costs
+/// one additional crashed launch on a device that is already crashing, and it
+/// self-corrects on the next boot. Marking Bad too EARLY permanently removes a
+/// working patch from a device — `mark_bad` writes a tombstone that survives
+/// cleanup — it is invisible to the user, and it is reported as the safety
+/// mechanism working correctly. The cheap error is to retry; the expensive one
+/// is to tombstone.
+///
+/// 2 is the smallest value that discriminates at all, and costs exactly one
+/// extra crash in the genuine-failure case.
+pub const BOOT_FAILURE_THRESHOLD: u32 = 2;
+
+/// What init-time recovery did. Returned so telemetry is emitted at the
+/// CLASSIFICATION POINT rather than inferred downstream from retirement — the
+/// observability defect this whole lane exists to fix was exactly that the
+/// server only ever heard about terminal outcomes.
+#[derive(Debug, Clone, PartialEq)]
+pub enum BootRecovery {
+    /// No boot was in flight; nothing to classify.
+    Idle,
+    /// A boot did not finish, and the tally is below the threshold: AMBIGUOUS,
+    /// so the patch is retried. Not evidence against the patch.
+    Retried {
+        patch: usize,
+        attempt: u32,
+        threshold: u32,
+        boot_started_at: Option<u64>,
+    },
+    /// A boot did not finish and the tally reached the threshold: retired.
+    Retired {
+        patch: usize,
+        attempts: u32,
+        threshold: u32,
+        boot_started_at: Option<u64>,
+    },
+}
+
+/// The outcome of a successful boot, carrying how much ambiguity PRECEDED it.
+///
+/// `prior_ambiguous_attempts` is computed from the live counter BEFORE the
+/// success clears it. It must never be inferred from "success happened and the
+/// counter is now zero" — that is true of every ordinary healthy boot, and
+/// would put clean boots into the recovery population and corrupt
+/// P(recovery | first ambiguity).
+#[derive(Debug, Clone, PartialEq)]
+pub struct BootSuccess {
+    pub patch: usize,
+    pub prior_ambiguous_attempts: u32,
+    /// The RAW tally observed at success, before it was cleared.
+    ///
+    /// Observation only — nothing branches on it. Recorded independently rather
+    /// than derived as `prior + 1`, because the point of measuring it is to catch a
+    /// `prior` that was computed wrongly, and a derivation would hide exactly that.
+    pub raw_boot_attempt_count: u32,
 }
 
 /// Per-release patch lifecycle and storage. Owns
@@ -158,6 +248,15 @@ pub struct PatchLifecycle {
     /// back to `Fresh`.
     download_root: PathBuf,
     pointers: ReleasePointers,
+    /// Consecutive un-succeeded boots required before a patch is tombstoned.
+    /// Defaults to [`BOOT_FAILURE_THRESHOLD`] and is only ever varied by tests.
+    ///
+    /// It is a FIELD rather than a bare `const` read at the use site so the
+    /// policy suite can prove the RULE ("retire on the Nth consecutive
+    /// un-succeeded boot") across several N, instead of asserting one magic
+    /// number in every case. A suite that only ever exercises 2 cannot tell a
+    /// correct threshold implementation from one that happens to agree with 2.
+    boot_failure_threshold: u32,
 }
 
 impl PatchLifecycle {
@@ -187,7 +286,18 @@ impl PatchLifecycle {
             state_root,
             download_root,
             pointers,
+            boot_failure_threshold: BOOT_FAILURE_THRESHOLD,
         }
+    }
+
+    /// Overrides the boot-failure threshold. **Test-only.** Production always
+    /// uses [`BOOT_FAILURE_THRESHOLD`]; there is no config or server control
+    /// over this, deliberately, because a remotely-lowered threshold would be a
+    /// way to mass-tombstone healthy patches.
+    #[cfg(test)]
+    pub fn with_boot_failure_threshold(mut self, threshold: u32) -> Self {
+        self.boot_failure_threshold = threshold;
+        self
     }
 
     pub fn pointers(&self) -> &ReleasePointers {
@@ -497,19 +607,31 @@ impl PatchLifecycle {
     /// was deleted and re-uploaded with the same number, or routed
     /// through a different CDN URL, and the prior bytes can't be
     /// trusted.
-    pub fn decide_start(&self, n: usize, url: &str, hash: &str) -> DownloadAction {
+    pub fn decide_start(
+        &self,
+        n: usize,
+        url: &str,
+        hash: &str,
+        signature: Option<&str>,
+    ) -> DownloadAction {
         // For Downloading/Downloaded, the on-disk file is the source
         // of truth for "how many bytes do we have." The state itself
         // just records the url/hash/signature so we can detect a
-        // server change since the prior attempt.
+        // server change since the prior attempt. The signature is part
+        // of the offer: it is checked against this offer before download
+        // and carried into `Installed`, so a prior attempt recorded under
+        // a different signature starts over.
         let download_path = self.download_artifact_path(n);
+        let same_offer = |prior_url: &str, prior_hash: &str, prior_sig: Option<&str>| {
+            prior_url == url && prior_hash == hash && prior_sig == signature
+        };
         match self.read_state(n) {
             None => DownloadAction::Fresh,
             Some(PatchState::Downloading {
                 url: prior_url,
                 hash: prior_hash,
-                ..
-            }) if prior_url == url && prior_hash == hash => {
+                signature: prior_sig,
+            }) if same_offer(&prior_url, &prior_hash, prior_sig.as_deref()) => {
                 match std::fs::metadata(&download_path) {
                     Ok(meta) => DownloadAction::Resume { offset: meta.len() },
                     Err(_) => DownloadAction::Fresh,
@@ -519,8 +641,9 @@ impl PatchLifecycle {
             Some(PatchState::Downloaded {
                 url: prior_url,
                 hash: prior_hash,
+                signature: prior_sig,
                 ..
-            }) if prior_url == url && prior_hash == hash => {
+            }) if same_offer(&prior_url, &prior_hash, prior_sig.as_deref()) => {
                 if download_path.exists() {
                     DownloadAction::Complete
                 } else {
@@ -531,8 +654,43 @@ impl PatchLifecycle {
             Some(PatchState::Installed { .. }) => {
                 DownloadAction::Skip(SkipReason::AlreadyInstalled)
             }
+            // A signature refusal condemns only the exact (hash, signature)
+            // pair refused, not the patch number: anyone able to send a bad
+            // offer could otherwise block the genuine patch N on this device.
+            Some(PatchState::Bad {
+                reason: BadReason::InvalidSignature,
+                hash: bad_hash,
+                signature: bad_sig,
+                ..
+            }) if bad_hash.as_deref() != Some(hash) || bad_sig.as_deref() != signature => {
+                DownloadAction::Fresh
+            }
             Some(PatchState::Bad { .. }) => DownloadAction::Skip(SkipReason::KnownBad),
         }
+    }
+
+    /// Records that the offer (`hash`, `signature`) for patch `n` failed
+    /// signature verification: writes a `Bad{InvalidSignature}` tombstone
+    /// carrying the refused pair (so `decide_start` skips only that pair)
+    /// and removes any partial or complete download left by an earlier
+    /// offer. `n` is never `Installed` here, since `decide_start` skips
+    /// installed patches before the check.
+    pub fn record_signature_refused(
+        &self,
+        n: usize,
+        hash: &str,
+        signature: Option<&str>,
+    ) -> Result<()> {
+        self.write_state(
+            n,
+            &PatchState::Bad {
+                reason: BadReason::InvalidSignature,
+                hash: Some(hash.to_string()),
+                signature: signature.map(String::from),
+                size: None,
+            },
+        )?;
+        self.cleanup(n)
     }
 
     /// Records that a download is starting (or restarting). The actual
@@ -615,23 +773,44 @@ impl PatchLifecycle {
         }
         self.pointers.currently_booting_patch = Some(n);
         self.pointers.boot_started_at = Some(crate::time::unix_timestamp());
+        // Counts attempts at THIS patch. Reset whenever the boot target
+        // changes, so a fresh patch never inherits a predecessor's tally.
+        if self.pointers.last_boot_attempt_patch != Some(n) {
+            self.pointers.last_boot_attempt_patch = Some(n);
+            self.pointers.boot_attempt_count = 0;
+        }
+        self.pointers.boot_attempt_count = self.pointers.boot_attempt_count.saturating_add(1);
         self.save_pointers()
     }
 
     /// Records a successful boot. Promotes `currently_booting_patch` to
     /// `last_booted_patch` and runs cleanup on older patches (per-patch
     /// state-aware: Bad tombstones survive, others are forgotten).
-    pub fn record_boot_success(&mut self) -> Result<()> {
+    pub fn record_boot_success(&mut self) -> Result<BootSuccess> {
         let n = self
             .pointers
             .currently_booting_patch
             .context("record_boot_success without currently_booting_patch")?;
+        // CAPTURED BEFORE THE RESET. `record_boot_start` counted THIS boot too,
+        // so the ambiguity that preceded it is the tally minus the current
+        // attempt. A patch that boots cleanly first try yields 0 and is
+        // therefore not a recovery.
+        let raw_boot_attempt_count = self.pointers.boot_attempt_count;
+        let prior_ambiguous_attempts = raw_boot_attempt_count.saturating_sub(1);
         self.pointers.last_booted_patch = Some(n);
         self.pointers.currently_booting_patch = None;
         self.pointers.boot_started_at = None;
+        // A success clears the tally: the failures it counted were not caused
+        // by this patch, or it would not have booted.
+        self.pointers.boot_attempt_count = 0;
+        self.pointers.last_boot_attempt_patch = None;
         self.save_pointers()?;
         self.cleanup_older_than(n);
-        Ok(())
+        Ok(BootSuccess {
+            patch: n,
+            prior_ambiguous_attempts,
+            raw_boot_attempt_count,
+        })
     }
 
     /// Records that patch `n` failed to boot. Marks the patch
@@ -654,6 +833,11 @@ impl PatchLifecycle {
         self.mark_bad(n, BadReason::BootCrash)?;
         self.pointers.currently_booting_patch = None;
         self.pointers.boot_started_at = None;
+        // The tally has done its job for this patch; clear it so whatever
+        // `recompute_next_boot` selects starts from zero rather than inheriting
+        // a count that was never about it.
+        self.pointers.boot_attempt_count = 0;
+        self.pointers.last_boot_attempt_patch = None;
         self.save_pointers()?;
         self.recompute_next_boot()
     }
@@ -663,12 +847,53 @@ impl PatchLifecycle {
     /// failure — transition the patch to `Bad{BootCrash}` and recompute
     /// `next_boot_patch`. Returns the patch number that was recovered,
     /// if any.
-    pub fn detect_boot_crash_on_init(&mut self) -> Result<Option<usize>> {
+    pub fn detect_boot_crash_on_init(&mut self) -> Result<BootRecovery> {
         let Some(n) = self.pointers.currently_booting_patch else {
-            return Ok(None);
+            return Ok(BootRecovery::Idle);
         };
+        let boot_started_at = self.pointers.boot_started_at;
+        let threshold = self.boot_failure_threshold;
+
+        // G15: DO NOT conclude from a single un-succeeded boot. The breadcrumb
+        // tells us this boot did not record success; it does not tell us why,
+        // and an ordinary process death (swipe-away, launch watchdog, jetsam)
+        // looks exactly like a patch that broke Dart. Below the threshold,
+        // clear the breadcrumb and let the patch try again — a patch that
+        // genuinely breaks Dart will fail the next boot too, and the one after
+        // that, so the tally reaches the threshold and it is backed out with
+        // only one extra crash spent.
+        if self.pointers.boot_attempt_count < self.boot_failure_threshold {
+            shorebird_info!(
+                "boot {} of patch {} did not record success; retrying (threshold {})",
+                self.pointers.boot_attempt_count,
+                n,
+                self.boot_failure_threshold
+            );
+            // Clear ONLY the in-flight breadcrumb. `boot_attempt_count` and
+            // `last_boot_attempt_patch` survive deliberately — they are the
+            // memory that makes the next boot's decision possible, and zeroing
+            // them here would make the threshold unreachable and restore the
+            // old single-strike behaviour by accident.
+            let attempt = self.pointers.boot_attempt_count;
+            self.pointers.currently_booting_patch = None;
+            self.pointers.boot_started_at = None;
+            self.save_pointers()?;
+            return Ok(BootRecovery::Retried {
+                patch: n,
+                attempt,
+                threshold,
+                boot_started_at,
+            });
+        }
+
+        let attempts = self.pointers.boot_attempt_count;
         self.record_boot_failure(n)?;
-        Ok(Some(n))
+        Ok(BootRecovery::Retired {
+            patch: n,
+            attempts,
+            threshold,
+            boot_started_at,
+        })
     }
 
     /// Validates that `next_boot_patch` is bootable (its on-disk size
@@ -795,9 +1020,13 @@ impl PatchLifecycle {
         }
         if mode == PatchVerificationMode::Strict {
             if let Some(public_key) = public_key {
-                let signature = signature.context("Patch signature is missing")?;
                 let actual_hash = signing::hash_file(&path)?;
-                signing::check_signature(&actual_hash, &signature, public_key)?;
+                signing::check_patch_signature(
+                    &actual_hash,
+                    signature.as_deref(),
+                    Some(public_key),
+                )
+                .context(crate::updater::UpdateError::InvalidSignature)?;
             } else {
                 shorebird_info!("No public key configured; skipping signature verification");
             }
@@ -1271,6 +1500,8 @@ mod tests {
                 last_booted_patch: Some(2),
                 currently_booting_patch: None,
                 boot_started_at: None,
+                boot_attempt_count: 0,
+                last_boot_attempt_patch: None,
             };
             lifecycle.save_pointers().unwrap();
         }
@@ -1307,7 +1538,7 @@ mod tests {
     fn decide_start_unknown_patch_is_fresh() {
         let (_tmp, lifecycle) = fixture();
         assert_eq!(
-            lifecycle.decide_start(1, "https://example/p", "h"),
+            lifecycle.decide_start(1, "https://example/p", "h", None),
             DownloadAction::Fresh
         );
     }
@@ -1329,7 +1560,7 @@ mod tests {
         std::fs::create_dir_all(dl.parent().unwrap()).unwrap();
         std::fs::write(&dl, vec![0u8; 250]).unwrap();
         assert_eq!(
-            lifecycle.decide_start(1, "https://example/p", "h"),
+            lifecycle.decide_start(1, "https://example/p", "h", None),
             DownloadAction::Resume { offset: 250 }
         );
     }
@@ -1350,7 +1581,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(
-            lifecycle.decide_start(1, "https://example/p", "h"),
+            lifecycle.decide_start(1, "https://example/p", "h", None),
             DownloadAction::Fresh
         );
     }
@@ -1369,7 +1600,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(
-            lifecycle.decide_start(1, "https://new.example/p", "h"),
+            lifecycle.decide_start(1, "https://new.example/p", "h", None),
             DownloadAction::Fresh
         );
     }
@@ -1388,7 +1619,10 @@ mod tests {
                 },
             )
             .unwrap();
-        assert_eq!(lifecycle.decide_start(1, "u", "new"), DownloadAction::Fresh);
+        assert_eq!(
+            lifecycle.decide_start(1, "u", "new", None),
+            DownloadAction::Fresh
+        );
     }
 
     #[test]
@@ -1409,8 +1643,69 @@ mod tests {
         std::fs::create_dir_all(dl.parent().unwrap()).unwrap();
         std::fs::write(&dl, vec![0u8; 1000]).unwrap();
         assert_eq!(
-            lifecycle.decide_start(1, "u", "h"),
+            lifecycle.decide_start(1, "u", "h", None),
             DownloadAction::Complete
+        );
+    }
+
+    #[test]
+    fn decide_start_signature_change_starts_fresh() {
+        // The verified signature must be the one carried into `Installed`,
+        // so bytes recorded under another signature are not reused.
+        let (_tmp, lifecycle) = fixture();
+        lifecycle
+            .write_state(
+                1,
+                &PatchState::Downloaded {
+                    url: "u".into(),
+                    hash: "h".into(),
+                    signature: Some("old".into()),
+                    size: 1000,
+                },
+            )
+            .unwrap();
+        let dl = lifecycle.download_artifact_path(1);
+        std::fs::create_dir_all(dl.parent().unwrap()).unwrap();
+        std::fs::write(&dl, vec![0u8; 1000]).unwrap();
+        assert_eq!(
+            lifecycle.decide_start(1, "u", "h", Some("new")),
+            DownloadAction::Fresh
+        );
+        assert_eq!(
+            lifecycle.decide_start(1, "u", "h", Some("old")),
+            DownloadAction::Complete
+        );
+    }
+
+    #[test]
+    fn signature_refusal_skips_only_the_refused_pair() {
+        let (_tmp, lifecycle) = fixture();
+        lifecycle
+            .record_download_started(1, "u", "h", Some("good"))
+            .unwrap();
+        let dl = lifecycle.download_artifact_path(1);
+        std::fs::create_dir_all(dl.parent().unwrap()).unwrap();
+        std::fs::write(&dl, b"partial").unwrap();
+
+        lifecycle
+            .record_signature_refused(1, "h", Some("bad"))
+            .unwrap();
+        assert!(!dl.exists(), "refusal removes the earlier download");
+        assert_eq!(
+            lifecycle.decide_start(1, "u", "h", Some("bad")),
+            DownloadAction::Skip(SkipReason::KnownBad)
+        );
+        assert_eq!(
+            lifecycle.decide_start(1, "u", "h", Some("good")),
+            DownloadAction::Fresh
+        );
+        assert_eq!(
+            lifecycle.decide_start(1, "u", "h", None),
+            DownloadAction::Fresh
+        );
+        assert_eq!(
+            lifecycle.decide_start(1, "u", "other", Some("bad")),
+            DownloadAction::Fresh
         );
     }
 
@@ -1428,7 +1723,10 @@ mod tests {
                 },
             )
             .unwrap();
-        assert_eq!(lifecycle.decide_start(1, "u", "h"), DownloadAction::Fresh);
+        assert_eq!(
+            lifecycle.decide_start(1, "u", "h", None),
+            DownloadAction::Fresh
+        );
     }
 
     #[test]
@@ -1444,7 +1742,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(
-            lifecycle.decide_start(1, "u", "h"),
+            lifecycle.decide_start(1, "u", "h", None),
             DownloadAction::Skip(SkipReason::AlreadyInstalled)
         );
     }
@@ -1464,7 +1762,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(
-            lifecycle.decide_start(1, "u", "h"),
+            lifecycle.decide_start(1, "u", "h", None),
             DownloadAction::Skip(SkipReason::KnownBad)
         );
     }
@@ -1914,21 +2212,122 @@ mod tests {
             lifecycle.record_boot_start(1).unwrap();
             // Drop without record_boot_success/failure.
         }
-        // Second "process": init detects the breadcrumb and marks Bad.
+        // Second "process": init sees the breadcrumb — and DOES NOT mark Bad.
+        //
+        // CHANGED BY G15, deliberately. This test previously asserted
+        // `Some(1)` and `Bad` here, encoding single-strike backout. That is
+        // exactly the behaviour that makes a false backout possible: one
+        // un-succeeded boot is equally consistent with a patch that broke Dart
+        // and with the user swiping the app away during launch. The patch is
+        // now retried, and the tally is what survives to decide next time.
         let mut lifecycle = reload_at(tmp.path());
         let recovered = lifecycle.detect_boot_crash_on_init().unwrap();
-        assert_eq!(recovered, Some(1));
+        assert!(
+            matches!(recovered, BootRecovery::Retried { .. }),
+            "one un-succeeded boot must not tombstone"
+        );
+        assert!(matches!(
+            lifecycle.read_state(1),
+            Some(PatchState::Installed { .. })
+        ));
+        // Breadcrumb cleared, but the MEMORY that makes the next decision
+        // possible is kept.
+        assert!(lifecycle.pointers().currently_booting_patch.is_none());
+        assert_eq!(lifecycle.pointers().boot_attempt_count, 1);
+        assert_eq!(lifecycle.pointers().last_boot_attempt_patch, Some(1));
+    }
+
+    #[test]
+    fn detect_boot_crash_on_init_marks_bad_at_the_threshold() {
+        let tmp = TempDir::new().unwrap();
+        {
+            let mut lifecycle = reload_at(tmp.path());
+            install_state(&lifecycle, 1, 100);
+            lifecycle.pointers.next_boot_patch = Some(1);
+            lifecycle.save_pointers().unwrap();
+        }
+        // Boot it BOOT_FAILURE_THRESHOLD times, never recording success.
+        for _ in 0..BOOT_FAILURE_THRESHOLD {
+            let mut lifecycle = reload_at(tmp.path());
+            lifecycle.detect_boot_crash_on_init().unwrap();
+            lifecycle.record_boot_start(1).unwrap();
+        }
+        let mut lifecycle = reload_at(tmp.path());
+        let recovered = lifecycle.detect_boot_crash_on_init().unwrap();
+        assert!(
+            matches!(recovered, BootRecovery::Retired { patch: 1, .. }),
+            "a patch that fails every boot is bad"
+        );
         assert!(matches!(
             lifecycle.read_state(1),
             Some(PatchState::Bad { .. })
         ));
-        assert!(lifecycle.pointers().currently_booting_patch.is_none());
+    }
+
+    #[test]
+    fn a_success_clears_the_tally() {
+        let tmp = TempDir::new().unwrap();
+        {
+            let mut lifecycle = reload_at(tmp.path());
+            install_state(&lifecycle, 1, 100);
+            lifecycle.pointers.next_boot_patch = Some(1);
+            lifecycle.save_pointers().unwrap();
+            lifecycle.record_boot_start(1).unwrap();
+        }
+        // One benign death, then a good boot.
+        {
+            let mut lifecycle = reload_at(tmp.path());
+            lifecycle.detect_boot_crash_on_init().unwrap();
+            assert_eq!(lifecycle.pointers().boot_attempt_count, 1);
+            lifecycle.record_boot_start(1).unwrap();
+            lifecycle.record_boot_success().unwrap();
+            assert_eq!(lifecycle.pointers().boot_attempt_count, 0);
+        }
+        // A later benign death must start counting from scratch, NOT tombstone
+        // on its first strike because of the earlier one.
+        {
+            let mut lifecycle = reload_at(tmp.path());
+            lifecycle.record_boot_start(1).unwrap();
+            let mut next = reload_at(tmp.path());
+            assert!(matches!(
+                next.detect_boot_crash_on_init().unwrap(),
+                BootRecovery::Retried { .. }
+            ));
+            assert!(matches!(
+                next.read_state(1),
+                Some(PatchState::Installed { .. })
+            ));
+        }
+    }
+
+    #[test]
+    fn a_new_patch_does_not_inherit_the_previous_tally() {
+        let tmp = TempDir::new().unwrap();
+        let mut lifecycle = reload_at(tmp.path());
+        install_state(&lifecycle, 1, 100);
+        install_state(&lifecycle, 2, 100);
+        lifecycle.pointers.next_boot_patch = Some(1);
+        lifecycle.save_pointers().unwrap();
+
+        // Patch 1 accrues a strike.
+        lifecycle.record_boot_start(1).unwrap();
+        assert_eq!(lifecycle.pointers().boot_attempt_count, 1);
+
+        // Switching target resets the count — otherwise patch 2 would be one
+        // strike from a tombstone it never earned.
+        lifecycle.pointers.next_boot_patch = Some(2);
+        lifecycle.record_boot_start(2).unwrap();
+        assert_eq!(lifecycle.pointers().boot_attempt_count, 1);
+        assert_eq!(lifecycle.pointers().last_boot_attempt_patch, Some(2));
     }
 
     #[test]
     fn detect_boot_crash_on_init_is_noop_when_no_breadcrumb() {
         let (_tmp, mut lifecycle) = fixture();
-        assert_eq!(lifecycle.detect_boot_crash_on_init().unwrap(), None);
+        assert_eq!(
+            lifecycle.detect_boot_crash_on_init().unwrap(),
+            BootRecovery::Idle
+        );
     }
 
     #[test]

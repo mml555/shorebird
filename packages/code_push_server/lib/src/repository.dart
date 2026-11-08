@@ -216,7 +216,8 @@ class MembershipRow {
 /// revisions to one set would recombine two samples that are not comparable,
 /// and nothing would complain.
 ///
-/// Epochs are therefore closed, not extended.
+/// Epochs are therefore closed, not extended. The one exception is B, which
+/// the owner extended on 2026-11-07; its doc comment says what that costs.
 enum PolicyEpoch {
   /// CLOSED. Preserved as instrumentation and behavioural evidence; its
   /// clients must never count toward a later epoch's threshold.
@@ -242,8 +243,17 @@ enum PolicyEpoch {
   /// Zero rows here means "no client has hit a first ambiguity yet", NOT that
   /// activation failed — and an ambiguity must never be manufactured to make
   /// this query non-empty.
+  ///
+  /// EXTENDED 2026-11-07, BY THE OWNER'S DECISION, against the "closed, not
+  /// extended" rule above. `87c198d30f87` (updater route-b-ca91f4b3 head,
+  /// pinned by the Flutter 3.47.9 fork's DEPS) also counts toward B, although
+  /// it changes retry, flush and delivery behaviour and defaults
+  /// `patch_verification` to `install_only`. B therefore pools two client
+  /// behaviours. Read its numbers with that in mind, and split by
+  /// `updater_revision` when comparing them. `cell` still names B's original
+  /// cell, because the 3.47.9 cell that ships `87c198d30f87` is not built yet.
   b(
-    updaterRevisions: {'af6e842ccf87'},
+    updaterRevisions: {'af6e842ccf87', '87c198d30f87'},
     cell: '4792f0eca461f3761001a1adbe131b4b115e3684',
     closed: false,
   );

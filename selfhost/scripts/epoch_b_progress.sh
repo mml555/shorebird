@@ -17,7 +17,9 @@ set -uo pipefail
 
 THRESHOLD=${THRESHOLD:-100}
 CONTAINER=${CONTAINER:-cps-ios}
-EPOCH_B_REV=${EPOCH_B_REV:-af6e842ccf87}
+# Comma-separated. B pools two updater behaviours since the owner extended it
+# on 2026-11-07 (see PolicyEpoch.b in repository.dart); this list must match it.
+EPOCH_B_REV=${EPOCH_B_REV:-af6e842ccf87,87c198d30f87}
 EPOCH_A_REV=${EPOCH_A_REV:-f729f958e9be}
 SNAP=$(mktemp -d); trap 'rm -rf "$SNAP"' EXIT
 
@@ -30,32 +32,44 @@ python3 - "$SNAP/code_push.db" "$THRESHOLD" "$EPOCH_B_REV" "$EPOCH_A_REV" <<'PY'
 import sqlite3, sys
 db, thresh, revb, reva = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
 cur = sqlite3.connect(f"file:{db}?mode=ro", uri=True).cursor()
+revs_b = [r for r in revb.split(",") if r]
+IN_B = "updater_revision in (%s)" % ",".join("?" * len(revs_b))
 
 def one(q, *a):
     r = cur.execute(q, a).fetchone()
     return r[0] if r else 0
 
+def one_b(q):
+    """`one` over every Epoch B revision: q says updater_revision=? once."""
+    return one(q.replace("updater_revision=?", IN_B), *revs_b)
+
 print("Epoch B progress")
 print(f"  eligible revision   {revb}")
 print(f"  threshold           {thresh} distinct clients with a FIRST ambiguity")
 print()
-transport = one("select count(distinct client_id) from events where updater_revision=?", revb)
+transport = one_b("select count(distinct client_id) from events where updater_revision=?")
 print(f"  transport clients seen on {revb}: {transport}")
 print("    (download/install events only -- this INCLUDES our own rig and probe")
 print("     clients, so it is not fleet adoption. They can never enter the")
 print("     estimator: every transport row has outcome NULL and the estimator")
 print("     filters outcome IS NOT NULL.)")
 
-first = one("select count(distinct client_id) from events where updater_revision=? "
-            "and outcome='ambiguous_boot_retry' and ambiguous_attempt_count=1", revb)
-second = one("select count(distinct client_id) from events where updater_revision=? "
-             "and outcome='ambiguous_boot_retry' and ambiguous_attempt_count>=2", revb)
-rec = one("select count(distinct client_id) from events where updater_revision=? "
-          "and outcome='recovered_after_ambiguity'", revb)
-ret = one("select count(distinct client_id) from events where updater_revision=? "
-          "and outcome='retired_after_ambiguity'", revb)
+first = one_b("select count(distinct client_id) from events where updater_revision=? "
+            "and outcome='ambiguous_boot_retry' and ambiguous_attempt_count=1")
+second = one_b("select count(distinct client_id) from events where updater_revision=? "
+             "and outcome='ambiguous_boot_retry' and ambiguous_attempt_count>=2")
+rec = one_b("select count(distinct client_id) from events where updater_revision=? "
+          "and outcome='recovered_after_ambiguity'")
+ret = one_b("select count(distinct client_id) from events where updater_revision=? "
+          "and outcome='retired_after_ambiguity'")
 
 print(f"  first ambiguity     {first} / {thresh}")
+if len(revs_b) > 1:
+    # B pools behaviours, so the split is part of reading it.
+    for r in revs_b:
+        n = one("select count(distinct client_id) from events where updater_revision=? "
+                "and outcome='ambiguous_boot_retry' and ambiguous_attempt_count=1", r)
+        print(f"    of which {r}: {n}")
 print(f"  second ambiguity    {second}")
 print(f"  recovered           {rec}")
 print(f"  retired             {ret}")
@@ -73,7 +87,7 @@ print()
 unknown = cur.execute(
     "select coalesce(updater_revision,'NULL'), count(distinct client_id) from events "
     "where outcome is not null and updater_revision is not in_list "
-    .replace("is not in_list", f"not in ('{revb}','{reva}')") + " group by 1").fetchall()
+    .replace("is not in_list", "not in (%s)" % ",".join(f"'{r}'" for r in revs_b + [reva])) + " group by 1").fetchall()
 if unknown:
     print("  UNEXPECTED revisions carrying lifecycle outcomes:")
     for rev, n in unknown:
