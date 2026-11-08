@@ -5,6 +5,9 @@ version: "0.2"
 # misspelling in upstream's test name, and the point of quoting it is that it
 # stays wrong. File-scoped so it is invisible here and nowhere else.
 # cspell:ignore delibrate mispelt Shoul shutil stdlib gskinner hlcl hlclpqwxzq hlclxeca hlclqjttgm hlclx hldxg wfyg VVFRF WRVJTSU UNRE Volemes Ünïcödé
+# The tokens this file lists as ignoreWords or inline-scoped vocabulary, which
+# would otherwise be reported here, in the one place that names them.
+# cspell:ignore Adev ARMC awdd backouts backportcheck baselined Closurization closurized coolify corevideo crashreports cstring ctypes dontneed flavoredprobe frontboard gsprobe HEISENBUG hlfr idevicebackup inspectable jarsigner jwtfix kinded libpostal LINKEDIT Metaspace metriclog NCPU nehelper nogncheck nutsdb operationalization parsecd productionized readback rearchive Refena refetched refspec relauncher reminted remoteserver Rssi screentime shidduchcard signprobe simarm Siri staticness subsys systemappservices SYSV twolib unbisected undeployed UNDOTTED unexcluded unflushed unphotographed Unscorable unshallowed usagetracking WWDR XCUI ZEROFILL
 # Step 1 §3, per evidence/cspell/classification_precommit.md.
 #
 # STANDARD BRITISH AND AMERICAN VARIANTS ARE BOTH ACCEPTED. This is NOT a house
@@ -75,6 +78,29 @@ ignorePaths:
     # invariant the format enforces, so the narrower override below takes it.
     # Release notes quote upstream commit text verbatim.
     "RELEASE_NOTES.md",
+    # --- Machine-generated records, same shape as the mutable_aot evidence entry
+    # above: written by capture scripts or by the device/OS, read by gates, not
+    # authored. Each glob is narrow by file kind so authored .md/.sh/.py/.dart
+    # beside them stay checked. TOO BROAD IF: anyone hand-writes prose into one.
+    #
+    # iOS crash reports (.ips) and the per-run capture manifests/lists of the
+    # first-activation reliability runs. CLASSIFICATION.md, PM_RULING.md and
+    # VOID.md in the same directories are authored and stay checked.
+    "selfhost/reliability/first_activation_runs/**/*.ips",
+    "selfhost/reliability/first_activation_runs/**/manifest.txt",
+    "selfhost/reliability/first_activation_runs/**/crashreports_new*.txt",
+    # Gate-recorded evidence data (JSON and captured text) of the semantic-map,
+    # semantic-linker, Route B DI and Dart-durability lanes. Their evidence
+    # directories also hold an authored .md (recorder_completeness.md), which
+    # is deliberately not matched.
+    "selfhost/engine/{semantic_map,semantic_linker,route_b_di,dart_durability}/**/evidence/**/*.{json,jsonl,txt}",
+    # G15 device-run receipts: launch-marker captures and the before/after
+    # state dumps the capture script writes (obfuscated symbols and all).
+    "selfhost/evidence/g15/**/{g15_receipt*,r_before,r_after}",
+    # P6 device syslog excerpts and OS crash reports, captured verbatim.
+    "selfhost/evidence/p6-signing/*syslog*.txt",
+    "selfhost/evidence/p6-signing/crash_reports/**",
+    "selfhost/evidence/p6-tracks/*syslog*.txt",
   ]
 overrides:
   # Step 1 §4, per evidence/cspell/classification_precommit.md. A .patch file
@@ -126,6 +152,12 @@ overrides:
   - filename: "selfhost/evidence/**"
     ignoreRegExpList:
       - "/^\\s*dart [A-Za-z0-9]+(?= )/gm"
+      # Launch ids: the obfuscated per-launch label a device build prints
+      # ("hl" plus eight base-36 characters, e.g. hlfr7vj9g1), quoted in the
+      # verdicts that say which launch did what. Random per launch, so they are
+      # identifiers and never vocabulary; the shape is exact, so a typo in the
+      # prose beside one still stays reported.
+      - "/(?<![A-Za-z0-9])hl[a-z0-9]{8}(?![A-Za-z0-9])/g"
 
   # --- The final thirteen. Each is a quoted opaque identifier, a literal
   # fragment, deliberately malformed text, or test data. NONE is project
@@ -168,6 +200,108 @@ overrides:
   # Deliberate non-ASCII test input for the lowering matrix.
   - filename: "selfhost/engine/route_b/probes/lowering_matrix.sh"
     ignoreWords: ["Ünïcödé"]
+
+  # --- Record-scoped exact tokens (full-tree gate). Same method as the entries
+  # above: exact token, exact file, set from OUTSIDE so the evidence record or
+  # data file stays byte-identical (JSON and captured text cannot carry a
+  # directive). Each token is an identifier, a quoted fragment, or an
+  # abbreviation inside the record, not project vocabulary.
+  - filename: "selfhost/engine/route_b/0014-atomic-prepare-next-boot.patch"
+    ignoreWords: [dontneed, nogncheck]
+  - filename: "selfhost/engine/route_b/super0/s2a/localsend.equiv.txt"
+    ignoreWords: [Refena]
+  - filename: "selfhost/engine/semantic_linker/runtime_feasibility/g0_freeze/banked_source/dart/0002-Route-B-Dart-SDK-support-bytecode-producer-and-the-t.patch"
+    ignoreWords: [Closurization, closurized]
+  - filename: "selfhost/engine/semantic_map/g1_identity/EXPECTATIONS_EXT.json"
+    ignoreWords: [kinded]
+  - filename: "selfhost/engine/semantic_map/g2_fingerprints/EXPECTATIONS_G2.json"
+    ignoreWords: [twolib]
+  - filename: "selfhost/engine/semantic_map/g5_patchability/instrumentation/0002-g5-inlining-relation.patch"
+    ignoreWords: [staticness]
+  - filename: "selfhost/evidence/cli-backport-1.6.123/cli_integration.sh"
+    ignoreWords: [backportcheck]
+  - filename: "selfhost/evidence/cli-backport-1.6.123/start_and_seed.sh"
+    ignoreWords: [backportcheck]
+  - filename: "selfhost/evidence/d-super-2c/SIGN_141.md"
+    ignoreWords: [cstring, LINKEDIT, rearchive, Rssi, subsys, WWDR, ZEROFILL]
+  - filename: "selfhost/evidence/epoch-b-canary/CANARY_EVIDENCE.md"
+    ignoreWords: [signprobe]
+  - filename: "selfhost/evidence/epoch-b-canary/crash_baseline/DifferentialPrivacy_2026-08-27-173735.diff_privacy.anon"
+    ignoreWords: [screentime, usagetracking]
+  - filename: "selfhost/evidence/epoch-b-canary/crash_baseline/SiriSearchFeedback-2026-08-27-155740.000.ips"
+    ignoreWords: [parsecd]
+  - filename: "selfhost/evidence/epoch-b-canary/crash_baseline/SiriSearchFeedback-2026-08-27-155740.ips"
+    ignoreWords: [parsecd]
+  - filename: "selfhost/evidence/g15/cycle_0013_prepared_state.md"
+    ignoreWords: [refetched]
+  - filename: "selfhost/evidence/g15/hybrid_method_control_verdict.txt"
+    ignoreWords: [unexcluded]
+  - filename: "selfhost/evidence/g15/layer3_verdict.md"
+    ignoreWords: [unflushed]
+  - filename: "selfhost/evidence/g15/lost_update_precommit.md"
+    ignoreWords: [HEISENBUG]
+  - filename: "selfhost/evidence/g15/lost_update_verdict.md"
+    ignoreWords: [Heisenbug]
+  - filename: "selfhost/evidence/g15/manual_launch_control_verdict.txt"
+    ignoreWords: [unphotographed]
+  - filename: "selfhost/evidence/g15/nonbooting_capture_precommit.md"
+    ignoreWords: [idevicebackup]
+  - filename: "selfhost/evidence/g15/nonbooting_capture_verdict.md"
+    ignoreWords: [relauncher, remoteserver]
+  - filename: "selfhost/evidence/g15/patchable_emission_ab.md"
+    ignoreWords: [gsprobe]
+  - filename: "selfhost/evidence/g15/r91_behavioral_verdict.txt"
+    ignoreWords: [unbisected]
+  - filename: "selfhost/evidence/g15/routeb_behavioral_evidence_audit.md"
+    ignoreWords: [UNDOTTED]
+  - filename: "selfhost/evidence/g15/sixlaunch_after_verdict.md"
+    ignoreWords: [undeployed]
+  - filename: "selfhost/evidence/g15/sixlaunch_before/FREEZE.txt"
+    ignoreWords: [afcclient's]
+  - filename: "selfhost/evidence/g15/sixlaunch_before/set_mode.sh"
+    ignoreWords: [afcclient's, readback]
+  - filename: "selfhost/evidence/g15/target_kind_precommit.md"
+    ignoreWords: [undotted]
+  - filename: "selfhost/evidence/g15/tombstone_lane/FINAL/operator_report.txt"
+    ignoreWords: [backouts]
+  - filename: "selfhost/evidence/g15/tombstone_lane/S2/syslog_hung_process_3518.txt"
+    ignoreWords: [Adev, corevideo, frontboard, systemappservices]
+  - filename: "selfhost/evidence/g15/tombstone_lane_FINAL.md"
+    ignoreWords: [backouts]
+  - filename: "selfhost/evidence/g15/tombstone_lane_PARKED.md"
+    ignoreWords: [Unscorable, XCUI]
+  - filename: "selfhost/evidence/g15/tombstone_lane_reconciliation.md"
+    ignoreWords: [relauncher]
+  - filename: "selfhost/evidence/jwt_issuer_repair.md"
+    ignoreWords: [jwtfix]
+  - filename: "selfhost/evidence/p6-custom-target/ARM_LOG.md"
+    ignoreWords: [baselined]
+  - filename: "selfhost/evidence/p6-signing/ARMC_CRASH_CLASSIFICATION.md"
+    ignoreWords: [awdd, metriclog, Siri]
+  - filename: "selfhost/evidence/p6-signing/ARM_B_PACKAGE_SIGNING.md"
+    ignoreWords: [jarsigner]
+  - filename: "selfhost/evidence/p6-signing/ARM_C_DEVICE_SIGNATURE.md"
+    ignoreWords: [ctypes, signprobe]
+  - filename: "selfhost/evidence/p6-signing/PRODUCER_GATE_ENGINE_IDENTITY.md"
+    ignoreWords: [reminted]
+  - filename: "selfhost/evidence/p6-signing/RUNTIME_SOURCE_BANKED.md"
+    ignoreWords: [inspectable, unshallowed]
+  - filename: "selfhost/evidence/p6-toolchain-pin/STATUS.md"
+    ignoreWords: [refspec]
+  - filename: "selfhost/evidence/p6-tracks/ARM_LOG.md"
+    ignoreWords: [nehelper]
+  - filename: "selfhost/evidence/p6-tracks/VERDICT.md"
+    ignoreWords: [flavoredprobe]
+  - filename: "selfhost/evidence/r12-linux-ci/ARM_B_ATTEMPT1.md"
+    ignoreWords: [coolify, libpostal, Metaspace]
+  - filename: "selfhost/evidence/r12-linux-ci/BOOTSTRAP_CLOSURE.md"
+    ignoreWords: [nutsdb]
+  - filename: "selfhost/evidence/r12-linux-ci/CERTIFICATION.md"
+    ignoreWords: [operationalization, productionized]
+  - filename: "selfhost/evidence/r12-linux-ci/PREFLIGHT.md"
+    ignoreWords: [simarm, SYSV]
+  - filename: "selfhost/evidence/r12-linux-ci/arm-B/host_memory.txt"
+    ignoreWords: [libpostal, NCPU, shidduchcard]
 
 words:
   # --- BACKUP-RESTORE-1. Vocabulary shared by the backup/restore scripts, the
@@ -939,3 +1073,87 @@ words:
   - uncompiled # merge of upstream 1.6.138: word from CI config or Route B tests
   - DFLAVOR # merge of upstream 1.6.138: word from CI config or Route B tests
   - DAPI # merge of upstream 1.6.138: word from CI config or Route B tests
+  # --- Full-tree gate, step 3: vocabulary used across three or more authored files
+  # of the engine, reliability and evidence lanes. Rarer tokens are inline
+  # `cspell:words` in their file or scoped to one record above.
+  - afcclient # iOS device tool or app under test
+  - appdir # this lane's probe, fixture or gate identifier
+  - basework # this lane's probe, fixture or gate identifier
+  - brdnym # this lane's probe, fixture or gate identifier
+  - callees # Dart VM / AOT compiler term
+  - cand # short loop variable in the Python gate scripts
+  - canonicalizer # Dart VM / AOT compiler term
+  - constantish # Dart VM / AOT compiler term
+  - debugserver # iOS device tool or app under test
+  - devirt # devirtualization, the AOT optimisation the mutable-AOT and semantic-map lanes measure (both spellings occur)
+  - devirtualisation # devirtualization, the AOT optimisation the mutable-AOT and semantic-map lanes measure (both spellings occur)
+  - devirtualised # devirtualization, the AOT optimisation the mutable-AOT and semantic-map lanes measure (both spellings occur)
+  - devirtualizable # devirtualization, the AOT optimisation the mutable-AOT and semantic-map lanes measure (both spellings occur)
+  - devirtualizations # devirtualization, the AOT optimisation the mutable-AOT and semantic-map lanes measure (both spellings occur)
+  - devirtualized # devirtualization, the AOT optimisation the mutable-AOT and semantic-map lanes measure (both spellings occur)
+  - devirtualizes # devirtualization, the AOT optimisation the mutable-AOT and semantic-map lanes measure (both spellings occur)
+  - edgediff # this lane's probe, fixture or gate identifier
+  - elig # short loop variable in the Python gate scripts
+  - ents # short loop variable in the Python gate scripts
+  - envx # this lane's probe, fixture or gate identifier
+  - fals # short loop variable in the Python gate scripts
+  - flowgraph # Dart VM / AOT compiler term
+  - gatecd # this lane's probe, fixture or gate identifier
+  - getsize # short loop variable in the Python gate scripts
+  - idevice # iOS device tool or app under test
+  - inlinee # Dart VM / AOT compiler term
+  - insns # Dart VM / AOT compiler term
+  - localsend # iOS device tool or app under test
+  - logf # this lane's probe, fixture or gate identifier
+  - massdiag # this lane's probe, fixture or gate identifier
+  - mintstage # this lane's probe, fixture or gate identifier
+  - noaot # this lane's probe, fixture or gate identifier
+  - nonbooting # this lane's probe, fixture or gate identifier
+  - noncomment # this lane's probe, fixture or gate identifier
+  - nonleaf # this lane's probe, fixture or gate identifier
+  - oomkilled # Linux/Docker tool vocabulary
+  - otherdecl # this lane's probe, fixture or gate identifier
+  - passthroughs # this lane's probe, fixture or gate identifier
+  - prebuilts # this lane's probe, fixture or gate identifier
+  - precheck # this lane's probe, fixture or gate identifier
+  - privowner # this lane's probe, fixture or gate identifier
+  - processcontrol # this lane's probe, fixture or gate identifier
+  - progbits # ELF header field or tool name, used by the symbol-table probes
+  - readelf # ELF header field or tool name, used by the symbol-table probes
+  - realapp # this lane's probe, fixture or gate identifier
+  - recognizedish # Dart VM / AOT compiler term
+  - redirectability # Dart VM / AOT compiler term
+  - relocator # Dart VM / AOT compiler term
+  - reuseaddr # Linux/Docker tool vocabulary
+  - routebvalue # this lane's probe, fixture or gate identifier
+  - sbrb # this lane's probe, fixture or gate identifier
+  - screenshotted # screenshot as a verb
+  - segfaulted # crash vocabulary
+  - selfcycle # this lane's probe, fixture or gate identifier
+  - sharea # this lane's probe, fixture or gate identifier
+  - shareb # this lane's probe, fixture or gate identifier
+  - shentsize # ELF header field or tool name, used by the symbol-table probes
+  - shnum # ELF header field or tool name, used by the symbol-table probes
+  - shoff # ELF header field or tool name, used by the symbol-table probes
+  - shstrndx # ELF header field or tool name, used by the symbol-table probes
+  - shstrtab # ELF header field or tool name, used by the symbol-table probes
+  - sixlaunch # this lane's probe, fixture or gate identifier
+  - sizemat # this lane's probe, fixture or gate identifier
+  - socat # Linux/Docker tool vocabulary
+  - specializer # Dart VM / AOT compiler term
+  - stdev # this lane's probe, fixture or gate identifier
+  - superapp # this lane's probe, fixture or gate identifier
+  - trav # short loop variable in the Python gate scripts
+  - typeparam # Dart VM / AOT compiler term
+  - uiapp # this lane's probe, fixture or gate identifier
+  - undemonstrated # Dart VM / AOT compiler term
+  - underivable # Dart VM / AOT compiler term
+  - unencodable # Dart VM / AOT compiler term
+  - unioned # Dart VM / AOT compiler term
+  - unmodelled # Dart VM / AOT compiler term
+  - unmutated # Dart VM / AOT compiler term
+  - unprojected # Dart VM / AOT compiler term
+  - unrooted # Dart VM / AOT compiler term
+  - unscored # Dart VM / AOT compiler term
+  - uxtx # ARM64 extended-register operand, as in disassembly excerpts
+  - xwire # this lane's probe, fixture or gate identifier
