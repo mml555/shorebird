@@ -4,13 +4,15 @@ import 'dart:io';
 import 'package:shorebird_redis_client/shorebird_redis_client.dart';
 import 'package:test/test.dart';
 
+import 'redis_test_port.dart';
+
 void main() {
   group(RedisClient, () {
     late RedisClient client;
 
     setUp(() async {
       client = RedisClient(
-        socket: const RedisSocketOptions(password: 'password'),
+        socket: RedisSocketOptions(port: redisTestPort, password: 'password'),
       );
     });
 
@@ -42,8 +44,9 @@ void main() {
         'throws SocketException when connection times out w/retry',
         () async {
           final client = RedisClient(
-            socket: const RedisSocketOptions(
-              timeout: Duration(microseconds: 1),
+            socket: RedisSocketOptions(
+              port: redisTestPort,
+              timeout: const Duration(microseconds: 1),
               retryAttempts: 1,
             ),
           );
@@ -176,7 +179,9 @@ void main() {
       });
 
       test('is required', () async {
-        final client = RedisClient();
+        final client = RedisClient(
+          socket: RedisSocketOptions(port: redisTestPort),
+        );
         await client.connect();
         await expectLater(
           client.get(key: 'foo'),
@@ -263,6 +268,7 @@ void main() {
       test('throws TimeoutException '
           'when command timeout is exceeded', () async {
         final client = RedisClient(
+          socket: RedisSocketOptions(port: redisTestPort),
           command: const RedisCommandOptions(timeout: Duration.zero),
         );
         await expectLater(
