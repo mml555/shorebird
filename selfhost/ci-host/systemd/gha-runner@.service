@@ -1,0 +1,43 @@
+# One ephemeral GitHub Actions runner. The instance name is the Unix user the
+# jobs run as: gha-runner@gha-sb1.service runs as gha-sb1, configured by
+# /etc/gha-runners/gha-sb1.conf. Installed by selfhost/ci-host/install.sh.
+[Unit]
+Description=Ephemeral GitHub Actions runner (%i)
+Wants=network-online.target
+After=network-online.target
+# Never give up restarting: every job ends the process, and the next start is
+# the next clean runner.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=%i
+# The job user's primary group; no supplementary groups are ever added.
+Group=%i
+# "+": runs as root, before the User= drop. Wipes HOME, mints a registration
+# token from /etc/gha/*.token, runs config.sh as the job user.
+ExecStartPre=+/usr/local/sbin/gha-prep %i
+ExecStart=/usr/local/sbin/gha-run %i
+Restart=always
+RestartSec=3
+# The whole cgroup dies with the main process: no process of a finished job
+# survives into the next one.
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=60
+SendSIGKILL=yes
+# Rootless dockerd manages containers' cgroups inside this unit's cgroup.
+Delegate=yes
+# /run/%i, owned by the job user, removed at stop: XDG_RUNTIME_DIR for dockerd.
+RuntimeDirectory=%i
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=no
+# Private /tmp and /var/tmp, gone at stop.
+PrivateTmp=yes
+# Fork-bomb cap. (No NoNewPrivileges: rootless docker needs the setuid
+# newuidmap/newgidmap helpers.)
+TasksMax=16384
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

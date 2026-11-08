@@ -1,0 +1,65 @@
+#!/bin/bash
+# gha-run <user>: main process of gha-runner@<user>.service, as the job user.
+# Starts a rootless dockerd, waits for it, runs the runner in the foreground.
+# The runner is ephemeral: it exits after one job, and so does this script;
+# systemd then kills the rest of the cgroup and starts the next clean runner.
+set -uo pipefail
+user=${1:?}
+# shellcheck source=/dev/null
+source "/etc/gha-runners/$user.conf"
+export HOME GHA_PORT_RANGE XDG_RUNTIME_DIR="/run/$user"
+export PATH="/opt/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/docker.sock"
+# Egress proxy for the listener and for dockerd (Docker Hub fallback when the cache misses).
+set -a
+# shellcheck source=/dev/null
+source /etc/gha-runners/proxy.env
+set +a
+cd "$HOME/runner" || exit 1
+
+# Rootless docker. Pulls go through the root-owned pull-through cache on the
+# host's 127.0.0.1:5000 (docker 29's rootlesskit runs dockerd itself in the host
+# network namespace; only containers get the slirp4netns one, and they cannot
+# reach host loopback). Published ports bind 127.0.0.1 unless a job says otherwise.
+mkdir -p "$HOME/.config/docker"
+cat > "$HOME/.config/docker/daemon.json" <<JSON
+{
+  "registry-mirrors": ["http://127.0.0.1:5000"],
+  "ip": "127.0.0.1",
+  "iptables": true,
+  "log-driver": "json-file",
+  "log-opts": {"max-size": "10m", "max-file": "2"},
+  "features": {"containerd-snapshotter": false}
+}
+JSON
+export DOCKERD_ROOTLESS_ROOTLESSKIT_NET=slirp4netns
+# Containers and `docker build` steps (apk add, curl, ...) have no route out except the
+# egress proxy. slirp4netns exposes the host's loopback to them as 10.0.2.2 (this user's
+# own connections, so the nftables rules for this user still decide what is reachable),
+# and the docker client config below hands them http(s)_proxy pointing at it.
+export DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK=false
+mkdir -p "$HOME/.docker"
+cat > "$HOME/.docker/config.json" <<'JSON'
+{"proxies":{"default":{"httpProxy":"http://10.0.2.2:3128","httpsProxy":"http://10.0.2.2:3128","noProxy":"localhost,127.0.0.1,::1,10.0.2.2"}}}
+JSON
+export DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=builtin
+DOCKERD=/usr/local/sbin/gha-dockerd dockerd-rootless.sh --exec-opt native.cgroupdriver=cgroupfs \
+  > "$HOME/dockerd.log" 2>&1 &
+dockerd_pid=$!
+# shellcheck disable=SC2329 # invoked by the trap
+stop_dockerd() { kill -TERM "$dockerd_pid" 2>/dev/null; wait "$dockerd_pid" 2>/dev/null; }
+trap stop_dockerd EXIT
+
+ready=0
+for _ in $(seq 1 90); do
+  kill -0 "$dockerd_pid" 2>/dev/null || { echo "rootless dockerd died:" >&2; tail -30 "$HOME/dockerd.log" >&2; exit 1; }
+  docker version >/dev/null 2>&1 && { ready=1; break; }
+  sleep 1
+done
+[[ $ready == 1 ]] || { echo "rootless dockerd not ready in 90s" >&2; tail -30 "$HOME/dockerd.log" >&2; exit 1; }
+
+# Tests substitute a stand-in for the job (GHA_RUN_CMD); production runs run.sh.
+${GHA_RUN_CMD:-./run.sh}
+rc=$?
+echo "gha-run: runner exited with $rc; HOME holds $(du -sxm "$HOME" 2>/dev/null | cut -f1) MB, root has $(df -m --output=avail / | tail -1 | tr -d " ") MB free"
+exit "$rc"

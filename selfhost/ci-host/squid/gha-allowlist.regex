@@ -1,0 +1,3 @@
+# Regex hostnames (squid dstdom_regex, case-insensitive) for the gha-* runners.
+# Artifacts, logs and cache storage (Actions results service)
+^productionresultssa[0-9]+\.blob\.core\.windows\.net$

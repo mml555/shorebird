@@ -1,0 +1,113 @@
+#!/bin/bash
+# gha-prep <user>: privileged pre-start step of gha-runner@<user>.service.
+# Runs as root ("+" ExecStartPre). Leaves a pristine HOME and a freshly
+# configured, ephemeral runner for the job user. Reads /etc/gha-runners/<user>.conf:
+#   GHA_REPO        owner/repo the runner serves
+#   GHA_NAME        runner name (kept from the old runner; --replace takes it over)
+#   GHA_LABELS      comma-separated labels
+#   GHA_TOKEN_FILE  root-only file with the fine-grained PAT
+#   GHA_DRY_RUN=1   (tests only) skip the GitHub API and config.sh
+set -euo pipefail
+umask 022
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+user=${1:?usage: gha-prep <user>}
+[[ $user =~ ^gha-[a-z0-9]+$ ]] || { echo "refusing user '$user'" >&2; exit 2; }
+conf=/etc/gha-runners/$user.conf
+# shellcheck source=/dev/null
+source "$conf"
+
+# The job user must be unprivileged. Checked on every start, so a later
+# `usermod -aG docker` cannot go unnoticed.
+for g in sudo docker lxd adm kvm root disk shadow; do
+  if id -nG "$user" | tr ' ' '\n' | grep -qx "$g"; then
+    echo "REFUSING: $user is in group $g" >&2; exit 3
+  fi
+done
+if [[ -e /etc/sudoers ]] && grep -rqsE "^[^#]*\b$user\b" /etc/sudoers /etc/sudoers.d; then
+  echo "REFUSING: $user has a sudoers entry" >&2; exit 3
+fi
+
+# Egress: (re)load the nftables allowlist (it also refreshes the set of host ports jobs
+# may not reach). Fail closed: no runner starts without it. See gha-egress-apply.
+/usr/local/sbin/gha-egress-apply >/dev/null \
+  || { echo "REFUSING: could not load the gha_egress firewall table" >&2; exit 8; }
+[[ $(systemctl is-active squid) == active ]] \
+  || { echo "REFUSING: the squid egress proxy is not running" >&2; exit 8; }
+
+home=$(getent passwd "$user" | cut -d: -f6)
+[[ $home == "/home/$user" ]] || { echo "unexpected home '$home'" >&2; exit 2; }
+uid=$(id -u "$user"); gid=$(id -g "$user")
+as_user() { setpriv --reuid="$uid" --regid="$gid" --clear-groups "$@"; }
+
+# ---- 1. Nothing of the last job may remain ----------------------------------
+# The unit's cgroup kill already ran; this covers anything started outside it.
+pkill -KILL -u "$uid" || true
+for _ in 1 2 3 4 5; do pgrep -u "$uid" >/dev/null || break; sleep 1; done
+# Wipe HOME (rootless dockerd's images, containers and volumes live in it).
+# Files owned by subuids are removable because we are root.
+rm -rf --one-file-system "$home"
+install -d -m 0700 -o "$uid" -g "$gid" "$home"
+# World-writable places outside HOME where the job user could leave files.
+find /dev/shm /var/tmp /var/crash /run/lock -xdev -user "$uid" -delete 2>/dev/null || true
+rm -f "/var/spool/cron/crontabs/$user" "/var/mail/$user"
+
+# Refuse to start a runner on a nearly full disk (systemd retries every few seconds).
+free_mb=$(df -m --output=avail "$home" | tail -1 | tr -d ' ')
+[[ $free_mb -ge 8192 ]] || { echo "only ${free_mb} MB free on /home; not starting $user" >&2; exit 7; }
+
+# ---- 2. Runner from the pinned, checksummed tarball --------------------------
+tarball=/opt/gha/runner.tar.gz
+( cd /opt/gha && sha256sum --check --status runner.tar.gz.sha256 ) \
+  || { echo "runner tarball checksum mismatch" >&2; exit 4; }
+install -d -m 0755 -o "$uid" -g "$gid" "$home/runner"
+as_user tar xzf "$tarball" -C "$home/runner"
+
+# Environment jobs see. Written to .env (read by the listener) and .path.
+# RUSTUP_HOME is the root-owned, read-only toolchain; CARGO_HOME is per-job.
+runtime="/run/$user"
+jobpath="/opt/cargo/bin:$home/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/opt/flutter/bin:/opt/gradle/gradle-8.10/bin:/opt/android-sdk/platform-tools:/opt/android-sdk/cmdline-tools/latest/bin"
+cat > "$home/runner/.env" <<ENV
+LANG=C.UTF-8
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+ANDROID_HOME=/opt/android-sdk
+ANDROID_SDK_ROOT=/opt/android-sdk
+ANDROID_NDK_HOME=/opt/android-sdk/ndk/28.2.13676358
+RUSTUP_HOME=/opt/rustup
+CARGO_HOME=$home/.cargo
+XDG_RUNTIME_DIR=$runtime
+DOCKER_HOST=unix://$runtime/docker.sock
+ENV
+# Outbound traffic of this user is firewalled to the proxy; jobs reach the allowlist through it.
+grep -vE '^(#|$)' /etc/gha-runners/proxy.env >> "$home/runner/.env"
+printf '%s' "$jobpath" > "$home/runner/.path"
+chown "$uid:$gid" "$home/runner/.env" "$home/runner/.path"
+
+# ---- 3. Registration ---------------------------------------------------------
+if [[ ${GHA_DRY_RUN:-0} == 1 ]]; then
+  echo "gha-prep: dry run, not registering"
+  exit 0
+fi
+[[ -s $GHA_TOKEN_FILE ]] || { echo "no PAT at $GHA_TOKEN_FILE" >&2; exit 5; }
+# The PAT goes to curl on stdin (-H @-), never on a command line.
+reg=
+for attempt in 1 2 3 4 5; do
+  # No -f: on an HTTP error GitHub's JSON body says why ("Bad credentials", "Resource not
+  # accessible by personal access token", a rate limit ...); log that message, never the token.
+  resp=$(printf 'Authorization: Bearer %s\n' "$(< "$GHA_TOKEN_FILE")" | curl -sS --max-time 30 -X POST \
+    -H @- -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
+    "https://api.github.com/repos/$GHA_REPO/actions/runners/registration-token") || resp=
+  reg=$(jq -er .token <<<"$resp" 2>/dev/null) && break
+  reg=
+  echo "gha-prep: registration token request failed (attempt $attempt): $(jq -r '.message // "no JSON answer"' <<<"$resp" 2>/dev/null || echo "no JSON answer")" >&2
+  sleep $((attempt * 3))
+done
+[[ -n $reg ]] || { echo "could not mint a registration token for $GHA_REPO" >&2; exit 6; }
+
+# The token travels in the environment (ACTIONS_RUNNER_INPUT_TOKEN), not argv.
+# shellcheck source=/dev/null
+( set -a; source /etc/gha-runners/proxy.env; set +a; cd "$home/runner" &&
+  HOME=$home USER=$user LOGNAME=$user PATH=$jobpath ACTIONS_RUNNER_INPUT_TOKEN=$reg \
+  setpriv --reuid="$uid" --regid="$gid" --clear-groups ./config.sh --url "https://github.com/$GHA_REPO" --name "$GHA_NAME" \
+    --labels "$GHA_LABELS" --work _work --ephemeral --disableupdate --unattended --replace )
+echo "gha-prep: $GHA_NAME registered (ephemeral) for $GHA_REPO"

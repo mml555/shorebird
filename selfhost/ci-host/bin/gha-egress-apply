@@ -1,0 +1,102 @@
+#!/bin/bash
+# gha-egress-apply: (re)load nftables `table inet gha_egress`, which restricts outbound
+# traffic of the runner users (gha-*, one per /etc/gha-runners/<user>.conf) to:
+#   - the allowlisting proxy 127.0.0.1:3128 and the registry cache 127.0.0.1:5000
+#   - loopback ports jobs use among themselves: the user's own docker port slice
+#     (GHA_PORT_RANGE), 6379/5432 (service containers), and the ephemeral range
+#     (job-local test servers), but ONLY when the listener belongs to the user's own
+#     runner unit (see below)
+#   - replies on connections already allowed
+# Everything else is counted, logged (rate-limited) and dropped, IPv4 and IPv6. DNS
+# is not allowed: the proxy resolves names, so a job cannot tunnel through DNS.
+#
+# Which loopback listeners a job may reach: the output hook cannot see who owns the
+# listener, but the input hook can (`socket cgroupv2` looks the listener up). So the
+# output chain marks every loopback packet of a runner user with 0x6a000000|uid, and
+# the input chain drops a marked SYN when the listening socket is not in that user's
+# gha-runner@<user>.service cgroup. Nothing is snapshotted: a host service started a
+# second ago is as unreachable as one started last week, and a job's own listener
+# works at once. No listener at all: no match, the kernel answers RST as usual.
+# nft resolves the cgroup path to an id when the table is loaded, so the table is
+# rebuilt whenever a runner unit is (re)started; gha-prep does that on every start.
+# A user whose unit has no cgroup yet gets "drop every marked SYN" (fail closed).
+#
+# Idempotent: replaces only its own table. EXCLUDE="gha-sb1 ..." leaves users out
+# (staged rollout while their runner is busy); also read from the file
+# /etc/gha-runners/egress.exclude (one user per line) when it exists. Normally neither is set.
+set -euo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+[[ $EUID -eq 0 ]] || { echo "run as root" >&2; exit 1; }
+# Serialise: two runner starts must not interleave "read cgroup ids" and "load table".
+exec 9> /run/gha-egress-apply.lock
+flock 9
+# 10.0.2.2 on lo: the proxy address both host jobs and containers (slirp4netns maps its
+# gateway 10.0.2.2 to host loopback) use. Idempotent.
+ip addr replace 10.0.2.2/32 dev lo
+shopt -s nullglob
+[[ -r /etc/gha-runners/egress.exclude ]] && EXCLUDE="${EXCLUDE:-} $(tr '\n' ' ' < /etc/gha-runners/egress.exclude)"
+uids=(); slices=(); in_rules=(); mark_rules=()
+for conf in /etc/gha-runners/gha-*.conf; do
+  u=$(basename "$conf" .conf)
+  [[ " ${EXCLUDE:-} " == *" $u "* ]] && continue
+  uid=$(id -u "$u" 2>/dev/null) || continue
+  uids+=("$uid")
+  # shellcheck source=/dev/null
+  range=$( (source "$conf"; echo "${GHA_PORT_RANGE:-}") )
+  [[ -n $range ]] && slices+=("$uid ${range// /-}")
+  mark=$(printf '0x%08x' $((0x6a000000 | uid)))
+  mark_rules+=("    meta skuid $uid oifname \"lo\" meta mark set $mark")
+  # systemd names the cgroup of the template instance like this (the dash in
+  # "gha-runner" is escaped as \x2d in the slice name).
+  cg="system.slice/system-gha\\x2drunner.slice/gha-runner@$u.service"
+  if [[ -d "/sys/fs/cgroup/$cg" ]]; then
+    # Accept the user's own listeners, drop any other listener that is found. (A `!=`
+    # match would not work: for a listener in a shallower cgroup, such as
+    # system.slice/foo.service, "the level-3 ancestor" does not exist and nft skips the rule.)
+    # No listener found: neither rule matches and the kernel answers RST.
+    syn="iifname \"lo\" meta mark $mark tcp flags & (syn|ack) == syn"
+    in_rules+=("    $syn socket cgroupv2 level 3 \"$cg\" accept")
+    in_rules+=("    $syn socket transparent 0 counter drop")
+    in_rules+=("    $syn socket transparent 1 counter drop")
+  else
+    in_rules+=("    iifname \"lo\" meta mark $mark tcp flags & (syn|ack) == syn counter drop")
+  fi
+done
+[[ ${#uids[@]} -gt 0 ]] || { echo "gha-egress-apply: no users; installing an empty table" >&2; }
+lo_ports=$(sysctl -n net.ipv4.ip_local_port_range | tr '\t' ' ')
+eph_lo=${lo_ports% *}; eph_hi=${lo_ports#* }
+join() { local IFS=,; echo "$*"; }
+
+f=$(mktemp); trap 'rm -f "$f"' EXIT
+{
+  echo "table inet gha_egress"
+  echo "delete table inet gha_egress"
+  echo "table inet gha_egress {"
+  echo "  set gha_uids { type uid; $( [[ ${#uids[@]} -gt 0 ]] && echo "elements = { $(join "${uids[@]}") }" ) }"
+  echo "  chain gha {"
+  echo "    ct state established,related accept"
+  echo "    oifname \"lo\" tcp dport { 3128, 5000 } ip daddr { 127.0.0.1, 10.0.2.2 } accept"
+  # Everything else the user sends over loopback is marked; the input chain checks it.
+  printf '%s\n' "${mark_rules[@]}"
+  echo "    oifname \"lo\" tcp dport { 6379, 5432 } accept"
+  for s in "${slices[@]}"; do
+    # shellcheck disable=SC2086 # "uid port-range": split on purpose
+    set -- $s; echo "    meta skuid $1 oifname \"lo\" tcp dport $2 accept"
+  done
+  echo "    oifname \"lo\" tcp dport $eph_lo-$eph_hi accept"
+  echo "    limit rate 10/minute burst 5 packets log prefix \"gha-egress-drop: \" level info"
+  echo "    counter drop"
+  echo "  }"
+  echo "  chain output {"
+  echo "    type filter hook output priority filter; policy accept;"
+  echo "    meta skuid @gha_uids jump gha"
+  echo "  }"
+  echo "  chain input {"
+  echo "    type filter hook input priority filter; policy accept;"
+  printf '%s\n' "${in_rules[@]}"
+  echo "  }"
+  echo "}"
+} > "$f"
+nft -c -f "$f"
+nft -f "$f"
+echo "gha-egress-apply: table inet gha_egress loaded for uids: ${uids[*]:-none}"

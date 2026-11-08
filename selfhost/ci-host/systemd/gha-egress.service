@@ -1,0 +1,17 @@
+[Unit]
+Description=Outbound allowlist for the GitHub Actions runner users (nftables table gha_egress)
+Documentation=file:///usr/local/sbin/gha-egress-apply
+Wants=network-pre.target
+Before=network-pre.target
+After=local-fs.target
+Before=squid.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/gha-egress-apply
+ExecReload=/usr/local/sbin/gha-egress-apply
+ExecStop=-/usr/sbin/nft delete table inet gha_egress
+
+[Install]
+WantedBy=multi-user.target
