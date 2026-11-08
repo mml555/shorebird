@@ -34,7 +34,8 @@ for _ in $(seq 1 30); do curl $CURL_OPTS -s "$B/" >/dev/null 2>&1 && break; slee
 
 echo "== create app / release =="
 APPID=$(curl $CURL_OPTS -s -H "$H" -X POST "$B/api/v1/apps" -d '{"organization_id":1,"display_name":"demo"}' | sed -E 's/.*"id":"([^"]+)".*/\1/')
-RELID=$(curl $CURL_OPTS -s -H "$H" -X POST "$B/api/v1/apps/$APPID/releases" -d '{"version":"1.0.0+1","flutter_revision":"309dd657"}' | sed -E 's/.*"release":\{"id":([0-9]+).*/\1/')
+# "id" is not the release's first key (platforms comes first), so anchor on app_id.
+RELID=$(curl $CURL_OPTS -s -H "$H" -X POST "$B/api/v1/apps/$APPID/releases" -d '{"version":"1.0.0+1","flutter_revision":"309dd657"}' | sed -E 's/.*"release":\{.*"id":([0-9]+),"app_id".*/\1/')
 
 echo "== finalize BEFORE artifacts verified must fail closed (409) =="
 CODE=$(curl $CURL_OPTS -s -o /dev/null -w "%{http_code}" -H "$H" -X PATCH "$B/api/v1/apps/$APPID/releases/$RELID" -d '{"status":"active","platform":"android"}')
@@ -53,8 +54,15 @@ BADUP=$(curl $CURL_OPTS -s -H "$H" -X POST "$B/api/v1/apps/$APPID/releases/$RELI
 CODE=$(curl $CURL_OPTS -s -o /dev/null -w "%{http_code}" -H "$H" -X POST "$BADUP" -F "file=@$tmp/bad.bin")
 [ "$CODE" = "400" ] && pass "hash mismatch rejected (400)" || fail "expected 400, got $CODE"
 
-echo "== finalize now succeeds =="
-curl $CURL_OPTS -s -o /dev/null -w "  finalize -> %{http_code}\n" -H "$H" -X PATCH "$B/api/v1/apps/$APPID/releases/$RELID" -d '{"status":"active","platform":"android"}'
+echo "== finalize needs the bundle too (409), then succeeds with it =="
+CODE=$(curl $CURL_OPTS -s -o /dev/null -w "%{http_code}" -H "$H" -X PATCH "$B/api/v1/apps/$APPID/releases/$RELID" -d '{"status":"active","platform":"android"}')
+[ "$CODE" = "409" ] && pass "finalize without the aab rejected (409)" || fail "expected 409, got $CODE"
+echo "RELEASE_AAB_BYTES" > "$tmp/rel.aab"
+AAB_UP=$(curl $CURL_OPTS -s -H "$H" -X POST "$B/api/v1/apps/$APPID/releases/$RELID/artifacts" -F arch=aab -F platform=android -F "hash=$(sha "$tmp/rel.aab")" -F "size=$(sz "$tmp/rel.aab")" -F filename=app.aab -F can_sideload=false | sed -E 's#.*"url":"([^"]+)".*#\1#')
+CODE=$(curl $CURL_OPTS -s -o /dev/null -w "%{http_code}" -H "$H" -X POST "$AAB_UP" -F "file=@$tmp/rel.aab")
+[ "$CODE" = "204" ] && pass "aab verified (204)" || fail "aab upload got $CODE"
+CODE=$(curl $CURL_OPTS -s -o /dev/null -w "%{http_code}" -H "$H" -X PATCH "$B/api/v1/apps/$APPID/releases/$RELID" -d '{"status":"active","platform":"android"}')
+[ "$CODE" = "204" ] && pass "finalize (204)" || fail "finalize got $CODE"
 
 echo "== promote BEFORE patch ready must fail closed (409) =="
 PATCHID=$(curl $CURL_OPTS -s -H "$H" -X POST "$B/api/v1/apps/$APPID/patches" -d "{\"release_id\":$RELID,\"metadata\":{}}" | sed -E 's/.*"id":([0-9]+).*/\1/')
