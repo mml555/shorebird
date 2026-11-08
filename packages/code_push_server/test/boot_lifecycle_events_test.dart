@@ -1,3 +1,4 @@
+// cspell:words norev unactivated  (norev: a client id fixture with no revision)
 import 'dart:io';
 
 import 'package:code_push_server/src/api.dart';

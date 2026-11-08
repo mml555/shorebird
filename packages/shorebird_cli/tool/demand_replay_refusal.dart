@@ -1,3 +1,4 @@
+// cspell:words refusable
 // D-DEMAND-1 control 3. Replays a REAL historical refusal through the actual
 // producer, far enough to show that the census's reason is the production
 // reason and not just a parallel opinion.

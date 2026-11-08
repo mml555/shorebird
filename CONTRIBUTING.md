@@ -1,3 +1,5 @@
+<!-- cspell:words unreviewable unshallowed unshallowing numstat -->
+
 # Commit and PR hygiene
 
 Written 2026-08-18, after retro-splitting 611 commits and 3.8M lines into

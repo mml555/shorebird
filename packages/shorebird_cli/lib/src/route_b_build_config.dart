@@ -1,3 +1,4 @@
+// cspell:words carryable
 // Route B (selfhost), G4.1: the build configuration a release was compiled with,
 // as something a patch can be checked against.
 //
