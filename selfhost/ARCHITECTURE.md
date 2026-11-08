@@ -12,7 +12,8 @@ lib/src/
   config.dart            env → Config; backend selection; production validation
   db.dart                Db abstraction + SQLite and Postgres adapters
   repository.dart        all persistence (schema, CRUD, migrations) over Db
-  artifact_store.dart    ArtifactStore + filesystem and S3/MinIO adapters
+  artifact_store.dart    ArtifactStore + filesystem and S3 adapters
+  s3_client.dart         minimal SigV4 S3 client (PUT, ranged GET, HEAD, DELETE, bucket)
   domain.dart            lifecycle enums + transition guards (state machines)
   api.dart               shelf handler: routing, middleware, wire contract, admin
   oauth.dart             RS256 JWT mint/verify; IdP token decoding
@@ -48,7 +49,12 @@ everything above them is written once against an interface.
 **Artifact bytes — `ArtifactStore`** (`artifact_store.dart`)
 - `FilesystemArtifactStore` (default): bytes on local disk under
   `DATA_DIR/artifacts/<storage_key>`; range reads via `RandomAccessFile`.
-- `S3ArtifactStore` (scale): MinIO/S3 via `package:minio`.
+- `S3ArtifactStore` (scale): any S3-compatible store (SeaweedFS in the compose
+  file; AWS S3, R2, Garage, RustFS by endpoint) through the in-tree
+  `S3Client`: SigV4 over `dart:io`, no third-party S3 package (MinIO's Dart
+  client is unmaintained, and MinIO itself is archived). It uses only PUT,
+  GET with `Range`, HEAD, DELETE and bucket head/create: no multipart, no
+  presigned URLs (downloads stream through the server).
 - Both share the local-disk **resumable-upload staging** (`.partial` files
   committed on completion).
 
@@ -197,7 +203,7 @@ entry to evolve the schema; it applies on next boot on both backends.
   unit on `eventDedupeKey`, plus the eligibility predicate proven **both ways** — an
   ineligible or `NULL` revision must be excluded, an eligible one counted).
 - **301 tests pass** on `dart test -x integration`, verified 2026-08-23. `-x
-  integration` skips the arms needing live Postgres/MinIO.
+  integration` skips the arms needing live Postgres/an S3 store.
 - `tool/smoke_test.sh` drives the full wire contract with curl (works against any
   running server, HTTP or TLS via `CURL_OPTS=-k`).
 

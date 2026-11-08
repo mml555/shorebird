@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# cspell:words objkey minio dapi dobj nodb nomanifest missingobj noserver RUNTAG
+# cspell:words objkey dapi dobj nodb nomanifest missingobj noserver RUNTAG
 # BACKUP-RESTORE-1 — certification pass for the SCALE profile
-# (Postgres + MinIO, ops/backup.sh + ops/restore.sh).
+# (Postgres + S3 object store, ops/backup.sh + ops/restore.sh).
 #
 # Needs two independently-volumed stacks: SRC is backed up, DST is restored
 # into. Restoring into the stack you backed up cannot distinguish "restore
@@ -25,12 +25,12 @@ DDC=(docker compose -f "$DST_COMPOSE" --env-file "$DST_ENV")
 bk(){ COMPOSE_FILE="$SRC_COMPOSE" ENV_FILE="$SRC_ENV" BACKUP_DIR="$1" bash "$OPS/backup.sh" 2>&1; }
 rs(){ COMPOSE_FILE="$DST_COMPOSE" ENV_FILE="$DST_ENV" bash "$OPS/restore.sh" "$1" "$2" 2>&1; }
 dsql(){ "${DDC[@]}" exec -T postgres psql -U cps -d code_push -Atc "$1" 2>/dev/null | tr -d '\r'; }
-dobj(){ "${DDC[@]}" exec -T minio sh -c 'mc alias set local http://127.0.0.1:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD >/dev/null 2>&1; mc ls --recursive --json local/code-push-artifacts' \
+dobj(){ "${DDC[@]}" --profile tools run --rm --no-deps -T rclone lsjson --recursive --files-only store:code-push-artifacts 2>/dev/null \
         | python3 -c 'import json,sys
-for l in sys.stdin:
-    try: d=json.loads(l)
-    except Exception: continue
-    if d.get("key"): print(d["key"])' | sort; }
+try: items=json.load(sys.stdin)
+except Exception: items=[]
+for d in items:
+    if d.get("Path"): print(d["Path"])' | sort; }
 
 step "0. subject"
 echo "  src $SRC   dst $DST   work $WORK"
@@ -60,7 +60,7 @@ D=$(grep -c '^000' "$WORK/probe"); U=$(grep -c '^200' "$WORK/probe")
 chk "the source is serving again when backup returns" "$(curl -s -o /dev/null -w '%{http_code}' "$SRC/healthz")" "200"
 
 step "2. the two halves are stamped as one backup"
-P1D=$(ls "$WORK"/p1/postgres_*.dump); P1M=$(ls -d "$WORK"/p1/minio/*)
+P1D=$(ls "$WORK"/p1/postgres_*.dump); P1M=$(ls -d "$WORK"/p1/objects/*)
 # Tolerate absent manifests rather than dying on `set -u`: run against a
 # version that writes none, this whole section must report FAIL, not abort and
 # hide the twenty checks after it.
@@ -90,7 +90,7 @@ sz=$(stat -f%z "$f"); sha=$(shasum -a 256 "$f"|cut -d' ' -f1)
 U=$(api -X POST "$SRC/api/v1/apps/$APP/releases/$RID/artifacts" -F arch=aarch64 -F platform=android -F "hash=$sha" -F "size=$sz" | python3 -c 'import json,sys;print(json.load(sys.stdin)["url"])')
 api -X POST -F "file=@$f" "$U" >/dev/null; rm -f "$f"
 bk "$WORK/p2" > "$WORK/bk2.log" 2>&1
-P2D=$(ls "$WORK"/p2/postgres_*.dump); P2M=$(ls -d "$WORK"/p2/minio/*)
+P2D=$(ls "$WORK"/p2/postgres_*.dump); P2M=$(ls -d "$WORK"/p2/objects/*)
 chk "release $RID is verified in the source" \
   "$("${SDC[@]}" exec -T postgres psql -U cps -d code_push -Atc "select status from artifacts where owner_kind='release' and owner_id=$RID" | tr -d '\r')" "verified"
 
@@ -104,16 +104,16 @@ BEFORE_ROWS=$(dsql "select count(*) from artifacts"); BEFORE_OBJ=$(dobj | grep -
 o=$(rs "$P2D" "$P1M"); printf '%s' "$o" | grep -q "CROSSED PAIR" \
   && ok "refuses a crossed pair, naming both backup_ids" || no "accepted a crossed pair"
 rm -rf "$WORK/t1"; cp -a "$WORK/p2" "$WORK/t1"; printf 'X' >> "$WORK"/t1/postgres_*.dump
-o=$(rs "$(ls "$WORK"/t1/postgres_*.dump)" "$(ls -d "$WORK"/t1/minio/*)")
+o=$(rs "$(ls "$WORK"/t1/postgres_*.dump)" "$(ls -d "$WORK"/t1/objects/*)")
 printf '%s' "$o" | grep -q "dump digest mismatch" && ok "refuses a tampered postgres dump" || no "accepted a tampered dump"
-rm -rf "$WORK/t2"; cp -a "$WORK/p2" "$WORK/t2"; rm -f "$(find "$WORK"/t2/minio -type f -path '*release*' | head -1)"
-o=$(rs "$(ls "$WORK"/t2/postgres_*.dump)" "$(ls -d "$WORK"/t2/minio/*)")
+rm -rf "$WORK/t2"; cp -a "$WORK/p2" "$WORK/t2"; rm -f "$(find "$WORK"/t2/objects -type f -path '*release*' | head -1)"
+o=$(rs "$(ls "$WORK"/t2/postgres_*.dump)" "$(ls -d "$WORK"/t2/objects/*)")
 printf '%s' "$o" | grep -q "MISSING" && ok "refuses an object snapshot missing a file" || no "accepted a short object snapshot"
-rm -rf "$WORK/t3"; cp -a "$WORK/p2" "$WORK/t3"; echo T > "$(find "$WORK"/t3/minio -type f -path '*release*' | head -1)"
-o=$(rs "$(ls "$WORK"/t3/postgres_*.dump)" "$(ls -d "$WORK"/t3/minio/*)")
+rm -rf "$WORK/t3"; cp -a "$WORK/p2" "$WORK/t3"; echo T > "$(find "$WORK"/t3/objects -type f -path '*release*' | head -1)"
+o=$(rs "$(ls "$WORK"/t3/postgres_*.dump)" "$(ls -d "$WORK"/t3/objects/*)")
 printf '%s' "$o" | grep -q "DIGEST MISMATCH" && ok "refuses an altered object" || no "accepted an altered object"
 rm -rf "$WORK/t4"; cp -a "$WORK/p2" "$WORK/t4"; rm -f "$WORK"/t4/*.manifest.json
-o=$(rs "$(ls "$WORK"/t4/postgres_*.dump)" "$(ls -d "$WORK"/t4/minio/*)")
+o=$(rs "$(ls "$WORK"/t4/postgres_*.dump)" "$(ls -d "$WORK"/t4/objects/*)")
 printf '%s' "$o" | grep -q "no manifest" && ok "refuses a half with no manifest" || no "accepted an unmanifested half"
 chk "the destination database is unchanged by all six refusals" "$(dsql 'select count(*) from artifacts')" "$BEFORE_ROWS"
 chk "the destination bucket is unchanged too" "$(dobj | grep -c .)" "$BEFORE_OBJ"

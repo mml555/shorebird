@@ -67,7 +67,7 @@ not in it is ignored, so the manifest and the uploads must agree.
 - **A real git checkout.** `vendor/flutter` is a history-less snapshot with its
   `.git` removed; gclient, `content_aware_hash.sh` and `update_engine_version.sh`
   all need git. On a farm, clone the pinned revision and pass `--root`.
-- For the object-store publish path: **`mc`** (MinIO client) or `aws` CLI.
+- For the object-store publish path: **`rclone`**.
 - You build on the **target OS family** — macOS for iOS/macOS, Linux for
   Android/Linux, Windows for Windows. No cross-OS engine builds.
 
@@ -115,7 +115,7 @@ selfhost/engine/build.sh --root /path/to/checkout
 selfhost/engine/overlay_publish.sh --hash <expHash> --root /path/to/checkout
 
 # 2b. or publish a full artifact set to an object store
-S3_ENDPOINT=https://minio.yourco.com S3_BUCKET=engine-artifacts \
+S3_ENDPOINT=https://s3.yourco.com S3_BUCKET=engine-artifacts \
   selfhost/engine/publish_to_store.sh <engineHash>
 
 # 3. point the CLI at whichever store (mirror for 2a, object store for 2b)

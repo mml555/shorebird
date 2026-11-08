@@ -10,6 +10,34 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **The object store is no longer MinIO.** MinIO's Community Edition is archived
+  and its images are gone from Docker Hub, so `docker-compose.prod.yaml` now runs
+  SeaweedFS 4.52 (Apache-2.0, pinned by digest) as service `s3`, and the server's
+  own S3 client replaces the unmaintained `package:minio` (SigV4 over `dart:io`,
+  no new dependencies). The store is generic S3: AWS S3, Cloudflare R2, Garage
+  and RustFS work by `S3_ENDPOINT`, and the new `S3_REGION` and `S3_PATH_STYLE`
+  (default `true`). See PRODUCTION.md, "Migrating from MinIO".
+  - **Your `.env` needs no edits.** `S3_ENDPOINT=http://minio:9000` still
+    reaches the new store, and `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` are
+    deprecated aliases of `S3_ACCESS_KEY` / `S3_SECRET_KEY` (the new names win
+    when both are set). The server logs one `WARNING` per alias at startup.
+  - **Action required: copy your artifacts once.** The old bucket is in the
+    `cps_minio` volume in MinIO's format. Before `docker compose up -d` on the
+    new compose file, run `./ops/migrate-minio-to-s3.sh`: it copies the bucket
+    with rclone and verifies every object, and deletes nothing. Without it the
+    new store starts empty and downloads 404.
+  - The MinIO console (port 19001) is gone; SeaweedFS has none.
+  - `ops/backup.sh` and `ops/restore.sh` use a pinned rclone instead of `mc`
+    (`minio/mc` is no longer published). New backups write `objects/<STAMP>/`;
+    `minio/<STAMP>/` backups from before still restore. Both now verify the
+    copy with `rclone check`.
+  - Tested on real instances: SeaweedFS 4.52 and RustFS 1.0.4 each pass the
+    store operations (bucket create, put, HEAD, ranged GET, delete, staging),
+    the full wire-flow smoke test, and a migration from MinIO
+    `RELEASE.2025-10-15T17-29-55Z`. SeaweedFS is the default; RustFS 1.0 is only
+    weeks old and has open data-integrity issues, so it is documented as an
+    alternative.
+
 - `POST /api/v1/patches/events` answers `422` when an event cannot be stored
   even verbatim (for example a NUL character in the body on Postgres), instead
   of `500`. The updater retries a `500` forever, which blocked its queue.

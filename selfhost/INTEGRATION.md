@@ -8,7 +8,7 @@ but every piece is overridable so it coexists with what you already run.
 
 | | Single container (default) | Scale profile |
 |---|---|---|
-| Containers | 1 (the server) | server(s) + Postgres + MinIO/S3 (+ Caddy) |
+| Containers | 1 (the server) | server(s) + Postgres + S3-compatible store (+ Caddy) |
 | Persistence | one `/data` volume (SQLite + artifacts) | your Postgres + object store |
 | External deps | **none** | a database + an S3-compatible store |
 | Good for | most apps, small–mid fleets, on-prem | horizontal scale, existing managed DB |
@@ -114,7 +114,7 @@ Read by `lib/src/config.dart`. Everything has a default; set only what you need.
 | Var | Effect |
 |---|---|
 | `DATABASE_URL` | set → Postgres backend (else embedded SQLite) |
-| `S3_ENDPOINT` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_BUCKET` | set → S3/MinIO artifacts (else local files) |
+| `S3_ENDPOINT` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_BUCKET` | set → S3-compatible artifacts (else local files). Also `S3_REGION`, `S3_PATH_STYLE`; the old `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` are deprecated aliases of `S3_ACCESS_KEY`/`S3_SECRET_KEY` |
 | `DB_BACKEND` / `STORAGE_BACKEND` | force `sqlite`/`postgres` and `file`/`s3` explicitly |
 
 **Identity / login**

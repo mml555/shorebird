@@ -11,11 +11,12 @@
 # Every `put` is existence-guarded, so it publishes exactly what was built.
 #
 # Usage:
-#   S3_ENDPOINT=https://minio.yourco.com S3_BUCKET=engine-artifacts \
+#   S3_ENDPOINT=https://s3.yourco.com S3_BUCKET=engine-artifacts \
 #   S3_ACCESS_KEY=… S3_SECRET_KEY=… \
 #   selfhost/engine/publish_to_store.sh <engineHash>
 #
-# Requires: mc (MinIO client) on PATH.
+# Requires: rclone on PATH (any S3-compatible store works; set S3_REGION and
+# S3_PATH_STYLE=false for AWS S3).
 set -euo pipefail
 
 [[ "$#" -eq 1 ]] || { echo "usage: $0 <engineHash>" >&2; exit 2; }
@@ -32,15 +33,22 @@ GEN_MANIFEST="$FLUTTER_ROOT/shorebird/ci/internal/generate_manifest.sh"
 : "${S3_SECRET_KEY:?set S3_SECRET_KEY}"
 STORAGE_HOST="${STORAGE_HOST:-$S3_BUCKET}"   # written into the manifest's storage_bucket
 
-command -v mc >/dev/null 2>&1 || { echo "ERROR: mc (MinIO client) not on PATH" >&2; exit 1; }
+command -v rclone >/dev/null 2>&1 || { echo "ERROR: rclone not on PATH" >&2; exit 1; }
 
-mc alias set _eng "$S3_ENDPOINT" "$S3_ACCESS_KEY" "$S3_SECRET_KEY" >/dev/null
-DEST="_eng/$S3_BUCKET"
+# The remote is configured from the environment, so no config file is written.
+export RCLONE_CONFIG=/dev/null
+export RCLONE_CONFIG_ENG_TYPE=s3 RCLONE_CONFIG_ENG_PROVIDER=Other
+export RCLONE_CONFIG_ENG_ENDPOINT="$S3_ENDPOINT"
+export RCLONE_CONFIG_ENG_ACCESS_KEY_ID="$S3_ACCESS_KEY"
+export RCLONE_CONFIG_ENG_SECRET_ACCESS_KEY="$S3_SECRET_KEY"
+export RCLONE_CONFIG_ENG_REGION="${S3_REGION:-us-east-1}"
+export RCLONE_CONFIG_ENG_FORCE_PATH_STYLE="${S3_PATH_STYLE:-true}"
+DEST="ENG:$S3_BUCKET"
 INFRA="flutter_infra_release/flutter/$ENGINE_HASH"    # dart-sdk, gen_snapshot, frameworks
 SB="shorebird/$ENGINE_HASH"                            # patch tools + manifest
 
 put() {  # put <localfile> <destkey>
-  if [[ -f "$1" ]]; then echo "  + $2"; mc cp -q "$1" "$DEST/$2" >/dev/null
+  if [[ -f "$1" ]]; then echo "  + $2"; rclone copyto "$1" "$DEST/$2" >/dev/null
   else echo "  - skip (not built): $1" >&2; fi
 }
 zipdir() { ( cd "$1" && zip -qr "$2" "$3" ); }   # zip <dir> <out.zip> <subdir>

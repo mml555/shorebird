@@ -644,7 +644,13 @@ words:
   - codesigning
   - columnized
   - comde
-  - createbuckets # MinIO bucket-init service in docker-compose.prod.yaml
+  - chrislusf # SeaweedFS's Docker Hub namespace
+  - seaweedfs # the object store in docker-compose.prod.yaml
+  - rustfs # tested alternative object store
+  - contimeout # rclone connect-timeout flag
+  - copyto # rclone subcommand
+  - lsjson # rclone subcommand
+  - AKIAIOSFODNN # AWS's published SigV4 example access key
   - creds
   - CURLF
   - cutover

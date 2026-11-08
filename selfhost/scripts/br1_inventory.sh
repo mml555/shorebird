@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words minio Atc tablename schemaname objkey OBJF PGDB PGUSER nobj
+# cspell:words Atc tablename schemaname objkey OBJF PGDB PGUSER nobj
 # BACKUP-RESTORE-1: bank a machine-readable inventory of a control plane's
 # durable state, so "restored correctly" is a diff and not an impression.
 #
@@ -161,20 +161,19 @@ dump_cols invitations             token="token" email="email" role="coalesce(rol
 
 # --- objects: the half a DB-only backup silently loses
 case "${STORE:-}" in
-minio)
-  # `mc` is not on the host; it ships inside the MinIO image. MC_SH must be an
-  # executable taking one argument: a shell command to run with `mc` on PATH
-  # and the alias configured.
-  MC_SH=${MC_SH:?set MC_SH}
-  listing=$("$MC_SH" "mc ls --recursive --json ${MC_ALIAS:?}/${S3_BUCKET:?}" 2>/dev/null \
+s3|minio)
+  # (`minio` is the old spelling of this STORE value.) `rclone` is not on the
+  # host; it ships in the compose file's `rclone` service. RCLONE_SH must be an
+  # executable taking one argument: a shell command to run with `rclone` on PATH
+  # and the remote `store` configured (see ur1_certify.sh).
+  RCLONE_SH=${RCLONE_SH:?set RCLONE_SH}
+  listing=$("$RCLONE_SH" "rclone lsjson --recursive --files-only store:${S3_BUCKET:?}" 2>/dev/null \
     | python3 -c '
 import json,sys
-for l in sys.stdin:
-    l=l.strip()
-    if not l: continue
-    try: d=json.loads(l)
-    except Exception: continue
-    if d.get("key"): print(d["key"], d.get("size",""))
+try: items=json.load(sys.stdin)
+except Exception: items=[]
+for d in items:
+    if d.get("Path"): print(d["Path"], d.get("Size",""))
 ' | sort)
   if [[ -z "$listing" ]]; then
     echo "objkey NONE" >> "$OUT"
@@ -184,7 +183,7 @@ for l in sys.stdin:
     keys=(); sizes=()
     while IFS=' ' read -r k s; do keys+=("$k"); sizes+=("$s"); done <<< "$listing"
     for i in "${!keys[@]}"; do
-      h=$("$MC_SH" "mc cat ${MC_ALIAS}/${S3_BUCKET}/${keys[$i]}" 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+      h=$("$RCLONE_SH" "rclone cat \"store:${S3_BUCKET}/${keys[$i]}\"" 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
       printf 'objkey %s %s %s\n' "${keys[$i]}" "${sizes[$i]}" "$h" >> "$OUT"
     done
   fi

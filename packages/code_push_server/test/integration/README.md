@@ -2,7 +2,7 @@
 
 The unit tests under `test/` run with no external dependencies and are what
 CI executes via `dart test`. The **integration** flow exercises the full HTTP
-server against a live Postgres + S3 (MinIO) stack, and is therefore **opt-in**:
+server against a live Postgres + S3-compatible store (SeaweedFS) stack, and is therefore **opt-in**:
 it is skipped unless you explicitly enable it.
 
 ## What it covers
@@ -31,7 +31,7 @@ are set, so `dart test` stays green in CI without a live stack.
 | ----------------- | ---------------------------------------------------- | ----------------------------------------- |
 | `INTEGRATION`     | Opt-in switch; must be `1` to run                    | `1`                                       |
 | `DATABASE_URL`    | Postgres connection string                           | `postgres://cps:cps@localhost:5432/cps`   |
-| `S3_ENDPOINT`     | S3 / MinIO endpoint                                  | `http://localhost:19000`                  |
+| `S3_ENDPOINT`     | S3-compatible endpoint                               | `http://localhost:19000`                  |
 | `BASE_URL`        | Base URL of the running server (a.k.a. `BASE` below) | `http://localhost:8080`                   |
 | `API_KEY`         | Bearer API key the server accepts                    | the value in your `.env`                  |
 
@@ -59,11 +59,17 @@ to `cps` / `cps-secret` / `code-push-artifacts`.
    export URL_SIGNING_SECRET="$(openssl rand -hex 32)"
    ```
 
-2. Bring up Postgres + MinIO (see `docker-compose.yaml`):
+2. Bring up Postgres + an S3 store (see `docker-compose.prod.yaml`, services
+   `postgres` and `s3`):
 
    ```bash
-   docker compose up -d
+   docker compose -f docker-compose.prod.yaml up -d postgres s3
    ```
+
+   `test/integration/s3_store_test.dart` runs every operation the server issues
+   (bucket create, put, HEAD, ranged GET, delete, resumable staging) against any
+   S3-compatible endpoint: set `INTEGRATION=1`, `S3_ENDPOINT`, `S3_ACCESS_KEY`,
+   `S3_SECRET_KEY` and run it with `dart test --tags integration`.
 
 3. Start the server (skip if `setup.sh` already started the stack):
 

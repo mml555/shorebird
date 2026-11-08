@@ -23,7 +23,7 @@ version-pinned**, and adds a drop-in server they talk to instead:
   self-hosted control plane. One command (`./setup.sh`) brings up releases,
   patches, channels, partial rollouts, multi-tenancy, IdP login, analytics, and
   ops on your own infra. Runs single-container (SQLite + local disk) by default,
-  or Postgres + S3/MinIO for scale.
+  or Postgres + an S3-compatible store (SeaweedFS in compose) for scale.
 - **[`selfhost/`](selfhost/README.md)** — the self-host documentation set:
   architecture, API reference, integration guide, iOS code signing, and the
   go-live runbook.
@@ -93,7 +93,7 @@ workspace member — so run its tests from its own directory:
 cd packages/code_push_server && dart test -x integration
 ```
 
-`-x integration` skips the tests that need a live Postgres/MinIO.
+`-x integration` skips the tests that need a live Postgres/an S3 store.
 
 To generate a coverage report, install `lcov` and `very_good_cli`:
 
