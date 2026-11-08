@@ -65,8 +65,24 @@ jobs:
           fetch-depth: 0
       - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
       - run: dart pub global activate shorebird_ci 0.3.0
+      # `verify --ignore` (by package name) is shorebird_ci's only exclusion
+      # mechanism. Each group below is covered somewhere else, or not CI's:
+      #  - selfhost/fixtures/* apps (airgap_probe, dynamic_modules, and the
+      #    *_probe / *_app names): throwaway Flutter apps that the self-host
+      #    e2e builds and runs against a real engine. They have no unit tests
+      #    of their own.
+      #  - shorebird_code_push, shorebird_code_push_example: vendor/updater is
+      #    a vendored upstream tree, checked by the updater_rust job in
+      #    main.yaml (cargo), not as Dart packages.
+      #  - code_push_server: standalone package with its own workflow,
+      #    code_push_server.yaml.
+      #  - artifact_proxy, code_push_runtime: selfhost packages with no job
+      #    here yet. code_push_runtime is a Flutter package outside the Dart
+      #    workspace (own pubspec.lock). Adding jobs for them is follow-up work.
       - name: Verify CI coverage
-        run: shorebird_ci verify
+        run: >-
+          shorebird_ci verify --ignore
+          airgap_probe,android_signing_app,artifact_proxy,code_push_runtime,code_push_server,dynamic_modules,first_activation_probe,flavored_probe,injected_define_probe,killswitch_probe,manual_api_app,privatestate_probe,shorebird_code_push,shorebird_code_push_example,sign_probe_app,trackprobe_app,twoengine_probe
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
