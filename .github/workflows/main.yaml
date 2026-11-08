@@ -81,7 +81,11 @@ jobs:
     if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     steps:
       - name: 📚 Git Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # npx pulls cspell's dependency tree unpinned on the home runner;
+          # leave it no token to find.
+          persist-credentials: false
 
       - name: 🪄 Spell Check (declared full-tree scope)
         run: npx --yes cspell@10.4.0 --dot --no-progress --no-summary selfhost packages/code_push_server/lib

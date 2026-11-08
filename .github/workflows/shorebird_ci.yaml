@@ -215,11 +215,15 @@ jobs:
       runners: '["macos-latest", "windows-latest", "ubuntu-latest"]'
       # Coverage is checked on the Linux leg only. These files' tests are
       # testOn: 'mac-os' (upstream too), so on Linux every line counts as
-      # missed. The fork grew them by ~436 lines, which pulled the Linux
-      # figure to 92.06%. They are measured out here, and the minimum is
-      # raised to the fork's figure on this basis (96.14%; upstream 97.17%),
-      # so the gate does not loosen. Nothing gates these files' coverage
-      # until a macOS leg checks it.
+      # missed. The fork grew them by ~436 coverable lines, which pulled the
+      # Linux figure to 92.06%. They are measured out here, and the minimum
+      # is raised to the fork's figure on this basis (96.14%; upstream
+      # 97.17%), so the gate does not loosen for the rest of the package.
+      # NOTHING gates these files' coverage: _shorebird_ci_dart.yaml checks
+      # coverage on ubuntu-latest only, and pull requests run only that leg,
+      # so their mac-os tests run only on push to main with HOSTED_RUNNERS.
+      # Fork logic in them with no real macOS dependency belongs in a file
+      # whose tests run on Linux.
       coverage_excludes: >-
         **/lib/src/commands/patch/ios_patcher.dart
         **/lib/src/commands/patch/macos_patcher.dart
