@@ -204,11 +204,19 @@ jobs:
     # so a superseded push would report ci red on the stale commit. A
     # skipped required check reports success, which is the right answer
     # for a run nothing is waiting on.
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
+    if: ${{ !cancelled() }}
 
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    # Always the home runner, and no checkout: this job only reads needs, so
+    # it also runs for a fork pull request, to say that no CI ran.
+    runs-on: ${{ fromJSON('["self-hosted","linux","x64","shorebird"]') }}
 
     steps:
+      - name: Refuse an outside pull request
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && vars.HOSTED_RUNNERS != 'true' }}
+        run: |
+          echo "::error::Outside PR: CI did not run (no hosted runners). A maintainer must review the diff, including .github/, and run CI manually."
+          exit 1
+
       - name: ⛔️ exit(1) on failure or cancellation
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: exit 1

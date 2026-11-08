@@ -199,7 +199,10 @@ edits the tool doesn't make for you:
   runner behind that repository variable: unless it is `true`, macOS and
   Windows legs drop out of the matrix and pull requests from forks skip
   instead of queueing on `ubuntu-latest` (skipped jobs count as passed in
-  the `required` job). Turn hosted runners back on with
+  the `required` job). With both flags `required` itself always runs on the
+  `--linux-runner` labels (it checks out nothing) and fails, with a message
+  saying so, for a fork pull request that no CI ran for, so such a pull
+  request never shows green. Turn hosted runners back on with
   `gh variable set HOSTED_RUNNERS --body true`.
 - **Non-Codecov secrets.** Only the Codecov token has first-class flag
   support. Anything else (private pub registries, integration-test

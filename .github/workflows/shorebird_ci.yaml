@@ -251,7 +251,7 @@ jobs:
 
   required:
     name: required
-    if: ${{ !cancelled() && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) || vars.HOSTED_RUNNERS == 'true') }}
+    if: ${{ !cancelled() }}
     needs:
       - changes
       - dex
@@ -264,8 +264,13 @@ jobs:
       - shorebird_redis_client
       - verify_cache
       - cspell
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON('["self-hosted","linux","x64","shorebird"]') }}
     steps:
+      - name: Refuse an outside pull request
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && vars.HOSTED_RUNNERS != 'true' }}
+        run: |
+          echo "::error::Outside PR: CI did not run (no hosted runners). A maintainer must review the diff, including .github/, and run CI manually."
+          exit 1
       - name: Check required jobs
         run: |
           if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then

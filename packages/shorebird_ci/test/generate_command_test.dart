@@ -458,15 +458,26 @@ void main() {
             "'ubuntu-latest' }}",
           ),
         );
-        // The aggregator keeps reporting: it runs at home, and a skipped
-        // leg is not a failure.
+        // The aggregator runs at home for every event, checks nothing out,
+        // and fails a fork pull request that no job ran for.
+        final required = main.substring(main.indexOf('  required:'));
+        expect(required, contains(r'    if: ${{ !cancelled() }}'));
         expect(
-          main,
+          required,
           contains(
-            r'if: ${{ !cancelled() && '
-            "($trusted || vars.HOSTED_RUNNERS == 'true') }}",
+            r"""runs-on: ${{ fromJSON('["self-hosted","linux","x64"]') }}""",
           ),
         );
+        expect(required, isNot(contains('checkout')));
+        expect(required, contains('Refuse an outside pull request'));
+        expect(
+          required,
+          contains(
+            'github.event.pull_request.head.repo.full_name != '
+            "github.repository && vars.HOSTED_RUNNERS != 'true'",
+          ),
+        );
+        expect(required, contains('Outside PR: CI did not run'));
       });
 
       test('without --linux-runner the variable gates every job', () async {

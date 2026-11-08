@@ -1483,7 +1483,12 @@ ${repository.hasSubmodules ? '          submodules: recursive\n' : ''}          
     String? linuxRunner,
     String? hostedVar,
   }) {
-    final gate = _gateExpression(linuxRunner, hostedVar);
+    // With both flags the aggregator runs on the home runner for every event
+    // (it checks out nothing, only reads `needs`) and fails, loudly, for a
+    // fork pull request that no job ran for. Otherwise a skipped aggregator
+    // would report green with no CI behind it.
+    final alwaysRuns = linuxRunner != null && hostedVar != null;
+    final gate = alwaysRuns ? null : _gateExpression(linuxRunner, hostedVar);
     buffer
       ..writeln('  required:')
       ..writeln('    name: required')
@@ -1497,9 +1502,23 @@ ${repository.hasSubmodules ? '          submodules: recursive\n' : ''}          
       buffer.writeln('      - $need');
     }
     buffer
-      ..writeln(_simpleRunsOnLine(linuxRunner))
+      ..writeln(
+        alwaysRuns
+            ? "    runs-on: \${{ fromJSON('$linuxRunner') }}"
+            : _simpleRunsOnLine(linuxRunner),
+      )
+      ..writeln('    steps:');
+    if (alwaysRuns) {
+      buffer.write('''
+      - name: Refuse an outside pull request
+        if: \${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && vars.$hostedVar != 'true' }}
+        run: |
+          echo "::error::$_outsidePrMessage"
+          exit 1
+''');
+    }
+    buffer
       ..write(r'''
-    steps:
       - name: Check required jobs
         run: |
           if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
@@ -1511,6 +1530,11 @@ ${repository.hasSubmodules ? '          submodules: recursive\n' : ''}          
       ..writeln();
   }
 }
+
+/// What the aggregator says when a fork pull request got no CI.
+const _outsidePrMessage =
+    'Outside PR: CI did not run (no hosted runners). A maintainer must '
+    'review the diff, including .github/, and run CI manually.';
 
 /// The bloc_tools release `bloc lint` runs from. Only the package itself
 /// is pinned: pub resolves its dependencies (bloc_lint among them) fresh
