@@ -89,9 +89,27 @@ if [[ ${GHA_DRY_RUN:-0} == 1 ]]; then
   exit 0
 fi
 [[ -s $GHA_TOKEN_FILE ]] || { echo "no PAT at $GHA_TOKEN_FILE" >&2; exit 5; }
+# Back off across restarts. systemd restarts a failed start 3 s later, so a
+# per-start retry loop alone hammers the API from every runner at once: on
+# 2026-11-08 five runners retrying every few seconds kept the account's
+# secondary rate limit tripped, which blocked their own registration. Count
+# consecutive failures in /run and wait 1, 2, 4, 8, then 15 minutes (capped)
+# before the next attempt; a success resets the count.
+fail_dir=/run/gha-prep
+fail_file=$fail_dir/$user.failures
+mkdir -p "$fail_dir"
+failures=$(cat "$fail_file" 2>/dev/null || echo 0)
+[[ $failures =~ ^[0-9]+$ ]] || failures=0
+if (( failures > 0 )); then
+  delay=$(( 60 << (failures > 4 ? 4 : failures - 1) ))
+  (( delay > 900 )) && delay=900
+  echo "gha-prep: $failures failed registration(s) in a row; waiting ${delay}s before asking GitHub again" >&2
+  sleep "$delay"
+fi
+
 # The PAT goes to curl on stdin (-H @-), never on a command line.
 reg=
-for attempt in 1 2 3 4 5; do
+for attempt in 1 2 3; do
   # No -f: on an HTTP error GitHub's JSON body says why ("Bad credentials", "Resource not
   # accessible by personal access token", a rate limit ...); log that message, never the token.
   resp=$(printf 'Authorization: Bearer %s\n' "$(< "$GHA_TOKEN_FILE")" | curl -sS --max-time 30 -X POST \
@@ -99,10 +117,18 @@ for attempt in 1 2 3 4 5; do
     "https://api.github.com/repos/$GHA_REPO/actions/runners/registration-token") || resp=
   reg=$(jq -er .token <<<"$resp" 2>/dev/null) && break
   reg=
-  echo "gha-prep: registration token request failed (attempt $attempt): $(jq -r '.message // "no JSON answer"' <<<"$resp" 2>/dev/null || echo "no JSON answer")" >&2
-  sleep $((attempt * 3))
+  msg=$(jq -r '.message // "no JSON answer"' <<<"$resp" 2>/dev/null || echo "no JSON answer")
+  echo "gha-prep: registration token request failed (attempt $attempt): $msg" >&2
+  # Retrying a rate limit sooner only keeps it tripped; leave it to the backoff.
+  [[ $msg == *"rate limit"* ]] && break
+  sleep $((attempt * 5))
 done
-[[ -n $reg ]] || { echo "could not mint a registration token for $GHA_REPO" >&2; exit 6; }
+if [[ -z $reg ]]; then
+  echo $((failures + 1)) > "$fail_file"
+  echo "could not mint a registration token for $GHA_REPO" >&2
+  exit 6
+fi
+rm -f "$fail_file"
 
 # The token travels in the environment (ACTIONS_RUNNER_INPUT_TOKEN), not argv.
 # shellcheck source=/dev/null
