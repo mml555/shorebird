@@ -6,7 +6,7 @@ All notable changes to `code_push_server` are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 1.4.0 — 2026-11-08
 
 ### Changed
 
@@ -80,10 +80,6 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `GET /cli/login-result`: the page the 1.6.138 CLI sends the browser to after
   a loopback login.
 
-## 1.4.0 — 2026-11-06
-
-### Added
-
 - **Upstream 1.6.138 CLI support.** The 1.6.138 CLI could not talk to this
   server: it casts `platforms` on every release as non-null, calls
   `GET /apps/{app}` and `GET /apps/{app}/signing-key`, and logs in with a
@@ -114,8 +110,6 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     login with no `code_challenge`, as an older CLI sends, redeems without a
     verifier; `redirect_uri` requires one (see Unreleased).
     `POST /revoke` (RFC 7009) backs `shorebird logout`.
-
-### Added
 
 - **Upstream 1.6.123 `apps rename`, `apps transfer` and `channels delete`.**
   `PATCH /api/v1/apps/{app}`, `POST /api/v1/organizations/{org}/apps` and

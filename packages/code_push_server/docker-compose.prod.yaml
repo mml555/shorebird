@@ -27,7 +27,7 @@ services:
     #   build:
     #     context: .
     #     dockerfile: Dockerfile
-    image: ${CPS_IMAGE:-ghcr.io/mml555/code-push-server:1.3.0}
+    image: ${CPS_IMAGE:-ghcr.io/mml555/code-push-server:1.4.0}
     restart: unless-stopped
     env_file:
       - .env
