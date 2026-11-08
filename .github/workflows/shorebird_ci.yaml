@@ -42,7 +42,8 @@ permissions:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) || vars.HOSTED_RUNNERS == 'true' }}
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     permissions:
       contents: read
       # dorny/paths-filter lists a pull request's changed files through the API.
@@ -236,7 +237,8 @@ jobs:
 
   cspell:
     name: CSpell
-    runs-on: ubuntu-latest
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) || vars.HOSTED_RUNNERS == 'true' }}
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     # npx installs cspell's dependencies unpinned, so the job gets a
     # read-only token and checkout doesn't leave it in .git/config.
     permissions:
@@ -249,7 +251,7 @@ jobs:
 
   required:
     name: required
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) || vars.HOSTED_RUNNERS == 'true') }}
     needs:
       - changes
       - dex
@@ -262,7 +264,7 @@ jobs:
       - shorebird_redis_client
       - verify_cache
       - cspell
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     steps:
       - name: Check required jobs
         run: |

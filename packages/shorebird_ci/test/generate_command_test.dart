@@ -403,6 +403,140 @@ void main() {
       expect(code, 64);
     });
 
+    group('--hosted-runners-var', () {
+      String readWorkflow(String name) => File(
+        p.join(tempDir.path, '.github', 'workflows', name),
+      ).readAsStringSync();
+
+      const trusted =
+          "(github.event_name != 'pull_request' || "
+          'github.event.pull_request.head.repo.full_name == '
+          'github.repository)';
+
+      test('gates hosted legs and untrusted pull requests', () async {
+        createPackage(tempDir, 'packages/foo', 'foo');
+        initGitRepo(tempDir);
+
+        await runGenerate(
+          tempDir,
+          extra: [
+            '--style',
+            'static',
+            '--required',
+            '--linux-runner',
+            '["self-hosted","linux","x64"]',
+            '--hosted-runners-var',
+            'HOSTED_RUNNERS',
+          ],
+        );
+
+        final reusable = readWorkflow('_shorebird_ci_dart.yaml');
+        expect(
+          reusable,
+          contains(
+            r'if: ${{ '
+            "$trusted || vars.HOSTED_RUNNERS == 'true' }}",
+          ),
+        );
+        expect(
+          reusable,
+          contains(
+            r'os: ${{ fromJSON(github.event_name == '
+            """'pull_request' && '["ubuntu-latest"]' || """
+            "(vars.HOSTED_RUNNERS == 'true' && inputs.runners || "
+            """'["ubuntu-latest"]')) }}""",
+          ),
+        );
+
+        final main = _readMain(tempDir);
+        expect(
+          main,
+          contains(
+            "if: \${{ $trusted || vars.HOSTED_RUNNERS == 'true' }}\n"
+            '    runs-on: \${{ $trusted && '
+            """fromJSON('["self-hosted","linux","x64"]') || """
+            "'ubuntu-latest' }}",
+          ),
+        );
+        // The aggregator keeps reporting: it runs at home, and a skipped
+        // leg is not a failure.
+        expect(
+          main,
+          contains(
+            r'if: ${{ !cancelled() && '
+            "($trusted || vars.HOSTED_RUNNERS == 'true') }}",
+          ),
+        );
+      });
+
+      test('without --linux-runner the variable gates every job', () async {
+        createPackage(tempDir, 'packages/foo', 'foo');
+        initGitRepo(tempDir);
+
+        await runGenerate(
+          tempDir,
+          extra: ['--style', 'static', '--hosted-runners-var', 'HOSTED'],
+        );
+
+        expect(
+          readWorkflow('_shorebird_ci_dart.yaml'),
+          contains(r"if: ${{ vars.HOSTED == 'true' }}"),
+        );
+        expect(
+          _readMain(tempDir),
+          contains(
+            "    if: \${{ vars.HOSTED == 'true' }}\n"
+            '    runs-on: ubuntu-latest',
+          ),
+        );
+      });
+
+      test('is absent by default', () async {
+        createPackage(tempDir, 'packages/foo', 'foo');
+        initGitRepo(tempDir);
+
+        await runGenerate(tempDir, extra: ['--style', 'static']);
+
+        expect(
+          readWorkflow('_shorebird_ci_dart.yaml'),
+          isNot(contains('vars.')),
+        );
+      });
+
+      test('rejects what is not a variable name', () async {
+        createPackage(tempDir, 'packages/foo', 'foo');
+        initGitRepo(tempDir);
+
+        final code = await runGenerate(
+          tempDir,
+          extra: ['--style', 'static', '--hosted-runners-var', 'a b'],
+        );
+
+        expect(code, 64);
+      });
+    });
+
+    test('needs_redis starts Redis on a free port and stops it', () async {
+      createPackage(tempDir, 'packages/foo', 'foo');
+      File(
+        p.join(tempDir.path, 'packages', 'foo', 'pubspec.yaml'),
+      ).writeAsStringSync(
+        'shorebird_ci:\n  needs_redis: true\n',
+        mode: FileMode.append,
+      );
+      initGitRepo(tempDir);
+
+      await runGenerate(tempDir, extra: ['--style', 'static']);
+
+      final content = File(
+        p.join(tempDir.path, '.github', 'workflows', '_shorebird_ci_dart.yaml'),
+      ).readAsStringSync();
+      expect(content, contains('-p 127.0.0.1::6379'));
+      expect(content, contains('echo "REDIS_PORT='));
+      expect(content, isNot(contains('6379:6379')));
+      expect(content, contains(r'docker rm -f "$REDIS_CONTAINER"'));
+    });
+
     test('without --linux-runner every leg runs on matrix.os', () async {
       createPackage(tempDir, 'packages/foo', 'foo');
       initGitRepo(tempDir);

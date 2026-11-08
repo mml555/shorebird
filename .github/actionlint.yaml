@@ -1,6 +1,8 @@
 # Configuration for actionlint, which the ci workflow's "Lint Workflows" job
 # runs over .github/workflows/.
 self-hosted-runner:
-  # Namespace (namespace.so) runner labels used by our workflows.
+  # Namespace (namespace.so) runner labels used by our workflows, and the
+  # custom label of the home runners (ci-build).
   labels:
     - nscloud-windows-2022-amd64-8x16
+    - shorebird

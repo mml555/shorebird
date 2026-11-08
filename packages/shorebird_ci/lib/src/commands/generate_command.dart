@@ -88,11 +88,24 @@ or matrix strategies.''',
         'linux-runner',
         help: '''
 JSON array of runner labels for the `ubuntu-latest` leg of --style
-static's reusable workflows, e.g. '["self-hosted","linux","x64"]'.
+static's reusable workflows and for the main workflow's own jobs, e.g. '["self-hosted","linux","x64"]'.
 The leg only moves for trusted events: a pull request from a fork
 keeps `ubuntu-latest`, so outside contributors' code never runs on
 your own hardware. Unset (the default), every leg runs on the label
 the matrix names.''',
+      )
+      ..addOption(
+        'hosted-runners-var',
+        help: '''
+Name of a repository variable that gates every GitHub-hosted runner
+of --style static, e.g. HOSTED_RUNNERS. Unless the variable is `true`,
+the generated jobs skip rather than queue: the macOS and Windows legs of
+a `runners:` list drop out of the matrix, and a pull request from a
+fork (which --linux-runner keeps off your hardware) skips instead of
+falling back to `ubuntu-latest`. Skipped jobs count as passed in the
+`required` aggregator. Without --linux-runner, the variable gates every
+job. Set it with `gh variable set NAME --body true` once hosted runners
+are available again.''',
       )
       ..addFlag(
         'fatal-infos',
@@ -124,6 +137,14 @@ the matrix names.''',
     if (linuxRunner != null && !_isJsonStringArray(linuxRunner)) {
       stderr.writeln(
         '--linux-runner must be a JSON array of labels, got: $linuxRunner',
+      );
+      return 64;
+    }
+
+    final hostedVar = argResults!['hosted-runners-var'] as String?;
+    if (hostedVar != null && !RegExp(r'^[A-Za-z_]\w*$').hasMatch(hostedVar)) {
+      stderr.writeln(
+        '--hosted-runners-var must be a variable name, got: $hostedVar',
       );
       return 64;
     }
@@ -200,6 +221,7 @@ the matrix names.''',
             emitRequiredJob: emitRequiredJob,
             fatalInfos: fatalInfos,
             linuxRunner: linuxRunner,
+            hostedVar: hostedVar,
             packages: sortedPackages,
             slugs: slugs!,
           )
@@ -364,6 +386,7 @@ updates:
     required bool emitRequiredJob,
     required bool fatalInfos,
     required String? linuxRunner,
+    required String? hostedVar,
     required List<PackageDescription> packages,
     required Map<PackageDescription, String> slugs,
   }) {
@@ -380,6 +403,8 @@ updates:
         packages: packages,
         codecovTokenSecret: codecovTokenSecret,
         emitRequiredJob: emitRequiredJob,
+        linuxRunner: linuxRunner,
+        hostedVar: hostedVar,
         slugs: slugs,
       ),
     };
@@ -392,6 +417,7 @@ updates:
             hasSubmodules: repository.hasSubmodules,
             fatalInfos: fatalInfos,
             linuxRunner: linuxRunner,
+            hostedVar: hostedVar,
             codecovTokenSecret: codecovTokenSecret,
           );
     }
@@ -403,6 +429,7 @@ updates:
             hasSubmodules: repository.hasSubmodules,
             fatalInfos: fatalInfos,
             linuxRunner: linuxRunner,
+            hostedVar: hostedVar,
             codecovTokenSecret: codecovTokenSecret,
           );
     }
@@ -414,6 +441,8 @@ updates:
     required List<PackageDescription> packages,
     required String? codecovTokenSecret,
     required bool emitRequiredJob,
+    required String? linuxRunner,
+    required String? hostedVar,
     required Map<PackageDescription, String> slugs,
   }) {
     final emitSecretsInherit =
@@ -445,7 +474,7 @@ on:
 $_readOnlyPermissionsBlock
 jobs:
   changes:
-    runs-on: ubuntu-latest
+${_jobHeader(linuxRunner, hostedVar)}
     permissions:
       contents: read
       # dorny/paths-filter lists a pull request's changed files through the API.
@@ -582,7 +611,12 @@ ${repository.hasSubmodules ? '          submodules: recursive\n' : ''}          
     }
 
     if (repository.cspellConfig != null) {
-      _writeCspellJob(buffer, repository);
+      _writeCspellJob(
+        buffer,
+        repository,
+        linuxRunner: linuxRunner,
+        hostedVar: hostedVar,
+      );
     }
 
     if (emitRequiredJob) {
@@ -591,11 +625,22 @@ ${repository.hasSubmodules ? '          submodules: recursive\n' : ''}          
         for (final package in packages) slugs[package]!,
         if (repository.cspellConfig != null) 'cspell',
       ];
-      _writeRequiredJob(buffer, needs);
+      _writeRequiredJob(
+        buffer,
+        needs,
+        linuxRunner: linuxRunner,
+        hostedVar: hostedVar,
+      );
     }
 
     return buffer.toString();
   }
+
+  /// The event is trusted: not a pull request, or one from this repo. A pull
+  /// request from a fork must never run on hardware the repo owner controls.
+  static const _trusted =
+      "(github.event_name != 'pull_request' || "
+      'github.event.pull_request.head.repo.full_name == github.repository)';
 
   /// The `runs-on:` line of a reusable workflow's `ci` job.
   ///
@@ -608,7 +653,52 @@ ${repository.hasSubmodules ? '          submodules: recursive\n' : ''}          
     return '''
     # Self-hosted runners are only for trusted events. A pull request from
     # a fork must never run on hardware the repo owner controls.
-    runs-on: \${{ matrix.os == 'ubuntu-latest' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('$linuxRunner') || matrix.os }}''';
+    runs-on: \${{ matrix.os == 'ubuntu-latest' && $_trusted && fromJSON('$linuxRunner') || matrix.os }}''';
+  }
+
+  /// The `runs-on:` line of a job that is not a matrix leg.
+  String _simpleRunsOnLine(String? linuxRunner) {
+    if (linuxRunner == null) return '    runs-on: ubuntu-latest';
+    return "    runs-on: \${{ $_trusted && fromJSON('$linuxRunner') || "
+        "'ubuntu-latest' }}";
+  }
+
+  /// The condition under which a job may run when [hostedVar] gates the
+  /// GitHub-hosted runners, or null when nothing is gated.
+  ///
+  /// With [linuxRunner] a trusted event runs on those labels regardless of
+  /// the variable; anything else needs a hosted runner, so needs the
+  /// variable. Without it every job is hosted.
+  String? _gateExpression(String? linuxRunner, String? hostedVar) {
+    if (hostedVar == null) return null;
+    final enabled = "vars.$hostedVar == 'true'";
+    return linuxRunner == null ? enabled : '$_trusted || $enabled';
+  }
+
+  /// A job's `if:` line (or nothing) followed by its `runs-on:` line.
+  String _jobHeader(String? linuxRunner, String? hostedVar) {
+    final gate = _gateExpression(linuxRunner, hostedVar);
+    return '${gate == null ? '' : '    if: \${{ $gate }}\n'}'
+        '${_simpleRunsOnLine(linuxRunner)}';
+  }
+
+  /// The `os:` matrix line of a reusable workflow's `ci` job.
+  ///
+  /// A pull request only runs `ubuntu-latest`. Otherwise [hostedVar], when
+  /// set, must be `true` for the caller's `runners` list to apply.
+  String _matrixOsLine(String? hostedVar) {
+    const pr = """github.event_name == 'pull_request' && '["ubuntu-latest"]'""";
+    const linuxOnly = """'["ubuntu-latest"]'""";
+    final runners = hostedVar == null
+        ? 'inputs.runners'
+        : "(vars.$hostedVar == 'true' && inputs.runners || $linuxOnly)";
+    return '        os: \${{ fromJSON($pr || $runners) }}';
+  }
+
+  /// The `if:` line of a reusable workflow's `ci` job (or nothing).
+  String _ciJobGateLine(String? linuxRunner, String? hostedVar) {
+    final gate = _gateExpression(linuxRunner, hostedVar);
+    return gate == null ? '' : '    if: \${{ $gate }}\n';
   }
 
   static bool _isJsonStringArray(String value) {
@@ -629,6 +719,7 @@ ${repository.hasSubmodules ? '          submodules: recursive\n' : ''}          
     required bool hasSubmodules,
     required bool fatalInfos,
     required String? linuxRunner,
+    required String? hostedVar,
     required String? codecovTokenSecret,
   }) {
     final analyzeFlag = fatalInfos ? '--fatal-infos' : '--fatal-warnings';
@@ -694,10 +785,10 @@ ${hasRedis ? _staticRedisInput : ''}      runners:
 $_readOnlyPermissionsBlock
 jobs:
   ci:
-    strategy:
+${_ciJobGateLine(linuxRunner, hostedVar)}    strategy:
       fail-fast: false
       matrix:
-        os: \${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || inputs.runners) }}
+${_matrixOsLine(hostedVar)}
 ${_runsOnLine(linuxRunner)}
     defaults:
       run:
@@ -776,7 +867,7 @@ ${hasBlocLint ? _staticBlocLintStep : ''}      - name: Run Tests
         run: |
           dart pub global activate shorebird_ci $packageVersion
           shorebird_ci check_coverage coverage/lcov.info --min "\$MIN_COVERAGE" --exclude "\$EXCLUDES"
-$codecovStep''';
+$codecovStep${hasRedis ? _staticRedisStopStep : ''}''';
   }
 
   String _buildFlutterReusableWorkflow({
@@ -785,6 +876,7 @@ $codecovStep''';
     required bool hasSubmodules,
     required bool fatalInfos,
     required String? linuxRunner,
+    required String? hostedVar,
     required String? codecovTokenSecret,
   }) {
     final analyzeCmd = fatalInfos
@@ -856,10 +948,10 @@ ${hasBlocLint ? _staticBlocLintInput : ''}      has_integration_tests:
 $_readOnlyPermissionsBlock
 jobs:
   ci:
-    strategy:
+${_ciJobGateLine(linuxRunner, hostedVar)}    strategy:
       fail-fast: false
       matrix:
-        os: \${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || inputs.runners) }}
+${_matrixOsLine(hostedVar)}
 ${_runsOnLine(linuxRunner)}
     defaults:
       run:
@@ -966,12 +1058,26 @@ $codecovStep      - name: Integration Tests
         type: boolean
 ''';
 
-  static const _staticRedisStep = '''
+  // Docker picks the host port (bound to loopback), so two jobs on a shared
+  // runner host never collide on 6379. Tests read it from REDIS_PORT.
+  static const _staticRedisStep = r'''
       - name: 🐳 Run Redis
         if: inputs.needs_redis
         run: |
           docker pull redis/redis-stack-server:latest
-          docker run --name test_redis -d -p 6379:6379 --rm -e REDIS_ARGS="--requirepass password" redis/redis-stack-server:latest
+          name="redis-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.package_name }}-${{ strategy.job-index }}"
+          docker run --name "$name" -d -p 127.0.0.1::6379 --rm -e REDIS_ARGS="--requirepass password" redis/redis-stack-server:latest
+          echo "REDIS_CONTAINER=$name" >> "$GITHUB_ENV"
+          echo "REDIS_PORT=$(docker port "$name" 6379/tcp | head -n1 | sed 's/.*://')" >> "$GITHUB_ENV"
+''';
+
+  static const _staticRedisStopStep = r'''
+      - name: 🐳 Stop Redis
+        if: always() && inputs.needs_redis
+        run: |
+          if [ -n "${REDIS_CONTAINER:-}" ]; then
+            docker rm -f "$REDIS_CONTAINER" || true
+          fi
 ''';
 
   static const _staticBlocToolsSetupStep =
@@ -1332,7 +1438,12 @@ ${_codecovTokenLine(codecovTokenSecret)}''';
     return '          token: \${{ secrets.$secret }}\n';
   }
 
-  void _writeCspellJob(StringBuffer buffer, RepositoryDescription repository) {
+  void _writeCspellJob(
+    StringBuffer buffer,
+    RepositoryDescription repository, {
+    String? linuxRunner,
+    String? hostedVar,
+  }) {
     final configPath = posixRelative(
       repository.cspellConfig!.path,
       from: repository.root.path,
@@ -1341,7 +1452,7 @@ ${_codecovTokenLine(codecovTokenSecret)}''';
       ..write('''
   cspell:
     name: CSpell
-    runs-on: ubuntu-latest
+${_jobHeader(linuxRunner, hostedVar)}
     # npx installs cspell's dependencies unpinned, so the job gets a
     # read-only token and checkout doesn't leave it in .git/config.
     permissions:
@@ -1366,18 +1477,28 @@ ${repository.hasSubmodules ? '          submodules: recursive\n' : ''}          
   /// alive through that and report `required` red on the stale commit. A
   /// skipped required check reports success, the right answer for a run
   /// nothing is waiting on.
-  void _writeRequiredJob(StringBuffer buffer, List<String> needs) {
+  void _writeRequiredJob(
+    StringBuffer buffer,
+    List<String> needs, {
+    String? linuxRunner,
+    String? hostedVar,
+  }) {
+    final gate = _gateExpression(linuxRunner, hostedVar);
     buffer
       ..writeln('  required:')
       ..writeln('    name: required')
-      ..writeln(r'    if: ${{ !cancelled() }}')
+      ..writeln(
+        gate == null
+            ? r'    if: ${{ !cancelled() }}'
+            : '    if: \${{ !cancelled() && ($gate) }}',
+      )
       ..writeln('    needs:');
     for (final need in needs) {
       buffer.writeln('      - $need');
     }
     buffer
+      ..writeln(_simpleRunsOnLine(linuxRunner))
       ..write(r'''
-    runs-on: ubuntu-latest
     steps:
       - name: Check required jobs
         run: |

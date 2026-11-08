@@ -195,6 +195,12 @@ edits the tool doesn't make for you:
   `--linux-runner '["self-hosted","linux","x64"]'` with `--style static`:
   the reusable workflows then run their `ubuntu-latest` leg on those labels,
   except for pull requests from forks, which keep `ubuntu-latest`.
+  `--hosted-runners-var HOSTED_RUNNERS` also gates every GitHub-hosted
+  runner behind that repository variable: unless it is `true`, macOS and
+  Windows legs drop out of the matrix and pull requests from forks skip
+  instead of queueing on `ubuntu-latest` (skipped jobs count as passed in
+  the `required` job). Turn hosted runners back on with
+  `gh variable set HOSTED_RUNNERS --body true`.
 - **Non-Codecov secrets.** Only the Codecov token has first-class flag
   support. Anything else (private pub registries, integration-test
   credentials) needs to be plumbed through by hand.

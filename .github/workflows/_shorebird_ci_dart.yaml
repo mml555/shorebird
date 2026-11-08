@@ -51,10 +51,11 @@ permissions:
 
 jobs:
   ci:
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) || vars.HOSTED_RUNNERS == 'true' }}
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || inputs.runners) }}
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || (vars.HOSTED_RUNNERS == 'true' && inputs.runners || '["ubuntu-latest"]')) }}
     # Self-hosted runners are only for trusted events. A pull request from
     # a fork must never run on hardware the repo owner controls.
     runs-on: ${{ matrix.os == 'ubuntu-latest' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || matrix.os }}
@@ -67,7 +68,10 @@ jobs:
         if: inputs.needs_redis
         run: |
           docker pull redis/redis-stack-server:latest
-          docker run --name test_redis -d -p 6379:6379 --rm -e REDIS_ARGS="--requirepass password" redis/redis-stack-server:latest
+          name="redis-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.package_name }}-${{ strategy.job-index }}"
+          docker run --name "$name" -d -p 127.0.0.1::6379 --rm -e REDIS_ARGS="--requirepass password" redis/redis-stack-server:latest
+          echo "REDIS_CONTAINER=$name" >> "$GITHUB_ENV"
+          echo "REDIS_PORT=$(docker port "$name" 6379/tcp | head -n1 | sed 's/.*://')" >> "$GITHUB_ENV"
       - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
       - name: Install Dependencies
         working-directory: ${{ inputs.package_path }}
@@ -141,3 +145,9 @@ jobs:
         run: |
           dart pub global activate shorebird_ci 0.3.0
           shorebird_ci check_coverage coverage/lcov.info --min "$MIN_COVERAGE" --exclude "$EXCLUDES"
+      - name: 🐳 Stop Redis
+        if: always() && inputs.needs_redis
+        run: |
+          if [ -n "${REDIS_CONTAINER:-}" ]; then
+            docker rm -f "$REDIS_CONTAINER" || true
+          fi
