@@ -31,6 +31,7 @@ jobs:
     # a pull request from a fork keeps the hosted runner, so outside
     # contributors' code never reaches the LAN.
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     steps:
       - name: 📚 Git Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,6 +44,7 @@ jobs:
   actionlint:
     name: 🔍 Lint Workflows
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     # The image pull from Docker Hub is the only network step; bound it so a
     # Docker Hub stall fails fast instead of holding the required check.
     timeout-minutes: 5
@@ -76,6 +78,7 @@ jobs:
   cspell_full_tree:
     name: 🔤 Check Spelling (full tree)
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     steps:
       - name: 📚 Git Checkout
         uses: actions/checkout@v7
@@ -85,6 +88,7 @@ jobs:
 
   changes:
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     permissions:
       contents: read
       # dorny/paths-filter lists a pull request's changed files through the API.
@@ -140,7 +144,7 @@ jobs:
 
   verify_packages:
     needs: changes
-    if: ${{ needs.changes.outputs.needs_verify != '[]' }}
+    if: ${{ needs.changes.outputs.needs_verify != '[]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
 
     strategy:
       matrix:
@@ -165,7 +169,7 @@ jobs:
   # hosted image both have it with rustfmt and clippy).
   updater_rust:
     needs: changes
-    if: ${{ needs.changes.outputs.updater_rust == 'true' }}
+    if: ${{ needs.changes.outputs.updater_rust == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     name: 🦀 Updater (cargo)
     timeout-minutes: 45
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
@@ -200,7 +204,7 @@ jobs:
     # so a superseded push would report ci red on the stale commit. A
     # skipped required check reports success, which is the right answer
     # for a run nothing is waiting on.
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
 
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
 

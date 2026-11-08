@@ -12,8 +12,25 @@ permissions:
 jobs:
   add-needs-triage:
     if: github.event_name == 'issues'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, shorebird]
     steps:
+      # ci-build has no gh. Fetch the release binary, checking it against the
+      # release's checksums, unless one is already on PATH.
+      - name: 🔧 Install gh
+        run: |
+          if ! command -v gh >/dev/null; then
+            version=2.63.2
+            archive="gh_${version}_linux_amd64.tar.gz"
+            base="https://github.com/cli/cli/releases/download/v${version}"
+            dir="$RUNNER_TEMP/gh"
+            mkdir -p "$dir"
+            curl -fsSL -o "$dir/$archive" "$base/$archive"
+            curl -fsSL -o "$dir/checksums.txt" "$base/gh_${version}_checksums.txt"
+            (cd "$dir" && grep " $archive\$" checksums.txt | sha256sum -c -)
+            tar -xzf "$dir/$archive" -C "$dir" --strip-components=1
+            echo "$dir/bin" >> "$GITHUB_PATH"
+          fi
+
       - name: Add needs-triage label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -28,8 +45,25 @@ jobs:
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request == null &&
       github.event.comment.user.login == github.event.issue.user.login
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, shorebird]
     steps:
+      # ci-build has no gh. Fetch the release binary, checking it against the
+      # release's checksums, unless one is already on PATH.
+      - name: 🔧 Install gh
+        run: |
+          if ! command -v gh >/dev/null; then
+            version=2.63.2
+            archive="gh_${version}_linux_amd64.tar.gz"
+            base="https://github.com/cli/cli/releases/download/v${version}"
+            dir="$RUNNER_TEMP/gh"
+            mkdir -p "$dir"
+            curl -fsSL -o "$dir/$archive" "$base/$archive"
+            curl -fsSL -o "$dir/checksums.txt" "$base/gh_${version}_checksums.txt"
+            (cd "$dir" && grep " $archive\$" checksums.txt | sha256sum -c -)
+            tar -xzf "$dir/$archive" -C "$dir" --strip-components=1
+            echo "$dir/bin" >> "$GITHUB_PATH"
+          fi
+
       - name: Swap waiting-for-response to needs-triage on author reply
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

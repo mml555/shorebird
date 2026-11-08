@@ -72,6 +72,14 @@ on:
 permissions:
   contents: read
 
+# Where the jobs run. The Linux jobs that need nothing special (linux_signing,
+# linux_rollback, linux_boot and the cli job's Linux leg) run on the home
+# runners (ci-build). Everything else needs a GitHub-hosted runner and runs
+# only when the HOSTED_RUNNERS repository variable is 'true': macOS, Windows,
+# and the Android emulator jobs (patch, cli_version, android_signing,
+# android_boot), which need KVM (set up with sudo udev rules), the Android NDK
+# and cmake, and reactivecircus/android-emulator-runner, none of which the
+# home host has.
 jobs:
   patch:
     # Without this the job name lists every matrix value, android-packages
@@ -80,7 +88,7 @@ jobs:
     # A cli_ref dispatch is verifying the cli job; the patch matrix is dozens of
     # unrelated jobs that would only burn runner time, unless patch_matrix
     # asks for it (a release candidate).
-    if: ${{ !inputs.cli_version && (!inputs.cli_ref || inputs.patch_matrix) }}
+    if: ${{ !inputs.cli_version && (!inputs.cli_ref || inputs.patch_matrix) && vars.HOSTED_RUNNERS == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -260,7 +268,7 @@ jobs:
   # patch job's "default" leg.
   cli_version:
     name: patch (CLI ${{ inputs.cli_version }}, Flutter ${{ inputs.flutter_version || 'pinned' }})
-    if: ${{ inputs.cli_version }}
+    if: ${{ inputs.cli_version && vars.HOSTED_RUNNERS == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -351,7 +359,7 @@ jobs:
   linux_signing:
     name: linux signing
     if: ${{ !inputs.cli_version }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, shorebird]
     timeout-minutes: 20
 
     permissions:
@@ -387,7 +395,7 @@ jobs:
 
   macos_signing:
     name: macos signing
-    if: ${{ !inputs.cli_version }}
+    if: ${{ !inputs.cli_version && vars.HOSTED_RUNNERS == 'true' }}
     # The release gate waits on this workflow's slowest job, and this one's
     # six serial builds took 9 minutes on macos-latest's 3 vCPUs.
     runs-on: macos-latest-xlarge
@@ -423,7 +431,7 @@ jobs:
 
   windows_signing:
     name: windows signing
-    if: ${{ !inputs.cli_version }}
+    if: ${{ !inputs.cli_version && vars.HOSTED_RUNNERS == 'true' }}
     runs-on: windows-latest
     timeout-minutes: 20
 
@@ -459,7 +467,7 @@ jobs:
 
   android_signing:
     name: android signing
-    if: ${{ !inputs.cli_version }}
+    if: ${{ !inputs.cli_version && vars.HOSTED_RUNNERS == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -545,7 +553,7 @@ jobs:
   linux_rollback:
     name: linux rollback
     if: ${{ !inputs.cli_version }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, shorebird]
     timeout-minutes: 20
 
     permissions:
@@ -585,7 +593,7 @@ jobs:
   linux_boot:
     name: linux boot
     if: ${{ !inputs.cli_version }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, shorebird]
     timeout-minutes: 20
 
     permissions:
@@ -622,7 +630,7 @@ jobs:
   # The same checks on an Android emulator, set up as in android_signing.
   android_boot:
     name: android boot
-    if: ${{ !inputs.cli_version }}
+    if: ${{ !inputs.cli_version && vars.HOSTED_RUNNERS == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -708,7 +716,11 @@ jobs:
         # slowest job, and on macos-latest's 3 vCPUs this one took 9.5 minutes.
         # nscloud-windows-2022-amd64-8x16 (Namespace, 8 vCPU): on
         # windows-latest's 4 vCPUs its Gradle builds made this job 8-11 minutes.
-        os: [macos-latest-xlarge, nscloud-windows-2022-amd64-8x16, ubuntu-latest]
+        #
+        # Only ubuntu-latest, which runs on the home runner, unless the
+        # HOSTED_RUNNERS repository variable is 'true': macOS and Windows need
+        # hosted runners. The excludes below match nothing without them.
+        os: ${{ fromJSON(vars.HOSTED_RUNNERS == 'true' && '["macos-latest-xlarge","nscloud-windows-2022-amd64-8x16","ubuntu-latest"]' || '["ubuntu-latest"]') }}
         # branch selects the API host as well as the ref, so a cli_ref dispatch
         # drops the stable leg rather than pointing unreleased code at prod.
         branch: ${{ inputs.cli_ref && fromJSON('["main"]') || fromJSON('["stable", "main"]') }}
@@ -720,7 +732,7 @@ jobs:
           - os: nscloud-windows-2022-amd64-8x16
             branch: stable
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os == 'ubuntu-latest' && fromJSON('["self-hosted","linux","x64","shorebird"]') || matrix.os }}
     timeout-minutes: 30
 
     permissions:

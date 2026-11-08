@@ -25,7 +25,9 @@ on:
 jobs:
   publish:
     name: 📦 Publish ${{ inputs.working_directory }}
-    runs-on: ubuntu-latest
+    # The home runner (ci-build). pub.dev's OIDC publishing only checks the
+    # repository and tag claims, so it works from a self-hosted runner too.
+    runs-on: [self-hosted, linux, x64, shorebird]
     permissions:
       id-token: write
 
@@ -37,7 +39,12 @@ jobs:
         if: inputs.needs_redis
         run: |
           docker pull redis/redis-stack-server:latest
-          docker run --name test_redis -d -p 6379:6379 --rm -e REDIS_ARGS="--requirepass password" redis/redis-stack-server:latest
+          # Docker picks the host port, so jobs on the shared runner host
+          # never collide on 6379. The tests read it from REDIS_PORT.
+          name="redis-${{ github.run_id }}-${{ github.run_attempt }}-publish"
+          docker run --name "$name" -d -p 127.0.0.1::6379 --rm -e REDIS_ARGS="--requirepass password" redis/redis-stack-server:latest
+          echo "REDIS_CONTAINER=$name" >> "$GITHUB_ENV"
+          echo "REDIS_PORT=$(docker port "$name" 6379/tcp | head -n1 | sed 's/.*://')" >> "$GITHUB_ENV"
 
       - name: 🎯 Setup Dart
         uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
@@ -78,3 +85,10 @@ jobs:
       - name: 🚀 Publish
         working-directory: ${{ inputs.working_directory }}
         run: dart pub publish --force
+
+      - name: 🐳 Stop Redis
+        if: always() && inputs.needs_redis
+        run: |
+          if [ -n "${REDIS_CONTAINER:-}" ]; then
+            docker rm -f "$REDIS_CONTAINER" || true
+          fi

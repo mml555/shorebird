@@ -40,7 +40,11 @@ permissions:
 jobs:
   shorebird_sh:
     name: 🐧 bin/shorebird
-    runs-on: ubuntu-latest
+    # The home runner (ci-build), only for trusted events: a pull request from
+    # a fork is skipped unless HOSTED_RUNNERS is 'true', which also puts it on
+    # a hosted runner.
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     steps:
       - name: 📚 Git Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -50,6 +54,9 @@ jobs:
 
   shorebird_bat:
     name: 🪟 shorebird.bat
+    # Needs Windows, which the home runners lack: runs only once hosted
+    # runners are back (the HOSTED_RUNNERS repository variable is 'true').
+    if: ${{ vars.HOSTED_RUNNERS == 'true' }}
     runs-on: windows-latest
     steps:
       - name: 📚 Git Checkout

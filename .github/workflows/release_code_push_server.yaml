@@ -34,6 +34,12 @@
 # manifest list afterwards. QEMU emulation is avoided deliberately: the build
 # runs `dart compile exe`, an AOT compile that takes tens of minutes under
 # emulation but ~a minute natively. Public repos get arm64 runners for free.
+#
+# While hosted runners are unavailable (the HOSTED_RUNNERS repository variable
+# is not 'true'), only the amd64 leg runs, on the home runner (ci-build), and
+# the manifest list has that one child. A semantic tag is write-once, so a
+# release cut in that state is amd64-only for good: set HOSTED_RUNNERS (or
+# build arm64 elsewhere) before tagging a release that needs arm64.
 name: release_code_push_server
 
 on:
@@ -65,12 +71,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
+        # The arm64 leg needs a hosted runner, so it is only in the matrix
+        # when HOSTED_RUNNERS is 'true'. A matrix leg can't be skipped by a
+        # job-level `if`, so the list itself is conditional.
+        include: ${{ fromJSON(vars.HOSTED_RUNNERS == 'true' && '[{"platform":"linux/amd64","runner":"home"},{"platform":"linux/arm64","runner":"ubuntu-24.04-arm"}]' || '[{"platform":"linux/amd64","runner":"home"}]') }}
+    # "home" is the self-hosted runner on ci-build (amd64).
+    runs-on: ${{ matrix.runner == 'home' && fromJSON('["self-hosted","linux","x64","shorebird"]') || matrix.runner }}
     permissions:
       contents: read
       packages: write
@@ -119,21 +125,21 @@ jobs:
 
       - name: Export digest
         run: |
-          mkdir -p /tmp/digests
-          touch "/tmp/digests/${DIGEST#sha256:}"
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
 
       - uses: actions/upload-artifact@v4
         with:
           name: digest-${{ env.PLATFORM_SLUG }}
-          path: /tmp/digests/*
+          path: ${{ runner.temp }}/digests/*
           if-no-files-found: error
           retention-days: 1
 
   merge:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, shorebird]
     permissions:
       contents: read
       packages: write
@@ -155,7 +161,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          path: /tmp/digests
+          path: ${{ runner.temp }}/digests
           pattern: digest-*
           merge-multiple: true
 
@@ -179,19 +185,19 @@ jobs:
           VERSION: ${{ steps.rel.outputs.version }}
           COMMIT: ${{ steps.rel.outputs.commit }}
           GIT_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
-          OUT: /tmp/release-provenance.json
+          OUT: ${{ runner.temp }}/release-provenance.json
         run: |
-          CHILD_DIGESTS="$(cd /tmp/digests && for d in *; do printf 'sha256:%s ' "$d"; done)"
+          CHILD_DIGESTS="$(cd "$RUNNER_TEMP/digests" && for d in *; do printf 'sha256:%s ' "$d"; done)"
           export CHILD_DIGESTS
           packages/code_push_server/ops/release/publish_release.sh
 
       # Independent of the publish that produced it: resolve every reference
       # back from the registry and require it to be this release.
       - name: Verify the published release
-        run: packages/code_push_server/ops/release/verify_release.sh /tmp/release-provenance.json
+        run: packages/code_push_server/ops/release/verify_release.sh "$RUNNER_TEMP/release-provenance.json"
 
       - uses: actions/upload-artifact@v4
         with:
           name: release-provenance
-          path: /tmp/release-provenance.json
+          path: ${{ runner.temp }}/release-provenance.json
           if-no-files-found: error
