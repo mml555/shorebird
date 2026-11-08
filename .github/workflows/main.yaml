@@ -210,8 +210,17 @@ jobs:
       # the global updater config #[serial]; 6 of 6 parallel runs and 6 of 6
       # single-threaded runs passed on ci-build. The old vendored tree failed 4
       # of 5 parallel runs, which is why this once ran with --test-threads=1.
+      # The home runners reach the internet only through an allowlisting proxy
+      # (http_proxy in the job env). Build and fetch through it, then run the
+      # tests without it: network::tests assert what a device with no network
+      # sees (an unresolvable host), and a proxy's CONNECT refusal is a
+      # different error. Runner users have no DNS, so the direct attempt fails
+      # the way those tests expect.
       - name: 🧪 Test
-        run: cargo test --locked
+        run: |
+          cargo test --locked --no-run
+          env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY \
+            cargo test --locked --offline
 
   ci:
     needs:
