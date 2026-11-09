@@ -1,0 +1,33 @@
+# Hostnames the gha-* runner users may reach through the proxy (squid dstdomain).
+# A leading dot matches the domain and all subdomains; no dot matches exactly.
+# Run `sudo gha-egress-denied --since 1h` when a job fails to fetch something; after an edit
+# run `sudo squid -k reconfigure` (no runner restart). Why each entry stays: selfhost/ci-host/README.md.
+
+# GitHub and Actions
+github.com
+api.github.com
+codeload.github.com
+objects.githubusercontent.com
+release-assets.githubusercontent.com
+.actions.githubusercontent.com
+ghcr.io
+pkg-containers.githubusercontent.com
+
+# Dart: SDK archive and pub package archives
+pub.dev
+storage.googleapis.com
+
+# Rust (static.rust-lang.org: rustup downloads the toolchain pinned in rust-toolchain.toml;
+# cargo's sparse registry needs index.crates.io and static.crates.io, not crates.io)
+static.rust-lang.org
+index.crates.io
+static.crates.io
+
+# npm (npx cspell)
+registry.npmjs.org
+
+# Alpine packages (apk in docker build steps, e.g. the cargo-deny image)
+dl-cdn.alpinelinux.org
+
+# Docker Hub is not listed: images come through the root-owned pull-through cache on
+# 127.0.0.1:5000, which fetches them itself. (Removed 2026-11-08: no hits in the proxy log.)

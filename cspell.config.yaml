@@ -5,6 +5,8 @@ version: "0.2"
 # misspelling in upstream's test name, and the point of quoting it is that it
 # stays wrong. File-scoped so it is invisible here and nowhere else.
 # cspell:words cand elig ents envx fals getsize logf stdev trav
+# The selfhost/ci-host vocabulary listed in the override below:
+# cspell:words nftables slirp oifname iifname dport daddr skuid ROOTLESSKIT rootlesskit subuid subgid subuids setpriv jobpath tokfile reuid regid productionresultssa pipelinesghubeus eastus npmjs localnet journalctl esac dstdomain dstdom cgroupv cgroupfs cgroupdriver xdev userns usermod uploadpurging smhd shopt setuid rootdirectory remoteurl oneshot nullglob nsenter newuidmap newgidmap gpasswd getent drunner disableupdate crontabs coredump cmdline clippy alpinelinux NOFILE LOGNAME EUID pgrep
 # cspell:ignore delibrate mispelt Shoul shutil stdlib gskinner hlcl hlclpqwxzq hlclxeca hlclqjttgm hlclx hldxg wfyg VVFRF WRVJTSU UNRE Volemes Ünïcödé
 # The tokens this file lists as ignoreWords or inline-scoped vocabulary, which
 # would otherwise be reported here, in the one place that names them.
@@ -104,6 +106,67 @@ ignorePaths:
     "selfhost/evidence/p6-tracks/*syslog*.txt",
   ]
 overrides:
+  # The CI runner host (selfhost/ci-host): nftables, squid, systemd and rootless-Docker
+  # vocabulary used across 13 of its files, so scoped here rather than inline.
+  - filename: "selfhost/ci-host/**"
+    words:
+      - nftables
+      - slirp
+      - oifname
+      - iifname
+      - dport
+      - daddr
+      - skuid
+      - ROOTLESSKIT
+      - rootlesskit
+      - subuid
+      - subgid
+      - subuids
+      - setpriv
+      - jobpath
+      - tokfile
+      - reuid
+      - regid
+      - productionresultssa
+      - pipelinesghubeus
+      - eastus
+      - npmjs
+      - localnet
+      - journalctl
+      - esac
+      - dstdomain
+      - dstdom
+      - cgroupv
+      - cgroupfs
+      - cgroupdriver
+      - xdev
+      - userns
+      - usermod
+      - uploadpurging
+      - smhd
+      - shopt
+      - setuid
+      - rootdirectory
+      - remoteurl
+      - oneshot
+      - nullglob
+      - nsenter
+      - newuidmap
+      - newgidmap
+      - gpasswd
+      - getent
+      - drunner
+      - disableupdate
+      - crontabs
+      - coredump
+      - cmdline
+      - clippy
+      - alpinelinux
+      - NOFILE
+      - LOGNAME
+      - EUID
+      - pgrep
+
   # Step 1 §4, per evidence/cspell/classification_precommit.md. A .patch file
   # holds BOTH machine content and prose this repo wrote, so the boundary is
   # inside the file rather than around it.

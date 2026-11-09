@@ -1,0 +1,15 @@
+#!/bin/bash
+# gha-dockerd: stands in for `dockerd` inside rootlesskit's namespaces (via
+# DOCKERD=... in gha-run). Docker picks the host port for a bare `ports: - 5432`
+# from ip_local_port_range of the rootless network namespace, starting at the same
+# number (32768) in every daemon, so two runners' daemons would both try 32768
+# and the second job would fail. Give this daemon its own slice (GHA_PORT_RANGE,
+# per runner in its conf). The namespace belongs to this user's userns, so the
+# sysctl is writable; the host's own range is not touched.
+set -eu
+if [[ -n ${GHA_PORT_RANGE:-} ]]; then
+  netns=/proc/self/ns/net
+  [[ ${DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS:-true} == false ]] || netns=$ROOTLESSKIT_STATE_DIR/netns
+  nsenter -n"$netns" sysctl -qw net.ipv4.ip_local_port_range="$GHA_PORT_RANGE"
+fi
+exec dockerd "$@"

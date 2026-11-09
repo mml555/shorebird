@@ -1,0 +1,46 @@
+#!/bin/bash
+# gha-egress-denied [--since 1h]: hosts the egress proxy refused, by count.
+# Reads /var/log/squid/access.log (and access.log.1, the previous day) and prints one
+# line per denied host: count, last time seen, host. --since takes <n>s, <n>m, <n>h or
+# <n>d (default 24h). Needs root (the log is readable by root and the proxy user only).
+#
+# A job that fails to fetch something shows up here, e.g. "3  12:01:07  example.org:443".
+# To allow a host: see selfhost/ci-host/README.md ("Add an allowed host").
+set -euo pipefail
+since=24h
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --since) since=${2:?--since needs a value}; shift 2 ;;
+    --since=*) since=${1#--since=}; shift ;;
+    -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "usage: gha-egress-denied [--since 1h]" >&2; exit 2 ;;
+  esac
+done
+[[ $since =~ ^([0-9]+)([smhd])$ ]] || { echo "bad --since '$since' (use 90s, 30m, 1h, 2d)" >&2; exit 2; }
+n=${BASH_REMATCH[1]}
+case ${BASH_REMATCH[2]} in s) secs=$n ;; m) secs=$((n * 60)) ;; h) secs=$((n * 3600)) ;; d) secs=$((n * 86400)) ;; esac
+cutoff=$(( $(date +%s) - secs ))
+(( secs <= 86400 )) || echo "note: only the current and the previous day's log are kept; older requests are not shown" >&2
+
+logs=()
+for l in /var/log/squid/access.log.1 /var/log/squid/access.log; do [[ -e $l ]] && logs+=("$l"); done
+[[ ${#logs[@]} -gt 0 ]] || { echo "no squid access log found" >&2; exit 1; }
+
+# Squid native format: time elapsed client code/status bytes method url ...
+# A denied CONNECT has the code TCP_DENIED (also _ABORTED) and the url host:port.
+out=$(awk -v cutoff="$cutoff" '
+  $1 >= cutoff && $4 ~ /^TCP_DENIED/ {
+    h = $7; sub(/^[a-z]+:\/\//, "", h); sub(/\/.*/, "", h)
+    n[h]++; last[h] = $1
+  }
+  END { for (h in n) printf "%d\t%s\t%s\n", n[h], last[h], h }
+' "${logs[@]}" | sort -t$'\t' -k1,1nr -k3,3)
+
+if [[ -z $out ]]; then
+  echo "no denied requests in the last $since"
+  exit 0
+fi
+printf '%6s  %-8s  %s\n' COUNT LAST HOST
+while IFS=$'\t' read -r count last host; do
+  printf '%6d  %-8s  %s\n' "$count" "$(date -d "@${last%.*}" +%H:%M:%S)" "$host"
+done <<< "$out"
