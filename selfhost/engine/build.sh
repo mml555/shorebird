@@ -307,6 +307,7 @@ if [[ -n "$CELL" ]]; then
       "out/host_release/zip_archives/flutter_patched_sdk_product.zip" \
       "out/host_release/impellerc" \
       "out/host_release/font-subset" \
+      "out/host_release/zip_archives/linux-x64/font-subset.zip" \
       "out/host_debug/zip_archives/linux-x64/artifacts.zip" \
       "out/host_debug/zip_archives/flutter_patched_sdk.zip"
     do

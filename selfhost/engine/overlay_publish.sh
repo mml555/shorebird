@@ -174,6 +174,12 @@ copy "$HOST_DEBUG_OUT/zip_archives/$HOST_TAG/artifacts.zip" "$INFRA/$HOST_TAG/ar
 # The non-product patched SDK: `flutter precache` fetches it with the product
 # one, and @must_be_local owns it.
 copy "$HOST_DEBUG_OUT/zip_archives/flutter_patched_sdk.zip" "$INFRA/flutter_patched_sdk.zip"
+# font-subset.zip carries const_finder.dart.snapshot and extracts into the same
+# cache directory as artifacts.zip. The mirror owns it only per cell, so a hash
+# that does not publish it gets the stock one, whose SDK hash our Dart rejects:
+# "ConstFinder failure: Can't load Kernel binary: Invalid SDK hash" at the icon
+# tree shaker. build.sh builds it in host_release (flutter/tools/font_subset).
+copy "$HOST_OUT/zip_archives/$HOST_TAG/font-subset.zip" "$INFRA/$HOST_TAG/font-subset.zip"
 
 # The host toolchain must come from the same tree as the Android engine it
 # ships with. After `build.sh --no-host`, or a host build that failed, the
@@ -191,7 +197,7 @@ stale_check() {  # stale_check <out dir> <ninja target>...
     missing=1
   fi
 }
-stale_check "$HOST_OUT" dart_sdk flutter/build/archives:flutter_patched_sdk
+stale_check "$HOST_OUT" dart_sdk flutter/build/archives:flutter_patched_sdk flutter/tools/font_subset
 stale_check "$HOST_DEBUG_OUT" flutter/build/archives:artifacts flutter/build/archives:flutter_patched_sdk
 
 # engine_stamp.json: Flutter's tool fetches it on every precache (3.47+;
@@ -311,7 +317,7 @@ fi
   echo "built_on:                 $(uname -srm) $(hostname)"
   echo "published_at:             $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "local_artifacts:          android-{arm64,arm,x64}-release/{artifacts,symbols,linux-x64}.zip (as built),"
-  echo "                          $HOST_TAG/artifacts.zip, dart-sdk-$HOST_TAG.zip,"
+  echo "                          $HOST_TAG/{artifacts,font-subset}.zip, dart-sdk-$HOST_TAG.zip,"
   echo "                          flutter_patched_sdk{,_product}.zip, engine_stamp.json,"
   echo "                          maven: ${OWN_MODS[*]##*:}"
   echo "everything_else:          served from $STOCK_HASH by the mirror"
