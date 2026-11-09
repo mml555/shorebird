@@ -27,8 +27,7 @@ when an item here changes; history of how things got here lives in the PRs and i
   requires the `ci` and `required` checks, stale dependabot PRs against `route-b` closed.
 - CI runs only on the home CI host (the GitHub Actions billing limit is reached). The
   host already runs ephemeral runners with an egress allowlist and a registration backoff;
-  the scripts that set it up are added to the repo by #85 (`selfhost/ci-host/`), not yet
-  merged.
+  the scripts that set it up are in the repo since #85 (`selfhost/ci-host/`).
 - Commit `a97f0130e` scrubbed infrastructure details from the tree; older history still
   holds them. They belong to a cloud build host the owner has since deleted (confirmed
   2026-11-08), and the TLS key in history was trusted only by that host, so none of it is
@@ -51,12 +50,16 @@ As of 2026-11-09. #84 to #89 and mirror #10 are merged.
 - **Plain HTTP.** Gradle refuses plain-HTTP Maven repositories, so an app's Android build
   needs `isAllowInsecureProtocol` until the HTTPS listener is on. That is
   `selfhost/cdn/tls/trust.sh`, which needs root on the host: the owner's to run.
-- **One copy.** The overlay bytes live only on ci-build's disk, under a hand-synced copy of
-  `selfhost/cdn`. Nothing backs them up. Losing the disk means rebuilding the engine
+- **One copy.** The overlay bytes, and the `3a565f27 -> 38855c84` line in
+  `experimental_hashes.map` that routes them, live only on ci-build's disk, under a
+  hand-synced copy of `selfhost/cdn`. The repo's map does not have that line. Nothing
+  backs them up. Losing the disk means rebuilding the engine
   (`selfhost/engine/build.sh`, then `overlay_publish.sh --hash 3a565f27...`).
 - **`font-subset.zip` ownership.** `linux-x64/font-subset.zip` for experimental hashes is
-  routed per cell in `selfhost/cdn/Caddyfile`, and only `760e3fab` is listed. Add
-  `3a565f27` there (and in `check_protection_matchers.py`) when it is promoted.
+  routed per cell in `selfhost/cdn/Caddyfile`, and only `760e3fab` is listed. Promoting
+  `3a565f27` means adding it there and changing `check_protection_matchers.py`, which
+  today asserts a protected cell's `font-subset.zip` is *not* owned per cell. Ours is
+  built with the fork's `const_finder`, so the stock one breaks releases.
 
 ## Stable baseline
 
@@ -66,7 +69,7 @@ The project is at a stable point when every row is done.
 |---|---|---|
 | 1 | `main` CI green on the home runners | Done: the last push run on `main` passed on the home runners (2026-11-08) |
 | 2 | No stale PRs or branches | Done, except the snapshot branches below |
-| 3 | Server release matches what compose pins | After #86 and its release run |
+| 3 | Server release matches what compose pins | #86 is merged, tag `code_push_server-v1.4.0` exists and `release_code_push_server` last passed on 2026-11-09. Owner to confirm the 1.4.0 image is the one compose pulls |
 | 4 | Docs and manifests name the current revisions | No: `selfhost/compatibility.yaml` still declares CLI 1.6.115 and Flutter `a4a3c0d1`; bump it with the 3.47.9 promotion |
 | 5 | Release and patch proven on the current engine | Done by hand, not in CI: on 2026-11-09 release 1.0.3+4 and patch 1 ran end to end on an x86_64 emulator with the CLI downloading engine `3a565f27` through the CDN mirror (no `--local-engine`), host tools included. Proof with screenshots: [shorebird-flutter#1](https://github.com/mml555/shorebird-flutter/pull/1#issuecomment-6735022921) |
 | 6 | Publish durability shown (no vanished publishes) | Open, item 3 below |
