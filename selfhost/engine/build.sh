@@ -213,8 +213,13 @@ if [[ -n "$CELL" ]]; then
   # as inputs, so a new Dart revision that leaves them alone keeps the old SDK
   # hash in the VM binaries while the kernel tools (passed the hash at gn time)
   # get the new one: `dart run` then fails "Can't load Kernel binary: Invalid
-  # SDK hash." Drop the generated file so every build re-stamps it.
-  fresh_version() { rm -f "$1/gen/flutter/third_party/dart/runtime/version.cc"; }
+  # SDK hash." Drop the generated file so every build re-stamps it, in every
+  # toolchain's gen/ (the Android out dir builds the host gen_snapshot under
+  # clang_x64/gen/).
+  fresh_version() {
+    [[ -d "$1" ]] || return 0
+    find "$1" -path '*/gen/flutter/third_party/dart/runtime/version.cc' -delete
+  }
   # Flags per shorebird/docs/BUILDING.md (Linux / Android arm64). Note there is
   # NO `shorebird_runtime` GN arg at this revision — the Shorebird hooks are
   # unconditional, gated in GN by shorebird_updater_supported. BUILDING.md's iOS
