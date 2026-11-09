@@ -209,12 +209,19 @@ if [[ -n "$CELL" ]]; then
   GN_ARGS+=(${EXTRA[@]+"${EXTRA[@]}"})
 
   cd "$ENGINE_SRC"
+  # Dart's generate_version_cc_file action lists only the VM snapshot sources
+  # as inputs, so a new Dart revision that leaves them alone keeps the old SDK
+  # hash in the VM binaries while the kernel tools (passed the hash at gn time)
+  # get the new one: `dart run` then fails "Can't load Kernel binary: Invalid
+  # SDK hash." Drop the generated file so every build re-stamps it.
+  fresh_version() { rm -f "$1/gen/flutter/third_party/dart/runtime/version.cc"; }
   # Flags per shorebird/docs/BUILDING.md (Linux / Android arm64). Note there is
   # NO `shorebird_runtime` GN arg at this revision — the Shorebird hooks are
   # unconditional, gated in GN by shorebird_updater_supported. BUILDING.md's iOS
   # example still passes it; don't copy that.
   ./flutter/tools/gn --no-rbe --no-enable-unittests \
     --android --android-cpu=arm64 --runtime-mode=release ${GN_ARGS[@]+"${GN_ARGS[@]}"}
+  fresh_version "$OUT_DIR"
   ninja -C "$OUT_DIR" -j "$JOBS" default gen_snapshot
 
   # The host toolchain. overlay_publish.sh needs all of it, and the Dart SDK
@@ -229,11 +236,13 @@ if [[ -n "$CELL" ]]; then
     note "Host: out/host_release (dart_sdk, flutter_patched_sdk)"
     ./flutter/tools/gn --no-rbe --no-enable-unittests --no-prebuilt-dart-sdk \
       --runtime-mode=release ${HOST_GN_ARGS[@]+"${HOST_GN_ARGS[@]}"}
+    fresh_version out/host_release
     ninja -C out/host_release -j "$JOBS" \
       dart_sdk flutter/build/archives:flutter_patched_sdk
     note "Host: out/host_debug (linux-x64/artifacts.zip: impellerc, flutter_tester)"
     ./flutter/tools/gn --no-rbe --no-enable-unittests --no-prebuilt-dart-sdk \
       ${HOST_GN_ARGS[@]+"${HOST_GN_ARGS[@]}"}
+    fresh_version out/host_debug
     ninja -C out/host_debug -j "$JOBS" flutter/build/archives:artifacts
   fi
 
