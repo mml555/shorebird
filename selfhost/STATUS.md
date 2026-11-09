@@ -88,7 +88,7 @@ Owner decisions, no code needed:
 - Snapshot branches `preserve/*` (three) and `worktree-wf_88d81758-e2a-1`, `-4` hold a few
   files not on `main`, most likely replaced by later rewrites. Archive or delete.
 - `stable` is an old ancestor of `main`; keep only if something pins it.
-- The `selfhost/` folder has 46 top-level docs, several of them dated handoffs.
+- The `selfhost/` folder has 44 top-level docs, several of them dated handoffs.
   Archiving the `HANDOFF-*` files would make the index easier to use.
 
 Longer research lines, not blocking: foldable-constant patches that attach but do nothing
