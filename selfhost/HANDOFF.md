@@ -1592,7 +1592,7 @@ becomes unresolvable at runtime, because AOT product snapshots carry no
 | 1 | [`0004`](engine/0004-dart-tearoff-selector-guard.patch) | Never closurize an implicit accessor — it overwrites the accessor's `Field` pointer |
 | 2 | [`0004`](engine/0004-dart-tearoff-selector-guard.patch) | Drop the `IsUsed()` (`call_count > 0`) gate on selector rows |
 | 3 | [`0004`](engine/0004-dart-tearoff-selector-guard.patch) + [`0005`](engine/0005-dart-precompiler-link-info-and-tearoffs.patch) | Build method extractors for **regular methods only**, ignoring `torn_off` / `has_tearoff_uses` |
-| 4 | [`0006`](engine/0006-dart-no-dispatch-call-for-hash-slots.patch) | Never dispatch-call the `_HashVMBase` graph-intrinsic slot accessors |
+| 4 | [`0006`](engine/0006-dart-no-dispatch-call-for-hash-slots.patch) | Never dispatch-call the `_HashVMBase` graph-intrinsic slot accessors. 3.12 line only: **do not port to 3.13.7**, where the accessors are `vm:recognized "other"` with bodies and this guard makes every `map.entries` throw NoSuchMethodError (dart-sdk-shorebird-lineage#1) |
 
 Snapshot size cost: **+1.5 %**.
 
