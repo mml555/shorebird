@@ -12,7 +12,7 @@ when an item here changes; history of how things got here lives in the PRs and i
 |---|---|---|
 | `mml555/shorebird` | `main` | Upstream v1.6.138 merged in (#79). CLI pins Flutter `5b180d22`. `experimental` and `selfhost/cli-backport-1.6.123` are ancestors of `main`: nothing on them is missing from it. |
 | `mml555/shorebird-updater-mirror` | `route-b-ca91f4b3` (now the default) | Source port of the updater; vendored here under `vendor/updater/` (see its `VENDOR.md`). Old `route-b` is history only. |
-| `mml555/shorebird-flutter` | `shorebird/dev` | PR #1 (the port onto Flutter 3.47.9 / Dart 3.13.7) merged 2026-11-09 as `bb7b68ab`. Its head `3a565f27` was built for android arm, arm64 and x64 plus the linux-x64 host toolchain, and published to the CDN mirror on ci-build (see below). Draft PR #2 pins `engine.version` to `3a565f27` and is held (see In flight). |
+| `mml555/shorebird-flutter` | `shorebird/dev` | PR #1 (the port onto Flutter 3.47.9 / Dart 3.13.7) merged 2026-11-09 as `bb7b68ab`. Its head `3a565f27` was built for android arm, arm64 and x64 plus the linux-x64 host toolchain, and published to the CDN mirror on ci-build (see below). PR #2 (merged 2026-11-09 as `c240f515`) pins `engine.version` to `3a565f27`. Its CI downloads the engine from the GitHub release `engine-3a565f27…` and serves it through `selfhost/cdn` on the runner ([`selfhost-engine-mirror`](https://github.com/mml555/shorebird-flutter/blob/shorebird/dev/.github/actions/selfhost-engine-mirror/action.yml)). Linux and Android jobs pass. The macOS jobs fail at that action's host check, because the release has no macOS build yet, so the aggregate `ci` check is red too (see In flight). |
 | `mml555/dart-sdk-shorebird-lineage` | `selfhost/3.13.7/route-b` | Pushed. The `maot/3.13.7/*` branches are the mutable-AOT research line and are not part of the shipped toolchain. |
 
 ## Housekeeping done on 2026-11-08
@@ -35,26 +35,25 @@ when an item here changes; history of how things got here lives in the PRs and i
 
 ## In flight
 
-As of 2026-11-09. #84 to #89 and mirror #10 are merged.
+As of 2026-11-09. #84 to #90, mirror #10 and shorebird-flutter #1 and #2 are merged.
 
 | PR | What | Waiting on |
 |---|---|---|
-| shorebird-flutter #2 (draft) | Pin `engine.version` to the self-built `3a565f27` | Held. Its CI runs on GitHub-hosted runners, which download the Dart SDK from `download.shorebird.dev` by engine hash; `3a565f27` is only on the LAN mirror, so every job fails there (`shorebird_engine_version.yml` says so by name). Merging turns `shorebird/dev` red. Unblock by serving the engine somewhere CI can reach, or by moving that repo's CI onto ci-build with the mirror's URL. |
+| macOS engine for `3a565f27` | Building on the owner's Mac (`~/shorebird-engine`, started 2026-11-09), the full `shorebird/ci/shards/macos.json` shard | Then add the darwin artifacts to the `engine-3a565f27…` release, and run the mirror with `selfhost/cdn/run_native.sh` on shorebird-flutter's macOS jobs. The iOS release cell turns on `shorebird_include_mixed_mode`, which may not build against our Dart. |
 
 ## The CDN mirror on ci-build
 
-`3a565f27` exists only on the mirror, not on `download.shorebird.dev`. The mirror is the
+`3a565f27` is not on `download.shorebird.dev`. On the LAN it is served by the mirror, the
 `selfhost/cdn` compose stack on ci-build (`shorebird-cdn-*` containers, restart
 `unless-stopped`), on port 8085.
 
 - **Plain HTTP.** Gradle refuses plain-HTTP Maven repositories, so an app's Android build
   needs `isAllowInsecureProtocol` until the HTTPS listener is on. That is
   `selfhost/cdn/tls/trust.sh`, which needs root on the host: the owner's to run.
-- **One copy.** The overlay bytes, and the `3a565f27 -> 38855c84` line in
-  `experimental_hashes.map` that routes them, live only on ci-build's disk, under a
-  hand-synced copy of `selfhost/cdn`. The repo's map does not have that line. Nothing
-  backs them up. Losing the disk means rebuilding the engine
-  (`selfhost/engine/build.sh`, then `overlay_publish.sh --hash 3a565f27...`).
+- **Off-host copy.** The overlay bytes and the `3a565f27 -> 38855c84` map line are also
+  on the GitHub release `engine-3a565f273d871d1ef004faf1a87bf45637df8ad0` in
+  shorebird-flutter, with a `SHA256SUMS`. The repo's `experimental_hashes.map` still does
+  not have that line; it gets it with the promotion.
 - **`font-subset.zip` ownership.** `linux-x64/font-subset.zip` for experimental hashes is
   routed per cell in `selfhost/cdn/Caddyfile`, and only `760e3fab` is listed. Promoting
   `3a565f27` means adding it there and changing `check_protection_matchers.py`, which

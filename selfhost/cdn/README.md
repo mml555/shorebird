@@ -1,3 +1,4 @@
+<!-- cspell:words xcaddy -->
 # Self-hosted Shorebird build-time CDN
 
 Removes the last build-time dependency on Shorebird-operated infrastructure
@@ -26,6 +27,22 @@ docker compose -f selfhost/cdn/docker-compose.cdn.yaml up --build
 
 The first image build compiles Caddy with the cache plugin (~1–2 min). Later
 rebuilds reuse that layer when the plugin set is unchanged.
+
+### Without Docker
+
+GitHub's macOS runners have no Docker, and iOS and macOS builds need macOS. There,
+`run_native.sh` runs the same two services as plain processes, on the same ports:
+
+```bash
+selfhost/cdn/run_native.sh start          # add --tls after tls/generate.sh for https on 8443
+selfhost/cdn/run_native.sh stop
+```
+
+It builds Caddy with `xcaddy` at pinned plugin versions (needs `go`) and AOT-compiles
+`packages/artifact_proxy` (needs `dart`). It doesn't fork the `Caddyfile`. It copies it
+into `.native/` and rewrites the container paths there, and it refuses to start if any
+are left. `--overlay` and `--map` point it at an overlay and hash map other than the ones
+in this directory.
 
 ## Point the CLI at it
 
