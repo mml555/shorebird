@@ -68,7 +68,7 @@ done
 
 FLUTTER_ROOT="$(cd -- "$FLUTTER_ROOT" >/dev/null 2>&1 && pwd)" || die "no checkout at $FLUTTER_ROOT"
 OUT="$FLUTTER_ROOT/engine/src/out/android_release_arm64"
-[[ -d "$OUT" ]] || die "no build output at $OUT (run build.sh --cell android-arm64 first)"
+[[ -d "$OUT" ]] || die "no build output at $OUT (run build.sh --cell android first)"
 
 if [[ -z "$STOCK_HASH" ]]; then
   STOCK_HASH="$(tr -d '[:space:]' < "$FLUTTER_ROOT/bin/internal/engine.version")"
@@ -94,7 +94,9 @@ copy() {  # copy <src> <dest>
   if [[ -f "$1" ]]; then
     cp -f "$1" "$2"; echo "  + ${2#"$OVERLAY"/}"
   else
-    echo "  ! MISSING $1" >&2; missing=1
+    # Drop what an earlier publish left here, so a missing artifact 404s
+    # instead of serving another tree's bytes.
+    echo "  ! MISSING $1" >&2; missing=1; rm -f "$2"
   fi
 }
 
@@ -126,6 +128,8 @@ for abi in arm x64; do
   else
     echo "  ! MISSING $abi_out: android-$abi-release/ will 404 (build.sh --cell android)" >&2
     missing=1
+    # An earlier publish's zips and jars for this ABI came from another tree.
+    rm -rf "$INFRA/android-$abi-release" "$OVERLAY/download.flutter.io/io/flutter/$abi_mod/1.0.0-$EXP_HASH"
     STOCK_MODS+=("$abi_mod")
   fi
 done
@@ -134,6 +138,7 @@ if [[ -f "$OUT/flutter_embedding_release.jar" ]]; then
   OWN_MODS+=("$OUT:flutter_embedding_release")
 else
   STOCK_MODS+=(flutter_embedding_release)
+  rm -rf "$OVERLAY/download.flutter.io/io/flutter/flutter_embedding_release/1.0.0-$EXP_HASH"
 fi
 
 # --- VM-coupled host toolchain (learned on device) ---------------------------
@@ -175,10 +180,13 @@ copy "$HOST_DEBUG_OUT/zip_archives/$HOST_TAG/artifacts.zip" "$INFRA/$HOST_TAG/ar
 # one, and @must_be_local owns it.
 copy "$HOST_DEBUG_OUT/zip_archives/flutter_patched_sdk.zip" "$INFRA/flutter_patched_sdk.zip"
 # font-subset.zip carries const_finder.dart.snapshot and extracts into the same
-# cache directory as artifacts.zip. The mirror owns it only per cell, so a hash
-# that does not publish it gets the stock one, whose SDK hash our Dart rejects:
-# "ConstFinder failure: Can't load Kernel binary: Invalid SDK hash" at the icon
-# tree shaker. build.sh builds it in host_release (flutter/tools/font_subset).
+# cache directory as artifacts.zip. build.sh builds it in host_release
+# (flutter/tools/font_subset). The mirror does NOT own linux-x64/font-subset.zip
+# for an experimental hash (only per supported cell; see the Caddyfile), so if
+# this copy is missing the mirror serves the stock one, whose SDK hash our Dart
+# rejects: "ConstFinder failure: Can't load Kernel binary: Invalid SDK hash" at
+# the icon tree shaker. The MISSING line below is the only warning you get. Add
+# the hash to the Caddyfile's per-cell font-subset arm when it is promoted.
 copy "$HOST_OUT/zip_archives/$HOST_TAG/font-subset.zip" "$INFRA/$HOST_TAG/font-subset.zip"
 
 # The host toolchain must come from the same tree as the Android engine it
@@ -187,32 +195,55 @@ copy "$HOST_OUT/zip_archives/$HOST_TAG/font-subset.zip" "$INFRA/$HOST_TAG/font-s
 # silently. Ask ninja whether they are current; comparing mtimes instead gives
 # false alarms, since ninja leaves an output untouched when its inputs didn't
 # change even though the Android cell next to it was relinked.
+# The Android cells are checked the same way: an ABI left over from an older
+# tree, published next to a newer host gen_snapshot, dies at launch with
+# "Wrong full snapshot version". Unable to ask counts as stale.
 stale_check() {  # stale_check <out dir> <ninja target>...
   local out="$1"; shift
+  [[ -d "$out" ]] || return 0   # absent: already reported MISSING above
   if [[ ! -f "$out/build.ninja" ]] || ! command -v ninja >/dev/null 2>&1; then
-    return 0
+    echo "  ! STALE? cannot ask ninja about $out (no build.ninja, or ninja not on PATH)" >&2
+    missing=1; return 0
   fi
-  if ! ninja -C "$out" -n "$@" 2>/dev/null | grep -q '^ninja: no work to do'; then
-    echo "  ! STALE $out is not up to date for: $*; rebuild the host toolchain" >&2
+  local plan
+  plan="$(ninja -C "$out" -n "$@" 2>&1 || true)"
+  if ! grep -q '^ninja: no work to do' <<<"$plan"; then
+    echo "  ! STALE $out is not up to date for: $*; rebuild it (build.sh --cell android)" >&2
     missing=1
   fi
 }
 stale_check "$HOST_OUT" dart_sdk flutter/build/archives:flutter_patched_sdk flutter/tools/font_subset
 stale_check "$HOST_DEBUG_OUT" flutter/build/archives:artifacts flutter/build/archives:flutter_patched_sdk
+for d in android_release_arm64 android_release android_release_x64; do
+  stale_check "$FLUTTER_ROOT/engine/src/out/$d" default
+done
 
 # engine_stamp.json: Flutter's tool fetches it on every precache (3.47+;
 # FlutterEngineStamp) and @must_be_local owns the path, so without it a
 # release against this hash fails "Exception: 404". Only reported by the tool.
-stamp_ms=$(( $(stat -c %Y "$ZIPS/artifacts.zip" 2>/dev/null || stat -f %m "$ZIPS/artifacts.zip") * 1000 ))
-rev_date="$(git -C "$FLUTTER_ROOT" log -1 --format=%cI HEAD 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)"
-content_hash="$EXP_HASH"
+stamp_s="$(stat -c %Y "$ZIPS/artifacts.zip" 2>/dev/null || stat -f %m "$ZIPS/artifacts.zip" 2>/dev/null || date +%s)"
+stamp_ms=$(( stamp_s * 1000 ))
+# Only this checkout's own history: in a tree without its own .git, `git log`
+# would read whatever repository encloses it.
+rev_date=""
+if [[ -e "$FLUTTER_ROOT/.git" ]]; then
+  rev_date="$(git -C "$FLUTTER_ROOT" log -1 --format=%cI HEAD 2>/dev/null || true)"
+fi
+if [[ -z "$rev_date" ]]; then
+  echo "  ! engine_stamp.json: no git history at $FLUTTER_ROOT; git_revision_date is the publish time" >&2
+  rev_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+fi
+content_hash=""
 if [[ -f "$FLUTTER_ROOT/bin/internal/content_aware_hash.sh" ]]; then
-  content_hash="$(cd "$FLUTTER_ROOT" && bash bin/internal/content_aware_hash.sh 2>/dev/null | tail -1)" \
-    || content_hash="$EXP_HASH"
+  content_hash="$(cd "$FLUTTER_ROOT" && bash bin/internal/content_aware_hash.sh 2>/dev/null | tail -1 || true)"
+fi
+if [[ ! "$content_hash" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "  ! engine_stamp.json: no content hash from bin/internal/content_aware_hash.sh; using $EXP_HASH" >&2
+  content_hash="$EXP_HASH"
 fi
 printf '{"build_date":"%s","build_time_ms":%d,"git_revision":"%s","git_revision_date":"%s","content_hash":"%s"}\n' \
-  "$(date -u -d "@$((stamp_ms / 1000))" +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%S)" \
-  "$stamp_ms" "$EXP_HASH" "$rev_date" "${content_hash:-$EXP_HASH}" > "$INFRA/engine_stamp.json"
+  "$(date -u -d "@$stamp_s" +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -u -r "$stamp_s" +%Y-%m-%dT%H:%M:%S)" \
+  "$stamp_ms" "$EXP_HASH" "$rev_date" "$content_hash" > "$INFRA/engine_stamp.json"
 echo "  + ${INFRA#"$OVERLAY"/}/engine_stamp.json"
 
 # NOTE: aot-tools.dill is deliberately NOT published. It lives in
@@ -258,7 +289,6 @@ for mod in ${STOCK_MODS[@]+"${STOCK_MODS[@]}"}; do
   mkdir -p "$d"
   for ext in jar pom; do
     dest="$d/$mod-1.0.0-$EXP_HASH.$ext"
-    [[ -f "$dest" ]] && continue
     src="$MIRROR_URL/download.flutter.io/io/flutter/$mod/1.0.0-$STOCK_HASH/$mod-1.0.0-$STOCK_HASH.$ext"
     if curl -fsSL "$src" -o "$dest"; then
       echo "  + ${dest#"$OVERLAY"/} (from $STOCK_HASH)"
@@ -347,6 +377,7 @@ if [[ "$missing" == "1" ]]; then
   echo "WARNING: some owned artifacts were not published. The mirror will 404 on" >&2
   echo "those paths rather than serve stock bytes — that is intentional, but the" >&2
   echo "build will fail until you rebuild and re-run this script." >&2
+  exit 3
 fi
 
 cat <<EOF

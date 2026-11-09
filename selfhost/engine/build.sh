@@ -195,7 +195,7 @@ if [[ -n "$CELL" ]]; then
   # in shorebird/ci/internal/linux_setup.sh predates build_rust_updater.py).
   for abi in "${ABIS[@]}"; do
     t="$(abi_rust "$abi")"
-    if ! rustup target list --installed 2>/dev/null | grep -qx "$t"; then
+    if ! grep -qx "$t" <<<"$(rustup target list --installed 2>/dev/null)"; then
       die "rust target $t not installed: rustup target add $t"
     fi
   done
@@ -252,7 +252,7 @@ if [[ -n "$CELL" ]]; then
       --android --android-cpu="$abi" --runtime-mode=release ${GN_ARGS[@]+"${GN_ARGS[@]}"}
     fresh_version "$OUT_DIR"
     # `default` already builds the host gen_snapshot (clang_x64/, zipped as
-    # linux-x64.zip). The bare `gen_snapshot` target is the Android-target one
+    # linux-x64.zip). The bare `gen_snapshot` target is the Android-target
     # one at the top of the out dir, which nothing publishes and which
     # `flutter build --local-engine` picks first, failing with "Syntax error".
     ninja -C "$OUT_DIR" -j "$JOBS" default
