@@ -281,7 +281,10 @@ if [[ -n "$CELL" ]]; then
     ./flutter/tools/gn --no-rbe --no-enable-unittests --no-prebuilt-dart-sdk \
       ${HOST_GN_ARGS[@]+"${HOST_GN_ARGS[@]}"}
     fresh_version out/host_debug
-    ninja -C out/host_debug -j "$JOBS" flutter/build/archives:artifacts
+    # flutter_patched_sdk here is the non-product flutter_patched_sdk.zip that
+    # every `flutter precache` fetches alongside the product one.
+    ninja -C out/host_debug -j "$JOBS" flutter/build/archives:artifacts \
+      flutter/build/archives:flutter_patched_sdk
   fi
 
   cell_missing=0
@@ -304,7 +307,8 @@ if [[ -n "$CELL" ]]; then
       "out/host_release/zip_archives/flutter_patched_sdk_product.zip" \
       "out/host_release/impellerc" \
       "out/host_release/font-subset" \
-      "out/host_debug/zip_archives/linux-x64/artifacts.zip"
+      "out/host_debug/zip_archives/linux-x64/artifacts.zip" \
+      "out/host_debug/zip_archives/flutter_patched_sdk.zip"
     do
       if [[ -e "$f" ]]; then echo "  + $f"; else echo "  - MISSING $f" >&2; cell_missing=1; fi
     done

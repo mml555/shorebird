@@ -171,6 +171,9 @@ fi
 HOST_DEBUG_OUT="$FLUTTER_ROOT/engine/src/out/host_debug"
 mkdir -p "$INFRA/$HOST_TAG"
 copy "$HOST_DEBUG_OUT/zip_archives/$HOST_TAG/artifacts.zip" "$INFRA/$HOST_TAG/artifacts.zip"
+# The non-product patched SDK: `flutter precache` fetches it with the product
+# one, and @must_be_local owns it.
+copy "$HOST_DEBUG_OUT/zip_archives/flutter_patched_sdk.zip" "$INFRA/flutter_patched_sdk.zip"
 
 # The host toolchain must come from the same tree as the Android engine it
 # ships with. After `build.sh --no-host`, or a host build that failed, the
@@ -189,7 +192,7 @@ stale_check() {  # stale_check <out dir> <ninja target>...
   fi
 }
 stale_check "$HOST_OUT" dart_sdk flutter/build/archives:flutter_patched_sdk
-stale_check "$HOST_DEBUG_OUT" flutter/build/archives:artifacts
+stale_check "$HOST_DEBUG_OUT" flutter/build/archives:artifacts flutter/build/archives:flutter_patched_sdk
 
 # engine_stamp.json: Flutter's tool fetches it on every precache (3.47+;
 # FlutterEngineStamp) and @must_be_local owns the path, so without it a
@@ -309,7 +312,7 @@ fi
   echo "published_at:             $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "local_artifacts:          android-{arm64,arm,x64}-release/{artifacts,symbols,linux-x64}.zip (as built),"
   echo "                          $HOST_TAG/artifacts.zip, dart-sdk-$HOST_TAG.zip,"
-  echo "                          flutter_patched_sdk_product.zip, engine_stamp.json,"
+  echo "                          flutter_patched_sdk{,_product}.zip, engine_stamp.json,"
   echo "                          maven: ${OWN_MODS[*]##*:}"
   echo "everything_else:          served from $STOCK_HASH by the mirror"
 } > "$SB/PROVENANCE.txt"
