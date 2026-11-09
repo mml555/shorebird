@@ -60,6 +60,7 @@ So an allowed host is allowed for every URL on it. These stay because jobs need 
 | `*.actions.githubusercontent.com` | runner control, logs, results; shard names change (`pipelinesghubeus22`, `run-actions-2-azure-eastus`, ...) | GitHub-operated services only |
 | `productionresultssa<N>.blob.core.windows.net` | artifacts, logs, caches; GitHub adds numbers over time | an Azure storage account with a free number could be registered by someone else |
 | `registry.npmjs.org`, `pub.dev`, `index.crates.io`, `static.crates.io`, `ghcr.io` | dependencies, image pushes in the release workflow | publishing, with the job's own credentials |
+| `dl-cdn.alpinelinux.org`, `deb.debian.org` | `apk` / `apt-get` in image builds (the cargo-deny image, the `code_push_server` runtime stage) | plain HTTP on port 80: squid matches only the host, so any path or query string to the CDN goes out. Small, but a channel |
 
 Removed on 2026-11-08 after reading the proxy log (it covered only about 2.5 hours, so
 only entries with an obvious replacement were cut): `crates.io` (cargo's sparse registry
@@ -78,6 +79,17 @@ abstract or world-accessible socket.
 
 Also accepted: a job can read everything in its own HOME and the checked-out repo, and can
 use the CPU, disk and the allowed hosts while it runs. A job cannot outlive its unit.
+
+## Image builds with buildx
+
+The registry mirror in the rootless dockerd's `daemon.json` and the proxies in
+`~/.docker/config.json` (both written by `gha-run`) apply to `docker pull`, `docker run`
+and the classic `docker build`. A `docker-container` buildx builder, which
+`docker/setup-buildx-action` creates, gets neither: BuildKit runs in its own container and
+resolves names itself, which the firewall drops. A workflow that creates one on these
+runners must hand it the proxy (`https_proxy`, `http_proxy`, and `no_proxy` including
+`10.0.2.2`) as driver env and point `docker.io` at the cache as `10.0.2.2:5000` (plain
+HTTP), as `.github/workflows/release_code_push_server.yaml` does.
 
 ## Add an allowed host
 

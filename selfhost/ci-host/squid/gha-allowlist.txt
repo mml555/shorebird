@@ -28,6 +28,9 @@ registry.npmjs.org
 
 # Alpine packages (apk in docker build steps, e.g. the cargo-deny image)
 dl-cdn.alpinelinux.org
+# Debian packages (apt in the code_push_server image's runtime stage; the security
+# suite is served from the same host)
+deb.debian.org
 
 # Docker Hub is not listed: images come through the root-owned pull-through cache on
 # 127.0.0.1:5000, which fetches them itself. (Removed 2026-11-08: no hits in the proxy log.)
