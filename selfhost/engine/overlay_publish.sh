@@ -209,12 +209,19 @@ done
 # before artifact_proxy sees them, so artifact_proxy reads the pinned manifest.
 # Publishing it anyway keeps the prefix self-describing and makes the eventual
 # move to publish_to_store.sh a no-op.
+# Flutter forks before shorebirdtech/flutter#220 ship generate_manifest.sh;
+# later ones only the template that upstream's shard_runner fills in.
 GEN="$FLUTTER_ROOT/shorebird/ci/internal/generate_manifest.sh"
+TEMPLATE="$FLUTTER_ROOT/shorebird/ci/artifacts_manifest.template.yaml"
 if [[ -f "$GEN" ]]; then
   bash "$GEN" "$EXP_HASH" > "$SB/artifacts_manifest.yaml"
   echo "  + ${SB#"$OVERLAY"/}/artifacts_manifest.yaml"
+elif [[ -f "$TEMPLATE" ]]; then
+  sed "s/{{flutter_engine_revision}}/$EXP_HASH/g" "$TEMPLATE" \
+    > "$SB/artifacts_manifest.yaml"
+  echo "  + ${SB#"$OVERLAY"/}/artifacts_manifest.yaml (from template)"
 else
-  echo "  ! MISSING $GEN (manifest not written)" >&2
+  echo "  ! MISSING $GEN and $TEMPLATE (manifest not written)" >&2
 fi
 
 # --- Patch differ (Flow B) -----------------------------------------------------
