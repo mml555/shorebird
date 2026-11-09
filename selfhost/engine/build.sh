@@ -35,6 +35,10 @@
 #                   call gn themselves: without the prebuilt Dart SDK it needs
 #                   --no-prebuilt-dart-sdk added there (overlay_publish.sh
 #                   does the same).
+#   --no-host       --cell builds only: skip the host toolchain (host_release
+#                   dart_sdk + flutter_patched_sdk, host_debug artifacts.zip with
+#                   impellerc). Only safe when the change is engine-C++-only:
+#                   the host Dart SDK is VM-coupled (see overlay_publish.sh).
 #   --root <dir>    Flutter checkout to build. Default: vendor/flutter. On a
 #                   build farm this is normally a real git clone of the pinned
 #                   revision, because gclient and Flutter's own scripts need
@@ -51,6 +55,7 @@ REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && 
 CELL=""
 HOST=""
 JOBS=3
+WITH_HOST=1
 FLUTTER_ROOT="$REPO_ROOT/vendor/flutter"
 GN_ARGS=()
 
@@ -62,6 +67,7 @@ while [[ $# -gt 0 ]]; do
     --cell) CELL="${2:?--cell needs a value}"; shift 2 ;;
     --host) HOST="${2:?--host needs a value}"; shift 2 ;;
     --jobs) JOBS="${2:?--jobs needs a value}"; shift 2 ;;
+    --no-host) WITH_HOST=0; shift ;;
     --root) FLUTTER_ROOT="${2:?--root needs a value}"; shift 2 ;;
     --gn-arg) GN_ARGS+=("${2:?--gn-arg needs a value}"); shift 2 ;;
     mac|linux|win) HOST="$1"; shift ;;   # positional form, kept for compatibility
@@ -202,6 +208,22 @@ if [[ -n "$CELL" ]]; then
     --android --android-cpu=arm64 --runtime-mode=release ${GN_ARGS[@]+"${GN_ARGS[@]}"}
   ninja -C "$OUT_DIR" -j "$JOBS" default gen_snapshot
 
+  # The host toolchain. overlay_publish.sh needs all of it, and the Dart SDK
+  # must come from this same tree (VM-coupled). Targets follow the vendored
+  # shorebird/ci/internal/linux_build.sh: host_release gives dart-sdk and
+  # flutter_patched_sdk_product.zip, host_debug gives linux-x64/artifacts.zip,
+  # which is where `flutter build` finds impellerc. --gn-arg flags apply here too.
+  if [[ "$WITH_HOST" == "1" ]]; then
+    note "Host: out/host_release (dart_sdk, flutter_patched_sdk)"
+    ./flutter/tools/gn --no-rbe --no-enable-unittests \
+      --runtime-mode=release ${GN_ARGS[@]+"${GN_ARGS[@]}"}
+    ninja -C out/host_release -j "$JOBS" \
+      dart_sdk flutter/build/archives:flutter_patched_sdk
+    note "Host: out/host_debug (linux-x64/artifacts.zip: impellerc, flutter_tester)"
+    ./flutter/tools/gn --no-rbe --no-enable-unittests ${GN_ARGS[@]+"${GN_ARGS[@]}"}
+    ninja -C out/host_debug -j "$JOBS" flutter/build/archives:artifacts
+  fi
+
   note "Cell complete. Expected artifacts under $ENGINE_SRC/$OUT_DIR:"
   for f in \
     "zip_archives/android-arm64-release/artifacts.zip" \
@@ -212,6 +234,15 @@ if [[ -n "$CELL" ]]; then
   do
     if [[ -e "$OUT_DIR/$f" ]]; then echo "  + $f"; else echo "  - MISSING $f" >&2; fi
   done
+  if [[ "$WITH_HOST" == "1" ]]; then
+    for f in \
+      "out/host_release/dart-sdk/bin/dart" \
+      "out/host_release/zip_archives/flutter_patched_sdk_product.zip" \
+      "out/host_debug/zip_archives/linux-x64/artifacts.zip"
+    do
+      if [[ -e "$f" ]]; then echo "  + $f"; else echo "  - MISSING $f" >&2; fi
+    done
+  fi
   note "Next: selfhost/engine/overlay_publish.sh --hash <expHash> --root $FLUTTER_ROOT"
   exit 0
 fi

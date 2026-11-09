@@ -115,8 +115,11 @@ copy "$ZIPS/linux-x64.zip"  "$INFRA/android-arm64-release/linux-x64.zip"
 # SAME tree as libflutter.so, not from the pinned revision:
 HOST_OUT="$FLUTTER_ROOT/engine/src/out/host_release"
 if [[ -d "$HOST_OUT" ]]; then
-  if [[ -d "$HOST_OUT/dart-sdk" && ! -f "$HOST_OUT/dart-sdk-$HOST_TAG.zip" ]]; then
+  # Re-zip every time. Reusing an existing zip once published an SDK older than
+  # the dart-sdk/ it sat next to, after a rebuild of the VM.
+  if [[ -d "$HOST_OUT/dart-sdk" ]]; then
     note "zipping dart-sdk ($HOST_TAG)"
+    rm -f "$HOST_OUT/dart-sdk-$HOST_TAG.zip"
     ( cd "$HOST_OUT" && zip -qr "dart-sdk-$HOST_TAG.zip" dart-sdk )
   fi
   copy "$HOST_OUT/dart-sdk-$HOST_TAG.zip" "$INFRA/dart-sdk-$HOST_TAG.zip"
@@ -129,6 +132,13 @@ else
   echo "    Without it the app installs and then dies at launch." >&2
   missing=1
 fi
+
+# Host engine artifacts: impellerc (every `flutter build` compiles shaders with
+# it), flutter_tester, the host gen_snapshot. Built in host_debug, as Flutter
+# and Shorebird CI do; build.sh --cell builds it unless --no-host.
+HOST_DEBUG_OUT="$FLUTTER_ROOT/engine/src/out/host_debug"
+mkdir -p "$INFRA/$HOST_TAG"
+copy "$HOST_DEBUG_OUT/zip_archives/$HOST_TAG/artifacts.zip" "$INFRA/$HOST_TAG/artifacts.zip"
 
 # NOTE: aot-tools.dill is deliberately NOT published. It lives in
 # pkg/aot_tools inside Shorebird's PRIVATE Dart fork, so we cannot build it, and
