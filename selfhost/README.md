@@ -70,6 +70,9 @@ existed and were reachable only from `PARITY.md` and each other)*
 - [`SESSION_SUMMARY_lifecycle.md`](SESSION_SUMMARY_lifecycle.md) — the lane end to
   end: what shipped, the four silent-loss defects and what each biased, the device
   evidence, the harness that replaced human-timed kills, and the mistakes worth keeping
+- [`STATUS.md`](STATUS.md) — **start here when picking the work back up:** the four
+  repositories, what is in flight, the stable-baseline checklist and the open items in
+  order
 - [`STATE_OF_THE_SYSTEM.md`](STATE_OF_THE_SYSTEM.md) — what has actually been
   achieved, what would mean anything to upstream, and the next steps in execution order
 
