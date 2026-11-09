@@ -70,8 +70,11 @@ for conf in /etc/gha-runners/gha-*.conf; do
   # "gha-runner" is escaped as \x2d in the slice name).
   cg="system.slice/system-gha\\x2drunner.slice/gha-runner@$u.service"
   if [[ -d "/sys/fs/cgroup/$cg" ]]; then
-    jump_rules+=("    socket cgroupv2 level 3 \"$cg\" jump gha")
-    mark_rules+=("    socket cgroupv2 level 3 \"$cg\" oifname \"lo\" meta mark set $mark")
+    # Real root is left out: the unit's `ExecStartPre=+gha-prep` runs as root in this
+    # same cgroup and must reach api.github.com directly to mint the registration token.
+    # No job process is real root (jobs run as the user; container root is a subuid).
+    jump_rules+=("    meta skuid != 0 socket cgroupv2 level 3 \"$cg\" jump gha")
+    mark_rules+=("    meta skuid != 0 socket cgroupv2 level 3 \"$cg\" oifname \"lo\" meta mark set $mark")
     # Accept the user's own listeners, drop any other listener that is found. (A `!=`
     # match would not work: for a listener in a shallower cgroup, such as
     # system.slice/foo.service, "the level-3 ancestor" does not exist and nft skips the rule.)
