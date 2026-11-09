@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words worktree ionice
+# cspell:words worktree ionice armv androideabi
 #
 # build.sh — build the Shorebird engine from a synced Shorebird Flutter checkout.
 # Does not upload; run publish_to_store.sh (object store) or overlay_publish.sh
@@ -22,8 +22,10 @@
 #                                     overlay_publish.sh).
 #
 # Options:
-#   --cell <name>   Build one cell instead of the full shard. Only
-#                   `android-arm64` today.
+#   --cell <name>   Build one cell instead of the full shard: android-arm64,
+#                   android-arm, android-x64, or `android` for all three
+#                   release ABIs (the CDN owns all three; a publish missing
+#                   one makes `flutter precache` 404).
 #   --host <os>     mac|linux|win. Default: auto-detect.
 #   --jobs <n>      ninja parallelism for --cell builds. Default: 3, which is
 #                   deliberately low for a small shared host. On ci-build (32
@@ -35,6 +37,13 @@
 #                   call gn themselves: without the prebuilt Dart SDK it needs
 #                   --no-prebuilt-dart-sdk added there (overlay_publish.sh
 #                   does the same).
+#   --host-gn-arg <flag>  Extra flag for the host gn calls of --cell (host_release,
+#                   host_debug); repeat for several. --gn-arg does NOT reach
+#                   them, so an Android flag cannot rename their out dirs.
+#   --no-host       --cell builds only: skip the host toolchain (host_release
+#                   dart_sdk + flutter_patched_sdk, host_debug artifacts.zip with
+#                   impellerc). Only safe when the change is engine-C++-only:
+#                   the host Dart SDK is VM-coupled (see overlay_publish.sh).
 #   --root <dir>    Flutter checkout to build. Default: vendor/flutter. On a
 #                   build farm this is normally a real git clone of the pinned
 #                   revision, because gclient and Flutter's own scripts need
@@ -51,6 +60,8 @@ REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && 
 CELL=""
 HOST=""
 JOBS=3
+WITH_HOST=1
+HOST_GN_ARGS=()
 FLUTTER_ROOT="$REPO_ROOT/vendor/flutter"
 GN_ARGS=()
 
@@ -62,6 +73,8 @@ while [[ $# -gt 0 ]]; do
     --cell) CELL="${2:?--cell needs a value}"; shift 2 ;;
     --host) HOST="${2:?--host needs a value}"; shift 2 ;;
     --jobs) JOBS="${2:?--jobs needs a value}"; shift 2 ;;
+    --no-host) WITH_HOST=0; shift ;;
+    --host-gn-arg) HOST_GN_ARGS+=("${2:?--host-gn-arg needs a value}"); shift 2 ;;
     --root) FLUTTER_ROOT="${2:?--root needs a value}"; shift 2 ;;
     --gn-arg) GN_ARGS+=("${2:?--gn-arg needs a value}"); shift 2 ;;
     mac|linux|win) HOST="$1"; shift ;;   # positional form, kept for compatibility
@@ -69,6 +82,10 @@ while [[ $# -gt 0 ]]; do
     *) die "unknown argument: $1" ;;
   esac
 done
+
+if [[ -z "$CELL" && ( "$WITH_HOST" == "0" || ${#HOST_GN_ARGS[@]} -gt 0 ) ]]; then
+  die "--no-host and --host-gn-arg apply to --cell builds only"
+fi
 
 FLUTTER_ROOT="$(cd -- "$FLUTTER_ROOT" >/dev/null 2>&1 && pwd)" \
   || die "checkout not found: $FLUTTER_ROOT"
@@ -156,9 +173,19 @@ fi
 
 # --- Minimal cell -----------------------------------------------------------
 if [[ -n "$CELL" ]]; then
-  [[ "$CELL" == "android-arm64" ]] || die "unknown cell: $CELL (only android-arm64)"
+  case "$CELL" in
+    android)       ABIS=(arm64 arm x64) ;;
+    android-arm64) ABIS=(arm64) ;;
+    android-arm)   ABIS=(arm) ;;
+    android-x64)   ABIS=(x64) ;;
+    *) die "unknown cell: $CELL (android, android-arm64, android-arm, android-x64)" ;;
+  esac
+  # Per ABI: out dir (Flutter's own naming), zip dir, Maven module, Rust target.
+  abi_out()   { case "$1" in arm64) echo out/android_release_arm64 ;; arm) echo out/android_release ;; x64) echo out/android_release_x64 ;; esac; }
+  abi_maven() { case "$1" in arm64) echo arm64_v8a_release ;; arm) echo armeabi_v7a_release ;; x64) echo x86_64_release ;; esac; }
+  abi_rust()  { case "$1" in arm64) echo aarch64-linux-android ;; arm) echo armv7-linux-androideabi ;; x64) echo x86_64-linux-android ;; esac; }
   [[ "$HOST" == "linux" ]] || die \
-    "the android-arm64 cell is Linux-only here. Building Android from macOS needs
+    "the Android cells are Linux-only here. Building Android from macOS needs
      extra GN args — see $FLUTTER_ROOT/shorebird/docs/BUILDING.md."
 
   # The Rust updater is compiled INSIDE the GN build by
@@ -166,12 +193,13 @@ if [[ -n "$CELL" ]]; then
   # directly and sets CC/AR/CARGO_TARGET_*_LINKER from the NDK itself. So the
   # target triple must be installed, but cargo-ndk is NOT required (the comment
   # in shorebird/ci/internal/linux_setup.sh predates build_rust_updater.py).
-  if ! rustup target list --installed 2>/dev/null | grep -qx 'aarch64-linux-android'; then
-    die "rust target aarch64-linux-android not installed: rustup target add aarch64-linux-android"
-  fi
-
-  OUT_DIR="out/android_release_arm64"
-  note "Cell: android-arm64  ($OUT_DIR, ninja -j$JOBS)"
+  for abi in "${ABIS[@]}"; do
+    t="$(abi_rust "$abi")"
+    if ! grep -qx "$t" <<<"$(rustup target list --installed 2>/dev/null)"; then
+      die "rust target $t not installed: rustup target add $t"
+    fi
+  done
+  note "Cell: $CELL (${ABIS[*]}, ninja -j$JOBS)"
 
   # Without the prebuilt Dart SDK (download_dart_sdk: False, because the bucket
   # is private), gn must be told to build Dart from source; by default it
@@ -194,25 +222,100 @@ if [[ -n "$CELL" ]]; then
   GN_ARGS+=(${EXTRA[@]+"${EXTRA[@]}"})
 
   cd "$ENGINE_SRC"
+  # Dart's generate_version_cc_file action lists only the VM snapshot sources
+  # as inputs, so a new Dart revision that leaves them alone keeps the old SDK
+  # hash in the VM binaries while the kernel tools (passed the hash at gn time)
+  # get the new one: `dart run` then fails "Can't load Kernel binary: Invalid
+  # SDK hash." Drop any copy that doesn't name the checked-out Dart revision
+  # (the SDK hash is its first 10 hex chars), in every toolchain's gen/: the
+  # Android out dir builds the host gen_snapshot under clang_x64/gen/. A copy
+  # that is already current is kept, so an unchanged tree doesn't relink.
+  DART_REV="$(git -C flutter/third_party/dart rev-parse HEAD 2>/dev/null || true)"
+  fresh_version() {
+    [[ -d "$1" ]] || return 0
+    local f
+    while IFS= read -r f; do
+      if [[ -z "$DART_REV" ]] || ! grep -q "\"${DART_REV:0:10}\"" "$f"; then
+        note "re-stamping stale ${f#"$1"/}"
+        rm -f "$f"
+      fi
+    done < <(find "$1" -path '*/gen/flutter/third_party/dart/runtime/version.cc')
+  }
   # Flags per shorebird/docs/BUILDING.md (Linux / Android arm64). Note there is
   # NO `shorebird_runtime` GN arg at this revision — the Shorebird hooks are
   # unconditional, gated in GN by shorebird_updater_supported. BUILDING.md's iOS
   # example still passes it; don't copy that.
-  ./flutter/tools/gn --no-rbe --no-enable-unittests \
-    --android --android-cpu=arm64 --runtime-mode=release ${GN_ARGS[@]+"${GN_ARGS[@]}"}
-  ninja -C "$OUT_DIR" -j "$JOBS" default gen_snapshot
-
-  note "Cell complete. Expected artifacts under $ENGINE_SRC/$OUT_DIR:"
-  for f in \
-    "zip_archives/android-arm64-release/artifacts.zip" \
-    "zip_archives/android-arm64-release/symbols.zip" \
-    "zip_archives/android-arm64-release/linux-x64.zip" \
-    "arm64_v8a_release.jar" \
-    "arm64_v8a_release.pom"
-  do
-    if [[ -e "$OUT_DIR/$f" ]]; then echo "  + $f"; else echo "  - MISSING $f" >&2; fi
+  for abi in "${ABIS[@]}"; do
+    OUT_DIR="$(abi_out "$abi")"
+    note "android-$abi: $OUT_DIR"
+    ./flutter/tools/gn --no-rbe --no-enable-unittests \
+      --android --android-cpu="$abi" --runtime-mode=release ${GN_ARGS[@]+"${GN_ARGS[@]}"}
+    fresh_version "$OUT_DIR"
+    # `default` already builds the host gen_snapshot (clang_x64/, zipped as
+    # linux-x64.zip). The bare `gen_snapshot` target is the Android-target
+    # one at the top of the out dir, which nothing publishes and which
+    # `flutter build --local-engine` picks first, failing with "Syntax error".
+    ninja -C "$OUT_DIR" -j "$JOBS" default
+    rm -f "$OUT_DIR/gen_snapshot"
   done
+
+  # The host toolchain. overlay_publish.sh needs all of it, and the Dart SDK
+  # must come from this same tree (VM-coupled). Targets follow the vendored
+  # shorebird/ci/internal/linux_build.sh: host_release gives dart-sdk and
+  # flutter_patched_sdk_product.zip, host_debug gives linux-x64/artifacts.zip,
+  # which is where `flutter build` finds impellerc. Like upstream, both host
+  # builds always build Dart from source: the host dart-sdk must be this
+  # tree's VM even when a prebuilt one is present. --gn-arg does not reach
+  # them; --host-gn-arg does.
+  if [[ "$WITH_HOST" == "1" ]]; then
+    note "Host: out/host_release (dart_sdk, flutter_patched_sdk)"
+    ./flutter/tools/gn --no-rbe --no-enable-unittests --no-prebuilt-dart-sdk \
+      --runtime-mode=release ${HOST_GN_ARGS[@]+"${HOST_GN_ARGS[@]}"}
+    fresh_version out/host_release
+    # impellerc and font-subset too: `flutter build --local-engine-host`
+    # looks for them here and falls back to the (unpopulated) cache.
+    ninja -C out/host_release -j "$JOBS" \
+      dart_sdk flutter/build/archives:flutter_patched_sdk \
+      flutter/impeller/compiler:impellerc flutter/tools/font_subset
+    note "Host: out/host_debug (linux-x64/artifacts.zip: impellerc, flutter_tester)"
+    ./flutter/tools/gn --no-rbe --no-enable-unittests --no-prebuilt-dart-sdk \
+      ${HOST_GN_ARGS[@]+"${HOST_GN_ARGS[@]}"}
+    fresh_version out/host_debug
+    # flutter_patched_sdk here is the non-product flutter_patched_sdk.zip that
+    # every `flutter precache` fetches alongside the product one.
+    ninja -C out/host_debug -j "$JOBS" flutter/build/archives:artifacts \
+      flutter/build/archives:flutter_patched_sdk
+  fi
+
+  cell_missing=0
+  note "Cell complete. Expected artifacts under $ENGINE_SRC:"
+  for abi in "${ABIS[@]}"; do
+    OUT_DIR="$(abi_out "$abi")"; m="$(abi_maven "$abi")"
+    for f in \
+      "zip_archives/android-$abi-release/artifacts.zip" \
+      "zip_archives/android-$abi-release/symbols.zip" \
+      "zip_archives/android-$abi-release/linux-x64.zip" \
+      "$m.jar" \
+      "$m.pom"
+    do
+      if [[ -e "$OUT_DIR/$f" ]]; then echo "  + $OUT_DIR/$f"; else echo "  - MISSING $OUT_DIR/$f" >&2; cell_missing=1; fi
+    done
+  done
+  if [[ "$WITH_HOST" == "1" ]]; then
+    for f in \
+      "out/host_release/dart-sdk/bin/dart" \
+      "out/host_release/zip_archives/flutter_patched_sdk_product.zip" \
+      "out/host_release/impellerc" \
+      "out/host_release/font-subset" \
+      "out/host_release/zip_archives/linux-x64/font-subset.zip" \
+      "out/host_debug/zip_archives/linux-x64/artifacts.zip" \
+      "out/host_debug/zip_archives/flutter_patched_sdk.zip"
+    do
+      if [[ -e "$f" ]]; then echo "  + $f"; else echo "  - MISSING $f" >&2; cell_missing=1; fi
+    done
+  fi
   note "Next: selfhost/engine/overlay_publish.sh --hash <expHash> --root $FLUTTER_ROOT"
+  [[ "$cell_missing" == "0" ]] || die "the build finished but outputs are missing (above)"
   exit 0
 fi
 

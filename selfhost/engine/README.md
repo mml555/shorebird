@@ -139,7 +139,7 @@ to an Android arm64 device:
 
 ```
 gn --no-rbe --no-enable-unittests --android --android-cpu=arm64 --runtime-mode=release
-ninja -C out/android_release_arm64 default gen_snapshot
+ninja -C out/android_release_arm64 default   # not `gen_snapshot`: that is the ARM one
 ```
 
 `libflutter.so` lands in both `android-arm64-release/artifacts.zip` and the Maven

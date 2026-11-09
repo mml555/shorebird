@@ -1592,7 +1592,7 @@ becomes unresolvable at runtime, because AOT product snapshots carry no
 | 1 | [`0004`](engine/0004-dart-tearoff-selector-guard.patch) | Never closurize an implicit accessor — it overwrites the accessor's `Field` pointer |
 | 2 | [`0004`](engine/0004-dart-tearoff-selector-guard.patch) | Drop the `IsUsed()` (`call_count > 0`) gate on selector rows |
 | 3 | [`0004`](engine/0004-dart-tearoff-selector-guard.patch) + [`0005`](engine/0005-dart-precompiler-link-info-and-tearoffs.patch) | Build method extractors for **regular methods only**, ignoring `torn_off` / `has_tearoff_uses` |
-| 4 | [`0006`](engine/0006-dart-no-dispatch-call-for-hash-slots.patch) | Never dispatch-call the `_HashVMBase` graph-intrinsic slot accessors |
+| 4 | [`0006`](engine/0006-dart-no-dispatch-call-for-hash-slots.patch) | Never dispatch-call the `_HashVMBase` graph-intrinsic slot accessors. 3.12 line only: **do not port to 3.13.7**, where the accessors are `vm:recognized "other"` with bodies and this guard makes every `map.entries` throw NoSuchMethodError (dart-sdk-shorebird-lineage#1) |
 
 Snapshot size cost: **+1.5 %**.
 
@@ -2415,9 +2415,11 @@ Assembling this was most of the work. The pieces and why each is needed:
    reachable. Host artifacts (`dart-sdk-*.zip`, `flutter_patched_sdk_product.zip`,
    `linux-x64/artifacts.zip`) can be reused from a previous hash **only** if the
    change is engine-C++-only; they are VM-coupled otherwise.
-2. **`overlay_publish.sh` does not publish everything.** It omits
-   `linux-x64/artifacts.zip` (gen_snapshot, impellerc) and the Maven
-   `maven-metadata.xml`. Add both by hand; the known-good set is 17 files.
+2. **`overlay_publish.sh` does not publish everything.** It omits the Maven
+   `maven-metadata.xml`; add it by hand. The known-good set is 17 files.
+   `linux-x64/artifacts.zip` (impellerc, the host gen_snapshot) used to be
+   missing too; `build.sh --cell` now builds it in `out/host_debug` and
+   `overlay_publish.sh` publishes it.
 3. **Releases must run on Linux.** Our `gen_snapshot` is linux-x64 only, and the
    mirror 404s (deliberately) on host artifacts we did not build, so a release
    from the Mac cannot work. Use `release_on_box.sh` / `release_routeb.sh`.
