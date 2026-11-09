@@ -105,6 +105,37 @@ copy "$ZIPS/symbols.zip"    "$INFRA/android-arm64-release/symbols.zip"
 # Host gen_snapshot. NOT optional: see the VM-coupling note below.
 copy "$ZIPS/linux-x64.zip"  "$INFRA/android-arm64-release/linux-x64.zip"
 
+# The other two release ABIs. @must_be_local owns all three (each zip holds
+# the host gen_snapshot that compiles that ABI's libapp.so), so one that isn't
+# built here 404s and `flutter precache` fails for this hash. Build them with
+# `build.sh --cell android`.
+OWN_MODS=("$OUT:arm64_v8a_release")
+STOCK_MODS=()
+for abi in arm x64; do
+  case "$abi" in
+    arm) abi_dir=android_release;     abi_mod=armeabi_v7a_release ;;
+    x64) abi_dir=android_release_x64; abi_mod=x86_64_release ;;
+  esac
+  abi_out="$FLUTTER_ROOT/engine/src/out/$abi_dir"
+  if [[ -d "$abi_out/zip_archives/android-$abi-release" ]]; then
+    mkdir -p "$INFRA/android-$abi-release"
+    for z in artifacts symbols linux-x64; do
+      copy "$abi_out/zip_archives/android-$abi-release/$z.zip" "$INFRA/android-$abi-release/$z.zip"
+    done
+    OWN_MODS+=("$abi_out:$abi_mod")
+  else
+    echo "  ! MISSING $abi_out: android-$abi-release/ will 404 (build.sh --cell android)" >&2
+    missing=1
+    STOCK_MODS+=("$abi_mod")
+  fi
+done
+# The Java embedding is ABI-independent; ours when the build made it.
+if [[ -f "$OUT/flutter_embedding_release.jar" ]]; then
+  OWN_MODS+=("$OUT:flutter_embedding_release")
+else
+  STOCK_MODS+=(flutter_embedding_release)
+fi
+
 # --- VM-coupled host toolchain (learned on device) ---------------------------
 # Dart version-locks snapshots against an MD5 over runtime/vm sources
 # (tools/make_version.py VM_SNAPSHOT_FILES), and that list includes
@@ -195,21 +226,25 @@ pom_retag() {  # pom_retag <file> <old-version-hash>
   sed -i.bak "s|1\.0\.0-$2|1.0.0-$EXP_HASH|g" "$1" && rm -f "$1.bak"
 }
 
-copy "$OUT/arm64_v8a_release.jar" "$MAVEN/arm64_v8a_release-1.0.0-$EXP_HASH.jar"
-copy "$OUT/arm64_v8a_release.pom" "$MAVEN/arm64_v8a_release-1.0.0-$EXP_HASH.pom"
-if [[ -f "$MAVEN/arm64_v8a_release-1.0.0-$EXP_HASH.pom" ]]; then
-  # whatever version the build stamped in, make it ours
-  BUILT_VER="$(sed -n 's|.*<version>1\.0\.0-\([0-9a-f]\{40\}\)</version>.*|\1|p' \
-    "$MAVEN/arm64_v8a_release-1.0.0-$EXP_HASH.pom" | head -1)"
+# Our modules: copy, then make whatever version the build stamped ours.
+for entry in "${OWN_MODS[@]}"; do
+  mod_out="${entry%%:*}"; mod="${entry#*:}"
+  d="$OVERLAY/download.flutter.io/io/flutter/$mod/1.0.0-$EXP_HASH"
+  mkdir -p "$d"
+  copy "$mod_out/$mod.jar" "$d/$mod-1.0.0-$EXP_HASH.jar"
+  copy "$mod_out/$mod.pom" "$d/$mod-1.0.0-$EXP_HASH.pom"
+  pom="$d/$mod-1.0.0-$EXP_HASH.pom"
+  [[ -f "$pom" ]] || continue
+  BUILT_VER="$(sed -n 's|.*<version>1\.0\.0-\([0-9a-f]\{40\}\)</version>.*|\1|p' "$pom" | head -1)"
   if [[ -n "$BUILT_VER" && "$BUILT_VER" != "$EXP_HASH" ]]; then
-    pom_retag "$MAVEN/arm64_v8a_release-1.0.0-$EXP_HASH.pom" "$BUILT_VER"
+    pom_retag "$pom" "$BUILT_VER"
     echo "    (POM version $BUILT_VER -> $EXP_HASH)"
   fi
-fi
+done
 
-# The ABIs and the embedding jar we did not build: take the pinned ones and
-# retag. MIRROR_URL must serve the pinned revision (the CDN mirror does).
-for mod in flutter_embedding_release armeabi_v7a_release x86_64_release; do
+# Modules we did not build: take the pinned ones and retag. MIRROR_URL must
+# serve the pinned revision (the CDN mirror does).
+for mod in ${STOCK_MODS[@]+"${STOCK_MODS[@]}"}; do
   d="$OVERLAY/download.flutter.io/io/flutter/$mod/1.0.0-$EXP_HASH"
   mkdir -p "$d"
   for ext in jar pom; do
@@ -272,10 +307,10 @@ fi
   fi
   echo "built_on:                 $(uname -srm) $(hostname)"
   echo "published_at:             $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  echo "local_artifacts:          android-arm64-release/{artifacts,symbols,linux-x64}.zip,"
+  echo "local_artifacts:          android-{arm64,arm,x64}-release/{artifacts,symbols,linux-x64}.zip (as built),"
   echo "                          $HOST_TAG/artifacts.zip, dart-sdk-$HOST_TAG.zip,"
   echo "                          flutter_patched_sdk_product.zip, engine_stamp.json,"
-  echo "                          arm64_v8a_release-1.0.0-$EXP_HASH.{jar,pom}"
+  echo "                          maven: ${OWN_MODS[*]##*:}"
   echo "everything_else:          served from $STOCK_HASH by the mirror"
 } > "$SB/PROVENANCE.txt"
 echo "  + ${SB#"$OVERLAY"/}/PROVENANCE.txt"
