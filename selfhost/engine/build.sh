@@ -222,7 +222,12 @@ if [[ -n "$CELL" ]]; then
   ./flutter/tools/gn --no-rbe --no-enable-unittests \
     --android --android-cpu=arm64 --runtime-mode=release ${GN_ARGS[@]+"${GN_ARGS[@]}"}
   fresh_version "$OUT_DIR"
-  ninja -C "$OUT_DIR" -j "$JOBS" default gen_snapshot
+  # `default` already builds the host gen_snapshot (clang_x64/, zipped as
+  # linux-x64.zip). The bare `gen_snapshot` target is the target-arch (ARM)
+  # one at the top of the out dir, which nothing publishes and which
+  # `flutter build --local-engine` picks first, failing with "Syntax error".
+  ninja -C "$OUT_DIR" -j "$JOBS" default
+  rm -f "$OUT_DIR/gen_snapshot"
 
   # The host toolchain. overlay_publish.sh needs all of it, and the Dart SDK
   # must come from this same tree (VM-coupled). Targets follow the vendored
@@ -237,8 +242,11 @@ if [[ -n "$CELL" ]]; then
     ./flutter/tools/gn --no-rbe --no-enable-unittests --no-prebuilt-dart-sdk \
       --runtime-mode=release ${HOST_GN_ARGS[@]+"${HOST_GN_ARGS[@]}"}
     fresh_version out/host_release
+    # impellerc and font-subset too: `flutter build --local-engine-host`
+    # looks for them here and falls back to the (unpopulated) cache.
     ninja -C out/host_release -j "$JOBS" \
-      dart_sdk flutter/build/archives:flutter_patched_sdk
+      dart_sdk flutter/build/archives:flutter_patched_sdk \
+      flutter/impeller/compiler:impellerc flutter/tools/font_subset
     note "Host: out/host_debug (linux-x64/artifacts.zip: impellerc, flutter_tester)"
     ./flutter/tools/gn --no-rbe --no-enable-unittests --no-prebuilt-dart-sdk \
       ${HOST_GN_ARGS[@]+"${HOST_GN_ARGS[@]}"}
@@ -261,6 +269,8 @@ if [[ -n "$CELL" ]]; then
     for f in \
       "out/host_release/dart-sdk/bin/dart" \
       "out/host_release/zip_archives/flutter_patched_sdk_product.zip" \
+      "out/host_release/impellerc" \
+      "out/host_release/font-subset" \
       "out/host_debug/zip_archives/linux-x64/artifacts.zip"
     do
       if [[ -e "$f" ]]; then echo "  + $f"; else echo "  - MISSING $f" >&2; cell_missing=1; fi
