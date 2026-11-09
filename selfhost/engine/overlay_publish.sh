@@ -129,6 +129,7 @@ else
   echo "  ! MISSING $HOST_OUT — build it with:" >&2
   echo "      gn --runtime-mode=release --no-prebuilt-dart-sdk && \\" >&2
   echo "      ninja -C out/host_release dart_sdk flutter/build/archives:flutter_patched_sdk" >&2
+  echo "    (build.sh --cell does this, and host_debug's artifacts.zip, unless --no-host)" >&2
   echo "    Without it the app installs and then dies at launch." >&2
   missing=1
 fi
@@ -139,6 +140,19 @@ fi
 HOST_DEBUG_OUT="$FLUTTER_ROOT/engine/src/out/host_debug"
 mkdir -p "$INFRA/$HOST_TAG"
 copy "$HOST_DEBUG_OUT/zip_archives/$HOST_TAG/artifacts.zip" "$INFRA/$HOST_TAG/artifacts.zip"
+
+# The host toolchain must be at least as new as the Android engine it ships
+# with. After `build.sh --no-host`, or a host build that failed, the files
+# above are still there from an earlier tree and would be published silently.
+stale_check() {  # stale_check <host output>
+  if [[ -e "$1" && "$1" -ot "$ZIPS/artifacts.zip" ]]; then
+    echo "  ! STALE $1 is older than $ZIPS/artifacts.zip; rebuild the host toolchain" >&2
+    missing=1
+  fi
+}
+stale_check "$HOST_OUT/dart-sdk/bin/dart"
+stale_check "$HOST_OUT/zip_archives/flutter_patched_sdk_product.zip"
+stale_check "$HOST_DEBUG_OUT/zip_archives/$HOST_TAG/artifacts.zip"
 
 # NOTE: aot-tools.dill is deliberately NOT published. It lives in
 # pkg/aot_tools inside Shorebird's PRIVATE Dart fork, so we cannot build it, and
@@ -231,6 +245,8 @@ fi
   echo "built_on:                 $(uname -srm) $(hostname)"
   echo "published_at:             $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "local_artifacts:          android-arm64-release/{artifacts,symbols,linux-x64}.zip,"
+  echo "                          $HOST_TAG/artifacts.zip, dart-sdk-$HOST_TAG.zip,"
+  echo "                          flutter_patched_sdk_product.zip,"
   echo "                          arm64_v8a_release-1.0.0-$EXP_HASH.{jar,pom}"
   echo "everything_else:          served from $STOCK_HASH by the mirror"
 } > "$SB/PROVENANCE.txt"

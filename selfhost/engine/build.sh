@@ -35,6 +35,9 @@
 #                   call gn themselves: without the prebuilt Dart SDK it needs
 #                   --no-prebuilt-dart-sdk added there (overlay_publish.sh
 #                   does the same).
+#   --host-gn-arg <flag>  Extra flag for the host gn calls of --cell (host_release,
+#                   host_debug); repeat for several. --gn-arg does NOT reach
+#                   them, so an Android flag cannot rename their out dirs.
 #   --no-host       --cell builds only: skip the host toolchain (host_release
 #                   dart_sdk + flutter_patched_sdk, host_debug artifacts.zip with
 #                   impellerc). Only safe when the change is engine-C++-only:
@@ -56,6 +59,7 @@ CELL=""
 HOST=""
 JOBS=3
 WITH_HOST=1
+HOST_GN_ARGS=()
 FLUTTER_ROOT="$REPO_ROOT/vendor/flutter"
 GN_ARGS=()
 
@@ -68,6 +72,7 @@ while [[ $# -gt 0 ]]; do
     --host) HOST="${2:?--host needs a value}"; shift 2 ;;
     --jobs) JOBS="${2:?--jobs needs a value}"; shift 2 ;;
     --no-host) WITH_HOST=0; shift ;;
+    --host-gn-arg) HOST_GN_ARGS+=("${2:?--host-gn-arg needs a value}"); shift 2 ;;
     --root) FLUTTER_ROOT="${2:?--root needs a value}"; shift 2 ;;
     --gn-arg) GN_ARGS+=("${2:?--gn-arg needs a value}"); shift 2 ;;
     mac|linux|win) HOST="$1"; shift ;;   # positional form, kept for compatibility
@@ -75,6 +80,10 @@ while [[ $# -gt 0 ]]; do
     *) die "unknown argument: $1" ;;
   esac
 done
+
+if [[ -z "$CELL" && ( "$WITH_HOST" == "0" || ${#HOST_GN_ARGS[@]} -gt 0 ) ]]; then
+  die "--no-host and --host-gn-arg apply to --cell builds only"
+fi
 
 FLUTTER_ROOT="$(cd -- "$FLUTTER_ROOT" >/dev/null 2>&1 && pwd)" \
   || die "checkout not found: $FLUTTER_ROOT"
@@ -212,18 +221,23 @@ if [[ -n "$CELL" ]]; then
   # must come from this same tree (VM-coupled). Targets follow the vendored
   # shorebird/ci/internal/linux_build.sh: host_release gives dart-sdk and
   # flutter_patched_sdk_product.zip, host_debug gives linux-x64/artifacts.zip,
-  # which is where `flutter build` finds impellerc. --gn-arg flags apply here too.
+  # which is where `flutter build` finds impellerc. Like upstream, both host
+  # builds always build Dart from source: the host dart-sdk must be this
+  # tree's VM even when a prebuilt one is present. --gn-arg does not reach
+  # them; --host-gn-arg does.
   if [[ "$WITH_HOST" == "1" ]]; then
     note "Host: out/host_release (dart_sdk, flutter_patched_sdk)"
-    ./flutter/tools/gn --no-rbe --no-enable-unittests \
-      --runtime-mode=release ${GN_ARGS[@]+"${GN_ARGS[@]}"}
+    ./flutter/tools/gn --no-rbe --no-enable-unittests --no-prebuilt-dart-sdk \
+      --runtime-mode=release ${HOST_GN_ARGS[@]+"${HOST_GN_ARGS[@]}"}
     ninja -C out/host_release -j "$JOBS" \
       dart_sdk flutter/build/archives:flutter_patched_sdk
     note "Host: out/host_debug (linux-x64/artifacts.zip: impellerc, flutter_tester)"
-    ./flutter/tools/gn --no-rbe --no-enable-unittests ${GN_ARGS[@]+"${GN_ARGS[@]}"}
+    ./flutter/tools/gn --no-rbe --no-enable-unittests --no-prebuilt-dart-sdk \
+      ${HOST_GN_ARGS[@]+"${HOST_GN_ARGS[@]}"}
     ninja -C out/host_debug -j "$JOBS" flutter/build/archives:artifacts
   fi
 
+  cell_missing=0
   note "Cell complete. Expected artifacts under $ENGINE_SRC/$OUT_DIR:"
   for f in \
     "zip_archives/android-arm64-release/artifacts.zip" \
@@ -232,7 +246,7 @@ if [[ -n "$CELL" ]]; then
     "arm64_v8a_release.jar" \
     "arm64_v8a_release.pom"
   do
-    if [[ -e "$OUT_DIR/$f" ]]; then echo "  + $f"; else echo "  - MISSING $f" >&2; fi
+    if [[ -e "$OUT_DIR/$f" ]]; then echo "  + $f"; else echo "  - MISSING $f" >&2; cell_missing=1; fi
   done
   if [[ "$WITH_HOST" == "1" ]]; then
     for f in \
@@ -240,10 +254,11 @@ if [[ -n "$CELL" ]]; then
       "out/host_release/zip_archives/flutter_patched_sdk_product.zip" \
       "out/host_debug/zip_archives/linux-x64/artifacts.zip"
     do
-      if [[ -e "$f" ]]; then echo "  + $f"; else echo "  - MISSING $f" >&2; fi
+      if [[ -e "$f" ]]; then echo "  + $f"; else echo "  - MISSING $f" >&2; cell_missing=1; fi
     done
   fi
   note "Next: selfhost/engine/overlay_publish.sh --hash <expHash> --root $FLUTTER_ROOT"
+  [[ "$cell_missing" == "0" ]] || die "the build finished but outputs are missing (above)"
   exit 0
 fi
 
