@@ -227,6 +227,9 @@ jobs:
           pattern: digest-*
           merge-multiple: true
 
+      # No proxy or mirror hand-off here, unlike the build job: `imagetools`
+      # talks to the registry from the CLI, which has the runner's proxy env;
+      # the builder container this creates is never used.
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
