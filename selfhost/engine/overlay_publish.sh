@@ -141,18 +141,39 @@ HOST_DEBUG_OUT="$FLUTTER_ROOT/engine/src/out/host_debug"
 mkdir -p "$INFRA/$HOST_TAG"
 copy "$HOST_DEBUG_OUT/zip_archives/$HOST_TAG/artifacts.zip" "$INFRA/$HOST_TAG/artifacts.zip"
 
-# The host toolchain must be at least as new as the Android engine it ships
-# with. After `build.sh --no-host`, or a host build that failed, the files
-# above are still there from an earlier tree and would be published silently.
-stale_check() {  # stale_check <host output>
-  if [[ -e "$1" && "$1" -ot "$ZIPS/artifacts.zip" ]]; then
-    echo "  ! STALE $1 is older than $ZIPS/artifacts.zip; rebuild the host toolchain" >&2
+# The host toolchain must come from the same tree as the Android engine it
+# ships with. After `build.sh --no-host`, or a host build that failed, the
+# files above are still there from an earlier tree and would be published
+# silently. Ask ninja whether they are current; comparing mtimes instead gives
+# false alarms, since ninja leaves an output untouched when its inputs didn't
+# change even though the Android cell next to it was relinked.
+stale_check() {  # stale_check <out dir> <ninja target>...
+  local out="$1"; shift
+  if [[ ! -f "$out/build.ninja" ]] || ! command -v ninja >/dev/null 2>&1; then
+    return 0
+  fi
+  if ! ninja -C "$out" -n "$@" 2>/dev/null | grep -q '^ninja: no work to do'; then
+    echo "  ! STALE $out is not up to date for: $*; rebuild the host toolchain" >&2
     missing=1
   fi
 }
-stale_check "$HOST_OUT/dart-sdk/bin/dart"
-stale_check "$HOST_OUT/zip_archives/flutter_patched_sdk_product.zip"
-stale_check "$HOST_DEBUG_OUT/zip_archives/$HOST_TAG/artifacts.zip"
+stale_check "$HOST_OUT" dart_sdk flutter/build/archives:flutter_patched_sdk
+stale_check "$HOST_DEBUG_OUT" flutter/build/archives:artifacts
+
+# engine_stamp.json: Flutter's tool fetches it on every precache (3.47+;
+# FlutterEngineStamp) and @must_be_local owns the path, so without it a
+# release against this hash fails "Exception: 404". Only reported by the tool.
+stamp_ms=$(( $(stat -c %Y "$ZIPS/artifacts.zip" 2>/dev/null || stat -f %m "$ZIPS/artifacts.zip") * 1000 ))
+rev_date="$(git -C "$FLUTTER_ROOT" log -1 --format=%cI HEAD 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)"
+content_hash="$EXP_HASH"
+if [[ -f "$FLUTTER_ROOT/bin/internal/content_aware_hash.sh" ]]; then
+  content_hash="$(cd "$FLUTTER_ROOT" && bash bin/internal/content_aware_hash.sh 2>/dev/null | tail -1)" \
+    || content_hash="$EXP_HASH"
+fi
+printf '{"build_date":"%s","build_time_ms":%d,"git_revision":"%s","git_revision_date":"%s","content_hash":"%s"}\n' \
+  "$(date -u -d "@$((stamp_ms / 1000))" +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%S)" \
+  "$stamp_ms" "$EXP_HASH" "$rev_date" "${content_hash:-$EXP_HASH}" > "$INFRA/engine_stamp.json"
+echo "  + ${INFRA#"$OVERLAY"/}/engine_stamp.json"
 
 # NOTE: aot-tools.dill is deliberately NOT published. It lives in
 # pkg/aot_tools inside Shorebird's PRIVATE Dart fork, so we cannot build it, and
@@ -253,7 +274,7 @@ fi
   echo "published_at:             $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "local_artifacts:          android-arm64-release/{artifacts,symbols,linux-x64}.zip,"
   echo "                          $HOST_TAG/artifacts.zip, dart-sdk-$HOST_TAG.zip,"
-  echo "                          flutter_patched_sdk_product.zip,"
+  echo "                          flutter_patched_sdk_product.zip, engine_stamp.json,"
   echo "                          arm64_v8a_release-1.0.0-$EXP_HASH.{jar,pom}"
   echo "everything_else:          served from $STOCK_HASH by the mirror"
 } > "$SB/PROVENANCE.txt"
