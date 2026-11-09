@@ -42,7 +42,7 @@ docker run -d --name code-push \
   -e TRUSTED_PROXIES=172.17.0.1 \
   -p 127.0.0.1:8080:8080 \
   -v code_push_data:/data \
-  ghcr.io/mml555/code-push-server:1.3.0
+  ghcr.io/mml555/code-push-server:1.4.0
 ```
 
 `TRUSTED_PROXIES` must be **your proxy's address as the container sees it**, not
@@ -73,11 +73,12 @@ volume (set `DATABASE_URL`, leave `S3_ENDPOINT` unset).
 
 ## Getting the image
 
-- **Pull the published image (default):** multi-arch (amd64/arm64), built by
+- **Pull the published image (default):** amd64 for 1.4.0 (built while
+  GitHub-hosted runners were unavailable; earlier releases are amd64/arm64), built by
   `.github/workflows/release_code_push_server.yaml` from the release tag and
   what the compose files reference.
   ```
-  docker pull ghcr.io/mml555/code-push-server:1.3.0
+  docker pull ghcr.io/mml555/code-push-server:1.4.0
   ```
   Pin the version tag rather than `:latest` — the server's compatibility with
   the Shorebird CLI/updater is tracked in `selfhost/compatibility.yaml`, which
@@ -87,9 +88,9 @@ volume (set `DATABASE_URL`, leave `S3_ENDPOINT` unset).
   uncomment the `build:` block above it).
 - **Mirror into your own registry** (air-gapped, or policy requires it):
   ```
-  docker pull ghcr.io/mml555/code-push-server:1.3.0
-  docker tag  ghcr.io/mml555/code-push-server:1.3.0 registry.yourco.com/code-push-server:1.3.0
-  docker push registry.yourco.com/code-push-server:1.3.0
+  docker pull ghcr.io/mml555/code-push-server:1.4.0
+  docker tag  ghcr.io/mml555/code-push-server:1.4.0 registry.yourco.com/code-push-server:1.4.0
+  docker push registry.yourco.com/code-push-server:1.4.0
   ```
 
 ## Full environment variable contract

@@ -6,7 +6,7 @@ All notable changes to `code_push_server` are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 1.4.0 — 2026-11-08
 
 ### Changed
 
@@ -52,8 +52,8 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   variable. At boot a stored key is trial-decrypted and the server refuses to
   start, naming the variable, if it does not decrypt. New keys carry a `kid`
   (`v1`) in the JWE header so a later rotation can add a second version.
-  **Breaking, deliberately clean:** the fallback only existed on the
-  unreleased 1.4.0 branch, so there is no migration. A database whose keys were
+  **Breaking, deliberately clean:** the fallback never shipped in a
+  release, so there is no migration. A database whose keys were
   wrapped under the `URL_SIGNING_SECRET` fallback will not boot until you set
   `PATCH_SIGNING_KEY_SECRET=<that URL_SIGNING_SECRET value>`; delete the
   `signing_keys` rows instead only if no release was built with a managed key.
@@ -80,10 +80,6 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `GET /cli/login-result`: the page the 1.6.138 CLI sends the browser to after
   a loopback login.
 
-## 1.4.0 — 2026-11-06
-
-### Added
-
 - **Upstream 1.6.138 CLI support.** The 1.6.138 CLI could not talk to this
   server: it casts `platforms` on every release as non-null, calls
   `GET /apps/{app}` and `GET /apps/{app}/signing-key`, and logs in with a
@@ -102,8 +98,8 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     updater verifies); a client `hash_signature` is refused. A `customer`
     release requires one. Releases made before this change are never
     server-signed. Private keys are stored as JWE under the new
-    `PATCH_SIGNING_KEY_SECRET` (min. 32 characters; see Unreleased: it no
-    longer falls back to `URL_SIGNING_SECRET`) and are never returned or
+    `PATCH_SIGNING_KEY_SECRET` (min. 32 characters; see Changed, above: it
+    no longer falls back to `URL_SIGNING_SECRET`) and are never returned or
     logged.
   - **`DELETE /apps/{app}/releases/{release}`** and
     **`DELETE …/releases/{release}/artifacts?platform=`** (app admin; audited
@@ -112,10 +108,8 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - **Login**: `/login` accepts upstream's `redirect_uri` + `state` as well as
     `continue`, and verifies PKCE S256 at `/token` (migration 15). A `continue`
     login with no `code_challenge`, as an older CLI sends, redeems without a
-    verifier; `redirect_uri` requires one (see Unreleased).
+    verifier; `redirect_uri` requires one (see Changed, above).
     `POST /revoke` (RFC 7009) backs `shorebird logout`.
-
-### Added
 
 - **Upstream 1.6.123 `apps rename`, `apps transfer` and `channels delete`.**
   `PATCH /api/v1/apps/{app}`, `POST /api/v1/organizations/{org}/apps` and
