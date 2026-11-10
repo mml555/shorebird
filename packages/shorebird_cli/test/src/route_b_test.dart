@@ -91,6 +91,49 @@ void main() {
     });
   });
 
+  group('iosReleaseEngineBinary', () {
+    test('is the cached xcframework slice without a local engine', () {
+      expect(
+        iosReleaseEngineBinary(flutterDirectory: Directory('/flutter')).path,
+        '/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/'
+        'ios-arm64/Flutter.framework/Flutter',
+      );
+    });
+
+    test('is the local engine build when one is set', () {
+      expect(
+        iosReleaseEngineBinary(
+          flutterDirectory: Directory('/flutter'),
+          localEngineSrcPath: '/engine/src',
+          localEngine: 'ios_release',
+        ).path,
+        '/engine/src/out/ios_release/Flutter.framework/Flutter',
+      );
+    });
+  });
+
+  group('engineDeclinesIosPatches', () {
+    late Directory tmp;
+
+    setUp(() => tmp = Directory.systemTemp.createTempSync('route_b'));
+    tearDown(() => tmp.deleteSync(recursive: true));
+
+    test('is true when the binary carries the decline marker', () {
+      final f = File('${tmp.path}/Flutter')
+        ..writeAsStringSync('This $iosPatchesDeclinedMarker, not starting');
+      expect(engineDeclinesIosPatches(f), isTrue);
+    });
+
+    test('is false for an engine without the marker', () {
+      final f = File('${tmp.path}/Flutter')..writeAsStringSync('InterpretCall');
+      expect(engineDeclinesIosPatches(f), isFalse);
+    });
+
+    test('is false when the binary does not exist', () {
+      expect(engineDeclinesIosPatches(File('${tmp.path}/nope')), isFalse);
+    });
+  });
+
   group('countPatchableCallSites', () {
     late Directory tmp;
 
