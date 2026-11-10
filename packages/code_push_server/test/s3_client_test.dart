@@ -485,7 +485,8 @@ void main() {
           accessKey: 'k',
           secretKey: 's',
           bucket: 'bkt',
-          responseTimeout: const Duration(milliseconds: 200),
+          responseTimeout: const Duration(milliseconds: 50),
+          retryDeadline: const Duration(seconds: 5),
           sleep: (d) async => delays.add(d),
         );
         addTearDown(quick.close);
@@ -569,19 +570,53 @@ void main() {
         },
       );
 
-      test('a ranged GET failure keeps the range in its message', () async {
-        failures.add((403, ''));
-        await expectLater(
-          retrying.getObject('k', offset: 1, length: 2),
-          throwsA(
-            isA<S3Exception>().having(
-              (e) => e.operation,
-              'operation',
-              'GET k (bytes=1-2)',
+      test(
+        'a 5xx on GET names the key, with the range only when ranged',
+        () async {
+          for (final (args, name) in [
+            ((1, 2), 'GET k (bytes=1-2)'),
+            ((null, null), 'GET k'),
+          ]) {
+            failures.addAll([for (var i = 0; i < 4; i++) (503, '')]);
+            await expectLater(
+              retrying.getObject('k', offset: args.$1, length: args.$2),
+              throwsA(
+                isA<S3Exception>()
+                    .having((e) => e.operation, 'operation', name)
+                    .having((e) => e.attempts, 'attempts', 4),
+              ),
+            );
+          }
+        },
+      );
+
+      test(
+        'an attempt that would start past the deadline is not started',
+        () async {
+          // Each attempt stalls for 100 ms. After two the call has run 200 ms,
+          // past the 150 ms deadline, so a third must not start (it did when the
+          // deadline was only checked before the attempt that followed it).
+          stall = true;
+          final bounded = S3Client(
+            endpoint: Uri.parse('http://127.0.0.1:${server.port}'),
+            region: 'us-east-1',
+            accessKey: 'k',
+            secretKey: 's',
+            bucket: 'bkt',
+            responseTimeout: const Duration(milliseconds: 100),
+            retryDeadline: const Duration(milliseconds: 150),
+            retryBaseDelay: Duration.zero,
+          );
+          addTearDown(bounded.close);
+          await expectLater(
+            bounded.statObject('k'),
+            throwsA(
+              isA<S3Exception>().having((e) => e.attempts, 'attempts', 2),
             ),
-          ),
-        );
-      });
+          );
+          expect(seen, hasLength(2));
+        },
+      );
     });
 
     test('virtual-hosted style puts the bucket in the host', () {

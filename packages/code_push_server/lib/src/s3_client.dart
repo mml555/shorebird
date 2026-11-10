@@ -101,10 +101,11 @@ class S3Client {
   final Duration retryBaseDelay;
   final Duration retryMaxDelay;
 
-  /// No new attempt starts once a call has run this long. Null means twice
-  /// [responseTimeout], so a store that stalls is tried at most twice, and the
-  /// worst case for one call is about the deadline plus one more attempt, not
-  /// [maxAttempts] times [responseTimeout].
+  /// No attempt starts after a call has run this long, counting the wait
+  /// before it. Null means twice [responseTimeout]. An attempt that starts just
+  /// before the deadline still runs to its own end (up to the 10 s connection
+  /// timeout plus [responseTimeout]), so the worst case for one call is the
+  /// deadline plus about 70 s with the defaults, not [maxAttempts] times that.
   final Duration? retryDeadline;
 
   /// Called with a one-line description before each retry is waited for.
@@ -144,7 +145,7 @@ class S3Client {
             ),
           );
     final res = await _send('PUT', null, body: body);
-    final text = await _readText(res);
+    final text = await _readText(res, 'PUT bucket $bucket');
     if (res.statusCode == 200 || text.contains('BucketAlreadyOwnedByYou')) {
       return;
     }
@@ -165,7 +166,7 @@ class S3Client {
 
   Future<void> putObject(String key, List<int> bytes) async {
     final res = await _send('PUT', key, body: bytes);
-    final text = await _readText(res);
+    final text = await _readText(res, 'PUT $key');
     if (res.statusCode != 200) {
       throw S3Exception('PUT $key', res.statusCode, text);
     }
@@ -206,11 +207,12 @@ class S3Client {
     final range = ranged
         ? 'bytes=$start-${length == null ? '' : start + length - 1}'
         : null;
+    final op = range == null ? 'GET $key' : 'GET $key ($range)';
     final res = await _send(
       'GET',
       key,
       headers: {if (range != null) 'range': range},
-      label: 'GET $key ($range)',
+      label: op,
     );
     if (res.statusCode == 404) {
       await res.drain<void>();
@@ -218,9 +220,9 @@ class S3Client {
     }
     final expected = ranged ? 206 : 200;
     if (res.statusCode != expected) {
-      final text = await _readText(res);
+      final text = await _readText(res, op);
       throw S3Exception(
-        'GET $key ($range)',
+        op,
         res.statusCode,
         res.statusCode == 200 && ranged
             ? 'the store ignored the Range header'
@@ -233,7 +235,7 @@ class S3Client {
         !contentRange.startsWith('bytes $start-')) {
       await res.drain<void>();
       throw S3Exception(
-        'GET $key ($range)',
+        op,
         res.statusCode,
         'unexpected Content-Range: $contentRange',
       );
@@ -244,7 +246,7 @@ class S3Client {
   /// Deletes [key]. Deleting an object that is already gone is not an error.
   Future<void> deleteObject(String key) async {
     final res = await _send('DELETE', key);
-    final text = await _readText(res);
+    final text = await _readText(res, 'DELETE $key');
     if (res.statusCode != 204 &&
         res.statusCode != 200 &&
         res.statusCode != 404) {
@@ -254,7 +256,10 @@ class S3Client {
 
   /// Reads a response body (the first 500 characters of it are kept). A cut
   /// or stalled body is an [S3Exception] with status 0, which is retried.
-  Future<String> _readText(HttpClientResponse res) async {
+  Future<String> _readText(
+    HttpClientResponse res, [
+    String op = 'read response',
+  ]) async {
     try {
       final bytes = await res
           .fold<BytesBuilder>(BytesBuilder(), (b, chunk) => b..add(chunk))
@@ -262,11 +267,11 @@ class S3Client {
       final text = utf8.decode(bytes.takeBytes(), allowMalformed: true);
       return text.length > 500 ? text.substring(0, 500) : text;
     } on SocketException catch (e) {
-      throw S3Exception('read response', 0, e.message);
+      throw S3Exception(op, 0, e.message);
     } on HttpException catch (e) {
-      throw S3Exception('read response', 0, e.message);
+      throw S3Exception(op, 0, e.message);
     } on TimeoutException {
-      throw S3Exception('read response', 0, 'timed out reading the body');
+      throw S3Exception(op, 0, 'timed out reading the body');
     }
   }
 
@@ -283,28 +288,30 @@ class S3Client {
     final deadline = retryDeadline ?? responseTimeout * 2;
     final clock = Stopwatch()..start();
     for (var attempt = 1; ; attempt++) {
-      // No new attempt after the last one, or once the deadline has passed.
-      final last = attempt >= attempts || clock.elapsed >= deadline;
+      // Drawn up front, so a failure can tell whether the wait and the next
+      // attempt would start after the deadline. If so this failure is final.
+      final delay = _backoff(attempt);
+      bool isLast() => attempt >= attempts || clock.elapsed + delay >= deadline;
       try {
         final res = await _sendOnce(op, method, key, body, headers);
         if (_retryableStatus(res.statusCode)) {
-          if (last) {
+          if (isLast()) {
             throw S3Exception(
               op,
               res.statusCode,
-              await _readText(res),
+              await _readText(res, op),
               attempts: attempt,
             );
           }
           // Only the status matters. A body that is cut or stalls throws a
           // status 0 S3Exception, which is retried below like the status.
-          await _readText(res);
+          await _readText(res, op);
           _noteRetry(op, attempt, 'HTTP ${res.statusCode}');
         } else if (res.statusCode == 400 && method != 'HEAD') {
           // RequestTimeout is a 400: the code is in the body, so read it. Any
           // other 400 is final, and its body has been read, so fail here.
-          final text = await _readText(res);
-          if (last || !_retryableCode(text)) {
+          final text = await _readText(res, op);
+          if (isLast() || !_retryableCode(text)) {
             throw S3Exception(op, 400, text, attempts: attempt);
           }
           _noteRetry(op, attempt, 'HTTP 400 ${text.trim()}');
@@ -315,12 +322,12 @@ class S3Client {
         // Transport errors are statusCode 0; an HTTP answer thrown above is
         // final.
         if (e.statusCode != 0) rethrow;
-        if (last) {
+        if (isLast()) {
           throw S3Exception(op, 0, e.body, attempts: attempt);
         }
         _noteRetry(op, attempt, e.body);
       }
-      await _sleep(_backoff(attempt));
+      await _sleep(delay);
     }
   }
 

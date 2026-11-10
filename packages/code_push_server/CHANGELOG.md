@@ -15,10 +15,11 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `InternalError` is tried again, up to four attempts in all, with exponential
   backoff and jitter (200 ms doubling to at most 5 s). Other 4xx answers fail at
   once. Uploads send their in-memory body again on each attempt.
-  - A timed-out attempt is aborted before the retry. No new attempt starts once
-    a call has run twice `responseTimeout` (two minutes by default), so a stalled
-    store holds a call for about that long plus one attempt, not four times
-    `responseTimeout`. The readiness probe (`/readyz`) does not retry.
+  - A timed-out attempt is aborted before the retry. No attempt starts after a
+    call has run twice `responseTimeout` (two minutes by default), counting the
+    wait before it. A stalled store holds a call for at most that plus one
+    attempt (about 70 s: 10 s to connect, 60 s for the response), not four
+    times 70 s. The readiness probe (`/readyz`) does not retry.
   - Each retry is logged to stderr (`s3: PUT key failed (HTTP 503), retrying`),
     and the final error says `after N attempts`.
 
