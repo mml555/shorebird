@@ -23,6 +23,12 @@ bin/internal/engine.version pins when HEAD only repins it). Only status lines
 after the last "--- engine <commit>" line count, and that line must name the
 same commit, so nothing built for another engine is staged.
 
+Every framework Info.plist under out/ must name the engine (FlutterEngine), or
+a commit that builds the same engine (HEAD when it only repins). A stale stamp
+is reported as STALE and fails the run, like MISSING: it is how 255fd850
+shipped frameworks stamped 3a565f27 and feb1d3cc. build_shard.py now rewrites
+the stamps on every build, so rebuilding the shard fixes it.
+
 iOS builds from shorebird-flutter 255fd850 on (shorebird_use_interpreter off,
 no updater on iOS). Earlier commits fail their iOS shards or start the updater
 on iOS; don't publish iOS from them.
@@ -36,7 +42,8 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build_shard import engine_commit, read_status, same_commit  # noqa: E402
+from build_shard import (  # noqa: E402
+    ENGINE_INPUTS, engine_commit, git, plist_engine, read_status, same_commit, stamped_plists)
 
 W = os.environ.get("SHOREBIRD_ENGINE_DIR", os.path.expanduser("~/shorebird-engine"))
 ROOT = os.path.join(W, "flutter")
@@ -56,6 +63,27 @@ def ok_shards(engine):
         sys.exit(f"{path} has no shards built for engine {engine} (last engine line: {commit}); "
                  "run build_shard.py at this commit first")
     return ok
+
+
+def builds_engine(commit, engine):
+    """Whether `commit` builds the same engine as `engine` (see build_shard.py)."""
+    if commit == engine:
+        return True
+    return bool(commit) and \
+        git("merge-base", "--is-ancestor", engine, commit).returncode == 0 and \
+        git("diff", "--quiet", engine, commit, "--", *ENGINE_INPUTS).returncode == 0
+
+
+def stale_stamps(out_dirs, engine):
+    """STALE lines for framework plists in out_dirs not stamped with `engine`."""
+    lines = []
+    for d in sorted(set(out_dirs)):
+        for plist in stamped_plists(os.path.join(OUT_SRC, d)):
+            stamp = plist_engine(plist)
+            if not builds_engine(stamp, engine):
+                lines.append(f"STALE {plist} says FlutterEngine {stamp}, engine is {engine}; "
+                             "rebuild that shard with build_shard.py")
+    return lines
 
 
 def place(dst_rel, engine, out):
@@ -93,7 +121,9 @@ def main():
     shards = json.load(open(os.path.join(CI, "shards", "macos.json")))
     compose = json.load(open(os.path.join(CI, "compose.json")))
     ok = ok_shards(engine)
-    lines = []
+    built_dirs = [s["out_dir"] for n, sh in shards.items() if n in ok
+                  for s in sh.get("steps", []) if s.get("type") == "gn_ninja"]
+    lines = stale_stamps(built_dirs, engine)
     for name, shard in shards.items():
         if name not in ok:
             lines.append(f"skip shard {name} (not built)")
@@ -118,7 +148,7 @@ def main():
         for a in step.get("artifacts", []):
             lines.append(stage(os.path.join(base, a["src"]), a["dst"], engine, out))
     print("\n".join(lines))
-    return 1 if any(l.startswith("MISSING") for l in lines) else 0
+    return 1 if any(l.startswith(("MISSING", "STALE")) for l in lines) else 0
 
 
 if __name__ == "__main__":

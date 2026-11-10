@@ -14,7 +14,14 @@ built for an earlier engine is built again. The engine commit is the one
 bin/internal/engine.version names when that is an ancestor of HEAD and nothing
 the build reads (ENGINE_INPUTS) changed since, so a commit that only repins
 engine.version to the engine it sits on keeps the shards built; otherwise it
-is HEAD. While it runs, its pid
+is HEAD.
+
+Each framework's Info.plist names the engine in its FlutterEngine key, which
+copy_info_plist.py fills from `git rev-parse HEAD` when it runs. Ninja reruns
+that action only when the plist template changes, so an incremental build kept
+the commit of the out dir's first build (255fd850 shipped stamped 3a565f27 and
+feb1d3cc). Before each gn_ninja step the stamped plists in that out dir are
+removed, so the build writes them again. While it runs, its pid
 is in logs/build.pid, which watchdog.sh and anything queued behind the build
 wait on; it refuses to start while another build holds that file.
 
@@ -46,6 +53,30 @@ ORDER = [
     "ios-profile", "mac-arm64-profile", "mac-x64", "mac-x64-debug",
     "mac-x64-profile",
 ]
+
+
+def stamped_plists(out_dir):
+    """Generated Info.plists that carry a FlutterEngine stamp, under out_dir."""
+    found = []
+    for top, dirs, files in os.walk(out_dir):
+        # obj/ and gen/ hold intermediates, never a framework's plist.
+        if top == out_dir:
+            dirs[:] = [d for d in dirs if d not in ("obj", "gen")]
+        if "Info.plist" in files and ".framework" in top:
+            path = os.path.join(top, "Info.plist")
+            try:
+                if b"<key>FlutterEngine</key>" in open(path, "rb").read():
+                    found.append(path)
+            except OSError:
+                pass
+    return found
+
+
+def plist_engine(path):
+    """The FlutterEngine value of a plist, or None."""
+    r = subprocess.run(["plutil", "-extract", "FlutterEngine", "raw", "-o", "-", path],
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else None
 
 
 def now():
@@ -218,6 +249,9 @@ def main():
                     continue
                 if t == "gn_ninja":
                     out = step["out_dir"]
+                    for plist in stamped_plists(os.path.join(SRC, "out", out)):
+                        os.remove(plist)
+                        log.write(f"removed {plist} so the build stamps it again\n")
                     rc = run(["./flutter/tools/gn", "--no-prebuilt-dart-sdk", *gn_args_for(step)], log)
                     if rc == 0 and not os.path.isfile(os.path.join(SRC, "out", out, "args.gn")):
                         log.write(f"gn did not produce out/{out}\n")
