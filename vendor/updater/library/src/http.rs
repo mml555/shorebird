@@ -108,7 +108,9 @@ pub fn ureq_send(request: &Request, handler: &mut dyn ResponseHandler) -> anyhow
 }
 
 /// Whether a `ureq` failure means the server was never reached, which is a
-/// [`NetworkError::Transport`] however the failure arose.
+/// [`NetworkError::Transport`] however the failure arose. Only the `ureq` builds
+/// (Linux and Windows) reach this; Android, iOS and macOS use `engine_http`,
+/// where the engine client already reports `HttpError::Transport`.
 #[cfg(any(not(engine_http), test))]
 fn is_transport_failure(e: &ureq::Error) -> bool {
     matches!(
@@ -117,6 +119,8 @@ fn is_transport_failure(e: &ureq::Error) -> bool {
             | ureq::Error::ConnectionFailed
             | ureq::Error::Io(_)
             | ureq::Error::Timeout(_)
+            // A body that stopped arriving mid-response.
+            | ureq::Error::BodyStalled
             // An untrusted certificate, or no system roots to check it with.
             | ureq::Error::Tls(_)
             | ureq::Error::Rustls(_)
@@ -290,6 +294,7 @@ mod tests {
         )));
         assert!(is_transport_failure(&ureq::Error::HostNotFound));
         assert!(is_transport_failure(&ureq::Error::ConnectionFailed));
+        assert!(is_transport_failure(&ureq::Error::BodyStalled));
         assert!(!is_transport_failure(&ureq::Error::BadUri("x".to_string())));
     }
 }
