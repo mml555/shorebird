@@ -101,7 +101,9 @@ from you — the code is built and, where possible, stub-verified:
 - **Real Google / Microsoft login** — an OAuth **client id + secret** from your
   IdP, plus registering `<PUBLIC_BASE_URL>/oauth/callback` as the redirect URI.
   Set `IDP_CLIENT_ID` / `IDP_CLIENT_SECRET` / `IDP_AUTHORIZE_URL` /
-  `IDP_TOKEN_URL`. Full walkthrough: `selfhost/IDP_SETUP.md`. (Broker is built;
+  `IDP_TOKEN_URL`, plus `IDP_ISSUER` (required when `PRODUCTION=true`) and, for
+  an IdP that omits `email_verified` such as Entra, `IDP_ALLOW_UNVERIFIED_EMAIL`.
+  Full walkthrough: `selfhost/IDP_SETUP.md`. (Broker is built;
   verified against a stub IdP. Skip entirely if `sb_api_` keys are enough.)
 - **iOS at production scale** — a **registered bundle id + provisioning profile
   under your Apple Developer team** (device patching was proven via a resign
