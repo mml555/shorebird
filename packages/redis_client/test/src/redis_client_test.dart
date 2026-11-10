@@ -66,7 +66,10 @@ void main() {
 
       test('throws SocketException after max connection attempts', () async {
         final client = RedisClient(
-          socket: const RedisSocketOptions(port: 1234, retryAttempts: 1),
+          socket: RedisSocketOptions(
+            port: await _unusedPort(),
+            retryAttempts: 1,
+          ),
         );
         await expectLater(
           client.connect,
@@ -83,7 +86,10 @@ void main() {
 
       test('throws SocketException after disconnect w/out retry', () async {
         final client = RedisClient(
-          socket: const RedisSocketOptions(port: 1234, retryAttempts: 0),
+          socket: RedisSocketOptions(
+            port: await _unusedPort(),
+            retryAttempts: 0,
+          ),
         );
         await expectLater(
           client.connect,
@@ -320,9 +326,10 @@ void main() {
             logger: _OnConnectedRedisLogger(() {
               if (!reconnected.isCompleted) reconnected.complete();
             }),
-            socket: const RedisSocketOptions(
+            socket: RedisSocketOptions(
+              port: redisTestPort,
               password: 'password',
-              retryInterval: Duration(milliseconds: 200),
+              retryInterval: const Duration(milliseconds: 200),
             ),
             command: const RedisCommandOptions(
               timeout: Duration(milliseconds: 20),
@@ -830,6 +837,15 @@ void main() {
       });
     });
   });
+}
+
+/// A loopback port nothing is listening on, so a connection to it is refused
+/// rather than depending on a fixed port being free on a shared host.
+Future<int> _unusedPort() async {
+  final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+  final port = server.port;
+  await server.close();
+  return port;
 }
 
 class _OnConnectedRedisLogger implements RedisLogger {
