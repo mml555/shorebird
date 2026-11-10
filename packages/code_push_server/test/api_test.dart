@@ -2020,6 +2020,123 @@ void main() {
     });
   });
 
+  group('a failed store write leaves the upload retryable', () {
+    // WAS: `_upload` set the artifact to `uploading` and then called
+    // `store.put`. A throw (object store down, disk full) left it `uploading`
+    // for good: the retry hit `status != pending` (409) and re-registering hit
+    // the duplicate check, so the patch could never reach `ready`.
+    const bd = 'BOUNDARY';
+    String field(String n, String v) =>
+        '--$bd\r\ncontent-disposition: form-data; name="$n"\r\n\r\n$v\r\n';
+    const goodBody =
+        '--BOUNDARY\r\ncontent-disposition: form-data; name="file"; '
+        'filename="p"\r\n\r\nabc\r\n--BOUNDARY--\r\n';
+
+    Future<({String appId, int patchId, String token})> registered() async {
+      final app = await seedApp();
+      final patch = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${app.appId}/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': app.releaseId},
+        ),
+      );
+      final patchId = patch['id'] as int;
+      final reg = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${app.appId}/patches/$patchId/artifacts',
+          bearer: _bootstrapKey,
+          headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+          body:
+              '${field('arch', 'aarch64')}${field('platform', 'android')}'
+              '${field('hash', 'unchecked-for-patches')}${field('size', '3')}'
+              '--$bd--\r\n',
+        ),
+      );
+      return (
+        appId: app.appId,
+        patchId: patchId,
+        token: (reg['url'] as String).split('/').last,
+      );
+    }
+
+    _FlakyStore flakyApi() {
+      final root = Directory('${tmp.path}/artifacts')
+        ..createSync(recursive: true);
+      final staging = Directory('${tmp.path}/staging')
+        ..createSync(recursive: true);
+      final store = _FlakyStore(root, staging);
+      api = Api(repo, store, config);
+      return store;
+    }
+
+    Future<Response> uploadBody(String token) => send(
+      'POST',
+      '/api/v1/uploads/$token',
+      bearer: _bootstrapKey,
+      headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+      body: goodBody,
+    );
+
+    test(
+      'multipart: the token returns to pending and the retry works',
+      () async {
+        final store = flakyApi();
+        final r = await registered();
+        final art = (await repo.artifactByToken(r.token))!;
+
+        store.failNextPut = true;
+        final failed = await uploadBody(r.token);
+        expect(failed.statusCode, greaterThanOrEqualTo(500));
+        expect(
+          (await repo.artifactByToken(r.token))!.status,
+          ArtifactStatus.pending,
+        );
+        expect(
+          await store.exists(art.storageKey),
+          isFalse,
+          reason: 'a partial object must not be left behind',
+        );
+
+        final retry = await uploadBody(r.token);
+        expect(retry.statusCode, HttpStatus.noContent);
+        expect(
+          (await repo.artifactByToken(r.token))!.status,
+          ArtifactStatus.verified,
+        );
+        expect((await repo.patch(r.patchId))!.status, PatchStatus.ready);
+      },
+    );
+
+    test('resumable: a failed commit keeps the upload resumable', () async {
+      final store = flakyApi();
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      Future<Response> putAll() => send(
+        'PUT',
+        '/api/v1/uploads/${r.token}',
+        bearer: _bootstrapKey,
+        headers: {'content-range': 'bytes 0-2/3'},
+        body: 'abc',
+      );
+
+      store.failNextPut = true;
+      final failed = await putAll();
+      expect(failed.statusCode, greaterThanOrEqualTo(500));
+      expect(await store.exists(art.storageKey), isFalse);
+
+      final retry = await putAll();
+      expect(retry.statusCode, HttpStatus.ok);
+      expect(
+        (await repo.artifactByToken(r.token))!.status,
+        ArtifactStatus.verified,
+      );
+      expect((await repo.patch(r.patchId))!.status, PatchStatus.ready);
+    });
+  });
+
   // -------------------------------------------------------------------------
   group('untrusted X-Forwarded-For is surfaced', () {
     // X-Forwarded-For used to be honored unconditionally. Ignoring it unless
@@ -3955,4 +4072,22 @@ class _FailingEvents extends Repository {
     int? bootStartedAt,
     String? updaterRevision,
   }) => throw StateError('injected event insert failure');
+}
+
+/// A filesystem store whose next `put` writes half the bytes and then throws,
+/// like a disk filling up or a connection dropping mid-write.
+class _FlakyStore extends FilesystemArtifactStore {
+  _FlakyStore(super.root, super.staging);
+
+  bool failNextPut = false;
+
+  @override
+  Future<void> put(String key, List<int> bytes) async {
+    if (failNextPut) {
+      failNextPut = false;
+      await super.put(key, bytes.sublist(0, bytes.length ~/ 2));
+      throw const FileSystemException('injected: no space left on device');
+    }
+    return super.put(key, bytes);
+  }
 }

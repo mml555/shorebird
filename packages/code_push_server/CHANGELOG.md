@@ -6,6 +6,20 @@ All notable changes to `code_push_server` are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- **A failed object-store write no longer strands a patch upload.** When
+  `store.put` threw (store down, disk full, timeout) the artifact stayed
+  `uploading` for good: the retry got a 409 and re-registering hit the duplicate
+  check. The partial object is now removed and the artifact returns to `pending`,
+  so the CLI's retry succeeds. Resumable uploads also remove a partial object
+  when the final commit fails.
+- **Concurrent patch publishes for one release no longer fail with an opaque
+  error.** The patch number is allocated inside the INSERT, with a bounded retry
+  on the `UNIQUE(release_id, number)` violation.
+
 ## 1.4.0 — 2026-11-08
 
 ### Changed

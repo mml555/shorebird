@@ -45,6 +45,16 @@ abstract class Db implements DbSession {
       cfg.dbBackend == 'sqlite' ? SqliteDb.open(cfg) : PgDb.open(cfg);
 }
 
+/// Whether [e] is a unique-constraint violation from either backend: Postgres
+/// error code 23505, or SQLite's unique / primary-key constraint codes.
+bool isUniqueViolation(Object e) {
+  if (e is pg.ServerException) return e.code == '23505';
+  if (e is sq.SqliteException) {
+    return e.extendedResultCode == 2067 || e.extendedResultCode == 1555;
+  }
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // Postgres
 // ---------------------------------------------------------------------------

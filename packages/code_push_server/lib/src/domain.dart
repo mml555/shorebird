@@ -142,7 +142,13 @@ enum ChannelPatchStatus {
 /// treated as idempotent and always allowed.
 const _artifactNext = {
   ArtifactStatus.pending: {ArtifactStatus.uploading, ArtifactStatus.failed},
-  ArtifactStatus.uploading: {ArtifactStatus.verified, ArtifactStatus.failed},
+  // uploading -> pending: the object store write threw, so nothing was stored
+  // and the same upload token is usable again. See `Api._upload`.
+  ArtifactStatus.uploading: {
+    ArtifactStatus.verified,
+    ArtifactStatus.failed,
+    ArtifactStatus.pending,
+  },
   ArtifactStatus.verified: <ArtifactStatus>{},
   ArtifactStatus.failed: <ArtifactStatus>{},
 };

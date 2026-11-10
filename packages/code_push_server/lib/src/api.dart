@@ -2679,7 +2679,22 @@ class Api {
     final (_, file) = await _parseMultipart(req);
     if (file == null) throw badRequest('Missing file part');
     await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
-    await store.put(art.storageKey, file.bytes);
+    try {
+      await store.put(art.storageKey, file.bytes);
+    } on Object catch (e) {
+      // The write failed (object store down, disk full, timeout). Without this
+      // the artifact stays `uploading` forever: the retry hits the
+      // `status != pending` conflict above, and re-registering hits the
+      // duplicate check in `_createPatchArtifact`, so the patch never reaches
+      // `ready`. Remove whatever part of the object landed, so it cannot be
+      // mistaken for the real thing, and hand the token back.
+      await _abandonWrite(art);
+      obs.info('artifact store write failed', {
+        'artifact': art.id,
+        'error': '$e',
+      });
+      rethrow;
+    }
 
     final reason = await store.verify(
       art.storageKey,
@@ -2710,6 +2725,26 @@ class Api {
     });
     await _maybeMarkPatchReady(art);
     return Response(HttpStatus.noContent);
+  }
+
+  /// Undoes a failed store write for [art]: best-effort removal of any partial
+  /// object, then `uploading` -> `pending` so the same token can be retried.
+  /// Failures here are swallowed; the caller rethrows the original error.
+  Future<void> _abandonWrite(ArtifactRow art) async {
+    try {
+      await store.delete(art.storageKey);
+    } on Object {
+      // ignore: the store is likely still down; the retry overwrites the key.
+    }
+    try {
+      requireArtifactTransition(
+        ArtifactStatus.uploading,
+        ArtifactStatus.pending,
+      );
+      await repo.setArtifactStatus(art.id, ArtifactStatus.pending);
+    } on Object {
+      // ignore: the original store error is the one worth reporting.
+    }
   }
 
   /// GCS-style resumable upload: chunked PUTs with `Content-Range`, `308` +
@@ -2766,7 +2801,24 @@ class Api {
     _audit(req)?.note(detail: {'complete': true, 'staged_bytes': received});
 
     // Complete: commit to the object store + verify.
-    await store.commitStaged(token, art.storageKey);
+    try {
+      await store.commitStaged(token, art.storageKey);
+    } on Object catch (e) {
+      // Unlike `_upload`, this path accepts `uploading`, so the retry is not
+      // blocked. The staged bytes are kept (commitStaged only discards after a
+      // successful put), so the client can re-send the final chunk. Remove any
+      // partial object so it cannot be served or verified in the meantime.
+      try {
+        await store.delete(art.storageKey);
+      } on Object {
+        // ignore: best effort.
+      }
+      obs.info('artifact store commit failed', {
+        'artifact': art.id,
+        'error': '$e',
+      });
+      rethrow;
+    }
     final reason = await store.verify(
       art.storageKey,
       art.hash,

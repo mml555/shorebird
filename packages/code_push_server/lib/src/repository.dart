@@ -1396,24 +1396,31 @@ class Repository {
     String? notes,
     Map<String, Object?>? metadata,
   }) async {
-    final maxR = await _q(
-      'SELECT COALESCE(MAX(number),0) AS n FROM patches WHERE release_id = @r',
-      {'r': releaseId},
-    );
-    final number = _int(maxR.first['n']) + 1;
-    final r = await _q(
-      'INSERT INTO patches(app_id, release_id, number, status, notes, metadata) '
-      'VALUES (@a,@r,@n,@s,@no,@md) RETURNING id',
-      {
-        'a': appId,
-        'r': releaseId,
-        'n': number,
-        's': PatchStatus.draft.name,
-        'no': notes,
-        'md': metadata == null ? null : jsonEncode(metadata),
-      },
-    );
-    return (await patch(_int(r.first['id'])))!;
+    // The number is computed inside the INSERT, so there is no window between
+    // reading MAX(number) and writing. SQLite serializes every statement, which
+    // makes that atomic. Postgres runs concurrent statements, so two publishers
+    // can still compute the same number; UNIQUE(release_id, number) rejects the
+    // loser, and we retry, where the winner's row is now visible.
+    const maxAttempts = 5;
+    for (var attempt = 1; ; attempt++) {
+      try {
+        final r = await _q(
+          'INSERT INTO patches(app_id, release_id, number, status, notes, metadata) '
+          'VALUES (@a, @r, (SELECT COALESCE(MAX(number),0)+1 FROM patches '
+          'WHERE release_id = @r), @s, @no, @md) RETURNING id',
+          {
+            'a': appId,
+            'r': releaseId,
+            's': PatchStatus.draft.name,
+            'no': notes,
+            'md': metadata == null ? null : jsonEncode(metadata),
+          },
+        );
+        return (await patch(_int(r.first['id'])))!;
+      } on Object catch (e) {
+        if (!isUniqueViolation(e) || attempt >= maxAttempts) rethrow;
+      }
+    }
   }
 
   Future<PatchRow?> patch(int id) async {
