@@ -66,9 +66,12 @@ Our engines (`3a565f27`, and `255fd850`, which shorebird-flutter now pins) are n
   (recorded in its `PROVENANCE.txt`). `audit_overlay.sh` is clean for `255fd850` on all four
   cells, including the new `macos-x64`. For `3a565f27` it is clean except the iOS cells:
   it has no iOS engine.
-- **Cold `/gcs/` fetches can hang.** A first fetch of a stock artifact through the mirror's
-  `/gcs/` path stalled on 2026-11-10 (`darwin-arm64/font-subset.zip` for `38855c84`).
-  Not yet diagnosed.
+- **Cold `/gcs/` fetches used to stall, then 504.** The cache handler (Souin) gave each
+  upstream fetch a 10 s deadline for the whole body. A cold artifact that took longer
+  (`dart-sdk-*.zip`, about 150 MB, took 8 s to 17 s) was cut off at exactly 10 s with
+  `Cache-Status: Souin; fwd=bypass; detail=DEADLINE-EXCEEDED`, nothing stored. Fixed by a
+  `timeout { backend 10m }` in the Caddyfile's `cache` block (and dial and header timeouts
+  on the upstream), live 2026-11-10.
 
 ## iOS on `255fd850`
 
@@ -124,7 +127,7 @@ Effort: S under a day, M a few days, L a week or more.
 | 9 | pub.dev publish via OIDC | S | Wired in `publish_dart_package.yaml`, never exercised. One dry run. |
 | 10 | arm64 server image | M | Releases are amd64 only without hosted runners (buildx + QEMU or an arm64 runner). |
 | 11 | iOS code push and `aot-tools.dill` | L | The iOS engine is built, published and pinned as `255fd850` (shorebird-flutter PR #4), without code patches: the iOS patch path needs `Shorebird_ReadLinkHeader` and the five-argument `Dart_LoadELF` from Shorebird's private Dart fork, so `shorebird_use_interpreter` is off and iOS apps do not start the updater. Patches on iOS need those in the public Dart fork. A release is built and signed; the device run waits on a phone (In flight). `aot-tools.dill` does not build yet. |
-| 11a | Diagnose the mirror's cold `/gcs/` fetch hang | S | See the CDN section. |
+| 11a | ~~Diagnose the mirror's cold `/gcs/` fetch hang~~ | Done | Souin's 10 s default backend timeout; see the CDN section. |
 | 12 | Apple and desktop paths in CI | L | iOS code push was proven on the owner's devices with earlier Route B engines, not `255fd850`; macOS, Windows and Linux code push are untested ([`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md)). Needs a Mac runner. |
 
 Owner decisions, no code needed:

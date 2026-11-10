@@ -7,6 +7,9 @@ reverse_proxy https://storage.googleapis.com {
 	transport http {
 		versions 1.1 2
 		tls_server_name storage.googleapis.com
+		# Fail a dead upstream quickly; the body gets the Caddyfile's backend timeout.
+		dial_timeout 10s
+		response_header_timeout 60s
 	}
 	@miss status 404
 	header_down @miss Cache-Control "public, max-age=60"
