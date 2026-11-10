@@ -138,11 +138,12 @@ counts as all clear: exit status 2, and an open issue stays open.
 
 **Where a human sees it.** Without a token, nobody is paged. The warnings are in
 `~/.local/state/gha-watch/current` (the last run), and `install-watch.sh` makes every
-interactive login to `oem` print that file. History is in `warnings.log` there (written on
+interactive login to `oem` run `gha-watch --show`, which prints them with their age and
+says so when the watcher itself has not run for 30 minutes (cron stopped). History is in `warnings.log` there (written on
 change, and hourly while they last). Check by hand:
 
 ```sh
-cat ~/.local/state/gha-watch/current; tail -3 ~/.local/state/gha-watch/warnings.log
+gha-watch --show; tail -3 ~/.local/state/gha-watch/warnings.log
 ```
 
 **Issue on the fork.** Put the token in `~/.config/gha-watch.env` (the installer creates it
@@ -155,8 +156,8 @@ echo 'GH_TOKEN=github_pat_...' >> ~/.config/gha-watch.env
 ```
 
 Then it opens one issue titled "CI host alert: ..." with the label `gha-watch`, comments at
-most every 6 hours while the warnings last, never creates a second within 2 hours, and closes
-it when everything is clear. A failing `gh` call is logged and gives exit status 2.
+most every 6 hours while the warnings last, adopts an existing open issue with that title instead of duplicating it, and closes it when
+everything is clear (a problem that returns after that gets a new issue at once). A failing `gh` call is logged and gives exit status 2.
 
 **API use.** The token goes to `curl` in a 0600 header file, never on a command line. Without
 a token the public API allows 60 requests an hour for the host's address; the watcher makes at

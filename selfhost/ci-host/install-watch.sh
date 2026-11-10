@@ -19,7 +19,7 @@ else
   exit 1
 fi
 line="*/10 * * * * $HOME/.local/bin/gha-watch >/dev/null 2>&1 # gha-watch"
-{ grep -v '# gha-watch$' <<<"$cur" || true; echo "$line"; } | crontab -
+{ [[ -n $cur ]] && grep -v '# gha-watch$' <<<"$cur" || true; echo "$line"; } | crontab -
 
 cfg=${XDG_CONFIG_HOME:-$HOME/.config}/gha-watch.env
 if [[ ! -e $cfg ]]; then
@@ -27,14 +27,19 @@ if [[ ! -e $cfg ]]; then
   (umask 077; : >"$cfg")
 fi
 
-# Show the warnings to a human at login (interactive shells only).
-prof=$HOME/.profile; [[ -e $HOME/.bash_profile ]] && prof=$HOME/.bash_profile
+# Show the warnings to a human at login (interactive shells only). Bash reads the first of
+# these that exists. The block is replaced on every run, so an old version is updated.
+prof=$HOME/.profile
+for f in "$HOME/.bash_profile" "$HOME/.bash_login"; do [[ -e $f ]] && { prof=$f; break; }; done
 touch "$prof"
-if ! grep -q '^# gha-watch begin' "$prof"; then
-  cat >>"$prof" <<'SNIP'
+if grep -q '^# gha-watch begin' "$prof"; then
+  sed -i.orig '/^# gha-watch begin/,/^# gha-watch end/d' "$prof" && rm -f "$prof.orig"
+fi
+# Start the block on its own line even when the file does not end in a newline.
+[[ -s $prof && -n $(tail -c1 "$prof") ]] && echo >>"$prof"
+cat >>"$prof" <<'SNIP'
 # gha-watch begin
-case $- in *i*) [ -s "$HOME/.local/state/gha-watch/current" ] && { echo "gha-watch: CI warnings (newest run):"; cat "$HOME/.local/state/gha-watch/current"; } ;; esac
+case $- in *i*) [ -x "$HOME/.local/bin/gha-watch" ] && "$HOME/.local/bin/gha-watch" --show ;; esac
 # gha-watch end
 SNIP
-fi
 echo "installed: $HOME/.local/bin/gha-watch, cron every 10 min, warnings in ~/.local/state/gha-watch/{current,warnings.log}"
