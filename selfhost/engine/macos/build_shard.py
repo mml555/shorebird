@@ -257,7 +257,7 @@ def verify_exported(log, waived, built_out):
         return 1, set()
     if p.returncode == 0:
         return 0, set()
-    # Waivable only if the script ran to the end ("Failing checks: N" with
+    # It can be waived only if the script ran to the end ("Failing checks: N" with
     # exit status N), every one of the N failures is an "exports unexpected
     # symbols" list for built_out, and every symbol listed is waived. A crash,
     # any other error, or a failure in another build fails as before.
@@ -278,7 +278,7 @@ def verify_exported(log, waived, built_out):
     n = int(counted[-1].split()[-1]) if len(counted) == 1 and counted[0].split()[-1].isdigit() else -1
     if n < 1 or p.returncode != n % 256 or blocks != n or other:
         log.write(f"verify_exported failed in a way no waiver covers (exit {p.returncode}, "
-                  f"failing checks {n if n >= 0 else 'not reported'}, waivable lists {blocks}, "
+                  f"failing checks {n if n >= 0 else 'not reported'}, unexpected-export lists {blocks}, "
                   f"other errors {len(other)})\n")
         return 1, set()
     if not unexpected or not unexpected <= waived:
