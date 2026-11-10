@@ -14,6 +14,7 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/abi.dart';
 import 'package:shorebird_cli/src/artifact_builder/shorebird_tracer.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
+import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/cache_pruning.dart';
 import 'package:shorebird_cli/src/checksum_checker.dart';
@@ -774,6 +775,162 @@ void main() {
                   contains('Failed to download patch from https://'),
                   contains(': 404 Not Found'),
                 ),
+              ),
+            ),
+          );
+        });
+
+        group('when FLUTTER_STORAGE_BASE_URL is set alone', () {
+          setUp(() {
+            platform = TestNativePlatform(
+              environment: {
+                ArtifactOrigin.flutterStorageKey: 'https://mirror.example',
+              },
+              operatingSystem: NativePlatform.macOS,
+            );
+            cache = runWithOverrides(Cache.new);
+          });
+
+          test('a 404 from upstream names SHOREBIRD_ARTIFACT_ORIGIN', () async {
+            when(() => httpClient.send(any())).thenAnswer(
+              (_) async => http.StreamedResponse(
+                const Stream.empty(),
+                HttpStatus.notFound,
+                reasonPhrase: 'Not Found',
+              ),
+            );
+            await expectLater(
+              runWithOverrides(() => cache.updateAll(Duration.zero)),
+              throwsA(
+                isA<CacheUpdateFailure>().having(
+                  (e) => e.message,
+                  'message',
+                  allOf(
+                    contains('https://storage.googleapis.com/'),
+                    contains(': 404 Not Found'),
+                    contains('SHOREBIRD_ARTIFACT_ORIGIN'),
+                    isNot(contains('SHOREBIRD_DOWNLOAD_URL')),
+                  ),
+                ),
+              ),
+            );
+          });
+
+          test('an optional artifact 404 warns with the hint', () async {
+            when(() => httpClient.send(any())).thenAnswer((invocation) async {
+              final request =
+                  invocation.positionalArguments.first as http.BaseRequest;
+              if (p.basename(request.url.path).startsWith('aot-tools')) {
+                return http.StreamedResponse(
+                  const Stream.empty(),
+                  HttpStatus.notFound,
+                  reasonPhrase: 'Not Found',
+                );
+              }
+              return http.StreamedResponse(
+                Stream.value(ZipEncoder().encode(Archive())),
+                HttpStatus.ok,
+              );
+            });
+            await runWithOverrides(() => cache.updateAll(Duration.zero));
+            verify(
+              () => logger.warn(
+                any(
+                  that: allOf(
+                    contains('aot-tools'),
+                    contains('SHOREBIRD_ARTIFACT_ORIGIN'),
+                  ),
+                ),
+              ),
+            ).called(1);
+          });
+
+          test(
+            'an optional artifact network failure warns with the hint',
+            () async {
+              when(() => httpClient.send(any())).thenAnswer((invocation) async {
+                final request =
+                    invocation.positionalArguments.first as http.BaseRequest;
+                if (p.basename(request.url.path).startsWith('aot-tools')) {
+                  throw const SocketException('test');
+                }
+                return http.StreamedResponse(
+                  Stream.value(ZipEncoder().encode(Archive())),
+                  HttpStatus.ok,
+                );
+              });
+              await runWithOverrides(() => cache.updateAll(Duration.zero));
+              verify(
+                () => logger.warn(
+                  any(that: contains('SHOREBIRD_ARTIFACT_ORIGIN')),
+                ),
+              ).called(1);
+            },
+          );
+
+          test('a failing non-upstream URL gets no hint', () async {
+            when(() => httpClient.send(any())).thenAnswer((invocation) async {
+              final request =
+                  invocation.positionalArguments.first as http.BaseRequest;
+              if (request.url.host == 'github.com') {
+                return http.StreamedResponse(
+                  const Stream.empty(),
+                  HttpStatus.notFound,
+                  reasonPhrase: 'Not Found',
+                );
+              }
+              return http.StreamedResponse(
+                Stream.value(ZipEncoder().encode(Archive())),
+                HttpStatus.ok,
+              );
+            });
+            await expectLater(
+              runWithOverrides(() => cache.updateAll(Duration.zero)),
+              throwsA(
+                isA<CacheUpdateFailure>().having(
+                  (e) => e.message,
+                  'message',
+                  allOf(
+                    contains('github.com'),
+                    isNot(contains('SHOREBIRD_ARTIFACT_ORIGIN')),
+                  ),
+                ),
+              ),
+            );
+          });
+
+          test('a network failure names SHOREBIRD_ARTIFACT_ORIGIN', () async {
+            when(
+              () => httpClient.send(any()),
+            ).thenThrow(const SocketException('test'));
+            await expectLater(
+              runWithOverrides(() => cache.updateAll(Duration.zero)),
+              throwsA(
+                isA<CacheUpdateFailure>().having(
+                  (e) => e.message,
+                  'message',
+                  contains('SHOREBIRD_ARTIFACT_ORIGIN'),
+                ),
+              ),
+            );
+          });
+        });
+
+        test('a 404 adds no hint when no origin variable is set', () async {
+          when(() => httpClient.send(any())).thenAnswer(
+            (_) async => http.StreamedResponse(
+              const Stream.empty(),
+              HttpStatus.notFound,
+              reasonPhrase: 'Not Found',
+            ),
+          );
+          await expectLater(
+            runWithOverrides(() => cache.updateAll(Duration.zero)),
+            throwsA(
+              isA<CacheUpdateFailure>().having(
+                (e) => e.message,
+                'message',
+                isNot(contains('SHOREBIRD_ARTIFACT_ORIGIN')),
               ),
             ),
           );

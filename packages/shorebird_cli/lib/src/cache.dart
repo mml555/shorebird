@@ -446,6 +446,11 @@ abstract class CachedArtifact {
     return checksumChecker.checkFile(file, checksum!);
   }
 
+  static String _hint(String url) {
+    final hint = ArtifactOrigin.toolsDownloadHint(url);
+    return hint == null ? '' : '\n$hint';
+  }
+
   /// Re-fetch the artifact from the storage URL.
   Future<void> update() async {
     // Clear any existing artifact files.
@@ -467,14 +472,14 @@ abstract class CachedArtifact {
         logger.warn(
           '''
 Failed to download optional artifact $fileName from $url: $error
-Continuing without it; commands that need $fileName will not work until it can be downloaded.''',
+Continuing without it; commands that need $fileName will not work until it can be downloaded.${_hint(url)}''',
         );
         return;
       }
       throw CacheUpdateFailure('''
 Failed to download $fileName: $error
 If you're behind a firewall/proxy, please, make sure shorebird_cli is
-allowed to access $url.''');
+allowed to access $url.${_hint(url)}''');
     }
 
     if (response.statusCode != HttpStatus.ok) {
@@ -482,13 +487,19 @@ allowed to access $url.''');
         logger.detail(
           '[cache] optional artifact: "$fileName" was not found, skipping...',
         );
+        final hint = ArtifactOrigin.toolsDownloadHint(url);
+        if (hint != null) {
+          logger.warn(
+            'Optional artifact $fileName was not found at $url.\n$hint',
+          );
+        }
         updateProgress.cancel();
         return;
       }
 
       updateProgress.fail();
       throw CacheUpdateFailure(
-        '''Failed to download $fileName from $url: ${response.statusCode} ${response.reasonPhrase}''',
+        '''Failed to download $fileName from $url: ${response.statusCode} ${response.reasonPhrase}${_hint(url)}''',
       );
     }
 

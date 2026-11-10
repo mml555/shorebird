@@ -377,9 +377,13 @@ class ShorebirdCliCommandRunner extends CompletionCommandRunner<int> {
           logger.info(aliasNotice);
         }
       }
-      // stderr, never the logger: stdout may be reserved for --json.
+      // The conflict warning goes to stderr, never the logger: stdout may be
+      // reserved for --json. The split notice is verbose-only, so it is safe
+      // on the logger (detail never reaches stdout unless --verbose).
       final originConflict = ArtifactOrigin.conflictWarning();
       if (originConflict != null) io.stderr.writeln(originConflict);
+      final originSplit = ArtifactOrigin.flutterOnlyNotice();
+      if (originSplit != null) logger.detail(originSplit);
       try {
         exitCode = await runScoped(
           () => super.runCommand(topLevelResults),
