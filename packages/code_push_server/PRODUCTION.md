@@ -448,6 +448,32 @@ Confirm the actual subnet with `docker network inspect
 code_push_server_default` (single container + TLS) or
 `docker network inspect code_push_server_cps` (scale profile).
 
+### Paths a proxy or firewall must pass unauthenticated
+
+Apps in the field call a few endpoints with no credential, only their
+`app_id`. A proxy, WAF or load balancer in front of the server that demands
+authentication, or blocks `POST`s it does not recognize, will break them:
+
+- `POST /api/v1/patches/check`: asks whether a patch is available.
+- `POST /api/v1/patches/events`: **reports install events**: patch downloaded,
+  installed, boot failed. The server answers `204 No Content` (or `422` for an
+  event that can never be stored; the updater drops those).
+- `POST /api/v1/patches/assets` and `POST /api/v1/crashes`.
+
+`patches/events` is the one to watch. A proxy that blocks it breaks nothing you
+would notice: the server sees no request and logs no error, so install counts, rollout health and
+boot-failure rollbacks go silently missing. After a proxy change, check
+that an unauthenticated request gets through:
+
+```bash
+curl -i -X POST "$PUBLIC_BASE_URL/api/v1/patches/events" \
+  -H 'Content-Type: application/json' -d '{"event":{}}'
+# expect: HTTP/1.1 204 (a 401, 403 or 404 means the proxy or the path is wrong)
+```
+
+The shipped Caddyfile passes everything to the server and needs no change.
+Every other `/api/v1/*` route needs a bearer token, which the server checks.
+
 ### Upload method
 
 ```bash

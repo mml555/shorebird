@@ -45,6 +45,13 @@ on:
         required: false
         default: 0
         type: number
+      test_concurrency:
+        description: >-
+          Value for `dart test --concurrency`. Lower it where tests contend for
+          a shared resource, or the runner has few cores.
+        required: false
+        default: 4
+        type: number
 
 permissions:
   contents: read
@@ -103,6 +110,7 @@ jobs:
           REPORT_ON: ${{ inputs.report_on }}
           RUNNER_OS_NAME: ${{ matrix.os }}
           SHARD_INDEX: ${{ inputs.shard_index }}
+          TEST_CONCURRENCY: ${{ inputs.test_concurrency }}
           TOTAL_SHARDS: ${{ inputs.total_shards }}
           WORKSPACE_ROOT: ${{ github.workspace }}
         run: |
@@ -115,11 +123,11 @@ jobs:
             # Pinned until https://github.com/dart-lang/tools/issues/2667 is fixed.
             dart pub global activate coverage 1.15.1
             COVERAGE_DIR="$(pwd -W 2>/dev/null || pwd)/coverage"
-            # --concurrency=4: dart test's default is half the cores. On the
-            # 32-core home runner (16 at once), coverage collection livelocks:
+            # The default is 4 (see test_concurrency): dart test's own default is half
+            # the cores. On the 32-core home runner (16 at once), coverage hangs:
             # 50 files hung for 30+ min, but passed in 50s with 4 at once and
             # 148s with 1. Without coverage the same files pass in 5s either way.
-            printf '%s\n' "$files" | xargs -n 50 dart test --concurrency=4 --coverage="$COVERAGE_DIR"
+            printf '%s\n' "$files" | xargs -n 50 dart test --concurrency="$TEST_CONCURRENCY" --coverage="$COVERAGE_DIR"
             if [ -z "$(find coverage -name '*.json' -print -quit)" ]; then
               echo "::error::dart test wrote no coverage files to coverage/"
               exit 1
@@ -140,7 +148,7 @@ jobs:
             jq --arg name "$PACKAGE_NAME" '.packages |= map(select(.name == $name))' "$PACKAGE_CONFIG" > "$SCOPED_CONFIG"
             dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --packages="$SCOPED_CONFIG" --report-on="$REPORT_ON" --check-ignore
           else
-            printf '%s\n' "$files" | xargs -n 50 dart test --concurrency=4
+            printf '%s\n' "$files" | xargs -n 50 dart test --concurrency="$TEST_CONCURRENCY"
           fi
       - name: Check Coverage
         if: inputs.has_unit_tests && inputs.min_coverage != '' && inputs.min_coverage != '0' && matrix.os == 'ubuntu-latest'
