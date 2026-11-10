@@ -473,7 +473,9 @@ The CLI and browsers (sign-in):
 - `/console` and `/admin/ui` (the static pages; the API calls they make carry
   a token).
 
-Monitoring: `/healthz`, `/readyz`, `/metrics` and `/diagnostics/speedtest`.
+Monitoring and diagnostics: `/` (health), `/healthz`, `/readyz` and
+`/metrics`, plus `/diagnostics/speedtest`, which the CLI's `shorebird doctor`
+network check uses.
 
 The server also accepts the device routes without the `/api/v1` prefix
 (`/patches/check`, `/patches/events`, `/patches/assets`, `/crashes`) and under
@@ -496,7 +498,7 @@ curl -i -X POST "$PUBLIC_BASE_URL/api/v1/patches/events" \
 ```
 
 That request stores one event row with `client_id` `proxy-check`, and the
-server logs its body, so filter that id out of install counts.
+server logs its body, so filter that `client_id` (or `type: proxy_check`) out of install counts.
 
 The shipped Caddyfile passes everything to the server and needs no change.
 
