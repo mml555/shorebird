@@ -124,6 +124,11 @@ More info: ${troubleshootingUrl.toLink()}.
   /// Asserts that the command can be run.
   Future<void> assertPreconditions();
 
+  /// Asserts that the engine this patch will be built with can run the
+  /// patches this platform produces, exiting before anything is downloaded or
+  /// built otherwise. Runs with the release's Flutter revision selected.
+  Future<void> assertEngineCanPatch() async {}
+
   /// Asserts that the combination arguments passed to the command are valid.
   Future<void> assertArgsAreValid() async {}
 

@@ -18,6 +18,7 @@ import 'package:shorebird_cli/src/commands/release/ios_releaser.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
 import 'package:shorebird_cli/src/doctor.dart';
+import 'package:shorebird_cli/src/engine_config.dart';
 import 'package:shorebird_cli/src/executables/xcodebuild.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
@@ -77,6 +78,7 @@ void main() {
     late CodeSigner codeSigner;
     late Directory projectRoot;
     late Doctor doctor;
+    late EngineConfig engineConfig;
     late FlavorValidator flavorValidator;
     late Progress progress;
     late ShorebirdLogger logger;
@@ -100,6 +102,7 @@ void main() {
           codePushClientWrapperRef.overrideWith(() => codePushClientWrapper),
           codeSignerRef.overrideWith(() => codeSigner),
           doctorRef.overrideWith(() => doctor),
+          engineConfigRef.overrideWith(() => engineConfig),
           loggerRef.overrideWith(() => logger),
           osInterfaceRef.overrideWith(() => operatingSystemInterface),
           processRef.overrideWith(() => shorebirdProcess),
@@ -157,6 +160,7 @@ void main() {
       routeBCompilerResolver = MockRouteBCompilerResolver();
       routeBReleaseKernelBuilder = MockRouteBReleaseKernelBuilder();
       shorebirdProcess = MockShorebirdProcess();
+      engineConfig = MockEngineConfig();
       shorebirdEnv = MockShorebirdEnv();
       shorebirdFlutter = MockShorebirdFlutter();
       shorebirdValidator = MockShorebirdValidator();

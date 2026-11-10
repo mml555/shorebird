@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# cspell:words dsts
+# cspell:words dsts plists
 """Stage the macOS shard's outputs in the CDN overlay layout.
 
 Reads shorebird/ci/shards/macos.json and compose.json, runs each compose step

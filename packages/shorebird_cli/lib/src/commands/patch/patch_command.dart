@@ -529,6 +529,7 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
             patcher: patcher,
             release: release,
           );
+          await patcher.assertEngineCanPatch();
         }
         await _warnIfInstallOnlySkipsSignatureCheck(release: release);
       },
@@ -840,16 +841,19 @@ ${differences.map((line) => '  $line').join('\n')}
 A patch must be built with the --dart-define values and --target of its release, or it may fail to link or change code the release runs.''',
     );
     if (allowBuildFlagDiffs) return;
-    if (shorebirdEnv.canAcceptUserInput && logger.confirm('Continue anyway?')) {
-      return;
+    if (!shorebirdEnv.canAcceptUserInput) {
+      throw CommandError(
+        message: "This patch's flags don't match release ${release.version}.",
+        hint:
+            'Pass the same --dart-define, --dart-define-from-file and '
+            '--target values as the release, or create a new release. To '
+            'patch anyway, pass --allow-build-flag-diffs.',
+        code: JsonErrorCode.interactivePromptRequired,
+      );
     }
-    throw CommandError(
-      message: "This patch's flags don't match release ${release.version}.",
-      hint:
-          'Pass the same --dart-define, --dart-define-from-file and '
-          '--target values as the release, or create a new release. To '
-          'patch anyway, pass --allow-build-flag-diffs.',
-    );
+    if (logger.confirm('Continue anyway?')) return;
+    logger.err('Aborting.');
+    throw PromptDeclinedExit();
   }
 
   /// Configures [patcher] to build the patch with the same obfuscation as
@@ -889,7 +893,9 @@ A patch must be built with the --dart-define values and --target of its release,
     final releaseFlutterVersion = tryParseVersion(release.flutterVersion ?? '');
     if (loadObfuscationMap &&
         releaseFlutterVersion != null &&
-        releaseFlutterVersion < minimumObfuscationFlutterVersion) {
+        !releaseFlutterVersion.satisfiesFloor(
+          minimumObfuscationFlutterVersion,
+        )) {
       if (patchesLinkAgainstRelease(releasePlatform)) {
         throw CommandError(
           message:
@@ -1303,7 +1309,8 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
     if (minimumFlutterVersion == null) return;
 
     final flutterVersion = await shorebirdFlutter.getVersion();
-    if (flutterVersion == null || flutterVersion >= minimumFlutterVersion) {
+    if (flutterVersion == null ||
+        flutterVersion.satisfiesFloor(minimumFlutterVersion)) {
       return;
     }
 

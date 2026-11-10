@@ -782,7 +782,7 @@ Use patch_verification: strict.''',
           : await resolveFlutterVersionArg(),
     );
     final minimumFlutterVersion = releaser.minimumFlutterVersion;
-    if (version != null && version < minimumFlutterVersion) {
+    if (version != null && !version.satisfiesFloor(minimumFlutterVersion)) {
       final cliName = releaser.releaseType.cliName;
       throw CommandError(
         message:
@@ -798,7 +798,7 @@ Use patch_verification: strict.''',
     if (releaser.useObfuscation &&
         patchesLinkAgainstRelease(releaser.releaseType.releasePlatform) &&
         version != null &&
-        version < minimumObfuscationFlutterVersion) {
+        !version.satisfiesFloor(minimumObfuscationFlutterVersion)) {
       throw CommandError(
         message:
             'Obfuscation on '

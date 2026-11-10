@@ -44,6 +44,7 @@ import 'package:shorebird_cli/src/validators/validators.dart';
 class IosPatcher extends Patcher
     with
         ApplePatcherMixin,
+        IosEnginePatchGuard,
         ApplePodfileLockPatcherMixin,
         AppleLinkerPatcherMixin {
   /// {@macro ios_patcher}
@@ -318,24 +319,10 @@ class IosPatcher extends Patcher
   /// Keyed on the `InterpretCall` symbol rather than on the engine revision:
   /// the revision is a sha1 of the Flutter binary and Xcode re-signs embedded
   /// frameworks, changing the file without changing what it can do.
-  bool _engineSupportsIosCodePush() {
-    return isRouteBEngine(
-      File(
-        p.join(
-          shorebirdEnv.flutterDirectory.path,
-          'bin',
-          'cache',
-          'artifacts',
-          'engine',
-          'ios-release',
-          'Flutter.xcframework',
-          'ios-arm64',
-          'Flutter.framework',
-          'Flutter',
-        ),
-      ),
-    );
-  }
+  bool _engineSupportsIosCodePush() => isRouteBEngine(_engineBinary);
+
+  /// The iOS release engine binary this patch builds with.
+  File get _engineBinary => iosEngineBinaryInScope();
 
   /// The engine hash that must select the compiler cell, read from the
   /// release's own uploaded bytes.

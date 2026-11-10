@@ -372,6 +372,7 @@ void main() {
       ).thenReturn(release);
       when(() => logger.progress(any())).thenReturn(progress);
 
+      when(() => patcher.assertEngineCanPatch()).thenAnswer((_) async {});
       when(() => patcher.assertArgsAreValid()).thenAnswer((_) async {});
       when(() => patcher.assertPreconditions()).thenAnswer((_) async {});
       when(
@@ -836,6 +837,7 @@ void main() {
         when(() => iosPatcher.extraBuildArgs).thenReturn(const []);
         when(() => iosPatcher.assertArgsAreValid()).thenAnswer((_) async {});
         when(() => iosPatcher.assertPreconditions()).thenAnswer((_) async {});
+        when(() => iosPatcher.assertEngineCanPatch()).thenAnswer((_) async {});
         when(
           () => iosPatcher.prepareForRelease(
             appId: any(named: 'appId'),
@@ -974,6 +976,50 @@ void main() {
             releaseVersion: any(named: 'releaseVersion'),
           ),
         ]);
+      });
+
+      test('runs every patcher\'s engine check, in the release revision, '
+          'before building any of them', () async {
+        final revisions = <String>[];
+        when(() => patcher.assertEngineCanPatch()).thenAnswer((_) async {
+          revisions.add(shorebirdEnv.flutterRevision);
+        });
+        when(() => iosPatcher.assertEngineCanPatch()).thenAnswer((_) async {
+          revisions.add(shorebirdEnv.flutterRevision);
+        });
+
+        await runWithOverrides(command.run);
+
+        expect(revisions, [release.flutterRevision, release.flutterRevision]);
+        verifyInOrder([
+          patcher.assertEngineCanPatch,
+          iosPatcher.assertEngineCanPatch,
+          () => patcher.buildPatchArtifact(
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        ]);
+      });
+
+      test('a platform whose engine cannot patch stops the whole patch '
+          'before anything is built', () async {
+        when(() => iosPatcher.assertEngineCanPatch()).thenThrow(
+          CommandError(
+            message: 'ios engine cannot patch',
+            exitCode: ExitCode.unavailable,
+          ),
+        );
+
+        await expectLater(
+          runWithOverrides(command.run),
+          exitsWithCode(ExitCode.unavailable),
+        );
+
+        verify(() => patcher.assertEngineCanPatch()).called(1);
+        verifyNever(
+          () => patcher.buildPatchArtifact(
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        );
       });
 
       group('when a later platform fails to build', () {
@@ -1250,6 +1296,56 @@ void main() {
         ).called(1);
       });
 
+      group('when the engine cannot run the patcher\'s patches', () {
+        setUp(() {
+          when(() => patcher.assertEngineCanPatch()).thenThrow(
+            CommandError(
+              message: 'engine built without patch support',
+              exitCode: ExitCode.unavailable,
+            ),
+          );
+        });
+
+        test('runs with the release\'s Flutter revision selected', () async {
+          String? seen;
+          when(() => patcher.assertEngineCanPatch()).thenAnswer((_) async {
+            seen = shorebirdEnv.flutterRevision;
+            throw CommandError(message: 'x', exitCode: ExitCode.unavailable);
+          });
+
+          await expectLater(
+            () => runWithOverrides(() => command.createPatch([patcher])),
+            exitsWithError(message: 'x', exitCode: ExitCode.unavailable),
+          );
+
+          expect(seen, release.flutterRevision);
+        });
+
+        test('exits before downloading or building anything', () async {
+          await expectLater(
+            () => runWithOverrides(() => command.createPatch([patcher])),
+            exitsWithError(
+              message: 'engine built without patch support',
+              exitCode: ExitCode.unavailable,
+            ),
+          );
+
+          verifyNever(
+            () => codePushClientWrapper.getReleaseArtifact(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              arch: any(named: 'arch'),
+              platform: any(named: 'platform'),
+            ),
+          );
+          verifyNever(
+            () => patcher.buildPatchArtifact(
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          );
+        });
+      });
+
       group('when the patcher has a minimum Flutter version', () {
         final minimumFlutterVersion = Version(3, 27, 4);
 
@@ -1323,6 +1419,24 @@ void main() {
               );
             },
           );
+        });
+
+        group('when the release Flutter version is a side version', () {
+          setUp(() {
+            when(() => shorebirdFlutter.getVersion()).thenAnswer(
+              (_) async => Version.parse('$minimumFlutterVersion-sb.1'),
+            );
+          });
+
+          test('builds the patch', () async {
+            await runWithOverrides(() => command.createPatch([patcher]));
+
+            verify(
+              () => patcher.buildPatchArtifact(
+                releaseVersion: any(named: 'releaseVersion'),
+              ),
+            ).called(1);
+          });
         });
 
         group('when the release Flutter version is supported', () {
@@ -2548,13 +2662,20 @@ A patch cannot change the Flutter version a release was built with. To fix this,
               await expectLater(
                 () => runWithOverrides(() => command.createPatch([patcher])),
                 throwsA(
-                  isA<CommandError>().having(
-                    (e) => e.exitCode,
-                    'exitCode',
-                    ExitCode.usage.code,
-                  ),
+                  isA<CommandError>()
+                      .having(
+                        (e) => e.exitCode,
+                        'exitCode',
+                        ExitCode.usage.code,
+                      )
+                      .having(
+                        (e) => e.code,
+                        'code',
+                        JsonErrorCode.interactivePromptRequired,
+                      ),
                 ),
               );
+              verifyNever(() => logger.confirm(any()));
               verify(
                 () => logger.warn(
                   any(
@@ -2596,6 +2717,32 @@ A patch cannot change the Flutter version a release was built with. To fix this,
                   supplementDirectory: any(named: 'supplementDirectory'),
                 ),
               ).called(1);
+            });
+
+            test('stops when the user declines', () async {
+              when(() => shorebirdEnv.canAcceptUserInput).thenReturn(true);
+              when(() => logger.confirm('Continue anyway?')).thenReturn(false);
+              patchBuiltWith(['API_URL=https://b', 'SENTRY_DSN=x']);
+
+              await expectLater(
+                () => runWithOverrides(() => command.createPatch([patcher])),
+                throwsA(
+                  isA<PromptDeclinedExit>().having(
+                    (e) => e.exitCode,
+                    'exitCode',
+                    declinedExitCode,
+                  ),
+                ),
+              );
+              verify(() => logger.err('Aborting.')).called(1);
+              verifyNever(
+                () => patcher.createPatchArtifacts(
+                  appId: any(named: 'appId'),
+                  releaseId: any(named: 'releaseId'),
+                  releaseArtifact: any(named: 'releaseArtifact'),
+                  supplementDirectory: any(named: 'supplementDirectory'),
+                ),
+              );
             });
 
             test('goes on when the user confirms', () async {
@@ -2713,6 +2860,31 @@ A patch cannot change the Flutter version a release was built with. To fix this,
                     ),
                   ),
                 );
+                verify(
+                  () => patcher.obfuscationMapPath = any(that: isNotNull),
+                ).called(1);
+              });
+            });
+
+            group('when the release Flutter is a side version', () {
+              setUp(() {
+                when(
+                  () => shorebirdFlutter.shouldPreStripLibappInGenSnapshot(
+                    platform: any(named: 'platform'),
+                    flutterRevision: any(named: 'flutterRevision'),
+                  ),
+                ).thenAnswer((_) async => false);
+                stubReleaseFlutterVersion('3.41.2-sb.1');
+              });
+
+              test('loads the release obfuscation map', () async {
+                expect(
+                  Version.parse('3.41.2-sb.1'),
+                  lessThan(minimumObfuscationFlutterVersion),
+                );
+
+                await runWithOverrides(() => command.createPatch([patcher]));
+
                 verify(
                   () => patcher.obfuscationMapPath = any(that: isNotNull),
                 ).called(1);
