@@ -116,18 +116,34 @@ Future<void> main() async {
 
   // Periodic housekeeping. Each of these tables is written by unauthenticated
   // or abandoned traffic, so without a sweep they only ever grow.
+  //
+  // Each purge runs on its own, so one failing statement does not skip the
+  // rest, and a sweep still running when the next tick fires is not re-entered.
+  var sweeping = false;
   Future<void> housekeeping() async {
+    if (sweeping) return;
+    sweeping = true;
     try {
-      await repo.purgeExpiredAuthCodes();
-      await repo.purgeExpiredIdpStates();
-      await repo.purgeOldRateWindows();
-      // Opt-in, and off by default — these two hold data an operator may want
-      // to keep. Unset, `events` and `audit_log` grow without bound.
-      await repo.purgeOldEvents(config.eventRetentionDays);
-      await repo.purgeOldCrashReports(config.crashRetentionDays);
-      await repo.purgeOldAuditLog(config.auditRetentionDays);
-    } on Object catch (e, st) {
-      logError('housekeeping failed', e, st);
+      final purges = <String, Future<void> Function()>{
+        'auth codes': repo.purgeExpiredAuthCodes,
+        'idp states': repo.purgeExpiredIdpStates,
+        'rate windows': repo.purgeOldRateWindows,
+        // Opt-in, and off by default — these hold data an operator may want
+        // to keep. Unset, they grow without bound.
+        'events': () => repo.purgeOldEvents(config.eventRetentionDays),
+        'crash reports': () =>
+            repo.purgeOldCrashReports(config.crashRetentionDays),
+        'audit log': () => repo.purgeOldAuditLog(config.auditRetentionDays),
+      };
+      for (final MapEntry(:key, :value) in purges.entries) {
+        try {
+          await value();
+        } on Object catch (e, st) {
+          logError('housekeeping failed: $key', e, st);
+        }
+      }
+    } finally {
+      sweeping = false;
     }
   }
 

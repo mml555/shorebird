@@ -586,6 +586,15 @@ class Repository {
         'ALTER TABLE idp_states ADD COLUMN code_challenge TEXT',
       ],
     ),
+    (
+      16,
+      [
+        // The `CRASH_RETENTION_DAYS` sweep filters on received_at; without
+        // this every hourly run is a sequential scan.
+        'CREATE INDEX IF NOT EXISTS crash_reports_received_idx '
+            'ON crash_reports(received_at)',
+      ],
+    ),
   ];
 
   /// Indexes for the access paths that would otherwise scan. `events` is the

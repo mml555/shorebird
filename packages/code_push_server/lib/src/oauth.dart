@@ -37,8 +37,8 @@ class OAuthService {
   /// token comes straight from the token endpoint over TLS. Everything else
   /// in 3.1.3.7 that this server can check without the IdP's keys is checked:
   ///
-  /// * `aud` contains [clientId], and `azp` equals it when there are several
-  ///   audiences. Without this a token minted for another app is accepted.
+  /// * `aud` contains [clientId], and `azp` equals it when present (and is
+  ///   required when there are several audiences). Without this a token minted for another app is accepted.
   /// * `exp` is present and in the future.
   /// * `iss` equals [issuer], when one is configured (`IDP_ISSUER`).
   /// * `email_verified` is true, unless [allowUnverifiedEmail]
@@ -79,7 +79,10 @@ class OAuthService {
     if (!audiences.contains(clientId)) {
       return IdTokenResult.rejected('aud_mismatch');
     }
-    if (audiences.length > 1 && payload['azp'] != clientId) {
+    // Core 3.1.3.7: azp, when present, must be our client id, whatever the
+    // audience count; with several audiences it must be present.
+    final azp = payload['azp'];
+    if (azp != null ? azp != clientId : audiences.length > 1) {
       return IdTokenResult.rejected('azp_mismatch');
     }
 

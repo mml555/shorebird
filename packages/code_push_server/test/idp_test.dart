@@ -86,6 +86,11 @@ void main() {
       },
     );
 
+    test('rejects a mismatched azp even with a single audience', () {
+      expect(_check(_resp({'azp': 'other'})).reason, 'azp_mismatch');
+      expect(_check(_resp({'azp': _clientId})).email, 'idp@x.com');
+    });
+
     test('rejects an expired or exp-less token', () {
       final past = DateTime.now().millisecondsSinceEpoch ~/ 1000 - 10;
       expect(_check(_resp({'exp': past})).reason, 'expired');

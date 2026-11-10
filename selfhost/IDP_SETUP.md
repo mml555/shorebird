@@ -259,8 +259,9 @@ IDP_AUTHORIZE_URL=https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authori
 IDP_TOKEN_URL=https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token
 IDP_SCOPES=openid email
 IDP_ISSUER=https://login.microsoftonline.com/{tenant}/v2.0
-# Entra omits email_verified; see the warning below before enabling.
-IDP_ALLOW_UNVERIFIED_EMAIL=true
+# Entra omits email_verified, so logins are refused until you uncomment this.
+# Read the note below first.
+#IDP_ALLOW_UNVERIFIED_EMAIL=true
 ```
 
 `IDP_ISSUER` must be the exact `iss` of the tokens, so use your tenant ID
@@ -268,7 +269,8 @@ rather than `common` / `organizations` (whose tokens carry the user's own
 tenant as `iss`; with those you cannot set `IDP_ISSUER`, and production will
 refuse to boot). Entra does not send `email_verified`, and the `email` claim
 there is not proven by Microsoft, so `IDP_ALLOW_UNVERIFIED_EMAIL=true` is only
-safe with a single-tenant app whose directory you control.
+safe with a single-tenant app whose directory your organization controls and
+whose users cannot set their own email address. Without it, Entra logins fail.
 
 Entra's v2.0 endpoint returns an `id_token` whose payload includes `email` when
 the `email` scope is requested (for some account types the email may surface as
