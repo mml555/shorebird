@@ -234,9 +234,12 @@ def verify_exported(log, waived, built_out):
     It fails the shard unless the only problems are unexpected exports, from
     built_out, that --waive-export names one by one, and the script finished
     and counted exactly those failures. Returns (rc, waived symbols seen)."""
-    if not built_out or "_release" not in built_out:
-        log.write(f"verify_exported: no release build before this step (got {built_out!r}); "
-                  "nothing it checks was built here\n")
+    # The script checks ios_*_release and android_*_release builds on macOS
+    # (host_* only on Linux). Anything else would pass with nothing checked.
+    if not built_out or "_release" not in built_out or \
+            not built_out.startswith(("ios_", "android_")):
+        log.write(f"verify_exported: the build before this step (got {built_out!r}) is not one "
+                  "it checks on macOS, so it would pass with nothing checked\n")
         return 1, set()
     if not link_et_dart(log):
         return 1, set()
