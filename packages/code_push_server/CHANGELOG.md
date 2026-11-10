@@ -8,6 +8,14 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed
+
+- **The S3 client retries transient failures.** A connection error, a timeout,
+  HTTP 408, 429, 500, 502, 503 or 504, or an S3 `SlowDown`, `RequestTimeout` or
+  `InternalError` is tried again, up to four attempts in all, with exponential
+  backoff and jitter (200 ms doubling to at most 5 s). Other 4xx answers fail at
+  once. Uploads send their in-memory body again on each attempt.
+
 ### Security
 
 - **IdP id_tokens are now validated.** Broker login checks `aud` (must contain

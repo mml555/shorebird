@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/s3_client.dart';
@@ -98,6 +99,9 @@ void main() {
     int? bucketPutStatus;
     var bucketPutBody = '';
     var stall = false;
+    // Statuses (and bodies) to answer the next requests with, before the
+    // normal behaviour resumes. A null status drops the connection.
+    final failures = <(int?, String)>[];
 
     setUp(() async {
       objects.clear();
@@ -107,6 +111,7 @@ void main() {
       bucketPutStatus = null;
       bucketPutBody = '';
       stall = false;
+      failures.clear();
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       unawaited(
         server.forEach((req) async {
@@ -124,6 +129,18 @@ void main() {
           final path = req.uri.path;
           final res = req.response;
           if (stall) return; // never answer
+          if (failures.isNotEmpty) {
+            final (status, text) = failures.removeAt(0);
+            if (status == null) {
+              (await res.detachSocket(writeHeaders: false)).destroy();
+              return;
+            }
+            res
+              ..statusCode = status
+              ..write(text);
+            await res.close();
+            return;
+          }
           if (path == '/bkt' && req.method == 'HEAD') {
             res.statusCode = bucketExistsNow ? 200 : 404;
           } else if (path == '/bkt' && req.method == 'PUT') {
@@ -280,12 +297,143 @@ void main() {
         secretKey: 's',
         bucket: 'bkt',
         responseTimeout: const Duration(milliseconds: 200),
+        maxAttempts: 1,
       );
       addTearDown(slow.close);
       await expectLater(
         slow.statObject('k'),
         throwsA(isA<S3Exception>().having((e) => e.statusCode, 'status', 0)),
       );
+    });
+
+    group('retries', () {
+      final delays = <Duration>[];
+      late S3Client retrying;
+
+      setUp(() {
+        delays.clear();
+        retrying = S3Client(
+          endpoint: Uri.parse('http://127.0.0.1:${server.port}'),
+          region: 'us-east-1',
+          accessKey: 'k',
+          secretKey: 's',
+          bucket: 'bkt',
+          sleep: (d) async => delays.add(d),
+          random: Random(1),
+        );
+        addTearDown(retrying.close);
+      });
+
+      test('a 503 then success: the body is sent again, intact', () async {
+        failures.add((503, '<Error><Code>SlowDown</Code></Error>'));
+        await retrying.putObject('k', utf8.encode('payload'));
+        expect(seen, ['PUT /bkt/k signed', 'PUT /bkt/k signed']);
+        expect(objects['/bkt/k'], utf8.encode('payload'));
+        expect(delays, hasLength(1));
+      });
+
+      test('a dropped connection is retried', () async {
+        failures.add((null, ''));
+        expect(await retrying.bucketExists(), isFalse);
+        expect(seen, hasLength(2));
+      });
+
+      test('a 400 RequestTimeout is retried', () async {
+        failures.add((400, '<Error><Code>RequestTimeout</Code></Error>'));
+        await retrying.putObject('k', [1, 2, 3]);
+        expect(seen, hasLength(2));
+      });
+
+      for (final status in [408, 429, 500, 502, 504]) {
+        test('$status is retried', () async {
+          failures.add((status, ''));
+          await retrying.deleteObject('k');
+          expect(seen, hasLength(2));
+        });
+      }
+
+      test('gives up after maxAttempts and reports the last answer', () async {
+        failures.addAll([for (var i = 0; i < 10; i++) (503, 'busy')]);
+        await expectLater(
+          retrying.putObject('k', [1]),
+          throwsA(
+            isA<S3Exception>()
+                .having((e) => e.statusCode, 'status', 503)
+                .having((e) => e.body, 'body', 'busy'),
+          ),
+        );
+        expect(seen, hasLength(4));
+        expect(delays, hasLength(3));
+        expect(objects, isEmpty);
+      });
+
+      test('waits grow but stay under the cap', () async {
+        failures.addAll([for (var i = 0; i < 10; i++) (500, '')]);
+        final capped = S3Client(
+          endpoint: Uri.parse('http://127.0.0.1:${server.port}'),
+          region: 'us-east-1',
+          accessKey: 'k',
+          secretKey: 's',
+          bucket: 'bkt',
+          maxAttempts: 6,
+          retryBaseDelay: const Duration(seconds: 1),
+          retryMaxDelay: const Duration(seconds: 3),
+          sleep: (d) async => delays.add(d),
+        );
+        addTearDown(capped.close);
+        await expectLater(
+          capped.deleteObject('k'),
+          throwsA(isA<S3Exception>()),
+        );
+        expect(delays, hasLength(5));
+        expect(delays.every((d) => d <= const Duration(seconds: 3)), isTrue);
+      });
+
+      for (final status in [400, 401, 403, 404, 409, 412]) {
+        test('$status is not retried', () async {
+          failures.add((status, '<Error><Code>Nope</Code></Error>'));
+          failures.add((status, '<Error><Code>Nope</Code></Error>'));
+          await expectLater(
+            retrying.putObject('k', [1]),
+            throwsA(
+              isA<S3Exception>().having((e) => e.statusCode, 'status', status),
+            ),
+          );
+          expect(seen, hasLength(1));
+          expect(delays, isEmpty);
+        });
+      }
+
+      test('maxAttempts: 1 turns retries off', () async {
+        failures.add((503, ''));
+        final once = S3Client(
+          endpoint: Uri.parse('http://127.0.0.1:${server.port}'),
+          region: 'us-east-1',
+          accessKey: 'k',
+          secretKey: 's',
+          bucket: 'bkt',
+          maxAttempts: 1,
+          sleep: (d) async => delays.add(d),
+        );
+        addTearDown(once.close);
+        await expectLater(
+          once.putObject('k', [1]),
+          throwsA(isA<S3Exception>()),
+        );
+        expect(seen, hasLength(1));
+      });
+
+      test('a response stream already handed out is not replayed', () async {
+        // The retry covers the request and its status line only. Once
+        // getObject has returned the stream the bytes are consumed, so a
+        // failure while reading it reaches the caller, not a second request.
+        objects['/bkt/big'] = List.filled(100, 7);
+        final stream = await retrying.getObject('big');
+        final first = await stream.first;
+        expect(first, isNotEmpty);
+        expect(seen, ['GET /bkt/big signed']);
+        expect(delays, isEmpty);
+      });
     });
 
     test('virtual-hosted style puts the bucket in the host', () {

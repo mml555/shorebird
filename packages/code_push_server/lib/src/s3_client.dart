@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -45,14 +46,21 @@ class S3Client {
     required this.bucket,
     this.pathStyle = true,
     this.responseTimeout = const Duration(seconds: 60),
+    this.maxAttempts = 4,
+    this.retryBaseDelay = const Duration(milliseconds: 200),
+    this.retryMaxDelay = const Duration(seconds: 5),
     HttpClient? httpClient,
     DateTime Function()? clock,
+    Future<void> Function(Duration)? sleep,
+    Random? random,
   }) : _http = (httpClient ?? HttpClient())
          ..connectionTimeout = const Duration(seconds: 10)
          // dart:io would otherwise ask for gzip and inflate what comes back,
          // which breaks ranged offsets and the size from [statObject].
          ..autoUncompress = false,
-       _clock = clock ?? DateTime.now;
+       _clock = clock ?? DateTime.now,
+       _sleep = sleep ?? Future<void>.delayed,
+       _random = random ?? Random();
 
   /// Base URL of the store, such as `http://seaweedfs:8333`. A path in it is
   /// not supported.
@@ -70,8 +78,27 @@ class S3Client {
   /// of hanging it. The body of a response is not covered.
   final Duration responseTimeout;
 
+  /// How many times a call is tried in all (1 turns retries off). Only
+  /// transient failures are retried: a connection error, a timeout, HTTP 408,
+  /// 429, 500, 502, 503 or 504, and the S3 error codes SlowDown,
+  /// RequestTimeout and InternalError. Other 4xx answers fail at once.
+  ///
+  /// Every request body here is a byte list held in memory, so each attempt
+  /// sends it again, with a fresh signature. A response is only retried
+  /// before it is handed to the caller: a [getObject] stream that fails midway
+  /// has been consumed and is not retried.
+  final int maxAttempts;
+
+  /// The wait before the first retry. Each later wait doubles, up to
+  /// [retryMaxDelay], and each is a random share of that ("full jitter"). Zero
+  /// means no wait.
+  final Duration retryBaseDelay;
+  final Duration retryMaxDelay;
+
   final HttpClient _http;
   final DateTime Function() _clock;
+  final Future<void> Function(Duration) _sleep;
+  final Random _random;
 
   void close() => _http.close(force: true);
 
@@ -221,6 +248,37 @@ class S3Client {
     List<int> body = const [],
     Map<String, String> headers = const {},
   }) async {
+    final op = '$method ${key ?? 'bucket $bucket'}';
+    for (var attempt = 1; ; attempt++) {
+      final last = attempt >= maxAttempts;
+      try {
+        final res = await _sendOnce(op, method, key, body, headers);
+        if (last) return res;
+        if (_retryableStatus(res.statusCode)) {
+          await res.drain<void>();
+        } else if (res.statusCode == 400 && method != 'HEAD') {
+          // RequestTimeout is a 400: the code is in the body, so read it. Any
+          // other 400 is final, and its body has been read, so fail here.
+          final text = await _readText(res);
+          if (!_retryableCode(text)) throw S3Exception(op, 400, text);
+        } else {
+          return res;
+        }
+      } on S3Exception catch (e) {
+        // Transport errors are statusCode 0; a 400 thrown above is final.
+        if (last || e.statusCode != 0) rethrow;
+      }
+      await _sleep(_backoff(attempt));
+    }
+  }
+
+  Future<HttpClientResponse> _sendOnce(
+    String op,
+    String method,
+    String? key,
+    List<int> body,
+    Map<String, String> headers,
+  ) async {
     final url = objectUrl(key);
     final signed = signRequest(
       method: method,
@@ -232,7 +290,6 @@ class S3Client {
       secretKey: secretKey,
       region: region,
     );
-    final op = '$method ${key ?? 'bucket $bucket'}';
     try {
       final req = await _http.openUrl(method, url);
       // Headers set above the signature are the ones signed, so send exactly
@@ -248,6 +305,29 @@ class S3Client {
     } on TimeoutException {
       throw S3Exception(op, 0, 'timed out');
     }
+  }
+
+  static bool _retryableStatus(int status) =>
+      status == 408 ||
+      status == 429 ||
+      status == 500 ||
+      status == 502 ||
+      status == 503 ||
+      status == 504;
+
+  static bool _retryableCode(String body) =>
+      body.contains('<Code>SlowDown</Code>') ||
+      body.contains('<Code>RequestTimeout</Code>') ||
+      body.contains('<Code>InternalError</Code>');
+
+  /// Full jitter: a random wait up to `retryBaseDelay * 2^(attempt - 1)`,
+  /// capped at [retryMaxDelay].
+  Duration _backoff(int attempt) {
+    final ceiling = min(
+      retryMaxDelay.inMicroseconds,
+      retryBaseDelay.inMicroseconds * (1 << min(attempt - 1, 20)),
+    );
+    return Duration(microseconds: _random.nextInt(ceiling + 1));
   }
 
   /// URL of [key] (or of the bucket itself when null).
