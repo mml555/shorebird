@@ -2334,34 +2334,34 @@ void main() {
 
       expect(res.statusCode, HttpStatus.internalServerError);
       final body = await res.readAsString();
-      expect(body, contains('Internal server error'));
+      expect(body, contains('Internal server error (request id req_'));
       expect(body, isNot(contains('no space left')));
       expect(body, isNot(contains(tmp.path)));
     });
 
+    // A zero timeout makes every claim stale at once, so these tests need no
+    // sleeps; the default (15 minutes) keeps a fresh claim safe.
+    Api staleApi(ArtifactStore store) => Api(
+      repo,
+      store,
+      config,
+      uploadClaimTimeout: Duration.zero,
+      inFlightWait: const Duration(milliseconds: 300),
+    );
+
     test('multipart: a claim older than the bound is reclaimed', () async {
       final store = flakyApi();
-      api = Api(
-        repo,
-        store,
-        config,
-        uploadClaimTimeout: const Duration(milliseconds: 150),
-      );
       final r = await registered();
       final art = (await repo.artifactByToken(r.token))!;
       // A process killed mid-write: claimed, never finished.
-      await repo.transitionArtifactStatus(
-        art.id,
-        ArtifactStatus.pending,
-        ArtifactStatus.uploading,
-      );
+      expect(await repo.claimArtifact(art.id), isNotNull);
 
       expect(
         (await uploadBody(r.token)).statusCode,
         HttpStatus.conflict,
         reason: 'a claim inside the bound may still be running',
       );
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      api = staleApi(store);
       expect((await uploadBody(r.token)).statusCode, HttpStatus.noContent);
       expect(
         (await repo.artifactByToken(r.token))!.status,
@@ -2370,13 +2370,126 @@ void main() {
       expect((await repo.patch(r.patchId))!.status, PatchStatus.ready);
     });
 
-    test('a claim with no recorded start is reclaimed at once', () async {
-      flakyApi();
+    test('a claim with no recorded start gets its clock started, not '
+        'stolen', () async {
+      // `uploading` as an old replica leaves it, with no `uploading_at`: a
+      // rolling deploy must not let a new replica take its live claim.
+      final store = flakyApi();
       final r = await registered();
       final art = (await repo.artifactByToken(r.token))!;
-      // `uploading` as a pre-migration server left it: no `uploading_at`.
       await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
+      expect((await repo.artifactByToken(r.token))!.uploadingAt, isNull);
+
+      expect((await uploadBody(r.token)).statusCode, HttpStatus.conflict);
+      final seen = (await repo.artifactByToken(r.token))!;
+      expect(seen.status, ArtifactStatus.uploading);
+      expect(seen.uploadingAt, isNotNull, reason: 'the clock started');
+
+      api = staleApi(store);
       expect((await uploadBody(r.token)).statusCode, HttpStatus.noContent);
+    });
+
+    test('multipart: a holder reclaimed while alive cannot undo the new '
+        'owner (fails the write)', () async {
+      final store = flakyApi();
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      String? claimB;
+      store.beforeFailure = () async {
+        // While A is still writing, its claim is reclaimed and B takes over
+        // and writes the shared object.
+        expect(await repo.reclaimStaleUpload(art.id, Duration.zero), isTrue);
+        claimB = await repo.claimArtifact(art.id);
+        await store.put(art.storageKey, utf8.encode('abc'));
+      };
+      store.failNextPut = true;
+
+      final res = await uploadBody(r.token);
+
+      expect(res.statusCode, greaterThanOrEqualTo(500));
+      final now = (await repo.artifactByToken(r.token))!;
+      expect(now.status, ArtifactStatus.uploading, reason: 'still B\'s');
+      expect(await store.exists(art.storageKey), isTrue, reason: 'B\'s object');
+      expect(
+        await repo.settleClaim(art.id, claimB!, ArtifactStatus.verified),
+        isTrue,
+        reason: 'B still owns the claim',
+      );
+    });
+
+    test('multipart: a holder reclaimed while alive cannot verify or fail '
+        'over the new owner', () async {
+      final store = flakyApi();
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      store.afterPut = () async {
+        // A has written; before it verifies, B reclaims, claims and finishes.
+        expect(await repo.reclaimStaleUpload(art.id, Duration.zero), isTrue);
+        final claimB = (await repo.claimArtifact(art.id))!;
+        expect(
+          await repo.settleClaim(art.id, claimB, ArtifactStatus.verified),
+          isTrue,
+        );
+      };
+
+      final res = await uploadBody(r.token);
+
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(
+        (await repo.artifactByToken(r.token))!.status,
+        ArtifactStatus.verified,
+        reason: 'a stale holder must not overwrite verified',
+      );
+      expect(await store.exists(art.storageKey), isTrue);
+    });
+
+    test('resumable: a reclaimed holder cannot fail the new owner or '
+        'discard its staged bytes', () async {
+      final store = flakyApi();
+      final r = await registered(6);
+      final art = (await repo.artifactByToken(r.token))!;
+      // 5 bytes against a registered size of 6: A's verify would fail.
+      await store.stageChunk(r.token, 0, utf8.encode('abcde'));
+      store.afterPut = () async {
+        expect(await repo.reclaimStaleUpload(art.id, Duration.zero), isTrue);
+        final claimB = (await repo.claimArtifact(art.id))!;
+        expect(
+          await repo.settleClaim(art.id, claimB, ArtifactStatus.verified),
+          isTrue,
+        );
+      };
+
+      final res = await send(
+        'PUT',
+        '/api/v1/uploads/${r.token}',
+        bearer: _bootstrapKey,
+        headers: {'content-range': 'bytes */5'},
+      );
+
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(
+        (await repo.artifactByToken(r.token))!.status,
+        ArtifactStatus.verified,
+      );
+      expect(store.stagedSize(r.token), 5, reason: 'staged file kept');
+    });
+
+    test('resumable: a chunk is refused if a commit started while its body '
+        'arrived', () async {
+      final store = flakyApi();
+      api = Api(_ClaimOnRecheckRepo(repo.db), store, config);
+      final r = await registered();
+
+      final res = await send(
+        'PUT',
+        '/api/v1/uploads/${r.token}',
+        bearer: _bootstrapKey,
+        headers: {'content-range': 'bytes 0-1/3'},
+        body: 'ab',
+      );
+
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(store.stagedSize(r.token), 0);
     });
 
     test('resumable: a query during a running commit does not start a second '
@@ -2405,7 +2518,11 @@ void main() {
         headers: {'content-range': 'bytes */3'},
       );
 
-      expect(res.statusCode, HttpStatus.conflict);
+      expect(
+        res.statusCode,
+        HttpStatus.serviceUnavailable,
+        reason: 'a 5xx is what the client retries; 200/308 would be a lie',
+      );
       expect(await store.exists(art.storageKey), isFalse);
       expect(store.stagedSize(r.token), 3, reason: 'staged bytes untouched');
     });
@@ -2466,12 +2583,7 @@ void main() {
 
     test('resumable: a commit whose holder died is reclaimed', () async {
       final store = flakyApi();
-      api = Api(
-        repo,
-        store,
-        config,
-        uploadClaimTimeout: const Duration(milliseconds: 150),
-      );
+      api = staleApi(store);
       final r = await registered();
       final art = (await repo.artifactByToken(r.token))!;
       await store.stageChunk(r.token, 0, utf8.encode('abc'));
@@ -2480,7 +2592,6 @@ void main() {
         ArtifactStatus.pending,
         ArtifactStatus.uploading,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 250));
 
       final res = await send(
         'PUT',
@@ -4466,6 +4577,21 @@ class _FlakyStore extends FilesystemArtifactStore {
 /// A repository where the first read of a `pending` artifact is followed by
 /// another request claiming it, so the caller's `status == pending` check
 /// passes on a stale read and only its compare-and-set can notice.
+class _ClaimOnRecheckRepo extends Repository {
+  _ClaimOnRecheckRepo(super.db);
+
+  int _reads = 0;
+
+  /// The second read of the artifact (the re-check after a chunk's body has
+  /// arrived) finds a commit already claimed.
+  @override
+  Future<ArtifactRow?> artifactByToken(String token) async {
+    final art = await super.artifactByToken(token);
+    if (++_reads == 2 && art != null) await claimArtifact(art.id);
+    return art == null ? null : await super.artifactByToken(token);
+  }
+}
+
 class _RacingRepo extends Repository {
   _RacingRepo(super.db);
 

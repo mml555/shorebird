@@ -48,13 +48,25 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   directory, then rename), so a reader or a killed process never sees a partial
   object.
 - **An upload killed mid-write no longer sticks the token.** Migration 17 adds
-  `artifacts.uploading_at`; an `uploading` claim older than 15 minutes (or one
-  with no recorded start) is handed back to `pending` by the next request for
-  that token, with a compare-and-set.
+  `artifacts.uploading_at` and `artifacts.claim`. An `uploading` claim older
+  than 15 minutes on the database's clock is handed back to `pending` by the
+  next request for that token. The claim is fenced: every later change names
+  its random `claim`, so a holder that was reclaimed while still alive cannot
+  reset, verify or fail the new owner's artifact, or delete its object or
+  staged file. A claim an old replica made (no start time) is not stolen: its
+  clock starts when a new replica first sees it. Run all replicas on this
+  version before relying on reclaim. After migration 17 an older binary refuses
+  to boot, so a rollback needs the schema restored.
 - **A resumable upload takes its claim only when every byte is staged**, and a
-  `bytes */TOTAL` query that finds a commit still running waits up to 10 s for
-  it, then answers 409. Before, a client whose final response was lost could
-  start a second commit beside the first.
+  chunk is re-checked after its body arrives, so nothing restages under a
+  running commit. A `bytes */TOTAL` query that finds a commit still running
+  waits up to 45 s, then answers 503; the CLI now retries a 5xx status-query
+  answer with backoff. Before, a client whose final response was lost could
+  start a second commit beside the first. (A CLI without that retry fails the
+  upload on the 503 while the commit still finishes.)
+- **The filesystem store's temp files** use a random suffix and are swept at
+  startup when older than a day. A 500 names its request id and the log line
+  carries it with the method and path.
 
 ## 1.4.0 — 2026-11-08
 

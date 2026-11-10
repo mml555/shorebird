@@ -45,6 +45,27 @@ void main() {
       expect(target.lengthSync(), size);
     });
 
+    test(
+      'the sweep removes old temp files and keeps young ones and objects',
+      () async {
+        await store.put('patch/1/tok', [1, 2, 3]);
+        final dir = '${tmp.path}/artifacts/patch/1';
+        final old = File('$dir/tok.tmp-aaaa')..writeAsBytesSync([1]);
+        old.setLastModifiedSync(
+          DateTime.now().subtract(const Duration(days: 3)),
+        );
+        final young = File('$dir/tok.tmp-bbbb')..writeAsBytesSync([1]);
+
+        FilesystemArtifactStore.sweepTempFiles(
+          Directory('${tmp.path}/artifacts'),
+        );
+
+        expect(old.existsSync(), isFalse);
+        expect(young.existsSync(), isTrue);
+        expect(File('$dir/tok').existsSync(), isTrue);
+      },
+    );
+
     test('leaves no temp file behind', () async {
       await store.put('patch/1/tok', [1, 2, 3]);
       final names = Directory(

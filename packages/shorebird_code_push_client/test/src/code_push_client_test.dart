@@ -1373,18 +1373,38 @@ void main() {
           expect(puts[2].headers['content-range'], 'bytes 2-4/5');
         });
 
+        test('retries a status query that answers 503', () async {
+          // The server answers 503 while a commit it is still running
+          // finishes; the upload must wait, not abort.
+          stubActions([
+            () async => resumableMeta(),
+            () async => throw http.ClientException('connection reset'),
+            () async => http.StreamedResponse(
+              const Stream.empty(),
+              HttpStatus.serviceUnavailable,
+            ),
+            () async =>
+                http.StreamedResponse(const Stream.empty(), HttpStatus.ok),
+          ]);
+
+          await expectLater(upload(fiveByteFixture()), completes);
+
+          final puts = capturedPuts();
+          expect(puts, hasLength(3));
+          expect(puts[1].headers['content-range'], 'bytes */5');
+          expect(puts[2].headers['content-range'], 'bytes */5');
+        });
+
         test('throws when a 5xx persists through the status query', () async {
           stubActions([
             () async => resumableMeta(),
-            () async => http.StreamedResponse(
-              const Stream.empty(),
-              HttpStatus.serviceUnavailable,
-            ),
-            // The status query also fails, so we surface the error.
-            () async => http.StreamedResponse(
-              const Stream.empty(),
-              HttpStatus.serviceUnavailable,
-            ),
+            // The chunk and then every status query fail, until the failure
+            // budget (5 retries) is spent and the error surfaces.
+            for (var i = 0; i < 6; i++)
+              () async => http.StreamedResponse(
+                const Stream.empty(),
+                HttpStatus.serviceUnavailable,
+              ),
           ]);
 
           await expectLater(

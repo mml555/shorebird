@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:code_push_server/src/config.dart';
@@ -22,6 +23,11 @@ abstract class ArtifactStore {
 
   Future<void> stageChunk(String token, int offset, List<int> bytes);
   int stagedSize(String token);
+
+  /// Writes the staged bytes for [token] to [key]. Leaves the staged file in
+  /// place: the caller discards it ([discardStaged]) only once it knows it
+  /// still owns the upload, so a holder whose claim was reclaimed cannot delete
+  /// the new owner's file.
   Future<void> commitStaged(String token, String key);
   void discardStaged(String token);
   Future<void> put(String key, List<int> bytes);
@@ -76,7 +82,6 @@ mixin _DiskStaging {
   /// Commits the staged bytes for [token] to the store under [key].
   Future<void> commitStaged(String token, String key) async {
     await put(key, await _stagingFile(token).readAsBytes());
-    discardStaged(token);
   }
 
   Future<void> stageChunk(String token, int offset, List<int> bytes) async {
@@ -117,6 +122,7 @@ class FilesystemArtifactStore with _DiskStaging implements ArtifactStore {
       ..createSync(recursive: true);
     final staging = Directory('${cfg.dataDir}/staging')
       ..createSync(recursive: true);
+    sweepTempFiles(root);
     return FilesystemArtifactStore(root, staging);
   }
 
@@ -135,16 +141,49 @@ class FilesystemArtifactStore with _DiskStaging implements ArtifactStore {
     // Write beside the target, then rename over it. A rename within one
     // directory is atomic, so a reader (or a process killed mid-write) sees
     // the old object or the whole new one, never a prefix, and two writers on
-    // one key cannot interleave bytes.
-    final tmp = File(
-      '${f.path}.tmp-$pid-${DateTime.now().microsecondsSinceEpoch}',
-    );
+    // one key cannot interleave bytes. A killed write leaves its temp file
+    // behind; [open] sweeps those.
+    final tmp = File('${f.path}$_tmpMarker${_randomHex()}');
     try {
       await tmp.writeAsBytes(bytes, flush: true);
       await tmp.rename(f.path);
     } on Object {
-      if (tmp.existsSync()) await tmp.delete();
+      try {
+        if (tmp.existsSync()) await tmp.delete();
+      } on Object {
+        // Best effort: the caller must see the write's own error, and the
+        // sweep removes what is left.
+      }
       rethrow;
+    }
+  }
+
+  static const _tmpMarker = '.tmp-';
+
+  static String _randomHex() {
+    final rng = Random.secure();
+    return List<String>.generate(
+      8,
+      (_) => rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
+  }
+
+  /// Removes temp files from writes that were killed before their rename and
+  /// are older than [maxAge]. The age check makes it safe beside other
+  /// replicas on the same volume, whose live writes are young.
+  static void sweepTempFiles(Directory root, {Duration? maxAge}) {
+    final cutoff = DateTime.now().subtract(maxAge ?? const Duration(days: 1));
+    try {
+      for (final e in root.listSync(recursive: true, followLinks: false)) {
+        if (e is! File || !e.path.contains(_tmpMarker)) continue;
+        try {
+          if (e.lastModifiedSync().isBefore(cutoff)) e.deleteSync();
+        } on FileSystemException {
+          // Gone already, or not ours to remove; the next start tries again.
+        }
+      }
+    } on FileSystemException {
+      // An unreadable directory must not stop the server from starting.
     }
   }
 

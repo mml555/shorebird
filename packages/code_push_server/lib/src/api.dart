@@ -180,7 +180,7 @@ class Api {
     this.config, {
     String? signingKeyJson,
     this.uploadClaimTimeout = const Duration(minutes: 15),
-    this.inFlightWait = const Duration(seconds: 10),
+    this.inFlightWait = const Duration(seconds: 45),
   }) : oauth = OAuthService(config.jwtIssuer, keyJson: signingKeyJson),
        _signer = UrlSigner(config.urlSigningSecret),
        _patchSigner = switch (config.patchSigningKeySecret) {
@@ -197,12 +197,15 @@ class Api {
 
   /// How long an artifact may stay `uploading` before the claim is presumed
   /// dead (the process holding it was killed) and handed back to `pending`.
-  /// It must exceed the longest write or commit a live request can run; the
-  /// claim covers one store write, not a whole resumable upload.
+  /// The holder restarts the clock after the store write, and the claim is fenced: a holder that is
+  /// reclaimed while still alive loses every later change, so a timeout shorter
+  /// than a very slow write costs that write a retry and nothing else. Age is
+  /// measured on the database's clock.
   final Duration uploadClaimTimeout;
 
   /// How long a resumable status query waits for a commit that is still
-  /// running before it answers 409.
+  /// running before it answers 503 (which the client retries). Kept under the
+  /// 60 s idle timeout so a proxy does not cut the wait first.
   final Duration inFlightWait;
   final OAuthService oauth;
   final UrlSigner _signer;
@@ -667,13 +670,20 @@ class Api {
     } on DomainException catch (e) {
       return _err(e.statusCode, e.code, e.message);
     } catch (e, st) {
-      obs.error('unhandled request error', e, st);
+      final rid = _rid(req);
+      obs.error(
+        'unhandled request error: ${req.method} /${req.url.path} [$rid]',
+        e,
+        st,
+      );
       // The detail (a store path, an S3 endpoint, a SQL error) is for the
       // server log above, not the caller. A 5xx is what makes the CLI retry.
       return _err(
         HttpStatus.internalServerError,
         'internal',
-        'Internal server error',
+        rid.isEmpty
+            ? 'Internal server error'
+            : 'Internal server error (request id $rid)',
       );
     }
   }
@@ -2696,12 +2706,7 @@ class Api {
   /// alone. Returns the artifact as it now stands.
   Future<ArtifactRow> _reclaimIfStale(ArtifactRow art) async {
     if (art.status != ArtifactStatus.uploading) return art;
-    final cutoff =
-        DateTime.now().millisecondsSinceEpoch -
-        uploadClaimTimeout.inMilliseconds;
-    final at = art.uploadingAt;
-    if (at != null && at >= cutoff) return art;
-    if (await repo.reclaimStaleUpload(art.id, cutoff)) {
+    if (await repo.reclaimStaleUpload(art.id, uploadClaimTimeout)) {
       obs.info('stale upload claim reclaimed', {'artifact': art.id});
     }
     return await repo.artifactByToken(art.token) ?? art;
@@ -2736,11 +2741,8 @@ class Api {
     if (file == null) throw badRequest('Missing file part');
     // Claim the token with a compare-and-set so only one request owns the write;
     // a concurrent request with the same token loses here, not later.
-    if (!await repo.transitionArtifactStatus(
-      art.id,
-      ArtifactStatus.pending,
-      ArtifactStatus.uploading,
-    )) {
+    final claim = await repo.claimArtifact(art.id);
+    if (claim == null) {
       throw conflict('Upload token not reusable (already in use)');
     }
     try {
@@ -2753,8 +2755,13 @@ class Api {
       // `ready`. Remove whatever part of the object landed, so it cannot be
       // mistaken for the real thing, and hand the token back.
       obs.error('artifact store write failed (artifact ${art.id})', e, st);
-      await _abandonWrite(art);
+      await _abandonWrite(art, claim);
       rethrow;
+    }
+    // Restart the staleness clock after the write, and learn whether the claim
+    // was reclaimed meanwhile; verifying for a claim that is gone is pointless.
+    if (!await repo.touchClaim(art.id, claim)) {
+      throw conflict('Upload claim for artifact ${art.id} was lost');
     }
 
     final reason = await store.verify(
@@ -2764,7 +2771,7 @@ class Api {
       checkHash: art.ownerKind == 'release',
     );
     if (reason != null) {
-      await repo.setArtifactStatus(art.id, ArtifactStatus.failed);
+      await _failClaim(art, claim);
       await _auditDetail(
         req,
         'artifact.failed',
@@ -2777,7 +2784,7 @@ class Api {
       });
       throw badRequest('Artifact verification failed: $reason');
     }
-    await _markVerified(art);
+    await _markVerified(art, claim);
     obs.info('artifact verified', {
       'artifact': art.id,
       'owner': art.ownerKind,
@@ -2788,30 +2795,31 @@ class Api {
     return Response(HttpStatus.noContent);
   }
 
-  /// Moves [art] `uploading -> verified` with a compare-and-set, so a `failed`
-  /// artifact can never become `verified` and a request that lost its claim
-  /// cannot verify. Throws 409 if the artifact is no longer `uploading`.
-  Future<void> _markVerified(ArtifactRow art) async {
-    if (await repo.transitionArtifactStatus(
-      art.id,
-      ArtifactStatus.uploading,
-      ArtifactStatus.verified,
-    )) {
-      return;
-    }
+  /// Moves [art] `uploading -> verified` for the claim [claim]. Throws 409 if
+  /// the claim is no longer current (reclaimed, or the artifact moved on).
+  Future<void> _markVerified(ArtifactRow art, String claim) async {
+    if (await repo.settleClaim(art.id, claim, ArtifactStatus.verified)) return;
+    throw conflict('Artifact ${art.id} is no longer uploading');
+  }
+
+  /// Marks the artifact `failed` for the claim [claim], or throws 409 if the
+  /// claim is no longer current: a stale holder must not fail (or un-verify)
+  /// what the new owner is doing.
+  Future<void> _failClaim(ArtifactRow art, String claim) async {
+    if (await repo.settleClaim(art.id, claim, ArtifactStatus.failed)) return;
     throw conflict('Artifact ${art.id} is no longer uploading');
   }
 
   /// Undoes a failed store write for [art]: `uploading` -> `pending` so the same
-  /// token can be retried, then best-effort removal of any partial object. The
-  /// reset is a compare-and-set and the delete only happens if it won: if the
-  /// artifact is no longer `uploading` (another request finished it), the
-  /// object at the shared key is that request's and must be kept.
-  Future<void> _abandonWrite(ArtifactRow art) async {
+  /// token can be retried, then best-effort removal of any partial object. Both
+  /// are fenced by [claim]: if the claim is no longer current (reclaimed, or
+  /// another request finished the artifact) nothing is reset and nothing is
+  /// deleted, because the object at the shared key is the new owner's.
+  Future<void> _abandonWrite(ArtifactRow art, String claim) async {
     try {
-      final reset = await repo.transitionArtifactStatus(
+      final reset = await repo.settleClaim(
         art.id,
-        ArtifactStatus.uploading,
+        claim,
         ArtifactStatus.pending,
       );
       if (!reset) {
@@ -2821,7 +2829,7 @@ class Api {
         return;
       }
     } on Object catch (e, st) {
-      // Stuck `uploading` until an operator intervenes; say so loudly.
+      // Stuck `uploading` until the claim ages out; say so loudly.
       obs.error('could not reset artifact ${art.id} to pending', e, st);
       return;
     }
@@ -2882,9 +2890,9 @@ class Api {
         // the client's own status query then gets a non-200/308 answer and
         // aborts, which is what ends the retrying. Bad bytes get the verify
         // failure.
-        final done = await _claimCommit(art, token);
+        final (claim, done) = await _claimCommit(art, token);
         if (done != null) return done;
-        return _commitResumable(req, art, token, size);
+        return _commitResumable(req, art, token, size, claim!);
       }
       return _resumeIncomplete(size);
     }
@@ -2892,6 +2900,18 @@ class Api {
     if (art.status == ArtifactStatus.verified) return Response(HttpStatus.ok);
     _requirePending(art);
     final chunk = await _collect(req.read(), max: config.maxUploadBytes);
+    // The body took a while to arrive; a commit may have started since the
+    // status was read at the top. Staging now would truncate or extend the file
+    // it is reading, or leave an orphan once it is gone. This narrows the
+    // window to the gap between this read and the write below; the commit's
+    // verify (size and hash) rejects bytes that still slip through.
+    final current = await repo.artifactByToken(token);
+    if (current?.status == ArtifactStatus.verified) {
+      return Response(HttpStatus.ok);
+    }
+    if (current == null || current.status != ArtifactStatus.pending) {
+      throw conflict('Upload token not reusable (a commit is running)');
+    }
     await store.stageChunk(token, cr.start, chunk);
     final received = store.stagedSize(token);
     if (received < cr.total) {
@@ -2902,9 +2922,9 @@ class Api {
       return _resumeIncomplete(received);
     }
     _audit(req)?.note(detail: {'complete': true, 'staged_bytes': received});
-    final done = await _claimCommit(art, token);
+    final (claim, done) = await _claimCommit(art, token);
     if (done != null) return done;
-    return _commitResumable(req, art, token, received);
+    return _commitResumable(req, art, token, received, claim!);
   }
 
   /// Throws 409 unless [art] is `pending`: a `failed` artifact cannot take
@@ -2918,36 +2938,39 @@ class Api {
   /// For a status query that finds [art] `uploading`: waits up to
   /// [inFlightWait] for that commit to finish and returns the artifact as it
   /// then stands. Still `uploading` after that (a commit slower than the wait)
-  /// is a 409 rather than a second commit; the commit's own outcome is then in
-  /// the database for the client's next attempt.
+  /// is a 503, never a second commit and never a 308 with a full `Range` (the
+  /// client would read that as a finished upload). The client retries a 5xx
+  /// answer to its status query with backoff and asks again.
   Future<ArtifactRow> _awaitInFlightCommit(ArtifactRow art) async {
     final deadline = DateTime.now().add(inFlightWait);
     var cur = art;
     while (cur.status == ArtifactStatus.uploading) {
       if (!DateTime.now().isBefore(deadline)) {
-        throw conflict('Upload is still being committed');
+        throw DomainException(
+          HttpStatus.serviceUnavailable,
+          'upload_in_progress',
+          'Upload is still being committed; retry',
+        );
       }
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
       cur = await _reclaimIfStale(await repo.artifactByToken(art.token) ?? cur);
     }
     return cur;
   }
 
   /// Claims the commit of a fully staged, `pending` artifact with a
-  /// compare-and-set, so only one request commits. Returns a response to send
-  /// instead (200 if another request already verified it), or null to commit.
-  /// Throws 409 if another request holds the claim.
-  Future<Response?> _claimCommit(ArtifactRow art, String token) async {
-    if (await repo.transitionArtifactStatus(
-      art.id,
-      ArtifactStatus.pending,
-      ArtifactStatus.uploading,
-    )) {
-      return null;
-    }
+  /// compare-and-set, so only one request commits. Returns the claim to commit
+  /// under, or a response to send instead (200 if another request already
+  /// verified it). Throws 409 if another request holds the claim.
+  Future<(String?, Response?)> _claimCommit(
+    ArtifactRow art,
+    String token,
+  ) async {
+    final claim = await repo.claimArtifact(art.id);
+    if (claim != null) return (claim, null);
     if ((await repo.artifactByToken(token))?.status ==
         ArtifactStatus.verified) {
-      return Response(HttpStatus.ok);
+      return (null, Response(HttpStatus.ok));
     }
     throw conflict('Upload token not reusable (already in use)');
   }
@@ -2958,6 +2981,7 @@ class Api {
     ArtifactRow art,
     String token,
     int received,
+    String claim,
   ) async {
     try {
       await store.commitStaged(token, art.storageKey);
@@ -2966,20 +2990,19 @@ class Api {
       // Keep the staged bytes: they are complete, and the client's status
       // query re-runs this commit, so only the commit is retried, not the
       // whole upload. Hand the claim back, and remove the partial object only
-      // if that reset won; otherwise another request finished the artifact and
-      // the object at this key is its.
+      // if that reset won (the claim was still ours); otherwise the object at
+      // this key belongs to whoever owns the artifact now.
       try {
-        if (await repo.transitionArtifactStatus(
-          art.id,
-          ArtifactStatus.uploading,
-          ArtifactStatus.pending,
-        )) {
+        if (await repo.settleClaim(art.id, claim, ArtifactStatus.pending)) {
           await store.delete(art.storageKey);
         }
       } on Object catch (e2, st2) {
         obs.error('could not clean up failed commit of ${art.id}', e2, st2);
       }
       rethrow;
+    }
+    if (!await repo.touchClaim(art.id, claim)) {
+      throw conflict('Upload claim for artifact ${art.id} was lost');
     }
     final reason = await store.verify(
       art.storageKey,
@@ -2988,9 +3011,10 @@ class Api {
       checkHash: art.ownerKind == 'release',
     );
     if (reason != null) {
-      // The staged bytes are bad; drop them so a resume restarts cleanly.
+      await _failClaim(art, claim);
+      // The staged bytes are bad; drop them so a resume restarts cleanly. Only
+      // the current owner gets here.
       store.discardStaged(token);
-      await repo.setArtifactStatus(art.id, ArtifactStatus.failed);
       await _auditDetail(
         req,
         'artifact.failed',
@@ -2999,7 +3023,8 @@ class Api {
       );
       throw badRequest('Artifact verification failed: $reason');
     }
-    await _markVerified(art);
+    await _markVerified(art, claim);
+    store.discardStaged(token);
     obs.info('artifact verified', {
       'artifact': art.id,
       'owner': art.ownerKind,
