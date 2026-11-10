@@ -2,9 +2,9 @@
 # cspell:words dsts
 """Stage the macOS shard's outputs in the CDN overlay layout.
 
-Reads shorebird/ci/shards/macos.json and compose.json, skips iOS (it does not
-build against our Dart at 3a565f27), runs each compose step whose shards all
-built, and copies every artifact to <out>/<dst> with $engine filled in:
+Reads shorebird/ci/shards/macos.json and compose.json, runs each compose step
+whose shards all built, and copies every artifact to <out>/<dst> with $engine
+filled in:
 
   flutter_infra_release/flutter/<engine>/...         as the shard names it
   download.shorebird.dev/shorebird/<engine>/...      for its shorebird/ dsts
@@ -12,10 +12,20 @@ built, and copies every artifact to <out>/<dst> with $engine filled in:
 engine_stamp.json is left out: the release already carries the one the Linux
 build stamped, and both describe the same commit.
 
-compose.json still lists FlutterMacOS.framework.dSYM.zip, which
-create_macos_framework.py no longer writes: the dSYM now ships inside the
-release framework.zip, and stock engines have no such file either. It is
-reported as "not produced", not MISSING.
+compose.json still lists FlutterMacOS.framework.dSYM.zip and
+Flutter.framework.dSYM.zip, which create_macos_framework.py and
+create_ios_framework.py no longer write: the dSYMs now ship inside the release
+framework.zip and the iOS xcframework, and stock engines have no such files
+either. They are reported as "not produced", not MISSING.
+
+The engine is named after build_shard.py's engine commit (HEAD, or the commit
+bin/internal/engine.version pins when HEAD only repins it). Only status lines
+after the last "--- engine <commit>" line count, and that line must name the
+same commit, so nothing built for another engine is staged.
+
+iOS builds from shorebird-flutter 255fd850 on (shorebird_use_interpreter off,
+no updater on iOS). Earlier commits fail their iOS shards or start the updater
+on iOS; don't publish iOS from them.
 
 usage: collect_darwin.py <out dir>   (prints what it staged and what it skipped)
 """
@@ -25,25 +35,27 @@ import shutil
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from build_shard import engine_commit, read_status, same_commit  # noqa: E402
+
 W = os.environ.get("SHOREBIRD_ENGINE_DIR", os.path.expanduser("~/shorebird-engine"))
 ROOT = os.path.join(W, "flutter")
 SRC = os.path.join(ROOT, "engine", "src")
 OUT_SRC = os.path.join(SRC, "out")
 CI = os.path.join(ROOT, "shorebird", "ci")
-NOT_PRODUCED = {"FlutterMacOS.framework.dSYM.zip"}
+NOT_PRODUCED = {"FlutterMacOS.framework.dSYM.zip", "Flutter.framework.dSYM.zip"}
 
 
-def ok_shards():
-    """Shards whose last line in logs/shards.status is OK (build_shard.py's format)."""
+def ok_shards(engine):
+    """Shards built OK for `engine`, read from logs/shards.status."""
     path = os.path.join(W, "logs", "shards.status")
     if not os.path.exists(path):
         sys.exit(f"no {path}: run build_shard.py first")
-    last = {}
-    for line in open(path):
-        parts = line.split()
-        if len(parts) >= 4 and parts[2].endswith(":"):
-            last[parts[2].rstrip(":")] = parts[3]
-    return {n for n, state in last.items() if state == "OK"}
+    commit, ok = read_status()
+    if not same_commit(commit, engine):
+        sys.exit(f"{path} has no shards built for engine {engine} (last engine line: {commit}); "
+                 "run build_shard.py at this commit first")
+    return ok
 
 
 def place(dst_rel, engine, out):
@@ -76,16 +88,13 @@ def stage(src, dst_rel, engine, out, zip_dir=False):
 
 def main():
     out = os.path.abspath(sys.argv[1])
-    # A self-built engine is named after the commit it was built from
-    # (bin/internal/engine.version there still names the upstream pin).
-    engine = subprocess.check_output(["git", "-C", ROOT, "rev-parse", "HEAD"], text=True).strip()
+    # A self-built engine is named after the commit it was built from.
+    engine = engine_commit()
     shards = json.load(open(os.path.join(CI, "shards", "macos.json")))
     compose = json.load(open(os.path.join(CI, "compose.json")))
-    ok = ok_shards()
+    ok = ok_shards(engine)
     lines = []
     for name, shard in shards.items():
-        if name.startswith("ios"):
-            continue
         if name not in ok:
             lines.append(f"skip shard {name} (not built)")
             continue
@@ -94,8 +103,6 @@ def main():
                                zip_dir=a.get("zip", False)))
     for name, step in compose.items():
         req = step.get("requires", [])
-        if any(r.startswith("ios") for r in req):
-            continue
         if not all(r in ok for r in req):
             lines.append(f"skip compose {name} (needs {', '.join(r for r in req if r not in ok)})")
             continue
