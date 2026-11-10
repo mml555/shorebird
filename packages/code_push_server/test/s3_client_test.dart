@@ -14,6 +14,17 @@ const _awsAccess = 'AKIAIOSFODNN7EXAMPLE';
 const _awsSecret = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
 final _awsTime = DateTime.utc(2013, 5, 24);
 
+/// A [Random] that always draws the top of the range, so jittered waits show
+/// their ceiling.
+class _MaxRandom implements Random {
+  @override
+  int nextInt(int max) => max - 1;
+  @override
+  double nextDouble() => 1;
+  @override
+  bool nextBool() => true;
+}
+
 void main() {
   group('signRequest', () {
     test('matches the AWS "GET Object" example (with Range)', () {
@@ -99,6 +110,11 @@ void main() {
     int? bucketPutStatus;
     var bucketPutBody = '';
     var stall = false;
+    // How many of the next requests are never answered.
+    var stallNext = 0;
+    // Cut the connection after the first bytes of a GET response.
+    var breakBody = false;
+    final amzDates = <String>[];
     // Statuses (and bodies) to answer the next requests with, before the
     // normal behaviour resumes. A null status drops the connection.
     final failures = <(int?, String)>[];
@@ -111,6 +127,9 @@ void main() {
       bucketPutStatus = null;
       bucketPutBody = '';
       stall = false;
+      stallNext = 0;
+      breakBody = false;
+      amzDates.clear();
       failures.clear();
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       unawaited(
@@ -120,6 +139,7 @@ void main() {
             '${req.method} ${req.uri.path} '
             '${auth.startsWith('AWS4-HMAC-SHA256') ? 'signed' : 'UNSIGNED'}',
           );
+          amzDates.add(req.headers.value('x-amz-date') ?? '');
           final body = await req.fold<List<int>>([], (a, b) => a..addAll(b));
           // The payload hash header must be the real hash of the body.
           expect(
@@ -129,6 +149,10 @@ void main() {
           final path = req.uri.path;
           final res = req.response;
           if (stall) return; // never answer
+          if (stallNext > 0) {
+            stallNext--;
+            return;
+          }
           if (failures.isNotEmpty) {
             final (status, text) = failures.removeAt(0);
             if (status == null) {
@@ -159,6 +183,18 @@ void main() {
               res.contentLength = data.length;
             } else {
               final range = req.headers.value('range');
+              if (breakBody) {
+                final socket = await res.detachSocket(writeHeaders: false);
+                socket.add(
+                  utf8.encode(
+                    'HTTP/1.1 200 OK\r\ncontent-length: ${data.length}\r\n\r\n',
+                  ),
+                );
+                socket.add(data.sublist(0, 10));
+                await socket.flush();
+                socket.destroy();
+                return;
+              }
               if (range != null && !ignoreRange) {
                 final m = RegExp(r'bytes=(\d+)-(\d*)').firstMatch(range)!;
                 final start = int.parse(m[1]!);
@@ -379,14 +415,20 @@ void main() {
           retryBaseDelay: const Duration(seconds: 1),
           retryMaxDelay: const Duration(seconds: 3),
           sleep: (d) async => delays.add(d),
+          random: _MaxRandom(),
         );
         addTearDown(capped.close);
         await expectLater(
           capped.deleteObject('k'),
           throwsA(isA<S3Exception>()),
         );
-        expect(delays, hasLength(5));
-        expect(delays.every((d) => d <= const Duration(seconds: 3)), isTrue);
+        expect(delays, [
+          const Duration(seconds: 1),
+          const Duration(seconds: 2),
+          const Duration(seconds: 3),
+          const Duration(seconds: 3),
+          const Duration(seconds: 3),
+        ]);
       });
 
       for (final status in [400, 401, 403, 404, 409, 412]) {
@@ -423,16 +465,122 @@ void main() {
         expect(seen, hasLength(1));
       });
 
-      test('a response stream already handed out is not replayed', () async {
+      test('a body cut after the status is not replayed', () async {
         // The retry covers the request and its status line only. Once
         // getObject has returned the stream the bytes are consumed, so a
         // failure while reading it reaches the caller, not a second request.
         objects['/bkt/big'] = List.filled(100, 7);
+        breakBody = true;
         final stream = await retrying.getObject('big');
-        final first = await stream.first;
-        expect(first, isNotEmpty);
+        await expectLater(stream.drain<void>(), throwsA(isA<HttpException>()));
         expect(seen, ['GET /bkt/big signed']);
         expect(delays, isEmpty);
+      });
+
+      test('a stalled attempt is aborted and retried', () async {
+        stallNext = 1;
+        final quick = S3Client(
+          endpoint: Uri.parse('http://127.0.0.1:${server.port}'),
+          region: 'us-east-1',
+          accessKey: 'k',
+          secretKey: 's',
+          bucket: 'bkt',
+          responseTimeout: const Duration(milliseconds: 200),
+          sleep: (d) async => delays.add(d),
+        );
+        addTearDown(quick.close);
+        await quick.putObject('k', [9]);
+        expect(seen, hasLength(2));
+        expect(objects['/bkt/k'], [9]);
+      });
+
+      test('every attempt is signed afresh', () async {
+        var now = DateTime.utc(2026, 11, 10);
+        final ticking = S3Client(
+          endpoint: Uri.parse('http://127.0.0.1:${server.port}'),
+          region: 'us-east-1',
+          accessKey: 'k',
+          secretKey: 's',
+          bucket: 'bkt',
+          clock: () => now,
+          sleep: (d) async => now = now.add(const Duration(minutes: 1)),
+        );
+        addTearDown(ticking.close);
+        failures.add((503, ''));
+        await ticking.putObject('k', [1]);
+        expect(amzDates, ['20261110T000000Z', '20261110T000100Z']);
+      });
+
+      test('the readiness probe does not retry', () async {
+        failures.add((503, ''));
+        await expectLater(
+          retrying.bucketExists(retry: false),
+          throwsA(isA<S3Exception>()),
+        );
+        expect(seen, hasLength(1));
+      });
+
+      test('no new attempt starts after retryDeadline', () async {
+        failures.addAll([for (var i = 0; i < 10; i++) (503, '')]);
+        final hurried = S3Client(
+          endpoint: Uri.parse('http://127.0.0.1:${server.port}'),
+          region: 'us-east-1',
+          accessKey: 'k',
+          secretKey: 's',
+          bucket: 'bkt',
+          retryDeadline: Duration.zero,
+          sleep: (d) async => delays.add(d),
+        );
+        addTearDown(hurried.close);
+        await expectLater(
+          hurried.putObject('k', [1]),
+          throwsA(isA<S3Exception>()),
+        );
+        expect(seen, hasLength(1));
+      });
+
+      test(
+        'retries are reported and the final error counts attempts',
+        () async {
+          final notes = <String>[];
+          final noisy = S3Client(
+            endpoint: Uri.parse('http://127.0.0.1:${server.port}'),
+            region: 'us-east-1',
+            accessKey: 'k',
+            secretKey: 's',
+            bucket: 'bkt',
+            sleep: (d) async {},
+            onRetry: notes.add,
+          );
+          addTearDown(noisy.close);
+          failures.addAll([for (var i = 0; i < 10; i++) (503, '')]);
+          await expectLater(
+            noisy.putObject('k', [1]),
+            throwsA(
+              isA<S3Exception>().having(
+                (e) => e.toString(),
+                'message',
+                contains('after 4 attempts'),
+              ),
+            ),
+          );
+          expect(notes, hasLength(3));
+          expect(notes.first, allOf(contains('PUT k'), contains('503')));
+        },
+      );
+
+      test('a ranged GET failure keeps the range in its message', () async {
+        failures.add((403, ''));
+        await expectLater(
+          retrying.getObject('k', offset: 1, length: 2),
+          throwsA(
+            isA<S3Exception>().having(
+              (e) => e.operation,
+              'operation',
+              'GET k (bytes=1-2)',
+            ),
+          ),
+        );
       });
     });
 
