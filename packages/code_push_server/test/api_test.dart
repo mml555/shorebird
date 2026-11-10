@@ -2250,6 +2250,22 @@ void main() {
       expect(await store.exists(art.storageKey), isFalse);
     });
 
+    test('multipart: an artifact that became failed cannot verify', () async {
+      final store = flakyApi();
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      store.afterPut = () =>
+          repo.setArtifactStatus(art.id, ArtifactStatus.failed);
+
+      final res = await uploadBody(r.token);
+
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(
+        (await repo.artifactByToken(r.token))!.status,
+        ArtifactStatus.failed,
+      );
+    });
+
     test(
       'multipart: losing the claim is a conflict, not a double write',
       () async {
@@ -4250,6 +4266,9 @@ class _FlakyStore extends FilesystemArtifactStore {
   bool failNextPut = false;
   bool alwaysFail = false;
 
+  /// Runs after a successful `put`, before the caller verifies.
+  Future<void> Function()? afterPut;
+
   /// Runs inside the failing `put`, before it throws: what a concurrent
   /// request sharing the key might have done in the meantime.
   Future<void> Function()? beforeFailure;
@@ -4262,7 +4281,8 @@ class _FlakyStore extends FilesystemArtifactStore {
       await beforeFailure?.call();
       throw const FileSystemException('injected: no space left on device');
     }
-    return super.put(key, bytes);
+    await super.put(key, bytes);
+    await afterPut?.call();
   }
 }
 

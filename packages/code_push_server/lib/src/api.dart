@@ -2721,7 +2721,7 @@ class Api {
       });
       throw badRequest('Artifact verification failed: $reason');
     }
-    await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
+    await _markVerified(art);
     obs.info('artifact verified', {
       'artifact': art.id,
       'owner': art.ownerKind,
@@ -2730,6 +2730,20 @@ class Api {
     });
     await _maybeMarkPatchReady(art);
     return Response(HttpStatus.noContent);
+  }
+
+  /// Moves [art] `uploading -> verified` with a compare-and-set, so a `failed`
+  /// artifact can never become `verified` and a request that lost its claim
+  /// cannot verify. Throws 409 if the artifact is no longer `uploading`.
+  Future<void> _markVerified(ArtifactRow art) async {
+    if (await repo.transitionArtifactStatus(
+      art.id,
+      ArtifactStatus.uploading,
+      ArtifactStatus.verified,
+    )) {
+      return;
+    }
+    throw conflict('Artifact ${art.id} is no longer uploading');
   }
 
   /// Undoes a failed store write for [art]: `uploading` -> `pending` so the same
@@ -2799,8 +2813,9 @@ class Api {
         // failed (or the process died before it ran). Answering 200 here would
         // make the client report success for an artifact that does not exist,
         // and dropping the staged bytes would make it re-upload everything, so
-        // finish the commit now. A failure is the same 5xx as a failed commit
-        // and counts against the client's retry cap; bad bytes get the verify
+        // finish the commit now. A failure is the same 5xx as a failed commit;
+        // the client's own status query then gets a non-200/308 answer and
+        // aborts, which is what ends the retrying. Bad bytes get the verify
         // failure.
         final done = await _claimResumable(art, token);
         if (done != null) return done;
@@ -2893,7 +2908,7 @@ class Api {
       );
       throw badRequest('Artifact verification failed: $reason');
     }
-    await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
+    await _markVerified(art);
     obs.info('artifact verified', {
       'artifact': art.id,
       'owner': art.ownerKind,
