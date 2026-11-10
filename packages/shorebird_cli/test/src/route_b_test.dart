@@ -72,6 +72,14 @@ void main() {
       expect(isRouteBEngine(f), isFalse);
     });
 
+    test('is false for the decline message without InterpretCall', () {
+      final f = File('${tmp.path}/Flutter')
+        ..writeAsBytesSync(
+          Uint8List.fromList('this engine cannot run iOS patches'.codeUnits),
+        );
+      expect(isRouteBEngine(f), isFalse);
+    });
+
     test('matches a symbol that spans the middle of the file', () {
       final f = File('${tmp.path}/Flutter')
         ..writeAsBytesSync(
