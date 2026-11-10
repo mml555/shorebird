@@ -12,21 +12,61 @@
 # missing for the whole programme and warm caches hid it. Closure BEFORE promotion,
 # never discovered after.
 shorebird:
-  cli_version: 1.6.115+selfhost.1                                # fork build of upstream 1.6.115
+  cli_version: 1.6.138+selfhost.1                                # fork build of upstream 1.6.138 (was 1.6.115)
   cli_revision: selfhost-v1.0.0                                  # this repo's baseline tag
-  flutter_revision: a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61      # bin/internal/flutter.version (3.44.8 / Dart 3.12.2)
-                                                                  # SELFHOST FORK COMMIT, on refs/heads/selfhost/3.44.8
-                                                                  # in the durable mirror. It is upstream c15ef637 plus ONE
-                                                                  # change: compileShorebirdYaml copies channel: into the
-                                                                  # bundled shorebird.yaml. Without it the key is accepted by
-                                                                  # the CLI and silently dropped from the shipped bundle, so a
-                                                                  # project configured for a non-stable track still requests
-                                                                  # stable. Pinned here rather than applied as a local patch
-                                                                  # because a fresh bootstrap must reproduce the supported
-                                                                  # toolchain from owned bytes alone.
-                                                                  # engine.version at this commit is UNCHANGED from c15ef637
-                                                                  # (measured: still 69f9831c), so engine_revision below stands.
-  engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b       # shorebirdtech/flutter bin/internal/engine.version
+  flutter_revision: 9056dae9e28761f7508191146ae2469ba014be08      # bin/internal/flutter.version (Flutter 3.47, release-candidate-branch.version
+                                                                  # flutter-3.47-candidate.0 / Dart 3.13.7). Head of mml555/shorebird-flutter
+                                                                  # branch shorebird/dev, the merge of shorebird-flutter PR #8; 107 commits ahead
+                                                                  # of upstream Shorebird's pin e2c965ff, 0 behind. Replaces a4a3c0d1, which is
+                                                                  # kept under `previous:` below. NOTE: the checked-in bin/internal/flutter.version
+                                                                  # was 5b180d22 (cell f85251f3) from 46ee70af5 until this promotion, so this file
+                                                                  # had been naming a pin the CLI no longer used.
+                                                                  # PROMOTED 2026-11-10 THROUGH THE FROZEN CHAIN (TOOLCHAIN_PROMOTION.md), on
+                                                                  # ci-build, against a SEALED COLD mirror (r12-cdn-sealed: production Caddyfile and
+                                                                  # overlay, sealed, its own empty cache volume; origin read from X-Overlay: hit):
+                                                                  #   1 owned mirror contains it         bare mirror cloned from mml555/shorebird-flutter,
+                                                                  #                                      refs/heads/shorebird/dev -> 9056dae9
+                                                                  #   2 engine.version                   7806e0fb68242dbef74e224bdaa81bd62b0d988e
+                                                                  #   3 sealed cold bootstrap discovery  0 additions: the bootstrap asked for
+                                                                  #                                      dart-sdk-linux-x64.zip, engine_stamp.json and
+                                                                  #                                      (HEAD) linux-x64/font-subset.zip, all overlay hits
+                                                                  #   4 bootstrap manifest banked        3 rows, size + SHA-256 + provenance
+                                                                  #   5 bootstrap_closure_guard.sh       CLOSURE OK (3 artifacts, proxy mapping pinned)
+                                                                  #   6 fresh sealed cold bootstrap      PASS, fresh container, no host mounts: 3 overlay
+                                                                  #                                      hits, 0 /gcs/ passthroughs, 0 non-overlay 200s
+                                                                  #   7 sealed release/patch discovery   closed after 13 imports (see below), release and
+                                                                  #                                      patch complete under seal with nothing refused
+                                                                  #   8 fresh Linux release/patch smoke  release 1.0.0+1, patch 1 and a --json patch
+                                                                  #                                      published; 37 overlay hits, 0 /gcs/, 0 refused
+                                                                  #                                      (the one 502 is the harness probing the mirror's
+                                                                  #                                      root path "/", not an artifact)
+                                                                  # Evidence: selfhost/evidence/r12-linux-ci/PROMOTION_9056dae9.md and promotion-9056dae9/.
+                                                                  # THE 7806e0fb BYTES ARE OURS: dart-sdk-linux-x64.zip, engine_stamp.json and the
+                                                                  # font-subset zip are members of the release overlay-7806e0fb....tar on
+                                                                  # mml555/shorebird-flutter (SHA256SUMS sha256 82352d49aedbf5e1b70b03f1277a6767149259abbf1a69d4e40c0ad6c02385ac);
+                                                                  # all 63 overlay files were re-verified byte-identical to that tar.
+                                                                  # NOT FROM 7806e0fb: seven android-*/artifacts.zip (debug, profile and x86) and three
+                                                                  # android-*-profile/linux-x64.zip files are UPSTREAM STOCK engine bytes (engine
+                                                                  # 38855c84 via the proxy remap, android-x86 from stock 89c39edf), imported under
+                                                                  # the 7806e0fb client path because no debug/profile engine was built for it. They
+                                                                  # carry provenance in release_patch_closure.tsv. Release/patch ran with them
+                                                                  # present; a debug or profile run on this pin would use a stock engine, which is
+                                                                  # not the framework's own.
+                                                                  # R12 TWO-ARM RECERTIFICATION: REQUIRED AND NOT RUN. The frozen harness's arm 3
+                                                                  # (patch with no --release-version) exits 0 on CLI 1.6.138 where the harness
+                                                                  # expects 64 (the chooser refusal). That is release/patch workflow semantics
+                                                                  # having changed, among 1.6.115 -> 1.6.138: ask-for-track on patch (#4291),
+                                                                  # patch no longer guesses the release (#4307), managed signing by default (#4182),
+                                                                  # auth service derived from the code push server (#4190), reuse of release artifacts
+                                                                  # across patches (#4235). Do not read this block as R12-certified.
+                                                                  # updater_revision is NOT touched: Flutter 3.47's DEPS carries updater_rev
+                                                                  # 87c198d30f875a3da317d70935e1025dc13064dd, which is not the value below. That
+                                                                  # and eligibleUpdaterRevisions (MEASUREMENT_MODE.md) are the owner's call.
+  engine_revision: 7806e0fb68242dbef74e224bdaa81bd62b0d988e       # bin/internal/flutter.version's engine.version at the pin above. OUR OWN
+                                                                  # BUILD (ci-build Linux + arm64 Mac), published as the GitHub release
+                                                                  # engine-7806e0fb... on mml555/shorebird-flutter, served from the overlay.
+                                                                  # Falls back to 38855c84ca367c58165b8e3844dd7d6a99dec844 for what was not built
+                                                                  # (experimental_hashes.map).
                                                                     # ROUTE B USES A DIFFERENT AXIS. This value is the
                                                                     # general toolchain's engine, and it is also the
                                                                     # FALLBACK engine recorded in the v2 cell manifest.
@@ -243,13 +283,25 @@ shorebird:
                                                                   # 1f85c4ab — separate crate.
   protocol_version: 0.1.0+1                                       # shorebird_code_push_protocol
 
-# Previous supported set, kept for rollback. Promoted out of here on 2026-07-29
-# when upstream 1.6.115 was merged.
+# Previous supported set, kept for rollback. Promoted out of `shorebird:` on
+# 2026-11-10 when the Flutter 3.47 pin (9056dae9) was promoted. This is the set
+# this file declared, 1.6.115 + a4a3c0d1. The CLI's own bin/internal/flutter.version
+# had already moved to 5b180d22 (Flutter 3.44.8, cell f85251f3) at 46ee70af5 and
+# this file did not follow, so 5b180d22 is the revision that was actually running
+# on fork/main before this change. The set before this one was cli 1.6.114+selfhost.1,
+# flutter 309dd657, engine e1eaecba, updater 1f85c4ab.
+#
+# a4a3c0d1 is a SELFHOST FORK COMMIT on refs/heads/selfhost/3.44.8 in the durable
+# mirror: upstream c15ef637 plus ONE change, compileShorebirdYaml copies channel:
+# into the bundled shorebird.yaml, so a project configured for a non-stable track
+# no longer silently requests stable. Its engine.version was unchanged from
+# c15ef637 (measured: still 69f9831c).
 previous:
-  cli_version: 1.6.114+selfhost.1
-  flutter_revision: 309dd6573a9fe716410489284cd325a34b950375
-  engine_revision: e1eaecbcac6d9a32cb5590c646e21cf21252cf19
-  updater_revision: 1f85c4ab
+  cli_version: 1.6.115+selfhost.1
+  cli_revision: selfhost-v1.0.0
+  flutter_revision: a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61      # Flutter 3.44.8 / Dart 3.12.2
+  engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b
+  updater_revision: af6e842ccf87
 
 # How the 1.6.115 pin was cleared, and what was NOT re-run.
 #
