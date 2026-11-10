@@ -2561,6 +2561,87 @@ void main() {
       expect(res.statusCode, HttpStatus.ok);
     });
 
+    test('resumable: waiters per token are capped, and the count returns to '
+        'zero', () async {
+      final store = flakyApi();
+      api = Api(
+        repo,
+        store,
+        config,
+        inFlightWait: const Duration(milliseconds: 600),
+      );
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      await store.stageChunk(r.token, 0, utf8.encode('abc'));
+      expect(await repo.claimArtifact(art.id), isNotNull);
+
+      Future<Response> query() => send(
+        'PUT',
+        '/api/v1/uploads/${r.token}',
+        bearer: _bootstrapKey,
+        headers: {'content-range': 'bytes */3'},
+      );
+
+      final waiting = [for (var i = 0; i < 4; i++) query()];
+      // Let the four enter the wait.
+      while (api.debugWaiters(r.token) < 4) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      final sw = Stopwatch()..start();
+      final fifth = await query();
+      expect(fifth.statusCode, HttpStatus.serviceUnavailable);
+      expect(
+        sw.elapsedMilliseconds,
+        lessThan(400),
+        reason: 'over the cap is refused at once, not after the wait',
+      );
+      expect(
+        api.debugWaiters(r.token),
+        4,
+        reason: 'the refused one is not counted',
+      );
+
+      for (final res in await Future.wait(waiting)) {
+        expect(res.statusCode, HttpStatus.serviceUnavailable);
+      }
+      expect(api.debugWaiters(r.token), 0);
+    });
+
+    test(
+      'resumable: the waiter count is released when a waiter errors',
+      () async {
+        final store = flakyApi();
+        api = Api(
+          repo,
+          store,
+          config,
+          inFlightWait: const Duration(seconds: 5),
+        );
+        final r = await registered();
+        final art = (await repo.artifactByToken(r.token))!;
+        await store.stageChunk(r.token, 0, utf8.encode('abc'));
+        expect(await repo.claimArtifact(art.id), isNotNull);
+
+        final res = send(
+          'PUT',
+          '/api/v1/uploads/${r.token}',
+          bearer: _bootstrapKey,
+          headers: {'content-range': 'bytes */3'},
+        );
+        while (api.debugWaiters(r.token) < 1) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        // The artifact fails under the waiter: the query answers 409 (an error
+        // path out of the wait), and the count must still drop.
+        final cur = (await repo.artifactByToken(r.token))!;
+        expect(cur.status, ArtifactStatus.uploading);
+        await repo.setArtifactStatus(art.id, ArtifactStatus.failed);
+
+        expect((await res).statusCode, HttpStatus.conflict);
+        expect(api.debugWaiters(r.token), 0);
+      },
+    );
+
     test('resumable: more bytes are refused while a commit runs', () async {
       final store = flakyApi();
       final r = await registered();

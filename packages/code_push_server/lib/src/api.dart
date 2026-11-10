@@ -2952,8 +2952,12 @@ class Api {
       final deadline = DateTime.now().add(inFlightWait);
       var cur = art;
       while (cur.status == ArtifactStatus.uploading) {
-        if (!DateTime.now().isBefore(deadline)) throw _commitInProgress();
-        await Future<void>.delayed(const Duration(seconds: 1));
+        final left = deadline.difference(DateTime.now());
+        if (left <= Duration.zero) throw _commitInProgress();
+        // Never sleep past the deadline.
+        await Future<void>.delayed(
+          left < const Duration(seconds: 1) ? left : const Duration(seconds: 1),
+        );
         cur = await repo.artifactByToken(art.token) ?? cur;
       }
       return cur;
@@ -2969,6 +2973,9 @@ class Api {
 
   static const _maxWaitersPerToken = 4;
   final Map<String, int> _waiters = {};
+
+  /// How many status queries are waiting on [token]'s commit; for tests.
+  int debugWaiters(String token) => _waiters[token] ?? 0;
 
   DomainException _commitInProgress() => DomainException(
     HttpStatus.serviceUnavailable,
