@@ -132,6 +132,15 @@ locate_zip() {  # locate_zip <name> <explicit-or-empty> <stock-zip-or-empty>
   #    "<name>/..." relative to a staging root.
   pkg="$(src_dir_for "$name")"
   [[ -n "$pkg" && -d "$pkg" ]] || return 1
+  # A Linux host_* out dir has gen/dart-pkg/sky_engine too, but only a stub
+  # (lib/_embedder.yaml): those builds never run the package target. Packaging
+  # it shipped a 4-file sky_engine.zip for 7806e0fb and broke `flutter create`
+  # ("Could not find a file named pubspec.yaml in .../pkg/sky_engine").
+  if [[ ! -f "$pkg/pubspec.yaml" ]]; then
+    echo "ERROR: $pkg has no pubspec.yaml, so it is not a complete $name package." >&2
+    [[ $name == sky_engine ]] && echo "       Pass an Android out dir (e.g. out/android_release_arm64), not host_*." >&2
+    return 1
+  fi
   rm -rf "$WORK/stage-$name"; mkdir -p "$WORK/stage-$name"
   cp -R "$pkg" "$WORK/stage-$name/$name"
   # Capture the listing into a variable rather than piping into `grep -q`.
@@ -147,6 +156,17 @@ locate_zip() {  # locate_zip <name> <explicit-or-empty> <stock-zip-or-empty>
       unzip -qq -o "$stock" 'LICENSE.zip_old_location.md' -d "$WORK/stage-$name" ;;
   esac
   ( cd "$WORK/stage-$name" && zip -qr "$WORK/$name.zip" . )
+  # Ours may differ from stock, but not by most of the tree: fewer than 90% of
+  # stock's entries means a partial build output, not a fork change.
+  if [[ -n "$listing" ]]; then
+    local ours theirs
+    ours="$(unzip -Z1 "$WORK/$name.zip" | wc -l)"
+    theirs="$(printf '%s\n' "$listing" | wc -l)"
+    if (( ours * 10 < theirs * 9 )); then
+      echo "ERROR: packaged $name has $ours entries, stock has $theirs: $pkg looks incomplete." >&2
+      return 1
+    fi
+  fi
   printf '%s\t%s' "$WORK/$name.zip" "packaged from directory: $pkg"; return 0
 }
 
