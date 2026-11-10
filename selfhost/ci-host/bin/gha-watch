@@ -17,7 +17,7 @@
 # logged, makes the exit status 2, and keeps an open issue open.
 #
 # Output: $STATE/warnings.log (on change, and hourly), $STATE/current (the warnings of the
-# last run), $STATE/last_run (touched by every run), stderr, and the exit status (1 = warnings,
+# last run), $STATE/last_run (touched by every run that finishes), stderr, and the exit status (1 = warnings,
 # 2 = only unknowns). With a token, one GitHub issue on WATCH_ISSUE_REPO.
 # `gha-watch --show` prints the current warnings with their age, and says so if the watcher
 # itself has not run for 30 minutes; the login snippet from install-watch.sh calls it.
@@ -90,7 +90,6 @@ notes=()      # things we could not check
 
 # A killed run can leave its token header file behind: sweep ours.
 find "$STATE" -maxdepth 1 -name 'tmp.*' -mmin +60 -exec rm -rf {} + 2>/dev/null
-touch "$STATE/last_run"
 tmp=$(mktemp -d "$STATE/tmp.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 # The curl auth header lives in a 0600 file, so the token is not in any process's argv.
@@ -105,7 +104,7 @@ if [[ -n ${GHA_WATCH_JOURNAL_FILE:-} ]]; then   # tests: a saved journal instead
   journal=$(<"$GHA_WATCH_JOURNAL_FILE")
   jrc=0
 else
-  journal=$(journalctl -u 'gha-runner@*' --since "$WATCH_JOURNAL_SINCE" -o cat --no-pager 2>"$tmp/jerr")
+  journal=$(timeout 60 journalctl -u 'gha-runner@*' --since "$WATCH_JOURNAL_SINCE" -o cat --no-pager 2>"$tmp/jerr")
   jrc=$?
   grep -qiE 'insufficient permissions|No journal files' "$tmp/jerr" && jrc=1
 fi
@@ -150,7 +149,11 @@ api() {   # api <path> <array key> [optional]: sets API_BODY, returns 1 on any f
   fi
   API_BODY=$(<"$tmp/body")
 }
-age_min() { echo $(( (now - $(date -d "$1" +%s)) / 60 )); }
+age_min() {   # age_min <ISO time>: minutes since; fails on a missing or unreadable time
+  local t
+  t=$(date -d "$1" +%s 2>/dev/null) && [[ $t =~ ^[0-9]+$ ]] || return 1
+  echo $(( (now - t) / 60 ))
+}
 # Names come from PR titles: keep a safe character set so they cannot break out of the issue's code block.
 clean='(.name // .display_title // "?") | gsub("[^A-Za-z0-9 ._()/:#-]"; "") | .[0:60] | gsub(" "; "_")'
 
@@ -162,7 +165,7 @@ for repo in $WATCH_REPOS; do
     || { notes+=("could not parse the queued runs of $repo"); continue; }
   while read -r id created name; do
     [[ -n $id ]] || continue
-    m=$(age_min "$created")
+    m=$(age_min "$created") || { notes+=("$repo run $id has no readable start time ('$created')"); continue; }
     (( m >= WATCH_QUEUE_MIN )) && warnings+=("$repo run $id '$name' has been queued for ${m} min (https://github.com/$repo/actions/runs/$id)")
   done <<<"$rows"
 done
@@ -180,7 +183,7 @@ for repo in $WATCH_REPOS; do
       || { notes+=("could not parse the jobs of run $id"); continue; }
     while read -r created jname; do
       [[ -n $created ]] || continue
-      m=$(age_min "$created")
+      m=$(age_min "$created") || { notes+=("a queued job of $repo run $id has no readable start time ('$created')"); continue; }
       (( m >= WATCH_QUEUE_MIN )) && warnings+=("$repo job '$jname' (run $id) has been queued for ${m} min (https://github.com/$repo/actions/runs/$id)")
     done <<<"$rows"
   done
@@ -212,7 +215,7 @@ gh_failed=0
 gh_try() {   # gh_try <what> <gh args...>: prints stdout, logs stderr on failure
   local what=$1; shift
   local out
-  if out=$(gh "$@" 2>"$tmp/gerr"); then printf '%s' "$out"; return 0; fi
+  if out=$(timeout 60 gh "$@" 2>"$tmp/gerr"); then printf '%s' "$out"; return 0; fi
   gh_failed=1
   local msg
   msg="gh $what failed: $(head -c 200 "$tmp/gerr" | tr '\n' ' ')"
@@ -226,7 +229,7 @@ gh_try() {   # gh_try <what> <gh args...>: prints stdout, logs stderr on failure
 }
 have_gh=0
 lookup_ok=0
-if [[ -z ${GHA_WATCH_NO_ISSUE:-} ]] && { [[ -n $GH_TOKEN ]] || gh auth status >/dev/null 2>&1; }; then have_gh=1; fi
+if [[ -z ${GHA_WATCH_NO_ISSUE:-} ]] && { [[ -n $GH_TOKEN ]] || timeout 30 gh auth status >/dev/null 2>&1; }; then have_gh=1; fi
 if (( have_gh )); then
   # A list by label is not search-backed, so it is current right after a create.
   find_issue() {   # find_issue [label]: number of the open issue with our title, or empty
@@ -280,6 +283,9 @@ if (( have_gh )); then
   fi
 fi
 
+# Touched only by a run that got this far, so a run that hangs (holding the lock) or dies
+# midway shows as STALE in --show rather than as healthy.
+touch "$STATE/last_run"
 if [[ -n $wbody ]]; then exit 1; fi
 if [[ -n $nbody || $gh_failed == 1 ]]; then exit 2; fi
 exit 0
