@@ -317,12 +317,19 @@ void main() {
       test('the production verifier still uses RSA PKCS#1 SHA-256', () async {
         // Guards the algorithm itself: Arm A means nothing if the verifier were
         // silently switched to another scheme.
-        final signing = File(
-          '${(await _repoRoot()).path}/vendor/updater/library/src/cache/signing.rs',
-        );
+        final updaterSource =
+            '${(await _repoRoot()).path}/vendor/updater/library/src';
+        final signing = File('$updaterSource/cache/signing.rs');
+        // The algorithm is the engine verifier's (`verify_signature`); the
+        // test-hooks build registers the `ring` implementation of it.
+        final verifier = File('$updaterSource/test_engine_callbacks.rs');
         expect(signing.existsSync(), isTrue);
+        expect(verifier.existsSync(), isTrue);
+        expect(
+          verifier.readAsStringSync(),
+          contains('RSA_PKCS1_2048_8192_SHA256'),
+        );
         final source = signing.readAsStringSync();
-        expect(source, contains('RSA_PKCS1_2048_8192_SHA256'));
         expect(source, contains('BASE64_STANDARD'));
       });
     },
