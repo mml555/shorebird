@@ -84,11 +84,6 @@ def stale_stamps(shards, ok, engine):
     """STALE lines for framework plists, in the out dirs of the OK shards, that
     are not stamped with a commit building `engine`."""
     lines = []
-    # A waived verify_exported check (build_shard.py --waive-export) ships
-    # with the engine; say so where the publish reads this output.
-    for name, syms in sorted(read_waivers().items()):
-        if name in ok:
-            lines.append(f"WAIVED exports in shard {name}: {' '.join(sorted(syms))}")
     for name, shard in shards.items():
         if name not in ok:
             continue
@@ -145,6 +140,11 @@ def main():
         print("\n".join(stale))
         return 1
     lines = []
+    # A waived verify_exported check (build_shard.py --waive-export) ships
+    # with the engine; say so where the publish reads this output.
+    for name, syms in sorted(read_waivers().items()):
+        if name in ok:
+            lines.append(f"WAIVED exports in shard {name}: {' '.join(sorted(syms))}")
     for name, shard in shards.items():
         if name not in ok:
             lines.append(f"skip shard {name} (not built)")
