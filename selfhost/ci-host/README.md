@@ -133,18 +133,38 @@ is limited to 10 per minute (burst 5).
 - a run of `mml555/shorebird` or `mml555/shorebird-flutter` has been queued over 20 minutes,
   or a job of an in-progress run has.
 
-Warnings go to `~/.local/state/gha-watch/warnings.log` (on change, and hourly while they
-last) and into the exit status (1). If `~/.config/gha-watch.env` holds a `GH_TOKEN` (a
-fine-grained PAT with Issues read and write on `mml555/shorebird`, kept out of the repo) or
-`gh auth login` was run as `oem`, it also opens one issue titled "CI host alert: ..." on the
-fork, adds a comment at most every 6 hours while the warnings last, and closes it when they
-clear. Without a token the log is the only channel, and the watcher uses the public API
-(60 requests an hour, shared with anything else on the host's address). Thresholds and
-repos are variables at the top of the script.
+A read that fails (journal, API, rate limit) is logged as `NOTE (could not check)` and never
+counts as all clear: exit status 2, and an open issue stays open.
+
+**Where a human sees it.** Without a token, nobody is paged. The warnings are in
+`~/.local/state/gha-watch/current` (the last run), and `install-watch.sh` makes every
+interactive login to `oem` print that file. History is in `warnings.log` there (written on
+change, and hourly while they last). Check by hand:
 
 ```sh
-bash selfhost/ci-host/install-watch.sh      # as oem; copies the script, adds the cron line
-tail ~/.local/state/gha-watch/warnings.log
+cat ~/.local/state/gha-watch/current; tail -3 ~/.local/state/gha-watch/warnings.log
+```
+
+**Issue on the fork.** Put the token in `~/.config/gha-watch.env` (the installer creates it
+empty, mode 600; it is read as `KEY=value` lines and ignored unless owned by `oem` with mode
+600). The token is a fine-grained PAT with Issues read and write on `mml555/shorebird`, kept
+out of the repo. Or run `gh auth login` as `oem`.
+
+```sh
+echo 'GH_TOKEN=github_pat_...' >> ~/.config/gha-watch.env
+```
+
+Then it opens one issue titled "CI host alert: ..." with the label `gha-watch`, comments at
+most every 6 hours while the warnings last, never creates a second within 2 hours, and closes
+it when everything is clear. A failing `gh` call is logged and gives exit status 2.
+
+**API use.** The token goes to `curl` in a 0600 header file, never on a command line. Without
+a token the public API allows 60 requests an hour for the host's address; the watcher makes at
+most 6 a run (36 an hour) and stops early when the headroom runs low. With a token it makes at
+most 40 a run. Thresholds and repos can also be set in the env file (see the script's header).
+
+```sh
+bash selfhost/ci-host/install-watch.sh      # as oem; copies the script, cron line, login snippet
 ```
 
 ## A runner will not start
