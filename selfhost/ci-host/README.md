@@ -124,6 +124,29 @@ sudo nft list chain inet gha_egress gha     # per-rule counters
 signal). `gha-egress-denied` reads the current and the previous day. The nftables drop log
 is limited to 10 per minute (burst 5).
 
+## Watch the runners
+
+`bin/gha-watch` runs from the owner's (`oem`) cron every 10 minutes, with no root, and warns when
+
+- a runner unit failed to start 3 times in a row (`Failed to start gha-runner@<user>` in the
+  journal with no `Started` after it; `gha-prep` ends that way when it cannot register), or
+- a run of `mml555/shorebird` or `mml555/shorebird-flutter` has been queued over 20 minutes,
+  or a job of an in-progress run has.
+
+Warnings go to `~/.local/state/gha-watch/warnings.log` (on change, and hourly while they
+last) and into the exit status (1). If `~/.config/gha-watch.env` holds a `GH_TOKEN` (a
+fine-grained PAT with Issues read and write on `mml555/shorebird`, kept out of the repo) or
+`gh auth login` was run as `oem`, it also opens one issue titled "CI host alert: ..." on the
+fork, adds a comment at most every 6 hours while the warnings last, and closes it when they
+clear. Without a token the log is the only channel, and the watcher uses the public API
+(60 requests an hour, shared with anything else on the host's address). Thresholds and
+repos are variables at the top of the script.
+
+```sh
+bash selfhost/ci-host/install-watch.sh      # as oem; copies the script, adds the cron line
+tail ~/.local/state/gha-watch/warnings.log
+```
+
 ## A runner will not start
 
 `systemctl list-units 'gha-runner@*'` shows `activating (start-pre)` while `gha-prep` works,

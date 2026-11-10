@@ -1,0 +1,148 @@
+#!/bin/bash
+# cspell:words RLENGTH cksum elif inprog jname
+# gha-watch: warn when the CI runners are not picking up work. Runs as the owner's user
+# (oem) from cron, no root: it reads the journal (oem is in group adm) and the public
+# GitHub API. See selfhost/ci-host/README.md, "Watch the runners".
+#
+# Two checks:
+#   1. Registration. A runner unit whose last N starts in a row failed ("Failed to start
+#      gha-runner@<user>.service" with no "Started" in between). gha-prep marks a failed
+#      registration that way and backs off up to 15 minutes, so N=3 is about 3 to 7 minutes in.
+#      On 2026-11-08 every runner failed this way for about 5 hours, and the only symptom
+#      on GitHub was jobs that stayed pending.
+#   2. Queue. A run in `queued` state, or a job of an in-progress run, that has waited more
+#      than 20 minutes in WATCH_REPOS.
+#
+# Warnings go to $STATE/warnings.log, to stderr, and into the exit status (1). If a token
+# for the fork is configured, one GitHub issue on WATCH_ISSUE_REPO is created (or updated
+# while it stays open, at most every 6 hours) and closed again when everything is clear.
+#
+# Optional config, bash syntax, never in the repo: ${XDG_CONFIG_HOME:-~/.config}/gha-watch.env
+#   GH_TOKEN=...            fine-grained PAT, Issues read+write on WATCH_ISSUE_REPO. Also lifts
+#                           the public API's 60 requests/hour limit. Without it (and without
+#                           `gh auth login`) there is no issue, only the log.
+#   WATCH_REPOS="a/b c/d"   repos whose queue is checked
+#   WATCH_ISSUE_REPO=a/b    where the issue goes
+#   WATCH_FAILS=3           consecutive failed starts that count
+#   WATCH_QUEUE_MIN=20      minutes a run or job may sit queued
+#   WATCH_JOURNAL_SINCE="-3h"   how far back the journal is read
+set -uo pipefail
+export PATH=/usr/local/bin:/usr/bin:/bin
+
+cfg=${XDG_CONFIG_HOME:-$HOME/.config}/gha-watch.env
+# shellcheck source=/dev/null
+[[ -r $cfg ]] && source "$cfg"
+WATCH_REPOS=${WATCH_REPOS:-"mml555/shorebird mml555/shorebird-flutter"}
+WATCH_ISSUE_REPO=${WATCH_ISSUE_REPO:-mml555/shorebird}
+WATCH_FAILS=${WATCH_FAILS:-3}
+WATCH_QUEUE_MIN=${WATCH_QUEUE_MIN:-20}
+WATCH_JOURNAL_SINCE=${WATCH_JOURNAL_SINCE:--3h}
+STATE=${GHA_WATCH_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/gha-watch}
+ISSUE_TITLE="CI host alert: runners not registering or jobs stuck in the queue"
+ISSUE_EVERY=$((6 * 3600))
+mkdir -p "$STATE"
+exec 9>"$STATE/lock"
+flock -n 9 || exit 0
+
+now=$(date +%s)
+warnings=()
+rate_left=60
+
+# ---- 1. runner units that keep failing to register -------------------------------------
+if [[ -n ${GHA_WATCH_JOURNAL_FILE:-} ]]; then   # tests: a saved journal instead of the live one
+  journal=$(<"$GHA_WATCH_JOURNAL_FILE")
+else
+  journal=$(journalctl -u 'gha-runner@*' --since "$WATCH_JOURNAL_SINCE" -o cat --no-pager 2>/dev/null)
+fi
+# One line per event: "Started gha-runner@x.service - ..." or "Failed to start gha-runner@x.service - ...".
+# awk keeps, per unit, the failures since the last Started.
+while read -r unit n; do
+  (( n >= WATCH_FAILS )) && warnings+=("runner $unit: $n starts in a row failed registration (see: journalctl -u $unit -n 40)")
+done < <(awk '
+  match($0, /^Started gha-runner@[a-z0-9-]+\.service/)      { u = substr($0, 9, RLENGTH - 8);  n[u] = 0 }
+  match($0, /^Failed to start gha-runner@[a-z0-9-]+\.service/) { u = substr($0, 17, RLENGTH - 16); n[u]++ }
+  END { for (u in n) if (n[u] > 0) print u, n[u] }' <<<"$journal")
+
+# ---- 2. runs and jobs queued too long ---------------------------------------------------
+api() {   # api <path>: prints the body, remembers the rate-limit headroom
+  local hdr out
+  hdr=$(mktemp)
+  out=$(curl -sS --max-time 30 -D "$hdr" -H 'Accept: application/vnd.github+json' \
+    ${GH_TOKEN:+-H "Authorization: Bearer $GH_TOKEN"} "https://api.github.com$1") || { rm -f "$hdr"; return 1; }
+  rate_left=$(tr -d '\r' <"$hdr" | awk -F': *' 'tolower($1)=="x-ratelimit-remaining"{print $2}')
+  rate_left=${rate_left:-0}
+  rm -f "$hdr"
+  printf '%s' "$out"
+}
+age_min() { echo $(( (now - $(date -d "$1" +%s)) / 60 )); }
+
+for repo in $WATCH_REPOS; do
+  runs=$(api "/repos/$repo/actions/runs?status=queued&per_page=30")
+  if ! jq -e '.workflow_runs' >/dev/null 2>&1 <<<"$runs"; then
+    echo "gha-watch: could not read queued runs of $repo (rate limit or network)" >&2
+    continue
+  fi
+  while read -r id created name; do
+    m=$(age_min "$created")
+    (( m >= WATCH_QUEUE_MIN )) && warnings+=("$repo run $id '$name' has been queued for ${m} min (https://github.com/$repo/actions/runs/$id)")
+  done < <(jq -r '.workflow_runs[] | [.id, .created_at, (.name // .display_title | gsub(" "; "_"))] | @tsv' <<<"$runs" | tr '\t' ' ')
+
+  # A run that started but still has a job waiting (needs: chains, matrix) shows as in_progress.
+  # One request per run, so only while the rate limit has room.
+  inprog=$(api "/repos/$repo/actions/runs?status=in_progress&per_page=20") || continue
+  while read -r id; do
+    (( rate_left >= 20 )) || break
+    jobs=$(api "/repos/$repo/actions/runs/$id/jobs?filter=latest&per_page=100") || continue
+    while read -r created jname; do
+      m=$(age_min "$created")
+      (( m >= WATCH_QUEUE_MIN )) && warnings+=("$repo job '$jname' (run $id) has been queued for ${m} min (https://github.com/$repo/actions/runs/$id)")
+    done < <(jq -r '.jobs[]? | select(.status == "queued") | [.created_at, (.name | gsub(" "; "_"))] | @tsv' <<<"$jobs" | tr '\t' ' ')
+  done < <(jq -r '.workflow_runs[]?.id' <<<"$inprog" 2>/dev/null)
+done
+
+# ---- report -----------------------------------------------------------------------------
+ts=$(date -u +%FT%TZ)
+if (( ${#warnings[@]} )); then
+  body=$(printf '%s\n' "${warnings[@]}")
+  # Log when the warnings changed (queue ages tick up every run, so compare the unit and run
+  # names only) or once an hour; the exit status and stderr always carry them.
+  sig=$(sed -E 's/ [0-9]+ (min|starts)/ N \1/' <<<"$body" | cksum)
+  if [[ $sig != "$(cat "$STATE/last_sig" 2>/dev/null)" ]] || (( now - $(stat -c %Y "$STATE/last_sig" 2>/dev/null || echo 0) >= 3600 )); then
+    echo "$sig" >"$STATE/last_sig"
+    while read -r l; do echo "$ts WARN $l"; done <<<"$body" >>"$STATE/warnings.log"
+  fi
+  while read -r l; do echo "$ts WARN $l"; done <<<"$body" >&2
+  # Keep the log small.
+  [[ $(stat -c %s "$STATE/warnings.log") -gt 1048576 ]] && tail -n 2000 "$STATE/warnings.log" >"$STATE/warnings.log.tmp" && mv "$STATE/warnings.log.tmp" "$STATE/warnings.log"
+else
+  body=
+  rm -f "$STATE/last_sig"
+fi
+
+# Issue on the fork, if a token is available. Dedup: one open issue with ISSUE_TITLE.
+if [[ -n ${GHA_WATCH_NO_ISSUE:-} ]] || ! { [[ -n ${GH_TOKEN:-} ]] || gh auth status >/dev/null 2>&1; }; then
+  have_gh=0
+else
+  have_gh=1
+fi
+if (( have_gh )); then
+  open=$(gh issue list -R "$WATCH_ISSUE_REPO" --state open --search "\"$ISSUE_TITLE\" in:title" \
+    --json number,title --jq "[.[] | select(.title == \"$ISSUE_TITLE\")][0].number // empty" 2>/dev/null)
+  if [[ -n $body ]]; then
+    # shellcheck disable=SC2016 # backticks are markdown, not command substitution
+    text=$(printf 'Found by `gha-watch` on ci-build at %s:\n\n```\n%s\n```\n\nSee `selfhost/ci-host/README.md`, "Watch the runners". This issue closes itself when the warnings clear.\n' "$ts" "$body")
+    if [[ -z $open ]]; then
+      gh issue create -R "$WATCH_ISSUE_REPO" --title "$ISSUE_TITLE" --body "$text" >/dev/null 2>&1 \
+        && echo "$now" >"$STATE/last_issue_update"
+    else
+      last=$(cat "$STATE/last_issue_update" 2>/dev/null || echo 0)
+      if (( now - last >= ISSUE_EVERY )); then
+        gh issue comment "$open" -R "$WATCH_ISSUE_REPO" --body "$text" >/dev/null 2>&1 && echo "$now" >"$STATE/last_issue_update"
+      fi
+    fi
+  elif [[ -n $open ]]; then
+    gh issue close "$open" -R "$WATCH_ISSUE_REPO" --comment "All clear at $ts: no runner failing to register and nothing queued over ${WATCH_QUEUE_MIN} min." >/dev/null 2>&1
+  fi
+fi
+
+(( ${#warnings[@]} == 0 ))
