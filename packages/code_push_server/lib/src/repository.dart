@@ -1396,24 +1396,38 @@ class Repository {
     String? notes,
     Map<String, Object?>? metadata,
   }) async {
-    final maxR = await _q(
-      'SELECT COALESCE(MAX(number),0) AS n FROM patches WHERE release_id = @r',
-      {'r': releaseId},
-    );
-    final number = _int(maxR.first['n']) + 1;
-    final r = await _q(
-      'INSERT INTO patches(app_id, release_id, number, status, notes, metadata) '
-      'VALUES (@a,@r,@n,@s,@no,@md) RETURNING id',
-      {
-        'a': appId,
-        'r': releaseId,
-        'n': number,
-        's': PatchStatus.draft.name,
-        'no': notes,
-        'md': metadata == null ? null : jsonEncode(metadata),
-      },
-    );
-    return (await patch(_int(r.first['id'])))!;
+    // The number is computed inside the INSERT, so there is no window between
+    // reading MAX(number) and writing. SQLite serializes every statement, which
+    // makes that atomic. Postgres runs concurrent statements, so two publishers
+    // can still compute the same number; UNIQUE(release_id, number) rejects the
+    // loser, and we retry, where the winner's row is now visible.
+    //
+    // Must not be called inside `tx`: on Postgres a 23505 aborts the whole
+    // transaction, so every retry would fail with 25P02 instead.
+    const maxAttempts = 8;
+    for (var attempt = 1; ; attempt++) {
+      try {
+        final r = await _q(
+          'INSERT INTO patches(app_id, release_id, number, status, notes, metadata) '
+          'VALUES (@a, @r, (SELECT COALESCE(MAX(number),0)+1 FROM patches '
+          'WHERE release_id = @r), @s, @no, @md) RETURNING id',
+          {
+            'a': appId,
+            'r': releaseId,
+            's': PatchStatus.draft.name,
+            'no': notes,
+            'md': metadata == null ? null : jsonEncode(metadata),
+          },
+        );
+        return (await patch(_int(r.first['id'])))!;
+      } on Object catch (e) {
+        if (!isUniqueViolation(e) || attempt >= maxAttempts) rethrow;
+        // Jitter, so a burst of publishers does not collide in lockstep.
+        await Future<void>.delayed(
+          Duration(milliseconds: 2 + _rng.nextInt(10 * attempt)),
+        );
+      }
+    }
   }
 
   Future<PatchRow?> patch(int id) async {
@@ -1918,6 +1932,23 @@ class Repository {
         ? null
         : _int(m['signing_key_id']),
   );
+
+  /// Compare-and-set: moves the artifact from [from] to [to] only if it is
+  /// still in [from]. Returns whether this call made the move. Use it where two
+  /// requests can race on one artifact (same upload token).
+  Future<bool> transitionArtifactStatus(
+    int artifactId,
+    ArtifactStatus from,
+    ArtifactStatus to,
+  ) async {
+    requireArtifactTransition(from, to);
+    final r = await _q(
+      'UPDATE artifacts SET status = @to WHERE id = @id AND status = @from '
+      'RETURNING id',
+      {'to': to.name, 'from': from.name, 'id': artifactId},
+    );
+    return r.isNotEmpty;
+  }
 
   Future<void> setArtifactStatus(int artifactId, ArtifactStatus status) => _q(
     'UPDATE artifacts SET status = @s WHERE id = @id',

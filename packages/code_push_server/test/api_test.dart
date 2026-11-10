@@ -2020,6 +2020,307 @@ void main() {
     });
   });
 
+  group('a failed store write leaves the upload retryable', () {
+    // WAS: `_upload` set the artifact to `uploading` and then called
+    // `store.put`. A throw (object store down, disk full) left it `uploading`
+    // for good: the retry hit `status != pending` (409) and re-registering hit
+    // the duplicate check, so the patch could never reach `ready`.
+    const bd = 'BOUNDARY';
+    String field(String n, String v) =>
+        '--$bd\r\ncontent-disposition: form-data; name="$n"\r\n\r\n$v\r\n';
+    const goodBody =
+        '--BOUNDARY\r\ncontent-disposition: form-data; name="file"; '
+        'filename="p"\r\n\r\nabc\r\n--BOUNDARY--\r\n';
+
+    Future<({String appId, int patchId, String token})> registered([
+      int size = 3,
+    ]) async {
+      final app = await seedApp();
+      final patch = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${app.appId}/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': app.releaseId},
+        ),
+      );
+      final patchId = patch['id'] as int;
+      final reg = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${app.appId}/patches/$patchId/artifacts',
+          bearer: _bootstrapKey,
+          headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+          body:
+              '${field('arch', 'aarch64')}${field('platform', 'android')}'
+              '${field('hash', 'unchecked-for-patches')}${field('size', '$size')}'
+              '--$bd--\r\n',
+        ),
+      );
+      return (
+        appId: app.appId,
+        patchId: patchId,
+        token: (reg['url'] as String).split('/').last,
+      );
+    }
+
+    /// Mirrors the CLI's resumable loop (`_resumableUpload` in
+    /// code_push_client.dart): chunked PUTs, a 308 with progress resets the
+    /// failure count, a 5xx backs off and asks `bytes */TOTAL`, five
+    /// consecutive failures give up, and a non-200/308 answer to the query
+    /// aborts. Gives up at [cap] requests so a loop shows as `looped`.
+    Future<({String outcome, int requests})> cliUpload(
+      String token,
+      String data, {
+      required int chunk,
+      int cap = 100,
+    }) async {
+      final total = data.length;
+      var offset = 0;
+      var failures = 0;
+      var requests = 0;
+      int? rangeEnd(Response r) {
+        final h = r.headers['range'];
+        if (h == null) return null;
+        return int.parse(h.substring(h.lastIndexOf('-') + 1)) + 1;
+      }
+
+      Future<Response> put(String range, String body) {
+        requests++;
+        return send(
+          'PUT',
+          '/api/v1/uploads/$token',
+          bearer: _bootstrapKey,
+          headers: {'content-range': range},
+          body: body,
+        );
+      }
+
+      while (offset < total) {
+        if (requests >= cap) return (outcome: 'looped', requests: requests);
+        final end = offset + chunk < total ? offset + chunk : total;
+        final r = await put(
+          'bytes $offset-${end - 1}/$total',
+          data.substring(offset, end),
+        );
+        if (r.statusCode == HttpStatus.ok) {
+          offset = total;
+        } else if (r.statusCode == 308) {
+          final next = rangeEnd(r) ?? 0;
+          if (next > offset) {
+            failures = 0;
+          } else if (++failures > 5) {
+            return (outcome: 'failed', requests: requests);
+          }
+          offset = next;
+        } else if (r.statusCode >= 500) {
+          if (++failures > 5) return (outcome: 'failed', requests: requests);
+          final q = await put('bytes */$total', '');
+          if (q.statusCode == HttpStatus.ok) {
+            offset = total;
+          } else if (q.statusCode == 308) {
+            offset = rangeEnd(q) ?? 0;
+          } else {
+            return (outcome: 'failed', requests: requests);
+          }
+        } else {
+          return (outcome: 'failed', requests: requests);
+        }
+      }
+      return (outcome: 'ok', requests: requests);
+    }
+
+    _FlakyStore flakyApi() {
+      final root = Directory('${tmp.path}/artifacts')
+        ..createSync(recursive: true);
+      final staging = Directory('${tmp.path}/staging')
+        ..createSync(recursive: true);
+      final store = _FlakyStore(root, staging);
+      api = Api(repo, store, config);
+      return store;
+    }
+
+    Future<Response> uploadBody(String token) => send(
+      'POST',
+      '/api/v1/uploads/$token',
+      bearer: _bootstrapKey,
+      headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+      body: goodBody,
+    );
+
+    test(
+      'multipart: the token returns to pending and the retry works',
+      () async {
+        final store = flakyApi();
+        final r = await registered();
+        final art = (await repo.artifactByToken(r.token))!;
+
+        store.failNextPut = true;
+        final failed = await uploadBody(r.token);
+        expect(failed.statusCode, greaterThanOrEqualTo(500));
+        expect(
+          (await repo.artifactByToken(r.token))!.status,
+          ArtifactStatus.pending,
+        );
+        expect(
+          await store.exists(art.storageKey),
+          isFalse,
+          reason: 'a partial object must not be left behind',
+        );
+
+        final retry = await uploadBody(r.token);
+        expect(retry.statusCode, HttpStatus.noContent);
+        expect(
+          (await repo.artifactByToken(r.token))!.status,
+          ArtifactStatus.verified,
+        );
+        expect((await repo.patch(r.patchId))!.status, PatchStatus.ready);
+      },
+    );
+
+    test('resumable: a commit that fails once succeeds on the query', () async {
+      final store = flakyApi();
+      final r = await registered(6);
+      store.failNextPut = true;
+
+      final res = await cliUpload(r.token, 'abcdef', chunk: 2);
+
+      expect(res.outcome, 'ok');
+      expect(
+        res.requests,
+        4,
+        reason:
+            '3 chunks and one status query that re-runs the commit; '
+            'dropping the staged bytes would re-send every chunk',
+      );
+      final art = (await repo.artifactByToken(r.token))!;
+      expect(
+        art.status,
+        ArtifactStatus.verified,
+        reason: 'a 200 is not enough',
+      );
+      expect(await store.exists(art.storageKey), isTrue);
+      expect((await repo.patch(r.patchId))!.status, PatchStatus.ready);
+    });
+
+    test('resumable: a commit that always fails ends after a bounded number '
+        'of requests', () async {
+      final store = flakyApi();
+      final r = await registered(6);
+      store.alwaysFail = true;
+
+      final res = await cliUpload(r.token, 'abcdef', chunk: 2);
+
+      expect(res.outcome, 'failed', reason: 'it must not loop');
+      expect(res.requests, lessThan(20));
+      final art = (await repo.artifactByToken(r.token))!;
+      expect(art.status, isNot(ArtifactStatus.verified));
+      expect(await store.exists(art.storageKey), isFalse);
+    });
+
+    test('resumable: bad staged bytes fail verification and restart', () async {
+      flakyApi();
+      final r = await registered(6);
+      // 5 bytes against a registered size of 6: verification rejects it.
+      final res = await cliUpload(r.token, 'abcde', chunk: 2);
+      expect(res.outcome, 'failed');
+      expect(
+        (await repo.artifactByToken(r.token))!.status,
+        ArtifactStatus.failed,
+      );
+    });
+
+    test('resumable: losing the claim is a conflict, not a takeover', () async {
+      final store = flakyApi();
+      api = Api(_RacingRepo(repo.db), store, config);
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      final res = await send(
+        'PUT',
+        '/api/v1/uploads/${r.token}',
+        bearer: _bootstrapKey,
+        headers: {'content-range': 'bytes 0-2/3'},
+        body: 'abc',
+      );
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(
+        (await repo.artifactByToken(r.token))!.status,
+        ArtifactStatus.uploading,
+      );
+      expect(await store.exists(art.storageKey), isFalse);
+    });
+
+    test('multipart: an artifact that became failed cannot verify', () async {
+      final store = flakyApi();
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      store.afterPut = () =>
+          repo.setArtifactStatus(art.id, ArtifactStatus.failed);
+
+      final res = await uploadBody(r.token);
+
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(
+        (await repo.artifactByToken(r.token))!.status,
+        ArtifactStatus.failed,
+      );
+    });
+
+    test(
+      'multipart: losing the claim is a conflict, not a double write',
+      () async {
+        // Both requests read `pending` before either claims. The loser must
+        // stop at the compare-and-set rather than write the shared key.
+        final store = flakyApi();
+        api = Api(_RacingRepo(repo.db), store, config);
+        final r = await registered();
+        final art = (await repo.artifactByToken(r.token))!;
+
+        final res = await uploadBody(r.token);
+
+        expect(res.statusCode, HttpStatus.conflict);
+        expect(await res.readAsString(), contains('already in use'));
+        expect(await store.exists(art.storageKey), isFalse);
+      },
+    );
+
+    test(
+      'multipart: a failure after another request verified is a no-op',
+      () async {
+        // Two requests share a token and a storage key. B verifies while A's put
+        // is failing; A's cleanup must not demote the artifact or delete B's
+        // object.
+        final store = flakyApi();
+        final r = await registered();
+        final art = (await repo.artifactByToken(r.token))!;
+        store.beforeFailure = () async {
+          await store.put(art.storageKey, utf8.encode('abc'));
+          await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
+        };
+        store.failNextPut = true;
+
+        final failed = await uploadBody(r.token);
+        expect(failed.statusCode, greaterThanOrEqualTo(500));
+        expect(
+          (await repo.artifactByToken(r.token))!.status,
+          ArtifactStatus.verified,
+        );
+        expect(await store.exists(art.storageKey), isTrue);
+      },
+    );
+
+    test(
+      'multipart: a second request with a claimed token conflicts',
+      () async {
+        flakyApi();
+        final r = await registered();
+        final art = (await repo.artifactByToken(r.token))!;
+        await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
+        expect((await uploadBody(r.token)).statusCode, HttpStatus.conflict);
+      },
+    );
+  });
+
   // -------------------------------------------------------------------------
   group('untrusted X-Forwarded-For is surfaced', () {
     // X-Forwarded-For used to be honored unconditionally. Ignoring it unless
@@ -3955,4 +4256,51 @@ class _FailingEvents extends Repository {
     int? bootStartedAt,
     String? updaterRevision,
   }) => throw StateError('injected event insert failure');
+}
+
+/// A filesystem store whose next `put` writes half the bytes and then throws,
+/// like a disk filling up or a connection dropping mid-write.
+class _FlakyStore extends FilesystemArtifactStore {
+  _FlakyStore(super.root, super.staging);
+
+  bool failNextPut = false;
+  bool alwaysFail = false;
+
+  /// Runs after a successful `put`, before the caller verifies.
+  Future<void> Function()? afterPut;
+
+  /// Runs inside the failing `put`, before it throws: what a concurrent
+  /// request sharing the key might have done in the meantime.
+  Future<void> Function()? beforeFailure;
+
+  @override
+  Future<void> put(String key, List<int> bytes) async {
+    if (failNextPut || alwaysFail) {
+      failNextPut = false;
+      await super.put(key, bytes.sublist(0, bytes.length ~/ 2));
+      await beforeFailure?.call();
+      throw const FileSystemException('injected: no space left on device');
+    }
+    await super.put(key, bytes);
+    await afterPut?.call();
+  }
+}
+
+/// A repository where the first read of a `pending` artifact is followed by
+/// another request claiming it, so the caller's `status == pending` check
+/// passes on a stale read and only its compare-and-set can notice.
+class _RacingRepo extends Repository {
+  _RacingRepo(super.db);
+
+  bool _raced = false;
+
+  @override
+  Future<ArtifactRow?> artifactByToken(String token) async {
+    final art = await super.artifactByToken(token);
+    if (!_raced && art != null && art.status == ArtifactStatus.pending) {
+      _raced = true;
+      await setArtifactStatus(art.id, ArtifactStatus.uploading);
+    }
+    return art;
+  }
 }

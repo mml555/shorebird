@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:code_push_server/src/config.dart';
+import 'package:code_push_server/src/db.dart';
 import 'package:code_push_server/src/domain.dart';
 import 'package:code_push_server/src/repository.dart';
 import 'package:test/test.dart';
@@ -492,4 +493,132 @@ void main() {
       });
     });
   });
+
+  group('createPatch numbering', () {
+    late Directory tmp;
+    late Repository repo;
+    late String appId;
+    late int releaseId;
+
+    setUp(() async {
+      tmp = Directory.systemTemp.createTempSync('cps_db_patch_number');
+      repo = await Repository.open(sqliteConfig(tmp.path));
+      appId = (await repo.createApp('demo', 1)).appId;
+      releaseId = (await repo.createRelease(
+        appId: appId,
+        version: '1.0.0+1',
+        flutterRevision: 'abc',
+      )).id;
+    });
+
+    tearDown(() async {
+      await repo.close();
+      tmp.deleteSync(recursive: true);
+    });
+
+    test('concurrent publishers all succeed with distinct numbers', () async {
+      final patches = await Future.wait([
+        for (var i = 0; i < 12; i++) repo.createPatch(appId, releaseId),
+      ]);
+      expect(patches.map((p) => p.number).toList()..sort(), [
+        for (var i = 1; i <= 12; i++) i,
+      ]);
+    });
+
+    test('a unique violation from a racing publisher is retried', () async {
+      // Postgres lets two statements compute the same MAX+1; SQLite serializes
+      // them, so the loser cannot be produced by timing here. Instead the
+      // first INSERT is made to lose for real: a competitor's row takes
+      // number 1, and a duplicate insert raises the backend's genuine
+      // UNIQUE(release_id, number) error, which createPatch must retry.
+      final racing = Repository(_LoseFirstPatchInsert(repo.db, releaseId));
+      final p = await racing.createPatch(appId, releaseId);
+      expect(p.number, 2);
+      expect((await repo.patchesForRelease(releaseId)).length, 2);
+    });
+
+    test('an error that is not a unique violation is not retried', () async {
+      final failing = Repository(_FailPatchInsert(repo.db));
+      await expectLater(
+        failing.createPatch(appId, releaseId),
+        throwsA(isA<StateError>()),
+      );
+    });
+  });
+}
+
+const _insertCompetitor =
+    'INSERT INTO patches(app_id, release_id, number, status) '
+    "VALUES (@a, @r, 1, 'draft')";
+
+/// Wraps a [Db]; on the first `INSERT INTO patches` it makes a competitor take
+/// number 1 and then raises the backend's real unique-violation error.
+class _LoseFirstPatchInsert extends _DelegatingDb {
+  _LoseFirstPatchInsert(super.inner, this.releaseId);
+
+  final int releaseId;
+  var _lost = false;
+
+  @override
+  Future<List<Map<String, Object?>>> query(
+    String sql, [
+    Map<String, Object?> params = const {},
+  ]) async {
+    if (!_lost && sql.startsWith('INSERT INTO patches')) {
+      _lost = true;
+      final args = {'a': params['a'], 'r': releaseId};
+      await inner.query(_insertCompetitor, args);
+      return inner.query(_insertCompetitor, args); // throws
+    }
+    return inner.query(sql, params);
+  }
+}
+
+class _FailPatchInsert extends _DelegatingDb {
+  _FailPatchInsert(super.inner);
+
+  @override
+  Future<List<Map<String, Object?>>> query(
+    String sql, [
+    Map<String, Object?> params = const {},
+  ]) async {
+    if (sql.startsWith('INSERT INTO patches')) {
+      throw StateError('injected failure');
+    }
+    return inner.query(sql, params);
+  }
+}
+
+class _DelegatingDb implements Db {
+  _DelegatingDb(this.inner);
+
+  final Db inner;
+
+  @override
+  Dialect get dialect => inner.dialect;
+
+  @override
+  Future<List<Map<String, Object?>>> query(
+    String sql, [
+    Map<String, Object?> params = const {},
+  ]) => inner.query(sql, params);
+
+  @override
+  Future<T> tx<T>(Future<T> Function(DbSession s) body) => inner.tx(body);
+
+  @override
+  Future<bool> ping() => inner.ping();
+
+  @override
+  Future<void> close() => inner.close();
+
+  @override
+  String truncPeriod(String unit, String tsCol) =>
+      inner.truncPeriod(unit, tsCol);
+
+  @override
+  String extractDow(String tsCol) => inner.extractDow(tsCol);
+
+  @override
+  String extractHour(String tsCol) => inner.extractHour(tsCol);
 }

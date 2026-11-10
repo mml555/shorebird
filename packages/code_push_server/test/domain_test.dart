@@ -82,6 +82,14 @@ void main() {
         ),
         returnsNormally,
       );
+      // A failed store write hands the upload token back.
+      expect(
+        () => requireArtifactTransition(
+          ArtifactStatus.uploading,
+          ArtifactStatus.pending,
+        ),
+        returnsNormally,
+      );
     });
 
     test('allows same-state (idempotent) transitions', () {
@@ -102,6 +110,13 @@ void main() {
         () => requireArtifactTransition(
           ArtifactStatus.verified,
           ArtifactStatus.uploading,
+        ),
+        throwsConflict(),
+      );
+      expect(
+        () => requireArtifactTransition(
+          ArtifactStatus.verified,
+          ArtifactStatus.pending,
         ),
         throwsConflict(),
       );

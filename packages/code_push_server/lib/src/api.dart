@@ -2678,8 +2678,28 @@ class Api {
     // move the artifact forward from there, so the patch never reaches `ready`.
     final (_, file) = await _parseMultipart(req);
     if (file == null) throw badRequest('Missing file part');
-    await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
-    await store.put(art.storageKey, file.bytes);
+    // Claim the token with a compare-and-set so only one request owns the write;
+    // a concurrent request with the same token loses here, not later.
+    if (!await repo.transitionArtifactStatus(
+      art.id,
+      ArtifactStatus.pending,
+      ArtifactStatus.uploading,
+    )) {
+      throw conflict('Upload token not reusable (already in use)');
+    }
+    try {
+      await store.put(art.storageKey, file.bytes);
+    } on Object catch (e, st) {
+      // The write failed (object store down, disk full, timeout). Without this
+      // the artifact stays `uploading` forever: the retry hits the
+      // `status != pending` conflict above, and re-registering hits the
+      // duplicate check in `_createPatchArtifact`, so the patch never reaches
+      // `ready`. Remove whatever part of the object landed, so it cannot be
+      // mistaken for the real thing, and hand the token back.
+      obs.error('artifact store write failed (artifact ${art.id})', e, st);
+      await _abandonWrite(art);
+      rethrow;
+    }
 
     final reason = await store.verify(
       art.storageKey,
@@ -2701,7 +2721,7 @@ class Api {
       });
       throw badRequest('Artifact verification failed: $reason');
     }
-    await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
+    await _markVerified(art);
     obs.info('artifact verified', {
       'artifact': art.id,
       'owner': art.ownerKind,
@@ -2710,6 +2730,50 @@ class Api {
     });
     await _maybeMarkPatchReady(art);
     return Response(HttpStatus.noContent);
+  }
+
+  /// Moves [art] `uploading -> verified` with a compare-and-set, so a `failed`
+  /// artifact can never become `verified` and a request that lost its claim
+  /// cannot verify. Throws 409 if the artifact is no longer `uploading`.
+  Future<void> _markVerified(ArtifactRow art) async {
+    if (await repo.transitionArtifactStatus(
+      art.id,
+      ArtifactStatus.uploading,
+      ArtifactStatus.verified,
+    )) {
+      return;
+    }
+    throw conflict('Artifact ${art.id} is no longer uploading');
+  }
+
+  /// Undoes a failed store write for [art]: `uploading` -> `pending` so the same
+  /// token can be retried, then best-effort removal of any partial object. The
+  /// reset is a compare-and-set and the delete only happens if it won: if the
+  /// artifact is no longer `uploading` (another request finished it), the
+  /// object at the shared key is that request's and must be kept.
+  Future<void> _abandonWrite(ArtifactRow art) async {
+    try {
+      final reset = await repo.transitionArtifactStatus(
+        art.id,
+        ArtifactStatus.uploading,
+        ArtifactStatus.pending,
+      );
+      if (!reset) {
+        obs.info('artifact left as is after a failed write', {
+          'artifact': art.id,
+        });
+        return;
+      }
+    } on Object catch (e, st) {
+      // Stuck `uploading` until an operator intervenes; say so loudly.
+      obs.error('could not reset artifact ${art.id} to pending', e, st);
+      return;
+    }
+    try {
+      await store.delete(art.storageKey);
+    } on Object catch (e, st) {
+      obs.error('could not remove partial object for ${art.id}', e, st);
+    }
   }
 
   /// GCS-style resumable upload: chunked PUTs with `Content-Range`, `308` +
@@ -2742,17 +2806,26 @@ class Api {
     // Query the current offset: `Content-Range: bytes */TOTAL`.
     if (cr.isQuery) {
       await req.read().drain<void>();
+      if (art.status == ArtifactStatus.verified) return Response(HttpStatus.ok);
       final size = store.stagedSize(token);
-      if (art.status == ArtifactStatus.verified || size >= cr.total) {
-        return Response(HttpStatus.ok);
+      if (size > 0 && size >= cr.total) {
+        // Every byte is staged but the artifact never verified: a commit
+        // failed (or the process died before it ran). Answering 200 here would
+        // make the client report success for an artifact that does not exist,
+        // and dropping the staged bytes would make it re-upload everything, so
+        // finish the commit now. A failure is the same 5xx as a failed commit;
+        // the client's own status query then gets a non-200/308 answer and
+        // aborts, which is what ends the retrying. Bad bytes get the verify
+        // failure.
+        final done = await _claimResumable(art, token);
+        if (done != null) return done;
+        return _commitResumable(req, art, token, size);
       }
       return _resumeIncomplete(size);
     }
 
-    if (art.status == ArtifactStatus.verified) return Response(HttpStatus.ok);
-    if (art.status == ArtifactStatus.pending) {
-      await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
-    }
+    final done = await _claimResumable(art, token);
+    if (done != null) return done;
     final chunk = await _collect(req.read(), max: config.maxUploadBytes);
     await store.stageChunk(token, cr.start, chunk);
     final received = store.stagedSize(token);
@@ -2764,9 +2837,59 @@ class Api {
       return _resumeIncomplete(received);
     }
     _audit(req)?.note(detail: {'complete': true, 'staged_bytes': received});
+    return _commitResumable(req, art, token, received);
+  }
 
-    // Complete: commit to the object store + verify.
-    await store.commitStaged(token, art.storageKey);
+  /// Claims a `pending` resumable artifact with a compare-and-set, so two
+  /// requests on one token cannot both own it. Returns a response to send
+  /// instead of proceeding (200 if the artifact is already verified), or null
+  /// to proceed. Throws 409 if another request holds the claim.
+  Future<Response?> _claimResumable(ArtifactRow art, String token) async {
+    if (art.status == ArtifactStatus.verified) return Response(HttpStatus.ok);
+    if (art.status != ArtifactStatus.pending) return null;
+    if (await repo.transitionArtifactStatus(
+      art.id,
+      ArtifactStatus.pending,
+      ArtifactStatus.uploading,
+    )) {
+      return null;
+    }
+    if ((await repo.artifactByToken(token))?.status ==
+        ArtifactStatus.verified) {
+      return Response(HttpStatus.ok);
+    }
+    throw conflict('Upload token not reusable (already in use)');
+  }
+
+  /// Commits the fully staged bytes for [token] to the store and verifies them.
+  Future<Response> _commitResumable(
+    Request req,
+    ArtifactRow art,
+    String token,
+    int received,
+  ) async {
+    try {
+      await store.commitStaged(token, art.storageKey);
+    } on Object catch (e, st) {
+      obs.error('artifact store commit failed (artifact ${art.id})', e, st);
+      // Keep the staged bytes: they are complete, and the client's status
+      // query re-runs this commit, so only the commit is retried, not the
+      // whole upload. Hand the claim back, and remove the partial object only
+      // if that reset won; otherwise another request finished the artifact and
+      // the object at this key is its.
+      try {
+        if (await repo.transitionArtifactStatus(
+          art.id,
+          ArtifactStatus.uploading,
+          ArtifactStatus.pending,
+        )) {
+          await store.delete(art.storageKey);
+        }
+      } on Object catch (e2, st2) {
+        obs.error('could not clean up failed commit of ${art.id}', e2, st2);
+      }
+      rethrow;
+    }
     final reason = await store.verify(
       art.storageKey,
       art.hash,
@@ -2774,6 +2897,8 @@ class Api {
       checkHash: art.ownerKind == 'release',
     );
     if (reason != null) {
+      // The staged bytes are bad; drop them so a resume restarts cleanly.
+      store.discardStaged(token);
       await repo.setArtifactStatus(art.id, ArtifactStatus.failed);
       await _auditDetail(
         req,
@@ -2783,7 +2908,7 @@ class Api {
       );
       throw badRequest('Artifact verification failed: $reason');
     }
-    await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
+    await _markVerified(art);
     obs.info('artifact verified', {
       'artifact': art.id,
       'owner': art.ownerKind,
