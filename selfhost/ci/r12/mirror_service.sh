@@ -12,8 +12,12 @@
 set -euo pipefail
 
 MIRRORS="${MIRRORS:-/Users/mendell/shorebird/selfhost/cdn/mirrors}"
-PINNED="${R12_FLUTTER_REVISION:-$(cat "$(dirname "${BASH_SOURCE[0]}")/../../../bin/internal/flutter.version")}"
-FLUTTER_REF="${R12_FLUTTER_REF:-refs/heads/shorebird/dev}"
+# Defaults are the certified 3.44.8 pin and its ref; a candidate is named
+# explicitly, and only as a full SHA (an empty pin would match an empty answer).
+PINNED="${R12_FLUTTER_REVISION:-a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61}"
+FLUTTER_REF="${R12_FLUTTER_REF:-refs/heads/selfhost/3.44.8}"
+[[ "$PINNED" =~ ^[0-9a-f]{40}$ ]] \
+  || { echo "R12_FLUTTER_REVISION must be a full 40-hex SHA, got '$PINNED'" >&2; exit 1; }
 
 [[ -d "$MIRRORS/flutter.git" ]] || { echo "no mirror at $MIRRORS/flutter.git" >&2; exit 1; }
 
@@ -34,5 +38,5 @@ done
 
 # Not "the service is up" — the service is serving THE PINNED REVISION. Those are
 # different claims and only the second one is worth anything.
-[[ "$got" == "$PINNED" ]] || { echo "mirror serves '$got', expected $PINNED" >&2; exit 1; }
+[[ -n "$got" && "$got" == "$PINNED" ]] || { echo "mirror serves '$got', expected $PINNED" >&2; exit 1; }
 echo "r12-flutter-git: serving $FLUTTER_REF -> $PINNED"

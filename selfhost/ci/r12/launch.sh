@@ -67,14 +67,18 @@ fi
 # The owned Flutter mirror must be up AND serving the pinned revision.
 docker ps --format '{{.Names}}' | grep -qx r12-flutter-git \
   || die "r12-flutter-git is not running (the owned Flutter mirror service)"
-# The pin and the ref that carries it come from the revision under test, not from
-# this script: a hardcoded pin here went stale at every promotion.
-PINNED="${R12_FLUTTER_REVISION:-$(cat "$HERE/../../../bin/internal/flutter.version" 2>/dev/null)}"
-FLUTTER_REF="${R12_FLUTTER_REF:-refs/heads/shorebird/dev}"
+# Defaults are the certified 3.44.8 pin and its ref. A candidate pin is named
+# explicitly (R12_FLUTTER_REVISION + R12_FLUTTER_REF), never read from whatever
+# checkout this runs in, and it must be a full SHA: an empty pin would compare
+# equal to an empty ls-remote answer and pass.
+PINNED="${R12_FLUTTER_REVISION:-a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61}"
+FLUTTER_REF="${R12_FLUTTER_REF:-refs/heads/selfhost/3.44.8}"
+[[ "$PINNED" =~ ^[0-9a-f]{40}$ ]] \
+  || die "R12_FLUTTER_REVISION must be a full 40-hex SHA, got '$PINNED'"
 got="$(docker run --rm --platform linux/amd64 --add-host host.docker.internal:host-gateway --entrypoint git alpine/git:latest \
         ls-remote git://host.docker.internal:9418/flutter.git \
         "$FLUTTER_REF" 2>/dev/null | awk '{print $1}')"
-[[ "$got" == "$PINNED" ]] \
+[[ -n "$got" && "$got" == "$PINNED" ]] \
   || die "owned Flutter mirror serves '$got', expected the pinned $PINNED"
 echo "   owned flutter mirror     : serves $PINNED"
 
