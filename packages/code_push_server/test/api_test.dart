@@ -2417,19 +2417,15 @@ void main() {
       );
     });
 
-    test('multipart: a holder reclaimed while alive cannot verify or fail '
-        'over the new owner', () async {
+    test('multipart: a stale holder cannot mark verified over the new '
+        'owner', () async {
       final store = flakyApi();
       final r = await registered();
       final art = (await repo.artifactByToken(r.token))!;
-      store.afterPut = () async {
-        // A has written; before it verifies, B reclaims, claims and finishes.
+      String? claimB;
+      store.beforeVerify = () async {
         expect(await repo.reclaimStaleUpload(art.id, Duration.zero), isTrue);
-        final claimB = (await repo.claimArtifact(art.id))!;
-        expect(
-          await repo.settleClaim(art.id, claimB, ArtifactStatus.verified),
-          isTrue,
-        );
+        claimB = await repo.claimArtifact(art.id);
       };
 
       final res = await uploadBody(r.token);
@@ -2437,26 +2433,27 @@ void main() {
       expect(res.statusCode, HttpStatus.conflict);
       expect(
         (await repo.artifactByToken(r.token))!.status,
-        ArtifactStatus.verified,
-        reason: 'a stale holder must not overwrite verified',
+        ArtifactStatus.uploading,
+        reason: 'still B\'s, not verified by the stale holder',
       );
-      expect(await store.exists(art.storageKey), isTrue);
+      expect(
+        await repo.settleClaim(art.id, claimB!, ArtifactStatus.verified),
+        isTrue,
+        reason: 'B still owns the claim',
+      );
     });
 
-    test('resumable: a reclaimed holder cannot fail the new owner or '
-        'discard its staged bytes', () async {
+    test('resumable: a stale holder cannot fail the new owner or discard its '
+        'staged bytes', () async {
       final store = flakyApi();
       final r = await registered(6);
       final art = (await repo.artifactByToken(r.token))!;
-      // 5 bytes against a registered size of 6: A's verify would fail.
+      // 5 bytes against a registered size of 6: the holder's verify fails.
       await store.stageChunk(r.token, 0, utf8.encode('abcde'));
-      store.afterPut = () async {
+      String? claimB;
+      store.beforeVerify = () async {
         expect(await repo.reclaimStaleUpload(art.id, Duration.zero), isTrue);
-        final claimB = (await repo.claimArtifact(art.id))!;
-        expect(
-          await repo.settleClaim(art.id, claimB, ArtifactStatus.verified),
-          isTrue,
-        );
+        claimB = await repo.claimArtifact(art.id);
       };
 
       final res = await send(
@@ -2469,9 +2466,14 @@ void main() {
       expect(res.statusCode, HttpStatus.conflict);
       expect(
         (await repo.artifactByToken(r.token))!.status,
-        ArtifactStatus.verified,
+        ArtifactStatus.uploading,
+        reason: 'not failed by the stale holder',
       );
       expect(store.stagedSize(r.token), 5, reason: 'staged file kept');
+      expect(
+        await repo.settleClaim(art.id, claimB!, ArtifactStatus.verified),
+        isTrue,
+      );
     });
 
     test('resumable: a chunk is refused if a commit started while its body '
@@ -4556,6 +4558,20 @@ class _FlakyStore extends FilesystemArtifactStore {
 
   /// Runs after a successful `put`, before the caller verifies.
   Future<void> Function()? afterPut;
+
+  /// Runs at the start of `verify`, after the caller's heartbeat.
+  Future<void> Function()? beforeVerify;
+
+  @override
+  Future<String?> verify(
+    String key,
+    String expectedHash,
+    int expectedSize, {
+    required bool checkHash,
+  }) async {
+    await beforeVerify?.call();
+    return super.verify(key, expectedHash, expectedSize, checkHash: checkHash);
+  }
 
   /// Runs inside the failing `put`, before it throws: what a concurrent
   /// request sharing the key might have done in the meantime.

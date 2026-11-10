@@ -50,13 +50,15 @@ void main() {
       () async {
         await store.put('patch/1/tok', [1, 2, 3]);
         final dir = '${tmp.path}/artifacts/patch/1';
-        final old = File('$dir/tok.tmp-aaaa')..writeAsBytesSync([1]);
+        final old = File('$dir/tok.tmp-0123456789abcdef')
+          ..writeAsBytesSync([1]);
         old.setLastModifiedSync(
           DateTime.now().subtract(const Duration(days: 3)),
         );
-        final young = File('$dir/tok.tmp-bbbb')..writeAsBytesSync([1]);
+        final young = File('$dir/tok.tmp-fedcba9876543210')
+          ..writeAsBytesSync([1]);
 
-        FilesystemArtifactStore.sweepTempFiles(
+        await FilesystemArtifactStore.sweepTempFiles(
           Directory('${tmp.path}/artifacts'),
         );
 
@@ -65,6 +67,25 @@ void main() {
         expect(File('$dir/tok').existsSync(), isTrue);
       },
     );
+
+    test('the sweep never deletes objects because of the data path', () async {
+      // A data directory whose own path contains `.tmp-` must not make every
+      // object look like a temp file.
+      final root = Directory('${tmp.path}/app.tmp-1/artifacts')
+        ..createSync(recursive: true);
+      final odd = FilesystemArtifactStore(
+        root,
+        Directory('${tmp.path}/staging2')..createSync(),
+      );
+      await odd.put('patch/1/tok', [1, 2, 3]);
+      File(
+        '${root.path}/patch/1/tok',
+      ).setLastModifiedSync(DateTime.now().subtract(const Duration(days: 9)));
+
+      await FilesystemArtifactStore.sweepTempFiles(root);
+
+      expect(File('${root.path}/patch/1/tok').existsSync(), isTrue);
+    });
 
     test('leaves no temp file behind', () async {
       await store.put('patch/1/tok', [1, 2, 3]);

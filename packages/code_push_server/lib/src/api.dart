@@ -2942,21 +2942,39 @@ class Api {
   /// client would read that as a finished upload). The client retries a 5xx
   /// answer to its status query with backoff and asks again.
   Future<ArtifactRow> _awaitInFlightCommit(ArtifactRow art) async {
-    final deadline = DateTime.now().add(inFlightWait);
-    var cur = art;
-    while (cur.status == ArtifactStatus.uploading) {
-      if (!DateTime.now().isBefore(deadline)) {
-        throw DomainException(
-          HttpStatus.serviceUnavailable,
-          'upload_in_progress',
-          'Upload is still being committed; retry',
-        );
+    // Read-only polling (one SELECT a second), and at most a few waiters per
+    // token: the wait must not turn many queries into many writes. Staleness is
+    // not checked in here; the client's next request does that at its start.
+    final waiting = _waiters[art.token] ?? 0;
+    if (waiting >= _maxWaitersPerToken) throw _commitInProgress();
+    _waiters[art.token] = waiting + 1;
+    try {
+      final deadline = DateTime.now().add(inFlightWait);
+      var cur = art;
+      while (cur.status == ArtifactStatus.uploading) {
+        if (!DateTime.now().isBefore(deadline)) throw _commitInProgress();
+        await Future<void>.delayed(const Duration(seconds: 1));
+        cur = await repo.artifactByToken(art.token) ?? cur;
       }
-      await Future<void>.delayed(const Duration(milliseconds: 250));
-      cur = await _reclaimIfStale(await repo.artifactByToken(art.token) ?? cur);
+      return cur;
+    } finally {
+      final left = (_waiters[art.token] ?? 1) - 1;
+      if (left <= 0) {
+        _waiters.remove(art.token);
+      } else {
+        _waiters[art.token] = left;
+      }
     }
-    return cur;
   }
+
+  static const _maxWaitersPerToken = 4;
+  final Map<String, int> _waiters = {};
+
+  DomainException _commitInProgress() => DomainException(
+    HttpStatus.serviceUnavailable,
+    'upload_in_progress',
+    'Upload is still being committed; retry',
+  );
 
   /// Claims the commit of a fully staged, `pending` artifact with a
   /// compare-and-set, so only one request commits. Returns the claim to commit

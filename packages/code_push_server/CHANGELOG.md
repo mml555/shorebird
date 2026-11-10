@@ -54,18 +54,23 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   its random `claim`, so a holder that was reclaimed while still alive cannot
   reset, verify or fail the new owner's artifact, or delete its object or
   staged file. A claim an old replica made (no start time) is not stolen: its
-  clock starts when a new replica first sees it. Run all replicas on this
-  version before relying on reclaim. After migration 17 an older binary refuses
+  clock starts when a new replica first sees it. **Drain in-flight uploads
+  before a rolling deploy to this version** (an old replica holds `uploading`
+  for a whole resumable upload and does not fence), and run all replicas on
+  this version before relying on reclaim. One residual: a single store write
+  that outlasts the timeout can still land over the new owner's object at the
+  shared key; the fence protects rows, files and staged bytes, not that write. After migration 17 an older binary refuses
   to boot, so a rollback needs the schema restored.
 - **A resumable upload takes its claim only when every byte is staged**, and a
   chunk is re-checked after its body arrives, so nothing restages under a
   running commit. A `bytes */TOTAL` query that finds a commit still running
-  waits up to 45 s, then answers 503; the CLI now retries a 5xx status-query
+  waits up to 45 s (read-only polling, at most 4 waiters per token), then answers
+  503; the CLI now retries a 5xx status-query
   answer with backoff. Before, a client whose final response was lost could
   start a second commit beside the first. (A CLI without that retry fails the
   upload on the 503 while the commit still finishes.)
-- **The filesystem store's temp files** use a random suffix and are swept at
-  startup when older than a day. A 500 names its request id and the log line
+- **The filesystem store's temp files** use a random suffix and are swept in
+  the background at startup when older than a day (matched on the file name). A 500 names its request id and the log line
   carries it with the method and path.
 
 ## 1.4.0 — 2026-11-08

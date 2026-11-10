@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -122,7 +123,7 @@ class FilesystemArtifactStore with _DiskStaging implements ArtifactStore {
       ..createSync(recursive: true);
     final staging = Directory('${cfg.dataDir}/staging')
       ..createSync(recursive: true);
-    sweepTempFiles(root);
+    unawaited(sweepTempFiles(root));
     return FilesystemArtifactStore(root, staging);
   }
 
@@ -168,22 +169,28 @@ class FilesystemArtifactStore with _DiskStaging implements ArtifactStore {
     ).join();
   }
 
+  /// Matches a temp file name written by [put]: the key's name, then `.tmp-`
+  /// and 16 hex characters. Matched against the file name alone, never the
+  /// path, so a data directory whose own path contains `.tmp-` is safe.
+  static final _tmpName = RegExp(r'\.tmp-[0-9a-f]{16}$');
+
   /// Removes temp files from writes that were killed before their rename and
   /// are older than [maxAge]. The age check makes it safe beside other
-  /// replicas on the same volume, whose live writes are young.
-  static void sweepTempFiles(Directory root, {Duration? maxAge}) {
+  /// replicas on the same volume, whose live writes are young. Walks the tree
+  /// asynchronously; [open] does not wait for it.
+  static Future<void> sweepTempFiles(Directory root, {Duration? maxAge}) async {
     final cutoff = DateTime.now().subtract(maxAge ?? const Duration(days: 1));
     try {
-      for (final e in root.listSync(recursive: true, followLinks: false)) {
-        if (e is! File || !e.path.contains(_tmpMarker)) continue;
+      await for (final e in root.list(recursive: true, followLinks: false)) {
+        if (e is! File || !_tmpName.hasMatch(e.uri.pathSegments.last)) continue;
         try {
-          if (e.lastModifiedSync().isBefore(cutoff)) e.deleteSync();
+          if ((await e.lastModified()).isBefore(cutoff)) await e.delete();
         } on FileSystemException {
           // Gone already, or not ours to remove; the next start tries again.
         }
       }
     } on FileSystemException {
-      // An unreadable directory must not stop the server from starting.
+      // An unreadable directory must not stop the sweep or the server.
     }
   }
 
