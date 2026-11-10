@@ -46,7 +46,7 @@ DARWIN_X64_FONT_CELLS = [
 SKY_ONLY_CELLS = [
     '70974f811d448da19a927c581678ef1dbd33605c',
     '4df8f9b6139b67d2cfe9f6aa8212372cade36278',
-    '3a565f273d871d1ef004faf1a87bf45637df8ad0',   # Linux-only publish
+    '3a565f273d871d1ef004faf1a87bf45637df8ad0',   # Android and Mac/Linux hosts; no iOS engine
 ]
 
 

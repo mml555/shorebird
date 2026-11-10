@@ -45,7 +45,7 @@ HASH=""
 CELL=""
 EMIT_MANIFEST=0
 
-usage() { sed -n '3,38p' "${BASH_SOURCE[0]}"; }
+usage() { sed -n '3,33p' "${BASH_SOURCE[0]}"; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

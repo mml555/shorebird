@@ -326,6 +326,10 @@ if [[ -d "$SKY_OUT/gen/dart-pkg/sky_engine" ]] && bash "$SKY_PUB" --hash "$EXP_H
 else
   echo "  ! sky_engine.zip / flutter_gpu.zip not published (no gen/dart-pkg/sky_engine under $SKY_OUT, or publish_sky_packages.sh failed; run it by hand)" >&2
   missing=1
+  # As copy() does: drop what an earlier publish left, so a miss 404s instead
+  # of serving another tree's bytes under this hash.
+  rm -f "$INFRA/sky_engine.zip" "$INFRA/flutter_gpu.zip" "$INFRA/sky_packages_provenance.txt" \
+        "$INFRA/sky_engine.content-diff.txt" "$INFRA/flutter_gpu.content-diff.txt"
 fi
 
 # --- Manifest ----------------------------------------------------------------
