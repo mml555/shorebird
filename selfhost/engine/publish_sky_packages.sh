@@ -205,7 +205,7 @@ publish_one() {  # publish_one <name> <explicit-zip>
 
   local located source_desc
   if ! located="$(locate_zip "$name" "$explicit" "$stock_zip")"; then
-    echo "  ERROR: could not find $name locally." >&2
+    echo "  ERROR: no usable local $name (missing, or refused above)." >&2
     echo "         Looked for: \$ENGINE_OUT/zip_archives/$name.zip" >&2
     echo "                 and $(src_dir_for "$name" || echo '<no source dir known>')" >&2
     echo "         Pass --sky-zip / --gpu-zip <path> if it lives elsewhere." >&2
@@ -284,7 +284,12 @@ if [[ $FAILED -eq 0 ]]; then
   echo "  then add sky_engine/flutter_gpu to @must_be_local in selfhost/cdn/Caddyfile"
   echo "  and re-run the audit; it should print AUDIT CLEAN."
 else
+  # Publish both or neither: remove what this or an earlier run left for this
+  # hash, so the mirror 404s instead of serving stale or unrecorded bytes.
+  for n in sky_engine flutter_gpu; do rm -f "$INFRA/$n.zip" "$INFRA/$n.content-diff.txt"; done
+  rm -f "$REPORT"
   echo
-  echo "FAILED: at least one package was not published; nothing to protect yet." >&2
+  echo "FAILED: at least one package was not published; removed both packages and" >&2
+  echo "        $REPORT for $HASH, so nothing stale is served." >&2
   exit 1
 fi
