@@ -26,6 +26,22 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `EVENT_RETENTION_DAYS`) sweeps `crash_reports` hourly. In production the
   server warns at startup while event or crash retention is unlimited.
 
+### Fixed
+
+- **A failed object-store write no longer strands a patch upload.** When
+  `store.put` threw (store down, disk full, timeout) the artifact stayed
+  `uploading` for good: the retry got a 409 and re-registering hit the duplicate
+  check. The partial object is now removed and the artifact returns to `pending`,
+  so a manual re-run of the upload works. (The CLI's multipart upload has no
+  retry loop of its own.) The reset is a compare-and-set, so a concurrent
+  request that already verified the artifact is not undone. A resumable upload
+  whose final commit fails keeps its staged bytes, and the client's `bytes */TOTAL`
+  query re-runs the commit (200 only once the artifact is verified) instead of
+  reporting a complete upload that never verified.
+- **Concurrent patch publishes for one release no longer fail with an opaque
+  error.** The patch number is allocated inside the INSERT, with a bounded retry
+  on the `UNIQUE(release_id, number)` violation.
+
 ## 1.4.0 — 2026-11-08
 
 ### Changed
