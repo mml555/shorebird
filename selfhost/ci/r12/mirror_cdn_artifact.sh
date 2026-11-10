@@ -25,9 +25,11 @@ CLIENT="${1:?usage: mirror_cdn_artifact.sh <client_path> <gcs_path> [label]}"
 GCS="${2:?usage: mirror_cdn_artifact.sh <client_path> <gcs_path> [label]}"
 LABEL="${3:-release_patch}"
 
-REPO=/Users/mendell/shorebird
-OVERLAY_ROOT="$REPO/selfhost/cdn/overlay"
-LEDGER="$REPO/selfhost/evidence/r12-linux-ci/${LABEL}_closure.tsv"
+# Overridable so the same script runs on another host (ci-build keeps the overlay
+# outside any checkout) and writes its ledger where the caller asks.
+REPO="${R12_REPO:-/Users/mendell/shorebird}"
+OVERLAY_ROOT="${R12_OVERLAY_ROOT:-$REPO/selfhost/cdn/overlay}"
+LEDGER="${R12_LEDGER_DIR:-$REPO/selfhost/evidence/r12-linux-ci}/${LABEL}_closure.tsv"
 
 die() { echo "FAIL: $*" >&2; exit 1; }
 

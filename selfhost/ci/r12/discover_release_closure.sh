@@ -23,7 +23,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # HTTPS, because Gradle 9 refuses insecure Maven repositories and
 # FLUTTER_STORAGE_BASE_URL becomes one during an Android release build.
 SEALED="${R12_CDN:-https://host.docker.internal:8087}"
-CA_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../cdn/tls-r12" && pwd)/ca.crt"
+CA_FILE="${R12_CA_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../cdn/tls-r12" && pwd)/ca.crt}"
 # localhost, not host.docker.internal: the control plane emits absolute
 # localhost URLs for uploads, and socat below makes that reachable.
 CP="${SHOREBIRD_HOSTED_URL:-http://localhost:18081}"
@@ -56,7 +56,9 @@ fi
 if ! docker ps --format '{{.Names}}' | grep -qx "$C"; then
   say "creating the release/patch discovery container"
   docker rm -f "$C" >/dev/null 2>&1
+  # --add-host: Docker Desktop defines host.docker.internal, a Linux engine does not.
   docker run -d --name "$C" --platform linux/amd64 \
+    --add-host host.docker.internal:host-gateway \
     -e HOME=/r12home \
     -e SHOREBIRD_FLUTTER_GIT_URL=git://host.docker.internal:9418/flutter.git \
     -e FLUTTER_STORAGE_BASE_URL="$SEALED" \

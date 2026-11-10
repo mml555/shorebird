@@ -21,7 +21,7 @@ set -uo pipefail
 ENG="${1:-69f9831c360d9152862ec3897c67fb09ae843f3b}"
 MAXIT="${MAXIT:-25}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SEALED=http://host.docker.internal:8086
+SEALED="${R12_CDN:-http://host.docker.internal:8086}"
 REPO_SHA="${R12_REPO_SHA:?set R12_REPO_SHA}"
 
 note() { printf '   %s\n' "$*"; }
@@ -30,7 +30,9 @@ say()  { printf '\n== %s ==\n' "$*"; }
 if ! docker ps --format '{{.Names}}' | grep -qx r12-discovery; then
   say "creating the discovery container"
   docker rm -f r12-discovery >/dev/null 2>&1
+  # --add-host: Docker Desktop defines host.docker.internal, a Linux engine does not.
   docker run -d --name r12-discovery --platform linux/amd64 \
+    --add-host host.docker.internal:host-gateway \
     -e HOME=/r12home \
     -e SHOREBIRD_FLUTTER_GIT_URL=git://host.docker.internal:9418/flutter.git \
     -e FLUTTER_STORAGE_BASE_URL="$SEALED" \
