@@ -23,6 +23,12 @@ import 'dart:typed_data';
 /// engine has neither, so a patchable release built against one would pay the
 /// size cost and buy nothing.
 ///
+/// `InterpretCall` alone is not enough. An engine built on vanilla Dart
+/// carries it too, yet ships with the Shorebird interpreter off on iOS and
+/// says so in its own log line ([iosPatchesDeclinedMarker]). Releases on such
+/// an engine must not request patchable call sites: its gen_snapshot does not
+/// emit them, so the release would fail its own patchability check.
+///
 /// Keyed on the symbol rather than on the engine revision because the revision
 /// is a sha1 of the Flutter binary and Xcode re-signs embedded frameworks,
 /// which changes the file without changing what it can do.
@@ -30,8 +36,15 @@ bool isRouteBEngine(File engineBinary) {
   if (!engineBinary.existsSync()) return false;
   // Substring search over the raw bytes: the symbol table is part of the file,
   // and shelling out to `nm` would make this untestable and platform-bound.
-  return _containsAscii(engineBinary.readAsBytesSync(), 'InterpretCall');
+  final bytes = engineBinary.readAsBytesSync();
+  return _containsAscii(bytes, 'InterpretCall') &&
+      !_containsAscii(bytes, iosPatchesDeclinedMarker);
 }
+
+/// Text an iOS engine logs when it will not start the Shorebird updater
+/// because it cannot run patches (`FlutterDartProject.mm` and `shorebird.cc`
+/// in the engine). Its presence in the binary is the engine declaring that.
+const iosPatchesDeclinedMarker = 'engine cannot run iOS patches';
 
 /// The two instructions every patchable static call ends in, on arm64.
 ///

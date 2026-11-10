@@ -58,6 +58,20 @@ void main() {
       expect(isRouteBEngine(f), isTrue);
     });
 
+    test('is false when the engine declares it cannot run iOS patches', () {
+      // Engine 255fd850: vanilla Dart's InterpretCall is present, but the
+      // engine ships with the interpreter off on iOS and logs that.
+      final f = File('${tmp.path}/Flutter')
+        ..writeAsBytesSync(
+          Uint8List.fromList(
+            'InterpretCall ... This engine cannot run iOS patches, not '
+                    'starting the Shorebird updater.'
+                .codeUnits,
+          ),
+        );
+      expect(isRouteBEngine(f), isFalse);
+    });
+
     test('matches a symbol that spans the middle of the file', () {
       final f = File('${tmp.path}/Flutter')
         ..writeAsBytesSync(
