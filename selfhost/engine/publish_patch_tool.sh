@@ -68,7 +68,7 @@ done
 [[ -n "$OVERLAY" && -z "$REV" ]] && die "--overlay requires --rev"
 [[ -z "$OVERLAY" && -z "$OUT_DIR" ]] && { usage; exit 1; }
 
-command -v cargo >/dev/null || die "cargo not found"
+command -v cargo >/dev/null || die "cargo not found on PATH (on the engine Mac, source selfhost/engine/macos/env.sh, which points CARGO_HOME at the build's rustup toolchain; elsewhere install Rust with rustup)"
 command -v zip   >/dev/null || die "zip not found"
 
 # --- name the artifact the way PatchArtifact.storageUrl does -------------------
