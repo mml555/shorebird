@@ -46,6 +46,8 @@ REPO="$(cd -- "$HERE/../.." && pwd)"
 # expect the plugin versions to differ from a fresh image build.
 CADDY_VERSION=v2.11.7
 XCADDY_VERSION=v0.4.7
+# Oldest Go that can build CADDY_VERSION (its go.mod `go` line). See build_caddy.
+CADDY_GO_MIN=1.26.0
 CACHE_HANDLER_VERSION=v0.17.0
 NUTS_STORAGE_VERSION=v0.0.23
 
@@ -123,8 +125,17 @@ build_caddy() {
   else
     command -v go >/dev/null || die "go is needed to build Caddy (or set CADDY)"
     note "caddy: building $CADDY_VERSION with cache-handler $CACHE_HANDLER_VERSION, nuts $NUTS_STORAGE_VERSION"
-    # As ./Dockerfile does: let go fetch the toolchain a module asks for.
-    export GOTOOLCHAIN=auto
+    # Build with the Go that is installed. GOTOOLCHAIN=auto would let go download
+    # whatever toolchain a module's go.mod names at build time, so the compiler
+    # behind the CDN binary would depend on the network and on the day. Local
+    # plus a floor is reproducible and fails with a message instead. The floor is
+    # Caddy's own go.mod ("go 1.26.0" at v2.11.7); raise CADDY_GO_MIN with
+    # CADDY_VERSION. Set CADDY=<binary> to skip the build entirely.
+    export GOTOOLCHAIN=local
+    local have; have="$(go env GOVERSION 2>/dev/null)"; have="${have#go}"
+    if [[ -z "$have" || "$(printf '%s\n%s\n' "$CADDY_GO_MIN" "${have%%[^0-9.]*}" | sort -V | head -1)" != "$CADDY_GO_MIN" ]]; then
+      die "go ${have:-?} is older than the $CADDY_GO_MIN that Caddy $CADDY_VERSION needs. Install a newer Go (GOTOOLCHAIN is pinned to local on purpose), or set CADDY=<a built caddy binary>"
+    fi
     GOBIN="$STATE/bin" go install "github.com/caddyserver/xcaddy/cmd/xcaddy@$XCADDY_VERSION"
     "$STATE/bin/xcaddy" build "$CADDY_VERSION" \
       --with "github.com/caddyserver/cache-handler@$CACHE_HANDLER_VERSION" \

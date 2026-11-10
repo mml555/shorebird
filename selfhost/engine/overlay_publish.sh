@@ -280,6 +280,15 @@ for entry in "${OWN_MODS[@]}"; do
     pom_retag "$pom" "$BUILT_VER"
     echo "    (POM version $BUILT_VER -> $EXP_HASH)"
   fi
+  # maven-metadata.xml: the engine build writes <module>.maven-metadata.xml
+  # beside the jar and pom, and the policy requires it for arm64_v8a_release
+  # (it used to be added by hand). Published under the same naming the jar and
+  # pom use, and retagged the same way, since it names the version too.
+  meta="$d/$mod-1.0.0-$EXP_HASH.maven-metadata.xml"
+  copy "$mod_out/$mod.maven-metadata.xml" "$meta"
+  if [[ -f "$meta" && -n "$BUILT_VER" && "$BUILT_VER" != "$EXP_HASH" ]]; then
+    pom_retag "$meta" "$BUILT_VER"
+  fi
 done
 
 # Modules we did not build: take the pinned ones and retag. MIRROR_URL must
@@ -298,6 +307,30 @@ for mod in ${STOCK_MODS[@]+"${STOCK_MODS[@]}"}; do
   done
   pom_retag "$d/$mod-1.0.0-$EXP_HASH.pom" "$STOCK_HASH"
 done
+
+# --- sky_engine.zip and flutter_gpu.zip -------------------------------------
+# @must_be_local_pkgs owns them per hash, and the policy requires them, so they
+# are published with everything else instead of as a separate hand step. The
+# publisher fetches stock through the mirror to record whether the content
+# matches; it publishes ours either way. This script still does not touch the
+# Caddyfile: add the hash to @must_be_local_pkgs once the audit shows the bytes
+# are there.
+SKY_PUB="$(dirname "${BASH_SOURCE[0]}")/publish_sky_packages.sh"
+# The Android out dir, not host_*: a Linux host_* out dir holds a one-file stub
+# gen/dart-pkg/sky_engine, while the Android ones carry the full 289-file tree.
+SKY_OUT="$OUT"
+if [[ -d "$SKY_OUT/gen/dart-pkg/sky_engine" ]] && bash "$SKY_PUB" --hash "$EXP_HASH" \
+     --engine-out "$SKY_OUT" --engine-src "$FLUTTER_ROOT/engine/src" \
+     --overlay "$OVERLAY" --mirror "$MIRROR_URL" --pinned-hash "$STOCK_HASH" >/dev/null; then
+  echo "  + ${INFRA#"$OVERLAY"/}/{sky_engine,flutter_gpu}.zip (via publish_sky_packages.sh)"
+else
+  echo "  ! sky_engine.zip / flutter_gpu.zip not published (no gen/dart-pkg/sky_engine under $SKY_OUT, or publish_sky_packages.sh failed; run it by hand)" >&2
+  missing=1
+  # As copy() does: drop what an earlier publish left, so a miss 404s instead
+  # of serving another tree's bytes under this hash.
+  rm -f "$INFRA/sky_engine.zip" "$INFRA/flutter_gpu.zip" "$INFRA/sky_packages_provenance.txt" \
+        "$INFRA/sky_engine.content-diff.txt" "$INFRA/flutter_gpu.content-diff.txt"
+fi
 
 # --- Manifest ----------------------------------------------------------------
 # Informational for now: Caddy rewrites experimental hashes to the pinned one
@@ -349,7 +382,8 @@ fi
   echo "local_artifacts:          android-{arm64,arm,x64}-release/{artifacts,symbols,linux-x64}.zip (as built),"
   echo "                          $HOST_TAG/{artifacts,font-subset}.zip, dart-sdk-$HOST_TAG.zip,"
   echo "                          flutter_patched_sdk{,_product}.zip, engine_stamp.json,"
-  echo "                          maven: ${OWN_MODS[*]##*:}"
+  echo "                          sky_engine.zip, flutter_gpu.zip,"
+  echo "                          maven (jar, pom, maven-metadata.xml): ${OWN_MODS[*]##*:}"
   echo "everything_else:          served from $STOCK_HASH by the mirror"
 } > "$SB/PROVENANCE.txt"
 echo "  + ${SB#"$OVERLAY"/}/PROVENANCE.txt"

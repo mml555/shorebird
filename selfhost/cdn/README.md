@@ -295,9 +295,9 @@ mirror serves a *mixed* set:
 host `artifacts.zip`, platform dills, `dart-sdk-*.zip`, `engine_stamp.json`, and
 the `download.flutter.io` Maven modules. That 404 is the point — a half-published
 experiment must fail loudly rather than quietly run Shorebird's stock engine
-under your hash. `android-arm64-release/{darwin-x64, windows-x64}.zip` are
-deliberately *not* owned: they are host `gen_snapshot` for Mac/Windows and are
-stock by design.
+under your hash. `android-arm64-release/windows-x64.zip` is denied (a stock
+Windows `gen_snapshot` against our engine is a silent mix); the Mac
+`darwin-x64.zip` of each release ABI is the `macos-ios-android` cell's.
 
 Ownership only applies to hashes listed in `experimental_hashes.map`. For every
 ordinary revision the mirror behaves exactly as it did before the overlay
@@ -338,7 +338,8 @@ The rule:
 > the artifact is demonstrably tree-independent, or belongs to a platform we
 > deliberately do not build.
 
-Four states, because two is not enough to describe what is actually going on:
+Four states, because two is not enough to describe what is actually going on
+(plus a `foreign:<cell>` requirement, below):
 
 | State | Meaning | May it support a "self-built" claim? |
 |---|---|---|
@@ -346,6 +347,19 @@ Four states, because two is not enough to describe what is actually going on:
 | `owned-mirrored` | Served by us, sourced upstream because the artifact is tree-*independent* | No — we serve it, we did not compile it |
 | `compat-mirrored` | Stock, kept only for a platform/cell we do not build | **Never** |
 | `denied` | Not in the supported build matrix — custom-engine requests must fail rather than fall through to stock | n/a |
+| `foreign:<cell>` | Another cell's file (usually another host's toolchain). Not required here, not a leak here, still route-protected; the named cell's audit judges it | n/a |
+
+**Hosts.** One overlay serves every host, so a hash that carries a Linux and a
+Mac toolchain holds files that belong to another cell. The cells are
+`linux-android` (x64 Linux host), `macos-ios` and `macos-ios-android` (arm64 Mac
+host) and `macos-x64` (Intel Mac host toolchain only: `dart-sdk-darwin-x64.zip`,
+`darwin-x64/{artifacts,font-subset}.zip`; its iOS and Android target artifacts are
+`macos-ios-android`'s, so audit both). Audit every cell a hash claims. The audit
+checks that each `foreign:X` line names a cell that really has the path as a
+requirement, and so does `check_protection_matchers.py`. The three
+`patch-<host>.zip` differs stay `both required` on purpose: cell membership is
+derived from those lines, so a Linux-only hash reports the two Mac differs
+missing.
 
 `denied` exists because silent cross-toolchain mixing is worse than a loud
 failure. Stock `font-subset.zip` extracts into the same cache directory as
@@ -377,9 +391,13 @@ exist yet 404s every build against that hash.
 
 ### Closing the two open gaps
 
-`sky_engine.zip` and `flutter_gpu.zip` are the current `missing-required` on
-both cells. Run this on the build host for that cell, from the tree that
-produced the verified engine:
+`overlay_publish.sh` now publishes `sky_engine.zip`, `flutter_gpu.zip` (through
+`publish_sky_packages.sh`) and each own module's `maven-metadata.xml`, so a new
+engine needs no hand step beyond adding the hash to `@must_be_local_pkgs` once
+the audit shows the bytes. For an engine published before that, run this on the
+build host for that cell, from the tree that produced the verified engine. Use
+an out dir whose `gen/dart-pkg/sky_engine` is complete (the Android ones; the
+Linux `host_*` out dirs hold a one-file stub):
 
 ```bash
 selfhost/engine/publish_sky_packages.sh --hash <hash> --engine-out <engine>/src/out/<config>

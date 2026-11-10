@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 
 CADDYFILE = Path(__file__).with_name('Caddyfile')
+POLICY = Path(__file__).with_name('artifact_policy.conf')
 
 # Every cell whose engine artifacts must never fall through to another source.
 PROTECTED_CELLS = [
@@ -27,11 +28,25 @@ PROTECTED_CELLS = [
     'd4c0dbc2905286eb4537d5f9a7802693096ca1fd',   # H3
     'cd848320d605ff8af5060cabf9a8d1b35853f752',   # v13 successor
     'f85251f344600ae08196925a174e9cff8f0ff18e',   # macos-ios-android
+    '255fd85017b5407260e91fc70d960ec13f1b69a8',   # iOS + Android + Linux/Mac hosts
+]
+# Hashes that publish OUR linux-x64 host toolchain, so linux-x64/font-subset.zip
+# (it carries our const_finder) is owned for them and for no other hash.
+LINUX_FONT_CELLS = [
+    '760e3fabffbf31b4e86919a0ef47d6ce5f182991',
+    '255fd85017b5407260e91fc70d960ec13f1b69a8',
+    '3a565f273d871d1ef004faf1a87bf45637df8ad0',
+]
+# Hashes that publish OUR darwin-x64 host toolchain.
+DARWIN_X64_FONT_CELLS = [
+    '255fd85017b5407260e91fc70d960ec13f1b69a8',
+    '3a565f273d871d1ef004faf1a87bf45637df8ad0',
 ]
 # Cells whose sky/gpu packages are protected but whose iOS modes are not.
 SKY_ONLY_CELLS = [
     '70974f811d448da19a927c581678ef1dbd33605c',
     '4df8f9b6139b67d2cfe9f6aa8212372cade36278',
+    '3a565f273d871d1ef004faf1a87bf45637df8ad0',   # Android and Mac/Linux hosts; no iOS engine
 ]
 
 
@@ -47,6 +62,33 @@ def matchers(text):
 
 def covered(res, path):
     return any(r.search(path) for r in res)
+
+
+def policy_failures(text):
+    """Every `foreign:<cell>` line must name a cell that really owns the path.
+
+    The policy is the third source the Caddyfile and the overlay are audited
+    against. A foreign marker that names no owner would turn `denied` (loud)
+    into "somebody else's problem" (silent), so it is checked mechanically.
+    """
+    lines = [ln.split(None, 4) for ln in text.splitlines()
+             if ln.strip() and not ln.lstrip().startswith('#')]
+    lines = [f for f in lines if len(f) >= 4]
+    reqs = {(f[0], f[3]): f[2] for f in lines}
+    cells = {f[0] for f in lines if f[0] != 'both'}
+    out = []
+    for cell, _prov, req, path, *_ in lines:
+        if not req.startswith('foreign:'):
+            continue
+        owner = req[len('foreign:'):]
+        owner_req = reqs.get((owner, path))
+        if owner not in cells:
+            out.append(f'POLICY: {cell} {path}: unknown owner cell {owner!r}')
+        elif owner_req is None:
+            out.append(f'POLICY: {cell} {path}: {owner} has no line for it')
+        elif owner_req == 'denied' or owner_req.startswith('foreign:'):
+            out.append(f'POLICY: {cell} {path}: {owner} is {owner_req}, not an owner')
+    return out
 
 
 def main():
@@ -96,10 +138,21 @@ def main():
                     f'/download.flutter.io/io/flutter/{art}/'
                     f'1.0.0-{cell}/{art}-1.0.0-{cell}.{ext}')
 
+    for cell in LINUX_FONT_CELLS:
+        expect_covered.append(
+            f'/flutter_infra_release/flutter/{cell}/linux-x64/font-subset.zip')
+    for cell in DARWIN_X64_FONT_CELLS:
+        expect_covered.append(
+            f'/flutter_infra_release/flutter/{cell}/darwin-x64/font-subset.zip')
+
     # Deliberately NOT owned per cell: a path the per-cell arms must not claim.
     for cell in PROTECTED_CELLS:
-        expect_uncovered.append(
-            f'/flutter_infra_release/flutter/{cell}/linux-x64/font-subset.zip')
+        if cell not in LINUX_FONT_CELLS:
+            expect_uncovered.append(
+                f'/flutter_infra_release/flutter/{cell}/linux-x64/font-subset.zip')
+        if cell not in DARWIN_X64_FONT_CELLS:
+            expect_uncovered.append(
+                f'/flutter_infra_release/flutter/{cell}/darwin-x64/font-subset.zip')
     # The debug/profile Android objects: reconstructible, not consumed by a
     # release build, and required only because `shorebird release android`
     # runs `flutter precache --android` unconditionally. Protecting these would
@@ -122,6 +175,8 @@ def main():
     for path in expect_uncovered:
         if covered(res, path):
             failures.append(f'PROTECTED (should not be): {path}')
+
+    failures.extend(policy_failures(POLICY.read_text()))
 
     print(f'  matchers parsed      : {len(res)}')
     print(f'  paths expected cover : {len(expect_covered)}')
