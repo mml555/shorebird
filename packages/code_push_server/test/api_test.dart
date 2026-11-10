@@ -3,6 +3,7 @@
 //
 // Every group here corresponds to a defect found in the end-to-end security
 // audit. The comments say what the behavior WAS, so a regression is obvious.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -2315,10 +2316,186 @@ void main() {
         flakyApi();
         final r = await registered();
         final art = (await repo.artifactByToken(r.token))!;
-        await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
+        await repo.transitionArtifactStatus(
+          art.id,
+          ArtifactStatus.pending,
+          ArtifactStatus.uploading,
+        );
         expect((await uploadBody(r.token)).statusCode, HttpStatus.conflict);
       },
     );
+
+    test('a store failure answers 500 without the store\'s detail', () async {
+      final store = flakyApi();
+      final r = await registered();
+      store.failNextPut = true;
+
+      final res = await uploadBody(r.token);
+
+      expect(res.statusCode, HttpStatus.internalServerError);
+      final body = await res.readAsString();
+      expect(body, contains('Internal server error'));
+      expect(body, isNot(contains('no space left')));
+      expect(body, isNot(contains(tmp.path)));
+    });
+
+    test('multipart: a claim older than the bound is reclaimed', () async {
+      final store = flakyApi();
+      api = Api(
+        repo,
+        store,
+        config,
+        uploadClaimTimeout: const Duration(milliseconds: 150),
+      );
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      // A process killed mid-write: claimed, never finished.
+      await repo.transitionArtifactStatus(
+        art.id,
+        ArtifactStatus.pending,
+        ArtifactStatus.uploading,
+      );
+
+      expect(
+        (await uploadBody(r.token)).statusCode,
+        HttpStatus.conflict,
+        reason: 'a claim inside the bound may still be running',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect((await uploadBody(r.token)).statusCode, HttpStatus.noContent);
+      expect(
+        (await repo.artifactByToken(r.token))!.status,
+        ArtifactStatus.verified,
+      );
+      expect((await repo.patch(r.patchId))!.status, PatchStatus.ready);
+    });
+
+    test('a claim with no recorded start is reclaimed at once', () async {
+      flakyApi();
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      // `uploading` as a pre-migration server left it: no `uploading_at`.
+      await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
+      expect((await uploadBody(r.token)).statusCode, HttpStatus.noContent);
+    });
+
+    test('resumable: a query during a running commit does not start a second '
+        'commit', () async {
+      final store = flakyApi();
+      api = Api(
+        repo,
+        store,
+        config,
+        inFlightWait: const Duration(milliseconds: 300),
+      );
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      await store.stageChunk(r.token, 0, utf8.encode('abc'));
+      // The first commit holds the claim; the client lost its response.
+      await repo.transitionArtifactStatus(
+        art.id,
+        ArtifactStatus.pending,
+        ArtifactStatus.uploading,
+      );
+
+      final res = await send(
+        'PUT',
+        '/api/v1/uploads/${r.token}',
+        bearer: _bootstrapKey,
+        headers: {'content-range': 'bytes */3'},
+      );
+
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(await store.exists(art.storageKey), isFalse);
+      expect(store.stagedSize(r.token), 3, reason: 'staged bytes untouched');
+    });
+
+    test('resumable: a query waits for the running commit and reports its '
+        'result', () async {
+      final store = flakyApi();
+      api = Api(repo, store, config, inFlightWait: const Duration(seconds: 3));
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      await store.stageChunk(r.token, 0, utf8.encode('abc'));
+      await repo.transitionArtifactStatus(
+        art.id,
+        ArtifactStatus.pending,
+        ArtifactStatus.uploading,
+      );
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 250), () async {
+          await repo.transitionArtifactStatus(
+            art.id,
+            ArtifactStatus.uploading,
+            ArtifactStatus.verified,
+          );
+        }),
+      );
+
+      final res = await send(
+        'PUT',
+        '/api/v1/uploads/${r.token}',
+        bearer: _bootstrapKey,
+        headers: {'content-range': 'bytes */3'},
+      );
+
+      expect(res.statusCode, HttpStatus.ok);
+    });
+
+    test('resumable: more bytes are refused while a commit runs', () async {
+      final store = flakyApi();
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      await store.stageChunk(r.token, 0, utf8.encode('abc'));
+      await repo.transitionArtifactStatus(
+        art.id,
+        ArtifactStatus.pending,
+        ArtifactStatus.uploading,
+      );
+
+      final res = await send(
+        'PUT',
+        '/api/v1/uploads/${r.token}',
+        bearer: _bootstrapKey,
+        headers: {'content-range': 'bytes 0-2/3'},
+        body: 'abc',
+      );
+
+      expect(res.statusCode, HttpStatus.conflict);
+    });
+
+    test('resumable: a commit whose holder died is reclaimed', () async {
+      final store = flakyApi();
+      api = Api(
+        repo,
+        store,
+        config,
+        uploadClaimTimeout: const Duration(milliseconds: 150),
+      );
+      final r = await registered();
+      final art = (await repo.artifactByToken(r.token))!;
+      await store.stageChunk(r.token, 0, utf8.encode('abc'));
+      await repo.transitionArtifactStatus(
+        art.id,
+        ArtifactStatus.pending,
+        ArtifactStatus.uploading,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      final res = await send(
+        'PUT',
+        '/api/v1/uploads/${r.token}',
+        bearer: _bootstrapKey,
+        headers: {'content-range': 'bytes */3'},
+      );
+
+      expect(res.statusCode, HttpStatus.ok);
+      expect(
+        (await repo.artifactByToken(r.token))!.status,
+        ArtifactStatus.verified,
+      );
+      expect((await repo.patch(r.patchId))!.status, PatchStatus.ready);
+    });
   });
 
   // -------------------------------------------------------------------------

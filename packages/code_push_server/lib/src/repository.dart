@@ -138,6 +138,7 @@ class ArtifactRow {
     required this.createdAt,
     this.signingMode,
     this.signingKeyId,
+    this.uploadingAt,
   });
   final int id;
   final String token;
@@ -152,6 +153,10 @@ class ArtifactRow {
   final bool canSideload;
   final ArtifactStatus status;
   final String storageKey;
+
+  /// When the current `uploading` claim began, epoch milliseconds; null if the
+  /// artifact was never claimed (or was claimed before migration 17).
+  final int? uploadingAt;
 
   /// When the artifact row was created, ISO-8601 UTC. Part of the CLI's
   /// `PatchArtifact` wire contract, which requires it.
@@ -593,6 +598,17 @@ class Repository {
         // this every hourly run is a sequential scan.
         'CREATE INDEX IF NOT EXISTS crash_reports_received_idx '
             'ON crash_reports(received_at)',
+      ],
+    ),
+    (
+      17,
+      [
+        // When the current `uploading` claim began, epoch milliseconds. Without
+        // it a process killed mid-write leaves the artifact `uploading` with
+        // nothing to tell that apart from a commit still running, so the token
+        // is stuck. Null on a row that has never been claimed, and on one
+        // claimed before this migration (treated as stale).
+        'ALTER TABLE artifacts ADD COLUMN uploading_at BIGINT',
       ],
     ),
   ];
@@ -1935,6 +1951,7 @@ class Repository {
     canSideload: asDbBool(m['can_sideload']),
     status: ArtifactStatus.parse(m['status'] as String),
     storageKey: m['storage_key'] as String,
+    uploadingAt: m['uploading_at'] == null ? null : _int(m['uploading_at']),
     createdAt: _ts(m['created_at']),
     signingMode: m['signing_mode'] as String?,
     signingKeyId: m['signing_key_id'] == null
@@ -1951,10 +1968,34 @@ class Repository {
     ArtifactStatus to,
   ) async {
     requireArtifactTransition(from, to);
+    // Entering `uploading` stamps when the claim began, so a claim whose
+    // holder died can be told from one still running (see [reclaimStaleUpload]).
     final r = await _q(
-      'UPDATE artifacts SET status = @to WHERE id = @id AND status = @from '
-      'RETURNING id',
-      {'to': to.name, 'from': from.name, 'id': artifactId},
+      'UPDATE artifacts SET status = @to, uploading_at = @at '
+      'WHERE id = @id AND status = @from RETURNING id',
+      {
+        'to': to.name,
+        'from': from.name,
+        'id': artifactId,
+        'at': to == ArtifactStatus.uploading
+            ? DateTime.now().millisecondsSinceEpoch
+            : null,
+      },
+    );
+    return r.isNotEmpty;
+  }
+
+  /// Compare-and-set: hands an `uploading` claim older than [cutoffMs] (epoch
+  /// milliseconds; a claim with no recorded start counts as older) back to
+  /// `pending`. Returns whether this call did it. For an artifact whose holder
+  /// died mid-write, which nothing else would ever move.
+  Future<bool> reclaimStaleUpload(int artifactId, int cutoffMs) async {
+    requireArtifactTransition(ArtifactStatus.uploading, ArtifactStatus.pending);
+    final r = await _q(
+      "UPDATE artifacts SET status = 'pending', uploading_at = NULL "
+      "WHERE id = @id AND status = 'uploading' "
+      'AND (uploading_at IS NULL OR uploading_at < @cutoff) RETURNING id',
+      {'id': artifactId, 'cutoff': cutoffMs},
     );
     return r.isNotEmpty;
   }

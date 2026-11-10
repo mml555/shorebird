@@ -41,6 +41,20 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Concurrent patch publishes for one release no longer fail with an opaque
   error.** The patch number is allocated inside the INSERT, with a bounded retry
   on the `UNIQUE(release_id, number)` violation.
+- **A 500 no longer carries the error's text.** The response says
+  `Internal server error`; the detail (a store path, an S3 endpoint) goes to the
+  server log. It is still a 5xx, so the CLI retries.
+- **The filesystem store writes objects atomically** (temp file in the same
+  directory, then rename), so a reader or a killed process never sees a partial
+  object.
+- **An upload killed mid-write no longer sticks the token.** Migration 17 adds
+  `artifacts.uploading_at`; an `uploading` claim older than 15 minutes (or one
+  with no recorded start) is handed back to `pending` by the next request for
+  that token, with a compare-and-set.
+- **A resumable upload takes its claim only when every byte is staged**, and a
+  `bytes */TOTAL` query that finds a commit still running waits up to 10 s for
+  it, then answers 409. Before, a client whose final response was lost could
+  start a second commit beside the first.
 
 ## 1.4.0 — 2026-11-08
 

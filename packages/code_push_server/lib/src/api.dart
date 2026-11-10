@@ -174,20 +174,36 @@ const _requiredAnyArchs = <String, Set<String>>{
 /// internal domain here), an OAuth auth service (`shorebird login`), and an
 /// authenticated /admin surface (rollout, withdraw/rollback, provisioning).
 class Api {
-  Api(this.repo, this.store, this.config, {String? signingKeyJson})
-    : oauth = OAuthService(config.jwtIssuer, keyJson: signingKeyJson),
-      _signer = UrlSigner(config.urlSigningSecret),
-      _patchSigner = switch (config.patchSigningKeySecret) {
-        null => null,
-        final secret => PatchSigner(secret),
-      },
-      _analytics = Analytics(repo.db),
-      _symbolizer = Symbolizer(store: store),
-      obs = Observability(json: config.logFormat == 'json');
+  Api(
+    this.repo,
+    this.store,
+    this.config, {
+    String? signingKeyJson,
+    this.uploadClaimTimeout = const Duration(minutes: 15),
+    this.inFlightWait = const Duration(seconds: 10),
+  }) : oauth = OAuthService(config.jwtIssuer, keyJson: signingKeyJson),
+       _signer = UrlSigner(config.urlSigningSecret),
+       _patchSigner = switch (config.patchSigningKeySecret) {
+         null => null,
+         final secret => PatchSigner(secret),
+       },
+       _analytics = Analytics(repo.db),
+       _symbolizer = Symbolizer(store: store),
+       obs = Observability(json: config.logFormat == 'json');
 
   final Repository repo;
   final ArtifactStore store;
   final Config config;
+
+  /// How long an artifact may stay `uploading` before the claim is presumed
+  /// dead (the process holding it was killed) and handed back to `pending`.
+  /// It must exceed the longest write or commit a live request can run; the
+  /// claim covers one store write, not a whole resumable upload.
+  final Duration uploadClaimTimeout;
+
+  /// How long a resumable status query waits for a commit that is still
+  /// running before it answers 409.
+  final Duration inFlightWait;
   final OAuthService oauth;
   final UrlSigner _signer;
   final PatchSigner? _patchSigner;
@@ -652,7 +668,13 @@ class Api {
       return _err(e.statusCode, e.code, e.message);
     } catch (e, st) {
       obs.error('unhandled request error', e, st);
-      return _err(HttpStatus.internalServerError, 'internal', '$e');
+      // The detail (a store path, an S3 endpoint, a SQL error) is for the
+      // server log above, not the caller. A 5xx is what makes the CLI retry.
+      return _err(
+        HttpStatus.internalServerError,
+        'internal',
+        'Internal server error',
+      );
     }
   }
 
@@ -2667,8 +2689,26 @@ class Api {
     }
   }
 
+  /// Hands [art] back to `pending` when it has been `uploading` longer than
+  /// [uploadClaimTimeout]: its holder was killed mid-write, and nothing else
+  /// would move it, so the token would be stuck. A compare-and-set, so a claim
+  /// that is merely slow, or one another request reclaimed first, is left
+  /// alone. Returns the artifact as it now stands.
+  Future<ArtifactRow> _reclaimIfStale(ArtifactRow art) async {
+    if (art.status != ArtifactStatus.uploading) return art;
+    final cutoff =
+        DateTime.now().millisecondsSinceEpoch -
+        uploadClaimTimeout.inMilliseconds;
+    final at = art.uploadingAt;
+    if (at != null && at >= cutoff) return art;
+    if (await repo.reclaimStaleUpload(art.id, cutoff)) {
+      obs.info('stale upload claim reclaimed', {'artifact': art.id});
+    }
+    return await repo.artifactByToken(art.token) ?? art;
+  }
+
   Future<Response> _upload(Request req, String token) async {
-    final art = await repo.artifactByToken(token);
+    var art = await repo.artifactByToken(token);
     if (art == null) throw notFound('Unknown upload token');
     await _noteUploadTarget(req, art);
     final appId = art.ownerKind == 'release'
@@ -2681,6 +2721,7 @@ class Api {
         'No access to this artifact',
       );
     }
+    art = await _reclaimIfStale(art);
     if (art.status != ArtifactStatus.pending) {
       throw conflict('Upload token not reusable (status ${art.status.name})');
     }
@@ -2794,7 +2835,7 @@ class Api {
   /// GCS-style resumable upload: chunked PUTs with `Content-Range`, `308` +
   /// `Range` on incomplete, `200` on complete. Mirrors the CLI's contract.
   Future<Response> _resumableUpload(Request req, String token) async {
-    final art = await repo.artifactByToken(token);
+    var art = await repo.artifactByToken(token);
     if (art == null) throw notFound('Unknown upload token');
     await _noteUploadTarget(req, art);
     final appId = art.ownerKind == 'release'
@@ -2818,10 +2859,19 @@ class Api {
       );
     }
 
+    // `uploading` means a commit is running (the claim is taken only when every
+    // byte is staged, see below), so a request that finds it either waits for
+    // that commit (a status query) or is turned away. Staging more bytes under
+    // a running commit, or starting a second commit beside it, is what a
+    // client whose final response was lost would otherwise do.
+    art = await _reclaimIfStale(art);
+
     // Query the current offset: `Content-Range: bytes */TOTAL`.
     if (cr.isQuery) {
       await req.read().drain<void>();
+      art = await _awaitInFlightCommit(art);
       if (art.status == ArtifactStatus.verified) return Response(HttpStatus.ok);
+      _requirePending(art);
       final size = store.stagedSize(token);
       if (size > 0 && size >= cr.total) {
         // Every byte is staged but the artifact never verified: a commit
@@ -2832,15 +2882,15 @@ class Api {
         // the client's own status query then gets a non-200/308 answer and
         // aborts, which is what ends the retrying. Bad bytes get the verify
         // failure.
-        final done = await _claimResumable(art, token);
+        final done = await _claimCommit(art, token);
         if (done != null) return done;
         return _commitResumable(req, art, token, size);
       }
       return _resumeIncomplete(size);
     }
 
-    final done = await _claimResumable(art, token);
-    if (done != null) return done;
+    if (art.status == ArtifactStatus.verified) return Response(HttpStatus.ok);
+    _requirePending(art);
     final chunk = await _collect(req.read(), max: config.maxUploadBytes);
     await store.stageChunk(token, cr.start, chunk);
     final received = store.stagedSize(token);
@@ -2852,16 +2902,42 @@ class Api {
       return _resumeIncomplete(received);
     }
     _audit(req)?.note(detail: {'complete': true, 'staged_bytes': received});
+    final done = await _claimCommit(art, token);
+    if (done != null) return done;
     return _commitResumable(req, art, token, received);
   }
 
-  /// Claims a `pending` resumable artifact with a compare-and-set, so two
-  /// requests on one token cannot both own it. Returns a response to send
-  /// instead of proceeding (200 if the artifact is already verified), or null
-  /// to proceed. Throws 409 if another request holds the claim.
-  Future<Response?> _claimResumable(ArtifactRow art, String token) async {
-    if (art.status == ArtifactStatus.verified) return Response(HttpStatus.ok);
-    if (art.status != ArtifactStatus.pending) return null;
+  /// Throws 409 unless [art] is `pending`: a `failed` artifact cannot take
+  /// bytes, and an `uploading` one has a commit running over the staged file.
+  void _requirePending(ArtifactRow art) {
+    if (art.status != ArtifactStatus.pending) {
+      throw conflict('Upload token not reusable (status ${art.status.name})');
+    }
+  }
+
+  /// For a status query that finds [art] `uploading`: waits up to
+  /// [inFlightWait] for that commit to finish and returns the artifact as it
+  /// then stands. Still `uploading` after that (a commit slower than the wait)
+  /// is a 409 rather than a second commit; the commit's own outcome is then in
+  /// the database for the client's next attempt.
+  Future<ArtifactRow> _awaitInFlightCommit(ArtifactRow art) async {
+    final deadline = DateTime.now().add(inFlightWait);
+    var cur = art;
+    while (cur.status == ArtifactStatus.uploading) {
+      if (!DateTime.now().isBefore(deadline)) {
+        throw conflict('Upload is still being committed');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      cur = await _reclaimIfStale(await repo.artifactByToken(art.token) ?? cur);
+    }
+    return cur;
+  }
+
+  /// Claims the commit of a fully staged, `pending` artifact with a
+  /// compare-and-set, so only one request commits. Returns a response to send
+  /// instead (200 if another request already verified it), or null to commit.
+  /// Throws 409 if another request holds the claim.
+  Future<Response?> _claimCommit(ArtifactRow art, String token) async {
     if (await repo.transitionArtifactStatus(
       art.id,
       ArtifactStatus.pending,

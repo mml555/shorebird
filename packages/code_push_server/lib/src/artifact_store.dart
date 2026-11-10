@@ -132,7 +132,20 @@ class FilesystemArtifactStore with _DiskStaging implements ArtifactStore {
   Future<void> put(String key, List<int> bytes) async {
     final f = _file(key);
     await f.parent.create(recursive: true);
-    await f.writeAsBytes(bytes, flush: true);
+    // Write beside the target, then rename over it. A rename within one
+    // directory is atomic, so a reader (or a process killed mid-write) sees
+    // the old object or the whole new one, never a prefix, and two writers on
+    // one key cannot interleave bytes.
+    final tmp = File(
+      '${f.path}.tmp-$pid-${DateTime.now().microsecondsSinceEpoch}',
+    );
+    try {
+      await tmp.writeAsBytes(bytes, flush: true);
+      await tmp.rename(f.path);
+    } on Object {
+      if (tmp.existsSync()) await tmp.delete();
+      rethrow;
+    }
   }
 
   @override
