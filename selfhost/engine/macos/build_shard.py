@@ -223,7 +223,7 @@ def verify_exported(log, waived):
     log.write(out)
     if p.returncode == 0:
         return 0, set()
-    # Waivable only if every ERROR is an "exports unexpected symbols" list and
+    # It can be waived only if every ERROR is an "exports unexpected symbols" list and
     # every symbol listed is waived. Any other error fails as before.
     unexpected, other, in_list = set(), [], False
     for line in out.splitlines():
