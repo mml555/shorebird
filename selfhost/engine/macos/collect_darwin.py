@@ -25,9 +25,10 @@ same commit, so nothing built for another engine is staged.
 
 Every framework Info.plist under out/ must name the engine (FlutterEngine), or
 a commit that builds the same engine (HEAD when it only repins). A stale stamp
-is reported as STALE and fails the run, like MISSING: it is how 255fd850
+is reported as STALE and fails the run before anything is staged: it is how 255fd850
 shipped frameworks stamped 3a565f27 and feb1d3cc. build_shard.py now rewrites
-the stamps on every build, so rebuilding the shard fixes it.
+the stamps on every build, so rebuilding the shard (by name, since --pending
+skips a shard already OK) fixes it.
 
 iOS builds from shorebird-flutter 255fd850 on (shorebird_use_interpreter off,
 no updater on iOS). Earlier commits fail their iOS shards or start the updater
@@ -37,6 +38,7 @@ usage: collect_darwin.py <out dir>   (prints what it staged and what it skipped)
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -66,23 +68,32 @@ def ok_shards(engine):
 
 
 def builds_engine(commit, engine):
-    """Whether `commit` builds the same engine as `engine` (see build_shard.py)."""
+    """Whether `commit` builds the same engine as `engine` (see build_shard.py).
+    copy_info_plist.py always writes a full sha, so anything else (None, a ref
+    name such as HEAD, a revision expression) is not trusted."""
+    if not commit or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        return False
     if commit == engine:
         return True
-    return bool(commit) and \
-        git("merge-base", "--is-ancestor", engine, commit).returncode == 0 and \
+    return git("merge-base", "--is-ancestor", engine, commit).returncode == 0 and \
         git("diff", "--quiet", engine, commit, "--", *ENGINE_INPUTS).returncode == 0
 
 
-def stale_stamps(out_dirs, engine):
-    """STALE lines for framework plists in out_dirs not stamped with `engine`."""
+def stale_stamps(shards, ok, engine):
+    """STALE lines for framework plists, in the out dirs of the OK shards, that
+    are not stamped with a commit building `engine`."""
     lines = []
-    for d in sorted(set(out_dirs)):
-        for plist in stamped_plists(os.path.join(OUT_SRC, d)):
-            stamp = plist_engine(plist)
-            if not builds_engine(stamp, engine):
-                lines.append(f"STALE {plist} says FlutterEngine {stamp}, engine is {engine}; "
-                             "rebuild that shard with build_shard.py")
+    for name, shard in shards.items():
+        if name not in ok:
+            continue
+        for step in shard.get("steps", []):
+            if step.get("type") != "gn_ninja":
+                continue
+            for plist in stamped_plists(os.path.join(OUT_SRC, step["out_dir"])):
+                stamp = plist_engine(plist)
+                if not builds_engine(stamp, engine):
+                    lines.append(f"STALE {plist} says FlutterEngine {stamp or '(unreadable)'}, "
+                                 f"engine is {engine}; rebuild it with build_shard.py {name}")
     return lines
 
 
@@ -121,9 +132,13 @@ def main():
     shards = json.load(open(os.path.join(CI, "shards", "macos.json")))
     compose = json.load(open(os.path.join(CI, "compose.json")))
     ok = ok_shards(engine)
-    built_dirs = [s["out_dir"] for n, sh in shards.items() if n in ok
-                  for s in sh.get("steps", []) if s.get("type") == "gn_ninja"]
-    lines = stale_stamps(built_dirs, engine)
+    # Before anything is composed or staged: a stale framework must not reach
+    # <out>, where an upload would pick it up despite the exit code.
+    stale = stale_stamps(shards, ok, engine)
+    if stale:
+        print("\n".join(stale))
+        return 1
+    lines = []
     for name, shard in shards.items():
         if name not in ok:
             lines.append(f"skip shard {name} (not built)")
@@ -148,7 +163,7 @@ def main():
         for a in step.get("artifacts", []):
             lines.append(stage(os.path.join(base, a["src"]), a["dst"], engine, out))
     print("\n".join(lines))
-    return 1 if any(l.startswith(("MISSING", "STALE")) for l in lines) else 0
+    return 1 if any(l.startswith("MISSING") for l in lines) else 0
 
 
 if __name__ == "__main__":

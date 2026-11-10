@@ -56,19 +56,26 @@ ORDER = [
 
 
 def stamped_plists(out_dir):
-    """Generated Info.plists that carry a FlutterEngine stamp, under out_dir."""
+    """Generated framework Info.plists under out_dir that carry a FlutterEngine
+    stamp. A plist that cannot be read is listed too, so a caller checking
+    stamps sees it fail instead of passing it unread."""
     found = []
     for top, dirs, files in os.walk(out_dir):
         # obj/ and gen/ hold intermediates, never a framework's plist.
         if top == out_dir:
             dirs[:] = [d for d in dirs if d not in ("obj", "gen")]
-        if "Info.plist" in files and ".framework" in top:
-            path = os.path.join(top, "Info.plist")
-            try:
-                if b"<key>FlutterEngine</key>" in open(path, "rb").read():
-                    found.append(path)
-            except OSError:
-                pass
+        in_framework = any(part.endswith(".framework")
+                           for part in os.path.relpath(top, out_dir).split(os.sep))
+        if "Info.plist" not in files or not in_framework:
+            continue
+        path = os.path.join(top, "Info.plist")
+        try:
+            with open(path, "rb") as f:
+                stamped = b"<key>FlutterEngine</key>" in f.read()
+        except OSError:
+            stamped = True
+        if stamped:
+            found.append(path)
     return found
 
 
@@ -249,13 +256,20 @@ def main():
                     continue
                 if t == "gn_ninja":
                     out = step["out_dir"]
-                    for plist in stamped_plists(os.path.join(SRC, "out", out)):
-                        os.remove(plist)
-                        log.write(f"removed {plist} so the build stamps it again\n")
                     rc = run(["./flutter/tools/gn", "--no-prebuilt-dart-sdk", *gn_args_for(step)], log)
                     if rc == 0 and not os.path.isfile(os.path.join(SRC, "out", out, "args.gn")):
                         log.write(f"gn did not produce out/{out}\n")
                         rc = 1
+                    # Only once gn has succeeded, so a failed step leaves the
+                    # out dir as it was.
+                    if rc == 0:
+                        for plist in stamped_plists(os.path.join(SRC, "out", out)):
+                            try:
+                                os.remove(plist)
+                                log.write(f"removed {plist} so the build stamps it again\n")
+                            except OSError as e:
+                                log.write(f"cannot remove {plist}: {e}\n")
+                                rc = 1
                     if rc == 0:
                         rc = run(["nice", "-n", "10", "ninja", "-C", f"out/{out}", "-j", str(a.jobs),
                                   *step["ninja_targets"]], log)
