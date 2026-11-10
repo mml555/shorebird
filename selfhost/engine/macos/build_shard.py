@@ -14,7 +14,14 @@ built for an earlier engine is built again. The engine commit is the one
 bin/internal/engine.version names when that is an ancestor of HEAD and nothing
 the build reads (ENGINE_INPUTS) changed since, so a commit that only repins
 engine.version to the engine it sits on keeps the shards built; otherwise it
-is HEAD. While it runs, its pid
+is HEAD.
+
+Each framework's Info.plist names the engine in its FlutterEngine key, which
+copy_info_plist.py fills from `git rev-parse HEAD` when it runs. Ninja reruns
+that action only when the plist template changes, so an incremental build kept
+the commit of the out dir's first build (255fd850 shipped stamped 3a565f27 and
+feb1d3cc). Before each gn_ninja step the stamped plists in that out dir are
+removed, so the build writes them again. While it runs, its pid
 is in logs/build.pid, which watchdog.sh and anything queued behind the build
 wait on; it refuses to start while another build holds that file.
 
@@ -46,6 +53,37 @@ ORDER = [
     "ios-profile", "mac-arm64-profile", "mac-x64", "mac-x64-debug",
     "mac-x64-profile",
 ]
+
+
+def stamped_plists(out_dir):
+    """Generated framework Info.plists under out_dir that carry a FlutterEngine
+    stamp. A plist that cannot be read is listed too, so a caller checking
+    stamps sees it fail instead of passing it unread."""
+    found = []
+    for top, dirs, files in os.walk(out_dir):
+        # obj/ and gen/ hold intermediates, never a framework's plist.
+        if top == out_dir:
+            dirs[:] = [d for d in dirs if d not in ("obj", "gen")]
+        in_framework = any(part.endswith(".framework")
+                           for part in os.path.relpath(top, out_dir).split(os.sep))
+        if "Info.plist" not in files or not in_framework:
+            continue
+        path = os.path.join(top, "Info.plist")
+        try:
+            with open(path, "rb") as f:
+                stamped = b"<key>FlutterEngine</key>" in f.read()
+        except OSError:
+            stamped = True
+        if stamped:
+            found.append(path)
+    return found
+
+
+def plist_engine(path):
+    """The FlutterEngine value of a plist, or None."""
+    r = subprocess.run(["plutil", "-extract", "FlutterEngine", "raw", "-o", "-", path],
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else None
 
 
 def now():
@@ -222,6 +260,16 @@ def main():
                     if rc == 0 and not os.path.isfile(os.path.join(SRC, "out", out, "args.gn")):
                         log.write(f"gn did not produce out/{out}\n")
                         rc = 1
+                    # Only once gn has succeeded, so a failed step leaves the
+                    # out dir as it was.
+                    if rc == 0:
+                        for plist in stamped_plists(os.path.join(SRC, "out", out)):
+                            try:
+                                os.remove(plist)
+                                log.write(f"removed {plist} so the build stamps it again\n")
+                            except OSError as e:
+                                log.write(f"cannot remove {plist}: {e}\n")
+                                rc = 1
                     if rc == 0:
                         rc = run(["nice", "-n", "10", "ninja", "-C", f"out/{out}", "-j", str(a.jobs),
                                   *step["ninja_targets"]], log)
