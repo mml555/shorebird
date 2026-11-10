@@ -46,6 +46,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # Souin buffers a whole response in memory (about 2-3x its size) while it fetches and
+    # stores it. The biggest artifacts are ~250 MB, so a few cold fetches at once need
+    # about 2 GB. 4g leaves room for that on ci-build (47 GB, shared) and makes the kernel
+    # kill this container, which restarts, instead of picking a neighbour when it goes wrong.
+    mem_limit: 4g
     depends_on:
       - artifact-proxy
     volumes:

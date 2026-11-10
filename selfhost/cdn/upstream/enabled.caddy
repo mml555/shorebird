@@ -7,9 +7,13 @@ reverse_proxy https://storage.googleapis.com {
 	transport http {
 		versions 1.1 2
 		tls_server_name storage.googleapis.com
-		# Fail a dead upstream quickly; the body gets the Caddyfile's backend timeout.
+		# Fail a dead or stalled upstream quickly. read_timeout is the idle time between
+		# reads, not the whole body, so a 250 MB download that keeps flowing is fine but one
+		# that stalls is cut in 30 s instead of holding a connection and its buffered
+		# body for the Caddyfile's 10 m backend timeout.
 		dial_timeout 10s
 		response_header_timeout 60s
+		read_timeout 30s
 	}
 	@miss status 404
 	header_down @miss Cache-Control "public, max-age=60"
