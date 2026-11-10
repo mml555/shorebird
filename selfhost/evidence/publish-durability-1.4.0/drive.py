@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Publish driver: acknowledged operations are recorded, then read back from API and DB.
+# cspell:words acked ACKED DBDIR OUTJSON pnum
+"""Publish driver: records every operation the server acknowledged (2xx) into OUTJSON.
+It does not read anything back; verify.py reads the database and storage afterwards.
 Usage: drive.py BASE KEY OUTJSON RELEASES_PER_WORKER WORKERS MODE
 MODE: plain | interrupt (abort some uploads midway, then retry) | resumable
 """
@@ -7,7 +9,7 @@ import sys, json, os, hashlib, random, threading, http.client, urllib.parse, uui
 
 base, key, out, per, workers, mode = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]), sys.argv[6]
 u = urllib.parse.urlparse(base)
-acked = {"apps": [], "releases": [], "patches": [], "promotes": [], "errors": []}
+acked = {"apps": [], "channel": None, "created_releases": [], "created_patches": [], "releases": [], "patches": [], "promotes": [], "errors": []}
 lock = threading.Lock()
 
 def req(method, path, body=None, headers=None, raw=False, abort_after=None):
@@ -83,6 +85,7 @@ def _worker(app, wid, chan):
         s, r = req("POST", f"/api/v1/apps/{app}/releases", {"version": ver, "flutter_revision": "abc123"})
         if s != 200: err("create_release", s, r); continue
         rid = r["release"]["id"]
+        with lock: acked["created_releases"].append({"id": rid, "version": ver, "app": app})
         hashes = []
         bad = False
         for arch in ("aab", "aarch64"):
@@ -101,6 +104,7 @@ def _worker(app, wid, chan):
         s, r = req("POST", f"/api/v1/apps/{app}/patches", {"release_id": rid, "metadata": {}})
         if s != 200: err("create_patch", s, r); continue
         pid = r["id"]; pnum = r["number"]
+        with lock: acked["created_patches"].append({"id": pid, "release_id": rid, "app": app})
         pd = os.urandom(random.randint(500, 50000))
         pf = {"arch": "aarch64", "platform": "android", "hash": hashlib.sha256(pd).hexdigest(), "size": len(pd)}
         s, r = register(f"/api/v1/apps/{app}/patches/{pid}/artifacts", pf)
@@ -110,7 +114,7 @@ def _worker(app, wid, chan):
         with lock: acked["patches"].append({"id": pid, "number": pnum, "release_id": rid, "app": app, "hash": pf["hash"]})
         s, r = req("POST", f"/api/v1/apps/{app}/patches/promote", {"patch_id": pid, "channel_id": chan}, raw=True)
         if s != 204: err("promote", s, r); continue
-        with lock: acked["promotes"].append({"patch": pid, "app": app})
+        with lock: acked["promotes"].append({"patch": pid, "app": app, "channel": chan})
 
 s, r = req("POST", "/api/v1/apps", {"display_name": "repro-" + uuid.uuid4().hex[:6]})
 if s != 200: print("app create failed", s, r); sys.exit(2)
@@ -118,6 +122,7 @@ app = r["id"] if "id" in r else r["app"]["id"]
 acked["apps"].append(app)
 s, r = req("POST", f"/api/v1/apps/{app}/channels", {"channel": "stable"})
 chan = r["id"]
+acked["channel"] = chan
 ts = [threading.Thread(target=worker, args=(app, w, chan)) for w in range(workers)]
 [t.start() for t in ts]; [t.join() for t in ts]
 json.dump(acked, open(out, "w"))
