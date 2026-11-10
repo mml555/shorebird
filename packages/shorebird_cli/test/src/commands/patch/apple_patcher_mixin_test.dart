@@ -9,6 +9,7 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
+import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/commands/patch/apple_patcher_mixin.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
@@ -18,6 +19,7 @@ import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
@@ -67,6 +69,12 @@ class _TestApplePatcher extends Patcher
   @override
   Future<String> extractReleaseVersionFromArtifact(File artifact) =>
       throw UnimplementedError();
+}
+
+/// A patcher with the real [IosEnginePatchGuard]. The iOS patchers' own tests
+/// only run on macOS, so this covers the guard on every host.
+class _TestGuardPatcher extends _TestApplePatcher with IosEnginePatchGuard {
+  _TestGuardPatcher({required super.argParser, required super.argResults});
 }
 
 void main() {
@@ -618,6 +626,113 @@ void main() {
             equals('${sha256.convert('vmcode'.codeUnits)}-signature'),
           );
         });
+      });
+    });
+  });
+
+  group(IosEnginePatchGuard, () {
+    late EngineConfig engineConfig;
+    late ShorebirdEnv shorebirdEnv;
+    late ShorebirdLogger logger;
+    late Directory flutterDirectory;
+    late _TestGuardPatcher patcher;
+
+    R runWithOverrides<R>(R Function() body) => runScoped(
+      body,
+      values: {
+        engineConfigRef.overrideWith(() => engineConfig),
+        loggerRef.overrideWith(() => logger),
+        shorebirdEnvRef.overrideWith(() => shorebirdEnv),
+      },
+    );
+
+    File cachedEngine() =>
+        iosReleaseEngineBinary(flutterDirectory: flutterDirectory);
+
+    void writeEngine(File binary, String contents) => binary
+      ..createSync(recursive: true)
+      ..writeAsStringSync(contents);
+
+    setUp(() {
+      engineConfig = MockEngineConfig();
+      shorebirdEnv = MockShorebirdEnv();
+      logger = MockShorebirdLogger();
+      flutterDirectory = Directory.systemTemp.createTempSync('flutter_');
+      addTearDown(() => flutterDirectory.deleteSync(recursive: true));
+      when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDirectory);
+      when(() => engineConfig.localEngineSrcPath).thenReturn(null);
+      when(() => engineConfig.localEngine).thenReturn(null);
+      final argResults = MockArgResults();
+      when(() => argResults.options).thenReturn([]);
+      when(() => argResults.rest).thenReturn([]);
+      patcher = _TestGuardPatcher(
+        argParser: MockArgParser(),
+        argResults: argResults,
+      );
+    });
+
+    group('iosEngineBinaryInScope', () {
+      test("is the Flutter checkout's cached engine by default", () {
+        expect(
+          runWithOverrides(patcher.iosEngineBinaryInScope).path,
+          equals(cachedEngine().path),
+        );
+      });
+
+      test('is the local engine build when one is set', () {
+        when(() => engineConfig.localEngineSrcPath).thenReturn('/engine/src');
+        when(() => engineConfig.localEngine).thenReturn('ios_release');
+        expect(
+          runWithOverrides(patcher.iosEngineBinaryInScope).path,
+          equals(
+            p.join(
+              '/engine/src',
+              'out',
+              'ios_release',
+              'Flutter.framework',
+              'Flutter',
+            ),
+          ),
+        );
+      });
+    });
+
+    group('assertEngineCanPatch', () {
+      test(
+        'proceeds, and says so, when the engine binary is missing',
+        () async {
+          await expectLater(
+            runWithOverrides(patcher.assertEngineCanPatch),
+            completes,
+          );
+          verify(
+            () => logger.detail(
+              any(that: contains('not checking it for iOS patch support')),
+            ),
+          ).called(1);
+        },
+      );
+
+      test('proceeds on an engine that can run iOS patches', () async {
+        writeEngine(cachedEngine(), 'InterpretCall');
+        await expectLater(
+          runWithOverrides(patcher.assertEngineCanPatch),
+          completes,
+        );
+      });
+
+      test('refuses an engine that declines iOS patches', () {
+        writeEngine(cachedEngine(), 'InterpretCall $iosPatchesDeclinedMarker');
+        expect(
+          () => runWithOverrides(patcher.assertEngineCanPatch),
+          throwsA(
+            isA<CommandError>().having(
+              (e) => e.exitCode,
+              'exitCode',
+              ExitCode.unavailable.code,
+            ),
+          ),
+        );
       });
     });
   });
