@@ -46,11 +46,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # Souin buffers a whole response in memory (about 2-3x its size) while it fetches and
-    # stores it. The biggest artifacts are ~250 MB, so a few cold fetches at once need
-    # about 2 GB. 4g leaves room for that on ci-build (47 GB, shared) and makes the kernel
-    # kill this container, which restarts, instead of picking a neighbour when it goes wrong.
-    mem_limit: 4g
+    # No memory limit on purpose. NutsDB keeps every cached body in memory (measured on
+    # ci-build: anonymous memory about equals the on-disk cache, 3.1 GB for a 3.1 GB cache,
+    # and it grows with each new engine hash), and Souin buffers a cold response 2-3x on
+    # top. A limit below cache size plus about 3 GB would crash-loop the mirror. Setting
+    # nuts EntryIdxMode HintKeyAndRAMIdxMode did not reduce it in a scratch test, so a limit
+    # needs a different fix first (see selfhost/STATUS.md, CDN section).
     depends_on:
       - artifact-proxy
     volumes:

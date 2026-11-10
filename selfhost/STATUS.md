@@ -72,6 +72,12 @@ Our engines (`3a565f27`, and `255fd850`, which shorebird-flutter now pins) are n
   `Cache-Status: Souin; fwd=bypass; detail=DEADLINE-EXCEEDED`, nothing stored. Fixed by a
   `timeout { backend 10m }` in the Caddyfile's `cache` block (and dial and header timeouts
   on the upstream), live 2026-11-10.
+- **The mirror's memory grows with its cache.** NutsDB holds every cached body in RAM: the
+  container's anonymous memory is about the on-disk cache size (3.1 GB at 3.1 GB), plus 2-3x
+  of a cold response while it is fetched. So `docker-compose.cdn.yaml` sets no `mem_limit`
+  (a limit under cache size plus about 3 GB would crash-loop it). `EntryIdxMode
+  HintKeyAndRAMIdxMode` (key-only index) was tried on a scratch copy and made no difference
+  (686 MB against 687 MB for a 680 MB cache); the cause is not found. Open.
 
 ## iOS on `255fd850`
 

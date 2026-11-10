@@ -1,6 +1,7 @@
 # cspell:words xcaddy nutsdb
 #
-# Versions match run_native.sh, so both builds treat the `timeout` option the same.
+# cache-handler matches run_native.sh; nuts/caddy is the version the unpinned build resolved
+# (v0.0.22, which pulls storages/nuts v0.0.21).
 # Caddy with the HTTP cache-handler module (Souin) + NutsDB disk storage.
 # Stock `caddy:2-alpine` has no disk cache equivalent of nginx's proxy_cache —
 # we need that for the CDN mirror (immutable engine artifacts, warmed once per
@@ -16,7 +17,7 @@ ENV GOTOOLCHAIN=auto
 
 RUN xcaddy build \
     --with github.com/caddyserver/cache-handler@v0.17.0 \
-    --with github.com/darkweak/storages/nuts/caddy@v0.0.23
+    --with github.com/darkweak/storages/nuts/caddy@v0.0.22
 
 FROM caddy:2.11-alpine
 
