@@ -2792,19 +2792,25 @@ class Api {
     // Query the current offset: `Content-Range: bytes */TOTAL`.
     if (cr.isQuery) {
       await req.read().drain<void>();
-      final size = store.stagedSize(token);
-      // Complete only when verified. Staged bytes alone are not: a failed
-      // commit leaves them in place, and answering 200 would make the client
-      // report success for an artifact that never verifies. A full staged
-      // file that is not verified reports offset 0 so the client re-sends.
       if (art.status == ArtifactStatus.verified) return Response(HttpStatus.ok);
-      return _resumeIncomplete(size >= cr.total ? 0 : size);
+      final size = store.stagedSize(token);
+      if (size > 0 && size >= cr.total) {
+        // Every byte is staged but the artifact never verified: a commit
+        // failed (or the process died before it ran). Answering 200 here would
+        // make the client report success for an artifact that does not exist,
+        // and dropping the staged bytes would make it re-upload everything, so
+        // finish the commit now. A failure is the same 5xx as a failed commit
+        // and counts against the client's retry cap; bad bytes get the verify
+        // failure.
+        final done = await _claimResumable(art, token);
+        if (done != null) return done;
+        return _commitResumable(req, art, token, size);
+      }
+      return _resumeIncomplete(size);
     }
 
-    if (art.status == ArtifactStatus.verified) return Response(HttpStatus.ok);
-    if (art.status == ArtifactStatus.pending) {
-      await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
-    }
+    final done = await _claimResumable(art, token);
+    if (done != null) return done;
     final chunk = await _collect(req.read(), max: config.maxUploadBytes);
     await store.stageChunk(token, cr.start, chunk);
     final received = store.stagedSize(token);
@@ -2816,22 +2822,57 @@ class Api {
       return _resumeIncomplete(received);
     }
     _audit(req)?.note(detail: {'complete': true, 'staged_bytes': received});
+    return _commitResumable(req, art, token, received);
+  }
 
-    // Complete: commit to the object store + verify.
+  /// Claims a `pending` resumable artifact with a compare-and-set, so two
+  /// requests on one token cannot both own it. Returns a response to send
+  /// instead of proceeding (200 if the artifact is already verified), or null
+  /// to proceed. Throws 409 if another request holds the claim.
+  Future<Response?> _claimResumable(ArtifactRow art, String token) async {
+    if (art.status == ArtifactStatus.verified) return Response(HttpStatus.ok);
+    if (art.status != ArtifactStatus.pending) return null;
+    if (await repo.transitionArtifactStatus(
+      art.id,
+      ArtifactStatus.pending,
+      ArtifactStatus.uploading,
+    )) {
+      return null;
+    }
+    if ((await repo.artifactByToken(token))?.status ==
+        ArtifactStatus.verified) {
+      return Response(HttpStatus.ok);
+    }
+    throw conflict('Upload token not reusable (already in use)');
+  }
+
+  /// Commits the fully staged bytes for [token] to the store and verifies them.
+  Future<Response> _commitResumable(
+    Request req,
+    ArtifactRow art,
+    String token,
+    int received,
+  ) async {
     try {
       await store.commitStaged(token, art.storageKey);
     } on Object catch (e, st) {
-      // Drop the staged bytes too, so the client's offset query reports 0 and
-      // it re-sends the whole upload rather than believing it is finished. The
-      // artifact stays `uploading`, which this path accepts. Remove any partial
-      // object so it cannot be served or verified in the meantime.
-      store.discardStaged(token);
-      try {
-        await store.delete(art.storageKey);
-      } on Object catch (e2, st2) {
-        obs.error('could not remove partial object for ${art.id}', e2, st2);
-      }
       obs.error('artifact store commit failed (artifact ${art.id})', e, st);
+      // Keep the staged bytes: they are complete, and the client's status
+      // query re-runs this commit, so only the commit is retried, not the
+      // whole upload. Hand the claim back, and remove the partial object only
+      // if that reset won; otherwise another request finished the artifact and
+      // the object at this key is its.
+      try {
+        if (await repo.transitionArtifactStatus(
+          art.id,
+          ArtifactStatus.uploading,
+          ArtifactStatus.pending,
+        )) {
+          await store.delete(art.storageKey);
+        }
+      } on Object catch (e2, st2) {
+        obs.error('could not clean up failed commit of ${art.id}', e2, st2);
+      }
       rethrow;
     }
     final reason = await store.verify(
@@ -2841,6 +2882,8 @@ class Api {
       checkHash: art.ownerKind == 'release',
     );
     if (reason != null) {
+      // The staged bytes are bad; drop them so a resume restarts cleanly.
+      store.discardStaged(token);
       await repo.setArtifactStatus(art.id, ArtifactStatus.failed);
       await _auditDetail(
         req,

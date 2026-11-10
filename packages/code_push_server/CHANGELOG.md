@@ -17,8 +17,9 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   so a manual re-run of the upload works. (The CLI's multipart upload has no
   retry loop of its own.) The reset is a compare-and-set, so a concurrent
   request that already verified the artifact is not undone. A resumable upload
-  whose final commit fails drops its staged bytes, so the client's offset query
-  reports 0 and it re-sends, rather than being told the upload is complete.
+  whose final commit fails keeps its staged bytes, and the client's `bytes */TOTAL`
+  query re-runs the commit (200 only once the artifact is verified) instead of
+  reporting a complete upload that never verified.
 - **Concurrent patch publishes for one release no longer fail with an opaque
   error.** The patch number is allocated inside the INSERT, with a bounded retry
   on the `UNIQUE(release_id, number)` violation.
