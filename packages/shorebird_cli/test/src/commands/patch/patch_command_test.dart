@@ -978,6 +978,50 @@ void main() {
         ]);
       });
 
+      test('runs every patcher\'s engine check, in the release revision, '
+          'before building any of them', () async {
+        final revisions = <String>[];
+        when(() => patcher.assertEngineCanPatch()).thenAnswer((_) async {
+          revisions.add(shorebirdEnv.flutterRevision);
+        });
+        when(() => iosPatcher.assertEngineCanPatch()).thenAnswer((_) async {
+          revisions.add(shorebirdEnv.flutterRevision);
+        });
+
+        await runWithOverrides(command.run);
+
+        expect(revisions, [release.flutterRevision, release.flutterRevision]);
+        verifyInOrder([
+          patcher.assertEngineCanPatch,
+          iosPatcher.assertEngineCanPatch,
+          () => patcher.buildPatchArtifact(
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        ]);
+      });
+
+      test('a platform whose engine cannot patch stops the whole patch '
+          'before anything is built', () async {
+        when(() => iosPatcher.assertEngineCanPatch()).thenThrow(
+          CommandError(
+            message: 'ios engine cannot patch',
+            exitCode: ExitCode.unavailable,
+          ),
+        );
+
+        await expectLater(
+          runWithOverrides(command.run),
+          exitsWithCode(ExitCode.unavailable),
+        );
+
+        verify(() => patcher.assertEngineCanPatch()).called(1);
+        verifyNever(
+          () => patcher.buildPatchArtifact(
+            releaseVersion: any(named: 'releaseVersion'),
+          ),
+        );
+      });
+
       group('when a later platform fails to build', () {
         setUp(() {
           when(
@@ -1260,6 +1304,21 @@ void main() {
               exitCode: ExitCode.unavailable,
             ),
           );
+        });
+
+        test('runs with the release\'s Flutter revision selected', () async {
+          String? seen;
+          when(() => patcher.assertEngineCanPatch()).thenAnswer((_) async {
+            seen = shorebirdEnv.flutterRevision;
+            throw CommandError(message: 'x', exitCode: ExitCode.unavailable);
+          });
+
+          await expectLater(
+            () => runWithOverrides(() => command.createPatch([patcher])),
+            exitsWithError(message: 'x', exitCode: ExitCode.unavailable),
+          );
+
+          expect(seen, release.flutterRevision);
         });
 
         test('exits before downloading or building anything', () async {

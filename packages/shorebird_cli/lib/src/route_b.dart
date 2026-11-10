@@ -15,6 +15,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:path/path.dart' as p;
+
 /// Whether an iOS engine can execute Route B patches at all.
 ///
 /// A Route B engine is built with `dart_dynamic_modules = true`, which brings
@@ -41,11 +43,53 @@ bool isRouteBEngine(File engineBinary) {
       !_containsAscii(bytes, iosPatchesDeclinedMarker);
 }
 
+/// The iOS release engine binary a build in [flutterDirectory] links.
+///
+/// With `--local-engine` the vended `flutter` is told to use the local build
+/// (`ShorebirdProcess._resolveArguments`), whose framework sits in
+/// `<localEngineSrcPath>/out/<localEngine>/Flutter.framework`, not in the
+/// Flutter checkout's cache. Otherwise it is the cached xcframework slice.
+File iosReleaseEngineBinary({
+  required Directory flutterDirectory,
+  String? localEngineSrcPath,
+  String? localEngine,
+}) {
+  if (localEngine != null && localEngineSrcPath != null) {
+    return File(
+      p.join(
+        localEngineSrcPath,
+        'out',
+        localEngine,
+        'Flutter.framework',
+        'Flutter',
+      ),
+    );
+  }
+  return File(
+    p.join(
+      flutterDirectory.path,
+      'bin',
+      'cache',
+      'artifacts',
+      'engine',
+      'ios-release',
+      'Flutter.xcframework',
+      'ios-arm64',
+      'Flutter.framework',
+      'Flutter',
+    ),
+  );
+}
+
 /// Whether [engineBinary] declares, in its own log text, that it cannot run
-/// iOS patches ([iosPatchesDeclinedMarker]).
+/// iOS patches ([iosPatchesDeclinedMarker]). Reads the file once.
 ///
 /// Distinct from `!isRouteBEngine`: a missing or unrecognised binary is not a
 /// declaration, so this is false for it and the caller proceeds as before.
+///
+/// Relies on the engine emitting the marker only when its interpreter is
+/// compiled out (`FlutterDartProject.mm` and `shorebird.cc`); an engine that
+/// can run patches must never carry it.
 bool engineDeclinesIosPatches(File engineBinary) {
   if (!engineBinary.existsSync()) return false;
   return _containsAscii(

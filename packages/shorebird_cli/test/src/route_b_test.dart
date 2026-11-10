@@ -91,6 +91,27 @@ void main() {
     });
   });
 
+  group('iosReleaseEngineBinary', () {
+    test('is the cached xcframework slice without a local engine', () {
+      expect(
+        iosReleaseEngineBinary(flutterDirectory: Directory('/flutter')).path,
+        '/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/'
+        'ios-arm64/Flutter.framework/Flutter',
+      );
+    });
+
+    test('is the local engine build when one is set', () {
+      expect(
+        iosReleaseEngineBinary(
+          flutterDirectory: Directory('/flutter'),
+          localEngineSrcPath: '/engine/src',
+          localEngine: 'ios_release',
+        ).path,
+        '/engine/src/out/ios_release/Flutter.framework/Flutter',
+      );
+    });
+  });
+
   group('engineDeclinesIosPatches', () {
     late Directory tmp;
 
