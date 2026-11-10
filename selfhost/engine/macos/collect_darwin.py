@@ -2,9 +2,9 @@
 # cspell:words dsts
 """Stage the macOS shard's outputs in the CDN overlay layout.
 
-Reads shorebird/ci/shards/macos.json and compose.json, skips iOS (it does not
-build against our Dart at 3a565f27), runs each compose step whose shards all
-built, and copies every artifact to <out>/<dst> with $engine filled in:
+Reads shorebird/ci/shards/macos.json and compose.json, runs each compose step
+whose shards all built, and copies every artifact to <out>/<dst> with $engine
+filled in:
 
   flutter_infra_release/flutter/<engine>/...         as the shard names it
   download.shorebird.dev/shorebird/<engine>/...      for its shorebird/ dsts
@@ -12,10 +12,17 @@ built, and copies every artifact to <out>/<dst> with $engine filled in:
 engine_stamp.json is left out: the release already carries the one the Linux
 build stamped, and both describe the same commit.
 
-compose.json still lists FlutterMacOS.framework.dSYM.zip, which
-create_macos_framework.py no longer writes: the dSYM now ships inside the
-release framework.zip, and stock engines have no such file either. It is
-reported as "not produced", not MISSING.
+compose.json still lists FlutterMacOS.framework.dSYM.zip and
+Flutter.framework.dSYM.zip, which create_macos_framework.py and
+create_ios_framework.py no longer write: the dSYMs now ship inside the release
+framework.zip and the iOS xcframework, and stock engines have no such files
+either. They are reported as "not produced", not MISSING.
+
+Only status lines after the last "--- engine <commit>" line count, and that
+commit must be the checkout's, so nothing built at another commit is staged.
+
+iOS builds only from a commit with shorebird_use_interpreter (shorebird-flutter
+a7d5b685 and later); before that its shards fail and are skipped as not built.
 
 usage: collect_darwin.py <out dir>   (prints what it staged and what it skipped)
 """
@@ -30,19 +37,25 @@ ROOT = os.path.join(W, "flutter")
 SRC = os.path.join(ROOT, "engine", "src")
 OUT_SRC = os.path.join(SRC, "out")
 CI = os.path.join(ROOT, "shorebird", "ci")
-NOT_PRODUCED = {"FlutterMacOS.framework.dSYM.zip"}
+NOT_PRODUCED = {"FlutterMacOS.framework.dSYM.zip", "Flutter.framework.dSYM.zip"}
 
 
-def ok_shards():
-    """Shards whose last line in logs/shards.status is OK (build_shard.py's format)."""
+def ok_shards(engine):
+    """Shards built OK at `engine`, read from logs/shards.status in build_shard.py's
+    format: only lines after the last "--- engine <commit>" line count."""
     path = os.path.join(W, "logs", "shards.status")
     if not os.path.exists(path):
         sys.exit(f"no {path}: run build_shard.py first")
-    last = {}
+    commit, last = None, {}
     for line in open(path):
         parts = line.split()
-        if len(parts) >= 4 and parts[2].endswith(":"):
+        if line.startswith("--- engine ") and len(parts) >= 3:
+            commit, last = parts[2], {}
+        elif len(parts) >= 4 and parts[2].endswith(":"):
             last[parts[2].rstrip(":")] = parts[3]
+    if commit != engine:
+        sys.exit(f"{path} has no shards built at {engine} (last engine line: {commit}); "
+                 "run build_shard.py at this commit first")
     return {n for n, state in last.items() if state == "OK"}
 
 
@@ -81,11 +94,9 @@ def main():
     engine = subprocess.check_output(["git", "-C", ROOT, "rev-parse", "HEAD"], text=True).strip()
     shards = json.load(open(os.path.join(CI, "shards", "macos.json")))
     compose = json.load(open(os.path.join(CI, "compose.json")))
-    ok = ok_shards()
+    ok = ok_shards(engine)
     lines = []
     for name, shard in shards.items():
-        if name.startswith("ios"):
-            continue
         if name not in ok:
             lines.append(f"skip shard {name} (not built)")
             continue
@@ -94,8 +105,6 @@ def main():
                                zip_dir=a.get("zip", False)))
     for name, step in compose.items():
         req = step.get("requires", [])
-        if any(r.startswith("ios") for r in req):
-            continue
         if not all(r in ok for r in req):
             lines.append(f"skip compose {name} (needs {', '.join(r for r in req if r not in ok)})")
             continue

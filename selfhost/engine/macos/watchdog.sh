@@ -5,7 +5,7 @@
 #   nohup caffeinate -i python3 build_shard.py ... > "$W/logs/build.log" 2>&1 &
 #   watchdog.sh $! &
 #
-# Exit codes: 0 every non-iOS shard built, 3 the build ended with shards left,
+# Exit codes: 0 every shard built at the checkout's commit, 3 the build ended with shards left,
 # 1 stalled (no shard log written for STALL_MINUTES, default 30), 2 bad usage.
 cd "${SHOREBIRD_ENGINE_DIR:-$HOME/shorebird-engine}" || exit 2
 pid="${1:-$(cat logs/build.pid 2>/dev/null)}"
@@ -20,8 +20,9 @@ import json
 last={}
 for l in open('logs/shards.status'):
     p=l.split()
-    if len(p)>3 and p[2].endswith(':'): last[p[2][:-1]]=p[3]
-print(' '.join(n for n in json.load(open('flutter/shorebird/ci/shards/macos.json')) if not n.startswith('ios') and last.get(n)!='OK'))")
+    if l.startswith('--- engine '): last={}
+    elif len(p)>3 and p[2].endswith(':'): last[p[2][:-1]]=p[3]
+print(' '.join(n for n in json.load(open('flutter/shorebird/ci/shards/macos.json')) if last.get(n)!='OK'))")
     echo "BUILD ENDED; not built: ${left:-none}"; tail -3 logs/shards.status
     [ -z "$left" ] && exit 0 || exit 3
   fi

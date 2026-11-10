@@ -7,14 +7,17 @@ failed shard so one broken configuration doesn't cost the rest of the night.
 Writes "<date> <time> <shard>: STARTED" to logs/shards.status when a shard
 starts and ": OK" or ": FAILED ..." when it ends. The last line per shard
 decides its state, so a shard re-run that fails or is interrupted no longer
-counts as built (collect_darwin.py reads the same file). While it runs, its pid
+counts as built (collect_darwin.py reads the same file). Before building it
+appends "--- engine <commit>" whenever the checkout is at a commit other than
+the last such line names, and only lines after the last one count, so a shard
+built at an earlier engine commit is built again. While it runs, its pid
 is in logs/build.pid, which watchdog.sh and anything queued behind the build
 wait on; it refuses to start while another build holds that file.
 
 Run it with env.sh sourced (bootstrap.sh does the setup).
 
 usage: build_shard.py [--jobs N] [--pending | shard ...]
-  --pending   build every shard except iOS that has no OK line yet
+  --pending   build every shard with no OK line for the checkout's commit
 """
 import argparse
 import atexit
@@ -43,15 +46,21 @@ def now():
     return datetime.datetime.now().strftime("%F %T")
 
 
-def ok_shards():
-    """Shards whose last status line is OK."""
-    last = {}
+def engine_commit():
+    return subprocess.check_output(["git", "-C", ROOT, "rev-parse", "HEAD"], text=True).strip()
+
+
+def read_status():
+    """(commit named by the last "--- engine" line or None, OK shards after it)."""
+    commit, last = None, {}
     if os.path.exists(STATUS):
         for line in open(STATUS):
             parts = line.split()
-            if len(parts) >= 4 and parts[2].endswith(":"):
+            if line.startswith("--- engine ") and len(parts) >= 3:
+                commit, last = parts[2], {}
+            elif len(parts) >= 4 and parts[2].endswith(":"):
                 last[parts[2].rstrip(":")] = parts[3]
-    return {n for n, state in last.items() if state == "OK"}
+    return commit, {n for n, state in last.items() if state == "OK"}
 
 
 def status(line):
@@ -141,9 +150,12 @@ def main():
     ordered = [n for n in ORDER if n in spec] + [n for n in spec if n not in ORDER]
     if a.pending and a.shards:
         sys.exit("--pending takes no shard names")
+    head = engine_commit()
+    marked, ok = read_status()
+    if marked != head:
+        ok = set()
     if a.pending:
-        ok = ok_shards()
-        names = [n for n in ordered if not n.startswith("ios") and n not in ok]
+        names = [n for n in ordered if n not in ok]
     else:
         names = a.shards or ordered
     unknown = [n for n in names if n not in spec]
@@ -151,6 +163,8 @@ def main():
         sys.exit(f"unknown shard(s): {', '.join(unknown)}")
     os.makedirs(LOGS, exist_ok=True)
     claim_pid_file()
+    if marked != head:
+        status(f"--- engine {head} {now()}")
     failed = 0
     for name in names:
         path = os.path.join(LOGS, f"shard-{name}.log")

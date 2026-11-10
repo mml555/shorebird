@@ -35,8 +35,11 @@ selfhost/engine/macos/watchdog.sh $! &   # reports a stall or the end of the bui
 
 At `-j6` on a shared 10-core Mac, each shard took 20 to 90 minutes, about 6 hours of building in all.
 `logs/shards.status` gets a `STARTED` line and then an `OK` or `FAILED` line
-per shard; the last line for a shard is its state. To build what failed, was
-interrupted or never ran, except iOS:
+per shard; the last line for a shard is its state. When the checkout moves to
+another commit, `build_shard.py` appends a `--- engine <commit>` line before it
+builds, and only lines after the last one count, so every shard is built again
+for the new engine. To build what failed, was interrupted or never ran at the
+current commit:
 
 ```sh
 python3 selfhost/engine/macos/build_shard.py --jobs 6 --pending
@@ -55,7 +58,7 @@ line, and on 2026-11-09 that left the Mac idle for three hours.
 | `host_cpu="x64"` for the `--mac --mac-cpu=x64` builds | Without the prebuilt Dart, an arm64 host dartvm would have to simulate x64 to run the build's Dart tools, and Dart's x64 simulator is unimplemented. |
 | `build_analyze_snapshot=true` for 32-bit Android | The mac host build asks for `analyze_snapshot` for every Android target, and Dart only defines it for 64-bit ones. |
 | `flutter/bin/et` runs on our arm64 Dart SDK | `et` expects the prebuilt SDK under `flutter/prebuilts/macos-arm64/`. `build_shard.py` links the one the mac-arm64 shard built. |
-| iOS left out of `--pending` | At `3a565f27` the iOS engine needs `Shorebird_ReadLinkHeader` from the private Dart fork. `selfhost/engine/0002-ios-engine-on-vanilla-dart.patch` removes that, which makes a new engine hash. |
+| iOS is built with `shorebird_use_interpreter` off | The iOS patch path needs `Shorebird_ReadLinkHeader` from the private Dart fork. From shorebird-flutter `255fd850` the engine builds against the public Dart fork without it, and iOS apps do not start the updater: releases work, code patches do not. Engines before `a7d5b685` fail their iOS shards. |
 
 The x64 Dart SDK is cross-built, so it has no app-jit snapshots and no
 `kernel-service.dart.snapshot`. That makes it 168 MB against stock's 232 MB.
