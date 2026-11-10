@@ -41,21 +41,36 @@ fi
 # Build the SAN list. A modern TLS client ignores CN entirely and validates
 # against subjectAltName only, so getting this wrong looks like a hostname
 # mismatch rather than a missing SAN.
+#
+# The CA is also constrained to exactly these names (nameConstraints below), so
+# that a CA key that leaks, or a ca.crt that gets trusted by mistake, can only
+# vouch for the mirror's own hosts and not for any site. The two lists are built
+# together so they cannot disagree.
 san=""
+nc=""
 dns_i=0
 ip_i=0
 for h in "${hosts[@]}"; do
   if [[ "$h" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    [[ "$san" == *"= $h"$'\n'* ]] && continue
     ip_i=$((ip_i + 1))
     san+="IP.$ip_i = $h"$'\n'
+    nc+=", permitted;IP:$h/255.255.255.255"
   else
+    [[ "$san" == *"= $h"$'\n'* ]] && continue
     dns_i=$((dns_i + 1))
     san+="DNS.$dns_i = $h"$'\n'
+    nc+=", permitted;DNS:$h"
   fi
 done
 # 127.0.0.1 is always useful: the build host reaches the mirror over loopback.
-ip_i=$((ip_i + 1))
-san+="IP.$ip_i = 127.0.0.1"$'\n'
+if [[ "$san" != *"= 127.0.0.1"$'\n'* ]]; then
+  ip_i=$((ip_i + 1))
+  san+="IP.$ip_i = 127.0.0.1"$'\n'
+  nc+=", permitted;IP:127.0.0.1/255.255.255.255"
+fi
+# No ::1: it is not in the SAN, and clients that resolve localhost to ::1 still
+# validate against the DNS name.
 
 cat > "$DIR/openssl.cnf" <<EOF
 [req]
@@ -69,6 +84,7 @@ CN = selfhost-cdn-mirror local CA
 [v3_ca]
 basicConstraints = critical, CA:TRUE
 keyUsage         = critical, keyCertSign, cRLSign
+nameConstraints  = critical$nc
 
 [server_req]
 distinguished_name = server_dn
@@ -113,6 +129,17 @@ echo "==> wrote:"
 echo "      $DIR/ca.crt         <- the CA to trust (see trust.sh)"
 echo "      $DIR/fullchain.crt  <- served by Caddy"
 echo "      $DIR/server.key     <- private key, never commit"
+echo
+echo "==> CA name constraints:"
+openssl x509 -in "$DIR/ca.crt" -noout -text \
+  | sed -n '/Name Constraints/,/Signature Algorithm/{/Signature Algorithm/!p;}' | sed 's/^ */      /'
+echo
+echo "==> chain verifies for every SAN:"
+vargs=()
+for h in "${hosts[@]}"; do
+  if [[ "$h" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then vargs+=(-verify_ip "$h"); else vargs+=(-verify_hostname "$h"); fi
+done
+openssl verify -CAfile "$DIR/ca.crt" "${vargs[@]}" -verify_ip 127.0.0.1 "$DIR/server.crt" | sed 's/^/      /'
 echo
 echo "==> SANs on the server cert:"
 openssl x509 -in "$DIR/server.crt" -noout -text \

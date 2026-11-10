@@ -22,6 +22,14 @@
 # the overlay alone — the bytes are absent from our disk and present in the
 # response.
 #
+# Hosts. One overlay serves every host, so a hash that carries a Linux and a Mac
+# toolchain holds files that belong to another cell. The policy marks them
+# `foreign:<owner-cell>`: not a requirement of this cell, not a leak, judged by
+# the owner's audit, still route-protected. Audit each cell a hash claims (a hash
+# with Mac toolchains: macos-ios-android and macos-x64; a Linux one:
+# linux-android). Every foreign line must name an owner that has the same path
+# as a real (non-denied, non-foreign) line, or this script exits 2.
+#
 # Exit codes:  0 clean · 1 audit findings · 2 usage/environment error
 #
 # Deliberately pure bash + awk (no python, no PyYAML): this has to run on the
@@ -37,7 +45,7 @@ HASH=""
 CELL=""
 EMIT_MANIFEST=0
 
-usage() { sed -n '3,29p' "${BASH_SOURCE[0]}"; }
+usage() { sed -n '3,38p' "${BASH_SOURCE[0]}"; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -61,6 +69,22 @@ CELLS=$(awk '!/^#/ && NF>=4 && $1!="both" {print $1}' "$POLICY" | sort -u | tr '
 grep -qw -- "$CELL" <<<"$CELLS" || {
   echo "ERROR: unknown cell '$CELL' (artifact_policy.conf declares: $CELLS)" >&2; exit 2; }
 [[ -r "$POLICY" ]] || { echo "ERROR: cannot read policy $POLICY" >&2; exit 2; }
+# A `foreign:X` line is only true if cell X really owns the path.
+BAD_FOREIGN="$(awk '
+  /^#/ || NF<4 { next }
+  { cell[NR]=$1; req[NR]=$3; path[NR]=$4; prov[NR]=$2; n=NR
+    key=$1 SUBSEP $4; seen[key]=$3 }
+  END {
+    for (i=1;i<=n;i++) if (req[i] ~ /^foreign:/) {
+      o=substr(req[i],9); k=o SUBSEP path[i]
+      if (!(k in seen))            printf "%s: foreign:%s but %s has no line for %s\n", cell[i], o, o, path[i]
+      else if (seen[k] ~ /^(denied|foreign:)/) printf "%s: foreign:%s but %s is %s for %s\n", cell[i], o, o, seen[k], path[i]
+    } }' "$POLICY")"
+if [[ -n "$BAD_FOREIGN" ]]; then
+  echo "ERROR: $POLICY names an owner that does not own the path:" >&2
+  echo "$BAD_FOREIGN" | sed 's/^/  /' >&2
+  exit 2
+fi
 [[ -d "$OVERLAY" ]] || { echo "ERROR: no overlay directory at $OVERLAY" >&2; exit 2; }
 
 # The cell is NOT inferred from which artifacts happen to exist. Inferring it
@@ -123,7 +147,7 @@ FINDINGS="$WORK/findings"; : > "$FINDINGS"
 ROWS="$WORK/rows"; : > "$ROWS"
 
 n_built=0; n_mirrored=0; n_compat=0; n_denied=0
-n_missing_required=0; n_missing_deferred=0; n_unprotected=0; n_overprotected=0; n_leaked=0
+n_foreign=0; n_missing_required=0; n_missing_deferred=0; n_unprotected=0; n_overprotected=0; n_leaked=0
 
 # --- Walk the policy ---------------------------------------------------------
 while IFS= read -r line; do
@@ -136,19 +160,32 @@ while IFS= read -r line; do
 
   [[ "$pcell" == "both" || "$pcell" == "$CELL" ]] || continue
 
+  # foreign:<owner> — another cell's file. Judged as that cell's for ROUTING
+  # (it must never fall through to stock either), but it is neither required
+  # nor leaked here, and it does not count as one of this cell's artifacts.
+  owner=""; eprov="$prov"; ereq="$req"
+  case "$req" in
+    foreign:*)
+      owner="${req#foreign:}"; req="foreign"
+      oline="$(awk -v c="$owner" -v p="$(printf '%s' "$line" | awk '{print $4}')" \
+        '!/^#/ && $1==c && $4==p {print $2, $3; exit}' "$POLICY")"
+      eprov="${oline%% *}"; ereq="${oline#* }" ;;
+  esac
+
   # Two %H per Maven path, so substitute globally.
   path="$(printf '%s' "$pathtpl" | sed "s/%H/$HASH/g")"
   present=0; [[ -e "$OVERLAY/$path" ]] && present=1
   protected=0; route_owns "$path" && protected=1
 
   case "$prov" in
-    owned-built)    n_built=$((n_built+1)) ;;
-    owned-mirrored) n_mirrored=$((n_mirrored+1)) ;;
-    compat-mirrored) n_compat=$((n_compat+1)) ;;
+    owned-built)    [[ -n "$owner" ]] || n_built=$((n_built+1)) ;;
+    owned-mirrored) [[ -n "$owner" ]] || n_mirrored=$((n_mirrored+1)) ;;
+    compat-mirrored) [[ -n "$owner" ]] || n_compat=$((n_compat+1)) ;;
     none)           : ;;
     *) echo "ERROR: unknown provenance '$prov' for $path" >&2; exit 2 ;;
   esac
   [[ "$req" == "denied" ]] && n_denied=$((n_denied+1))
+  [[ "$req" == "foreign" ]] && n_foreign=$((n_foreign+1))
 
   # --- presence vs requirement ---
   case "$req:$present" in
@@ -168,12 +205,12 @@ while IFS= read -r line; do
   # --- ownership vs routing ---
   # An owned artifact that is not route-protected is served from STOCK on a
   # miss instead of failing. This is the check that cannot be done by eye.
-  case "$prov" in
+  case "$eprov" in
     owned-built|owned-mirrored)
       # A `deferred` artifact is exempt: it is not built yet, and
       # route-protecting it NOW would 404 a fetch that currently falls through
       # to stock CORRECTLY. Protection has to arrive with the bytes, not before.
-      if [[ $protected -eq 0 && "$req" != "deferred" ]]; then
+      if [[ $protected -eq 0 && "$ereq" != "deferred" ]]; then
         n_unprotected=$((n_unprotected+1))
         printf 'UNPROTECTED       %s\n                  owned by policy but @must_be_local does not match it: a miss serves STOCK bytes from the pinned hash instead of 404ing\n' "$path" >> "$FINDINGS"
         if [[ $present -eq 0 ]]; then
@@ -197,7 +234,8 @@ while IFS= read -r line; do
       fi ;;
   esac
 
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$path" "$prov" "$req" "$present" "$protected" "$note" >> "$ROWS"
+  rowreq="$req"; [[ -z "$owner" ]] || rowreq="foreign:$owner"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$path" "$prov" "$rowreq" "$present" "$protected" "$note" >> "$ROWS"
 done < "$POLICY"
 
 # --- Report ------------------------------------------------------------------
@@ -209,6 +247,7 @@ printf 'owned-built:       %d\n' "$n_built"
 printf 'owned-mirrored:    %d\n' "$n_mirrored"
 printf 'compat-mirrored:   %d\n' "$n_compat"
 printf 'denied:            %d\n' "$n_denied"
+printf 'foreign (other cell): %d\n' "$n_foreign"
 printf 'missing-required:  %d\n' "$n_missing_required"
 
 extra=""
@@ -245,7 +284,7 @@ if [[ $EMIT_MANIFEST -eq 1 ]]; then
     while IFS=$'\t' read -r path prov req present protected note; do
       [[ -n "$path" ]] || continue
       verified=false
-      [[ "$prov" == "owned-built" && "$present" == "1" ]] && verified=true
+      [[ "$prov" == "owned-built" && "$present" == "1" && "$req" != foreign:* ]] && verified=true
       echo "  - path: $path"
       echo "    provenance: $prov"
       echo "    requirement: $req"
