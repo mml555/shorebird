@@ -14,6 +14,7 @@ import 'package:shorebird_cli/src/code_signer.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
+import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
 import 'package:shorebird_cli/src/executables/aot_tools.dart';
@@ -24,6 +25,7 @@ import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/route_b.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
@@ -182,6 +184,45 @@ void main() {
         expect(
           patcher.minimumFlutterVersion,
           minimumPatchableIosFlutterVersion,
+        );
+      });
+    });
+
+    group('assertEngineCanPatch', () {
+      late Directory flutterDir;
+
+      setUp(() {
+        flutterDir = Directory.systemTemp.createTempSync('engine_check_');
+        when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDir);
+      });
+
+      tearDown(() => flutterDir.deleteSync(recursive: true));
+
+      File(
+        String contents,
+      ) => iosReleaseEngineBinary(flutterDirectory: flutterDir)
+        ..createSync(recursive: true)
+        ..writeAsStringSync(contents);
+
+      test('refuses an engine that declines iOS patches', () {
+        File('InterpretCall $iosPatchesDeclinedMarker');
+        expect(
+          () => runWithOverrides(patcher.assertEngineCanPatch),
+          throwsA(
+            isA<CommandError>().having(
+              (e) => e.exitCode,
+              'exitCode',
+              ExitCode.unavailable.code,
+            ),
+          ),
+        );
+      });
+
+      test('proceeds on an engine that can run iOS patches', () async {
+        File('InterpretCall');
+        await expectLater(
+          runWithOverrides(patcher.assertEngineCanPatch),
+          completes,
         );
       });
     });
