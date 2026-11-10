@@ -2678,21 +2678,26 @@ class Api {
     // move the artifact forward from there, so the patch never reaches `ready`.
     final (_, file) = await _parseMultipart(req);
     if (file == null) throw badRequest('Missing file part');
-    await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
+    // Claim the token with a compare-and-set so only one request owns the write;
+    // a concurrent request with the same token loses here, not later.
+    if (!await repo.transitionArtifactStatus(
+      art.id,
+      ArtifactStatus.pending,
+      ArtifactStatus.uploading,
+    )) {
+      throw conflict('Upload token not reusable (already in use)');
+    }
     try {
       await store.put(art.storageKey, file.bytes);
-    } on Object catch (e) {
+    } on Object catch (e, st) {
       // The write failed (object store down, disk full, timeout). Without this
       // the artifact stays `uploading` forever: the retry hits the
       // `status != pending` conflict above, and re-registering hits the
       // duplicate check in `_createPatchArtifact`, so the patch never reaches
       // `ready`. Remove whatever part of the object landed, so it cannot be
       // mistaken for the real thing, and hand the token back.
+      obs.error('artifact store write failed (artifact ${art.id})', e, st);
       await _abandonWrite(art);
-      obs.info('artifact store write failed', {
-        'artifact': art.id,
-        'error': '$e',
-      });
       rethrow;
     }
 
@@ -2727,23 +2732,33 @@ class Api {
     return Response(HttpStatus.noContent);
   }
 
-  /// Undoes a failed store write for [art]: best-effort removal of any partial
-  /// object, then `uploading` -> `pending` so the same token can be retried.
-  /// Failures here are swallowed; the caller rethrows the original error.
+  /// Undoes a failed store write for [art]: `uploading` -> `pending` so the same
+  /// token can be retried, then best-effort removal of any partial object. The
+  /// reset is a compare-and-set and the delete only happens if it won: if the
+  /// artifact is no longer `uploading` (another request finished it), the
+  /// object at the shared key is that request's and must be kept.
   Future<void> _abandonWrite(ArtifactRow art) async {
     try {
-      await store.delete(art.storageKey);
-    } on Object {
-      // ignore: the store is likely still down; the retry overwrites the key.
-    }
-    try {
-      requireArtifactTransition(
+      final reset = await repo.transitionArtifactStatus(
+        art.id,
         ArtifactStatus.uploading,
         ArtifactStatus.pending,
       );
-      await repo.setArtifactStatus(art.id, ArtifactStatus.pending);
-    } on Object {
-      // ignore: the original store error is the one worth reporting.
+      if (!reset) {
+        obs.info('artifact left as is after a failed write', {
+          'artifact': art.id,
+        });
+        return;
+      }
+    } on Object catch (e, st) {
+      // Stuck `uploading` until an operator intervenes; say so loudly.
+      obs.error('could not reset artifact ${art.id} to pending', e, st);
+      return;
+    }
+    try {
+      await store.delete(art.storageKey);
+    } on Object catch (e, st) {
+      obs.error('could not remove partial object for ${art.id}', e, st);
     }
   }
 
@@ -2778,10 +2793,12 @@ class Api {
     if (cr.isQuery) {
       await req.read().drain<void>();
       final size = store.stagedSize(token);
-      if (art.status == ArtifactStatus.verified || size >= cr.total) {
-        return Response(HttpStatus.ok);
-      }
-      return _resumeIncomplete(size);
+      // Complete only when verified. Staged bytes alone are not: a failed
+      // commit leaves them in place, and answering 200 would make the client
+      // report success for an artifact that never verifies. A full staged
+      // file that is not verified reports offset 0 so the client re-sends.
+      if (art.status == ArtifactStatus.verified) return Response(HttpStatus.ok);
+      return _resumeIncomplete(size >= cr.total ? 0 : size);
     }
 
     if (art.status == ArtifactStatus.verified) return Response(HttpStatus.ok);
@@ -2803,20 +2820,18 @@ class Api {
     // Complete: commit to the object store + verify.
     try {
       await store.commitStaged(token, art.storageKey);
-    } on Object catch (e) {
-      // Unlike `_upload`, this path accepts `uploading`, so the retry is not
-      // blocked. The staged bytes are kept (commitStaged only discards after a
-      // successful put), so the client can re-send the final chunk. Remove any
-      // partial object so it cannot be served or verified in the meantime.
+    } on Object catch (e, st) {
+      // Drop the staged bytes too, so the client's offset query reports 0 and
+      // it re-sends the whole upload rather than believing it is finished. The
+      // artifact stays `uploading`, which this path accepts. Remove any partial
+      // object so it cannot be served or verified in the meantime.
+      store.discardStaged(token);
       try {
         await store.delete(art.storageKey);
-      } on Object {
-        // ignore: best effort.
+      } on Object catch (e2, st2) {
+        obs.error('could not remove partial object for ${art.id}', e2, st2);
       }
-      obs.info('artifact store commit failed', {
-        'artifact': art.id,
-        'error': '$e',
-      });
+      obs.error('artifact store commit failed (artifact ${art.id})', e, st);
       rethrow;
     }
     final reason = await store.verify(

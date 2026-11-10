@@ -2110,24 +2110,34 @@ void main() {
       },
     );
 
-    test('resumable: a failed commit keeps the upload resumable', () async {
+    test('resumable: after a failed commit the client re-sends', () async {
+      // The client's real sequence: the PUT answers 500, it backs off and asks
+      // `bytes */TOTAL`, then resumes from the offset the server reports.
       final store = flakyApi();
       final r = await registered();
       final art = (await repo.artifactByToken(r.token))!;
-      Future<Response> putAll() => send(
+      Future<Response> put(String range, [String body = '']) => send(
         'PUT',
         '/api/v1/uploads/${r.token}',
         bearer: _bootstrapKey,
-        headers: {'content-range': 'bytes 0-2/3'},
-        body: 'abc',
+        headers: {'content-range': range},
+        body: body,
       );
 
       store.failNextPut = true;
-      final failed = await putAll();
+      final failed = await put('bytes 0-2/3', 'abc');
       expect(failed.statusCode, greaterThanOrEqualTo(500));
       expect(await store.exists(art.storageKey), isFalse);
 
-      final retry = await putAll();
+      final query = await put('bytes */3');
+      expect(
+        query.statusCode,
+        308,
+        reason: '200 here would make the client report a failed upload as done',
+      );
+      expect(query.headers['range'], isNull, reason: 'restart from byte 0');
+
+      final retry = await put('bytes 0-2/3', 'abc');
       expect(retry.statusCode, HttpStatus.ok);
       expect(
         (await repo.artifactByToken(r.token))!.status,
@@ -2135,6 +2145,42 @@ void main() {
       );
       expect((await repo.patch(r.patchId))!.status, PatchStatus.ready);
     });
+
+    test(
+      'multipart: a failure after another request verified is a no-op',
+      () async {
+        // Two requests share a token and a storage key. B verifies while A's put
+        // is failing; A's cleanup must not demote the artifact or delete B's
+        // object.
+        final store = flakyApi();
+        final r = await registered();
+        final art = (await repo.artifactByToken(r.token))!;
+        store.beforeFailure = () async {
+          await store.put(art.storageKey, utf8.encode('abc'));
+          await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
+        };
+        store.failNextPut = true;
+
+        final failed = await uploadBody(r.token);
+        expect(failed.statusCode, greaterThanOrEqualTo(500));
+        expect(
+          (await repo.artifactByToken(r.token))!.status,
+          ArtifactStatus.verified,
+        );
+        expect(await store.exists(art.storageKey), isTrue);
+      },
+    );
+
+    test(
+      'multipart: a second request with a claimed token conflicts',
+      () async {
+        flakyApi();
+        final r = await registered();
+        final art = (await repo.artifactByToken(r.token))!;
+        await repo.setArtifactStatus(art.id, ArtifactStatus.uploading);
+        expect((await uploadBody(r.token)).statusCode, HttpStatus.conflict);
+      },
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -4081,11 +4127,16 @@ class _FlakyStore extends FilesystemArtifactStore {
 
   bool failNextPut = false;
 
+  /// Runs inside the failing `put`, before it throws: what a concurrent
+  /// request sharing the key might have done in the meantime.
+  Future<void> Function()? beforeFailure;
+
   @override
   Future<void> put(String key, List<int> bytes) async {
     if (failNextPut) {
       failNextPut = false;
       await super.put(key, bytes.sublist(0, bytes.length ~/ 2));
+      await beforeFailure?.call();
       throw const FileSystemException('injected: no space left on device');
     }
     return super.put(key, bytes);

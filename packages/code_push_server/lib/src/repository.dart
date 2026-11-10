@@ -1401,7 +1401,10 @@ class Repository {
     // makes that atomic. Postgres runs concurrent statements, so two publishers
     // can still compute the same number; UNIQUE(release_id, number) rejects the
     // loser, and we retry, where the winner's row is now visible.
-    const maxAttempts = 5;
+    //
+    // Must not be called inside `tx`: on Postgres a 23505 aborts the whole
+    // transaction, so every retry would fail with 25P02 instead.
+    const maxAttempts = 8;
     for (var attempt = 1; ; attempt++) {
       try {
         final r = await _q(
@@ -1419,6 +1422,10 @@ class Repository {
         return (await patch(_int(r.first['id'])))!;
       } on Object catch (e) {
         if (!isUniqueViolation(e) || attempt >= maxAttempts) rethrow;
+        // Jitter, so a burst of publishers does not collide in lockstep.
+        await Future<void>.delayed(
+          Duration(milliseconds: 2 + _rng.nextInt(10 * attempt)),
+        );
       }
     }
   }
@@ -1925,6 +1932,23 @@ class Repository {
         ? null
         : _int(m['signing_key_id']),
   );
+
+  /// Compare-and-set: moves the artifact from [from] to [to] only if it is
+  /// still in [from]. Returns whether this call made the move. Use it where two
+  /// requests can race on one artifact (same upload token).
+  Future<bool> transitionArtifactStatus(
+    int artifactId,
+    ArtifactStatus from,
+    ArtifactStatus to,
+  ) async {
+    requireArtifactTransition(from, to);
+    final r = await _q(
+      'UPDATE artifacts SET status = @to WHERE id = @id AND status = @from '
+      'RETURNING id',
+      {'to': to.name, 'from': from.name, 'id': artifactId},
+    );
+    return r.isNotEmpty;
+  }
 
   Future<void> setArtifactStatus(int artifactId, ArtifactStatus status) => _q(
     'UPDATE artifacts SET status = @s WHERE id = @id',
