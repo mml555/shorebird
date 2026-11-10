@@ -205,6 +205,44 @@ def link_et_dart(log):
     return True
 
 
+def verify_exported(log, waived):
+    """Upstream's exported-symbol check (testing/symbols/verify_exported.dart)
+    over every release build in out/. It fails the shard unless the only
+    problems are unexpected exports that --waive-export names, one by one.
+    Returns (rc, waived symbols actually seen)."""
+    if not link_et_dart(log):
+        return 1, set()
+    dart = os.path.join(SRC, "flutter", "prebuilts", "macos-arm64", "dart-sdk", "bin", "dart")
+    cmd = [dart, "--packages=flutter/.dart_tool/package_config.json",
+           "flutter/testing/symbols/verify_exported.dart",
+           os.path.join(SRC, "out"), os.path.join(SRC, "flutter", "buildtools")]
+    log.write(f"[{now()}] $ {' '.join(cmd)}\n")
+    log.flush()
+    p = subprocess.run(cmd, cwd=SRC, capture_output=True, text=True)
+    out = p.stdout + p.stderr
+    log.write(out)
+    if p.returncode == 0:
+        return 0, set()
+    # Waivable only if every ERROR is an "exports unexpected symbols" list and
+    # every symbol listed is waived. Any other error fails as before.
+    unexpected, other, in_list = set(), [], False
+    for line in out.splitlines():
+        if line.startswith("ERROR:"):
+            in_list = line.endswith("exports unexpected symbols:")
+            if not in_list:
+                other.append(line)
+        elif in_list and line.startswith(" ") and line.strip():
+            unexpected.add(line.split()[-1])
+        else:
+            in_list = False
+    if other or not unexpected or not unexpected <= waived:
+        if unexpected - waived:
+            log.write(f"not waived: {' '.join(sorted(unexpected - waived))}\n")
+        return 1, set()
+    log.write(f"WAIVED unexpected exports: {' '.join(sorted(unexpected))}\n")
+    return 0, unexpected
+
+
 def run(cmd, log, **kw):
     log.write(f"[{now()}] $ {' '.join(cmd) if isinstance(cmd, list) else cmd}\n")
     log.flush()
@@ -216,6 +254,9 @@ def main():
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--pending", action="store_true")
     ap.add_argument("--left", action="store_true")
+    ap.add_argument("--waive-export", action="append", default=[], metavar="SYMBOL",
+                    help="let verify_exported pass when this exact symbol (Mach-O spelling, "
+                         "e.g. _Foo) is its only complaint; repeatable, recorded in the status file")
     ap.add_argument("shards", nargs="*")
     a = ap.parse_args()
     spec = json.load(open(SHARDS))
@@ -278,6 +319,10 @@ def main():
                         rc = 1
                     else:
                         rc = run(step["command"], log, shell=True)
+                elif t == "verify_exported":
+                    rc, seen = verify_exported(log, set(a.waive_export))
+                    if seen:
+                        status(f"{now()} {name}: WAIVED exports {' '.join(sorted(seen))}")
                 else:
                     log.write(f"unknown step type {t}\n")
                     rc = 1
