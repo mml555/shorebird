@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words pcell pathtpl SBDIR
+# cspell:words pcell pathtpl SBDIR SUBSEP eprov ereq oline rowreq
 # audit_overlay.sh — does our overlay actually own what we claim it owns?
 #
 # Answers the one question that "is it in the mirror?" cannot: for a given

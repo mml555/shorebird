@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# cspell:words dartvm
+# cspell:words dartvm plists
 """Build the macOS engine shard (shorebird/ci/shards/macos.json) from a synced checkout.
 
 Runs every gn_ninja and shell step, skips clang_tidy, and keeps going past a

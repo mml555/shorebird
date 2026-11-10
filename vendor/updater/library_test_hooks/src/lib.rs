@@ -90,6 +90,13 @@ pub unsafe extern "C" fn shorebird_test_check_signature(
         return 1;
     };
 
+    // The verifier now lives in the engine, which registers it. This cdylib
+    // runs without one, so register the test callbacks (the same `ring`
+    // RSA PKCS#1 SHA-256 verifier `shorebird_test_init` registers) or every
+    // signature is rejected for want of a verifier.
+    let engine_callbacks = updater::testing_engine_callbacks();
+    engine::shorebird_set_engine_callbacks(&engine_callbacks);
+
     match updater::testing_check_signature(&message, &signature, &public_key) {
         Ok(()) => 0,
         Err(_) => 1,

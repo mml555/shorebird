@@ -28,6 +28,7 @@ import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
+import 'package:shorebird_cli/src/engine_config.dart';
 import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
@@ -248,19 +249,10 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
   File? _retentionManifest;
 
   /// The iOS engine binary this build will link against.
-  File get _routeBEngineBinary => File(
-    p.join(
-      shorebirdEnv.flutterDirectory.path,
-      'bin',
-      'cache',
-      'artifacts',
-      'engine',
-      'ios-release',
-      'Flutter.xcframework',
-      'ios-arm64',
-      'Flutter.framework',
-      'Flutter',
-    ),
+  File get _routeBEngineBinary => iosReleaseEngineBinary(
+    flutterDirectory: shorebirdEnv.flutterDirectory,
+    localEngineSrcPath: engineConfig.localEngineSrcPath,
+    localEngine: engineConfig.localEngine,
   );
 
   /// Record, with the release, which engine built it.
