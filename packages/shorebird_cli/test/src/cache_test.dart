@@ -809,7 +809,90 @@ void main() {
                     contains('https://storage.googleapis.com/'),
                     contains(': 404 Not Found'),
                     contains('SHOREBIRD_ARTIFACT_ORIGIN'),
-                    contains('SHOREBIRD_DOWNLOAD_URL'),
+                    isNot(contains('SHOREBIRD_DOWNLOAD_URL')),
+                  ),
+                ),
+              ),
+            );
+          });
+
+          test('an optional artifact 404 warns with the hint', () async {
+            when(() => httpClient.send(any())).thenAnswer((invocation) async {
+              final request =
+                  invocation.positionalArguments.first as http.BaseRequest;
+              if (p.basename(request.url.path).startsWith('aot-tools')) {
+                return http.StreamedResponse(
+                  const Stream.empty(),
+                  HttpStatus.notFound,
+                  reasonPhrase: 'Not Found',
+                );
+              }
+              return http.StreamedResponse(
+                Stream.value(ZipEncoder().encode(Archive())),
+                HttpStatus.ok,
+              );
+            });
+            await runWithOverrides(() => cache.updateAll(Duration.zero));
+            verify(
+              () => logger.warn(
+                any(
+                  that: allOf(
+                    contains('aot-tools'),
+                    contains('SHOREBIRD_ARTIFACT_ORIGIN'),
+                  ),
+                ),
+              ),
+            ).called(1);
+          });
+
+          test(
+            'an optional artifact network failure warns with the hint',
+            () async {
+              when(() => httpClient.send(any())).thenAnswer((invocation) async {
+                final request =
+                    invocation.positionalArguments.first as http.BaseRequest;
+                if (p.basename(request.url.path).startsWith('aot-tools')) {
+                  throw const SocketException('test');
+                }
+                return http.StreamedResponse(
+                  Stream.value(ZipEncoder().encode(Archive())),
+                  HttpStatus.ok,
+                );
+              });
+              await runWithOverrides(() => cache.updateAll(Duration.zero));
+              verify(
+                () => logger.warn(
+                  any(that: contains('SHOREBIRD_ARTIFACT_ORIGIN')),
+                ),
+              ).called(1);
+            },
+          );
+
+          test('a failing non-upstream URL gets no hint', () async {
+            when(() => httpClient.send(any())).thenAnswer((invocation) async {
+              final request =
+                  invocation.positionalArguments.first as http.BaseRequest;
+              if (request.url.host == 'github.com') {
+                return http.StreamedResponse(
+                  const Stream.empty(),
+                  HttpStatus.notFound,
+                  reasonPhrase: 'Not Found',
+                );
+              }
+              return http.StreamedResponse(
+                Stream.value(ZipEncoder().encode(Archive())),
+                HttpStatus.ok,
+              );
+            });
+            await expectLater(
+              runWithOverrides(() => cache.updateAll(Duration.zero)),
+              throwsA(
+                isA<CacheUpdateFailure>().having(
+                  (e) => e.message,
+                  'message',
+                  allOf(
+                    contains('github.com'),
+                    isNot(contains('SHOREBIRD_ARTIFACT_ORIGIN')),
                   ),
                 ),
               ),

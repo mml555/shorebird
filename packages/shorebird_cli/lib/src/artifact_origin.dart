@@ -172,8 +172,7 @@ abstract final class ArtifactOrigin {
     return '$flutterStorageKey is set alone, so the Flutter/engine artifacts '
         "come from it but Shorebird's own downloads (the patch executable, "
         'aot-tools) still come from $upstreamShorebirdStorageBaseUrl. To '
-        'fetch both from one self-hosted origin, set $originKey (or '
-        '$downloadUrlKey) as well.';
+        'fetch both from one self-hosted origin, set $originKey as well.';
   }
 
   /// A hint to append to a failed download of [url], or null.
@@ -186,8 +185,8 @@ abstract final class ArtifactOrigin {
     if (!url.startsWith('$upstreamShorebirdStorageBaseUrl/')) return null;
     return '$flutterStorageKey is set but this download comes from '
         '$upstreamShorebirdStorageBaseUrl. If your engine is self-hosted, set '
-        '$originKey (or $downloadUrlKey) as well so the CLI fetches its '
-        'tools from the same origin.';
+        '$originKey to the same origin as well, so the CLI fetches its tools '
+        'from <origin>/$upstreamShorebirdStorageBucket/shorebird/<engine>/.';
   }
 
   /// A one-line description of the resolved origins, for `--verbose` and for

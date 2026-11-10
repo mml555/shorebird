@@ -381,7 +381,6 @@ void main() {
               expect(warning, contains('FLUTTER_STORAGE_BASE_URL'));
               expect(warning, contains('SHOREBIRD_ARTIFACT_ORIGIN'));
               expect(warning, contains('https://storage.googleapis.com'));
-              expect(warning, contains('SHOREBIRD_DOWNLOAD_URL'));
               // Resolution is unchanged.
               expect(
                 ArtifactOrigin.shorebirdStorageBaseUrl(),

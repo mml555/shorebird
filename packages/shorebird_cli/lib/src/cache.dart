@@ -472,7 +472,7 @@ abstract class CachedArtifact {
         logger.warn(
           '''
 Failed to download optional artifact $fileName from $url: $error
-Continuing without it; commands that need $fileName will not work until it can be downloaded.''',
+Continuing without it; commands that need $fileName will not work until it can be downloaded.${_hint(url)}''',
         );
         return;
       }
@@ -487,6 +487,12 @@ allowed to access $url.${_hint(url)}''');
         logger.detail(
           '[cache] optional artifact: "$fileName" was not found, skipping...',
         );
+        final hint = ArtifactOrigin.toolsDownloadHint(url);
+        if (hint != null) {
+          logger.warn(
+            'Optional artifact $fileName was not found at $url.\n$hint',
+          );
+        }
         updateProgress.cancel();
         return;
       }
