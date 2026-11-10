@@ -64,8 +64,10 @@ A final commit (after 46dff9d) holds the compile fixups and this file.
 6. **2199c35, lost-update instrumentation.** Kept (LOAD/QUEUE_EVENT/SAVE
    `state_diag.log`). Its original purpose, a whole-file save losing an event, is
    now structurally prevented upstream by `StateLock`, so this is observation only.
-   It still appends to `state_diag.log` and `success_diag.log` unboundedly and
-   neither is in `SHOREBIRD_OWNED_PATHS`, same as on the fork.
+   Both `state_diag.log` and `success_diag.log` append through `diag_log::append`,
+   which rotates a file at 64 KiB to `<name>.1` (one generation, so under 128 KiB
+   each) and swallows every failure. Neither is in `SHOREBIRD_OWNED_PATHS`, same
+   as on the fork.
 7. **fe51f22, ack-only removal.** Superseded: upstream's `send_queued_events`
    removes exactly what it sent via `UpdaterState::remove_event`. Production code
    took upstream. `acknowledge_sent_event` survives as a `#[cfg(test)]` wrapper over

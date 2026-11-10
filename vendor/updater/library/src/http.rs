@@ -88,7 +88,6 @@ fn engine_error(error: crate::engine_callbacks::HttpError, url: &str) -> anyhow:
 /// Sends through `ureq`.
 #[cfg(any(not(engine_http), test))]
 pub fn ureq_send(request: &Request, handler: &mut dyn ResponseHandler) -> anyhow::Result<()> {
-    use std::io::{ErrorKind, Read};
     use ureq::tls::{RootCerts, TlsConfig};
 
     // Statuses are the caller's to judge, so ureq must not turn 4xx/5xx into
@@ -105,6 +104,38 @@ pub fn ureq_send(request: &Request, handler: &mut dyn ResponseHandler) -> anyhow
             .new_agent()
     });
 
+    ureq_send_with(&AGENT, request, handler)
+}
+
+/// Whether a `ureq` failure means the server was never reached, which is a
+/// [`NetworkError::Transport`] however the failure arose.
+#[cfg(any(not(engine_http), test))]
+fn is_transport_failure(e: &ureq::Error) -> bool {
+    matches!(
+        e,
+        ureq::Error::HostNotFound
+            | ureq::Error::ConnectionFailed
+            | ureq::Error::Io(_)
+            | ureq::Error::Timeout(_)
+            // An untrusted certificate, or no system roots to check it with.
+            | ureq::Error::Tls(_)
+            | ureq::Error::Rustls(_)
+            // A proxy that refuses CONNECT (a 403 from an allowlisting proxy,
+            // say) leaves the server just as unreached as a refused direct
+            // connection, so retry, reporting and backoff must treat it the
+            // same.
+            | ureq::Error::ConnectProxyFailed(_)
+    )
+}
+
+#[cfg(any(not(engine_http), test))]
+fn ureq_send_with(
+    agent: &ureq::Agent,
+    request: &Request,
+    handler: &mut dyn ResponseHandler,
+) -> anyhow::Result<()> {
+    use std::io::{ErrorKind, Read};
+
     let mut builder = ureq::http::Request::builder()
         .method(request.method)
         .uri(request.url);
@@ -114,24 +145,18 @@ pub fn ureq_send(request: &Request, handler: &mut dyn ResponseHandler) -> anyhow
     let http_request = builder
         .body(request.body)
         .map_err(|e| anyhow::anyhow!("Invalid HTTP request for URL {}: {e}", request.url))?;
-    let http_request = AGENT
+    let http_request = agent
         .configure_request(http_request)
         .timeout_global(request.timeout)
         .build();
-    let response = match AGENT.run(http_request) {
+    let response = match agent.run(http_request) {
         Ok(response) => response,
         // Keep ureq's error as the cause, so logs and the failure event say
         // why the server couldn't be reached (an untrusted certificate, a DNS
         // failure, a refused connection) instead of only that it couldn't.
-        Err(
-            e @ (ureq::Error::HostNotFound
-            | ureq::Error::ConnectionFailed
-            | ureq::Error::Io(_)
-            | ureq::Error::Timeout(_)
-            // An untrusted certificate, or no system roots to check it with.
-            | ureq::Error::Tls(_)
-            | ureq::Error::Rustls(_)),
-        ) => return Err(anyhow::Error::new(e).context(NetworkError::Transport)),
+        Err(e) if is_transport_failure(&e) => {
+            return Err(anyhow::Error::new(e).context(NetworkError::Transport))
+        }
         Err(e) => return Err(e.into()),
     };
 
@@ -200,5 +225,71 @@ mod tests {
         );
         let err = engine_error(HttpError::Protocol(None), "https://example.com");
         assert_eq!(err.downcast_ref::<NetworkError>(), None);
+    }
+
+    /// Serves one CONNECT with `status` and returns the proxy's URL.
+    fn refusing_proxy(status: &'static str) -> String {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = Vec::new();
+            let mut byte = [0u8; 1];
+            while !request.ends_with(b"\r\n\r\n") && stream.read(&mut byte).unwrap_or(0) == 1 {
+                request.push(byte[0]);
+            }
+            let _ = stream
+                .write_all(format!("HTTP/1.1 {status}\r\nContent-Length: 0\r\n\r\n").as_bytes());
+        });
+        url
+    }
+
+    struct Discard;
+    impl ResponseHandler for Discard {
+        fn on_response(&mut self, _: u16, _: &[Header]) -> anyhow::Result<()> {
+            Ok(())
+        }
+        fn on_body(&mut self, _: &[u8]) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn proxy_refusing_connect_is_a_transport_error() {
+        let proxy = refusing_proxy("403 Forbidden");
+        let agent = ureq::Agent::config_builder()
+            .http_status_as_error(false)
+            .proxy(Some(ureq::Proxy::new(&proxy).unwrap()))
+            .build()
+            .new_agent();
+        let request = Request {
+            method: "GET",
+            url: "https://example.com/patch",
+            headers: &[],
+            body: &[],
+            timeout: Some(Duration::from_secs(5)),
+        };
+        let err = ureq_send_with(&agent, &request, &mut Discard).unwrap_err();
+        assert_eq!(
+            err.downcast_ref::<NetworkError>(),
+            Some(&NetworkError::Transport),
+            "{err:#}"
+        );
+        // The proxy's own words stay as the cause.
+        assert!(
+            format!("{err:#}").contains("CONNECT proxy failed"),
+            "{err:#}"
+        );
+    }
+
+    #[test]
+    fn classifies_what_never_reached_the_server_as_transport() {
+        assert!(is_transport_failure(&ureq::Error::ConnectProxyFailed(
+            "proxy server responded 403".to_string()
+        )));
+        assert!(is_transport_failure(&ureq::Error::HostNotFound));
+        assert!(is_transport_failure(&ureq::Error::ConnectionFailed));
+        assert!(!is_transport_failure(&ureq::Error::BadUri("x".to_string())));
     }
 }

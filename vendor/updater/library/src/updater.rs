@@ -1880,24 +1880,19 @@ pub fn report_launch_success() -> anyhow::Result<()> {
             // the fact.
             //
             // Best-effort and deliberately unwrapped: a diagnostic must never be able
-            // to fail a launch. Appended, never truncated, so a rerun cannot erase the
-            // previous run's record.
+            // to fail a launch. Appended, so a rerun does not erase the previous run's
+            // record; `diag_log` rotates it at a size cap so it cannot grow forever.
             {
-                use std::io::Write as _;
                 let path = config.storage_dir.join("success_diag.log");
                 let line = format!(
-                    "pid={} patch={} raw_boot_attempt={} prior_ambiguous_attempts={} recovery_event_decision={}\n",
+                    "pid={} patch={} raw_boot_attempt={} prior_ambiguous_attempts={} recovery_event_decision={}",
                     std::process::id(),
                     success.patch,
                     success.raw_boot_attempt_count,
                     success.prior_ambiguous_attempts,
                     if success.prior_ambiguous_attempts > 0 { "WILL_EMIT" } else { "SUPPRESSED" },
                 );
-                let _ = std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(&path)
-                    .and_then(|mut f| f.write_all(line.as_bytes()));
+                crate::diag_log::append(&path, &line);
             }
 
             // MEASUREMENT FIDELITY. The recovery event is the numerator of
