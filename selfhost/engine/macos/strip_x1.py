@@ -17,6 +17,9 @@ usage: strip_x1.py <src.sdk> <dst.sdk>
 import os, re, shutil, subprocess, sys
 
 src, dst = os.path.realpath(sys.argv[1]), sys.argv[2]
+# dst is deleted first, so insist it looks like an SDK copy.
+if not dst.endswith(".sdk") or os.path.realpath(dst) == src:
+    sys.exit(f"refusing to replace {dst}: give a <name>.sdk path other than the source")
 if os.path.islink(dst):
     os.remove(dst)
 elif os.path.exists(dst):

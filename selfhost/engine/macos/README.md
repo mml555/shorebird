@@ -8,18 +8,21 @@ with the changes our setup needs. The files went into the GitHub release
 `engine-3a565f273d871d1ef004faf1a87bf45637df8ad0` on mml555/shorebird-flutter,
 next to the Linux build.
 
-Everything lives in one work folder, `$SHOREBIRD_ENGINE_DIR` (default
-`~/shorebird-engine`): git config, Rust, depot_tools, caches and logs. Nothing
-is installed system-wide, and nothing needs `sudo`.
+Rust, depot_tools, caches and logs live in one work folder,
+`$SHOREBIRD_ENGINE_DIR` (default `~/shorebird-engine`), and git reads this
+directory's `gitconfig` instead of yours. Nothing is installed system-wide, and
+nothing needs `sudo`. `env.sh` changes the shell it is sourced in, so use a
+terminal just for the build.
 
 ## Before you start
 
 - Xcode, plus its Metal toolchain: `xcodebuild -downloadComponent MetalToolchain`.
 - Rosetta: `softwareupdate --install-rosetta --agree-to-license` (no `sudo`
   needed). The x64 host tools run under it.
+- `rustup` (`brew install rustup`).
 - About 150 GB free.
 
-`bootstrap.sh` warns when either of the first two is missing.
+`bootstrap.sh` stops before the sync when any of the first three is missing.
 
 ## Run
 
@@ -27,19 +30,20 @@ is installed system-wide, and nothing needs `sudo`.
 source selfhost/engine/macos/env.sh
 selfhost/engine/macos/bootstrap.sh <shorebird-flutter commit>
 nohup caffeinate -i python3 selfhost/engine/macos/build_shard.py --jobs 6 > "$W/logs/build.log" 2>&1 &
-selfhost/engine/macos/watchdog.sh &      # alerts on a stall or an early stop
+selfhost/engine/macos/watchdog.sh $! &   # reports a stall or the end of the build
 ```
 
 At `-j6` on a shared 10-core Mac, each shard took 20 to 90 minutes, about 6 hours of building in all.
-`logs/shards.status` gets one line per shard. To build what failed or never
-ran, except iOS:
+`logs/shards.status` gets a `STARTED` line and then an `OK` or `FAILED` line
+per shard; the last line for a shard is its state. To build what failed, was
+interrupted or never ran, except iOS:
 
 ```sh
 python3 selfhost/engine/macos/build_shard.py --jobs 6 --pending
 ```
 
-Anything queued behind a build must wait on `logs/build.pid` (`kill -0`), not
-on `pgrep -f`. A `pgrep -f` pattern also matches the waiter's own command
+Anything queued behind a build must wait on its pid (`logs/build.pid` holds
+it while the build runs), not on `pgrep -f`. A `pgrep -f` pattern also matches the waiter's own command
 line, and on 2026-11-09 that left the Mac idle for three hours.
 
 ## What differs from Shorebird's CI, and why

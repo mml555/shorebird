@@ -1,8 +1,18 @@
-# Source this; never add it to a shell profile. Keeps git, rust and depot_tools
+# Source this from bash or zsh, in a terminal used only for the build; never
+# add it to a shell profile. It points git (GIT_CONFIG_GLOBAL), Rust,
+# depot_tools, caches and TMPDIR at the work folder ($SHOREBIRD_ENGINE_DIR,
+# default ~/shorebird-engine) and this directory, so the build touches nothing
+# else on a shared Mac.
 # cspell:words VIRTUALENV
-# state inside the work folder ($SHOREBIRD_ENGINE_DIR, default ~/shorebird-engine),
-# so the build touches nothing else on a shared Mac.
-HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [ -n "${BASH_SOURCE:-}" ]; then
+  _env_sh="${BASH_SOURCE[0]}"
+else
+  # zsh: the file being sourced.
+  _env_sh="$(eval 'echo ${(%):-%x}')"
+fi
+HERE="$(cd -- "$(dirname -- "$_env_sh")" && pwd)"
+unset _env_sh
+[ -f "$HERE/gitconfig" ] || { echo "env.sh: cannot find its own directory (got $HERE)" >&2; return 1; }
 W="${SHOREBIRD_ENGINE_DIR:-$HOME/shorebird-engine}"
 mkdir -p "$W/logs" "$W/tmp"
 export W HERE

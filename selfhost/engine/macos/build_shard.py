@@ -4,9 +4,12 @@
 
 Runs every gn_ninja and shell step, skips clang_tidy, and keeps going past a
 failed shard so one broken configuration doesn't cost the rest of the night.
-Writes one line per shard to logs/shards.status ("<date> <time> <shard>: OK"),
-which collect_darwin.py reads, and its own pid to logs/build.pid, which
-watchdog.sh and anything queued behind the build wait on.
+Writes "<date> <time> <shard>: STARTED" to logs/shards.status when a shard
+starts and ": OK" or ": FAILED ..." when it ends. The last line per shard
+decides its state, so a shard re-run that fails or is interrupted no longer
+counts as built (collect_darwin.py reads the same file). While it runs, its pid
+is in logs/build.pid, which watchdog.sh and anything queued behind the build
+wait on; it refuses to start while another build holds that file.
 
 Run it with env.sh sourced (bootstrap.sh does the setup).
 
@@ -14,6 +17,7 @@ usage: build_shard.py [--jobs N] [--pending | shard ...]
   --pending   build every shard except iOS that has no OK line yet
 """
 import argparse
+import atexit
 import datetime
 import json
 import os
@@ -40,13 +44,44 @@ def now():
 
 
 def ok_shards():
-    ok = set()
+    """Shards whose last status line is OK."""
+    last = {}
     if os.path.exists(STATUS):
         for line in open(STATUS):
             parts = line.split()
-            if len(parts) >= 4 and parts[3] == "OK":
-                ok.add(parts[2].rstrip(":"))
-    return ok
+            if len(parts) >= 4 and parts[2].endswith(":"):
+                last[parts[2].rstrip(":")] = parts[3]
+    return {n for n, state in last.items() if state == "OK"}
+
+
+def status(line):
+    print(line, flush=True)
+    # Opened per line, so a file replaced mid-run still gets every result.
+    with open(STATUS, "a") as f:
+        f.write(line + "\n")
+
+
+def claim_pid_file():
+    path = os.path.join(LOGS, "build.pid")
+    try:
+        other = int(open(path).read().strip())
+        os.kill(other, 0)
+        if other != os.getpid():
+            sys.exit(f"another build is running (pid {other} in {path})")
+    except (FileNotFoundError, ValueError, ProcessLookupError):
+        pass
+    except PermissionError:
+        sys.exit(f"pid in {path} belongs to another user's process")
+    with open(path, "w") as f:
+        f.write(f"{os.getpid()}\n")
+
+    def release():
+        try:
+            if int(open(path).read().strip()) == os.getpid():
+                os.remove(path)
+        except (OSError, ValueError):
+            pass
+    atexit.register(release)
 
 
 def gn_args_for(step):
@@ -75,6 +110,9 @@ def link_et_dart(log):
     link = os.path.join(SRC, "flutter", "prebuilts", "macos-arm64", "dart-sdk")
     if os.path.exists(os.path.join(link, "bin", "dart")):
         return True
+    if os.path.exists(link) and not os.path.islink(link):
+        log.write(f"{link} exists but has no bin/dart; remove it and re-run\n")
+        return False
     built = os.path.join(SRC, "out", "host_release_arm64", "dart-sdk")
     if not os.path.isfile(os.path.join(built, "bin", "dart")):
         log.write(f"et needs a Dart SDK: build the mac-arm64 shard first ({built} is missing)\n")
@@ -101,6 +139,8 @@ def main():
     a = ap.parse_args()
     spec = json.load(open(SHARDS))
     ordered = [n for n in ORDER if n in spec] + [n for n in spec if n not in ORDER]
+    if a.pending and a.shards:
+        sys.exit("--pending takes no shard names")
     if a.pending:
         ok = ok_shards()
         names = [n for n in ordered if not n.startswith("ios") and n not in ok]
@@ -110,11 +150,11 @@ def main():
     if unknown:
         sys.exit(f"unknown shard(s): {', '.join(unknown)}")
     os.makedirs(LOGS, exist_ok=True)
-    with open(os.path.join(LOGS, "build.pid"), "w") as f:
-        f.write(f"{os.getpid()}\n")
+    claim_pid_file()
     failed = 0
     for name in names:
         path = os.path.join(LOGS, f"shard-{name}.log")
+        status(f"{now()} {name}: STARTED")
         with open(path, "a") as log:
             ok = True
             for step in spec[name]["steps"]:
@@ -141,11 +181,7 @@ def main():
                 if rc != 0:
                     ok = False
                     break
-        line = f"{now()} {name}: {'OK' if ok else 'FAILED (see ' + path + ')'}"
-        print(line, flush=True)
-        # Opened per line, so a file replaced mid-run still gets every result.
-        with open(STATUS, "a") as status:
-            status.write(line + "\n")
+        status(f"{now()} {name}: {'OK' if ok else 'FAILED (see ' + path + ')'}")
         failed += not ok
     return 1 if failed else 0
 

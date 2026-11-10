@@ -34,12 +34,16 @@ NOT_PRODUCED = {"FlutterMacOS.framework.dSYM.zip"}
 
 
 def ok_shards():
-    ok = set()
-    for line in open(os.path.join(W, "logs", "shards.status")):
+    """Shards whose last line in logs/shards.status is OK (build_shard.py's format)."""
+    path = os.path.join(W, "logs", "shards.status")
+    if not os.path.exists(path):
+        sys.exit(f"no {path}: run build_shard.py first")
+    last = {}
+    for line in open(path):
         parts = line.split()
-        if len(parts) >= 4 and parts[3] == "OK":
-            ok.add(parts[2].rstrip(":"))
-    return ok
+        if len(parts) >= 4 and parts[2].endswith(":"):
+            last[parts[2].rstrip(":")] = parts[3]
+    return {n for n, state in last.items() if state == "OK"}
 
 
 def place(dst_rel, engine, out):
