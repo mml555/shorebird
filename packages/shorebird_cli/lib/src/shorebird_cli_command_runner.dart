@@ -380,6 +380,8 @@ class ShorebirdCliCommandRunner extends CompletionCommandRunner<int> {
       // stderr, never the logger: stdout may be reserved for --json.
       final originConflict = ArtifactOrigin.conflictWarning();
       if (originConflict != null) io.stderr.writeln(originConflict);
+      final originSplit = ArtifactOrigin.flutterOnlyWarning();
+      if (originSplit != null) io.stderr.writeln(originSplit);
       try {
         exitCode = await runScoped(
           () => super.runCommand(topLevelResults),

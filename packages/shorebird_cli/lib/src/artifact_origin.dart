@@ -152,6 +152,30 @@ abstract final class ArtifactOrigin {
         '${ignored.join(', ')}. Unset the ones you do not mean.';
   }
 
+  /// Whether [flutterStorageKey] is the only origin variable set, so the
+  /// Flutter half is redirected but the Shorebird half is not.
+  static bool get isFlutterOnlyOverride =>
+      _nonEmpty(platform.environment[flutterStorageKey]) != null &&
+      _nonEmpty(platform.environment[shorebirdStorageKey]) == null &&
+      _nonEmpty(platform.environment[originKey]) == null &&
+      _nonEmpty(platform.environment[downloadUrlKey]) == null;
+
+  /// A warning for stderr when [flutterStorageKey] is set alone, or null.
+  ///
+  /// `FLUTTER_STORAGE_BASE_URL` redirects only the Flutter/engine half. The
+  /// CLI's own downloads (`patch`, `aot-tools.dill`, ...) still come from
+  /// upstream, and a self-built engine has no such files there, so the failure
+  /// arrives later as a bare 404. Precedence is unchanged on purpose: pointing
+  /// [flutterStorageKey] at a plain Flutter mirror is a legitimate setup, so
+  /// this only says so.
+  static String? flutterOnlyWarning() {
+    if (!isFlutterOnlyOverride) return null;
+    return 'Warning: $flutterStorageKey is set but $originKey is not, so '
+        "Shorebird's own downloads (the patch executable, aot-tools) still "
+        'come from $upstreamShorebirdStorageBaseUrl. To fetch everything from '
+        'one self-hosted origin, set $originKey instead.';
+  }
+
   /// A one-line description of the resolved origins, for `--verbose` and for
   /// the doctor.
   static String describe() =>

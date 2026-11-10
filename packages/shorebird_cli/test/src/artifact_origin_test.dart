@@ -338,6 +338,50 @@ void main() {
         }
       });
 
+      group('flutterOnlyWarning', () {
+        test('warns when only FLUTTER_STORAGE_BASE_URL is set', () {
+          runWithEnv(
+            {ArtifactOrigin.flutterStorageKey: 'https://b.example'},
+            () {
+              final warning = ArtifactOrigin.flutterOnlyWarning()!;
+              expect(warning, contains('FLUTTER_STORAGE_BASE_URL'));
+              expect(warning, contains('SHOREBIRD_ARTIFACT_ORIGIN'));
+              expect(warning, contains('https://storage.googleapis.com'));
+              // Resolution is unchanged.
+              expect(
+                ArtifactOrigin.shorebirdStorageBaseUrl(),
+                ArtifactOrigin.upstreamShorebirdStorageBaseUrl,
+              );
+            },
+          );
+        });
+
+        test('is null when nothing else or another origin is set', () {
+          for (final env in <Map<String, String>>[
+            {},
+            {ArtifactOrigin.flutterStorageKey: '  '},
+            {ArtifactOrigin.originKey: 'https://c.example'},
+            {
+              ArtifactOrigin.flutterStorageKey: 'https://b.example',
+              ArtifactOrigin.originKey: 'https://c.example',
+            },
+            {
+              ArtifactOrigin.flutterStorageKey: 'https://b.example',
+              ArtifactOrigin.shorebirdStorageKey: 'https://s.example',
+            },
+            {
+              ArtifactOrigin.flutterStorageKey: 'https://b.example',
+              ArtifactOrigin.downloadUrlKey: 'https://a.example',
+            },
+          ]) {
+            runWithEnv(
+              env,
+              () => expect(ArtifactOrigin.flutterOnlyWarning(), isNull),
+            );
+          }
+        });
+      });
+
       group('conflictWarning', () {
         test('is null when nothing, one, or agreeing variables are set', () {
           for (final env in <Map<String, String>>[
