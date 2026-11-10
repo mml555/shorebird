@@ -1325,6 +1325,24 @@ void main() {
           );
         });
 
+        group('when the release Flutter version is a side version', () {
+          setUp(() {
+            when(() => shorebirdFlutter.getVersion()).thenAnswer(
+              (_) async => Version.parse('$minimumFlutterVersion-sb.1'),
+            );
+          });
+
+          test('builds the patch', () async {
+            await runWithOverrides(() => command.createPatch(patcher));
+
+            verify(
+              () => patcher.buildPatchArtifact(
+                releaseVersion: any(named: 'releaseVersion'),
+              ),
+            ).called(1);
+          });
+        });
+
         group('when the release Flutter version is supported', () {
           setUp(() {
             when(
@@ -2548,13 +2566,20 @@ A patch cannot change the Flutter version a release was built with. To fix this,
               await expectLater(
                 () => runWithOverrides(() => command.createPatch([patcher])),
                 throwsA(
-                  isA<CommandError>().having(
-                    (e) => e.exitCode,
-                    'exitCode',
-                    ExitCode.usage.code,
-                  ),
+                  isA<CommandError>()
+                      .having(
+                        (e) => e.exitCode,
+                        'exitCode',
+                        ExitCode.usage.code,
+                      )
+                      .having(
+                        (e) => e.code,
+                        'code',
+                        JsonErrorCode.interactivePromptRequired,
+                      ),
                 ),
               );
+              verifyNever(() => logger.confirm(any()));
               verify(
                 () => logger.warn(
                   any(
@@ -2596,6 +2621,32 @@ A patch cannot change the Flutter version a release was built with. To fix this,
                   supplementDirectory: any(named: 'supplementDirectory'),
                 ),
               ).called(1);
+            });
+
+            test('stops when the user declines', () async {
+              when(() => shorebirdEnv.canAcceptUserInput).thenReturn(true);
+              when(() => logger.confirm('Continue anyway?')).thenReturn(false);
+              patchBuiltWith(['API_URL=https://b', 'SENTRY_DSN=x']);
+
+              await expectLater(
+                () => runWithOverrides(() => command.createPatch(patcher)),
+                throwsA(
+                  isA<PromptDeclinedExit>().having(
+                    (e) => e.exitCode,
+                    'exitCode',
+                    declinedExitCode,
+                  ),
+                ),
+              );
+              verify(() => logger.err('Aborting.')).called(1);
+              verifyNever(
+                () => patcher.createPatchArtifacts(
+                  appId: any(named: 'appId'),
+                  releaseId: any(named: 'releaseId'),
+                  releaseArtifact: any(named: 'releaseArtifact'),
+                  supplementDirectory: any(named: 'supplementDirectory'),
+                ),
+              );
             });
 
             test('goes on when the user confirms', () async {
@@ -2713,6 +2764,31 @@ A patch cannot change the Flutter version a release was built with. To fix this,
                     ),
                   ),
                 );
+                verify(
+                  () => patcher.obfuscationMapPath = any(that: isNotNull),
+                ).called(1);
+              });
+            });
+
+            group('when the release Flutter is a side version', () {
+              setUp(() {
+                when(
+                  () => shorebirdFlutter.shouldPreStripLibappInGenSnapshot(
+                    platform: any(named: 'platform'),
+                    flutterRevision: any(named: 'flutterRevision'),
+                  ),
+                ).thenAnswer((_) async => false);
+                stubReleaseFlutterVersion('3.41.2-sb.1');
+              });
+
+              test('loads the release obfuscation map', () async {
+                expect(
+                  Version.parse('3.41.2-sb.1'),
+                  lessThan(minimumObfuscationFlutterVersion),
+                );
+
+                await runWithOverrides(() => command.createPatch(patcher));
+
                 verify(
                   () => patcher.obfuscationMapPath = any(that: isNotNull),
                 ).called(1);
