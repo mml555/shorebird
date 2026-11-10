@@ -446,6 +446,11 @@ abstract class CachedArtifact {
     return checksumChecker.checkFile(file, checksum!);
   }
 
+  static String _hint(String url) {
+    final hint = ArtifactOrigin.toolsDownloadHint(url);
+    return hint == null ? '' : '\n$hint';
+  }
+
   /// Re-fetch the artifact from the storage URL.
   Future<void> update() async {
     // Clear any existing artifact files.
@@ -474,7 +479,7 @@ Continuing without it; commands that need $fileName will not work until it can b
       throw CacheUpdateFailure('''
 Failed to download $fileName: $error
 If you're behind a firewall/proxy, please, make sure shorebird_cli is
-allowed to access $url.''');
+allowed to access $url.${_hint(url)}''');
     }
 
     if (response.statusCode != HttpStatus.ok) {
@@ -488,7 +493,7 @@ allowed to access $url.''');
 
       updateProgress.fail();
       throw CacheUpdateFailure(
-        '''Failed to download $fileName from $url: ${response.statusCode} ${response.reasonPhrase}''',
+        '''Failed to download $fileName from $url: ${response.statusCode} ${response.reasonPhrase}${_hint(url)}''',
       );
     }
 

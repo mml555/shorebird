@@ -14,6 +14,7 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/abi.dart';
 import 'package:shorebird_cli/src/artifact_builder/shorebird_tracer.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
+import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/cache_pruning.dart';
 import 'package:shorebird_cli/src/checksum_checker.dart';
@@ -774,6 +775,79 @@ void main() {
                   contains('Failed to download patch from https://'),
                   contains(': 404 Not Found'),
                 ),
+              ),
+            ),
+          );
+        });
+
+        group('when FLUTTER_STORAGE_BASE_URL is set alone', () {
+          setUp(() {
+            platform = TestNativePlatform(
+              environment: {
+                ArtifactOrigin.flutterStorageKey: 'https://mirror.example',
+              },
+              operatingSystem: NativePlatform.macOS,
+            );
+            cache = runWithOverrides(Cache.new);
+          });
+
+          test('a 404 from upstream names SHOREBIRD_ARTIFACT_ORIGIN', () async {
+            when(() => httpClient.send(any())).thenAnswer(
+              (_) async => http.StreamedResponse(
+                const Stream.empty(),
+                HttpStatus.notFound,
+                reasonPhrase: 'Not Found',
+              ),
+            );
+            await expectLater(
+              runWithOverrides(() => cache.updateAll(Duration.zero)),
+              throwsA(
+                isA<CacheUpdateFailure>().having(
+                  (e) => e.message,
+                  'message',
+                  allOf(
+                    contains('https://storage.googleapis.com/'),
+                    contains(': 404 Not Found'),
+                    contains('SHOREBIRD_ARTIFACT_ORIGIN'),
+                    contains('SHOREBIRD_DOWNLOAD_URL'),
+                  ),
+                ),
+              ),
+            );
+          });
+
+          test('a network failure names SHOREBIRD_ARTIFACT_ORIGIN', () async {
+            when(
+              () => httpClient.send(any()),
+            ).thenThrow(const SocketException('test'));
+            await expectLater(
+              runWithOverrides(() => cache.updateAll(Duration.zero)),
+              throwsA(
+                isA<CacheUpdateFailure>().having(
+                  (e) => e.message,
+                  'message',
+                  contains('SHOREBIRD_ARTIFACT_ORIGIN'),
+                ),
+              ),
+            );
+          });
+        });
+
+        test('a 404 adds no hint when no origin variable is set', () async {
+          when(() => httpClient.send(any())).thenAnswer(
+            (_) async => http.StreamedResponse(
+              const Stream.empty(),
+              HttpStatus.notFound,
+              reasonPhrase: 'Not Found',
+            ),
+          );
+          await expectLater(
+            runWithOverrides(() => cache.updateAll(Duration.zero)),
+            throwsA(
+              isA<CacheUpdateFailure>().having(
+                (e) => e.message,
+                'message',
+                isNot(contains('SHOREBIRD_ARTIFACT_ORIGIN')),
               ),
             ),
           );

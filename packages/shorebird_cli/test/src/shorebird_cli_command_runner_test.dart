@@ -8,6 +8,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:platform/testing.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/api_error_exit.dart';
+import 'package:shorebird_cli/src/artifact_origin.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/interactive_mode.dart';
@@ -551,6 +552,30 @@ Engine • revision $shorebirdEngineRevision'''),
           () => commandRunner.run(['--verbose']),
         );
         expect(result, equals(ExitCode.success.code));
+      });
+    });
+
+    group('when FLUTTER_STORAGE_BASE_URL is set alone', () {
+      setUp(() {
+        platform = TestNativePlatform(
+          operatingSystem: NativePlatform.linux,
+          environment: {
+            ArtifactOrigin.flutterStorageKey: 'https://mirror.example',
+          },
+        );
+      });
+
+      test('logs the split at detail level only, never to stdout', () async {
+        await runWithOverrides(() => commandRunner.run(['--verbose']));
+        verify(
+          () => logger.detail(any(that: contains('SHOREBIRD_ARTIFACT_ORIGIN'))),
+        ).called(1);
+        verifyNever(
+          () => logger.info(any(that: contains('SHOREBIRD_ARTIFACT_ORIGIN'))),
+        );
+        verifyNever(
+          () => logger.warn(any(that: contains('SHOREBIRD_ARTIFACT_ORIGIN'))),
+        );
       });
     });
 

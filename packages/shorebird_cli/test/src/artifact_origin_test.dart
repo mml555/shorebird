@@ -338,15 +338,50 @@ void main() {
         }
       });
 
-      group('flutterOnlyWarning', () {
-        test('warns when only FLUTTER_STORAGE_BASE_URL is set', () {
+      group('toolsDownloadHint', () {
+        const upstreamUrl =
+            'https://storage.googleapis.com/download.shorebird.dev/x';
+        test('hints for an upstream URL when Flutter is set alone', () {
           runWithEnv(
             {ArtifactOrigin.flutterStorageKey: 'https://b.example'},
             () {
-              final warning = ArtifactOrigin.flutterOnlyWarning()!;
+              expect(
+                ArtifactOrigin.toolsDownloadHint(upstreamUrl),
+                contains('SHOREBIRD_ARTIFACT_ORIGIN'),
+              );
+              expect(
+                ArtifactOrigin.toolsDownloadHint('https://b.example/x'),
+                isNull,
+              );
+            },
+          );
+        });
+
+        test('is null when another origin variable is set', () {
+          runWithEnv(
+            {
+              ArtifactOrigin.flutterStorageKey: 'https://b.example',
+              ArtifactOrigin.originKey: 'https://c.example',
+            },
+            () => expect(ArtifactOrigin.toolsDownloadHint(upstreamUrl), isNull),
+          );
+          runWithEnv(
+            {},
+            () => expect(ArtifactOrigin.toolsDownloadHint(upstreamUrl), isNull),
+          );
+        });
+      });
+
+      group('flutterOnlyNotice', () {
+        test('notes when only FLUTTER_STORAGE_BASE_URL is set', () {
+          runWithEnv(
+            {ArtifactOrigin.flutterStorageKey: 'https://b.example'},
+            () {
+              final warning = ArtifactOrigin.flutterOnlyNotice()!;
               expect(warning, contains('FLUTTER_STORAGE_BASE_URL'));
               expect(warning, contains('SHOREBIRD_ARTIFACT_ORIGIN'));
               expect(warning, contains('https://storage.googleapis.com'));
+              expect(warning, contains('SHOREBIRD_DOWNLOAD_URL'));
               // Resolution is unchanged.
               expect(
                 ArtifactOrigin.shorebirdStorageBaseUrl(),
@@ -376,7 +411,7 @@ void main() {
           ]) {
             runWithEnv(
               env,
-              () => expect(ArtifactOrigin.flutterOnlyWarning(), isNull),
+              () => expect(ArtifactOrigin.flutterOnlyNotice(), isNull),
             );
           }
         });

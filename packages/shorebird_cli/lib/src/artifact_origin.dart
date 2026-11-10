@@ -152,28 +152,42 @@ abstract final class ArtifactOrigin {
         '${ignored.join(', ')}. Unset the ones you do not mean.';
   }
 
-  /// Whether [flutterStorageKey] is the only origin variable set, so the
-  /// Flutter half is redirected but the Shorebird half is not.
-  static bool get isFlutterOnlyOverride =>
+  static bool get _isFlutterOnlyOverride =>
       _nonEmpty(platform.environment[flutterStorageKey]) != null &&
       _nonEmpty(platform.environment[shorebirdStorageKey]) == null &&
       _nonEmpty(platform.environment[originKey]) == null &&
       _nonEmpty(platform.environment[downloadUrlKey]) == null;
 
-  /// A warning for stderr when [flutterStorageKey] is set alone, or null.
+  /// What to say about the split when [flutterStorageKey] is set alone, or
+  /// null.
   ///
   /// `FLUTTER_STORAGE_BASE_URL` redirects only the Flutter/engine half. The
   /// CLI's own downloads (`patch`, `aot-tools.dill`, ...) still come from
-  /// upstream, and a self-built engine has no such files there, so the failure
-  /// arrives later as a bare 404. Precedence is unchanged on purpose: pointing
-  /// [flutterStorageKey] at a plain Flutter mirror is a legitimate setup, so
-  /// this only says so.
-  static String? flutterOnlyWarning() {
-    if (!isFlutterOnlyOverride) return null;
-    return 'Warning: $flutterStorageKey is set but $originKey is not, so '
-        "Shorebird's own downloads (the patch executable, aot-tools) still "
-        'come from $upstreamShorebirdStorageBaseUrl. To fetch everything from '
-        'one self-hosted origin, set $originKey instead.';
+  /// upstream, and a self-built engine has no such files there. That is a
+  /// legitimate setup for a plain Flutter mirror, so this is informational
+  /// (logged at `--verbose`) rather than a warning, and resolution is
+  /// unchanged. See [toolsDownloadHint] for the failure-time version.
+  static String? flutterOnlyNotice() {
+    if (!_isFlutterOnlyOverride) return null;
+    return '$flutterStorageKey is set alone, so the Flutter/engine artifacts '
+        "come from it but Shorebird's own downloads (the patch executable, "
+        'aot-tools) still come from $upstreamShorebirdStorageBaseUrl. To '
+        'fetch both from one self-hosted origin, set $originKey (or '
+        '$downloadUrlKey) as well.';
+  }
+
+  /// A hint to append to a failed download of [url], or null.
+  ///
+  /// Only when [url] is on upstream's Shorebird storage host while
+  /// [flutterStorageKey] points the Flutter half elsewhere, which is the
+  /// split that makes a self-hosted engine's tools 404.
+  static String? toolsDownloadHint(String url) {
+    if (!_isFlutterOnlyOverride) return null;
+    if (!url.startsWith('$upstreamShorebirdStorageBaseUrl/')) return null;
+    return '$flutterStorageKey is set but this download comes from '
+        '$upstreamShorebirdStorageBaseUrl. If your engine is self-hosted, set '
+        '$originKey (or $downloadUrlKey) as well so the CLI fetches its '
+        'tools from the same origin.';
   }
 
   /// A one-line description of the resolved origins, for `--verbose` and for
