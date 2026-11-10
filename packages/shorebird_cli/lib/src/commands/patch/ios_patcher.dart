@@ -87,6 +87,22 @@ class IosPatcher extends Patcher
       argResults.assertValidExportOptionsPlistArg();
 
   @override
+  Future<void> assertEngineCanPatch() async {
+    if (!engineDeclinesIosPatches(_engineBinary)) return;
+    throw CommandError(
+      message:
+          'The iOS engine this release uses was built without iOS patch '
+          'support. Releases work on it, but code patches cannot be made or '
+          'run.',
+      hint:
+          'Rebuild the engine with the interpreter enabled '
+          '(shorebird_use_interpreter=true), create a new release with it, '
+          'and patch that release.',
+      exitCode: ExitCode.unavailable,
+    );
+  }
+
+  @override
   Future<File> buildPatchArtifact({String? releaseVersion}) async {
     final buildArgs = [
       ...argResults.forwardedArgs,
@@ -318,24 +334,23 @@ class IosPatcher extends Patcher
   /// Keyed on the `InterpretCall` symbol rather than on the engine revision:
   /// the revision is a sha1 of the Flutter binary and Xcode re-signs embedded
   /// frameworks, changing the file without changing what it can do.
-  bool _engineSupportsIosCodePush() {
-    return isRouteBEngine(
-      File(
-        p.join(
-          shorebirdEnv.flutterDirectory.path,
-          'bin',
-          'cache',
-          'artifacts',
-          'engine',
-          'ios-release',
-          'Flutter.xcframework',
-          'ios-arm64',
-          'Flutter.framework',
-          'Flutter',
-        ),
-      ),
-    );
-  }
+  bool _engineSupportsIosCodePush() => isRouteBEngine(_engineBinary);
+
+  /// The iOS release engine binary of the Flutter checkout in scope.
+  File get _engineBinary => File(
+    p.join(
+      shorebirdEnv.flutterDirectory.path,
+      'bin',
+      'cache',
+      'artifacts',
+      'engine',
+      'ios-release',
+      'Flutter.xcframework',
+      'ios-arm64',
+      'Flutter.framework',
+      'Flutter',
+    ),
+  );
 
   /// The engine hash that must select the compiler cell, read from the
   /// release's own uploaded bytes.

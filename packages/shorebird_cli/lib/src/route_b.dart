@@ -41,6 +41,19 @@ bool isRouteBEngine(File engineBinary) {
       !_containsAscii(bytes, iosPatchesDeclinedMarker);
 }
 
+/// Whether [engineBinary] declares, in its own log text, that it cannot run
+/// iOS patches ([iosPatchesDeclinedMarker]).
+///
+/// Distinct from `!isRouteBEngine`: a missing or unrecognised binary is not a
+/// declaration, so this is false for it and the caller proceeds as before.
+bool engineDeclinesIosPatches(File engineBinary) {
+  if (!engineBinary.existsSync()) return false;
+  return _containsAscii(
+    engineBinary.readAsBytesSync(),
+    iosPatchesDeclinedMarker,
+  );
+}
+
 /// Text an iOS engine logs when it will not start the Shorebird updater
 /// because it cannot run patches (`FlutterDartProject.mm` and `shorebird.cc`
 /// in the engine). Its presence in the binary is the engine declaring that.

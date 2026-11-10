@@ -372,6 +372,7 @@ void main() {
       ).thenReturn(release);
       when(() => logger.progress(any())).thenReturn(progress);
 
+      when(() => patcher.assertEngineCanPatch()).thenAnswer((_) async {});
       when(() => patcher.assertArgsAreValid()).thenAnswer((_) async {});
       when(() => patcher.assertPreconditions()).thenAnswer((_) async {});
       when(
@@ -836,6 +837,7 @@ void main() {
         when(() => iosPatcher.extraBuildArgs).thenReturn(const []);
         when(() => iosPatcher.assertArgsAreValid()).thenAnswer((_) async {});
         when(() => iosPatcher.assertPreconditions()).thenAnswer((_) async {});
+        when(() => iosPatcher.assertEngineCanPatch()).thenAnswer((_) async {});
         when(
           () => iosPatcher.prepareForRelease(
             appId: any(named: 'appId'),
@@ -1250,6 +1252,41 @@ void main() {
         ).called(1);
       });
 
+      group('when the engine cannot run the patcher\'s patches', () {
+        setUp(() {
+          when(() => patcher.assertEngineCanPatch()).thenThrow(
+            CommandError(
+              message: 'engine built without patch support',
+              exitCode: ExitCode.unavailable,
+            ),
+          );
+        });
+
+        test('exits before downloading or building anything', () async {
+          await expectLater(
+            () => runWithOverrides(() => command.createPatch([patcher])),
+            exitsWithError(
+              message: 'engine built without patch support',
+              exitCode: ExitCode.unavailable,
+            ),
+          );
+
+          verifyNever(
+            () => codePushClientWrapper.getReleaseArtifact(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              arch: any(named: 'arch'),
+              platform: any(named: 'platform'),
+            ),
+          );
+          verifyNever(
+            () => patcher.buildPatchArtifact(
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          );
+        });
+      });
+
       group('when the patcher has a minimum Flutter version', () {
         final minimumFlutterVersion = Version(3, 27, 4);
 
@@ -1333,7 +1370,7 @@ void main() {
           });
 
           test('builds the patch', () async {
-            await runWithOverrides(() => command.createPatch(patcher));
+            await runWithOverrides(() => command.createPatch([patcher]));
 
             verify(
               () => patcher.buildPatchArtifact(
@@ -2629,7 +2666,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
               patchBuiltWith(['API_URL=https://b', 'SENTRY_DSN=x']);
 
               await expectLater(
-                () => runWithOverrides(() => command.createPatch(patcher)),
+                () => runWithOverrides(() => command.createPatch([patcher])),
                 throwsA(
                   isA<PromptDeclinedExit>().having(
                     (e) => e.exitCode,
@@ -2787,7 +2824,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
                   lessThan(minimumObfuscationFlutterVersion),
                 );
 
-                await runWithOverrides(() => command.createPatch(patcher));
+                await runWithOverrides(() => command.createPatch([patcher]));
 
                 verify(
                   () => patcher.obfuscationMapPath = any(that: isNotNull),

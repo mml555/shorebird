@@ -28,6 +28,8 @@ import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/command_error.dart';
+import 'package:shorebird_cli/src/route_b.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_build_config.dart';
@@ -323,6 +325,77 @@ void main() {
             ),
           ).called(1);
         });
+      });
+    });
+
+    group('assertEngineCanPatch', () {
+      late Directory flutterDir;
+
+      void writeEngine(String? contents) {
+        if (contents == null) return;
+        File(
+            p.join(
+              flutterDir.path,
+              'bin',
+              'cache',
+              'artifacts',
+              'engine',
+              'ios-release',
+              'Flutter.xcframework',
+              'ios-arm64',
+              'Flutter.framework',
+              'Flutter',
+            ),
+          )
+          ..createSync(recursive: true)
+          ..writeAsStringSync(contents);
+      }
+
+      setUp(() {
+        flutterDir = Directory.systemTemp.createTempSync('engine_check_');
+        when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDir);
+      });
+
+      tearDown(() => flutterDir.deleteSync(recursive: true));
+
+      test('exits with a clear error when the engine declines iOS patches', () {
+        writeEngine(
+          'InterpretCall ... This $iosPatchesDeclinedMarker, not starting '
+          'the Shorebird updater.',
+        );
+        expect(
+          () => runWithOverrides(patcher.assertEngineCanPatch),
+          throwsA(
+            isA<CommandError>()
+                .having(
+                  (e) => e.exitCode,
+                  'exitCode',
+                  ExitCode.unavailable.code,
+                )
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('built without iOS patch support'),
+                )
+                .having((e) => e.hint, 'hint', contains('interpreter')),
+          ),
+        );
+      });
+
+      test('proceeds when the engine can run iOS patches', () async {
+        writeEngine('...InterpretCall...');
+        await expectLater(
+          runWithOverrides(patcher.assertEngineCanPatch),
+          completes,
+        );
+      });
+
+      test('proceeds when the engine binary is not present', () async {
+        writeEngine(null);
+        await expectLater(
+          runWithOverrides(patcher.assertEngineCanPatch),
+          completes,
+        );
       });
     });
 

@@ -529,6 +529,7 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
             patcher: patcher,
             release: release,
           );
+          await patcher.assertEngineCanPatch();
         }
         await _warnIfInstallOnlySkipsSignatureCheck(release: release);
       },

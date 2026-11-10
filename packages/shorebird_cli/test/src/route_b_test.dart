@@ -91,6 +91,28 @@ void main() {
     });
   });
 
+  group('engineDeclinesIosPatches', () {
+    late Directory tmp;
+
+    setUp(() => tmp = Directory.systemTemp.createTempSync('route_b'));
+    tearDown(() => tmp.deleteSync(recursive: true));
+
+    test('is true when the binary carries the decline marker', () {
+      final f = File('${tmp.path}/Flutter')
+        ..writeAsStringSync('This $iosPatchesDeclinedMarker, not starting');
+      expect(engineDeclinesIosPatches(f), isTrue);
+    });
+
+    test('is false for an engine without the marker', () {
+      final f = File('${tmp.path}/Flutter')..writeAsStringSync('InterpretCall');
+      expect(engineDeclinesIosPatches(f), isFalse);
+    });
+
+    test('is false when the binary does not exist', () {
+      expect(engineDeclinesIosPatches(File('${tmp.path}/nope')), isFalse);
+    });
+  });
+
   group('countPatchableCallSites', () {
     late Directory tmp;
 
