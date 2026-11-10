@@ -14,6 +14,8 @@ Config sqliteConfig(
   bool rateLimitShared = false,
   String? loginEmail,
   bool idpEnabled = false,
+  String? idpTokenUrl,
+  String idpIssuer = '',
   bool production = false,
   String? patchSigningKeySecret = testPatchSigningKeySecret,
 }) => Config(
@@ -44,7 +46,8 @@ Config sqliteConfig(
   idpClientId: idpEnabled ? 'client-id' : '',
   idpClientSecret: idpEnabled ? 'client-secret' : '',
   idpAuthorizeUrl: idpEnabled ? 'https://idp.test/authorize' : '',
-  idpTokenUrl: idpEnabled ? 'https://idp.test/token' : '',
+  idpTokenUrl: idpEnabled ? (idpTokenUrl ?? 'https://idp.test/token') : '',
+  idpIssuer: idpIssuer,
   idpScopes: 'openid email',
   production: production,
   dbBackend: 'sqlite',

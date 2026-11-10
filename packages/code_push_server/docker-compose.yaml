@@ -63,6 +63,7 @@ services:
       RATE_LIMIT_IP_PER_MINUTE: "${RATE_LIMIT_IP_PER_MINUTE:-}"
       # Hourly retention sweeps; empty/0 keeps everything (the default).
       EVENT_RETENTION_DAYS: "${EVENT_RETENTION_DAYS:-}"
+      CRASH_RETENTION_DAYS: "${CRASH_RETENTION_DAYS:-}"
       AUDIT_RETENTION_DAYS: "${AUDIT_RETENTION_DAYS:-}"
       # SQLite + filesystem artifacts live here (the volume below).
       DATA_DIR: /data

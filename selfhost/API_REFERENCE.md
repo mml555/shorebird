@@ -576,7 +576,8 @@ A `count` of 0 is a falsifiable claim only if the same probe would have reported
 a create that *did* happen — so pair it with one known-valid create.
 `selfhost/scripts/audit_qualification.sh` runs exactly that pairing.
 
-Retention is `AUDIT_RETENTION_DAYS` (unset = keep forever). Nothing in the
+Retention is `AUDIT_RETENTION_DAYS` (unset = keep forever; `EVENT_RETENTION_DAYS`
+and `CRASH_RETENTION_DAYS` work the same way for events and crash reports). Nothing in the
 server updates or deletes an audit row apart from that purge.
 
 ---

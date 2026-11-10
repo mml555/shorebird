@@ -338,6 +338,10 @@ only stateless `server` replicas + Caddy in compose.
 - [ ] **Decide `AUDIT_RETENTION_DAYS`** — unset (the default) keeps the audit
       trail forever, which is usually what you want. Set it only if you have a
       retention policy that says otherwise.
+- [ ] **Decide `EVENT_RETENTION_DAYS` and `CRASH_RETENTION_DAYS`** — both
+      default to `0` (keep forever) and are filled by unauthenticated device
+      traffic, so the disk grows with fleet size. The server warns at startup
+      while either is unset in production.
 - [ ] **Alert on `code_push_audit_write_failures_total > 0`** — above zero, the
       durable trail has holes: some mutation happened whose row did not land.
       The event is still on stdout (with `audit_persisted: false`) and logged as
@@ -471,7 +475,20 @@ IDP_CLIENT_SECRET=CHANGE_ME          # OAuth client secret (secret — treat lik
 IDP_AUTHORIZE_URL=                   # e.g. https://accounts.google.com/o/oauth2/v2/auth
 IDP_TOKEN_URL=                       # e.g. https://oauth2.googleapis.com/token
 IDP_SCOPES=openid email              # MUST include a scope that yields the email claim
+IDP_ISSUER=                          # REQUIRED when PRODUCTION=true: exact `iss` of the id_tokens
+#IDP_ALLOW_UNVERIFIED_EMAIL=true     # only for IdPs that omit email_verified (Entra); see below
 ```
+
+`IDP_ISSUER` is checked at boot: with an IdP configured and `PRODUCTION=true`
+the server exits with `FATAL: insecure config` if it is empty. Copy the
+`issuer` from `<issuer>/.well-known/openid-configuration` (Google
+`https://accounts.google.com`; Entra
+`https://login.microsoftonline.com/{tenant-id}/v2.0`, which needs a tenant ID,
+not `common`). The server also rejects id_tokens whose `aud`/`azp` is not
+`IDP_CLIENT_ID`, that are expired, or whose `email_verified` is not true.
+Entra omits `email_verified`, so logins fail with `invalid_id_token` until
+`IDP_ALLOW_UNVERIFIED_EMAIL=true` is set; do that only for a single-tenant
+app whose directory your organization controls.
 
 - Google: authorize `https://accounts.google.com/o/oauth2/v2/auth`,
   token `https://oauth2.googleapis.com/token`.
@@ -484,6 +501,10 @@ Add to the security checklist when broker mode is on:
 - [ ] **`IDP_CLIENT_SECRET`** is a real secret, kept out of git (like every
       other secret in `.env`).
 - [ ] The IdP redirect URI is `<PUBLIC_BASE_URL>/oauth/callback` over HTTPS.
+- [ ] **`IDP_ISSUER`** is set to the IdP's exact `iss` (the server will not boot
+      in production without it).
+- [ ] **`IDP_ALLOW_UNVERIFIED_EMAIL`** is unset unless the IdP omits
+      `email_verified` and you control which emails its directory can assert.
 
 ---
 

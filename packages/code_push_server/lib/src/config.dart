@@ -29,6 +29,9 @@ class Config {
     this.trustedProxies = defaultTrustedProxies,
     this.eventRetentionDays = 0,
     this.auditRetentionDays = 0,
+    this.crashRetentionDays = 0,
+    this.idpIssuer = '',
+    this.idpAllowUnverifiedEmail = false,
     required this.uploadMethod,
     required this.idpClientId,
     required this.idpClientSecret,
@@ -158,6 +161,7 @@ class Config {
       trustedProxies: _parseTrustedProxies(env['TRUSTED_PROXIES']),
       eventRetentionDays: int.tryParse(env['EVENT_RETENTION_DAYS'] ?? '') ?? 0,
       auditRetentionDays: int.tryParse(env['AUDIT_RETENTION_DAYS'] ?? '') ?? 0,
+      crashRetentionDays: int.tryParse(env['CRASH_RETENTION_DAYS'] ?? '') ?? 0,
       rateLimitShared: env['RATE_LIMIT_BACKEND'] == 'postgres',
       uploadMethod: env['UPLOAD_METHOD'] == 'resumable'
           ? 'resumable'
@@ -167,6 +171,12 @@ class Config {
       idpAuthorizeUrl: env['IDP_AUTHORIZE_URL'] ?? '',
       idpTokenUrl: env['IDP_TOKEN_URL'] ?? '',
       idpScopes: env['IDP_SCOPES'] ?? 'openid email',
+      idpIssuer: env['IDP_ISSUER'] ?? '',
+      idpAllowUnverifiedEmail: _parseBool(
+        'IDP_ALLOW_UNVERIFIED_EMAIL',
+        env['IDP_ALLOW_UNVERIFIED_EMAIL'],
+        false,
+      ),
       production:
           (env['PRODUCTION'] ?? env['ENV']) == 'production' ||
           env['PRODUCTION'] == 'true',
@@ -273,6 +283,14 @@ class Config {
       problems.add('S3_SECRET_KEY must not be empty');
     }
     if (!production) return problems;
+    // Without it any tenant of a multi-tenant IdP, or any other issuer the
+    // client id happens to be valid at, can assert any email.
+    if (idpEnabled && idpIssuer.isEmpty) {
+      problems.add(
+        'IDP_ISSUER is required in production when an IdP is configured (the '
+        'exact `iss` of its id_tokens, e.g. https://accounts.google.com)',
+      );
+    }
     // DB/object-store credential checks apply only to the backend in use.
     if (dbBackend == 'postgres' &&
         (dbPassword.isEmpty || dbPassword == 'cps')) {
@@ -377,6 +395,25 @@ class Config {
   /// not a default. Set it if the data volume matters more than the history.
   final int eventRetentionDays;
 
+  /// Days of crash reports to keep; `0` (the default) keeps them forever.
+  ///
+  /// `crash_reports` is written by the same unauthenticated device endpoints
+  /// as `events` (bounded by request-size and per-IP limits, not by count), so
+  /// it grows the same way. The default matches [eventRetentionDays] for the
+  /// same reason: a default would delete operators' history on upgrade.
+  final int crashRetentionDays;
+
+  /// Startup warnings for settings that let unauthenticated traffic fill the
+  /// disk. Production only, where nobody is watching the volume.
+  List<String> get retentionWarnings => [
+    if (production && eventRetentionDays <= 0)
+      'EVENT_RETENTION_DAYS is unset: device events are kept forever and '
+          'grow with every check-in',
+    if (production && crashRetentionDays <= 0)
+      'CRASH_RETENTION_DAYS is unset: crash reports are kept forever and '
+          'grow with every crash a device posts',
+  ];
+
   /// Days of audit entries to keep; `0` (the default) keeps them forever.
   final int auditRetentionDays;
 
@@ -392,6 +429,15 @@ class Config {
   final String idpAuthorizeUrl;
   final String idpTokenUrl;
   final String idpScopes;
+
+  /// The exact `iss` the IdP's id_tokens carry (`IDP_ISSUER`); empty skips the
+  /// check, which is only acceptable outside production. See
+  /// `OAuthService.emailFromIdToken`.
+  final String idpIssuer;
+
+  /// `IDP_ALLOW_UNVERIFIED_EMAIL`: accept an id_token with no `email_verified`
+  /// (or a false one). For IdPs that omit the claim, such as Microsoft Entra.
+  final bool idpAllowUnverifiedEmail;
 
   bool get idpEnabled =>
       idpClientId.isNotEmpty &&

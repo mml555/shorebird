@@ -586,6 +586,15 @@ class Repository {
         'ALTER TABLE idp_states ADD COLUMN code_challenge TEXT',
       ],
     ),
+    (
+      16,
+      [
+        // The `CRASH_RETENTION_DAYS` sweep filters on received_at; without
+        // this every hourly run is a sequential scan.
+        'CREATE INDEX IF NOT EXISTS crash_reports_received_idx '
+            'ON crash_reports(received_at)',
+      ],
+    ),
   ];
 
   /// Indexes for the access paths that would otherwise scan. `events` is the
@@ -2296,6 +2305,17 @@ class Repository {
     if (days <= 0) return;
     await _q(
       "DELETE FROM events WHERE received_at < now() - interval '$days days'",
+    );
+  }
+
+  /// Drops crash reports older than [days], on the same terms as
+  /// [purgeOldEvents]: written by an unauthenticated endpoint, so it grows
+  /// without bound, but dropping history is the operator's call (`days <= 0`
+  /// keeps everything, the default).
+  Future<void> purgeOldCrashReports(int days) async {
+    if (days <= 0) return;
+    await _q(
+      "DELETE FROM crash_reports WHERE received_at < now() - interval '$days days'",
     );
   }
 

@@ -11,6 +11,10 @@ Config _cfg({
   String publicBaseUrl = 'https://cps.example.com',
   String dbSslMode = 'disable',
   String? patchSigningKeySecret = 'a-real-patch-signing-key-secret-0123456789',
+  bool idp = false,
+  String idpIssuer = '',
+  int eventRetentionDays = 0,
+  int crashRetentionDays = 0,
 }) {
   return Config(
     port: 8080,
@@ -33,10 +37,13 @@ Config _cfg({
     rateLimitPerMinute: 600,
     rateLimitShared: false,
     uploadMethod: 'multipart',
-    idpClientId: '',
+    idpClientId: idp ? 'client-id' : '',
     idpClientSecret: '',
-    idpAuthorizeUrl: '',
-    idpTokenUrl: '',
+    idpAuthorizeUrl: idp ? 'https://idp.test/authorize' : '',
+    idpTokenUrl: idp ? 'https://idp.test/token' : '',
+    idpIssuer: idpIssuer,
+    eventRetentionDays: eventRetentionDays,
+    crashRetentionDays: crashRetentionDays,
     idpScopes: 'openid email',
     production: production,
     patchSigningKeySecret: patchSigningKeySecret,
@@ -105,6 +112,36 @@ void main() {
 
     test('production with all real secrets passes', () {
       expect(_cfg().validate(), isEmpty);
+    });
+
+    test('production with an IdP requires IDP_ISSUER', () {
+      expect(
+        _cfg(idp: true).validate(),
+        contains(contains('IDP_ISSUER is required in production')),
+      );
+      expect(
+        _cfg(idp: true, idpIssuer: 'https://idp.test').validate(),
+        isEmpty,
+      );
+      // No IdP, or not production: nothing to require.
+      expect(_cfg().validate(), isEmpty);
+      expect(_cfg(idp: true, production: false).validate(), isEmpty);
+    });
+
+    test('production warns while event or crash retention is unlimited', () {
+      final both = _cfg().retentionWarnings;
+      expect(both, hasLength(2));
+      expect(both[0], contains('EVENT_RETENTION_DAYS'));
+      expect(both[1], contains('CRASH_RETENTION_DAYS'));
+      expect(
+        _cfg(eventRetentionDays: 90).retentionWarnings.single,
+        contains('CRASH_RETENTION_DAYS'),
+      );
+      expect(
+        _cfg(eventRetentionDays: 90, crashRetentionDays: 90).retentionWarnings,
+        isEmpty,
+      );
+      expect(_cfg(production: false).retentionWarnings, isEmpty);
     });
 
     test('production catches each dev-default secret by name', () {
@@ -178,6 +215,26 @@ void main() {
         expect(c.validate(), hasLength(5));
       },
     );
+  });
+
+  group('Config.fromEnv', () {
+    test('reads the new IdP and crash retention settings', () {
+      final c = Config.fromEnv({
+        'IDP_ISSUER': 'https://idp.test',
+        'IDP_ALLOW_UNVERIFIED_EMAIL': 'true',
+        'CRASH_RETENTION_DAYS': '30',
+      });
+      expect(c.idpIssuer, 'https://idp.test');
+      expect(c.idpAllowUnverifiedEmail, isTrue);
+      expect(c.crashRetentionDays, 30);
+    });
+
+    test('defaults are strict for the IdP and keep crash reports forever', () {
+      final c = Config.fromEnv({});
+      expect(c.idpIssuer, isEmpty);
+      expect(c.idpAllowUnverifiedEmail, isFalse);
+      expect(c.crashRetentionDays, 0);
+    });
   });
 
   group('rate limits', () {
