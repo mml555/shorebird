@@ -111,7 +111,9 @@ GP
 fi
 
 for i in $(seq 1 "$MAXIT"); do
-  ver="0.9.$i+$i"
+  # R12_RP_MINOR lets a second invocation against the same control plane use
+  # versions the first one did not (a release version is immutable there).
+  ver="0.${R12_RP_MINOR:-9}.$i+$i"
   say "iteration $i — frozen harness against the SEALED COLD mirror (v$ver)"
   before="$(docker logs r12-cdn-sealed 2>&1 | wc -l | tr -d ' ')"
   docker exec "$C" bash -c "sed -i -E 's/^version:.*/version: $ver/' $APP/pubspec.yaml"
