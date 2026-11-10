@@ -18,11 +18,14 @@ create_ios_framework.py no longer write: the dSYMs now ship inside the release
 framework.zip and the iOS xcframework, and stock engines have no such files
 either. They are reported as "not produced", not MISSING.
 
-Only status lines after the last "--- engine <commit>" line count, and that
-commit must be the checkout's, so nothing built at another commit is staged.
+The engine is named after build_shard.py's engine commit (HEAD, or the commit
+bin/internal/engine.version pins when HEAD only repins it). Only status lines
+after the last "--- engine <commit>" line count, and that line must name the
+same commit, so nothing built for another engine is staged.
 
-iOS builds only from a commit with shorebird_use_interpreter (shorebird-flutter
-a7d5b685 and later); before that its shards fail and are skipped as not built.
+iOS builds from shorebird-flutter 255fd850 on (shorebird_use_interpreter off,
+no updater on iOS). Earlier commits fail their iOS shards or start the updater
+on iOS; don't publish iOS from them.
 
 usage: collect_darwin.py <out dir>   (prints what it staged and what it skipped)
 """
@@ -31,6 +34,9 @@ import os
 import shutil
 import subprocess
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from build_shard import engine_commit, read_status, same_commit  # noqa: E402
 
 W = os.environ.get("SHOREBIRD_ENGINE_DIR", os.path.expanduser("~/shorebird-engine"))
 ROOT = os.path.join(W, "flutter")
@@ -41,22 +47,15 @@ NOT_PRODUCED = {"FlutterMacOS.framework.dSYM.zip", "Flutter.framework.dSYM.zip"}
 
 
 def ok_shards(engine):
-    """Shards built OK at `engine`, read from logs/shards.status in build_shard.py's
-    format: only lines after the last "--- engine <commit>" line count."""
+    """Shards built OK for `engine`, read from logs/shards.status."""
     path = os.path.join(W, "logs", "shards.status")
     if not os.path.exists(path):
         sys.exit(f"no {path}: run build_shard.py first")
-    commit, last = None, {}
-    for line in open(path):
-        parts = line.split()
-        if line.startswith("--- engine ") and len(parts) >= 3:
-            commit, last = parts[2], {}
-        elif len(parts) >= 4 and parts[2].endswith(":"):
-            last[parts[2].rstrip(":")] = parts[3]
-    if commit != engine:
-        sys.exit(f"{path} has no shards built at {engine} (last engine line: {commit}); "
+    commit, ok = read_status()
+    if not same_commit(commit, engine):
+        sys.exit(f"{path} has no shards built for engine {engine} (last engine line: {commit}); "
                  "run build_shard.py at this commit first")
-    return {n for n, state in last.items() if state == "OK"}
+    return ok
 
 
 def place(dst_rel, engine, out):
@@ -89,9 +88,8 @@ def stage(src, dst_rel, engine, out, zip_dir=False):
 
 def main():
     out = os.path.abspath(sys.argv[1])
-    # A self-built engine is named after the commit it was built from
-    # (bin/internal/engine.version there still names the upstream pin).
-    engine = subprocess.check_output(["git", "-C", ROOT, "rev-parse", "HEAD"], text=True).strip()
+    # A self-built engine is named after the commit it was built from.
+    engine = engine_commit()
     shards = json.load(open(os.path.join(CI, "shards", "macos.json")))
     compose = json.load(open(os.path.join(CI, "compose.json")))
     ok = ok_shards(engine)

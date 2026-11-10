@@ -8,16 +8,22 @@ Writes "<date> <time> <shard>: STARTED" to logs/shards.status when a shard
 starts and ": OK" or ": FAILED ..." when it ends. The last line per shard
 decides its state, so a shard re-run that fails or is interrupted no longer
 counts as built (collect_darwin.py reads the same file). Before building it
-appends "--- engine <commit>" whenever the checkout is at a commit other than
-the last such line names, and only lines after the last one count, so a shard
-built at an earlier engine commit is built again. While it runs, its pid
+appends "--- engine <commit>" whenever the checkout's engine commit differs
+from the last such line, and only lines after the last one count, so a shard
+built for an earlier engine is built again. The engine commit is the one
+bin/internal/engine.version names when that is an ancestor of HEAD and nothing
+the build reads (ENGINE_INPUTS) changed since, so a commit that only repins
+engine.version to the engine it sits on keeps the shards built; otherwise it
+is HEAD. While it runs, its pid
 is in logs/build.pid, which watchdog.sh and anything queued behind the build
 wait on; it refuses to start while another build holds that file.
 
 Run it with env.sh sourced (bootstrap.sh does the setup).
 
 usage: build_shard.py [--jobs N] [--pending | shard ...]
-  --pending   build every shard with no OK line for the checkout's commit
+       build_shard.py --left
+  --pending   build every shard with no OK line for the checkout's engine commit
+  --left      print the shards not built for it (watchdog.sh) and exit
 """
 import argparse
 import atexit
@@ -46,8 +52,35 @@ def now():
     return datetime.datetime.now().strftime("%F %T")
 
 
+# What the shard builds read from the checkout. A commit that changes none of
+# these builds the same engine as its parent.
+ENGINE_INPUTS = ["engine", "DEPS", "shorebird/ci"]
+
+
+def git(*args):
+    return subprocess.run(["git", "-C", ROOT, *args], capture_output=True, text=True)
+
+
 def engine_commit():
-    return subprocess.check_output(["git", "-C", ROOT, "rev-parse", "HEAD"], text=True).strip()
+    """The commit this checkout's engine is named after (see the module doc)."""
+    r = git("rev-parse", "--verify", "HEAD")
+    head = r.stdout.strip()
+    if r.returncode != 0 or not head:
+        sys.exit(f"{ROOT} is not a git checkout")
+    try:
+        pinned = open(os.path.join(ROOT, "bin", "internal", "engine.version")).read().strip()
+    except OSError:
+        return head
+    if pinned != head and len(pinned) == 40 \
+            and git("merge-base", "--is-ancestor", pinned, head).returncode == 0 \
+            and git("diff", "--quiet", pinned, head, "--", *ENGINE_INPUTS).returncode == 0:
+        return pinned
+    return head
+
+
+def same_commit(marked, engine):
+    """A hand-written marker may abbreviate the commit."""
+    return bool(marked) and len(marked) >= 7 and engine.startswith(marked)
 
 
 def read_status():
@@ -144,15 +177,25 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--pending", action="store_true")
+    ap.add_argument("--left", action="store_true")
     ap.add_argument("shards", nargs="*")
     a = ap.parse_args()
     spec = json.load(open(SHARDS))
     ordered = [n for n in ORDER if n in spec] + [n for n in spec if n not in ORDER]
-    if a.pending and a.shards:
-        sys.exit("--pending takes no shard names")
-    head = engine_commit()
+    if (a.pending or a.left) and a.shards:
+        sys.exit("--pending and --left take no shard names")
+    engine = engine_commit()
+    if a.left:
+        marked, ok = read_status()
+        print(" ".join(n for n in ordered if not same_commit(marked, engine) or n not in ok))
+        return 0
+    os.makedirs(LOGS, exist_ok=True)
+    claim_pid_file()
+    # Read after taking the pid file, so no other build appends meanwhile.
     marked, ok = read_status()
-    if marked != head:
+    if not same_commit(marked, engine):
+        print(f"engine commit is {engine}, last built {marked or 'unknown'}: "
+              "no shard counts as built", flush=True)
         ok = set()
     if a.pending:
         names = [n for n in ordered if n not in ok]
@@ -161,10 +204,8 @@ def main():
     unknown = [n for n in names if n not in spec]
     if unknown:
         sys.exit(f"unknown shard(s): {', '.join(unknown)}")
-    os.makedirs(LOGS, exist_ok=True)
-    claim_pid_file()
-    if marked != head:
-        status(f"--- engine {head} {now()}")
+    if not same_commit(marked, engine):
+        status(f"--- engine {engine} {now()}")
     failed = 0
     for name in names:
         path = os.path.join(LOGS, f"shard-{name}.log")

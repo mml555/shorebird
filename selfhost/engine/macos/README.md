@@ -35,10 +35,12 @@ selfhost/engine/macos/watchdog.sh $! &   # reports a stall or the end of the bui
 
 At `-j6` on a shared 10-core Mac, each shard took 20 to 90 minutes, about 6 hours of building in all.
 `logs/shards.status` gets a `STARTED` line and then an `OK` or `FAILED` line
-per shard; the last line for a shard is its state. When the checkout moves to
-another commit, `build_shard.py` appends a `--- engine <commit>` line before it
+per shard; the last line for a shard is its state. When the checkout's engine
+commit changes, `build_shard.py` appends a `--- engine <commit>` line before it
 builds, and only lines after the last one count, so every shard is built again
-for the new engine. To build what failed, was interrupted or never ran at the
+for the new engine. A commit that only repins `bin/internal/engine.version` to
+the engine below it (nothing changed under `engine/`, `DEPS` or `shorebird/ci`)
+keeps that engine's commit and its built shards. To build what failed, was interrupted or never ran at the
 current commit:
 
 ```sh
