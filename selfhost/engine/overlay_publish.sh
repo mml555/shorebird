@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words retagged
 #
 # overlay_publish.sh — publish a locally built EXPERIMENTAL engine into the CDN
 # mirror's overlay, under its own engine hash.

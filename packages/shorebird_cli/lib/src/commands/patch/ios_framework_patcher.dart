@@ -25,7 +25,7 @@ import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 /// Functions to patch an iOS Framework release.
 /// {@endtemplate}
 class IosFrameworkPatcher extends Patcher
-    with ApplePatcherMixin, AppleLinkerPatcherMixin {
+    with ApplePatcherMixin, AppleLinkerPatcherMixin, IosEnginePatchGuard {
   /// {@macro ios_framework_patcher}
   IosFrameworkPatcher({
     required super.argResults,

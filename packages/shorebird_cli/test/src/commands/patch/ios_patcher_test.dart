@@ -28,6 +28,8 @@ import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/command_error.dart';
+import 'package:shorebird_cli/src/route_b.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_build_config.dart';
@@ -322,6 +324,121 @@ void main() {
               supportedOperatingSystems: {NativePlatform.macOS},
             ),
           ).called(1);
+        });
+      });
+    });
+
+    group('assertEngineCanPatch', () {
+      late Directory flutterDir;
+      late Directory localEngineSrc;
+
+      final declining =
+          'InterpretCall ... This $iosPatchesDeclinedMarker, not starting '
+          'the Shorebird updater.';
+
+      void writeFile(File file, String contents) => file
+        ..createSync(recursive: true)
+        ..writeAsStringSync(contents);
+
+      void writeEngine(String? contents) {
+        if (contents == null) return;
+        writeFile(
+          iosReleaseEngineBinary(flutterDirectory: flutterDir),
+          contents,
+        );
+      }
+
+      void writeLocalEngine(String contents) => writeFile(
+        iosReleaseEngineBinary(
+          flutterDirectory: flutterDir,
+          localEngineSrcPath: localEngineSrc.path,
+          localEngine: 'ios_release',
+        ),
+        contents,
+      );
+
+      void useLocalEngine() {
+        when(() => engineConfig.localEngineSrcPath).thenReturn(
+          localEngineSrc.path,
+        );
+        when(() => engineConfig.localEngine).thenReturn('ios_release');
+      }
+
+      Matcher refusal() => throwsA(
+        isA<CommandError>()
+            .having((e) => e.exitCode, 'exitCode', ExitCode.unavailable.code)
+            .having(
+              (e) => e.message,
+              'message',
+              allOf(
+                startsWith('This release cannot be patched'),
+                contains('never start the updater'),
+              ),
+            )
+            .having(
+              (e) => e.hint,
+              'hint',
+              contains('Create a new release'),
+            ),
+      );
+
+      setUp(() {
+        flutterDir = Directory.systemTemp.createTempSync('engine_check_');
+        localEngineSrc = Directory.systemTemp.createTempSync('local_engine_');
+        when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDir);
+      });
+
+      tearDown(() {
+        flutterDir.deleteSync(recursive: true);
+        localEngineSrc.deleteSync(recursive: true);
+      });
+
+      test('exits with a clear error when the engine declines iOS patches', () {
+        writeEngine(declining);
+        expect(() => runWithOverrides(patcher.assertEngineCanPatch), refusal());
+      });
+
+      test('proceeds when the engine can run iOS patches', () async {
+        writeEngine('...InterpretCall...');
+        await expectLater(
+          runWithOverrides(patcher.assertEngineCanPatch),
+          completes,
+        );
+      });
+
+      test(
+        'proceeds, and says so in detail, when the binary is absent',
+        () async {
+          writeEngine(null);
+          await expectLater(
+            runWithOverrides(patcher.assertEngineCanPatch),
+            completes,
+          );
+          verify(
+            () => logger.detail(any(that: contains('not found'))),
+          ).called(1);
+        },
+      );
+
+      group('when building with --local-engine', () {
+        setUp(useLocalEngine);
+
+        test('refuses a declining local engine, not looking at the cache', () {
+          writeEngine('...InterpretCall...');
+          writeLocalEngine(declining);
+          expect(
+            () => runWithOverrides(patcher.assertEngineCanPatch),
+            refusal(),
+          );
+        });
+
+        test('is not refused for a stale declining cached engine', () async {
+          writeEngine(declining);
+          writeLocalEngine('...InterpretCall...');
+          await expectLater(
+            runWithOverrides(patcher.assertEngineCanPatch),
+            completes,
+          );
         });
       });
     });
