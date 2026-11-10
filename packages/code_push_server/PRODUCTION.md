@@ -450,29 +450,55 @@ code_push_server_default` (single container + TLS) or
 
 ### Paths a proxy or firewall must pass unauthenticated
 
-Apps in the field call a few endpoints with no credential, only their
-`app_id`. A proxy, WAF or load balancer in front of the server that demands
-authentication, or blocks `POST`s it does not recognize, will break them:
+Several routes carry no bearer token, because their callers cannot have one. A
+proxy, WAF or load balancer that demands authentication on them, or blocks
+requests it does not recognize, breaks the callers below.
+
+Devices (apps in the field know only their `app_id`):
 
 - `POST /api/v1/patches/check`: asks whether a patch is available.
-- `POST /api/v1/patches/events`: **reports install events**: patch downloaded,
-  installed, boot failed. The server answers `204 No Content` (or `422` for an
-  event that can never be stored; the updater drops those).
+- `POST /api/v1/patches/events`: **reports install events** (patch downloaded,
+  installed, boot failed). The server answers `204 No Content`, or `422` for an
+  event that can never be stored (the updater drops those).
 - `POST /api/v1/patches/assets` and `POST /api/v1/crashes`.
+- `GET /download/<token>`: the `download_url` that `patches/check` returns. The
+  token in the URL is the credential, and `Range` requests must pass. A proxy
+  that blocks it breaks every patch install while `check` and `events` still
+  look healthy.
+
+The CLI and browsers (sign-in):
+
+- `/login` (GET and POST), `/token`, `/revoke`, `/oauth/callback`,
+  `/cli/login-result`, `POST /api/logout` and `/.well-known/jwks.json`.
+- `/console` and `/admin/ui` (the static pages; the API calls they make carry
+  a token).
+
+Monitoring: `/healthz`, `/readyz`, `/metrics` and `/diagnostics/speedtest`.
+
+The server also accepts the device routes without the `/api/v1` prefix
+(`/patches/check`, `/patches/events`, `/patches/assets`, `/crashes`) and under
+any `/api/<x>/` prefix, so an "allow only these paths" rule written for
+`/api/v1/...` matches what the shipped clients send, but is stricter than the
+server. Every other route needs a bearer token, which the server checks.
 
 `patches/events` is the one to watch. A proxy that blocks it breaks nothing you
-would notice: the server sees no request and logs no error, so install counts, rollout health and
-boot-failure rollbacks go silently missing. After a proxy change, check
-that an unauthenticated request gets through:
+would notice: the server sees no request and logs no error, so install counts,
+rollout health and boot-failure rollbacks go silently missing. After a proxy
+change, check that an unauthenticated request gets through:
 
 ```bash
 curl -i -X POST "$PUBLIC_BASE_URL/api/v1/patches/events" \
-  -H 'Content-Type: application/json' -d '{"event":{}}'
-# expect: HTTP/1.1 204 (a 401, 403 or 404 means the proxy or the path is wrong)
+  -H 'Content-Type: application/json' \
+  -d '{"event":{"type":"proxy_check","client_id":"proxy-check"}}'
+# expect: HTTP/1.1 204. A 422 also proves the proxy passes it (the server
+# answered and refused the payload). A 401, 403 or 404 means the proxy blocks
+# it or the path prefix is wrong.
 ```
 
+That request stores one event row with `client_id` `proxy-check`, and the
+server logs its body, so filter that id out of install counts.
+
 The shipped Caddyfile passes everything to the server and needs no change.
-Every other `/api/v1/*` route needs a bearer token, which the server checks.
 
 ### Upload method
 

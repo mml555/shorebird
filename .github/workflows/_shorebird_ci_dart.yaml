@@ -115,6 +115,10 @@ jobs:
           WORKSPACE_ROOT: ${{ github.workspace }}
         run: |
           set -f
+          if ! printf '%s' "$TEST_CONCURRENCY" | grep -Eq '^[1-9][0-9]*$'; then
+            echo "::error::test_concurrency must be a whole number of 1 or more, got '$TEST_CONCURRENCY'"
+            exit 1
+          fi
           files=$(find test -name '*_test.dart' | sort | awk -v n="${TOTAL_SHARDS:-1}" -v i="${SHARD_INDEX:-0}" 'NR % n == i')
           if [ -z "$files" ]; then
             exit 0
