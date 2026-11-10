@@ -462,6 +462,27 @@ class CodePushClient {
     final total = await file.length();
     final raf = await file.open();
     var failures = 0;
+
+    // Asks the server how far it got. A 5xx answer (the self-hosted server
+    // answers 503 while a commit it is still running finishes) is retried with
+    // backoff against the same failure budget as a failed chunk, instead of
+    // aborting the upload for a commit that goes on to succeed.
+    Future<int> resumeOffset() async {
+      while (true) {
+        try {
+          return await _queryResumeOffset(sessionUri, total);
+        } on CodePushUploadException catch (e) {
+          final code = e.statusCode;
+          if (code == null ||
+              code < HttpStatus.internalServerError ||
+              ++failures > _maxUploadFailures) {
+            rethrow;
+          }
+          await _backoff(failures);
+        }
+      }
+    }
+
     try {
       var offset = 0;
       while (offset < total) {
@@ -481,7 +502,7 @@ class CodePushClient {
           // resume from there.
           if (++failures > _maxUploadFailures) rethrow;
           await _backoff(failures);
-          offset = await _queryResumeOffset(sessionUri, total);
+          offset = await resumeOffset();
           continue;
         }
 
@@ -511,7 +532,7 @@ class CodePushClient {
           // rather than re-sending bytes it has already persisted.
           if (++failures > _maxUploadFailures) throw _uploadFailed(response);
           await _backoff(failures);
-          offset = await _queryResumeOffset(sessionUri, total);
+          offset = await resumeOffset();
         } else {
           throw _uploadFailed(response);
         }

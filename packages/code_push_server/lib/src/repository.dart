@@ -138,6 +138,7 @@ class ArtifactRow {
     required this.createdAt,
     this.signingMode,
     this.signingKeyId,
+    this.uploadingAt,
   });
   final int id;
   final String token;
@@ -152,6 +153,10 @@ class ArtifactRow {
   final bool canSideload;
   final ArtifactStatus status;
   final String storageKey;
+
+  /// When the current `uploading` claim began, epoch milliseconds; null if the
+  /// artifact was never claimed (or was claimed before migration 17).
+  final int? uploadingAt;
 
   /// When the artifact row was created, ISO-8601 UTC. Part of the CLI's
   /// `PatchArtifact` wire contract, which requires it.
@@ -593,6 +598,25 @@ class Repository {
         // this every hourly run is a sequential scan.
         'CREATE INDEX IF NOT EXISTS crash_reports_received_idx '
             'ON crash_reports(received_at)',
+      ],
+    ),
+    (
+      17,
+      [
+        // When the current `uploading` claim began, epoch milliseconds. Without
+        // it a process killed mid-write leaves the artifact `uploading` with
+        // nothing to tell that apart from a commit still running, so the token
+        // is stuck. Null on a row that has never been claimed, and on one
+        // claimed by a replica that predates this migration: reclaim starts
+        // that row's clock the first time a request sees it, so a live claim
+        // from an old replica is not stolen at once.
+        //
+        // `claim` is the owner's fence: a random value set when the claim is
+        // taken. Every later change to a claimed row names it, so a holder
+        // whose claim was reclaimed cannot reset, verify or fail the new
+        // owner's artifact.
+        'ALTER TABLE artifacts ADD COLUMN uploading_at BIGINT',
+        'ALTER TABLE artifacts ADD COLUMN claim TEXT',
       ],
     ),
   ];
@@ -1935,6 +1959,7 @@ class Repository {
     canSideload: asDbBool(m['can_sideload']),
     status: ArtifactStatus.parse(m['status'] as String),
     storageKey: m['storage_key'] as String,
+    uploadingAt: m['uploading_at'] == null ? null : _int(m['uploading_at']),
     createdAt: _ts(m['created_at']),
     signingMode: m['signing_mode'] as String?,
     signingKeyId: m['signing_key_id'] == null
@@ -1952,11 +1977,89 @@ class Repository {
   ) async {
     requireArtifactTransition(from, to);
     final r = await _q(
-      'UPDATE artifacts SET status = @to WHERE id = @id AND status = @from '
-      'RETURNING id',
+      'UPDATE artifacts SET status = @to, claim = NULL, uploading_at = '
+      '${to == ArtifactStatus.uploading ? _nowMs : 'NULL'} '
+      'WHERE id = @id AND status = @from RETURNING id',
       {'to': to.name, 'from': from.name, 'id': artifactId},
     );
     return r.isNotEmpty;
+  }
+
+  /// The database's clock in epoch milliseconds (whole seconds on SQLite), so
+  /// replicas with skewed clocks agree on how old a claim is.
+  String get _nowMs => _db.dialect == Dialect.postgres
+      ? '(extract(epoch from clock_timestamp()) * 1000)::bigint'
+      : "(cast(strftime('%s', 'now') as integer) * 1000)";
+
+  /// Takes the upload claim of a `pending` artifact (`pending -> uploading`)
+  /// with a compare-and-set. Returns the claim, a random fence the holder
+  /// passes to every later call, or null if another request holds it.
+  Future<String?> claimArtifact(int artifactId) async {
+    final claim = _newClaim();
+    final r = await _q(
+      "UPDATE artifacts SET status = 'uploading', claim = @c, "
+      "uploading_at = $_nowMs WHERE id = @id AND status = 'pending' "
+      'RETURNING id',
+      {'c': claim, 'id': artifactId},
+    );
+    return r.isEmpty ? null : claim;
+  }
+
+  /// Ends the claim [claim] on [artifactId], moving it to [to] (`pending`,
+  /// `verified` or `failed`). Succeeds only while that claim is still the
+  /// current one, so a holder whose claim was reclaimed cannot touch what the
+  /// new owner is doing.
+  Future<bool> settleClaim(
+    int artifactId,
+    String claim,
+    ArtifactStatus to,
+  ) async {
+    requireArtifactTransition(ArtifactStatus.uploading, to);
+    final r = await _q(
+      'UPDATE artifacts SET status = @to, claim = NULL, uploading_at = NULL '
+      "WHERE id = @id AND status = 'uploading' AND claim = @c RETURNING id",
+      {'to': to.name, 'id': artifactId, 'c': claim},
+    );
+    return r.isNotEmpty;
+  }
+
+  /// Restarts the staleness clock of [claim]; false if it is no longer the
+  /// current claim. A holder calls it between the phases of a long write.
+  Future<bool> touchClaim(int artifactId, String claim) async {
+    final r = await _q(
+      'UPDATE artifacts SET uploading_at = $_nowMs '
+      "WHERE id = @id AND status = 'uploading' AND claim = @c RETURNING id",
+      {'id': artifactId, 'c': claim},
+    );
+    return r.isNotEmpty;
+  }
+
+  /// Hands an `uploading` claim older than [age] back to `pending`, for an
+  /// artifact whose holder died mid-write. Returns whether this call did it. A
+  /// claim with no recorded start (an old replica's) gets its clock started
+  /// here and is reclaimed only after a full [age] from this sighting.
+  Future<bool> reclaimStaleUpload(int artifactId, Duration age) async {
+    requireArtifactTransition(ArtifactStatus.uploading, ArtifactStatus.pending);
+    await _q(
+      'UPDATE artifacts SET uploading_at = $_nowMs '
+      "WHERE id = @id AND status = 'uploading' AND uploading_at IS NULL",
+      {'id': artifactId},
+    );
+    final r = await _q(
+      "UPDATE artifacts SET status = 'pending', claim = NULL, "
+      "uploading_at = NULL WHERE id = @id AND status = 'uploading' "
+      'AND uploading_at <= $_nowMs - @age RETURNING id',
+      {'id': artifactId, 'age': age.inMilliseconds},
+    );
+    return r.isNotEmpty;
+  }
+
+  static String _newClaim() {
+    final rng = Random.secure();
+    return List<String>.generate(
+      16,
+      (_) => rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
   }
 
   Future<void> setArtifactStatus(int artifactId, ArtifactStatus status) => _q(
