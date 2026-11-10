@@ -30,25 +30,82 @@ class OAuthService {
   static JsonWebKey keyFromJson(String s) =>
       JsonWebKey.fromJson(jsonDecode(s) as Map<String, dynamic>);
 
-  /// Extracts an email from an external IdP token response — a top-level
-  /// `email`, else the `email` claim of the `id_token` JWT (decode-only; the
-  /// token came directly from the IdP token endpoint over TLS). Null if none.
-  static String? emailFromIdToken(Map<String, dynamic> tokenResp) {
-    if (tokenResp['email'] is String) return tokenResp['email'] as String;
+  /// Validates the `id_token` from an external IdP's token response and
+  /// returns the email it asserts, or the reason it was refused.
+  ///
+  /// The signature is not checked: OIDC Core 3.1.3.7 allows that when the
+  /// token comes straight from the token endpoint over TLS. Everything else
+  /// in 3.1.3.7 that this server can check without the IdP's keys is checked:
+  ///
+  /// * `aud` contains [clientId], and `azp` equals it when there are several
+  ///   audiences. Without this a token minted for another app is accepted.
+  /// * `exp` is present and in the future.
+  /// * `iss` equals [issuer], when one is configured (`IDP_ISSUER`).
+  /// * `email_verified` is true, unless [allowUnverifiedEmail]
+  ///   (`IDP_ALLOW_UNVERIFIED_EMAIL`): an IdP that lets users claim an
+  ///   address they have not proved lets them sign in as its owner.
+  ///
+  /// A top-level `email` in the token response is deliberately ignored: OIDC
+  /// token responses do not define one, and it is unauthenticated by any of
+  /// the claims above.
+  static IdTokenResult emailFromIdToken(
+    Map<String, dynamic> tokenResp, {
+    required String clientId,
+    String issuer = '',
+    bool allowUnverifiedEmail = false,
+    DateTime? now,
+  }) {
     final idToken = tokenResp['id_token'];
-    if (idToken is! String) return null;
+    if (idToken is! String) return IdTokenResult.rejected('no_id_token');
     final parts = idToken.split('.');
-    if (parts.length != 3) return null;
+    if (parts.length != 3) return IdTokenResult.rejected('malformed_id_token');
+    final Map<String, dynamic> payload;
     try {
-      final payload =
+      payload =
           jsonDecode(
                 utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
               )
               as Map<String, dynamic>;
-      return payload['email'] as String?;
     } catch (_) {
-      return null;
+      return IdTokenResult.rejected('malformed_id_token');
     }
+
+    final aud = payload['aud'];
+    final audiences = switch (aud) {
+      final String a => [a],
+      final List<dynamic> a => a.whereType<String>().toList(),
+      _ => const <String>[],
+    };
+    if (!audiences.contains(clientId)) {
+      return IdTokenResult.rejected('aud_mismatch');
+    }
+    if (audiences.length > 1 && payload['azp'] != clientId) {
+      return IdTokenResult.rejected('azp_mismatch');
+    }
+
+    final exp = payload['exp'];
+    if (exp is! num) return IdTokenResult.rejected('exp_missing');
+    final nowSeconds = (now ?? DateTime.now()).millisecondsSinceEpoch ~/ 1000;
+    if (exp <= nowSeconds) return IdTokenResult.rejected('expired');
+
+    if (issuer.isNotEmpty && payload['iss'] != issuer) {
+      return IdTokenResult.rejected('iss_mismatch');
+    }
+
+    final email = payload['email'];
+    if (email is! String || email.isEmpty) {
+      return IdTokenResult.rejected('email_missing');
+    }
+    if (!allowUnverifiedEmail) {
+      // Google has been seen to send the string "true".
+      final verified = payload['email_verified'];
+      if (verified != true && verified != 'true') {
+        return IdTokenResult.rejected(
+          verified == null ? 'email_verified_missing' : 'email_not_verified',
+        );
+      }
+    }
+    return IdTokenResult.accepted(email);
   }
 
   final String issuer;
@@ -119,4 +176,14 @@ class OAuthService {
   };
 
   static const _privateRsaFields = {'d', 'p', 'q', 'dp', 'dq', 'qi'};
+}
+
+/// The outcome of [OAuthService.emailFromIdToken]: an [email], or a short
+/// [reason] code (safe to log; never contains token material).
+class IdTokenResult {
+  IdTokenResult.accepted(String this.email) : reason = null;
+  IdTokenResult.rejected(String this.reason) : email = null;
+
+  final String? email;
+  final String? reason;
 }

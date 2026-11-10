@@ -147,23 +147,29 @@ JWT is then accepted as a bearer across the whole API, and `repo.userByEmail` /
 
 ### The `email` claim is required
 
-`/oauth/callback` extracts identity from the IdP token response by:
+`/oauth/callback` extracts identity from the `id_token` JWT in the IdP's token
+response (a top-level `email` field in the token response is ignored: it is not
+part of OIDC and nothing authenticates it). The token is rejected, and the
+login fails with `?error=invalid_id_token` (or `no_email`), unless:
 
-1. taking a top-level `email` field if the token endpoint returns one, else
-2. base64url-decoding the **payload** of the `id_token` JWT and reading its
-   `email` claim.
+- `aud` contains `IDP_CLIENT_ID` (and `azp` equals it if there are several
+  audiences),
+- `exp` is in the future,
+- `iss` equals `IDP_ISSUER`, when set (required in production),
+- `email_verified` is `true`, unless `IDP_ALLOW_UNVERIFIED_EMAIL=true`, and
+- it carries an `email` claim, so `IDP_SCOPES` **must** include a scope that
+  yields it (`openid email`, the default, is sufficient for Google and
+  Microsoft).
 
-If neither is present the login fails with `?error=no_email`. Therefore your
-`IDP_SCOPES` **must** include a scope that yields the email claim (`openid
-email` — the default — is sufficient for both Google and Microsoft).
+The server logs the reason for each rejection (`IdP login rejected reason=...`,
+for example `aud_mismatch`, `iss_mismatch`, `expired`,
+`email_verified_missing`), never the token.
 
-> Security note: the broker **decode-only** parses the `id_token` — it does not
-> verify the id_token's signature. This is safe here because the token is
-> fetched directly from the IdP's token endpoint over TLS in a server-to-server
-> call (not passed through the browser), so its provenance is already
-> established by the transport. A hardened deployment could additionally fetch
-> the IdP's JWKS and verify the id_token signature + `iss`/`aud`/`exp` before
-> trusting the `email` claim; that is not implemented today.
+> Security note: the broker does not verify the id_token's signature. OIDC
+> Core 3.1.3.7 allows that when the token is fetched directly from the IdP's
+> token endpoint over TLS, as it is here (server-to-server, not through the
+> browser). The claim checks above are what stop a token minted for another
+> client, another issuer, or an unproven email address.
 
 ---
 
@@ -180,6 +186,8 @@ All are read in `lib/src/config.dart`. Broker mode activates only when
 | `IDP_AUTHORIZE_URL` | IdP authorization endpoint | `""` |
 | `IDP_TOKEN_URL` | IdP token endpoint | `""` |
 | `IDP_SCOPES` | Space-separated scopes | `openid email` |
+| `IDP_ISSUER` | Exact `iss` of the IdP's id_tokens; required when `PRODUCTION` | `""` (not checked) |
+| `IDP_ALLOW_UNVERIFIED_EMAIL` | Accept id_tokens without `email_verified=true`; for IdPs that omit it (Entra) | `false` |
 
 The **redirect / callback URI** you register at the IdP is always:
 
@@ -216,6 +224,7 @@ IDP_CLIENT_SECRET=CHANGE_ME_google_client_secret
 IDP_AUTHORIZE_URL=https://accounts.google.com/o/oauth2/v2/auth
 IDP_TOKEN_URL=https://oauth2.googleapis.com/token
 IDP_SCOPES=openid email
+IDP_ISSUER=https://accounts.google.com
 ```
 
 Google returns an `id_token` in the token response; its payload carries the
@@ -249,7 +258,17 @@ IDP_CLIENT_SECRET=CHANGE_ME_entra_client_secret
 IDP_AUTHORIZE_URL=https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize
 IDP_TOKEN_URL=https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token
 IDP_SCOPES=openid email
+IDP_ISSUER=https://login.microsoftonline.com/{tenant}/v2.0
+# Entra omits email_verified; see the warning below before enabling.
+IDP_ALLOW_UNVERIFIED_EMAIL=true
 ```
+
+`IDP_ISSUER` must be the exact `iss` of the tokens, so use your tenant ID
+rather than `common` / `organizations` (whose tokens carry the user's own
+tenant as `iss`; with those you cannot set `IDP_ISSUER`, and production will
+refuse to boot). Entra does not send `email_verified`, and the `email` claim
+there is not proven by Microsoft, so `IDP_ALLOW_UNVERIFIED_EMAIL=true` is only
+safe with a single-tenant app whose directory you control.
 
 Entra's v2.0 endpoint returns an `id_token` whose payload includes `email` when
 the `email` scope is requested (for some account types the email may surface as

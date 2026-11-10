@@ -338,15 +338,37 @@ void main() {
         },
       );
       await repo.audit('a.new');
+      Future<void> crash(String key, int daysAgo) => repo.db.query(
+        'INSERT INTO crash_reports(dedupe_key, raw, received_at) '
+        "VALUES (@k, '{}', @t)",
+        {
+          'k': key,
+          't': DateTime.now()
+              .toUtc()
+              .subtract(Duration(days: daysAgo))
+              .toIso8601String(),
+        },
+      );
+      await crash('old', 40);
+      await crash('new', 1);
 
       // 0 keeps everything — the default, so this must not delete.
       await repo.purgeOldEvents(0);
       await repo.purgeOldAuditLog(0);
       expect(await repo.db.query('SELECT id FROM events'), hasLength(2));
       expect(await repo.db.query('SELECT id FROM audit_log'), hasLength(2));
+      await repo.purgeOldCrashReports(0);
+      expect(await repo.db.query('SELECT id FROM crash_reports'), hasLength(2));
 
       await repo.purgeOldEvents(30);
       await repo.purgeOldAuditLog(30);
+      await repo.purgeOldCrashReports(30);
+      expect(
+        (await repo.db.query(
+          'SELECT dedupe_key FROM crash_reports',
+        )).map((r) => r['dedupe_key']),
+        ['new'],
+      );
       expect(
         (await repo.db.query(
           'SELECT dedupe_key FROM events',

@@ -2268,6 +2268,17 @@ class Repository {
     );
   }
 
+  /// Drops crash reports older than [days], on the same terms as
+  /// [purgeOldEvents]: written by an unauthenticated endpoint, so it grows
+  /// without bound, but dropping history is the operator's call (`days <= 0`
+  /// keeps everything, the default).
+  Future<void> purgeOldCrashReports(int days) async {
+    if (days <= 0) return;
+    await _q(
+      "DELETE FROM crash_reports WHERE received_at < now() - interval '$days days'",
+    );
+  }
+
   /// Drops audit entries older than [days]. Opt-in for the same reason: the
   /// audit trail is often the thing an operator most wants to keep.
   Future<void> purgeOldAuditLog(int days) async {

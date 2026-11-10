@@ -26,6 +26,10 @@ Future<void> main() async {
     logInfo('WARNING: $warning');
   }
 
+  for (final warning in config.retentionWarnings) {
+    logInfo('WARNING: $warning');
+  }
+
   final problems = config.validate();
   if (problems.isNotEmpty) {
     stderr.writeln('FATAL: insecure config: ${problems.join(', ')}');
@@ -120,6 +124,7 @@ Future<void> main() async {
       // Opt-in, and off by default — these two hold data an operator may want
       // to keep. Unset, `events` and `audit_log` grow without bound.
       await repo.purgeOldEvents(config.eventRetentionDays);
+      await repo.purgeOldCrashReports(config.crashRetentionDays);
       await repo.purgeOldAuditLog(config.auditRetentionDays);
     } on Object catch (e, st) {
       logError('housekeeping failed', e, st);

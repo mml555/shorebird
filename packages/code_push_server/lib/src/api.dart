@@ -1293,8 +1293,23 @@ class Api {
     if (idpCode == null) return Response.found(back('error', 'missing_code'));
 
     final tokenResp = await _idpTokenExchange(idpCode);
-    final email = OAuthService.emailFromIdToken(tokenResp);
-    if (email == null) return Response.found(back('error', 'no_email'));
+    final result = OAuthService.emailFromIdToken(
+      tokenResp,
+      clientId: config.idpClientId,
+      issuer: config.idpIssuer,
+      allowUnverifiedEmail: config.idpAllowUnverifiedEmail,
+    );
+    final email = result.email;
+    if (email == null) {
+      // The reason is a fixed code, never token contents.
+      logInfo('WARNING: IdP login rejected', {'reason': result.reason});
+      return Response.found(
+        back(
+          'error',
+          result.reason == 'email_missing' ? 'no_email' : 'invalid_id_token',
+        ),
+      );
+    }
 
     final code = OAuthService.randomToken('sb_code_');
     await repo.insertAuthCode(

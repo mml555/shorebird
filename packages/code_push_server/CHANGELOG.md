@@ -6,6 +6,26 @@ All notable changes to `code_push_server` are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Security
+
+- **IdP id_tokens are now validated.** Broker login checks `aud` (must contain
+  `IDP_CLIENT_ID`, plus `azp` if several), `exp`, `iss` (against the new
+  `IDP_ISSUER`) and `email_verified`, and logs the reason for each rejection.
+  A top-level `email` in the token response is no longer accepted.
+  - **Action required if your IdP omits `email_verified`** (Microsoft Entra
+    does): logins fail with `invalid_id_token` until you set
+    `IDP_ALLOW_UNVERIFIED_EMAIL=true`.
+  - **Action required in production with an IdP:** `IDP_ISSUER` is now
+    mandatory and the server refuses to boot without it.
+
+### Added
+
+- **`CRASH_RETENTION_DAYS`** (default `0` = keep forever, like
+  `EVENT_RETENTION_DAYS`) sweeps `crash_reports` hourly. In production the
+  server warns at startup while event or crash retention is unlimited.
+
 ## 1.4.0 — 2026-11-08
 
 ### Changed
