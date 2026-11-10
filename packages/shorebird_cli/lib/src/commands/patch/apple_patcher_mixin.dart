@@ -12,6 +12,7 @@ import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/commands/build_preconditions.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
+import 'package:shorebird_cli/src/engine_config.dart';
 import 'package:shorebird_cli/src/executables/aot_tools.dart';
 import 'package:shorebird_cli/src/executables/xcodebuild.dart';
 import 'package:shorebird_cli/src/extensions/directory.dart';
@@ -19,12 +20,52 @@ import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
+import 'package:shorebird_cli/src/route_b.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
+
+/// Refuses, before anything is downloaded or built, a patch for an iOS engine
+/// that cannot run iOS patches (see [engineDeclinesIosPatches]).
+///
+/// Applied to the patchers that build and link an iOS AOT snapshot: without it
+/// they download the release, build, then crash in aot-tools or publish a
+/// patch no device can run.
+mixin IosEnginePatchGuard on Patcher {
+  /// The iOS release engine binary the build will link: the `--local-engine`
+  /// build when one is set, else the Flutter checkout's cached engine.
+  File iosEngineBinaryInScope() => iosReleaseEngineBinary(
+    flutterDirectory: shorebirdEnv.flutterDirectory,
+    localEngineSrcPath: engineConfig.localEngineSrcPath,
+    localEngine: engineConfig.localEngine,
+  );
+
+  @override
+  Future<void> assertEngineCanPatch() async {
+    final binary = iosEngineBinaryInScope();
+    if (!binary.existsSync()) {
+      logger.detail(
+        'iOS engine binary not found at ${binary.path}; not checking it for '
+        'iOS patch support.',
+      );
+      return;
+    }
+    if (!engineDeclinesIosPatches(binary)) return;
+    throw CommandError(
+      message:
+          'This release cannot be patched: its iOS engine was built without '
+          'iOS patch support, so apps from it never start the updater '
+          '(releases work, code patches cannot be made or run).',
+      hint:
+          'Create a new release on an engine built with the interpreter '
+          '(shorebird_use_interpreter=true), then patch that release.',
+      exitCode: ExitCode.unavailable,
+    );
+  }
+}
 
 /// Shared logic for Apple-platform patchers (iOS, macOS, iOS framework).
 ///

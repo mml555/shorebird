@@ -42,6 +42,8 @@ jobs:
     outputs:
       artifact_proxy: ${{ steps.filter.outputs.artifact_proxy }}
       dex: ${{ steps.filter.outputs.dex }}
+      elf: ${{ steps.filter.outputs.elf }}
+      macho: ${{ steps.filter.outputs.macho }}
       scoped_deps: ${{ steps.filter.outputs.scoped_deps }}
       shorebird_build_trace: ${{ steps.filter.outputs.shorebird_build_trace }}
       shorebird_ci: ${{ steps.filter.outputs.shorebird_ci }}
@@ -92,6 +94,18 @@ jobs:
               - .github/workflows/shorebird_ci.yaml
               - .github/workflows/_shorebird_ci_dart.yaml
               - packages/dex/**
+              - pubspec.lock
+              - pubspec.yaml
+            elf:
+              - .github/workflows/shorebird_ci.yaml
+              - .github/workflows/_shorebird_ci_dart.yaml
+              - packages/elf/**
+              - pubspec.lock
+              - pubspec.yaml
+            macho:
+              - .github/workflows/shorebird_ci.yaml
+              - .github/workflows/_shorebird_ci_dart.yaml
+              - packages/macho/**
               - pubspec.lock
               - pubspec.yaml
             scoped_deps:
@@ -168,6 +182,28 @@ jobs:
       package_path: packages/dex
       has_unit_tests: true
       subpackages: ""
+
+  elf:
+    needs: changes
+    if: needs.changes.outputs.elf == 'true'
+    uses: ./.github/workflows/_shorebird_ci_dart.yaml
+    with:
+      package_name: elf
+      package_path: packages/elf
+      has_unit_tests: true
+      subpackages: ""
+      min_coverage: "100"
+
+  macho:
+    needs: changes
+    if: needs.changes.outputs.macho == 'true'
+    uses: ./.github/workflows/_shorebird_ci_dart.yaml
+    with:
+      package_name: macho
+      package_path: packages/macho
+      has_unit_tests: true
+      subpackages: ""
+      min_coverage: "100"
 
   scoped_deps:
     needs: changes
@@ -300,6 +336,8 @@ jobs:
       - changes
       - artifact_proxy
       - dex
+      - elf
+      - macho
       - scoped_deps
       - shorebird_build_trace
       - shorebird_ci

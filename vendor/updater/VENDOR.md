@@ -25,5 +25,10 @@ copy is for CI and the Dart-to-Rust signing seam test.
 `shorebird_code_push/` is the Dart package. It needs the Flutter SDK, so no CI job runs it. Only the Rust
 workspace (library, library_test_hooks, patch) is built and tested in CI.
 
+Fork-local edit on top of that snapshot: `shorebird_test_check_signature` in
+`library_test_hooks/src/lib.rs` registers the test engine callbacks before
+verifying, because the verifier is the engine's and the Dart-to-Rust seam test
+runs without one. Re-apply it when re-vendoring.
+
 To update: re-vendor a new commit, bump compatibility.yaml, and re-run the
 compatibility suite before declaring support.

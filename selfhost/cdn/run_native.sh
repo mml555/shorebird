@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words xcaddy darkweak GOBIN GOTOOLCHAIN fullchain
+# cspell:words xcaddy darkweak GOBIN GOTOOLCHAIN fullchain GOVERSION
 #
 # run_native.sh — run the CDN mirror without Docker.
 #

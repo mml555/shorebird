@@ -66,7 +66,10 @@ void main() {
 
       test('throws SocketException after max connection attempts', () async {
         final client = RedisClient(
-          socket: const RedisSocketOptions(port: 1234, retryAttempts: 1),
+          socket: RedisSocketOptions(
+            port: await _unusedPort(),
+            retryAttempts: 1,
+          ),
         );
         await expectLater(
           client.connect,
@@ -83,7 +86,10 @@ void main() {
 
       test('throws SocketException after disconnect w/out retry', () async {
         final client = RedisClient(
-          socket: const RedisSocketOptions(port: 1234, retryAttempts: 0),
+          socket: RedisSocketOptions(
+            port: await _unusedPort(),
+            retryAttempts: 0,
+          ),
         );
         await expectLater(
           client.connect,
@@ -133,6 +139,41 @@ void main() {
         await client.disconnect();
         await expectLater(client.execute(['PING']), completion(equals('PONG')));
       });
+
+      test(
+        'does not reconnect when closed before delayed reconnect fires',
+        () async {
+          final server = await ServerSocket.bind(
+            InternetAddress.loopbackIPv4,
+            0,
+          );
+          addTearDown(server.close);
+
+          var connections = 0;
+          server.listen((socket) {
+            connections++;
+            addTearDown(socket.destroy);
+          });
+
+          final reconnectingClient = RedisClient(
+            socket: RedisSocketOptions(
+              host: InternetAddress.loopbackIPv4.address,
+              port: server.port,
+              retryInterval: const Duration(milliseconds: 50),
+            ),
+          );
+          addTearDown(reconnectingClient.close);
+
+          await reconnectingClient.connect();
+          expect(connections, equals(1));
+
+          await reconnectingClient.disconnect();
+          await reconnectingClient.close();
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+
+          expect(connections, equals(1));
+        },
+      );
     });
 
     group('KEYS', () {
@@ -276,6 +317,43 @@ void main() {
           throwsA(isA<TimeoutException>()),
         );
       });
+
+      test(
+        'does not write timed-out command attempts after reconnecting',
+        () async {
+          var reconnected = Completer<void>();
+          final reconnectingClient = RedisClient(
+            logger: _OnConnectedRedisLogger(() {
+              if (!reconnected.isCompleted) reconnected.complete();
+            }),
+            socket: RedisSocketOptions(
+              port: redisTestPort,
+              password: 'password',
+              retryInterval: const Duration(milliseconds: 200),
+            ),
+            command: const RedisCommandOptions(
+              timeout: Duration(milliseconds: 20),
+              retryAttempts: 1,
+            ),
+          );
+          addTearDown(reconnectingClient.close);
+
+          await reconnectingClient.connect();
+          reconnected = Completer<void>();
+          await reconnectingClient.disconnect();
+
+          await expectLater(
+            reconnectingClient.set(key: 'foo', value: 'bar'),
+            throwsA(isA<TimeoutException>()),
+          );
+
+          await reconnected.future;
+          await expectLater(
+            reconnectingClient.get(key: 'foo'),
+            completion(isNull),
+          );
+        },
+      );
     });
 
     group('INCR/INCRBYFLOAT', () {
@@ -542,6 +620,7 @@ void main() {
                   .having((r) => r.value, 'value', equals(56)),
             ),
           );
+          await expectLater(client.delete(key: key), completes);
           await expectLater(
             client.timeSeries.add(
               key: key,
@@ -758,4 +837,30 @@ void main() {
       });
     });
   });
+}
+
+/// A loopback port nothing is listening on, so a connection to it is refused
+/// rather than depending on a fixed port being free on a shared host.
+Future<int> _unusedPort() async {
+  final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+  final port = server.port;
+  await server.close();
+  return port;
+}
+
+class _OnConnectedRedisLogger implements RedisLogger {
+  const _OnConnectedRedisLogger(this._onConnected);
+
+  final void Function() _onConnected;
+
+  @override
+  void debug(String message) {}
+
+  @override
+  void info(String message) {
+    if (message == 'Connected.') _onConnected();
+  }
+
+  @override
+  void error(String message, {Object? error, StackTrace? stackTrace}) {}
 }

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words reqs
 """Assert what the Caddy protection matchers actually COVER.
 
 `caddy validate` checks that a regex parses. It says nothing about whether the
