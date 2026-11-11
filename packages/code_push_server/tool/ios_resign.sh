@@ -91,6 +91,26 @@ echo "  dev/get-task-allow: $GTA"
 
 cp "$PROFILE" "$APPB/embedded.mobileprovision"
 
+# The app's CFBundleIdentifier must match the application-identifier above:
+# codesign takes the signing identifier from it, and iOS keys per-app state
+# (the Local Network permission among it) to the bundle id. Left alone, a build
+# re-signed under a new bundle id keeps its old CFBundleIdentifier and iOS
+# blocks it from the LAN even after the user allows it. Rewrite it to match.
+#
+# iOS also remembers the first bundle id it saw for an executable's Mach-O
+# UUID, so give each build one bundle id; re-signing the same build under a
+# second id leaves that copy without LAN access.
+PLIST="$APPB/Info.plist"
+CUR_BUNDLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PLIST" 2>/dev/null || true)"
+if [ "$CUR_BUNDLE" != "$BUNDLE" ]; then
+  echo "  CFBundleIdentifier: ${CUR_BUNDLE:-<none>} -> $BUNDLE"
+  if [ -n "$CUR_BUNDLE" ]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE" "$PLIST"
+  else
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $BUNDLE" "$PLIST"
+  fi
+fi
+
 # Sign inside-out: nested frameworks/dylibs first (no entitlements — frameworks
 # don't carry app entitlements), then any app extensions best-effort, then the
 # app bundle with the profile's entitlements.
