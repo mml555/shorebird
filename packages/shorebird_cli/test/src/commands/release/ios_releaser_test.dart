@@ -852,6 +852,16 @@ $body
           );
         });
 
+        test('logs the verified call sites at info level', () async {
+          await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+          verify(
+            () => logger.info(
+              any(that: contains('verified 4000 patchable call sites')),
+            ),
+          ).called(1);
+        });
+
         test('asks for a snapshot profile beside the patchable flag', () async {
           await runWithOverrides(iosReleaser.buildReleaseArtifacts);
 
