@@ -784,16 +784,16 @@ void main() {
           },
         );
 
-        test('a record that cannot be written refuses, never throws', () async {
+        test('a record that cannot be kept only warns', () async {
           makeCheckout();
           serveMirror();
           // A FILE where the record directory goes.
           keptDir().parent.createSync(recursive: true);
           File(keptDir().path).writeAsStringSync('in the way');
-          await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
+          await expectLater(assertIos(), completes);
           verify(
-            () => logger.err(
-              any(that: contains('fetching the published iOS engines failed')),
+            () => logger.warn(
+              any(that: contains('Could not keep the published iOS engine')),
             ),
           ).called(1);
         });

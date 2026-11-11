@@ -554,13 +554,8 @@ class ToolchainCoherence {
         digests[mode] = digest;
         File(p.join(temp.path, '$mode.zip')).deleteSync();
       }
-      // Written beside the record and renamed into place, so a concurrent run
-      // never reads half a record.
-      record.parent.createSync(recursive: true);
-      File('${record.path}.$pid.tmp')
-        ..writeAsStringSync(jsonEncode({'source': base, 'digests': digests}))
-        ..renameSync(record.path);
       progress.complete();
+      _keep(record, base, digests);
       return PublishedIosEngines(digests: digests);
       // A failure here, after or during the download, must refuse the build
       // as undeterminable rather than end the command with a stack trace.
@@ -575,6 +570,31 @@ class ToolchainCoherence {
         temp?.deleteSync(recursive: true);
       } on Object {
         // A leftover temp directory is not worth failing a build over.
+      }
+    }
+  }
+
+  /// Keeps [digests] in [record] for the next build. Keeping them only saves
+  /// a download, so a failure (a read-only cache, say) is a warning: the
+  /// digests in hand were fetched and are still used.
+  void _keep(File record, String base, Map<String, String> digests) {
+    // Written beside the record and renamed into place, so a concurrent run
+    // never reads half a record.
+    final tmp = File('${record.path}.$pid.tmp');
+    try {
+      record.parent.createSync(recursive: true);
+      tmp
+        ..writeAsStringSync(jsonEncode({'source': base, 'digests': digests}))
+        ..renameSync(record.path);
+    } on Exception catch (error) {
+      logger.warn(
+        'Could not keep the published iOS engine digests in ${record.path} '
+        '($error); the next build will fetch them again.',
+      );
+      try {
+        if (tmp.existsSync()) tmp.deleteSync();
+      } on Exception {
+        // Nothing more to do.
       }
     }
   }
