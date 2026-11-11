@@ -300,7 +300,7 @@ for mod in ${STOCK_MODS[@]+"${STOCK_MODS[@]}"}; do
   for ext in jar pom; do
     dest="$d/$mod-1.0.0-$EXP_HASH.$ext"
     src="$MIRROR_URL/download.flutter.io/io/flutter/$mod/1.0.0-$STOCK_HASH/$mod-1.0.0-$STOCK_HASH.$ext"
-    if curl -fsSL "$src" -o "$dest"; then
+    if curl -fsSL --connect-timeout 20 --speed-limit 1024 --speed-time 300 "$src" -o "$dest"; then
       echo "  + ${dest#"$OVERLAY"/} (from $STOCK_HASH)"
     else
       echo "  ! could not fetch $src" >&2; missing=1; rm -f "$dest"

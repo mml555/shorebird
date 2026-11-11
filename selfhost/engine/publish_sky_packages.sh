@@ -195,10 +195,22 @@ publish_one() {  # publish_one <name> <explicit-zip>
   # Stock comes FIRST: besides the comparison, it supplies the root
   # LICENSE.zip_old_location.md when we have to build the archive ourselves.
   stock_zip="$WORK/stock-$name.zip"
-  if curl -fsSL "$MIRROR/flutter_infra_release/flutter/$PINNED/$name.zip" -o "$stock_zip"; then
+  # A stalled mirror aborts after 5 min under 1 KB/s (it used to hang this step
+  # for hours). Not less: the mirror's cache may send nothing until it holds a
+  # cold object whole. Only a 404 means the pinned engine has no such archive; any
+  # other failure is the mirror's, and publishing without the comparison would
+  # hide it.
+  local code fetch_rc=0
+  code=$(curl -fsSL --connect-timeout 20 --speed-limit 1024 --speed-time 300 -w '%{http_code}' \
+      "$MIRROR/flutter_infra_release/flutter/$PINNED/$name.zip" -o "$stock_zip") || fetch_rc=$?
+  if [ "$fetch_rc" = 0 ]; then
     echo "  stock:  $MIRROR/.../$PINNED/$name.zip"
   else
-    echo "  WARN: could not fetch stock $name — publishing anyway, comparison" >&2
+    if [ "$code" != 404 ]; then
+      echo "  ERROR: could not fetch stock $name from $MIRROR (curl exit $fetch_rc, HTTP $code)." >&2
+      return 1
+    fi
+    echo "  WARN: the pinned engine has no stock $name (404) — publishing anyway, comparison" >&2
     echo "        recorded as 'not performed' and the LICENSE pointer omitted." >&2
     stock_zip=""
   fi
