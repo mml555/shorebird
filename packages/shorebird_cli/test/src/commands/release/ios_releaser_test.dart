@@ -852,6 +852,21 @@ $body
           );
         });
 
+        test('reports the verified call sites without --verbose', () async {
+          await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+          verify(
+            () => logger.info(
+              any(
+                that: allOf(
+                  startsWith('Verified patchable call sites: 4000 '),
+                  contains('so this release can take Dart patches'),
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+
         test('asks for a snapshot profile beside the patchable flag', () async {
           await runWithOverrides(iosReleaser.buildReleaseArtifacts);
 

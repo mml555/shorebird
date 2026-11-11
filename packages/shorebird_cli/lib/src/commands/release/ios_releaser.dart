@@ -1018,8 +1018,10 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
 
     final result = countPatchableCallSites(appBinary);
     if (result.perMiB >= routeBPatchableSitesPerMiBThreshold) {
-      logger.detail(
-        '''Verified patchable call sites: ${result.sites} (${result.perMiB.round()}/MiB).''',
+      // Info, not detail: whether the release can take Dart patches at all is
+      // the outcome of this release on a Route B engine, so it shows by default.
+      logger.info(
+        '''Verified patchable call sites: ${result.sites} (${result.perMiB.round()}/MiB), so this release can take Dart patches.''',
       );
       return;
     }
