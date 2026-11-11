@@ -726,11 +726,17 @@ void main() {
         expect(
           () => runWithOverrides(patcher.assertEngineCanPatch),
           throwsA(
-            isA<CommandError>().having(
-              (e) => e.exitCode,
-              'exitCode',
-              ExitCode.unavailable.code,
-            ),
+            isA<CommandError>()
+                .having(
+                  (e) => e.exitCode,
+                  'exitCode',
+                  ExitCode.unavailable.code,
+                )
+                .having(
+                  (e) => e.hint,
+                  'hint',
+                  contains('shorebird_route_b=true'),
+                ),
           ),
         );
       });
