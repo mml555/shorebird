@@ -130,7 +130,7 @@ python3 "$CHECKER" >/dev/null 2>&1 && ok "matcher coverage OK at the new address
 note "5 - restart the CDN (the fallback map is read at startup)"
 ( cd "$SELFHOST/cdn" && docker compose -f docker-compose.cdn.yaml up -d --force-recreate cdn-cache ) >/dev/null 2>&1
 for _ in $(seq 1 40); do
-  code=$(curl -s -o /dev/null -w '%{http_code}' "$CDN_BASE/flutter_infra_release/flutter/$H2/engine_stamp.json")
+  code=$(curl -s --max-time 10 -o /dev/null -w '%{http_code}' "$CDN_BASE/flutter_infra_release/flutter/$H2/engine_stamp.json")
   [[ "$code" == 200 ]] && break; sleep 1
 done
 [[ "$code" == 200 ]] && ok "CDN answers for the new cell (engine_stamp.json 200)" \
@@ -153,7 +153,7 @@ while IFS= read -r m; do
   # scratch name called `x` made every metadata member refuse and report as a
   # mismatch. The name is part of the input, not decoration.
   dl="$T/${m##*/}"; dl="${dl//%H/$H2}"
-  curl -fsS "$url" -o "$dl" 2>/dev/null || { echo "    HTTP FAILED $url"; continue; }
+  curl -fsS --connect-timeout 20 --speed-limit 1024 --speed-time 300 "$url" -o "$dl" 2>/dev/null || { echo "    HTTP FAILED $url"; continue; }
   case "$(basename "$m")" in
     engine_stamp.json|artifacts_manifest.yaml|*.pom)
       # Rendered metadata: compare the CANONICAL form against the stage, which
