@@ -89,20 +89,16 @@ fn state_fingerprint(st: &SerializedState) -> String {
 /// operations take. Adding shared synchronisation here could serialise the very
 /// race being measured and make the defect vanish.
 fn state_diag(cache_dir: &Path, line: &str) {
-    use std::io::Write as _;
-    let _ = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(cache_dir.join("state_diag.log"))
-        .and_then(|mut f| {
-            writeln!(
-                f,
-                "pid={} tid={:?} {}",
-                std::process::id(),
-                std::thread::current().id(),
-                line
-            )
-        });
+    // Bounded by `diag_log`: rotated at a size cap, failures swallowed.
+    crate::diag_log::append(
+        &cache_dir.join("state_diag.log"),
+        &format!(
+            "pid={} tid={:?} {}",
+            std::process::id(),
+            std::thread::current().id(),
+            line
+        ),
+    );
 }
 
 /// UpdaterState fields that are serialized to disk at `{cache}/state.json`.

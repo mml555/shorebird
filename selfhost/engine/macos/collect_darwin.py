@@ -45,7 +45,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build_shard import (  # noqa: E402
-    ENGINE_INPUTS, engine_commit, git, plist_engine, read_status, same_commit, stamped_plists)
+    ENGINE_INPUTS, engine_commit, git, plist_engine, read_status, read_waivers, same_commit,
+    stamped_plists)
 
 W = os.environ.get("SHOREBIRD_ENGINE_DIR", os.path.expanduser("~/shorebird-engine"))
 ROOT = os.path.join(W, "flutter")
@@ -139,6 +140,11 @@ def main():
         print("\n".join(stale))
         return 1
     lines = []
+    # A waived verify_exported check (build_shard.py --waive-export) ships
+    # with the engine; say so where the publish reads this output.
+    for name, syms in sorted(read_waivers().items()):
+        if name in ok:
+            lines.append(f"WAIVED exports in shard {name}: {' '.join(sorted(syms))}")
     for name, shard in shards.items():
         if name not in ok:
             lines.append(f"skip shard {name} (not built)")

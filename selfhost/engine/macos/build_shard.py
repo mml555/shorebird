@@ -134,6 +134,27 @@ def read_status():
     return commit, {n for n, state in last.items() if state == "OK"}
 
 
+
+def read_waivers():
+    """{shard: waived export symbols} for the shards' latest runs after the
+    last "--- engine" line, from "OK with waived exports ..." and the
+    separate "WAIVED exports ..." lines."""
+    waivers = {}
+    if os.path.exists(STATUS):
+        for line in open(STATUS):
+            parts = line.split()
+            if line.startswith("--- engine "):
+                waivers = {}
+            elif len(parts) >= 4 and parts[2].endswith(":"):
+                shard, rest = parts[2].rstrip(":"), parts[3:]
+                if rest[0] == "STARTED" or rest[0] == "FAILED":
+                    waivers.pop(shard, None)
+                elif rest[:2] == ["WAIVED", "exports"]:
+                    waivers[shard] = set(rest[2:])
+                elif rest[:4] == ["OK", "with", "waived", "exports"]:
+                    waivers[shard] = set(rest[4:])
+    return {k: v for k, v in waivers.items() if v}
+
 def status(line):
     print(line, flush=True)
     # Opened per line, so a file replaced mid-run still gets every result.
@@ -205,6 +226,71 @@ def link_et_dart(log):
     return True
 
 
+def verify_exported(log, waived, built_out):
+    """Upstream's exported-symbol check (testing/symbols/verify_exported.dart)
+    over every release build in out/. built_out is the out dir the shard's
+    previous gn_ninja step built: the check must have looked at that build.
+
+    It fails the shard unless the only problems are unexpected exports, from
+    built_out, that --waive-export names one by one, and the script finished
+    and counted exactly those failures. Returns (rc, waived symbols seen)."""
+    # The script checks ios_*_release and android_*_release builds on macOS
+    # (host_* only on Linux). Anything else would pass with nothing checked.
+    if not built_out or "_release" not in built_out or \
+            not built_out.startswith(("ios_", "android_")):
+        log.write(f"verify_exported: the build before this step (got {built_out!r}) is not one "
+                  "it checks on macOS, so it would pass with nothing checked\n")
+        return 1, set()
+    if not link_et_dart(log):
+        return 1, set()
+    dart = os.path.join(SRC, "flutter", "prebuilts", "macos-arm64", "dart-sdk", "bin", "dart")
+    out = os.path.join(SRC, "out")
+    cmd = [dart, "--packages=flutter/.dart_tool/package_config.json",
+           "flutter/testing/symbols/verify_exported.dart",
+           out, os.path.join(SRC, "flutter", "buildtools")]
+    log.write(f"[{now()}] $ {' '.join(cmd)}\n")
+    log.flush()
+    p = subprocess.run(cmd, cwd=SRC, capture_output=True, text=True)
+    text = p.stdout + p.stderr
+    log.write(text if not text or text.endswith("\n") else text + "\n")
+    mine = os.path.join(out, built_out) + os.sep
+    lines = text.splitlines()
+    if any(l.startswith("SKIPPING: " + mine) for l in lines):
+        log.write(f"verify_exported skipped out/{built_out}, which this shard just built\n")
+        return 1, set()
+    if p.returncode == 0:
+        return 0, set()
+    # It can be waived only if the script ran to the end ("Failing checks: N" with
+    # exit status N), every one of the N failures is an "exports unexpected
+    # symbols" list for built_out, and every symbol listed is waived. A crash,
+    # any other error, or a failure in another build fails as before.
+    counted = [l for l in lines if l.startswith("Failing checks: ")]
+    blocks, unexpected, other, in_list = 0, set(), [], False
+    for line in lines:
+        if line.startswith("ERROR:"):
+            in_list = (line.startswith("ERROR: " + mine)
+                       and line.endswith(" exports unexpected symbols:"))
+            if in_list:
+                blocks += 1
+            else:
+                other.append(line)
+        elif in_list and line.startswith(" ") and line.strip():
+            unexpected.add(line.split()[-1])
+        else:
+            in_list = False
+    n = int(counted[-1].split()[-1]) if len(counted) == 1 and counted[0].split()[-1].isdigit() else -1
+    if n < 1 or p.returncode != n % 256 or blocks != n or other:
+        log.write(f"verify_exported failed in a way no waiver covers (exit {p.returncode}, "
+                  f"failing checks {n if n >= 0 else 'not reported'}, unexpected-export lists {blocks}, "
+                  f"other errors {len(other)})\n")
+        return 1, set()
+    if not unexpected or not unexpected <= waived:
+        if unexpected - waived:
+            log.write(f"not waived: {' '.join(sorted(unexpected - waived))}\n")
+        return 1, set()
+    log.write(f"WAIVED unexpected exports: {' '.join(sorted(unexpected))}\n")
+    return 0, unexpected
+
 def run(cmd, log, **kw):
     log.write(f"[{now()}] $ {' '.join(cmd) if isinstance(cmd, list) else cmd}\n")
     log.flush()
@@ -216,6 +302,10 @@ def main():
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--pending", action="store_true")
     ap.add_argument("--left", action="store_true")
+    ap.add_argument("--waive-export", action="append", default=[], metavar="SYMBOL",
+                    help="let verify_exported pass when this exact symbol (Mach-O spelling, "
+                         "e.g. _Foo) in the build the shard just made is its only complaint; "
+                         "repeatable, recorded on the shard's OK line in the status file")
     ap.add_argument("shards", nargs="*")
     a = ap.parse_args()
     spec = json.load(open(SHARDS))
@@ -250,6 +340,7 @@ def main():
         status(f"{now()} {name}: STARTED")
         with open(path, "a") as log:
             ok = True
+            built_out, waived_here = None, set()
             for step in spec[name]["steps"]:
                 t = step["type"]
                 if t == "clang_tidy":
@@ -273,18 +364,27 @@ def main():
                     if rc == 0:
                         rc = run(["nice", "-n", "10", "ninja", "-C", f"out/{out}", "-j", str(a.jobs),
                                   *step["ninja_targets"]], log)
+                    built_out = out if rc == 0 else None
                 elif t == "shell":
                     if "flutter/bin/et" in step["command"] and not link_et_dart(log):
                         rc = 1
                     else:
                         rc = run(step["command"], log, shell=True)
+                elif t == "verify_exported":
+                    rc, seen = verify_exported(log, set(a.waive_export), built_out)
+                    if seen:
+                        waived_here |= seen
+                        status(f"{now()} {name}: WAIVED exports {' '.join(sorted(seen))}")
                 else:
                     log.write(f"unknown step type {t}\n")
                     rc = 1
                 if rc != 0:
                     ok = False
                     break
-        status(f"{now()} {name}: {'OK' if ok else 'FAILED (see ' + path + ')'}")
+        # read_status() keys on the word after the shard name, so the waiver
+        # rides after "OK" and stays on the line that marks the shard built.
+        waived_note = f" with waived exports {' '.join(sorted(waived_here))}" if ok and waived_here else ""
+        status(f"{now()} {name}: {'OK' + waived_note if ok else 'FAILED (see ' + path + ')'}")
         failed += not ok
     return 1 if failed else 0
 

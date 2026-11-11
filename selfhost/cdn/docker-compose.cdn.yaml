@@ -46,6 +46,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # No memory limit on purpose. NutsDB keeps every cached body in memory (measured on
+    # ci-build: anonymous memory about equals the on-disk cache, 3.1 GB for a 3.1 GB cache,
+    # and it grows with each new engine hash), and Souin buffers a cold response 2-3x on
+    # top. A limit below cache size plus about 3 GB would crash-loop the mirror. Setting
+    # nuts EntryIdxMode HintKeyAndRAMIdxMode did not reduce it in a scratch test, so a limit
+    # needs a different fix first (see selfhost/STATUS.md, CDN section).
     depends_on:
       - artifact-proxy
     volumes:
