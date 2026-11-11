@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
 /// A failed S3 request: an unexpected status, or a transport error.
 class S3Exception implements Exception {
-  S3Exception(this.operation, this.statusCode, this.body);
+  S3Exception(this.operation, this.statusCode, this.body, {this.attempts = 1});
 
   /// Short description of the call, such as `PUT patch/1/abc`.
   final String operation;
@@ -18,9 +19,13 @@ class S3Exception implements Exception {
   /// Response body (the S3 XML error document), truncated.
   final String body;
 
+  /// How many times the call was tried before it failed.
+  final int attempts;
+
   @override
   String toString() =>
       'S3Exception: $operation failed ($statusCode)'
+      '${attempts > 1 ? ' after $attempts attempts' : ''}'
       '${body.isEmpty ? '' : ': $body'}';
 }
 
@@ -45,14 +50,23 @@ class S3Client {
     required this.bucket,
     this.pathStyle = true,
     this.responseTimeout = const Duration(seconds: 60),
+    this.maxAttempts = 4,
+    this.retryBaseDelay = const Duration(milliseconds: 200),
+    this.retryMaxDelay = const Duration(seconds: 5),
+    this.retryDeadline,
+    this.onRetry,
     HttpClient? httpClient,
     DateTime Function()? clock,
+    Future<void> Function(Duration)? sleep,
+    Random? random,
   }) : _http = (httpClient ?? HttpClient())
          ..connectionTimeout = const Duration(seconds: 10)
          // dart:io would otherwise ask for gzip and inflate what comes back,
          // which breaks ranged offsets and the size from [statObject].
          ..autoUncompress = false,
-       _clock = clock ?? DateTime.now;
+       _clock = clock ?? DateTime.now,
+       _sleep = sleep ?? Future<void>.delayed,
+       _random = random ?? Random();
 
   /// Base URL of the store, such as `http://seaweedfs:8333`. A path in it is
   /// not supported.
@@ -70,14 +84,46 @@ class S3Client {
   /// of hanging it. The body of a response is not covered.
   final Duration responseTimeout;
 
+  /// How many times a call is tried in all (1 turns retries off). Only
+  /// transient failures are retried: a connection error, a timeout, HTTP 408,
+  /// 429, 500, 502, 503 or 504, and the S3 error codes SlowDown,
+  /// RequestTimeout and InternalError. Other 4xx answers fail at once.
+  ///
+  /// Every request body here is a byte list held in memory, so each attempt
+  /// sends it again, with a fresh signature. A response is only retried
+  /// before it is handed to the caller: a [getObject] stream that fails midway
+  /// has been consumed and is not retried.
+  final int maxAttempts;
+
+  /// The wait before the first retry. Each later wait doubles, up to
+  /// [retryMaxDelay], and each is a random share of that ("full jitter"). Zero
+  /// means no wait.
+  final Duration retryBaseDelay;
+  final Duration retryMaxDelay;
+
+  /// No attempt starts after a call has run this long, counting the wait
+  /// before it. Null means twice [responseTimeout]. An attempt that starts just
+  /// before the deadline still runs to its own end (up to the 10 s connection
+  /// timeout plus [responseTimeout]), so the worst case for one call is the
+  /// deadline plus about 70 s with the defaults, not [maxAttempts] times that.
+  final Duration? retryDeadline;
+
+  /// Called with a one-line description before each retry is waited for.
+  final void Function(String message)? onRetry;
+
   final HttpClient _http;
   final DateTime Function() _clock;
+  final Future<void> Function(Duration) _sleep;
+  final Random _random;
 
   void close() => _http.close(force: true);
 
   /// Whether the bucket exists. Any answer other than 200 or 404 throws.
-  Future<bool> bucketExists() async {
-    final res = await _send('HEAD', null);
+  ///
+  /// Pass `retry: false` for a probe that has its own short deadline, such as
+  /// the readiness check.
+  Future<bool> bucketExists({bool retry = true}) async {
+    final res = await _send('HEAD', null, retry: retry);
     await res.drain<void>();
     if (res.statusCode == 200) return true;
     if (res.statusCode == 404) return false;
@@ -99,7 +145,7 @@ class S3Client {
             ),
           );
     final res = await _send('PUT', null, body: body);
-    final text = await _readText(res);
+    final text = await _readText(res, 'PUT bucket $bucket');
     if (res.statusCode == 200 || text.contains('BucketAlreadyOwnedByYou')) {
       return;
     }
@@ -120,7 +166,7 @@ class S3Client {
 
   Future<void> putObject(String key, List<int> bytes) async {
     final res = await _send('PUT', key, body: bytes);
-    final text = await _readText(res);
+    final text = await _readText(res, 'PUT $key');
     if (res.statusCode != 200) {
       throw S3Exception('PUT $key', res.statusCode, text);
     }
@@ -161,10 +207,12 @@ class S3Client {
     final range = ranged
         ? 'bytes=$start-${length == null ? '' : start + length - 1}'
         : null;
+    final op = range == null ? 'GET $key' : 'GET $key ($range)';
     final res = await _send(
       'GET',
       key,
       headers: {if (range != null) 'range': range},
+      label: op,
     );
     if (res.statusCode == 404) {
       await res.drain<void>();
@@ -172,9 +220,9 @@ class S3Client {
     }
     final expected = ranged ? 206 : 200;
     if (res.statusCode != expected) {
-      final text = await _readText(res);
+      final text = await _readText(res, op);
       throw S3Exception(
-        'GET $key ($range)',
+        op,
         res.statusCode,
         res.statusCode == 200 && ranged
             ? 'the store ignored the Range header'
@@ -187,7 +235,7 @@ class S3Client {
         !contentRange.startsWith('bytes $start-')) {
       await res.drain<void>();
       throw S3Exception(
-        'GET $key ($range)',
+        op,
         res.statusCode,
         'unexpected Content-Range: $contentRange',
       );
@@ -198,7 +246,7 @@ class S3Client {
   /// Deletes [key]. Deleting an object that is already gone is not an error.
   Future<void> deleteObject(String key) async {
     final res = await _send('DELETE', key);
-    final text = await _readText(res);
+    final text = await _readText(res, 'DELETE $key');
     if (res.statusCode != 204 &&
         res.statusCode != 200 &&
         res.statusCode != 404) {
@@ -206,13 +254,25 @@ class S3Client {
     }
   }
 
-  Future<String> _readText(HttpClientResponse res) async {
-    final bytes = await res.fold<BytesBuilder>(
-      BytesBuilder(),
-      (b, chunk) => b..add(chunk),
-    );
-    final text = utf8.decode(bytes.takeBytes(), allowMalformed: true);
-    return text.length > 500 ? text.substring(0, 500) : text;
+  /// Reads a response body (the first 500 characters of it are kept). A cut
+  /// or stalled body is an [S3Exception] with status 0, which is retried.
+  Future<String> _readText(
+    HttpClientResponse res, [
+    String op = 'read response',
+  ]) async {
+    try {
+      final bytes = await res
+          .fold<BytesBuilder>(BytesBuilder(), (b, chunk) => b..add(chunk))
+          .timeout(responseTimeout);
+      final text = utf8.decode(bytes.takeBytes(), allowMalformed: true);
+      return text.length > 500 ? text.substring(0, 500) : text;
+    } on SocketException catch (e) {
+      throw S3Exception(op, 0, e.message);
+    } on HttpException catch (e) {
+      throw S3Exception(op, 0, e.message);
+    } on TimeoutException {
+      throw S3Exception(op, 0, 'timed out reading the body');
+    }
   }
 
   Future<HttpClientResponse> _send(
@@ -220,7 +280,67 @@ class S3Client {
     String? key, {
     List<int> body = const [],
     Map<String, String> headers = const {},
+    String? label,
+    bool retry = true,
   }) async {
+    final op = label ?? '$method ${key ?? 'bucket $bucket'}';
+    final attempts = retry ? maxAttempts : 1;
+    final deadline = retryDeadline ?? responseTimeout * 2;
+    final clock = Stopwatch()..start();
+    for (var attempt = 1; ; attempt++) {
+      // Drawn up front, so a failure can tell whether the wait and the next
+      // attempt would start after the deadline. If so this failure is final.
+      final delay = _backoff(attempt);
+      bool isLast() => attempt >= attempts || clock.elapsed + delay >= deadline;
+      try {
+        final res = await _sendOnce(op, method, key, body, headers);
+        if (_retryableStatus(res.statusCode)) {
+          if (isLast()) {
+            throw S3Exception(
+              op,
+              res.statusCode,
+              await _readText(res, op),
+              attempts: attempt,
+            );
+          }
+          // Only the status matters. A body that is cut or stalls throws a
+          // status 0 S3Exception, which is retried below like the status.
+          await _readText(res, op);
+          _noteRetry(op, attempt, 'HTTP ${res.statusCode}');
+        } else if (res.statusCode == 400 && method != 'HEAD') {
+          // RequestTimeout is a 400: the code is in the body, so read it. Any
+          // other 400 is final, and its body has been read, so fail here.
+          final text = await _readText(res, op);
+          if (isLast() || !_retryableCode(text)) {
+            throw S3Exception(op, 400, text, attempts: attempt);
+          }
+          _noteRetry(op, attempt, 'HTTP 400 ${text.trim()}');
+        } else {
+          return res;
+        }
+      } on S3Exception catch (e) {
+        // Transport errors are statusCode 0; an HTTP answer thrown above is
+        // final.
+        if (e.statusCode != 0) rethrow;
+        if (isLast()) {
+          throw S3Exception(op, 0, e.body, attempts: attempt);
+        }
+        _noteRetry(op, attempt, e.body);
+      }
+      await _sleep(delay);
+    }
+  }
+
+  void _noteRetry(String op, int attempt, String why) =>
+      onRetry?.call('$op failed ($why), retrying (attempt $attempt)');
+
+  Future<HttpClientResponse> _sendOnce(
+    String op,
+    String method,
+    String? key,
+    List<int> body,
+    Map<String, String> headers,
+  ) async {
     final url = objectUrl(key);
     final signed = signRequest(
       method: method,
@@ -232,9 +352,9 @@ class S3Client {
       secretKey: secretKey,
       region: region,
     );
-    final op = '$method ${key ?? 'bucket $bucket'}';
+    HttpClientRequest? req;
     try {
-      final req = await _http.openUrl(method, url);
+      req = await _http.openUrl(method, url);
       // Headers set above the signature are the ones signed, so send exactly
       // those, and let dart:io add only Host, which is part of the signature.
       signed.forEach(req.headers.set);
@@ -246,8 +366,34 @@ class S3Client {
     } on HttpException catch (e) {
       throw S3Exception(op, 0, e.message);
     } on TimeoutException {
+      // Cut the connection so a PUT that is still in flight cannot land after
+      // the retry, or after a later write of the same key.
+      req?.abort();
       throw S3Exception(op, 0, 'timed out');
     }
+  }
+
+  static bool _retryableStatus(int status) =>
+      status == 408 ||
+      status == 429 ||
+      status == 500 ||
+      status == 502 ||
+      status == 503 ||
+      status == 504;
+
+  static bool _retryableCode(String body) =>
+      body.contains('<Code>SlowDown</Code>') ||
+      body.contains('<Code>RequestTimeout</Code>') ||
+      body.contains('<Code>InternalError</Code>');
+
+  /// Full jitter: a random wait up to `retryBaseDelay * 2^(attempt - 1)`,
+  /// capped at [retryMaxDelay].
+  Duration _backoff(int attempt) {
+    final ceiling = min(
+      retryMaxDelay.inMicroseconds,
+      retryBaseDelay.inMicroseconds * (1 << min(attempt - 1, 20)),
+    );
+    return Duration(microseconds: _random.nextInt(ceiling + 1));
   }
 
   /// URL of [key] (or of the bucket itself when null).

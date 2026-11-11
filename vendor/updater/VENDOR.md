@@ -9,6 +9,8 @@ ourselves and are insulated from upstream changes.
   (the fork's route-b changes ported onto the upstream base; see SELFHOST_PORT_ca91f4b3.md in this directory).
   The vendored files are the tree of that commit, except `.github/`, which is upstream's at the base commit:
   the commit's own change to `.github/` is mirror CI only.
+- Ahead of that revision by one change, mml555/shorebird-updater-mirror#11 (bounded diag logs; a proxy refusing CONNECT is a transport error in the ureq builds, Linux and Windows, not Android, iOS or macOS),
+  applied here so the copy matches once that PR merges. Shipped engines get it at their next rebuild, when DEPS `updater_rev` moves.
 - Previous snapshot: upstream 1f85c4ab (2026-07-02) plus fork-local commits, replaced by this one.
 - Engine revision it was last matched against: e1eaecbcac6d9a32cb5590c646e21cf21252cf19 (see selfhost/compatibility.yaml).
   That file has not been bumped for this snapshot.

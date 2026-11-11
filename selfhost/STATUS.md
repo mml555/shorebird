@@ -1,4 +1,4 @@
-<!-- cspell:words dartdev sbrel -->
+<!-- cspell:words dartdev sbrel ureq -->
 # Fork status
 
 As of 2026-11-10. This is the starting point for picking the work back up: what state the
@@ -66,9 +66,20 @@ Our engines (`3a565f27`, and `255fd850`, which shorebird-flutter now pins) are n
   (recorded in its `PROVENANCE.txt`). `audit_overlay.sh` is clean for `255fd850` on all four
   cells, including the new `macos-x64`. For `3a565f27` it is clean except the iOS cells:
   it has no iOS engine.
-- **Cold `/gcs/` fetches can hang.** A first fetch of a stock artifact through the mirror's
-  `/gcs/` path stalled on 2026-11-10 (`darwin-arm64/font-subset.zip` for `38855c84`).
-  Not yet diagnosed.
+- **Cold `/gcs/` fetches used to stall, then 504.** The cache handler (Souin) gave each
+  upstream fetch a 10 s deadline for the whole body. A cold artifact that took longer
+  (`dart-sdk-*.zip`, about 150 MB, took 8 s to 17 s) was cut off at exactly 10 s with
+  `Cache-Status: Souin; fwd=bypass; detail=DEADLINE-EXCEEDED`, nothing stored. Fixed by a
+  `timeout { backend 10m }` in the Caddyfile's `cache` block, with `dial_timeout 10s` and
+  `read_timeout 60s` on the upstream so a dead or stalled upstream still fails fast. An
+  earlier version of the fix has run on ci-build since 2026-11-10; this one is live once
+  PR #106's deploy steps are done.
+- **The mirror's memory grows with its cache.** NutsDB holds every cached body in RAM: the
+  container's anonymous memory is about the on-disk cache size (3.1 GB at 3.1 GB), plus 2-3x
+  of a cold response while it is fetched. So `docker-compose.cdn.yaml` sets no `mem_limit`
+  (a limit under cache size plus about 3 GB would crash-loop it). `EntryIdxMode
+  HintKeyAndRAMIdxMode` (key-only index) was tried on a scratch copy and made no difference
+  (686 MB against 687 MB for a 680 MB cache); the cause is not found. Open: task 11b.
 
 ## iOS on `255fd850`
 
@@ -114,9 +125,9 @@ Effort: S under a day, M a few days, L a week or more.
 |---|---|---|---|
 | 1 | Promote the 3.47.9 engine | M-L | **Blockers fixed (merged):** the `_data` NoSuchMethodError hit every AOT program built with the fork's Dart 3.13.7, app code included. It came from a hash-accessor guard in `aot_call_specializer.cc`, and the dart2js and DDC platform builds rejected the new `external` members in `dart:_internal`. Both are fixed in [dart-sdk-shorebird-lineage#1](https://github.com/mml555/dart-sdk-shorebird-lineage/pull/1) and proven on ci-build. `build.sh --cell` now builds the host toolchain, including `linux-x64/artifacts.zip` with `impellerc`, and `overlay_publish.sh` publishes it. PR #1's conflicts are resolved and it is merged; the release + patch passed through the mirror; the engine is published there. Done since: the engine is on GitHub releases that CI downloads, and shorebird-flutter #2 and #4 pin it (now `255fd850`). Left: bump `bin/internal/flutter.version` and `compatibility.yaml`. Bumping `flutter.version` makes every fork CLI need the mirror, so do it with the promotion (sealed cold bootstrap closure, `bootstrap_closure_guard.sh`, sealed smoke), not before. Rules in [`TOOLCHAIN_PROMOTION.md`](TOOLCHAIN_PROMOTION.md). `eligibleUpdaterRevisions` is frozen by [`MEASUREMENT_MODE.md`](MEASUREMENT_MODE.md): changing it is the owner's call. |
 | 1a | Alert when CI jobs sit queued | S | On 2026-11-08 every runner failed registration for about 5 hours (a firewall rule caught `gha-prep`; the fix is live on the host and in #85) and jobs only showed as pending. Add a timer on the CI host that warns when a runner unit has failed registration several times in a row or a job has been queued over 20 minutes. |
-| 2 | Bound the updater's diag logs | S | `state_diag.log` and `success_diag.log` are appended on every launch and never cleaned (`vendor/updater/SELFHOST_PORT_ca91f4b3.md`). Rotate or cap in the mirror, then re-vendor. |
+| 2 | Bound the updater's diag logs | S | `state_diag.log` and `success_diag.log` are appended on every launch and never cleaned (`vendor/updater/SELFHOST_PORT_ca91f4b3.md`). Rotate or cap in the mirror, then re-vendor. **Merged:** [mirror#11](https://github.com/mml555/shorebird-updater-mirror/pull/11) caps each at 64 KiB plus one rotation; the engine gets it when `updater_rev` moves (the owner's call); a device's existing oversized log is deleted at its first append. |
 | 3 | Re-test vanished publishes | M | Not reproduced on 1.4.0 in an API-driver run (2026-11-10): 447 releases and 445 patches through an API driver (Android only, artifacts up to 200 KB, SQLite, process kill and a starved container, read back minutes later): 0 lost. Not shown: the real CLI, user-OAuth, the iOS flow, large artifacts, Postgres/S3, power loss, the API read path, same-version retries, anything that runs hours later (retention or reclaim). The 2026-08 cause stays unknown. Evidence and limits: [`evidence/publish-durability-1.4.0/`](evidence/publish-durability-1.4.0/README.md). Keep open as a re-run check after a server upgrade. |
-| 4 | Updater: map the HTTP client's `ConnectProxyFailed` to a transport error | S | Today a proxy refusal surfaces differently from a direct network failure; #84 works around it in CI only. Needs a new updater revision. |
+| 4 | Updater: map the HTTP client's `ConnectProxyFailed` to a transport error | S | Today a proxy refusal surfaces differently from a direct network failure; #84 works around it in CI only. **Merged:** [mirror#11](https://github.com/mml555/shorebird-updater-mirror/pull/11) maps it to `NetworkError::Transport` in the ureq builds only (Linux, Windows). Android, iOS and macOS use the engine client, which already reports `HttpError::Transport`; they are unaffected. Moving `updater_rev` is the owner's call. |
 | 5 | E2E on the emulator pool | M | All e2e legs need `HOSTED_RUNNERS`. The home emulator pool can serve them; the `3a565f27` engine now includes android-x64, which the pool's x86_64 images run (proven 2026-11-09 by hand). |
 | 6 | S3 client retries | S-M | `packages/code_push_server/lib/src/s3_client.dart` has none; a transient S3 error fails the upload. |
 | 7 | Document that a proxy must pass `/api/v1/patches/events` | S | Unauthenticated POST; a proxy that blocks it drops install events silently. Belongs in `packages/code_push_server/PRODUCTION.md`. |
@@ -124,7 +135,8 @@ Effort: S under a day, M a few days, L a week or more.
 | 9 | pub.dev publish via OIDC | S | Wired in `publish_dart_package.yaml`, never exercised. One dry run. |
 | 10 | arm64 server image | M | Releases are amd64 only without hosted runners (buildx + QEMU or an arm64 runner). |
 | 11 | iOS code push and `aot-tools.dill` | L | The iOS engine is built, published and pinned as `255fd850` (shorebird-flutter PR #4), without code patches: the iOS patch path needs `Shorebird_ReadLinkHeader` and the five-argument `Dart_LoadELF` from Shorebird's private Dart fork, so `shorebird_use_interpreter` is off and iOS apps do not start the updater. Patches on iOS need those in the public Dart fork. A release is built and signed; the device run waits on a phone (In flight). `aot-tools.dill` does not build yet. |
-| 11a | Diagnose the mirror's cold `/gcs/` fetch hang | S | See the CDN section. |
+| 11a | ~~Diagnose the mirror's cold `/gcs/` fetch hang~~ | Done | Souin's 10 s default backend timeout; see the CDN section. |
+| 11b | Find why the mirror holds its whole cache in RAM | M | About 3.1 GB of anonymous memory for a 3.1 GB cache, so the container has no `mem_limit`. A key-only NutsDB index made no difference. See the CDN section. |
 | 12 | Apple and desktop paths in CI | L | iOS code push was proven on the owner's devices with earlier Route B engines, not `255fd850`; macOS, Windows and Linux code push are untested ([`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md)). Needs a Mac runner. |
 
 Owner decisions, no code needed:

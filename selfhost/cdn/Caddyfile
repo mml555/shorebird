@@ -57,6 +57,17 @@
 		}
 		# Successful artifact responses are immutable. Handlers below override
 		# Cache-Control on 404 so unpublished paths only stick for one minute.
+		# The cache handler (Souin) gives every upstream fetch a 10 s deadline by
+		# default, covering the whole body, not just the first byte. A cold
+		# artifact that takes longer (the ~150 MB dart-sdk zips, or a slow link)
+		# was cut off at exactly 10 s with a 504 `DEADLINE-EXCEEDED` and never
+		# stored. Allow a big download to finish. The deadline is only a ceiling:
+		# the upstream transport's read_timeout cuts a stalled body in seconds.
+		# (Souin also has a `cache` timeout; 1.7.9 stores it but does not read it,
+		# so it is left at the default.)
+		timeout {
+			backend 10m
+		}
 		default_cache_control "public, max-age=31536000, immutable"
 		log_level error
 	}
