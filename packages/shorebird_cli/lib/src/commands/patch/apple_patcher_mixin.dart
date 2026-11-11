@@ -60,8 +60,10 @@ mixin IosEnginePatchGuard on Patcher {
           'iOS patch support, so apps from it never start the updater '
           '(releases work, code patches cannot be made or run).',
       hint:
-          'Create a new release on an engine built with the interpreter '
-          '(shorebird_use_interpreter=true), then patch that release.',
+          'Create a new release on an engine that runs Route B patches '
+          '(tools/gn --dart-dynamic-modules and the gn arg '
+          'shorebird_route_b=true; see selfhost/ROUTE_B.md), then patch that '
+          'release.',
       exitCode: ExitCode.unavailable,
     );
   }
