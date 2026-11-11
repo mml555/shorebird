@@ -142,6 +142,11 @@ void main() {
       runtimeEndpoint = MockRuntimeEndpoint();
       toolchainCoherence = MockToolchainCoherence();
       when(
+        () => toolchainCoherence.assertCoherent(
+          releasePlatform: any(named: 'releasePlatform'),
+        ),
+      ).thenAnswer((_) async {});
+      when(
         () => toolchainCoherence.check(
           flutterDirectory: any(named: 'flutterDirectory'),
           engineRevision: any(named: 'engineRevision'),

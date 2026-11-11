@@ -1,9 +1,14 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:http/http.dart' as http;
 import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/artifact_origin.dart';
+import 'package:shorebird_cli/src/cache.dart';
+import 'package:shorebird_cli/src/http_client/http_client.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -110,6 +115,7 @@ class ToolchainCoherence {
     required ReleasePlatform platform,
     File? publishedDartSdkZip,
     Directory? publishedIosEngineDir,
+    PublishedIosEngines? publishedIosEngines,
   }) {
     final problems = <ToolchainCoherenceProblem>[];
     final cache = Directory(p.join(flutterDirectory.path, 'bin', 'cache'));
@@ -218,6 +224,7 @@ class ToolchainCoherence {
           flutterDirectory: flutterDirectory,
           engineRevision: engineRevision,
           publishedIosEngineDir: publishedIosEngineDir,
+          publishedIosEngines: publishedIosEngines,
         ),
       );
     }
@@ -361,20 +368,24 @@ class ToolchainCoherence {
     required Directory flutterDirectory,
     required String engineRevision,
     required Directory? publishedIosEngineDir,
+    PublishedIosEngines? publishedIosEngines,
   }) {
-    if (publishedIosEngineDir == null) {
+    final fetchedDigests = publishedIosEngines?.digests;
+    if (publishedIosEngineDir == null && fetchedDigests == null) {
+      final why = publishedIosEngines?.error;
       return [
         ToolchainCoherenceProblem(
           code: ToolchainIncoherence.undeterminable,
           detail:
-              '$publishedIosEngineDirEnvVar is not set, so the cached iOS '
-              'engines could not be compared against the ones published for '
-              '$engineRevision. Stamps alone cannot establish this: they '
-              'record what the cache is claimed to hold',
+              '$publishedIosEngineDirEnvVar is not set and the iOS engines '
+              'published for $engineRevision could not be fetched'
+              '${why == null ? '' : ' ($why)'}, so the cached iOS engines '
+              'could not be compared against them. Stamps alone cannot '
+              'establish this: they record what the cache is claimed to hold',
         ),
       ];
     }
-    if (!publishedIosEngineDir.existsSync()) {
+    if (publishedIosEngineDir != null && !publishedIosEngineDir.existsSync()) {
       return [
         ToolchainCoherenceProblem(
           code: ToolchainIncoherence.undeterminable,
@@ -387,7 +398,7 @@ class ToolchainCoherence {
     }
 
     final problems = <ToolchainCoherenceProblem>[];
-    for (final mode in const ['ios', 'ios-profile', 'ios-release']) {
+    for (final mode in iosEngineModes) {
       final cached = File(
         p.join(
           flutterDirectory.path,
@@ -413,32 +424,18 @@ class ToolchainCoherence {
         );
         continue;
       }
-      final publishedZip = File(
-        p.join(publishedIosEngineDir.path, mode, 'artifacts.zip'),
-      );
-      if (!publishedZip.existsSync()) {
-        problems.add(
-          ToolchainCoherenceProblem(
-            code: ToolchainIncoherence.undeterminable,
-            detail:
-                'the $mode engine is cached but ${publishedZip.path} is '
-                'missing, so there is nothing to compare it against',
-          ),
+      final String? publishedDigest;
+      if (publishedIosEngineDir == null) {
+        // Fetched: every mode is present, or the fetch would have failed.
+        publishedDigest = fetchedDigests![mode];
+      } else {
+        publishedDigest = _publishedDigestFromDir(
+          publishedIosEngineDir,
+          mode,
+          problems,
         );
-        continue;
       }
-      final publishedDigest = _iosEngineDigestFromZip(publishedZip);
-      if (publishedDigest == null) {
-        problems.add(
-          ToolchainCoherenceProblem(
-            code: ToolchainIncoherence.undeterminable,
-            detail:
-                'could not read the ios-arm64 engine slice out of '
-                '${publishedZip.path}',
-          ),
-        );
-        continue;
-      }
+      if (publishedDigest == null) continue;
       final cachedDigest = sha256.convert(cached.readAsBytesSync()).toString();
       if (cachedDigest != publishedDigest) {
         problems.add(
@@ -455,6 +452,208 @@ class ToolchainCoherence {
       }
     }
     return problems;
+  }
+
+  /// The published digest for [mode] under [publishedIosEngineDir], or null
+  /// after adding the reason it could not be read to [problems].
+  String? _publishedDigestFromDir(
+    Directory publishedIosEngineDir,
+    String mode,
+    List<ToolchainCoherenceProblem> problems,
+  ) {
+    final publishedZip = File(
+      p.join(publishedIosEngineDir.path, mode, 'artifacts.zip'),
+    );
+    if (!publishedZip.existsSync()) {
+      problems.add(
+        ToolchainCoherenceProblem(
+          code: ToolchainIncoherence.undeterminable,
+          detail:
+              'the $mode engine is cached but ${publishedZip.path} is '
+              'missing, so there is nothing to compare it against',
+        ),
+      );
+      return null;
+    }
+    final publishedDigest = _iosEngineDigestFromZip(publishedZip);
+    if (publishedDigest == null) {
+      problems.add(
+        ToolchainCoherenceProblem(
+          code: ToolchainIncoherence.undeterminable,
+          detail:
+              'could not read the ios-arm64 engine slice out of '
+              '${publishedZip.path}',
+        ),
+      );
+    }
+    return publishedDigest;
+  }
+
+  /// The digests of the iOS engines published for [engineRevision], fetched
+  /// from where the Flutter tool downloads engine artifacts
+  /// ([ArtifactOrigin.flutterStorageBaseUrl]).
+  ///
+  /// Used when [publishedIosEngineDirEnvVar] is not set. Each mode's
+  /// `artifacts.zip` (about 175 MB for all three on a Route B engine) is
+  /// downloaded once and only the digest of its ios-arm64 engine is kept,
+  /// under the Shorebird cache, so later builds download nothing.
+  ///
+  /// The kept record is keyed by engine revision AND by the storage base it
+  /// was fetched from, and is only used when its `source` is that base. The
+  /// same revision can be different bytes on two origins (upstream and a
+  /// self-hosted mirror), so a record from one must never judge a cache
+  /// filled from the other. A revision's bytes on one origin do not change;
+  /// if a mirror ever republishes one, delete the record to fetch again.
+  ///
+  /// Never throws: any failure is returned as [PublishedIosEngines.error],
+  /// which the check reports as undeterminable rather than coherent, and no
+  /// record is kept.
+  Future<PublishedIosEngines> fetchPublishedIosEngines(
+    String engineRevision,
+  ) async {
+    final base = ArtifactOrigin.flutterStorageBaseUrl();
+    final baseKey = sha256
+        .convert(utf8.encode(base))
+        .toString()
+        .substring(0, 16);
+    final record = File(
+      p.join(
+        Cache.shorebirdCacheDirectory.path,
+        'published_ios_engines',
+        '$engineRevision-$baseKey.json',
+      ),
+    );
+    final kept = _readKeptDigests(record, base);
+    if (kept != null) return kept;
+
+    final progress = logger.progress(
+      'Fetching the iOS engines published for $engineRevision',
+    );
+    Directory? temp;
+    try {
+      temp = Directory.systemTemp.createTempSync('published_ios_engines');
+      final digests = <String, String>{};
+      for (final mode in iosEngineModes) {
+        final url =
+            '$base/flutter_infra_release/flutter/$engineRevision/$mode/'
+            'artifacts.zip';
+        final failure = await _download(url, p.join(temp.path, '$mode.zip'));
+        if (failure != null) {
+          progress.fail();
+          return PublishedIosEngines.failed(failure);
+        }
+        final digest = _iosEngineDigestFromZip(
+          File(p.join(temp.path, '$mode.zip')),
+        );
+        if (digest == null) {
+          progress.fail();
+          return PublishedIosEngines.failed(
+            'could not read the ios-arm64 engine slice out of $url',
+          );
+        }
+        digests[mode] = digest;
+        File(p.join(temp.path, '$mode.zip')).deleteSync();
+      }
+      progress.complete();
+      _keep(record, base, digests);
+      return PublishedIosEngines(digests: digests);
+      // A failure here, after or during the download, must refuse the build
+      // as undeterminable rather than end the command with a stack trace.
+      // ignore: avoid_catches_without_on_clauses
+    } catch (error) {
+      progress.fail();
+      return PublishedIosEngines.failed(
+        'fetching the published iOS engines failed: $error',
+      );
+    } finally {
+      try {
+        temp?.deleteSync(recursive: true);
+      } on Object {
+        // A leftover temp directory is not worth failing a build over.
+      }
+    }
+  }
+
+  /// Keeps [digests] in [record] for the next build. Keeping them only saves
+  /// a download, so a failure (a read-only cache, say) is a warning: the
+  /// digests in hand were fetched and are still used.
+  void _keep(File record, String base, Map<String, String> digests) {
+    // Written beside the record and renamed into place, so a concurrent run
+    // never reads half a record.
+    final tmp = File('${record.path}.$pid.tmp');
+    try {
+      record.parent.createSync(recursive: true);
+      tmp
+        ..writeAsStringSync(jsonEncode({'source': base, 'digests': digests}))
+        ..renameSync(record.path);
+    } on Exception catch (error) {
+      logger.warn(
+        'Could not keep the published iOS engine digests in ${record.path} '
+        '($error); the next build will fetch them again.',
+      );
+      try {
+        if (tmp.existsSync()) tmp.deleteSync();
+      } on Exception {
+        // Nothing more to do.
+      }
+    }
+  }
+
+  /// Downloads [url] to [path]; returns null on success, else why it failed.
+  Future<String?> _download(String url, String path) async {
+    final http.StreamedResponse response;
+    try {
+      response = await httpClient.send(http.Request('GET', Uri.parse(url)));
+    } on Exception catch (error) {
+      return 'fetching $url failed: $error';
+    }
+    if (response.statusCode != HttpStatus.ok) {
+      try {
+        await response.stream.drain<void>();
+      } on Exception {
+        // The status already says what went wrong.
+      }
+      return '$url answered ${response.statusCode}';
+    }
+    final sink = File(path).openWrite();
+    try {
+      await sink.addStream(response.stream);
+    } on Exception catch (error) {
+      return 'fetching $url failed: $error';
+    } finally {
+      try {
+        await sink.close();
+      } on Exception {
+        // After a failed addStream the sink is already closed, and closing it
+        // again would replace the real reason with "File closed".
+      }
+    }
+    return null;
+  }
+
+  /// The digests kept in [record] by an earlier fetch from [base], or null
+  /// when there are none or they cannot be trusted (the caller then fetches
+  /// again).
+  PublishedIosEngines? _readKeptDigests(File record, String base) {
+    try {
+      if (!record.existsSync()) return null;
+      final json =
+          jsonDecode(record.readAsStringSync()) as Map<String, dynamic>;
+      if (json['source'] != base) return null;
+      final digests = (json['digests'] as Map<String, dynamic>)
+          .cast<String, String>();
+      final sha256Hex = RegExp(r'^[0-9a-f]{64}$');
+      final complete = iosEngineModes.every(
+        (mode) => sha256Hex.hasMatch(digests[mode] ?? ''),
+      );
+      if (!complete) return null;
+      logger.detail(
+        '[coherence] published iOS engine digests from ${record.path}',
+      );
+      return PublishedIosEngines(digests: Map.of(digests));
+    } on Object {
+      return null;
+    }
   }
 
   /// Digest of the ios-arm64 engine slice inside [zip], or null.
@@ -501,10 +700,19 @@ class ToolchainCoherence {
   /// [toolchainCoherenceRef] in a test intercepts the whole gate, including the
   /// environment reads. As a free function it forced every command test to stub
   /// `flutterDirectory` just to get past a check it was not testing.
-  void assertCoherent({required ReleasePlatform releasePlatform}) {
+  ///
+  /// An iOS build with [publishedIosEngineDirEnvVar] unset fetches the
+  /// published engines first ([fetchPublishedIosEngines]).
+  Future<void> assertCoherent({
+    required ReleasePlatform releasePlatform,
+  }) async {
     final zipPath = platform.environment[publishedDartSdkZipEnvVar];
     final iosEngineDir = platform.environment[publishedIosEngineDirEnvVar];
     final engineRevision = shorebirdEnv.shorebirdEngineRevision;
+    final publishedIosEngines =
+        iosEngineDir == null && _usesIosCompilers(releasePlatform)
+        ? await fetchPublishedIosEngines(engineRevision)
+        : null;
     final problems = check(
       flutterDirectory: shorebirdEnv.flutterDirectory,
       engineRevision: engineRevision,
@@ -513,6 +721,7 @@ class ToolchainCoherence {
       publishedIosEngineDir: iosEngineDir == null
           ? null
           : Directory(iosEngineDir),
+      publishedIosEngines: publishedIosEngines,
     );
     if (problems.isEmpty) {
       logger.detail(
@@ -553,11 +762,36 @@ class ToolchainCoherence {
 /// put a workstation assumption inside the product.
 const publishedDartSdkZipEnvVar = 'SHOREBIRD_PUBLISHED_DART_SDK_ZIP';
 
+/// The iOS engine modes whose cached engines are compared.
+const iosEngineModes = ['ios', 'ios-profile', 'ios-release'];
+
+/// {@template published_ios_engines}
+/// The digests of the ios-arm64 engine in each published iOS mode, or why they
+/// could not be fetched.
+/// {@endtemplate}
+class PublishedIosEngines {
+  /// {@macro published_ios_engines}
+  const PublishedIosEngines({required Map<String, String> this.digests})
+    : error = null;
+
+  /// A fetch that failed because of [error].
+  const PublishedIosEngines.failed(String this.error) : digests = null;
+
+  /// Digest by mode (see [iosEngineModes]), or null when the fetch failed.
+  final Map<String, String>? digests;
+
+  /// Why the fetch failed, or null when it succeeded.
+  final String? error;
+}
+
 /// Env var naming the root under which the active engine's iOS artifacts are
 /// published, holding `<mode>/artifacts.zip` for `ios`, `ios-profile` and
 /// `ios-release`.
 ///
-/// REQUIRED for an iOS build, unlike [publishedDartSdkZipEnvVar]. The stamps
+/// Optional since the CLI fetches the published engines itself when it is
+/// unset ([ToolchainCoherence.fetchPublishedIosEngines]); set it to compare
+/// against a local copy instead, with no download. One of the two is REQUIRED
+/// for an iOS build, unlike [publishedDartSdkZipEnvVar]. The stamps
 /// cannot substitute for it: on 2026-08-27 all three stamps named the new cell
 /// while the cached iOS engines were the previous cell's, and every other check
 /// passed. Absent identity is not established identity, so an iOS producer

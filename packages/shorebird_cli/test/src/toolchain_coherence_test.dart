@@ -1,9 +1,14 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:platform/testing.dart';
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/artifact_origin.dart';
+import 'package:shorebird_cli/src/http_client/http_client.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -12,8 +17,9 @@ import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 import 'package:test/test.dart';
 
-import 'mocks.dart';
+import 'fakes.dart';
 import 'helpers.dart';
+import 'mocks.dart';
 
 void main() {
   useTempWorkingDirectory();
@@ -447,10 +453,15 @@ void main() {
       late ShorebirdEnv shorebirdEnv;
       late ShorebirdLogger logger;
       late TestNativePlatform platform;
+      late http.Client httpClient;
+      late Directory shorebirdRoot;
+
+      const mirror = 'https://mirror.test';
 
       R runWithOverrides<R>(R Function() body) => runScoped(
         body,
         values: {
+          httpClientRef.overrideWith(() => httpClient),
           loggerRef.overrideWith(() => logger),
           platformRef.overrideWith(() => platform),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
@@ -458,42 +469,98 @@ void main() {
         },
       );
 
+      Future<void> assertIos() => runWithOverrides(
+        () => coherence.assertCoherent(releasePlatform: ReleasePlatform.ios),
+      );
+
+      String publishedUrl(String mode) =>
+          '$mirror/flutter_infra_release/flutter/$cell/$mode/artifacts.zip';
+
+      Directory keptDir() => Directory(
+        p.join(shorebirdRoot.path, 'bin', 'cache', 'published_ios_engines'),
+      );
+
+      /// The record kept for [cell] fetched from [mirror].
+      File keptDigests() {
+        final baseKey = sha256
+            .convert(utf8.encode(mirror))
+            .toString()
+            .substring(0, 16);
+        return File(p.join(keptDir().path, '$cell-$baseKey.json'));
+      }
+
+      String digestOf(String revision, String mode) =>
+          sha256.convert(utf8.encode(engineBytes(revision, mode))).toString();
+
+      /// Serves the zips [makeCheckout] wrote under `publishedIos` at the
+      /// mirror's URLs, the way the Flutter tool would fetch them.
+      void serveMirror({
+        int statusCode = HttpStatus.ok,
+        String? failingMode,
+        String? brokenStreamMode,
+      }) {
+        when(() => httpClient.send(any())).thenAnswer((invocation) async {
+          final request = invocation.positionalArguments.first as http.Request;
+          final mode = iosEngineModes.firstWhere(
+            (m) => request.url.toString() == publishedUrl(m),
+          );
+          final zip = File(p.join(publishedIos.path, mode, 'artifacts.zip'));
+          if (mode == brokenStreamMode) {
+            return http.StreamedResponse(
+              Stream<List<int>>.error(const SocketException('reset')),
+              HttpStatus.ok,
+            );
+          }
+          final status = (failingMode == null || mode == failingMode)
+              ? statusCode
+              : HttpStatus.ok;
+          return http.StreamedResponse(
+            Stream.value(
+              status == HttpStatus.ok ? zip.readAsBytesSync() : <int>[],
+            ),
+            status,
+          );
+        });
+      }
+
+      setUpAll(() {
+        registerFallbackValue(FakeBaseRequest());
+      });
+
       setUp(() {
         shorebirdEnv = MockShorebirdEnv();
         logger = MockShorebirdLogger();
+        httpClient = MockHttpClient();
+        shorebirdRoot = Directory.systemTemp.createTempSync('shorebird_root');
         platform = TestNativePlatform(
           environment: {publishedIosEngineDirEnvVar: publishedIos.path},
         );
         when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDir);
         when(() => shorebirdEnv.shorebirdEngineRevision).thenReturn(cell);
+        when(() => shorebirdEnv.shorebirdRoot).thenReturn(shorebirdRoot);
+        when(() => logger.progress(any())).thenReturn(MockProgress());
       });
 
-      test('returns normally when coherent', () {
+      tearDown(() {
+        if (shorebirdRoot.existsSync()) {
+          shorebirdRoot.deleteSync(recursive: true);
+        }
+      });
+
+      test('returns normally when coherent', () async {
         makeCheckout();
-        expect(
-          () => runWithOverrides(
-            () =>
-                coherence.assertCoherent(releasePlatform: ReleasePlatform.ios),
-          ),
-          returnsNormally,
-        );
+        await expectLater(assertIos(), completes);
+        verifyNever(() => httpClient.send(any()));
       });
 
       test(
         'REFUSES before publication when engine-dart-sdk.stamp is incoherent',
-        () {
+        () async {
           // The mutation control for the producer gate: this is the state that
           // shipped a release which could not be patched, and it must now stop
           // the build instead of being discovered afterwards.
           makeCheckout(dartSdkStamp: stock);
-          expect(
-            () => runWithOverrides(
-              () => coherence.assertCoherent(
-                releasePlatform: ReleasePlatform.ios,
-              ),
-            ),
-            throwsA(isA<ProcessExit>()),
-          );
+          await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
           verify(
             () => logger.err(
               any(that: contains('not coherent with its engine revision')),
@@ -502,29 +569,17 @@ void main() {
         },
       );
 
-      test('refuses when a gen_snapshot is stock', () {
+      test('refuses when a gen_snapshot is stock', () async {
         makeCheckout(patchableGenSnapshot: false);
-        expect(
-          () => runWithOverrides(
-            () =>
-                coherence.assertCoherent(releasePlatform: ReleasePlatform.ios),
-          ),
-          throwsA(isA<ProcessExit>()),
-        );
+        await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
       });
 
       // THE PRODUCER-LEVEL REGRESSION. `release ios` and `patch ios` both route
       // through here, so this is the assertion that a stale-cache release is
       // refused rather than published.
-      test('REFUSES the stale-engine state at the producer boundary', () {
+      test('REFUSES the stale-engine state at the producer boundary', () async {
         makeCheckout(cachedEngineRevision: priorCell);
-        expect(
-          () => runWithOverrides(
-            () =>
-                coherence.assertCoherent(releasePlatform: ReleasePlatform.ios),
-          ),
-          throwsA(isA<ProcessExit>()),
-        );
+        await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
         // One per stale mode: the producer names each, rather than collapsing
         // three stale engines into a single line.
         verify(
@@ -534,29 +589,224 @@ void main() {
         ).called(3);
       });
 
-      test('REFUSES an iOS build when the published source is unset', () {
+      test('an ANDROID build still passes with no published source', () async {
         platform = platform.copyWith(environment: {});
         makeCheckout();
-        expect(
-          () => runWithOverrides(
-            () =>
-                coherence.assertCoherent(releasePlatform: ReleasePlatform.ios),
-          ),
-          throwsA(isA<ProcessExit>()),
-        );
-      });
-
-      test('an ANDROID build still passes with no published source', () {
-        platform = platform.copyWith(environment: {});
-        makeCheckout();
-        expect(
-          () => runWithOverrides(
+        await expectLater(
+          runWithOverrides(
             () => coherence.assertCoherent(
               releasePlatform: ReleasePlatform.android,
             ),
           ),
-          returnsNormally,
+          completes,
         );
+        verifyNever(() => httpClient.send(any()));
+      });
+
+      group('with $publishedIosEngineDirEnvVar unset', () {
+        setUp(() {
+          platform = platform.copyWith(
+            environment: {ArtifactOrigin.flutterStorageKey: mirror},
+          );
+        });
+
+        test(
+          'fetches the published engines from the mirror and passes',
+          () async {
+            makeCheckout();
+            serveMirror();
+            await expectLater(assertIos(), completes);
+            for (final mode in iosEngineModes) {
+              verify(
+                () => httpClient.send(
+                  any(
+                    that: isA<http.Request>().having(
+                      (r) => r.url.toString(),
+                      'url',
+                      publishedUrl(mode),
+                    ),
+                  ),
+                ),
+              ).called(1);
+            }
+            expect(keptDigests().existsSync(), isTrue);
+          },
+        );
+
+        test(
+          'keeps the digests, so the next build downloads nothing',
+          () async {
+            makeCheckout();
+            serveMirror();
+            await assertIos();
+            clearInteractions(httpClient);
+            await expectLater(assertIos(), completes);
+            verifyNever(() => httpClient.send(any()));
+          },
+        );
+
+        test('REFUSES a stale cache against the fetched engines', () async {
+          makeCheckout(cachedEngineRevision: priorCell);
+          serveMirror();
+          await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
+          verify(
+            () => logger.err(
+              any(
+                that: contains(ToolchainIncoherence.engineArtifactsStale.wire),
+              ),
+            ),
+          ).called(3);
+        });
+
+        test('a published zip the mirror lacks is UNDETERMINABLE', () async {
+          makeCheckout();
+          serveMirror(statusCode: HttpStatus.notFound);
+          await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
+          verify(
+            () => logger.err(
+              any(
+                that: allOf(
+                  contains(ToolchainIncoherence.undeterminable.wire),
+                  contains(publishedIosEngineDirEnvVar),
+                  contains('${publishedUrl('ios')} answered 404'),
+                ),
+              ),
+            ),
+          ).called(1);
+          expect(keptDigests().existsSync(), isFalse);
+        });
+
+        test('an unreachable mirror is UNDETERMINABLE', () async {
+          makeCheckout();
+          when(
+            () => httpClient.send(any()),
+          ).thenThrow(const SocketException('no route'));
+          await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
+          verify(
+            () => logger.err(any(that: contains('no route'))),
+          ).called(1);
+        });
+
+        test('a record kept from ANOTHER origin is not used', () async {
+          // The same revision can be different bytes on upstream and on a
+          // mirror. A record from one must not judge a cache from the other:
+          // here it names the prior cell's engines, and using it would refuse
+          // a coherent cache (or, reversed, approve a stale one).
+          makeCheckout();
+          serveMirror();
+          final other = File(p.join(keptDir().path, '$cell-other.json'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync(
+              jsonEncode({
+                'source': 'https://elsewhere.test',
+                'digests': {
+                  for (final m in iosEngineModes) m: digestOf(priorCell, m),
+                },
+              }),
+            );
+          await expectLater(assertIos(), completes);
+          verify(() => httpClient.send(any())).called(3);
+          expect(other.existsSync(), isTrue);
+          expect(keptDigests().existsSync(), isTrue);
+        });
+
+        test('a kept record whose source differs is fetched again', () async {
+          makeCheckout();
+          serveMirror();
+          keptDigests()
+            ..createSync(recursive: true)
+            ..writeAsStringSync(
+              jsonEncode({
+                'source': 'https://elsewhere.test',
+                'digests': {
+                  for (final m in iosEngineModes) m: digestOf(priorCell, m),
+                },
+              }),
+            );
+          await expectLater(assertIos(), completes);
+          verify(() => httpClient.send(any())).called(3);
+        });
+
+        test(
+          'a kept record with a malformed digest is fetched again',
+          () async {
+            makeCheckout();
+            serveMirror();
+            keptDigests()
+              ..createSync(recursive: true)
+              ..writeAsStringSync(
+                jsonEncode({
+                  'source': mirror,
+                  'digests': {
+                    for (final m in iosEngineModes) m: 'not-a-digest',
+                  },
+                }),
+              );
+            await expectLater(assertIos(), completes);
+            verify(() => httpClient.send(any())).called(3);
+          },
+        );
+
+        test('a failure on the LAST mode keeps nothing', () async {
+          makeCheckout();
+          serveMirror(
+            statusCode: HttpStatus.notFound,
+            failingMode: 'ios-release',
+          );
+          await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
+          verify(
+            () => logger.err(
+              any(
+                that: contains('${publishedUrl('ios-release')} answered 404'),
+              ),
+            ),
+          ).called(1);
+          expect(keptDigests().existsSync(), isFalse);
+        });
+
+        test(
+          'a stream that breaks after the headers is UNDETERMINABLE',
+          () async {
+            makeCheckout();
+            serveMirror(brokenStreamMode: 'ios-profile');
+            await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
+            verify(
+              () => logger.err(
+                any(
+                  that: allOf(
+                    contains(ToolchainIncoherence.undeterminable.wire),
+                    contains(publishedUrl('ios-profile')),
+                  ),
+                ),
+              ),
+            ).called(1);
+            expect(keptDigests().existsSync(), isFalse);
+          },
+        );
+
+        test('a record that cannot be kept only warns', () async {
+          makeCheckout();
+          serveMirror();
+          // A FILE where the record directory goes.
+          keptDir().parent.createSync(recursive: true);
+          File(keptDir().path).writeAsStringSync('in the way');
+          await expectLater(assertIos(), completes);
+          verify(
+            () => logger.warn(
+              any(that: contains('Could not keep the published iOS engine')),
+            ),
+          ).called(1);
+        });
+
+        test('an unreadable kept record is fetched again', () async {
+          makeCheckout();
+          serveMirror();
+          keptDigests()
+            ..createSync(recursive: true)
+            ..writeAsStringSync('not json');
+          await expectLater(assertIos(), completes);
+          verify(() => httpClient.send(any())).called(3);
+        });
       });
     });
   });
