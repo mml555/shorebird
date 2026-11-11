@@ -66,9 +66,20 @@ Our engines (`3a565f27`, and `255fd850`, which shorebird-flutter now pins) are n
   (recorded in its `PROVENANCE.txt`). `audit_overlay.sh` is clean for `255fd850` on all four
   cells, including the new `macos-x64`. For `3a565f27` it is clean except the iOS cells:
   it has no iOS engine.
-- **Cold `/gcs/` fetches can hang.** A first fetch of a stock artifact through the mirror's
-  `/gcs/` path stalled on 2026-11-10 (`darwin-arm64/font-subset.zip` for `38855c84`).
-  Not yet diagnosed.
+- **Cold `/gcs/` fetches used to stall, then 504.** The cache handler (Souin) gave each
+  upstream fetch a 10 s deadline for the whole body. A cold artifact that took longer
+  (`dart-sdk-*.zip`, about 150 MB, took 8 s to 17 s) was cut off at exactly 10 s with
+  `Cache-Status: Souin; fwd=bypass; detail=DEADLINE-EXCEEDED`, nothing stored. Fixed by a
+  `timeout { backend 10m }` in the Caddyfile's `cache` block, with `dial_timeout 10s` and
+  `read_timeout 60s` on the upstream so a dead or stalled upstream still fails fast. An
+  earlier version of the fix has run on ci-build since 2026-11-10; this one is live once
+  PR #106's deploy steps are done.
+- **The mirror's memory grows with its cache.** NutsDB holds every cached body in RAM: the
+  container's anonymous memory is about the on-disk cache size (3.1 GB at 3.1 GB), plus 2-3x
+  of a cold response while it is fetched. So `docker-compose.cdn.yaml` sets no `mem_limit`
+  (a limit under cache size plus about 3 GB would crash-loop it). `EntryIdxMode
+  HintKeyAndRAMIdxMode` (key-only index) was tried on a scratch copy and made no difference
+  (686 MB against 687 MB for a 680 MB cache); the cause is not found. Open: task 11b.
 
 ## iOS on `255fd850`
 
@@ -124,7 +135,8 @@ Effort: S under a day, M a few days, L a week or more.
 | 9 | pub.dev publish via OIDC | S | Wired in `publish_dart_package.yaml`, never exercised. One dry run. |
 | 10 | arm64 server image | M | Releases are amd64 only without hosted runners (buildx + QEMU or an arm64 runner). |
 | 11 | iOS code push and `aot-tools.dill` | L | The iOS engine is built, published and pinned as `255fd850` (shorebird-flutter PR #4), without code patches: the iOS patch path needs `Shorebird_ReadLinkHeader` and the five-argument `Dart_LoadELF` from Shorebird's private Dart fork, so `shorebird_use_interpreter` is off and iOS apps do not start the updater. Patches on iOS need those in the public Dart fork. A release is built and signed; the device run waits on a phone (In flight). `aot-tools.dill` does not build yet. |
-| 11a | Diagnose the mirror's cold `/gcs/` fetch hang | S | See the CDN section. |
+| 11a | ~~Diagnose the mirror's cold `/gcs/` fetch hang~~ | Done | Souin's 10 s default backend timeout; see the CDN section. |
+| 11b | Find why the mirror holds its whole cache in RAM | M | About 3.1 GB of anonymous memory for a 3.1 GB cache, so the container has no `mem_limit`. A key-only NutsDB index made no difference. See the CDN section. |
 | 12 | Apple and desktop paths in CI | L | iOS code push was proven on the owner's devices with earlier Route B engines, not `255fd850`; macOS, Windows and Linux code push are untested ([`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md)). Needs a Mac runner. |
 
 Owner decisions, no code needed:
