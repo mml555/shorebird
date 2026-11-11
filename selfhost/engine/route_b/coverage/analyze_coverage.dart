@@ -682,8 +682,9 @@ String _signature(Procedure p) {
   // Sorted by name: callers pass named arguments by name, so their ORDER in the
   // declaration is not part of the contract and must not read as a change.
   final named = [
-    for (final n in [...f.namedParameters]..sort((a, b) => a.name!.compareTo(b.name!)))
-      '${n.isRequired ? 'required ' : ''}${n.name}:${type(n.type)}',
+    for (final n in [...f.namedParameters]
+      ..sort((a, b) => a.parameterName.compareTo(b.parameterName)))
+      '${n.isRequired ? 'required ' : ''}${n.parameterName}:${type(n.type)}',
   ];
   return '<${f.typeParameters.length}>(${positional.join(',')}'
       '${named.isEmpty ? '' : '{${named.join(',')}}'})'
