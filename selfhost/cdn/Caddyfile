@@ -201,10 +201,12 @@
 	# these.
 	#
 	#   sky_engine.zip / flutter_gpu.zip   both supported cells
-	#   linux-x64/font-subset.zip          760e3fab, 255fd850, 3a565f27 (the hashes
-	#                                      that publish OUR linux host toolchain)
-	#   darwin-x64/font-subset.zip         255fd850, 3a565f27 (the hashes that publish
-	#                                      OUR Intel Mac host toolchain)
+	#   linux-x64/font-subset.zip          760e3fab, 255fd850, 3a565f27, 7806e0fb,
+	#                                      2c4b0718 (the hashes that publish OUR
+	#                                      linux host toolchain)
+	#   darwin-x64/font-subset.zip         255fd850, 3a565f27, 7806e0fb, 2c4b0718
+	#                                      (the hashes that publish OUR Intel Mac
+	#                                      host toolchain)
 	#
 	# The font-subset ones are scoped per hash for the reason the darwin-arm64
 	# note above gives: it carries const_finder, and only a hash that publishes
@@ -250,7 +252,7 @@
 
 	@must_be_local_pkgs {
 		expression `{stock_engine_hash} != ""`
-		path_regexp ^/flutter_infra_release/flutter/((70974f811d448da19a927c581678ef1dbd33605c|760e3fabffbf31b4e86919a0ef47d6ce5f182991|881e4129ce06e8d61019e0ed892f3be7c039763e|4df8f9b6139b67d2cfe9f6aa8212372cade36278|40eaa0ef6cb6485833bf2e10ac97224ca82cbf25|a5a8be5854c529268378ce16762a16d6e31763e9|64ff9f592ae319eea04db6092b71319d4778b873|d4c0dbc2905286eb4537d5f9a7802693096ca1fd|cd848320d605ff8af5060cabf9a8d1b35853f752|f85251f344600ae08196925a174e9cff8f0ff18e|255fd85017b5407260e91fc70d960ec13f1b69a8|3a565f273d871d1ef004faf1a87bf45637df8ad0)/(sky_engine|flutter_gpu)\.zip|a5a8be5854c529268378ce16762a16d6e31763e9/(ios|ios-profile)/artifacts\.zip|64ff9f592ae319eea04db6092b71319d4778b873/(ios|ios-profile)/artifacts\.zip|(d4c0dbc2905286eb4537d5f9a7802693096ca1fd|cd848320d605ff8af5060cabf9a8d1b35853f752|f85251f344600ae08196925a174e9cff8f0ff18e|255fd85017b5407260e91fc70d960ec13f1b69a8)/(ios|ios-profile)/artifacts\.zip|(760e3fabffbf31b4e86919a0ef47d6ce5f182991|255fd85017b5407260e91fc70d960ec13f1b69a8|3a565f273d871d1ef004faf1a87bf45637df8ad0)/linux-x64/font-subset\.zip|(255fd85017b5407260e91fc70d960ec13f1b69a8|3a565f273d871d1ef004faf1a87bf45637df8ad0)/darwin-x64/font-subset\.zip)$
+		path_regexp ^/flutter_infra_release/flutter/((70974f811d448da19a927c581678ef1dbd33605c|760e3fabffbf31b4e86919a0ef47d6ce5f182991|881e4129ce06e8d61019e0ed892f3be7c039763e|4df8f9b6139b67d2cfe9f6aa8212372cade36278|40eaa0ef6cb6485833bf2e10ac97224ca82cbf25|a5a8be5854c529268378ce16762a16d6e31763e9|64ff9f592ae319eea04db6092b71319d4778b873|d4c0dbc2905286eb4537d5f9a7802693096ca1fd|cd848320d605ff8af5060cabf9a8d1b35853f752|f85251f344600ae08196925a174e9cff8f0ff18e|255fd85017b5407260e91fc70d960ec13f1b69a8|3a565f273d871d1ef004faf1a87bf45637df8ad0|7806e0fb68242dbef74e224bdaa81bd62b0d988e|2c4b071817c52c27142b35ff789749951e5b4d22)/(sky_engine|flutter_gpu)\.zip|a5a8be5854c529268378ce16762a16d6e31763e9/(ios|ios-profile)/artifacts\.zip|64ff9f592ae319eea04db6092b71319d4778b873/(ios|ios-profile)/artifacts\.zip|(d4c0dbc2905286eb4537d5f9a7802693096ca1fd|cd848320d605ff8af5060cabf9a8d1b35853f752|f85251f344600ae08196925a174e9cff8f0ff18e|255fd85017b5407260e91fc70d960ec13f1b69a8|7806e0fb68242dbef74e224bdaa81bd62b0d988e|2c4b071817c52c27142b35ff789749951e5b4d22)/(ios|ios-profile)/artifacts\.zip|(760e3fabffbf31b4e86919a0ef47d6ce5f182991|255fd85017b5407260e91fc70d960ec13f1b69a8|3a565f273d871d1ef004faf1a87bf45637df8ad0|7806e0fb68242dbef74e224bdaa81bd62b0d988e|2c4b071817c52c27142b35ff789749951e5b4d22)/linux-x64/font-subset\.zip|(255fd85017b5407260e91fc70d960ec13f1b69a8|3a565f273d871d1ef004faf1a87bf45637df8ad0|7806e0fb68242dbef74e224bdaa81bd62b0d988e|2c4b071817c52c27142b35ff789749951e5b4d22)/darwin-x64/font-subset\.zip)$
 	}
 
 	@has_stock expression `{stock_engine_hash} != ""`
