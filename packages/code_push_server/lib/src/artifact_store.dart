@@ -254,6 +254,7 @@ class S3ArtifactStore with _DiskStaging implements ArtifactStore {
       secretKey: cfg.s3SecretKey,
       bucket: cfg.s3Bucket,
       pathStyle: cfg.s3PathStyle,
+      onRetry: (m) => stderr.writeln('s3: $m'),
     );
     if (!await s3.bucketExists()) {
       await s3.createBucket();
@@ -278,7 +279,7 @@ class S3ArtifactStore with _DiskStaging implements ArtifactStore {
   @override
   Future<bool> ping() async {
     try {
-      await _s3.bucketExists();
+      await _s3.bucketExists(retry: false);
       return true;
     } on Exception {
       return false;

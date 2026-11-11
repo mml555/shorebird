@@ -8,6 +8,21 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed
+
+- **The S3 client retries transient failures.** A connection error, a timeout,
+  HTTP 408, 429, 500, 502, 503 or 504, or an S3 `SlowDown`, `RequestTimeout` or
+  `InternalError` is tried again, up to four attempts in all, with exponential
+  backoff and jitter (200 ms doubling to at most 5 s). Other 4xx answers fail at
+  once. Uploads send their in-memory body again on each attempt.
+  - A timed-out attempt is aborted before the retry. No attempt starts after a
+    call has run twice `responseTimeout` (two minutes by default), counting the
+    wait before it. A stalled store holds a call for at most that plus one
+    attempt (about 70 s: 10 s to connect, 60 s for the response), not four
+    times 70 s. The readiness probe (`/readyz`) does not retry.
+  - Each retry is logged to stderr (`s3: PUT key failed (HTTP 503), retrying`),
+    and the final error says `after N attempts`.
+
 ### Security
 
 - **IdP id_tokens are now validated.** Broker login checks `aud` (must contain
