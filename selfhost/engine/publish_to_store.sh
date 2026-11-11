@@ -101,7 +101,7 @@ declare -A PATCH_MAP=(
   [patch-x86_64-unknown-linux-musl.zip]=patch-linux-x64.zip
 )
 for src in "${!PATCH_MAP[@]}"; do
-  if curl -fsSL "$GH/$src" -o "$TMP/$src"; then
+  if curl -fsSL --connect-timeout 20 --speed-limit 1024 --speed-time 60 "$GH/$src" -o "$TMP/$src"; then
     put "$TMP/$src" "$SB/${PATCH_MAP[$src]}"
   else
     echo "  - skip patch tool (download failed): $src" >&2

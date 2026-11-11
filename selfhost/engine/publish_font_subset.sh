@@ -108,7 +108,7 @@ if [[ ! -f "$OVERLAY/flutter_infra_release/flutter/$REV/$SDK_ZIP" ]]; then
   note "$REV publishes no $HOST host toolchain; mirroring the pinned font-subset verbatim"
   DEST_DIR="$OVERLAY/flutter_infra_release/flutter/$REV/$HOST"
   mkdir -p "$DEST_DIR"
-  curl -sfL -o "$DEST_DIR/font-subset.zip" \
+  curl -sfL --connect-timeout 20 --speed-limit 1024 --speed-time 60 -o "$DEST_DIR/font-subset.zip" \
     "$MIRROR/flutter_infra_release/flutter/$PINNED/$HOST/font-subset.zip" \
     || die "could not fetch the pinned font-subset.zip from $MIRROR"
   note "wrote $DEST_DIR/font-subset.zip ($(wc -c < "$DEST_DIR/font-subset.zip" | tr -d ' ') bytes, stock const_finder)"
@@ -144,7 +144,7 @@ fi
 note "const_finder sourced from $CF_REV"
 
 note "fetching upstream font-subset ($WANT_ARCH, not Dart-coupled) via the mirror"
-curl -sfL -o "$STAGE/upstream.zip" \
+curl -sfL --connect-timeout 20 --speed-limit 1024 --speed-time 60 -o "$STAGE/upstream.zip" \
   "$MIRROR/flutter_infra_release/flutter/$PINNED/$HOST/font-subset.zip" \
   || die "could not fetch the pinned font-subset.zip from $MIRROR"
 unzip -o -q "$STAGE/upstream.zip" font-subset LICENSE.font_subset.md -d "$STAGE" \

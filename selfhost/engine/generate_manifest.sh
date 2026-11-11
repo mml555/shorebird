@@ -74,7 +74,7 @@ done
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 case "$BASE" in
   http://*|https://*)
-    curl -fsSL "$BASE" -o "$TMP/base.yaml" \
+    curl -fsSL --connect-timeout 20 --speed-limit 1024 --speed-time 60 "$BASE" -o "$TMP/base.yaml" \
       || { echo "ERROR: could not fetch base manifest: $BASE" >&2; exit 2; } ;;
   *)
     [[ -r "$BASE" ]] || { echo "ERROR: cannot read base manifest: $BASE" >&2; exit 2; }
