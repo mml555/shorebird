@@ -108,7 +108,9 @@ What has been checked, 2026-11-10:
     patch tool and `aot-tools` still come from `storage.googleapis.com` and 404. Since #98
     the failure says so.
   - `SHOREBIRD_PUBLISHED_IOS_ENGINE_DIR` holding `{ios,ios-profile,ios-release}/artifacts.zip`,
-    or the toolchain coherence check stops with `COHERENCE_UNDETERMINABLE`.
+    or the toolchain coherence check stops with `COHERENCE_UNDETERMINABLE`. Since #123 the
+    variable is optional: unset, the CLI fetches the three zips from the mirror once per
+    engine and keeps their digests.
   - #99. Before it, the CLI took `255fd850` for a Route B engine (it contains vanilla Dart's
     `InterpretCall`), built with patchable call sites and refused its own release.
 - **Engine stamp.** The framework `Info.plist` `FlutterEngine` key in this release reads
@@ -127,7 +129,7 @@ Limits:
 
 - A patch can carry only some kinds of Dart change; the rest are refused at `shorebird patch` time. On 3.44-era engines a replay of real app histories accepted 50% of the observed method changes in Wonderous (20 observations; 45% before the retention rerun) and 92.67% in LocalSend (232 observations); see [`producer_demand_2.md`](engine/route_b/evidence/producer_demand_2.md). The owner decided on 2026-11-11 not to re-measure them on 3.47, so the only measurement is the 3.44 one, not a 3.47 result. The replay could not be re-run as it was: its frozen corpus (`/Volumes/build/route-b/demand1`) is on neither this Mac nor ci-build, the scripts under `engine/route_b/coverage/` hard-code `/Volumes/build` and `/Users/mendell`, and the mirror holds only the `darwin-arm64` Route B compiler.
 - `2c4b0718` is not a qualified cell: `engine/route_b/SUPPORTED_STATE.yaml` names only the `f85251f3` cell, and the release's lookup of `cell-manifests/2c4b0718….v2` gets a 404 and falls back to v1 (seen in the `-v` log).
-- Release builds still need `SHOREBIRD_PUBLISHED_IOS_ENGINE_DIR` (see below).
+- Before #123, release builds needed `SHOREBIRD_PUBLISHED_IOS_ENGINE_DIR`; the CLI now fetches the published iOS engines (about 175 MB, once per engine) when it is unset.
 - iOS asks the user once per install before an app may reach a LAN address, so a device test against a LAN server needs one tap on "OK". Observed on this phone: a reinstall resets it, and a build signed with another app's application-identifier stayed blocked after the tap. Inferred from the `nehelper` and `UserEventAgent` logs: the permission is keyed to the bundle ID iOS first saw for the executable's Mach-O UUID, so a build re-signed under a second bundle ID is blocked too.
 
 ## Device runs on `7806e0fb`
@@ -142,7 +144,7 @@ Found on the way, not yet fixed. None has an issue yet; each is small enough to 
 - The six `ios-usb-dependencies` zips that `flutter precache` fetches are not in the overlay, so the mirror fetches them from upstream GCS through its `/gcs/` passthrough: a build needs upstream for them, which a sealed mirror refuses.
 - `aot-tools.dill` for `7806e0fb` 404s on the mirror (Android does not need it).
 - A bare `flutter create` reaches `download.shorebird.dev` and `storage.googleapis.com` unless `FLUTTER_STORAGE_BASE_URL` points at the mirror first.
-- `shorebird release ios` on `7806e0fb` stops with `COHERENCE_UNDETERMINABLE` until `SHOREBIRD_PUBLISHED_IOS_ENGINE_DIR` points at the three `ios*/artifacts.zip` from the overlay.
+- `shorebird release ios` on `7806e0fb` stops with `COHERENCE_UNDETERMINABLE` until `SHOREBIRD_PUBLISHED_IOS_ENGINE_DIR` points at the three `ios*/artifacts.zip` from the overlay (fixed by #123: the CLI fetches them itself).
 - An app with an `http://` `base_url` needs cleartext allowed: `usesCleartextTraffic` on Android, an ATS exception on iOS.
 - Profile and debug engines for `7806e0fb` are not built; the mirror serves those from the stock fallback engine, so a profile or debug build pairs a stock engine with our framework and its behaviour is untested.
 

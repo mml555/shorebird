@@ -522,7 +522,7 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
     await runScoped(
       () async {
         for (final patcher in patchers) {
-          toolchainCoherence.assertCoherent(
+          await toolchainCoherence.assertCoherent(
             releasePlatform: patcher.releaseType.releasePlatform,
           );
           await _assertReleaseFlutterVersionSupported(

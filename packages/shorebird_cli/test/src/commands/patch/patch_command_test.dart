@@ -244,7 +244,7 @@ void main() {
         () => toolchainCoherence.assertCoherent(
           releasePlatform: any(named: 'releasePlatform'),
         ),
-      ).thenReturn(null);
+      ).thenAnswer((_) async {});
       codePushClientWrapper = MockCodePushClientWrapper();
       logger = MockShorebirdLogger();
       progress = MockProgress();
@@ -3505,7 +3505,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
             () => toolchainCoherence.assertCoherent(
               releasePlatform: any(named: 'releasePlatform'),
             ),
-          ).thenAnswer((_) {
+          ).thenAnswer((_) async {
             revisionSeenByGate = shorebirdEnv.flutterRevision;
           });
 
