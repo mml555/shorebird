@@ -495,55 +495,56 @@ class ToolchainCoherence {
   ///
   /// Used when [publishedIosEngineDirEnvVar] is not set. Each mode's
   /// `artifacts.zip` (about 175 MB for all three on a Route B engine) is
-  /// downloaded once per engine revision and only the digest of its ios-arm64
-  /// engine is kept, under the Shorebird cache, so later builds on the same
-  /// revision download nothing. A revision's published bytes do not change;
-  /// if a mirror ever republishes one, delete the kept file to fetch again.
+  /// downloaded once and only the digest of its ios-arm64 engine is kept,
+  /// under the Shorebird cache, so later builds download nothing.
   ///
-  /// Never throws: a failure is returned as [PublishedIosEngines.error], which
-  /// the check reports as undeterminable rather than coherent.
+  /// The kept record is keyed by engine revision AND by the storage base it
+  /// was fetched from, and is only used when its `source` is that base. The
+  /// same revision can be different bytes on two origins (upstream and a
+  /// self-hosted mirror), so a record from one must never judge a cache
+  /// filled from the other. A revision's bytes on one origin do not change;
+  /// if a mirror ever republishes one, delete the record to fetch again.
+  ///
+  /// Never throws: any failure is returned as [PublishedIosEngines.error],
+  /// which the check reports as undeterminable rather than coherent, and no
+  /// record is kept.
   Future<PublishedIosEngines> fetchPublishedIosEngines(
     String engineRevision,
   ) async {
     final base = ArtifactOrigin.flutterStorageBaseUrl();
+    final baseKey = sha256
+        .convert(utf8.encode(base))
+        .toString()
+        .substring(0, 16);
     final record = File(
       p.join(
         Cache.shorebirdCacheDirectory.path,
         'published_ios_engines',
-        '$engineRevision.json',
+        '$engineRevision-$baseKey.json',
       ),
     );
-    final kept = _readKeptDigests(record);
+    final kept = _readKeptDigests(record, base);
     if (kept != null) return kept;
 
     final progress = logger.progress(
       'Fetching the iOS engines published for $engineRevision',
     );
-    final temp = Directory.systemTemp.createTempSync('published_ios_engines');
+    Directory? temp;
     try {
+      temp = Directory.systemTemp.createTempSync('published_ios_engines');
       final digests = <String, String>{};
       for (final mode in iosEngineModes) {
         final url =
             '$base/flutter_infra_release/flutter/$engineRevision/$mode/'
             'artifacts.zip';
-        final zip = File(p.join(temp.path, mode, 'artifacts.zip'))
-          ..createSync(recursive: true);
-        try {
-          final response = await httpClient.send(
-            http.Request('GET', Uri.parse(url)),
-          );
-          if (response.statusCode != HttpStatus.ok) {
-            progress.fail();
-            return PublishedIosEngines.failed(
-              '$url answered ${response.statusCode}',
-            );
-          }
-          await response.stream.pipe(zip.openWrite());
-        } on Exception catch (error) {
+        final failure = await _download(url, p.join(temp.path, '$mode.zip'));
+        if (failure != null) {
           progress.fail();
-          return PublishedIosEngines.failed('fetching $url failed: $error');
+          return PublishedIosEngines.failed(failure);
         }
-        final digest = _iosEngineDigestFromZip(zip);
+        final digest = _iosEngineDigestFromZip(
+          File(p.join(temp.path, '$mode.zip')),
+        );
         if (digest == null) {
           progress.fail();
           return PublishedIosEngines.failed(
@@ -551,30 +552,81 @@ class ToolchainCoherence {
           );
         }
         digests[mode] = digest;
-        zip.deleteSync();
+        File(p.join(temp.path, '$mode.zip')).deleteSync();
       }
-      record
-        ..createSync(recursive: true)
-        ..writeAsStringSync(
-          jsonEncode({'source': base, 'digests': digests}),
-        );
+      // Written beside the record and renamed into place, so a concurrent run
+      // never reads half a record.
+      record.parent.createSync(recursive: true);
+      File('${record.path}.$pid.tmp')
+        ..writeAsStringSync(jsonEncode({'source': base, 'digests': digests}))
+        ..renameSync(record.path);
       progress.complete();
       return PublishedIosEngines(digests: digests);
+      // A failure here, after or during the download, must refuse the build
+      // as undeterminable rather than end the command with a stack trace.
+      // ignore: avoid_catches_without_on_clauses
+    } catch (error) {
+      progress.fail();
+      return PublishedIosEngines.failed(
+        'fetching the published iOS engines failed: $error',
+      );
     } finally {
-      temp.deleteSync(recursive: true);
+      try {
+        temp?.deleteSync(recursive: true);
+      } on Object {
+        // A leftover temp directory is not worth failing a build over.
+      }
     }
   }
 
-  /// The digests kept in [record] by an earlier fetch, or null when there are
-  /// none or they cannot be read (the caller then fetches again).
-  PublishedIosEngines? _readKeptDigests(File record) {
-    if (!record.existsSync()) return null;
+  /// Downloads [url] to [path]; returns null on success, else why it failed.
+  Future<String?> _download(String url, String path) async {
+    final http.StreamedResponse response;
     try {
+      response = await httpClient.send(http.Request('GET', Uri.parse(url)));
+    } on Exception catch (error) {
+      return 'fetching $url failed: $error';
+    }
+    if (response.statusCode != HttpStatus.ok) {
+      try {
+        await response.stream.drain<void>();
+      } on Exception {
+        // The status already says what went wrong.
+      }
+      return '$url answered ${response.statusCode}';
+    }
+    final sink = File(path).openWrite();
+    try {
+      await sink.addStream(response.stream);
+    } on Exception catch (error) {
+      return 'fetching $url failed: $error';
+    } finally {
+      try {
+        await sink.close();
+      } on Exception {
+        // After a failed addStream the sink is already closed, and closing it
+        // again would replace the real reason with "File closed".
+      }
+    }
+    return null;
+  }
+
+  /// The digests kept in [record] by an earlier fetch from [base], or null
+  /// when there are none or they cannot be trusted (the caller then fetches
+  /// again).
+  PublishedIosEngines? _readKeptDigests(File record, String base) {
+    try {
+      if (!record.existsSync()) return null;
       final json =
           jsonDecode(record.readAsStringSync()) as Map<String, dynamic>;
+      if (json['source'] != base) return null;
       final digests = (json['digests'] as Map<String, dynamic>)
           .cast<String, String>();
-      if (!iosEngineModes.every(digests.containsKey)) return null;
+      final sha256Hex = RegExp(r'^[0-9a-f]{64}$');
+      final complete = iosEngineModes.every(
+        (mode) => sha256Hex.hasMatch(digests[mode] ?? ''),
+      );
+      if (!complete) return null;
       logger.detail(
         '[coherence] published iOS engine digests from ${record.path}',
       );

@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
@@ -474,30 +476,49 @@ void main() {
       String publishedUrl(String mode) =>
           '$mirror/flutter_infra_release/flutter/$cell/$mode/artifacts.zip';
 
-      File keptDigests() => File(
-        p.join(
-          shorebirdRoot.path,
-          'bin',
-          'cache',
-          'published_ios_engines',
-          '$cell.json',
-        ),
+      Directory keptDir() => Directory(
+        p.join(shorebirdRoot.path, 'bin', 'cache', 'published_ios_engines'),
       );
+
+      /// The record kept for [cell] fetched from [mirror].
+      File keptDigests() {
+        final baseKey = sha256
+            .convert(utf8.encode(mirror))
+            .toString()
+            .substring(0, 16);
+        return File(p.join(keptDir().path, '$cell-$baseKey.json'));
+      }
+
+      String digestOf(String revision, String mode) =>
+          sha256.convert(utf8.encode(engineBytes(revision, mode))).toString();
 
       /// Serves the zips [makeCheckout] wrote under `publishedIos` at the
       /// mirror's URLs, the way the Flutter tool would fetch them.
-      void serveMirror({int statusCode = HttpStatus.ok}) {
+      void serveMirror({
+        int statusCode = HttpStatus.ok,
+        String? failingMode,
+        String? brokenStreamMode,
+      }) {
         when(() => httpClient.send(any())).thenAnswer((invocation) async {
           final request = invocation.positionalArguments.first as http.Request;
           final mode = iosEngineModes.firstWhere(
             (m) => request.url.toString() == publishedUrl(m),
           );
           final zip = File(p.join(publishedIos.path, mode, 'artifacts.zip'));
+          if (mode == brokenStreamMode) {
+            return http.StreamedResponse(
+              Stream<List<int>>.error(const SocketException('reset')),
+              HttpStatus.ok,
+            );
+          }
+          final status = (failingMode == null || mode == failingMode)
+              ? statusCode
+              : HttpStatus.ok;
           return http.StreamedResponse(
             Stream.value(
-              statusCode == HttpStatus.ok ? zip.readAsBytesSync() : <int>[],
+              status == HttpStatus.ok ? zip.readAsBytesSync() : <int>[],
             ),
-            statusCode,
+            status,
           );
         });
       }
@@ -663,6 +684,117 @@ void main() {
           await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
           verify(
             () => logger.err(any(that: contains('no route'))),
+          ).called(1);
+        });
+
+        test('a record kept from ANOTHER origin is not used', () async {
+          // The same revision can be different bytes on upstream and on a
+          // mirror. A record from one must not judge a cache from the other:
+          // here it names the prior cell's engines, and using it would refuse
+          // a coherent cache (or, reversed, approve a stale one).
+          makeCheckout();
+          serveMirror();
+          final other = File(p.join(keptDir().path, '$cell-other.json'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync(
+              jsonEncode({
+                'source': 'https://elsewhere.test',
+                'digests': {
+                  for (final m in iosEngineModes) m: digestOf(priorCell, m),
+                },
+              }),
+            );
+          await expectLater(assertIos(), completes);
+          verify(() => httpClient.send(any())).called(3);
+          expect(other.existsSync(), isTrue);
+          expect(keptDigests().existsSync(), isTrue);
+        });
+
+        test('a kept record whose source differs is fetched again', () async {
+          makeCheckout();
+          serveMirror();
+          keptDigests()
+            ..createSync(recursive: true)
+            ..writeAsStringSync(
+              jsonEncode({
+                'source': 'https://elsewhere.test',
+                'digests': {
+                  for (final m in iosEngineModes) m: digestOf(priorCell, m),
+                },
+              }),
+            );
+          await expectLater(assertIos(), completes);
+          verify(() => httpClient.send(any())).called(3);
+        });
+
+        test(
+          'a kept record with a malformed digest is fetched again',
+          () async {
+            makeCheckout();
+            serveMirror();
+            keptDigests()
+              ..createSync(recursive: true)
+              ..writeAsStringSync(
+                jsonEncode({
+                  'source': mirror,
+                  'digests': {
+                    for (final m in iosEngineModes) m: 'not-a-digest',
+                  },
+                }),
+              );
+            await expectLater(assertIos(), completes);
+            verify(() => httpClient.send(any())).called(3);
+          },
+        );
+
+        test('a failure on the LAST mode keeps nothing', () async {
+          makeCheckout();
+          serveMirror(
+            statusCode: HttpStatus.notFound,
+            failingMode: 'ios-release',
+          );
+          await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
+          verify(
+            () => logger.err(
+              any(
+                that: contains('${publishedUrl('ios-release')} answered 404'),
+              ),
+            ),
+          ).called(1);
+          expect(keptDigests().existsSync(), isFalse);
+        });
+
+        test(
+          'a stream that breaks after the headers is UNDETERMINABLE',
+          () async {
+            makeCheckout();
+            serveMirror(brokenStreamMode: 'ios-profile');
+            await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
+            verify(
+              () => logger.err(
+                any(
+                  that: allOf(
+                    contains(ToolchainIncoherence.undeterminable.wire),
+                    contains(publishedUrl('ios-profile')),
+                  ),
+                ),
+              ),
+            ).called(1);
+            expect(keptDigests().existsSync(), isFalse);
+          },
+        );
+
+        test('a record that cannot be written refuses, never throws', () async {
+          makeCheckout();
+          serveMirror();
+          // A FILE where the record directory goes.
+          keptDir().parent.createSync(recursive: true);
+          File(keptDir().path).writeAsStringSync('in the way');
+          await expectLater(assertIos(), throwsA(isA<ProcessExit>()));
+          verify(
+            () => logger.err(
+              any(that: contains('fetching the published iOS engines failed')),
+            ),
           ).called(1);
         });
 
