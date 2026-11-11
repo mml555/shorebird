@@ -51,11 +51,19 @@ TEAM="${TEAM_IN:-$(ios::team "$decoded")}"
 BUNDLE="$BUNDLE_IN"
 if [ -z "$BUNDLE" ]; then
   BUNDLE="$(ios::bundle_id "$decoded")"
-  if [ "$BUNDLE" = "*" ]; then
-    ios::_err "profile is wildcard (TEAM.*); pass the concrete bundle id as arg 5"
-    exit 1
-  fi
+  case "$BUNDLE" in
+    *'*'*)
+      ios::_err "profile is a wildcard ($TEAM.$BUNDLE); pass the concrete bundle id as arg 5"
+      exit 1 ;;
+  esac
 fi
+# A bundle id is reverse-DNS: letters, digits, '-' and '.' only. Checking it
+# here keeps the PlistBuddy commands below from re-parsing anything else.
+case "$BUNDLE" in
+  ''|*[!A-Za-z0-9.-]*)
+    ios::_err "not a concrete bundle id: '$BUNDLE' (letters, digits, '-' and '.' only)"
+    exit 1 ;;
+esac
 
 # Real entitlements from the profile, with application-identifier /
 # team-identifier / keychain-access-groups pinned to the resolved bundle so a
@@ -90,6 +98,50 @@ echo "  profile  : $(ios::field "$decoded" Name) ($(ios::field "$decoded" UUID))
 echo "  dev/get-task-allow: $GTA"
 
 cp "$PROFILE" "$APPB/embedded.mobileprovision"
+
+# The app's CFBundleIdentifier must match the application-identifier above:
+# codesign takes the signing identifier from it, and iOS keys per-app state
+# (the Local Network permission among it) to the bundle id. Left alone, a build
+# re-signed under a new bundle id keeps its old CFBundleIdentifier and iOS
+# blocks it from the LAN even after the user allows it. Rewrite it to match.
+#
+# iOS also remembers the first bundle id it saw for an executable's Mach-O
+# UUID, so give each build one bundle id; re-signing the same build under a
+# second id leaves that copy without LAN access.
+#
+# The bundle is changed in place; keep a copy if the original id matters.
+PLIST="$APPB/Info.plist"
+[ -f "$PLIST" ] || { ios::_err "no Info.plist in $APPB"; exit 1; }
+CUR_BUNDLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PLIST" 2>/dev/null || true)"
+if [ "$CUR_BUNDLE" != "$BUNDLE" ]; then
+  # Loud on stderr: with no arg 5 the new id comes from the profile, so a
+  # wrong IOS_PROFILE renames the app rather than failing.
+  src="the profile"; [ -z "$BUNDLE_IN" ] || src="arg 5"
+  ios::_err "WARN: renaming the app's bundle id ${CUR_BUNDLE:-<none>} -> $BUNDLE (from $src)"
+  if [ -n "$CUR_BUNDLE" ]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE" "$PLIST"
+  else
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $BUNDLE" "$PLIST"
+  fi
+  # App extensions must keep the app's id as their prefix. Watch apps carry
+  # more ids than that (WKCompanionAppBundleIdentifier and their own
+  # extensions), which this script does not handle.
+  if [ -n "$CUR_BUNDLE" ] && [ -d "$APPB/PlugIns" ]; then
+    find "$APPB/PlugIns" -maxdepth 1 -type d -name "*.appex" -print0 |
+      while IFS= read -r -d '' ax; do
+        xid="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$ax/Info.plist" 2>/dev/null || true)"
+        case "$xid" in
+          "$CUR_BUNDLE".*)
+            nid="$BUNDLE.${xid#"$CUR_BUNDLE".}"
+            echo "  extension $(basename "$ax"): $xid -> $nid"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $nid" "$ax/Info.plist" ;;
+        esac
+      done
+  fi
+  if [ -d "$APPB/Watch" ]; then
+    ios::_err "WARN: $APPB/Watch is not renamed; a watch app needs its ids changed by hand"
+  fi
+fi
 
 # Sign inside-out: nested frameworks/dylibs first (no entitlements — frameworks
 # don't carry app entitlements), then any app extensions best-effort, then the

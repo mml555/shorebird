@@ -90,6 +90,8 @@ else
   APP_BUNDLE=$(find "$APP_DIR/build/ios/archive" -name "Runner.app" -path "*Products/Applications*" 2>/dev/null | head -1)
   echo "app bundle: $APP_BUNDLE"
   IOS_DEVICE_UDID="$DEVICE" "$(dirname "$0")/ios_resign.sh" "$APP_BUNDLE" "${IOS_IDENTITY:-}" "$IOS_PROFILE"
+  # The re-sign sets the app's bundle id to the profile's, so launch by that id.
+  PKG=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_BUNDLE/Info.plist")
   # devicectl is iOS 17+ only and cannot even see an older device, so the
   # transport is picked by OS version — an iPhone 7 stops at 15.8.
   iosdev::install "$DEVICE" "$APP_BUNDLE" 2>&1 | grep -iE "installed|error|locked" | tail -3
