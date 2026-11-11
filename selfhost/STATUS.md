@@ -1,4 +1,4 @@
-<!-- cspell:words dartdev sbrel ureq -->
+<!-- cspell:words dartdev sbrel uiautomator ureq -->
 # Fork status
 
 As of 2026-11-10. This is the starting point for picking the work back up: what state the
@@ -35,12 +35,12 @@ when an item here changes; history of how things got here lives in the PRs and i
 
 ## In flight
 
-As of 2026-11-10. #84 to #100, mirror #10 and shorebird-flutter #1 to #6 are merged. #93 makes `IDP_ISSUER` required in production when an IdP is configured: set it before the next server deploy.
+As of 2026-11-11. #84 to #110, mirror #10 and #11, and shorebird-flutter #1 to #8 are merged (#7 landed inside #8, which pins engine `7806e0fb`). #93 makes `IDP_ISSUER` required in production when an IdP is configured: set it before the next server deploy.
 
 | Item | What | Waiting on |
 |---|---|---|
-| iOS device run on `255fd850` | A release (1.0.0+1, bundle `dev.selfhost.sbrel`) is built with the fork CLI, published to a scratch code push server on ci-build (compose project `cps-ios`) and re-signed for devices with the team wildcard development profile. On the device: install it, check the screen and that the log says `This engine cannot run iOS patches, not starting the Shorebird updater.`, then `docker compose -p cps-ios down` on ci-build. | An iPhone attached to the Mac, unlocked, trusted, Developer Mode on. |
-| shorebird-flutter PR #7 | Drops the stale dSYM entries from `compose.json` and the artifacts manifest, fixes the fetch order in `format.dart` and `git_repo_tools`, and marks the engine's "cannot run iOS patches" log text as read by the CLI (#99). | The next engine rebuild: it changes engine inputs, so it re-keys the engine. Rebuild the Apple shards by name then, so #97 clears their stale `FlutterEngine` stamps. |
+| Flutter 3.47 promotion ([#111](https://github.com/mml555/shorebird/pull/111), draft) | Moves `bin/internal/flutter.version` to shorebird-flutter `9056dae9` (engine `7806e0fb`) and the `shorebird:` block of `compatibility.yaml` to CLI 1.6.138. The artifact gates of [`TOOLCHAIN_PROMOTION.md`](TOOLCHAIN_PROMOTION.md) pass: sealed cold bootstrap, closure guard, Linux release and patch with no upstream fetch. The frozen R12 harness fails arm 3: with two releases and no `--release-version`, CLI 1.6.138 guesses the release (deprecated upstream, [shorebirdtech/shorebird#4354](https://github.com/shorebirdtech/shorebird/issues/4354)) instead of refusing with 64. | **On hold (owner's decision).** Upstream removes the guessing after 2027-01-01; re-run the chain and the two-arm R12 then. The PR comment lists what else it needs. |
+| R12 tooling on ci-build ([#112](https://github.com/mml555/shorebird/pull/112)) | Lets the R12 scripts run on a Linux Docker engine and on a pin other than 3.44.8; defaults stay on the certified pin. | The review's should-fix items, before the next promotion attempt. |
 
 ## The CDN mirror on ci-build
 
@@ -84,6 +84,7 @@ Our engines (`3a565f27`, and `255fd850`, which shorebird-flutter now pins) are n
 ## iOS on `255fd850`
 
 The iOS engine runs releases but takes no code patches (`shorebird_use_interpreter` is off).
+The same holds for `7806e0fb`; see [Device runs on `7806e0fb`](#device-runs-on-7806e0fb) for the physical iPhone run.
 What has been checked, 2026-11-10:
 
 - **Simulator** (iPhone 17, iOS 27, debug, the only mode a simulator runs): host widget test,
@@ -100,6 +101,22 @@ What has been checked, 2026-11-10:
 - **Engine stamp.** The framework `Info.plist` `FlutterEngine` key in this release reads
   `3a565f27`: `copy_info_plist.py` stamps `git rev-parse HEAD` and ninja does not rerun it.
   Nothing reads it, so it is a label only; #97 fixes it from the next Apple shard rebuild.
+
+## Device runs on `7806e0fb`
+
+2026-11-10, with the fork CLI 1.6.138 on shorebird-flutter `9056dae9` (the #111 branch, used read-only), a local code push server, and the ci-build mirror.
+
+- **Android, physical** (OnePlus CPH2551): release 1.0.0+1 installed and showed its marker; a patch published with `--release-version` was downloaded on the next launch and showed the patched marker after a restart and again after a second one. The marker is read from `uiautomator dump`, as in `scripts/android1_device.sh`. The engine's updater is `87c198d30f87` (shorebird-flutter DEPS), seen in `libflutter.so` and in the device's `__patch_download__` and `__patch_install__` events.
+- **iOS, physical** (iPhone 7, iOS 15.8.8, resign mode with the team wildcard development profile): the release installs and runs, the log shows its marker and `This engine cannot run iOS patches, not starting the Shorebird updater.`, and `shorebird patch ios` refuses. That is the expected result until item 11.
+
+Found on the way, not yet fixed:
+
+- The six `ios-usb-dependencies` zips that `flutter precache` fetches reach upstream GCS through the mirror's `/gcs/` passthrough.
+- `aot-tools.dill` for `7806e0fb` 404s on the mirror (Android does not need it).
+- A bare `flutter create` reaches `download.shorebird.dev` and `storage.googleapis.com` unless `FLUTTER_STORAGE_BASE_URL` points at the mirror first.
+- `shorebird release ios` on `7806e0fb` stops with `COHERENCE_UNDETERMINABLE` until `SHOREBIRD_PUBLISHED_IOS_ENGINE_DIR` points at the three `ios*/artifacts.zip` from the overlay.
+- An app with an `http://` `base_url` needs cleartext allowed: `usesCleartextTraffic` on Android, an ATS exception on iOS.
+- Profile and debug engines for `7806e0fb` are not built; the mirror serves those from the stock fallback engine.
 
 ## Stable baseline
 
@@ -134,7 +151,7 @@ Effort: S under a day, M a few days, L a week or more.
 | 8 | Make `dart test --concurrency` a workflow input | S | Hard-coded to 4 in `.github/workflows/_shorebird_ci_dart.yaml`. |
 | 9 | pub.dev publish via OIDC | S | Wired in `publish_dart_package.yaml`, never exercised. One dry run. |
 | 10 | arm64 server image | M | Releases are amd64 only without hosted runners (buildx + QEMU or an arm64 runner). |
-| 11 | iOS code push and `aot-tools.dill` | L | The iOS engine is built, published and pinned as `255fd850` (shorebird-flutter PR #4), without code patches: the iOS patch path needs `Shorebird_ReadLinkHeader` and the five-argument `Dart_LoadELF` from Shorebird's private Dart fork, so `shorebird_use_interpreter` is off and iOS apps do not start the updater. Patches on iOS need those in the public Dart fork. A release is built and signed; the device run waits on a phone (In flight). `aot-tools.dill` does not build yet. |
+| 11 | iOS code push and `aot-tools.dill` | L | The iOS engine is built, published and pinned as `255fd850` (shorebird-flutter PR #4), without code patches: the iOS patch path needs `Shorebird_ReadLinkHeader` and the five-argument `Dart_LoadELF` from Shorebird's private Dart fork, so `shorebird_use_interpreter` is off and iOS apps do not start the updater. Patches on iOS need those in the public Dart fork. On a physical iPhone the release runs and the engine logs that it cannot run iOS patches (see [Device runs on `7806e0fb`](#device-runs-on-7806e0fb)). `aot-tools.dill` does not build yet, and the mirror 404s it. |
 | 11a | ~~Diagnose the mirror's cold `/gcs/` fetch hang~~ | Done | Souin's 10 s default backend timeout; see the CDN section. |
 | 11b | Find why the mirror holds its whole cache in RAM | M | About 3.1 GB of anonymous memory for a 3.1 GB cache, so the container has no `mem_limit`. A key-only NutsDB index made no difference. See the CDN section. |
 | 12 | Apple and desktop paths in CI | L | iOS code push was proven on the owner's devices with earlier Route B engines, not `255fd850`; macOS, Windows and Linux code push are untested ([`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md)). Needs a Mac runner. |
