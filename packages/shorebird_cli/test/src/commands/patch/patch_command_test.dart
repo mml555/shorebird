@@ -3584,11 +3584,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
       });
     });
 
-    group('when the patcher requires --release-version', () {
-      setUp(() {
-        when(() => patcher.requiresReleaseVersionArg).thenReturn(true);
-      });
-
+    group('when --release-version is missing or provided', () {
       group('when it is missing', () {
         setUp(() {
           when(
@@ -3609,29 +3605,6 @@ A patch cannot change the Flutter version a release was built with. To fix this,
           ).called(1);
           verifyNever(() => patcher.extractReleaseVersionFromArtifact(any()));
         });
-
-        test(
-          'is a usage error before building when not interactive',
-          () async {
-            when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
-
-            await expectLater(
-              runWithOverrides(() => command.createPatch([patcher])),
-              throwsA(
-                isA<UsageException>().having(
-                  (e) => e.message,
-                  'message',
-                  startsWith('Missing required argument: --release-version.'),
-                ),
-              ),
-            );
-            verifyNever(
-              () => patcher.buildPatchArtifact(
-                releaseVersion: any(named: 'releaseVersion'),
-              ),
-            );
-          },
-        );
       });
 
       test('uses it when it is provided', () async {
@@ -4078,31 +4051,161 @@ A patch cannot change the Flutter version a release was built with. To fix this,
         });
       });
 
-      group('when running on CI', () {
+      group('when running on CI without --release-version', () {
         setUp(() {
           when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
         });
 
-        test('warns, then builds the patch again with the release settings '
-            'even on the same Flutter', () async {
+        // This fork never guesses the release version (upstream's guessing is
+        // deprecated: shorebirdtech/shorebird#4354). It goes to the release
+        // chooser, which refuses when it would have to prompt.
+        group('when several releases exist', () {
+          setUp(() {
+            // The real logger, so the guard that refuses to prompt is the one
+            // exercised rather than a mock told to throw.
+            logger = ShorebirdLogger(level: Level.quiet);
+            final olderRelease = Release(
+              id: 99,
+              appId: appId,
+              version: '0.0.1',
+              flutterRevision: flutterRevision,
+              flutterVersion: flutterVersion,
+              displayName: '0.0.1',
+              platforms: const {
+                releasePlatform: ReleasePlatformDetails(
+                  status: ReleaseStatus.active,
+                ),
+              },
+              createdAt: DateTime(2022),
+              updatedAt: DateTime(2022),
+            );
+            when(
+              () => codePushClientWrapper.getReleases(
+                appId: any(named: 'appId'),
+              ),
+            ).thenAnswer((_) async => [release, olderRelease]);
+          });
+
+          test(
+            'refuses at the chooser before building or publishing',
+            () async {
+              await expectLater(
+                () => runWithOverrides(command.run),
+                throwsA(
+                  isA<InteractivePromptRequiredException>()
+                      .having(
+                        (e) => e.promptText,
+                        'promptText',
+                        'Which release would you like to patch?',
+                      )
+                      .having(
+                        (e) => e.hint,
+                        'hint',
+                        contains('--release-version=<version>'),
+                      ),
+                ),
+              );
+
+              verifyNever(() => patcher.buildPatchArtifact());
+              verifyNever(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              );
+              verifyNever(
+                () => patcher.extractReleaseVersionFromArtifact(any()),
+              );
+              verifyNever(
+                () => codePushClientWrapper.publishPatch(
+                  appId: any(named: 'appId'),
+                  releaseId: any(named: 'releaseId'),
+                  metadata: any(named: 'metadata'),
+                  track: any(named: 'track'),
+                  patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                  sidecars: any(named: 'sidecars'),
+                ),
+              );
+            },
+          );
+        });
+
+        group('when no releases exist', () {
+          setUp(() {
+            when(
+              () => codePushClientWrapper.getReleases(
+                appId: any(named: 'appId'),
+              ),
+            ).thenAnswer((_) async => []);
+          });
+
+          test('exits with the no-releases error, building nothing', () async {
+            await expectLater(
+              () => runWithOverrides(command.run),
+              exitsWithError(
+                message:
+                    'No ${releasePlatform.displayName} releases found for app '
+                    '$appId.',
+              ),
+            );
+
+            verifyNever(() => patcher.buildPatchArtifact());
+            verifyNever(
+              () => patcher.buildPatchArtifact(
+                releaseVersion: any(named: 'releaseVersion'),
+              ),
+            );
+          });
+        });
+
+        group('when exactly one release exists', () {
+          setUp(() {
+            when(
+              () => codePushClientWrapper.getReleases(
+                appId: any(named: 'appId'),
+              ),
+            ).thenAnswer((_) async => [release]);
+          });
+
+          test('patches it without prompting or building twice', () async {
+            final exitCode = await runWithOverrides(command.run);
+
+            expect(exitCode, equals(ExitCode.success.code));
+            verify(
+              () => logger.info(any(that: startsWith('Using release'))),
+            ).called(1);
+            verifyNever(
+              () => logger.chooseOne<Release>(
+                any(),
+                choices: any(named: 'choices'),
+                display: any(named: 'display'),
+                hint: any(named: 'hint'),
+              ),
+            );
+            verifyNever(() => patcher.buildPatchArtifact());
+            verifyNever(
+              () => patcher.extractReleaseVersionFromArtifact(any()),
+            );
+            verify(
+              () => patcher.buildPatchArtifact(releaseVersion: releaseVersion),
+            ).called(1);
+          });
+        });
+      });
+
+      group('when running on CI with --release-version', () {
+        setUp(() {
+          when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
+          when(() => argResults.wasParsed('release-version')).thenReturn(true);
+        });
+
+        test('builds the patch once with the release settings', () async {
           await runWithOverrides(() => command.createPatch([patcher]));
 
-          verifyInOrder([
-            () => logger.warn(
-              any(
-                that: allOf(
-                  contains('removed in a release after 2027-01-01'),
-                  contains('slower and less accurate'),
-                  contains('shorebirdtech/shorebird/issues/4354'),
-                  contains('--release-version=latest'),
-                ),
-              ),
-            ),
-            () => patcher.buildPatchArtifact(),
-            () => patcher.extractReleaseVersionFromArtifact(any()),
-            () => patcher.extraBuildArgs = any(),
+          verifyNever(() => patcher.buildPatchArtifact());
+          verifyNever(() => patcher.extractReleaseVersionFromArtifact(any()));
+          verify(
             () => patcher.buildPatchArtifact(releaseVersion: releaseVersion),
-          ]);
+          ).called(1);
         });
 
         test(
@@ -4155,7 +4258,6 @@ A patch cannot change the Flutter version a release was built with. To fix this,
             await runWithOverrides(() => command.createPatch([patcher]));
 
             verifyInOrder([
-              () => patcher.buildPatchArtifact(),
               () => patcher.obfuscationMapPath = any(that: isNotNull),
               () => patcher.extraBuildArgs = any(
                 that: contains(
@@ -4200,7 +4302,6 @@ A patch cannot change the Flutter version a release was built with. To fix this,
             await runWithOverrides(() => command.createPatch([patcher]));
 
             verifyInOrder([
-              () => patcher.buildPatchArtifact(),
               () =>
                   patcher.releaseManagedPublicKeyPem = 'managed-public-key-pem',
               () => patcher.buildPatchArtifact(releaseVersion: releaseVersion),
@@ -4243,15 +4344,6 @@ A patch cannot change the Flutter version a release was built with. To fix this,
               expect(exitCode, equals(ExitCode.success.code));
 
               verifyInOrder([
-                () => logger.warn(
-                  any(
-                    that: startsWith(
-                      'Guessing the release version is deprecated',
-                    ),
-                  ),
-                ),
-                () => patcher.buildPatchArtifact(),
-                () => patcher.extractReleaseVersionFromArtifact(any()),
                 () => shorebirdFlutter.installRevision(
                   revision: releaseFlutterRevision,
                   releasePlatform: any(named: 'releasePlatform'),
@@ -4266,7 +4358,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
                   releaseId: any(named: 'releaseId'),
                   metadata: any(
                     named: 'metadata',
-                    that: containsPair('inferred_release_version', isTrue),
+                    that: containsPair('inferred_release_version', isFalse),
                   ),
                   track: any(named: 'track'),
                   patchArtifactBundles: any(named: 'patchArtifactBundles'),
@@ -4291,7 +4383,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
             });
 
             test(
-              'exits with an error after the build that guesses the version',
+              'exits with an error before building',
               () async {
                 await expectLater(
                   () => runWithOverrides(() => command.createPatch([patcher])),
@@ -4302,7 +4394,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
                   ),
                 );
 
-                verify(() => patcher.buildPatchArtifact()).called(1);
+                verifyNever(() => patcher.buildPatchArtifact());
                 verifyNever(
                   () => patcher.buildPatchArtifact(
                     releaseVersion: releaseVersion,
@@ -4450,6 +4542,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
     group('when running on CI', () {
       test('does not prompt for confirmation', () async {
         when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
+        when(() => argResults.wasParsed('release-version')).thenReturn(true);
 
         final exitCode = await runWithOverrides(command.run);
         expect(exitCode, equals(ExitCode.success.code));
@@ -4804,6 +4897,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
       group('when it cannot ask', () {
         setUp(() {
           when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
+          when(() => argResults.wasParsed('release-version')).thenReturn(true);
         });
 
         test('warns, publishes to stable and records that it used the '

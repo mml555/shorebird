@@ -185,6 +185,11 @@ Then the normal workflow: `shorebird release <platform>` / `shorebird patch
 <platform>`, with `SHOREBIRD_HOSTED_URL` + `SHOREBIRD_TOKEN` set to your server
 and API key.
 
+Non-interactively (CI, `--json`, no terminal), pass `--release-version=<version>`
+(or `--release-version=latest`) to `shorebird patch`. Without it, the CLI does
+not guess the release by building: it patches the app's only release, or, with
+several, exits 64 at the release chooser before building anything.
+
 A plain `http://` `base_url` (a test server on your LAN, say) also needs the app
 to allow cleartext traffic, or the updater's requests fail on the device:
 `android:usesCleartextTraffic="true"` on `<application>` in Android's
