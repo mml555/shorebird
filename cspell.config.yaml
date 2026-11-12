@@ -782,6 +782,7 @@ words:
   - genpkey
   - getifaddr
   - getkeepsafe
+  - gomemlimit
   - googlesource
   - googleusercontent
   - gotoolchain
@@ -882,6 +883,7 @@ words:
   - notafile
   - nserror
   - nullptr
+  - nutsdb
   - nvme
   - OCSF # Open Cybersecurity Schema Framework, the audit log format
   - Oltman

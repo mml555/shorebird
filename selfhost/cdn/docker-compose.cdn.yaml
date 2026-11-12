@@ -46,12 +46,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # No memory limit on purpose. NutsDB keeps every cached body in memory (measured on
-    # ci-build: anonymous memory about equals the on-disk cache, 3.1 GB for a 3.1 GB cache,
-    # and it grows with each new engine hash), and Souin buffers a cold response 2-3x on
-    # top. A limit below cache size plus about 3 GB would crash-loop the mirror. Setting
-    # nuts EntryIdxMode HintKeyAndRAMIdxMode did not reduce it in a scratch test, so a limit
-    # needs a different fix first (see selfhost/STATUS.md, CDN section).
+    # Memory no longer grows with the cache: the Caddyfile indexes keys only and the image
+    # links NutsDB with nutsdb-v1.0.4-key-copy.patch (see selfhost/STATUS.md, CDN section).
+    # Measured on ci-build with 1 GB cached: 140 MB after a restart, 446 MB after reading
+    # all of it back, 530 MB while filling it cold. GOMEMLIMIT makes Go collect before it
+    # grows past 1 GiB instead of keeping freed buffers; without it, reads left 1.2 GB.
+    # mem_limit is a hard ceiling, GOMEMLIMIT only a target: Souin holds 3-5 copies of a
+    # cold response while it fetches and stores it, about 1 GB for a 218 MB dart-sdk zip,
+    # so 8g covers about seven such cold fetches at once. Raise it, not GOMEMLIMIT, if
+    # more run concurrently. NutsDB's merge (every 2 h, once there are two segments)
+    # rewrites live entries and was not measured.
+    environment:
+      - GOMEMLIMIT=1GiB
+    mem_limit: 8g
     depends_on:
       - artifact-proxy
     volumes:

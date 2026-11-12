@@ -52,8 +52,22 @@
 		mode bypass_response
 		ttl 8760h
 		stale 168h
+		# Index keys only (HintKeyAndRAMIdxMode); bodies are read from disk on a
+		# hit. NutsDB's default keeps every cached body in memory, so the mirror
+		# needed as much RAM as its cache had disk. storages/nuts ignores `path`
+		# once `configuration` is set, so the directory is `Dir` here, and the
+		# image must link the patched NutsDB (nutsdb-v1.0.4-key-copy.patch) or a
+		# restart still loads every body into memory. A key storages/nuts cannot
+		# read is only logged ("Impossible to parse the configuration for the Nuts
+		# provider") and the defaults are used, so check the log after a change.
+		# One entry must fit a segment (default SegmentSize 256 MiB; the largest
+		# artifact, a dart-sdk zip, is 218 MB); never lower it on an existing cache.
 		nuts {
-			path /var/cache/caddy/cdn
+			configuration {
+				Dir /var/cache/caddy/cdn
+				EntryIdxMode HintKeyAndRAMIdxMode
+				RWMode FileIO
+			}
 		}
 		# Successful artifact responses are immutable. Handlers below override
 		# Cache-Control on 404 so unpublished paths only stick for one minute.
