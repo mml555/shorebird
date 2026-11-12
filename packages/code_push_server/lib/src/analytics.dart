@@ -91,6 +91,22 @@ class Analytics {
     }
   }
 
+  /// The current window `[start, end)` in epoch seconds. With neither [start]
+  /// nor [end] it is the trailing [windowDays] ending now. An explicit bound
+  /// wins; a missing [end] is now and a missing [start] is [windowDays] before
+  /// the end. The previous comparison window has the same length and ends where
+  /// this one starts.
+  static (int, int) _window(int windowDays, DateTime? start, DateTime? end) {
+    final now = _nowEpoch();
+    final endEpoch = end == null
+        ? now
+        : end.toUtc().millisecondsSinceEpoch ~/ 1000;
+    final startEpoch = start == null
+        ? endEpoch - windowDays * 86400
+        : start.toUtc().millisecondsSinceEpoch ~/ 1000;
+    return (startEpoch, endEpoch);
+  }
+
   static String _nowIso() => DateTime.now().toUtc().toIso8601String();
 
   static int _nowEpoch() =>
@@ -290,13 +306,13 @@ class Analytics {
     int windowDays = 30,
     String? granularity,
     String? groupBy,
+    DateTime? start,
+    DateTime? end,
   }) async {
     final unit = _bucketUnit(granularity);
     final asOf = _nowIso();
-    final now = _nowEpoch();
-    final windowSecs = windowDays * 86400;
-    final curStart = now - windowSecs;
-    final curEnd = now;
+    final (curStart, curEnd) = _window(windowDays, start, end);
+    final windowSecs = curEnd - curStart;
     final prevStart = curStart - windowSecs;
     final prevEnd = curStart;
     final floor = await _floorEpoch(appId);
@@ -715,13 +731,14 @@ class Analytics {
     String? groupBy,
     String? releaseVersion,
     int? patchNumber,
+    DateTime? start,
+    DateTime? end,
   }) async {
     final unit = _bucketUnit(granularity);
     final type = metric == 'downloads' ? _downloadType : _installType;
     final asOf = _nowIso();
-    final now = _nowEpoch();
-    final windowSecs = windowDays * 86400;
-    final curStart = now - windowSecs;
+    final (curStart, curEnd) = _window(windowDays, start, end);
+    final windowSecs = curEnd - curStart;
     final prevStart = curStart - windowSecs;
     final floor = await _floorEpoch(appId);
 
@@ -734,7 +751,7 @@ class Analytics {
       appId,
       type,
       curStart,
-      now,
+      curEnd,
       unit,
       scope.toString(),
       releaseVersion,

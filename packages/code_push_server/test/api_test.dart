@@ -2742,6 +2742,417 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  group('plan and CLI metrics routes', () {
+    // WAS: `shorebird whoami` also calls GET /plan, which 404ed, so whoami
+    // failed with "Failed to fetch account." on every self-hosted install.
+    // `shorebird metrics *` calls apps/{app}/metrics/{name}, which only
+    // existed as apps/{app}/analytics/{name}.
+    Future<void> seedEvents(String appId) async {
+      final now = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+      var n = 0;
+      for (final (client, type, version, platform) in [
+        ('c1', '__patch_download__', '1.0.0', 'android'),
+        ('c1', '__patch_install__', '1.0.0', 'android'),
+        ('c2', '__patch_install__', '1.0.0', 'android'),
+        ('c3', '__patch_install__', '2.0.0', 'android'),
+        ('c4', '__patch_install__', '1.0.0', 'ios'),
+      ]) {
+        await repo.insertEvent(
+          raw: '{}',
+          dedupeKey: 'k${n++}',
+          appId: appId,
+          clientId: client,
+          type: type,
+          patchNumber: 1,
+          platform: platform,
+          releaseVersion: version,
+          ts: now - 3600,
+        );
+      }
+    }
+
+    Future<Map<String, dynamic>> getJson(String path) async {
+      final r = await send('GET', path, bearer: _bootstrapKey);
+      expect(r.statusCode, HttpStatus.ok, reason: path);
+      return jsonOf(r);
+    }
+
+    // Keys the client's response models read unconditionally (checkedKey
+    // keys must be present even when null). This package cannot depend on
+    // the protocol package, so the keys are asserted instead.
+    void expectKeys(Map<String, dynamic> body, List<String> keys) {
+      for (final k in keys) {
+        expect(body.containsKey(k), isTrue, reason: 'missing "$k" in $body');
+      }
+    }
+
+    test('GET /plan reports a level and needs authentication', () async {
+      final ok = await jsonOf(
+        await send('GET', '/api/v1/plan', bearer: _bootstrapKey),
+      );
+      expect(ok['level'], 'self_hosted');
+
+      final anon = await send('GET', '/api/v1/plan');
+      expect(anon.statusCode, isNot(HttpStatus.ok));
+      final bad = await send('GET', '/api/v1/plan', bearer: 'sb_api_nope');
+      expect(bad.statusCode, HttpStatus.forbidden);
+    });
+
+    test('patch-installs and patch-downloads', () async {
+      final app = await seedApp();
+      await seedEvents(app.appId);
+      for (final (name, count) in [
+        ('patch-installs', 4),
+        ('patch-downloads', 1),
+      ]) {
+        final body = await getJson(
+          '/api/v1/apps/${app.appId}/metrics/$name'
+          '?granularity=day&group_by=release',
+        );
+        expectKeys(body, ['as_of', 'granularity', 'current', 'previous']);
+        final cur = body['current'] as Map<String, dynamic>;
+        expect(cur['count'], count);
+        expectKeys(cur['range'] as Map<String, dynamic>, ['start', 'end']);
+        expect(cur['time_series'], isA<List<Object?>>());
+        expect(cur['breakdown'], isA<List<Object?>>());
+      }
+    });
+
+    test('start and end bound the window', () async {
+      final app = await seedApp();
+      await seedEvents(app.appId);
+      final now = DateTime.now().toUtc();
+      String iso(DateTime d) => Uri.encodeQueryComponent(d.toIso8601String());
+      final inWindow = await getJson(
+        '/api/v1/apps/${app.appId}/metrics/patch-installs'
+        '?start=${iso(now.subtract(const Duration(days: 2)))}&end=${iso(now)}',
+      );
+      expect((inWindow['current'] as Map)['count'], 4);
+      final before = await getJson(
+        '/api/v1/apps/${app.appId}/metrics/patch-installs'
+        '?start=${iso(now.subtract(const Duration(days: 9)))}'
+        '&end=${iso(now.subtract(const Duration(days: 5)))}',
+      );
+      expect((before['current'] as Map)['count'], 0);
+      final r = await send(
+        'GET',
+        '/api/v1/apps/${app.appId}/metrics/patch-installs'
+            '?start=${iso(now)}&end=${iso(now.subtract(const Duration(days: 1)))}',
+        bearer: _bootstrapKey,
+      );
+      expect(r.statusCode, HttpStatus.badRequest);
+    });
+
+    test('unique-users', () async {
+      final app = await seedApp();
+      await seedEvents(app.appId);
+      final body = await getJson(
+        '/api/v1/apps/${app.appId}/metrics/unique-users?group_by=platform',
+      );
+      expectKeys(body, ['as_of', 'granularity', 'current', 'previous']);
+      final cur = body['current'] as Map<String, dynamic>;
+      expect(cur['unique_users'], 4);
+      expect(cur['breakdown'], isA<List<Object?>>());
+    });
+
+    test('version-distribution', () async {
+      final app = await seedApp();
+      await seedEvents(app.appId);
+      final body = await getJson(
+        '/api/v1/apps/${app.appId}/metrics/version-distribution',
+      );
+      expectKeys(body, [
+        'entries',
+        'total_devices',
+        'active_window_days',
+        'as_of',
+      ]);
+      expect(body['total_devices'], 4);
+    });
+
+    test('new-devices', () async {
+      final app = await seedApp();
+      await seedEvents(app.appId);
+      final body = await getJson(
+        '/api/v1/apps/${app.appId}/metrics/new-devices',
+      );
+      expectKeys(body, ['current', 'previous', 'window_days', 'as_of']);
+      expect(body['current'], 4);
+    });
+
+    test('patch-adoption', () async {
+      final app = await seedApp();
+      await seedEvents(app.appId);
+      final body = await getJson(
+        '/api/v1/apps/${app.appId}/metrics/patch-adoption'
+        '?release_version=1.0.0',
+      );
+      expectKeys(body, [
+        'release_version',
+        'is_latest',
+        'granularity',
+        'range',
+        'as_of',
+        'patches',
+      ]);
+      expect(body['release_version'], '1.0.0');
+    });
+
+    test('active-hours', () async {
+      final app = await seedApp();
+      final body = await getJson(
+        '/api/v1/apps/${app.appId}/metrics/active-hours',
+      );
+      expectKeys(body, [
+        'hourly',
+        'recommended_window_start_utc',
+        'recommended_window_length_hours',
+        'busiest_hour_utc',
+        'lookback_days',
+        'as_of',
+      ]);
+      expect(body['hourly'], hasLength(24));
+    });
+
+    test('activity-heatmap', () async {
+      final app = await seedApp();
+      final body = await getJson(
+        '/api/v1/apps/${app.appId}/metrics/activity-heatmap',
+      );
+      expectKeys(body, [
+        'cells',
+        'busiest_day_of_week_utc',
+        'busiest_hour_utc',
+        'lookback_days',
+        'as_of',
+      ]);
+      expect(body['cells'], hasLength(168));
+    });
+
+    test('an unknown metric is a 404', () async {
+      final app = await seedApp();
+      final r = await send(
+        'GET',
+        '/api/v1/apps/${app.appId}/metrics/nope',
+        bearer: _bootstrapKey,
+      );
+      expect(r.statusCode, HttpStatus.notFound);
+    });
+
+    test('analytics/{name} still works for the console', () async {
+      final app = await seedApp();
+      await seedEvents(app.appId);
+      final body = await getJson(
+        '/api/v1/apps/${app.appId}/analytics/patch-installs',
+      );
+      expect((body['current'] as Map)['count'], 4);
+    });
+
+    test('release-scoped patch installs and downloads', () async {
+      final app = await seedApp(); // release 1.0.0
+      await seedEvents(app.appId);
+      for (final (name, count) in [
+        ('patch-installs', 3),
+        ('patch-downloads', 1),
+      ]) {
+        final body = await getJson(
+          '/api/v1/apps/${app.appId}/releases/${app.releaseId}/metrics/$name'
+          '?group_by=patch',
+        );
+        expectKeys(body, ['as_of', 'granularity', 'current', 'previous']);
+        final cur = body['current'] as Map<String, dynamic>;
+        // iOS and Android events merge under one version; 2.0.0 is not counted.
+        expect(cur['count'], count);
+        expect(cur['breakdown'], isA<List<Object?>>());
+      }
+    });
+
+    test(
+      'start alone runs to now, end alone covers the 28 days before it',
+      () async {
+        final app = await seedApp();
+        await seedEvents(app.appId);
+        final now = DateTime.now().toUtc();
+        String iso(DateTime d) => Uri.encodeQueryComponent(d.toIso8601String());
+        final startOnly = await getJson(
+          '/api/v1/apps/${app.appId}/metrics/patch-installs'
+          '?start=${iso(now.subtract(const Duration(days: 2)))}',
+        );
+        expect((startOnly['current'] as Map)['count'], 4);
+        final endOnly = await getJson(
+          '/api/v1/apps/${app.appId}/metrics/patch-installs'
+          '?end=${iso(now.add(const Duration(hours: 1)))}',
+        );
+        final range = (endOnly['current'] as Map)['range'] as Map;
+        final span = DateTime.parse(
+          range['end'] as String,
+        ).difference(DateTime.parse(range['start'] as String));
+        expect(span, const Duration(days: 28));
+        expect((endOnly['current'] as Map)['count'], 4);
+      },
+    );
+
+    test(
+      'previous is the same length just before, null before the data',
+      () async {
+        final app = await seedApp();
+        await seedEvents(app.appId);
+        final now = DateTime.now().toUtc();
+        String iso(DateTime d) => Uri.encodeQueryComponent(d.toIso8601String());
+        // The events are an hour old, so a window from 2 days ago starts after
+        // the data floor only if the previous window does too.
+        final none = await getJson(
+          '/api/v1/apps/${app.appId}/metrics/patch-installs'
+          '?start=${iso(now.subtract(const Duration(days: 2)))}',
+        );
+        expect(none['previous'], isNull);
+        expect(none.containsKey('previous'), isTrue);
+        // A 10 minute window: the previous one (10 minutes before it) is after
+        // the data floor (events are an hour old), so it is present, empty and
+        // as long as the current one.
+        final recent = await getJson(
+          '/api/v1/apps/${app.appId}/metrics/patch-installs'
+          '?start=${iso(now.subtract(const Duration(minutes: 10)))}',
+        );
+        final cur = recent['current'] as Map;
+        final prev = recent['previous'] as Map;
+        expect(cur['count'], 0);
+        expect(prev['count'], 0);
+        Duration len(Map w) => DateTime.parse(
+          (w['range'] as Map)['end'] as String,
+        ).difference(DateTime.parse((w['range'] as Map)['start'] as String));
+        expect(len(prev), len(cur));
+        expect((prev['range'] as Map)['end'], (cur['range'] as Map)['start']);
+      },
+    );
+
+    test(
+      'a future start, or a window that is not positive, is a 400',
+      () async {
+        final app = await seedApp();
+        final now = DateTime.now().toUtc();
+        String iso(DateTime d) => Uri.encodeQueryComponent(d.toIso8601String());
+        for (final q in [
+          'start=${iso(now.add(const Duration(days: 1)))}',
+          'end=${iso(now.subtract(const Duration(days: 40)))}'
+              '&start=${iso(now.subtract(const Duration(days: 40)))}',
+        ]) {
+          final r = await send(
+            'GET',
+            '/api/v1/apps/${app.appId}/metrics/unique-users?$q',
+            bearer: _bootstrapKey,
+          );
+          expect(r.statusCode, HttpStatus.badRequest, reason: q);
+        }
+      },
+    );
+
+    test('a timestamp with no offset is UTC; an offset is honored', () async {
+      final app = await seedApp();
+      final now = DateTime.now().toUtc();
+      String naive(DateTime d) =>
+          d.toIso8601String().replaceFirst(RegExp(r'Z$'), '');
+      Future<DateTime> rangeStart(String start) async {
+        final body = await getJson(
+          '/api/v1/apps/${app.appId}/metrics/patch-installs'
+          '?start=${Uri.encodeQueryComponent(start)}',
+        );
+        final range = (body['current'] as Map)['range'] as Map;
+        return DateTime.parse(range['start'] as String);
+      }
+
+      final from = now.subtract(const Duration(days: 3));
+      final got = await rangeStart(naive(from));
+      expect(got.difference(from).abs(), lessThan(const Duration(seconds: 1)));
+      // The same instant written at +05:00.
+      final plus5 = from.add(const Duration(hours: 5));
+      final offset = '${naive(plus5)}+05:00';
+      final got5 = await rangeStart(offset);
+      expect(got5.difference(from).abs(), lessThan(const Duration(seconds: 1)));
+    });
+
+    test('the span and window_days are capped at 366 days', () async {
+      final app = await seedApp();
+      final now = DateTime.now().toUtc();
+      String iso(DateTime d) => Uri.encodeQueryComponent(d.toIso8601String());
+      for (final q in [
+        'start=${iso(now.subtract(const Duration(days: 400)))}',
+        'window_days=367',
+        'window_days=99999999999',
+        'window_days=0',
+        'window_days=abc',
+      ]) {
+        final r = await send(
+          'GET',
+          '/api/v1/apps/${app.appId}/metrics/patch-downloads?$q',
+          bearer: _bootstrapKey,
+        );
+        expect(r.statusCode, HttpStatus.badRequest, reason: q);
+      }
+      final ok = await send(
+        'GET',
+        '/api/v1/apps/${app.appId}/metrics/patch-downloads?window_days=366',
+        bearer: _bootstrapKey,
+      );
+      expect(ok.statusCode, HttpStatus.ok);
+    });
+
+    test('the console analytics routes stay lenient', () async {
+      final app = await seedApp();
+      await seedEvents(app.appId);
+      // unique-users and patch-installs ignored start/end here before, and
+      // still do (a malformed or inverted window is not an error).
+      for (final name in ['unique-users', 'patch-installs']) {
+        final r = await send(
+          'GET',
+          '/api/v1/apps/${app.appId}/analytics/$name'
+              '?start=oops&end=2000-01-01&window_days=99999',
+          bearer: _bootstrapKey,
+        );
+        expect(r.statusCode, HttpStatus.ok, reason: name);
+      }
+    });
+
+    test('a non-numeric release id is a 400', () async {
+      final app = await seedApp();
+      final r = await send(
+        'GET',
+        '/api/v1/apps/${app.appId}/releases/abc/metrics/patch-installs',
+        bearer: _bootstrapKey,
+      );
+      expect(r.statusCode, HttpStatus.badRequest);
+    });
+
+    test('a release of another app is a 404', () async {
+      final a = await seedApp('a');
+      final b = await seedApp('b');
+      final r = await send(
+        'GET',
+        '/api/v1/apps/${a.appId}/releases/${b.releaseId}/metrics/'
+            'patch-installs',
+        bearer: _bootstrapKey,
+      );
+      expect(r.statusCode, HttpStatus.notFound);
+    });
+
+    test('an unauthenticated caller or another tenant is refused', () async {
+      final app = await seedApp();
+      final other = await otherTenant();
+      for (final path in [
+        '/api/v1/apps/${app.appId}/metrics/patch-installs',
+        '/api/v1/apps/${app.appId}/metrics/unique-users',
+        '/api/v1/apps/${app.appId}/releases/${app.releaseId}/metrics/'
+            'patch-installs',
+      ]) {
+        final anon = await send('GET', path);
+        expect(anon.statusCode, isNot(HttpStatus.ok), reason: path);
+        final r = await send('GET', path, bearer: other.key);
+        expect(r.statusCode, HttpStatus.forbidden, reason: path);
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
   group('analytics date parameters', () {
     // WAS: `DateTime.parse` on `start`/`end` threw a FormatException that
     // escaped the handler as a 500 plus a logged stack trace — a

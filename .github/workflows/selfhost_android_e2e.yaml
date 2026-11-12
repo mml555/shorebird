@@ -20,7 +20,10 @@ on:
         options: [quick, full]
         default: full
   schedule:
+    # Nightly: the quick path. Sundays: the full scenarios (about 25 minutes of
+    # one of the three shared phones, so weekly, not nightly).
     - cron: "30 3 * * *"
+    - cron: "30 4 * * 0"
   pull_request:
     paths:
       - .github/workflows/selfhost_android_e2e.yaml
@@ -36,10 +39,11 @@ jobs:
     # repository's own code.
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: [self-hosted, linux, x64, shorebird]
-    # The quick run takes minutes; the full scenarios (the nightly run and the
-    # default of a manual one) build five releases and patches. Pull requests run
-    # the quick path.
-    timeout-minutes: ${{ (github.event_name == 'pull_request' || inputs.scenarios == 'quick') && 45 || 60 }}
+    # The quick path takes minutes. The full scenarios (the weekly run, and a
+    # manual run that asks for them, the default of the dispatch form) build three
+    # releases and five patches, about 25 minutes with a warm Gradle cache. Pull
+    # requests and the nightly run take the quick path.
+    timeout-minutes: ${{ (inputs.scenarios == 'full' || github.event.schedule == '30 4 * * 0') && 60 || 45 }}
 
     steps:
       - name: 📚 Git Checkout
@@ -50,20 +54,29 @@ jobs:
       - name: 📱 Release and patch on a pool phone
         env:
           E2E_POOL_OWNER: shorebird-e2e-${{ github.run_id }}-${{ github.run_attempt }}
-          E2E_SCENARIOS: ${{ (github.event_name == 'pull_request' || inputs.scenarios == 'quick') && 'quick' || 'full' }}
+          E2E_SCENARIOS: ${{ (inputs.scenarios == 'full' || github.event.schedule == '30 4 * * 0') && 'full' || 'quick' }}
         # The pinned Flutter 5b180d22 (engine cell f85251f3) ships no Linux Dart
         # SDK, so the CLI can't start on a Linux runner. While that is the pin,
         # test the Flutter 3.47 candidate (engine 7806e0fb, device-tested on
         # 2026-11-11), which the mirror serves for Linux. Any other pin is
         # tested as is, so this lapses by itself when the pin moves.
+        #
         # Every job starts with an empty home, so Gradle would fetch all its
         # dependencies through the proxy again (25 minutes on 2026-11-12).
         # ci-build keeps oem's Gradle cache, filled by the same build; Gradle
-        # reads it as a read-only dependency cache and never writes to it, so
-        # a job can't change what the next one reads.
+        # reads it as a read-only dependency cache and never writes to it. The
+        # runner users aren't in group oem, so a job's build code can't plant
+        # jars there either; a cache the job could write is refused.
         run: |
           ro=/srv/ci-cache/home-cache/oem/.gradle/caches
-          [[ -r $ro/modules-2 ]] && export GRADLE_RO_DEP_CACHE=$ro
+          if [[ -w $ro/modules-2 || -w $ro/modules-2/files-2.1 ]]; then
+            echo "::warning::$ro is writable by this job; not using it as a shared cache"
+          elif [[ -r $ro/modules-2 && -x $ro/modules-2 ]]; then
+            export GRADLE_RO_DEP_CACHE=$ro
+            echo "read-only Gradle cache: $ro"
+          else
+            echo "::warning::no read-only Gradle cache at $ro; Gradle fetches everything through the proxy"
+          fi
           if [[ $(cat bin/internal/flutter.version) == 5b180d224df04a267a19888c3f344474e243b382 ]]; then
             export E2E_FLUTTER_REVISION=9056dae9e28761f7508191146ae2469ba014be08
             echo "::warning::main pins Flutter 5b180d22, which has no Linux Dart SDK; testing the 3.47 candidate 9056dae9 instead"

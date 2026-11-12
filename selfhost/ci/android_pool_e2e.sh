@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words Dhttp Dhttps getprop getsockname nullglob genrsa pubout pidof
+# cspell:words Dhttp Dhttps getprop getsockname nullglob genrsa pubout pidof setsid
 # Releases and patches an Android app with this checkout's CLI, against a
 # throwaway self-hosted code_push_server, on a phone from ci-build's device pool
 # (qa-pool), and checks that the phone runs the patch.
@@ -28,7 +28,8 @@
 #                               a server outage, each asserted from the device
 #                               log, the server API or the CLI's exit code.
 #
-# Needs adb, java, curl, python3, openssl and timeout on PATH. Exits non-zero,
+# Needs java, curl, python3, openssl and timeout on PATH, and adb in
+# $ANDROID_HOME/platform-tools. Exits non-zero,
 # with the server log, the device log and the pool's lease, on any failure.
 set -euo pipefail
 
@@ -45,7 +46,7 @@ if [[ -n ${E2E_WORK:-} ]]; then
 else
   WORK=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/sb-e2e.XXXXXX")
 fi
-# qa-pool's ttl and wait are minutes. The phone is needed for about ten. The
+# qa-pool's ttl and wait are minutes. The phone is held for the install, the patches and the launches. The
 # checkout asks for a short lease, renewed as soon as the phone is in hand, so a
 # checkout a cancelled job leaves behind holds a phone for minutes, not half an
 # hour.
@@ -54,6 +55,8 @@ LEASE_TTL=30
 PKG=dev.selfhost.e2e.app
 API_KEY=sb_api_e2e_$(openssl rand -hex 16)
 [[ -n ${GITHUB_ACTIONS:-} ]] && echo "::add-mask::$API_KEY"
+URL_SECRET=$(openssl rand -hex 32)
+[[ -n ${GITHUB_ACTIONS:-} ]] && echo "::add-mask::$URL_SECRET"
 SERIAL=
 ARCH=
 DEVICE=
@@ -61,6 +64,22 @@ SERVER_PID=
 ADB_STARTED=
 
 log() { printf '\n=== %s\n' "$*"; }
+
+# Stops the server and the VM it may have spawned: it runs in its own process
+# group (setsid), so the group gets the signal and no child is left behind.
+stop_server() {
+  [[ -n $SERVER_PID ]] || return 0
+  local i
+  kill -TERM -- "-$SERVER_PID" 2>/dev/null
+  for i in $(seq 20); do
+    kill -0 -- "-$SERVER_PID" 2>/dev/null || break
+    sleep 0.5
+    ((i == 20)) && kill -KILL -- "-$SERVER_PID" 2>/dev/null
+  done
+  wait "$SERVER_PID" 2>/dev/null
+  SERVER_PID=
+  return 0
+}
 
 cleanup() {
   local status=$?
@@ -95,7 +114,8 @@ cleanup() {
       echo
     fi
   fi
-  [[ -n $SERVER_PID ]] && kill "$SERVER_PID" 2>/dev/null
+  stop_server
+  rm -rf "$WORK/keys"
   # Only the job's own adb server, never the default one on 5037.
   [[ -n $ADB_STARTED ]] && timeout 15 adb kill-server >/dev/null 2>&1
   exit "$status"
@@ -133,6 +153,8 @@ wait_log() {
 LAUNCHED_AT=
 launch() {
   timeout 30 adb -s "$SERIAL" shell am force-stop "$PKG"
+  # An empty buffer, so no line of the previous launch can be read as this one's.
+  timeout 30 adb -s "$SERIAL" logcat -c || true
   LAUNCHED_AT=$(timeout 30 adb -s "$SERIAL" shell date +%s)
   LAUNCHED_AT=${LAUNCHED_AT//$'\r'/}
   [[ $LAUNCHED_AT =~ ^[0-9]+$ ]] || { echo "bad device time '$LAUNCHED_AT'" >&2; return 1; }
@@ -153,20 +175,19 @@ boot() {
   wait_log 'Update thread finished with status' "$LAUNCHED_AT" 120
   BOOT_LOG=$(timeout 30 adb -s "$SERIAL" logcat -d -T "$LAUNCHED_AT.000" 2>/dev/null) || true
 }
-# What the launch's log must, or must not, hold.
+# What the launch's log must hold (waited for, as the launch path and the update
+# thread log on their own schedules) or must not hold (read after the update
+# thread finished).
 has() {
-  grep -qE "$1" <<<"$BOOT_LOG" && { echo "ok: log has '$1'"; return 0; }
-  echo "FAIL: no line matching '$1' in this launch's log" >&2
-  grep -E 'flutter|shorebird' <<<"$BOOT_LOG" | tail -40 >&2
-  return 1
+  wait_log "$1" "$LAUNCHED_AT" 30
 }
 lacks() {
+  BOOT_LOG=$(timeout 30 adb -s "$SERIAL" logcat -d -T "$LAUNCHED_AT.000" 2>/dev/null) || true
   grep -qE "$1" <<<"$BOOT_LOG" || { echo "ok: log has no '$1'"; return 0; }
   echo "FAIL: found a line matching '$1' in this launch's log" >&2
   grep -E "$1" <<<"$BOOT_LOG" | tail -10 >&2
   return 1
 }
-# The next launch boots what the last one downloaded.
 expect_equal() {
   [[ $1 == "$2" ]] && { echo "ok: $3: $1"; return 0; }
   echo "FAIL: $3: got '$1', want '$2'" >&2
@@ -190,15 +211,19 @@ server_patches() {
   api "$BASE/api/v1/apps/$app_id/releases/$rid/patches" |
     python3 -c 'import json,sys; print(" ".join(str(p["number"]) for p in sorted(json.load(sys.stdin)["patches"], key=lambda p: p["number"])))'
 }
-# Runs a CLI command that must fail; its output goes to OUT, its exit code to RC.
+# Runs a CLI command that must exit with code $1 and print $2 (a fixed string);
+# its output goes to OUT. Any other failure (a typo, a crash) does not pass.
 OUT=
 RC=0
 must_fail() {
+  local want_rc=$1 want_text=$2
+  shift 2
   RC=0
   OUT=$("$@" 2>&1) || RC=$?
   printf '%s\n' "$OUT" | tail -15
-  ((RC != 0)) || { echo "FAIL: '$*' exited 0" >&2; return 1; }
-  echo "ok: exit $RC"
+  [[ $RC == "$want_rc" ]] || { echo "FAIL: '$*' exited $RC, want $want_rc" >&2; return 1; }
+  grep -qF -- "$want_text" <<<"$OUT" || { echo "FAIL: no '$want_text' in the output of '$*'" >&2; return 1; }
+  echo "ok: exit $RC with '$want_text'"
 }
 # The app's Dart source: a line to print and, when $2 is given, a class and a
 # function with real logic behind it.
@@ -252,7 +277,7 @@ if [[ ! -w ${ANDROID_HOME:?set ANDROID_HOME to the Android SDK} ]]; then
 fi
 # The runner sets ANDROID_HOME but doesn't put adb on PATH.
 export PATH=$ANDROID_HOME/platform-tools:$PATH
-command -v adb >/dev/null || { echo "no adb in $ANDROID_HOME/platform-tools" >&2; exit 1; }
+command -v adb >/dev/null || { echo "adb not found in $ANDROID_HOME/platform-tools" >&2; exit 1; }
 
 log "CLI and its Flutter"
 if [[ -n ${E2E_FLUTTER_REVISION:-} ]]; then
@@ -270,7 +295,6 @@ DART=$FLUTTER_DIR/bin/cache/dart-sdk/bin/dart
 
 log "throwaway code_push_server"
 (cd "$ROOT/packages/code_push_server" && "$DART" pub get >/dev/null)
-URL_SECRET=$(openssl rand -hex 32)
 PORT=
 # Starts the server and waits for it. Without a port it picks one; a port picked
 # here can be taken by another job before the server binds it, so a server that
@@ -281,20 +305,17 @@ start_server() {
   for attempt in 1 2 3; do
     [[ -n $keep ]] || PORT=$(free_port)
     BASE=http://127.0.0.1:$PORT
-    (
-      cd "$ROOT/packages/code_push_server"
-      API_KEY=$API_KEY URL_SIGNING_SECRET=$URL_SECRET PORT=$PORT PUBLIC_BASE_URL=$BASE \
-        DATA_DIR=$WORK/server-data \
-        exec "$DART" run bin/server.dart
-    ) >>"$WORK/server.log" 2>&1 &
+    API_KEY=$API_KEY URL_SIGNING_SECRET=$URL_SECRET PORT=$PORT PUBLIC_BASE_URL=$BASE \
+      DATA_DIR=$WORK/server-data \
+      setsid bash -c 'cd "$1" && exec "$2" run bin/server.dart' _ \
+      "$ROOT/packages/code_push_server" "$DART" >>"$WORK/server.log" 2>&1 &
     SERVER_PID=$!
     for _ in $(seq 60); do
       curl -fsS --max-time 5 "$BASE/readyz" >/dev/null 2>&1 && return 0
       kill -0 "$SERVER_PID" 2>/dev/null || break
       sleep 2
     done
-    kill "$SERVER_PID" 2>/dev/null || true
-    SERVER_PID=
+    stop_server
     echo "the server did not come up on $PORT (attempt $attempt):" >&2
     tail -5 "$WORK/server.log" >&2
   done
@@ -320,8 +341,9 @@ app_json=$(curl -fsS --max-time 30 -X POST "$BASE/api/v1/apps" -H @- \
 app_id=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' <<<"$app_json")
 printf 'app_id: %s\nbase_url: %s\n' "$app_id" "$BASE" >"$APP/shorebird.yaml"
 python3 -I "$ROOT/selfhost/scripts/lib/add_shorebird_asset.py" "$APP/pubspec.yaml"
-# Gradle and Kotlin in the build's own process: no daemon outlives the job, and
-# none left by an earlier build (with another SDK path) serves this one. Set in
+# Gradle and Kotlin without long-lived daemons: Gradle's single-use daemon ends
+# with each build, and none left by an earlier build (with another SDK path)
+# serves this one. Set in
 # the job's own Gradle user home, so it also covers Flutter's Gradle plugin,
 # an included build that ignores the app's gradle.properties. A Kotlin daemon
 # listens on 17001-18000, which ci-build's runner rules don't let a job reach on
@@ -360,8 +382,7 @@ if [[ $SCENARIOS == full ]]; then
   perl -0pi -e 's/class MainActivity *: *FlutterActivity\(\)/class MainActivity : FlutterActivity() {\n    override fun onCreate(savedInstanceState: android.os.Bundle?) {\n        android.util.Log.i("SB-E2E-NATIVE", "native change")\n        super.onCreate(savedInstanceState)\n    }\n}/' "$KT"
   grep -q SB-E2E-NATIVE "$KT"
   before=$(server_patches "$VERSION")
-  must_fail "$SB" patch android --release-version "$VERSION" --no-confirm
-  grep -q 'Not publishing' <<<"$OUT" || { echo "FAIL: no 'Not publishing' message" >&2; exit 1; }
+  must_fail 70 'Not publishing: native code changed' "$SB" patch android --release-version "$VERSION" --no-confirm
   after=$(server_patches "$VERSION")
   expect_equal "$after" "$before" "the server's patches for $VERSION after the refused native patch"
   cp "$WORK/MainActivity.kt.orig" "$KT"
@@ -376,7 +397,7 @@ if [[ $SCENARIOS == full ]]; then
   done
   write_main SB-E2E-S1 10
   release_apk 0.3.0+3 v3 --public-key-path "$WORK/keys/good.pub.pem"
-  grep -rq . "$WORK/keys/good.pub.pem"
+  [[ -s $WORK/keys/good.pub.pem ]]
 fi
 
 log "phone from the pool (owner $OWNER)"
@@ -385,7 +406,7 @@ log "phone from the pool (owner $OWNER)"
 # orphaned checkout, and the release in cleanup (by owner) frees any lease that
 # did land.
 # Gives up after 15 minutes (a try started then can run 5 more), inside the
-# job's 45-minute timeout.
+# job's timeout.
 lease=
 deadline=$((SECONDS + 15 * 60))
 while ((SECONDS < deadline)); do
@@ -441,6 +462,7 @@ launch
 wait_log 'I flutter : SB-E2E-V1' "$LAUNCHED_AT" 60
 
 log "patch 1"
+perl -pi -e "s/^version: .*/version: $VERSION/" pubspec.yaml
 if [[ $SCENARIOS == full ]]; then
   # A new class and function and different logic, not just another string.
   write_main SB-E2E-V2 10
@@ -464,12 +486,13 @@ log "PASS (quick): the phone ran the release, downloaded patch 1 and booted it"
 
 # ---- E2E_SCENARIOS=full ----
 sb_patch() { # $1 release version, then the patch command's own flags
-  renew
-  local v=$1
+  local v=$1 rc=0
   shift
-  local rc=0
+  renew || { echo "could not renew the phone's lease" >&2; return 1; }
+  # The version the patch is for, in the pubspec too, as a user's would be.
+  perl -pi -e "s/^version: .*/version: $v/" "$APP/pubspec.yaml"
   "$SB" patch android --release-version "$v" --no-confirm "$@" || rc=$?
-  renew
+  renew || { echo "could not renew the phone's lease" >&2; return 1; }
   return "$rc"
 }
 PASSED=()
@@ -492,29 +515,60 @@ has 'Launch success for patch 2:'
 expect_equal "$(server_patches "$V1_VERSION")" "1 2" "patches on $V1_VERSION"
 pass "patch 2 runs: V3, after V2"
 
-log "scenario 4: roll back patch 2"
+# ROLLBACK_NEWEST_RESTORES_PREVIOUS is the one switch for what rolling back the
+# newest patch does. 0 is what the server does today, and it contradicts the
+# CLI's own help ("revert to the prior patch", rollback_command.dart:7): publishing
+# patch 2 supersedes patch 1 on the server (promote() in repository.dart), and
+# the device deletes patch 1 when patch 2 boots (cleanup_older_than), so with
+# patch 2 rolled back nothing is left and the device runs the base release.
+# The server change that makes a rollback restore the previous patch flips this
+# to 1 in the same PR; until then a run that sees patch 1 again is a failure
+# here on purpose.
+ROLLBACK_NEWEST_RESTORES_PREVIOUS=0
+
+log "scenario 4: roll back patch 2 (observed today: lands on the base release; see ROLLBACK_NEWEST_RESTORES_PREVIOUS)"
 # From the updater: the patch check lists rolled_back_patch_numbers, the updater
-# uninstalls those patches (roll_back_patches_if_needed) but the running process
+# uninstalls those patches (roll_back_patches_if_needed), but the running process
 # keeps its patch (running_patch), so the launch that learns of the rollback
-# still prints V3 and the next boots without it. The server supersedes patch 1
-# when patch 2 is promoted, and the device deleted patch 1 when patch 2 booted
-# (cleanup_older_than), so with patch 2 gone nothing is left: the base release.
+# still prints V3 and the next one boots without it.
 renew
 "$SB" patches rollback --release-version "$V1_VERSION" --patch-number 2
-expect_equal "$(patch_check "$V1_VERSION" 2)" "none [2]" "the server's patch check for a device on patch 2"
+if ((ROLLBACK_NEWEST_RESTORES_PREVIOUS)); then
+  expect_equal "$(patch_check "$V1_VERSION" 0)" "1 [2]" "the server offers patch 1 again to a device with no patch"
+else
+  expect_equal "$(patch_check "$V1_VERSION" 2)" "none [2]" "the server's patch check for a device on patch 2"
+fi
 boot 'I flutter : SB-E2E-V3:g-144'
 has 'rolled_back_patch_numbers: Some\(\[2'
-boot 'I flutter : SB-E2E-V1'
-has 'Shorebird updater: no active patch'
-lacks 'SB-E2E-V[23]'
-pass "patch 2 rolled back: the device is on the base release, V1"
+if ((ROLLBACK_NEWEST_RESTORES_PREVIOUS)); then
+  # The launch after the rollback boots the base release or has patch 1 in
+  # hand; either way the one after that runs patch 1.
+  boot 'I flutter : SB-E2E-V[12]'
+  boot 'I flutter : SB-E2E-V2:g-55'
+  has 'Launch success for patch 1:'
+  pass "patch 2 rolled back: the device is back on patch 1, V2"
+else
+  boot 'I flutter : SB-E2E-V1'
+  has 'Shorebird updater: no active patch'
+  lacks 'SB-E2E-V[23]'
+  pass "OBSERVED (contradicts the CLI help): patch 2 rolled back lands on the base release V1, not on patch 1"
+fi
 
-log "scenario 4b: rolling back patch 1 (superseded by patch 2, so not live)"
-must_fail "$SB" patches rollback --release-version "$V1_VERSION" --patch-number 1
-expect_equal "$(server_patches "$V1_VERSION")" "1 2" "patches on $V1_VERSION"
-boot 'I flutter : SB-E2E-V1'
-has 'Shorebird updater: no active patch'
-pass "patch 1 cannot be rolled back once superseded; the device stays on V1"
+log "scenario 4b: rolling back patch 1, which patch 2 superseded"
+if ((ROLLBACK_NEWEST_RESTORES_PREVIOUS)); then
+  "$SB" patches rollback --release-version "$V1_VERSION" --patch-number 1
+  boot 'I flutter : SB-E2E-V[12]'
+  boot 'I flutter : SB-E2E-V1'
+  has 'Shorebird updater: no active patch'
+  pass "patch 1 rolled back: the device is on the base release, V1"
+else
+  # The server answers 409 "not active on any channel", the CLI exits 70.
+  must_fail 70 'not active on any channel' "$SB" patches rollback --release-version "$V1_VERSION" --patch-number 1
+  expect_equal "$(server_patches "$V1_VERSION")" "1 2" "patches on $V1_VERSION"
+  boot 'I flutter : SB-E2E-V1'
+  has 'Shorebird updater: no active patch'
+  pass "OBSERVED: a superseded patch cannot be rolled back (409, exit 70); the device stays on V1"
+fi
 
 log "scenario 5: version targeting"
 write_main SB-E2E-V4 14
@@ -548,64 +602,78 @@ lacks 'SB-E2E-W2'
 pass "the only patch rolled back: the device is back on W1"
 
 log "scenario 6: signing"
+# The updater verifies in boot only when the release carries a public key
+# (patch_public_key in the bundled shorebird.yaml) and the patch a signature; it
+# logs nothing when it does verify, and "No public key configured" when it skips.
+# So: the key is in the release, the signature is in what the server serves, and
+# the skip line is absent.
+bundled_yaml() { python3 -I -c 'import sys, zipfile; sys.stdout.write(zipfile.ZipFile(sys.argv[1]).read("assets/flutter_assets/shorebird.yaml").decode())' "$1"; }
+yaml3=$(bundled_yaml "$WORK/v3.apk")
+yaml1=$(bundled_yaml "$WORK/v1.apk")
+grep -q '^patch_public_key:' <<<"$yaml3" || { echo "FAIL: the 0.3.0+3 release carries no patch_public_key" >&2; exit 1; }
+echo "ok: the 0.3.0+3 release carries a patch_public_key"
+if grep -q '^patch_public_key:' <<<"$yaml1"; then
+  echo "FAIL: the unsigned 0.1.0+1 release carries a patch_public_key" >&2
+  exit 1
+fi
 install_apk v3
 boot 'I flutter : SB-E2E-S1:g-55'
 write_main SB-E2E-S2 11
 sb_patch 0.3.0+3 --public-key-path "$WORK/keys/good.pub.pem" --private-key-path "$WORK/keys/good.pem"
+sig=$(curl -fsS --max-time 15 -X POST "$BASE/api/v1/patches/check" -H 'Content-Type: application/json' \
+  -d "{\"app_id\":\"$app_id\",\"release_version\":\"0.3.0+3\",\"platform\":\"android\",\"arch\":\"$ARCH\",\"channel\":\"stable\",\"client_id\":\"e2e-probe\",\"current_patch_number\":0}" |
+  python3 -c 'import json,sys; print(len(json.load(sys.stdin)["patch"].get("hash_signature") or ""))')
+((sig > 100)) || { echo "FAIL: the server's patch carries no signature ($sig)" >&2; exit 1; }
+echo "ok: the server serves patch 1 with a signature ($sig characters)"
 boot 'I flutter : SB-E2E-S1:g-55'
 has 'Patch 1 successfully downloaded'
 boot 'I flutter : SB-E2E-S2:g-89'
 has 'Launch success for patch 1:'
 lacks 'No public key configured'
-pass "a patch signed with the release's key boots (verified, not skipped)"
+pass "a patch signed with the release's key boots with signature verification on"
 write_main SB-E2E-S3 12
-rc=0
 # The release's public key (another one would change the bundled shorebird.yaml,
 # which the CLI refuses as an asset change) and another private key's signature.
+# The CLI checks the signature against the public key before publishing, so the
+# device is never offered the patch; the updater's own rejection is not exercised.
+rc=0
 sb_patch 0.3.0+3 --public-key-path "$WORK/keys/good.pub.pem" --private-key-path "$WORK/keys/other.pem" \
   >"$WORK/other-key-patch.log" 2>&1 || rc=$?
 tail -15 "$WORK/other-key-patch.log"
-if ((rc != 0)); then
-  echo "the CLI refused the patch signed with another key (exit $rc), before publication"
-  grep -qiE 'signature|key' "$WORK/other-key-patch.log" || { echo "FAIL: refused, but not for the signature" >&2; exit 1; }
-  expect_equal "$(server_patches 0.3.0+3)" "1" "patches on 0.3.0+3"
-  boot 'I flutter : SB-E2E-S2:g-89'
-  pass "a patch signed with another key was refused before publication; the app runs S2"
-else
-  echo "the CLI and the server accepted the patch signed with another key; the device must refuse it"
-  boot 'I flutter : SB-E2E-S2:g-89'
-  first=$BOOT_LOG
-  boot 'I flutter : SB-E2E-S2:g-89'
-  BOOT_LOG=$first$'\n'$BOOT_LOG
-  has 'Patch 2 failed validation'
-  lacks 'SB-E2E-S3'
-  boot 'I flutter : SB-E2E-S2:g-89'
-  lacks 'SB-E2E-S3'
-  pass "a patch signed with another key was rejected on the device; the app keeps running S2"
-fi
+[[ $rc == 70 ]] || { echo "FAIL: the patch signed with another key exited $rc, want 70 (a refusal)" >&2; exit 1; }
+grep -qF 'Signature verification failed: the signature does not match the provided public key.' "$WORK/other-key-patch.log" ||
+  { echo "FAIL: refused, but not with the signature message" >&2; exit 1; }
+expect_equal "$(server_patches 0.3.0+3)" "1" "patches on 0.3.0+3 after the refused patch"
+boot 'I flutter : SB-E2E-S2:g-89'
+pass "a patch signed with another key was refused by the CLI before publication; the app runs S2"
 
 log "scenario 8: the server is unavailable"
 install_apk v2
 boot 'I flutter : SB-E2E-W1:g-55'
-kill "$SERVER_PID"
-pkill -P "$SERVER_PID" 2>/dev/null || true
-wait "$SERVER_PID" 2>/dev/null || true
-SERVER_PID=
-if curl -fsS --max-time 5 "$BASE/readyz" >/dev/null 2>&1; then echo "FAIL: the server still answers" >&2; exit 1; fi
-boot 'I flutter : SB-E2E-W1:g-55'
-lacks 'FATAL EXCEPTION'
-alive=$(timeout 30 adb -s "$SERIAL" shell pidof "$PKG") || true
-[[ -n ${alive//$'\r'/} ]] || { echo "FAIL: the app is not running with the server down" >&2; exit 1; }
-echo "ok: the app runs (pid ${alive//$'\r'/}) with the server down"
-grep -E 'Update (failed|thread finished)' <<<"$BOOT_LOG" | tail -3
-start_server
-curl -fsS --max-time 5 "$BASE/readyz" >/dev/null
-expect_equal "$(patch_check 0.2.0+2 0)" "none [1]" "the restarted server's patch check"
 write_main SB-E2E-W3 12
 sb_patch 0.2.0+2
 boot 'I flutter : SB-E2E-W1:g-55'
 has 'Patch 2 successfully downloaded'
 boot 'I flutter : SB-E2E-W3:g-144'
-pass "the app ran its code with the server down; the restarted server serves again (W3)"
+has 'Launch success for patch 2:'
+stop_server
+if curl -fsS --max-time 5 "$BASE/readyz" >/dev/null 2>&1; then echo "FAIL: the server still answers" >&2; exit 1; fi
+# The patched app boots its patch with the server gone, without a crash or a hang.
+boot 'I flutter : SB-E2E-W3:g-144'
+has 'Launch success for patch 2:'
+has 'Update failed: Network request failed; the server could not be reached'
+lacks 'FATAL EXCEPTION'
+alive=$(timeout 30 adb -s "$SERIAL" shell pidof "$PKG") || true
+[[ -n ${alive//$'\r'/} ]] || { echo "FAIL: the app is not running with the server down" >&2; exit 1; }
+echo "ok: the patched app runs (pid ${alive//$'\r'/}) with the server down"
+start_server
+curl -fsS --max-time 5 "$BASE/readyz" >/dev/null
+expect_equal "$(patch_check 0.2.0+2 2)" "none [1]" "the restarted server's patch check"
+write_main SB-E2E-W4 13
+sb_patch 0.2.0+2
+boot 'I flutter : SB-E2E-W3:g-144'
+has 'Patch 3 successfully downloaded'
+boot 'I flutter : SB-E2E-W4:g-233'
+pass "the patched app booted its patch with the server down; the restarted server serves again (W4)"
 
 log "PASS (full): $(printf '%s; ' "${PASSED[@]}")"
