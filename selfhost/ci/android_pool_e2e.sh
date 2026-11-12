@@ -427,7 +427,10 @@ case $ABI in
 esac
 timeout 30 adb -s "$SERIAL" reverse "tcp:$PORT" "tcp:$PORT"
 
-timeout 300 adb -s "$SERIAL" install -r build/app/outputs/flutter-apk/app-release.apk
+# In full mode the build directory holds the last release built, not 0.1.0+1.
+FIRST_APK=build/app/outputs/flutter-apk/app-release.apk
+[[ $SCENARIOS == full ]] && FIRST_APK=$WORK/v1.apk
+timeout 300 adb -s "$SERIAL" install -r "$FIRST_APK"
 launch
 wait_log 'I flutter : SB-E2E-V1' "$LAUNCHED_AT" 60
 
