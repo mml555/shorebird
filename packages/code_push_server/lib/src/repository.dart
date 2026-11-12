@@ -1968,16 +1968,18 @@ class Repository {
 
   /// [withdraw] with `rollback: true` on [channelId] for the admin route, plus
   /// marking the patch's withdrawn rows on every other channel rolled back and
-  /// the restore, in one transaction. Returns what it restored. The caller has
-  /// already checked the patch is active there.
-  Future<List<RestoredPatch>> withdrawRollbackAndRestore(
+  /// the restore, in one transaction. The caller has already checked the patch
+  /// is active there; if it no longer is (a lost race) nothing changes and the
+  /// outcome is empty. `activeChannelIds` is `[channelId]` on success and
+  /// `markedChannelIds` are the other channels it marked.
+  Future<RollbackOutcome> withdrawRollbackAndRestore(
     int channelId,
     int patchId,
   ) => _db.tx((s) async {
-    await s.query(
+    final won = await s.query(
       'UPDATE channel_patches SET status = @w, withdrawn_at = now(), '
       'rolled_back = true WHERE channel_id = @c AND patch_id = @p '
-      'AND status = @a',
+      'AND status = @a RETURNING id',
       {
         'w': ChannelPatchStatus.withdrawn.name,
         'c': channelId,
@@ -1985,15 +1987,27 @@ class Repository {
         'a': ChannelPatchStatus.active.name,
       },
     );
+    if (won.isEmpty) {
+      return RollbackOutcome(
+        activeChannelIds: const [],
+        markedChannelIds: const [],
+        restored: const [],
+      );
+    }
     // Rolled back means pulled everywhere, as on the release-scoped route: mark
     // the patch's other withdrawn rows too, so it is reported on every channel
     // it was on and can never be restored.
-    await s.query(
+    final marked = await s.query(
       'UPDATE channel_patches SET rolled_back = true '
-      'WHERE patch_id = @p AND status = @w AND rolled_back = false',
+      'WHERE patch_id = @p AND status = @w AND rolled_back = false '
+      'RETURNING channel_id',
       {'p': patchId, 'w': ChannelPatchStatus.withdrawn.name},
     );
-    return _restorePriorIn(s, channelId, patchId);
+    return RollbackOutcome(
+      activeChannelIds: [channelId],
+      markedChannelIds: [for (final m in marked) _int(m['channel_id'])],
+      restored: await _restorePriorIn(s, channelId, patchId),
+    );
   });
 
   /// After [rolledBackPatchId] was rolled back on [channelId], makes the
@@ -2108,6 +2122,11 @@ class Repository {
       // every arch the rolled-back patch carried there: the check serves by
       // arch and platform, and a patch verified for another arch alone would
       // report a restore that the check then answers with something older.
+      // All-or-nothing per platform: one missing arch disqualifies the whole
+      // platform for this candidate, and a lower candidate may then be tried.
+      // If the rolled-back patch is assets-only on a platform (its only arch
+      // is the assets pseudo-arch), a code-only candidate never has that arch,
+      // so it never qualifies on that platform.
       final verifiedArches = await archesOf(patchId, verified: true);
       final platforms = {
         for (final e in verifiedArches.entries)

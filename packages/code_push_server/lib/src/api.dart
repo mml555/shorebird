@@ -3988,18 +3988,26 @@ class Api {
         }
         requireChannelPatchTransition(cp.status, ChannelPatchStatus.withdrawn);
         var restored = <Map<String, Object?>>[];
+        // Every channel the rollback marked: the named one, then any other it
+        // was withdrawn on.
+        final channels = <String>[channel.name];
         if (rollback) {
-          restored = await _reportRestored(
-            req,
-            patch,
-            await repo.withdrawRollbackAndRestore(channel.id, patchId),
+          final outcome = await repo.withdrawRollbackAndRestore(
+            channel.id,
+            patchId,
           );
+          for (final id in outcome.markedChannelIds) {
+            final name = await _channelName(id);
+            if (name != null && !channels.contains(name)) channels.add(name);
+          }
+          restored = await _reportRestored(req, patch, outcome.restored);
         } else {
           await repo.withdraw(channel.id, patchId, rollback: false);
         }
         _audit(req)?.note(
           detail: {
             'rollback': rollback,
+            if (rollback) 'channels': channels,
             if (restored.isNotEmpty) 'restored': restored,
           },
         );
@@ -4007,6 +4015,7 @@ class Api {
           'withdrawn': true,
           'patch_id': patchId,
           'rolled_back': rollback,
+          if (rollback) 'channels': channels,
           'restored': restored,
         });
       }

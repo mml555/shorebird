@@ -4892,10 +4892,17 @@ void main() {
           bearer: _bootstrapKey,
         );
         expect(r.statusCode, HttpStatus.ok);
+        expect((await jsonOf(r))['channels'], ['stable', 'beta']);
         expect((await check())['rolled_back_patch_numbers'], [1]);
         expect((await check(channel: 'beta'))['rolled_back_patch_numbers'], [
           1,
         ]);
+        final audit = await repo.db.query(
+          "SELECT detail FROM audit_log WHERE action = 'patch.withdraw' "
+          'ORDER BY id DESC LIMIT 1',
+        );
+        final detail = jsonDecode(audit.single['detail']! as String) as Map;
+        expect(detail['channels'], ['stable', 'beta']);
       },
     );
 

@@ -460,7 +460,7 @@ added to a company org or onto one of its apps. With a policy set, both
 | Method | Path | Response |
 |---|---|---|
 | POST | `/admin/apps/{appId}/patches/{patchId}/rollout?channel=&percent=` | `{patch_id,rollout}` — set a partial rollout (0–100) |
-| POST | `/admin/apps/{appId}/patches/{patchId}/withdraw?channel=&rollback=true\|false` | `{withdrawn:true,rolled_back,restored}` — stop serving (`rollback=true` also reverts installed devices and restores the prior patch, below) |
+| POST | `/admin/apps/{appId}/patches/{patchId}/withdraw?channel=&rollback=true\|false` | `{withdrawn:true,rolled_back,restored}` — stop serving (`rollback=true` also reverts installed devices and restores the prior patch, below; with it the response and the audit detail also carry `channels`: the named channel, then any other channel the patch was marked rolled back on) |
 | POST | `/apps/{appId}/releases/{releaseId}/patches/{patchId}/rollback` | `{withdrawn,patch_id,rolled_back,channels,restored}` — upstream's `shorebird patches rollback`: the same rollback on every channel where the patch is active. **304** if already rolled back and active nowhere, **409** if never promoted |
 
 **Rollback restores the prior patch.** Rolling back the active patch of a
