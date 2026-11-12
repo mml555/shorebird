@@ -2568,9 +2568,8 @@ void main() {
         repo,
         store,
         config,
-        // Far longer than the bound below, so "refused at once" and "refused
-        // after the wait" stay apart on a loaded CI runner (a 600 ms wait
-        // against a 400 ms bound failed there at 1495 ms).
+        // Long enough that the four waiters are still waiting when the fifth
+        // query is answered, however slow the runner.
         inFlightWait: const Duration(seconds: 5),
       );
       final r = await registered();
@@ -2585,18 +2584,20 @@ void main() {
         headers: {'content-range': 'bytes */3'},
       );
 
-      final waiting = [for (var i = 0; i < 4; i++) query()];
+      var finished = 0;
+      final waiting = [
+        for (var i = 0; i < 4; i++) query().whenComplete(() => finished++),
+      ];
       // Let the four enter the wait.
       while (api.debugWaiters(r.token) < 4) {
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
-      final sw = Stopwatch()..start();
       final fifth = await query();
       expect(fifth.statusCode, HttpStatus.serviceUnavailable);
       expect(
-        sw.elapsedMilliseconds,
-        lessThan(2500),
-        reason: 'over the cap is refused at once, not after the wait',
+        finished,
+        0,
+        reason: 'over the cap is refused at once, while the four still wait',
       );
       expect(
         api.debugWaiters(r.token),
