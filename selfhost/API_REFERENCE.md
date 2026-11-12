@@ -284,7 +284,8 @@ Response:
 A patch is offered only if its artifact is verified, the patch is `ready` (not
 invalidated), an **active** channel-patch makes this `client_id` eligible under
 the current rollout, and its number exceeds the client's. A rolled-back patch's
-number appears in `rolled_back_patch_numbers` (installed devices revert).
+number appears in `rolled_back_patch_numbers` (installed devices revert), and the
+prior patch is offered in its place (see Rollout & rollback).
 
 **`kind`** (always present) is `code` for the usual patch, or `assets` for a
 patch whose payload is assets and nothing else — the shape that lets the
@@ -459,7 +460,50 @@ added to a company org or onto one of its apps. With a policy set, both
 | Method | Path | Response |
 |---|---|---|
 | POST | `/admin/apps/{appId}/patches/{patchId}/rollout?channel=&percent=` | `{patch_id,rollout}` — set a partial rollout (0–100) |
-| POST | `/admin/apps/{appId}/patches/{patchId}/withdraw?channel=&rollback=true\|false` | `{withdrawn:true,rolled_back}` — stop serving (`rollback=true` also reverts installed devices) |
+| POST | `/admin/apps/{appId}/patches/{patchId}/withdraw?channel=&rollback=true\|false` | `{withdrawn:true,rolled_back,restored}` — stop serving (`rollback=true` also reverts installed devices and restores the prior patch, below; with it the response and the audit detail also carry `channels`: the named channel, then any other channel the patch was marked rolled back on) |
+| POST | `/apps/{appId}/releases/{releaseId}/patches/{patchId}/rollback` | `{withdrawn,patch_id,rolled_back,channels,restored}` — upstream's `shorebird patches rollback`: the same rollback on every channel where the patch is active. **304** if already rolled back and active nowhere, **409** if never promoted |
+
+**Rollback restores the prior patch.** Rolling back the active patch of a
+channel puts the newest earlier patch of the same release that a promote
+superseded on that channel (never rolled back, still `ready`, with a verified
+artifact for the platform) back as active, so
+`/patches/check` offers it and a device that deleted it when the newer patch
+booted downloads it again. `restored` lists `{patch_id, number, channel,
+rollout}` for each. Rolling back again walks further back; rolling back the
+last one leaves the base release.
+
+- **Per platform**, as promote is: the patches restored are the newest
+  qualifying ones for each platform the rolled-back patch carried and no other
+  active patch still serves. An earlier patch that is already active, or is for
+  other platforms, is left alone.
+- **Rollout is kept**, not reset: a restored patch comes back at the
+  percentage it was promoted with, so a rollback never widens exposure beyond
+  what was chosen for it. Raise it with `rollout` if wanted.
+- **A patch withdrawn by an operator is never restored.** Only rows a promote
+  superseded qualify (`channel_patches.superseded`, set by promote alone, false
+  for every row that existed before this was added). A patch withdrawn without
+  `rollback=true` stays withdrawn when a newer patch is rolled back.
+- **Rolling back a patch that is not active** (superseded, or withdrawn
+  without `rollback=true`) marks it rolled back on every channel where it was
+  withdrawn, instead of returning 409: it is reported in
+  `rolled_back_patch_numbers` and can never be restored. Rolling back a patch
+  also marks it on channels where it is only superseded, so a rollback pulls the
+  patch everywhere (as `/patches/assets` already assumes). **A rollback adds the
+  patch's number to `rolled_back_patch_numbers` on every channel it was on**,
+  including channels where it was only superseded or had been withdrawn by an
+  operator, so devices on those channels that run it revert too; the response's
+  `channels` and `shorebird patches rollback` list them. The admin
+  `withdraw?channel=&rollback=true` route does the same, though it names one
+  channel. The rollback and the
+  restore are one transaction. A partial-rollout restore reverts a device
+  outside the bucket to the base release.
+- A rolled-back patch stays rolled back: `rollforward` is still a 501.
+- A device that reports it is running a patch the response rolls back is
+  offered the restored patch in the same response (its own number is not
+  counted against the offer).
+- Each restored patch writes a `patch.restore` audit detail row (target = the
+  restored patch id) beside the request's `patch.withdraw` event, whose
+  `detail.restored` lists them.
 
 **Roles:** `owner`, `admin`, `appManager`, `developer`, `viewer`.
 
@@ -491,7 +535,7 @@ Each event:
 | `timestamp` | when |
 | `request_id` | the request that caused it — also returned to that caller in `X-Request-Id`, and on its request log line |
 | `kind` | `request` (the outcome of one HTTP request) or `detail` (a sub-fact of one, e.g. `release.ready`) |
-| `operation` | *patch lifecycle:* `app.create`, `release.create`, `release.update`, `release.artifact.create`, `patch.create`, `patch.update`, `patch.promote`, `patch.artifact.create`, `patch.withdraw`, `patch.rollout`, `channel.create`, `artifact.upload`. *identity & tenancy:* `user.create`, `user.register`, `org.invite`, `org.invite.accept`, `org.invite.revoke`, `org.member.role`, `org.member.remove`, `org.domains`, `app.collaborator.add`, `app.collaborator.remove` |
+| `operation` | *patch lifecycle:* `app.create`, `release.create`, `release.update`, `release.artifact.create`, `patch.create`, `patch.update`, `patch.promote`, `patch.artifact.create`, `patch.withdraw`, `patch.restore` (detail row), `patch.rollout`, `channel.create`, `artifact.upload`. *identity & tenancy:* `user.create`, `user.register`, `org.invite`, `org.invite.accept`, `org.invite.revoke`, `org.member.role`, `org.member.remove`, `org.domains`, `app.collaborator.add`, `app.collaborator.remove` |
 | `route`, `method` | the route template that matched. Never holds an id, and never an upload token |
 | `actor`, `actor_id` | the account that acted |
 | `actor_credential` | `<kind>:<fingerprint>` — `bootstrap`, `api_key`, `oauth`, `rejected`, `anonymous`, plus 12 hex characters of SHA-256 of the bearer. Distinguishes two keys on one account; never the credential itself |

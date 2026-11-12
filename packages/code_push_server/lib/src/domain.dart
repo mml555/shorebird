@@ -164,6 +164,12 @@ const _patchNext = {
   PatchStatus.invalidated: <PatchStatus>{},
 };
 
+// `withdrawn` is terminal for a patch that was rolled back (`rolled_back`).
+// The one exception is a row that promote superseded (`superseded = true`):
+// `Repository._restorePriorIn`, called only from the rollback paths, makes the
+// newest such row active again when the patch that superseded it is rolled
+// back. It bypasses this table on purpose, in SQL, and domain_test pins that
+// `withdrawn -> active` stays refused for every other caller.
 const _channelPatchNext = {
   ChannelPatchStatus.active: {ChannelPatchStatus.withdrawn},
   ChannelPatchStatus.withdrawn: <ChannelPatchStatus>{},
