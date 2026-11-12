@@ -305,6 +305,7 @@ start_server() {
   for attempt in 1 2 3; do
     [[ -n $keep ]] || PORT=$(free_port)
     BASE=http://127.0.0.1:$PORT
+    # shellcheck disable=SC2016 # $1 and $2 are for the inner shell
     API_KEY=$API_KEY URL_SIGNING_SECRET=$URL_SECRET PORT=$PORT PUBLIC_BASE_URL=$BASE \
       DATA_DIR=$WORK/server-data \
       setsid bash -c 'cd "$1" && exec "$2" run bin/server.dart' _ \
