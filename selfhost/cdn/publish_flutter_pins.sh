@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words imobiledevice usbmuxd imobiledeviceglue namelist testzip getnames
+# cspell:words imobiledevice usbmuxd imobiledeviceglue namelist testzip getnames redir
 #
 # Copy the Flutter tool's version-pinned downloads that belong to no engine
 # hash into the mirror's overlay, so the mirror serves them from local disk:
