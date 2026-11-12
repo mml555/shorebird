@@ -4698,10 +4698,6 @@ void main() {
       final other = await publish(releaseId: r2);
       final body = await jsonOf(await rollback(other.id, releaseId: r2));
       expect(body['restored'], isEmpty);
-      // Promoting the other release's patch superseded 1 on the channel
-      // (supersession is not release-scoped); rolling it back does not bring
-      // 1 back for a different release.
-      expect(offered(await check()), isNull);
     });
 
     test('tenants are isolated', () async {
@@ -4758,6 +4754,163 @@ void main() {
       final c = await check(channel: 'qa');
       expect(c['patch_available'], isFalse);
       expect(c['rolled_back_patch_numbers'], [2]);
+    });
+
+    test(
+      'a patch an operator withdrew is not restored by a later rollback',
+      () async {
+        await publish();
+        await publish();
+        final p3 = await publish();
+        // The operator pulls 3 without a rollback. 1 and 2 were superseded.
+        final w = await send(
+          'POST',
+          '/admin/apps/${s.appId}/patches/${p3.id}/withdraw?channel=stable',
+          bearer: _bootstrapKey,
+        );
+        expect(w.statusCode, HttpStatus.ok);
+        final p4 = await publish();
+        final body = await jsonOf(await rollback(p4.id));
+        final numbers = [
+          for (final r in body['restored'] as List) (r as Map)['number'],
+        ];
+        expect(numbers, [2]);
+        expect(offered(await check()), 2);
+      },
+    );
+
+    test('an operator-withdrawn patch stays withdrawn when the patch above it '
+        'is rolled back', () async {
+      await publish();
+      final p2 = await publish();
+      final p3 = await publish();
+      // Put 2 back as the live patch, then have the operator pull it.
+      await rollback(p3.id);
+      expect(offered(await check()), 2);
+      final w = await send(
+        'POST',
+        '/admin/apps/${s.appId}/patches/${p2.id}/withdraw?channel=stable',
+        bearer: _bootstrapKey,
+      );
+      expect(w.statusCode, HttpStatus.ok);
+      final p4 = await publish();
+      final body = await jsonOf(await rollback(p4.id));
+      // 2 was withdrawn by the operator (marker cleared), 1 was superseded.
+      expect(
+        [for (final r in body['restored'] as List) (r as Map)['number']],
+        [1],
+      );
+      expect(offered(await check()), 1);
+    });
+
+    test('a candidate without a verified artifact is not restored', () async {
+      final p1 = await publish();
+      final p2 = await publish();
+      await repo.db.query(
+        "UPDATE artifacts SET status = 'failed' "
+        "WHERE owner_kind = 'patch' AND owner_id = @p",
+        {'p': p1.id},
+      );
+      final body = await jsonOf(await rollback(p2.id));
+      expect(body['restored'], isEmpty);
+      expect(offered(await check()), isNull);
+    });
+
+    test(
+      'a device on the last rolled-back patch gets nothing and the list',
+      () async {
+        final p1 = await publish();
+        await rollback(p1.id);
+        final c = await check(current: 1);
+        expect(c['patch_available'], isFalse);
+        expect(c['rolled_back_patch_numbers'], [1]);
+      },
+    );
+
+    test('a partial-rollout restore leaves a device outside the bucket on the '
+        'base release', () async {
+      await publish(rollout: 0);
+      final p2 = await publish();
+      await rollback(p2.id);
+      final c = await check(current: 2, clientId: 'any-client');
+      expect(c['patch_available'], isFalse);
+      expect(c['rolled_back_patch_numbers'], [2]);
+    });
+
+    test('rolling back again restores nothing twice', () async {
+      await publish();
+      final p2 = await publish();
+      expect(
+        ((await jsonOf(await rollback(p2.id)))['restored'] as List),
+        hasLength(1),
+      );
+      expect((await rollback(p2.id)).statusCode, HttpStatus.notModified);
+      expect(offered(await check()), 1);
+    });
+
+    test('a repeated admin withdraw with rollback restores nothing', () async {
+      await publish();
+      final p2 = await publish();
+      Future<Response> withdraw() => send(
+        'POST',
+        '/admin/apps/${s.appId}/patches/${p2.id}/withdraw'
+            '?channel=stable&rollback=true',
+        bearer: _bootstrapKey,
+      );
+      expect((await withdraw()).statusCode, HttpStatus.ok);
+      expect((await withdraw()).statusCode, HttpStatus.conflict);
+      expect(offered(await check()), 1);
+    });
+
+    test('rollforward is still refused after a restore', () async {
+      await publish();
+      final p2 = await publish();
+      await rollback(p2.id);
+      final r = await send(
+        'POST',
+        '/api/v1/apps/${s.appId}/releases/${s.releaseId}'
+            '/patches/${p2.id}/rollforward',
+        bearer: _bootstrapKey,
+      );
+      expect(r.statusCode, HttpStatus.notImplemented);
+      expect(offered(await check()), 1);
+    });
+
+    test('rolling back marks the patch on channels where it is only '
+        'superseded', () async {
+      final beta = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/channels',
+          bearer: _bootstrapKey,
+          json: {'channel': 'beta'},
+        ),
+      );
+      final betaId = beta['id'] as int;
+      final p1 = await publish();
+      await send(
+        'POST',
+        '/api/v1/apps/${s.appId}/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': p1.id, 'channel_id': betaId},
+      );
+      final p2 = await publish(channelId: betaId); // 2 supersedes 1 on beta
+      await publish(); // 3 supersedes 1 on stable (1 is active there)
+      // Roll 1 back: it is superseded on both channels.
+      final r = await rollback(p1.id);
+      expect(r.statusCode, HttpStatus.ok);
+      expect(
+        (await jsonOf(r))['channels'],
+        unorderedEquals(['stable', 'beta']),
+      );
+      expect((await check())['rolled_back_patch_numbers'], [1]);
+      expect((await check(channel: 'beta'))['rolled_back_patch_numbers'], [1]);
+      // 2 is active on beta; rolling it back must not bring 1 back there.
+      final body = await jsonOf(await rollback(p2.id));
+      expect(body['restored'], isEmpty);
+      final c = await check(channel: 'beta');
+      expect(c['patch_available'], isFalse);
+      expect(c['rolled_back_patch_numbers'], [1, 2]);
     });
 
     test('is audited: patch.withdraw for the rollback, patch.restore per '

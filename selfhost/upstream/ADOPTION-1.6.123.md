@@ -149,25 +149,34 @@ audit event.
 
 `POST /api/v1/apps/{app}/releases/{release}/patches/{patch}/rollback` is
 `repo.withdraw(rollback: true)` applied to **every channel where the patch
-is active**, because upstream's route names no channel. It runs as one
-`UPDATE … RETURNING`, so of two concurrent callers only one can claim the
-change.
+is active**, because upstream's route names no channel, plus two things added
+after this ruling: the prior patch is restored on each of those channels, and
+the patch is marked rolled back on every channel where it was only withdrawn.
+All of it runs in one transaction (`Repository.rollbackAndRestore`); the
+withdraw is an `UPDATE … RETURNING`, so of two concurrent callers only one can
+claim the change.
 
 | Patch state | Response |
 |---|---|
-| active on ≥1 channel | 200, body lists the channels it rolled back |
+| active on ≥1 channel | 200, body lists the channels it rolled back and `restored` |
+| withdrawn only (superseded, or withdrawn without a rollback) | 200, marked rolled back on those channels, nothing restored |
 | already rolled back, active nowhere | 304 |
-| never promoted, or only superseded (withdrawn, not rolled back) | 409 |
+| never promoted | 409 |
 | not on the release in the path, or on another app | 404 |
 
 Auditing uses the same `patch.withdraw` operation as the `/admin` route, with
 `detail.changed` telling a 304 apart from a real change.
 
-**Known limitation:** after patch 2 is promoted over patch 1, patch 1 is
-withdrawn but *not* rolled back, and `shorebird patches rollback
---patch-number 1` returns 409. That is the existing `/admin` behaviour too:
-marking a withdrawn row as rolled back would change a terminal row, which
-this pass does not do.
+**Superseded patches and restore (2026-11-12 owner decision, supersedes the
+limitation recorded here before).** Rolling back the newest patch puts devices
+back on the previous one, as `shorebird patches rollback` says and upstream
+does: the newest earlier patch of the release that a *promote superseded*
+(`channel_patches.superseded`) becomes active again, per platform, at its
+original rollout. A patch an operator withdrew without a rollback is not
+restored. Rolling back a patch that is only withdrawn marks it rolled back
+(200, not 409), which is what keeps it from ever being restored. The ruling
+below is unchanged: a *rolled-back* patch is terminal and `rollforward` stays
+501.
 
 ---
 

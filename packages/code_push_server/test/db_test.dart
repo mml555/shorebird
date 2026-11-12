@@ -567,6 +567,67 @@ void main() {
       );
     });
   });
+
+  group('rollback restore under a concurrent rollback', () {
+    late Directory tmp;
+    late Repository repo;
+
+    setUp(() async {
+      tmp = Directory.systemTemp.createTempSync('cps_db_restore_race');
+      repo = await Repository.open(sqliteConfig(tmp.path));
+    });
+
+    tearDown(() async {
+      await repo.close();
+      tmp.deleteSync(recursive: true);
+    });
+
+    test('a candidate rolled back between the read and the restore stays '
+        'withdrawn (never active and rolled back)', () async {
+      final app = await repo.createApp('demo', 1);
+      final rel = await repo.createRelease(
+        appId: app.appId,
+        version: '1.0.0+1',
+        flutterRevision: 'abc',
+      );
+      final ch = await repo.createChannel(app.appId, 'stable');
+      final ids = <int>[];
+      for (var i = 0; i < 2; i++) {
+        final p = await repo.createPatch(app.appId, rel.id);
+        final a = await repo.createArtifact(
+          ownerKind: 'patch',
+          ownerId: p.id,
+          arch: 'aarch64',
+          platform: 'android',
+          hash: 'h$i',
+          size: 1,
+        );
+        await repo.setArtifactStatus(a.id, ArtifactStatus.verified);
+        await repo.promote(ch.id, p.id);
+        ids.add(p.id);
+      }
+      // SQLite serialises transactions, so the interleaving is made by hand:
+      // right after the restore reads its candidates, a concurrent rollback of
+      // patch 1 "commits" (Postgres READ COMMITTED would let it).
+      final racing = Repository(
+        _AfterCandidateRead(repo.db, (s) async {
+          await s.query(
+            'UPDATE channel_patches SET rolled_back = true '
+            'WHERE patch_id = @p',
+            {'p': ids.first},
+          );
+        }),
+      );
+      final outcome = await racing.rollbackAndRestore(ids.last);
+      expect(outcome.restored, isEmpty);
+      expect((await repo.activeChannelPatch(ch.id)), isNull);
+      final rows = await repo.db.query(
+        'SELECT status, rolled_back FROM channel_patches WHERE patch_id = @p',
+        {'p': ids.first},
+      );
+      expect(rows.single['status'], 'withdrawn');
+    });
+  });
 }
 
 const _insertCompetitor =
@@ -643,4 +704,37 @@ class _DelegatingDb implements Db {
 
   @override
   String extractHour(String tsCol) => inner.extractHour(tsCol);
+}
+
+/// Runs [after] inside a transaction once the restore has read its candidate
+/// rows, standing in for another request that commits in that window.
+class _AfterCandidateRead extends _DelegatingDb {
+  _AfterCandidateRead(super.inner, this.after);
+
+  final Future<void> Function(DbSession s) after;
+
+  @override
+  Future<T> tx<T>(Future<T> Function(DbSession s) body) =>
+      inner.tx((s) => body(_HookSession(s, after)));
+}
+
+class _HookSession implements DbSession {
+  _HookSession(this.inner, this.after);
+
+  final DbSession inner;
+  final Future<void> Function(DbSession s) after;
+  var _fired = false;
+
+  @override
+  Future<List<Map<String, Object?>>> query(
+    String sql, [
+    Map<String, Object?> params = const {},
+  ]) async {
+    final rows = await inner.query(sql, params);
+    if (!_fired && sql.contains('p.number < @n')) {
+      _fired = true;
+      await after(inner);
+    }
+    return rows;
+  }
 }

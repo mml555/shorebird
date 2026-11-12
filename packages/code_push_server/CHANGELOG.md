@@ -14,10 +14,15 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   active patch of a channel is rolled back (`shorebird patches rollback`, or
   `withdraw?rollback=true`), the newest earlier patch of the release that was
   superseded and not rolled back becomes active again, so `/patches/check`
-  offers it. Devices had deleted it when the newer patch booted and now
-  download it again; before, they fell back to the base release. Restoring is
-  per platform, keeps the patch's rollout percentage and artifacts, and skips
-  other releases and deleted channels. Rolling back again walks further back,
+  offers it. Devices delete it when the newer patch boots, and the updater has
+  no rule against downloading a lower number again (read from its source; device
+  proof is pending), so they should return to it instead of falling back to
+  the base release. Only a patch that a promote superseded is restored (new
+  `channel_patches.superseded` column, migration 18; existing rows are never
+  restored), never one an operator withdrew. Restoring is per platform, needs
+  a verified artifact, keeps the patch's rollout percentage and artifacts, and
+  skips other releases and deleted channels. The rollback and the restore are
+  one transaction. Rolling back again walks further back,
   and the last rollback leaves the base release. The rollback response gains
   `restored`, and each restored patch writes a `patch.restore` audit row.
   - `patches/check` no longer counts a client's patch number against the offer
@@ -40,7 +45,8 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **Rolling back a superseded patch is a 200, not a 409.** A patch that is
   active nowhere but was promoted is marked rolled back (so it can never be
-  restored) and reported in `rolled_back_patch_numbers`. A patch that was never
+  restored) and reported in `rolled_back_patch_numbers`. A rollback also marks
+  the patch's withdrawn rows on other channels. A patch that was never
   promoted is still a 409, and `rollforward` is still a 501.
 
 - **The S3 client retries transient failures.** A connection error, a timeout,
