@@ -216,8 +216,8 @@ Effort: S under a day, M a few days, L a week or more.
   (`gen_snapshot_probe.dart`, `route_b_release_kernels_test.dart`, the obfuscation-map
   handling in `patch_command.dart`). Nothing tracks `stable`: no install on the Mac or
   ci-build, and no doc. It stopped at 1.6.114, so the CLI's hint `git checkout stable`
-  would install an old CLI. Deleting the branches is the owner's step (auto mode refuses
-  it); restore any of them with `git push <remote> archive/<b>:refs/heads/<b>`.
+  would install an old CLI. The owner deleted the six branches on 2026-11-11; restore any
+  of them with `git push <remote> archive/<b>:refs/heads/<b>`.
 - The four dated `HANDOFF-2026-*` files moved to [`archive/`](archive/README.md).
   [`HANDOFF.md`](HANDOFF.md), which nine docs link to, stays.
 
