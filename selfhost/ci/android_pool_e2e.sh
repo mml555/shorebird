@@ -58,10 +58,10 @@ cleanup() {
   set +e
   # On failure, read the phone and its lease before releasing it: the release
   # resets the phone to its snapshot. Bounded, as the phone may be wedged, and
-  # skipped when the job was signalled (cancelled or timed out): the runner
+  # skipped when the job got SIGINT or SIGTERM (cancelled or timed out): the runner
   # kills it seconds later, and the release must go out first.
   local diagnose=
-  ((status != 0 && status < 128)) && diagnose=1
+  ((status != 0 && status != 130 && status != 143)) && diagnose=1
   if [[ -n $diagnose && -n $ADB_STARTED ]]; then
     timeout 10 adb -s "$SERIAL" logcat -d 2>/dev/null |
       grep -E 'flutter|shorebird|AndroidRuntime' | tail -60 >"$WORK/device.log"
@@ -236,9 +236,10 @@ log "phone from the pool (owner $OWNER)"
 # in a loop: a job cancelled mid-request then leaves at most one wait's worth of
 # orphaned checkout, and the release in cleanup (by owner) frees any lease that
 # did land.
-# Gives up after 20 minutes, inside the job's 45-minute timeout.
+# Gives up after 15 minutes (a try started then can run 5 more), inside the
+# job's 45-minute timeout.
 lease=
-deadline=$((SECONDS + 20 * 60))
+deadline=$((SECONDS + 15 * 60))
 while ((SECONDS < deadline)); do
   rc=0
   lease=$(curl -fsS --max-time 330 -X POST \
@@ -250,7 +251,7 @@ while ((SECONDS < deadline)); do
   lease=
   sleep 10
 done
-[[ -n $lease ]] || { echo "no phone within 20 minutes" >&2; exit 1; }
+[[ -n $lease ]] || { echo "no phone within 15 minutes" >&2; exit 1; }
 read -r DEVICE SERIAL < <(python3 -c 'import json,sys; d = json.load(sys.stdin); print(d["device"], d["serial"])' <<<"$lease")
 [[ -n ${SERIAL:-} ]] || { echo "unexpected checkout answer: $lease" >&2; exit 1; }
 echo "checked out $DEVICE ($SERIAL)"
