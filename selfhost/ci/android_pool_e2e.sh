@@ -27,8 +27,6 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 POOL=${QA_POOL_URL:-http://127.0.0.1:5550}
 export SHOREBIRD_ARTIFACT_ORIGIN=${SHOREBIRD_ARTIFACT_ORIGIN:-http://127.0.0.1:8085}
-# bin/shorebird's own bootstrap (Flutter's Dart SDK) reads this one.
-export SHOREBIRD_DOWNLOAD_URL=${SHOREBIRD_DOWNLOAD_URL:-$SHOREBIRD_ARTIFACT_ORIGIN}
 OWNER=${E2E_POOL_OWNER:-shorebird-e2e-$(hostname)-$$}
 WORK=${E2E_WORK:-${RUNNER_TEMP:-/tmp}/sb-e2e}
 # A free port from the kernel's ephemeral range, which ci-build's egress rules let
@@ -102,7 +100,10 @@ if [[ -n ${E2E_FLUTTER_REVISION:-} ]]; then
   echo "Flutter overridden to $E2E_FLUTTER_REVISION from ${SHOREBIRD_FLUTTER_GIT_URL:-the default remote}"
 fi
 SB=$ROOT/bin/shorebird
-"$SB" --version
+# The launcher's first run fetches Flutter's Dart SDK from SHOREBIRD_DOWNLOAD_URL
+# only. Set it for that run alone: the CLI reads it too, as upstream's layout
+# (<url>/shorebird/<engine>/...), which the mirror doesn't serve.
+SHOREBIRD_DOWNLOAD_URL=${SHOREBIRD_DOWNLOAD_URL:-$SHOREBIRD_ARTIFACT_ORIGIN} "$SB" --version
 FLUTTER_DIR=$ROOT/bin/cache/flutter/$(cat "$ROOT/bin/internal/flutter.version")
 DART=$FLUTTER_DIR/bin/cache/dart-sdk/bin/dart
 
