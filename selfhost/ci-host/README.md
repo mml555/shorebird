@@ -46,7 +46,10 @@ maintainer approves it. Everything below limits the damage if an approved job is
   belongs to its own runner unit's cgroup. Host services (anything the owner starts at
   any time), other runners and processes outside the unit are unreachable. This is
   checked per connection, not from a list that can go stale; see the comment at the top
-  of `bin/gha-egress-apply`.
+  of `bin/gha-egress-apply`. The exceptions, for the Android e2e job, are the device
+  pool on `127.0.0.1` (`qa-pool` API 5550, the phones' adb relays 5601/5603/5605; not
+  their console ports) and the CDN mirror (`127.0.0.1:8085`). A listener a runner opens
+  on one of those ports is still dropped, so a job can't pose as one of them.
 
 ### Accepted risks
 
@@ -60,6 +63,7 @@ So an allowed host is allowed for every URL on it. These stay because jobs need 
 | `*.actions.githubusercontent.com` | runner control, logs, results; shard names change (`pipelinesghubeus22`, `run-actions-2-azure-eastus`, ...) | GitHub-operated services only |
 | `productionresultssa<N>.blob.core.windows.net` | artifacts, logs, caches; GitHub adds numbers over time | an Azure storage account with a free number could be registered by someone else |
 | `registry.npmjs.org`, `pub.dev`, `index.crates.io`, `static.crates.io`, `ghcr.io` | dependencies, image pushes in the release workflow | publishing, with the job's own credentials |
+| `services.gradle.org`, `downloads.gradle.org`, `plugins.gradle.org`, `plugins-artifacts.gradle.org`, `dl.google.com`, `repo.maven.apache.org` | Gradle and its dependencies for the Android e2e job's release and patch builds | publishing to the plugin portal or Maven Central, with the job's own credentials; `dl.google.com` serves every Google download, not only Maven |
 | `dl-cdn.alpinelinux.org`, `deb.debian.org` | `apk` / `apt-get` in image builds (the cargo-deny image, the `code_push_server` runtime stage) | plain HTTP on port 80: squid matches only the host, so any path or query string to the CDN goes out. Small, but a channel |
 
 Removed on 2026-11-08 after reading the proxy log (it covered only about 2.5 hours, so
@@ -70,6 +74,20 @@ cache, which fetches them itself; no job ever used the Hub directly). If a job n
 back, add it as below.
 
 | the registry cache on `127.0.0.1:5000` | image pulls | the cache runs as root and fetches any public path on `registry-1.docker.io` for any job (an arbitrary public image, or data encoded in an image name). It is not on the allowlist, but it is not closed either |
+
+Also accepted, with the device pool and mirror open to jobs (runners only run this
+repo's workflows, and PRs from forks wait for the owner's approval):
+
+- **qa-pool trusts local callers.** For a caller on `127.0.0.1` the owner name is the
+  only check, and `GET /status` lists every owner. So a job can renew, release or change
+  the network of any phone's lease, including one the owner's other projects hold. A
+  per-caller secret in qa-pool would close this; it is not in this repo.
+- **adb has no authentication.** A job can drive any pool phone over its relay, held or
+  not, and a phone's own network (slirp) reaches qa-devices and the home LAN without
+  this allowlist.
+- **The mirror fetches what it is asked for.** Any `storage.googleapis.com` path it
+  proxies is cached for a year, so a job can pull public objects through it and grow its
+  disk. It has no write path.
 
 Also accepted: nftables does not cover Unix sockets. Abstract-namespace sockets belong to
 the network namespace, which jobs share with the host (dockerd runs in it). Today

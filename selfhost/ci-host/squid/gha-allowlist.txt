@@ -32,5 +32,14 @@ dl-cdn.alpinelinux.org
 # suite is served from the same host)
 deb.debian.org
 
+# Android builds (the self-host Android e2e job): the Gradle wrapper and plugin portal,
+# Google's Maven repository (AGP), Maven Central (Kotlin and the rest)
+services.gradle.org
+downloads.gradle.org
+plugins.gradle.org
+plugins-artifacts.gradle.org
+dl.google.com
+repo.maven.apache.org
+
 # Docker Hub is not listed: images come through the root-owned pull-through cache on
 # 127.0.0.1:5000, which fetches them itself. (Removed 2026-11-08: no hits in the proxy log.)
