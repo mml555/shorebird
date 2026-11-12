@@ -3348,6 +3348,7 @@ class Api {
     // iOS-only (and vice versa).
     final active = await repo.activeChannelPatch(
       channel.id,
+      releaseId: release.id,
       platform: platform,
     );
     if (active == null) return _json(resp(rolledBack: rolledBack));
