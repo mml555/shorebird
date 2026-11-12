@@ -42,7 +42,6 @@ ANDROID_ADB_SERVER_PORT=$(free_port)
 API_KEY=sb_api_e2e_$(openssl rand -hex 16)
 BASE=http://127.0.0.1:$PORT
 PKG=dev.selfhost.e2e.app
-VERSION=1.0.0+1
 
 rm -rf "$WORK"
 mkdir -p "$WORK"
@@ -141,6 +140,9 @@ cd "$WORK"
 FLUTTER_STORAGE_BASE_URL=$SHOREBIRD_ARTIFACT_ORIGIN "$FLUTTER_DIR/bin/flutter" create \
   --org dev.selfhost.e2e --project-name app --platforms android --empty app >"$WORK/create.log"
 APP=$WORK/app
+# The template's version, which `shorebird release` releases.
+VERSION=$(sed -n 's/^version: *//p' "$APP/pubspec.yaml")
+[[ -n $VERSION ]] || { echo "no version in the app's pubspec.yaml" >&2; exit 1; }
 echo "void main() { print('SB-E2E-V1'); }" >"$APP/lib/main.dart"
 app_id=$(curl -fsS -X POST "$BASE/api/v1/apps" -H "Authorization: Bearer $API_KEY" \
   -H 'Content-Type: application/json' -d '{"display_name":"android-pool-e2e"}' |
