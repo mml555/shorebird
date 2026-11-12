@@ -13,6 +13,12 @@ concurrency:
 
 on:
   workflow_dispatch:
+    inputs:
+      scenarios:
+        description: "quick: release, patch 1, patched boot. full: also consecutive patches, rollback, version targeting, signing, a refused native change and a server outage."
+        type: choice
+        options: [quick, full]
+        default: full
   schedule:
     - cron: "30 3 * * *"
   pull_request:
@@ -30,7 +36,10 @@ jobs:
     # repository's own code.
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: [self-hosted, linux, x64, shorebird]
-    timeout-minutes: 45
+    # The quick run takes minutes; the full scenarios (the nightly run and the
+    # default of a manual one) build five releases and patches. Pull requests run
+    # the quick path.
+    timeout-minutes: ${{ (github.event_name == 'pull_request' || inputs.scenarios == 'quick') && 45 || 60 }}
 
     steps:
       - name: 📚 Git Checkout
@@ -41,6 +50,7 @@ jobs:
       - name: 📱 Release and patch on a pool phone
         env:
           E2E_POOL_OWNER: shorebird-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          E2E_SCENARIOS: ${{ (github.event_name == 'pull_request' || inputs.scenarios == 'quick') && 'quick' || 'full' }}
         # The pinned Flutter 5b180d22 (engine cell f85251f3) ships no Linux Dart
         # SDK, so the CLI can't start on a Linux runner. While that is the pin,
         # test the Flutter 3.47 candidate (engine 7806e0fb, device-tested on
