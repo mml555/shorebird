@@ -713,14 +713,50 @@ class Api {
   /// Parses an optional ISO-8601 date query parameter. Absent is `null`;
   /// malformed is a 400, for the same reason as [_pathId] — `DateTime.parse`
   /// would otherwise throw a FormatException that escapes as a 500.
-  static DateTime? _dateParam(Map<String, String> query, String name) {
+  ///
+  /// With [utc], a timestamp with no offset is read as UTC rather than the
+  /// server's local time, so a window does not depend on the server's zone.
+  static DateTime? _dateParam(
+    Map<String, String> query,
+    String name, {
+    bool utc = false,
+  }) {
     final raw = query[name];
     if (raw == null) return null;
     final parsed = DateTime.tryParse(raw);
     if (parsed == null) {
       throw badRequest('Invalid $name: "$raw" (expected an ISO-8601 date)');
     }
+    if (utc && !parsed.isUtc) {
+      return DateTime.utc(
+        parsed.year,
+        parsed.month,
+        parsed.day,
+        parsed.hour,
+        parsed.minute,
+        parsed.second,
+        parsed.millisecond,
+        parsed.microsecond,
+      );
+    }
     return parsed;
+  }
+
+  /// The longest window, and the largest `window_days`, the CLI's metrics
+  /// routes accept. Each query scans the events table over its window.
+  static const _maxMetricsDays = 366;
+
+  /// A whole number of days in `1.._maxMetricsDays`; absent is [fallback].
+  static int _daysParam(Map<String, String> query, String name, int fallback) {
+    final raw = query[name];
+    if (raw == null) return fallback;
+    final n = int.tryParse(raw);
+    if (n == null || n < 1 || n > _maxMetricsDays) {
+      throw badRequest(
+        'Invalid $name: "$raw" (expected 1 to $_maxMetricsDays days)',
+      );
+    }
+    return n;
   }
 
   Future<Response> _dispatch(Request req) async {
@@ -831,6 +867,7 @@ class Api {
     if (seg.length == 2 && seg[0] == 'users' && seg[1] == 'me' && m == 'GET') {
       return _usersMe(req);
     }
+    if (seg.length == 1 && seg[0] == 'plan' && m == 'GET') return _plan();
     if (seg.length == 1 && seg[0] == 'users' && m == 'POST') {
       return _createUser(req);
     }
@@ -890,72 +927,40 @@ class Api {
       if (rest.length == 1 && rest[0] == 'metrics' && m == 'GET') {
         return _metrics(appId);
       }
-      if (rest.length == 2 && rest[0] == 'analytics' && m == 'GET') {
-        final q = req.url.queryParameters;
-        final gran = q['granularity'];
-        switch (rest[1]) {
-          case 'patch-adoption':
-            return _json(
-              await _analytics.patchAdoption(
-                appId,
-                releaseVersion: q['release_version'],
-                granularity: gran,
-                start: _dateParam(q, 'start'),
-                end: _dateParam(q, 'end'),
-              ),
-            );
-          case 'unique-users':
-            return _json(
-              await _analytics.uniqueUsers(
-                appId,
-                windowDays: int.tryParse(q['window_days'] ?? '') ?? 30,
-                granularity: gran,
-                groupBy: q['group_by'],
-              ),
-            );
-          case 'version-distribution':
-            return _json(
-              await _analytics.versionDistribution(
-                appId,
-                activeWindowDays:
-                    int.tryParse(q['active_window_days'] ?? '') ?? 30,
-              ),
-            );
-          case 'activity-heatmap':
-            return _json(
-              await _analytics.activityHeatmap(
-                appId,
-                lookbackDays: int.tryParse(q['lookback_days'] ?? '') ?? 28,
-              ),
-            );
-          case 'active-hours':
-            return _json(
-              await _analytics.activeHours(
-                appId,
-                lookbackDays: int.tryParse(q['lookback_days'] ?? '') ?? 28,
-              ),
-            );
-          case 'new-devices':
-            return _json(
-              await _analytics.newDevices(
-                appId,
-                windowDays: int.tryParse(q['window_days'] ?? '') ?? 30,
-              ),
-            );
-          case 'patch-installs':
-          case 'patch-downloads':
-            return _json(
-              await _analytics.patchMetric(
-                appId,
-                metric: rest[1] == 'patch-downloads' ? 'downloads' : 'installs',
-                windowDays: int.tryParse(q['window_days'] ?? '') ?? 30,
-                granularity: gran,
-                groupBy: q['group_by'],
-                releaseVersion: q['release_version'],
-                patchNumber: int.tryParse(q['patch_number'] ?? ''),
-              ),
-            );
+      // `analytics/{name}` is what the console calls; `metrics/{name}` is what
+      // `shorebird metrics` calls. Both reach the same handlers, but only the
+      // metrics routes take `start`/`end` (and validate them): the console's
+      // routes keep their old, lenient handling.
+      if (rest.length == 2 &&
+          (rest[0] == 'analytics' || rest[0] == 'metrics') &&
+          m == 'GET') {
+        final response = await _analyticsRoute(
+          appId,
+          rest[1],
+          req.url.queryParameters,
+          cli: rest[0] == 'metrics',
+        );
+        if (response != null) return response;
+      }
+      // `shorebird metrics ... --release`: patch installs / downloads scoped
+      // to one release. The events table keys on the release version, so the
+      // id is resolved to its version.
+      if (rest.length == 4 &&
+          rest[0] == 'releases' &&
+          rest[2] == 'metrics' &&
+          (rest[3] == 'patch-installs' || rest[3] == 'patch-downloads') &&
+          m == 'GET') {
+        final release = await repo.release(_pathId(rest[1], 'release id'));
+        if (release == null || release.appId != appId) {
+          throw notFound('Release not found');
         }
+        return (await _analyticsRoute(
+          appId,
+          rest[3],
+          req.url.queryParameters,
+          releaseVersion: release.version,
+          cli: true,
+        ))!;
       }
       if (rest.length == 1 && rest[0] == 'patches' && m == 'POST') {
         return _createPatch(req, appId);
@@ -1498,6 +1503,129 @@ class Api {
     );
     return _json({'joined_org': inv['org_id'], 'role': inv['role']});
   }
+
+  /// Serves one analytics metric, or null when [name] is not one.
+  ///
+  /// With [cli] (the routes `shorebird metrics` calls) the window of the
+  /// windowed metrics is `start`/`end`, read as UTC when they carry no offset:
+  /// `end` defaults to now and `start` to 28 days before `end`, the span the
+  /// CLI documents. The window must be positive and at most
+  /// [_maxMetricsDays] long, else 400; `window_days` is validated the same
+  /// way. The previous comparison window has the same length, just before.
+  /// Without [cli] (the console) `window_days` defaults to 30, `start`/`end`
+  /// are read only by patch-adoption, and nothing is validated.
+  /// [releaseVersion] scopes patch installs / downloads to one release.
+  Future<Response?> _analyticsRoute(
+    String appId,
+    String name,
+    Map<String, String> q, {
+    String? releaseVersion,
+    bool cli = false,
+  }) async {
+    final gran = q['granularity'];
+    int days(String param, int fallback) => cli
+        ? _daysParam(q, param, fallback)
+        : int.tryParse(q[param] ?? '') ?? fallback;
+
+    DateTime? start;
+    DateTime? end;
+    final windowed = const {
+      'patch-adoption',
+      'unique-users',
+      'patch-installs',
+      'patch-downloads',
+    }.contains(name);
+    if (cli && windowed) {
+      final windowDays = days('window_days', 28);
+      end = _dateParam(q, 'end', utc: true) ?? DateTime.now().toUtc();
+      start =
+          _dateParam(q, 'start', utc: true) ??
+          end.subtract(Duration(days: windowDays));
+      if (!end.isAfter(start)) {
+        throw badRequest('Invalid window: end must be after start');
+      }
+      if (end.difference(start) > const Duration(days: _maxMetricsDays)) {
+        throw badRequest(
+          'Invalid window: at most $_maxMetricsDays days between start and end',
+        );
+      }
+    } else if (name == 'patch-adoption') {
+      start = _dateParam(q, 'start');
+      end = _dateParam(q, 'end');
+    }
+    switch (name) {
+      case 'patch-adoption':
+        return _json(
+          await _analytics.patchAdoption(
+            appId,
+            releaseVersion: q['release_version'],
+            granularity: gran,
+            start: start,
+            end: end,
+          ),
+        );
+      case 'unique-users':
+        return _json(
+          await _analytics.uniqueUsers(
+            appId,
+            windowDays: days('window_days', 30),
+            granularity: gran,
+            groupBy: q['group_by'],
+            start: start,
+            end: end,
+          ),
+        );
+      case 'version-distribution':
+        return _json(
+          await _analytics.versionDistribution(
+            appId,
+            activeWindowDays: days('active_window_days', 30),
+          ),
+        );
+      case 'activity-heatmap':
+        return _json(
+          await _analytics.activityHeatmap(
+            appId,
+            lookbackDays: days('lookback_days', 28),
+          ),
+        );
+      case 'active-hours':
+        return _json(
+          await _analytics.activeHours(
+            appId,
+            lookbackDays: days('lookback_days', 28),
+          ),
+        );
+      case 'new-devices':
+        return _json(
+          await _analytics.newDevices(
+            appId,
+            windowDays: days('window_days', 30),
+          ),
+        );
+      case 'patch-installs':
+      case 'patch-downloads':
+        return _json(
+          await _analytics.patchMetric(
+            appId,
+            metric: name == 'patch-downloads' ? 'downloads' : 'installs',
+            windowDays: days('window_days', 30),
+            granularity: gran,
+            groupBy: q['group_by'],
+            releaseVersion: releaseVersion ?? q['release_version'],
+            patchNumber: int.tryParse(q['patch_number'] ?? ''),
+            start: start,
+            end: end,
+          ),
+        );
+    }
+    return null;
+  }
+
+  /// `GET /api/v1/plan`. A self-hosted server has no billing and no plan
+  /// limits, so every caller reports the level `self_hosted`, which
+  /// `shorebird whoami` prints as the plan.
+  Response _plan() => _json({'level': 'self_hosted'});
 
   Future<Response> _usersMe(Request req) async {
     final user = await repo.userById(_uid(req));
