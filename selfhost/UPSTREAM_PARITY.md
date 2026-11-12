@@ -66,8 +66,9 @@ Every upstream Shorebird feature, classified for this self-hosted fork. Read on 
 | `patches rollforward` | **unsupported** | `api.dart` answers 501 by design; [`upstream/ADOPTION-1.6.123.md`](upstream/ADOPTION-1.6.123.md) s3 | A rolled-back patch is withdrawn for good |
 | Native-change guard on patch | **working** | CI-ANDROID: exit 70 "Not publishing: native code changed", nothing published | Android only |
 | `patches promote` / `set-track` (release-scoped since #139) | **partial** | `set-track` calls `POST /apps/{id}/patches/promote`, which the server serves; AUG-OLD row 8, [`p6-tracks`](evidence/p6-tracks/VERDICT.md) (device A/B) | Device proof is Aug, 3.44, iOS; the #139 release-scoping has server tests but no device run; not in CI-ANDROID |
-| `init`, `create`, `doctor`, browser `login` | **untested** | Routes served (`/login`, `/token`, `/diagnostics/*`, `POST /apps`) | No dedicated run recorded; CI-ANDROID authenticates with an API key |
-| `login:ci` | **untested** | None | The fork's documented CI path is an API key |
+| `doctor --fix` | **working** | CI-ANDROID run 43300439389 (2026-11-12, d12e29ec / 2c4b0718): `android_pool_e2e.sh` runs `doctor --fix` and asserts it added the Android INTERNET permission | Emulator, CI only |
+| `init`, `create`, browser `login` | **untested** | Routes served (`/login`, `/token`, `/diagnostics/*`, `POST /apps`) | No dedicated run recorded; CI-ANDROID authenticates with an API key |
+| `login:ci` | **unsupported** (removed upstream too) | `LoginCiCommand.run()` says it "has been replaced by API keys", points to service-account keys and exits 64; the file is identical to upstream's | Not a fork gap. The fork's CI path is an API key (`SHOREBIRD_TOKEN`); service-account keys have no route here (below), so the message's advice does not apply |
 | `--flavor` | **partial** | AUG-OLD row 2: iOS device and Android [`g42-flavor`](evidence/g42_flavored_fixture) | Aug, 3.44 stack, carried forward |
 | `--dart-define`, `--dart-define-from-file` | **partial** | AUG-OLD row 3 | Carried forward |
 | `--target` | **partial** | AUG-OLD row 4 | Carried forward |
@@ -143,8 +144,9 @@ read from code, not run.
 3. **Android on a physical phone is not shown on `main`'s pin.** CI proves Android on an emulator; the phone run is on
    `7806e0fb`. Debug and profile builds use stock engine bytes that have never run on a device.
 4. **Team and account commands fail against the server**: `orgs create/update`, `members`, `service-accounts`,
-   `enterprises`, `audit-log`, `usage`, `tokens list`, `apps delete`, `account update`. Anything a team needs is
-   console-only today.
+   `enterprises`, `audit-log`, `usage`, `tokens list`, `apps delete`, `account update`. Members, invitations and the
+   audit log have `/admin` routes and console pages instead (`selfhost/API_REFERENCE.md`); service accounts,
+   enterprises, usage and account updates have no equivalent at all.
 5. **Rollout has no CLI flag.** The server takes a percentage on promote and on an admin route, but `set-track` sends none, and no device run yet. Tracks, flavors,
    defines, targets and obfuscation rest on Aug 2026 runs of an older stack.
 6. **Signing is opt-in and not warned about**, and the managed-key flow is untested.
@@ -153,7 +155,7 @@ read from code, not run.
 
 ## Not verified
 
-- Whether `init`, `doctor`, browser login, `preview`, `flutter versions`, `--json` and the org commands that do have
+- Whether `init`, browser login, `preview`, `flutter versions`, `--json` and the org commands that do have
   routes work end to end: no run was found.
 - Whether CI-ANDROID's emulator result holds on a physical phone, or on `main` itself rather than the #142 branch.
 - Anything on a real IdP, Postgres or S3.
