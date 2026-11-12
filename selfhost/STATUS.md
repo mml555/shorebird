@@ -83,12 +83,24 @@ Our engines (`3a565f27`, `255fd850`, `7806e0fb`, and `2c4b0718`, which shorebird
   `read_timeout 60s` on the upstream so a dead or stalled upstream still fails fast. An
   earlier version of the fix has run on ci-build since 2026-11-10; this one is live once
   PR #106's deploy steps are done.
-- **The mirror's memory grows with its cache.** NutsDB holds every cached body in RAM: the
-  container's anonymous memory is about the on-disk cache size (3.1 GB at 3.1 GB), plus 2-3x
-  of a cold response while it is fetched. So `docker-compose.cdn.yaml` sets no `mem_limit`
-  (a limit under cache size plus about 3 GB would crash-loop it). `EntryIdxMode
-  HintKeyAndRAMIdxMode` (key-only index) was tried on a scratch copy and made no difference
-  (686 MB against 687 MB for a 680 MB cache); the cause is not found. Open: task 11b.
+- **Fixed: the mirror's memory grew with its cache** (task 11b). Two causes:
+  - The Caddyfile set only `path`, so NutsDB ran in its default `HintKeyValAndRAMIdxMode`,
+    which keeps every value in its index. The key-only `HintKeyAndRAMIdxMode` has to go in
+    `configuration` with `Dir`: storages/nuts ignores `path` once `configuration` is set.
+  - That alone made no difference after a restart, which is what the earlier scratch test
+    measured (686 MB against 687 MB for a 680 MB cache). NutsDB v1.0.4's `ParsePayload`
+    makes the key a sub-slice of the buffer holding key and value, and recovery keeps the
+    key in the index and in the expiry callback of every entry with a TTL, which is every
+    Souin entry. A heap profile put 816 of 829 MB in `fileRecovery.readEntry`.
+    [`cdn/nutsdb-v1.0.4-key-copy.patch`](cdn/nutsdb-v1.0.4-key-copy.patch) copies the key;
+    the Dockerfile and `run_native.sh` build Caddy with it (NutsDB pinned by commit) and
+    fail if the binary does not link it.
+
+  Measured on ci-build with 1 GB cached: after a restart 140 MB (was 1,080 MB), after reading
+  it all back 446 MB with `GOMEMLIMIT=1GiB` (was 2,041 MB), all hits with matching bytes. The
+  compose file now sets `GOMEMLIMIT=1GiB` and `mem_limit: 4g`. The live mirror runs the old
+  image until it is rebuilt and recreated; the on-disk format is unchanged, so the cache
+  survives that.
 
 <a id="ios-on-255fd850"></a>
 
@@ -183,7 +195,7 @@ Effort: S under a day, M a few days, L a week or more.
 | 10 | arm64 server image | M | Releases are amd64 only without hosted runners (buildx + QEMU or an arm64 runner). |
 | 11 | iOS code push and `aot-tools.dill` | L | **Route B done on `2c4b0718`** (shorebird-flutter #9 ports the 3.44-era Route B engine changes, #10 builds the iOS engine with them, #11 fixes its gn check, #12 pins it; fork #115 and #116): iOS release, patch and rollback ran on the physical iPhone 7; see [iOS code push on `2c4b0718`](#ios-code-push-on-2c4b0718-route-b). The owner decided on 2026-11-11 not to re-measure on 3.47 the share of Dart changes a patch accepts; only the 3.44 numbers exist. Left: qualify `2c4b0718` in `SUPPORTED_STATE.yaml`, which has to name the CLI revision and shorebird-flutter pin that #111 lands, so it waits for #111; land the CLI side through the promotion (#111, on hold; re-pin it to shorebird-flutter `d12e29ec` first). Upstream's own iOS patch path (`Shorebird_ReadLinkHeader`, the five-argument `Dart_LoadELF`, `aot_tools`) lives in Shorebird's private Dart fork and is not pursued; `aot-tools.dill` belongs to it, does not build, and the mirror 404s it. |
 | 11a | ~~Diagnose the mirror's cold `/gcs/` fetch hang~~ | Done | Souin's 10 s default backend timeout; see the CDN section. |
-| 11b | Find why the mirror holds its whole cache in RAM | M | About 3.1 GB of anonymous memory for a 3.1 GB cache, so the container has no `mem_limit`. A key-only NutsDB index made no difference. See the CDN section. |
+| 11b | Find why the mirror holds its whole cache in RAM | M | **Fixed:** key-only NutsDB index plus a one-line NutsDB patch; 140 MB after a restart instead of the cache's size. Left: rebuild and recreate the live mirror. See the CDN section. |
 | 12 | Apple and desktop paths in CI | L | iOS code push is proven by hand on the physical iPhone 7 with `2c4b0718` (and earlier with 3.44-era Route B engines), not in CI; macOS, Windows and Linux code push are untested ([`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md)). Needs a Mac runner. |
 
 Owner decisions, no code needed:

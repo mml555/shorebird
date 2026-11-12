@@ -15,9 +15,24 @@ FROM caddy:2.11-builder-alpine AS builder
 
 ENV GOTOOLCHAIN=auto
 
+# NutsDB v1.0.4 (what storages/nuts v0.0.21 requires), with one fix: on
+# recovery it kept each key as a slice of the buffer holding that key's value,
+# so after every restart the whole cache stayed in memory whatever the index
+# mode. See nutsdb-v1.0.4-key-copy.patch and selfhost/STATUS.md (CDN section).
+# Fetched by commit, not tag, so the source cannot change under the build.
+ARG NUTSDB_COMMIT=b346859068f98ef382d83bc4d485fd6fecdc5e86
+COPY nutsdb-v1.0.4-key-copy.patch /src/
+RUN git init -q /src/nutsdb \
+ && git -C /src/nutsdb fetch -q --depth 1 https://github.com/nutsdb/nutsdb "$NUTSDB_COMMIT" \
+ && git -C /src/nutsdb checkout -q FETCH_HEAD \
+ && git -C /src/nutsdb apply /src/nutsdb-v1.0.4-key-copy.patch
+
 RUN xcaddy build \
     --with github.com/caddyserver/cache-handler@v0.17.0 \
-    --with github.com/darkweak/storages/nuts/caddy@v0.0.22
+    --with github.com/darkweak/storages/nuts/caddy@v0.0.22 \
+    --replace github.com/nutsdb/nutsdb=/src/nutsdb \
+ && ./caddy build-info | grep -A1 'github.com/nutsdb/nutsdb' | grep -Eq '=>[[:space:]]+/src/nutsdb' \
+ || { echo 'the build did not link the patched NutsDB' >&2; exit 1; }
 
 FROM caddy:2.11-alpine
 

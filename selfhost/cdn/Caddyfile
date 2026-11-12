@@ -52,8 +52,18 @@
 		mode bypass_response
 		ttl 8760h
 		stale 168h
+		# Index keys only (HintKeyAndRAMIdxMode); bodies are read from disk on a
+		# hit. NutsDB's default keeps every cached body in memory, so the mirror
+		# needed as much RAM as its cache had disk. storages/nuts ignores `path`
+		# once `configuration` is set, so the directory is `Dir` here, and the
+		# image must link the patched NutsDB (nutsdb-v1.0.4-key-copy.patch) or a
+		# restart still loads every body into memory.
 		nuts {
-			path /var/cache/caddy/cdn
+			configuration {
+				Dir /var/cache/caddy/cdn
+				EntryIdxMode HintKeyAndRAMIdxMode
+				RWMode FileIO
+			}
 		}
 		# Successful artifact responses are immutable. Handlers below override
 		# Cache-Control on 404 so unpublished paths only stick for one minute.

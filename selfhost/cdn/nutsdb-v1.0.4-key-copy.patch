@@ -1,0 +1,17 @@
+diff --git a/entry.go b/entry.go
+index 3610a31..6b6f397 100644
+--- a/entry.go
++++ b/entry.go
+@@ -119,7 +119,11 @@ func (e *Entry) ParsePayload(data []byte) error {
+ 	valueHighBound := meta.KeySize + meta.ValueSize
+ 
+ 	// parse key
+-	e.Key = data[keyLowBound:keyHighBound]
++	// shorebird-selfhost: copy the key. data holds the key and the value in one
++	// buffer, and on recovery the key is kept (in the index, and in the expiry
++	// callback of every entry with a TTL), so a sub-slice kept every value in
++	// memory too, even in HintKeyAndRAMIdxMode.
++	e.Key = append([]byte(nil), data[keyLowBound:keyHighBound]...)
+ 	// parse value
+ 	e.Value = data[valueLowBound:valueHighBound]
+ 	return nil
