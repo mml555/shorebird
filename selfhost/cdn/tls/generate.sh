@@ -168,6 +168,17 @@ if openssl verify -CAfile "$WORK/ca.crt" -verify_hostname not-in-the-san.invalid
   echo "ERROR: server.crt verifies for a host that is not in the SAN" >&2; exit 1
 fi
 echo "      ok  not-in-the-san.invalid is refused"
+# The constraint itself must hold: a leaf for a domain outside it, signed with
+# this CA's own key, must NOT verify.
+openssl req -newkey rsa:2048 -nodes -keyout "$WORK/probe.key" -out "$WORK/probe.csr" \
+  -subj /CN=example.com 2>/dev/null
+printf 'subjectAltName = DNS:example.com\n' > "$WORK/probe.ext"
+openssl x509 -req -in "$WORK/probe.csr" -days 1 -CA "$WORK/ca.crt" -CAkey "$WORK/ca.key" \
+  -CAcreateserial -extfile "$WORK/probe.ext" -out "$WORK/probe.crt" 2>/dev/null
+if openssl verify -CAfile "$WORK/ca.crt" -verify_hostname example.com "$WORK/probe.crt" >/dev/null 2>&1; then
+  echo "ERROR: the CA's name constraint does not hold: it vouches for example.com" >&2; exit 1
+fi
+echo "      ok  a cert for example.com from this CA is refused (name constraint)"
 echo
 # Verified; move into place (each is a rename within $DIR).
 for f in openssl.cnf ca.key ca.crt server.key server.crt fullchain.crt; do

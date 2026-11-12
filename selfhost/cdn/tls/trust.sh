@@ -62,9 +62,15 @@ else
   echo "  JDK: $JH"
   if [[ ! -f "$STORE" ]]; then
     echo "  !! no cacerts at $STORE"
-  elif "$JH/bin/keytool" -list -cacerts -alias "$ALIAS" -storepass changeit >/dev/null 2>&1; then
+  elif listed=$("$JH/bin/keytool" -list -cacerts -alias "$ALIAS" -storepass changeit 2>/dev/null) \
+    && [[ $listed == *"$(openssl x509 -in "$CA" -noout -fingerprint -sha256 | sed 's/.*=//')"* ]]; then
     echo "  already trusted (alias $ALIAS)"
   else
+    # An older CA under the same alias (generate.sh was re-run) is replaced,
+    # or Gradle would keep trusting only the old one.
+    if [[ -n ${listed:-} ]]; then
+      run "$JH/bin/keytool" -delete -cacerts -storepass changeit -alias "$ALIAS"
+    fi
     # -cacerts targets the JDK's own store without naming the path.
     run "$JH/bin/keytool" -importcert -noprompt -cacerts -storepass changeit \
       -alias "$ALIAS" -file "$CA"
