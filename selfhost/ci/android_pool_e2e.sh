@@ -22,7 +22,8 @@
 #                               pinned one (rewrites bin/internal/flutter.version in
 #                               this checkout, so use a throwaway one)
 #
-# Needs adb, java, curl, python3, openssl and timeout on PATH. Exits non-zero,
+# Needs java, curl, python3, openssl and timeout on PATH, and adb in
+# $ANDROID_HOME/platform-tools. Exits non-zero,
 # with the server log, the device log and the pool's lease, on any failure.
 set -euo pipefail
 
@@ -153,7 +154,7 @@ if [[ ! -w ${ANDROID_HOME:?set ANDROID_HOME to the Android SDK} ]]; then
 fi
 # The runner sets ANDROID_HOME but doesn't put adb on PATH.
 export PATH=$ANDROID_HOME/platform-tools:$PATH
-command -v adb >/dev/null || { echo "no adb in $ANDROID_HOME/platform-tools" >&2; exit 1; }
+command -v adb >/dev/null || { echo "adb not found in $ANDROID_HOME/platform-tools" >&2; exit 1; }
 
 log "CLI and its Flutter"
 if [[ -n ${E2E_FLUTTER_REVISION:-} ]]; then
@@ -211,8 +212,9 @@ app_json=$(curl -fsS --max-time 30 -X POST "$BASE/api/v1/apps" -H @- \
 app_id=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' <<<"$app_json")
 printf 'app_id: %s\nbase_url: %s\n' "$app_id" "$BASE" >"$APP/shorebird.yaml"
 python3 -I "$ROOT/selfhost/scripts/lib/add_shorebird_asset.py" "$APP/pubspec.yaml"
-# Gradle and Kotlin in the build's own process: no daemon outlives the job, and
-# none left by an earlier build (with another SDK path) serves this one. Set in
+# Gradle and Kotlin without long-lived daemons: Gradle's single-use daemon ends
+# with each build, and none left by an earlier build (with another SDK path)
+# serves this one. Set in
 # the job's own Gradle user home, so it also covers Flutter's Gradle plugin,
 # an included build that ignores the app's gradle.properties. A Kotlin daemon
 # listens on 17001-18000, which ci-build's runner rules don't let a job reach on
