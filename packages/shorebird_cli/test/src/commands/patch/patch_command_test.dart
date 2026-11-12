@@ -3584,11 +3584,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
       });
     });
 
-    group('when the patcher requires --release-version', () {
-      setUp(() {
-        when(() => patcher.requiresReleaseVersionArg).thenReturn(true);
-      });
-
+    group('when --release-version is missing or provided', () {
       group('when it is missing', () {
         setUp(() {
           when(
@@ -4065,21 +4061,29 @@ A patch cannot change the Flutter version a release was built with. To fix this,
         // chooser, which refuses when it would have to prompt.
         group('when several releases exist', () {
           setUp(() {
-            when(
-              () => logger.chooseOne<Release>(
-                any(),
-                choices: any(named: 'choices'),
-                display: any(named: 'display'),
-                hint: any(named: 'hint'),
-              ),
-            ).thenThrow(
-              const InteractivePromptRequiredException(
-                promptText: 'Which release would you like to patch?',
-                hint:
-                    'Pass --release-version=<version> to patch a specific '
-                    'release without prompting.',
-              ),
+            // The real logger, so the guard that refuses to prompt is the one
+            // exercised rather than a mock told to throw.
+            logger = ShorebirdLogger(level: Level.quiet);
+            final olderRelease = Release(
+              id: 99,
+              appId: appId,
+              version: '0.0.1',
+              flutterRevision: flutterRevision,
+              flutterVersion: flutterVersion,
+              displayName: '0.0.1',
+              platforms: const {
+                releasePlatform: ReleasePlatformDetails(
+                  status: ReleaseStatus.active,
+                ),
+              },
+              createdAt: DateTime(2022),
+              updatedAt: DateTime(2022),
             );
+            when(
+              () => codePushClientWrapper.getReleases(
+                appId: any(named: 'appId'),
+              ),
+            ).thenAnswer((_) async => [release, olderRelease]);
           });
 
           test(
@@ -4123,6 +4127,34 @@ A patch cannot change the Flutter version a release was built with. To fix this,
               );
             },
           );
+        });
+
+        group('when no releases exist', () {
+          setUp(() {
+            when(
+              () => codePushClientWrapper.getReleases(
+                appId: any(named: 'appId'),
+              ),
+            ).thenAnswer((_) async => []);
+          });
+
+          test('exits with the no-releases error, building nothing', () async {
+            await expectLater(
+              () => runWithOverrides(command.run),
+              exitsWithError(
+                message:
+                    'No ${releasePlatform.displayName} releases found for app '
+                    '$appId.',
+              ),
+            );
+
+            verifyNever(() => patcher.buildPatchArtifact());
+            verifyNever(
+              () => patcher.buildPatchArtifact(
+                releaseVersion: any(named: 'releaseVersion'),
+              ),
+            );
+          });
         });
 
         group('when exactly one release exists', () {
