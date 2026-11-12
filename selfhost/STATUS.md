@@ -6,6 +6,8 @@ four repositories are in, what is proven, what is open, and what to do next. Upd
 when an item here changes; history of how things got here lives in the PRs and in
 [`STATE_OF_THE_SYSTEM.md`](STATE_OF_THE_SYSTEM.md).
 
+Feature-by-feature comparison with upstream Shorebird: [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md).
+
 ## The four repositories
 
 | Repository | Active branch | State |
