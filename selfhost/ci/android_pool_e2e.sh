@@ -212,9 +212,15 @@ app_id=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' <<<"$ap
 printf 'app_id: %s\nbase_url: %s\n' "$app_id" "$BASE" >"$APP/shorebird.yaml"
 python3 -I "$ROOT/selfhost/scripts/lib/add_shorebird_asset.py" "$APP/pubspec.yaml"
 # Gradle and Kotlin in the build's own process: no daemon outlives the job, and
-# none left by an earlier build (with another SDK path) serves this one.
+# none left by an earlier build (with another SDK path) serves this one. Set in
+# the job's own Gradle user home, so it also covers Flutter's Gradle plugin,
+# an included build that ignores the app's gradle.properties. A Kotlin daemon
+# listens on 17001-18000, which ci-build's runner rules don't let a job reach on
+# loopback: the plugin's compile waited 22 minutes for it before falling back.
+export GRADLE_USER_HOME=$WORK/gradle-home
+mkdir -p "$GRADLE_USER_HOME"
 printf '%s\n' org.gradle.daemon=false kotlin.compiler.execution.strategy=in-process \
-  >>"$APP/android/gradle.properties"
+  >"$GRADLE_USER_HOME/gradle.properties"
 # The app talks to the server over http://127.0.0.1 (adb reverse).
 perl -pi -e 's/<application/<application android:usesCleartextTraffic="true"/' \
   "$APP/android/app/src/main/AndroidManifest.xml"
