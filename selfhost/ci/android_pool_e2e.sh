@@ -189,6 +189,10 @@ app_json=$(curl -fsS --max-time 30 -X POST "$BASE/api/v1/apps" -H @- \
 app_id=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' <<<"$app_json")
 printf 'app_id: %s\nbase_url: %s\n' "$app_id" "$BASE" >"$APP/shorebird.yaml"
 python3 -I "$ROOT/selfhost/scripts/lib/add_shorebird_asset.py" "$APP/pubspec.yaml"
+# Gradle and Kotlin in the build's own process: no daemon outlives the job, and
+# none left by an earlier build (with another SDK path) serves this one.
+printf '%s\n' org.gradle.daemon=false kotlin.compiler.execution.strategy=in-process \
+  >>"$APP/android/gradle.properties"
 # The app talks to the server over http://127.0.0.1 (adb reverse).
 perl -pi -e 's/<application/<application android:usesCleartextTraffic="true"/' \
   "$APP/android/app/src/main/AndroidManifest.xml"
