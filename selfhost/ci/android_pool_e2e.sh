@@ -813,7 +813,9 @@ LIB=$ROOT/packages/code_push_server/ops/lib
 BR=$WORK/backup-restore
 mkdir -p "$BR/lib" "$BR/tmp"
 for f in write_manifest.sh verify_manifest.sh; do
-  sed -e "s#/data#$WORK/server-data#g" -e "s#/tmp/#$BR/tmp/#g" "$LIB/$f" >"$BR/lib/$f"
+  # Placeholders first, so a $WORK under /tmp (or holding /data) is not rewritten twice.
+  sed -e 's#/data#@SB_DATA@#g' -e 's#/tmp/#@SB_TMP@/#g' \
+    -e "s#@SB_DATA@#$WORK/server-data#g" -e "s#@SB_TMP@#$BR/tmp#g" "$LIB/$f" >"$BR/lib/$f"
 done
 check_pre=$(patch_check 0.2.0+2 4)
 patches_pre=$(server_patches 0.2.0+2)
