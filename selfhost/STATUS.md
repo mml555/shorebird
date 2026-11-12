@@ -203,7 +203,9 @@ Effort: S under a day, M a few days, L a week or more.
 | 11 | iOS code push and `aot-tools.dill` | L | **Route B done on `2c4b0718`** (shorebird-flutter #9 ports the 3.44-era Route B engine changes, #10 builds the iOS engine with them, #11 fixes its gn check, #12 pins it; fork #115 and #116): iOS release, patch and rollback ran on the physical iPhone 7; see [iOS code push on `2c4b0718`](#ios-code-push-on-2c4b0718-route-b). The owner decided on 2026-11-11 not to re-measure on 3.47 the share of Dart changes a patch accepts; only the 3.44 numbers exist. Left: qualify `2c4b0718` in `SUPPORTED_STATE.yaml`, which has to name the CLI revision and shorebird-flutter pin that #111 lands, so it waits for #111; land the CLI side through the promotion (#111, on hold; re-pin it to shorebird-flutter `d12e29ec` first). Upstream's own iOS patch path (`Shorebird_ReadLinkHeader`, the five-argument `Dart_LoadELF`, `aot_tools`) lives in Shorebird's private Dart fork and is not pursued; `aot-tools.dill` belongs to it, does not build, and the mirror 404s it. |
 | 11a | ~~Diagnose the mirror's cold `/gcs/` fetch hang~~ | Done | Souin's 10 s default backend timeout; see the CDN section. |
 | 11b | Find why the mirror holds its whole cache in RAM | M | **Fixed:** key-only NutsDB index plus a one-line NutsDB patch; 140 MB after a restart instead of the cache's size in a 1 GB test; about 530 MB on the live mirror with 3.1 GB cached, deployed 2026-11-11. See the CDN section. |
-| 12 | Apple and desktop paths in CI | L | iOS code push is proven by hand on the physical iPhone 7 with `2c4b0718` (and earlier with 3.44-era Route B engines), not in CI; macOS, Windows and Linux code push are untested ([`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md)). NeedsOwner decisions, settled on 2026-11-11 under the owner's go-ahead:
+| 12 | Apple and desktop paths in CI | L | iOS code push is proven by hand on the physical iPhone 7 with `2c4b0718` (and earlier with 3.44-era Route B engines), not in CI; macOS, Windows and Linux code push are untested ([`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md)). Needs a Mac runner. |
+
+Owner decisions, settled on 2026-11-11 under the owner's go-ahead:
 
 - `ios_framework_patcher.dart` from cw05 is dropped. It is an older form of the file: it
   removes `main`'s `IosEnginePatchGuard`, minimum Flutter version and `--no-codesign`
@@ -219,9 +221,7 @@ Effort: S under a day, M a few days, L a week or more.
   would install an old CLI. The owner deleted the six branches on 2026-11-11; restore any
   of them with `git push <remote> archive/<b>:refs/heads/<b>`.
 - The four dated `HANDOFF-2026-*` files moved to [`archive/`](archive/README.md).
-  [`HANDOFF.md`](HANDOFF.md), which nine docs link to, stays.
-
-x easier to use.
+  [`HANDOFF.md`](HANDOFF.md), which eight other docs link to, stays.
 
 Longer research lines, not blocking: foldable-constant patches that attach but do nothing
 ([`STATE_OF_THE_SYSTEM.md`](STATE_OF_THE_SYSTEM.md)), progressive rollout with no client
