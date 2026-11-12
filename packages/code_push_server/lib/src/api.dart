@@ -3464,6 +3464,7 @@ class Api {
   }) async {
     final candidates = await repo.supersededChannelPatches(
       channelId,
+      releaseId: releaseId,
       platform: platform,
     );
     for (final candidate in candidates) {

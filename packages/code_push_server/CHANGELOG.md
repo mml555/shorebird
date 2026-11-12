@@ -49,8 +49,11 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   patches, and the check looks up the active patch of the device's release.
   - Rows already withdrawn this way are left as they are: they look exactly like
     a deliberate `withdraw` (`withdrawn`, not rolled back), so no migration can
-    tell them apart. To bring one back, promote that release's patch to the
-    channel again.
+    tell them apart. If a release lost its patch to another release's promote,
+    promote that patch to the channel again, but only if it was not rolled back
+    (`GET .../patches` shows `is_rolled_back`): promoting a rolled-back patch
+    leaves it active and also listed in `rolled_back_patch_numbers`, and devices
+    keep dropping and re-fetching it.
 
 ### Security
 
