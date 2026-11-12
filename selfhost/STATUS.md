@@ -19,7 +19,7 @@ when an item here changes; history of how things got here lives in the PRs and i
 
 - Closed 28 superseded PRs on `mml555/shorebird` (the August Route B stacks, cw01-cw05,
   rb01-rb10 and the original feature PRs). Every file they touch is on `main` in a later
-  form, except `ios_framework_patcher.dart` from cw05 (see open items).
+  form, except `ios_framework_patcher.dart` from cw05, dropped on 2026-11-11 (see below).
 - Deleted 44 merged or superseded branches. Each tip is kept as an `archive/<branch>` tag,
   so any of them can be restored with
   `git push <remote> archive/<b>:refs/heads/<b>`, where `<remote>` points at `mml555/shorebird`.
@@ -203,17 +203,25 @@ Effort: S under a day, M a few days, L a week or more.
 | 11 | iOS code push and `aot-tools.dill` | L | **Route B done on `2c4b0718`** (shorebird-flutter #9 ports the 3.44-era Route B engine changes, #10 builds the iOS engine with them, #11 fixes its gn check, #12 pins it; fork #115 and #116): iOS release, patch and rollback ran on the physical iPhone 7; see [iOS code push on `2c4b0718`](#ios-code-push-on-2c4b0718-route-b). The owner decided on 2026-11-11 not to re-measure on 3.47 the share of Dart changes a patch accepts; only the 3.44 numbers exist. Left: qualify `2c4b0718` in `SUPPORTED_STATE.yaml`, which has to name the CLI revision and shorebird-flutter pin that #111 lands, so it waits for #111; land the CLI side through the promotion (#111, on hold; re-pin it to shorebird-flutter `d12e29ec` first). Upstream's own iOS patch path (`Shorebird_ReadLinkHeader`, the five-argument `Dart_LoadELF`, `aot_tools`) lives in Shorebird's private Dart fork and is not pursued; `aot-tools.dill` belongs to it, does not build, and the mirror 404s it. |
 | 11a | ~~Diagnose the mirror's cold `/gcs/` fetch hang~~ | Done | Souin's 10 s default backend timeout; see the CDN section. |
 | 11b | Find why the mirror holds its whole cache in RAM | M | **Fixed:** key-only NutsDB index plus a one-line NutsDB patch; 140 MB after a restart instead of the cache's size in a 1 GB test; about 530 MB on the live mirror with 3.1 GB cached, deployed 2026-11-11. See the CDN section. |
-| 12 | Apple and desktop paths in CI | L | iOS code push is proven by hand on the physical iPhone 7 with `2c4b0718` (and earlier with 3.44-era Route B engines), not in CI; macOS, Windows and Linux code push are untested ([`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md)). Needs a Mac runner. |
+| 12 | Apple and desktop paths in CI | L | iOS code push is proven by hand on the physical iPhone 7 with `2c4b0718` (and earlier with 3.44-era Route B engines), not in CI; macOS, Windows and Linux code push are untested ([`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md)). NeedsOwner decisions, settled on 2026-11-11 under the owner's go-ahead:
 
-Owner decisions, no code needed:
+- `ios_framework_patcher.dart` from cw05 is dropped. It is an older form of the file: it
+  removes `main`'s `IosEnginePatchGuard`, minimum Flutter version and `--no-codesign`
+  forwarding, and links through upstream's `aot_tools`, which this fork's engine can't
+  run. It stays in the `archive/cw05-other-platforms` tag.
+- `preserve/freeze-wt-stash-20261002`, `preserve/split-wt-stash-20261002`,
+  `preserve/split-wt-wip-20261002`, `worktree-wf_88d81758-e2a-1`, `-4` and `stable` are
+  tagged `archive/<branch>` on `mml555/shorebird`. The `preserve/*` branches are stash
+  snapshots; the two worktree branches' changes are on `main` in later form
+  (`gen_snapshot_probe.dart`, `route_b_release_kernels_test.dart`, the obfuscation-map
+  handling in `patch_command.dart`). Nothing tracks `stable`: no install on the Mac or
+  ci-build, and no doc. It stopped at 1.6.114, so the CLI's hint `git checkout stable`
+  would install an old CLI. Deleting the branches is the owner's step (auto mode refuses
+  it); restore any of them with `git push <remote> archive/<b>:refs/heads/<b>`.
+- The four dated `HANDOFF-2026-*` files moved to [`archive/`](archive/README.md).
+  [`HANDOFF.md`](HANDOFF.md), which nine docs link to, stays.
 
-- `ios_framework_patcher.dart` from the closed cw05 PR is the one file never on `main`.
-  Glance at `archive/cw05-other-platforms` and keep or drop it.
-- Snapshot branches `preserve/*` (three) and `worktree-wf_88d81758-e2a-1`, `-4` hold a few
-  files not on `main`, most likely replaced by later rewrites. Archive or delete.
-- `stable` is an old ancestor of `main`; keep only if something pins it.
-- The `selfhost/` folder has 44 top-level docs, several of them dated handoffs.
-  Archiving the `HANDOFF-*` files would make the index easier to use.
+x easier to use.
 
 Longer research lines, not blocking: foldable-constant patches that attach but do nothing
 ([`STATE_OF_THE_SYSTEM.md`](STATE_OF_THE_SYSTEM.md)), progressive rollout with no client

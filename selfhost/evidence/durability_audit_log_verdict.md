@@ -48,7 +48,7 @@ lost".
     181  release.ready  96               <- killswitch 1.0.7+1
 
 **Nine operations, nine rows, no gaps.** The "publish returned success and
-committed nothing" phenomenon (`HANDOFF-2026-08-16-g41c.md`) did NOT recur in this
+committed nothing" phenomenon (`selfhost/archive/HANDOFF-2026-08-16-g41c.md`) did NOT recur in this
 cycle, and the dense/equal signature says nothing was silently dropped.
 
 **VERDICT: publish durability for this cycle is CONTENT-READ ON BOTH HALVES.** The
