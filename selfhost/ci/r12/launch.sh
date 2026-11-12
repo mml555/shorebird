@@ -39,7 +39,22 @@ say "preflight (host side)"
 # Full-SHA fail-closed guard. A prefix, a fabricated SHA, an uppercase SHA or an
 # iOS cell must never reach a decisive arm — see PREFLIGHT.md for why this check
 # exists rather than being a note in a file.
-"$HERE/../r12_revision_guard.sh" "$PRODUCER" \
+# The guard runs on the HOST, which cannot resolve host.docker.internal on a Linux
+# engine; R12_HOST_CDN is the same mirror as the host reaches it. Only the host
+# part may differ: a different port would be a different instance (the warm :8085
+# instead of the sealed cold :8086), and the guard would vouch for the wrong one.
+port_of() {
+  local u="${1#*://}"; u="${u%%/*}"
+  if [[ "$u" == *:* ]]; then echo "${u##*:}"
+  elif [[ "$1" == https://* ]]; then echo 443
+  else echo 80; fi
+}
+if [[ -n "${R12_HOST_CDN:-}" ]]; then
+  [[ "$(port_of "$R12_HOST_CDN")" == "$(port_of "$CDN")" ]] \
+    || die "R12_HOST_CDN ($R12_HOST_CDN) and the arm's CDN ($CDN) are on different
+     ports, so they are different mirror instances. Point both at the same one."
+fi
+CDN="${R12_HOST_CDN:-$CDN}" "$HERE/../r12_revision_guard.sh" "$PRODUCER" \
   || die "producer revision refused by the guard"
 
 # THE INVOCATION POINT. A permanent guard nobody calls is documentation with an
@@ -47,7 +62,16 @@ say "preflight (host side)"
 # engine.version -> manifest -> every artifact by size and SHA-256. It cannot
 # live in hosted CI (it reads the gitignored overlay and the local bare mirror),
 # so this is where it runs until a self-hosted workflow exists.
-"$HERE/../bootstrap_closure_guard.sh" \
+# Defaults are the certified 3.44.8 pin and its ref. A candidate pin is named
+# explicitly (R12_FLUTTER_REVISION + R12_FLUTTER_REF), never read from whatever
+# checkout this runs in, and it must be a full SHA: an empty pin would compare
+# equal to an empty ls-remote answer and pass.
+PINNED="${R12_FLUTTER_REVISION:-a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61}"
+FLUTTER_REF="${R12_FLUTTER_REF:-refs/heads/selfhost/3.44.8}"
+[[ "$PINNED" =~ ^[0-9a-f]{40}$ ]] \
+  || die "R12_FLUTTER_REVISION must be a full 40-hex SHA, got '$PINNED'"
+# The guard proves the closure of the pin this arm uses, not a different one.
+R12_FLUTTER_REVISION="$PINNED" "$HERE/../bootstrap_closure_guard.sh" \
   || die "owned bootstrap closure is incomplete — see the guard output above.
      Repair with r12/mirror_bootstrap_artifact.sh; do NOT move the Flutter pin."
 
@@ -65,11 +89,10 @@ fi
 # The owned Flutter mirror must be up AND serving the pinned revision.
 docker ps --format '{{.Names}}' | grep -qx r12-flutter-git \
   || die "r12-flutter-git is not running (the owned Flutter mirror service)"
-PINNED=a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
-got="$(docker run --rm --platform linux/amd64 --entrypoint git alpine/git:latest \
+got="$(docker run --rm --platform linux/amd64 --add-host host.docker.internal:host-gateway --entrypoint git alpine/git:latest \
         ls-remote git://host.docker.internal:9418/flutter.git \
-        refs/heads/selfhost/3.44.8 2>/dev/null | awk '{print $1}')"
-[[ "$got" == "$PINNED" ]] \
+        "$FLUTTER_REF" 2>/dev/null | awk '{print $1}')"
+[[ -n "$got" && "$got" == "$PINNED" ]] \
   || die "owned Flutter mirror serves '$got', expected the pinned $PINNED"
 echo "   owned flutter mirror     : serves $PINNED"
 
@@ -80,7 +103,7 @@ for svc in "CDN $CDN/flutter_infra_release/flutter/$PRODUCER/android-arm64-relea
   # mirror came back 000 and read as "unreachable" when it was serving fine. The
   # CA is mounted into the PROBE container only -- this runs on the host side,
   # not inside the measured arm, where the no-host-mounts rule applies.
-  code="$(docker run --rm --platform linux/amd64 \
+  code="$(docker run --rm --platform linux/amd64 --add-host host.docker.internal:host-gateway \
             -v "$CA_FILE:/ca.crt:ro" curlimages/curl:latest \
             -sS --cacert /ca.crt -o /dev/null -m 20 -w '%{http_code}' "$url" 2>/dev/null || echo FAIL)"
   printf '   %-24s : %s -> %s\n' "$name" "${url:0:64}" "$code"
@@ -101,7 +124,7 @@ docker rm -f "$CNAME" >/dev/null 2>&1 || true
 
 say "arm $ARM — fresh container, no host mounts"
 set +e
-docker run --name "$CNAME" --platform linux/amd64 -i \
+docker run --name "$CNAME" --platform linux/amd64 --add-host host.docker.internal:host-gateway -i \
   -e HOME=/r12home \
   -e R12_ARM_LABEL="$ARM" \
   -e R12_RELEASE_VERSION="$RELVER" \

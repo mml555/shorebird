@@ -23,7 +23,19 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # HTTPS, because Gradle 9 refuses insecure Maven repositories and
 # FLUTTER_STORAGE_BASE_URL becomes one during an Android release build.
 SEALED="${R12_CDN:-https://host.docker.internal:8087}"
-CA_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../cdn/tls-r12" && pwd)/ca.crt"
+# R12_RP_MINOR becomes part of a version string and a shell command: a plain
+# number with no leading zero (semver forbids one).
+[[ "${R12_RP_MINOR:-9}" =~ ^(0|[1-9][0-9]*)$ ]] \
+  || { echo "R12_RP_MINOR must be a number with no leading zero, got '${R12_RP_MINOR}'" >&2; exit 1; }
+
+# Discovery is only meaningful against the sealed cold instance (:8086 http,
+# :8087 https). A warm mirror would answer from cache and hide what the closure
+# is missing.
+case "$SEALED" in
+  *:8086|*:8086/*|*:8087|*:8087/*) ;;
+  *) echo "R12_CDN must be the sealed cold instance (port 8086 or 8087), got '$SEALED'" >&2; exit 1 ;;
+esac
+CA_FILE="${R12_CA_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../cdn/tls-r12" && pwd)/ca.crt}"
 # localhost, not host.docker.internal: the control plane emits absolute
 # localhost URLs for uploads, and socat below makes that reachable.
 CP="${SHOREBIRD_HOSTED_URL:-http://localhost:18081}"
@@ -56,7 +68,9 @@ fi
 if ! docker ps --format '{{.Names}}' | grep -qx "$C"; then
   say "creating the release/patch discovery container"
   docker rm -f "$C" >/dev/null 2>&1
+  # --add-host: Docker Desktop defines host.docker.internal, a Linux engine does not.
   docker run -d --name "$C" --platform linux/amd64 \
+    --add-host host.docker.internal:host-gateway \
     -e HOME=/r12home \
     -e SHOREBIRD_FLUTTER_GIT_URL=git://host.docker.internal:9418/flutter.git \
     -e FLUTTER_STORAGE_BASE_URL="$SEALED" \
@@ -109,7 +123,9 @@ GP
 fi
 
 for i in $(seq 1 "$MAXIT"); do
-  ver="0.9.$i+$i"
+  # R12_RP_MINOR lets a second invocation against the same control plane use
+  # versions the first one did not (a release version is immutable there).
+  ver="0.${R12_RP_MINOR:-9}.$i+$i"
   say "iteration $i — frozen harness against the SEALED COLD mirror (v$ver)"
   before="$(docker logs r12-cdn-sealed 2>&1 | wc -l | tr -d ' ')"
   docker exec "$C" bash -c "sed -i -E 's/^version:.*/version: $ver/' $APP/pubspec.yaml"

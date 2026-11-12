@@ -11,8 +11,13 @@
 # read-only by construction — git-daemon serves fetches, never pushes.
 set -euo pipefail
 
-MIRRORS="${MIRRORS:-/Users/mendell/shorebird/selfhost/cdn/mirrors}"
-PINNED=a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61
+MIRRORS="${MIRRORS:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/selfhost/cdn/mirrors}"
+# Defaults are the certified 3.44.8 pin and its ref; a candidate is named
+# explicitly, and only as a full SHA (an empty pin would match an empty answer).
+PINNED="${R12_FLUTTER_REVISION:-a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61}"
+FLUTTER_REF="${R12_FLUTTER_REF:-refs/heads/selfhost/3.44.8}"
+[[ "$PINNED" =~ ^[0-9a-f]{40}$ ]] \
+  || { echo "R12_FLUTTER_REVISION must be a full 40-hex SHA, got '$PINNED'" >&2; exit 1; }
 
 [[ -d "$MIRRORS/flutter.git" ]] || { echo "no mirror at $MIRRORS/flutter.git" >&2; exit 1; }
 
@@ -20,18 +25,18 @@ docker rm -f r12-flutter-git >/dev/null 2>&1 || true
 docker run -d --name r12-flutter-git --platform linux/amd64 \
   -p 9418:9418 -v "$MIRRORS:/srv:ro" \
   alpine:3.20 sh -c \
-  "apk add --no-cache git git-daemon >/dev/null && exec git daemon --verbose \
+  "apk add --no-cache git git-daemon >/dev/null && git config --system --add safe.directory '*' && exec git daemon --verbose \
      --export-all --base-path=/srv --reuseaddr --listen=0.0.0.0 --port=9418 /srv" >/dev/null
 
 for _ in $(seq 1 20); do
-  got="$(docker run --rm --platform linux/amd64 --entrypoint git alpine/git:latest \
+  got="$(docker run --rm --platform linux/amd64 --add-host host.docker.internal:host-gateway --entrypoint git alpine/git:latest \
           ls-remote git://host.docker.internal:9418/flutter.git \
-          refs/heads/selfhost/3.44.8 2>/dev/null | awk '{print $1}')"
+          "$FLUTTER_REF" 2>/dev/null | awk '{print $1}')"
   [[ -n "$got" ]] && break
   sleep 2
 done
 
 # Not "the service is up" — the service is serving THE PINNED REVISION. Those are
 # different claims and only the second one is worth anything.
-[[ "$got" == "$PINNED" ]] || { echo "mirror serves '$got', expected $PINNED" >&2; exit 1; }
-echo "r12-flutter-git: serving refs/heads/selfhost/3.44.8 -> $PINNED"
+[[ -n "$got" && "$got" == "$PINNED" ]] || { echo "mirror serves '$got', expected $PINNED" >&2; exit 1; }
+echo "r12-flutter-git: serving $FLUTTER_REF -> $PINNED"

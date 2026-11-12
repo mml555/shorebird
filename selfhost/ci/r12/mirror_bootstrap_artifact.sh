@@ -22,9 +22,11 @@ set -euo pipefail
 ENG="${1:?usage: mirror_bootstrap_artifact.sh <engine-revision> <relative/path>}"
 REL="${2:?usage: mirror_bootstrap_artifact.sh <engine-revision> <relative/path>}"
 
-REPO=/Users/mendell/shorebird
-OVERLAY="$REPO/selfhost/cdn/overlay/flutter_infra_release/flutter"
-LEDGER="$REPO/selfhost/evidence/r12-linux-ci/bootstrap_closure.tsv"
+# Each is overridable so the same script runs on another host (ci-build keeps the
+# overlay outside any checkout) and writes its ledger where the caller asks.
+REPO="${R12_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
+OVERLAY="${R12_OVERLAY:-${R12_OVERLAY_ROOT:-$REPO/selfhost/cdn/overlay}/flutter_infra_release/flutter}"
+LEDGER="${R12_BOOTSTRAP_LEDGER:-${R12_LEDGER_DIR:-$REPO/selfhost/evidence/r12-linux-ci}/bootstrap_closure.tsv}"
 UPSTREAM="https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter"
 
 die() { echo "FAIL: $*" >&2; exit 1; }
