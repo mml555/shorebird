@@ -1021,9 +1021,10 @@ class Api {
           return _rollbackPatch(req, appId, releaseId, patchId);
         }
         if (rest[4] == 'rollforward') {
-          // Intentionally unsupported: withdrawal is terminal here
-          // (`_channelPatchNext`), and upstream's rollforward reactivates a
-          // rolled-back patch. See selfhost/upstream/ADOPTION-1.6.123.md §3.
+          // Intentionally unsupported: a rolled-back patch is terminal here
+          // (it is never restored, by a rollback or otherwise), and upstream's
+          // rollforward reactivates a rolled-back patch. See
+          // selfhost/upstream/ADOPTION-1.6.123.md §3.
           throw DomainException(
             HttpStatus.notImplemented,
             'unsupported',
@@ -2067,13 +2068,21 @@ class Api {
   /// Same null-means-unchanged / empty-means-clear semantics as the release
   /// endpoint. Returns the patch so a caller can confirm what was stored.
   /// Upstream's release-scoped rollback. It names no channel, so it rolls the
-  /// patch back on every channel where it is active — the same mutation as
-  /// `/admin/.../withdraw?rollback=true`, applied to each.
+  /// patch back everywhere ([Repository.rollbackAndRestore], one transaction):
+  /// on each channel where it is active it is withdrawn and the prior patch is
+  /// restored, and on any other channel where it was withdrawn (superseded, or
+  /// withdrawn without a rollback) it is marked rolled back so devices there
+  /// are told to revert and it can never be restored.
   ///
-  /// 200 when anything changed; 304 when the patch is already rolled back and
-  /// active nowhere, which upstream's CLI reads as "nothing to do". A patch
-  /// that was never promoted, or was only superseded, is a 409: withdrawal is
-  /// terminal, so a superseded row cannot be re-marked as rolled back.
+  /// Restoring puts the newest earlier patch of the release that a promote
+  /// superseded back on the channel, as upstream does: the devices that dropped
+  /// it when the rolled-back patch booted download it again. Rolling back a
+  /// patch that is active nowhere therefore changes what devices run on no
+  /// channel.
+  ///
+  /// 200 when anything changed; 304 when the patch is already rolled back
+  /// everywhere, which upstream's CLI reads as "nothing to do". A patch that
+  /// was never promoted is a 409.
   Future<Response> _rollbackPatch(
     Request req,
     String appId,
@@ -2085,31 +2094,78 @@ class Api {
       throw notFound('No patch $patchId on release $releaseId');
     }
     _audit(req)?.note(releaseId: releaseId, patchNumber: patch.number);
-    final channelIds = await repo.rollbackActive(patchId);
-    if (channelIds.isEmpty) {
+    final outcome = await repo.rollbackAndRestore(patchId);
+    if (!outcome.changed) {
       if (await repo.patchRolledBack(patchId)) {
         _audit(req)?.note(detail: {'rollback': true, 'changed': false});
         return Response.notModified();
       }
       throw conflict(
-        'Patch $patchId is not active on any channel, so there is nothing '
-        'to roll back',
+        'Patch $patchId was never promoted to a channel, so there is '
+        'nothing to roll back',
       );
     }
-    final channels = [
-      for (final id in channelIds)
-        (await repo.channelById(id, includeDeleted: true))!.name,
-    ];
+    final channelNames = <String>[];
+    for (final id in [
+      ...outcome.activeChannelIds,
+      ...outcome.markedChannelIds,
+    ]) {
+      final name = await _channelName(id);
+      if (name != null && !channelNames.contains(name)) channelNames.add(name);
+    }
+    final restored = await _reportRestored(req, patch, outcome.restored);
     _audit(req)?.note(
-      track: channels.length == 1 ? channels.single : null,
-      detail: {'rollback': true, 'changed': true, 'channels': channels},
+      track: channelNames.length == 1 ? channelNames.single : null,
+      detail: {
+        'rollback': true,
+        'changed': true,
+        'was_active': outcome.activeChannelIds.isNotEmpty,
+        'channels': channelNames,
+        if (restored.isNotEmpty) 'restored': restored,
+      },
     );
     return _json({
       'withdrawn': true,
       'patch_id': patchId,
       'rolled_back': true,
-      'channels': channels,
+      'channels': channelNames,
+      'restored': restored,
     });
+  }
+
+  /// A channel's name, including a soft-deleted one; null if it is gone.
+  Future<String?> _channelName(int channelId) async =>
+      (await repo.channelById(channelId, includeDeleted: true))?.name;
+
+  /// Writes one `patch.restore` audit detail row per restored patch (after the
+  /// restore committed; like every detail row, a failed write is logged and
+  /// does not fail the request) and returns the response shape
+  /// `{patch_id, number, channel, rollout}` for each.
+  Future<List<Map<String, Object?>>> _reportRestored(
+    Request req,
+    PatchRow patch,
+    List<RestoredPatch> restored,
+  ) async {
+    final out = <Map<String, Object?>>[];
+    for (final r in restored) {
+      final channel = await _channelName(r.channelId) ?? '${r.channelId}';
+      out.add({
+        'patch_id': r.patchId,
+        'number': r.number,
+        'channel': channel,
+        'rollout': r.rollout,
+      });
+      await _auditDetail(
+        req,
+        'patch.restore',
+        target: '${r.patchId}',
+        patchId: r.patchId,
+        detail:
+            'patch ${r.number} active again on $channel '
+            '(rollout ${r.rollout}) after patch ${patch.number} was rolled back',
+      );
+    }
+    return out;
   }
 
   Future<Response> _updatePatch(Request req, String appId, int patchId) async {
@@ -3339,6 +3395,14 @@ class Api {
       channel.id,
       release.id,
     );
+    // A device running a patch this response rolls back reverts it as soon as
+    // it reads the response, before it looks at the offer. Offering it the
+    // restored earlier patch then needs the number-above-the-client's test to
+    // be against the base release, or a device on patch 2 would be told "no
+    // patch" for the restored patch 1 until its next check.
+    final effectiveClientPatch = rolledBack.contains(clientPatch)
+        ? 0
+        : clientPatch;
     // A deleted channel offers nothing, but must keep telling its devices
     // which patches to revert — the reason channel delete is soft.
     if (channel.deleted) return _json(resp(rolledBack: rolledBack));
@@ -3359,7 +3423,9 @@ class Api {
     if (patch.status != PatchStatus.ready) {
       return _json(resp(rolledBack: rolledBack));
     }
-    if (patch.number <= clientPatch) return _json(resp(rolledBack: rolledBack));
+    if (patch.number <= effectiveClientPatch) {
+      return _json(resp(rolledBack: rolledBack));
+    }
 
     // Partial rollout: deterministic per-client bucketing. Fail closed when a
     // partial rollout has no stable client id.
@@ -3415,7 +3481,7 @@ class Api {
           arch: arch,
           platform: platform,
           clientId: clientId,
-          clientPatch: clientPatch,
+          clientPatch: effectiveClientPatch,
           rolledBack: rolledBack,
           resp: resp,
         ),
@@ -3921,12 +3987,36 @@ class Api {
           throw conflict('Patch $patchId is not active on $channelName');
         }
         requireChannelPatchTransition(cp.status, ChannelPatchStatus.withdrawn);
-        await repo.withdraw(channel.id, patchId, rollback: rollback);
-        _audit(req)?.note(detail: {'rollback': rollback});
+        var restored = <Map<String, Object?>>[];
+        // Every channel the rollback marked: the named one, then any other it
+        // was withdrawn on.
+        final channels = <String>[channel.name];
+        if (rollback) {
+          final outcome = await repo.withdrawRollbackAndRestore(
+            channel.id,
+            patchId,
+          );
+          for (final id in outcome.markedChannelIds) {
+            final name = await _channelName(id);
+            if (name != null && !channels.contains(name)) channels.add(name);
+          }
+          restored = await _reportRestored(req, patch, outcome.restored);
+        } else {
+          await repo.withdraw(channel.id, patchId, rollback: false);
+        }
+        _audit(req)?.note(
+          detail: {
+            'rollback': rollback,
+            if (rollback) 'channels': channels,
+            if (restored.isNotEmpty) 'restored': restored,
+          },
+        );
         return _json({
           'withdrawn': true,
           'patch_id': patchId,
           'rolled_back': rollback,
+          if (rollback) 'channels': channels,
+          'restored': restored,
         });
       }
       if (action == 'rollout') {
