@@ -4078,31 +4078,78 @@ A patch cannot change the Flutter version a release was built with. To fix this,
         });
       });
 
-      group('when running on CI', () {
+      group('when running on CI without --release-version', () {
         setUp(() {
           when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
         });
 
-        test('warns, then builds the patch again with the release settings '
-            'even on the same Flutter', () async {
+        // This fork refuses to guess the release version ahead of upstream's
+        // planned removal (shorebirdtech/shorebird#4354).
+        for (final requiresReleaseVersionArg in [false, true]) {
+          group('when requiresReleaseVersionArg is '
+              '$requiresReleaseVersionArg', () {
+            setUp(() {
+              when(
+                () => patcher.requiresReleaseVersionArg,
+              ).thenReturn(requiresReleaseVersionArg);
+            });
+
+            test('is a usage error before building or publishing', () async {
+              await expectLater(
+                () => runWithOverrides(command.run),
+                throwsA(
+                  isA<UsageException>().having(
+                    (e) => e.message,
+                    'message',
+                    allOf(
+                      startsWith(
+                        'Missing required argument: --release-version.',
+                      ),
+                      contains('--release-version=latest'),
+                      contains('non-interactively'),
+                    ),
+                  ),
+                ),
+              );
+
+              verifyNever(() => patcher.buildPatchArtifact());
+              verifyNever(
+                () => patcher.buildPatchArtifact(
+                  releaseVersion: any(named: 'releaseVersion'),
+                ),
+              );
+              verifyNever(
+                () => patcher.extractReleaseVersionFromArtifact(any()),
+              );
+              verifyNever(
+                () => codePushClientWrapper.publishPatch(
+                  appId: any(named: 'appId'),
+                  releaseId: any(named: 'releaseId'),
+                  metadata: any(named: 'metadata'),
+                  track: any(named: 'track'),
+                  patchArtifactBundles: any(named: 'patchArtifactBundles'),
+                  sidecars: any(named: 'sidecars'),
+                ),
+              );
+            });
+          });
+        }
+      });
+
+      group('when running on CI with --release-version', () {
+        setUp(() {
+          when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
+          when(() => argResults.wasParsed('release-version')).thenReturn(true);
+        });
+
+        test('builds the patch once with the release settings', () async {
           await runWithOverrides(() => command.createPatch([patcher]));
 
-          verifyInOrder([
-            () => logger.warn(
-              any(
-                that: allOf(
-                  contains('removed in a release after 2027-01-01'),
-                  contains('slower and less accurate'),
-                  contains('shorebirdtech/shorebird/issues/4354'),
-                  contains('--release-version=latest'),
-                ),
-              ),
-            ),
-            () => patcher.buildPatchArtifact(),
-            () => patcher.extractReleaseVersionFromArtifact(any()),
-            () => patcher.extraBuildArgs = any(),
+          verifyNever(() => patcher.buildPatchArtifact());
+          verifyNever(() => patcher.extractReleaseVersionFromArtifact(any()));
+          verify(
             () => patcher.buildPatchArtifact(releaseVersion: releaseVersion),
-          ]);
+          ).called(1);
         });
 
         test(
@@ -4155,7 +4202,6 @@ A patch cannot change the Flutter version a release was built with. To fix this,
             await runWithOverrides(() => command.createPatch([patcher]));
 
             verifyInOrder([
-              () => patcher.buildPatchArtifact(),
               () => patcher.obfuscationMapPath = any(that: isNotNull),
               () => patcher.extraBuildArgs = any(
                 that: contains(
@@ -4200,7 +4246,6 @@ A patch cannot change the Flutter version a release was built with. To fix this,
             await runWithOverrides(() => command.createPatch([patcher]));
 
             verifyInOrder([
-              () => patcher.buildPatchArtifact(),
               () =>
                   patcher.releaseManagedPublicKeyPem = 'managed-public-key-pem',
               () => patcher.buildPatchArtifact(releaseVersion: releaseVersion),
@@ -4243,15 +4288,6 @@ A patch cannot change the Flutter version a release was built with. To fix this,
               expect(exitCode, equals(ExitCode.success.code));
 
               verifyInOrder([
-                () => logger.warn(
-                  any(
-                    that: startsWith(
-                      'Guessing the release version is deprecated',
-                    ),
-                  ),
-                ),
-                () => patcher.buildPatchArtifact(),
-                () => patcher.extractReleaseVersionFromArtifact(any()),
                 () => shorebirdFlutter.installRevision(
                   revision: releaseFlutterRevision,
                   releasePlatform: any(named: 'releasePlatform'),
@@ -4266,7 +4302,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
                   releaseId: any(named: 'releaseId'),
                   metadata: any(
                     named: 'metadata',
-                    that: containsPair('inferred_release_version', isTrue),
+                    that: containsPair('inferred_release_version', isFalse),
                   ),
                   track: any(named: 'track'),
                   patchArtifactBundles: any(named: 'patchArtifactBundles'),
@@ -4291,7 +4327,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
             });
 
             test(
-              'exits with an error after the build that guesses the version',
+              'exits with an error before building',
               () async {
                 await expectLater(
                   () => runWithOverrides(() => command.createPatch([patcher])),
@@ -4302,7 +4338,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
                   ),
                 );
 
-                verify(() => patcher.buildPatchArtifact()).called(1);
+                verifyNever(() => patcher.buildPatchArtifact());
                 verifyNever(
                   () => patcher.buildPatchArtifact(
                     releaseVersion: releaseVersion,
@@ -4450,6 +4486,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
     group('when running on CI', () {
       test('does not prompt for confirmation', () async {
         when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
+        when(() => argResults.wasParsed('release-version')).thenReturn(true);
 
         final exitCode = await runWithOverrides(command.run);
         expect(exitCode, equals(ExitCode.success.code));
@@ -4804,6 +4841,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
       group('when it cannot ask', () {
         setUp(() {
           when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
+          when(() => argResults.wasParsed('release-version')).thenReturn(true);
         });
 
         test('warns, publishes to stable and records that it used the '
