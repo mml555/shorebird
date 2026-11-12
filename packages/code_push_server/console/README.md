@@ -94,6 +94,11 @@ Read-only / provisioning (Bearer):
 - `GET  /api/v1/apps/{appId}/analytics/new-devices`
 - `GET  /api/v1/apps/{appId}/analytics/patch-installs`
 - `GET  /api/v1/apps/{appId}/analytics/patch-downloads`
+- `GET  /api/v1/plan` (always `{"level": "enterprise"}`: no plan limits)
+- `GET  /api/v1/apps/{appId}/metrics/{name}` (what `shorebird metrics` calls;
+  the same handlers as `analytics/{name}`, and it also takes `start` and `end`)
+- `GET  /api/v1/apps/{appId}/releases/{releaseId}/metrics/patch-installs`
+  and `.../patch-downloads` (one release's events)
 
 Admin actions (Bearer):
 

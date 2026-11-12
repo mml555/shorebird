@@ -596,6 +596,12 @@ All GET, bearer + app access. Event-derived; work on both SQLite and Postgres.
 | `/analytics/new-devices` | `window_days` | first-seen devices, current + previous |
 | `/analytics/patch-installs` · `/analytics/patch-downloads` | `window_days,granularity,group_by,release_version,patch_number` | `GetPatchMetricResponse` |
 
+`shorebird metrics` calls the same handlers at `/api/v1/apps/{appId}/metrics/{name}`
+(`unique-users` and `patch-installs`/`patch-downloads` also take `start` and `end`, ISO 8601,
+instead of `window_days`), and the release-scoped
+`/api/v1/apps/{appId}/releases/{releaseId}/metrics/patch-installs|patch-downloads`.
+`GET /api/v1/plan` answers `{"level": "enterprise"}` (a self-hosted server has no plan limits).
+
 `granularity` ∈ `hour|day|week`. Distinct-device counts are exact (not HLL), so
 time-bucketed series need not sum to the window total.
 

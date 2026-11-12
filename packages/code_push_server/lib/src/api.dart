@@ -831,6 +831,7 @@ class Api {
     if (seg.length == 2 && seg[0] == 'users' && seg[1] == 'me' && m == 'GET') {
       return _usersMe(req);
     }
+    if (seg.length == 1 && seg[0] == 'plan' && m == 'GET') return _plan();
     if (seg.length == 1 && seg[0] == 'users' && m == 'POST') {
       return _createUser(req);
     }
@@ -890,72 +891,36 @@ class Api {
       if (rest.length == 1 && rest[0] == 'metrics' && m == 'GET') {
         return _metrics(appId);
       }
-      if (rest.length == 2 && rest[0] == 'analytics' && m == 'GET') {
-        final q = req.url.queryParameters;
-        final gran = q['granularity'];
-        switch (rest[1]) {
-          case 'patch-adoption':
-            return _json(
-              await _analytics.patchAdoption(
-                appId,
-                releaseVersion: q['release_version'],
-                granularity: gran,
-                start: _dateParam(q, 'start'),
-                end: _dateParam(q, 'end'),
-              ),
-            );
-          case 'unique-users':
-            return _json(
-              await _analytics.uniqueUsers(
-                appId,
-                windowDays: int.tryParse(q['window_days'] ?? '') ?? 30,
-                granularity: gran,
-                groupBy: q['group_by'],
-              ),
-            );
-          case 'version-distribution':
-            return _json(
-              await _analytics.versionDistribution(
-                appId,
-                activeWindowDays:
-                    int.tryParse(q['active_window_days'] ?? '') ?? 30,
-              ),
-            );
-          case 'activity-heatmap':
-            return _json(
-              await _analytics.activityHeatmap(
-                appId,
-                lookbackDays: int.tryParse(q['lookback_days'] ?? '') ?? 28,
-              ),
-            );
-          case 'active-hours':
-            return _json(
-              await _analytics.activeHours(
-                appId,
-                lookbackDays: int.tryParse(q['lookback_days'] ?? '') ?? 28,
-              ),
-            );
-          case 'new-devices':
-            return _json(
-              await _analytics.newDevices(
-                appId,
-                windowDays: int.tryParse(q['window_days'] ?? '') ?? 30,
-              ),
-            );
-          case 'patch-installs':
-          case 'patch-downloads':
-            return _json(
-              await _analytics.patchMetric(
-                appId,
-                metric: rest[1] == 'patch-downloads' ? 'downloads' : 'installs',
-                windowDays: int.tryParse(q['window_days'] ?? '') ?? 30,
-                granularity: gran,
-                groupBy: q['group_by'],
-                releaseVersion: q['release_version'],
-                patchNumber: int.tryParse(q['patch_number'] ?? ''),
-              ),
-            );
+      // `analytics/{name}` is what the console calls; `metrics/{name}` is what
+      // `shorebird metrics` calls. Both reach the same handlers.
+      if (rest.length == 2 &&
+          (rest[0] == 'analytics' || rest[0] == 'metrics') &&
+          m == 'GET') {
+        final response = await _analyticsRoute(
+          appId,
+          rest[1],
+          req.url.queryParameters,
+        );
+        if (response != null) return response;
+      }
+      // `shorebird metrics ... --release`: patch installs / downloads scoped
+      // to one release. The events table keys on the release version, so the
+      // id is resolved to its version.
+      if (rest.length == 4 &&
+          rest[0] == 'releases' &&
+          rest[2] == 'metrics' &&
+          (rest[3] == 'patch-installs' || rest[3] == 'patch-downloads') &&
+          m == 'GET') {
+        final release = await repo.release(_pathId(rest[1], 'release id'));
+        if (release == null || release.appId != appId) {
+          throw notFound('Release not found');
         }
+        return (await _analyticsRoute(
+          appId,
+          rest[3],
+          req.url.queryParameters,
+          releaseVersion: release.version,
+        ))!;
       }
       if (rest.length == 1 && rest[0] == 'patches' && m == 'POST') {
         return _createPatch(req, appId);
@@ -1499,6 +1464,96 @@ class Api {
     return _json({'joined_org': inv['org_id'], 'role': inv['role']});
   }
 
+  /// Serves one analytics metric, or null when [name] is not one. The window
+  /// is `start`/`end` when either is given (the previous comparison window is
+  /// the same length, just before), else the trailing `window_days`.
+  /// [releaseVersion] scopes patch installs / downloads to one release.
+  Future<Response?> _analyticsRoute(
+    String appId,
+    String name,
+    Map<String, String> q, {
+    String? releaseVersion,
+  }) async {
+    final gran = q['granularity'];
+    final start = _dateParam(q, 'start');
+    final end = _dateParam(q, 'end');
+    if (start != null && end != null && !end.isAfter(start)) {
+      throw badRequest('Invalid window: end must be after start');
+    }
+    switch (name) {
+      case 'patch-adoption':
+        return _json(
+          await _analytics.patchAdoption(
+            appId,
+            releaseVersion: q['release_version'],
+            granularity: gran,
+            start: start,
+            end: end,
+          ),
+        );
+      case 'unique-users':
+        return _json(
+          await _analytics.uniqueUsers(
+            appId,
+            windowDays: int.tryParse(q['window_days'] ?? '') ?? 30,
+            granularity: gran,
+            groupBy: q['group_by'],
+            start: start,
+            end: end,
+          ),
+        );
+      case 'version-distribution':
+        return _json(
+          await _analytics.versionDistribution(
+            appId,
+            activeWindowDays: int.tryParse(q['active_window_days'] ?? '') ?? 30,
+          ),
+        );
+      case 'activity-heatmap':
+        return _json(
+          await _analytics.activityHeatmap(
+            appId,
+            lookbackDays: int.tryParse(q['lookback_days'] ?? '') ?? 28,
+          ),
+        );
+      case 'active-hours':
+        return _json(
+          await _analytics.activeHours(
+            appId,
+            lookbackDays: int.tryParse(q['lookback_days'] ?? '') ?? 28,
+          ),
+        );
+      case 'new-devices':
+        return _json(
+          await _analytics.newDevices(
+            appId,
+            windowDays: int.tryParse(q['window_days'] ?? '') ?? 30,
+          ),
+        );
+      case 'patch-installs':
+      case 'patch-downloads':
+        return _json(
+          await _analytics.patchMetric(
+            appId,
+            metric: name == 'patch-downloads' ? 'downloads' : 'installs',
+            windowDays: int.tryParse(q['window_days'] ?? '') ?? 30,
+            granularity: gran,
+            groupBy: q['group_by'],
+            releaseVersion: releaseVersion ?? q['release_version'],
+            patchNumber: int.tryParse(q['patch_number'] ?? ''),
+            start: start,
+            end: end,
+          ),
+        );
+    }
+    return null;
+  }
+
+  /// `GET /api/v1/plan`. A self-hosted server has no billing and no plan
+  /// limits, so every caller reports the highest level, `enterprise`, which
+  /// `shorebird whoami` renders as the plan.
+  Response _plan() => _json({'level': 'enterprise'});
+
   Future<Response> _usersMe(Request req) async {
     final user = await repo.userById(_uid(req));
     if (user == null) return _err(HttpStatus.notFound, 'not_found', 'No user');
@@ -1589,9 +1644,8 @@ class Api {
   /// the same thing on every row: the role the request asked to end at.
   void _noteRequestedGrant(Request req, String? email) {
     final role = req.url.queryParameters['role'];
-    _audit(
-      req,
-    )?.note(target: email, detail: {if (role != null) 'role_after': role});
+    _audit(req)
+        ?.note(target: email, detail: {if (role != null) 'role_after': role});
   }
 
   /// Authorizes the caller for [appId] via org membership or collaboration.
@@ -1736,9 +1790,9 @@ class Api {
     final orgId = await repo.appOrgId(appId);
     final app = orgId == null
         ? null
-        : (await repo.apps(
-            orgIds: [orgId],
-          )).where((a) => a.appId == appId).firstOrNull;
+        : (await repo.apps(orgIds: [orgId]))
+              .where((a) => a.appId == appId)
+              .firstOrNull;
     if (app == null) throw notFound('App not found');
     return _json(await _appMetadata(app));
   }
@@ -1782,9 +1836,9 @@ class Api {
   }
 
   Future<Response> _getApps(Request req) async {
-    final orgIds = (await repo.memberships(
-      _uid(req),
-    )).map((m) => m.orgId).toList();
+    final orgIds = (await repo.memberships(_uid(req)))
+        .map((m) => m.orgId)
+        .toList();
     final apps = await repo.apps(orgIds: orgIds);
     final out = <Map<String, Object?>>[
       for (final a in apps) await _appMetadata(a),

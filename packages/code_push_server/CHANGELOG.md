@@ -8,6 +8,16 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+- **`shorebird whoami` and `shorebird metrics` work.** `GET /api/v1/plan` answers
+  `{"level": "enterprise"}` (no plan limits), so `whoami` no longer fails with
+  "Failed to fetch account.". The metrics commands' `apps/{app}/metrics/{name}`
+  routes reach the same handlers as `apps/{app}/analytics/{name}` (which the
+  console keeps using), with `start`/`end` windows for unique users and patch
+  installs/downloads, plus release-scoped
+  `apps/{app}/releases/{release}/metrics/patch-installs|patch-downloads`.
+
 ### Changed
 
 - **The S3 client retries transient failures.** A connection error, a timeout,
