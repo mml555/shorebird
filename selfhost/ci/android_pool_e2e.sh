@@ -100,10 +100,10 @@ if [[ -n ${E2E_FLUTTER_REVISION:-} ]]; then
   echo "Flutter overridden to $E2E_FLUTTER_REVISION from ${SHOREBIRD_FLUTTER_GIT_URL:-the default remote}"
 fi
 SB=$ROOT/bin/shorebird
-# The launcher's first run fetches Flutter's Dart SDK from SHOREBIRD_DOWNLOAD_URL
-# only. Set it for that run alone: the CLI reads it too, as upstream's layout
-# (<url>/shorebird/<engine>/...), which the mirror doesn't serve.
-SHOREBIRD_DOWNLOAD_URL=${SHOREBIRD_DOWNLOAD_URL:-$SHOREBIRD_ARTIFACT_ORIGIN} "$SB" --version
+# Not SHOREBIRD_DOWNLOAD_URL: the CLI reads it as upstream's layout
+# (<url>/shorebird/<engine>/...), which the mirror doesn't serve. The launcher
+# falls back to SHOREBIRD_ARTIFACT_ORIGIN by itself.
+"$SB" --version
 FLUTTER_DIR=$ROOT/bin/cache/flutter/$(cat "$ROOT/bin/internal/flutter.version")
 DART=$FLUTTER_DIR/bin/cache/dart-sdk/bin/dart
 
