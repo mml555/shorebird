@@ -4698,6 +4698,8 @@ void main() {
       final other = await publish(releaseId: r2);
       final body = await jsonOf(await rollback(other.id, releaseId: r2));
       expect(body['restored'], isEmpty);
+      // Release 1's patch was never touched by release 2's promote or rollback.
+      expect(offered(await check()), 1);
     });
 
     test('tenants are isolated', () async {
@@ -4862,6 +4864,41 @@ void main() {
       expect(offered(await check()), 1);
     });
 
+    test(
+      'the admin withdraw with rollback marks every channel it was on',
+      () async {
+        final beta = await jsonOf(
+          await send(
+            'POST',
+            '/api/v1/apps/${s.appId}/channels',
+            bearer: _bootstrapKey,
+            json: {'channel': 'beta'},
+          ),
+        );
+        final betaId = beta['id'] as int;
+        final p1 = await publish();
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches/promote',
+          bearer: _bootstrapKey,
+          json: {'patch_id': p1.id, 'channel_id': betaId},
+        );
+        await publish(channelId: betaId); // supersedes 1 on beta
+        // 1 is active on stable; pull it there with the admin route.
+        final r = await send(
+          'POST',
+          '/admin/apps/${s.appId}/patches/${p1.id}/withdraw'
+              '?channel=stable&rollback=true',
+          bearer: _bootstrapKey,
+        );
+        expect(r.statusCode, HttpStatus.ok);
+        expect((await check())['rolled_back_patch_numbers'], [1]);
+        expect((await check(channel: 'beta'))['rolled_back_patch_numbers'], [
+          1,
+        ]);
+      },
+    );
+
     test('rollforward is still refused after a restore', () async {
       await publish();
       final p2 = await publish();
@@ -4929,6 +4966,128 @@ void main() {
         "SELECT patch_id FROM audit_log WHERE action = 'patch.withdraw'",
       );
       expect(wd.single['patch_id'], p2.id);
+    });
+  });
+
+  // A channel can carry several live releases (1.0.0 and 2.0.0 both on
+  // `stable`). Patch numbers and platforms are per release, so promoting a
+  // patch must supersede only the same release's patches, and the check must
+  // look for the device's own release's active patch.
+  group('two releases on one channel', () {
+    late ({String appId, int releaseId, int channelId}) s;
+    late int release2;
+
+    setUp(() async {
+      s = await seedApp();
+      final rel2 = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/releases',
+          bearer: _bootstrapKey,
+          json: {'version': '2.0.0'},
+        ),
+      );
+      release2 = (rel2['release'] as Map)['id'] as int;
+    });
+
+    Future<int> publish(
+      int releaseId, {
+      List<String> platforms = const ['android'],
+      int rollout = 100,
+    }) async {
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': releaseId},
+        ),
+      );
+      final id = p['id'] as int;
+      for (final platform in platforms) {
+        await uploadPatchArtifact(s.appId, id, platform: platform);
+      }
+      final r = await send(
+        'POST',
+        '/api/v1/apps/${s.appId}/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': id, 'channel_id': s.channelId, 'rollout': rollout},
+      );
+      expect(r.statusCode, HttpStatus.noContent);
+      return p['number'] as int;
+    }
+
+    Future<int?> offered(
+      String version, {
+      String platform = 'android',
+      String? clientId,
+    }) async {
+      final c = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/patches/check',
+          json: {
+            'app_id': s.appId,
+            'release_version': version,
+            'platform': platform,
+            'arch': 'aarch64',
+            'channel': 'stable',
+            if (clientId != null) 'client_id': clientId,
+          },
+        ),
+      );
+      return (c['patch'] as Map<String, dynamic>?)?['number'] as int?;
+    }
+
+    test(
+      'each release keeps its active patch across the other\'s promotes',
+      () async {
+        await publish(s.releaseId);
+        expect(await offered('1.0.0'), 1);
+        // Release 2's patches have higher numbers and a superset of platforms.
+        await publish(release2, platforms: ['android', 'ios']);
+        await publish(release2);
+        expect(await offered('2.0.0'), 2);
+        expect(await offered('1.0.0'), 1);
+        // And back: another patch for release 1 leaves release 2 alone.
+        await publish(s.releaseId);
+        expect(await offered('1.0.0'), 2);
+        expect(await offered('2.0.0'), 2);
+      },
+    );
+
+    test(
+      'promoting within a release still supersedes its older patch',
+      () async {
+        await publish(s.releaseId);
+        await publish(release2);
+        await publish(s.releaseId);
+        expect(await offered('1.0.0'), 2);
+        expect(await offered('2.0.0'), 1);
+      },
+    );
+
+    test(
+      'a release is not served another release\'s higher-numbered patch',
+      () async {
+        await publish(release2);
+        await publish(release2);
+        await publish(release2);
+        await publish(s.releaseId);
+        expect(await offered('1.0.0'), 1);
+        expect(await offered('2.0.0'), 3);
+      },
+    );
+
+    test('platform and rollout scoping are unchanged', () async {
+      await publish(s.releaseId, platforms: ['ios']);
+      await publish(s.releaseId);
+      // Android-only 2 does not cover ios-only 1, so both stay active.
+      expect(await offered('1.0.0'), 2);
+      expect(await offered('1.0.0', platform: 'ios'), 1);
+      await publish(release2, rollout: 0);
+      expect(await offered('2.0.0', clientId: 'c'), isNull);
+      expect(await offered('1.0.0'), 2);
     });
   });
 

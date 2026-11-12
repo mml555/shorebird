@@ -66,7 +66,7 @@ void main() {
 
       final ch = await repo.createChannel(app.appId, 'stable');
       await repo.promote(ch.id, patch.id);
-      final active = await repo.activeChannelPatch(ch.id);
+      final active = await repo.activeChannelPatch(ch.id, releaseId: rel.id);
       expect(active!.patchId, patch.id);
       expect(active.rolledBack, isFalse);
 
@@ -108,23 +108,39 @@ void main() {
 
       // Both stay active — they cover different platforms.
       expect(
-        (await repo.activeChannelPatch(ch.id, platform: 'android'))?.patchId,
+        (await repo.activeChannelPatch(
+          ch.id,
+          releaseId: rel.id,
+          platform: 'android',
+        ))?.patchId,
         androidPatch,
         reason: 'android must still be served after ios is promoted',
       );
       expect(
-        (await repo.activeChannelPatch(ch.id, platform: 'ios'))?.patchId,
+        (await repo.activeChannelPatch(
+          ch.id,
+          releaseId: rel.id,
+          platform: 'ios',
+        ))?.patchId,
         iosPatch,
       );
 
       // A NEWER android patch supersedes only the older android one.
       final androidPatch2 = await publish('android');
       expect(
-        (await repo.activeChannelPatch(ch.id, platform: 'android'))?.patchId,
+        (await repo.activeChannelPatch(
+          ch.id,
+          releaseId: rel.id,
+          platform: 'android',
+        ))?.patchId,
         androidPatch2,
       );
       expect(
-        (await repo.activeChannelPatch(ch.id, platform: 'ios'))?.patchId,
+        (await repo.activeChannelPatch(
+          ch.id,
+          releaseId: rel.id,
+          platform: 'ios',
+        ))?.patchId,
         iosPatch,
         reason: 'ios must survive an android re-promote',
       );
@@ -167,11 +183,19 @@ void main() {
       // android moves to the newcomer; ios keeps the incumbent, which stays
       // active because the android-only patch does not cover it.
       expect(
-        (await repo.activeChannelPatch(ch.id, platform: 'android'))?.patchId,
+        (await repo.activeChannelPatch(
+          ch.id,
+          releaseId: rel.id,
+          platform: 'android',
+        ))?.patchId,
         androidOnly,
       );
       expect(
-        (await repo.activeChannelPatch(ch.id, platform: 'ios'))?.patchId,
+        (await repo.activeChannelPatch(
+          ch.id,
+          releaseId: rel.id,
+          platform: 'ios',
+        ))?.patchId,
         both,
         reason: 'ios must survive an android-only promote',
       );
@@ -180,7 +204,11 @@ void main() {
       final bothAgain = await publish(['android', 'ios']);
       for (final platform in ['android', 'ios']) {
         expect(
-          (await repo.activeChannelPatch(ch.id, platform: platform))?.patchId,
+          (await repo.activeChannelPatch(
+            ch.id,
+            releaseId: rel.id,
+            platform: platform,
+          ))?.patchId,
           bothAgain,
           reason: platform,
         );
@@ -230,7 +258,11 @@ void main() {
       expect(rows, hasLength(2), reason: 'neither promote may be lost');
       // The later promote supersedes the earlier one on the same platform.
       expect(
-        (await repo.activeChannelPatch(ch.id, platform: 'android'))?.patchId,
+        (await repo.activeChannelPatch(
+          ch.id,
+          releaseId: rel.id,
+          platform: 'android',
+        ))?.patchId,
         second,
       );
     });
@@ -606,9 +638,12 @@ void main() {
         await repo.promote(ch.id, p.id);
         ids.add(p.id);
       }
-      // SQLite serialises transactions, so the interleaving is made by hand:
-      // right after the restore reads its candidates, a concurrent rollback of
-      // patch 1 "commits" (Postgres READ COMMITTED would let it).
+      // This simulates the interleaving; it is not a Postgres concurrency
+      // test. SQLite serialises transactions, so the other request is made by
+      // hand: right after the restore reads its candidates, a rollback of
+      // patch 1 is applied inside the same transaction, which is the state a
+      // concurrent commit under Postgres READ COMMITTED would leave. It
+      // exercises the guard on the restore UPDATE, not the locking.
       final racing = Repository(
         _AfterCandidateRead(repo.db, (s) async {
           await s.query(
@@ -620,7 +655,7 @@ void main() {
       );
       final outcome = await racing.rollbackAndRestore(ids.last);
       expect(outcome.restored, isEmpty);
-      expect((await repo.activeChannelPatch(ch.id)), isNull);
+      expect((await repo.activeChannelPatch(ch.id, releaseId: rel.id)), isNull);
       final rows = await repo.db.query(
         'SELECT status, rolled_back FROM channel_patches WHERE patch_id = @p',
         {'p': ids.first},

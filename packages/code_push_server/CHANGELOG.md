@@ -62,6 +62,24 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Each retry is logged to stderr (`s3: PUT key failed (HTTP 503), retrying`),
     and the final error says `after N attempts`.
 
+### Fixed
+
+- **Promoting a patch no longer un-patches another release on the same
+  channel.** Promote withdrew every active patch on the channel whose platforms
+  the new patch covered, whatever its release, and `patches/check` took the
+  highest-numbered active patch across all releases and answered "no patch" when
+  it belonged to another release. With 1.0.0 and 2.0.0 live on `stable`,
+  patching 2.0.0 withdrew 1.0.0's patch (new installs and restarts got nothing,
+  and no revert was sent). Promote now supersedes only the same release's
+  patches, and the check looks up the active patch of the device's release.
+  - Rows already withdrawn this way are left as they are: they look exactly like
+    a deliberate `withdraw` (`withdrawn`, not rolled back), so no migration can
+    tell them apart. If a release lost its patch to another release's promote,
+    promote that patch to the channel again, but only if it was not rolled back
+    (`GET .../patches` shows `is_rolled_back`): promoting a rolled-back patch
+    leaves it active and also listed in `rolled_back_patch_numbers`, and devices
+    keep dropping and re-fetching it.
+
 ### Security
 
 - **IdP id_tokens are now validated.** Broker login checks `aud` (must contain

@@ -364,7 +364,9 @@ overrides:
     ignoreWords: [operationalization, productionized]
   - filename: "selfhost/evidence/r12-linux-ci/PREFLIGHT.md"
     ignoreWords: [simarm, SYSV]
-  - filename: "selfhost/evidence/r12-linux-ci/arm-B/host_memory.txt"
+  # host_memory.txt is captured by the R12 harness (docker stats and the VM's
+  # NCPU), so every arm's copy carries the same tokens.
+  - filename: "selfhost/evidence/r12-linux-ci/**/host_memory.txt"
     ignoreWords: [libpostal, NCPU, shidduchcard]
 
   # Short loop-variable-style tokens that are only words in the selfhost Python

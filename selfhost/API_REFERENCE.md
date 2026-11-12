@@ -103,6 +103,8 @@ mismatch fails the artifact (`400` on upload) and the release cannot finalize.
 | POST | `/apps/{appId}/patches/{patchId}/artifacts` | multipart: `arch,platform,hash,size,hash_signature?,podfile_lock_hash?` | `{…,"url","upload_method"}` · **400** if the release's build on `platform` is `managed` and the request carries `hash_signature`, or is `customer` and it does not (see **Managed patch signing**) |
 | POST | `/apps/{appId}/patches/promote` | `{"patch_id":1,"channel_id":1,"rollout"?:0-100}` | 204 · **400** if `rollout` is outside 0-100 · **409** if the patch isn't `ready` |
 
+> Promote supersedes only active patches of the **same release** on the channel (and only those whose platforms the new patch covers). A channel can carry several live releases; each keeps its own active patch, and `/patches/check` answers from the device's release. Before this fix a promote also withdrew other releases' patches; those rows (withdrawn, not rolled back) are indistinguishable from deliberate withdrawals and were not migrated. To serve such a patch again, promote it, but only if it was not rolled back (`is_rolled_back` in the release's patch list): promoting a rolled-back patch leaves it active and also in `rolled_back_patch_numbers`.
+
 > `rollout` (optional, default `100`) added to this row 2026-08-13 — it was undocumented, and it is the only non-admin way to promote straight into a partial rollout (`_promotePatch`). PARITY.md §6 already counts it as part of the built rollout surface.
 | PATCH | `/apps/{appId}/patches/{patchId}` | `{"notes"?}` | `{"id","number","notes"}` |
 
@@ -486,7 +488,13 @@ last one leaves the base release.
   withdrawn, instead of returning 409: it is reported in
   `rolled_back_patch_numbers` and can never be restored. Rolling back a patch
   also marks it on channels where it is only superseded, so a rollback pulls the
-  patch everywhere (as `/patches/assets` already assumes). The rollback and the
+  patch everywhere (as `/patches/assets` already assumes). **A rollback adds the
+  patch's number to `rolled_back_patch_numbers` on every channel it was on**,
+  including channels where it was only superseded or had been withdrawn by an
+  operator, so devices on those channels that run it revert too; the response's
+  `channels` and `shorebird patches rollback` list them. The admin
+  `withdraw?channel=&rollback=true` route does the same, though it names one
+  channel. The rollback and the
   restore are one transaction. A partial-rollout restore reverts a device
   outside the bucket to the base release.
 - A rolled-back patch stays rolled back: `rollforward` is still a 501.
