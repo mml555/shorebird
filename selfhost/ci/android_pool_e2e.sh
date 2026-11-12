@@ -563,11 +563,11 @@ rc=0
 # The release's public key (another one would change the bundled shorebird.yaml,
 # which the CLI refuses as an asset change) and another private key's signature.
 sb_patch 0.3.0+3 --public-key-path "$WORK/keys/good.pub.pem" --private-key-path "$WORK/keys/other.pem" \
-  >"$WORK/badsig-patch.log" 2>&1 || rc=$?
-tail -15 "$WORK/badsig-patch.log"
+  >"$WORK/other-key-patch.log" 2>&1 || rc=$?
+tail -15 "$WORK/other-key-patch.log"
 if ((rc != 0)); then
   echo "the CLI refused the patch signed with another key (exit $rc), before publication"
-  grep -qiE 'signature|key' "$WORK/badsig-patch.log" || { echo "FAIL: refused, but not for the signature" >&2; exit 1; }
+  grep -qiE 'signature|key' "$WORK/other-key-patch.log" || { echo "FAIL: refused, but not for the signature" >&2; exit 1; }
   expect_equal "$(server_patches 0.3.0+3)" "1" "patches on 0.3.0+3"
   boot 'I flutter : SB-E2E-S2:g-89'
   pass "a patch signed with another key was refused before publication; the app runs S2"
