@@ -60,8 +60,9 @@ produced it, size verified, never overwriting a differing file. Non-engine-bound
   `android-{arm,arm64,x64}-profile/linux-x64.zip`, `android-{arm,arm64,x64}/artifacts.zip` (debug)
   and `android-{arm,arm64,x64}-profile/artifacts.zip`. **Nine of the ten were fetched from
   Shorebird's own bucket**, `storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/38855c84.../`
-  (the proxy's remap), so they ARE Shorebird-owned artifacts, which bears on the mission's
-  "no Shorebird-owned artifacts" rule. Only `android-x86/artifacts.zip` is from
+  (the proxy's remap), so they ARE Shorebird-owned artifacts. The owner's mission goal (2026-11-12) is that a clean
+  machine releases and patches without Shorebird-owned artifacts; for Android debug/profile
+  `flutter run` this is a KNOWN GAP against that goal, not waived. Only `android-x86/artifacts.zip` is from
   `storage.googleapis.com/flutter_infra_release/flutter/89c39edf...` (Google's stock). Sources are in the
   ledger's `source` column.
 
@@ -74,8 +75,19 @@ The CLI under test contains #131: with no `--release-version`, non-interactive
 would you like to patch?" (when several releases exist). The harness is the repo's own: `ci_noninteractive.sh` as committed at `5b555d66`
 (last changed in `f93afff58`, sha256 `8864db7a18d8c8b3a13ac7b0c9df958750e8db7bffb3d108af829d413cf13bd5`),
 run by the r12 scripts, which were byte-identical to `selfhost/ci/r12/` at `5b555d66` (PR #112, merged;
-last changed in `203eca614`). sha256: launch.sh `8b2b70c1...`, run_arm.sh `2d71bc1d...`, mirror_service.sh `174ed406...`,
-mirror_cdn_artifact.sh `d743a940...`, discover_release_closure.sh `4362718d...`, bootstrap_closure_guard.sh `6dd3813c...`.
+last changed in `203eca614`). Full sha256 of every script that ran (paths relative to the ci-build workspace):
+
+    8b2b70c119e28c61030b6cbaa9c27f95ca426c0538d0832d5ca996c194f6f983  ci/r12/launch.sh
+    2d71bc1d6c4f2908e464ada0b4176bb16bd80de079b1531fcea647919829bb44  ci/r12/run_arm.sh
+    174ed4067bff3aa6bf6078e15a153ad9cd6f910841f47a0bd8cdc4c75171ea8f  ci/r12/mirror_service.sh
+    d743a94045e4158a1ab8fa6311b657d106f27abf005d5195a78d3113b9c24004  ci/r12/mirror_cdn_artifact.sh
+    335005f37f02f3a8458d0a77058ad503a643a8d80ef1fb7d5b324362f1580cca  ci/r12/mirror_bootstrap_artifact.sh
+    42f7efbb6b70616f1b68cedba7e0d4e624eac287408d6e522ad194ed7d0aa618  ci/r12/discover_closure.sh
+    4362718d92d655755ab6af6b4450a1908c050e6b8c14c9eaafc59b891a1453a2  ci/r12/discover_release_closure.sh
+    27ca630456cb8d6cd9aeb417f7aa487caddab1889ae66956111e3367912c7990  ci/r12/tls_r12.sh
+    6dd3813c72f2a316724ac8e475da978ff7c301a6c99d7cd9a1cd165fd2899254  ci/bootstrap_closure_guard.sh
+    4867aebc2ee79358563101b367b7a2120e7d3d69f2e94ae4f7e46417bc585ed3  ci/r12_revision_guard.sh
+
 The scripts' own defaults still name the 3.44.8 pin and ref; the run set `R12_FLUTTER_REVISION`
 and `R12_FLUTTER_REF` in the environment. Nothing in them was edited for this run.
 
@@ -100,8 +112,8 @@ ios-release (Route B on), darwin debug/profile/release, linux-x64 host, android-
   302 to `/gcs/download.shorebird.dev/flutter_infra_release/flutter/38855c84.../<path>`. So
   `flutter run` debug/profile on Android pulls Shorebird's own 38855c84 stock-engine bytes
   (9 of 10 imports; only android-x86 is Google's, from 89c39edf) under the d12e29ec 3.47
-  framework. That is Shorebird-owned artifacts in the closure, which the mission's "no
-  Shorebird-owned artifacts" rule does not allow once the bytes are not ours.
+  framework. Those are Shorebird-owned artifacts in the closure: a known gap against the owner's
+  2026-11-12 mission goal (no Shorebird-owned artifacts on a clean machine), not waived.
 - Whether that combination works on a device or emulator is UNTESTED here. No device or
   emulator run was done for this PR; do not read this as "works".
 
@@ -113,7 +125,7 @@ ios-release (Route B on), darwin debug/profile/release, linux-x64 host, android-
 - Its `ci_noninteractive.deterministic_selection.release` text is stale against #131's chooser semantics.
 - Updater: `87c198d30f87` has been in PolicyEpoch.b's eligible revisions since 2026-11-07
   (repository.dart, MEASUREMENT_MODE.md), so nothing changes there. This updater defaults
-  `patch_verification` to `install_only` (yaml.rs at 87c198d3; af6e842c defaulted to `strict`):
+  `patch_verification` to `install_only` ([yaml.rs:13-14 at mml555/shorebird-updater-mirror@87c198d30f87](https://github.com/mml555/shorebird-updater-mirror/blob/87c198d30f875a3da317d70935e1025dc13064dd/library/src/yaml.rs#L13-L14); [af6e842c defaulted to `strict`, yaml.rs:7-8](https://github.com/mml555/shorebird-updater-mirror/blob/af6e842ccf87a083d1598b1e7c9e0868c5731931/library/src/yaml.rs#L7-L8)):
   a release built without an explicit setting verifies the patch signature at install
   time only, not on each boot.
 - Route B iOS: main moves off the qualified v2 cell f85251f3 (selector 5b180d22) to engine
@@ -121,9 +133,11 @@ ios-release (Route B on), darwin debug/profile/release, linux-x64 host, android-
   and falls back to the v1 rule (`route_b_compiler_cache.dart:165`).
 - Coverage: the bootstrap and release/patch closures were discovered on Linux x64 only (no
   macOS or Windows host closure). R12 arm 1 ran with patch signing off.
-- `verify_supported_state.sh`: updated in this PR (see PR comment); `packages/shorebird_cli`'s
-  HEAD tree no longer equals the qualified product tree, which was already so on main before this PR
-  and is not relaxed here.
+- `verify_supported_state.sh` is RED ON MAIN BY DESIGN after this PR, and this PR does not change it.
+  It stays red until the next `selfhost-v*` tag re-qualifies the stack: the `bin/internal` tree and the
+  `packages/shorebird_cli` product tree both need re-recording, and Route B on 2c4b0718 needs a v2
+  manifest. (`packages/shorebird_cli`'s tree already differed on main before this PR.)
+  `bootstrap_selfhost.sh` uses the newest `selfhost-v*` tag, so clean installs are unaffected.
 - TLS CA name-constraints fix: PR #132, pending owner OK (this run used a CA without them).
 - Android debug/profile engines: stock bytes stand in (above), unrun on a device.
 - `sky_engine` and `flutter_gpu` are UNPROTECTED in `@must_be_local` (accepted, known).

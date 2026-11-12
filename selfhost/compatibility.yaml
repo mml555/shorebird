@@ -51,7 +51,8 @@ shorebird:
                                                                   # three android-*-profile/linux-x64.zip files are STOCK engine bytes. Nine of the ten came
                                                                   # from SHOREBIRD'S OWN bucket (download.shorebird.dev/flutter_infra_release/flutter/38855c84...,
                                                                   # via the proxy remap); only android-x86 is from flutter_infra_release/flutter/89c39edf (Google's).
-                                                                  # Shorebird-owned artifacts under this repo's no-Shorebird-owned-artifacts rule. Imported under the
+                                                                  # Shorebird-owned artifacts: a KNOWN GAP against the owner's 2026-11-12 mission goal (no Shorebird-owned
+                                                                  # artifacts on a clean machine), not waived. Imported under the
                                                                   # 2c4b0718 client path because no Android debug or profile engine was built for it. They
                                                                   # carry provenance in release_patch_closure.tsv. A debug or profile `flutter run` on this
                                                                   # pin uses these stock engine bytes under the 3.47 framework; that has NOT been run on a
@@ -89,7 +90,7 @@ shorebird:
                                                                   # own comment block, which describes IT and not the value above. The wire form is the 12-char
                                                                   # value; the provenance identity is repository + full SHA. 87c198d30f87 has been in PolicyEpoch.b's
        # eligible updater revisions since 2026-11-07 (repository.dart, MEASUREMENT_MODE.md). This updater
-       # DEFAULTS patch_verification to install_only (yaml.rs at 87c198d3; af6e842c defaulted to strict),
+       # DEFAULTS patch_verification to install_only (updater-mirror yaml.rs:13-14 at 87c198d3; af6e842c defaulted to strict, yaml.rs:7-8),
        # so a release without an explicit patch_verification verifies the patch signature at install
        # time only, not on every boot.
                                                              superseded_updater_revision_2026_11_12: af6e842ccf87              # was updater_revision until the 3.47 promotion; its comment block follows, verbatim
