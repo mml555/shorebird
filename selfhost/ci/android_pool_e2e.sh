@@ -470,7 +470,7 @@ V1_VERSION=$VERSION # 0.1.0+1
 
 log "scenario 2: patch 1 is a real Dart change (a class, a function, other logic)"
 boot 'I flutter : SB-E2E-V2:g-55'
-has 'Prepared boot of patch 1'
+has 'Launch success for patch 1:'
 expect_equal "$(server_patches "$V1_VERSION")" "1" "patches on $V1_VERSION"
 pass "patch 1 runs: V2 with the new class and function"
 
@@ -480,7 +480,7 @@ sb_patch "$V1_VERSION"
 boot 'I flutter : SB-E2E-V2:g-55'
 has 'Patch 2 successfully downloaded'
 boot 'I flutter : SB-E2E-V3:g-144'
-has 'Prepared boot of patch 2'
+has 'Launch success for patch 2:'
 expect_equal "$(server_patches "$V1_VERSION")" "1 2" "patches on $V1_VERSION"
 pass "patch 2 runs: V3, after V2"
 
@@ -497,7 +497,7 @@ expect_equal "$(patch_check "$V1_VERSION" 2)" "none [2]" "the server's patch che
 boot 'I flutter : SB-E2E-V3:g-144'
 has 'rolled_back_patch_numbers: Some\(\[2'
 boot 'I flutter : SB-E2E-V1'
-has 'Prepared boot of the base release'
+has 'Shorebird updater: no active patch'
 lacks 'SB-E2E-V[23]'
 pass "patch 2 rolled back: the device is on the base release, V1"
 
@@ -505,7 +505,7 @@ log "scenario 4b: rolling back patch 1 (superseded by patch 2, so not live)"
 must_fail "$SB" patches rollback --release-version "$V1_VERSION" --patch-number 1
 expect_equal "$(server_patches "$V1_VERSION")" "1 2" "patches on $V1_VERSION"
 boot 'I flutter : SB-E2E-V1'
-has 'Prepared boot of the base release'
+has 'Shorebird updater: no active patch'
 pass "patch 1 cannot be rolled back once superseded; the device stays on V1"
 
 log "scenario 5: version targeting"
@@ -516,16 +516,16 @@ expect_equal "$(patch_check "$V1_VERSION" 0)" "3 [2]" "the server offers patch 3
 install_apk v2
 boot 'I flutter : SB-E2E-W1:g-55'
 expect_equal "$(patch_check 0.2.0+2 0)" "none []" "the server's patch check for 0.2.0+2"
-lacks 'Prepared boot of patch|successfully downloaded|SB-E2E-V'
+lacks 'Launch success for patch|successfully downloaded|SB-E2E-V'
 boot 'I flutter : SB-E2E-W1:g-55'
-lacks 'Prepared boot of patch|successfully downloaded|SB-E2E-V'
+lacks 'Launch success for patch|successfully downloaded|SB-E2E-V'
 write_main SB-E2E-W2 11
 sb_patch 0.2.0+2
 expect_equal "$(patch_check 0.2.0+2 0)" "1 []" "the server offers patch 1 to 0.2.0+2"
 boot 'I flutter : SB-E2E-W1:g-55'
 has 'Patch 1 successfully downloaded'
 boot 'I flutter : SB-E2E-W2:g-89'
-has 'Prepared boot of patch 1'
+has 'Launch success for patch 1:'
 pass "0.2.0+2 ignored the patch for $V1_VERSION and took its own: W2"
 
 log "scenario 4c: rolling back the only patch restores the release"
@@ -535,7 +535,7 @@ expect_equal "$(patch_check 0.2.0+2 1)" "none [1]" "the server's patch check for
 boot 'I flutter : SB-E2E-W2:g-89'
 has 'rolled_back_patch_numbers: Some\(\[1'
 boot 'I flutter : SB-E2E-W1:g-55'
-has 'Prepared boot of the base release'
+has 'Shorebird updater: no active patch'
 lacks 'SB-E2E-W2'
 pass "the only patch rolled back: the device is back on W1"
 
@@ -547,7 +547,7 @@ sb_patch 0.3.0+3 --public-key-path "$WORK/keys/good.pub.pem" --private-key-path 
 boot 'I flutter : SB-E2E-S1:g-55'
 has 'Patch 1 successfully downloaded'
 boot 'I flutter : SB-E2E-S2:g-89'
-has 'Prepared boot of patch 1'
+has 'Launch success for patch 1:'
 lacks 'No public key configured'
 pass "a patch signed with the release's key boots (verified, not skipped)"
 write_main SB-E2E-S3 12
