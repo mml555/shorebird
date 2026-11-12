@@ -467,8 +467,10 @@ sb_patch() { # $1 release version, then the patch command's own flags
   renew
   local v=$1
   shift
-  "$SB" patch android --release-version "$v" --no-confirm "$@"
+  local rc=0
+  "$SB" patch android --release-version "$v" --no-confirm "$@" || rc=$?
   renew
+  return "$rc"
 }
 PASSED=()
 pass() { PASSED+=("$1"); log "SCENARIO OK: $1"; }
@@ -558,11 +560,14 @@ lacks 'No public key configured'
 pass "a patch signed with the release's key boots (verified, not skipped)"
 write_main SB-E2E-S3 12
 rc=0
-sb_patch 0.3.0+3 --public-key-path "$WORK/keys/other.pub.pem" --private-key-path "$WORK/keys/other.pem" \
+# The release's public key (another one would change the bundled shorebird.yaml,
+# which the CLI refuses as an asset change) and another private key's signature.
+sb_patch 0.3.0+3 --public-key-path "$WORK/keys/good.pub.pem" --private-key-path "$WORK/keys/other.pem" \
   >"$WORK/badsig-patch.log" 2>&1 || rc=$?
 tail -15 "$WORK/badsig-patch.log"
 if ((rc != 0)); then
   echo "the CLI refused the patch signed with another key (exit $rc), before publication"
+  grep -qiE 'signature|key' "$WORK/badsig-patch.log" || { echo "FAIL: refused, but not for the signature" >&2; exit 1; }
   expect_equal "$(server_patches 0.3.0+3)" "1" "patches on 0.3.0+3"
   boot 'I flutter : SB-E2E-S2:g-89'
   pass "a patch signed with another key was refused before publication; the app runs S2"
