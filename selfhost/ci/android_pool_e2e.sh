@@ -92,6 +92,26 @@ launch() {
   echo "$now"
 }
 
+# The Android build installs SDK packages it lacks (build-tools 36 for Flutter
+# 3.47), and ci-build's shared SDK isn't writable by jobs. Give the job its own
+# SDK: links to the shared one, with build-tools and platforms as directories
+# of links it can add to.
+if [[ ! -w ${ANDROID_HOME:?set ANDROID_HOME to the Android SDK} ]]; then
+  sdk=$WORK/android-sdk
+  mkdir -p "$sdk"
+  for d in "$ANDROID_HOME"/*; do
+    n=${d##*/}
+    if [[ $n == build-tools || $n == platforms ]]; then
+      mkdir -p "$sdk/$n"
+      for v in "$d"/*; do ln -s "$v" "$sdk/$n/${v##*/}"; done
+    else
+      ln -s "$d" "$sdk/$n"
+    fi
+  done
+  export ANDROID_HOME=$sdk ANDROID_SDK_ROOT=$sdk
+  echo "the shared Android SDK isn't writable; using $sdk over it"
+fi
+
 log "CLI and its Flutter"
 if [[ -n ${E2E_FLUTTER_REVISION:-} ]]; then
   [[ $E2E_FLUTTER_REVISION =~ ^[0-9a-f]{40}$ ]] || { echo "E2E_FLUTTER_REVISION must be a full commit hash" >&2; exit 2; }
