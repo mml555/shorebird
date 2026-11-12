@@ -518,17 +518,15 @@ expect_equal "$(server_patches "$V1_VERSION")" "1 2" "patches on $V1_VERSION"
 pass "patch 2 runs: V3, after V2"
 
 # ROLLBACK_NEWEST_RESTORES_PREVIOUS is the one switch for what rolling back the
-# newest patch does. 0 is what the server does today, and it contradicts the
-# CLI's own help ("revert to the prior patch", rollback_command.dart:7): publishing
-# patch 2 supersedes patch 1 on the server (promote() in repository.dart), and
-# the device deletes patch 1 when patch 2 boots (cleanup_older_than), so with
-# patch 2 rolled back nothing is left and the device runs the base release.
-# The server change that makes a rollback restore the previous patch flips this
-# to 1 in the same PR; until then a run that sees patch 1 again is a failure
-# here on purpose.
-ROLLBACK_NEWEST_RESTORES_PREVIOUS=0
+# newest patch does. 1, since #138: the server restores the patch the rolled-back
+# one superseded (rollbackAndRestore and _restorePriorIn in repository.dart), as
+# the CLI's help says ("revert to the prior patch", rollback_command.dart:7).
+# The device deleted patch 1 when patch 2 booted (cleanup_older_than), so it
+# downloads patch 1 again. 0 is the old behavior, where nothing is left and the device runs the
+# base release; a server without #138 fails here.
+ROLLBACK_NEWEST_RESTORES_PREVIOUS=1
 
-log "scenario 4: roll back patch 2 (observed today: lands on the base release; see ROLLBACK_NEWEST_RESTORES_PREVIOUS)"
+log "scenario 4: roll back patch 2 (the server restores patch 1; see ROLLBACK_NEWEST_RESTORES_PREVIOUS)"
 # From the updater: the patch check lists rolled_back_patch_numbers, the updater
 # uninstalls those patches (roll_back_patches_if_needed), but the running process
 # keeps its patch (running_patch), so the launch that learns of the rollback
@@ -537,17 +535,22 @@ renew
 "$SB" patches rollback --release-version "$V1_VERSION" --patch-number 2
 if ((ROLLBACK_NEWEST_RESTORES_PREVIOUS)); then
   expect_equal "$(patch_check "$V1_VERSION" 0)" "1 [2]" "the server offers patch 1 again to a device with no patch"
+  # What the phone itself sends: it still reports patch 2, which the server
+  # treats as no patch because 2 is rolled back (effectiveClientPatch).
+  expect_equal "$(patch_check "$V1_VERSION" 2)" "1 [2]" "the server offers patch 1 again to a device on patch 2"
 else
   expect_equal "$(patch_check "$V1_VERSION" 2)" "none [2]" "the server's patch check for a device on patch 2"
 fi
 boot 'I flutter : SB-E2E-V3:g-144'
 has 'rolled_back_patch_numbers: Some\(\[2'
 if ((ROLLBACK_NEWEST_RESTORES_PREVIOUS)); then
-  # The launch after the rollback boots the base release or has patch 1 in
-  # hand; either way the one after that runs patch 1.
-  boot 'I flutter : SB-E2E-V[12]'
+  # The launch that learned of the rollback also downloaded patch 1 again (the
+  # device deleted it when patch 2 booted, cleanup_older_than), and the next
+  # launch runs it.
+  has 'Patch 1 successfully downloaded'
   boot 'I flutter : SB-E2E-V2:g-55'
   has 'Launch success for patch 1:'
+  lacks 'SB-E2E-V3'
   pass "patch 2 rolled back: the device is back on patch 1, V2"
 else
   boot 'I flutter : SB-E2E-V1'
@@ -559,9 +562,14 @@ fi
 log "scenario 4b: rolling back patch 1, which patch 2 superseded"
 if ((ROLLBACK_NEWEST_RESTORES_PREVIOUS)); then
   "$SB" patches rollback --release-version "$V1_VERSION" --patch-number 1
-  boot 'I flutter : SB-E2E-V[12]'
+  # Nothing older to restore.
+  expect_equal "$(patch_check "$V1_VERSION" 1)" "none [1, 2]" "the server's patch check for a device on patch 1"
+  # The running process keeps patch 1 for the launch that learns of it.
+  boot 'I flutter : SB-E2E-V2:g-55'
+  has 'rolled_back_patch_numbers: Some\(\[1, 2'
   boot 'I flutter : SB-E2E-V1'
   has 'Shorebird updater: no active patch'
+  lacks 'SB-E2E-V[23]'
   pass "patch 1 rolled back: the device is on the base release, V1"
 else
   # The server answers 409 "not active on any channel", the CLI exits 70.
