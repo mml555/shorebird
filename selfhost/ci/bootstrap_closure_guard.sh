@@ -26,14 +26,19 @@
 # runner could only be vacuous or permanently red.
 set -uo pipefail
 
-# Paths default to the checkout this script is in. Each honors the R12_* name the
-# mirror scripts write with, then the older bare name, so a writer and this guard
-# can't be pointed at different overlays or ledgers by accident.
+# Paths default to the checkout this script is in. The R12_* names the mirror
+# scripts write with (R12_OVERLAY, R12_OVERLAY_ROOT, R12_BOOTSTRAP_LEDGER,
+# R12_LEDGER_DIR) win over the older bare names, so an ambient OVERLAY or LEDGER
+# can't point this guard somewhere the writers didn't write.
 REPO="${R12_REPO:-${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}}"
-OVERLAY="${R12_OVERLAY:-${OVERLAY:-${R12_OVERLAY_ROOT:-$REPO/selfhost/cdn/overlay}/flutter_infra_release/flutter}}"
+if [[ -n "${R12_OVERLAY:-}" ]]; then OVERLAY="$R12_OVERLAY"
+elif [[ -n "${R12_OVERLAY_ROOT:-}" ]]; then OVERLAY="$R12_OVERLAY_ROOT/flutter_infra_release/flutter"
+else OVERLAY="${OVERLAY:-$REPO/selfhost/cdn/overlay/flutter_infra_release/flutter}"; fi
 MIRROR="${MIRROR:-${MIRRORS:-$REPO/selfhost/cdn/mirrors}/flutter.git}"
 COMPAT="${COMPAT:-$REPO/selfhost/compatibility.yaml}"
-LEDGER="${R12_BOOTSTRAP_LEDGER:-${LEDGER:-${R12_LEDGER_DIR:-$REPO/selfhost/evidence/r12-linux-ci}/bootstrap_closure.tsv}}"
+if [[ -n "${R12_BOOTSTRAP_LEDGER:-}" ]]; then LEDGER="$R12_BOOTSTRAP_LEDGER"
+elif [[ -n "${R12_LEDGER_DIR:-}" ]]; then LEDGER="$R12_LEDGER_DIR/bootstrap_closure.tsv"
+else LEDGER="${LEDGER:-$REPO/selfhost/evidence/r12-linux-ci/bootstrap_closure.tsv}"; fi
 
 fail=0
 ok()  { printf '  ok      %s\n' "$*"; }
@@ -128,7 +133,7 @@ ok "closure manifest rows for this engine: $rows"
 # mirror served nothing — a closure that passes its own guard and fails in a
 # container. So the manifest is pinned by digest, and the revision it declares is
 # pinned too.
-MAPPING="${MAPPING:-$REPO/selfhost/evidence/r12-linux-ci/proxy_mapping.tsv}"
+MAPPING="${MAPPING:-${R12_LEDGER_DIR:-$REPO/selfhost/evidence/r12-linux-ci}/proxy_mapping.tsv}"
 MANIFEST="$OVERLAY/../../download.shorebird.dev/shorebird/$eng/artifacts_manifest.yaml"
 if [[ ! -r "$MAPPING" ]]; then
   bad "proxy mapping record unreadable: $MAPPING"

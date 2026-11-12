@@ -23,6 +23,10 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # HTTPS, because Gradle 9 refuses insecure Maven repositories and
 # FLUTTER_STORAGE_BASE_URL becomes one during an Android release build.
 SEALED="${R12_CDN:-https://host.docker.internal:8087}"
+# R12_RP_MINOR becomes part of a version string and a shell command: a plain
+# number with no leading zero (semver forbids one).
+[[ "${R12_RP_MINOR:-9}" =~ ^(0|[1-9][0-9]*)$ ]] \
+  || { echo "R12_RP_MINOR must be a number with no leading zero, got '${R12_RP_MINOR}'" >&2; exit 1; }
 
 # Discovery is only meaningful against the sealed cold instance (:8086 http,
 # :8087 https). A warm mirror would answer from cache and hide what the closure
@@ -121,8 +125,6 @@ fi
 for i in $(seq 1 "$MAXIT"); do
   # R12_RP_MINOR lets a second invocation against the same control plane use
   # versions the first one did not (a release version is immutable there).
-  [[ "${R12_RP_MINOR:-9}" =~ ^[0-9]+$ ]] \
-    || { echo "R12_RP_MINOR must be digits, got '${R12_RP_MINOR}'" >&2; exit 1; }
   ver="0.${R12_RP_MINOR:-9}.$i+$i"
   say "iteration $i — frozen harness against the SEALED COLD mirror (v$ver)"
   before="$(docker logs r12-cdn-sealed 2>&1 | wc -l | tr -d ' ')"

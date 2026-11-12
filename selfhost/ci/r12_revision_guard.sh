@@ -22,7 +22,9 @@ set -uo pipefail
 
 REV=${1:-}
 REPO="${R12_REPO:-${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}}"
-OVERLAY="${R12_OVERLAY:-${OVERLAY:-${R12_OVERLAY_ROOT:-$REPO/selfhost/cdn/overlay}/flutter_infra_release/flutter}}"
+if [[ -n "${R12_OVERLAY:-}" ]]; then OVERLAY="$R12_OVERLAY"
+elif [[ -n "${R12_OVERLAY_ROOT:-}" ]]; then OVERLAY="$R12_OVERLAY_ROOT/flutter_infra_release/flutter"
+else OVERLAY="${OVERLAY:-$REPO/selfhost/cdn/overlay/flutter_infra_release/flutter}"; fi
 CDN=${CDN:-http://localhost:8085}
 
 die() { printf '  REFUSE: %s\n' "$*" >&2; exit 1; }
