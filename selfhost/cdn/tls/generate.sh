@@ -42,27 +42,34 @@ fi
 # against subjectAltName only, so getting this wrong looks like a hostname
 # mismatch rather than a missing SAN.
 #
-# The CA is also constrained to exactly these names (nameConstraints below), so
+# The CA is also constrained to these host names (nameConstraints below), so
 # that a CA key that leaks, or a ca.crt that gets trusted by mistake, can only
-# vouch for the mirror's own hosts and not for any site. The two lists are built
+# vouch for the mirror's own names and not for any site. The two lists are built
 # together so they cannot disagree.
+#
+# DNS names only. Dart on Linux (BoringSSL's verifier, Dart 3.13.7) fails the
+# handshake for a CA with ANY IP name constraint, permitted or excluded:
+#   CERTIFICATE_VERIFY_FAILED: unsupported name constraint type
+# while Dart on macOS, curl and openssl accept it. Without an IP constraint the
+# IP SANs still verify, and a leaked key could vouch for IP-literal HTTPS hosts,
+# but not for any domain name. With no host name at all, the CA is limited to
+# the reserved name `invalid` (RFC 2606), so it vouches for no real domain.
 san=""
 nc=""
 dns_i=0
 ip_i=0
 probes=()   # one "<kind> <name to verify>" per SAN entry
-V6MASK="ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
 add_host() {
   local h="$1"
   [[ "$san" == *"= $h"$'\n'* ]] && return 0
   if [[ "$h" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     ip_i=$((ip_i + 1)); san+="IP.$ip_i = $h"$'\n'
-    nc+=", permitted;IP:$h/255.255.255.255"; probes+=("ip $h")
+    probes+=("ip $h")
   elif [[ "$h" == *:* ]]; then
     # IPv6 literal. A mask the same width as the address, so only that host.
     [[ "$h" =~ ^[0-9a-fA-F:]+$ ]] || { echo "ERROR: not an IPv6 address: $h" >&2; exit 2; }
     ip_i=$((ip_i + 1)); san+="IP.$ip_i = $h"$'\n'
-    nc+=", permitted;IP:$h/$V6MASK"; probes+=("ip $h")
+    probes+=("ip $h")
   elif [[ "$h" == \*.* ]]; then
     # Wildcard cert name; the constraint is its base domain, which permits the
     # domain and everything below it.
@@ -80,6 +87,7 @@ add_host() {
   fi
 }
 for h in "${hosts[@]}"; do add_host "$h"; done
+[[ -n "$nc" ]] || nc=", permitted;DNS:invalid"
 # 127.0.0.1 is always useful: the build host reaches the mirror over loopback.
 add_host 127.0.0.1
 # ::1 is only in the SAN when asked for: clients that resolve localhost to ::1
@@ -160,6 +168,17 @@ if openssl verify -CAfile "$WORK/ca.crt" -verify_hostname not-in-the-san.invalid
   echo "ERROR: server.crt verifies for a host that is not in the SAN" >&2; exit 1
 fi
 echo "      ok  not-in-the-san.invalid is refused"
+# The constraint itself must hold: a leaf for a domain outside it, signed with
+# this CA's own key, must NOT verify.
+openssl req -newkey rsa:2048 -nodes -keyout "$WORK/probe.key" -out "$WORK/probe.csr" \
+  -subj /CN=example.com 2>/dev/null
+printf 'subjectAltName = DNS:example.com\n' > "$WORK/probe.ext"
+openssl x509 -req -in "$WORK/probe.csr" -days 1 -CA "$WORK/ca.crt" -CAkey "$WORK/ca.key" \
+  -CAcreateserial -extfile "$WORK/probe.ext" -out "$WORK/probe.crt" 2>/dev/null
+if openssl verify -CAfile "$WORK/ca.crt" -verify_hostname example.com "$WORK/probe.crt" >/dev/null 2>&1; then
+  echo "ERROR: the CA's name constraint does not hold: it vouches for example.com" >&2; exit 1
+fi
+echo "      ok  a cert for example.com from this CA is refused (name constraint)"
 echo
 # Verified; move into place (each is a rename within $DIR).
 for f in openssl.cnf ca.key ca.crt server.key server.crt fullchain.crt; do
