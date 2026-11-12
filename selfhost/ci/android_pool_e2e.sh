@@ -518,17 +518,15 @@ expect_equal "$(server_patches "$V1_VERSION")" "1 2" "patches on $V1_VERSION"
 pass "patch 2 runs: V3, after V2"
 
 # ROLLBACK_NEWEST_RESTORES_PREVIOUS is the one switch for what rolling back the
-# newest patch does. 0 is what the server does today, and it contradicts the
-# CLI's own help ("revert to the prior patch", rollback_command.dart:7): publishing
-# patch 2 supersedes patch 1 on the server (promote() in repository.dart), and
-# the device deletes patch 1 when patch 2 boots (cleanup_older_than), so with
-# patch 2 rolled back nothing is left and the device runs the base release.
-# The server change that makes a rollback restore the previous patch flips this
-# to 1 in the same PR; until then a run that sees patch 1 again is a failure
-# here on purpose.
-ROLLBACK_NEWEST_RESTORES_PREVIOUS=0
+# newest patch does. 1, since #138: the server restores the patch the rolled-back
+# one superseded (restorePriorPatches in repository.dart), as the CLI's help
+# says ("revert to the prior patch", rollback_command.dart:7). The device deleted
+# patch 1 when patch 2 booted (cleanup_older_than), so it downloads patch 1
+# again. 0 is the old behavior, where nothing is left and the device runs the
+# base release; a server without #138 fails here.
+ROLLBACK_NEWEST_RESTORES_PREVIOUS=1
 
-log "scenario 4: roll back patch 2 (observed today: lands on the base release; see ROLLBACK_NEWEST_RESTORES_PREVIOUS)"
+log "scenario 4: roll back patch 2 (the server restores patch 1; see ROLLBACK_NEWEST_RESTORES_PREVIOUS)"
 # From the updater: the patch check lists rolled_back_patch_numbers, the updater
 # uninstalls those patches (roll_back_patches_if_needed), but the running process
 # keeps its patch (running_patch), so the launch that learns of the rollback
