@@ -117,12 +117,13 @@ ios-release (Route B on), darwin debug/profile/release, linux-x64 host, android-
 - Whether that combination works on a device or emulator is UNTESTED here. No device or
   emulator run was done for this PR; do not read this as "works".
 
-## Android e2e on a pool phone
+## Android e2e on the pool
 
-`selfhost_android_e2e.yaml` dispatched on this branch (ref `selfhost/promote-flutter-3.47-d12e`, at the
-merge of fork/main, with this pin in `bin/internal/flutter.version`): run
-https://github.com/mml555/shorebird/actions/runs/43186711370, job "android release and patch on a pool phone":
-**success**.
+`selfhost_android_e2e.yaml` dispatched on this branch (ref `selfhost/promote-flutter-3.47-d12e`) ran at merge
+commit `fe8fbe9e`, with this pin in `bin/internal/flutter.version`; later commits are docs and the
+verifier revert only. Run https://github.com/mml555/shorebird/actions/runs/43186711370, job "android release
+and patch on a pool phone": **success**. The pool served an x86_64 emulator (qa-1..3 are emulators), not a
+physical phone.
 
 ## Open
 
