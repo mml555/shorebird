@@ -24,9 +24,11 @@
 #
 #   E2E_SCENARIOS               quick (default): release, patch 1, patched boot.
 #                               full: also consecutive patches, rollback, version
-#                               targeting, signing, a refused native change and
-#                               a server outage, each asserted from the device
-#                               log, the server API or the CLI's exit code.
+#                               targeting, signing, a refused native change,
+#                               a server outage, a server restart, a staged
+#                               rollout, and a backup and restore of the server's
+#                               data, each asserted from the device log, the
+#                               server API or the CLI's exit code.
 #
 # Needs java, curl, python3, openssl and timeout on PATH, and adb in
 # $ANDROID_HOME/platform-tools. Exits non-zero,
@@ -196,11 +198,12 @@ expect_equal() {
 }
 
 # The server's own answer to the device's patch check ($1 release version, $2
-# the patch the device runs): "<patch number or none> <rolled back numbers>".
+# the patch the device runs, $3 the client id, default a probe's): "<patch
+# number or none> <rolled back numbers>".
 patch_check() {
-  local out
+  local out client=${3:-e2e-probe}
   out=$(curl -fsS --max-time 15 -X POST "$BASE/api/v1/patches/check" -H 'Content-Type: application/json' \
-    -d "{\"app_id\":\"$app_id\",\"release_version\":\"$1\",\"platform\":\"android\",\"arch\":\"$ARCH\",\"channel\":\"stable\",\"client_id\":\"e2e-probe\",\"current_patch_number\":$2}")
+    -d "{\"app_id\":\"$app_id\",\"release_version\":\"$1\",\"platform\":\"android\",\"arch\":\"$ARCH\",\"channel\":\"stable\",\"client_id\":\"$client\",\"current_patch_number\":$2}")
   python3 -c 'import json,sys; d = json.load(sys.stdin); p = d.get("patch"); print(p["number"] if p else "none", d.get("rolled_back_patch_numbers"))' <<<"$out"
 }
 api() { curl -fsS --max-time 30 -H "Authorization: Bearer $API_KEY" "$@"; }
@@ -211,6 +214,46 @@ server_patches() {
     python3 -c 'import json,sys; v = sys.argv[1]; print(next(r["id"] for r in json.load(sys.stdin)["releases"] if r["version"] == v))' "$1")
   api "$BASE/api/v1/apps/$app_id/releases/$rid/patches" |
     python3 -c 'import json,sys; print(" ".join(str(p["number"]) for p in sorted(json.load(sys.stdin)["patches"], key=lambda p: p["number"])))'
+}
+# The release versions the server lists, sorted, e.g. "0.1.0+1 0.2.0+2".
+server_releases() {
+  api "$BASE/api/v1/apps/$app_id/releases" |
+    python3 -c 'import json,sys; print(" ".join(sorted(r["version"] for r in json.load(sys.stdin)["releases"])))'
+}
+# The id of patch number $2 of release version $1.
+patch_id_of() {
+  local rid
+  rid=$(api "$BASE/api/v1/apps/$app_id/releases" |
+    python3 -c 'import json,sys; v = sys.argv[1]; print(next(r["id"] for r in json.load(sys.stdin)["releases"] if r["version"] == v))' "$1")
+  api "$BASE/api/v1/apps/$app_id/releases/$rid/patches" |
+    python3 -c 'import json,sys; n = int(sys.argv[1]); print(next(p["id"] for p in json.load(sys.stdin)["patches"] if p["number"] == n))' "$2"
+}
+# The rollout bucket of a client, 0..9999, as rollout.dart in code_push_server
+# computes it: the first four bytes of sha256("app:channel:patch:client"), big
+# endian, masked to 31 bits, modulo 10000. A client is offered a partial rollout
+# of R percent when its bucket is below R * 100.
+bucket_of() { # app channel patch client
+  python3 -I -c 'import hashlib,sys; d = hashlib.sha256(":".join(sys.argv[1:5]).encode()).digest(); print((int.from_bytes(d[:4], "big") & 0x7fffffff) % 10000)' "$@"
+}
+# The client id the phone's updater sent the server for release version $1: it
+# is in the events the updater posts, which the server stores (events table).
+device_client_id() {
+  local cid='' i
+  for i in $(seq 30); do
+    cid=$(python3 -I - "$WORK/server-data/code_push.db" "$app_id" "$1" <<'PY' || true
+import sqlite3, sys
+db = sqlite3.connect("file:%s?mode=ro" % sys.argv[1], uri=True, timeout=10)
+row = db.execute("SELECT client_id FROM events WHERE app_id = ? AND release_version = ? "
+                 "AND client_id IS NOT NULL AND client_id != '' ORDER BY id DESC LIMIT 1",
+                 (sys.argv[2], sys.argv[3])).fetchone()
+print(row[0] if row else "")
+PY
+)
+    [[ -n $cid ]] && break
+    sleep 2
+  done
+  [[ -n $cid ]] || { echo "no event from the phone with a client_id for $1 in the server's events" >&2; return 1; }
+  printf '%s\n' "$cid"
 }
 # Runs a CLI command that must exit with code $1 and print $2 (a fixed string);
 # its output goes to OUT. Any other failure (a typo, a crash) does not pass.
@@ -665,6 +708,20 @@ install_apk v2
 boot 'I flutter : SB-E2E-W1:g-55'
 write_main SB-E2E-W3 12
 sb_patch 0.2.0+2
+log "scenario 8a: the server restarts on the same data dir after the patch is published and before the phone checks"
+releases_before=$(server_releases)
+patches_before=$(server_patches 0.2.0+2)
+check_before=$(patch_check 0.2.0+2 0)
+expect_equal "$check_before" "2 [1]" "the server offers patch 2 before the restart"
+old_server=$SERVER_PID
+stop_server
+if curl -fsS --max-time 5 "$BASE/readyz" >/dev/null 2>&1; then echo "FAIL: the server still answers after the stop" >&2; exit 1; fi
+start_server
+[[ $SERVER_PID != "$old_server" ]] || { echo "FAIL: no new server process" >&2; exit 1; }
+expect_equal "$(server_releases)" "$releases_before" "the releases the restarted server lists"
+expect_equal "$(server_patches 0.2.0+2)" "$patches_before" "the patches the restarted server lists for 0.2.0+2"
+expect_equal "$(patch_check 0.2.0+2 0)" "$check_before" "the restarted server's patch check"
+pass "the server restarted on its data dir: releases, patches and the patch check are unchanged"
 boot 'I flutter : SB-E2E-W1:g-55'
 has 'Patch 2 successfully downloaded'
 boot 'I flutter : SB-E2E-W3:g-144'
@@ -687,6 +744,122 @@ sb_patch 0.2.0+2
 boot 'I flutter : SB-E2E-W3:g-144'
 has 'Patch 3 successfully downloaded'
 boot 'I flutter : SB-E2E-W4:g-233'
-pass "the patched app booted its patch with the server down; the restarted server serves again (W4)"
+pass "the patched app booted its patch with the server down; the restarted server serves again (W4); the phone took a patch published before a restart (W3)"
+
+log "scenario 9: staged rollout"
+# The phone is on 0.2.0+2 patch 3 (W4). Patch 4 is published, then its rollout
+# is set through the admin route (the CLI promotes at 100). The server buckets a
+# client by sha256(app:channel:patch:client) (rollout.dart), so with the phone's
+# own client id the bucket B is known and so is the verdict: not offered at any
+# percent whose threshold (percent * 100) is at or below B, offered above it.
+CLIENT=$(device_client_id 0.2.0+2)
+echo "the phone's client id: $CLIENT"
+write_main SB-E2E-W5 14
+sb_patch 0.2.0+2
+expect_equal "$(server_patches 0.2.0+2)" "1 2 3 4" "patches on 0.2.0+2"
+PID4=$(patch_id_of 0.2.0+2 4)
+CHANNEL_ID=$(api "$BASE/api/v1/apps/$app_id/channels" |
+  python3 -c 'import json,sys; print(next(c["id"] for c in json.load(sys.stdin) if c["name"] == "stable"))')
+BUCKET=$(bucket_of "$app_id" "$CHANNEL_ID" "$PID4" "$CLIENT")
+R_OUT=$((BUCKET / 100)) # R_OUT * 100 <= BUCKET: the phone is outside the rollout
+R_IN=$((R_OUT + 1))     # BUCKET < R_IN * 100: inside it
+echo "bucket of the phone for patch $PID4 on channel $CHANNEL_ID: $BUCKET (outside at ${R_OUT}%, inside from ${R_IN}%)"
+set_rollout() { api -X POST "$BASE/admin/apps/$app_id/patches/$PID4/rollout?channel=stable&percent=$1" >/dev/null; }
+set_rollout "$R_OUT"
+expect_equal "$(patch_check 0.2.0+2 3 "$CLIENT")" "none [1]" "the server's check for the phone at ${R_OUT}%, outside its bucket"
+# Another client, chosen by the same bucket function, is inside at that percent.
+if ((R_OUT >= 1)); then
+  OTHER=$(python3 -I -c 'import hashlib,sys
+a, c, p, t = sys.argv[1:5]
+for i in range(1000000):
+    cid = "probe-%d" % i
+    d = hashlib.sha256(":".join((a, c, p, cid)).encode()).digest()
+    if (int.from_bytes(d[:4], "big") & 0x7fffffff) % 10000 < int(t) * 100:
+        print(cid)
+        break' "$app_id" "$CHANNEL_ID" "$PID4" "$R_OUT")
+  expect_equal "$(patch_check 0.2.0+2 3 "$OTHER")" "4 [1]" "the server's check for $OTHER, whose bucket is below ${R_OUT}%"
+fi
+boot 'I flutter : SB-E2E-W4:g-233'
+lacks 'Patch 4 successfully downloaded'
+lacks 'SB-E2E-W5'
+boot 'I flutter : SB-E2E-W4:g-233'
+lacks 'SB-E2E-W5'
+pass "patch 4 at ${R_OUT}%: the phone (bucket $BUCKET) was not offered it and kept W4"
+if ((R_IN <= 99)); then
+  set_rollout "$R_IN"
+  expect_equal "$(patch_check 0.2.0+2 3 "$CLIENT")" "4 [1]" "the server's check for the phone at ${R_IN}%, inside its bucket"
+  pass "patch 4 at ${R_IN}%: the server offers it to the phone"
+else
+  echo "the phone's bucket is $BUCKET, at or above 9900: no partial percentage is inside it; going straight to 100"
+fi
+set_rollout 100
+expect_equal "$(patch_check 0.2.0+2 3 "$CLIENT")" "4 [1]" "the server's check for the phone at 100%"
+boot 'I flutter : SB-E2E-W4:g-233'
+has 'Patch 4 successfully downloaded'
+boot 'I flutter : SB-E2E-W5:g-377'
+has 'Launch success for patch 4:'
+pass "rollout raised to 100%: the phone took patch 4 (W5)"
+
+log "scenario 10: backup and restore of the server's data"
+# The certified single-profile path (selfhost/backup_restore/CERTIFICATION.md,
+# setup.sh --backup and --restore) drives a docker compose deployment; the job has
+# neither. setup.sh runs, on the data volume with the server stopped:
+# ops/lib/write_manifest.sh, then tar czf of the volume without code_push.db-shm,
+# and on restore ops/lib/verify_manifest.sh on the extracted archive, a wipe of
+# the volume and tar xzf. This runs the same two scripts and the same tar
+# commands on the data dir. The scripts hard-code /data and /tmp (the busybox
+# container's), so their copies here have those paths rewritten and nothing else.
+LIB=$ROOT/packages/code_push_server/ops/lib
+BR=$WORK/backup-restore
+mkdir -p "$BR/lib" "$BR/tmp"
+for f in write_manifest.sh verify_manifest.sh; do
+  sed -e "s#/data#$WORK/server-data#g" -e "s#/tmp/#$BR/tmp/#g" "$LIB/$f" >"$BR/lib/$f"
+done
+check_pre=$(patch_check 0.2.0+2 4)
+patches_pre=$(server_patches 0.2.0+2)
+releases_pre=$(server_releases)
+expect_equal "$patches_pre" "1 2 3 4" "patches on 0.2.0+2 before the backup"
+stop_server # setup.sh --backup stops the server and requires it to be down
+if curl -fsS --max-time 5 "$BASE/readyz" >/dev/null 2>&1; then echo "FAIL: the server still answers; refusing to snapshot a writable deployment" >&2; exit 1; fi
+BID=$(openssl rand -hex 16) STAMP=$(date -u +%Y%m%dT%H%M%SZ) IMAGE=e2e IMAGE_ID=e2e sh "$BR/lib/write_manifest.sh"
+tar czf "$BR/backup.tgz" -C "$WORK/server-data" --exclude='code_push.db-shm' .
+rm -f "$WORK/server-data/MANIFEST.json"
+[[ -s $BR/backup.tgz ]]
+echo "backup: $(du -h "$BR/backup.tgz" | cut -f1)"
+# Wipe: a new, empty data dir. A server on it knows nothing of the app.
+rm -rf "$WORK/server-data"
+start_server
+if api "$BASE/api/v1/apps/$app_id/releases" >/dev/null 2>&1; then
+  expect_equal "$(patch_check 0.2.0+2 4)" "none []" "the wiped server's patch check"
+else
+  echo "ok: the wiped server does not know the app"
+fi
+stop_server
+# Restore, as setup.sh --restore: validate the archive before the wipe, then wipe and extract.
+mkdir "$BR/extract"
+(cd "$BR/extract" && tar xzf "$BR/backup.tgz" && sh "$BR/lib/verify_manifest.sh")
+rm -rf "$BR/extract"
+rm -rf "$WORK/server-data"
+mkdir "$WORK/server-data"
+tar xzf "$BR/backup.tgz" -C "$WORK/server-data"
+rm -f "$WORK/server-data/MANIFEST.json"
+start_server
+expect_equal "$(server_releases)" "$releases_pre" "the releases after the restore"
+expect_equal "$(server_patches 0.2.0+2)" "$patches_pre" "the patches on 0.2.0+2 after the restore"
+expect_equal "$(patch_check 0.2.0+2 4)" "$check_pre" "the patch check after the restore"
+# The phone already runs patch 4: it keeps it, and the server has nothing newer.
+boot 'I flutter : SB-E2E-W5:g-377'
+has 'Launch success for patch 4:'
+lacks 'FATAL EXCEPTION|SB-E2E-W[1-4]'
+pass "backup, wipe and restore: the data is back, and the phone keeps patch 4 (W5)"
+write_main SB-E2E-W6 15
+sb_patch 0.2.0+2
+expect_equal "$(server_patches 0.2.0+2)" "1 2 3 4 5" "patches on 0.2.0+2 after publishing on the restored server"
+expect_equal "$(patch_check 0.2.0+2 4)" "5 [1]" "the restored server offers the new patch"
+boot 'I flutter : SB-E2E-W5:g-377'
+has 'Patch 5 successfully downloaded'
+boot 'I flutter : SB-E2E-W6:g-610'
+has 'Launch success for patch 5:'
+pass "a patch published after the restore reached the phone (W6)"
 
 log "PASS (full): $(printf '%s; ' "${PASSED[@]}")"

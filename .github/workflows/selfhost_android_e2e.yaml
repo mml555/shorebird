@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       scenarios:
-        description: "quick: release, patch 1, patched boot. full: also consecutive patches, rollback, version targeting, signing, a refused native change and a server outage."
+        description: "quick: release, patch 1, patched boot. full: also consecutive patches, rollback, version targeting, signing, a refused native change, a server outage and restart, a staged rollout, and backup and restore."
         type: choice
         options: [quick, full]
         default: full
@@ -43,7 +43,7 @@ jobs:
     # manual run that asks for them, the default of the dispatch form) build three
     # releases and five patches, about 25 minutes with a warm Gradle cache. Pull
     # requests and the nightly run take the quick path.
-    timeout-minutes: ${{ (inputs.scenarios == 'full' || github.event.schedule == '30 4 * * 0') && 60 || 45 }}
+    timeout-minutes: ${{ (inputs.scenarios == 'full' || github.event.schedule == '30 4 * * 0') && 80 || 45 }}
 
     steps:
       - name: 📚 Git Checkout
