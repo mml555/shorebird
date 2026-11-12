@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   android_pool:
-    name: android release and patch on a pool phone (Flutter 9056dae9)
+    name: android release and patch on a pool phone
     # Not for PRs from other repositories: the home runners take only this
     # repository's own code.
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
@@ -35,14 +35,20 @@ jobs:
     steps:
       - name: 📚 Git Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: 📱 Release and patch on a pool phone
         env:
           E2E_POOL_OWNER: shorebird-e2e-${{ github.run_id }}-${{ github.run_attempt }}
-          # The pinned Flutter (5b180d22, engine cell f85251f3) ships no Linux
-          # Dart SDK, so the CLI can't start on a Linux runner. Until the pin
-          # moves, test the Flutter 3.47 candidate (engine 7806e0fb, device-
-          # tested on 2026-11-11), which the mirror serves for Linux.
-          E2E_FLUTTER_REVISION: 9056dae9e28761f7508191146ae2469ba014be08
-          SHOREBIRD_FLUTTER_GIT_URL: https://github.com/mml555/shorebird-flutter.git
-        run: selfhost/ci/android_pool_e2e.sh
+        # The pinned Flutter 5b180d22 (engine cell f85251f3) ships no Linux Dart
+        # SDK, so the CLI can't start on a Linux runner. While that is the pin,
+        # test the Flutter 3.47 candidate (engine 7806e0fb, device-tested on
+        # 2026-11-11), which the mirror serves for Linux. Any other pin is
+        # tested as is, so this lapses by itself when the pin moves.
+        run: |
+          if [[ $(cat bin/internal/flutter.version) == 5b180d224df04a267a19888c3f344474e243b382 ]]; then
+            export E2E_FLUTTER_REVISION=9056dae9e28761f7508191146ae2469ba014be08
+            echo "::warning::main pins Flutter 5b180d22, which has no Linux Dart SDK; testing the 3.47 candidate 9056dae9 instead"
+          fi
+          selfhost/ci/android_pool_e2e.sh
