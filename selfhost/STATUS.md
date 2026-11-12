@@ -1,4 +1,4 @@
-<!-- cspell:words dartdev nehelper sbrel uiautomator ureq -->
+<!-- cspell:words dartdev nehelper nutsfix sbrel uiautomator ureq -->
 # Fork status
 
 As of 2026-11-11. This is the starting point for picking the work back up: what state the
@@ -100,9 +100,14 @@ Our engines (`3a565f27`, `255fd850`, `7806e0fb`, and `2c4b0718`, which shorebird
   it all back 446 MB with `GOMEMLIMIT=1GiB` (was 2,041 MB), all hits with matching bytes. The
   compose file now sets `GOMEMLIMIT=1GiB` and `mem_limit: 8g` (a cold fetch holds 3-5 copies of
   the response, about 1 GB for a dart-sdk zip). Not measured: NutsDB's merge every 2 h, which
-  rewrites live entries once there are two segments. The live mirror runs the old
-  image until it is rebuilt and recreated; the on-disk format is unchanged, so the cache
-  survives that.
+  rewrites live entries once there are two segments.
+
+  Deployed to the live mirror on 2026-11-12 (it was at 4.8 GiB). Its 3.1 GB cache carried
+  over: cached files still hit with the same sha256. About 530 MB after the restart; repeated
+  reads of the 233 MB dart-sdk zip level off at about 1.0 GB, the `GOMEMLIMIT` target. The
+  ci-build checkout got only the Dockerfile, compose file, patch and the Caddyfile's `nuts`
+  block from main (backups `*.bak.20261112035903`); the previous image is tagged
+  `shorebird-cdn-cdn-cache:pre-nutsfix-20261112035903` for a rollback.
 
 <a id="ios-on-255fd850"></a>
 
@@ -197,7 +202,7 @@ Effort: S under a day, M a few days, L a week or more.
 | 10 | arm64 server image | M | Releases are amd64 only without hosted runners (buildx + QEMU or an arm64 runner). |
 | 11 | iOS code push and `aot-tools.dill` | L | **Route B done on `2c4b0718`** (shorebird-flutter #9 ports the 3.44-era Route B engine changes, #10 builds the iOS engine with them, #11 fixes its gn check, #12 pins it; fork #115 and #116): iOS release, patch and rollback ran on the physical iPhone 7; see [iOS code push on `2c4b0718`](#ios-code-push-on-2c4b0718-route-b). The owner decided on 2026-11-11 not to re-measure on 3.47 the share of Dart changes a patch accepts; only the 3.44 numbers exist. Left: qualify `2c4b0718` in `SUPPORTED_STATE.yaml`, which has to name the CLI revision and shorebird-flutter pin that #111 lands, so it waits for #111; land the CLI side through the promotion (#111, on hold; re-pin it to shorebird-flutter `d12e29ec` first). Upstream's own iOS patch path (`Shorebird_ReadLinkHeader`, the five-argument `Dart_LoadELF`, `aot_tools`) lives in Shorebird's private Dart fork and is not pursued; `aot-tools.dill` belongs to it, does not build, and the mirror 404s it. |
 | 11a | ~~Diagnose the mirror's cold `/gcs/` fetch hang~~ | Done | Souin's 10 s default backend timeout; see the CDN section. |
-| 11b | Find why the mirror holds its whole cache in RAM | M | **Fixed:** key-only NutsDB index plus a one-line NutsDB patch; 140 MB after a restart instead of the cache's size. Left: rebuild and recreate the live mirror. See the CDN section. |
+| 11b | Find why the mirror holds its whole cache in RAM | M | **Fixed:** key-only NutsDB index plus a one-line NutsDB patch; 140 MB after a restart instead of the cache's size. Deployed to the live mirror 2026-11-12. See the CDN section. |
 | 12 | Apple and desktop paths in CI | L | iOS code push is proven by hand on the physical iPhone 7 with `2c4b0718` (and earlier with 3.44-era Route B engines), not in CI; macOS, Windows and Linux code push are untested ([`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md)). Needs a Mac runner. |
 
 Owner decisions, no code needed:
