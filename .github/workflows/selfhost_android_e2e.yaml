@@ -1,0 +1,42 @@
+name: self-host android e2e
+
+# Releases and patches an Android app with this checkout's CLI against a
+# throwaway self-hosted code_push_server, on a phone from ci-build's device pool,
+# and checks the phone boots the patch (selfhost/ci/android_pool_e2e.sh). Runs
+# only on the home runners, which reach the pool and the CDN mirror on
+# 127.0.0.1 (selfhost/ci-host/bin/gha-egress-apply).
+
+concurrency:
+  # One at a time: the pool has three phones, shared with other projects.
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 3 * * *"
+  pull_request:
+    paths:
+      - .github/workflows/selfhost_android_e2e.yaml
+      - selfhost/ci/android_pool_e2e.sh
+
+permissions:
+  contents: read
+
+jobs:
+  android_pool:
+    name: android release and patch on a pool phone
+    # Not for PRs from other repositories: the home runners take only this
+    # repository's own code.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: [self-hosted, linux, x64, shorebird]
+    timeout-minutes: 45
+
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: 📱 Release and patch on a pool phone
+        env:
+          E2E_POOL_OWNER: shorebird-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+        run: selfhost/ci/android_pool_e2e.sh
