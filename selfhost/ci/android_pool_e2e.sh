@@ -57,26 +57,30 @@ cleanup() {
   local status=$?
   set +e
   # On failure, read the phone and its lease before releasing it: the release
-  # resets the phone to its snapshot. Bounded, as the phone may be wedged.
-  if [[ $status -ne 0 && -n $ADB_STARTED ]]; then
-    timeout 20 adb -s "$SERIAL" logcat -d 2>/dev/null |
+  # resets the phone to its snapshot. Bounded, as the phone may be wedged, and
+  # skipped when the job was signalled (cancelled or timed out): the runner
+  # kills it seconds later, and the release must go out first.
+  local diagnose=
+  ((status != 0 && status < 128)) && diagnose=1
+  if [[ -n $diagnose && -n $ADB_STARTED ]]; then
+    timeout 10 adb -s "$SERIAL" logcat -d 2>/dev/null |
       grep -E 'flutter|shorebird|AndroidRuntime' | tail -60 >"$WORK/device.log"
   fi
-  if [[ $status -ne 0 && -n $DEVICE ]]; then
-    curl -fsS --max-time 10 "$POOL/lease?device=$DEVICE" >"$WORK/lease.json" 2>&1
+  if [[ -n $diagnose && -n $DEVICE ]]; then
+    curl -sS --max-time 5 "$POOL/lease?device=$DEVICE" >"$WORK/lease.json" 2>&1
   fi
   # The release resets the phone, so the app needs no uninstall.
   if ! curl -fsS --max-time 15 -X POST "$POOL/release?owner=$OWNER" >/dev/null 2>&1 && [[ -n $DEVICE ]]; then
-    echo "::warning::could not release $DEVICE (owner $OWNER); its lease runs out within $LEASE_TTL minutes"
+    echo "::warning::could not release $DEVICE (owner $OWNER); the pool frees it when its lease runs out"
   fi
   if [[ $status -ne 0 ]]; then
     log "FAILED (exit $status); server log tail"
     tail -40 "$WORK/server.log" 2>/dev/null
-    if [[ -n $ADB_STARTED ]]; then
+    if [[ -n $diagnose && -n $ADB_STARTED ]]; then
       log "device log before release (flutter and updater lines)"
       cat "$WORK/device.log" 2>/dev/null
     fi
-    if [[ -n $DEVICE ]]; then
+    if [[ -n $diagnose && -n $DEVICE ]]; then
       log "pool lease of $DEVICE before release"
       cat "$WORK/lease.json" 2>/dev/null
       echo
@@ -232,8 +236,10 @@ log "phone from the pool (owner $OWNER)"
 # in a loop: a job cancelled mid-request then leaves at most one wait's worth of
 # orphaned checkout, and the release in cleanup (by owner) frees any lease that
 # did land.
+# Gives up after 20 minutes, inside the job's 45-minute timeout.
 lease=
-for _ in $(seq 10); do
+deadline=$((SECONDS + 20 * 60))
+while ((SECONDS < deadline)); do
   rc=0
   lease=$(curl -fsS --max-time 330 -X POST \
     "$POOL/checkout?owner=$OWNER&ttl=$CHECKOUT_TTL&wait=2&why=shorebird+android+e2e" 2>&1) || rc=$?
@@ -244,7 +250,7 @@ for _ in $(seq 10); do
   lease=
   sleep 10
 done
-[[ -n $lease ]] || { echo "no phone after 10 tries" >&2; exit 1; }
+[[ -n $lease ]] || { echo "no phone within 20 minutes" >&2; exit 1; }
 read -r DEVICE SERIAL < <(python3 -c 'import json,sys; d = json.load(sys.stdin); print(d["device"], d["serial"])' <<<"$lease")
 [[ -n ${SERIAL:-} ]] || { echo "unexpected checkout answer: $lease" >&2; exit 1; }
 echo "checked out $DEVICE ($SERIAL)"
