@@ -2568,7 +2568,9 @@ void main() {
         repo,
         store,
         config,
-        inFlightWait: const Duration(milliseconds: 600),
+        // Long enough that the four waiters are still waiting when the fifth
+        // query is answered, however slow the runner.
+        inFlightWait: const Duration(seconds: 5),
       );
       final r = await registered();
       final art = (await repo.artifactByToken(r.token))!;
@@ -2582,18 +2584,20 @@ void main() {
         headers: {'content-range': 'bytes */3'},
       );
 
-      final waiting = [for (var i = 0; i < 4; i++) query()];
+      var finished = 0;
+      final waiting = [
+        for (var i = 0; i < 4; i++) query().whenComplete(() => finished++),
+      ];
       // Let the four enter the wait.
       while (api.debugWaiters(r.token) < 4) {
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
-      final sw = Stopwatch()..start();
       final fifth = await query();
       expect(fifth.statusCode, HttpStatus.serviceUnavailable);
       expect(
-        sw.elapsedMilliseconds,
-        lessThan(400),
-        reason: 'over the cap is refused at once, not after the wait',
+        finished,
+        0,
+        reason: 'over the cap is refused at once, while the four still wait',
       );
       expect(
         api.debugWaiters(r.token),
