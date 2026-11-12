@@ -623,13 +623,15 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
   /// otherwise straddle versions, such as patching android against 1.0.2 and
   /// ios against 1.0.1 in the same invocation.
   ///
-  /// When the release version can't be determined any other way, the app is
-  /// built once to read the version from it. That build is only for the
-  /// version: the patch is built again with the release's settings.
+  /// Without `--release-version`, the release is chosen from the app's
+  /// releases. Without a terminal to prompt in, that works only when exactly
+  /// one release covers every platform.
   Future<({Release release, bool inferredReleaseVersion})> _resolveRelease(
     List<Patcher> patchers,
   ) async {
-    var inferredReleaseVersion = false;
+    // Always false in this fork, which never guesses (see below); kept so the
+    // plumbing matches upstream.
+    const inferredReleaseVersion = false;
     final Release release;
     final releaseTypes = [for (final patcher in patchers) patcher.releaseType];
     if (useLatestRelease) {
@@ -652,47 +654,15 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
         appId: appId,
         releaseVersion: releaseVersion,
       );
-    } else if (shorebirdEnv.canAcceptUserInput) {
-      release = await promptForRelease(releaseTypes);
     } else {
-      // Without a terminal to prompt in, the release version is guessed by
-      // building and reading it back out of the artifact, which some release
-      // types can't do.
-      for (final patcher in patchers) {
-        if (patcher.requiresReleaseVersionArg) {
-          usageException(
-            'Missing required argument: --release-version. The release '
-            "version can't be determined from a "
-            '${patcher.releaseType.cliName} build, so pass '
-            '--release-version=<version> (or --release-version=latest) when '
-            'running non-interactively.',
-          );
-        }
-      }
-      final flutterVersionString = await shorebirdFlutter
-          .getVersionAndRevision();
-      logger.warn(
-        'Guessing the release version is deprecated and will be removed in '
-        'a release after 2027-01-01. Pass --release-version=<version> (or '
-        '--release-version=latest for the most recently updated release). '
-        'Without it, shorebird builds your app an extra time with Flutter '
-        '$flutterVersionString to guess which release to patch, which is '
-        'slower and less accurate. See '
-        'https://github.com/shorebirdtech/shorebird/issues/4354',
-      );
-      inferredReleaseVersion = true;
-      // All platforms share one release version, so one speculative build
-      // answers for the whole set.
-      final versionPatcher = patchers.first;
-      final versionArtifact = await _tryBuildingArtifact<File>(
-        versionPatcher.buildPatchArtifact,
-      );
-      final releaseVersion = await versionPatcher
-          .extractReleaseVersionFromArtifact(versionArtifact);
-      release = await codePushClientWrapper.getRelease(
-        appId: appId,
-        releaseVersion: releaseVersion,
-      );
+      // Upstream guesses the release version here when it can't prompt, by
+      // building the app and reading the version out of the artifact
+      // (deprecated, to be removed after 2027-01-01:
+      // shorebirdtech/shorebird#4354). This fork never guesses: it goes to
+      // the chooser, which takes the only release without prompting and, when
+      // there are several and nothing can prompt, refuses with
+      // InteractivePromptRequiredException (exit 64) before any build.
+      release = await promptForRelease(releaseTypes);
     }
 
     return (
