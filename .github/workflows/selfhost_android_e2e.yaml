@@ -46,7 +46,14 @@ jobs:
         # test the Flutter 3.47 candidate (engine 7806e0fb, device-tested on
         # 2026-11-11), which the mirror serves for Linux. Any other pin is
         # tested as is, so this lapses by itself when the pin moves.
+        # Every job starts with an empty home, so Gradle would fetch all its
+        # dependencies through the proxy again (25 minutes on 2026-11-12).
+        # ci-build keeps oem's Gradle cache, filled by the same build; Gradle
+        # reads it as a read-only dependency cache and never writes to it, so
+        # a job can't change what the next one reads.
         run: |
+          ro=/srv/ci-cache/home-cache/oem/.gradle/caches
+          [[ -r $ro/modules-2 ]] && export GRADLE_RO_DEP_CACHE=$ro
           if [[ $(cat bin/internal/flutter.version) == 5b180d224df04a267a19888c3f344474e243b382 ]]; then
             export E2E_FLUTTER_REVISION=9056dae9e28761f7508191146ae2469ba014be08
             echo "::warning::main pins Flutter 5b180d22, which has no Linux Dart SDK; testing the 3.47 candidate 9056dae9 instead"

@@ -151,6 +151,9 @@ if [[ ! -w ${ANDROID_HOME:?set ANDROID_HOME to the Android SDK} ]]; then
   export ANDROID_HOME=$sdk ANDROID_SDK_ROOT=$sdk
   echo "the shared Android SDK isn't writable; using $sdk over it"
 fi
+# The runner sets ANDROID_HOME but doesn't put adb on PATH.
+export PATH=$ANDROID_HOME/platform-tools:$PATH
+command -v adb >/dev/null || { echo "no adb in $ANDROID_HOME/platform-tools" >&2; exit 1; }
 
 log "CLI and its Flutter"
 if [[ -n ${E2E_FLUTTER_REVISION:-} ]]; then
