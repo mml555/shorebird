@@ -46,12 +46,12 @@ Every upstream Shorebird feature, classified for this self-hosted fork. Read on 
 | Android debug / profile (`flutter run`) | **untested** | [`STATUS.md`](STATUS.md#in-flight) (#134 line); [`PROMOTION_d12e29ec.md`](evidence/r12-linux-ci/PROMOTION_d12e29ec.md) | No debug or profile engine of ours for `2c4b0718`; stock bytes (9 of 10 from Shorebird's own bucket) stand in, never run on a device |
 | Android add-to-app (`release aar`) | **untested** | [`WORKFLOW_CERTIFICATION.md`](WORKFLOW_CERTIFICATION.md) row 10 "NOT ASSESSED" | Wire shape documented in [`PLATFORM_MATRIX.md`](PLATFORM_MATRIX.md), never run |
 | iOS release (ipa) on a device | **working** | IOS-HAND: release 1.0.0+1 launched and ran | By hand, one old device, resign mode; needs `SHOREBIRD_ARTIFACT_ORIGIN`; one Local Network "OK" tap per install |
-| iOS patch on a device (Route B, not upstream's linker) | **working** | IOS-HAND: patch 3 downloaded, next launch `ROUTEB: applied 1/1 targets`, marker shown, then rollback ran the release again | One small patch on one engine, by hand. Logs do not show which calls ran in the interpreter. `2c4b0718` is not a qualified cell ([`SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml) names `f85251f3`) |
+| iOS patch on a device (Route B, not upstream's linker) | **working** (one device, unqualified cell, CLI not reproducible from a pushed commit) | IOS-HAND: patch 3 downloaded, next launch `ROUTEB: applied 1/1 targets`, marker shown, then rollback ran the release again | The CLI was an unpushed local merge of #111, so no pushed commit reproduces the run. The first-activation launch-disappearance defect (section 3) is open. One small patch on one engine, by hand. Logs do not show which calls ran in the interpreter. `2c4b0718` is not a qualified cell ([`SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml) names `f85251f3`) |
 | iOS patch: arbitrary Dart changes | **partial** | [`ROUTE_B.md`](ROUTE_B.md); [`producer_demand_2.md`](engine/route_b/evidence/producer_demand_2.md) | Route B refuses many change kinds at `shorebird patch` time. Only 3.44-era numbers exist (50% of observed method changes accepted in Wonderous, 92.7% in LocalSend); the owner chose not to re-measure on 3.47. Foldable-constant patches attach and do nothing. Patched functions run in an interpreter, speed not measured |
 | iOS release or patch in CI | **untested** | [`STATUS.md`](STATUS.md) stable baseline row 8: "iOS: none" | Needs a Mac runner |
 | iOS on older engines `255fd850`, `7806e0fb` | **unsupported** | [`STATUS.md`](STATUS.md#device-runs-on-7806e0fb): `shorebird patch ios` refuses | Superseded by `2c4b0718`; releases run, patches do not |
-| iOS add-to-app (`release ios-framework`) | **unsupported** | [`evidence/addtoapp1/RESULT.md`](evidence/addtoapp1/RESULT.md) (2026-09-03) | Four blockers there; Route B not implemented for it |
-| macOS release / patch | **untested** | [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) | Server is platform-agnostic by code audit only; macOS engine host side built, no macOS app release or patch recorded |
+| iOS add-to-app (`release ios-framework`) | **untested** | [`evidence/addtoapp1/RESULT.md`](evidence/addtoapp1/RESULT.md) (2026-09-03): stopped at qualification | Four blockers, the first being that the engine publishes a device-only `Flutter.xcframework`; nothing refuses it, it is a build gap, and Route B is not implemented for it. [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) calls these artifacts "device-verified", which contradicts `RESULT.md` and `WORKFLOW_CERTIFICATION.md` row 10 ("NOT ASSESSED"); I trust the run log |
+| macOS release / patch | **untested** | [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) | Server is platform-agnostic by code audit only (`DESKTOP_PLATFORMS.md`, which also conflicts with `RESULT.md`, see the iOS add-to-app row); macOS engine host side built, no macOS app release or patch recorded |
 | Windows release / patch | **untested** | [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) | No Windows engine built, no Windows host |
 | Linux desktop release / patch | **untested** | [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) | Linux is only the CI build host for Android today (R12); no Linux desktop app released or patched |
 
@@ -61,7 +61,7 @@ Every upstream Shorebird feature, classified for this self-hosted fork. Read on 
 |---|---|---|---|
 | `release android` / `patch android` with an API key (`SHOREBIRD_TOKEN`) against the self-hosted server | **working** | CI-ANDROID | Android only; the iOS equivalent is IOS-HAND |
 | `patch --release-version`, release targeting | **working** | CI-ANDROID: patch for 0.1.0+1 not offered to 0.2.0+2 | |
-| Non-interactive patch refuses to guess the release (#131) | **working** | R12 arms A and B: exit 64 naming "Which release would you like to patch?", `--json` exit 0 | A Linux builder, no device; arm 1 ran with signing off; `SUPPORTED_STATE.yaml`'s `ci_noninteractive` text is stale against #131 |
+| Non-interactive patch refuses to guess the release (#131) | **working** | R12 arms A and B: exit 64 naming "Which release would you like to patch?", `--json` exit 0 | Engine `2c4b0718`; a Linux builder, no device; `SUPPORTED_STATE.yaml`'s `ci_noninteractive` text is stale against #131 |
 | `patches rollback` (restores the previous patch, #138) | **working** | CI-ANDROID: the CLI command, three scenarios, device log shows the old patch again | Emulator, Android; iOS rollback ran "through the server API", not the CLI |
 | `patches rollforward` | **unsupported** | `api.dart` answers 501 by design; [`upstream/ADOPTION-1.6.123.md`](upstream/ADOPTION-1.6.123.md) s3 | A rolled-back patch is withdrawn for good |
 | Native-change guard on patch | **working** | CI-ANDROID: exit 70 "Not publishing: native code changed", nothing published | Android only |
@@ -88,7 +88,7 @@ Every upstream Shorebird feature, classified for this self-hosted fork. Read on 
 | Tracks / channels: server routing | **partial** | AUG-OLD row 8; [`p6-tracks`](evidence/p6-tracks/VERDICT.md): two devices on alpha and beta, promote flips the same client | Aug, iOS, 3.44; not re-run |
 | Client chooses its track (`channel:` in the checked-in shorebird.yaml) | **partial** | [`p6-auto-channel`](evidence/p6-auto-channel/VERDICT.md) | Needed a Flutter patch to `compileShorebirdYaml`, checked on an older pin only |
 | Updater API `checkForUpdate(track:)` | **partial** | [`p6-manual-api`](evidence/p6-manual-api/VERDICT.md) | Aug, iOS, not re-run |
-| Percentage (staged) rollout | **partial** | Server bucketing and `POST /admin/apps/{id}/patches/{id}/rollout`; [`g6-tracks-server`](evidence/g6-tracks-server/rollout_surface.md) | Never run on a device. No CLI command, and no server route for the protocol's `SetPatchRolloutRequest`; an operator must call the admin route |
+| Percentage (staged) rollout | **partial** | Server bucketing; `rollout` on `POST /apps/{id}/patches/promote` and `POST /admin/apps/{id}/patches/{id}/rollout`; [`g6-tracks-server`](evidence/g6-tracks-server/rollout_surface.md) | No device run yet. The server accepts a percentage on `POST /apps/{id}/patches/promote` (`rollout` in the body, 0 to 100) as well as on the admin route, but `patches set-track` sends no `rollout` and no CLI flag exists; no server route for the protocol's `SetPatchRolloutRequest` |
 | Patched app boots with the server unreachable | **working** | CI-ANDROID scenario 8 | Emulator |
 | Patch download / install events | **partial** | `__patch_download__` and `__patch_install__` seen on the phone in ANDROID-PHONE-HAND | Engine `7806e0fb`; CI-ANDROID does not assert events |
 | Crash reports | **partial** | Server routes and symbolication (`/crashes`, `symbolication.dart`) | No device-sent crash report recorded |
@@ -122,16 +122,17 @@ read from code, not run.
 | `service-accounts *` (keys, trust rules) | **unsupported** | No route | |
 | `enterprises *`, billing | **unsupported** | No route | SaaS features; only the `patch_signing_required` flag was synced (#79) |
 | `account update`, `account notifications` | **unsupported** | No `PATCH /users/me`, no `/users/me/notification_preferences` | |
-| `tokens list` | **unsupported** | CLI calls `api/api-keys`; no such route | `tokens create/delete` only open a console page |
+| `tokens list` | **unsupported** | With a login credential the CLI calls `api/api-keys`; no such route. With an API key it skips the call and opens the console page | `tokens create/delete` only open a console page. Not exhaustive: `orgs get` (no `GET /organizations/{id}`) and `account sessions` (`api/sessions`) also have no route; `apps list`, `account apps`, `auth status` and `auth token` were not run |
 
 ## 6. Running it yourself (fork-only, but it decides whether you can replace upstream)
 
 | Feature | Status | Evidence | What is missing |
 |---|---|---|---|
-| Engine and artifact mirror (replaces `download.shorebird.dev`) | **working** | CI-ANDROID pulls engine `2c4b0718` through it; R12 on a cold sealed mirror | Plain HTTP, one host (ci-build); Gradle needs `isAllowInsecureProtocol`; TLS step is the owner's |
+| Engine and artifact mirror, release closure (replaces `download.shorebird.dev`) | **working** | R12 on a cold sealed mirror (38 overlay hits per arm, 0 `/gcs/`). CI-ANDROID uses it by the script's default `SHOREBIRD_ARTIFACT_ORIGIN` (`http://127.0.0.1:8085`); the run log has no mirror line, so that is read from the script | Plain HTTP in CI-ANDROID and production (R12 used a run-minted CA over HTTPS); one host (ci-build); Gradle needs `isAllowInsecureProtocol`; TLS step is the owner's |
+| Mirror, Android debug/profile closure | **partial** | [`PROMOTION_d12e29ec.md`](evidence/r12-linux-ci/PROMOTION_d12e29ec.md) | 9 of 10 imports come from Shorebird's own bucket (`38855c84`) through the mirror's `/gcs/` passthrough, so a clean machine still depends on Shorebird-owned artifacts; open against the owner's mission goal, not run on a device |
 | Backup and restore | **partial** | [`backup_restore/CERTIFICATION.md`](backup_restore/CERTIFICATION.md) | Throwaway drills, not a production restore; off-server copy of `PATCH_SIGNING_KEY_SECRET` unconfirmed (STATUS row 9) |
 | Publish durability | **partial** | [`evidence/publish-durability-1.4.0/`](evidence/publish-durability-1.4.0/README.md): 447 releases, 445 patches, 0 lost | API driver only; the 2026-08 loss was never explained |
-| arm64 server image | **unsupported** | [`STATUS.md`](STATUS.md) open item 10 | amd64 only |
+| arm64 server image | **untested** | [`STATUS.md`](STATUS.md) open item 10 | Not built: releases are amd64 only, nothing refuses arm64 |
 
 ## Biggest gaps, by impact on someone replacing upstream
 
@@ -144,7 +145,7 @@ read from code, not run.
 4. **Team and account commands fail against the server**: `orgs create/update`, `members`, `service-accounts`,
    `enterprises`, `audit-log`, `usage`, `tokens list`, `apps delete`, `account update`. Anything a team needs is
    console-only today.
-5. **Rollout has no CLI path.** Percentage rollout exists only as an admin route, never run on a device. Tracks, flavors,
+5. **Rollout has no CLI flag.** The server takes a percentage on promote and on an admin route, but `set-track` sends none, and no device run yet. Tracks, flavors,
    defines, targets and obfuscation rest on Aug 2026 runs of an older stack.
 6. **Signing is opt-in and not warned about**, and the managed-key flow is untested.
 7. **The mirror is single-host plain HTTP**, and engine origins must be set by the developer on a LAN.
