@@ -51,11 +51,14 @@ services:
     # Measured on ci-build with 1 GB cached: 140 MB after a restart, 446 MB after reading
     # all of it back, 530 MB while filling it cold. GOMEMLIMIT makes Go collect before it
     # grows past 1 GiB instead of keeping freed buffers; without it, reads left 1.2 GB.
-    # mem_limit leaves room for Souin buffering a few large cold responses (2-3x each) at
-    # once. Raise it, not GOMEMLIMIT, if many big cold fetches run concurrently.
+    # mem_limit is a hard ceiling, GOMEMLIMIT only a target: Souin holds 3-5 copies of a
+    # cold response while it fetches and stores it, about 1 GB for a 218 MB dart-sdk zip,
+    # so 8g covers about seven such cold fetches at once. Raise it, not GOMEMLIMIT, if
+    # more run concurrently. NutsDB's merge (every 2 h, once there are two segments)
+    # rewrites live entries and was not measured.
     environment:
       - GOMEMLIMIT=1GiB
-    mem_limit: 4g
+    mem_limit: 8g
     depends_on:
       - artifact-proxy
     volumes:

@@ -57,7 +57,11 @@
 		# needed as much RAM as its cache had disk. storages/nuts ignores `path`
 		# once `configuration` is set, so the directory is `Dir` here, and the
 		# image must link the patched NutsDB (nutsdb-v1.0.4-key-copy.patch) or a
-		# restart still loads every body into memory.
+		# restart still loads every body into memory. A key storages/nuts cannot
+		# read is only logged ("Impossible to parse the configuration for the Nuts
+		# provider") and the defaults are used, so check the log after a change.
+		# One entry must fit a segment (default SegmentSize 256 MiB; the largest
+		# artifact, a dart-sdk zip, is 218 MB); never lower it on an existing cache.
 		nuts {
 			configuration {
 				Dir /var/cache/caddy/cdn

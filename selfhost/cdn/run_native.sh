@@ -28,7 +28,10 @@
 # Environment:
 #   HTTP_PORT   default 8085, the host port docker-compose maps to the container's 8080
 #   HTTPS_PORT  default 8443
-#   CADDY       an existing Caddy that has cache-handler and nuts storage; skips the build
+#   CADDY       an existing Caddy that has cache-handler and nuts storage; skips the build.
+#               It must link NutsDB with nutsdb-v1.0.4-key-copy.patch (as this script's
+#               own build does), or the mirror loads its whole cache into memory on
+#               every start; start warns when it does not.
 #
 # Needs go and git (to build Caddy, unless CADDY is set), dart and curl.
 #
@@ -121,8 +124,9 @@ wait_up() {
 }
 
 build_caddy() {
-  local stamp
-  stamp="$CADDY_VERSION $CACHE_HANDLER_VERSION $NUTS_STORAGE_VERSION nutsdb $NUTSDB_COMMIT $(shasum -a 256 "$NUTSDB_PATCH" | cut -c1-16)"
+  local stamp=""
+  [[ -n "${CADDY:-}" ]] \
+    || stamp="$CADDY_VERSION $CACHE_HANDLER_VERSION $NUTS_STORAGE_VERSION nutsdb $NUTSDB_COMMIT $(shasum -a 256 "$NUTSDB_PATCH" | cut -c1-16)"
   if [[ -n "${CADDY:-}" ]]; then
     cp "$CADDY" "$STATE/bin/caddy"
   elif [[ -x "$STATE/bin/caddy" ]] \
@@ -157,9 +161,14 @@ build_caddy() {
       --output "$STATE/bin/caddy"
     echo "$stamp" > "$STATE/bin/caddy.stamp"
   fi
-  if [[ -z "${CADDY:-}" ]]; then
-    "$STATE/bin/caddy" build-info | grep -A1 'github.com/nutsdb/nutsdb' | grep -Eq '=>[[:space:]]+/' \
-      || die "$STATE/bin/caddy is not linked against the patched NutsDB; remove it and re-run"
+  # The patched NutsDB shows as a replace of github.com/nutsdb/nutsdb by our checkout.
+  if ! "$STATE/bin/caddy" build-info | grep -A1 'github.com/nutsdb/nutsdb' \
+      | grep -Eq "^=>[[:space:]]+$STATE/src/nutsdb[[:space:]]"; then
+    if [[ -n "${CADDY:-}" ]]; then
+      echo "run_native.sh: WARNING: CADDY=$CADDY does not show this script's patched NutsDB; it will hold the whole cache in memory after every start" >&2
+    else
+      die "$STATE/bin/caddy is not linked against the patched NutsDB; remove it and re-run"
+    fi
   fi
   "$STATE/bin/caddy" list-modules | grep -qx 'http.handlers.cache' \
     || die "$STATE/bin/caddy has no http.handlers.cache module"
@@ -259,6 +268,12 @@ case "$cmd" in
       > "$STATE/caddy.log" 2>&1 < /dev/null &
     echo $! > "$STATE/caddy.pid"
     wait_up caddy "$HTTP_PORT" "$(cat "$STATE/caddy.pid")"
+    # storages/nuts only logs a configuration it cannot read and falls back to
+    # NutsDB defaults, which keep every cached body in memory. Refuse to run so.
+    if grep -E "Impossible to parse the configuration for the Nuts provider|nutsOptions merge" "$STATE/caddy.log" >&2; then
+      kill "$(cat "$STATE/caddy.pid")" 2>/dev/null || true
+      die "Caddy could not apply the Caddyfile's nuts configuration (above); see $STATE/caddy.log"
+    fi
     [[ "$TLS" == 1 ]] && wait_up caddy "$HTTPS_PORT" "$(cat "$STATE/caddy.pid")"
 
     trap - EXIT

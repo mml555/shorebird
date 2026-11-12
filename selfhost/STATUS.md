@@ -90,15 +90,17 @@ Our engines (`3a565f27`, `255fd850`, `7806e0fb`, and `2c4b0718`, which shorebird
   - That alone made no difference after a restart, which is what the earlier scratch test
     measured (686 MB against 687 MB for a 680 MB cache). NutsDB v1.0.4's `ParsePayload`
     makes the key a sub-slice of the buffer holding key and value, and recovery keeps the
-    key in the index and in the expiry callback of every entry with a TTL, which is every
-    Souin entry. A heap profile put 816 of 829 MB in `fileRecovery.readEntry`.
+    key in the index and in the expiry callback of every entry with a TTL, which every
+    cached response has. A heap profile put 816 of 829 MB in `fileRecovery.readEntry`.
     [`cdn/nutsdb-v1.0.4-key-copy.patch`](cdn/nutsdb-v1.0.4-key-copy.patch) copies the key;
     the Dockerfile and `run_native.sh` build Caddy with it (NutsDB pinned by commit) and
     fail if the binary does not link it.
 
   Measured on ci-build with 1 GB cached: after a restart 140 MB (was 1,080 MB), after reading
   it all back 446 MB with `GOMEMLIMIT=1GiB` (was 2,041 MB), all hits with matching bytes. The
-  compose file now sets `GOMEMLIMIT=1GiB` and `mem_limit: 4g`. The live mirror runs the old
+  compose file now sets `GOMEMLIMIT=1GiB` and `mem_limit: 8g` (a cold fetch holds 3-5 copies of
+  the response, about 1 GB for a dart-sdk zip). Not measured: NutsDB's merge every 2 h, which
+  rewrites live entries once there are two segments. The live mirror runs the old
   image until it is rebuilt and recreated; the on-disk format is unchanged, so the cache
   survives that.
 

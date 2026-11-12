@@ -1,7 +1,8 @@
 # cspell:words xcaddy nutsdb
 #
 # cache-handler matches run_native.sh; nuts/caddy is the version the unpinned build resolved
-# (v0.0.22, which pulls storages/nuts v0.0.21).
+# (v0.0.22, which pulls storages/nuts v0.0.21). run_native.sh pins v0.0.23; both need
+# NutsDB v1.0.4 and read the Caddyfile's nuts configuration the same way.
 # Caddy with the HTTP cache-handler module (Souin) + NutsDB disk storage.
 # Stock `caddy:2-alpine` has no disk cache equivalent of nginx's proxy_cache —
 # we need that for the CDN mirror (immutable engine artifacts, warmed once per
@@ -30,9 +31,10 @@ RUN git init -q /src/nutsdb \
 RUN xcaddy build \
     --with github.com/caddyserver/cache-handler@v0.17.0 \
     --with github.com/darkweak/storages/nuts/caddy@v0.0.22 \
-    --replace github.com/nutsdb/nutsdb=/src/nutsdb \
- && ./caddy build-info | grep -A1 'github.com/nutsdb/nutsdb' | grep -Eq '=>[[:space:]]+/src/nutsdb' \
- || { echo 'the build did not link the patched NutsDB' >&2; exit 1; }
+    --replace github.com/nutsdb/nutsdb=/src/nutsdb
+
+RUN ./caddy build-info | grep -A1 'github.com/nutsdb/nutsdb' | grep -Eq '^=>[[:space:]]+/src/nutsdb[[:space:]]' \
+ || { echo 'the build did not link the patched NutsDB in /src/nutsdb' >&2; exit 1; }
 
 FROM caddy:2.11-alpine
 
