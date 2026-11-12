@@ -623,7 +623,9 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
   /// otherwise straddle versions, such as patching android against 1.0.2 and
   /// ios against 1.0.1 in the same invocation.
   ///
-  /// Without a terminal to prompt in, `--release-version` is required.
+  /// Without `--release-version`, the release is chosen from the app's
+  /// releases. Without a terminal to prompt in, that works only when exactly
+  /// one release covers every platform.
   Future<({Release release, bool inferredReleaseVersion})> _resolveRelease(
     List<Patcher> patchers,
   ) async {
@@ -652,19 +654,15 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
         appId: appId,
         releaseVersion: releaseVersion,
       );
-    } else if (shorebirdEnv.canAcceptUserInput) {
-      release = await promptForRelease(releaseTypes);
     } else {
-      // Without a terminal to prompt in, upstream guesses the release version
-      // by building and reading it back out of the artifact (deprecated, to
-      // be removed after 2027-01-01: shorebirdtech/shorebird#4354). This fork
-      // refuses ahead of that removal, before any build, for every release
-      // type.
-      usageException(
-        'Missing required argument: --release-version. Pass '
-        '--release-version=<version> (or --release-version=latest for the '
-        'most recently updated release) when running non-interactively.',
-      );
+      // Upstream guesses the release version here when it can't prompt, by
+      // building the app and reading the version out of the artifact
+      // (deprecated, to be removed after 2027-01-01:
+      // shorebirdtech/shorebird#4354). This fork never guesses: it goes to
+      // the chooser, which takes the only release without prompting and, when
+      // there are several and nothing can prompt, refuses with
+      // InteractivePromptRequiredException (exit 64) before any build.
+      release = await promptForRelease(releaseTypes);
     }
 
     return (

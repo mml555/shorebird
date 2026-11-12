@@ -3609,29 +3609,6 @@ A patch cannot change the Flutter version a release was built with. To fix this,
           ).called(1);
           verifyNever(() => patcher.extractReleaseVersionFromArtifact(any()));
         });
-
-        test(
-          'is a usage error before building when not interactive',
-          () async {
-            when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
-
-            await expectLater(
-              runWithOverrides(() => command.createPatch([patcher])),
-              throwsA(
-                isA<UsageException>().having(
-                  (e) => e.message,
-                  'message',
-                  startsWith('Missing required argument: --release-version.'),
-                ),
-              ),
-            );
-            verifyNever(
-              () => patcher.buildPatchArtifact(
-                releaseVersion: any(named: 'releaseVersion'),
-              ),
-            );
-          },
-        );
       });
 
       test('uses it when it is provided', () async {
@@ -4083,32 +4060,45 @@ A patch cannot change the Flutter version a release was built with. To fix this,
           when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
         });
 
-        // This fork refuses to guess the release version ahead of upstream's
-        // planned removal (shorebirdtech/shorebird#4354).
-        for (final requiresReleaseVersionArg in [false, true]) {
-          group('when requiresReleaseVersionArg is '
-              '$requiresReleaseVersionArg', () {
-            setUp(() {
-              when(
-                () => patcher.requiresReleaseVersionArg,
-              ).thenReturn(requiresReleaseVersionArg);
-            });
+        // This fork never guesses the release version (upstream's guessing is
+        // deprecated: shorebirdtech/shorebird#4354). It goes to the release
+        // chooser, which refuses when it would have to prompt.
+        group('when several releases exist', () {
+          setUp(() {
+            when(
+              () => logger.chooseOne<Release>(
+                any(),
+                choices: any(named: 'choices'),
+                display: any(named: 'display'),
+                hint: any(named: 'hint'),
+              ),
+            ).thenThrow(
+              const InteractivePromptRequiredException(
+                promptText: 'Which release would you like to patch?',
+                hint:
+                    'Pass --release-version=<version> to patch a specific '
+                    'release without prompting.',
+              ),
+            );
+          });
 
-            test('is a usage error before building or publishing', () async {
+          test(
+            'refuses at the chooser before building or publishing',
+            () async {
               await expectLater(
                 () => runWithOverrides(command.run),
                 throwsA(
-                  isA<UsageException>().having(
-                    (e) => e.message,
-                    'message',
-                    allOf(
-                      startsWith(
-                        'Missing required argument: --release-version.',
+                  isA<InteractivePromptRequiredException>()
+                      .having(
+                        (e) => e.promptText,
+                        'promptText',
+                        'Which release would you like to patch?',
+                      )
+                      .having(
+                        (e) => e.hint,
+                        'hint',
+                        contains('--release-version=<version>'),
                       ),
-                      contains('--release-version=latest'),
-                      contains('non-interactively'),
-                    ),
-                  ),
                 ),
               );
 
@@ -4131,9 +4121,43 @@ A patch cannot change the Flutter version a release was built with. To fix this,
                   sidecars: any(named: 'sidecars'),
                 ),
               );
-            });
+            },
+          );
+        });
+
+        group('when exactly one release exists', () {
+          setUp(() {
+            when(
+              () => codePushClientWrapper.getReleases(
+                appId: any(named: 'appId'),
+              ),
+            ).thenAnswer((_) async => [release]);
           });
-        }
+
+          test('patches it without prompting or building twice', () async {
+            final exitCode = await runWithOverrides(command.run);
+
+            expect(exitCode, equals(ExitCode.success.code));
+            verify(
+              () => logger.info(any(that: startsWith('Using release'))),
+            ).called(1);
+            verifyNever(
+              () => logger.chooseOne<Release>(
+                any(),
+                choices: any(named: 'choices'),
+                display: any(named: 'display'),
+                hint: any(named: 'hint'),
+              ),
+            );
+            verifyNever(() => patcher.buildPatchArtifact());
+            verifyNever(
+              () => patcher.extractReleaseVersionFromArtifact(any()),
+            );
+            verify(
+              () => patcher.buildPatchArtifact(releaseVersion: releaseVersion),
+            ).called(1);
+          });
+        });
       });
 
       group('when running on CI with --release-version', () {

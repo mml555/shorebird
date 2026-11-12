@@ -14,13 +14,14 @@ applies, and the fork's own behavior is kept on top of it:
   checked, downloaded and configured before any is built, and nothing is
   uploaded until all of them have built. The command's `--json` output lists
   one entry per platform, all naming the same patch.
-- `shorebird patch` requires `--release-version=<version>` (or
-  `--release-version=latest`) when it can't prompt (CI, `--json`, no terminal).
-  Without it, it exits 64 before building anything, for every release type.
-  Upstream guesses the release by building the app an extra time and removes
-  that after 2027-01-01
-  ([shorebirdtech/shorebird#4354](https://github.com/shorebirdtech/shorebird/issues/4354));
-  this fork refuses ahead of that.
+- `shorebird patch` never guesses the release version. With no
+  `--release-version` it goes to the release chooser, as it does interactively:
+  when it can't prompt (CI, `--json`, no terminal) and several releases cover
+  the platforms, it exits 64 at the chooser, before building anything, and asks
+  for `--release-version=<version>` (or `--release-version=latest`); with one
+  release it patches that one. Upstream guesses by building the app an extra
+  time and removes that after 2027-01-01
+  ([shorebirdtech/shorebird#4354](https://github.com/shorebirdtech/shorebird/issues/4354)).
 - `SHOREBIRD_DOWNLOAD_URL` (upstream's setting) takes precedence for where the
   toolchain downloads from. The fork's `FLUTTER_STORAGE_BASE_URL`,
   `SHOREBIRD_ARTIFACT_ORIGIN`, `SHOREBIRD_STORAGE_BASE_URL` and
