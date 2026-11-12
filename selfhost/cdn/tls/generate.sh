@@ -42,27 +42,34 @@ fi
 # against subjectAltName only, so getting this wrong looks like a hostname
 # mismatch rather than a missing SAN.
 #
-# The CA is also constrained to exactly these names (nameConstraints below), so
+# The CA is also constrained to these host names (nameConstraints below), so
 # that a CA key that leaks, or a ca.crt that gets trusted by mistake, can only
-# vouch for the mirror's own hosts and not for any site. The two lists are built
+# vouch for the mirror's own names and not for any site. The two lists are built
 # together so they cannot disagree.
+#
+# DNS names only. Dart on Linux (BoringSSL's verifier, Dart 3.13.7) fails the
+# handshake for a CA with ANY IP name constraint, permitted or excluded:
+#   CERTIFICATE_VERIFY_FAILED: unsupported name constraint type
+# while Dart on macOS, curl and openssl accept it. Without an IP constraint the
+# IP SANs still verify, and a leaked key could vouch for IP-literal HTTPS hosts,
+# but not for any domain name. With no host name at all, the CA is limited to
+# the reserved name `invalid` (RFC 2606), so it vouches for no real domain.
 san=""
 nc=""
 dns_i=0
 ip_i=0
 probes=()   # one "<kind> <name to verify>" per SAN entry
-V6MASK="ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
 add_host() {
   local h="$1"
   [[ "$san" == *"= $h"$'\n'* ]] && return 0
   if [[ "$h" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     ip_i=$((ip_i + 1)); san+="IP.$ip_i = $h"$'\n'
-    nc+=", permitted;IP:$h/255.255.255.255"; probes+=("ip $h")
+    probes+=("ip $h")
   elif [[ "$h" == *:* ]]; then
     # IPv6 literal. A mask the same width as the address, so only that host.
     [[ "$h" =~ ^[0-9a-fA-F:]+$ ]] || { echo "ERROR: not an IPv6 address: $h" >&2; exit 2; }
     ip_i=$((ip_i + 1)); san+="IP.$ip_i = $h"$'\n'
-    nc+=", permitted;IP:$h/$V6MASK"; probes+=("ip $h")
+    probes+=("ip $h")
   elif [[ "$h" == \*.* ]]; then
     # Wildcard cert name; the constraint is its base domain, which permits the
     # domain and everything below it.
@@ -80,6 +87,7 @@ add_host() {
   fi
 }
 for h in "${hosts[@]}"; do add_host "$h"; done
+[[ -n "$nc" ]] || nc=", permitted;DNS:invalid"
 # 127.0.0.1 is always useful: the build host reaches the mirror over loopback.
 add_host 127.0.0.1
 # ::1 is only in the SAN when asked for: clients that resolve localhost to ::1
