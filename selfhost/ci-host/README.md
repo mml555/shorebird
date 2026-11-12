@@ -47,9 +47,9 @@ maintainer approves it. Everything below limits the damage if an approved job is
   any time), other runners and processes outside the unit are unreachable. This is
   checked per connection, not from a list that can go stale; see the comment at the top
   of `bin/gha-egress-apply`. The exceptions, for the Android e2e job, are the device
-  pool on `127.0.0.1` (`qa-pool` API 5550, the phones' adb relays 5601/5603/5605) and the
-  CDN mirror (8085, on `127.0.0.1` and `10.0.2.2`). A listener a runner opens on one of
-  those ports is still dropped, so a job can't pose as one of them.
+  pool on `127.0.0.1` (`qa-pool` API 5550, the phones' adb relays 5601/5603/5605; not
+  their console ports) and the CDN mirror (`127.0.0.1:8085`). A listener a runner opens
+  on one of those ports is still dropped, so a job can't pose as one of them.
 
 ### Accepted risks
 

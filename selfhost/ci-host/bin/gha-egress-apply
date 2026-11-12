@@ -8,7 +8,7 @@
 #     runner unit (see below)
 #   - a few host services on loopback, for the Android e2e job: the device pool's API
 #     (qa-pool, 127.0.0.1:5550), its phones' adb relays (127.0.0.1:5601/5603/5605) and
-#     the CDN mirror (8085, also on 10.0.2.2 for containers), but never a listener a
+#     the CDN mirror (127.0.0.1:8085), but never a listener a
 #     runner opened on one of those ports
 #   - replies on connections already allowed
 # Everything else is counted, logged (rate-limited) and dropped, IPv4 and IPv6. DNS
@@ -98,8 +98,9 @@ join() { local IFS=,; echo "$*"; }
 # Host services a job may use although their listeners are outside its runner unit.
 # Fixed here, not from the environment: the device pool's API (qa-pool) and its phones'
 # adb relays (qa-devices-relay@5601/5603/5605; the console ports 5600/5602/5604 are left
-# out, the pool doesn't need them) on 127.0.0.1 only, and the CDN mirror on 127.0.0.1
-# and 10.0.2.2 (containers). See README.md for what this lets a job do.
+# out, the pool doesn't need them) and the CDN mirror, all on 127.0.0.1 only. Rootless
+# containers reach them too: slirp4netns connects to host 127.0.0.1 from inside the unit.
+# See README.md for what this lets a job do.
 POOL_PORTS="5550, 5601, 5603, 5605"
 MIRROR_PORT=8085
 RUNNER_SLICE="system.slice/system-gha\\x2drunner.slice"
@@ -117,7 +118,7 @@ f=$(mktemp); trap 'rm -f "$f"' EXIT
   printf '%s\n' "${mark_rules[@]}"
   echo "    oifname \"lo\" tcp dport { 6379, 5432 } accept"
   echo "    oifname \"lo\" tcp dport { $POOL_PORTS } ip daddr 127.0.0.1 accept"
-  echo "    oifname \"lo\" tcp dport $MIRROR_PORT ip daddr { 127.0.0.1, 10.0.2.2 } accept"
+  echo "    oifname \"lo\" tcp dport $MIRROR_PORT ip daddr 127.0.0.1 accept"
   for s in "${slices[@]}"; do
     # shellcheck disable=SC2086 # "uid port-range": split on purpose
     set -- $s; echo "    meta skuid $1 oifname \"lo\" tcp dport $2 accept"
@@ -136,11 +137,13 @@ f=$(mktemp); trap 'rm -f "$f"' EXIT
   # Before the per-runner cgroup checks, which would drop these host services. A
   # listener inside any runner unit on one of these ports is dropped first, so a job
   # can't stand in for qa-pool, a relay or the mirror (say while a relay restarts).
+  # Without the runner slice (no runner has started since boot) neither rule is
+  # written, so the exceptions never exist without the guard; gha-prep re-applies
+  # this before each runner starts.
   if [[ -d "/sys/fs/cgroup/$RUNNER_SLICE" ]]; then
     echo "    iifname \"lo\" meta mark & 0xff000000 == 0x6a000000 tcp dport { $POOL_PORTS, $MIRROR_PORT } socket cgroupv2 level 2 \"$RUNNER_SLICE\" counter drop"
+    echo "    iifname \"lo\" meta mark & 0xff000000 == 0x6a000000 tcp dport { $POOL_PORTS, $MIRROR_PORT } ip daddr 127.0.0.1 counter accept"
   fi
-  echo "    iifname \"lo\" meta mark & 0xff000000 == 0x6a000000 tcp dport { $POOL_PORTS } ip daddr 127.0.0.1 accept"
-  echo "    iifname \"lo\" meta mark & 0xff000000 == 0x6a000000 tcp dport $MIRROR_PORT ip daddr { 127.0.0.1, 10.0.2.2 } accept"
   printf '%s\n' "${in_rules[@]}"
   echo "  }"
   echo "}"
