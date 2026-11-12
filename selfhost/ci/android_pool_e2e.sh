@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# cspell:words Dhttp Dhttps getprop getsockname
 # Releases and patches an Android app with this checkout's CLI, against a
 # throwaway self-hosted code_push_server, on a phone from ci-build's device pool
 # (qa-pool), and checks that the phone runs the patch.
