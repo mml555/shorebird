@@ -2568,7 +2568,10 @@ void main() {
         repo,
         store,
         config,
-        inFlightWait: const Duration(milliseconds: 600),
+        // Far longer than the bound below, so "refused at once" and "refused
+        // after the wait" stay apart on a loaded CI runner (a 600 ms wait
+        // against a 400 ms bound failed there at 1495 ms).
+        inFlightWait: const Duration(seconds: 5),
       );
       final r = await registered();
       final art = (await repo.artifactByToken(r.token))!;
@@ -2592,7 +2595,7 @@ void main() {
       expect(fifth.statusCode, HttpStatus.serviceUnavailable);
       expect(
         sw.elapsedMilliseconds,
-        lessThan(400),
+        lessThan(2500),
         reason: 'over the cap is refused at once, not after the wait',
       );
       expect(
