@@ -25,7 +25,9 @@
 # A download is checked against the md5 GCS sends in `x-goog-hash`, opened as
 # an archive, and renamed into place. A file already in the overlay is checked
 # the same way against a HEAD request, so --check also needs the network.
-# Downloads are staged in a directory beside the overlay, never inside it.
+# A download is staged in a random dot-directory inside the overlay, so the
+# final rename stays on one filesystem and no reader sees half a file; the
+# directory is removed on exit (only a SIGKILL can leave it behind).
 #
 # Usage:
 #   publish_flutter_pins.sh --flutter <checkout> --overlay <dir> [--ref <rev>]
@@ -128,20 +130,20 @@ md5_of() { openssl dgst -md5 -binary "$1" | openssl base64 -A; }
 
 CURL=(curl -fsSL --retry 2 --proto '=https,http' --proto-redir '=https,http')
 
-STAGE=""
-cleanup() { [[ -n "$STAGE" ]] && rm -rf "$STAGE"; }
+STAGE="" HDR=""
+cleanup() { rm -rf ${STAGE:+"$STAGE"} ${HDR:+"$HDR"}; }
 trap cleanup EXIT
-STAGE=$(mktemp -d "$(cd "$OVERLAY/.." && pwd)/.publish_flutter_pins.XXXXXX")
+HDR=$(mktemp)
 
 missing=0 broken=0 fetched=0 kept=0
 for rel in "${PATHS[@]}"; do
   dest="$OVERLAY/$rel"
   if [[ -f "$dest" ]]; then
     why=""
-    if ! "${CURL[@]}" -I -o /dev/null -D "$STAGE/h" "$FROM/$rel"; then
+    if ! "${CURL[@]}" -I -o /dev/null -D "$HDR" "$FROM/$rel"; then
       why="could not HEAD $FROM/$rel to verify it"
     else
-      want=$(md5_from_headers "$STAGE/h")
+      want=$(md5_from_headers "$HDR")
       if [[ -z "$want" ]]; then why="$FROM/$rel sent no md5 to verify it against"
       elif [[ "$(md5_of "$dest")" != "$want" ]]; then why="md5 differs from GCS ($want)"
       elif ! archive_ok "$dest" "$rel"; then why="not a readable archive"
@@ -154,10 +156,12 @@ for rel in "${PATHS[@]}"; do
   fi
   if [[ $CHECK -eq 1 ]]; then echo "MISSING $rel"; missing=$((missing + 1)); continue; fi
 
+  [[ -n "$STAGE" ]] || STAGE=$(mktemp -d "$OVERLAY/.publish_flutter_pins.XXXXXX") \
+    || { echo "cannot make a staging directory in $OVERLAY" >&2; exit 1; }
   tmp="$STAGE/body"
-  "${CURL[@]}" -D "$STAGE/h" -o "$tmp" "$FROM/$rel" \
+  "${CURL[@]}" -D "$HDR" -o "$tmp" "$FROM/$rel" \
     || { echo "could not fetch $FROM/$rel" >&2; exit 1; }
-  want=$(md5_from_headers "$STAGE/h")
+  want=$(md5_from_headers "$HDR")
   [[ -n "$want" ]] || { echo "$FROM/$rel sent no md5 in x-goog-hash; cannot verify it" >&2; exit 1; }
   got=$(md5_of "$tmp")
   [[ "$got" == "$want" ]] || { echo "md5 mismatch for $rel: got $got, GCS says $want" >&2; exit 1; }
