@@ -267,8 +267,9 @@ Everything a clean machine touches that is NOT Shorebird infrastructure:
   zips, `fonts.zip`, `gradle-wrapper.tgz`): copied into the overlay at their
   bucket paths by [`publish_flutter_pins.sh`](publish_flutter_pins.sh), so a
   sealed mirror serves them. Run it for each Flutter revision the mirror
-  serves (`--ref` reads the pins without a checkout of that revision);
-  `--check` lists what is missing.
+  serves (`--ref` reads the pins from the `--flutter` checkout's git history,
+  so that revision need not be checked out); `--check` lists what is missing
+  or differs from GCS.
 - **bundletool.jar**: mirrored at `overlay/mirror/bundletool/`, served by the
   overlay; point `SHOREBIRD_BUNDLETOOL_URL` at
   `$MIRROR/mirror/bundletool/bundletool-all-1.18.1.jar`. The CLI still

@@ -141,7 +141,7 @@ Limits:
 
 Found on the way. None has an issue; each is small enough to fix with the next mirror or engine change, and the ones fixed since say so:
 
-- Fixed: the six `ios-usb-dependencies` zips that `flutter precache` fetches were not in the overlay, so the mirror fetched them from upstream GCS through its `/gcs/` passthrough, which a sealed mirror refuses. [`cdn/publish_flutter_pins.sh`](cdn/publish_flutter_pins.sh) now copies them, the fonts and the Gradle wrapper (every version-pinned download that belongs to no engine hash) into the overlay, read from a Flutter checkout's pins and checked against GCS's md5. Run on ci-build 2026-11-11: all eight serve with `X-Overlay: hit`.
+- Fixed: the six `ios-usb-dependencies` zips that `flutter precache` fetches were not in the overlay, so the mirror fetched them from upstream GCS through its `/gcs/` passthrough, which a sealed mirror refuses. [`cdn/publish_flutter_pins.sh`](cdn/publish_flutter_pins.sh) now copies them, `fonts.zip` and `gradle-wrapper.tgz` into the overlay, read from a Flutter checkout's pins and checked against GCS's md5. Run on ci-build 2026-11-11: all eight serve with `X-Overlay: hit`.
 - `aot-tools.dill` for `7806e0fb` 404s on the mirror (Android does not need it).
 - A bare `flutter create` reaches `download.shorebird.dev` and `storage.googleapis.com` unless `FLUTTER_STORAGE_BASE_URL` points at the mirror first.
 - `shorebird release ios` on `7806e0fb` stops with `COHERENCE_UNDETERMINABLE` until `SHOREBIRD_PUBLISHED_IOS_ENGINE_DIR` points at the three `ios*/artifacts.zip` from the overlay (fixed by #123: the CLI fetches them itself).
