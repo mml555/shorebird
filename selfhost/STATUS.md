@@ -35,7 +35,7 @@ when an item here changes; history of how things got here lives in the PRs and i
 
 ## In flight
 
-As of 2026-11-12. #84 to #131 are merged except #111, #112, #132 and #133 (open; #113 is an issue). #130 adds the Android device test to CI; #131 makes `shorebird patch` refuse to guess the release version when it can't prompt. Mirror #10 and #11, and shorebird-flutter #1 to #12 are merged too (#7 landed inside #8; #12 pins engine `2c4b0718`). #93 makes `IDP_ISSUER` required in production when an IdP is configured: set it before the next server deploy.
+As of 2026-11-12. #84 to #133 are merged except #111, #112 and #132 (open; #113 is an issue; #134 and #135 are open too). #130 adds the Android device test to CI; #131 makes `shorebird patch` refuse to guess the release version when it can't prompt; #133 makes `shorebird whoami` and `shorebird metrics` work against the self-hosted server. Mirror #10 and #11, and shorebird-flutter #1 to #12 are merged too (#7 landed inside #8; #12 pins engine `2c4b0718`). #93 makes `IDP_ISSUER` required in production when an IdP is configured: set it before the next server deploy.
 
 | Item | What | Waiting on |
 |---|---|---|
