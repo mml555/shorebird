@@ -120,6 +120,14 @@ class ChannelPatchRow {
   final bool rolledBack;
 }
 
+/// A patch [Repository.restorePriorPatches] made active again.
+class RestoredPatch {
+  RestoredPatch(this.patchId, this.number, this.rollout);
+  final int patchId;
+  final int number;
+  final int rollout;
+}
+
 class ArtifactRow {
   ArtifactRow({
     required this.id,
@@ -1861,6 +1869,107 @@ class Repository {
     );
     return r.map((m) => _int(m['channel_id'])).toList();
   }
+
+  /// Marks the withdrawn (superseded, or withdrawn without a rollback)
+  /// `channel_patches` rows of [patchId] as rolled back, so the patch can never
+  /// be restored by [restorePriorPatches] and devices are told to drop it.
+  /// Returns the channel ids it changed; empty means there was nothing to mark.
+  Future<List<int>> rollbackWithdrawn(int patchId) async {
+    final r = await _q(
+      'UPDATE channel_patches SET rolled_back = true '
+      'WHERE patch_id = @p AND status = @w AND rolled_back = false '
+      'RETURNING channel_id',
+      {'p': patchId, 'w': ChannelPatchStatus.withdrawn.name},
+    );
+    return r.map((m) => _int(m['channel_id'])).toList();
+  }
+
+  /// After [rolledBackPatchId] was rolled back on [channelId], makes the
+  /// newest earlier patch of the same release active again, so devices that
+  /// lost it when the rolled-back patch booted are offered it again.
+  ///
+  /// Only a patch that was withdrawn without being rolled back qualifies, and
+  /// it must still be `ready` and have a lower number. This is per platform,
+  /// like [promote]: for each platform the rolled-back patch carried that no
+  /// other active patch of the release still serves, the newest qualifying
+  /// patch carrying it comes back, so a rolled-back android+ios patch can
+  /// restore an android patch and an ios patch. A restored patch keeps the
+  /// rollout percentage it was promoted with, so a rollback never widens
+  /// exposure beyond what its promoter chose; raise it with the rollout
+  /// endpoint. Its rows and artifacts are untouched, so its hash and signature
+  /// are what they were. Returns what it restored, newest first.
+  Future<List<RestoredPatch>> restorePriorPatches(
+    int channelId,
+    int rolledBackPatchId,
+  ) => _db.tx((s) async {
+    final pr = await s.query(
+      'SELECT release_id, number FROM patches WHERE id = @p',
+      {'p': rolledBackPatchId},
+    );
+    if (pr.isEmpty) return const <RestoredPatch>[];
+    final releaseId = _int(pr.first['release_id']);
+    final number = _int(pr.first['number']);
+
+    Future<Set<String>> platformsOf(int patchId) async {
+      final r = await s.query(
+        'SELECT DISTINCT platform FROM artifacts '
+        "WHERE owner_kind = 'patch' AND owner_id = @p",
+        {'p': patchId},
+      );
+      return {for (final m in r) m['platform']! as String};
+    }
+
+    final needed = await platformsOf(rolledBackPatchId);
+    final stillActive = await s.query(
+      'SELECT DISTINCT a.platform AS platform FROM channel_patches cp '
+      'JOIN patches p ON p.id = cp.patch_id '
+      "JOIN artifacts a ON a.owner_kind = 'patch' AND a.owner_id = cp.patch_id "
+      'WHERE cp.channel_id = @c AND cp.status = @a AND p.release_id = @r',
+      {'c': channelId, 'a': ChannelPatchStatus.active.name, 'r': releaseId},
+    );
+    needed.removeAll([for (final m in stillActive) m['platform']! as String]);
+    if (needed.isEmpty) return const <RestoredPatch>[];
+
+    final rows = await s.query(
+      'SELECT cp.id AS id, cp.patch_id AS patch_id, p.number AS number, '
+      'cp.rollout AS rollout, cp.rolled_back AS rolled_back '
+      'FROM channel_patches cp JOIN patches p ON p.id = cp.patch_id '
+      'WHERE cp.channel_id = @c AND cp.status = @w AND p.release_id = @r '
+      'AND p.number < @n AND p.status = @ready '
+      'ORDER BY p.number DESC, cp.id DESC',
+      {
+        'c': channelId,
+        'w': ChannelPatchStatus.withdrawn.name,
+        'r': releaseId,
+        'n': number,
+        'ready': PatchStatus.ready.name,
+      },
+    );
+    // A patch rolled back here stays rolled back, whichever of its rows says so.
+    final rolledBack = {
+      for (final m in rows)
+        if (asDbBool(m['rolled_back'])) _int(m['patch_id']),
+    };
+    final restored = <RestoredPatch>[];
+    final seen = <int>{};
+    for (final m in rows) {
+      final patchId = _int(m['patch_id']);
+      if (rolledBack.contains(patchId) || !seen.add(patchId)) continue;
+      final platforms = await platformsOf(patchId);
+      if (platforms.intersection(needed).isEmpty) continue;
+      await s.query(
+        'UPDATE channel_patches SET status = @a, withdrawn_at = NULL '
+        'WHERE id = @id',
+        {'a': ChannelPatchStatus.active.name, 'id': _int(m['id'])},
+      );
+      restored.add(
+        RestoredPatch(patchId, _int(m['number']), _int(m['rollout'])),
+      );
+      needed.removeAll(platforms);
+      if (needed.isEmpty) break;
+    }
+    return restored;
+  });
 
   Future<List<int>> rolledBackPatchNumbers(int channelId, int releaseId) async {
     final r = await _q(

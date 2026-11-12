@@ -4311,16 +4311,23 @@ void main() {
       expect((await rollback()).statusCode, HttpStatus.conflict);
     });
 
-    test('a superseded patch is a conflict: withdrawal is terminal', () async {
-      await promote(s.channelId);
-      await send(
-        'POST',
-        '/admin/apps/${s.appId}/patches/$patchId/withdraw?channel=stable',
-        bearer: _bootstrapKey,
-      );
-      expect((await rollback()).statusCode, HttpStatus.conflict);
-      expect((await check())['rolled_back_patch_numbers'], isEmpty);
-    });
+    test(
+      'a withdrawn patch is marked rolled back: withdrawal is terminal',
+      () async {
+        await promote(s.channelId);
+        await send(
+          'POST',
+          '/admin/apps/${s.appId}/patches/$patchId/withdraw?channel=stable',
+          bearer: _bootstrapKey,
+        );
+        expect((await check())['rolled_back_patch_numbers'], isEmpty);
+        final r = await rollback();
+        expect(r.statusCode, HttpStatus.ok);
+        expect((await jsonOf(r))['channels'], ['stable']);
+        expect((await check())['rolled_back_patch_numbers'], [1]);
+        expect((await rollback()).statusCode, HttpStatus.notModified);
+      },
+    );
 
     test('the patch must belong to the release in the path', () async {
       await promote(s.channelId);
@@ -4371,6 +4378,404 @@ void main() {
       final c = await check();
       expect(c['patch_available'], isFalse);
       expect(c['rolled_back_patch_numbers'], [1]);
+    });
+  });
+
+  // Rolling back the newest patch puts devices back on the previous one, as the
+  // CLI help says and upstream does. Publishing a patch supersedes the earlier
+  // one on its channel, and the device deletes it when the newer one boots, so
+  // the server has to offer it again.
+  group('rollback restores the prior patch', () {
+    late ({String appId, int releaseId, int channelId}) s;
+
+    setUp(() async {
+      s = await seedApp();
+    });
+
+    /// Creates a patch with one artifact per entry of [platforms] and
+    /// promotes it to a channel (default `stable`).
+    Future<({int id, int number})> publish({
+      List<String> platforms = const ['android'],
+      int? channelId,
+      int rollout = 100,
+      int? releaseId,
+    }) async {
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': releaseId ?? s.releaseId},
+        ),
+      );
+      final id = p['id'] as int;
+      for (final platform in platforms) {
+        await uploadPatchArtifact(s.appId, id, platform: platform);
+      }
+      final r = await send(
+        'POST',
+        '/api/v1/apps/${s.appId}/patches/promote',
+        bearer: _bootstrapKey,
+        json: {
+          'patch_id': id,
+          'channel_id': channelId ?? s.channelId,
+          'rollout': rollout,
+        },
+      );
+      expect(r.statusCode, HttpStatus.noContent);
+      return (id: id, number: p['number'] as int);
+    }
+
+    Future<Response> rollback(int patchId, {int? releaseId}) => send(
+      'POST',
+      '/api/v1/apps/${s.appId}/releases/${releaseId ?? s.releaseId}'
+          '/patches/$patchId/rollback',
+      bearer: _bootstrapKey,
+    );
+
+    Future<Map<String, dynamic>> check({
+      int current = 0,
+      String channel = 'stable',
+      String platform = 'android',
+      String? clientId,
+      String? appId,
+    }) async => jsonOf(
+      await send(
+        'POST',
+        '/api/v1/patches/check',
+        json: {
+          'app_id': appId ?? s.appId,
+          'release_version': '1.0.0',
+          'platform': platform,
+          'arch': 'aarch64',
+          'channel': channel,
+          'current_patch_number': current,
+          if (clientId != null) 'client_id': clientId,
+        },
+      ),
+    );
+
+    int? offered(Map<String, dynamic> c) =>
+        (c['patch'] as Map<String, dynamic>?)?['number'] as int?;
+
+    test('the check offers the previous patch and reports the rollback, '
+        'even to a device that is on the rolled-back patch', () async {
+      final p1 = await publish();
+      final p2 = await publish();
+      expect(offered(await check()), 2);
+
+      final r = await rollback(p2.id);
+      expect(r.statusCode, HttpStatus.ok);
+      final body = await jsonOf(r);
+      expect(body['channels'], ['stable']);
+      expect(body['restored'], [
+        {'patch_id': p1.id, 'number': 1, 'channel': 'stable', 'rollout': 100},
+      ]);
+
+      // A device on the base release (it lost patch 1 when 2 booted, then
+      // dropped 2), and a device still running 2: the same answer.
+      for (final current in [0, 2]) {
+        final c = await check(current: current);
+        expect(c['rolled_back_patch_numbers'], [2]);
+        expect(c['patch_available'], isTrue);
+        expect(offered(c), 1);
+      }
+      // A device that is on patch 1 already is not offered it again.
+      expect(offered(await check(current: 1)), isNull);
+    });
+
+    test('rolling back again walks back to the base release', () async {
+      final p1 = await publish();
+      final p2 = await publish();
+      final p3 = await publish();
+
+      await rollback(p3.id);
+      expect(offered(await check()), 2);
+      await rollback(p2.id);
+      // 3 stays rolled back: 1 comes back, never 3 or 2.
+      var c = await check();
+      expect(offered(c), 1);
+      expect(c['rolled_back_patch_numbers'], [2, 3]);
+
+      final last = await rollback(p1.id);
+      expect(last.statusCode, HttpStatus.ok);
+      expect((await jsonOf(last))['restored'], isEmpty);
+      c = await check();
+      expect(c['patch_available'], isFalse);
+      expect(c['rolled_back_patch_numbers'], [1, 2, 3]);
+    });
+
+    test('a patch rolled back while superseded is never restored', () async {
+      final p1 = await publish();
+      final p2 = await publish();
+      final p3 = await publish();
+
+      // 1 is superseded (active nowhere): rolling it back is a 200 that marks
+      // it, not a 409.
+      final r = await rollback(p1.id);
+      expect(r.statusCode, HttpStatus.ok);
+      final body = await jsonOf(r);
+      expect(body['channels'], ['stable']);
+      expect(body['restored'], isEmpty);
+      expect((await rollback(p1.id)).statusCode, HttpStatus.notModified);
+      // Devices on 3 keep it; they are only told about 1.
+      var c = await check();
+      expect(offered(c), 3);
+      expect(c['rolled_back_patch_numbers'], [1]);
+
+      await rollback(p3.id);
+      expect(offered(await check()), 2);
+      await rollback(p2.id);
+      c = await check();
+      expect(c['patch_available'], isFalse);
+      expect(c['rolled_back_patch_numbers'], [1, 2, 3]);
+    });
+
+    test('a never-promoted patch is still a conflict', () async {
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': s.releaseId},
+        ),
+      );
+      expect((await rollback(p['id'] as int)).statusCode, HttpStatus.conflict);
+    });
+
+    test('the admin withdraw route restores too', () async {
+      await publish();
+      final p2 = await publish();
+      final r = await send(
+        'POST',
+        '/admin/apps/${s.appId}/patches/${p2.id}/withdraw'
+            '?channel=stable&rollback=true',
+        bearer: _bootstrapKey,
+      );
+      expect(r.statusCode, HttpStatus.ok);
+      expect(((await jsonOf(r))['restored'] as List).single['number'], 1);
+      expect(offered(await check()), 1);
+    });
+
+    test('withdrawing without a rollback restores nothing', () async {
+      await publish();
+      final p2 = await publish();
+      final r = await send(
+        'POST',
+        '/admin/apps/${s.appId}/patches/${p2.id}/withdraw?channel=stable',
+        bearer: _bootstrapKey,
+      );
+      expect((await jsonOf(r))['restored'], isEmpty);
+      expect((await check())['patch_available'], isFalse);
+    });
+
+    group('rollout', () {
+      test('the restored patch keeps the percentage it had', () async {
+        await publish(rollout: 50);
+        final p2 = await publish();
+        await rollback(p2.id);
+
+        var eligible = 0;
+        for (var i = 0; i < 40; i++) {
+          if (offered(await check(clientId: 'client-$i')) == 1) eligible++;
+        }
+        // Still a partial rollout: some devices get it, some do not.
+        expect(eligible, greaterThan(0));
+        expect(eligible, lessThan(40));
+        // A device with no stable id fails closed, as for any partial rollout.
+        expect(offered(await check()), isNull);
+      });
+
+      test('the rollback response says what rollout it restored at', () async {
+        await publish(rollout: 25);
+        final p2 = await publish();
+        final body = await jsonOf(await rollback(p2.id));
+        expect(((body['restored'] as List).single as Map)['rollout'], 25);
+      });
+    });
+
+    group('platforms', () {
+      test(
+        'restores per platform, only what the rolled-back patch served',
+        () async {
+          // 1 is android-only, 2 is ios-only; 3 covers both and supersedes both.
+          await publish();
+          await publish(platforms: ['ios']);
+          final p3 = await publish(platforms: ['android', 'ios']);
+          final body = await jsonOf(await rollback(p3.id));
+          expect(
+            [for (final r in body['restored'] as List) (r as Map)['number']],
+            [2, 1],
+          );
+          expect(offered(await check()), 1);
+          expect(offered(await check(platform: 'ios')), 2);
+        },
+      );
+
+      test('a patch is not restored for a platform still served', () async {
+        // 1 (android+ios) is only partly covered by 2 (android), so it stays
+        // active; rolling 2 back needs no restore.
+        await publish(platforms: ['android', 'ios']);
+        final p2 = await publish();
+        final body = await jsonOf(await rollback(p2.id));
+        expect(body['restored'], isEmpty);
+        expect(offered(await check()), 1);
+        expect(offered(await check(platform: 'ios')), 1);
+      });
+
+      test(
+        'an earlier patch is restored only for the platforms it has',
+        () async {
+          // 1 is ios-only and was superseded by 2 (android+ios). Rolling back 2
+          // restores 1 for ios; android has nothing to go back to.
+          await publish(platforms: ['ios']);
+          final p2 = await publish(platforms: ['android', 'ios']);
+          await rollback(p2.id);
+          expect(offered(await check()), isNull);
+          expect(offered(await check(platform: 'ios')), 1);
+        },
+      );
+
+      test('a patch for a different platform is not restored', () async {
+        // 1 is ios-only, 2 is android-only: 2 never superseded 1, and rolling
+        // 2 back brings nothing back.
+        await publish(platforms: ['ios']);
+        final p2 = await publish();
+        final body = await jsonOf(await rollback(p2.id));
+        expect(body['restored'], isEmpty);
+        expect(offered(await check()), isNull);
+        expect(offered(await check(platform: 'ios')), 1);
+      });
+    });
+
+    test('other channels are untouched', () async {
+      final beta = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/channels',
+          bearer: _bootstrapKey,
+          json: {'channel': 'beta'},
+        ),
+      );
+      final betaId = beta['id'] as int;
+      final p1 = await publish();
+      final p2 = await publish();
+      await send(
+        'POST',
+        '/api/v1/apps/${s.appId}/patches/promote',
+        bearer: _bootstrapKey,
+        json: {'patch_id': p1.id, 'channel_id': betaId},
+      );
+      final p3 = await publish(channelId: betaId);
+      expect(p3.number, 3);
+
+      // Rolling back 2 (active on stable only) restores 1 on stable; beta,
+      // where 3 is active, is unchanged.
+      final body = await jsonOf(await rollback(p2.id));
+      expect(body['channels'], ['stable']);
+      expect(offered(await check()), 1);
+      final c = await check(channel: 'beta');
+      expect(offered(c), 3);
+      expect(c['rolled_back_patch_numbers'], isEmpty);
+
+      // Rolling back 3 on beta restores 1 there; stable is as it was.
+      await rollback(p3.id);
+      expect(offered(await check(channel: 'beta')), 1);
+      expect(offered(await check()), 1);
+    });
+
+    test('a patch of another release is not restored', () async {
+      await publish();
+      final rel2 = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/releases',
+          bearer: _bootstrapKey,
+          json: {'version': '2.0.0'},
+        ),
+      );
+      final r2 = (rel2['release'] as Map)['id'] as int;
+      final other = await publish(releaseId: r2);
+      final body = await jsonOf(await rollback(other.id, releaseId: r2));
+      expect(body['restored'], isEmpty);
+      // Promoting the other release's patch superseded 1 on the channel
+      // (supersession is not release-scoped); rolling it back does not bring
+      // 1 back for a different release.
+      expect(offered(await check()), isNull);
+    });
+
+    test('tenants are isolated', () async {
+      await publish();
+      final p2 = await publish();
+      final attacker = await otherTenant();
+      final r = await send(
+        'POST',
+        '/api/v1/apps/${s.appId}/releases/${s.releaseId}'
+            '/patches/${p2.id}/rollback',
+        bearer: attacker.key,
+      );
+      expect(r.statusCode, HttpStatus.forbidden);
+      // Their own app id paired with our release and patch ids.
+      final viaOwn = await send(
+        'POST',
+        '/api/v1/apps/${attacker.appId}/releases/${s.releaseId}'
+            '/patches/${p2.id}/rollback',
+        bearer: attacker.key,
+      );
+      expect(viaOwn.statusCode, HttpStatus.notFound);
+      final c = await check();
+      expect(offered(c), 2);
+      expect(c['rolled_back_patch_numbers'], isEmpty);
+      // And our rollback does not reach their app's checks.
+      await rollback(p2.id);
+      expect(
+        (await check(appId: attacker.appId))['rolled_back_patch_numbers'],
+        isEmpty,
+      );
+    });
+
+    test('a deleted channel keeps telling devices to revert and restores '
+        'nothing', () async {
+      final qa = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/channels',
+          bearer: _bootstrapKey,
+          json: {'channel': 'qa'},
+        ),
+      );
+      final qaId = qa['id'] as int;
+      await publish(channelId: qaId);
+      final p2 = await publish(channelId: qaId);
+      final del = await send(
+        'DELETE',
+        '/api/v1/apps/${s.appId}/channels/$qaId',
+        bearer: _bootstrapKey,
+      );
+      expect(del.statusCode, HttpStatus.noContent);
+      final body = await jsonOf(await rollback(p2.id));
+      expect(body['restored'], isEmpty);
+      final c = await check(channel: 'qa');
+      expect(c['patch_available'], isFalse);
+      expect(c['rolled_back_patch_numbers'], [2]);
+    });
+
+    test('is audited: patch.withdraw for the rollback, patch.restore per '
+        'restored patch', () async {
+      final p1 = await publish();
+      final p2 = await publish();
+      await rollback(p2.id);
+      final rows = await repo.db.query(
+        "SELECT target, detail FROM audit_log WHERE action = 'patch.restore'",
+      );
+      expect(rows, hasLength(1));
+      expect(rows.single['target'], '${p1.id}');
+      expect(rows.single['detail'], contains('patch 1 active again'));
+      expect(rows.single['detail'], contains('patch 2'));
+      final wd = await repo.db.query(
+        "SELECT patch_id FROM audit_log WHERE action = 'patch.withdraw'",
+      );
+      expect(wd.single['patch_id'], p2.id);
     });
   });
 

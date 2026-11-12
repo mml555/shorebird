@@ -282,7 +282,8 @@ Response:
 A patch is offered only if its artifact is verified, the patch is `ready` (not
 invalidated), an **active** channel-patch makes this `client_id` eligible under
 the current rollout, and its number exceeds the client's. A rolled-back patch's
-number appears in `rolled_back_patch_numbers` (installed devices revert).
+number appears in `rolled_back_patch_numbers` (installed devices revert), and the
+prior patch is offered in its place (see Rollout & rollback).
 
 **`kind`** (always present) is `code` for the usual patch, or `assets` for a
 patch whose payload is assets and nothing else — the shape that lets the
@@ -457,7 +458,37 @@ added to a company org or onto one of its apps. With a policy set, both
 | Method | Path | Response |
 |---|---|---|
 | POST | `/admin/apps/{appId}/patches/{patchId}/rollout?channel=&percent=` | `{patch_id,rollout}` — set a partial rollout (0–100) |
-| POST | `/admin/apps/{appId}/patches/{patchId}/withdraw?channel=&rollback=true\|false` | `{withdrawn:true,rolled_back}` — stop serving (`rollback=true` also reverts installed devices) |
+| POST | `/admin/apps/{appId}/patches/{patchId}/withdraw?channel=&rollback=true\|false` | `{withdrawn:true,rolled_back,restored}` — stop serving (`rollback=true` also reverts installed devices and restores the prior patch, below) |
+| POST | `/apps/{appId}/releases/{releaseId}/patches/{patchId}/rollback` | `{withdrawn,patch_id,rolled_back,channels,restored}` — upstream's `shorebird patches rollback`: the same rollback on every channel where the patch is active. **304** if already rolled back and active nowhere, **409** if never promoted |
+
+**Rollback restores the prior patch.** Rolling back the active patch of a
+channel puts the newest earlier patch of the same release that was superseded
+on that channel (never itself rolled back, still `ready`) back as active, so
+`/patches/check` offers it and a device that deleted it when the newer patch
+booted downloads it again. `restored` lists `{patch_id, number, channel,
+rollout}` for each. Rolling back again walks further back; rolling back the
+last one leaves the base release.
+
+- **Per platform**, as promote is: the patches restored are the newest
+  qualifying ones for each platform the rolled-back patch carried and no other
+  active patch still serves. An earlier patch that is already active, or is for
+  other platforms, is left alone.
+- **Rollout is kept**, not reset: a restored patch comes back at the
+  percentage it was promoted with, so a rollback never widens exposure beyond
+  what was chosen for it. Raise it with `rollout` if wanted.
+- **Rolling back a patch that is not active** (superseded, or withdrawn
+  without `rollback=true`) marks it rolled back instead of returning 409: it is
+  reported in `rolled_back_patch_numbers` and can never be restored. Active
+  patches are unaffected. A patch that was withdrawn without a rollback is
+  indistinguishable from a superseded one, so it can be restored by a later
+  rollback unless it was rolled back itself.
+- A rolled-back patch stays rolled back: `rollforward` is still a 501.
+- A device that reports it is running a patch the response rolls back is
+  offered the restored patch in the same response (its own number is not
+  counted against the offer).
+- Each restored patch writes a `patch.restore` audit detail row (target = the
+  restored patch id) beside the request's `patch.withdraw` event, whose
+  `detail.restored` lists them.
 
 **Roles:** `owner`, `admin`, `appManager`, `developer`, `viewer`.
 

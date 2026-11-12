@@ -134,6 +134,16 @@ updater logged "no active patch" and the app **reverted to the base code**
 Withdraw *without* rollback (number NOT in the list) simply stops offering the
 patch to new checks — already-installed devices keep running it.
 
+Restoring the prior patch (source-verified in `vendor/updater`, device proof
+pending): when patch 2 boots, `cleanup_older_than(2)` deletes patch 1's
+directory and state, so patch 1 is unknown to the device. The updater has no
+rule against a lower number than the one it last booted: `update_internal`
+applies `rolled_back_patch_numbers` first (`uninstall_patch(2)` also clears
+`last_booted_patch`), then `decide_start(1, ..)` sees no state and returns
+`Fresh`, and the download installs and becomes next boot. The server therefore
+offers patch 1 in the same response that lists `[2]`, and ignores the client's
+reported number when it is one being rolled back.
+
 ### Lifecycle / verification (server) — verified via smoke + device
 sha256 verification of release artifacts on upload; fail-closed finalize
 (release stays non-ready until every non-failed artifact is verified);

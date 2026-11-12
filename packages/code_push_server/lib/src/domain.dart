@@ -164,6 +164,10 @@ const _patchNext = {
   PatchStatus.invalidated: <PatchStatus>{},
 };
 
+// `withdrawn` is terminal for a patch that was rolled back (`rolled_back`).
+// A patch that was only superseded is the one exception, and not through this
+// table: `Repository.restorePriorPatches` makes the newest such patch active
+// again when the patch that superseded it is rolled back.
 const _channelPatchNext = {
   ChannelPatchStatus.active: {ChannelPatchStatus.withdrawn},
   ChannelPatchStatus.withdrawn: <ChannelPatchStatus>{},

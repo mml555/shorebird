@@ -118,6 +118,11 @@ transitions raise a `409`.
   at once, one per platform. "Exactly one active per channel" is precisely the
   invariant the code deliberately does NOT enforce — an Android promote must not
   silently withdraw the live iOS patch.
+  Rolling back an active patch is the one way a `withdrawn` row becomes
+  `active` again: the newest superseded, never-rolled-back earlier patch of the
+  release is restored (per platform, same rollout) by
+  `Repository.restorePriorPatches`, so devices that deleted it go back to it.
+  A patch that was rolled back stays withdrawn for good.
 
 ## Request lifecycle (`api.dart`)
 
