@@ -125,6 +125,40 @@ lineage:
   fallback_engine_revision: 69f9831c360d9152862ec3897c67fb09ae843f3b
   dart_revision: 9e8c898a4d2a3b4d0f9c76b973a199859bb1b40c
 
+# FLUTTER 3.47 PIN, NAMED 2026-11-12 -- AND NOT QUALIFIED. Read this before the
+# lineage above: `lineage` still describes the Route B cell f85251f3 selected by
+# Flutter 5b180d22, and it has NOT been moved to this pin. The promotion PR moves
+# bin/internal/flutter.version to shorebird-flutter d12e29ec, so the product-tree
+# checks in verify_supported_state.sh (bin_internal) and the selector check will
+# stop matching until a cell for engine 2c4b0718 is qualified and `lineage` is
+# re-pointed. That is intended: the record is not edited to follow the pin.
+#
+# Moving `lineage` needs what this record asks of every cell, and for 2c4b0718
+# these are not yet banked:
+#   - a v2 address manifest (cell_manifests/<engine>.v2); the CLI's lookup of
+#     cell-manifests/2c4b0718....v2 gets a 404 and falls back to v1
+#   - the cell's member digests verified against the bytes served
+#     (verify_cell_members.sh)
+#   - the compiler archive and analyzer digests recorded and checked
+#   - the producer lineage, with its source durable on the remote
+# What IS banked for 2c4b0718 is below: the identity, and the physical iOS run.
+flutter_3_47_pin:
+  status: NOT QUALIFIED as a cell; named so the promotion's identities are in one place
+  named: 2026-11-12
+  pin_flutter_revision: d12e29eccfd56355cebdfb40ef0cb2dc674d65f8   # mml555/shorebird-flutter, head of shorebird/dev at the pin (PR #12)
+  pin_engine_version: 2c4b071817c52c27142b35ff789749951e5b4d22     # bin/internal/engine.version at that revision; iOS release engine built with Route B on
+  pin_updater_revision: 87c198d30f875a3da317d70935e1025dc13064dd    # DEPS updater_rev at that revision
+  pin_fallback_engine_revision: 38855c84ca367c58165b8e3844dd7d6a99dec844   # experimental_hashes.map; unbuilt artifacts (Android debug and profile) come from here
+  pin_compiler_archive_sha256_observed: c79e606d29bad618611ac4a42cecadbbb0c4c8343d5aba0ffcd15fdecdd34b03   # route-b-compiler-darwin-arm64.zip in the ci-build overlay, observed, not qualified
+  pin_compiler_archive_bytes_observed: 19705681
+  pin_device_run: >-
+    2026-11-11, physical iPhone 7 (iOS 15.8.8): iOS release, Route B patch
+    applied (ROUTEB: applied 1/1 targets), and rollback. Logs in
+    shorebird-flutter PR #12; summary in selfhost/STATUS.md, "iOS code push on
+    2c4b0718". Run with the CLI merged locally with the earlier promotion branch
+    (flutter.version = efe3162e, the head of #12), not at the pin named here.
+  pin_promotion_evidence: evidence/r12-linux-ci/PROMOTION_d12e29ec.md
+
 # CELLS PUBLISHED BY THIS PROGRAMME, and what each one's identity actually
 # covers. `lineage.cell_address` above names the SUPPORTED cell and is
 # unchanged; this block exists because a second cell now exists and a reader
