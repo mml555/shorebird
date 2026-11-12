@@ -39,12 +39,7 @@ As of 2026-11-12. Open: #111 (draft), #132, #134 and #135; #113 is an issue. Rec
 
 | Item | What | Waiting on |
 |---|---|---|
-<<<<<<< HEAD
 | Flutter 3.47 promotion ([#111](https://github.com/mml555/shorebird/pull/111) superseded by the new promotion PR) | Moves `bin/internal/flutter.version` to shorebird-flutter `d12e29ec` (engine `2c4b0718`, with the Route B iOS engine) and the `shorebird:` block of `compatibility.yaml` (updater `87c198d3`). All eight gates of [`TOOLCHAIN_PROMOTION.md`](TOOLCHAIN_PROMOTION.md) pass on ci-build, and the two-arm R12 passes with a CLI that includes #131: arm 3 exits 64 naming "Which release would you like to patch?". Not a Route B cell qualification (`SUPPORTED_STATE.yaml` `flutter_3_47_pin`). Android debug/profile `flutter run` uses stock engine bytes, 9 of 10 from Shorebird's own bucket (38855c84; only android-x86 is Google's, 89c39edf), not run on a device. A known gap against the owner's 2026-11-12 mission goal (no Shorebird-owned artifacts on a clean machine), not waived. Evidence: [`PROMOTION_d12e29ec.md`](evidence/r12-linux-ci/PROMOTION_d12e29ec.md). | **Open, awaiting review and an LGTM.** #111 (9056dae9) stays open as superseded. TLS CA fix: PR #132, pending owner OK. |
-| R12 tooling on ci-build ([#112](https://github.com/mml555/shorebird/pull/112)) | Lets the R12 scripts run on a Linux Docker engine and on a pin other than 3.44.8; defaults stay on the certified pin. | The review's should-fix items, before the next promotion attempt. |
-=======
-| Flutter 3.47 promotion ([#111](https://github.com/mml555/shorebird/pull/111), draft) | Moves `bin/internal/flutter.version` to shorebird-flutter `9056dae9` (engine `7806e0fb`) and the `shorebird:` block of `compatibility.yaml` to CLI 1.6.138. The artifact gates of [`TOOLCHAIN_PROMOTION.md`](TOOLCHAIN_PROMOTION.md) pass: sealed cold bootstrap, closure guard, Linux release and patch with no upstream fetch. The frozen R12 harness fails arm 3: with two releases and no `--release-version`, CLI 1.6.138 guesses the release (deprecated upstream, [shorebirdtech/shorebird#4354](https://github.com/shorebirdtech/shorebird/issues/4354)) instead of refusing with 64. | **On hold (owner's decision).** Upstream removes the guessing after 2027-01-01; re-run the chain and the two-arm R12 then. Re-pin it first to shorebird-flutter `d12e29ec` (engine `2c4b0718`): `9056dae9` has no Route B iOS engine. The PR comment lists what else it needs. |
->>>>>>> fork/main
 
 ## The CDN mirror on ci-build
 
