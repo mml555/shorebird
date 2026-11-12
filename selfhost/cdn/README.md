@@ -263,6 +263,12 @@ Everything a clean machine touches that is NOT Shorebird infrastructure:
   git -C /tmp/restore_test checkout c15ef6379403a0a55531a058bdb2c8e55bc05c98
   cat /tmp/restore_test/bin/internal/engine.version   # expect 69f9831c…
   ```
+- **Flutter's pinned non-engine downloads** (the six `ios-usb-dependencies`
+  zips, `fonts.zip`, `gradle-wrapper.tgz`): copied into the overlay at their
+  bucket paths by [`publish_flutter_pins.sh`](publish_flutter_pins.sh), so a
+  sealed mirror serves them. Run it for each Flutter revision the mirror
+  serves (`--ref` reads the pins without a checkout of that revision);
+  `--check` lists what is missing.
 - **bundletool.jar**: mirrored at `overlay/mirror/bundletool/`, served by the
   overlay; point `SHOREBIRD_BUNDLETOOL_URL` at
   `$MIRROR/mirror/bundletool/bundletool-all-1.18.1.jar`. The CLI still
