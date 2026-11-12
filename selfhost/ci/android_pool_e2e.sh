@@ -37,7 +37,11 @@ if [[ -n ${E2E_WORK:-} ]]; then
 else
   WORK=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/sb-e2e.XXXXXX")
 fi
-# qa-pool's ttl and wait are minutes. The phone is needed for about ten.
+# qa-pool's ttl and wait are minutes. The phone is needed for about ten. The
+# checkout asks for a short lease, renewed as soon as the phone is in hand, so a
+# checkout a cancelled job leaves behind holds a phone for minutes, not half an
+# hour.
+CHECKOUT_TTL=10
 LEASE_TTL=30
 PKG=dev.selfhost.e2e.app
 API_KEY=sb_api_e2e_$(openssl rand -hex 16)
@@ -45,31 +49,42 @@ API_KEY=sb_api_e2e_$(openssl rand -hex 16)
 SERIAL=
 DEVICE=
 SERVER_PID=
+ADB_STARTED=
 
 log() { printf '\n=== %s\n' "$*"; }
 
 cleanup() {
   local status=$?
   set +e
-  # The lease first, bounded: everything after it may hang on a wedged phone. The
-  # pool resets the phone to its snapshot on release, so the app needs no
-  # uninstall.
-  curl -fsS --max-time 15 -X POST "$POOL/release?owner=$OWNER" >/dev/null 2>&1
+  # On failure, read the phone and its lease before releasing it: the release
+  # resets the phone to its snapshot. Bounded, as the phone may be wedged.
+  if [[ $status -ne 0 && -n $ADB_STARTED ]]; then
+    timeout 20 adb -s "$SERIAL" logcat -d 2>/dev/null |
+      grep -E 'flutter|shorebird|AndroidRuntime' | tail -60 >"$WORK/device.log"
+  fi
+  if [[ $status -ne 0 && -n $DEVICE ]]; then
+    curl -fsS --max-time 10 "$POOL/lease?device=$DEVICE" >"$WORK/lease.json" 2>&1
+  fi
+  # The release resets the phone, so the app needs no uninstall.
+  if ! curl -fsS --max-time 15 -X POST "$POOL/release?owner=$OWNER" >/dev/null 2>&1 && [[ -n $DEVICE ]]; then
+    echo "::warning::could not release $DEVICE (owner $OWNER); its lease runs out within $LEASE_TTL minutes"
+  fi
   if [[ $status -ne 0 ]]; then
     log "FAILED (exit $status); server log tail"
     tail -40 "$WORK/server.log" 2>/dev/null
-    if [[ -n $SERIAL ]]; then
-      log "device log (flutter and updater lines)"
-      timeout 30 adb -s "$SERIAL" logcat -d 2>/dev/null | grep -E 'flutter|shorebird|AndroidRuntime' | tail -60
+    if [[ -n $ADB_STARTED ]]; then
+      log "device log before release (flutter and updater lines)"
+      cat "$WORK/device.log" 2>/dev/null
     fi
     if [[ -n $DEVICE ]]; then
-      log "pool lease of $DEVICE after release"
-      curl -fsS --max-time 10 "$POOL/lease?device=$DEVICE" 2>/dev/null
+      log "pool lease of $DEVICE before release"
+      cat "$WORK/lease.json" 2>/dev/null
       echo
     fi
   fi
   [[ -n $SERVER_PID ]] && kill "$SERVER_PID" 2>/dev/null
-  timeout 15 adb kill-server >/dev/null 2>&1
+  # Only the job's own adb server, never the default one on 5037.
+  [[ -n $ADB_STARTED ]] && timeout 15 adb kill-server >/dev/null 2>&1
   exit "$status"
 }
 trap cleanup EXIT
@@ -219,22 +234,27 @@ log "phone from the pool (owner $OWNER)"
 # did land.
 lease=
 for _ in $(seq 10); do
-  if lease=$(curl -fsS --max-time 330 -X POST \
-    "$POOL/checkout?owner=$OWNER&ttl=$LEASE_TTL&wait=2&why=shorebird+android+e2e" 2>/dev/null); then
-    break
-  fi
+  rc=0
+  lease=$(curl -fsS --max-time 330 -X POST \
+    "$POOL/checkout?owner=$OWNER&ttl=$CHECKOUT_TTL&wait=2&why=shorebird+android+e2e" 2>&1) || rc=$?
+  ((rc == 0)) && break
+  # 7: nothing listens, so waiting won't help.
+  ((rc == 7)) && { echo "the device pool at $POOL is unreachable: $lease" >&2; exit 1; }
+  echo "no free phone yet (curl exit $rc: $lease)"
   lease=
-  echo "no free phone yet"
+  sleep 10
 done
-[[ -n $lease ]] || { echo "no phone within 20 minutes" >&2; exit 1; }
+[[ -n $lease ]] || { echo "no phone after 10 tries" >&2; exit 1; }
 read -r DEVICE SERIAL < <(python3 -c 'import json,sys; d = json.load(sys.stdin); print(d["device"], d["serial"])' <<<"$lease")
 [[ -n ${SERIAL:-} ]] || { echo "unexpected checkout answer: $lease" >&2; exit 1; }
 echo "checked out $DEVICE ($SERIAL)"
+curl -fsS --max-time 15 -X POST "$POOL/renew?owner=$OWNER&ttl=$LEASE_TTL" >/dev/null
 
 # Not adb's default 5037: ci-build's own adb server holds it, and a job may not
 # reach it. Started right away, so the port can't be taken in between.
 export ANDROID_ADB_SERVER_PORT
 ANDROID_ADB_SERVER_PORT=$(free_port)
+ADB_STARTED=1
 timeout 30 adb start-server
 connected=$(timeout 30 adb connect "$SERIAL" 2>&1) || true
 echo "$connected"
