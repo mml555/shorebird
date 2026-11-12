@@ -158,6 +158,10 @@ if [[ ${HTTPS_PROXY:-} =~ ^https?://([^:/]+):([0-9]+) ]]; then
 fi
 cd "$APP"
 
+# A new app's release manifest lacks the INTERNET permission the updater needs.
+"$SB" doctor --fix
+grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml
+
 log "release $VERSION"
 "$SB" release android --artifact apk --no-confirm
 adb -s "$SERIAL" install -r build/app/outputs/flutter-apk/app-release.apk
