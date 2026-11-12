@@ -48,23 +48,25 @@ shorebird:
                                                                   # 8a195890e499117eb725aceb50ad3d66a0d53f8119db73d1f3247eae7c211783); all 64 files in the
                                                                   # overlay were re-compared with that tar and are byte-identical.
                                                                   # NOT FROM 2c4b0718: seven android-*/artifacts.zip files (debug, profile and x86) and
-                                                                  # three android-*-profile/linux-x64.zip files are UPSTREAM STOCK engine bytes (engine
-                                                                  # 38855c84 via the proxy remap, android-x86 from stock 89c39edf), imported under the
+                                                                  # three android-*-profile/linux-x64.zip files are STOCK engine bytes. Nine of the ten came
+                                                                  # from SHOREBIRD'S OWN bucket (download.shorebird.dev/flutter_infra_release/flutter/38855c84...,
+                                                                  # via the proxy remap); only android-x86 is from flutter_infra_release/flutter/89c39edf (Google's).
+                                                                  # Shorebird-owned artifacts under this repo's no-Shorebird-owned-artifacts rule. Imported under the
                                                                   # 2c4b0718 client path because no Android debug or profile engine was built for it. They
                                                                   # carry provenance in release_patch_closure.tsv. A debug or profile `flutter run` on this
                                                                   # pin uses these stock engine bytes under the 3.47 framework; that has NOT been run on a
                                                                   # device or emulator (see PROMOTION_d12e29ec.md, "Debug and profile engines").
-                                                                  # R12 TWO-ARM RECERTIFICATION: DONE, PASS (arms A and B, 2026-11-12). The jump changes
+                                                                  # R12 TWO-ARM RECERTIFICATION: DONE, PASS (arms A and B, 2026-11-12; closure covers Linux x64 only; arm 1 ran with patch signing off). The jump changes
                                                                   # non-interactive semantics (fork PR #131: with no --release-version, `shorebird patch`
                                                                   # goes to the release chooser, never guesses, and refuses with exit 64 naming "Which
-                                                                  # release would you like to patch?" when several releases exist). The frozen harness is
-                                                                  # unmodified; arm 3 exits 64 naming the chooser in both arms. The CLI under test was
+                                                                  # release would you like to patch?" when several releases exist). ci_noninteractive.sh is the repo's
+                                                                  # file at 5b555d66 and the r12 launch scripts are byte-identical to selfhost/ci/r12 there (hashes in the evidence); arm 3 exits 64 naming the chooser in both arms. The CLI under test was
                                                                   # 5b555d66447abaeb9513dfb75d9fa09cf8006a60, which contains #131 (merge 8b6e6107).
                                                                   # IT IS NOT A CELL QUALIFICATION: engine/route_b/SUPPORTED_STATE.yaml names this pin
                                                                   # under flutter_3_47_pin as NOT QUALIFIED. Its lineage still describes cell f85251f3.
                                                                   # updater_revision below is now the updater in this pin's DEPS (87c198d3); the engine
-                                                                  # consumes it. eligibleUpdaterRevisions (MEASUREMENT_MODE.md) is NOT changed: that is
-                                                                  # the owner's call.
+                                                                  # consumes it. 87c198d30f87 is already in eligibleUpdaterRevisions (epoch B, since
+                                                                  # 2026-11-07); nothing changes there. It defaults patch_verification to install_only.
   engine_revision: 2c4b071817c52c27142b35ff789749951e5b4d22       # bin/internal/flutter.version's engine.version at the pin above. OUR OWN
                                                                   # BUILD (ci-build Linux + arm64 Mac), published as the GitHub release
                                                                   # engine-2c4b0718... on mml555/shorebird-flutter, served from the overlay.
@@ -85,8 +87,13 @@ shorebird:
                                                                   # d12e29ec's DEPS. The previous value af6e842ccf87 (full SHA af6e842ccf87a083d1598b1e7c9e0868c5731931)
                                                                   # was stale for this pin and is kept as superseded_updater_revision_2026_11_12 below, with its
                                                                   # own comment block, which describes IT and not the value above. The wire form is the 12-char
-                                                                  # value; the provenance identity is repository + full SHA. NOT YET in eligibleUpdaterRevisions.
-                                                                  # --- the comment block below belongs to the superseded af6e842ccf87 ---
+                                                                  # value; the provenance identity is repository + full SHA. 87c198d30f87 has been in PolicyEpoch.b's
+       # eligible updater revisions since 2026-11-07 (repository.dart, MEASUREMENT_MODE.md). This updater
+       # DEFAULTS patch_verification to install_only (yaml.rs at 87c198d3; af6e842c defaulted to strict),
+       # so a release without an explicit patch_verification verifies the patch signature at install
+       # time only, not on every boot.
+                                                             superseded_updater_revision_2026_11_12: af6e842ccf87              # was updater_revision until the 3.47 promotion; its comment block follows, verbatim
+       # --- the comment block below describes the superseded af6e842ccf87 (it said NOT YET in eligibleUpdaterRevisions; that was true then) ---
                                                                     # RESTAMPED 2026-08-27 for cell 4792f0ec. Full SHA
                                                                     # af6e842ccf87a083d1598b1e7c9e0868c5731931, durable
                                                                     # at mml555/shorebird-updater-mirror ref route-b. The
@@ -127,7 +134,6 @@ shorebird:
                                                                     # all ten host producer members byte-identical. See
                                                                     # evidence/p6-signing/CELL_4792f0ec_AB_MANIFEST.md.
                                                                     # --- superseded, kept verbatim ---
-  superseded_updater_revision_2026_11_12: af6e842ccf87              # was updater_revision until the 3.47 promotion; its comment block follows, verbatim
   superseded_updater_revision_2026_08_27: f729f958e9be                                  # PROVENANCE OF CONSUMED BYTES.
                                                                   # RESTAMPED 2026-08-23. The previous value, fe51f225,
                                                                   # and its whole justification are preserved verbatim
@@ -293,7 +299,7 @@ shorebird:
   protocol_version: 0.1.0+1                                       # shorebird_code_push_protocol
 
 # Previous supported set, kept for rollback. Promoted out of `shorebird:` on
-# 2026-11-10 when the Flutter 3.47 pin (9056dae9) was promoted. This is the set
+# 2026-11-12 when the Flutter 3.47 pin (d12e29ec) was promoted (the earlier 9056dae9 attempt, PR #111, was never merged). This is the set
 # this file declared, 1.6.115 + a4a3c0d1. The CLI's own bin/internal/flutter.version
 # had already moved to 5b180d22 (Flutter 3.44.8, cell f85251f3) at 46ee70af5 and
 # this file did not follow, so 5b180d22 is the revision that was actually running

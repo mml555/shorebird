@@ -114,6 +114,32 @@ ARCHIVE=$(val compiler_archive_sha256)
 ARCHBYTES=$(val compiler_archive_bytes)
 ANALYZER=$(val analyzer_sha256)
 
+# THE PIN MAY HAVE MOVED PAST THE QUALIFIED CELL, WITH THE RECORD SAYING SO.
+# `lineage` describes the cell f85251f3 and the CLI product that was qualified
+# with it. The Flutter 3.47 promotion moves this repo's bin/internal/flutter.version
+# to a pin the record NAMES under `flutter_3_47_pin` and marks NOT QUALIFIED.
+# In exactly that case (HEAD's committed selector is that named pin and is not the
+# qualified selector) the bin/internal tree check and the updater-vs-compatibility
+# check compare HEAD to the QUALIFIED product and cannot hold by construction; they
+# are replaced by checks against the pin record: HEAD selects the named pin, and
+# selfhost/compatibility.yaml agrees with it. Nothing is relaxed otherwise: any
+# other HEAD selector, including one that is not the named pin, still takes the
+# original comparisons and fails. The packages/shorebird_cli tree check, the
+# runtime-checkout checks (at cli_revision) and every cell check are unchanged, and
+# the output states that Route B iOS is unqualified on HEAD.
+PIN_REV=$(val pin_flutter_revision)
+PIN_ENGINE=$(val pin_engine_version)
+PIN_UPDATER=$(val pin_updater_revision)
+HEAD_SEL=$(git -C "$REPO" show "HEAD:bin/internal/flutter.version" 2>/dev/null | tr -d '[:space:]')
+PIN_MOVED=0
+if [[ -n "$PIN_REV" && "$HEAD_SEL" == "$PIN_REV" && "$HEAD_SEL" != "$SELECTOR" ]]; then
+  PIN_MOVED=1
+fi
+COMPAT_YAML="$REPO/selfhost/compatibility.yaml"
+compat_val() { # first `shorebird:` block value of <key>
+  awk -v k="$1" '/^shorebird:/{f=1;next} f&&/^[^ #]/{f=0} f&&$1==k":"{print $2; exit}' "$COMPAT_YAML"
+}
+
 echo "verify_supported_state -- record $STATE"
 case "$PARSE_OK" in
   1) ok "record format is clean (no duplicate keys, coherent indentation)" ;;
@@ -174,8 +200,13 @@ TREE_BIN=$(val bin_internal)
 for spec in "packages/shorebird_cli|$TREE_CLI" "bin/internal|$TREE_BIN"; do
   pth=${spec%%|*}; want=${spec##*|}
   if [[ -z "$want" ]]; then bad "no recorded tree for $pth"; continue; fi
-  cmp_v "repo HEAD product tree $pth" "$want" \
-    "$(git -C "$REPO" rev-parse "HEAD:$pth" 2>/dev/null)"
+  if [[ "$PIN_MOVED" == 1 && "$pth" == "bin/internal" ]]; then
+    cmp_v "repo HEAD bin/internal/flutter.version selects the named 3.47 pin (flutter_3_47_pin), not the qualified selector" \
+      "$PIN_REV" "$HEAD_SEL"
+  else
+    cmp_v "repo HEAD product tree $pth" "$want" \
+      "$(git -C "$REPO" rev-parse "HEAD:$pth" 2>/dev/null)"
+  fi
   # The runtime checkout, from its COMMITTED HEAD rather than its working tree:
   # a clean tree only says nothing is unstaged, not that it is the right commit.
   cmp_v "runtime checkout product tree $pth" "$want" \
@@ -300,9 +331,21 @@ fi
 # The updater pin, against the committed compatibility record rather than a
 # rebuilt binary: this proves the two committed records agree, which is what it
 # can honestly prove.
-cmp_v "updater revision agrees with selfhost/compatibility.yaml" \
-  "$(val updater_revision)" \
-  "$(sed -nE 's/^[[:space:]]*updater_revision:[[:space:]]*([0-9a-f]+).*/\1/p' "$REPO/selfhost/compatibility.yaml" | head -1)"
+if [[ "$PIN_MOVED" == 1 ]]; then
+  # compatibility.yaml now names the 3.47 pin's updater, so the cell's own
+  # updater (lineage.updater_revision) is checked against the superseded value
+  # that compatibility.yaml keeps, and the pin's against the live one.
+  cmp_v "updater revision of the qualified cell is the superseded value kept in selfhost/compatibility.yaml" \
+    "$(val updater_revision)" "$(compat_val superseded_updater_revision_2026_11_12)"
+  cmp_v "compatibility.yaml updater_revision is the 3.47 pin's (12-char form)" \
+    "${PIN_UPDATER:0:12}" "$(compat_val updater_revision)"
+  cmp_v "compatibility.yaml flutter_revision is the 3.47 pin" "$PIN_REV" "$(compat_val flutter_revision)"
+  cmp_v "compatibility.yaml engine_revision is the 3.47 pin's engine" "$PIN_ENGINE" "$(compat_val engine_revision)"
+else
+  cmp_v "updater revision agrees with selfhost/compatibility.yaml" \
+    "$(val updater_revision)" \
+    "$(sed -nE 's/^[[:space:]]*updater_revision:[[:space:]]*([0-9a-f]+).*/\1/p' "$REPO/selfhost/compatibility.yaml" | head -1)"
+fi
 
 # 4b. SOURCE DURABILITY. Every engine revision the record names as a producer of
 #     EXECUTABLE cell members must be resolvable from a durable remote, at the
@@ -355,6 +398,11 @@ else
   bad "audit_route_b_compiler reported findings for $CELL"
 fi
 
+if [[ "$PIN_MOVED" == 1 ]]; then
+  echo "  --      ROUTE B iOS IS UNQUALIFIED ON THIS REPO'S PIN: HEAD selects ${PIN_REV:0:8} (engine ${PIN_ENGINE:0:8}), which has no v2 cell manifest."
+  echo "          The cell checks above apply to the qualified runtime (cli_revision, selector ${SELECTOR:0:8}) only;"
+  echo "          the CLI falls back to the v1 compiler lookup for ${PIN_ENGINE:0:8}. See flutter_3_47_pin."
+fi
 echo
 if [[ "$fails" -eq 0 ]]; then
   echo "SUPPORTED STATE VERIFIED"
