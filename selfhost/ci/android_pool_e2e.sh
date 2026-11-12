@@ -110,7 +110,8 @@ log "throwaway code_push_server on $BASE"
 (cd "$ROOT/packages/code_push_server" && "$DART" pub get >/dev/null)
 (
   cd "$ROOT/packages/code_push_server"
-  API_KEY=$API_KEY PORT=$PORT PUBLIC_BASE_URL=$BASE DATA_DIR=$WORK/server-data \
+  API_KEY=$API_KEY URL_SIGNING_SECRET=$(openssl rand -hex 32) PORT=$PORT PUBLIC_BASE_URL=$BASE \
+    DATA_DIR=$WORK/server-data \
     exec "$DART" run bin/server.dart
 ) >"$WORK/server.log" 2>&1 &
 SERVER_PID=$!
