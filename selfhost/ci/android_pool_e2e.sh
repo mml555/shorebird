@@ -70,13 +70,14 @@ log() { printf '\n=== %s\n' "$*"; }
 stop_server() {
   [[ -n $SERVER_PID ]] || return 0
   local i
-  kill -TERM -- "-$SERVER_PID" 2>/dev/null
+  kill -TERM -- "-$SERVER_PID" 2>/dev/null || true
   for i in $(seq 20); do
     kill -0 -- "-$SERVER_PID" 2>/dev/null || break
     sleep 0.5
     ((i == 20)) && kill -KILL -- "-$SERVER_PID" 2>/dev/null
   done
-  wait "$SERVER_PID" 2>/dev/null
+  # A server killed by a signal exits non-zero; that is expected here.
+  wait "$SERVER_PID" 2>/dev/null || true
   SERVER_PID=
   return 0
 }
@@ -575,7 +576,10 @@ log "scenario 5: version targeting"
 write_main SB-E2E-V4 14
 sb_patch "$V1_VERSION"
 expect_equal "$(server_patches "$V1_VERSION")" "1 2 3" "patches on $V1_VERSION"
-expect_equal "$(patch_check "$V1_VERSION" 0)" "3 [2]" "the server offers patch 3 to $V1_VERSION"
+# With the prior-patch restore, scenario 4b rolled patch 1 back too, so both
+# numbers are listed.
+if ((ROLLBACK_NEWEST_RESTORES_PREVIOUS)); then rolled='[1, 2]'; else rolled='[2]'; fi
+expect_equal "$(patch_check "$V1_VERSION" 0)" "3 $rolled" "the server offers patch 3 to $V1_VERSION"
 install_apk v2
 boot 'I flutter : SB-E2E-W1:g-55'
 expect_equal "$(patch_check 0.2.0+2 0)" "none []" "the server's patch check for 0.2.0+2"
