@@ -63,6 +63,7 @@ So an allowed host is allowed for every URL on it. These stay because jobs need 
 | `*.actions.githubusercontent.com` | runner control, logs, results; shard names change (`pipelinesghubeus22`, `run-actions-2-azure-eastus`, ...) | GitHub-operated services only |
 | `productionresultssa<N>.blob.core.windows.net` | artifacts, logs, caches; GitHub adds numbers over time | an Azure storage account with a free number could be registered by someone else |
 | `registry.npmjs.org`, `pub.dev`, `index.crates.io`, `static.crates.io`, `ghcr.io` | dependencies, image pushes in the release workflow | publishing, with the job's own credentials |
+| `services.gradle.org`, `downloads.gradle.org`, `plugins.gradle.org`, `plugins-artifacts.gradle.org`, `dl.google.com`, `repo.maven.apache.org` | Gradle and its dependencies for the Android e2e job's release and patch builds | publishing to the plugin portal or Maven Central, with the job's own credentials; `dl.google.com` serves every Google download, not only Maven |
 | `dl-cdn.alpinelinux.org`, `deb.debian.org` | `apk` / `apt-get` in image builds (the cargo-deny image, the `code_push_server` runtime stage) | plain HTTP on port 80: squid matches only the host, so any path or query string to the CDN goes out. Small, but a channel |
 
 Removed on 2026-11-08 after reading the proxy log (it covered only about 2.5 hours, so
