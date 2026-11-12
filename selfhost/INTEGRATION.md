@@ -184,3 +184,10 @@ base_url: https://cps.yourco.com
 Then the normal workflow: `shorebird release <platform>` / `shorebird patch
 <platform>`, with `SHOREBIRD_HOSTED_URL` + `SHOREBIRD_TOKEN` set to your server
 and API key.
+
+A plain `http://` `base_url` (a test server on your LAN, say) also needs the app
+to allow cleartext traffic, or the updater's requests fail on the device:
+`android:usesCleartextTraffic="true"` on `<application>` in Android's
+`AndroidManifest.xml` (or a network security config naming the host), and an
+App Transport Security exception for the host in iOS's `Info.plist`. A store
+build should use `https://` instead.
