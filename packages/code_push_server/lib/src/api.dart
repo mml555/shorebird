@@ -713,14 +713,50 @@ class Api {
   /// Parses an optional ISO-8601 date query parameter. Absent is `null`;
   /// malformed is a 400, for the same reason as [_pathId] — `DateTime.parse`
   /// would otherwise throw a FormatException that escapes as a 500.
-  static DateTime? _dateParam(Map<String, String> query, String name) {
+  ///
+  /// With [utc], a timestamp with no offset is read as UTC rather than the
+  /// server's local time, so a window does not depend on the server's zone.
+  static DateTime? _dateParam(
+    Map<String, String> query,
+    String name, {
+    bool utc = false,
+  }) {
     final raw = query[name];
     if (raw == null) return null;
     final parsed = DateTime.tryParse(raw);
     if (parsed == null) {
       throw badRequest('Invalid $name: "$raw" (expected an ISO-8601 date)');
     }
+    if (utc && !parsed.isUtc) {
+      return DateTime.utc(
+        parsed.year,
+        parsed.month,
+        parsed.day,
+        parsed.hour,
+        parsed.minute,
+        parsed.second,
+        parsed.millisecond,
+        parsed.microsecond,
+      );
+    }
     return parsed;
+  }
+
+  /// The longest window, and the largest `window_days`, the CLI's metrics
+  /// routes accept. Each query scans the events table over its window.
+  static const _maxMetricsDays = 366;
+
+  /// A whole number of days in `1.._maxMetricsDays`; absent is [fallback].
+  static int _daysParam(Map<String, String> query, String name, int fallback) {
+    final raw = query[name];
+    if (raw == null) return fallback;
+    final n = int.tryParse(raw);
+    if (n == null || n < 1 || n > _maxMetricsDays) {
+      throw badRequest(
+        'Invalid $name: "$raw" (expected 1 to $_maxMetricsDays days)',
+      );
+    }
+    return n;
   }
 
   Future<Response> _dispatch(Request req) async {
@@ -892,7 +928,9 @@ class Api {
         return _metrics(appId);
       }
       // `analytics/{name}` is what the console calls; `metrics/{name}` is what
-      // `shorebird metrics` calls. Both reach the same handlers.
+      // `shorebird metrics` calls. Both reach the same handlers, but only the
+      // metrics routes take `start`/`end` (and validate them): the console's
+      // routes keep their old, lenient handling.
       if (rest.length == 2 &&
           (rest[0] == 'analytics' || rest[0] == 'metrics') &&
           m == 'GET') {
@@ -900,6 +938,7 @@ class Api {
           appId,
           rest[1],
           req.url.queryParameters,
+          cli: rest[0] == 'metrics',
         );
         if (response != null) return response;
       }
@@ -920,6 +959,7 @@ class Api {
           rest[3],
           req.url.queryParameters,
           releaseVersion: release.version,
+          cli: true,
         ))!;
       }
       if (rest.length == 1 && rest[0] == 'patches' && m == 'POST') {
@@ -1464,21 +1504,54 @@ class Api {
     return _json({'joined_org': inv['org_id'], 'role': inv['role']});
   }
 
-  /// Serves one analytics metric, or null when [name] is not one. The window
-  /// is `start`/`end` when either is given (the previous comparison window is
-  /// the same length, just before), else the trailing `window_days`.
+  /// Serves one analytics metric, or null when [name] is not one.
+  ///
+  /// With [cli] (the routes `shorebird metrics` calls) the window of the
+  /// windowed metrics is `start`/`end`, read as UTC when they carry no offset:
+  /// `end` defaults to now and `start` to 28 days before `end`, the span the
+  /// CLI documents. The window must be positive and at most
+  /// [_maxMetricsDays] long, else 400; `window_days` is validated the same
+  /// way. The previous comparison window has the same length, just before.
+  /// Without [cli] (the console) `window_days` defaults to 30, `start`/`end`
+  /// are read only by patch-adoption, and nothing is validated.
   /// [releaseVersion] scopes patch installs / downloads to one release.
   Future<Response?> _analyticsRoute(
     String appId,
     String name,
     Map<String, String> q, {
     String? releaseVersion,
+    bool cli = false,
   }) async {
     final gran = q['granularity'];
-    final start = _dateParam(q, 'start');
-    final end = _dateParam(q, 'end');
-    if (start != null && end != null && !end.isAfter(start)) {
-      throw badRequest('Invalid window: end must be after start');
+    int days(String param, int fallback) => cli
+        ? _daysParam(q, param, fallback)
+        : int.tryParse(q[param] ?? '') ?? fallback;
+
+    DateTime? start;
+    DateTime? end;
+    final windowed = const {
+      'patch-adoption',
+      'unique-users',
+      'patch-installs',
+      'patch-downloads',
+    }.contains(name);
+    if (cli && windowed) {
+      final windowDays = days('window_days', 28);
+      end = _dateParam(q, 'end', utc: true) ?? DateTime.now().toUtc();
+      start =
+          _dateParam(q, 'start', utc: true) ??
+          end.subtract(Duration(days: windowDays));
+      if (!end.isAfter(start)) {
+        throw badRequest('Invalid window: end must be after start');
+      }
+      if (end.difference(start) > const Duration(days: _maxMetricsDays)) {
+        throw badRequest(
+          'Invalid window: at most $_maxMetricsDays days between start and end',
+        );
+      }
+    } else if (name == 'patch-adoption') {
+      start = _dateParam(q, 'start');
+      end = _dateParam(q, 'end');
     }
     switch (name) {
       case 'patch-adoption':
@@ -1495,7 +1568,7 @@ class Api {
         return _json(
           await _analytics.uniqueUsers(
             appId,
-            windowDays: int.tryParse(q['window_days'] ?? '') ?? 30,
+            windowDays: days('window_days', 30),
             granularity: gran,
             groupBy: q['group_by'],
             start: start,
@@ -1506,28 +1579,28 @@ class Api {
         return _json(
           await _analytics.versionDistribution(
             appId,
-            activeWindowDays: int.tryParse(q['active_window_days'] ?? '') ?? 30,
+            activeWindowDays: days('active_window_days', 30),
           ),
         );
       case 'activity-heatmap':
         return _json(
           await _analytics.activityHeatmap(
             appId,
-            lookbackDays: int.tryParse(q['lookback_days'] ?? '') ?? 28,
+            lookbackDays: days('lookback_days', 28),
           ),
         );
       case 'active-hours':
         return _json(
           await _analytics.activeHours(
             appId,
-            lookbackDays: int.tryParse(q['lookback_days'] ?? '') ?? 28,
+            lookbackDays: days('lookback_days', 28),
           ),
         );
       case 'new-devices':
         return _json(
           await _analytics.newDevices(
             appId,
-            windowDays: int.tryParse(q['window_days'] ?? '') ?? 30,
+            windowDays: days('window_days', 30),
           ),
         );
       case 'patch-installs':
@@ -1536,7 +1609,7 @@ class Api {
           await _analytics.patchMetric(
             appId,
             metric: name == 'patch-downloads' ? 'downloads' : 'installs',
-            windowDays: int.tryParse(q['window_days'] ?? '') ?? 30,
+            windowDays: days('window_days', 30),
             granularity: gran,
             groupBy: q['group_by'],
             releaseVersion: releaseVersion ?? q['release_version'],
@@ -1550,9 +1623,9 @@ class Api {
   }
 
   /// `GET /api/v1/plan`. A self-hosted server has no billing and no plan
-  /// limits, so every caller reports the highest level, `enterprise`, which
-  /// `shorebird whoami` renders as the plan.
-  Response _plan() => _json({'level': 'enterprise'});
+  /// limits, so every caller reports the level `self_hosted`, which
+  /// `shorebird whoami` prints as the plan.
+  Response _plan() => _json({'level': 'self_hosted'});
 
   Future<Response> _usersMe(Request req) async {
     final user = await repo.userById(_uid(req));
@@ -1644,8 +1717,9 @@ class Api {
   /// the same thing on every row: the role the request asked to end at.
   void _noteRequestedGrant(Request req, String? email) {
     final role = req.url.queryParameters['role'];
-    _audit(req)
-        ?.note(target: email, detail: {if (role != null) 'role_after': role});
+    _audit(
+      req,
+    )?.note(target: email, detail: {if (role != null) 'role_after': role});
   }
 
   /// Authorizes the caller for [appId] via org membership or collaboration.
@@ -1790,9 +1864,9 @@ class Api {
     final orgId = await repo.appOrgId(appId);
     final app = orgId == null
         ? null
-        : (await repo.apps(orgIds: [orgId]))
-              .where((a) => a.appId == appId)
-              .firstOrNull;
+        : (await repo.apps(
+            orgIds: [orgId],
+          )).where((a) => a.appId == appId).firstOrNull;
     if (app == null) throw notFound('App not found');
     return _json(await _appMetadata(app));
   }
@@ -1836,9 +1910,9 @@ class Api {
   }
 
   Future<Response> _getApps(Request req) async {
-    final orgIds = (await repo.memberships(_uid(req)))
-        .map((m) => m.orgId)
-        .toList();
+    final orgIds = (await repo.memberships(
+      _uid(req),
+    )).map((m) => m.orgId).toList();
     final apps = await repo.apps(orgIds: orgIds);
     final out = <Map<String, Object?>>[
       for (final a in apps) await _appMetadata(a),

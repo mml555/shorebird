@@ -597,10 +597,13 @@ All GET, bearer + app access. Event-derived; work on both SQLite and Postgres.
 | `/analytics/patch-installs` · `/analytics/patch-downloads` | `window_days,granularity,group_by,release_version,patch_number` | `GetPatchMetricResponse` |
 
 `shorebird metrics` calls the same handlers at `/api/v1/apps/{appId}/metrics/{name}`
-(`unique-users` and `patch-installs`/`patch-downloads` also take `start` and `end`, ISO 8601,
-instead of `window_days`), and the release-scoped
+(`patch-adoption`, `unique-users` and `patch-installs`/`patch-downloads` take `start` and `end`, ISO 8601,
+read as UTC when they carry no offset; `end` defaults to now and `start` to 28 days before `end`, `window_days`
+sets that default; a span or `window_days` over 366 days, or a window that is not positive, is a 400. The
+console's `analytics/` routes keep their lenient handling and 30-day default), and the release-scoped
 `/api/v1/apps/{appId}/releases/{releaseId}/metrics/patch-installs|patch-downloads`.
-`GET /api/v1/plan` answers `{"level": "enterprise"}` (a self-hosted server has no plan limits).
+`GET /api/v1/plan` answers `{"level": "self_hosted"}` (a self-hosted server has no plan limits).
+`shorebird whoami` prints the level as is; its `--json` `plan` field maps any level but `free` to `"paid"`, which is the CLI's own mapping.
 
 `granularity` ∈ `hour|day|week`. Distinct-device counts are exact (not HLL), so
 time-bucketed series need not sum to the window total.

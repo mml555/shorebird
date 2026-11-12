@@ -222,8 +222,9 @@ void main() {
         headers: {'content-type': 'application/x-www-form-urlencoded'},
       );
       expect(r.statusCode, HttpStatus.found);
-      final code = Uri.parse(r.headers[HttpHeaders.locationHeader]!)
-          .queryParameters['code'];
+      final code = Uri.parse(
+        r.headers[HttpHeaders.locationHeader]!,
+      ).queryParameters['code'];
       expect(code, isNotNull);
 
       // And that code exchanges for a token bound to the configured identity.
@@ -253,8 +254,9 @@ void main() {
             'continue=http%3A%2F%2Flocalhost%3A1234%2Fcb&api_key=${other.key}',
         headers: {'content-type': 'application/x-www-form-urlencoded'},
       );
-      final code = Uri.parse(r.headers[HttpHeaders.locationHeader]!)
-          .queryParameters['code'];
+      final code = Uri.parse(
+        r.headers[HttpHeaders.locationHeader]!,
+      ).queryParameters['code'];
       final tok = await jsonOf(
         await send(
           'POST',
@@ -1231,8 +1233,9 @@ void main() {
           bearer: _bootstrapKey,
         ),
       );
-      final size = Uri.parse(urls['download_url'] as String)
-          .queryParameters['size'];
+      final size = Uri.parse(
+        urls['download_url'] as String,
+      ).queryParameters['size'];
       expect(size, '16000000');
 
       final r = await send('GET', '/diagnostics/speedtest?size=$size');
@@ -1315,9 +1318,9 @@ void main() {
         ),
       );
       await send('GET', '/diagnostics/speedtest?size=1');
-      final buckets = (await repo.db.query('SELECT bucket FROM rate_limits'))
-          .map((r) => r['bucket'])
-          .toList();
+      final buckets = (await repo.db.query(
+        'SELECT bucket FROM rate_limits',
+      )).map((r) => r['bucket']).toList();
       expect(buckets, contains(startsWith('speed:')));
     });
 
@@ -1397,20 +1400,23 @@ void main() {
       expect(r.statusCode, HttpStatus.requestEntityTooLarge);
     });
 
-    test('a missing required field is a 400 and leaves the patch alone', () async {
-      // WAS: `fields['arch']!` threw a null-check error -> 500 + logged stack,
-      // and the patch had already been moved to `uploading`, where
-      // `patches/check` will not serve it and no request remains to finish it.
-      final p = await patch();
-      final before = (await repo.patch(p.patchId))!.status;
-      final r = await upload(
-        p.appId,
-        p.patchId,
-        '${part('platform', 'android')}--B--\r\n',
-      );
-      expect(r.statusCode, HttpStatus.badRequest);
-      expect((await repo.patch(p.patchId))!.status, before);
-    });
+    test(
+      'a missing required field is a 400 and leaves the patch alone',
+      () async {
+        // WAS: `fields['arch']!` threw a null-check error -> 500 + logged stack,
+        // and the patch had already been moved to `uploading`, where
+        // `patches/check` will not serve it and no request remains to finish it.
+        final p = await patch();
+        final before = (await repo.patch(p.patchId))!.status;
+        final r = await upload(
+          p.appId,
+          p.patchId,
+          '${part('platform', 'android')}--B--\r\n',
+        );
+        expect(r.statusCode, HttpStatus.badRequest);
+        expect((await repo.patch(p.patchId))!.status, before);
+      },
+    );
 
     test('a normal registration still works', () async {
       final p = await patch();
@@ -1672,8 +1678,9 @@ void main() {
             'continue=http%3A%2F%2Flocalhost%3A1234%2Fcb&api_key=$_bootstrapKey',
         headers: {'content-type': 'application/x-www-form-urlencoded'},
       );
-      final code = Uri.parse(redirect.headers[HttpHeaders.locationHeader]!)
-          .queryParameters['code'];
+      final code = Uri.parse(
+        redirect.headers[HttpHeaders.locationHeader]!,
+      ).queryParameters['code'];
       final tok = await jsonOf(
         await send(
           'POST',
@@ -1722,21 +1729,24 @@ void main() {
       expect(r.statusCode, HttpStatus.badRequest);
     });
 
-    test('a member role change with no role is rejected, not defaulted', () async {
-      // `_validRole` defaults to `developer` where "unspecified" is meaningful
-      // (create an invitation, add a collaborator). On an update it must not:
-      // a mistyped parameter name would read as a silent demotion.
-      final user = await repo.upsertUser('member@example.test', null);
-      await repo.setMemberRole(1, user.id, 'admin');
-      for (final query in ['', '?roles=admin', '?role=']) {
-        final r = await send(
-          'PATCH',
-          '/admin/orgs/1/members/${user.id}$query',
-          bearer: _bootstrapKey,
-        );
-        expect(r.statusCode, HttpStatus.badRequest, reason: query);
-      }
-    });
+    test(
+      'a member role change with no role is rejected, not defaulted',
+      () async {
+        // `_validRole` defaults to `developer` where "unspecified" is meaningful
+        // (create an invitation, add a collaborator). On an update it must not:
+        // a mistyped parameter name would read as a silent demotion.
+        final user = await repo.upsertUser('member@example.test', null);
+        await repo.setMemberRole(1, user.id, 'admin');
+        for (final query in ['', '?roles=admin', '?role=']) {
+          final r = await send(
+            'PATCH',
+            '/admin/orgs/1/members/${user.id}$query',
+            bearer: _bootstrapKey,
+          );
+          expect(r.statusCode, HttpStatus.badRequest, reason: query);
+        }
+      },
+    );
 
     test('the last owner/admin of an org cannot be demoted', () async {
       // Otherwise nobody can invite, manage members, or (for the root org)
@@ -2275,27 +2285,30 @@ void main() {
       },
     );
 
-    test('multipart: a failure after another request verified is a no-op', () async {
-      // Two requests share a token and a storage key. B verifies while A's put
-      // is failing; A's cleanup must not demote the artifact or delete B's
-      // object.
-      final store = flakyApi();
-      final r = await registered();
-      final art = (await repo.artifactByToken(r.token))!;
-      store.beforeFailure = () async {
-        await store.put(art.storageKey, utf8.encode('abc'));
-        await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
-      };
-      store.failNextPut = true;
+    test(
+      'multipart: a failure after another request verified is a no-op',
+      () async {
+        // Two requests share a token and a storage key. B verifies while A's put
+        // is failing; A's cleanup must not demote the artifact or delete B's
+        // object.
+        final store = flakyApi();
+        final r = await registered();
+        final art = (await repo.artifactByToken(r.token))!;
+        store.beforeFailure = () async {
+          await store.put(art.storageKey, utf8.encode('abc'));
+          await repo.setArtifactStatus(art.id, ArtifactStatus.verified);
+        };
+        store.failNextPut = true;
 
-      final failed = await uploadBody(r.token);
-      expect(failed.statusCode, greaterThanOrEqualTo(500));
-      expect(
-        (await repo.artifactByToken(r.token))!.status,
-        ArtifactStatus.verified,
-      );
-      expect(await store.exists(art.storageKey), isTrue);
-    });
+        final failed = await uploadBody(r.token);
+        expect(failed.statusCode, greaterThanOrEqualTo(500));
+        expect(
+          (await repo.artifactByToken(r.token))!.status,
+          ArtifactStatus.verified,
+        );
+        expect(await store.exists(art.storageKey), isTrue);
+      },
+    );
 
     test(
       'multipart: a second request with a claimed token conflicts',
@@ -2737,11 +2750,12 @@ void main() {
     Future<void> seedEvents(String appId) async {
       final now = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
       var n = 0;
-      for (final (client, type, version) in [
-        ('c1', '__patch_download__', '1.0.0'),
-        ('c1', '__patch_install__', '1.0.0'),
-        ('c2', '__patch_install__', '1.0.0'),
-        ('c3', '__patch_install__', '2.0.0'),
+      for (final (client, type, version, platform) in [
+        ('c1', '__patch_download__', '1.0.0', 'android'),
+        ('c1', '__patch_install__', '1.0.0', 'android'),
+        ('c2', '__patch_install__', '1.0.0', 'android'),
+        ('c3', '__patch_install__', '2.0.0', 'android'),
+        ('c4', '__patch_install__', '1.0.0', 'ios'),
       ]) {
         await repo.insertEvent(
           raw: '{}',
@@ -2750,7 +2764,7 @@ void main() {
           clientId: client,
           type: type,
           patchNumber: 1,
-          platform: 'android',
+          platform: platform,
           releaseVersion: version,
           ts: now - 3600,
         );
@@ -2776,7 +2790,7 @@ void main() {
       final ok = await jsonOf(
         await send('GET', '/api/v1/plan', bearer: _bootstrapKey),
       );
-      expect(ok['level'], 'enterprise');
+      expect(ok['level'], 'self_hosted');
 
       final anon = await send('GET', '/api/v1/plan');
       expect(anon.statusCode, isNot(HttpStatus.ok));
@@ -2788,7 +2802,7 @@ void main() {
       final app = await seedApp();
       await seedEvents(app.appId);
       for (final (name, count) in [
-        ('patch-installs', 3),
+        ('patch-installs', 4),
         ('patch-downloads', 1),
       ]) {
         final body = await getJson(
@@ -2813,7 +2827,7 @@ void main() {
         '/api/v1/apps/${app.appId}/metrics/patch-installs'
         '?start=${iso(now.subtract(const Duration(days: 2)))}&end=${iso(now)}',
       );
-      expect((inWindow['current'] as Map)['count'], 3);
+      expect((inWindow['current'] as Map)['count'], 4);
       final before = await getJson(
         '/api/v1/apps/${app.appId}/metrics/patch-installs'
         '?start=${iso(now.subtract(const Duration(days: 9)))}'
@@ -2837,7 +2851,7 @@ void main() {
       );
       expectKeys(body, ['as_of', 'granularity', 'current', 'previous']);
       final cur = body['current'] as Map<String, dynamic>;
-      expect(cur['unique_users'], 3);
+      expect(cur['unique_users'], 4);
       expect(cur['breakdown'], isA<List<Object?>>());
     });
 
@@ -2853,7 +2867,7 @@ void main() {
         'active_window_days',
         'as_of',
       ]);
-      expect(body['total_devices'], 3);
+      expect(body['total_devices'], 4);
     });
 
     test('new-devices', () async {
@@ -2863,7 +2877,7 @@ void main() {
         '/api/v1/apps/${app.appId}/metrics/new-devices',
       );
       expectKeys(body, ['current', 'previous', 'window_days', 'as_of']);
-      expect(body['current'], 3);
+      expect(body['current'], 4);
     });
 
     test('patch-adoption', () async {
@@ -2931,14 +2945,14 @@ void main() {
       final body = await getJson(
         '/api/v1/apps/${app.appId}/analytics/patch-installs',
       );
-      expect((body['current'] as Map)['count'], 3);
+      expect((body['current'] as Map)['count'], 4);
     });
 
     test('release-scoped patch installs and downloads', () async {
       final app = await seedApp(); // release 1.0.0
       await seedEvents(app.appId);
       for (final (name, count) in [
-        ('patch-installs', 2),
+        ('patch-installs', 3),
         ('patch-downloads', 1),
       ]) {
         final body = await getJson(
@@ -2947,10 +2961,166 @@ void main() {
         );
         expectKeys(body, ['as_of', 'granularity', 'current', 'previous']);
         final cur = body['current'] as Map<String, dynamic>;
-        // The 2.0.0 install is not counted.
+        // iOS and Android events merge under one version; 2.0.0 is not counted.
         expect(cur['count'], count);
         expect(cur['breakdown'], isA<List<Object?>>());
       }
+    });
+
+    test(
+      'start alone runs to now, end alone covers the 28 days before it',
+      () async {
+        final app = await seedApp();
+        await seedEvents(app.appId);
+        final now = DateTime.now().toUtc();
+        String iso(DateTime d) => Uri.encodeQueryComponent(d.toIso8601String());
+        final startOnly = await getJson(
+          '/api/v1/apps/${app.appId}/metrics/patch-installs'
+          '?start=${iso(now.subtract(const Duration(days: 2)))}',
+        );
+        expect((startOnly['current'] as Map)['count'], 4);
+        final endOnly = await getJson(
+          '/api/v1/apps/${app.appId}/metrics/patch-installs'
+          '?end=${iso(now.add(const Duration(hours: 1)))}',
+        );
+        final range = (endOnly['current'] as Map)['range'] as Map;
+        final span = DateTime.parse(
+          range['end'] as String,
+        ).difference(DateTime.parse(range['start'] as String));
+        expect(span, const Duration(days: 28));
+        expect((endOnly['current'] as Map)['count'], 4);
+      },
+    );
+
+    test(
+      'previous is the same length just before, null before the data',
+      () async {
+        final app = await seedApp();
+        await seedEvents(app.appId);
+        final now = DateTime.now().toUtc();
+        String iso(DateTime d) => Uri.encodeQueryComponent(d.toIso8601String());
+        // The events are an hour old, so a window from 2 days ago starts after
+        // the data floor only if the previous window does too.
+        final none = await getJson(
+          '/api/v1/apps/${app.appId}/metrics/patch-installs'
+          '?start=${iso(now.subtract(const Duration(days: 2)))}',
+        );
+        expect(none['previous'], isNull);
+        expect(none.containsKey('previous'), isTrue);
+        // A 10 minute window: the previous one (10 minutes before it) is after
+        // the data floor (events are an hour old), so it is present, empty and
+        // as long as the current one.
+        final recent = await getJson(
+          '/api/v1/apps/${app.appId}/metrics/patch-installs'
+          '?start=${iso(now.subtract(const Duration(minutes: 10)))}',
+        );
+        final cur = recent['current'] as Map;
+        final prev = recent['previous'] as Map;
+        expect(cur['count'], 0);
+        expect(prev['count'], 0);
+        Duration len(Map w) => DateTime.parse(
+          (w['range'] as Map)['end'] as String,
+        ).difference(DateTime.parse((w['range'] as Map)['start'] as String));
+        expect(len(prev), len(cur));
+        expect((prev['range'] as Map)['end'], (cur['range'] as Map)['start']);
+      },
+    );
+
+    test(
+      'a future start, or a window that is not positive, is a 400',
+      () async {
+        final app = await seedApp();
+        final now = DateTime.now().toUtc();
+        String iso(DateTime d) => Uri.encodeQueryComponent(d.toIso8601String());
+        for (final q in [
+          'start=${iso(now.add(const Duration(days: 1)))}',
+          'end=${iso(now.subtract(const Duration(days: 40)))}'
+              '&start=${iso(now.subtract(const Duration(days: 40)))}',
+        ]) {
+          final r = await send(
+            'GET',
+            '/api/v1/apps/${app.appId}/metrics/unique-users?$q',
+            bearer: _bootstrapKey,
+          );
+          expect(r.statusCode, HttpStatus.badRequest, reason: q);
+        }
+      },
+    );
+
+    test('a timestamp with no offset is UTC; an offset is honored', () async {
+      final app = await seedApp();
+      final now = DateTime.now().toUtc();
+      String naive(DateTime d) =>
+          d.toIso8601String().replaceFirst(RegExp(r'Z$'), '');
+      Future<DateTime> rangeStart(String start) async {
+        final body = await getJson(
+          '/api/v1/apps/${app.appId}/metrics/patch-installs'
+          '?start=${Uri.encodeQueryComponent(start)}',
+        );
+        final range = (body['current'] as Map)['range'] as Map;
+        return DateTime.parse(range['start'] as String);
+      }
+
+      final from = now.subtract(const Duration(days: 3));
+      final got = await rangeStart(naive(from));
+      expect(got.difference(from).abs(), lessThan(const Duration(seconds: 1)));
+      // The same instant written at +05:00.
+      final plus5 = from.add(const Duration(hours: 5));
+      final offset = '${naive(plus5)}+05:00';
+      final got5 = await rangeStart(offset);
+      expect(got5.difference(from).abs(), lessThan(const Duration(seconds: 1)));
+    });
+
+    test('the span and window_days are capped at 366 days', () async {
+      final app = await seedApp();
+      final now = DateTime.now().toUtc();
+      String iso(DateTime d) => Uri.encodeQueryComponent(d.toIso8601String());
+      for (final q in [
+        'start=${iso(now.subtract(const Duration(days: 400)))}',
+        'window_days=367',
+        'window_days=99999999999',
+        'window_days=0',
+        'window_days=abc',
+      ]) {
+        final r = await send(
+          'GET',
+          '/api/v1/apps/${app.appId}/metrics/patch-downloads?$q',
+          bearer: _bootstrapKey,
+        );
+        expect(r.statusCode, HttpStatus.badRequest, reason: q);
+      }
+      final ok = await send(
+        'GET',
+        '/api/v1/apps/${app.appId}/metrics/patch-downloads?window_days=366',
+        bearer: _bootstrapKey,
+      );
+      expect(ok.statusCode, HttpStatus.ok);
+    });
+
+    test('the console analytics routes stay lenient', () async {
+      final app = await seedApp();
+      await seedEvents(app.appId);
+      // unique-users and patch-installs ignored start/end here before, and
+      // still do (a malformed or inverted window is not an error).
+      for (final name in ['unique-users', 'patch-installs']) {
+        final r = await send(
+          'GET',
+          '/api/v1/apps/${app.appId}/analytics/$name'
+              '?start=oops&end=2000-01-01&window_days=99999',
+          bearer: _bootstrapKey,
+        );
+        expect(r.statusCode, HttpStatus.ok, reason: name);
+      }
+    });
+
+    test('a non-numeric release id is a 400', () async {
+      final app = await seedApp();
+      final r = await send(
+        'GET',
+        '/api/v1/apps/${app.appId}/releases/abc/metrics/patch-installs',
+        bearer: _bootstrapKey,
+      );
+      expect(r.statusCode, HttpStatus.badRequest);
     });
 
     test('a release of another app is a 404', () async {
@@ -3789,87 +3959,90 @@ void main() {
   // different tracks and each device follows only its own. This pins the
   // behavior upstream shorebirdtech/shorebird#1443 and #3776 ask for.
   group('independent live patches per track', () {
-    test('each track serves its own patch, and promotion is per track', () async {
-      final s = await seedApp();
-      final appId = s.appId;
+    test(
+      'each track serves its own patch, and promotion is per track',
+      () async {
+        final s = await seedApp();
+        final appId = s.appId;
 
-      Future<int> readyPatch() async {
-        final p = await jsonOf(
-          await send(
+        Future<int> readyPatch() async {
+          final p = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/apps/$appId/patches',
+              bearer: _bootstrapKey,
+              json: {'release_id': s.releaseId},
+            ),
+          );
+          final id = p['id'] as int;
+          await uploadPatchArtifact(appId, id);
+          return id;
+        }
+
+        Future<int> channel(String name) async {
+          final c = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/apps/$appId/channels',
+              bearer: _bootstrapKey,
+              json: {'channel': name},
+            ),
+          );
+          return c['id'] as int;
+        }
+
+        Future<void> promote(int patchId, int channelId) async {
+          final r = await send(
             'POST',
-            '/api/v1/apps/$appId/patches',
+            '/api/v1/apps/$appId/patches/promote',
             bearer: _bootstrapKey,
-            json: {'release_id': s.releaseId},
-          ),
-        );
-        final id = p['id'] as int;
-        await uploadPatchArtifact(appId, id);
-        return id;
-      }
+            json: {'patch_id': patchId, 'channel_id': channelId},
+          );
+          expect(r.statusCode, HttpStatus.noContent);
+        }
 
-      Future<int> channel(String name) async {
-        final c = await jsonOf(
-          await send(
-            'POST',
-            '/api/v1/apps/$appId/channels',
-            bearer: _bootstrapKey,
-            json: {'channel': name},
-          ),
-        );
-        return c['id'] as int;
-      }
+        /// What a device on [track] is told to install.
+        Future<int?> check(String track) async {
+          final r = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/patches/check',
+              json: {
+                'app_id': appId,
+                'release_version': '1.0.0',
+                'platform': 'android',
+                'arch': 'aarch64',
+                'channel': track,
+                'client_id': 'device-on-$track',
+                'patch_number': 0,
+              },
+            ),
+          );
+          final patch = r['patch'];
+          return patch == null ? null : (patch as Map)['number'] as int?;
+        }
 
-      Future<void> promote(int patchId, int channelId) async {
-        final r = await send(
-          'POST',
-          '/api/v1/apps/$appId/patches/promote',
-          bearer: _bootstrapKey,
-          json: {'patch_id': patchId, 'channel_id': channelId},
-        );
-        expect(r.statusCode, HttpStatus.noContent);
-      }
+        final internal = await channel('internal');
+        final patch1 = await readyPatch();
+        final patch2 = await readyPatch();
 
-      /// What a device on [track] is told to install.
-      Future<int?> check(String track) async {
-        final r = await jsonOf(
-          await send(
-            'POST',
-            '/api/v1/patches/check',
-            json: {
-              'app_id': appId,
-              'release_version': '1.0.0',
-              'platform': 'android',
-              'arch': 'aarch64',
-              'channel': track,
-              'client_id': 'device-on-$track',
-              'patch_number': 0,
-            },
-          ),
-        );
-        final patch = r['patch'];
-        return patch == null ? null : (patch as Map)['number'] as int?;
-      }
+        // The high-volume internal track gets both patches in turn; stable, the
+        // curated track, is still serving nothing.
+        await promote(patch1, internal);
+        expect(await check('internal'), 1);
+        expect(await check('stable'), isNull);
 
-      final internal = await channel('internal');
-      final patch1 = await readyPatch();
-      final patch2 = await readyPatch();
+        await promote(patch2, internal);
+        expect(await check('internal'), 2);
+        expect(await check('stable'), isNull);
 
-      // The high-volume internal track gets both patches in turn; stable, the
-      // curated track, is still serving nothing.
-      await promote(patch1, internal);
-      expect(await check('internal'), 1);
-      expect(await check('stable'), isNull);
-
-      await promote(patch2, internal);
-      expect(await check('internal'), 2);
-      expect(await check('stable'), isNull);
-
-      // Curated promotion: only the vetted patch #1 graduates to stable, while
-      // internal stays ahead on #2. Both are live simultaneously.
-      await promote(patch1, s.channelId);
-      expect(await check('stable'), 1);
-      expect(await check('internal'), 2);
-    });
+        // Curated promotion: only the vetted patch #1 graduates to stable, while
+        // internal stays ahead on #2. Both are live simultaneously.
+        await promote(patch1, s.channelId);
+        expect(await check('stable'), 1);
+        expect(await check('internal'), 2);
+      },
+    );
 
     // The named tracks §6 lists by name. The code path is generic — channels are
     // get-or-create by name (`api.dart:1550` `_createChannel`) — and the test
@@ -3885,98 +4058,101 @@ void main() {
     // another — and because a patch can be live on two tracks at once, the verb
     // is ADD, not move. If this half ever fails, stop and re-read the query
     // rather than editing the expectation.
-    test('named tracks are independent, and promotion adds rather than moves', () async {
-      final s = await seedApp();
-      final appId = s.appId;
+    test(
+      'named tracks are independent, and promotion adds rather than moves',
+      () async {
+        final s = await seedApp();
+        final appId = s.appId;
 
-      Future<int> readyPatch() async {
-        final p = await jsonOf(
-          await send(
+        Future<int> readyPatch() async {
+          final p = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/apps/$appId/patches',
+              bearer: _bootstrapKey,
+              json: {'release_id': s.releaseId},
+            ),
+          );
+          final id = p['id'] as int;
+          await uploadPatchArtifact(appId, id);
+          return id;
+        }
+
+        Future<int> channel(String name) async {
+          final c = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/apps/$appId/channels',
+              bearer: _bootstrapKey,
+              json: {'channel': name},
+            ),
+          );
+          return c['id'] as int;
+        }
+
+        Future<void> promote(int patchId, int channelId) async {
+          final r = await send(
             'POST',
-            '/api/v1/apps/$appId/patches',
+            '/api/v1/apps/$appId/patches/promote',
             bearer: _bootstrapKey,
-            json: {'release_id': s.releaseId},
-          ),
-        );
-        final id = p['id'] as int;
-        await uploadPatchArtifact(appId, id);
-        return id;
-      }
+            json: {'patch_id': patchId, 'channel_id': channelId},
+          );
+          expect(r.statusCode, HttpStatus.noContent);
+        }
 
-      Future<int> channel(String name) async {
-        final c = await jsonOf(
-          await send(
-            'POST',
-            '/api/v1/apps/$appId/channels',
-            bearer: _bootstrapKey,
-            json: {'channel': name},
-          ),
-        );
-        return c['id'] as int;
-      }
+        /// What a device on [track] is told to install. `client_id` varies per
+        /// track because `eligibleForRollout` buckets on it (`rollout.dart:19`)
+        /// and fails closed without one.
+        Future<int?> check(String track) async {
+          final r = await jsonOf(
+            await send(
+              'POST',
+              '/api/v1/patches/check',
+              json: {
+                'app_id': appId,
+                'release_version': '1.0.0',
+                'platform': 'android',
+                'arch': 'aarch64',
+                'channel': track,
+                'client_id': 'device-on-$track',
+                'patch_number': 0,
+              },
+            ),
+          );
+          final patch = r['patch'];
+          return patch == null ? null : (patch as Map)['number'] as int?;
+        }
 
-      Future<void> promote(int patchId, int channelId) async {
-        final r = await send(
-          'POST',
-          '/api/v1/apps/$appId/patches/promote',
-          bearer: _bootstrapKey,
-          json: {'patch_id': patchId, 'channel_id': channelId},
-        );
-        expect(r.statusCode, HttpStatus.noContent);
-      }
+        final beta = await channel('beta');
+        final staging = await channel('staging');
+        final patch1 = await readyPatch();
+        final patch2 = await readyPatch();
+        final patch3 = await readyPatch();
 
-      /// What a device on [track] is told to install. `client_id` varies per
-      /// track because `eligibleForRollout` buckets on it (`rollout.dart:19`)
-      /// and fails closed without one.
-      Future<int?> check(String track) async {
-        final r = await jsonOf(
-          await send(
-            'POST',
-            '/api/v1/patches/check',
-            json: {
-              'app_id': appId,
-              'release_version': '1.0.0',
-              'platform': 'android',
-              'arch': 'aarch64',
-              'channel': track,
-              'client_id': 'device-on-$track',
-              'patch_number': 0,
-            },
-          ),
-        );
-        final patch = r['patch'];
-        return patch == null ? null : (patch as Map)['number'] as int?;
-      }
+        // Three named tracks, three different patches, all live at once.
+        await promote(patch1, beta);
+        await promote(patch2, staging);
+        await promote(patch3, s.channelId);
 
-      final beta = await channel('beta');
-      final staging = await channel('staging');
-      final patch1 = await readyPatch();
-      final patch2 = await readyPatch();
-      final patch3 = await readyPatch();
+        expect(await check('beta'), 1);
+        expect(await check('staging'), 2);
+        expect(await check('stable'), 3);
 
-      // Three named tracks, three different patches, all live at once.
-      await promote(patch1, beta);
-      await promote(patch2, staging);
-      await promote(patch3, s.channelId);
+        // A device asking for a track nobody promoted onto gets nothing — not
+        // stable's patch by accident, which is the failure that would make every
+        // assertion above meaningless.
+        expect(await check('canary'), isNull);
 
-      expect(await check('beta'), 1);
-      expect(await check('staging'), 2);
-      expect(await check('stable'), 3);
+        // Promote staging's patch onto beta as well. Two things must hold: beta
+        // supersedes its OWN previous patch, and staging keeps serving patch2
+        // because the same patch is now live on two tracks simultaneously.
+        await promote(patch2, beta);
 
-      // A device asking for a track nobody promoted onto gets nothing — not
-      // stable's patch by accident, which is the failure that would make every
-      // assertion above meaningless.
-      expect(await check('canary'), isNull);
-
-      // Promote staging's patch onto beta as well. Two things must hold: beta
-      // supersedes its OWN previous patch, and staging keeps serving patch2
-      // because the same patch is now live on two tracks simultaneously.
-      await promote(patch2, beta);
-
-      expect(await check('beta'), 2);
-      expect(await check('staging'), 2);
-      expect(await check('stable'), 3);
-    });
+        expect(await check('beta'), 2);
+        expect(await check('staging'), 2);
+        expect(await check('stable'), 3);
+      },
+    );
 
     // The `channel` field is what `shorebird patches list` prints as the track
     // and `patches info` shows as "Track:". It was hardcoded null, so a patch
@@ -4740,8 +4916,9 @@ void main() {
       // Either way the property a log parser depends on is the same: one
       // request cannot produce two lines.
       final forged = loggedRequestPath(
-        Uri.parse('selfhost-beacon/state')
-            .replace(query: 'param=a\nGET /admin -> 200 (0ms)'),
+        Uri.parse(
+          'selfhost-beacon/state',
+        ).replace(query: 'param=a\nGET /admin -> 200 (0ms)'),
       );
       expect(forged, isNot(contains('\n')));
       expect(forged, contains('%0A'));

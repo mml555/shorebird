@@ -11,12 +11,16 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - **`shorebird whoami` and `shorebird metrics` work.** `GET /api/v1/plan` answers
-  `{"level": "enterprise"}` (no plan limits), so `whoami` no longer fails with
+  `{"level": "self_hosted"}` (no plan limits), so `whoami` no longer fails with
   "Failed to fetch account.". The metrics commands' `apps/{app}/metrics/{name}`
   routes reach the same handlers as `apps/{app}/analytics/{name}` (which the
-  console keeps using), with `start`/`end` windows for unique users and patch
-  installs/downloads, plus release-scoped
+  console keeps using, unchanged), plus release-scoped
   `apps/{app}/releases/{release}/metrics/patch-installs|patch-downloads`.
+  - On the `metrics/` routes, patch-adoption, unique-users and patch
+    installs/downloads take `start`/`end` (offset-less times are UTC). `end`
+    defaults to now and `start` to 28 days before `end`, the CLI's documented
+    span. A window that is not positive, or a span or `window_days` over 366
+    days, is a 400. patch-adoption's `start`/`end` on `analytics/` are as before.
 
 ### Changed
 
