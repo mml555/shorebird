@@ -134,10 +134,14 @@ updater logged "no active patch" and the app **reverted to the base code**
 Withdraw *without* rollback (number NOT in the list) simply stops offering the
 patch to new checks — already-installed devices keep running it.
 
-Restoring the prior patch (#138; device-verified 2026-11-12 on a pool emulator,
-run [43300439389](https://github.com/mml555/shorebird/actions/runs/43300439389),
-scenarios 4 and 4b of `selfhost/ci/android_pool_e2e.sh`): when patch 2 boots, `cleanup_older_than(2)` deletes patch 1's
-directory and state, so patch 1 is unknown to the device. The updater has no
+Restoring the prior patch (#138). Outcome device-verified on 2026-11-12 on a
+pool emulator, run
+[43300439389](https://github.com/mml555/shorebird/actions/runs/43300439389),
+scenarios 4 and 4b of `selfhost/ci/android_pool_e2e.sh`: after patch 2 is
+rolled back the phone downloads patch 1 again and runs it, and rolling back
+patch 1 then leaves the base release. The mechanism below is read from
+`vendor/updater`, not observed on the device: when patch 2 boots,
+`cleanup_older_than(2)` deletes patch 1's directory and state, so patch 1 is unknown to the device. The updater has no
 rule against a lower number than the one it last booted: `update_internal`
 applies `rolled_back_patch_numbers` first (`uninstall_patch(2)` also clears
 `last_booted_patch`), then `decide_start(1, ..)` sees no state and returns
