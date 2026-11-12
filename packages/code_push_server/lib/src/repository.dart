@@ -1675,7 +1675,11 @@ class Repository {
   /// patches on the channel (stop serving them — not a rollback) and activate
   /// this one.
   ///
-  /// Supersession is scoped **per platform**. The Shorebird CLI creates one
+  /// Supersession is scoped to the incoming patch's **release**: a channel can
+  /// carry several live releases, and promoting a patch of one never withdraws
+  /// another's.
+  ///
+  /// Supersession is also scoped **per platform**. The Shorebird CLI creates one
   /// patch per platform — `--platforms=android,ios` publishes TWO patches — so
   /// withdrawing every other active patch made the last-promoted platform evict
   /// the other, and those devices silently fell back to no patch. A channel
@@ -1707,6 +1711,13 @@ class Repository {
       // nothing; that is the intended reading (it can serve no device), and
       // promote is only reachable for a `ready` patch, which by definition has
       // verified artifacts.
+      // Only patches of the incoming patch's own release: numbers and
+      // platforms mean something per release, and a channel can carry several
+      // live releases. No reference to the outer row.
+      'AND patch_id IN ('
+      '  SELECT id FROM patches WHERE release_id = '
+      '    (SELECT release_id FROM patches WHERE id = @p)'
+      ') '
       'AND patch_id IN ('
       '  SELECT DISTINCT a.owner_id FROM artifacts a'
       "  WHERE a.owner_kind = 'patch' AND NOT EXISTS ("
@@ -1737,19 +1748,24 @@ class Repository {
     );
   });
 
-  /// Newest active patch on [channelId]. When [platform] is given, only
-  /// considers patches that actually carry an artifact for it.
+  /// Newest active patch of [releaseId] on [channelId]. Required: patch
+  /// numbers are per release, so a newer release's patch 3 must not outrank this
+  /// release's patch 1, and a caller that forgot the release would bring that
+  /// bug back. When [platform] is given, only considers patches that actually carry an
+  /// artifact for it.
   ///
   /// The platform filter matters because a channel can hold one active patch
   /// per platform (see [promote]); picking the globally-newest active patch
   /// would hand an Android device an iOS-only patch and serve it nothing.
   Future<ChannelPatchRow?> activeChannelPatch(
     int channelId, {
+    required int releaseId,
     String? platform,
   }) async {
     final r = await _q(
       'SELECT cp.* FROM channel_patches cp JOIN patches p ON p.id = cp.patch_id '
       'WHERE cp.channel_id = @c AND cp.status = @s '
+      'AND p.release_id = @rel '
       '${platform == null ? '' : 'AND EXISTS ('
                 '  SELECT 1 FROM artifacts a'
                 "  WHERE a.owner_kind = 'patch' AND a.owner_id = cp.patch_id"
@@ -1759,6 +1775,7 @@ class Repository {
       {
         'c': channelId,
         's': ChannelPatchStatus.active.name,
+        'rel': releaseId,
         if (platform != null) 'plat': platform,
       },
     );
@@ -1777,11 +1794,13 @@ class Repository {
   /// deliberately and must never be served again.
   Future<List<ChannelPatchRow>> supersededChannelPatches(
     int channelId, {
+    required int releaseId,
     String? platform,
   }) async {
     final r = await _q(
       'SELECT cp.* FROM channel_patches cp JOIN patches p ON p.id = cp.patch_id '
       'WHERE cp.channel_id = @c AND cp.status = @s AND cp.rolled_back = false '
+      'AND p.release_id = @rel '
       '${platform == null ? '' : 'AND EXISTS ('
                 '  SELECT 1 FROM artifacts a'
                 "  WHERE a.owner_kind = 'patch' AND a.owner_id = cp.patch_id"
@@ -1791,6 +1810,7 @@ class Repository {
       {
         'c': channelId,
         's': ChannelPatchStatus.withdrawn.name,
+        'rel': releaseId,
         if (platform != null) 'plat': platform,
       },
     );

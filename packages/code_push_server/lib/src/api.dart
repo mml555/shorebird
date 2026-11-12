@@ -3348,6 +3348,7 @@ class Api {
     // iOS-only (and vice versa).
     final active = await repo.activeChannelPatch(
       channel.id,
+      releaseId: release.id,
       platform: platform,
     );
     if (active == null) return _json(resp(rolledBack: rolledBack));
@@ -3463,6 +3464,7 @@ class Api {
   }) async {
     final candidates = await repo.supersededChannelPatches(
       channelId,
+      releaseId: releaseId,
       platform: platform,
     );
     for (final candidate in candidates) {
