@@ -46,9 +46,10 @@ maintainer approves it. Everything below limits the damage if an approved job is
   belongs to its own runner unit's cgroup. Host services (anything the owner starts at
   any time), other runners and processes outside the unit are unreachable. This is
   checked per connection, not from a list that can go stale; see the comment at the top
-  of `bin/gha-egress-apply`. The exceptions are the ports in `HOST_SERVICE_PORTS` on
-  `127.0.0.1`/`10.0.2.2`, for the Android e2e job: the device pool (`qa-pool` API 5550,
-  the phones' console and adb relays 5600-5605) and the CDN mirror (8085).
+  of `bin/gha-egress-apply`. The exceptions, for the Android e2e job, are the device
+  pool on `127.0.0.1` (`qa-pool` API 5550, the phones' adb relays 5601/5603/5605) and the
+  CDN mirror (8085, on `127.0.0.1` and `10.0.2.2`). A listener a runner opens on one of
+  those ports is still dropped, so a job can't pose as one of them.
 
 ### Accepted risks
 
@@ -73,11 +74,19 @@ back, add it as below.
 
 | the registry cache on `127.0.0.1:5000` | image pulls | the cache runs as root and fetches any public path on `registry-1.docker.io` for any job (an arbitrary public image, or data encoded in an image name). It is not on the allowlist, but it is not closed either |
 
-Also accepted: any job can use the device pool and read the mirror. The mirror is
-public anyway. A job can check out a phone (it is reset to its snapshot on release),
-renew or release only what it checked out (qa-pool ties a lease to its owner and
-address), and can't use qa-pool's admin actions without its token. A job that holds a
-phone can install and run anything on it, which is the point.
+Also accepted, with the device pool and mirror open to jobs (runners only run this
+repo's workflows, and PRs from forks wait for the owner's approval):
+
+- **qa-pool trusts local callers.** For a caller on `127.0.0.1` the owner name is the
+  only check, and `GET /status` lists every owner. So a job can renew, release or change
+  the network of any phone's lease, including one the owner's other projects hold. A
+  per-caller secret in qa-pool would close this; it is not in this repo.
+- **adb has no authentication.** A job can drive any pool phone over its relay, held or
+  not, and a phone's own network (slirp) reaches qa-devices and the home LAN without
+  this allowlist.
+- **The mirror fetches what it is asked for.** Any `storage.googleapis.com` path it
+  proxies is cached for a year, so a job can pull public objects through it and grow its
+  disk. It has no write path.
 
 Also accepted: nftables does not cover Unix sockets. Abstract-namespace sockets belong to
 the network namespace, which jobs share with the host (dockerd runs in it). Today

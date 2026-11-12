@@ -6,9 +6,10 @@
 #     (GHA_PORT_RANGE), 6379/5432 (service containers), and the ephemeral range
 #     (job-local test servers), but ONLY when the listener belongs to the user's own
 #     runner unit (see below)
-#   - the host services in HOST_SERVICE_PORTS on loopback, whoever owns the listener:
-#     the device pool (qa-pool API 5550 and its phones' console/adb relays 5600-5605)
-#     and the CDN mirror (8085), for the Android e2e job
+#   - a few host services on loopback, for the Android e2e job: the device pool's API
+#     (qa-pool, 127.0.0.1:5550), its phones' adb relays (127.0.0.1:5601/5603/5605) and
+#     the CDN mirror (8085, also on 10.0.2.2 for containers), but never a listener a
+#     runner opened on one of those ports
 #   - replies on connections already allowed
 # Everything else is counted, logged (rate-limited) and dropped, IPv4 and IPv6. DNS
 # is not allowed: the proxy resolves names, so a job cannot tunnel through DNS.
@@ -94,11 +95,14 @@ done
 lo_ports=$(sysctl -n net.ipv4.ip_local_port_range | tr '\t' ' ')
 eph_lo=${lo_ports% *}; eph_hi=${lo_ports#* }
 join() { local IFS=,; echo "$*"; }
-# Host services a job may use on loopback (127.0.0.1 or 10.0.2.2), although their
-# listeners are outside its runner unit: the device pool's API (qa-pool, 5550), the
-# pool phones' console and adb relays (qa-devices-relay@5600..5605), and the CDN mirror
-# (8085, read-only and public anyway). qa-pool admin actions still need its token.
-HOST_SERVICE_PORTS="${HOST_SERVICE_PORTS:-5550, 5600-5605, 8085}"
+# Host services a job may use although their listeners are outside its runner unit.
+# Fixed here, not from the environment: the device pool's API (qa-pool) and its phones'
+# adb relays (qa-devices-relay@5601/5603/5605; the console ports 5600/5602/5604 are left
+# out, the pool doesn't need them) on 127.0.0.1 only, and the CDN mirror on 127.0.0.1
+# and 10.0.2.2 (containers). See README.md for what this lets a job do.
+POOL_PORTS="5550, 5601, 5603, 5605"
+MIRROR_PORT=8085
+RUNNER_SLICE="system.slice/system-gha\\x2drunner.slice"
 
 f=$(mktemp); trap 'rm -f "$f"' EXIT
 {
@@ -112,7 +116,8 @@ f=$(mktemp); trap 'rm -f "$f"' EXIT
   # Everything else the user sends over loopback is marked; the input chain checks it.
   printf '%s\n' "${mark_rules[@]}"
   echo "    oifname \"lo\" tcp dport { 6379, 5432 } accept"
-  echo "    oifname \"lo\" tcp dport { $HOST_SERVICE_PORTS } ip daddr { 127.0.0.1, 10.0.2.2 } accept"
+  echo "    oifname \"lo\" tcp dport { $POOL_PORTS } ip daddr 127.0.0.1 accept"
+  echo "    oifname \"lo\" tcp dport $MIRROR_PORT ip daddr { 127.0.0.1, 10.0.2.2 } accept"
   for s in "${slices[@]}"; do
     # shellcheck disable=SC2086 # "uid port-range": split on purpose
     set -- $s; echo "    meta skuid $1 oifname \"lo\" tcp dport $2 accept"
@@ -128,9 +133,14 @@ f=$(mktemp); trap 'rm -f "$f"' EXIT
   echo "  }"
   echo "  chain input {"
   echo "    type filter hook input priority filter; policy accept;"
-  # Before the per-runner cgroup checks: these listeners are host services, never a
-  # runner's, so the "own listener only" rule would drop them.
-  echo "    iifname \"lo\" meta mark & 0xff000000 == 0x6a000000 tcp dport { $HOST_SERVICE_PORTS } ip daddr { 127.0.0.1, 10.0.2.2 } accept"
+  # Before the per-runner cgroup checks, which would drop these host services. A
+  # listener inside any runner unit on one of these ports is dropped first, so a job
+  # can't stand in for qa-pool, a relay or the mirror (say while a relay restarts).
+  if [[ -d "/sys/fs/cgroup/$RUNNER_SLICE" ]]; then
+    echo "    iifname \"lo\" meta mark & 0xff000000 == 0x6a000000 tcp dport { $POOL_PORTS, $MIRROR_PORT } socket cgroupv2 level 2 \"$RUNNER_SLICE\" counter drop"
+  fi
+  echo "    iifname \"lo\" meta mark & 0xff000000 == 0x6a000000 tcp dport { $POOL_PORTS } ip daddr 127.0.0.1 accept"
+  echo "    iifname \"lo\" meta mark & 0xff000000 == 0x6a000000 tcp dport $MIRROR_PORT ip daddr { 127.0.0.1, 10.0.2.2 } accept"
   printf '%s\n' "${in_rules[@]}"
   echo "  }"
   echo "}"
