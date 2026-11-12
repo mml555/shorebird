@@ -188,6 +188,10 @@ and API key.
 A plain `http://` `base_url` (a test server on your LAN, say) also needs the app
 to allow cleartext traffic, or the updater's requests fail on the device:
 `android:usesCleartextTraffic="true"` on `<application>` in Android's
-`AndroidManifest.xml` (or a network security config naming the host), and an
-App Transport Security exception for the host in iOS's `Info.plist`. A store
-build should use `https://` instead.
+`AndroidManifest.xml` (or a network security config naming the host). On iOS,
+`Info.plist` needs `NSAppTransportSecurity` > `NSAllowsLocalNetworking` (for a
+LAN address; not `NSAllowsArbitraryLoads`) and `NSLocalNetworkUsageDescription`,
+and the user must allow the Local Network prompt once per install. Both fail
+silently: the app runs and the request never arrives. The airgap fixture sets
+these; see [`fixtures/airgap_app/README.md`](fixtures/airgap_app/README.md). A
+store build should use `https://` instead.
