@@ -40,7 +40,20 @@ say "preflight (host side)"
 # iOS cell must never reach a decisive arm — see PREFLIGHT.md for why this check
 # exists rather than being a note in a file.
 # The guard runs on the HOST, which cannot resolve host.docker.internal on a Linux
-# engine; R12_HOST_CDN is the same mirror as the host reaches it.
+# engine; R12_HOST_CDN is the same mirror as the host reaches it. Only the host
+# part may differ: a different port would be a different instance (the warm :8085
+# instead of the sealed cold :8086), and the guard would vouch for the wrong one.
+port_of() {
+  local u="${1#*://}"; u="${u%%/*}"
+  if [[ "$u" == *:* ]]; then echo "${u##*:}"
+  elif [[ "$1" == https://* ]]; then echo 443
+  else echo 80; fi
+}
+if [[ -n "${R12_HOST_CDN:-}" ]]; then
+  [[ "$(port_of "$R12_HOST_CDN")" == "$(port_of "$CDN")" ]] \
+    || die "R12_HOST_CDN ($R12_HOST_CDN) and the arm's CDN ($CDN) are on different
+     ports, so they are different mirror instances. Point both at the same one."
+fi
 CDN="${R12_HOST_CDN:-$CDN}" "$HERE/../r12_revision_guard.sh" "$PRODUCER" \
   || die "producer revision refused by the guard"
 
@@ -49,7 +62,7 @@ CDN="${R12_HOST_CDN:-$CDN}" "$HERE/../r12_revision_guard.sh" "$PRODUCER" \
 # engine.version -> manifest -> every artifact by size and SHA-256. It cannot
 # live in hosted CI (it reads the gitignored overlay and the local bare mirror),
 # so this is where it runs until a self-hosted workflow exists.
-"$HERE/../bootstrap_closure_guard.sh" \
+R12_FLUTTER_REVISION="${R12_FLUTTER_REVISION:-}" "$HERE/../bootstrap_closure_guard.sh" \
   || die "owned bootstrap closure is incomplete — see the guard output above.
      Repair with r12/mirror_bootstrap_artifact.sh; do NOT move the Flutter pin."
 

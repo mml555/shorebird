@@ -22,6 +22,14 @@ ENG="${1:-69f9831c360d9152862ec3897c67fb09ae843f3b}"
 MAXIT="${MAXIT:-25}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SEALED="${R12_CDN:-http://host.docker.internal:8086}"
+
+# Discovery is only meaningful against the sealed cold instance (:8086 http,
+# :8087 https). A warm mirror would answer from cache and hide what the closure
+# is missing.
+case "$SEALED" in
+  *:8086|*:8086/*|*:8087|*:8087/*) ;;
+  *) echo "R12_CDN must be the sealed cold instance (port 8086 or 8087), got '$SEALED'" >&2; exit 1 ;;
+esac
 REPO_SHA="${R12_REPO_SHA:?set R12_REPO_SHA}"
 
 note() { printf '   %s\n' "$*"; }

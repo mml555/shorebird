@@ -17,7 +17,7 @@
 # does, which is exactly why it is not taken here.
 set -euo pipefail
 
-CDN=/Users/mendell/shorebird/selfhost/cdn
+CDN="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/cdn"
 SRC="$CDN/tls"; OUT="$CDN/tls-r12"
 
 [[ -f "$SRC/ca.key" && -f "$SRC/ca.crt" ]] \

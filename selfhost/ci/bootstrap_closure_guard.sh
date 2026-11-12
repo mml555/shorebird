@@ -26,11 +26,14 @@
 # runner could only be vacuous or permanently red.
 set -uo pipefail
 
-REPO="${REPO:-/Users/mendell/shorebird}"
-OVERLAY="${OVERLAY:-$REPO/selfhost/cdn/overlay/flutter_infra_release/flutter}"
-MIRROR="${MIRROR:-$REPO/selfhost/cdn/mirrors/flutter.git}"
+# Paths default to the checkout this script is in. Each honors the R12_* name the
+# mirror scripts write with, then the older bare name, so a writer and this guard
+# can't be pointed at different overlays or ledgers by accident.
+REPO="${R12_REPO:-${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}}"
+OVERLAY="${R12_OVERLAY:-${OVERLAY:-${R12_OVERLAY_ROOT:-$REPO/selfhost/cdn/overlay}/flutter_infra_release/flutter}}"
+MIRROR="${MIRROR:-${MIRRORS:-$REPO/selfhost/cdn/mirrors}/flutter.git}"
 COMPAT="${COMPAT:-$REPO/selfhost/compatibility.yaml}"
-LEDGER="${LEDGER:-$REPO/selfhost/evidence/r12-linux-ci/bootstrap_closure.tsv}"
+LEDGER="${R12_BOOTSTRAP_LEDGER:-${LEDGER:-${R12_LEDGER_DIR:-$REPO/selfhost/evidence/r12-linux-ci}/bootstrap_closure.tsv}}"
 
 fail=0
 ok()  { printf '  ok      %s\n' "$*"; }
@@ -39,9 +42,18 @@ die() { printf '\n  GUARD FAILED\n'; exit 1; }
 
 echo "bootstrap closure guard"
 
-rev="$(sed -nE 's/^[[:space:]]*flutter_revision:[[:space:]]*([0-9a-f]{40}).*/\1/p' "$COMPAT" | head -1)"
-[[ -n "$rev" ]] || { bad "no 40-hex flutter_revision in $COMPAT"; die; }
-ok "supported flutter_revision: $rev"
+# A candidate pin (launch.sh's R12_FLUTTER_REVISION) is checked instead of the
+# supported one, so a run on a newer pin proves that pin's closure, not the old one.
+if [[ -n "${R12_FLUTTER_REVISION:-}" ]]; then
+  rev="$R12_FLUTTER_REVISION"
+  [[ "$rev" =~ ^[0-9a-f]{40}$ ]] \
+    || { bad "R12_FLUTTER_REVISION must be a full 40-hex SHA, got '$rev'"; die; }
+  ok "candidate flutter_revision (R12_FLUTTER_REVISION): $rev"
+else
+  rev="$(sed -nE 's/^[[:space:]]*flutter_revision:[[:space:]]*([0-9a-f]{40}).*/\1/p' "$COMPAT" | head -1)"
+  [[ -n "$rev" ]] || { bad "no 40-hex flutter_revision in $COMPAT"; die; }
+  ok "supported flutter_revision: $rev"
+fi
 
 [[ -d "$MIRROR" ]] || { bad "owned Flutter mirror missing at $MIRROR"; die; }
 git -C "$MIRROR" cat-file -e "${rev}^{commit}" 2>/dev/null \
@@ -70,7 +82,7 @@ ok "owned cell exists for the supported engine"
 # A manifest with no rows for the resolved engine is the same failure as a
 # missing cell, dressed up as a pass. Refuse it explicitly.
 rows=0
-while IFS=$'\t' read -r m_eng m_art m_bytes m_sha m_src; do
+while IFS=$'\t' read -r m_eng m_art m_bytes m_sha _m_src; do
   [[ "$m_eng" == "$eng" ]] || continue
   rows=$((rows + 1))
   f="$OVERLAY/$eng/$m_art"

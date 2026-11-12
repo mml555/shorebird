@@ -11,7 +11,7 @@
 # read-only by construction — git-daemon serves fetches, never pushes.
 set -euo pipefail
 
-MIRRORS="${MIRRORS:-/Users/mendell/shorebird/selfhost/cdn/mirrors}"
+MIRRORS="${MIRRORS:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/selfhost/cdn/mirrors}"
 # Defaults are the certified 3.44.8 pin and its ref; a candidate is named
 # explicitly, and only as a full SHA (an empty pin would match an empty answer).
 PINNED="${R12_FLUTTER_REVISION:-a4a3c0d1b1b0f9975a61f446f0bfa2bbe587ce61}"

@@ -27,7 +27,7 @@ LABEL="${3:-release_patch}"
 
 # Overridable so the same script runs on another host (ci-build keeps the overlay
 # outside any checkout) and writes its ledger where the caller asks.
-REPO="${R12_REPO:-/Users/mendell/shorebird}"
+REPO="${R12_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
 OVERLAY_ROOT="${R12_OVERLAY_ROOT:-$REPO/selfhost/cdn/overlay}"
 LEDGER="${R12_LEDGER_DIR:-$REPO/selfhost/evidence/r12-linux-ci}/${LABEL}_closure.tsv"
 
