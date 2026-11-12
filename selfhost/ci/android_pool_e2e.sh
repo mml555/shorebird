@@ -15,6 +15,10 @@
 #   SHOREBIRD_ARTIFACT_ORIGIN   the CDN mirror, default http://127.0.0.1:8085
 #   E2E_POOL_OWNER              the pool reservation's owner name; make it unique
 #   E2E_WORK                    scratch directory, default $RUNNER_TEMP/sb-e2e
+#   E2E_FLUTTER_REVISION        run on this Shorebird Flutter commit instead of the
+#                               pinned one (rewrites bin/internal/flutter.version in
+#                               this checkout, so use a throwaway one), cloned from
+#                               SHOREBIRD_FLUTTER_GIT_URL
 #
 # Needs adb, java, curl, python3 and openssl on PATH. Exits non-zero, with the
 # server log and the device log tail, on any failure.
@@ -23,6 +27,8 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 POOL=${QA_POOL_URL:-http://127.0.0.1:5550}
 export SHOREBIRD_ARTIFACT_ORIGIN=${SHOREBIRD_ARTIFACT_ORIGIN:-http://127.0.0.1:8085}
+# bin/shorebird's own bootstrap (Flutter's Dart SDK) reads this one.
+export SHOREBIRD_DOWNLOAD_URL=${SHOREBIRD_DOWNLOAD_URL:-$SHOREBIRD_ARTIFACT_ORIGIN}
 OWNER=${E2E_POOL_OWNER:-shorebird-e2e-$(hostname)-$$}
 WORK=${E2E_WORK:-${RUNNER_TEMP:-/tmp}/sb-e2e}
 # A free port from the kernel's ephemeral range, which ci-build's egress rules let
@@ -90,6 +96,11 @@ launch() {
 }
 
 log "CLI and its Flutter"
+if [[ -n ${E2E_FLUTTER_REVISION:-} ]]; then
+  [[ $E2E_FLUTTER_REVISION =~ ^[0-9a-f]{40}$ ]] || { echo "E2E_FLUTTER_REVISION must be a full commit hash" >&2; exit 2; }
+  echo "$E2E_FLUTTER_REVISION" >"$ROOT/bin/internal/flutter.version"
+  echo "Flutter overridden to $E2E_FLUTTER_REVISION from ${SHOREBIRD_FLUTTER_GIT_URL:-the default remote}"
+fi
 SB=$ROOT/bin/shorebird
 "$SB" --version
 FLUTTER_DIR=$ROOT/bin/cache/flutter/$(cat "$ROOT/bin/internal/flutter.version")
