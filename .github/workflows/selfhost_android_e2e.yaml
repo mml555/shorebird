@@ -55,12 +55,6 @@ jobs:
         env:
           E2E_POOL_OWNER: shorebird-e2e-${{ github.run_id }}-${{ github.run_attempt }}
           E2E_SCENARIOS: ${{ (inputs.scenarios == 'full' || github.event.schedule == '30 4 * * 0') && 'full' || 'quick' }}
-        # The pinned Flutter 5b180d22 (engine cell f85251f3) ships no Linux Dart
-        # SDK, so the CLI can't start on a Linux runner. While that is the pin,
-        # test the Flutter 3.47 candidate (engine 7806e0fb, device-tested on
-        # 2026-11-11), which the mirror serves for Linux. Any other pin is
-        # tested as is, so this lapses by itself when the pin moves.
-        #
         # Every job starts with an empty home, so Gradle would fetch all its
         # dependencies through the proxy again (25 minutes on 2026-11-12).
         # ci-build keeps oem's Gradle cache, filled by the same build; Gradle
@@ -76,9 +70,5 @@ jobs:
             echo "read-only Gradle cache: $ro"
           else
             echo "::warning::no read-only Gradle cache at $ro; Gradle fetches everything through the proxy"
-          fi
-          if [[ $(cat bin/internal/flutter.version) == 5b180d224df04a267a19888c3f344474e243b382 ]]; then
-            export E2E_FLUTTER_REVISION=9056dae9e28761f7508191146ae2469ba014be08
-            echo "::warning::main pins Flutter 5b180d22, which has no Linux Dart SDK; testing the 3.47 candidate 9056dae9 instead"
           fi
           selfhost/ci/android_pool_e2e.sh
