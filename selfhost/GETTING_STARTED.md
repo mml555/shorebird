@@ -24,7 +24,9 @@ are not supported yet.
   built for it only.
 - `git`, `curl`, `unzip`, `python3`, `bash`.
 - **Docker with the Compose plugin** (`docker compose version` must work). On Ubuntu
-  that is the `docker.io` and `docker-compose-v2` packages; Docker Desktop has both.
+  that is the `docker.io` and `docker-compose-v2` packages; Docker Desktop has both. The
+  server image (1.4.0) is published for x86_64 only: on Apple silicon `setup.sh` runs it
+  under Docker Desktop's emulation, which works, more slowly.
 - Several GB of disk: the engine download alone is 1.6 GB, kept beside its unpacked copy,
   plus the CLI's Flutter, the mirror's Docker images and its cache.
 - For Android: a JDK 17 and the Android SDK (command-line tools, `platform-tools`, a
@@ -142,8 +144,29 @@ The same steps with `shorebird release ios` and `shorebird patch ios`, on macOS 
 Xcode. What differs:
 
 - iOS patches use this fork's interpreter (Route B, [`ROUTE_B.md`](ROUTE_B.md)), not
-  upstream's. Many kinds of Dart change are refused at `shorebird patch` time, with a
-  message naming the change; a release can always be shipped instead.
+  upstream's, and **far fewer changes can be patched than on Android**. A refused patch
+  uploads nothing and names what it refused; a release can always be shipped instead.
+- **A change inside a widget's `build()` cannot be patched on iOS.** Route B replaces a
+  function at the places the release calls it directly, and the release has none for
+  `build()`: the framework calls it indirectly, through an overridden method. A function
+  the compiler inlined, such as a small closure passed to `setState`, has none either.
+  On `flutter create`'s counter app, each of these was refused: the label text, the
+  app bar colour, and `_counter++` changed to `_counter += 2`.
+- What can be patched is a function the release calls directly. For code you expect to
+  change by patch, put it in a top-level function the compiler keeps, and call it from
+  `build()`, **before you release**:
+
+  ```dart
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  String greeting() => 'Hello';
+
+  // in build():
+  Text(greeting()),
+  ```
+
+  A later patch that changes only `greeting()`'s body is accepted. That is the shape the
+  iPhone test in [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md) patches.
 - The app reaches your server over the local network, so iOS asks the user once per
   install to allow it.
 - Native changes are not refused, as upstream: only a changed `Podfile.lock` stops a
@@ -155,6 +178,13 @@ Xcode. What differs:
 - `unzip: End-of-central-directory signature not found` on the first `shorebird` run:
   `SHOREBIRD_ARTIFACT_ORIGIN` is not set, or the mirror is not running
   (`docker compose -f ~/shorebird-selfhost/shorebird/selfhost/cdn/docker-compose.cdn.yaml ps`).
+- `setup.sh` stops with `no matching manifest for linux/arm64/v8`: an older `setup.sh`
+  (`selfhost-v1.2.1` and before) on Apple silicon. Run it as `DOCKER_DEFAULT_PLATFORM=linux/amd64 ./setup.sh`.
+- `shorebird patch ios` says `Nothing in this patch differs from the release` when you did
+  change something: measured when the only change was the text of a `const Text(...)`.
+  A change inside a `const` expression is not seen, and is not patched; ship a release.
+- `shorebird patch ios` says `the release contains no surviving call site`: the changed
+  function is called through the dispatch table or was inlined (see section 5).
 - `setup.sh` stops with `The Docker Compose plugin is required`: install the Compose
   plugin (step 1).
 - `Using insecure protocols with repositories, without explicit opt-in, is unsupported` from

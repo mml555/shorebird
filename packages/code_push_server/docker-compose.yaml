@@ -24,9 +24,11 @@
 # PUBLIC_BASE_URL once secrets exist.
 services:
   server:
-    # Prebuilt multi-arch image (amd64/arm64), pinned to the release this
-    # checkout describes — so `docker compose up` gets the same server the
+    # Prebuilt image, pinned to the release this checkout describes, so
+    # `docker compose up` gets the same server the
     # selfhost tag was cut from, not whatever the local toolchain compiles.
+    # 1.4.0 is amd64 only: on Apple silicon, setup.sh runs it under emulation
+    # (or set DOCKER_DEFAULT_PLATFORM=linux/amd64 yourself).
     # To build from source instead, comment the image line and uncomment build:
     #   build:
     #     context: .

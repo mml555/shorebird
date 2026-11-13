@@ -402,6 +402,27 @@ EOF
 fi
 
 # --- start ------------------------------------------------------------------
+# An arm64 host (Apple silicon) with a server image published for amd64 only:
+# 1.4.0 is, because the release workflow's arm64 leg needs a hosted runner.
+# Docker refuses that pull with "no matching manifest for linux/arm64/v8", so
+# ask for the amd64 image and let Docker Desktop emulate it, which works, more
+# slowly. Only on a first pull: an image already here is run as it is.
+case "$(uname -m)" in
+  arm64|aarch64)
+    if [[ -z "${DOCKER_DEFAULT_PLATFORM:-}" ]]; then
+      SERVER_IMG="$("${COMPOSE[@]}" config 2>/dev/null \
+        | awk '/^  server:/{f=1} f && /^    image:/{print $2; exit}')"
+      if [[ -n "$SERVER_IMG" ]] && ! docker image inspect "$SERVER_IMG" >/dev/null 2>&1; then
+        ARCHES="$(docker manifest inspect "$SERVER_IMG" 2>/dev/null \
+          | sed -n 's/.*"architecture": *"\([^"]*\)".*/\1/p' | sort -u | tr '\n' ' ')"
+        if [[ " $ARCHES" == *" amd64 "* && " $ARCHES" != *" arm64 "* ]]; then
+          warn "$SERVER_IMG is published for amd64 only; running it under emulation (slower, works on Docker Desktop)."
+          export DOCKER_DEFAULT_PLATFORM=linux/amd64
+        fi
+      fi
+    fi ;;
+esac
+
 say "Starting the stack (first run pulls the images)…"
 "${COMPOSE[@]}" up -d --pull missing
 
