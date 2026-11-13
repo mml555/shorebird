@@ -157,6 +157,12 @@ Xcode. What differs:
   (`docker compose -f ~/shorebird-selfhost/shorebird/selfhost/cdn/docker-compose.cdn.yaml ps`).
 - `setup.sh` stops with `The Docker Compose plugin is required`: install the Compose
   plugin (step 1).
+- `Using insecure protocols with repositories, without explicit opt-in, is unsupported` from
+  Gradle: `FLUTTER_STORAGE_BASE_URL` is a plain-HTTP URL whose host is not `127.0.0.1`
+  (a LAN IP or hostname, even of this machine). Gradle let plain HTTP through to `127.0.0.1`
+  only (measured with 9.3.1): use that address for a mirror on this machine, serve a shared
+  mirror over HTTPS, or see
+  [`cdn/README.md`](cdn/README.md) for the per-app opt-in.
 - A `FAIL` line from the bootstrap: the line names the step and its log.
 
 The mirror's internals, and running it without Docker, are in

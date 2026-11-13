@@ -1,7 +1,8 @@
 # Local-HTTPS override: also serve the mirror on https://:8443.
 #
 # Needed because Gradle 8+ refuses insecure Maven repositories, which is what
-# FLUTTER_STORAGE_BASE_URL becomes during an Android release build.
+# FLUTTER_STORAGE_BASE_URL becomes during an Android release build
+# (9.3.1 lets a 127.0.0.1 URL through; any other URL host is refused).
 #
 # Run tls/generate.sh first (and tls/trust.sh on each build host that must
 # trust the generated CA).
