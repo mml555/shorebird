@@ -22,7 +22,6 @@ REPO="$(cd "$HERE/../.." >/dev/null 2>&1 && pwd)"
 CELL=${CELL:-f85251f344600ae08196925a174e9cff8f0ff18e}
 OUT=${OUT:-/Volumes/build/route-b/sd1/dist}
 OVERLAY="$REPO/selfhost/cdn/overlay"
-MAN="$REPO/selfhost/engine/route_b/cell_manifests/$CELL.v2"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cell) CELL="${2:?}"; shift 2 ;;
@@ -30,6 +29,8 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+# After the arguments, so --cell picks the descriptor too.
+MAN="$REPO/selfhost/engine/route_b/cell_manifests/$CELL.v2"
 fail=0
 ok()  { printf '  \033[32mPASS\033[0m  %s\n' "$1"; }
 bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; fail=$((fail+1)); }
