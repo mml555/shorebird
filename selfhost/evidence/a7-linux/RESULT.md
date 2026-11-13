@@ -45,7 +45,8 @@ apk --release` with `FLUTTER_STORAGE_BASE_URL` set to the same mirror at its LAN
 `http://172.17.0.2:8085`, failed: `Using insecure protocols with repositories, without
 explicit opt-in, is unsupported.` With the opt-in from `cdn/README.md` added to
 `android/build.gradle.kts` it built, and the mirror logged 24 `download.flutter.io` requests at
-that address. So with this Gradle the opt-in is needed only for a mirror on another machine. These results were
+that address. `172.17.0.2` is the same container's own address, so with this Gradle what decides it is the
+URL host: the opt-in is needed for any host but `127.0.0.1`, this machine's LAN IP included. These results were
 read from the container's logs, which were removed with it; the counts above are the only record.
 
 ## Hosts

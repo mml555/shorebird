@@ -73,7 +73,7 @@ services:
       # run tls/generate.sh to serve https as well as http. Needed because
       # Gradle 8+ refuses insecure Maven repositories, which is what
       # FLUTTER_STORAGE_BASE_URL becomes during an Android release build
-      # (9.3.1 lets a 127.0.0.1 mirror through; any other host is refused).
+      # (9.3.1 lets a 127.0.0.1 URL through; any other URL host is refused).
       - ./tls/listen-disabled.caddy:/etc/caddy/tls_listen.caddy:ro
       # Upstream reachability, ENABLED by default. Overridden to
       # upstream/sealed.caddy by docker-compose.cdn.sealed.yaml (or by editing
