@@ -9,6 +9,10 @@
 #
 #   sd1_hydrate_cell.sh --dist DIR --overlay DIR [--cell ADDR]
 #
+# The descriptor is placed too, at download.shorebird.dev/shorebird/cell-manifests/
+# <address>.v2 under the overlay, where the CLI looks the engine up. It is not a
+# member of the cell, so it is placed only after the members verify.
+#
 # --dist may be a downloaded directory or a URL base (curl-fetched into a temp
 # directory first). Exit 0 only if 30/30 members verify AND the address
 # recomputes.
@@ -66,6 +70,9 @@ RE=$(shasum -a 256 "$DIST/cell_manifest.v2" | cut -c1-40)
                        || bad "descriptor recomputes to $RE, not $CELL"
 
 note "4 - extract into the overlay hierarchy"
+# A descriptor from an earlier run into this overlay would outlive a failed
+# run and be counted below; step 7 puts it back once the members verify.
+rm -f "$DEST/download.shorebird.dev/shorebird/cell-manifests/$CELL.v2"
 mkdir -p "$DEST"
 tar -xf "$DIST/cell-$CELL.tar" -C "$DEST" || bad "extraction failed"
 got=$(cd "$DEST" && find . -type f -path "*$CELL*" | wc -l | tr -d ' ')
@@ -99,6 +106,16 @@ out=$(CELL_MANIFESTS="$WORK/manifests" bash "$REPO/selfhost/engine/route_b/verif
 echo "$out" | sed 's/^/    /'
 echo "$out" | grep -q "CELL MEMBERS VERIFIED ($n/$n)" && ok "verify_cell_members: $n/$n against the hydrated overlay" \
                                                       || bad "verify_cell_members did not report $n/$n"
+
+note "7 - place the descriptor where the CLI resolves the cell"
+if [[ $fail -eq 0 ]]; then
+  mkdir -p "$DEST/download.shorebird.dev/shorebird/cell-manifests"
+  cp "$DIST/cell_manifest.v2" "$DEST/download.shorebird.dev/shorebird/cell-manifests/$CELL.v2" \
+    && ok "descriptor at download.shorebird.dev/shorebird/cell-manifests/$CELL.v2" \
+    || bad "could not place the descriptor"
+else
+  echo "    skipped: the members did not verify"
+fi
 
 note "RESULT"
 echo "  overlay: $DEST"
