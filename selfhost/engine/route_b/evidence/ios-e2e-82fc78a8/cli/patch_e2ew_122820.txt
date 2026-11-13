@@ -1,0 +1,72 @@
+--public-key-path: no file found at $SCRATCH/e2e-work/keys/good.pub.pem.
+Usage: shorebird patch [arguments]
+-h, --help                      Print this usage information.
+-D, --dart-define               Additional key-value pairs that will be available as constants from the String.fromEnvironment, bool.fromEnvironment, and int.fromEnvironment constructors.
+                                Multiple defines can be passed by repeating "--dart-define" multiple times.
+    --dart-define-from-file     The path of a .json or .env file containing key-value pairs that will be available as environment variables.
+                                These can be accessed using the String.fromEnvironment, bool.fromEnvironment, and int.fromEnvironment constructors.
+                                Multiple defines can be passed by repeating "--dart-define-from-file" multiple times.
+                                Entries from "--dart-define" with identical keys take precedence over entries from these files.
+-p, --platforms                 The platform(s) to build this patch for.
+                                [aar, android, ios, linux, macos, ios-framework, windows]
+    --build-name                A "x.y.z" string used as the version number shown to users.
+                                For each new version of your app, you will provide a version number to differentiate it
+                                from previous versions.
+                                On Android it is used as "versionName".
+                                On Xcode builds it is used as "CFBundleShortVersionString".
+                                On Windows it is used as the major, minor, and patch parts of the product and file
+                                versions.
+    --build-number              An identifier used as an internal version number.
+                                Each build must have a unique identifier to differentiate it from previous builds.
+                                It is used to determine whether one build is more recent than another, with higher numbers indicating more recent build.
+                                On Android it is used as "versionCode".
+                                On Xcode builds it is used as "CFBundleVersion".
+                                (defaults to "1.0")
+-t, --target                    The main entrypoint file of the application.
+    --flavor                    The product flavor to use when building the app.
+    --release-version           The version of the associated release (e.g. "1.0.0").
+                                If you are building an xcframework or aar, this number needs to match the host app's release version.
+                                To target the latest release (e.g. the release that was most recently updated) use --release-version=latest.
+    --allow-native-diffs        Patch even if native code diffs are detected.
+                                NOTE: this is not recommended. Native code changes cannot be included in a patch and attempting to do so can cause your app to crash or behave unexpectedly.
+    --allow-asset-diffs         Patch even if asset diffs are detected.
+                                NOTE: this is not recommended. Asset changes cannot be included in a patch can cause your app to behave unexpectedly.
+    --allow-build-flag-diffs    Patch even if the --dart-define values or --target differ from the release's.
+                                NOTE: this is not recommended. A patch built with different values may fail to link or change code the release runs.
+    --show-dex-diff             Print every differing instruction when native changes are detected in an Android patch.
+                                Without this, the first few differing instructions of the first ten changed methods are shown, string constants are replaced by their length, and a payload such as a switch table or an array initializer is cut after its first few units. Output contains your app's bytecode, including class and method names, and is written to the shorebird.log file support asks you to attach.
+    --assets                    Attach this patch's assets to it, so an app built against this control plane can pick them up.
+                                Experimental, and opt-in because it makes the patch larger. The native updater ignores the bundle; reading it requires app-side support.
+    --assets-only               Publish a patch containing only this patch's assets, with no Dart code.
+                                Experimental. Implies --assets. Nothing is linked or interpreted, which is what lets an asset change ship where a code change cannot. Requires an updater that advertises support; older updaters are never offered such a patch.
+    --track                     The track to publish the patch to (staging, beta, stable, or a custom track). Asked for when not given.
+    --export-options-plist      Export an IPA with these options. See "xcodebuild -h" for available exportOptionsPlist keys (iOS only).
+    --export-method             Specify how the IPA will be distributed (iOS only).
+
+          [app-store]           Upload to the App Store
+          [ad-hoc]              Test on designated devices that do not need to be registered with the Apple developer account.
+                                    Requires a distribution certificate.
+          [development]         Test only on development devices registered with the Apple developer account.
+          [enterprise]          Distribute an app registered with the Apple Developer Enterprise Program.
+
+    --[no-]codesign             Codesign the app bundle or XCFrameworks (iOS and macOS only).
+                                (defaults to on)
+-n, --dry-run                   Validate but do not upload the patch.
+    --private-key-path          The path for a private key .pem file that will be used to sign the patch artifact.
+    --public-key-path           The path for a public key .pem file that will be used to validate patch signatures.
+    --public-key-cmd            Command that outputs a PEM-encoded public key to stdout for patch signature validation.
+    --sign-cmd                  Command that reads data from stdin and outputs a base64 signature to stdout.
+    --split-debug-info          In a release build, this flag reduces application size by storing Dart program symbols in a separate file on the host rather than
+                                in the application. The value of the flag should be a directory where program symbol files can be stored for later use. These
+                                symbol files contain the information needed to symbolize Dart stack traces. For an app built with this flag, the "flutter
+                                symbolize" command with the right program symbol file is required to obtain a human readable stack trace.
+    --min-link-percentage       The minimum link percentage (0-100) required in order to generate a patch (Apple platforms only).
+                                
+                                Patches with a lower link percentage than what is provided here will fail. Pass 0 to accept any link percentage.
+                                (defaults to "20")
+
+Run "shorebird help" to see global options.
+
+Common flutter build options, such as --no-tree-shake-icons, --no-pub or
+-P key=value, are passed to Flutter as given. Put any other flutter build
+option after --, for example: shorebird patch android -- --<option>

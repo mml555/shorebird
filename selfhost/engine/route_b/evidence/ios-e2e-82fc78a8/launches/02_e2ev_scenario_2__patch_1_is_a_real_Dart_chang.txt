@@ -1,0 +1,19 @@
+SANITY CHECK: Running precompiled code.
+Using App.framework from /private/var/containers/Bundle/Application/7C106ADF-CAFB-4148-86C6-47871509F6F9/Runner.app/Frameworks/App.framework
+ASSET PATH /var/containers/Bundle/Application/7C106ADF-CAFB-4148-86C6-47871509F6F9/Runner.app/Frameworks/App.framework/flutter_assets
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Preparing next boot.
+[shorebird] Prepared boot of the base release.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(633)] Shorebird updater: no active patch.
+[IMPORTANT:flutter/shell/platform/darwin/graphics/FlutterDarwinContextMetalImpeller.mm(45)] Using the Impeller rendering backend (Metal).
+flutter: E2E-MARKER V1:g-55
+[shorebird] Reporting successful launch.
+[shorebird] Sending patch check request: app_id: 2c24f56e-b917-1ed3-6569-d5e9b80d05da, channel: stable, release_version: 1.0.0+1, platform: ios, arch: aarch64, current_patch_number: None
+[shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "8d49a6dc5797eba2a57e30434ad1f81b4ca90c38787000377f767102c289d837", download_url: "http://10.0.0.115:18090/download/4a926212cfa330b90540e9fa22f67315?exp=1794590850&sig=803f3931ea0005bbe1934a126e80541a0c6258d673694662b7f54051fa98d60e", hash_signature: None, kind: Code }), rolled_back_patch_numbers: Some([]) }
+[shorebird] Downloading patch 1 for app 2c24f56e-b917-1ed3-6569-d5e9b80d05da (version 1.0.0+1)
+[shorebird] Downloading patch from: http://10.0.0.115:18090/download/4a926212cfa330b90540e9fa22f67315?exp=1794590850&sig=803f3931ea0005bbe1934a126e80541a0c6258d673694662b7f54051fa98d60e
+[shorebird] Downloaded patch to: "/private/var/mobile/Containers/Data/Application/4D301C76-5FC4-408D-90D3-0AE4865CF961/Library/Application Support/shorebird/shorebird_updater/downloads/1" (1339 bytes)
+[shorebird] Inflating patch from "/private/var/mobile/Containers/Data/Application/4D301C76-5FC4-408D-90D3-0AE4865CF961/Library/Application Support/shorebird/shorebird_updater/downloads/1" (1339 bytes)
+[shorebird] Patch successfully applied to "/private/var/mobile/Containers/Data/Application/4D301C76-5FC4-408D-90D3-0AE4865CF961/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode". patch_file=1339b base_size=2398068b decompressed=2806b base_read=0b base_last_seek_pos=0 base_seeks=1 output_written=2794b
+[shorebird] Patch 1 successfully downloaded. It will be launched when the app next restarts.
+[shorebird] Update thread finished with status: Update installed
