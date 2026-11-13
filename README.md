@@ -7,7 +7,7 @@
 > no runtime request depends on `api.shorebird.dev` — and there's no
 > per-app/per-user pricing.
 >
-> **Start here → [`packages/code_push_server/README.md`](packages/code_push_server/README.md)**
+> **Start here → [`selfhost/GETTING_STARTED.md`](selfhost/GETTING_STARTED.md)**, from nothing to a patched app
 > · self-host docs: [`selfhost/README.md`](selfhost/README.md)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE-MIT)
@@ -30,23 +30,18 @@ version-pinned**, and adds a drop-in server they talk to instead:
 
 ## Getting Started
 
-Pin a release rather than tracking `main` — the latest baseline is
-[`selfhost-v1.0.0`](https://github.com/mml555/shorebird/releases/tag/selfhost-v1.0.0):
+Follow [`selfhost/GETTING_STARTED.md`](selfhost/GETTING_STARTED.md), pinned to a
+`selfhost-v*` release tag rather than `main`. It installs this
+fork's CLI, starts the artifact mirror the CLI needs and the server, then releases and
+patches an app. Upstream's installer does not work here: it installs upstream's CLI,
+whose engine is not this fork's.
 
-```bash
-git clone --branch selfhost-v1.0.0 https://github.com/mml555/shorebird.git
-cd shorebird/packages/code_push_server
-./setup.sh
-```
+The server alone is `packages/code_push_server/setup.sh`, which generates secrets, pulls
+the prebuilt image (`ghcr.io/mml555/code-push-server:1.4.0`, amd64), starts it and
+prints the next steps; see [`packages/code_push_server/README.md`](packages/code_push_server/README.md).
 
-`setup.sh` generates secrets, pulls the prebuilt image
-(`ghcr.io/mml555/code-push-server:1.4.0`, amd64), starts the stack, and
-prints the next steps. Full walkthrough in
-[`packages/code_push_server/README.md`](packages/code_push_server/README.md).
-
-For the Shorebird CLI and general code-push concepts, upstream's docs at
-https://docs.shorebird.dev still apply — this fork does not change the CLI's
-wire contract.
+For general code-push concepts, upstream's docs at https://docs.shorebird.dev still
+apply: this fork keeps the CLI's wire contract.
 
 ## Packages
 

@@ -253,7 +253,12 @@ fi
 
 # 6. The pair actually WORKS, from the extracted form the CLI will see. Every
 #    check above compares bytes to records; only this one proves the thing runs.
-if [[ -f "$W/dartaotruntime" && -f "$W/dart2bytecode.aot" ]]; then
+#    The published compiler is a darwin-arm64 binary (iOS patches are built on
+#    a Mac), so another host cannot run it: say so rather than report it as a
+#    finding, which is what a Linux bootstrap did.
+if [[ "$(uname -s)/$(uname -m)" != Darwin/arm64 ]]; then
+  echo "  --      capability probe skipped: the compiler is darwin-arm64, this host is $(uname -s)/$(uname -m)"
+elif [[ -f "$W/dartaotruntime" && -f "$W/dart2bytecode.aot" ]]; then
   chmod +x "$W/dartaotruntime" 2>/dev/null
   probe=$("$W/dartaotruntime" "$W/dart2bytecode.aot" --help 2>&1)
   if grep -q 'Compiles Dart sources to Dart bytecode' <<<"$probe"; then

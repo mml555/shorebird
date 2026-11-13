@@ -13,7 +13,12 @@
 #   the operator                    Xcode / Android SDK / Docker, listed by
 #                                   PREREQ lines rather than assumed
 #
-#   bootstrap_selfhost.sh --root DIR [--ref TAG|REV] [--repo URL]
+#   bootstrap_selfhost.sh --root DIR [--ref TAG|REV] [--repo URL] [--start-mirror]
+#
+# --start-mirror starts the artifact mirror (selfhost/cdn, Docker) over the
+# hydrated overlay on http://127.0.0.1:8085 and bootstraps the CLI through it.
+# Without it, start the mirror yourself and set SHOREBIRD_ARTIFACT_ORIGIN; with
+# neither, the CLI step only checks the Flutter clone.
 #
 # --ref should be an annotated selfhost-v* tag (immutable INTENT -- a tag can be
 # force-moved, so the real guarantees are the digests committed in the record).
@@ -21,12 +26,16 @@
 # the remote advertises, because "clone the repo" lands on a branch that is not
 # the supported stack.
 set -uo pipefail
-ROOT=""; REF=""; REPO_URL=https://github.com/mml555/shorebird.git
+# Linux has sha256sum, and often no shasum (it ships with perl, which a minimal
+# image lacks). Every call here is `shasum -a 256 [-c] ...`.
+command -v shasum >/dev/null 2>&1 || shasum() { [[ "${1:-}" == -a ]] && shift 2; sha256sum "$@"; }
+ROOT=""; REF=""; REPO_URL=https://github.com/mml555/shorebird.git; START_MIRROR=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --root) ROOT="${2:?}"; shift 2 ;;
     --ref) REF="${2:?}"; shift 2 ;;
     --repo) REPO_URL="${2:?}"; shift 2 ;;
+    --start-mirror) START_MIRROR=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -74,7 +83,7 @@ STATE="$CLONE/selfhost/engine/route_b/SUPPORTED_STATE.yaml"
 
 note "3 - read the identities the record names"
 CLI_REV=$(rec cli_revision); SELECTOR=$(rec flutter_selector); CELL=$(rec cell_address)
-BUNDLE_SHA=$(rec bundle_sha256); DIST_TAG=$(rec tag)
+BUNDLE_SHA=$(rec bundle_sha256); DIST_TAG=$(rec tag); EXTRAS_SHA=$(rec host_extras_sha256)
 printf '    %-22s %s\n' cli_revision "$CLI_REV" flutter_selector "$SELECTOR" \
                         cell_address "$CELL" cell_distribution "$DIST_TAG"
 for v in CLI_REV SELECTOR CELL BUNDLE_SHA DIST_TAG; do
@@ -94,15 +103,38 @@ git -C "$RUNTIME" checkout --quiet --detach "$CLI_REV" 2>/dev/null \
 note "5 - hydrate the cell from the RECORDED durable distribution"
 BASEURL="https://github.com/mml555/shorebird/releases/download/$DIST_TAG"
 mkdir -p "$DIST"
-for f in "cell-$CELL.tar" cell_manifest.v2 LAYOUT.txt MANIFEST.sha256 CELL.txt; do
+# host-extras is not part of the address, but a Linux machine needs it: it holds
+# dart-sdk-linux-x64.zip, which the CLI downloads before anything else.
+EXTRAS=""
+[[ -n "$EXTRAS_SHA" ]] && EXTRAS="host-extras-$CELL.tar"
+for f in "cell-$CELL.tar" cell_manifest.v2 LAYOUT.txt MANIFEST.sha256 CELL.txt $EXTRAS; do
   [[ -s "$DIST/$f" ]] && continue
-  curl -fsSL "$BASEURL/$f" -o "$DIST/$f" || bad "could not download $f from $BASEURL"
+  echo "    downloading $f"
+  curl -fsSL "$BASEURL/$f" -o "$DIST/$f.part" && mv "$DIST/$f.part" "$DIST/$f" \
+    || bad "could not download $f from $BASEURL"
 done
 GOT=$(shasum -a 256 "$DIST/cell-$CELL.tar" 2>/dev/null | cut -d' ' -f1)
 [[ "$GOT" == "$BUNDLE_SHA" ]] && ok "the bundle matches the digest committed in the record" \
                               || bad "bundle digest $GOT != recorded $BUNDLE_SHA"
+EXTRAS_ARG=()
+# A tag from before host extras could be placed: its hydrate script rejects the
+# option, and its other scripts do not run on Linux. Say so instead of failing
+# inside the hydrate log.
+if [[ -n "$EXTRAS" ]] && ! grep -q -- '--host-extras' "$CLONE/selfhost/scripts/sd1_hydrate_cell.sh"; then
+  bad "$REF predates host-extras support (selfhost-v1.2.1); pass --ref with a newer selfhost-v* tag"
+  EXTRAS=""
+fi
+if [[ -n "$EXTRAS" ]]; then
+  GOT=$(shasum -a 256 "$DIST/$EXTRAS" 2>/dev/null | cut -d' ' -f1)
+  if [[ "$GOT" == "$EXTRAS_SHA" ]]; then
+    ok "the host extras match the digest committed in the record"
+    EXTRAS_ARG=(--host-extras "$DIST/$EXTRAS")
+  else
+    bad "host extras digest $GOT != recorded $EXTRAS_SHA"
+  fi
+fi
 if bash "$CLONE/selfhost/scripts/sd1_hydrate_cell.sh" --dist "$DIST" --overlay "$OVERLAY" \
-     --cell "$CELL" > "$ROOT/hydrate.log" 2>&1; then
+     --cell "$CELL" ${EXTRAS_ARG[@]+"${EXTRAS_ARG[@]}"} > "$ROOT/hydrate.log" 2>&1; then
   ok "cell hydrated and verified 30/30 into $OVERLAY"
 else
   bad "hydration failed — see $ROOT/hydrate.log"
@@ -112,7 +144,24 @@ note "6 - bootstrap the CLI, which fetches the exact Flutter selector"
 # The CLI clones Flutter from the fork that carries the selector and then
 # resolves engine artifacts. SHOREBIRD_ARTIFACT_ORIGIN points it at the
 # operator's own CDN over the overlay hydrated above.
-prereq "serve \$ROOT/overlay with the CDN in selfhost/cdn (docker compose -f selfhost/cdn/docker-compose.cdn.yaml up), then set SHOREBIRD_ARTIFACT_ORIGIN to it"
+if [[ $START_MIRROR -eq 1 ]]; then
+  echo "    starting the artifact mirror (docker compose, port 8085)"
+  if ( cd "$CLONE/selfhost/cdn" && docker compose -f docker-compose.cdn.yaml up -d --build ) \
+       > "$ROOT/mirror.log" 2>&1; then
+    export SHOREBIRD_ARTIFACT_ORIGIN=${SHOREBIRD_ARTIFACT_ORIGIN:-http://127.0.0.1:8085}
+    probe="$SHOREBIRD_ARTIFACT_ORIGIN/flutter_infra_release/flutter/$CELL/engine_stamp.json"
+    for _ in $(seq 1 60); do curl -fsS -o /dev/null "$probe" 2>/dev/null && break; sleep 2; done
+    curl -fsS -o /dev/null "$probe" 2>/dev/null \
+      && ok "the mirror serves the cell at $SHOREBIRD_ARTIFACT_ORIGIN" \
+      || bad "the mirror does not serve $probe — see $ROOT/mirror.log"
+  else
+    bad "the mirror did not start — see $ROOT/mirror.log"
+  fi
+else
+  prereq "serve $OVERLAY with the CDN in selfhost/cdn (docker compose -f selfhost/cdn/docker-compose.cdn.yaml up -d, or pass --start-mirror), then set SHOREBIRD_ARTIFACT_ORIGIN to it"
+fi
+# Where the CLI clones the selector; the version check below reads it either way.
+FD="$RUNTIME/bin/cache/flutter/$SELECTOR"
 if [[ -n "${SHOREBIRD_ARTIFACT_ORIGIN:-}" ]]; then
   ( cd "$RUNTIME" && ./bin/shorebird --version ) > "$ROOT/cli_bootstrap.log" 2>&1 \
     && ok "the CLI bootstrapped: $(grep -m1 'Flutter • revision' "$ROOT/cli_bootstrap.log")" \
@@ -121,7 +170,6 @@ if [[ -n "${SHOREBIRD_ARTIFACT_ORIGIN:-}" ]]; then
 else
   echo "    SHOREBIRD_ARTIFACT_ORIGIN is unset, so the artifact step is skipped."
   echo "    Cloning the selector alone is still checked:"
-  FD="$RUNTIME/bin/cache/flutter/$SELECTOR"
   if [[ ! -d "$FD/.git" ]]; then
     git clone --quiet --filter=tree:0 --no-checkout \
       "${SHOREBIRD_FLUTTER_GIT_URL:-https://github.com/mml555/shorebird-flutter.git}" "$FD" 2>/dev/null
@@ -170,4 +218,15 @@ echo "$out" | grep -q "SUPPORTED STATE VERIFIED" && ok "SUPPORTED STATE VERIFIED
 
 note "RESULT"
 printf '  clone    %s\n  runtime  %s\n  overlay  %s\n' "$CLONE" "$RUNTIME" "$OVERLAY"
-if [[ $fail -eq 0 ]]; then echo "  BOOTSTRAP COMPLETE"; else echo "  BOOTSTRAP: $fail FAILURE(S)"; exit 1; fi
+if [[ $fail -eq 0 ]]; then
+  echo "  BOOTSTRAP COMPLETE"
+  echo
+  # shorebird, and the Flutter it pins (for `flutter create` and the like). The
+  # CLI points its Flutter at the mirror itself; a bare `flutter` reads
+  # FLUTTER_STORAGE_BASE_URL, or it asks download.shorebird.dev for this engine.
+  ORIGIN=${SHOREBIRD_ARTIFACT_ORIGIN:-http://127.0.0.1:8085}
+  echo "  Use this CLI from your shell (add these to your shell profile):"
+  echo "    export PATH=\"$RUNTIME/bin:$RUNTIME/bin/cache/flutter/$SELECTOR/bin:\$PATH\""
+  echo "    export SHOREBIRD_ARTIFACT_ORIGIN=$ORIGIN"
+  echo "    export FLUTTER_STORAGE_BASE_URL=$ORIGIN"
+else echo "  BOOTSTRAP: $fail FAILURE(S)"; exit 1; fi

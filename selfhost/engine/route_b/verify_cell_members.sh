@@ -17,6 +17,9 @@
 #
 # Exit: 0 all members verified · 1 drift or missing member · 2 usage/environment
 set -uo pipefail
+# Linux has sha256sum, and often no shasum (it ships with perl, which a minimal
+# image lacks). Every call here is `shasum -a 256 [-c] ...`.
+command -v shasum >/dev/null 2>&1 || shasum() { [[ "${1:-}" == -a ]] && shift 2; sha256sum "$@"; }
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO=$(cd "$HERE/../../.." && pwd)
 HASH=${1:?usage: verify_cell_members.sh <cellAddress> [--overlay DIR]}; shift || true

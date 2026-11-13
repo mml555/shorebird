@@ -29,6 +29,9 @@
 #
 # Exit: 0 all checks pass · 1 one or more failed · 2 environment error
 set -uo pipefail
+# Linux has sha256sum, and often no shasum (it ships with perl, which a minimal
+# image lacks). Every call here is `shasum -a 256 [-c] ...`.
+command -v shasum >/dev/null 2>&1 || shasum() { [[ "${1:-}" == -a ]] && shift 2; sha256sum "$@"; }
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO=$(cd "$HERE/../../.." && pwd)
 # Overridable so the record's own format checks can be falsified against a
@@ -238,7 +241,7 @@ fi
 ZIP="$REPO/selfhost/cdn/overlay/download.shorebird.dev/shorebird/$CELL/route-b-compiler-darwin-arm64.zip"
 if [[ -f "$ZIP" ]]; then
   cmp_v "compiler archive digest" "$ARCHIVE" "$(shasum -a 256 "$ZIP" | cut -d' ' -f1)"
-  cmp_v "compiler archive size"   "$ARCHBYTES" "$(stat -f%z "$ZIP" 2>/dev/null || stat -c%s "$ZIP")"
+  cmp_v "compiler archive size"   "$ARCHBYTES" "$(wc -c < "$ZIP" | tr -d ' ')"
 else
   bad "no published compiler archive at $ZIP"
 fi
@@ -357,8 +360,12 @@ else
 fi
 
 # 5. THE DEEPER COMPILER/RUNTIME AUDIT.
-if bash "$HERE/audit_route_b_compiler.sh" --hash "$CELL" >/dev/null 2>&1; then
+if audit_out=$(bash "$HERE/audit_route_b_compiler.sh" --hash "$CELL" 2>&1); then
   ok "audit_route_b_compiler: AUDIT CLEAN"
+  # On a host that is not darwin-arm64 the compiler cannot be run, so the clean
+  # result covers its bytes, not that it runs. Show that rather than hide it.
+  grep -q 'capability probe skipped' <<<"$audit_out" \
+    && echo "  --      the compiler's run probe was skipped: it is darwin-arm64, this host is $(uname -s)/$(uname -m)"
 else
   bad "audit_route_b_compiler reported findings for $CELL"
 fi
