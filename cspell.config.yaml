@@ -1067,6 +1067,11 @@ words:
   - writeln
   - WRONGPASS
   - yourco # placeholder domain in selfhost docs
+  - icudtl
+  - modulemap
+  - nehelper
+  - Postflighting
+  - xcprivacy
   - xcarchive
   - xcarchives
   - xcframework
