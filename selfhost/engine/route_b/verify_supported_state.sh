@@ -217,7 +217,15 @@ if [[ -d "$FDIR/.git" ]]; then
   # running tree was something else entirely.
   cmp_v "the Flutter checkout's HEAD IS the recorded selector" \
     "$SELECTOR" "$(git -C "$FDIR" rev-parse HEAD 2>/dev/null)"
-  if [[ -z "$(git -C "$FDIR" status --porcelain 2>/dev/null)" ]]; then
+  # The CLI writes its own stamps at the checkout's root on every release:
+  # .shorebird_last_used (cache_pruning.dart) and .shorebird_precache.<platform>
+  # (shorebird_flutter.dart, installRevision). Untracked stamps by those exact
+  # names are the CLI in use, not a change to the tree, so they don't count. A
+  # git status that fails is a failure, never an empty (clean) answer.
+  if ! status=$(git -C "$FDIR" status --porcelain 2>/dev/null); then
+    bad "cannot read the Flutter checkout's git status"
+  elif dirty=$(grep -vE '^\?\? \.shorebird_(last_used|precache(\.[a-z_]+)?)$' <<<"$status" || true)
+       [[ -z "$dirty" ]]; then
     ok "Flutter checkout is clean"
   else
     bad "Flutter checkout has uncommitted changes"
