@@ -20,7 +20,7 @@ on:
         options: [quick, full]
         default: full
   schedule:
-    # Nightly: the quick path. Sundays: the full scenarios (about 25 minutes of
+    # Nightly: the quick path. Sundays: the full scenarios (about 30 minutes of
     # one of the three shared phones, so weekly, not nightly).
     - cron: "30 3 * * *"
     - cron: "30 4 * * 0"
@@ -41,7 +41,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, shorebird]
     # The quick path takes minutes. The full scenarios (the weekly run, and a
     # manual run that asks for them, the default of the dispatch form) build three
-    # releases and five patches, about 25 minutes with a warm Gradle cache. Pull
+    # releases and their patches, about 30 minutes with a warm Gradle cache. Pull
     # requests and the nightly run take the quick path.
     timeout-minutes: ${{ (inputs.scenarios == 'full' || github.event.schedule == '30 4 * * 0') && 80 || 45 }}
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words Dhttp Dhttps getprop getsockname nullglob genrsa pubout pidof setsid
+# cspell:words Dhttp Dhttps getprop getsockname nullglob genrsa pubout pidof setsid fetchone
 # Releases and patches an Android app with this checkout's CLI, against a
 # throwaway self-hosted code_push_server, on a phone from ci-build's device pool
 # (qa-pool), and checks that the phone runs the patch.
@@ -76,7 +76,7 @@ stop_server() {
   for i in $(seq 20); do
     kill -0 -- "-$SERVER_PID" 2>/dev/null || break
     sleep 0.5
-    ((i == 20)) && kill -KILL -- "-$SERVER_PID" 2>/dev/null
+    if ((i == 20)); then kill -KILL -- "-$SERVER_PID" 2>/dev/null || true; fi
   done
   # A server killed by a signal exits non-zero; that is expected here.
   wait "$SERVER_PID" 2>/dev/null || true
@@ -206,6 +206,15 @@ patch_check() {
     -d "{\"app_id\":\"$app_id\",\"release_version\":\"$1\",\"platform\":\"android\",\"arch\":\"$ARCH\",\"channel\":\"stable\",\"client_id\":\"$client\",\"current_patch_number\":$2}")
   python3 -c 'import json,sys; d = json.load(sys.stdin); p = d.get("patch"); print(p["number"] if p else "none", d.get("rolled_back_patch_numbers"))' <<<"$out"
 }
+# The sha256 of the artifact the server's check offers for release version $1 at
+# current patch $2, downloaded through its signed download_url.
+patch_artifact_sha() {
+  local url
+  url=$(curl -fsS --max-time 15 -X POST "$BASE/api/v1/patches/check" -H 'Content-Type: application/json' \
+    -d "{\"app_id\":\"$app_id\",\"release_version\":\"$1\",\"platform\":\"android\",\"arch\":\"$ARCH\",\"channel\":\"stable\",\"client_id\":\"e2e-probe\",\"current_patch_number\":$2}" |
+    python3 -c 'import json,sys; print(json.load(sys.stdin)["patch"]["download_url"])')
+  curl -fsS --max-time 60 "$url" | sha256sum | cut -d' ' -f1
+}
 api() { curl -fsS --max-time 30 -H "Authorization: Bearer $API_KEY" "$@"; }
 # The patch numbers the server holds for release version $1, e.g. "1 2".
 server_patches() {
@@ -235,17 +244,27 @@ patch_id_of() {
 bucket_of() { # app channel patch client
   python3 -I -c 'import hashlib,sys; d = hashlib.sha256(":".join(sys.argv[1:5]).encode()).digest(); print((int.from_bytes(d[:4], "big") & 0x7fffffff) % 10000)' "$@"
 }
-# The client id the phone's updater sent the server for release version $1: it
-# is in the events the updater posts, which the server stores (events table).
+# The highest id in the server's events table (0 when empty).
+max_event_id() {
+  python3 -I - "$WORK/server-data/code_push.db" <<'PY'
+import sqlite3, sys
+db = sqlite3.connect("file:%s?mode=ro" % sys.argv[1], uri=True, timeout=10)
+print(db.execute("SELECT COALESCE(MAX(id), 0) FROM events").fetchone()[0])
+PY
+}
+# The client id the phone's updater sent the server for release version $1, in
+# an event newer than id $2 (default 0): it is in the events the updater posts,
+# which the server stores (events table). A reinstall gets a new client id, so
+# $2 keeps an earlier install's id from answering.
 device_client_id() {
   local cid='' i
   for i in $(seq 30); do
-    cid=$(python3 -I - "$WORK/server-data/code_push.db" "$app_id" "$1" <<'PY' || true
+    cid=$(python3 -I - "$WORK/server-data/code_push.db" "$app_id" "$1" "${2:-0}" <<'PY' || true
 import sqlite3, sys
 db = sqlite3.connect("file:%s?mode=ro" % sys.argv[1], uri=True, timeout=10)
 row = db.execute("SELECT client_id FROM events WHERE app_id = ? AND release_version = ? "
-                 "AND client_id IS NOT NULL AND client_id != '' ORDER BY id DESC LIMIT 1",
-                 (sys.argv[2], sys.argv[3])).fetchone()
+                 "AND id > ? AND client_id IS NOT NULL AND client_id != '' ORDER BY id DESC LIMIT 1",
+                 (sys.argv[2], sys.argv[3], int(sys.argv[4]))).fetchone()
 print(row[0] if row else "")
 PY
 )
@@ -704,6 +723,7 @@ boot 'I flutter : SB-E2E-S2:g-89'
 pass "a patch signed with another key was refused by the CLI before publication; the app runs S2"
 
 log "scenario 8: the server is unavailable"
+EV_BEFORE_V2=$(max_event_id) # scenario 9 needs this install's client id, not the first one's
 install_apk v2
 boot 'I flutter : SB-E2E-W1:g-55'
 write_main SB-E2E-W3 12
@@ -752,7 +772,7 @@ log "scenario 9: staged rollout"
 # client by sha256(app:channel:patch:client) (rollout.dart), so with the phone's
 # own client id the bucket B is known and so is the verdict: not offered at any
 # percent whose threshold (percent * 100) is at or below B, offered above it.
-CLIENT=$(device_client_id 0.2.0+2)
+CLIENT=$(device_client_id 0.2.0+2 "$EV_BEFORE_V2")
 echo "the phone's client id: $CLIENT"
 write_main SB-E2E-W5 14
 sb_patch 0.2.0+2
@@ -806,11 +826,14 @@ log "scenario 10: backup and restore of the server's data"
 # neither. setup.sh runs, on the data volume with the server stopped:
 # ops/lib/write_manifest.sh, then tar czf of the volume without code_push.db-shm,
 # and on restore ops/lib/verify_manifest.sh on the extracted archive, a wipe of
-# the volume and tar xzf. This runs the same two scripts and the same tar
-# commands on the data dir. The scripts hard-code /data and /tmp (the busybox
+# the volume and tar xzf. This runs those two scripts and those tar commands on
+# the data dir; setup.sh's image gate, sidecar manifest, tar tzf listing and
+# quiesce checks need the compose deployment and are not exercised here. The scripts hard-code /data and /tmp (the busybox
 # container's), so their copies here have those paths rewritten and nothing else.
 LIB=$ROOT/packages/code_push_server/ops/lib
 BR=$WORK/backup-restore
+# The rewrite below puts $WORK into a sed replacement, where these are special.
+[[ $WORK != *[\&#]* ]] || { echo "FAIL: E2E work dir $WORK has a character sed can't take (& # \\)" >&2; exit 1; }
 mkdir -p "$BR/lib" "$BR/tmp"
 for f in write_manifest.sh verify_manifest.sh; do
   # Placeholders first, so a $WORK under /tmp (or holding /data) is not rewritten twice.
@@ -818,6 +841,8 @@ for f in write_manifest.sh verify_manifest.sh; do
     -e "s#@SB_DATA@#$WORK/server-data#g" -e "s#@SB_TMP@#$BR/tmp#g" "$LIB/$f" >"$BR/lib/$f"
 done
 check_pre=$(patch_check 0.2.0+2 4)
+expect_equal "$(patch_check 0.2.0+2 3)" "4 [1]" "the server's check from patch 3 before the backup"
+sha_pre=$(patch_artifact_sha 0.2.0+2 3)
 patches_pre=$(server_patches 0.2.0+2)
 releases_pre=$(server_releases)
 expect_equal "$patches_pre" "1 2 3 4" "patches on 0.2.0+2 before the backup"
@@ -831,11 +856,8 @@ echo "backup: $(du -h "$BR/backup.tgz" | cut -f1)"
 # Wipe: a new, empty data dir. A server on it knows nothing of the app.
 rm -rf "$WORK/server-data"
 start_server
-if api "$BASE/api/v1/apps/$app_id/releases" >/dev/null 2>&1; then
-  expect_equal "$(patch_check 0.2.0+2 4)" "none []" "the wiped server's patch check"
-else
-  echo "ok: the wiped server does not know the app"
-fi
+wiped=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 -H "Authorization: Bearer $API_KEY" "$BASE/api/v1/apps/$app_id" || true)
+expect_equal "$wiped" "404" "the wiped server's answer for the app (GET /apps/<id>: 404 for an unknown app)"
 stop_server
 # Restore, as setup.sh --restore: validate the archive before the wipe, then wipe and extract.
 mkdir "$BR/extract"
@@ -849,6 +871,8 @@ start_server
 expect_equal "$(server_releases)" "$releases_pre" "the releases after the restore"
 expect_equal "$(server_patches 0.2.0+2)" "$patches_pre" "the patches on 0.2.0+2 after the restore"
 expect_equal "$(patch_check 0.2.0+2 4)" "$check_pre" "the patch check after the restore"
+expect_equal "$(patch_check 0.2.0+2 3)" "4 [1]" "the server's check from patch 3 after the restore"
+expect_equal "$(patch_artifact_sha 0.2.0+2 3)" "$sha_pre" "patch 4's artifact after the restore (sha256)"
 # The phone already runs patch 4: it keeps it, and the server has nothing newer.
 boot 'I flutter : SB-E2E-W5:g-377'
 has 'Launch success for patch 4:'
