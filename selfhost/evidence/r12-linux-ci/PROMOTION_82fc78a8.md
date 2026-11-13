@@ -55,6 +55,16 @@ The ten imports are the same ten stock files as in the d12e29ec run (seven `andr
 three `android-*-profile/linux-x64.zip`), now under the `82fc78a8` client path. They are stock engine
 bytes, not built from 2c4b0718: the known gap stated in `compatibility.yaml` is unchanged.
 
+## Verification of the record
+
+At head `d2b1920ac`, `verify_supported_state.sh` on the arm64 Mac (overlay of the minted cell): SUPPORTED STATE
+VERIFIED. On ci-build (fresh clone of the branch, live overlay): 27 of 28 checks ok, including
+`verify_cell_members.sh` (30 of 30 addressed members match the served bytes, 4 POM versions as served), and one
+FAILED, `audit_route_b_compiler`. That failure is the platform, not the cell: the audit executes the darwin-arm64
+`dartaotruntime` from the compiler archive, which cannot run on Linux ("runtime/snapshot pair does not run as
+dart2bytecode"). The same audit is AUDIT CLEAN on the Mac. A first ci-build run also failed
+"runtime checkout has uncommitted changes" because its own output file sat in the checkout; it was moved out and re-run.
+
 ## Not done
 
 - **Device run through the cell address: outstanding, and a precondition for the tag `selfhost-v1.2.0`.** It
