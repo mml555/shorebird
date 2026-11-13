@@ -1,0 +1,16 @@
+23:44:41.678010 Runner(Flutter)[23181] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+23:44:41.678049 Runner(Flutter)[23181] <Notice>: [shorebird] Preparing next boot.
+23:44:41.678108 Runner(Flutter)[23181] <Notice>: [shorebird] Prepared boot of patch 1.
+23:44:41.678982 Runner(Flutter)[23181] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/1D7A7322-5134-4A43-BC9D-7555E26A6033/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode
+23:44:41.679021 Runner(Flutter)[23181] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+23:44:41.729350 Runner(Flutter)[23181] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+23:44:41.729404 Runner(Flutter)[23181] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=1, built-for=5df390c49c593f17a46d83a86ba622ec
+23:44:41.730254 Runner(Flutter)[23181] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=5df390c49c593f17a46d83a86ba622ec
+23:44:41.730311 Runner(Flutter)[23181] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+23:44:41.730489 Runner(Flutter)[23181] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: applied 1/1 targets, entering main
+23:44:41.822095 Runner(Flutter)[23181] <Notice>: flutter: CELL82FC-MARKER CELL82FC-V2-PATCH1
+23:44:41.823319 Runner(Flutter)[23181] <Notice>: [shorebird] Reporting successful launch.
+23:44:41.823375 Runner(Flutter)[23181] <Notice>: [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+23:44:41.841985 Runner(Flutter)[23181] <Notice>: [shorebird] Sending patch check request: app_id: c52e2b64-8357-b5b3-6725-c9592c00a8e3, channel: stable, release_version: 1.0.0+1, platform: ios, arch: aarch64, current_patch_number: Some(1)
+23:44:41.901114 Runner(Flutter)[23181] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+23:44:41.901468 Runner(Flutter)[23181] <Notice>: [shorebird] Update thread finished with status: No update

@@ -58,7 +58,7 @@ lineage:
   # minted over the published bytes of engine 2c4b0718 -- the engine whose iOS
   # release build runs Route B patches on a physical device (iPhone 7, iOS
   # 15.8.8, 2026-11-11). The Route B compiler archive and analyzer moved with it.
-  cli_revision: 12f2b3d46ea9df3dc3a4b23f6301036c8e0e6492
+  cli_revision: 357bc24f89c2c0739205e2ed2d55dda3d94e94c3   # was 12f2b3d4 (the mint); 357bc24f binds the combined cell to the iOS compiler and is the CLI the 2026-11-12 iPhone run used
   cli_contains: 6b4f6c422bab55143ef04c8f43f92015ee3b3feb   # private-name resolution for constructions
   # THE FLUTTER REVISION, and it is now the one that actually selects the
   # supported cell. e64eb0af's own engine.version names the SUPERSEDED cell
@@ -146,7 +146,7 @@ lineage:
   # is a change to what "qualified" was established against. Re-qualifying is a
   # matter of re-running the verifier and updating two lines here.
   cli_product_tree:
-    packages_shorebird_cli: 8e80b47c6d541d3a581c0fbddeaf5a9ebed94ecb
+    packages_shorebird_cli: 9d22b7d7e94e1713a0052d1236bc5100d7d5419b   # at 357bc24f; was 8e80b47c at 12f2b3d4
     bin_internal: 219c662ff0588d20f4afce6f6738cabb9b6f0e22
   producer_engine_revision: 2c4b071817c52c27142b35ff789749951e5b4d22   # built in; NOT the address. Read from the archive's PROVENANCE.txt
   fallback_engine_revision: 38855c84ca367c58165b8e3844dd7d6a99dec844   # as 2c4b0718's own experimental_hashes.map entry
@@ -158,9 +158,9 @@ lineage:
 # What this block still holds is the identity of the PIN the cell was minted for.
 flutter_3_47_pin:
   status: >-
-    PROMOTED on the frozen chain as cell 82fc78a8 (2026-11-12), and `lineage` is moved to it. NOT device-qualified
-    through the cell address: that run is OUTSTANDING and is a stated PRECONDITION for the tag selfhost-v1.2.0
-    (see `cells:`)
+    PROMOTED on the frozen chain as cell 82fc78a8 (2026-11-12), and `lineage` is moved to it. DEVICE-QUALIFIED
+    through the cell address on 2026-11-12 (iPhone 7, clean install: release, Route B patch, rollback), which was
+    the stated precondition for the tag selfhost-v1.2.0. See cells.82fc78a8….physically_qualified.
   pin_flutter_revision: d12e29eccfd56355cebdfb40ef0cb2dc674d65f8   # mml555/shorebird-flutter, head of shorebird/dev (PR #12); engine.version 2c4b0718
   selected_by_flutter_revision: f6bbc8a0b4e4d12f824edea754d05f86047d6c8f   # d12e29ec + engine.version = 82fc78a8; this is lineage.flutter_selector
   pin_engine_version: 2c4b071817c52c27142b35ff789749951e5b4d22     # the engine whose bytes the cell publishes
@@ -173,8 +173,12 @@ flutter_3_47_pin:
     applied (ROUTEB: applied 1/1 targets), and rollback. Logs in
     shorebird-flutter PR #12; summary in selfhost/STATUS.md, "iOS code push on
     2c4b0718". That run used the engine directly (flutter.version = efe3162e),
-    not through the cell 82fc78a8: the cell's members are the same bytes, and
-    the device run through the cell's address on a clean install is NOT done.
+    not through the cell 82fc78a8: the cell's members are the same bytes.
+    2026-11-12, the same iPhone 7 through the cell's address on a clean install
+    (flutter f6bbc8a0, engine resolved to 82fc78a8 via
+    cell-manifests/82fc78a8….v2): release, Route B patch applied (ROUTEB:
+    applied 1/1 targets) on two launches, rollback back to the release. PASS.
+    Evidence: evidence/ios-cell-82fc78a8/RESULT.md.
   pin_promotion_evidence: evidence/r12-linux-ci/PROMOTION_d12e29ec.md   # the d12e29ec chain; the 82fc78a8 chain is PROMOTION_82fc78a8.md
 
 # CELLS PUBLISHED BY THIS PROGRAMME, and what each one's identity actually
@@ -200,10 +204,9 @@ cells:
     members: 30
     minted: 2026-11-12 (ROUTE-B-REPIN-2C4B0718)
     status: >-
-      SELECTED, not device-qualified — this is lineage.cell_address (moved here 2026-11-12). Qualified on the
-      promotion chain only. A physical-device run through THIS ADDRESS on a clean install is outstanding, and
-      it is a PRECONDITION for pushing the tag selfhost-v1.2.0. It needs the production cdn-cache on ci-build
-      reloaded so it serves the new address and descriptor; that is the owner's call and has not been made.
+      SELECTED and device-qualified on iOS — this is lineage.cell_address (moved here 2026-11-12). Qualified
+      on the promotion chain and, on 2026-11-12, by a physical iPhone run through THIS ADDRESS on a clean
+      install, served by the production cdn-cache on ci-build after its reload (see physically_qualified).
     # Every member is the file engine 2c4b0718 published, byte for byte, except
     # the five rendered to the new address: engine_stamp.json (re-derived with
     # git_revision %H), the four POMs (canonical %H) and artifacts_manifest.yaml
@@ -224,12 +227,14 @@ cells:
       verify_cell_members.sh <address> (all 30 addressed members against the served
       bytes) is part of verify_supported_state.sh and was run through it.
     physically_qualified: >-
-      NOT DONE through this address. The iOS device run of 2026-11-11 used the
-      engine 2c4b0718 directly, and this cell's members are those bytes. The compiler
-      archive differs from f85251f3's, so that cell's device qualification does not
-      carry over. PRECONDITION for the tag selfhost-v1.2.0: a device run (iOS release,
-      Route B patch applied, rollback) on a clean install that finds the engine through
-      cell-manifests/82fc78a8....v2, which needs the production cdn-cache reloaded.
+      iOS: DONE 2026-11-12 through this address, on a physical iPhone 7 (iOS 15.8.8),
+      clean install. The cold-bootstrapped flutter f6bbc8a0 found the engine through
+      cell-manifests/82fc78a8....v2 (200, served by the production cdn-cache), and every
+      engine artifact resolved under 82fc78a8. Release, Route B patch (ROUTEB: applied
+      1/1 targets, on two launches), rollback (base release again,
+      rolled_back_patch_numbers [1]). Evidence: evidence/ios-cell-82fc78a8/RESULT.md.
+      This was the stated precondition for the tag selfhost-v1.2.0. Android is
+      covered separately, by the selfhost_android_e2e full run on PR #146.
     producer_lineage: 2c4b071817c52c27142b35ff789749951e5b4d22
     fallback_engine_revision: 38855c84ca367c58165b8e3844dd7d6a99dec844
     evidence: evidence/r12-linux-ci/PROMOTION_82fc78a8.md

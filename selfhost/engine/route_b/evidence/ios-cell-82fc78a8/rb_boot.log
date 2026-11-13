@@ -1,0 +1,9 @@
+23:46:41.333320 Runner(Flutter)[23207] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+23:46:41.333369 Runner(Flutter)[23207] <Notice>: [shorebird] Preparing next boot.
+23:46:41.333408 Runner(Flutter)[23207] <Notice>: [shorebird] Prepared boot of the base release.
+23:46:41.333450 Runner(Flutter)[23207] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(633)] Shorebird updater: no active patch.
+23:46:41.370322 Runner(Flutter)[23207] <Notice>: flutter: CELL82FC-MARKER CELL82FC-V1-RELEASE
+23:46:41.372172 Runner(Flutter)[23207] <Notice>: [shorebird] Reporting successful launch.
+23:46:41.391714 Runner(Flutter)[23207] <Notice>: [shorebird] Sending patch check request: app_id: c52e2b64-8357-b5b3-6725-c9592c00a8e3, channel: stable, release_version: 1.0.0+1, platform: ios, arch: aarch64, current_patch_number: None
+23:46:41.414311 Runner(Flutter)[23207] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([1]) }
+23:46:41.414497 Runner(Flutter)[23207] <Notice>: [shorebird] Update thread finished with status: No update
