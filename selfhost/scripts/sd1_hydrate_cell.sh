@@ -7,7 +7,13 @@
 # files and the recorded digests; the output is an overlay hierarchy a CDN can
 # serve, verified member by member and then re-verified as an address.
 #
-#   sd1_hydrate_cell.sh --dist DIR --overlay DIR [--cell ADDR]
+#   sd1_hydrate_cell.sh --dist DIR --overlay DIR [--cell ADDR] [--host-extras TAR]
+#
+# --host-extras extracts host-extras-<address>.tar into the overlay too, after the
+# members verify. It holds the host files a CDN must also serve under the cell's
+# path (dart-sdk-linux-x64.zip, linux-x64/*, ...). They are not members of the
+# cell, so this script does not authenticate them: check the tar against
+# host_extras_sha256 in SUPPORTED_STATE.yaml first, as bootstrap_selfhost.sh does.
 #
 # The descriptor is placed too, at download.shorebird.dev/shorebird/cell-manifests/
 # <address>.v2 under the overlay, where the CLI looks the engine up. It is not a
@@ -17,15 +23,19 @@
 # directory first). Exit 0 only if 30/30 members verify AND the address
 # recomputes.
 set -uo pipefail
+# Linux has sha256sum, and often no shasum (it ships with perl, which a minimal
+# image lacks). Every call here is `shasum -a 256 [-c] ...`.
+command -v shasum >/dev/null 2>&1 || shasum() { [[ "${1:-}" == -a ]] && shift 2; sha256sum "$@"; }
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO="$(cd "$HERE/../.." >/dev/null 2>&1 && pwd)"
 CELL=${CELL:-f85251f344600ae08196925a174e9cff8f0ff18e}
-DIST=""; DEST=""
+DIST=""; DEST=""; EXTRAS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dist) DIST="${2:?}"; shift 2 ;;
     --overlay) DEST="${2:?}"; shift 2 ;;
     --cell) CELL="${2:?}"; shift 2 ;;
+    --host-extras) EXTRAS="${2:?}"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -86,7 +96,7 @@ while read -r rel want bytes; do
   f="$DEST/$rel"
   if [[ ! -f "$f" ]]; then bad "MISSING after extraction: $rel"; continue; fi
   h=$(shasum -a 256 "$f" | cut -d' ' -f1)
-  sz=$(stat -f%z "$f")
+  sz=$(wc -c < "$f" | tr -d ' ')
   if [[ "$h" == "$want" && "$sz" == "$bytes" ]]; then good=$((good+1))
   else bad "BYTES DIFFER: $rel"; fi
 done < "$DIST/LAYOUT.txt"
@@ -116,6 +126,20 @@ if [[ $fail -eq 0 ]]; then
 else
   echo "    skipped: the members did not verify"
 fi
+
+if [[ -n "$EXTRAS" ]]; then
+  note "7b - the host extras (not members of the cell)"
+  if [[ $fail -ne 0 ]]; then
+    echo "    skipped: the members did not verify"
+  elif tar -xf "$EXTRAS" -C "$DEST"; then
+    ok "extracted $(tar -tf "$EXTRAS" | grep -vc '/$') host files from $(basename "$EXTRAS")"
+  else
+    bad "could not extract $EXTRAS"
+  fi
+fi
+# The CDN container reads the overlay as another user, and the bundles carry
+# owner-only modes.
+[[ $fail -eq 0 ]] && chmod -R a+rX "$DEST"
 
 note "RESULT"
 echo "  overlay: $DEST"
