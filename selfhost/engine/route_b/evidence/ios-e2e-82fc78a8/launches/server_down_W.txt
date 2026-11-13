@@ -1,0 +1,23 @@
+SANITY CHECK: Running precompiled code.
+Using App.framework from /private/var/containers/Bundle/Application/3475D215-47BC-401D-8E80-A93FCA20842B/Runner.app/Frameworks/App.framework
+ASSET PATH /var/containers/Bundle/Application/3475D215-47BC-401D-8E80-A93FCA20842B/Runner.app/Frameworks/App.framework/flutter_assets
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Preparing next boot.
+[shorebird] Prepared boot of patch 3.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/654D3EF5-E0D4-4926-93E6-55F693B8EABC/Library/Application Support/shorebird/shorebird_updater/patches/3/dlc.vmcode
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[IMPORTANT:flutter/shell/platform/darwin/graphics/FlutterDarwinContextMetalImpeller.mm(45)] Using the Impeller rendering backend (Metal).
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=3, built-for=142fabf133a53996971b06f141f8a6ed
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=142fabf133a53996971b06f141f8a6ed
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+ROUTEB: activated arg in package:e2ew/main.dart before main
+ROUTEB: activated fib in package:e2ew/main.dart before main
+ROUTEB: activated marker in package:e2ew/main.dart before main
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: applied 3/3 targets, entering main
+flutter: E2E-MARKER W4:g-233
+[shorebird] Reporting successful launch.
+[shorebird] Launch success for patch 3: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+[shorebird] Sending patch check request: app_id: 2c24f56e-b917-1ed3-6569-d5e9b80d05da, channel: stable, release_version: 2.1.0+3, platform: ios, arch: aarch64, current_patch_number: Some(3)
+[shorebird] Update failed: Network request failed; the server could not be reached.
+[shorebird] Update thread finished with status: Update had error

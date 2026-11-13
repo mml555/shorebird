@@ -1,0 +1,83 @@
+[WARN] No patch public key was provided. Patches for this release will not be cryptographically verified on the device.
+To enable verification, provide --public-key-path or --public-key-cmd.
+Starting Downloading aot-tools.dill......
+Cancelled Downloading aot-tools.dill...
+Starting Fetching app...
+Done Fetching app
+Starting Downloading aot-tools.dill......
+Cancelled Downloading aot-tools.dill...
+Building iOS app with Flutter unknown (f6bbc8a0b4)
+Building for device with codesigning disabled. You will have to manually codesign before deploying to device.
+[WARN] shorebird preview will not work for releases created with "--no-codesign". However, you can still preview your app by signing the generated .xcarchive in Xcode.
+[WARN] When you distribute the .xcarchive in Xcode, you MUST uncheck "Manage Version and Build Number" in the Distribute App dialog.
+
+If left checked, Xcode will rewrite the build number in the uploaded IPA, so the version that ships to App Store Connect will not match the version Shorebird recorded for this release. Patches will then fail to apply.
+This engine supports iOS Dart code push, so this release is being built with patchable call sites (~+4.5% app size). Without them a patch would install and change nothing.
+Route B retention: 4 named SDK members, interface 792 bytes.
+Resolving dependencies...
+Downloading packages...
+  cupertino_icons 1.0.9 (2.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.18.3 (1.19.0 available)
+  test_api 0.7.12 (0.7.15 available)
+  vector_math 2.4.0 (2.4.4 available)
+Got dependencies!
+5 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Warning: Building for device with codesigning disabled. You will have to manually codesign before deploying to device.
+Archiving dev.selfhost.e2ev...
+Running Xcode build...                                          
+Xcode archive done.                                         24.7s
+Shorebird build trace written to $SCRATCH/e2e-work/e2ev/build/shorebird/debug/build-trace-ios.json. View at https://ui.perfetto.dev
+✓ Built build/ios/archive/Runner.xcarchive (191.4MB)
+
+[✓] App Settings Validation
+    • Version Number: 9.0.0
+    • Build Number: 9
+    • Display Name: E2ev
+    • Deployment Target: 15.0
+    • Bundle Identifier: dev.selfhost.e2ev
+
+[!] App Icon and Launch Image Assets Validation
+    ! App icon is set to the default placeholder icon. Replace with unique icons.
+    ! Launch image is set to the default placeholder icon. Replace with unique launch image.
+
+To update the settings, please refer to https://flutter.dev/to/ios-deploy
+
+Codesigning disabled with --no-codesign, skipping IPA.
+This release is set up for Dart patches: verified 5818 patchable call sites (1814/MiB).
+Starting Fetching releases...
+Done Fetching releases
+
+🚀 Ready to create a new release!
+
+📱 App: ios-device-e2e (2c24f56e-b917-1ed3-6569-d5e9b80d05da)
+📦 Release Version: 9.0.0+9
+🕹️  Platform: ios
+🐦 Flutter Version: unknown (f6bbc8a0b4)
+🔏 Patch Signing: off
+
+Starting Fetching releases...
+Done Fetching releases
+Starting Creating release...
+Done Creating release
+Starting Updating release status...
+Done Updating release status
+Starting Uploading artifacts...
+Done Uploading artifacts
+Starting Uploading supplement artifacts...
+Done Uploading supplement artifacts
+Starting Updating release status...
+Done Updating release status
+
+✅ Published Release 9.0.0+9!
+
+Your next step is to submit the archive at build/ios/archive/Runner.xcarchive to the App Store using Xcode.
+
+You can open the archive in Xcode by running:
+    open build/ios/archive/Runner.xcarchive
+
+Make sure to uncheck "Manage Version and Build Number" in the Distribute App dialog.
+If left checked, Xcode will rewrite the build number in the uploaded IPA, so the version that ships will not match the one Shorebird recorded for this release, and patches will fail to apply.
+
+To create a patch for this release, run shorebird patch --platforms=ios --release-version=9.0.0+9

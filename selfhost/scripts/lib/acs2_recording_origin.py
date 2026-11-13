@@ -74,6 +74,8 @@ class H(http.server.BaseHTTPRequestHandler):
                 'sha256': hashlib.sha256(body).hexdigest(),
                 'redirects': [{'code': c, 'to': u} for c, u in chain],
                 'final_url': final,
+                'x_overlay': headers.get('X-Overlay'),
+                'x_engine_hash': headers.get('X-Engine-Hash'),
             }) + '\n')
         self.send_response(status)
         ct = headers.get('Content-Type')

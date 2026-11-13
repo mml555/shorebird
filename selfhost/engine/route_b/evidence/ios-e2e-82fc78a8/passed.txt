@@ -1,0 +1,23 @@
+the W release's bundled shorebird.yaml carries patch_public_key, V's does not
+a Podfile.lock change and an added referenced member are refused with nothing published; a Swift-only change is published (upstream parity, on a throwaway release)
+the release runs: V1, no patch
+scenarios 1 and 2 passed in the earlier invocation (launches 01-03; the ROUTEB line was then checked as 1/1 instead of 2/2)
+patch 2 runs: V3, after V2
+scenarios before E2E_FROM=4 passed in an earlier invocation of this run (see launches/)
+patch 2 rolled back: the device is back on patch 1, V2
+patch 1 rolled back: the device is on the base release, V1
+scenarios before E2E_FROM=5 passed in an earlier invocation of this run (see launches/)
+scenarios before E2E_FROM=5 passed in an earlier invocation of this run (see launches/)
+2.1.0+3 ignored the patch for 1.0.0+1 and took its own: W2
+scenarios before E2E_FROM=6 passed in an earlier invocation of this run (see launches/)
+1.0.0+1 took its patch 3 (V4) and is unaffected by W's patch
+the only patch rolled back: the device is back on W1
+a patch signed with the release's key boots with signature verification on
+a patch signed with another key was refused by the CLI before publication; the app runs W3
+the server restarted on its data dir: state unchanged, and the phone took a patch published before the restart (W4)
+the patched app booted its patch with the server down and stayed alive; the restarted server serves again (W5)
+patch 5 at 84%: the phone (bucket 8423) was not offered it and kept W5
+patch 5 at 85%: the server offers it to the phone
+rollout raised to 100%: the phone took patch 5 (W6)
+backup, wipe and restore: the data is back, and the phone keeps patch 5 (W6)
+a patch published after the restore reached the phone (W7)

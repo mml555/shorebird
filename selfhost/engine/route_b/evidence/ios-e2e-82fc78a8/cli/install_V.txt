@@ -1,0 +1,137 @@
+[....] Waiting for iOS device to be connected
+[....] Using 8cb4bc982ddf6437b1952520edee80f898196c74 (D10AP, iPhone 7, iphoneos, arm64, 15.8.8, 19H422) a.k.a. 'Menachem Lieberman’s iPhone'.
+------ Install phase ------
+[  0%] Found 8cb4bc982ddf6437b1952520edee80f898196c74 (D10AP, iPhone 7, iphoneos, arm64, 15.8.8, 19H422) a.k.a. 'Menachem Lieberman’s iPhone' connected through USB, beginning install
+[  5%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/META-INF/ to device
+[  5%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/META-INF/com.apple.ZipMetadata.plist to device
+[  5%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/_CodeSignature/ to device
+[  5%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/_CodeSignature/CodeResources to device
+[  6%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/_CodeSignature/CodeResources to device
+[  6%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/AppIcon60x60@2x.png to device
+[  6%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Runner to device
+[  6%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Base.lproj/ to device
+[  7%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Base.lproj/ to device
+[  7%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Base.lproj/Main.storyboardc/ to device
+[  7%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Base.lproj/Main.storyboardc/UIViewController-BYZ-38-t0r.nib to device
+[  7%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Base.lproj/Main.storyboardc/BYZ-38-t0r-view-8bC-Xf-vdC.nib to device
+[  8%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Base.lproj/Main.storyboardc/BYZ-38-t0r-view-8bC-Xf-vdC.nib to device
+[  8%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Base.lproj/Main.storyboardc/Info.plist to device
+[  8%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Base.lproj/LaunchScreen.storyboardc/ to device
+[  8%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Base.lproj/LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib to device
+[  9%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Base.lproj/LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib to device
+[  9%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Base.lproj/LaunchScreen.storyboardc/UIViewController-01J-lp-oVM.nib to device
+[  9%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Base.lproj/LaunchScreen.storyboardc/Info.plist to device
+[  9%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Assets.car to device
+[ 10%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Assets.car to device
+[ 10%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/AppFrameworkInfo.plist to device
+[ 10%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/AppIcon76x76@2x~ipad.png to device
+[ 10%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/ to device
+[ 10%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/e2e_plugin_a.framework/ to device
+[ 11%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/e2e_plugin_a.framework/ to device
+[ 11%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/e2e_plugin_a.framework/_CodeSignature/ to device
+[ 11%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/e2e_plugin_a.framework/_CodeSignature/CodeResources to device
+[ 11%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/e2e_plugin_a.framework/e2e_plugin_a to device
+[ 12%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/e2e_plugin_a.framework/e2e_plugin_a to device
+[ 12%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/e2e_plugin_a.framework/Info.plist to device
+[ 12%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/ to device
+[ 12%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/_CodeSignature/ to device
+[ 13%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/_CodeSignature/ to device
+[ 13%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/_CodeSignature/CodeResources to device
+[ 13%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/icudtl.dat to device
+[ 14%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/icudtl.dat to device
+[ 14%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 15%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 16%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 17%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 18%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 19%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 20%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 21%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 22%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 23%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 24%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 25%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 26%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 27%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 28%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 29%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 30%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 30%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/ to device
+[ 30%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterSceneDelegate.h to device
+[ 31%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterSceneDelegate.h to device
+[ 31%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterEngine.h to device
+[ 31%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterChannels.h to device
+[ 31%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterPlugin.h to device
+[ 31%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterAppDelegate.h to device
+[ 32%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterAppDelegate.h to device
+[ 32%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterTexture.h to device
+[ 32%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterEngineGroup.h to device
+[ 32%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterPlatformViews.h to device
+[ 33%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterPlatformViews.h to device
+[ 33%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterHeadlessDartRunner.h to device
+[ 33%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterCodecs.h to device
+[ 33%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/Flutter.h to device
+[ 34%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/Flutter.h to device
+[ 34%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterViewController.h to device
+[ 34%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterMacros.h to device
+[ 34%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterDartProject.h to device
+[ 35%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterDartProject.h to device
+[ 35%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterHourFormat.h to device
+[ 35%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterPluginAppLifeCycleDelegate.h to device
+[ 35%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterBinaryMessenger.h to device
+[ 35%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterCallbackCache.h to device
+[ 36%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterCallbackCache.h to device
+[ 36%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Headers/FlutterSceneLifeCycle.h to device
+[ 36%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/PrivacyInfo.xcprivacy to device
+[ 36%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Modules/ to device
+[ 37%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Modules/ to device
+[ 37%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Modules/module.modulemap to device
+[ 37%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/Flutter.framework/Info.plist to device
+[ 37%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/ to device
+[ 38%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/ to device
+[ 38%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/_CodeSignature/ to device
+[ 38%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/_CodeSignature/CodeResources to device
+[ 38%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/App to device
+[ 39%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/App to device
+[ 40%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/App to device
+[ 41%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/App to device
+[ 42%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/App to device
+[ 43%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/App to device
+[ 43%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/ to device
+[ 44%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/ to device
+[ 44%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/NOTICES.Z to device
+[ 44%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/NativeAssetsManifest.json to device
+[ 44%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/shorebird.yaml to device
+[ 45%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/shorebird.yaml to device
+[ 45%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/FontManifest.json to device
+[ 45%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/packages/ to device
+[ 45%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/packages/cupertino_icons/ to device
+[ 46%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/packages/cupertino_icons/ to device
+[ 46%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/packages/cupertino_icons/assets/ to device
+[ 46%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/packages/cupertino_icons/assets/CupertinoIcons.ttf to device
+[ 46%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/shaders/ to device
+[ 47%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/shaders/ to device
+[ 47%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/shaders/ink_sparkle.frag to device
+[ 47%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/shaders/stretch_effect.frag to device
+[ 47%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/AssetManifest.bin to device
+[ 48%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/AssetManifest.bin to device
+[ 48%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/fonts/ to device
+[ 48%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/flutter_assets/fonts/MaterialIcons-Regular.otf to device
+[ 48%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/Info.plist to device
+[ 49%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Frameworks/App.framework/Info.plist to device
+[ 49%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/embedded.mobileprovision to device
+[ 49%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/Info.plist to device
+[ 49%] Copying $SCRATCH/e2e-work/signed/V/Runner.app/PkgInfo to device
+[ 52%] CreatingStagingDirectory
+[ 57%] ExtractingPackage
+[ 60%] InspectingPackage
+[ 60%] TakingInstallLock
+[ 65%] PreflightingApplication
+[ 65%] InstallingEmbeddedProfile
+[ 70%] VerifyingApplication
+[ 75%] CreatingContainer
+[ 80%] InstallingApplication
+[ 85%] PostflightingApplication
+[ 90%] SandboxingApplication
+[ 95%] GeneratingApplicationMap
+[100%] Installed package $SCRATCH/e2e-work/signed/V/Runner.app
