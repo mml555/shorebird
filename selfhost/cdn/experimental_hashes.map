@@ -504,3 +504,11 @@ f85251f344600ae08196925a174e9cff8f0ff18e 69f9831c360d9152862ec3897c67fb09ae843f3
 # this address). Unbuilt artifacts (Android debug and profile) fall back to
 # 38855c84, as 2c4b0718's own entry does.
 82fc78a817ce8290b108cea4dec1ee58317e9a9c 38855c84ca367c58165b8e3844dd7d6a99dec844
+# The engines the 82fc78a8 cell was promoted through, each built on the
+# 38855c84 base. The production mirror on ci-build already carries these lines;
+# without them a build that names one of these engines directly (rather than
+# through the cell) asks upstream for a revision it never published.
+3a565f273d871d1ef004faf1a87bf45637df8ad0 38855c84ca367c58165b8e3844dd7d6a99dec844
+255fd85017b5407260e91fc70d960ec13f1b69a8 38855c84ca367c58165b8e3844dd7d6a99dec844
+7806e0fb68242dbef74e224bdaa81bd62b0d988e 38855c84ca367c58165b8e3844dd7d6a99dec844
+2c4b071817c52c27142b35ff789749951e5b4d22 38855c84ca367c58165b8e3844dd7d6a99dec844
