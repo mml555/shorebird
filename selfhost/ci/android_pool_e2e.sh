@@ -338,8 +338,21 @@ release_apk() {
   cp "$APP/build/app/outputs/flutter-apk/app-release.apk" "$WORK/$2.apk"
 }
 # Installs a kept APK fresh (the old app's updater state goes with it).
+# Prints yes or no: is the app installed? Fails when adb can't answer.
+installed() {
+  local out
+  out=$(adb_shell pm list packages "$PKG") || return 1
+  if tr -d '\r' <<<"$out" | grep -qxF "package:$PKG"; then echo yes; else echo no; fi
+}
+# Installs build $1 fresh. The uninstall goes through adb_try, and the app must
+# then be gone: a wedged uninstall used to be ignored, so a lower version code
+# went on top of a higher one and failed as INSTALL_FAILED_VERSION_DOWNGRADE.
 install_apk() {
-  timeout 60 adb -s "$SERIAL" uninstall "$PKG" >/dev/null 2>&1 || true
+  local state
+  state=$(installed)
+  [[ $state == no ]] || adb_try uninstall "$PKG" >/dev/null
+  state=$(installed)
+  [[ $state == no ]] || { echo "FAIL: $PKG is still installed, so $1 can't go on fresh" >&2; return 1; }
   timeout 300 adb -s "$SERIAL" install -r "$WORK/$1.apk"
 }
 
