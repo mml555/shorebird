@@ -154,14 +154,29 @@ wait_log() {
 # Cold-starts the app and sets LAUNCHED_AT to the device time just before the
 # launch. Called directly, not in $(...), so set -e covers each step.
 LAUNCHED_AT=
+# Runs an idempotent adb shell command, retrying it when it fails or hangs: a
+# pool phone's adb shell now and then hangs past its timeout (exit 124), which
+# under set -e used to end a run in the middle of a scenario.
+adb_shell() {
+  local try rc=0
+  for try in 1 2 3; do
+    rc=0
+    timeout 30 adb -s "$SERIAL" shell "$@" && return 0 || rc=$?
+    echo "adb shell $1 failed (exit $rc), try $try of 3" >&2
+    sleep 2
+  done
+  return "$rc"
+}
 launch() {
-  timeout 30 adb -s "$SERIAL" shell am force-stop "$PKG"
+  adb_shell am force-stop "$PKG"
   # An empty buffer, so no line of the previous launch can be read as this one's.
   timeout 30 adb -s "$SERIAL" logcat -c || true
-  LAUNCHED_AT=$(timeout 30 adb -s "$SERIAL" shell date +%s)
+  LAUNCHED_AT=$(adb_shell date +%s)
   LAUNCHED_AT=${LAUNCHED_AT//$'\r'/}
   [[ $LAUNCHED_AT =~ ^[0-9]+$ ]] || { echo "bad device time '$LAUNCHED_AT'" >&2; return 1; }
-  timeout 30 adb -s "$SERIAL" shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null
+  # monkey starts the launcher activity; a second start of a running app only
+  # brings it to the front, so a retry can't launch it twice.
+  adb_shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null
 }
 
 renew() { curl -fsS --max-time 15 -X POST "$POOL/renew?owner=$OWNER&ttl=$LEASE_TTL" >/dev/null; }
