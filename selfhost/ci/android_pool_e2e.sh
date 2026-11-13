@@ -154,19 +154,30 @@ wait_log() {
 # Cold-starts the app and sets LAUNCHED_AT to the device time just before the
 # launch. Called directly, not in $(...), so set -e covers each step.
 LAUNCHED_AT=
-# Runs an idempotent adb shell command, retrying it when it fails or hangs: a
-# pool phone's adb shell now and then hangs past its timeout (exit 124), which
-# under set -e used to end a run in the middle of a scenario.
-adb_shell() {
-  local try rc=0
+# Runs an idempotent adb command (adb -s $SERIAL "$@") with a 30 s timeout, up
+# to three times. A pool phone's adb connection now and then wedges: the
+# command hangs past its timeout (exit 124), which under set -e used to end a
+# run in the middle of a scenario. Between tries the connection is re-made and
+# the lease renewed. Only a successful try's output is printed, so a try that
+# printed and then hung can't leave its output in the caller's $(...).
+adb_try() {
+  local try rc out
   for try in 1 2 3; do
     rc=0
-    timeout 30 adb -s "$SERIAL" shell "$@" && return 0 || rc=$?
-    echo "adb shell $1 failed (exit $rc), try $try of 3" >&2
+    out=$(timeout 30 adb -s "$SERIAL" "$@") && { printf '%s\n' "$out"; return 0; } || rc=$?
+    echo "adb $1 $2 failed (exit $rc), try $try of 3" >&2
+    ((try < 3)) || break
+    renew || true
+    timeout 15 adb -s "$SERIAL" reconnect >/dev/null 2>&1 || true
+    timeout 15 adb -s "$SERIAL" wait-for-device >/dev/null 2>&1 || true
     sleep 2
   done
   return "$rc"
 }
+adb_shell() { adb_try shell "$@"; }
+# The device log since the launch at epoch second $1. A capture that fails ends
+# the run, rather than handing `lacks` an empty log it would pass.
+device_log() { adb_try logcat -d -T "$1.000"; }
 launch() {
   adb_shell am force-stop "$PKG"
   # An empty buffer, so no line of the previous launch can be read as this one's.
@@ -174,8 +185,8 @@ launch() {
   LAUNCHED_AT=$(adb_shell date +%s)
   LAUNCHED_AT=${LAUNCHED_AT//$'\r'/}
   [[ $LAUNCHED_AT =~ ^[0-9]+$ ]] || { echo "bad device time '$LAUNCHED_AT'" >&2; return 1; }
-  # monkey starts the launcher activity; a second start of a running app only
-  # brings it to the front, so a retry can't launch it twice.
+  # monkey starts the launcher activity; a retry after the app started only
+  # re-delivers the intent to it (unless the app died in between).
   adb_shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null
 }
 
@@ -191,7 +202,7 @@ boot() {
   launch
   wait_log "$1" "$LAUNCHED_AT" 60
   wait_log 'Update thread finished with status' "$LAUNCHED_AT" 120
-  BOOT_LOG=$(timeout 30 adb -s "$SERIAL" logcat -d -T "$LAUNCHED_AT.000" 2>/dev/null) || true
+  BOOT_LOG=$(device_log "$LAUNCHED_AT")
 }
 # What the launch's log must hold (waited for, as the launch path and the update
 # thread log on their own schedules) or must not hold (read after the update
@@ -200,7 +211,7 @@ has() {
   wait_log "$1" "$LAUNCHED_AT" 30
 }
 lacks() {
-  BOOT_LOG=$(timeout 30 adb -s "$SERIAL" logcat -d -T "$LAUNCHED_AT.000" 2>/dev/null) || true
+  BOOT_LOG=$(device_log "$LAUNCHED_AT")
   grep -qE "$1" <<<"$BOOT_LOG" || { echo "ok: log has no '$1'"; return 0; }
   echo "FAIL: found a line matching '$1' in this launch's log" >&2
   grep -E "$1" <<<"$BOOT_LOG" | tail -10 >&2
@@ -522,7 +533,7 @@ for _ in $(seq 60); do
   sleep 2
 done
 [[ ${booted//$'\r'/} == 1 ]] || { echo "$SERIAL did not finish booting" >&2; exit 1; }
-ABI=$(timeout 30 adb -s "$SERIAL" shell getprop ro.product.cpu.abi)
+ABI=$(adb_shell getprop ro.product.cpu.abi)
 ABI=${ABI//$'\r'/}
 echo "$ABI"
 case $ABI in
