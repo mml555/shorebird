@@ -418,7 +418,9 @@ case "$(uname -m)" in
       SERVER_IMG="$("${COMPOSE[@]}" config 2>/dev/null \
         | awk '/^  server:/{f=1} f && /^    image:/{print $2; exit}')" || SERVER_IMG=""
       if [[ -n "$SERVER_IMG" ]] && ! docker image inspect "$SERVER_IMG" >/dev/null 2>&1; then
-        ARCHES="$(docker manifest inspect "$SERVER_IMG" 2>/dev/null \
+        # -v reports the platform for a plain image manifest as well as for each
+        # child of a list; without it a single manifest shows no architecture.
+        ARCHES="$(docker manifest inspect -v "$SERVER_IMG" 2>/dev/null \
           | sed -n 's/.*"architecture": *"\([^"]*\)".*/\1/p' | sort -u | tr '\n' ' ')" || ARCHES=""
         if [[ " $ARCHES" == *" amd64 "* && " $ARCHES" != *" arm64 "* ]]; then
           warn "$SERVER_IMG is published for amd64 only; pulling this stack for amd64 and running it under emulation (slower, works on Docker Desktop). For a later \`docker compose up\` by hand, set DOCKER_DEFAULT_PLATFORM=linux/amd64."
