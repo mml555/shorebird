@@ -148,8 +148,23 @@ void main() {
     final addr = sha256.convert(utf8.encode(text)).toString().substring(0, 40);
     await expectLater(
       resolve(engineHash: addr, theBundle: f, manifestText: text),
-      throwsA(predicate((e) => '$e'.contains('not macos-ios'))),
+      throwsA(predicate((e) => '$e'.contains('not one that builds iOS'))),
     );
+  });
+
+  test('v2: the combined macos-ios-android cell binds the compiler', () async {
+    final (f, digest) = bundle(legacyH);
+    final text =
+        'address_schema route-b-cell-v2\ncell macos-ios-android\n'
+        'fallback_engine_revision 69f9831c360d9152862ec3897c67fb09ae843f3b\n'
+        '$_member $digest\n';
+    final addr = sha256.convert(utf8.encode(text)).toString().substring(0, 40);
+    final c = await resolve(
+      engineHash: addr,
+      theBundle: f,
+      manifestText: text,
+    );
+    expect(c.supportsDirectSuperDualKernel, isTrue);
   });
 
   test('THE CAUSAL NEGATIVE: H2 requested, bundle says H, NO descriptor '
