@@ -1,0 +1,22 @@
+SANITY CHECK: Running precompiled code.
+Using App.framework from /private/var/containers/Bundle/Application/7C106ADF-CAFB-4148-86C6-47871509F6F9/Runner.app/Frameworks/App.framework
+ASSET PATH /var/containers/Bundle/Application/7C106ADF-CAFB-4148-86C6-47871509F6F9/Runner.app/Frameworks/App.framework/flutter_assets
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Preparing next boot.
+[shorebird] Prepared boot of patch 1.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/4D301C76-5FC4-408D-90D3-0AE4865CF961/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[IMPORTANT:flutter/shell/platform/darwin/graphics/FlutterDarwinContextMetalImpeller.mm(45)] Using the Impeller rendering backend (Metal).
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=2, built-for=a87a20dbb90b3f38b94574a73f14e615
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=a87a20dbb90b3f38b94574a73f14e615
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+ROUTEB: activated fib in package:e2ev/main.dart before main
+ROUTEB: activated marker in package:e2ev/main.dart before main
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: applied 2/2 targets, entering main
+flutter: E2E-MARKER V2:g-55
+[shorebird] Reporting successful launch.
+[shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+[shorebird] Sending patch check request: app_id: 2c24f56e-b917-1ed3-6569-d5e9b80d05da, channel: stable, release_version: 1.0.0+1, platform: ios, arch: aarch64, current_patch_number: Some(1)
+[shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([1, 2]) }
+[shorebird] Update thread finished with status: No update

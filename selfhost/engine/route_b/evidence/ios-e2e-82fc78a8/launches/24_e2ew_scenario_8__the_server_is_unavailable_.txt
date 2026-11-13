@@ -1,0 +1,31 @@
+SANITY CHECK: Running precompiled code.
+Using App.framework from /private/var/containers/Bundle/Application/3475D215-47BC-401D-8E80-A93FCA20842B/Runner.app/Frameworks/App.framework
+ASSET PATH /var/containers/Bundle/Application/3475D215-47BC-401D-8E80-A93FCA20842B/Runner.app/Frameworks/App.framework/flutter_assets
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Preparing next boot.
+[shorebird] Prepared boot of patch 3.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/654D3EF5-E0D4-4926-93E6-55F693B8EABC/Library/Application Support/shorebird/shorebird_updater/patches/3/dlc.vmcode
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[IMPORTANT:flutter/shell/platform/darwin/graphics/FlutterDarwinContextMetalImpeller.mm(45)] Using the Impeller rendering backend (Metal).
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=3, built-for=142fabf133a53996971b06f141f8a6ed
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=142fabf133a53996971b06f141f8a6ed
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+ROUTEB: activated arg in package:e2ew/main.dart before main
+ROUTEB: activated fib in package:e2ew/main.dart before main
+ROUTEB: activated marker in package:e2ew/main.dart before main
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: applied 3/3 targets, entering main
+flutter: E2E-MARKER W4:g-233
+[shorebird] Reporting successful launch.
+[shorebird] Launch success for patch 3: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+[shorebird] Sending patch check request: app_id: 2c24f56e-b917-1ed3-6569-d5e9b80d05da, channel: stable, release_version: 2.1.0+3, platform: ios, arch: aarch64, current_patch_number: Some(3)
+[shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "251265d3903176a1f43fb84c1c689e033cbb5dea093a037186e20688de389167", download_url: "http://10.0.0.115:18090/download/1b2f24ca770f4052c5f310745e437c92?exp=1794593811&sig=4696ab2269599b37295642a75523861e897c6b2a9441419924700c92bf09e5aa", hash_signature: Some("ujGdQzPoSGWocKEmL7R2l6+Zaws355vCXoluiX7RH5WX+vn+hXD7Bp039pgg7eCWPv6xYZBK/X8VArelaoyXQwcJf3CGhR/chyuo52uUVP4jh2JOLlOdx5ukqmB4tnWB9pYaaaL8cP9uVd2U3Ep8Jluz5GTT1tk0JpafUPokKHEKesWENgjRf1Q0nUtv9COCTyumKKDlS1eFXfyVkF6/0wUHc3FhV874HN3X3LXznPfYC/ttb8seBTKdDAMvDG7nm4qB9h7mxdUfKDX7wotehBNxl4W3U5a+lIOCWkbDey5L64OmpeGsYM+y8+GDtxUlCx2OTfCKP2FmHtc/gwkkhg=="), kind: Code }), rolled_back_patch_numbers: Some([1]) }
+[shorebird] Verifying patch signature...
+[shorebird] Patch signature is valid
+[shorebird] Downloading patch 4 for app 2c24f56e-b917-1ed3-6569-d5e9b80d05da (version 2.1.0+3)
+[shorebird] Downloading patch from: http://10.0.0.115:18090/download/1b2f24ca770f4052c5f310745e437c92?exp=1794593811&sig=4696ab2269599b37295642a75523861e897c6b2a9441419924700c92bf09e5aa
+[shorebird] Downloaded patch to: "/private/var/mobile/Containers/Data/Application/654D3EF5-E0D4-4926-93E6-55F693B8EABC/Library/Application Support/shorebird/shorebird_updater/downloads/4" (1505 bytes)
+[shorebird] Inflating patch from "/private/var/mobile/Containers/Data/Application/654D3EF5-E0D4-4926-93E6-55F693B8EABC/Library/Application Support/shorebird/shorebird_updater/downloads/4" (1505 bytes)
+[shorebird] Patch successfully applied to "/private/var/mobile/Containers/Data/Application/654D3EF5-E0D4-4926-93E6-55F693B8EABC/Library/Application Support/shorebird/shorebird_updater/patches/4/dlc.vmcode". patch_file=1505b base_size=2398068b decompressed=3891b base_read=0b base_last_seek_pos=0 base_seeks=1 output_written=3879b
+[shorebird] Patch 4 successfully downloaded. It will be launched when the app next restarts.
+[shorebird] Update thread finished with status: Update installed

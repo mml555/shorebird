@@ -1,0 +1,12 @@
+Starting Fetching releases...
+Done Fetching releases
+Starting Fetching patches...
+Done Fetching patches
+Starting Rolling back patch 2...
+Done No change: patch 2 was already rolled back
+Patch 2 is already rolled back.
+ID:          3
+Number:      2
+Rolled back: yes
+Artifacts:
+  ios      aarch64      1.47 KB

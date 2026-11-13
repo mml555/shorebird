@@ -1,0 +1,74 @@
+[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+Starting Downloading aot-tools.dill......
+Cancelled Downloading aot-tools.dill...
+Starting Fetching app...
+Done Fetching app
+Starting Fetching releases...
+Done Fetching releases
+Starting Fetching xcarchive artifact...
+Done Fetching xcarchive artifact
+Starting Fetching ios_supplement artifact...
+Done Fetching ios_supplement artifact
+Starting Downloading xcarchive...
+Done Downloading xcarchive (cached)
+Starting Downloading ios_supplement...
+Done Downloading ios_supplement (cached)
+Starting Downloading aot-tools.dill......
+Cancelled Downloading aot-tools.dill...
+Building iOS patch with Flutter unknown (f6bbc8a0b4)
+
+Resolving dependencies...
+Downloading packages...
+  cupertino_icons 1.0.9 (2.0.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.18.3 (1.19.0 available)
+  test_api 0.7.12 (0.7.15 available)
+  vector_math 2.4.0 (2.4.4 available)
+Got dependencies!
+5 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Warning: Building for device with codesigning disabled. You will have to manually codesign before deploying to device.
+Archiving dev.selfhost.e2ev...
+Running Xcode build...                                          
+Xcode archive done.                                         27.1s
+Shorebird build trace written to $SCRATCH/e2e-work/e2ev/build/shorebird/debug/build-trace-ios.json. View at https://ui.perfetto.dev
+✓ Built build/ios/archive/Runner.xcarchive (191.1MB)
+
+[✓] App Settings Validation
+    • Version Number: 1.0.0
+    • Build Number: 1
+    • Display Name: E2ev
+    • Deployment Target: 15.0
+    • Bundle Identifier: dev.selfhost.e2ev
+
+[!] App Icon and Launch Image Assets Validation
+    ! App icon is set to the default placeholder icon. Replace with unique icons.
+    ! Launch image is set to the default placeholder icon. Replace with unique launch image.
+
+To update the settings, please refer to https://flutter.dev/to/ios-deploy
+
+Codesigning disabled with --no-codesign, skipping IPA.
+Starting Verifying patch can be applied to release...
+Done Verifying patch can be applied to release
+
+2 file(s) changed that are neither assets, Dart, nor recognized native code.
+Starting Extracting release artifact...
+Done Extracting release artifact
+
+🚀 Ready to publish a new patch!
+
+📱 App: ios-device-e2e (2c24f56e-b917-1ed3-6569-d5e9b80d05da)
+📦 Release Version: 1.0.0+1
+🕹️  Platform: iOS [arm64 (1.47 KB)]
+🟢 Track: Stable
+
+Starting Creating patch...
+Done Creating patch
+Starting Uploading iOS artifacts...
+Done Uploading iOS artifacts
+Starting Fetching channels...
+Done Fetching channels
+Starting Promoting patch to stable...
+Done Promoting patch to stable
+
+✅ Published Patch 2!
