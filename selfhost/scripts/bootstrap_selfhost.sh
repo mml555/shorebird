@@ -221,7 +221,12 @@ printf '  clone    %s\n  runtime  %s\n  overlay  %s\n' "$CLONE" "$RUNTIME" "$OVE
 if [[ $fail -eq 0 ]]; then
   echo "  BOOTSTRAP COMPLETE"
   echo
+  # shorebird, and the Flutter it pins (for `flutter create` and the like). The
+  # CLI points its Flutter at the mirror itself; a bare `flutter` reads
+  # FLUTTER_STORAGE_BASE_URL, or it asks download.shorebird.dev for this engine.
+  ORIGIN=${SHOREBIRD_ARTIFACT_ORIGIN:-http://127.0.0.1:8085}
   echo "  Use this CLI from your shell (add these to your shell profile):"
-  echo "    export PATH=\"$RUNTIME/bin:\$PATH\""
-  echo "    export SHOREBIRD_ARTIFACT_ORIGIN=${SHOREBIRD_ARTIFACT_ORIGIN:-http://127.0.0.1:8085}"
+  echo "    export PATH=\"$RUNTIME/bin:$RUNTIME/bin/cache/flutter/$SELECTOR/bin:\$PATH\""
+  echo "    export SHOREBIRD_ARTIFACT_ORIGIN=$ORIGIN"
+  echo "    export FLUTTER_STORAGE_BASE_URL=$ORIGIN"
 else echo "  BOOTSTRAP: $fail FAILURE(S)"; exit 1; fi

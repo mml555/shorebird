@@ -26,8 +26,9 @@ are not supported yet.
   that is the `docker.io` and `docker-compose-v2` packages; Docker Desktop has both.
 - Several GB of disk: the engine download alone is 1.6 GB, kept beside its unpacked copy,
   plus the CLI's Flutter, the mirror's Docker images and its cache.
-- For Android: a JDK 17 and the Android SDK (command-line tools, a platform and build
-  tools; `flutter doctor` names what is missing).
+- For Android: a JDK 17 and the Android SDK (command-line tools, `platform-tools`, a
+  platform and build tools, installed with `sdkmanager`), with `ANDROID_HOME` set to it;
+  `flutter doctor` names what is missing.
 - For iOS: macOS with Xcode, and an Apple developer account to sign the app.
 
 Ports used on the machine: 8080 (server) and 8085 (mirror).
@@ -55,20 +56,26 @@ It then:
    out for the mirror;
 4. starts the mirror on `http://127.0.0.1:8085` with Docker;
 5. runs the CLI once, so it fetches its pinned Flutter and engine through the mirror;
-6. verifies the whole stack, and prints two lines to add to your shell profile:
+6. verifies the whole stack, and prints three lines to add to your shell profile:
 
 ```bash
-export PATH="$HOME/shorebird-selfhost/runtime/bin:$PATH"
+export PATH="$HOME/shorebird-selfhost/runtime/bin:$HOME/shorebird-selfhost/runtime/bin/cache/flutter/<revision>/bin:$PATH"
 export SHOREBIRD_ARTIFACT_ORIGIN=http://127.0.0.1:8085
+export FLUTTER_STORAGE_BASE_URL=http://127.0.0.1:8085
 ```
+
+The second `PATH` entry is the Flutter this CLI pins (`<revision>` is filled in for you).
+Use that `flutter`, not another one you have installed: the app must be built with the
+same Flutter as its releases.
 
 Every step prints `PASS` or `FAIL`; it ends with `BOOTSTRAP COMPLETE` or the number
 of failures. Logs are in `~/shorebird-selfhost/*.log`. Running it again is safe: it
 reuses what it already downloaded.
 
-`SHOREBIRD_ARTIFACT_ORIGIN` must be set whenever you run `shorebird`. Without it the CLI
-asks `download.shorebird.dev` for an engine that is not there, and fails with an
-`unzip` error.
+`SHOREBIRD_ARTIFACT_ORIGIN` must be set whenever you run `shorebird`, and
+`FLUTTER_STORAGE_BASE_URL` whenever you run that `flutter`. Without them they ask
+`download.shorebird.dev` for an engine that is not there: `shorebird` fails with an
+`unzip` error, `flutter` with a 404.
 
 The mirror fetches the stock Flutter files it does not hold (the same for every
 Flutter app) from Google's public storage the first time, and caches them.
