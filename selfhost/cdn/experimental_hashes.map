@@ -497,3 +497,10 @@ cd848320d605ff8af5060cabf9a8d1b35853f752 69f9831c360d9152862ec3897c67fb09ae843f3
 # byte-identical to cd848320's; the Android members were built by us from engine
 # f1a59b8a, whose parent is cd848320's producer dfa2b24a.
 f85251f344600ae08196925a174e9cff8f0ff18e 69f9831c360d9152862ec3897c67fb09ae843f3b
+
+# The Flutter 3.47 cell over engine 2c4b0718 (Route B iOS), route-b-cell-v2,
+# macos-ios-android, 30 members. Every member is 2c4b0718's published bytes
+# (the two self-referential metadata members and the four POMs are rendered to
+# this address). Unbuilt artifacts (Android debug and profile) fall back to
+# 38855c84, as 2c4b0718's own entry does.
+82fc78a817ce8290b108cea4dec1ee58317e9a9c 38855c84ca367c58165b8e3844dd7d6a99dec844

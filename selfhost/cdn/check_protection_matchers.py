@@ -32,6 +32,7 @@ PROTECTED_CELLS = [
     '255fd85017b5407260e91fc70d960ec13f1b69a8',   # iOS + Android + Linux/Mac hosts
     '7806e0fb68242dbef74e224bdaa81bd62b0d988e',   # Flutter 3.47, same cells as 255fd850
     '2c4b071817c52c27142b35ff789749951e5b4d22',   # Flutter 3.47, iOS release with Route B
+    '82fc78a817ce8290b108cea4dec1ee58317e9a9c',   # minted cell over 2c4b0718's bytes (Flutter 3.47, Route B iOS)
 ]
 # Hashes that publish OUR linux-x64 host toolchain, so linux-x64/font-subset.zip
 # (it carries our const_finder) is owned for them and for no other hash.
@@ -41,6 +42,7 @@ LINUX_FONT_CELLS = [
     '3a565f273d871d1ef004faf1a87bf45637df8ad0',
     '7806e0fb68242dbef74e224bdaa81bd62b0d988e',
     '2c4b071817c52c27142b35ff789749951e5b4d22',
+    '82fc78a817ce8290b108cea4dec1ee58317e9a9c',   # minted cell over 2c4b0718's bytes (Flutter 3.47, Route B iOS)
 ]
 # Hashes that publish OUR darwin-x64 host toolchain.
 DARWIN_X64_FONT_CELLS = [
@@ -48,6 +50,7 @@ DARWIN_X64_FONT_CELLS = [
     '3a565f273d871d1ef004faf1a87bf45637df8ad0',
     '7806e0fb68242dbef74e224bdaa81bd62b0d988e',
     '2c4b071817c52c27142b35ff789749951e5b4d22',
+    '82fc78a817ce8290b108cea4dec1ee58317e9a9c',   # minted cell over 2c4b0718's bytes (Flutter 3.47, Route B iOS)
 ]
 # Cells whose sky/gpu packages are protected but whose iOS modes are not.
 SKY_ONLY_CELLS = [
