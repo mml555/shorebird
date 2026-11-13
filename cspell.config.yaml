@@ -722,6 +722,8 @@ words:
   - Dalvik # Android Dalvik VM / DEX file format
   - darkweak
   - dartaotruntime
+  # The Dart VM executable, as process names in captured proxy logs.
+  - dartvm
   - DBPW
   - Dedup
   - dedupe

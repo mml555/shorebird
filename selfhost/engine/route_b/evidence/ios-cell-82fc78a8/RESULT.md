@@ -1,5 +1,3 @@
-<!-- cspell:words dartvm -->
-
 # iOS device run through cell 82fc78a8 (2026-11-12)
 
 **Result: PASS.** Release, Route B patch and rollback on a physical iPhone 7
