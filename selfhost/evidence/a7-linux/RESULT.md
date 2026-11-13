@@ -1,4 +1,4 @@
-<!-- cspell:words sdkmanager -->
+<!-- cspell:words sdkmanager dind -->
 # A7: a clean Linux machine, following GETTING_STARTED.md
 
 2026-11-13, on ci-build. The test machine was a fresh `ubuntu:24.04` container with its own Docker

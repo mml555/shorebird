@@ -1,3 +1,4 @@
+<!-- cspell:words sdkmanager -->
 # Getting started: from nothing to a patched app
 
 This is the one path from a machine that has never seen this project to a Flutter
