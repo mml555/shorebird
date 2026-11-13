@@ -32,6 +32,13 @@ already states that calls through the dispatch table are not patchable; this run
 means for the first edit a developer makes. The guide's iOS section now says so and gives the shape
 that is accepted.
 
+## The `setup.sh` fix, checked on the same Mac
+
+With the fallback from this PR: with the image removed, `setup.sh` printed the amd64-only warning,
+pulled `linux/amd64` and reported the server ready. Run again with the image present, it printed
+no warning and reported ready. Not run: a failing `docker manifest inspect` (the change leaves the
+platform alone then, which is the behaviour before it), and `--scale` or TLS mode on arm64.
+
 ## Mirror
 
 The bootstrap's mirror served the run: 24 `flutter_infra_release`, 27 `download.shorebird.dev`

@@ -146,12 +146,13 @@ Xcode. What differs:
 - iOS patches use this fork's interpreter (Route B, [`ROUTE_B.md`](ROUTE_B.md)), not
   upstream's, and **far fewer changes can be patched than on Android**. A refused patch
   uploads nothing and names what it refused; a release can always be shipped instead.
-- **A change inside a widget's `build()` cannot be patched on iOS.** Route B replaces a
-  function at the places the release calls it directly, and the release has none for
-  `build()`: the framework calls it indirectly, through an overridden method. A function
-  the compiler inlined, such as a small closure passed to `setState`, has none either.
-  On `flutter create`'s counter app, each of these was refused: the label text, the
-  app bar colour, and `_counter++` changed to `_counter += 2`.
+- **Expect a change inside a widget's `build()` to be refused on iOS.** Route B replaces
+  a function at the places the release calls it directly. The framework calls `build()`
+  indirectly, through an overridden method, and on the counter app the release had no
+  such call left: changing the app bar colour in `build()` was refused with `no surviving
+  call site`. A function the compiler inlined, such as the closure passed to `setState`,
+  was refused the same way (`_counter++` changed to `_counter += 2`), and a change to the
+  text of a `const Text(...)` was refused as "nothing differs" (see below).
 - What can be patched is a function the release calls directly. For code you expect to
   change by patch, put it in a top-level function the compiler keeps, and call it from
   `build()`, **before you release**:
@@ -161,12 +162,15 @@ Xcode. What differs:
   @pragma('vm:entry-point')
   String greeting() => 'Hello';
 
-  // in build():
+  // in build(), not inside a const expression:
   Text(greeting()),
   ```
 
-  A later patch that changes only `greeting()`'s body is accepted. That is the shape the
-  iPhone test in [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md) patches.
+  A later patch that changes only `greeting()`'s body is published (measured on a Mac,
+  [`evidence/a5-macos/RESULT.md`](evidence/a5-macos/RESULT.md)). The same shape,
+  `marker()` in [`ci/ios_device_e2e.sh`](ci/ios_device_e2e.sh), is what the iPhone run in
+  [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md) (IOS-E2E) patched, and those patches booted
+  and showed the new value.
 - The app reaches your server over the local network, so iOS asks the user once per
   install to allow it.
 - Native changes are not refused, as upstream: only a changed `Podfile.lock` stops a
