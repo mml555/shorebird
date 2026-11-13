@@ -70,6 +70,9 @@ RE=$(shasum -a 256 "$DIST/cell_manifest.v2" | cut -c1-40)
                        || bad "descriptor recomputes to $RE, not $CELL"
 
 note "4 - extract into the overlay hierarchy"
+# A descriptor from an earlier run into this overlay would outlive a failed
+# run and be counted below; step 7 puts it back once the members verify.
+rm -f "$DEST/download.shorebird.dev/shorebird/cell-manifests/$CELL.v2"
 mkdir -p "$DEST"
 tar -xf "$DIST/cell-$CELL.tar" -C "$DEST" || bad "extraction failed"
 got=$(cd "$DEST" && find . -type f -path "*$CELL*" | wc -l | tr -d ' ')
