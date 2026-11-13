@@ -30,7 +30,8 @@ version-pinned**, and adds a drop-in server they talk to instead:
 
 ## Getting Started
 
-Follow [`selfhost/GETTING_STARTED.md`](selfhost/GETTING_STARTED.md). It installs this
+Follow [`selfhost/GETTING_STARTED.md`](selfhost/GETTING_STARTED.md), pinned to a
+`selfhost-v*` release tag rather than `main`. It installs this
 fork's CLI, starts the artifact mirror the CLI needs and the server, then releases and
 patches an app. Upstream's installer does not work here: it installs upstream's CLI,
 whose engine is not this fork's.

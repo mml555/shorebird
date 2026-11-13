@@ -117,6 +117,13 @@ GOT=$(shasum -a 256 "$DIST/cell-$CELL.tar" 2>/dev/null | cut -d' ' -f1)
 [[ "$GOT" == "$BUNDLE_SHA" ]] && ok "the bundle matches the digest committed in the record" \
                               || bad "bundle digest $GOT != recorded $BUNDLE_SHA"
 EXTRAS_ARG=()
+# A tag from before host extras could be placed: its hydrate script rejects the
+# option, and its other scripts do not run on Linux. Say so instead of failing
+# inside the hydrate log.
+if [[ -n "$EXTRAS" ]] && ! grep -q -- '--host-extras' "$CLONE/selfhost/scripts/sd1_hydrate_cell.sh"; then
+  bad "$REF predates host-extras support (selfhost-v1.2.1); pass --ref with a newer selfhost-v* tag"
+  EXTRAS=""
+fi
 if [[ -n "$EXTRAS" ]]; then
   GOT=$(shasum -a 256 "$DIST/$EXTRAS" 2>/dev/null | cut -d' ' -f1)
   if [[ "$GOT" == "$EXTRAS_SHA" ]]; then
@@ -127,7 +134,7 @@ if [[ -n "$EXTRAS" ]]; then
   fi
 fi
 if bash "$CLONE/selfhost/scripts/sd1_hydrate_cell.sh" --dist "$DIST" --overlay "$OVERLAY" \
-     --cell "$CELL" "${EXTRAS_ARG[@]}" > "$ROOT/hydrate.log" 2>&1; then
+     --cell "$CELL" ${EXTRAS_ARG[@]+"${EXTRAS_ARG[@]}"} > "$ROOT/hydrate.log" 2>&1; then
   ok "cell hydrated and verified 30/30 into $OVERLAY"
 else
   bad "hydration failed — see $ROOT/hydrate.log"

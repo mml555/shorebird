@@ -360,8 +360,12 @@ else
 fi
 
 # 5. THE DEEPER COMPILER/RUNTIME AUDIT.
-if bash "$HERE/audit_route_b_compiler.sh" --hash "$CELL" >/dev/null 2>&1; then
+if audit_out=$(bash "$HERE/audit_route_b_compiler.sh" --hash "$CELL" 2>&1); then
   ok "audit_route_b_compiler: AUDIT CLEAN"
+  # On a host that is not darwin-arm64 the compiler cannot be run, so the clean
+  # result covers its bytes, not that it runs. Show that rather than hide it.
+  grep -q 'capability probe skipped' <<<"$audit_out" \
+    && echo "  --      the compiler's run probe was skipped: it is darwin-arm64, this host is $(uname -s)/$(uname -m)"
 else
   bad "audit_route_b_compiler reported findings for $CELL"
 fi

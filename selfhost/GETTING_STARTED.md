@@ -18,12 +18,14 @@ are not supported yet.
 
 ## 1. Prerequisites
 
-- **Linux (x86_64, glibc) or macOS (Apple silicon or Intel).** Alpine and other musl systems
-  cannot run the Dart SDK the CLI downloads.
-- `git`, `curl`, `unzip`, `python3`, `bash` 4 or newer.
+- **Linux (x86_64, glibc) or macOS.** Alpine and other musl systems cannot run the Dart
+  SDK the CLI downloads. iOS needs a Mac with Apple silicon: the iOS patch compiler is
+  built for it only.
+- `git`, `curl`, `unzip`, `python3`, `bash`.
 - **Docker with the Compose plugin** (`docker compose version` must work). On Ubuntu
   that is the `docker.io` and `docker-compose-v2` packages; Docker Desktop has both.
-- About 5 GB of disk for the engine download, the mirror and the CLI's Flutter.
+- Several GB of disk: the engine download alone is 1.6 GB, kept beside its unpacked copy,
+  plus the CLI's Flutter, the mirror's Docker images and its cache.
 - For Android: a JDK 17 and the Android SDK (command-line tools, a platform and build
   tools; `flutter doctor` names what is missing).
 - For iOS: macOS with Xcode, and an Apple developer account to sign the app.
@@ -32,15 +34,20 @@ Ports used on the machine: 8080 (server) and 8085 (mirror).
 
 ## 2. Install the CLI and start the mirror
 
+Pin a release: pick the newest `selfhost-v*` tag on the
+[tags page](https://github.com/mml555/shorebird/tags), `selfhost-v1.2.1` or newer
+(older tags cannot install on Linux), and use it for both the script and `--ref`:
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mml555/shorebird/main/selfhost/scripts/bootstrap_selfhost.sh \
+TAG=selfhost-v1.2.1
+curl -fsSL "https://raw.githubusercontent.com/mml555/shorebird/$TAG/selfhost/scripts/bootstrap_selfhost.sh" \
   -o bootstrap_selfhost.sh
-bash bootstrap_selfhost.sh --root ~/shorebird-selfhost --start-mirror
+bash bootstrap_selfhost.sh --root ~/shorebird-selfhost --ref "$TAG" --start-mirror
 ```
 
-It picks the newest `selfhost-v*` release tag (pass `--ref <tag>` to choose one) and then:
+It then:
 
-1. clones this repository at that tag into `~/shorebird-selfhost/shorebird`;
+1. clones this repository at the tag into `~/shorebird-selfhost/shorebird`;
 2. checks out the CLI revision the tag pins, into `~/shorebird-selfhost/runtime`;
 3. downloads the engine from the tag's GitHub release (about 1.6 GB), checks every
    file against the digests committed in
@@ -140,7 +147,8 @@ Xcode. What differs:
 - `unzip: End-of-central-directory signature not found` on the first `shorebird` run:
   `SHOREBIRD_ARTIFACT_ORIGIN` is not set, or the mirror is not running
   (`docker compose -f ~/shorebird-selfhost/shorebird/selfhost/cdn/docker-compose.cdn.yaml ps`).
-- `The Docker Compose plugin is required`: install the Compose plugin (step 1).
+- `setup.sh` stops with `The Docker Compose plugin is required`: install the Compose
+  plugin (step 1).
 - A `FAIL` line from the bootstrap: the line names the step and its log.
 
 The mirror's internals, and running it without Docker, are in
