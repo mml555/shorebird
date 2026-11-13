@@ -17,6 +17,9 @@ unvalidated is the signed *workflow* on device, which is a different claim.
 
 ## Quick start (one command)
 
+This starts the server. To install the CLI and the artifact mirror it needs as well, and
+ship a first app, follow [`selfhost/GETTING_STARTED.md`](../../selfhost/GETTING_STARTED.md).
+
 ```bash
 cd packages/code_push_server
 ./setup.sh
@@ -36,6 +39,7 @@ Then, from your Flutter app:
 export SHOREBIRD_HOSTED_URL=<the URL setup.sh printed>
 export SHOREBIRD_TOKEN=<the API key setup.sh printed>
 shorebird init          # add `base_url: <that URL>` to shorebird.yaml
+                        # (shorebird is this fork's CLI: see GETTING_STARTED.md)
 shorebird release android
 shorebird patch android
 ```

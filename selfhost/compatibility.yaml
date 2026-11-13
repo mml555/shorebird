@@ -13,7 +13,7 @@
 # never discovered after.
 shorebird:
   cli_version: 1.6.138+selfhost.1                                # fork build of upstream 1.6.138 (was 1.6.115)
-  cli_revision: selfhost-v1.0.0                                  # this repo's baseline tag
+  cli_revision: 357bc24f89c2c0739205e2ed2d55dda3d94e94c3          # the CLI cell 82fc78a8 was qualified with (SUPPORTED_STATE.yaml lineage.cli_revision); was the selfhost-v1.0.0 tag
   flutter_revision: f6bbc8a0b4e4d12f824edea754d05f86047d6c8f      # bin/internal/flutter.version. RE-PINNED 2026-11-12 (ROUTE-B-REPIN-2C4B0718) from d12e29ec: this is
                                                                   # d12e29ec plus ONE line, bin/internal/engine.version = 82fc78a817ce8290b108cea4dec1ee58317e9a9c, the cell
                                                                   # minted over engine 2c4b0718's published bytes (macos-ios-android, 30 members), so a clean
