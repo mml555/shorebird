@@ -47,7 +47,8 @@
 #   E2E_PHASE             after-install, the same as --resume
 #   E2E_FROM              with --resume, skip scenarios before this number (a
 #                         resume after a failure; the skipped ones are NOT
-#                         re-checked and passed.txt says so)
+#                         re-checked and passed.txt says so). 1 to 6 only: a
+#                         failure in 4c-10 needs a new run
 #
 # Needs python3, curl, openssl, ios-deploy, idevicesyslog and idevicedebug
 # (libimobiledevice, /opt/homebrew/bin), and a mounted developer disk image.
@@ -71,9 +72,11 @@ case ${WORK%/} in
 esac
 UDID=${E2E_UDID:?set E2E_UDID}
 CLI=${E2E_CLI:-$ROOT}
-IDENTITY=${E2E_IDENTITY:?set E2E_IDENTITY}
-PROFILE=${E2E_PROFILE:?set E2E_PROFILE}
-TEAM=${E2E_TEAM:?set E2E_TEAM}
+IDENTITY=${E2E_IDENTITY:-} PROFILE=${E2E_PROFILE:-} TEAM=${E2E_TEAM:-}
+# Only the phases that build and sign need them; a --resume signs nothing.
+if [[ $PHASE != after-install ]]; then
+  : "${E2E_IDENTITY:?set E2E_IDENTITY}" "${E2E_PROFILE:?set E2E_PROFILE}" "${E2E_TEAM:?set E2E_TEAM}"
+fi
 HOST_IP=${E2E_HOST_IP:-$(ipconfig getifaddr en0)}
 PORT=${E2E_PORT:-18090}
 EVID=${E2E_EVIDENCE:-$WORK/evidence}
@@ -97,6 +100,9 @@ NLAUNCH=0
 
 log() { printf '\n=== %s\n' "$*"; SCEN=$(tr -c 'A-Za-z0-9' '_' <<<"$1" | cut -c1-40); }
 die() { echo "FAIL: $*" >&2; exit 1; }
+# A saved PID that is empty means stopped: `kill -0 0` would signal our own
+# process group and succeed.
+alive() { [[ -n $1 ]] && kill -0 "$1" 2>/dev/null; }
 
 # Starts "$@" detached in its own process group, output to $1; sets SPAWNED.
 # (macOS has no setsid(1).) Called directly, not in $(...).
@@ -479,17 +485,17 @@ make_release() { # V | W, extra release flags
 # fresh and the Local Network prompt for it needs a tap again.
 if [[ $PHASE == rebuild-w ]]; then
   [[ -n ${E2E_VER_W:-} ]] || die "set E2E_VER_W to a new release version for W"
-  if ! kill -0 "${SYSLOG_PID:-0}" 2>/dev/null; then spawn "$SYSLOG" idevicesyslog -u "$UDID"; SYSLOG_PID=$SPAWNED; fi
+  if ! alive "${SYSLOG_PID:-}"; then spawn "$SYSLOG" idevicesyslog -u "$UDID"; SYSLOG_PID=$SPAWNED; fi
   if [[ -n ${E2E_ARTIFACT_UPSTREAM:-} ]]; then
-    if ! kill -0 "${ORIGIN_PID:-0}" 2>/dev/null; then
-      spawn "$WORK/origin.out" python3 -I "$ROOT/selfhost/scripts/lib/acs2_recording_origin.py" 18085 "$E2E_ARTIFACT_UPSTREAM" "$EVID/artifact_origin.jsonl"; ORIGIN_PID=$SPAWNED
+    if ! alive "${ORIGIN_PID:-}"; then
+      spawn "$WORK/origin.out" env ACS2_ORIGIN_APPEND=1 python3 -I "$ROOT/selfhost/scripts/lib/acs2_recording_origin.py" 18085 "$E2E_ARTIFACT_UPSTREAM" "$EVID/artifact_origin.jsonl"; ORIGIN_PID=$SPAWNED
     fi
-    if ! kill -0 "${CONNREC_PID:-0}" 2>/dev/null; then
+    if ! alive "${CONNREC_PID:-}"; then
       spawn "$WORK/connrec.out" python3 -I "$ROOT/selfhost/scripts/lib/connect_recorder.py" 18088 "$EVID/outbound_connect.jsonl"; CONNREC_PID=$SPAWNED
     fi
     sleep 2
   fi
-  if ! kill -0 "${SERVER_PID:-0}" 2>/dev/null; then SERVER_PID=; start_server; fi
+  if ! alive "${SERVER_PID:-}"; then SERVER_PID=; start_server; fi
   save_state
   keys=$WORK/keys
   rm -rf "$keys"
@@ -640,16 +646,19 @@ fi
 # the server's data dir persists). E2E_FROM=<n> skips scenarios 1..n-1 when the
 # device and server are already past them (after a failed run, never after a reinstall).
 FROM=${E2E_FROM:-1}
-if ! kill -0 "${SYSLOG_PID:-0}" 2>/dev/null; then spawn "$SYSLOG" idevicesyslog -u "$UDID"; SYSLOG_PID=$SPAWNED; fi
+# Scenarios 4c to 10 run as one block whose patch numbers depend on each other,
+# so a resume can start no later than 6 (which runs 5c, then the block).
+[[ $FROM =~ ^[1-6]$ ]] || die "E2E_FROM must be 1 to 6 (scenarios 4c-10 cannot be resumed part way: start a new run)"
+if ! alive "${SYSLOG_PID:-}"; then spawn "$SYSLOG" idevicesyslog -u "$UDID"; SYSLOG_PID=$SPAWNED; fi
 if [[ -n ${E2E_ARTIFACT_UPSTREAM:-} ]]; then
-  if ! kill -0 "${ORIGIN_PID:-0}" 2>/dev/null; then
-    spawn "$WORK/origin.out" python3 -I "$ROOT/selfhost/scripts/lib/acs2_recording_origin.py" 18085 "$E2E_ARTIFACT_UPSTREAM" "$EVID/artifact_origin.jsonl"; ORIGIN_PID=$SPAWNED
+  if ! alive "${ORIGIN_PID:-}"; then
+    spawn "$WORK/origin.out" env ACS2_ORIGIN_APPEND=1 python3 -I "$ROOT/selfhost/scripts/lib/acs2_recording_origin.py" 18085 "$E2E_ARTIFACT_UPSTREAM" "$EVID/artifact_origin.jsonl"; ORIGIN_PID=$SPAWNED
   fi
-  if ! kill -0 "${CONNREC_PID:-0}" 2>/dev/null; then
+  if ! alive "${CONNREC_PID:-}"; then
     spawn "$WORK/connrec.out" python3 -I "$ROOT/selfhost/scripts/lib/connect_recorder.py" 18088 "$EVID/outbound_connect.jsonl"; CONNREC_PID=$SPAWNED
   fi
 fi
-if ! kill -0 "${SERVER_PID:-0}" 2>/dev/null; then SERVER_PID=; start_server; fi
+if ! alive "${SERVER_PID:-}"; then SERVER_PID=; start_server; fi
 save_state
 V1_VERSION=$VER_V
 NLAUNCH=$(find "$EVID/launches" -name "[0-9][0-9]_*" 2>/dev/null | wc -l | tr -d " ")

@@ -18,6 +18,7 @@ A 200 proves only that something answered.
 import hashlib
 import http.server
 import json
+import os
 import socketserver
 import sys
 import threading
@@ -109,6 +110,8 @@ class S(socketserver.ThreadingMixIn, http.server.HTTPServer):
     allow_reuse_address = True
 
 
-open(LOG, 'w').close()
+# A restart within one run (ACS2_ORIGIN_APPEND=1) keeps what was recorded so far.
+if os.environ.get('ACS2_ORIGIN_APPEND') != '1':
+    open(LOG, 'w').close()
 print(f'recording origin :{PORT} -> {UPSTREAM}  log={LOG}', flush=True)
 S(('127.0.0.1', PORT), H).serve_forever()
