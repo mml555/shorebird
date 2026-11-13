@@ -1,0 +1,151 @@
+
+== creating the release/patch discovery container ==
+   localhost:18081 -> 200 (forwarded to the host control plane)
+   container ready at 12f2b3d46ea9df3dc3a4b23f6301036c8e0e6492
+
+== iteration 1 — frozen harness against the SEALED COLD mirror (v0.8.1+1) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-arm-profile/linux-x64.zip
+        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-arm-profile/linux-x64.zip
+     owned: flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-arm-profile/linux-x64.zip
+       bytes  2467006
+       sha256 452ffa969bab7a99dddcaf3fd62cb97272ada53296367b47845484571637b176
+       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-arm-profile/linux-x64.zip
+
+== iteration 2 — frozen harness against the SEALED COLD mirror (v0.8.2+2) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-arm64-profile/linux-x64.zip
+        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-arm64-profile/linux-x64.zip
+     owned: flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-arm64-profile/linux-x64.zip
+       bytes  2566688
+       sha256 833596cc5e06592b33ab2548442b9d6e3c21d96047b69a4126ded45afb34c083
+       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-arm64-profile/linux-x64.zip
+
+== iteration 3 — frozen harness against the SEALED COLD mirror (v0.8.3+3) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-x64-profile/linux-x64.zip
+        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-x64-profile/linux-x64.zip
+     owned: flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-x64-profile/linux-x64.zip
+       bytes  2531090
+       sha256 87be1614fc4aaa080ab666a8c4a02098b3b591d8e47b7a88e184fbccbf723f69
+       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-x64-profile/linux-x64.zip
+
+== iteration 4 — frozen harness against the SEALED COLD mirror (v0.8.4+4) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-x86/artifacts.zip
+        from /gcs/flutter_infra_release/flutter/89c39edfdfae2949f6806e4a315c0c08522238b7/android-x86/artifacts.zip
+     owned: flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-x86/artifacts.zip
+       bytes  115259885
+       sha256 4a26ecc3e84feea8b171f931954639d6c6847caf72a7315f24a43803f0a233d9
+       source https://storage.googleapis.com/flutter_infra_release/flutter/89c39edfdfae2949f6806e4a315c0c08522238b7/android-x86/artifacts.zip
+
+== iteration 5 — frozen harness against the SEALED COLD mirror (v0.8.5+5) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-x64/artifacts.zip
+        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-x64/artifacts.zip
+     owned: flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-x64/artifacts.zip
+       bytes  122655136
+       sha256 638f5c688f13d80c406b8da246cced5443e0eb4f46a0d94d369f695119059c9e
+       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-x64/artifacts.zip
+
+== iteration 6 — frozen harness against the SEALED COLD mirror (v0.8.6+6) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-arm/artifacts.zip
+        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-arm/artifacts.zip
+     owned: flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-arm/artifacts.zip
+       bytes  117332421
+       sha256 d734d79f1c06fa6c02fce4de576a18ed612e026fcaf842de095ae4bba7eada1b
+       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-arm/artifacts.zip
+
+== iteration 7 — frozen harness against the SEALED COLD mirror (v0.8.7+7) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-arm-profile/artifacts.zip
+        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-arm-profile/artifacts.zip
+     owned: flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-arm-profile/artifacts.zip
+       bytes  45399683
+       sha256 04f068411946da71a63e4951adc16979bd6093794a20df85dd29899163b4b49a
+       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-arm-profile/artifacts.zip
+
+== iteration 8 — frozen harness against the SEALED COLD mirror (v0.8.8+8) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-arm64/artifacts.zip
+        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-arm64/artifacts.zip
+     owned: flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-arm64/artifacts.zip
+       bytes  182877585
+       sha256 d2a46d1aa76acd074fc1c6aae1717682e18c660d7c02781d8a6acecf0b08e74c
+       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-arm64/artifacts.zip
+
+== iteration 9 — frozen harness against the SEALED COLD mirror (v0.8.9+9) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-arm64-profile/artifacts.zip
+        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-arm64-profile/artifacts.zip
+     owned: flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-arm64-profile/artifacts.zip
+       bytes  46318459
+       sha256 b15021c21cb00a4040325fbf2ef394de437201b314b1bbe8a552f9bbfc8b0dbc
+       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-arm64-profile/artifacts.zip
+
+== iteration 10 — frozen harness against the SEALED COLD mirror (v0.8.10+10) ==
+   harness exit 1
+   1 artifact(s) refused this round
+   importing /flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-x64-profile/artifacts.zip
+        from /gcs/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-x64-profile/artifacts.zip
+     owned: flutter_infra_release/flutter/82fc78a817ce8290b108cea4dec1ee58317e9a9c/android-x64-profile/artifacts.zip
+       bytes  46581529
+       sha256 1b1072d73acdea11e567241662290954b8ee72c5e9da3ae71e1b55d5ce001bcf
+       source https://storage.googleapis.com/download.shorebird.dev/flutter_infra_release/flutter/38855c84ca367c58165b8e3844dd7d6a99dec844/android-x64-profile/artifacts.zip
+
+== iteration 11 — frozen harness against the SEALED COLD mirror (v0.8.11+11) ==
+   harness exit 1
+
+== STOP — harness failed with NOTHING refused by the seal ==
+   A different failure. Classify it; do not loop.
+     |                               StdioType.terminal. canAcceptUserInput is TRUE.
+     |                               Attribute refusals to stdout, not to stdin.
+     |    CI detection vars        : none set
+     |    SHOREBIRD_TOKEN          : set (71 chars, not echoed)
+     |    control plane            : http://localhost:18081 -> 200
+     |    shorebird                : /r12src/bin/shorebird
+     | 
+     | == self-test A — preview, NO --json (TTY predicate only) ==
+     |    cmd: (cd /r12out/disc/detector_selftest_app && shorebird preview)
+     |    exit: 64  log: /r12out/disc/detector_selftest.log
+     |    exit: 64 (expected 64)   'non-interactive context' lines: 1 (expected >=1)
+     | 
+     | == self-test B — preview, WITH --json (arm 2's exact grep) ==
+     |    cmd: (cd /r12out/disc/detector_selftest_app && shorebird --json preview)
+     |    exit: 64  log: /r12out/disc/detector_selftest_json.log
+     |    exit: 64 (expected 64)   interactive_prompt_required: 1 (expected >=1)
+     |    host                     : Linux
+     |    release version          : 0.8.11+11
+     | 
+     | == arm 1 — release, NO --json ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird release android --no-confirm)
+     |    exit: 0  log: /r12out/disc/ci_run_notty.log
+     | 
+     | == arm 1 — patch, NO --json ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird patch android --no-confirm --release-version 0.8.11+11)
+     |    exit: 0  log: /r12out/disc/ci_run_notty.log.patch
+     | 
+     | == arm 2 — patch, WITH --json ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 0.8.11+11)
+     |    exit: 0  log: /r12out/disc/ci_run_json.log
+     |    interactive_prompt_required in arm 2: 0 (expected 0)
+     | 
+     | == arm 3 — patch, NO --release-version (the release chooser) ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && timeout 600 shorebird patch android --no-confirm)
+     |    exit: 0  log: /r12out/disc/ci_run_chooser.log
+     |    arm 3 exited 0, expected 64 (refused prompt). If 0, the chooser was
+     |      never reached and this arm proved nothing — check the release count.
+     | 
+     | == verdict ==
+     |    FAIL — 1 check(s) failed. Logs in /r12out/disc
+EXIT=1

@@ -14,7 +14,20 @@
 shorebird:
   cli_version: 1.6.138+selfhost.1                                # fork build of upstream 1.6.138 (was 1.6.115)
   cli_revision: selfhost-v1.0.0                                  # this repo's baseline tag
-  flutter_revision: d12e29eccfd56355cebdfb40ef0cb2dc674d65f8      # bin/internal/flutter.version (Flutter 3.47, release-candidate-branch.version
+  flutter_revision: f6bbc8a0b4e4d12f824edea754d05f86047d6c8f      # bin/internal/flutter.version. RE-PINNED 2026-11-12 (ROUTE-B-REPIN-2C4B0718) from d12e29ec: this is
+                                                                  # d12e29ec plus ONE line, bin/internal/engine.version = 82fc78a817ce8290b108cea4dec1ee58317e9a9c, the cell
+                                                                  # minted over engine 2c4b0718's published bytes (macos-ios-android, 30 members), so a clean
+                                                                  # install finds the engine through cell-manifests/<address>.v2. shorebird-flutter branch
+                                                                  # selfhost/3.47-cell-82fc78a8, tag selfhost-flutter-cell-82fc78a8. Everything below that says
+                                                                  # d12e29ec describes the framework this one is built on, and the d12e29ec chain evidence
+                                                                  # (PROMOTION_d12e29ec.md) stays valid for those bytes. The chain was RE-RUN for this
+                                                                  # pin: evidence/r12-linux-ci/PROMOTION_82fc78a8.md (sealed cold bootstrap 0 additions,
+                                                                  # bootstrap_closure_guard CLOSURE OK, fresh cold bootstrap PASS, release/patch closure
+                                                                  # 10 imports, R12 arm A PASS; arm B not re-run, no semantics changed).
+                                                                  # The cell, its compiler archive (c79e606d...), analyzer (4f787e10...) and CLI trees are
+                                                                  # recorded in engine/route_b/SUPPORTED_STATE.yaml and checked by verify_supported_state.sh.
+                                                                  # --- the text below describes the d12e29ec promotion this builds on ---
+                                                                  # (Flutter 3.47, release-candidate-branch.version
                                                                   # flutter-3.47-candidate.0 / Dart 3.13.7). Head of mml555/shorebird-flutter branch
                                                                   # shorebird/dev at the promotion: the merge of shorebird-flutter PR #12, which pins
                                                                   # engine.version to 2c4b0718, the first 3.47 engine whose iOS release engine runs
@@ -63,8 +76,8 @@ shorebird:
                                                                   # release would you like to patch?" when several releases exist). ci_noninteractive.sh is the repo's
                                                                   # file at 5b555d66 and the r12 launch scripts are byte-identical to selfhost/ci/r12 there (hashes in the evidence); arm 3 exits 64 naming the chooser in both arms. The CLI under test was
                                                                   # 5b555d66447abaeb9513dfb75d9fa09cf8006a60, which contains #131 (merge 8b6e6107).
-                                                                  # IT IS NOT A CELL QUALIFICATION: engine/route_b/SUPPORTED_STATE.yaml names this pin
-                                                                  # under flutter_3_47_pin as NOT QUALIFIED. Its lineage still describes cell f85251f3.
+                                                                  # (SUPERSEDED STATEMENT: the d12e29ec run was not a cell qualification and said so.
+                                                                  # engine/route_b/SUPPORTED_STATE.yaml lineage now describes cell 82fc78a8 at f6bbc8a0.)
                                                                   # updater_revision below is now the updater in this pin's DEPS (87c198d3); the engine
                                                                   # consumes it. 87c198d30f87 is already in eligibleUpdaterRevisions (epoch B, since
                                                                   # 2026-11-07); nothing changes there. It defaults patch_verification to install_only.
