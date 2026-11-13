@@ -101,11 +101,13 @@ full release build has run through the mirror*, not *a list of URLs was fetched*
 
 ## Android: Gradle refuses a plain-HTTP mirror on another machine
 
-A mirror on the same machine as the build, at `http://127.0.0.1` or `http://localhost` (what
-`bootstrap_selfhost.sh --start-mirror` sets up), needs nothing here: Gradle exempts loopback
-addresses from the check below. Measured with Gradle 9.3.1 (Flutter `f6bbc8a0`'s default): the
-same release build passes at `http://127.0.0.1:8085` and fails at the same mirror's LAN address.
-This section is for a mirror shared over the network.
+A mirror on the same machine as the build at `http://127.0.0.1` (what
+`bootstrap_selfhost.sh --start-mirror` sets up) needed nothing here: measured with Gradle 9.3.1,
+the version Flutter `f6bbc8a0` writes into a new app's wrapper, Gradle let the loopback address
+through the check below. `shorebird release android` passed with the mirror at
+`http://127.0.0.1:8085`; `flutter build apk --release` against the same mirror at its LAN address
+failed, and passed once the opt-in below was added. `localhost`, `::1` and other Gradle versions
+were not run. This section is for a mirror shared over the network.
 
 Engine artifacts reach an Android build two different ways, and only one of them
 tolerates `http://`:
@@ -114,7 +116,7 @@ tolerates `http://`:
   HTTP happily (this is what `precache` and the release build's Dart/engine
   fetches use);
 - **Gradle** resolves `download.flutter.io/io/flutter/<abi>_release/...jar` as
-  Maven dependencies, and Gradle rejects an `http://` repository on any host but loopback:
+  Maven dependencies, and Gradle rejects an `http://` repository (9.3.1 let `127.0.0.1` through):
 
   ```
   Execution failed for task ':app:mergeReleaseAssets'.

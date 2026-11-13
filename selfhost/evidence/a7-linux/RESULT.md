@@ -30,21 +30,23 @@ container started with nothing installed.
 | 4 `shorebird patch android` | exit 0, "Published Patch 1!" |
 | server | release `1.0.0+1` active for android, Flutter `f6bbc8a0` |
 
-3. **`GETTING_STARTED.md` at the tag `selfhost-v1.2.1`** (`3503834a`), in a new clean container,
-   every command as the guide writes it: the bootstrap script fetched from the tag with `curl`,
-   `--ref "$TAG" --start-mirror`, and the three `export` lines taken from the bootstrap's own
-   output. Every step exited 0: bootstrap (`BOOTSTRAP COMPLETE`), `setup.sh`, `shorebird --version`,
-   `flutter create`, `init`, `doctor --fix`, `release android`, `patch android` ("Published Patch
-   1!"). The server held release `1.0.0+1` active for android and patch 1 active on `stable` at
-   100% rollout.
+**Run 3: `GETTING_STARTED.md` at the tag `selfhost-v1.2.1`** (`3503834a`), in a new clean container,
+every command as the guide writes it: the bootstrap script fetched from the tag with `curl`,
+`--ref "$TAG" --start-mirror`, and the three `export` lines taken from the bootstrap's own
+output. Every step exited 0: bootstrap (`BOOTSTRAP COMPLETE`), `setup.sh`, `shorebird --version`,
+`flutter create`, `init`, `doctor --fix`, `release android`, `patch android` ("Published Patch
+1!"). The server held release `1.0.0+1` active for android and patch 1 active on `stable` at
+100% rollout.
 
-   Then, in the same container, the plain-HTTP question. Gradle 9.3.1 (from the app's wrapper)
-   fetched the engine's `.pom`s from `http://127.0.0.1:8085` in the release above. `flutter build
-   apk --release` with `FLUTTER_STORAGE_BASE_URL` set to the same mirror at its LAN address,
-   `http://172.17.0.2:8085`, failed: `Using insecure protocols with repositories, without
-   explicit opt-in, is unsupported.` With the opt-in from `cdn/README.md` added to
-   `android/build.gradle.kts` it built, and the mirror logged 24 `download.flutter.io` requests at
-   that address. So the opt-in is needed only for a mirror on another machine.
+Then, in the same container, the plain-HTTP question. Gradle 9.3.1 (the app's wrapper, which `flutter create` at
+`f6bbc8a0` writes: `templateDefaultGradleVersion` in `gradle_utils.dart`)
+fetched the engine's `.pom`s from `http://127.0.0.1:8085` in the release above. `flutter build
+apk --release` with `FLUTTER_STORAGE_BASE_URL` set to the same mirror at its LAN address,
+`http://172.17.0.2:8085`, failed: `Using insecure protocols with repositories, without
+explicit opt-in, is unsupported.` With the opt-in from `cdn/README.md` added to
+`android/build.gradle.kts` it built, and the mirror logged 24 `download.flutter.io` requests at
+that address. So with this Gradle the opt-in is needed only for a mirror on another machine. These results were
+read from the container's logs, which were removed with it; the counts above are the only record.
 
 ## Hosts
 

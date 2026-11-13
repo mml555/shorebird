@@ -159,7 +159,7 @@ Xcode. What differs:
   plugin (step 1).
 - `Using insecure protocols with repositories, without explicit opt-in, is unsupported` from
   Gradle: `FLUTTER_STORAGE_BASE_URL` points at a plain-HTTP mirror on another machine. Gradle
-  allows `http://` only to `127.0.0.1`/`localhost`; serve a shared mirror over HTTPS, or see
+  let plain HTTP through to `127.0.0.1` only (measured with 9.3.1); serve a shared mirror over HTTPS, or see
   [`cdn/README.md`](cdn/README.md) for the per-app opt-in.
 - A `FAIL` line from the bootstrap: the line names the step and its log.
 

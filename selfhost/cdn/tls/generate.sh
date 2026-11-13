@@ -5,7 +5,8 @@
 #
 # WHY THIS EXISTS: Gradle 8+ refuses insecure (http) Maven repositories without an
 # explicit opt-in, and Flutter's Gradle plugin turns FLUTTER_STORAGE_BASE_URL into
-# exactly such a repository. So a plain-http mirror fails every Android release
+# exactly such a repository. So a plain-http mirror on another host (9.3.1 lets
+# 127.0.0.1 through) fails every Android release
 # build at `:app:mergeReleaseAssets`, before a single Flutter artifact is fetched:
 #
 #   > Could not resolve all dependencies for configuration ':app:releaseRuntimeClasspath'

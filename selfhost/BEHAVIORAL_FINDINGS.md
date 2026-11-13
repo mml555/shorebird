@@ -39,8 +39,9 @@ Two things this run surfaced, neither a regression on this pin:
   android.permission.CLEAR_APP_USER_DATA`. This reproduces upstream
   shorebirdtech/shorebird#1839. The release was installed with `bundletool
   build-apks --mode=universal` plus `adb install` instead.
-- **A plain-HTTP CDN mirror cannot serve Android Gradle dependencies** without an
-  app-side opt-in — see `CDN_INDEPENDENCE.md`.
+- **A plain-HTTP CDN mirror cannot serve Android Gradle dependencies** to a build on another
+  machine without an app-side opt-in — see `CDN_INDEPENDENCE.md`. A mirror on `127.0.0.1`
+  works without it (Gradle 9.3.1, [A7 run 3](evidence/a7-linux/RESULT.md)).
 
 ### Original run (previous pin)
 

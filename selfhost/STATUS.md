@@ -55,7 +55,8 @@ Our engines (`3a565f27`, `255fd850`, `7806e0fb`, and `2c4b0718`, which shorebird
 `selfhost/cdn` compose stack on ci-build (`shorebird-cdn-*` containers, restart
 `unless-stopped`), on port 8085.
 
-- **Plain HTTP.** Gradle refuses plain-HTTP Maven repositories, so an app's Android build
+- **Plain HTTP.** Gradle refuses plain-HTTP Maven repositories on any address but
+  `127.0.0.1` (measured with 9.3.1), so an app built on another machine than the mirror
   needs `isAllowInsecureProtocol` until the HTTPS listener is on. That is
   `selfhost/cdn/tls/trust.sh`, which needs root on the host: the owner's to run.
 - **Off-host copy.** The overlay bytes and the `3a565f27 -> 38855c84` map line are also
