@@ -22,9 +22,9 @@ scripted iPhone run and the full Android run on the pinned cell `82fc78a8`. The 
   [43300439389](https://github.com/mml555/shorebird/actions/runs/43300439389) (2026-11-12, `d12e29ec`), had scenarios 1
   to 8; #145 added 8a, 9 and 10. The nightly run on `main`
   ([43416336995](https://github.com/mml555/shorebird/actions/runs/43416336995), 2026-11-13) is the quick scenario only
-  (release, patch 1 boots). The pool served an **x86_64 emulator**, not a
-  physical phone (the job is named "pool phone"; [`PROMOTION_d12e29ec.md`](evidence/r12-linux-ci/PROMOTION_d12e29ec.md)
-  records that qa-1 to qa-3 are emulators). It builds real release APKs with this checkout's CLI against a throwaway
+  (release, patch 1 boots). The pool served qa-1, an **emulator**, not a physical phone (the job is named "pool phone";
+  [`PROMOTION_d12e29ec.md`](evidence/r12-linux-ci/PROMOTION_d12e29ec.md) records that qa-1 to qa-3 are x86_64
+  emulators; the new run's log has no ABI line). It builds real release APKs with this checkout's CLI against a throwaway
   `code_push_server` (SQLite). Scenarios, from the log's `ok:` lines: patch 1 boots; a real Dart change; consecutive
   patch 2; rollback of patch 2 restores patch 1; rollback of patch 1 returns to the release; rollback of the only patch;
   release-version targeting (0.1.0+1 patch not offered to 0.2.0+2); a patch signed with the release's key boots with
@@ -33,14 +33,17 @@ scripted iPhone run and the full Android run on the pinned cell `82fc78a8`. The 
   server restarts on its data dir with nothing lost (8a); staged rollout at 40%, 41% and 100% against the phone's
   bucket (9); backup, wipe and restore, then a new patch reaches the phone (10).
 - **IOS-E2E**: [`ios-e2e-82fc78a8/RESULT.md`](engine/route_b/evidence/ios-e2e-82fc78a8/RESULT.md), 2026-11-13, merged
-  in #155. iPhone 7 (iOS 15.8.8), cell `82fc78a8`, CLI `357bc24f` (on `main`), a self-hosted `code_push_server`, every
-  artifact fetched through a recording origin. Run by a script, `selfhost/ci/ios_device_e2e.sh`, not by hand, except
+  in #155. iPhone 7 (iOS 15.8.8), cell `82fc78a8`, CLI `357bc24f` (on `main`), a self-hosted `code_push_server`, artifact
+  fetches through a recording origin (18 requests in `artifact_origin.jsonl`; the 134 outbound CONNECTs are all to
+  pub.dev). Run by a script, `selfhost/ci/ios_device_e2e.sh`, not by hand, except
   one Local Network "OK" tap per install. It is Android's scenario list on iOS: base release; patch 1 (a real Dart
   change); consecutive patch 2; CLI rollback of patch 2, then of patch 1, then of a release's only patch; two releases
   targeted separately; signing (a good-key patch boots with verification on, another key is refused by the CLI); server
   restart on its data dir; server down; staged rollout at 84%, 85% and 100%; backup and restore. 31 launches, 0 launch
-  disappearances. Took six invocations (script bugs, a lost signing key, a USB debug-service fault); `RESULT.md` lists
-  each and says which scenario was run as a reduced check.
+  disappearances recorded, with gaps in the capture (below). Took six invocations (script bugs, a lost signing key, a
+  USB debug-service fault); `RESULT.md` lists each. Scenario 5c was run as a reduced check: V's patch 3 first booted in
+  an earlier invocation, and launch 16 is a later boot of it. The script was edited after the run (two assertions),
+  and the scenarios before the last invocation ran under earlier versions of it.
 - **IOS-HAND** (superseded by IOS-E2E): iPhone 7 (iOS 15.8.8), engine `2c4b0718`, 2026-11-11, by hand, with a fork CLI built from `main` plus an
   unpushed local merge of #111 (`flutter.version` = shorebird-flutter `efe3162e`, head of #12), a local server and the
   ci-build mirror. Details in [`STATUS.md`](STATUS.md#ios-code-push-on-2c4b0718-route-b) and
@@ -57,14 +60,14 @@ scripted iPhone run and the full Android run on the pinned cell `82fc78a8`. The 
 
 | Feature | Status | Evidence | What is missing |
 |---|---|---|---|
-| Android release + patch (apk), emulator | **working** | CI-ANDROID: engine `2c4b0718`, 2026-11-12, in CI | x86_64 emulator only; aab, other ABIs and a real build of a user's app are not in the run |
+| Android release + patch (apk), emulator | **working** | CI-ANDROID: cell `82fc78a8` over engine `2c4b0718`, 2026-11-13, in CI | Emulator only; aab, other ABIs and a real build of a user's app are not in the run |
 | Android release + patch, physical phone | **partial** | ANDROID-PHONE-HAND: release 1.0.0+1 and a patch shown after two restarts | Engine `7806e0fb`, not `main`'s `2c4b0718`; by hand; not repeated on a phone since the pin moved |
 | Android debug / profile (`flutter run`) | **untested** | [`STATUS.md`](STATUS.md#in-flight) (#134 line); [`PROMOTION_d12e29ec.md`](evidence/r12-linux-ci/PROMOTION_d12e29ec.md) | No debug or profile engine of ours for `2c4b0718`; stock bytes (9 of 10 from Shorebird's own bucket) stand in, never run on a device |
 | Android add-to-app (`release aar`) | **untested** | [`WORKFLOW_CERTIFICATION.md`](WORKFLOW_CERTIFICATION.md) row 10 "NOT ASSESSED" | Wire shape documented in [`PLATFORM_MATRIX.md`](PLATFORM_MATRIX.md), never run |
-| iOS release (ipa) on a device | **working** | IOS-E2E: two releases (1.0.0+1 unsigned, 2.1.0+3 signed) installed and ran | One old device, resign mode, not in CI; needs `SHOREBIRD_ARTIFACT_ORIGIN`; one Local Network "OK" tap per install |
+| iOS release (ipa) on a device | **working** | IOS-E2E: V 1.0.0+1 (unsigned) and W (signed; installed as 2.0.0+2, then rebuilt as 2.1.0+3 after its signing key was lost) installed and ran | One old device, resign mode, not in CI; needs `SHOREBIRD_ARTIFACT_ORIGIN`; one Local Network "OK" tap per install |
 | iOS patch on a device (Route B, not upstream's linker) | **working** (one device, not in CI) | IOS-E2E: V's patches 1 to 3 and W's 1 to 6 downloaded and booted ("ROUTEB: applied N/N targets", "Launch success for patch N"), rollbacks restored the earlier patch or the release; cell `82fc78a8` is the device-qualified cell in [`SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml) | One iPhone 7. The patches are small changes to existing members. Logs do not show which calls ran in the interpreter, and its speed is not measured. Supersedes IOS-HAND, whose CLI was an unpushed local merge |
 | iOS patch: arbitrary Dart changes | **partial** | [`ROUTE_B.md`](ROUTE_B.md); [`producer_demand_2.md`](engine/route_b/evidence/producer_demand_2.md) | Route B refuses many change kinds at `shorebird patch` time. Only 3.44-era numbers exist (50% of observed method changes accepted in Wonderous, 92.7% in LocalSend); the owner chose not to re-measure on 3.47. Foldable-constant patches attach and do nothing. Patched functions run in an interpreter, speed not measured |
-| iOS release or patch in CI | **untested** | [`STATUS.md`](STATUS.md) stable baseline row 8: "iOS: none" | IOS-E2E's script is ready for it; needs a Mac runner with the phone attached, and a tap after each fresh install |
+| iOS release or patch in CI | **untested** | [`STATUS.md`](STATUS.md) stable baseline row 8: "iOS: none" | IOS-E2E's script has never run in CI. It needs a Mac runner with the phone attached, and a human tap after each fresh install, which CI cannot do |
 | iOS on older engines `255fd850`, `7806e0fb` | **unsupported** | [`STATUS.md`](STATUS.md#device-runs-on-7806e0fb): `shorebird patch ios` refuses | Superseded by `2c4b0718`; releases run, patches do not |
 | iOS add-to-app (`release ios-framework`) | **untested** | [`evidence/addtoapp1/RESULT.md`](evidence/addtoapp1/RESULT.md) (2026-09-03): stopped at qualification | Four blockers, the first being that the engine publishes a device-only `Flutter.xcframework`; nothing refuses it, it is a build gap, and Route B is not implemented for it. [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) calls these artifacts "device-verified", which contradicts `RESULT.md` and `WORKFLOW_CERTIFICATION.md` row 10 ("NOT ASSESSED"); I trust the run log |
 | macOS release / patch | **untested** | [`DESKTOP_PLATFORMS.md`](DESKTOP_PLATFORMS.md) | Server is platform-agnostic by code audit only (`DESKTOP_PLATFORMS.md`, which also conflicts with `RESULT.md`, see the iOS add-to-app row); macOS engine host side built, no macOS app release or patch recorded |
@@ -81,9 +84,9 @@ scripted iPhone run and the full Android run on the pinned cell `82fc78a8`. The 
 | `patches rollback` (restores the previous patch, #138) | **working** | CI-ANDROID and IOS-E2E: the CLI command, three scenarios each, device log shows the old patch (or the release) again | Android on an emulator; iOS on one phone, by script |
 | `patches rollforward` | **unsupported** | `api.dart` answers 501 by design; [`upstream/ADOPTION-1.6.123.md`](upstream/ADOPTION-1.6.123.md) s3 | A rolled-back patch is withdrawn for good |
 | Native-change guard on patch, Android | **working** | CI-ANDROID: exit 70 "Not publishing: native code changed", nothing published | |
-| Native-change guard on patch, iOS | **partial** (same as upstream) | IOS-E2E 7a: a Podfile.lock change is refused (exit 70) and nothing is published; a Swift-only change is published | Upstream's `apple_patcher_mixin.dart` passes `confirmNativeChanges: false`, so only a Podfile.lock hash change is refused. Flutter 3.46 apps use Swift Package Manager by default and have no Podfile.lock, so for them no native change is refused at all. A gap shared with upstream, not a fork regression |
+| Native-change guard on patch, iOS | **partial** (same as upstream) | IOS-E2E 7a: run non-interactively, a patch adding a CocoaPods plugin is refused (exit 70) and nothing is published; a Swift-only change is published | Upstream's `apple_patcher_mixin.dart` passes `confirmNativeChanges: false`, so a native diff alone is never refused; the refusal needs a native diff and a Podfile.lock hash that differs from the release's. In a terminal it is a "Continue anyway?" prompt, and `--allow-native-diffs` skips it. Flutter 3.46 apps use Swift Package Manager by default and have no Podfile.lock, so for them no native change is refused at all. A gap shared with upstream, not a fork regression |
 | `patches promote` / `set-track` (release-scoped since #139) | **partial** | `set-track` calls `POST /apps/{id}/patches/promote`, which the server serves; AUG-OLD row 8, [`p6-tracks`](evidence/p6-tracks/VERDICT.md) (device A/B) | Device proof is Aug, 3.44, iOS; the #139 release-scoping has server tests but no device run; not in CI-ANDROID |
-| `doctor --fix` | **working** | CI-ANDROID run 43300439389 (2026-11-12, d12e29ec / 2c4b0718): `android_pool_e2e.sh` runs `doctor --fix` and asserts it added the Android INTERNET permission | Emulator, CI only |
+| `doctor --fix` | **working** | CI-ANDROID (run 43377806371 logs "INTERNET permission (1 fix applied)"; the earlier run 43300439389 too): `android_pool_e2e.sh` runs `doctor --fix` and asserts it added the Android INTERNET permission | Emulator, CI only |
 | `init`, `create`, browser `login` | **untested** | Routes served (`/login`, `/token`, `/diagnostics/*`, `POST /apps`) | No dedicated run recorded; CI-ANDROID authenticates with an API key |
 | `login:ci` | **unsupported** (removed upstream too) | `LoginCiCommand.run()` says it "has been replaced by API keys", points to service-account keys and exits 64; the file is identical to upstream's | Not a fork gap. The fork's CI path is an API key (`SHOREBIRD_TOKEN`); service-account keys have no route here (below), so the message's advice does not apply |
 | `--flavor` | **partial** | AUG-OLD row 2: iOS device and Android [`g42-flavor`](evidence/g42_flavored_fixture) | Aug, 3.44 stack, carried forward |
@@ -108,10 +111,10 @@ scripted iPhone run and the full Android run on the pinned cell `82fc78a8`. The 
 | Updater API `checkForUpdate(track:)` | **partial** | [`p6-manual-api`](evidence/p6-manual-api/VERDICT.md) | Aug, iOS, not re-run |
 | Percentage (staged) rollout | **partial** | Device runs: CI-ANDROID scenario 9 (not offered at 40% for bucket 4072, offered at 41%, taken at 100%) and IOS-E2E scenario 9 (84%, 85%, 100% for bucket 8423), both through `POST /admin/apps/{id}/patches/{id}/rollout`; [`g6-tracks-server`](evidence/g6-tracks-server/rollout_surface.md) | Works on devices, but only through the admin API. The server accepts a percentage on `POST /apps/{id}/patches/promote` (`rollout` in the body, 0 to 100) as well as on the admin route, but `patches set-track` sends no `rollout` and no CLI flag exists; no server route for the protocol's `SetPatchRolloutRequest` |
 | Patched app boots with the server unreachable | **working** | CI-ANDROID scenario 8; IOS-E2E scenario 8 ("Update failed: Network request failed", the patched boot stays up) | Android on an emulator; iOS on one phone |
-| Server restart mid-flow | **working** | CI-ANDROID and IOS-E2E scenario 8a: a patch published before the restart reaches the device after it | SQLite data dir; Postgres not run |
+| Server restart mid-flow | **working** | CI-ANDROID scenario 8a: after the restart the releases, patches and patch check are unchanged, and in scenario 8 the phone takes a patch published before a restart; IOS-E2E scenario 8a: "Patch 3 successfully downloaded" after the restart | SQLite data dir; Postgres not run |
 | Patch download / install events | **partial** | `__patch_download__` and `__patch_install__` seen on the phone in ANDROID-PHONE-HAND | Engine `7806e0fb`; CI-ANDROID does not assert events |
 | Crash reports | **partial** | Server routes and symbolication (`/crashes`, `symbolication.dart`) | No device-sent crash report recorded |
-| First-activation "launch disappearance" | **partial** | AUG-OLD: 3 occurrences on iOS. IOS-E2E: 0 in 31 launches on cell `82fc78a8`, each patch's first activation among them | Not fixed, only not seen again; the cause of the August ones is unknown, so 31 launches do not rule it out |
+| First-activation "launch disappearance" | **partial** | AUG-OLD: 3 occurrences on iOS. IOS-E2E: none recorded in 31 captured launches on cell `82fc78a8` | Not fixed, only not seen again. The capture has gaps: V's patch 3 first booted in an invocation the syslog did not capture, two later V launches were not captured, and the phone's debug service failed around 12:44. "None" rests on `disappearances.txt` not existing. The cause of the August ones is unknown |
 
 ## 4. Security
 
@@ -172,15 +175,16 @@ read from code, not run.
    runs of an older stack.
 6. **Signing is opt-in and not warned about**, and the managed-key flow is untested.
 7. **The mirror is single-host plain HTTP**, and engine origins must be set by the developer on a LAN.
-8. **A first-activation "launch disappearance" defect** (3 iOS occurrences, Aug) is not fixed; IOS-E2E saw none in
-   31 launches.
-9. **iOS native changes are barely guarded**, as upstream: only a Podfile.lock change is refused, and Swift Package
+8. **A first-activation "launch disappearance" defect** (3 iOS occurrences, Aug) is not fixed; IOS-E2E recorded none in
+   31 captured launches, but its capture has gaps.
+9. **iOS native changes are barely guarded**, as upstream: only a native diff with a changed Podfile.lock is refused, and Swift Package
    Manager apps (Flutter's default) have none.
 
 ## Not verified
 
 - Whether `init`, browser login, `preview`, `flutter versions`, `--json` and the org commands that do have
   routes work end to end: no run was found.
-- Whether CI-ANDROID's emulator result holds on a physical phone, or on `main` itself rather than the #142 branch.
+- Whether CI-ANDROID's emulator result holds on a physical phone. The full run is from the #146 branch, which `main`
+  now holds; on `main` itself only the nightly quick scenario ran.
 - Anything on a real IdP, Postgres or S3.
 - The "no route" rows are code reads. They were not run against a live server.
