@@ -167,12 +167,16 @@ adb_try() {
     out=$(timeout 30 adb -s "$SERIAL" "$@") && { printf '%s\n' "$out"; return 0; } || rc=$?
     echo "adb $1 $2 failed (exit $rc), try $try of 3" >&2
     ((try < 3)) || break
-    renew || true
-    timeout 15 adb -s "$SERIAL" reconnect >/dev/null 2>&1 || true
-    timeout 15 adb -s "$SERIAL" wait-for-device >/dev/null 2>&1 || true
-    sleep 2
+    adb_recover
   done
   return "$rc"
+}
+# Re-makes a wedged adb connection and renews the lease. Never fails.
+adb_recover() {
+  renew || true
+  timeout 15 adb -s "$SERIAL" reconnect >/dev/null 2>&1 || true
+  timeout 15 adb -s "$SERIAL" wait-for-device >/dev/null 2>&1 || true
+  sleep 2
 }
 adb_shell() { adb_try shell "$@"; }
 # The device log since the launch at epoch second $1. A capture that fails ends
@@ -337,9 +341,32 @@ release_apk() {
   "$SB" release android --artifact apk --no-confirm "${@:3}"
   cp "$APP/build/app/outputs/flutter-apk/app-release.apk" "$WORK/$2.apk"
 }
-# Installs a kept APK fresh (the old app's updater state goes with it).
+# Prints yes or no: is the app installed? Fails when adb can't answer. The
+# whole package list must include the platform package `android`, so an adb
+# that exits 0 with empty or cut-off output fails here instead of reading as
+# "not installed". tr drops the CRs adb adds; -x matches the whole line, so a
+# package whose name starts with $PKG doesn't count.
+installed() {
+  local out
+  out=$(adb_shell pm list packages) || return 1
+  out=$(tr -d '\r' <<<"$out")
+  grep -qxF 'package:android' <<<"$out" || { echo "pm list packages answered without package:android" >&2; return 1; }
+  if grep -qxF "package:$PKG" <<<"$out"; then echo yes; else echo no; fi
+}
+# Installs the kept APK $1 fresh (the old app's updater state goes with it).
+# The app must be gone before the install: a wedged uninstall used to be
+# ignored, so a lower version code went on top of a higher one and failed as
+# INSTALL_FAILED_VERSION_DOWNGRADE. An uninstall isn't idempotent (a retry on an
+# app a hung try already removed exits 1), so its exit status is ignored and the
+# package list decides; a failed try re-makes the connection first.
 install_apk() {
-  timeout 60 adb -s "$SERIAL" uninstall "$PKG" >/dev/null 2>&1 || true
+  local state try
+  for try in 1 2 3; do
+    state=$(installed) || { echo "FAIL: install_apk $1: adb can't say whether $PKG is installed" >&2; return 1; }
+    [[ $state == no ]] && break
+    ((try < 3)) || { echo "FAIL: $PKG is still installed after two uninstalls, so $1 can't go on fresh" >&2; return 1; }
+    timeout 60 adb -s "$SERIAL" uninstall "$PKG" >/dev/null 2>&1 || adb_recover
+  done
   timeout 300 adb -s "$SERIAL" install -r "$WORK/$1.apk"
 }
 
