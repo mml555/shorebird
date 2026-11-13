@@ -99,7 +99,13 @@ full release build has run through the mirror*, not *a list of URLs was fetched*
 > whatever host:port the client actually used — published on 8085, in-network on
 > 8080, or behind TLS on 8443.
 
-## Android: Gradle refuses a plain-HTTP mirror
+## Android: Gradle refuses a plain-HTTP mirror on another machine
+
+A mirror on the same machine as the build, at `http://127.0.0.1` or `http://localhost` (what
+`bootstrap_selfhost.sh --start-mirror` sets up), needs nothing here: Gradle exempts loopback
+addresses from the check below. Measured with Gradle 9.3.1 (Flutter `f6bbc8a0`'s default): the
+same release build passes at `http://127.0.0.1:8085` and fails at the same mirror's LAN address.
+This section is for a mirror shared over the network.
 
 Engine artifacts reach an Android build two different ways, and only one of them
 tolerates `http://`:
@@ -108,7 +114,7 @@ tolerates `http://`:
   HTTP happily (this is what `precache` and the release build's Dart/engine
   fetches use);
 - **Gradle** resolves `download.flutter.io/io/flutter/<abi>_release/...jar` as
-  Maven dependencies, and Gradle rejects any `http://` repository:
+  Maven dependencies, and Gradle rejects an `http://` repository on any host but loopback:
 
   ```
   Execution failed for task ':app:mergeReleaseAssets'.

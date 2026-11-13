@@ -11,7 +11,7 @@ container started with nothing installed.
 - Android command-line tools, and through `sdkmanager`: platform-tools, platform 35, build-tools 35;
 - `ANDROID_HOME` set.
 
-## Two runs
+## Three runs
 
 1. **Docs only, at `selfhost-v1.2.0`.** The server came up, then the run stopped: no doc said how
    to install the CLI. Running the repository's `bin/shorebird` failed fetching the Dart SDK of
@@ -26,9 +26,25 @@ container started with nothing installed.
 | 4 `flutter create my_app` | failed with the guide as written: no `flutter` on `PATH`, and the pinned `flutter` asked `download.shorebird.dev` for `sky_engine.zip` (404). With the Flutter `bin` on `PATH` and `FLUTTER_STORAGE_BASE_URL` set to the mirror, it passed. The guide and the bootstrap's closing lines now include both |
 | 4 `shorebird init` | exit 0, wrote `app_id`; `base_url` added by hand as the guide says |
 | 4 `shorebird doctor --fix` | exit 0 |
-| 4 `shorebird release android` | exit 0. Gradle took the engine's Maven artifacts from the plain-HTTP mirror without an `isAllowInsecureProtocol` opt-in |
+| 4 `shorebird release android` | exit 0. Gradle took the engine's Maven artifacts from the plain-HTTP mirror at `127.0.0.1` without an `isAllowInsecureProtocol` opt-in: Gradle exempts loopback (see run 3) |
 | 4 `shorebird patch android` | exit 0, "Published Patch 1!" |
 | server | release `1.0.0+1` active for android, Flutter `f6bbc8a0` |
+
+3. **`GETTING_STARTED.md` at the tag `selfhost-v1.2.1`** (`3503834a`), in a new clean container,
+   every command as the guide writes it: the bootstrap script fetched from the tag with `curl`,
+   `--ref "$TAG" --start-mirror`, and the three `export` lines taken from the bootstrap's own
+   output. Every step exited 0: bootstrap (`BOOTSTRAP COMPLETE`), `setup.sh`, `shorebird --version`,
+   `flutter create`, `init`, `doctor --fix`, `release android`, `patch android` ("Published Patch
+   1!"). The server held release `1.0.0+1` active for android and patch 1 active on `stable` at
+   100% rollout.
+
+   Then, in the same container, the plain-HTTP question. Gradle 9.3.1 (from the app's wrapper)
+   fetched the engine's `.pom`s from `http://127.0.0.1:8085` in the release above. `flutter build
+   apk --release` with `FLUTTER_STORAGE_BASE_URL` set to the same mirror at its LAN address,
+   `http://172.17.0.2:8085`, failed: `Using insecure protocols with repositories, without
+   explicit opt-in, is unsupported.` With the opt-in from `cdn/README.md` added to
+   `android/build.gradle.kts` it built, and the mirror logged 24 `download.flutter.io` requests at
+   that address. So the opt-in is needed only for a mirror on another machine.
 
 ## Hosts
 
@@ -50,5 +66,3 @@ Outside the mirror, the walkthrough contacted:
 - A device: nothing was installed or booted.
 - iOS.
 - macOS as the host.
-- A tag: the run used a branch commit, because the guide needs `selfhost-v1.2.1` or newer, which
-  does not exist yet.
