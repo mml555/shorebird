@@ -369,7 +369,7 @@ not an untested guess. Ordered roughly by expected cost.
 | **`G3.5 closures-super`** | closures capturing `this`, `super` reads and calls, cascades | `super` writes now refuse explicitly (`cb50590d`); the rest untouched | `R7`, `R1` |
 | ~~**`G3.6a app-private-decision`**~~ | **is it reachable at all** | **ANSWERED 2026-08-11 — yes.** The CFE already has the mechanism (`resolveInLibrary`), Route B is denied it by one line, and the `dyn:`-forwarder objection is void in AOT. See below | done, no resources consumed but `R3` read-only |
 | **`G3.6b app-private-holes`** | close the two accepted-then-failed holes | **PROVEN on device 2026-08-13** (was BUILT, host-proven with two negative controls). Analyzer v7 REPORTS a private access with its manifest key; the CLI accepts it only against the release's own capability manifest. `cli_private_member.sh` **10/10**: granted → the app reads the patched private field; class withheld → refused in the CLI, naming the class; no manifest → refused, naming the absent evidence. **Device round-trip CLOSED 2026-08-13**: release `31.0.0+1` patch 2, `value() => _secret` lowered to `self._secret`, displayed `NEW-PRIV` on an iPhone 7 from byte-identical installed release bytes (`c7661317`). PROVEN for a private **read**; a private write is not claimed | done at `R7`; the mint publishes it |
-| **`G3.6c dynamic-receiver`** | emit `dynamic` instead of a private class name | **BUILT, host-proven as a pair with `G3.6d`** — `probes/private_receiver.sh` 4/4, a patch on a private class runs. Device round-trip outstanding | done at `R7`; no mint |
+| **`G3.6c typed-private-receiver`** | ~~emit `dynamic` instead of a private class name~~ write the private class by name, resolved by `G3.6e` | **REPLACED 2026-11-15.** The `dynamic` receiver made every access on `self` a dynamic call, which an AOT release refuses for any member it did not mark dynamically callable: a patched `initState` calling `_start()` died on device. The receiver now keeps its class's own type. See "A private receiver is typed, not `dynamic`" below | CLI only; no mint |
 | **`G3.6d private-retention`** | retain private classes, procedures **and fields** in the dynamic interface | **BUILT, host-proven and shown LOAD-BEARING by a negative control.** Cost measured: **+0.01 %** | generator only, as predicted — no validator or CFE change |
 | **`G3.6e resolve-in-library`** | thread `resolveInLibrary` through dart2bytecode | **THE BOUNDARY IS NOW MEASURED, AND ONE CONTROL FAILED — 2026-08-25.** `probes/p1_private_scope_controls.sh` scores what the flag REFUSES, which had never been tested: no flag, the wrong app library, a second app library's private, a library absent from the dill — all correctly refused. **But `--resolve-private-names-in-library dart:core` granted the compiled source dart:core's private namespace and `_GrowableList` compiled**, refused under an app library in the same probe's control arm. `0005` guarded on `isDartLib`, which is the library being COMPILED, not the one the option NAMES — and its own comment asserted the invariant it did not enforce, so only a negative control could tell. **Closed in `0005` (loud `StateError`) and independently in the producer (refuses a `dart:` target library, mutation-checked test); the CFE half needs a cell rebuild to take effect, the producer half ships with the CLI.** Product exposure was nil throughout: the producer only ever passes the target's own library. Evidence: `engine/route_b/evidence/p1_private_scope_controls.txt`. Both of its own done-criteria are met by release `31.0.0+1` patch 2 (`c7661317`): the **producer** path, not a hand-written replacement, and a **device** round-trip — `value() => _secret` → `NEW-PRIV` on an iPhone 7. `route_b_producer.dart:175` passes `--resolve-private-names-in-library` only when the manifest grants the member, and per this goal's own failure table a missing visibility mechanism fails at COMPILE time; the patch compiled and ran, so the mechanism was in the path. Host: `probe D` 4/4, `a53029c9`, patch `0005`. **A private METHOD/GETTER call is host-proven only — and as of 2026-08-25 that host proof now covers the shape that matters.** `probes/p1_bind_private_receiver.sh` is GREEN 8/8 at BIND time on the idiomatic private-State shape: a patch to a method of a conventionally PRIVATE class binds and executes while its body reads a private FIELD, reads a private GETTER and calls a private METHOD (`NEW-FLDF` / `NEW-GETG` / `NEW-MTHM`). Compile-level scoring cannot see any of this — a `dynamic` receiver accepts every member name with no privacy test — so this is the first evidence for the shape Phase 0 said dominates, and the shape release `31.0.0+1` did **not** cover (that was a private field on a PUBLIC class). Evidence: `engine/route_b/evidence/p1_bind_private_receiver.txt`. **DEVICE ARM CLOSED 2026-08-25** — `fixtures/privatestate_app`, release `1.0.1+1` patch 2 on cell `93a3756…`, iPhone 7: a patch to `_FooState.target`, a public method of a conventionally PRIVATE Flutter State class, rendered **`NEW-FLD-GET-MTH`** on hardware — a granted private FIELD, private GETTER and private METHOD call, all three, with `control=CTL` unmoved. Receipt names the exact target, `uep_post_is_interpret_call=1` with `fn_uep_post == interpret_call_ep`, construction withheld (0 unnamed-ctor grants). **Rollback closed the same day**: patch withdrawn with `rollback=true`, and two tap-launches later `target=OLD` with `next_boot_patch: null` and an empty `patches/` dir — so the specimen reads `release -> OLD`, `patched -> NEW-FLD-GET-MTH`, `rollback -> OLD` with the control unmoved throughout, every row observed on hardware. **It took two attempts at the patched row, and the first is the more useful one:** the lowering inserted a bare receiver prefix inside a simple `$identifier` interpolation, so the device rendered `NEW-Instance of '_FooState'._field-…` — compiled, attached, executed, plausible, wrong. Fixed in `9125eb13`. `fixtures/privatestate_app/evidence/VERDICT.md` | done at `R3`; no mint needed |
 | **`G3.7 param-abi`** | a replacement method may declare **its own parameters** | **HOST-COMPLETE 2026-08-25, including the combination with a private receiver.** `probes/p2_private_receiver_with_args.sh` 4/4 on cell `93a3756…`: a method of a PRIVATE class taking `(String, int)` binds both arguments (`A-L-7`), composes with a granted private field read (`B-L-7-H`), and renders `A-7-L` when the same signature is used in the opposite order — so binding is by POSITION and carries types, not merely arity. A named parameter is refused by the shipped contract. That combination was previously untested: P1 proved a private receiver with NO arguments, G3.7 proved arguments on a PUBLIC receiver, and neither implies the other because the producer prepends the receiver and shifts every source parameter by one. **DEVICE GATE CLOSED 2026-08-25 — required positional ABI is PROVEN on host and on physical iOS**, including a private receiver plus multiple typed arguments plus private-member access in one body: `fixtures/privatestate_app` release `1.0.2+1` patch 1 rendered **`args=NEW-A-7-FLD`** on an iPhone 7, with `sel=_FooState.targetArgs`, built-for == running, `rc=0`, `bc_post=1`, `interp_post=1`, `uep_post_is_interpret_call=1`, and rollback back to `args=OLD` with a pristine updater. `target=OLD` held throughout — the other method of the SAME private class was untouched. **Named and optional positional remain deliberately unsupported and refused before publication**, so neither was ever sent to the phone. Evidence: `engine/route_b/evidence/p2_private_receiver_with_args.txt`, `fixtures/privatestate_app/evidence/P2_VERDICT.md`. Prior: **BUILT 2026-08-13.** Feasibility is no longer inferred: patch `0006` widens the contract from 0-or-1 to any number of REQUIRED positionals, the analyzer refuses exactly what the compiler refuses (`analysisVersion` 8), the producer inserts the receiver in front of a verbatim-copied parameter list, and `g37_param_abi.sh` 4/4 proves arguments arrive **in order and by type** — `int b` = 7 landed in slot `b`, so this is not mere arity. Device gate outstanding: the cell carries `dart2bytecode.aot`, so it needs a mint | mint + `R1` remain |
@@ -2018,6 +2018,51 @@ Upstream Shorebird patches arbitrary Dart. We patch a well-understood subset who
 boundary is not the rung ladder but library-scoped privacy.
 
 ---
+
+### A private receiver is typed, not `dynamic` (2026-11-15)
+
+**The `dynamic self` lowering failed on device for any body that used `self`.**
+Release `1.0.0+8` of the shapes app, iPhone 7 / iOS 15.8, patch 3 replacing only
+`_HomeState.initState`, whose body calls `_start()`:
+
+```
+NoSuchMethodError: Class '_HomeState' has no instance method '_start'.
+Tried calling: _start()
+#1  _objectNoSuchMethod (dart:core-patch/object_patch.dart:88)
+#2  _HomeState.initState (package:<app>/main.dart)
+```
+
+`_start` was in `_HomeState`'s class table and granted under `callable:`. The
+cause was the call kind. With `dynamic self`, `self._start()` compiles to a
+`DynamicCall`, and the interpreter (`Interpreter::InstanceCall`,
+`check_dynamic_call`) drops any target that is not `is_dynamically_callable`.
+`callable:` does not set that. Only `dynamically-callable:` does, and the
+generated interface has no such section. The damage spread past the receiver:
+`self._count + 1` is a dynamic `+` on an `int`, refused the same way.
+
+**The earlier device proof never exercised a call through `self`.** Release 32
+patched `privateClassValue() => 'NEW-PC'`, a body that does not touch the
+receiver, so no dynamic call ever ran.
+
+**The fix is in the producer only.** The receiver parameter is written with its
+class's own name (`void initState(_HomeState self)`), and
+`--resolve-private-names-in-library` is passed whenever the receiver class is
+private, which lets the replacement spell `_HomeState`. The front end then
+resolves every access statically, as it did inside the class: an interface call
+bound to the release member, with no dynamic-call check. The class always exists
+in the release, because the target being replaced is one of its members. The
+private-identifier backstop scans the body before the class name is written
+into the parameter, so the name is admitted in that one position only: a body
+that constructs `_HomeState`, tears off its constructor or reads one of its
+statics is still refused unless that reference was granted on its own.
+
+**Open: a generic private receiver.** `_Box<T>` is written `_Box self`, which
+is `_Box<dynamic>`, so a member typed `T` reads as `dynamic` and a call on it is
+the same dynamic call that failed above. Not measured on device yet.
+
+Same release, same engine, same edit, patch 4 with the typed receiver:
+`applied 1/1 targets`, `shape:init=I2`, then `_start` ran (`count=1..3`,
+`done=START-DONE`) with no error.
 
 ## 4. Release / build configuration parity
 
