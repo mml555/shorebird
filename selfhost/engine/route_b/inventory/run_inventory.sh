@@ -81,6 +81,7 @@ emit_bytecode mono     monomorphic    mono
 emit_bytecode getter   getter         getter
 emit_bytecode circle   describe       circle
 emit_bytecode part3    render         part3
+emit_bytecode tile3    paint          tile3
 
 # target name -> which FORM line should flip if that form is patchable
 declare -a CASES=(
@@ -102,6 +103,10 @@ declare -a CASES=(
   "Part3.render|part3|megamorphic-first"
   "Part3.render|part3|megamorphic-late"
   "Part3.render|part3|megamorphic-other"
+  # The same shape with no vm:entry-point on the method, as in real code.
+  "Tile3.paint|tile3|noentry-first"
+  "Tile3.paint|tile3|noentry-late"
+  "Tile3.paint|tile3|noentry-other"
 )
 
 printf '\n%-22s  %-20s  %s\n' "target attached" "form under test" "outcome"

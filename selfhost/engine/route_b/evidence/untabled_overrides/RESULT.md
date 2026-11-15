@@ -2,7 +2,7 @@
 
 Measured 2026-11-14 on the Mac's host release build
 (`out/host_release_arm64_ddm`), Dart lineage branch
-`selfhost/route-b-untabled-overrides` at `7b2b039e`. Host only: no iOS cell, no
+`selfhost/route-b-untabled-overrides` at `53899067`. Host only: no iOS cell, no
 device patch and no frame-time number yet.
 
 ## What it changes
@@ -13,7 +13,7 @@ redirect it, and the framework reaches every `Widget.build` that way. Under the
 flag, a regular method implemented outside `dart:` and `package:flutter/` gets
 no table row for its selector. Its call sites become a cid-check chain of direct
 calls (few receivers) or a switchable call (many), and both reach a patched
-body. The VM side is three changes, described in
+body. Besides the table change the VM side has four, described in
 [`../../README.md`](../../README.md) ("Third option").
 
 ## 1. Call-form inventory
@@ -31,10 +31,18 @@ body. The VM side is three changes, described in
 | megamorphic, eight receivers, first link | not reachable | **PATCHABLE** |
 | the same after the site went megamorphic | not reachable | **PATCHABLE** |
 | control: a receiver the patch was not attached to | untouched (correct) | untouched (correct) |
+| megamorphic, eight receivers, no `vm:entry-point` on the method, first link | attach finds no method | **PATCHABLE** |
+| the same after the site went megamorphic | attach finds no method | **PATCHABLE** |
+| control for that case | attach finds no method | untouched (correct) |
 
 The megamorphic case calls the patched receiver through the site FIRST, so the
 site's first link targets the patched function, and asks again after every
 receiver has gone through it.
+
+The last three rows were added after the failure in section 5. Only the class
+is an entry point there, as the attach native needs to find it by name. Without
+the flag the method is reached only through the table, so nothing keeps it in
+its class's function array and the attach reports `member paint not found`.
 
 ## 2. The runtime fix is required
 
@@ -57,7 +65,7 @@ receiver in `R0`.
 `app.dill` of a counter app (`package:sbrel`), `--deterministic
 --patchable_static_calls`, with and without the flag:
 
-| | without | with the flag, compiler change only | with all three changes |
+| | without | with the flag, compiler change only | with all the changes |
 |---|---|---|---|
 | snapshot bytes | 4,902,824 | 4,564,376 (−6.9 %) | 4,919,104 (**+0.33 %**) |
 | instructions entries | 8,348 | 7,546 | 8,351 |
@@ -83,10 +91,15 @@ identical-code folding picking a different representative name (`Builder.build`,
 
 | target | without | with the flag |
 |---|---|---|
-| `MyApp.build` | ZERO | **GREEN**, 2 switchable sites (`StatelessElement.build`, `StatefulElement.build`) |
+| `MyApp.build` | ZERO | **GREEN**, 2 switchable sites (in `StatelessElement.build` and `StatefulElement.build`) |
 | `_MyHomePageState.build` | ZERO | **GREEN**, 2 switchable sites |
 | `MyHomePage.createState` | ZERO | **GREEN**, 1 switchable site (`new StatefulElement`) |
 | `_MyHomePageState._incrementCounter` | ZERO | ZERO (reached through a tear-off; a separate form) |
+
+A switchable site names a selector, so the count is per selector:
+`StatefulElement.build` calls `State.build` and can never reach `MyApp.build`,
+yet both sites count for both targets. That is the probe's documented direction
+(it reports a site that may never run the target, never the reverse).
 
 The first run reported ZERO for both `build()` methods even with the flag.
 Revision 1 told a target's own code from a caller by NAME, and the framework's
@@ -100,9 +113,50 @@ compiled with the flag. Its `_P3.render` (eight receivers, switchable) and
 `_DuoA.pick` (two receivers, direct calls) are ZERO through the table and GREEN
 untabled. The `selfname` mutation puts the name test back and both go ZERO.
 
+## 5. Two runtime failures the inventory could not see
+
+Every inventory target is a `vm:entry-point`, and the pragma does more than
+keep a function: TFA treats an entry point as called dynamically. Two programs
+without it call methods through eight-receiver sites and run on
+`dartaotruntime`:
+
+| program | flag off | flag on, `7b2b039e` | flag on, fixed |
+|---|---|---|---|
+| [`plain_receivers.dart`](plain_receivers.dart): plain methods | `OK 192` | `NoSuchMethodError`, receiver an `int` | `OK 192` |
+| [`descriptor_params.dart`](descriptor_params.dart): optional, named, type parameters | `OK 480` | `NoSuchMethodError` | `OK 480` |
+
+Two causes, two fixes:
+
+- **The calling convention.** In AOT a method TFA never sees called dynamically
+  takes its first parameters, the receiver included, in registers, and its
+  callers fill them. A switchable call passes everything on the stack:
+  `EmitInstanceCallAOT` loads the receiver from the stack slot, which the
+  caller never wrote. The runtime then resolved the selector against whatever
+  was there (here an `int`). `Function::MaxNumberOfParametersInRegisters` now
+  answers 0 for an untabled selector, and since the interface target shares the
+  selector, callers and implementations agree. Every `build()` in the counter
+  app had this shape; its release probe was GREEN because the probe reads call
+  sites, not whether they run.
+- **Pruning.** `NeedsMonomorphicCheckedEntry` answers false before reaching the
+  new check for a method whose prologue needs an arguments descriptor, so it was
+  never filed as called dynamically and was pruned from its class's function
+  array, where the runtime looks the selector up. `Precompiler::AddTypesOf` now
+  files every untabled implementation, whatever its prologue.
+
+To reproduce: `gen_kernel --aot` the file, then `gen_snapshot
+--patchable_static_calls --route_b_untabled_overrides`, then `dartaotruntime`.
+
+The real app's numbers in sections 3 and 4 were taken again with both fixes.
+Its kernel came from the Flutter toolchain and names the base Dart revision, so
+the rebuilt `gen_snapshot` refused it until its SDK hash was set to the null
+value (`0000000000`), which the VM accepts from any revision.
+
 ## Not yet
 
 - An iOS cell built from this Dart revision, and a `build()` patch on the iPhone.
-- Frame time on the device: the flag turns some table calls into switchable
-  calls, which cost more per call once megamorphic.
+  No Flutter app has run with the flag yet: on the host it only compiles.
+- Size and frame time on a real app. The flag turns table calls into switchable
+  calls, which cost more per call once megamorphic, and a shared selector
+  carries SDK and framework calls along with the app's. One counter app is not
+  a measurement of that.
 - `routeBReleaseProbeRevision` in the CLI stays 1 until that cell is the pin.

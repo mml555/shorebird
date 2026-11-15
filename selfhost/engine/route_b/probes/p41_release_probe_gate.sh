@@ -38,6 +38,8 @@
 #   drop the edges-consumed check     (a structurally broken profile is read)
 #   tell own code from a caller by name (a switchable site called from a
 #                                        same-named function is dropped)
+#   drop the switchable unowned guard   (an unowned UnlinkedCall passes)
+#   drop the switchable tear-off guard  (a tear-off's UnlinkedCall passes)
 #
 # Host only. No device, no mint.
 #
@@ -348,6 +350,9 @@ def intern(s):
 
 def append_node(typename, name, out_edges):
     global n
+    # A profile lists only the node types it holds; a specimen with no
+    # switchable call has no UnlinkedCall type to index.
+    if typename not in NT: NT.append(typename)
     nodes.extend([NT.index(typename), intern(name), 900000 + n, 8, len(out_edges)])
     for kind, label, dstnode in out_edges:
         edges.extend([ET.index(kind), intern(label) if label else 0, dstnode * NF])
@@ -386,6 +391,16 @@ elif mode == 'add-tearoff-pool':
                        [('element', None, find(target))])
     append_node('Code', f'[Optimized] [tear-off] {target}',
                 [('property', 'object_pool_', pool)])
+elif mode in ('add-unowned-switchable', 'add-tearoff-switchable'):
+    # Revision 2's input, in a pool no caller owns: an UnlinkedCall naming the
+    # target's selector, in an unowned pool or in a tear-off's pool.
+    name = append_node('CanonicalString', target, [])
+    call = append_node('UnlinkedCall', target, [('property', 'target_name_', name)])
+    pool = append_node('ObjectPool', 'Unnamed [ObjectPool] (nil)',
+                       [('element', None, call)])
+    if mode == 'add-tearoff-switchable':
+        append_node('Code', f'[Optimized] [tear-off] {target}',
+                    [('property', 'object_pool_', pool)])
 else:
     raise SystemExit(f'unknown mode {mode}')
 json.dump(d, open(dst, 'w'))
@@ -522,6 +537,27 @@ PY
 else
   echo "  SKIP  this gen_snapshot predates --route_b_untabled_overrides"
 fi
+
+# ---- SWITCHABLE GUARDS (revision 2, synthetic) -----------------------------
+# The switchable path has its own copies of the unowned and tear-off guards.
+# Built on the FOLDED target, so the unmutated probe must still refuse them.
+note "SWITCHABLE GUARDS -- an UnlinkedCall no caller owns is not a site"
+python3 surgery.py add-unowned-switchable profile.json p_sw_unowned.json foldConst
+python3 surgery.py add-tearoff-switchable profile.json p_sw_tearoff.json foldConst
+check "switchable call in an unowned pool -> still ZERO" \
+  "$(result "$PROBE" p_sw_unowned.json binding.json "$ART" "$LIB#foldConst")" \
+  ZERO_QUALIFYING_CALLSITES
+check "switchable call in a tear-off's pool -> still ZERO" \
+  "$(result "$PROBE" p_sw_tearoff.json binding.json "$ART" "$LIB#foldConst")" \
+  ZERO_QUALIFYING_CALLSITES
+mutate swunowned "      if (owners.isEmpty ||=>>      if (false ||"
+check "mutant counts a switchable call in an unowned pool" \
+  "$(result "$WORK/m_swunowned.dart" p_sw_unowned.json binding.json "$ART" "$LIB#foldConst")" \
+  ONE_OR_MORE_QUALIFYING_CALLSITES
+mutate swtearoff "          owners.any((o) => p.nameOf(o).contains('[tear-off]')) ||=>>          false ||"
+check "mutant counts a switchable call in a tear-off's pool" \
+  "$(result "$WORK/m_swtearoff.dart" p_sw_tearoff.json binding.json "$ART" "$LIB#foldConst")" \
+  ONE_OR_MORE_QUALIFYING_CALLSITES
 
 # ---- WORDING ---------------------------------------------------------------
 # Semantic overclaim is this project's recurring failure mode, so it gets a test.

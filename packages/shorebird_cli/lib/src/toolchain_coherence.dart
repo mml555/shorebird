@@ -11,6 +11,7 @@ import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/http_client/http_client.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
+import 'package:shorebird_cli/src/route_b.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
 import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
@@ -270,29 +271,8 @@ class ToolchainCoherence {
   ///
   /// The VM stores flag names as plain strings in the executable, so their
   /// presence is a reliable capability signal and needs no execution.
-  bool _containsFlagName(File binary, String flag) {
-    final needle = flag.codeUnits;
-    final bytes = binary.readAsBytesSync();
-    outer:
-    for (var i = 0; i + needle.length <= bytes.length; i++) {
-      for (var j = 0; j < needle.length; j++) {
-        if (bytes[i + j] != needle[j]) continue outer;
-      }
-      // Require a non-identifier byte on both sides so `patchable_static_calls`
-      // is not matched inside a longer name.
-      final before = i == 0 ? 0 : bytes[i - 1];
-      final afterIndex = i + needle.length;
-      final after = afterIndex < bytes.length ? bytes[afterIndex] : 0;
-      if (!_isIdentifierByte(before) && !_isIdentifierByte(after)) return true;
-    }
-    return false;
-  }
-
-  bool _isIdentifierByte(int b) =>
-      (b >= 0x30 && b <= 0x39) ||
-      (b >= 0x41 && b <= 0x5a) ||
-      (b >= 0x61 && b <= 0x7a) ||
-      b == 0x5f;
+  bool _containsFlagName(File binary, String flag) =>
+      containsFlagName(binary.readAsBytesSync(), flag);
 
   List<ToolchainCoherenceProblem> _compareHostDartSdk({
     required Directory flutterDirectory,

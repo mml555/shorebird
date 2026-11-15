@@ -196,7 +196,7 @@ Shorebird reports has a direct analogue here.
 ### Third option, taken 2026-11-14: keep the selector out of the table
 
 Neither option above is needed for the methods a patch actually changes.
-`--route_b_untabled_overrides` (gen_snapshot; Dart lineage `7b2b039e`) gives a
+`--route_b_untabled_overrides` (gen_snapshot; Dart lineage `53899067`) gives a
 selector no table row when a regular method implementing it lives outside
 `dart:` and `package:flutter/`. Getters, setters, fields and a handful of hot
 selectors (`==`, `toString`, `call`, `compareTo`, `moveNext`, `noSuchMethod`)
@@ -206,7 +206,7 @@ Both reach a patched body: the first through form (c), the second through the
 switchable-call stubs, which load `R0` and `R4` before jumping through
 `Function.entry_point_`.
 
-Two VM changes come with it, and neither is optional:
+Four VM changes come with it, and none is optional:
 
 - **`Function::NeedsMonomorphicCheckedEntry`** answers true for an untabled
   selector's implementations. A switchable site links monomorphic and enters
@@ -216,6 +216,20 @@ Two VM changes come with it, and neither is optional:
   `_MyHomePageState.build` and about 800 other functions, and its snapshot came out
   6.9 % *smaller*. The inventory could not see this: every one of its targets
   is `vm:entry-point`, which already counts as a dynamic caller.
+- **`Precompiler::AddTypesOf`** files every untabled selector's implementation
+  as called dynamically, including those `NeedsMonomorphicCheckedEntry` skips
+  because their prologue needs an arguments descriptor (optional, named or
+  type parameters). Without it those were pruned from the function array and
+  the call ended in `noSuchMethod`.
+- **`Function::MaxNumberOfParametersInRegisters`** answers 0 for an untabled
+  selector, so its implementations and its callers use the stack calling
+  convention. A switchable call passes every argument on the stack, and TFA
+  forces that convention only for functions it sees called dynamically. Without
+  it an untabled method that is not a `vm:entry-point` took its receiver in a
+  register no switchable call fills, and the first call failed with
+  `NoSuchMethodError` on an `int` receiver. Entry points already use the stack,
+  which is why every inventory case passed until it gained one without the
+  pragma.
 - **`Function::PrologueNeedsArgumentsDescriptor`** answers true at runtime for
   a function `AttachBytecode` replaced, so a switchable site goes through
   `ICCallThroughCode` instead of linking monomorphic straight to the

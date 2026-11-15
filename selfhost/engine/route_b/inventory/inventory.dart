@@ -145,6 +145,76 @@ class Part7 extends Part {
 @pragma('vm:never-inline')
 String renderPart(Part part) => part.render();
 
+// --- the same shape without vm:entry-point on the method ----------------------
+// A real build() carries no pragma, and the pragma is not inert: TFA gives an
+// entry point the stack calling convention because it can be called
+// dynamically. An untabled method without it once took its receiver in a
+// register that a switchable call never fills (NoSuchMethodError on an int
+// receiver), and every Part case above passed regardless. Only the CLASS is an
+// entry point here, so the attach native can still find it by name.
+abstract class Tile {
+  String paint();
+}
+
+@pragma('vm:entry-point')
+class Tile0 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile0.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile1 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile1.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile2 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile2.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile3 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile3.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile4 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile4.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile5 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile5.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile6 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile6.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile7 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile7.paint');
+}
+
+@pragma('vm:never-inline')
+String paintTile(Tile tile) => tile.paint();
+
 void main(List<String> args) {
   if (args.isEmpty) {
     stderr.writeln('usage: inventory <bytecode> <libraryUri> <target>');
@@ -197,6 +267,18 @@ void main(List<String> args) {
   }
   _report('megamorphic-late', renderPart(parts[3]));
   _report('megamorphic-other', renderPart(parts[5]));
+
+  final tiles = <Tile>[
+    Tile0(), Tile1(), Tile2(), Tile3(), Tile4(), Tile5(), Tile6(), Tile7(), //
+  ];
+  _report('noentry-first', paintTile(tiles[3]));
+  for (var round = 0; round < 3; round++) {
+    for (final tile in tiles) {
+      paintTile(tile);
+    }
+  }
+  _report('noentry-late', paintTile(tiles[3]));
+  _report('noentry-other', paintTile(tiles[5]));
 
   // Tear-off and dynamic shapes, for continuity with the kill gate.
   final String Function() torn = topLevelStatic;
