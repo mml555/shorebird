@@ -2064,6 +2064,63 @@ Same release, same engine, same edit, patch 4 with the typed receiver:
 `applied 1/1 targets`, `shape:init=I2`, then `_start` ran (`count=1..3`,
 `done=START-DONE`) with no error.
 
+### Constants, fields and constructors are seen (2026-11-15)
+
+**An edit outside a method body could ship as a patch that left it out.** Release
+`1.0.0+10` of the shapes app took a 19-edit patch whose edits included `const
+kTitle = 'KT1'` -> `'KT2'`. The analyzer accepted it, the iPhone applied 16/16
+targets, and the screen still read `const=KT1`. Nothing reported the edit as
+missing. Two blind spots in `coverage/analyze_coverage.dart` caused it:
+
+- **Constant values.** Members were compared by their printed kernel, and the
+  printer writes a constant as `#C1`, not as its value. A body whose only edit
+  was `const Text('L1')` -> `const Text('L2')` read as unchanged and the patch
+  was refused as inert.
+- **Declarations.** Only procedures were compared. A changed field initializer,
+  `const` or constructor was never seen. Alone, such an edit was refused as
+  "Nothing in this patch differs from the release". Alongside other edits it
+  was dropped while they shipped. That is the `kTitle` case.
+
+**Analysis version 14 fixes both.** Members print with their constants' values,
+so a constant literal edited inside a body is a changed member and ships: the
+literal is in the replacement's own source. Fields, constants and constructors
+are compared too, and any that changed refuses the whole patch with the member
+named and a reason. A `const` is refused even though its uses are inlined:
+`dart2bytecode` evaluates the name against the release's kernel, so a replaced
+body that names it inlines the release's value. That is why the iPhone printed
+`KT1` from a `_start` the patch had replaced.
+
+Measured against the release kernel of `1.0.0+10`, old analyzer against new,
+over the 13 patch kernels built for it and the release's own kernel:
+
+| edit | before | after |
+|---|---|---|
+| the 19-edit combination (with `kTitle`), both builds | accept, `kTitle` silently left out | **reject**: `kTitle` named |
+| `const Text('L1')` -> `'L2'` in `Label.build` | inert | **accept**, `Label.build` changed |
+| an instance field initializer (`_events`) | inert | **reject**: `_HomeState.new` named |
+| a new field `_extra` | accept, refused later by the producer | **reject**: `_HomeState._extra` named |
+| the other 8 patch kernels, and the release's own | unchanged | unchanged, no new refusal |
+
+Seven host specimens (top-level `const`, `const` literal, instance and static
+field initializers, top-level `final`, a constructor body, a no-change control)
+gave the expected verdict each. Two of them are in the parity corpus as
+`const_literal` and `field_initializer`. The frozen reference tooling is blind
+to both, so those cases mark it `referenceBlind` and pin the expected result
+instead. The existing `private_accessor` case had also changed the initializer
+of its field `_slot`, which version 14 rightly refuses. Its patched side now
+leaves `_slot` alone, so it still tests what it was written for.
+
+**Open: a dependency's `const` that tree shaking removed.** The check sees a
+`const` only where the release kept the declaration. App libraries are
+retained whole by the dynamic interface, so theirs are kept. A `const` in a
+dependency that the release's tree shaking removed is in neither kernel, so an
+edit to it is seen only as a changed member, which ships with the release's
+value. Not yet closed.
+
+**A cell is needed.** The analyzer ships in the compiler cell, so this takes
+effect for releases built on a cell minted with it. The CLI reads versions
+11-14, and an older cell keeps its old behavior.
+
 ## 4. Release / build configuration parity
 
 > **`G4 · build-config` — goal:** a release built the way developers actually

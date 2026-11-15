@@ -69,7 +69,7 @@ const supportedRouteBAnalysisVersion = 11;
 ///
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
-const knownRouteBAnalysisVersions = {11, 12, 13};
+const knownRouteBAnalysisVersions = {11, 12, 13, 14};
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -123,6 +123,14 @@ enum RouteBRepresentability {
 
   /// New in the patch. A patch replaces bodies; it cannot introduce members.
   added,
+
+  /// A changed or new field, `const` or constructor (analysis version 14).
+  ///
+  /// A patch replaces method bodies. A field's initial value and a
+  /// constructor come from the release, and a patch is compiled against the
+  /// release's declarations, so it would read an edited `const`'s old value.
+  /// Shipping the rest of the patch would leave the edit out without a word.
+  declaration,
 }
 
 /// A changed member's signature, on both sides.
@@ -571,6 +579,7 @@ class RouteBCoverage {
             'unreachable' => RouteBRepresentability.unreachable,
             'unknown' => RouteBRepresentability.unknown,
             'added' => RouteBRepresentability.added,
+            'declaration' => RouteBRepresentability.declaration,
             final Object? other => throw FormatException(
               'the analysis carries an unknown rejection category "$other"',
             ),
@@ -774,11 +783,16 @@ class RouteBCoverage {
   /// useless here: "1 changed member is not reachable" tells you a patch failed
   /// and gives you nowhere to go.
   String get refusalMessage {
+    // A field or constructor is in neither `changed` nor `added`, which list
+    // procedures only, so it is counted from its rejection.
+    final declarations = rejections
+        .where((r) => r.category == RouteBRepresentability.declaration)
+        .length;
     final buffer = StringBuffer()
       ..writeln(
         'This patch cannot be built: ${rejections.length} of '
-        '${changed.length + added.length} changed members cannot be carried by '
-        'a Route B patch.',
+        '${changed.length + added.length + declarations} changed members '
+        'cannot be carried by a Route B patch.',
       )
       ..writeln();
     for (final rejection in rejections) {

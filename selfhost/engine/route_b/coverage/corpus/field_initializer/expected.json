@@ -1,0 +1,16 @@
+{
+  "note": "A top-level field's initializer edited. The initializer runs from the release, so the patch is refused and names the field. The frozen reference tooling compares procedures only and calls this inert, so it is not a witness here.",
+  "referenceBlind": "the reference compares procedures only",
+  "verdict": "reject",
+  "changed": [],
+  "patchable": [],
+  "conditional": [],
+  "unreachable": [],
+  "added": [],
+  "declarations": [
+    "package:corpus/main.dart#routeBStart"
+  ],
+  "rejectionReasons": [
+    "this field's initializer or declaration changed; a patch replaces method bodies only, so the release keeps its own initial value"
+  ]
+}

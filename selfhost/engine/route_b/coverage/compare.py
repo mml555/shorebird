@@ -22,11 +22,19 @@ def load(path):
 
 
 class Report:
-    def __init__(self, case):
+    def __init__(self, case, reference_blind=None):
         self.case = case
         self.problems = []
+        # Set when the case records an edit the frozen reference tooling
+        # cannot see (analysis version 14: constants, fields, constructors).
+        # The reference is then not a witness, so its comparisons are skipped
+        # and the case's own pins carry the expectation instead.
+        self.reference_blind = reference_blind
 
     def check(self, label, left_name, left, right_name, right):
+        if self.reference_blind and "reference" in (left_name, right_name) \
+                and not label.startswith("target identity"):
+            return
         if left != right:
             self.problems.append(
                 f"{label}\n"
@@ -110,7 +118,17 @@ def main():
     analysis = load(args.analysis)
     cli = load(args.cli)
 
-    r = Report(args.case)
+    expected = load(args.expected) if args.expected else {}
+    blind = expected.get("referenceBlind")
+    r = Report(args.case, reference_blind=blind)
+    if blind:
+        missing = [f for f in ("verdict", "changed", "declarations")
+                   if f not in expected]
+        if missing:
+            r.problems.append(
+                "a referenceBlind case must pin " + ", ".join(missing)
+                + ": with the reference skipped, the pins are the only witness"
+            )
 
     # --- target identity ---------------------------------------------------
     # The whole manifest, not a count. `selector` carries the get:/set:
@@ -227,7 +245,6 @@ def main():
     # what makes "the dispatch-table case is not detected" a recorded fact
     # rather than a silence.
     if args.expected:
-        expected = load(args.expected)
         for field, actual in (
             ("verdict", analysis["verdict"]),
             ("changed", sorted(analysis["changed"])),
@@ -235,6 +252,8 @@ def main():
             ("conditional", sorted(analysis["conditional"])),
             ("unreachable", sorted(analysis["unreachable"])),
             ("added", sorted(analysis["added"])),
+            ("declarations", sorted(d["target"]
+                                    for d in analysis.get("declarations", []))),
         ):
             if field in expected:
                 r.check(f"pinned {field}", "expected", expected[field],

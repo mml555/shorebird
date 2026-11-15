@@ -143,7 +143,30 @@ import 'package:kernel/text/ast_to_text.dart';
 ///     The bump is mandatory for the usual reason: a version-12 consumer would
 ///     read a version-13 document, find only the candidate list it already
 ///     understands, and admit a construction with no same-method evidence.
-const analysisVersion = 13;
+/// 14: edits a patch cannot carry are no longer invisible.
+///
+///     Two blind spots, both measured on an iPhone release on 2026-11-15:
+///
+///     - Constant values. A member was compared by its printed form, and the
+///       kernel printer writes a constant as `#C1`, not as its value, so a
+///       body whose only edit was `const Text('a')` -> `const Text('b')` read
+///       as unchanged and the patch was refused as inert. Members now print
+///       with their constants' values, so such an edit is a changed member and
+///       ships like any other body edit: the literal is in the replacement's
+///       own source.
+///     - Fields and constructors. Only procedures were compared, so a changed
+///       field initializer, `const` or constructor was never seen. These are
+///       reported in `declarations` and refuse the patch: a patch replaces
+///       method bodies and the release keeps its own. A `const` is no
+///       exception, though its uses are inlined. The patch compiler evaluates
+///       constants against the RELEASE's kernel, so a replaced body that names
+///       an edited `const` still reads the release's value -- measured: an
+///       iPhone printed `KT1` after a patch changing it to `KT2` shipped.
+///
+///     The bump is mandatory: a version-13 consumer meeting the new rejection
+///     category would refuse to parse it, which is safe, but one that skipped
+///     unknown categories would ship the patch the analyzer refused.
+const analysisVersion = 14;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -291,6 +314,20 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   changed.sort();
   added.sort();
   removed.sort();
+
+  // Fields and constructors a patch cannot replace. Changed or new, never
+  // removed: a patch that stops using a field asks nothing of the release.
+  final baseDecl = _declarationText(base, isApp);
+  final patchedDecl = _declarationText(patched, isApp);
+  final declarations = <Map<String, Object?>>[
+    for (final entry in patchedDecl.entries)
+      if (baseDecl[entry.key]?.text != entry.value.text)
+        {
+          'target': entry.key,
+          'kind': entry.value.kind,
+          'new': !baseDecl.containsKey(entry.key),
+        },
+  ]..sort((a, b) => (a['target']! as String).compareTo(b['target']! as String));
 
   // ---- where each changed member's new body lives ------------------------
   //
@@ -454,6 +491,15 @@ coverage/census_report.py, for what the numbers may and may not be read as.
         'reason': 'a patch replaces bodies and cannot introduce members, so '
             'bytecode referencing them would fail to bind',
       },
+    for (final d in declarations)
+      {
+        'target': d['target'],
+        'category': 'declaration',
+        'reason': _declarationReason(
+          d['kind']! as String,
+          isNew: d['new']! as bool,
+        ),
+      },
   ];
 
   // Verbatim from build_patch.dart, including the order, so the harness can
@@ -472,12 +518,23 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     );
   }
 
+  if (declarations.isNotEmpty) {
+    reasons.add(
+      '${declarations.length} field(s), constant(s) or constructor(s) '
+      'changed; a patch replaces method bodies only, so the release would '
+      'keep its own',
+    );
+  }
+
   // Three outcomes, matching the reference tool's exit codes 0 / 3 / 4. `inert`
   // is not a failure and not a success: a patch carrying nothing installs and
   // changes nothing, which is worse than refusing because it looks like it
   // worked.
   final String verdict;
-  if (changed.isEmpty && added.isEmpty && removed.isEmpty) {
+  if (changed.isEmpty &&
+      added.isEmpty &&
+      removed.isEmpty &&
+      declarations.isEmpty) {
     verdict = 'inert';
   } else if (changed.isEmpty) {
     verdict = reasons.isEmpty ? 'inert' : 'reject';
@@ -505,6 +562,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     'changed': changed,
     'added': added,
     'removed': removed,
+    'declarations': declarations,
     'patchable': patchable,
     'conditional': conditional,
     'unreachable': unreachable,
@@ -633,6 +691,77 @@ Map<String, String> _memberText(Component c, bool Function(Library) isApp) {
   return out;
 }
 
+/// `library#Class.name` -> the printed declaration, for the members a patch
+/// cannot replace: fields, `const` included, and constructors.
+///
+/// A Route B patch replaces procedure bodies. A field's initializer runs once,
+/// from the release's code, and a constructor is not a procedure the release
+/// can redirect. An edit to either used to be invisible here -- this tool only
+/// compared procedures -- so it was reported as "nothing changed" when it stood
+/// alone and dropped without a word when it rode along with other edits, which
+/// shipped a patch that did not do what its source said.
+///
+/// A `const` is kept apart as its own kind, because the reason differs. Its
+/// value is inlined at every use, so it might look carried by the members that
+/// use it. It is not: the patch compiler resolves the name against the
+/// RELEASE's kernel and inlines the release's value. A device printed the old
+/// value of an edited `const` from a replaced body that named it.
+///
+/// This sees a `const` only where the release kept the declaration. App
+/// libraries are retained whole by the dynamic interface, so theirs are kept;
+/// a dependency's `const` that tree shaking removed from both kernels is not
+/// seen here, which is a known gap.
+///
+/// The unnamed constructor is keyed `new`, as the capability manifest spells
+/// it.
+Map<String, ({String kind, String text})> _declarationText(
+  Component c,
+  bool Function(Library) isApp,
+) {
+  final out = <String, ({String kind, String text})>{};
+  for (final lib in c.libraries.where(isApp)) {
+    final uri = lib.importUri.toString();
+    for (final f in lib.fields) {
+      out['$uri#${f.name.text}'] = (kind: _fieldKind(f), text: _text(f));
+    }
+    for (final cls in lib.classes) {
+      for (final f in cls.fields) {
+        out['$uri#${cls.name}.${f.name.text}'] = (
+          kind: _fieldKind(f),
+          text: _text(f),
+        );
+      }
+      for (final k in cls.constructors) {
+        final name = k.name.text.isEmpty ? 'new' : k.name.text;
+        out['$uri#${cls.name}.$name'] = (kind: 'constructor', text: _text(k));
+      }
+    }
+  }
+  return out;
+}
+
+String _fieldKind(Field f) => f.isConst ? 'constant' : 'field';
+
+/// Why a field or constructor edit refuses the patch, in the user's terms.
+String _declarationReason(String kind, {required bool isNew}) {
+  if (isNew) {
+    return 'this $kind is not in the release -- it is new, or the release '
+        'tree-shook it because nothing used it -- and a patch cannot add one';
+  }
+  return switch (kind) {
+    'constant' =>
+      'this constant changed; a patch is compiled against the release\'s '
+          'declarations, so code naming it would still read the old value',
+    'field' =>
+      'this field\'s initializer or declaration changed; a patch replaces '
+          'method bodies only, so the release keeps its own initial value',
+    _ =>
+      'this constructor, or an instance field initializer it runs, changed; '
+          'a patch replaces method bodies only, so the release keeps running '
+          'its own',
+  };
+}
+
 String _selector(String? className, Procedure p) {
   final name = switch (p.kind) {
     ProcedureKind.Getter => 'get:${p.name.text}',
@@ -691,9 +820,24 @@ String _signature(Procedure p) {
       '->${type(f.returnType)}';
 }
 
-String _text(Procedure p) {
+/// The printed member, followed by the VALUE of every constant it uses.
+///
+/// The kernel printer writes a constant as a reference, `#C1`, and prints the
+/// values only in a component-wide table. A member printed alone therefore
+/// read the same whether its `const Text('a')` said 'a' or 'b', and whether the
+/// top-level `const` it inlines held one value or another. A release compiles
+/// every use of a `const` to its value, so an edit to a constant IS an edit to
+/// each member that uses it, and has to read as one.
+///
+/// The table is walked until it stops growing: printing one constant names the
+/// constants inside it (`Box{v: #C2}`), and those must be printed too.
+String _text(Member m) {
   final buffer = StringBuffer();
-  Printer(buffer).writeNode(p);
+  final printer = Printer(buffer)..writeNode(m);
+  final named = printer.syntheticNames.constants.map;
+  for (var i = 0; i < named.length; i++) {
+    printer.writeNode(named.keys.elementAt(i));
+  }
   return buffer.toString();
 }
 

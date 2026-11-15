@@ -172,12 +172,12 @@ void main() {
 
       test('an unknown version is refused, and names what is understood', () {
         expect(
-          () => RouteBCoverage.fromJson(doc(14, body)),
+          () => RouteBCoverage.fromJson(doc(15, body)),
           throwsA(
             isA<FormatException>().having(
               (e) => e.message,
               'message',
-              allOf(contains('version 14'), contains('11, 12, 13')),
+              allOf(contains('version 15'), contains('11, 12, 13, 14')),
             ),
           ),
         );
@@ -456,6 +456,42 @@ void main() {
         expect(
           coverage.rejections.single.category,
           RouteBRepresentability.added,
+        );
+      });
+
+      test('counts a changed field among what could not be carried', () {
+        // A field or constructor is in neither `changed` nor `added`. Counting
+        // only those would report "1 of 0" for a patch refused because of it.
+        const reason =
+            "this field's initializer or declaration changed; a patch "
+            'replaces method bodies only, so the release keeps its own '
+            'initial value';
+        final coverage = RouteBCoverage.fromJson(
+          document(
+            version: 14,
+            verdict: 'reject',
+            rejections: [
+              {
+                'target': 'a#Home.label',
+                'category': 'declaration',
+                'reason': reason,
+              },
+            ],
+          ),
+        );
+
+        expect(coverage.verdict, RouteBVerdict.reject);
+        expect(
+          coverage.rejections.single.category,
+          RouteBRepresentability.declaration,
+        );
+        expect(
+          coverage.refusalMessage,
+          allOf(
+            contains('1 of 1 changed members'),
+            contains('a#Home.label'),
+            contains(reason),
+          ),
         );
       });
     });

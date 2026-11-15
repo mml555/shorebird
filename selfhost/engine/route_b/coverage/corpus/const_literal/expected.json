@@ -1,0 +1,16 @@
+{
+  "note": "A constant literal edited inside a body. Analysis version 14 prints constants by value, so the body reads as changed and ships. The frozen reference tooling prints `#C1` and calls this inert, so it is not a witness here.",
+  "referenceBlind": "the reference prints constants by reference, not value",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#routeBValue"
+  ],
+  "patchable": [
+    "package:corpus/main.dart#routeBValue"
+  ],
+  "conditional": [],
+  "unreachable": [],
+  "added": [],
+  "declarations": [],
+  "rejectionReasons": []
+}
