@@ -352,10 +352,10 @@ not an untested guess. Ordered roughly by expected cost.
 | ☐ | **NOT BUILT** Cascades | |
 | ☐ | **NOT BUILT** Closures capturing `this` | |
 | ☐ | **NOT BUILT** `super` getter access | |
-| ☐ | **NOT BUILT** `super` method calls | |
+| ◐ | **RAN ON DEVICE FROM A LOCAL CELL 2026-11-15** zero-argument `super` method calls | `initState` calling `super.initState()` patched and ran on an iPhone 7 (`engine/route_b/evidence/ios_shapes_2026_11_15/`). Not in a published cell yet; arguments, getters and setters are still refused |
 | ☐ | **NOT BUILT** Operators requiring receiver lowering | |
 | ☐ | **NOT BUILT** More complex generic / type-context cases | |
-| ☐ | **NOT BUILT** Broader async / closure corpus | |
+| ◐ | **RAN ON DEVICE FROM A LOCAL CELL 2026-11-15** Broader async / closure corpus | an `async` function, an `async*` generator, an `await` inside a `for` loop, and a closure inside `build` all patched and ran (`engine/route_b/evidence/ios_shapes_2026_11_15/`). Not in a published cell yet |
 | ☐ | **NOT BUILT** Extensions / mixins / records / pattern cases as applicable | |
 
 ### `G3` sub-goals, and why they are mostly a queue
@@ -2063,6 +2063,41 @@ the same dynamic call that failed above. Not measured on device yet.
 Same release, same engine, same edit, patch 4 with the typed receiver:
 `applied 1/1 targets`, `shape:init=I2`, then `_start` ran (`count=1..3`,
 `done=START-DONE`) with no error.
+
+### Ordinary Flutter edits on an iPhone (2026-11-15)
+
+One patch carrying 18 ordinary edits to a small Flutter app activated 16/16
+targets on an iPhone 7 (iOS 15.8), release `1.0.0+10`. Every edit with a
+target showed its patched value, with no crash:
+- **Widgets:** stateless and stateful `build`, `initState` with
+  `super.initState()`, a method called from `setState`, a closure inside
+  `build`.
+- **Async:** an `async` function, an `async*` generator.
+- **Routing:** an `onGenerateRoute` table, a pushed page's `build`.
+- **Dependencies:** a call into `package:intl`, the body of a local pure-Dart
+  package.
+- **Language:** an SDK call chain, one override of a polymorphic method, a
+  getter, an enum `switch`, a pattern `switch`, a static method, a generic
+  function.
+
+A second patch changed an `await` loop's bound and ran 5 iterations instead of
+3.
+
+**Not patched:** a top-level `const`. It is inlined when the release is
+compiled, and the producer does not refuse it yet, which is a known gap.
+
+**Two Dart fixes were needed** (lineage PR #6): a patch could not call an SDK
+member AOT had removed, and a patched `for`-in over a `List` crashed because
+the interpreter and AOT disagreed on where the receiver goes.
+
+**What this is not:**
+- It came from a local test cell; the engine pin is mml555/shorebird-flutter#13.
+- It is one app on one device, with no obfuscated release.
+- Edits that add a class, page, field or top-level function were not tried on
+  the device.
+
+Evidence:
+[`engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md`](engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md).
 
 ## 4. Release / build configuration parity
 

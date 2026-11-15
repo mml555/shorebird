@@ -280,9 +280,16 @@ rather than of use.
 | a replacement whose signature takes NAMED parameters | the `ArgumentsDescriptor`'s names must match and that is unexercised |
 | a replacement whose signature takes OPTIONAL positionals | their defaults live in the AOT function the replacement stands in for, and nothing carries them across |
 
-#### `super.foo()` — HOST CERTIFIED, narrow-v1, and not yet reachable
+#### `super.foo()` — HOST CERTIFIED, narrow-v1, ran on an iPhone from a local cell
 
-**No release can use this today.** The producer carries a zero-argument
+**2026-11-15: ran on a device, not yet published.** A patched `initState` that
+calls `super.initState()` applied and ran on an iPhone 7, from a local test
+cell built from the Dart lineage at PR #6's head. See
+[`engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md`](engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md).
+No published cell carries it yet. The engine pin is mml555/shorebird-flutter#13.
+The rest of this section describes what a shipped release does.
+
+**No published release can use this today.** The producer carries a zero-argument
 `super.foo()` only when the resolved compiler cell implements
 `routeBDirectSuperDualKernelV1`, and no published cell does — so every shipped
 release still refuses, exactly as the row above says. What follows describes
@@ -317,7 +324,10 @@ Why each authority is where it is:
   `compiler.cc:1152` (`super0/s2b1e/`). The same-method evidence rule is what
   keeps that unreachable.
 
-Still refused, and unexercised: arguments, getters, setters, generics.
+Still refused, and unexercised: arguments, getters, setters, generics. Since
+Dart lineage PR #5 the compiler also refuses a target that is not a concrete
+method in either kernel, and requires the entry point's receiver class to be
+the origin class (a `dynamic` receiver is cast to it at run time).
 
 #### The boundary, stated once
 
@@ -659,6 +669,20 @@ for `MyApp.build` and `_MyHomePageState.build`. Measured on the host only, on
 one small app; the iOS cell, the device patch, and size and frame time on a
 real app are still to come. See
 [`engine/route_b/evidence/untabled_overrides/RESULT.md`](engine/route_b/evidence/untabled_overrides/RESULT.md).
+
+**2026-11-15: on an iPhone, from a local cell.** A patch to one override of a
+polymorphic method (`Circle.describe`, with `Square.describe` left alone) ran on
+an iPhone 7. It was one of 16 targets in one patch to a small Flutter app. Two
+Dart changes were needed first (lineage PR #6):
+- a patch calling an SDK member AOT had removed (`List.add`, `join`) needed the
+  loader to supply a stand-in and the SDK member to be findable by name;
+- the interpreter passes every argument on the stack, so selectors with such a
+  member now use the stack calling convention everywhere. Without that, a
+  patched `for`-in over a `List` crashed.
+
+Snapshot size on that app: +1.01 % with SDK name lookup on. Frame time was not
+measured. See
+[`engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md`](engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md).
 
 **The consequence for step 5 is concrete:** patch coverage is not "any Dart
 function", and Shorebird's link percentage has a direct analogue here. Say so in
