@@ -227,6 +227,14 @@ site (`probe_revision: 2`). The patch changes the one string:
 
 The first attempt at this, on the same cell, crashed at boot. Section 8 is why.
 
+Re-run on 2026-11-15 with the generator from `1642fed0`, which reads the
+import kernel under `--platform`: a 1.0.0+3 release whose `Label` also has a
+`final VoidCallback? onTap` field (the shape that stopped the older generator),
+installed over 1.0.0+2. The release log has no fallback and no warning, the
+interface is 14,558 bytes, and the same four launches gave the same results
+(`activated Label.build … before main`, `applied 1/1`, the screen showing
+UNTAB-V2, then `rolled_back_patch_numbers: [1]` and base `UNTAB-V1`).
+
 ## 8. Framework names a patch uses
 
 ```
