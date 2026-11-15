@@ -342,7 +342,7 @@ Object? $_superIntrinsicName(
               compiler,
               patchedVerificationKernel,
             )
-          : _Lowered(_slice(key, source));
+          : _Lowered(topLevelForm(_slice(key, source)));
       final declaration = lowered.declaration;
       // G4.1c link 2, the LEGACY case. A release cut before injected defines
       // were recorded cannot be given them retroactively — the values came from
@@ -1268,6 +1268,21 @@ Object? $_superIntrinsicName(
   );
 
   /// The declaration's source text, from the patch's own file.
+  /// [declaration] as the replacement library declares it: at top level.
+  ///
+  /// A class's static member is sliced with its `static` modifier, which is a
+  /// compile error outside a class, so dart2bytecode refused every static
+  /// method with exit 254. Annotations ahead of the modifier are kept.
+  @visibleForTesting
+  static String topLevelForm(String declaration) => declaration.replaceFirst(
+    _staticModifier,
+    '',
+  );
+
+  static final _staticModifier = RegExp(
+    r'(?<=^(?:\s*@[\w.]+(?:\([^)]*\))?)*\s*)static\s+',
+  );
+
   String _slice(String key, RouteBSourceSpan span) {
     final file = File.fromUri(Uri.parse(span.fileUri));
     if (!file.existsSync()) {

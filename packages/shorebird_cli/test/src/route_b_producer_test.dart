@@ -96,6 +96,74 @@ void main() {
       return ProcessResult(0, 0, '', '');
     }
 
+    group('topLevelForm', () {
+      test("drops a static member's modifier", () {
+        expect(
+          RouteBProducer.topLevelForm("static String tag() => 'S2';"),
+          "String tag() => 'S2';",
+        );
+        expect(
+          RouteBProducer.topLevelForm('static int get count => 1;'),
+          'int get count => 1;',
+        );
+      });
+
+      test('keeps annotations ahead of it', () {
+        expect(
+          RouteBProducer.topLevelForm(
+            "@pragma('vm:never-inline')\n  static String tag() => 'S2';",
+          ),
+          "@pragma('vm:never-inline')\n  String tag() => 'S2';",
+        );
+      });
+
+      test('leaves a top-level function and a static-named one alone', () {
+        expect(
+          RouteBProducer.topLevelForm("String tag() => 'static ';"),
+          "String tag() => 'static ';",
+        );
+        expect(
+          RouteBProducer.topLevelForm('int staticCount() => 1;'),
+          'int staticCount() => 1;',
+        );
+      });
+    });
+
+    test('writes a static method without its modifier', () {
+      const member = "static String tag() => 'NEW';";
+      source.writeAsStringSync('class Util {\n  $member\n}\n');
+      runWithOverrides(
+        () => const RouteBProducer().produce(
+          compiler: compiler(),
+          coverage: coverage(
+            representable: ['package:app/main.dart#Util.tag'],
+            sources: {
+              'package:app/main.dart#Util.tag': {
+                'fileUri': source.uri.toString(),
+                'start': 15,
+                'end': 15 + member.length,
+              },
+            },
+          ),
+          releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseBuildId: 'deadbeef',
+          workingDirectory: work,
+          projectRoot: project,
+          run: compileOk,
+        ),
+      );
+
+      final generated = File(
+        p.join(work.path, 'replacement_0.dart'),
+      ).readAsStringSync();
+      expect(
+        generated,
+        endsWith(
+          "${RouteBProducer.entryPointPragma}\nString tag() => 'NEW';\n",
+        ),
+      );
+    });
+
     test('writes one replacement library per target, with the pragma', () {
       // One payload is one function: Dart_RouteBActivatePatch attaches the
       // single Function LoadBytecode returns, so a payload has to hold exactly
