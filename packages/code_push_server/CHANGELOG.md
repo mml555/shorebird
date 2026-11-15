@@ -8,7 +8,13 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
-## 1.5.0 — 2026-11-15
+## 2.0.0 — 2026-11-15
+
+A major version because of two configuration changes for servers that sign
+users in through an IdP (see Security): in production the server refuses to
+start without `IDP_ISSUER`, and an IdP whose id_tokens omit `email_verified`
+needs `IDP_ALLOW_UNVERIFIED_EMAIL=true` for logins to keep working. A server
+without an IdP upgrades from 1.4.0 with no change.
 
 ### Added
 
