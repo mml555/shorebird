@@ -962,8 +962,30 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
       '''This engine supports iOS Dart code push, so this release is being built with patchable call sites (~+4.5% app size). Without them a patch would install and change nothing.''',
     );
     buildArgs.add('--extra-gen-snapshot-options=--patchable_static_calls');
+    _addUntabledOverridesArgs(buildArgs);
     _addSnapshotProfileArgs(buildArgs);
     return true;
+  }
+
+  /// Ask gen_snapshot to keep app-overridden methods out of the dispatch
+  /// table, on compilers that know how.
+  ///
+  /// Without it a patch to a method the framework calls through an interface,
+  /// such as `build` or `initState`, has no surviving call site: the framework
+  /// reaches it through a dispatch-table call that never consults the patched
+  /// `Function`. An older cell's gen_snapshot does not define the flag, and its
+  /// releases simply keep refusing those patches as before.
+  void _addUntabledOverridesArgs(List<String> buildArgs) {
+    if (buildArgs.any((a) => a.contains(routeBUntabledOverridesFlag))) return;
+    final genSnapshot = iosReleaseGenSnapshot(
+      flutterDirectory: shorebirdEnv.flutterDirectory,
+      localEngineSrcPath: engineConfig.localEngineSrcPath,
+      localEngine: engineConfig.localEngine,
+    );
+    if (!genSnapshotHasFlag(genSnapshot, routeBUntabledOverridesFlag)) return;
+    buildArgs.add(
+      '--extra-gen-snapshot-options=--$routeBUntabledOverridesFlag',
+    );
   }
 
   /// Ask gen_snapshot for this build's snapshot profile: P4.1's evidence.

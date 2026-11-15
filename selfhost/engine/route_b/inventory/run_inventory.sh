@@ -80,6 +80,7 @@ emit_bytecode static_m  staticMethod   static_m
 emit_bytecode mono     monomorphic    mono
 emit_bytecode getter   getter         getter
 emit_bytecode circle   describe       circle
+emit_bytecode part3    render         part3
 
 # target name -> which FORM line should flip if that form is patchable
 declare -a CASES=(
@@ -95,6 +96,12 @@ declare -a CASES=(
   # while the statically-typed one does not, the gap is dispatch-table
   # specialization and not the patch.
   "Circle.describe|circle|dynamic-instance"
+  # The framework's shape: one site, eight receivers. -first is the site's
+  # first link, -late is after it has gone megamorphic, and -other must stay
+  # original or the patch is reaching receivers it does not own.
+  "Part3.render|part3|megamorphic-first"
+  "Part3.render|part3|megamorphic-late"
+  "Part3.render|part3|megamorphic-other"
 )
 
 printf '\n%-22s  %-20s  %s\n' "target attached" "form under test" "outcome"
@@ -109,6 +116,16 @@ for c in "${CASES[@]}"; do
 
   if grep -q "^attach\[$target\]: false" "$log" || grep -q '^ATTACH: .*not found' "$log"; then
     outcome="ATTACH FAILED (harness) -- $(grep -m1 '^ATTACH: .*not found' "$log" || echo 'attach returned false')"
+  elif [[ $form == *-other ]]; then
+    # A control, not a form: the patch must NOT reach a receiver it was not
+    # attached to, so the verdicts are inverted.
+    if grep -q "^FORM $form: original" "$log"; then
+      outcome="untouched (correct)"
+    elif grep -q "^FORM $form: PATCHED" "$log"; then
+      outcome="WRONG RECEIVER PATCHED"
+    else
+      outcome="INCONCLUSIVE (no FORM $form line; see $log)"
+    fi
   elif grep -q "^FORM $form: PATCHED" "$log"; then
     outcome="PATCHABLE"
   elif grep -q "^FORM $form: original" "$log"; then

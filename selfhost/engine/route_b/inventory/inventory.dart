@@ -73,6 +73,78 @@ class Square extends Shape {
   String describe() => _old('Square.describe');
 }
 
+// --- 7. instance method, megamorphic -----------------------------------------
+// Eight implementations behind ONE call site, which is the shape the framework
+// gives every Widget.build and State.initState: too many receivers for a
+// cid-check chain, so AOT emits a dispatch-table call or, when the selector has
+// no table slot (--route_b_untabled_overrides), a switchable call that the
+// runtime links on first use. Part3 is called through that site FIRST, so the
+// site's very first link targets the patched function -- the path that would
+// link monomorphic straight to the InterpretCall stub if nothing stopped it.
+abstract class Part {
+  String render();
+}
+
+class Part0 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part0.render');
+}
+
+class Part1 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part1.render');
+}
+
+class Part2 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part2.render');
+}
+
+class Part3 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part3.render');
+}
+
+class Part4 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part4.render');
+}
+
+class Part5 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part5.render');
+}
+
+class Part6 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part6.render');
+}
+
+class Part7 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part7.render');
+}
+
+// The single call site every Part reaches.
+@pragma('vm:never-inline')
+String renderPart(Part part) => part.render();
+
 void main(List<String> args) {
   if (args.isEmpty) {
     stderr.writeln('usage: inventory <bytecode> <libraryUri> <target>');
@@ -111,6 +183,20 @@ void main(List<String> args) {
   // branches through Function.entry_point_ on its own. If those two lines
   // disagree, that difference IS the finding.
   _report('dynamic-instance', (shapes[0] as dynamic).describe() as String);
+
+  final parts = <Part>[
+    Part0(), Part1(), Part2(), Part3(), Part4(), Part5(), Part6(), Part7(), //
+  ];
+  _report('megamorphic-first', renderPart(parts[3]));
+  // Drive the site through every receiver so it ends up megamorphic, then ask
+  // again: the patched target must still be reached and the others must not.
+  for (var round = 0; round < 3; round++) {
+    for (final part in parts) {
+      renderPart(part);
+    }
+  }
+  _report('megamorphic-late', renderPart(parts[3]));
+  _report('megamorphic-other', renderPart(parts[5]));
 
   // Tear-off and dynamic shapes, for continuity with the kill gate.
   final String Function() torn = topLevelStatic;

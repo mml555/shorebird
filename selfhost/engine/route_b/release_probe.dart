@@ -20,13 +20,31 @@
 // patchable static call loads the callee's entry point out of the CALLER's
 // object pool, so `target Function <- ObjectPool <- caller Code` IS a surviving
 // call site. A folded target still has a Function node but no such pool.
+//
+// Revision 2 adds the switchable call (evidence/untabled_overrides). A selector
+// with no dispatch-table slot is called through an `UnlinkedCall` naming the
+// selector, held in the caller's pool, and the runtime links it to whatever
+// the receiver's class implements -- the patched body included, because the
+// cell's runtime never links an attached function monomorphic. So
+// `UnlinkedCall(target_name_ == member) <- ObjectPool <- caller Code` is also a
+// surviving site. It names a SELECTOR, not this class's member: like a dead
+// branch, a site whose receivers never include the target's class is reported
+// green, and the spec says why that direction is the right one to be wrong in.
+// Revision 2 also tells the target's own code from a caller by identity, not
+// by name (see _isOwnCode): revision 1 misfiled same-named callers.
 import 'dart:convert';
 import 'dart:io';
 
 /// Bumped when the classification or the evidence shape changes. Recorded in the
 /// output and checked against the release binding, so a profile produced under
 /// one revision cannot be silently consumed under another.
-const probeRevision = 1;
+const probeRevision = 2;
+
+/// Binding revisions this probe reads. Revision 2 only ADDS a category, and its
+/// inputs (`UnlinkedCall` nodes) are in every profile a revision-1 release
+/// wrote, so a revision-1 binding is read correctly here. The reverse is not
+/// true, which is why a revision-1 probe still refuses a revision-2 binding.
+const _acceptedBindingRevisions = {1, 2};
 
 /// The profile schema this probe was written against. There is no version field
 /// in the profile itself, so the shape is asserted STRUCTURALLY: if gen_snapshot
@@ -36,7 +54,13 @@ const probeRevision = 1;
 /// `meta.node_types`, and every count it produced had to be voided.
 const _nodeFields = ['type', 'name', 'id', 'self_size', 'edge_count'];
 const _edgeFields = ['type', 'name_or_index', 'to_node'];
-const _requiredNodeTypes = ['Function', 'Class', 'Library', 'Code', 'ObjectPool'];
+const _requiredNodeTypes = [
+  'Function',
+  'Class',
+  'Library',
+  'Code',
+  'ObjectPool',
+];
 
 /// Internal result model (spec §3). Deliberately finer than the product
 /// vocabulary: the producer collapses four of these to UNKNOWN, but collapsing
@@ -60,13 +84,17 @@ class Evidence {
   int selfOwnedPools = 0;
   int unownedPools = 0;
   int otherReferrers = 0;
+  int switchableSites = 0;
   final callers = <String>[];
 
   Map<String, Object?> toJson() => {
     'target_function_nodes': targetFunctionNodes,
-    // The ONLY input to the policy fact. Everything below is recorded so a
+    // The two inputs to the policy fact. Everything else is recorded so a
     // change in the incidental counts is visible instead of silent.
     'caller_owned_pools': callerOwnedPools,
+    // Since revision 2: switchable call sites naming the target's selector,
+    // in a caller's pool.
+    'switchable_sites': switchableSites,
     'tearoff_pools': tearoffPools,
     'self_owned_pools': selfOwnedPools,
     'unowned_pools': unownedPools,
@@ -207,7 +235,8 @@ class Profile {
         // For `property` edges name_or_index indexes `strings`; for `element`
         // edges it is a pool/array index and must NOT be read as a string.
         final kind = edgeTypes[et];
-        final label = kind == 'property' &&
+        final label =
+            kind == 'property' &&
                 nameOrIndex >= 0 &&
                 nameOrIndex < strings.length
             ? strings[nameOrIndex]
@@ -251,8 +280,9 @@ class Profile {
   Iterable<ProfileEdge> referrersOf(int node) => _in[node];
 
   Iterable<int> nodesOfType(String type) {
-    return Iterable<int>.generate(_types.length)
-        .where((i) => _types[i] == type);
+    return Iterable<int>.generate(
+      _types.length,
+    ).where((i) => _types[i] == type);
   }
 }
 
@@ -327,27 +357,49 @@ Verdict classify(Profile p, TargetId id) {
       ev.otherReferrers++;
       continue;
     }
-    final owners = <String>[];
-    for (final pe in p.referrersOf(e.src)) {
-      if (p.typeOf(pe.src) == 'Code') owners.add(p.nameOf(pe.src));
-    }
+    final owners = [
+      for (final pe in p.referrersOf(e.src))
+        if (p.typeOf(pe.src) == 'Code') pe.src,
+    ];
     if (owners.isEmpty) {
       // Recorded, never counted. Ambiguous evidence must not be able to pass a
       // gate; that is one of the mutations the gate tests.
       ev.unownedPools++;
-    } else if (owners.any((o) => o.contains('[tear-off]'))) {
+    } else if (owners.any((o) => p.nameOf(o).contains('[tear-off]'))) {
       ev.tearoffPools++;
-    } else if (owners.any((o) => _isSelfCode(o, p.nameOf(fn)))) {
+    } else if (owners.any((o) => _isOwnCode(p, o, fn))) {
       ev.selfOwnedPools++;
     } else {
       ev.callerOwnedPools++;
-      ev.callers.addAll(owners);
+      ev.callers.addAll(owners.map(p.nameOf));
+    }
+  }
+
+  final selector = p.nameOf(fn);
+  for (final call in p.nodesOfType('UnlinkedCall')) {
+    final name = p.property(call, 'target_name_');
+    if (name == null || p.nameOf(name) != selector) continue;
+    for (final e in p.referrersOf(call)) {
+      if (p.typeOf(e.src) != 'ObjectPool') continue;
+      final owners = [
+        for (final pe in p.referrersOf(e.src))
+          if (p.typeOf(pe.src) == 'Code') pe.src,
+      ];
+      // The same exclusions as a direct reference: an unowned pool is
+      // ambiguous, and a tear-off or the target's own code is not a caller.
+      if (owners.isEmpty ||
+          owners.any((o) => p.nameOf(o).contains('[tear-off]')) ||
+          owners.any((o) => _isOwnCode(p, o, fn))) {
+        continue;
+      }
+      ev.switchableSites++;
+      ev.callers.addAll(owners.map(p.nameOf));
     }
   }
 
   return Verdict(
     '$id',
-    ev.callerOwnedPools >= 1
+    ev.callerOwnedPools + ev.switchableSites >= 1
         ? ProbeResult.oneOrMoreQualifyingCallsites
         : ProbeResult.zeroQualifyingCallsites,
     ev,
@@ -368,7 +420,11 @@ int? _libraryOf(Profile p, int owner) {
   if (direct != null && p.typeOf(direct) == 'Library') return direct;
   // A PatchClass wraps the class it patches; follow it rather than reporting the
   // target as absent.
-  for (final name in const ['patched_class_', 'origin_class_', 'wrapped_class_']) {
+  for (final name in const [
+    'patched_class_',
+    'origin_class_',
+    'wrapped_class_',
+  ]) {
     final wrapped = p.property(owner, name);
     if (wrapped != null) {
       final lib = p.property(wrapped, 'library_');
@@ -378,10 +434,15 @@ int? _libraryOf(Profile p, int owner) {
   return null;
 }
 
-bool _isSelfCode(String codeName, String functionName) {
-  final bare = codeName.replaceAll('[Optimized] ', '').replaceAll('[Unoptimized] ', '');
-  return bare == functionName;
-}
+/// Whether [code] is [fn]'s own compiled code. Decided by IDENTITY (the Code's
+/// `owner_` is this Function node), never by name. Revision 1 compared names,
+/// and a caller that shares the target's name is the common case, not an edge:
+/// the framework calls every widget's build() from StatelessElement.build and
+/// StatefulElement.build, and a cid-check chain over two implementations of
+/// `render` sits in whatever calls `render`. A name test filed those sites as
+/// the target's own pool and reported no call site.
+bool _isOwnCode(Profile p, int code, int fn) =>
+    p.property(code, 'owner_') == fn;
 
 const _usage = '''
 route_b_release_probe -- did a supported invocation site of a target survive
@@ -485,8 +546,12 @@ Future<int> main(List<String> args) async {
     out['profile'] = {'status': 'INVALID', 'detail': 'no file at $profilePath'};
     out['targets'] = [
       for (final t in targets)
-        Verdict(t, ProbeResult.profileInvalid, Evidence(), 'no profile file')
-            .toJson(),
+        Verdict(
+          t,
+          ProbeResult.profileInvalid,
+          Evidence(),
+          'no profile file',
+        ).toJson(),
     ];
     stdout.writeln(const JsonEncoder.withIndent('  ').convert(out));
     return 0;
@@ -499,8 +564,9 @@ Future<int> main(List<String> args) async {
     json = null;
     out['profile'] = {'status': 'INVALID', 'detail': 'not JSON: ${e.message}'};
   }
-  final (profile, problem) =
-      json == null ? (null, 'not JSON') : Profile.decode(json);
+  final (profile, problem) = json == null
+      ? (null, 'not JSON')
+      : Profile.decode(json);
   if (profile == null) {
     out['profile'] ??= {'status': 'INVALID', 'detail': problem};
     out['targets'] = [
@@ -569,11 +635,11 @@ _Binding _checkBinding(String? path, String? artifactSha, String? cellId) {
   if (declaredProbe is! int) {
     return _Binding(false, 'binding has no integer probe_revision', fields);
   }
-  if (declaredProbe != probeRevision) {
+  if (!_acceptedBindingRevisions.contains(declaredProbe)) {
     return _Binding(
       false,
       'binding was written for probe revision $declaredProbe, this probe is '
-          '$probeRevision',
+      '$probeRevision and reads ${_acceptedBindingRevisions.join(', ')}',
       fields,
     );
   }
@@ -599,7 +665,7 @@ _Binding _checkBinding(String? path, String? artifactSha, String? cellId) {
     return _Binding(
       false,
       'the profile describes artifact $declaredArtifact but the producer is '
-          'patching $artifactSha',
+      'patching $artifactSha',
       fields,
     );
   }
@@ -607,7 +673,7 @@ _Binding _checkBinding(String? path, String? artifactSha, String? cellId) {
     return _Binding(
       false,
       'the profile was produced by cell ${b['cell_id']}, the producer resolved '
-          '$cellId',
+      '$cellId',
       fields,
     );
   }

@@ -469,6 +469,9 @@ words:
   #
   # Route B / this fork's own identifiers:
   - sbrbptch # the Route B container extension, .sbrbptch
+  - untabled # --route_b_untabled_overrides: a selector kept out of the dispatch table
+  - selfname # the release probe gate's mutation that matches own code by name
+  - sbrel # the counter app the Route B measurements build
   - codepatch # fixture marker string
   - runmain # the _runMain seam
   - handpack # probes/device_handpack.sh, a hand-written replacement body

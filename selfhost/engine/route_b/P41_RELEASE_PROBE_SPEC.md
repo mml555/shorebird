@@ -58,6 +58,7 @@ caller_owned_pools:    1
 tearoff_pools:         1
 self_owned_pools:      0
 unowned_pools:         1
+switchable_sites:      0    (revision 2)
 other_referrers:       0
 ```
 
@@ -65,6 +66,39 @@ The policy fact is derived from `caller_owned_pools` **alone**. This exists so
 that today's incidental "3 pools" cannot become tomorrow's accidental contract:
 the measured 3 decomposes into 1 caller-owned + 1 tear-off + 1 unowned, and only
 the first is load-bearing.
+
+### Revision 2 (2026-11-14): switchable sites, and "own code" by identity
+
+A release built with `--route_b_untabled_overrides` keeps app method selectors
+out of the dispatch table, so their calls become switchable calls. Such a call
+does not reference the target `Function` at all: the caller's pool holds an
+`UnlinkedCall` whose `target_name_` is the selector, and the runtime links it
+to whatever the receiver's class implements. Revision 2 counts that shape too:
+
+| category | counts as surviving invocation |
+|---|---|
+| `UnlinkedCall(target_name_ == member)` in a pool owned by a caller's `Code` | **yes** — `switchable_sites` |
+| the same, in an unowned pool, a tear-off's pool or the target's own pool | no |
+
+The policy fact becomes `caller_owned_pools + switchable_sites >= 1`.
+
+A switchable site names a SELECTOR, not a class's member, so it is green for
+every implementation of that selector, including one whose class never reaches
+the site. That is the same direction as the dead-branch control: it reports a
+site that may never run the target, never the reverse, and it cannot report a
+site for a target that was folded (a folded target's selector has no call).
+
+Revision 2 also decides "the target's own `Code`" by IDENTITY (the `Code`'s
+`owner_` is the target `Function`) instead of revision 1's name comparison.
+Same-named callers are the normal case: the framework calls every widget's
+`build()` from `StatelessElement.build` and `StatefulElement.build`, and a
+cid-check chain over two implementations of `pick` sits in whatever calls
+`pick`. Revision 1 filed both as the target's own pool. The gate's
+`selfname` mutation puts the name test back and requires both sites to vanish.
+
+A revision-2 probe reads revision-1 bindings, since `UnlinkedCall` nodes are
+in every profile a revision-1 release wrote. A revision-1 probe still refuses a
+revision-2 binding.
 
 ## 3. Internal result model, frozen before the product vocabulary
 

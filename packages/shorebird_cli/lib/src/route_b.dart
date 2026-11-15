@@ -81,6 +81,60 @@ File iosReleaseEngineBinary({
   );
 }
 
+/// The gen_snapshot flag that keeps app-overridden methods out of the dispatch
+/// table, so a Route B patch reaches calls such as the framework's
+/// `widget.build(this)`.
+///
+/// A dispatch-table call loads a raw entry point and never consults
+/// `Function.entry_point_`, so a patch to a `build` method attached, reported
+/// success, and had no surviving call site. Under this flag those calls stay
+/// switchable calls, which the runtime links through the `Function`.
+const routeBUntabledOverridesFlag = 'route_b_untabled_overrides';
+
+/// The gen_snapshot an iOS release build in [flutterDirectory] runs.
+///
+/// With `--local-engine` it is in the local build's host-toolchain directory,
+/// otherwise in the Flutter checkout's cached `ios-release` artifacts.
+File iosReleaseGenSnapshot({
+  required Directory flutterDirectory,
+  String? localEngineSrcPath,
+  String? localEngine,
+}) {
+  if (localEngine != null && localEngineSrcPath != null) {
+    final out = p.join(localEngineSrcPath, 'out', localEngine);
+    final candidates = [
+      for (final dir in const ['clang_arm64', 'clang_x64'])
+        File(p.join(out, dir, 'gen_snapshot')),
+      File(p.join(out, 'gen_snapshot_arm64')),
+    ];
+    return candidates.firstWhere(
+      (f) => f.existsSync(),
+      orElse: () => candidates.first,
+    );
+  }
+  return File(
+    p.join(
+      flutterDirectory.path,
+      'bin',
+      'cache',
+      'artifacts',
+      'engine',
+      'ios-release',
+      'gen_snapshot_arm64',
+    ),
+  );
+}
+
+/// Whether [genSnapshot] defines the VM flag [flag].
+///
+/// Read from the bytes rather than by running the binary: gen_snapshot rejects
+/// an unknown flag only once it is compiling, and `--version` exits 0 whatever
+/// flags precede it.
+bool genSnapshotHasFlag(File genSnapshot, String flag) {
+  if (!genSnapshot.existsSync()) return false;
+  return _containsAscii(genSnapshot.readAsBytesSync(), flag);
+}
+
 /// Whether [engineBinary] declares, in its own log text, that it cannot run
 /// iOS patches ([iosPatchesDeclinedMarker]). Reads the file once.
 ///

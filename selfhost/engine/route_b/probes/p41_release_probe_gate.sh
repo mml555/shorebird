@@ -36,6 +36,8 @@
 #   count unowned pools as callers    (deliberately ambiguous evidence passes)
 #   drop library scoping              (a wrong-library target resolves)
 #   drop the edges-consumed check     (a structurally broken profile is read)
+#   tell own code from a caller by name (a switchable site called from a
+#                                        same-named function is dropped)
 #
 # Host only. No device, no mint.
 #
@@ -101,8 +103,94 @@ class _Priv {
       DateTime.now().millisecondsSinceEpoch >= 0 ? 'PRV' : 'X';
 }
 
+// Revision 2's shapes. Without --route_b_untabled_overrides both calls below
+// are dispatch-table calls and have no site the probe can see. With it:
+//   * render() has eight implementations, too many for a cid-check chain, so
+//     its call is a switchable call naming the selector;
+//   * pick() has two, so its call becomes a cid-check chain of direct calls.
+// Each is called only from a function that SHARES the selector's name, as
+// StatelessElement.build shares build() with every widget it calls: a probe
+// that tells a target's own code from a caller by name drops both sites.
+abstract class _Part {
+  String render();
+}
+
+class _P0 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P0' : 'X';
+}
+
+class _P1 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P1' : 'X';
+}
+
+class _P2 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P2' : 'X';
+}
+
+class _P3 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P3' : 'X';
+}
+
+class _P4 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P4' : 'X';
+}
+
+class _P5 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P5' : 'X';
+}
+
+class _P6 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P6' : 'X';
+}
+
+class _P7 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P7' : 'X';
+}
+
+@pragma('vm:never-inline')
+String render(_Part part) => part.render();
+
+abstract class _Duo {
+  String pick();
+}
+
+class _DuoA extends _Duo {
+  @pragma('vm:never-inline')
+  @override
+  String pick() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'DA' : 'X';
+}
+
+class _DuoB extends _Duo {
+  @pragma('vm:never-inline')
+  @override
+  String pick() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'DB' : 'X';
+}
+
+@pragma('vm:never-inline')
+String pick(_Duo duo) => duo.pick();
+
 String _specimenLine() {
-  final live = '${foldOpaque()}/${foldConst()}/${_Priv().privTarget()}';
+  final parts = <_Part>[_P0(), _P1(), _P2(), _P3(), _P4(), _P5(), _P6(), _P7()];
+  final duos = <_Duo>[_DuoA(), _DuoB()];
+  final now = DateTime.now().millisecondsSinceEpoch;
+  final live = '${foldOpaque()}/${foldConst()}/${_Priv().privTarget()}/'
+      '${parts.map(render).join()}/${pick(duos[now & 1])}';
   if (DateTime.now().millisecondsSinceEpoch < 0) {
     return '$live/${deadBranch('never')}';
   }
@@ -393,6 +481,47 @@ mutate nobind "  if (declaredArtifact.toLowerCase() != artifactSha.toLowerCase()
 check "mutant accepts a profile of a DIFFERENT artifact" \
   "$(result "$WORK/m_nobind.dart" profile.json binding.json "$BAD" "$LIB#foldOpaque")" \
   ONE_OR_MORE_QUALIFYING_CALLSITES
+
+# ---- SWITCHABLE SITES (probe revision 2) -----------------------------------
+# The same kernel, compiled again with --route_b_untabled_overrides. A
+# gen_snapshot from before that flag cannot make the shape, so the rows are
+# skipped there rather than failed: the revision-1 rows above still bind it.
+note "SWITCHABLE -- an untabled selector's call site (revision 2)"
+if grep -q route_b_untabled_overrides "$GEN_SNAPSHOT"; then
+  "$GEN_SNAPSHOT" --patchable_static_calls --route_b_untabled_overrides \
+    --snapshot_kind=app-aot-assembly --assembly=app_u.S \
+    --write-v8-snapshot-profile-to=profile_u.json release.dill
+  ART_U=$(shasum -a 256 app_u.S | cut -d' ' -f1)
+  python3 - "$ART_U" <<'PY'
+import json, sys
+b = json.load(open('binding.json')); b['release_artifact_sha256'] = sys.argv[1]
+b['probe_revision'] = 2
+json.dump(b, open('binding_u.json', 'w'))
+PY
+  for t in _P3.render _DuoA.pick; do
+    echo "    $t table:      $(evidence "$PROBE" profile.json binding.json "$ART" "$LIB#$t")"
+    echo "    $t untabled:   $(evidence "$PROBE" profile_u.json binding_u.json "$ART_U" "$LIB#$t")"
+    check "$t through the dispatch table -> ZERO (the gap the flag closes)" \
+      "$(result "$PROBE" profile.json binding.json "$ART" "$LIB#$t")" \
+      ZERO_QUALIFYING_CALLSITES
+    check "$t untabled -> GREEN" \
+      "$(result "$PROBE" profile_u.json binding_u.json "$ART_U" "$LIB#$t")" \
+      ONE_OR_MORE_QUALIFYING_CALLSITES
+  done
+  check "  ...render's site is the SWITCHABLE call, not some other referrer" \
+    "$(evidence "$PROBE" profile_u.json binding_u.json "$ART_U" "$LIB#_P3.render" \
+        | grep -o 'switchable_sites=[1-9]' | head -1)" switchable_sites=1
+
+  note "MUTATION -- tell the target's own code from a caller by NAME"
+  mutate selfname "    p.property(code, 'owner_') == fn;=>>    p.nameOf(code).replaceAll('[Optimized] ', '') == p.nameOf(fn);"
+  for t in _P3.render _DuoA.pick; do
+    check "mutant drops $t's site, whose caller shares its name" \
+      "$(result "$WORK/m_selfname.dart" profile_u.json binding_u.json "$ART_U" "$LIB#$t")" \
+      ZERO_QUALIFYING_CALLSITES
+  done
+else
+  echo "  SKIP  this gen_snapshot predates --route_b_untabled_overrides"
+fi
 
 # ---- WORDING ---------------------------------------------------------------
 # Semantic overclaim is this project's recurring failure mode, so it gets a test.

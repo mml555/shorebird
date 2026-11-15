@@ -925,6 +925,90 @@ $body
           );
         });
 
+        group('untabled overrides', () {
+          File genSnapshot() => File(
+            p.join(
+              flutterDirectory.path,
+              'bin',
+              'cache',
+              'artifacts',
+              'engine',
+              'ios-release',
+              'gen_snapshot_arm64',
+            ),
+          );
+
+          Future<List<String>> buildArgs() async {
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+            return verify(
+                  () => artifactBuilder.buildIpa(
+                    codesign: any(named: 'codesign'),
+                    flavor: any(named: 'flavor'),
+                    target: any(named: 'target'),
+                    args: captureAny(named: 'args'),
+                    base64PublicKey: any(named: 'base64PublicKey'),
+                    ddMaxBytes: any(named: 'ddMaxBytes'),
+                  ),
+                ).captured.single
+                as List<String>;
+          }
+
+          test('asks for them when gen_snapshot defines the flag', () async {
+            genSnapshot()
+              ..createSync(recursive: true)
+              ..writeAsStringSync('...route_b_untabled_overrides...');
+
+            expect(
+              await buildArgs(),
+              contains(
+                '--extra-gen-snapshot-options=--route_b_untabled_overrides',
+              ),
+            );
+          });
+
+          test('does not ask an older gen_snapshot for them', () async {
+            // An older cell's compiler would stop at an unknown flag; its
+            // releases keep refusing build() patches exactly as before.
+            genSnapshot()
+              ..createSync(recursive: true)
+              ..writeAsStringSync('...patchable_static_calls...');
+
+            expect(
+              await buildArgs(),
+              isNot(
+                contains(
+                  '--extra-gen-snapshot-options=--route_b_untabled_overrides',
+                ),
+              ),
+            );
+          });
+
+          test('respects an explicit choice', () async {
+            genSnapshot()
+              ..createSync(recursive: true)
+              ..writeAsStringSync('...route_b_untabled_overrides...');
+            when(() => argResults.rest).thenReturn([
+              '--extra-gen-snapshot-options=--no-route_b_untabled_overrides',
+            ]);
+
+            final args = await buildArgs();
+            expect(
+              args,
+              isNot(
+                contains(
+                  '--extra-gen-snapshot-options=--route_b_untabled_overrides',
+                ),
+              ),
+            );
+            expect(
+              args,
+              contains(
+                '--extra-gen-snapshot-options=--no-route_b_untabled_overrides',
+              ),
+            );
+          });
+        });
+
         // Compiler-cell selection at patch time must be release-relative.
         // Nothing else can carry the engine hash: `Release` records only the
         // Flutter revision, and fifteen engine hashes share this fork's one
