@@ -1887,6 +1887,9 @@ void main() {
         // is not evidence that it lowered anything.
         expect(emitted, contains("@pragma('shorebird:direct-super')"));
         expect(emitted, isNot(contains('super.dispose')));
+        // `dynamic`, so a private class's `dynamic self` reaches the compiler
+        // as the bare parameter rather than wrapped in an implicit cast.
+        expect(emitted, contains('  dynamic receiver,'));
         // Full site identity, INCLUDING memberKind: a class may hold a method,
         // a getter and a setter of one name, and the compiler resolves on both.
         expect(
