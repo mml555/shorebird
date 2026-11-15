@@ -2082,10 +2082,16 @@ crash:
   instantiated generic call.
 
 A second patch changed the bound of a counted `for` loop that awaits each
-iteration, and it ran 5 iterations instead of 3.
+iteration, and it ran 5 iterations instead of 3. A third patch carried three
+more edits, and each showed:
+- the body of a `setState` closure;
+- an added `List.add` on a field;
+- only the text of a `const` widget, which was on screen.
 
-**Not patched:** a top-level `const`. It is inlined when the release is
-compiled, and the producer does not refuse it yet, which is a known gap.
+**Not patched:** a top-level `const`. The replaced body that names it still
+printed the old value, because `dart2bytecode` evaluates it from the release's
+kernel. The analyzer did not see the edit, so the patch shipped without it.
+mml555/shorebird#172 makes the analyzer refuse it, naming the `const`.
 
 **Two Dart fixes were needed** (lineage PR #6): a patch could not call an SDK
 member AOT had removed, and a patched `for`-in over a `List` crashed because
