@@ -96,6 +96,13 @@ void main() {
       expect(resolve().path, top.path);
     });
 
+    test('names the out directory itself when no candidate exists', () {
+      expect(
+        resolve().path,
+        p.join(root.path, 'src', 'out', 'ios_release', 'gen_snapshot_arm64'),
+      );
+    });
+
     test('falls back to the cached artifact without a local engine', () {
       final gs = iosReleaseGenSnapshot(
         flutterDirectory: Directory(p.join(root.path, 'flutter')),
@@ -114,6 +121,23 @@ void main() {
           'gen_snapshot_arm64',
         ),
       );
+    });
+  });
+
+  group('genSnapshotHasFlag', () {
+    test('is false for a missing binary', () {
+      expect(
+        genSnapshotHasFlag(File('missing'), 'route_b_untabled_overrides'),
+        isFalse,
+      );
+    });
+
+    test('reads the flag name from the binary', () {
+      final binary = File('gen_snapshot')
+        ..writeAsBytesSync('\x00route_b_untabled_overrides\x00'.codeUnits);
+
+      expect(genSnapshotHasFlag(binary, 'route_b_untabled_overrides'), isTrue);
+      expect(genSnapshotHasFlag(binary, 'patchable_static_calls'), isFalse);
     });
   });
 }
