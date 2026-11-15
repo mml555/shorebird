@@ -584,6 +584,60 @@ void main() {
         );
       });
 
+      group('the private receiver class is admitted only as the receiver '
+          'type', () {
+        // The receiver parameter spells the class, so the backstop must not
+        // learn the NAME: a body that constructs it, tears off its constructor
+        // or reads a static on it names a member nothing granted, and with no
+        // version-12 construction evidence nothing else checks it.
+        for (final (label, decl) in [
+          ('a construction', 'Object value() => _RouteBState();'),
+          ('a named construction', 'Object value() => _RouteBState.make();'),
+          ('a constructor tear-off', 'Object value() => _RouteBState.new;'),
+          ('a static read', 'Object value() => _RouteBState.shared;'),
+        ]) {
+          test('refuses $label', () {
+            expect(
+              () => lowered(
+                instanceCoverage(
+                  preamble: 'class _RouteBState {\n  ',
+                  decl: decl,
+                  access: '',
+                  receiverType: '_RouteBState',
+                ),
+              ),
+              throwsA(
+                isA<RouteBUnsupportedTarget>().having(
+                  (e) => e.reason,
+                  'reason',
+                  contains('names `_RouteBState`'),
+                ),
+              ),
+            );
+          });
+        }
+
+        test('refuses a body that spells the reserved placeholder', () {
+          expect(
+            () => lowered(
+              instanceCoverage(
+                preamble: 'class _RouteBState {\n  ',
+                decl: "String value() => '@RECEIVER_TYPE@';",
+                access: '',
+                receiverType: '_RouteBState',
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('reserves for the receiver parameter'),
+              ),
+            ),
+          );
+        });
+      });
+
       test('lowers an explicit this.label', () {
         // The SAME Kernel node as the bare form; only the source distinguishes
         // them, which is why the producer reads the text and the analyzer does

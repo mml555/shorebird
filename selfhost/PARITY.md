@@ -2051,7 +2051,14 @@ private, which lets the replacement spell `_HomeState`. The front end then
 resolves every access statically, as it did inside the class: an interface call
 bound to the release member, with no dynamic-call check. The class always exists
 in the release, because the target being replaced is one of its members. The
-private-identifier backstop accepts that one name and nothing else.
+private-identifier backstop scans the body before the class name is written
+into the parameter, so the name is admitted in that one position only: a body
+that constructs `_HomeState`, tears off its constructor or reads one of its
+statics is still refused unless that reference was granted on its own.
+
+**Open: a generic private receiver.** `_Box<T>` is written `_Box self`, which
+is `_Box<dynamic>`, so a member typed `T` reads as `dynamic` and a call on it is
+the same dynamic call that failed above. Not measured on device yet.
 
 Same release, same engine, same edit, patch 4 with the typed receiver:
 `applied 1/1 targets`, `shape:init=I2`, then `_start` ran (`count=1..3`,

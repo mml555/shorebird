@@ -945,8 +945,17 @@ Object? $_superIntrinsicName(
     // the release member, with no dynamic-call check at run time. The class
     // itself always exists in the release, because the target being replaced
     // is one of its members.
-    final receiverType = lowering.receiverType;
-    edits.add((open + 1, 0, '$receiverType $receiverName$separator'));
+    //
+    // Inserted as a PLACEHOLDER and substituted only after the private-name
+    // backstop below has scanned the text. Granting the class name to the
+    // backstop instead would admit it at every position, so `_FooState()`, a
+    // tear-off or a static on the class would pass ungated. The placeholder
+    // cannot match a private identifier (`_TYPE` follows a letter).
+    edits.add((
+      open + 1,
+      0,
+      '$_receiverTypePlaceholder $receiverName$separator',
+    ));
 
     for (final access in lowering.accesses) {
       // The edit below inserts or replaces a receiver prefix immediately before
@@ -1056,9 +1065,6 @@ Object? $_superIntrinsicName(
     final granted = {
       for (final a in lowering.accesses)
         if (a.privateTarget != null) a.member,
-      // The receiver's own class, written as the receiver parameter's type. It
-      // is the class the target is declared in, so the release has it.
-      if (lowering.receiverType.startsWith('_')) lowering.receiverType,
     };
 
     // PRIVATE CONSTRUCTIONS, when the analyzer measured them (version 12).
@@ -1148,6 +1154,18 @@ Object? $_superIntrinsicName(
         'retained.',
       );
     }
+    // The receiver parameter's type, now that the scan above has run. Exactly
+    // one placeholder must be present: the one inserted above. Any other count
+    // means the author's own text spelled it, and a substitution could land in
+    // the wrong place.
+    if (_receiverTypePlaceholder.allMatches(text).length != 1) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'its source contains `$_receiverTypePlaceholder`, which the producer '
+        'reserves for the receiver parameter',
+      );
+    }
+    text = text.replaceFirst(_receiverTypePlaceholder, lowering.receiverType);
     return _Lowered(
       text,
       preamble: superEdits.isEmpty ? '' : '$_superIntrinsicDeclaration\n',
@@ -1268,6 +1286,10 @@ Object? $_superIntrinsicName(
         .where((n) => n.replaceAll('_', '').isNotEmpty)
         .toSet();
   }
+
+  /// Stands in for the receiver parameter's type until the private-name scan
+  /// has run; see the lowering.
+  static const _receiverTypePlaceholder = '@RECEIVER_TYPE@';
 
   /// A private identifier, anchored so `my_var` does not read as `_var`.
   static final _privateIdentifier = RegExp(
