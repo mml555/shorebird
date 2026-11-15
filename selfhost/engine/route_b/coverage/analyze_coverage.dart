@@ -718,10 +718,11 @@ Map<String, String> _memberText(Component c, bool Function(Library) isApp) {
 /// RELEASE's kernel and inlines the release's value. A device printed the old
 /// value of an edited `const` from a replaced body that named it.
 ///
-/// This sees a `const` only where the release kept the declaration. App
-/// libraries are retained whole by the dynamic interface, so theirs are kept;
-/// a dependency's `const` that tree shaking removed from both kernels is not
-/// seen here, which is a known gap.
+/// This sees a `const` only where the release kept the declaration. A Route B
+/// release is built with a dynamic interface that retains the app's libraries
+/// whole, so the app's `const`s are kept. A dependency's `const` that tree
+/// shaking removed from both kernels is not seen here, and neither is an app
+/// `const` in a kernel built without that dynamic interface: a known gap.
 ///
 /// The unnamed constructor is keyed `new`, as the capability manifest spells
 /// it.
