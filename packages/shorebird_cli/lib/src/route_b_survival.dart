@@ -50,18 +50,27 @@ const routeBReleaseProbeRevision = 1;
 const routeBUntabledReleaseProbeRevision = 2;
 
 /// The probe revision to bind a release built with [buildArgs] to.
+///
+/// gen_snapshot applies its options in order, so the last mention of the flag
+/// decides, as it does for gen_snapshot.
 int routeBReleaseProbeRevisionFor(List<String> buildArgs) {
   const prefix = '--extra-gen-snapshot-options=';
+  const flag = '--$routeBUntabledOverridesFlag';
+  var untabled = false;
   for (final arg in buildArgs) {
     if (!arg.startsWith(prefix)) continue;
     for (final option in arg.substring(prefix.length).split(',')) {
-      if (option == '--$routeBUntabledOverridesFlag' ||
-          option == '--$routeBUntabledOverridesFlag=true') {
-        return routeBUntabledReleaseProbeRevision;
+      if (option == flag || option == '$flag=true') {
+        untabled = true;
+      } else if (option == '--no-$routeBUntabledOverridesFlag' ||
+          option == '$flag=false') {
+        untabled = false;
       }
     }
   }
-  return routeBReleaseProbeRevision;
+  return untabled
+      ? routeBUntabledReleaseProbeRevision
+      : routeBReleaseProbeRevision;
 }
 
 /// The three answers the publication decision is allowed to see.

@@ -476,6 +476,12 @@ words:
   - swunowned # release probe gate mutation: count a switchable call in an unowned pool
   - swtearoff # release probe gate mutation: count a switchable call in a tear-off's pool
   - anyrev # release probe gate mutation: count switchable calls under any binding revision
+  - dtile # route b inventory: a double-parameter specimen
+  - dtiles
+  - itile # route b inventory: an int-parameter specimen
+  - itiles
+  - paintd
+  - paintn
   - selfname # the release probe gate's mutation that matches own code by name
   - sbrel # the counter app the Route B measurements build
   - codepatch # fixture marker string

@@ -215,6 +215,139 @@ class Tile7 extends Tile {
 @pragma('vm:never-inline')
 String paintTile(Tile tile) => tile.paint();
 
+// --- the same, taking an int and a double ------------------------------------
+// TFA unboxes an int or double parameter of a method it never sees called
+// dynamically, and the bytecode interpreter takes boxed values only. A release
+// is unaffected (its dynamic interface makes every app method dynamically
+// callable, so nothing is unboxed), but under --route_b_untabled_overrides the
+// attach native finds any untabled method by name, so gen_snapshot boxes them.
+// Without that, the int case crashed and the double case printed garbage.
+abstract class Itile {
+  String paintn(int n);
+}
+
+@pragma('vm:entry-point')
+class Itile0 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile0.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile1 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile1.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile2 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile2.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile3 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile3.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile4 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile4.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile5 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile5.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile6 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile6.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile7 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile7.paintn$n');
+}
+
+abstract class Dtile {
+  String paintd(double x);
+}
+
+@pragma('vm:entry-point')
+class Dtile0 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile0.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile1 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile1.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile2 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile2.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile3 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile3.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile4 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile4.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile5 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile5.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile6 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile6.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile7 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile7.paintd$x');
+}
+
+@pragma('vm:never-inline')
+String paintItile(Itile tile, int n) => tile.paintn(n);
+
+@pragma('vm:never-inline')
+String paintDtile(Dtile tile, double x) => tile.paintd(x);
+
 void main(List<String> args) {
   if (args.isEmpty) {
     stderr.writeln('usage: inventory <bytecode> <libraryUri> <target>');
@@ -279,6 +412,34 @@ void main(List<String> args) {
   }
   _report('noentry-late', paintTile(tiles[3]));
   _report('noentry-other', paintTile(tiles[5]));
+
+  // The patched body echoes its argument, so a wrong value shows as well as a
+  // crash does.
+  final itiles = <Itile>[
+    Itile0(), Itile1(), Itile2(), Itile3(), Itile4(), Itile5(), Itile6(), //
+    Itile7(),
+  ];
+  _report('int-first', paintItile(itiles[3], 41));
+  for (var round = 0; round < 3; round++) {
+    for (final tile in itiles) {
+      paintItile(tile, round);
+    }
+  }
+  _report('int-late', paintItile(itiles[3], 42));
+  _report('int-other', paintItile(itiles[5], 43));
+
+  final dtiles = <Dtile>[
+    Dtile0(), Dtile1(), Dtile2(), Dtile3(), Dtile4(), Dtile5(), Dtile6(), //
+    Dtile7(),
+  ];
+  _report('double-first', paintDtile(dtiles[3], 1.5));
+  for (var round = 0; round < 3; round++) {
+    for (final tile in dtiles) {
+      paintDtile(tile, 2.5);
+    }
+  }
+  _report('double-late', paintDtile(dtiles[3], 3.5));
+  _report('double-other', paintDtile(dtiles[5], 4.5));
 
   // Tear-off and dynamic shapes, for continuity with the kill gate.
   final String Function() torn = topLevelStatic;

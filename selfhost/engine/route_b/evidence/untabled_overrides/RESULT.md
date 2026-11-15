@@ -2,7 +2,7 @@
 
 Measured 2026-11-14 on the Mac's host release build
 (`out/host_release_arm64_ddm`), Dart lineage branch
-`selfhost/route-b-untabled-overrides` at `53899067`. Host only: no iOS cell, no
+`selfhost/route-b-untabled-overrides` at `4c9f79f2`. Host only: no iOS cell, no
 device patch and no frame-time number yet.
 
 ## What it changes
@@ -34,12 +34,17 @@ body. Besides the table change the VM side has four, described in
 | megamorphic, eight receivers, no `vm:entry-point` on the method, first link | attach finds no method | **PATCHABLE** |
 | the same after the site went megamorphic | attach finds no method | **PATCHABLE** |
 | control for that case | attach finds no method | untouched (correct) |
+| the same with an `int` parameter, first link and megamorphic | attach finds no method | **PATCHABLE**, argument intact |
+| the same with a `double` parameter, first link and megamorphic | attach finds no method | **PATCHABLE**, argument intact |
+| controls for those two | attach finds no method | untouched (correct) |
 
 The megamorphic case calls the patched receiver through the site FIRST, so the
 site's first link targets the patched function, and asks again after every
 receiver has gone through it.
 
-The last three rows were added after the failure in section 5. Only the class
+The `noentry` rows were added after the failure in section 5, the `int` and
+`double` rows after the one in section 6. Their patched bodies echo the
+argument, and a row whose echo is wrong reads `WRONG ARGUMENT`, not PATCHABLE. Only the class
 is an entry point there, as the attach native needs to find it by name. Without
 the flag the method is reached only through the table, so nothing keeps it in
 its class's function array and the attach reports `member paint not found`.
@@ -156,6 +161,35 @@ The real app's numbers in sections 3 and 4 were taken again with both fixes.
 Its kernel came from the Flutter toolchain and names the base Dart revision, so
 the rebuilt `gen_snapshot` refused it until its SDK hash was set to the null
 value (`0000000000`), which the VM accepts from any revision.
+
+## 6. Unboxed parameters
+
+TFA passes an `int` or `double` parameter unboxed to a method it never sees
+called dynamically, and the bytecode interpreter takes boxed values only. The
+review of this change attached a patch to such a method through an
+eight-receiver site:
+
+| target | release-style dynamic interface | none, before the fix | none, fixed |
+|---|---|---|---|
+| `paintn(int)` | patched, `NEW-41` / `NEW-42` | segfault, `si_addr=0x28` | patched, `NEW-41` / `NEW-42` |
+| `paintd(double)` | patched, `NEW-1.5` / `NEW-3.5` | patched, `NEW-2304717109306851328` | patched, `NEW-1.5` / `NEW-3.5` |
+
+A release was never exposed: `gen_dynamic_interface.dart` makes every app
+library `callable`, which TFA treats like an entry point, so its values stay
+boxed. But the flag lets the attach native find any untabled method by name,
+including ones no interface covers, and the AOT runtime has no record of
+which parameters a compiled method takes unboxed, so the native cannot refuse
+one. `Precompiler::BoxRouteBUntabledSignatures` instead clears the unboxing of
+every untabled selector before anything compiles. TFA decides unboxing per
+selector, and the pass covers every method of the selector, interface targets
+included, so callers and implementations still agree. The counter app's
+snapshot is unchanged at 4,919,104 bytes, since its `build` methods take
+objects.
+
+The inventory's `int` and `double` rows cover this. With the pass's call
+commented out and gen_snapshot rebuilt, the `int` rows end in a segfault
+(`si_addr=0x28`, so no FORM line, which reads INCONCLUSIVE) and the `double`
+rows read `WRONG ARGUMENT` (`NEW-2304717109306851328`); with it, all six pass.
 
 ## Not yet
 

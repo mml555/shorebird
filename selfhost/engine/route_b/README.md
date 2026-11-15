@@ -196,7 +196,7 @@ Shorebird reports has a direct analogue here.
 ### Third option, taken 2026-11-14: keep the selector out of the table
 
 Neither option above is needed for the methods a patch actually changes.
-`--route_b_untabled_overrides` (gen_snapshot; Dart lineage `53899067`) gives a
+`--route_b_untabled_overrides` (gen_snapshot; Dart lineage `4c9f79f2`) gives a
 selector no table row when a regular method implementing it lives outside
 `dart:` and `package:flutter/`. Getters, setters, fields and a handful of hot
 selectors (`==`, `toString`, `call`, `compareTo`, `moveNext`, `noSuchMethod`)
@@ -206,7 +206,7 @@ Both reach a patched body: the first through form (c), the second through the
 switchable-call stubs, which load `R0` and `R4` before jumping through
 `Function.entry_point_`.
 
-Four VM changes come with it, and none is optional:
+Five VM changes come with it:
 
 - **`Function::NeedsMonomorphicCheckedEntry`** answers true for an untabled
   selector's implementations. A switchable site links monomorphic and enters
@@ -230,6 +230,17 @@ Four VM changes come with it, and none is optional:
   `NoSuchMethodError` on an `int` receiver. Entry points already use the stack,
   which is why every inventory case passed until it gained one without the
   pragma.
+- **`Precompiler::BoxRouteBUntabledSignatures`** clears TFA's unboxing of an
+  untabled selector's parameters and return value before anything compiles.
+  The interpreter takes boxed values only, and the AOT runtime keeps no record
+  of which parameters a method takes unboxed, so the attach native cannot
+  refuse such a method. A release never had one (its dynamic interface makes
+  every app method dynamically callable, which already keeps values boxed), but
+  under the flag the attach finds any untabled method by name, including ones
+  no interface covers. Without it a patched `paintn(int)` crashed and a patched
+  `paintd(double)` received a garbage value. Without a
+  release's interface this is defense in depth; each of the other four fixed
+  a failure a program hit without it.
 - **`Function::PrologueNeedsArgumentsDescriptor`** answers true at runtime for
   a function `AttachBytecode` replaced, so a switchable site goes through
   `ICCallThroughCode` instead of linking monomorphic straight to the

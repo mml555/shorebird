@@ -284,5 +284,24 @@ void main() {
         );
       }
     });
+
+    test('lets the last mention of the flag decide, as gen_snapshot does', () {
+      expect(
+        routeBReleaseProbeRevisionFor([
+          '--extra-gen-snapshot-options=--route_b_untabled_overrides',
+          '--extra-gen-snapshot-options=--no-route_b_untabled_overrides',
+        ]),
+        routeBReleaseProbeRevision,
+      );
+      expect(
+        routeBReleaseProbeRevisionFor([
+          [
+            '--extra-gen-snapshot-options=--route_b_untabled_overrides=false',
+            '--route_b_untabled_overrides',
+          ].join(','),
+        ]),
+        routeBUntabledReleaseProbeRevision,
+      );
+    });
   });
 }
