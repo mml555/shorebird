@@ -91,7 +91,7 @@ docker ps --format '{{.Names}}' | grep -qx r12-flutter-git \
   || die "r12-flutter-git is not running (the owned Flutter mirror service)"
 got="$(docker run --rm --platform linux/amd64 --add-host host.docker.internal:host-gateway --entrypoint git alpine/git:latest \
         ls-remote git://host.docker.internal:9418/flutter.git \
-        "$FLUTTER_REF" 2>/dev/null | awk '{print $1}')"
+        "$FLUTTER_REF" 2>/dev/null | awk '{print $1}')" || true   # fall through to the die below, which names the cause
 [[ -n "$got" && "$got" == "$PINNED" ]] \
   || die "owned Flutter mirror serves '$got', expected the pinned $PINNED"
 echo "   owned flutter mirror     : serves $PINNED"

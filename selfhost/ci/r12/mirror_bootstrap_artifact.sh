@@ -43,7 +43,7 @@ DEST="$OVERLAY/$ENG/$REL"
 # trusted. The 2026-08-28 checkpoint saw a transfer die after 21 bytes; a mirror
 # that banks a short read publishes corruption under an owned name.
 declared="$(curl -sSI -m 60 "$URL" | tr -d '\r' \
-            | awk 'tolower($1)=="content-length:"{print $2}' | tail -1)"
+            | awk 'tolower($1)=="content-length:"{print $2}' | tail -1)" || true   # reach the die below
 [[ -n "$declared" ]] || die "no Content-Length from $URL (does the object exist?)"
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT

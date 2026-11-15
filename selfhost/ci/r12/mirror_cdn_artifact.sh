@@ -42,7 +42,7 @@ UPSTREAM="https://storage.googleapis.com/$GCS_PATH"
 DEST="$OVERLAY_ROOT/$CLIENT_PATH"
 
 declared="$(curl -sSI -m 60 "$UPSTREAM" | tr -d '\r' \
-            | awk 'tolower($1)=="content-length:"{print $2}' | tail -1)"
+            | awk 'tolower($1)=="content-length:"{print $2}' | tail -1)" || true   # reach the die below
 [[ -n "$declared" ]] || die "no Content-Length from $UPSTREAM (does the object exist?)"
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
