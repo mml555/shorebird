@@ -50,15 +50,32 @@ say()  { printf '\n== %s ==\n' "$*"; }
 # added reused a container created before it, so the OOM remedy was absent while
 # the log looked correct. Reuse only if the environment still matches, and say so
 # either way.
-want_opts="-Xmx3g -Dorg.gradle.daemon=false -Dorg.gradle.vfs.watch=false -Dorg.gradle.workers.max=2"
+# Every variable the container is created with is compared, not only GRADLE_OPTS:
+# a run against a fresh control plane once reused a container holding the
+# previous one's SHOREBIRD_TOKEN, and every arm failed with "Could not find app".
+want_env=(
+  HOME=/r12home
+  SHOREBIRD_FLUTTER_GIT_URL=git://host.docker.internal:9418/flutter.git
+  FLUTTER_STORAGE_BASE_URL="$SEALED"
+  SHOREBIRD_STORAGE_BASE_URL="$SEALED"
+  SHOREBIRD_STORAGE_BUCKET=download.shorebird.dev
+  SHOREBIRD_HOSTED_URL="$CP"
+  SHOREBIRD_TOKEN="$SHOREBIRD_TOKEN"
+  GRADLE_USER_HOME=/r12home/.gradle
+  GRADLE_OPTS="-Xmx3g -Dorg.gradle.daemon=false -Dorg.gradle.vfs.watch=false -Dorg.gradle.workers.max=2"
+  R12_CA_PEM="$(cat "$CA_FILE")"
+)
 if docker ps --format '{{.Names}}' | grep -qx "$C"; then
-  have_opts="$(docker exec "$C" printenv GRADLE_OPTS 2>/dev/null || true)"
+  stale=()
+  for kv in "${want_env[@]}"; do
+    # Names only in the log: SHOREBIRD_TOKEN is a credential.
+    [[ "$(docker exec "$C" printenv "${kv%%=*}" 2>/dev/null)" == "${kv#*=}" ]] || stale+=("${kv%%=*}")
+  done
   have_heap="$(docker exec "$C" sh -c 'grep -o "Xmx[0-9]*[gm]" /r12home/.gradle/gradle.properties 2>/dev/null' || true)"
-  if [[ "$have_opts" != "$want_opts" || "$have_heap" != "Xmx3g" ]]; then
+  [[ "$have_heap" == "Xmx3g" ]] || stale+=("gradle.properties heap (${have_heap:-none}, wanted Xmx3g)")
+  if (( ${#stale[@]} )); then
     say "recreating the discovery container — its environment is stale"
-    note "GRADLE_OPTS in container: '${have_opts:-<empty>}'"
-    note "GRADLE_OPTS wanted      : '$want_opts'"
-    note "gradle heap in container: '${have_heap:-<none>}' (wanted Xmx3g)"
+    note "differs: ${stale[*]}"
     docker rm -f "$C" >/dev/null 2>&1
   else
     note "reusing the discovery container (environment matches)"
@@ -68,19 +85,11 @@ fi
 if ! docker ps --format '{{.Names}}' | grep -qx "$C"; then
   say "creating the release/patch discovery container"
   docker rm -f "$C" >/dev/null 2>&1
+  env_args=(); for kv in "${want_env[@]}"; do env_args+=(-e "$kv"); done
   # --add-host: Docker Desktop defines host.docker.internal, a Linux engine does not.
   docker run -d --name "$C" --platform linux/amd64 \
     --add-host host.docker.internal:host-gateway \
-    -e HOME=/r12home \
-    -e SHOREBIRD_FLUTTER_GIT_URL=git://host.docker.internal:9418/flutter.git \
-    -e FLUTTER_STORAGE_BASE_URL="$SEALED" \
-    -e SHOREBIRD_STORAGE_BASE_URL="$SEALED" \
-    -e SHOREBIRD_STORAGE_BUCKET=download.shorebird.dev \
-    -e SHOREBIRD_HOSTED_URL="$CP" \
-    -e SHOREBIRD_TOKEN="$SHOREBIRD_TOKEN" \
-    -e GRADLE_USER_HOME=/r12home/.gradle \
-    -e GRADLE_OPTS="-Xmx3g -Dorg.gradle.daemon=false -Dorg.gradle.vfs.watch=false -Dorg.gradle.workers.max=2" \
-    -e R12_CA_PEM="$(cat "$CA_FILE")" \
+    "${env_args[@]}" \
     r12-builder:substrate sleep infinity >/dev/null
   # Same override the decisive arm applies. The fixture declares -Xmx8G and the
   # VM has 7.75GiB in total; GRADLE_USER_HOME/gradle.properties outranks the
