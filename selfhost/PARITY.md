@@ -2208,12 +2208,20 @@ and any change in them refuses the patch: a patch cannot replace the copies.
 The parity cases `mixin_initializer`, `mixin_field` and `mixin_method` pin it.
 
 AOT numbers the copies in declaration order (`_MixinApplication0&Base&M`), so
-reordering two classes renumbers them. Keys and printed text drop that counter
-and add the type arguments a copy applies (`&Object&M<dart.core::int>`), so a
-reorder reads as unchanged. Copies that still share a name, such as a private
-`_B` and `M` declared in two libraries, are numbered in the order of the
-libraries they come from, which import order does not change. The parity case
-`mixin_reorder` pins the reorder.
+reordering two classes renumbers them. Copies are keyed and printed without
+that counter, and with the type arguments they apply
+(`&Object&M<dart:core::int>`), so a reorder reads as unchanged. A name that
+still collides in either kernel, such as a private `_B` and `M` declared in two
+libraries, is keyed in both by the classes the copy applies, each named with
+its library. It is never keyed by position, because tree shaking can drop one
+of the two copies from one kernel only. The parity case `mixin_reorder` pins
+the reorder.
+
+**Libraries print by import URI.** The kernel printer names a library without
+a `library` directive `#lib1`, `#lib2`, in the order it meets them. So a class
+`X` from `a.dart` and one from `b.dart` printed alike, and a body or class
+header that swapped one for the other read as unchanged. The analyzer now
+names every library by its import URI.
 
 **A cell is needed.** The analyzer ships in the compiler cell, so this takes
 effect for releases built on a cell minted with it. The CLI reads versions

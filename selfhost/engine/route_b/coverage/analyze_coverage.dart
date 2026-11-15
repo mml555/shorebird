@@ -289,6 +289,11 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   final targets = _manifest(base, isApp);
 
   // ---- what changed -----------------------------------------------------
+  // Mixin copy names that collide in EITHER kernel, so both key and print
+  // them alike; see `_comparedClasses` and `_UriPrinter`.
+  final ambiguous = _ambiguousCopyNames(base)
+      .union(_ambiguousCopyNames(patched));
+  _ambiguousCopies = ambiguous;
   final baseText = _memberText(base, isApp);
   final patchedText = _memberText(patched, isApp);
   // P4.4. The SIGNATURE, separately from the whole printed procedure.
@@ -325,11 +330,13 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   // Fields and constructor parameters present on both sides. Tree shaking
   // drops a field nothing reads, and a parameter nothing uses, so which exist
   // depends on the rest of the program; see `_constructorText`.
-  final sharedFields = _keptKeys(base, isApp).intersection(
-    _keptKeys(patched, isApp),
-  );
-  final baseDecl = _declarationText(base, isApp, sharedFields);
-  final patchedDecl = _declarationText(patched, isApp, sharedFields);
+  final sharedFields = _keptKeys(
+    base,
+    isApp,
+    ambiguous,
+  ).intersection(_keptKeys(patched, isApp, ambiguous));
+  final baseDecl = _declarationText(base, isApp, sharedFields, ambiguous);
+  final patchedDecl = _declarationText(patched, isApp, sharedFields, ambiguous);
   final declarations = <Map<String, Object?>>[
     for (final entry in patchedDecl.entries)
       if (baseDecl[entry.key]?.text != entry.value.text)
@@ -730,6 +737,7 @@ Map<String, ({String kind, String text})> _declarationText(
   Component c,
   bool Function(Library) isApp,
   Set<String> sharedFields,
+  Set<String> ambiguous,
 ) {
   final out = <String, ({String kind, String text})>{};
   // A class another class extends, mixes in or implements is named as a type,
@@ -750,7 +758,11 @@ Map<String, ({String kind, String text})> _declarationText(
       out['$uri#${f.name.text}'] = (kind: _fieldKind(f), text: _text(f));
     }
   }
-  for (final (:cls, :key, :isMixinCopy) in _comparedClasses(c, isApp)) {
+  for (final (:cls, :key, :isMixinCopy) in _comparedClasses(
+    c,
+    isApp,
+    ambiguous,
+  )) {
     final header = _classHeaderText(cls, supertypes.contains(cls));
     if (header != null) {
       out[key] = (kind: 'class', text: header);
@@ -797,52 +809,70 @@ const _tfaRemovedCode =
 /// Their names carry a counter, `_MixinApplication0&Base&M`, that shifts when
 /// another mixin application comes or goes, so the key drops it:
 /// `dart:mixin_deduplication#&Base&M`. The type arguments it applies are
-/// added, `&Object&M<dart.core::int>`, so `M<int>` and `M<String>` keep
-/// their own keys when their classes are reordered. Two applications that
-/// still share a key get `~2`, `~3`, ordered by the libraries of the classes
-/// they apply, which import order does not change.
+/// added, `&Object&M<dart:core::int>`, so `M<int>` and `M<String>` keep
+/// their own keys when their classes are reordered.
+///
+/// A name that still collides -- `_B` and `M` declared in two libraries --
+/// in either kernel ([ambiguous]) is keyed in both by what the copy applies,
+/// each class named with its library: `&_B&M@(package:a/a.dart::_B & ...)`.
+/// Never by position: when tree shaking drops one of two copies from one
+/// kernel, a survivor numbered `~2` in one kernel and `~1` in the other is
+/// compared with the wrong copy.
 Iterable<({Class cls, String key, bool isMixinCopy})> _comparedClasses(
   Component c,
   bool Function(Library) isApp,
+  Set<String> ambiguous,
 ) sync* {
   for (final lib in c.libraries.where(isApp)) {
     for (final cls in lib.classes) {
       yield (cls: cls, key: '${lib.importUri}#${cls.name}', isMixinCopy: false);
     }
   }
-  final copies = [
-    for (final lib in c.libraries)
-      if ('${lib.importUri}' == _mixinLibrary)
-        for (final cls in lib.classes)
-          (
-            cls: cls,
-            name: _applicationName(cls),
-            identity: _applicationIdentity(cls),
-          ),
-  ];
-  // Copies that share a name are numbered in the order of their identity, not
-  // of the kernel, which follows import order: `~2` must name the same copy in
-  // both kernels or each is compared with the other's.
-  final indexed = copies.indexed.toList()
-    ..sort((a, b) {
-      final byName = a.$2.name.compareTo(b.$2.name);
-      if (byName != 0) return byName;
-      final byIdentity = a.$2.identity.compareTo(b.$2.identity);
-      return byIdentity != 0 ? byIdentity : a.$1.compareTo(b.$1);
-    });
   final seen = <String, int>{};
-  for (final (_, copy) in indexed) {
-    final n = seen[copy.name] = (seen[copy.name] ?? 0) + 1;
+  for (final cls in _mixinCopies(c)) {
+    final stem = _copyStem(cls, ambiguous);
+    // AOT deduplicates identical applications, so two copies with one
+    // identity should not exist; if they do, they stay apart.
+    final n = seen[stem] = (seen[stem] ?? 0) + 1;
     yield (
-      cls: copy.cls,
-      key: '$_mixinLibrary#${copy.name}${n == 1 ? '' : '~$n'}',
+      cls: cls,
+      key: '$_mixinLibrary#$stem${n == 1 ? '' : '~$n'}',
       isMixinCopy: true,
     );
   }
 }
 
+/// How a mixin copy is keyed and printed: [_applicationName], plus what it
+/// applies when that name is [ambiguous].
+String _copyStem(Class cls, Set<String> ambiguous) {
+  final name = _applicationName(cls);
+  return ambiguous.contains(name) ? '$name@${_applicationIdentity(cls)}' : name;
+}
+
+/// The names [_ambiguousCopyNames] finds in either kernel of this run, for
+/// [_UriPrinter], which has no other way to learn them.
+var _ambiguousCopies = <String>{};
+
+Iterable<Class> _mixinCopies(Component c) => [
+  for (final lib in c.libraries)
+    if ('${lib.importUri}' == _mixinLibrary) ...lib.classes,
+];
+
+/// Mixin copy names ([_applicationName]) that two copies share in [c].
+Set<String> _ambiguousCopyNames(Component c) {
+  final counts = <String, int>{};
+  for (final cls in _mixinCopies(c)) {
+    final name = _applicationName(cls);
+    counts[name] = (counts[name] ?? 0) + 1;
+  }
+  return {
+    for (final MapEntry(:key, :value) in counts.entries)
+      if (value > 1) key,
+  };
+}
+
 /// A mixin copy's name without AOT's counter, plus the type arguments it
-/// applies: `&Object&M<dart.core::int>`.
+/// applies: `&Object&M<dart:core::int>`.
 String _applicationName(Class cls) {
   final arguments = [
     ...?cls.supertype?.typeArguments,
@@ -851,7 +881,9 @@ String _applicationName(Class cls) {
     for (final t in cls.implementedTypes) ...t.typeArguments,
   ];
   return cls.name.replaceFirst(RegExp(r'^_MixinApplication\d+'), '') +
-      (arguments.isEmpty ? '' : '<${arguments.map(_typeText).join(', ')}>');
+      (arguments.isEmpty
+          ? ''
+          : '<${arguments.map((t) => _typeText(t, copyStems: false)).join(', ')}>');
 }
 
 /// What a mixin copy applies, with each class named by its library, so two
@@ -869,17 +901,19 @@ String _applicationIdentity(Class cls) {
   return '(${applied.join(' & ')})';
 }
 
-String _typeText(DartType t) {
+/// [t] as text. Inside a copy's own name ([_applicationName]) a type can be
+/// the copy's own type parameter, and naming that names the copy again, so
+/// there copies keep AOT's name, with the counter dropped.
+String _typeText(DartType t, {bool copyStems = true}) {
   final buffer = StringBuffer();
-  Printer(buffer).writeType(t);
-  return buffer.toString();
+  _UriPrinter(buffer, copyStems: copyStems).writeType(t);
+  return _unnumbered(buffer.toString());
 }
 
-/// Printed text with AOT's mixin application counter dropped, as the keys of
-/// [_comparedClasses] drop it: `_MixinApplication0&Base&M` and
-/// `_MixinApplication3&Base&M` print alike. Without this, reordering two class
-/// declarations renumbers the applications and every header and body naming
-/// one reads as changed.
+/// Printed text with AOT's mixin application counter dropped. References to a
+/// copy already print as its key ([_UriPrinter]); what is left is a copy's own
+/// name in its header, which would otherwise change whenever reordering two
+/// class declarations renumbers the copies.
 String _unnumbered(String text) =>
     text.replaceAll(_mixinApplicationCounter, '_MixinApplication&');
 
@@ -918,7 +952,7 @@ String? _classHeaderText(Class cls, bool isSupertype) {
       cls.mixedInType == null;
   if (stripped) return null;
   final buffer = StringBuffer();
-  final printer = Printer(buffer)
+  final printer = _UriPrinter(buffer)
     ..writeModifier(cls.isSealed, 'sealed')
     ..writeModifier(cls.isBase, 'base')
     ..writeModifier(cls.isInterface, 'interface')
@@ -948,10 +982,18 @@ String? _classHeaderText(Class cls, bool isSupertype) {
 
 /// Every field key, `library#Class.name` or `library#name`, and every
 /// constructor parameter key, `library#Class.constructor(parameter)`.
-Set<String> _keptKeys(Component c, bool Function(Library) isApp) => {
+Set<String> _keptKeys(
+  Component c,
+  bool Function(Library) isApp,
+  Set<String> ambiguous,
+) => {
   for (final lib in c.libraries.where(isApp))
     for (final f in lib.fields) '${lib.importUri}#${f.name.text}',
-  for (final (:cls, :key, isMixinCopy: _) in _comparedClasses(c, isApp)) ...[
+  for (final (:cls, :key, isMixinCopy: _) in _comparedClasses(
+    c,
+    isApp,
+    ambiguous,
+  )) ...[
     for (final f in cls.fields) '$key.${f.name.text}',
     for (final k in cls.constructors)
       for (final p in [
@@ -1016,7 +1058,7 @@ String _constructorText(
     _ => null,
   };
   final buffer = StringBuffer();
-  final printer = Printer(buffer)
+  final printer = _UriPrinter(buffer)
     ..writeAnnotationList(k.annotations)
     ..writeModifier(k.isExternal, 'external')
     ..writeModifier(k.isConst, 'const')
@@ -1150,7 +1192,7 @@ String _signature(Procedure p) {
   final f = p.function;
   String type(DartType t) {
     final buffer = StringBuffer();
-    Printer(buffer).writeType(t);
+    _UriPrinter(buffer).writeType(t);
     return buffer.toString();
   }
 
@@ -1184,12 +1226,43 @@ String _signature(Procedure p) {
 /// constants inside it (`Box{v: #C2}`), and those must be printed too.
 String _text(Member m) {
   final buffer = StringBuffer();
-  final printer = Printer(buffer)..writeNode(m);
+  final printer = _UriPrinter(buffer)..writeNode(m);
   final named = printer.syntheticNames.constants.map;
   for (var i = 0; i < named.length; i++) {
     printer.writeNode(named.keys.elementAt(i));
   }
   return _unnumbered(buffer.toString());
+}
+
+/// A [Printer] that names every library by its import URI.
+///
+/// A bare [Printer] has no import table, so it names a library without a
+/// `library` directive `#lib1`, `#lib2`, in the order it meets them -- and
+/// every member is printed by a fresh one. Two classes `X` from `a.dart` and
+/// `b.dart` then print alike, and a body or header that swaps one for the
+/// other reads as unchanged. The import URI is the same in both kernels and
+/// unique, so it names each library the same way every time.
+///
+/// AOT's mixin copies are renamed the same way; see [getClassName].
+class _UriPrinter extends Printer {
+  _UriPrinter(super.sink, {this.copyStems = true});
+
+  final bool copyStems;
+
+  /// A mixin copy prints as its key does ([_copyStem]), not as AOT named it:
+  /// the counter in `_MixinApplication0&Object&M` says nothing, and dropping it
+  /// alone would print copies of `M<int>` and `M<String>` alike.
+  @override
+  String getClassName(Class node) =>
+      copyStems && '${node.enclosingLibrary.importUri}' == _mixinLibrary
+      ? _copyStem(node, _ambiguousCopies)
+      : super.getClassName(node);
+
+  @override
+  String getLibraryReference(Reference reference) => switch (reference.node) {
+    final Library library => '${library.importUri}',
+    _ => super.getLibraryReference(reference),
+  };
 }
 
 Never _die(String message) {
