@@ -531,12 +531,14 @@ void main() {
         );
       });
 
-      test('a private receiver class lowers to `dynamic`', () {
-        // `_RouteBState self` would resolve to nothing: privacy is
-        // library-scoped and the replacement is its own library. The front end
-        // accepts any member name on a dynamic receiver, so `dynamic` lets the
-        // private class go unnamed. In Flutter this is the common case, because
-        // a StatefulWidget's State class is private by convention.
+      test('a private receiver class keeps its own type', () {
+        // Not `dynamic`. A dynamic receiver makes every access on `self` a
+        // dynamic call, which the AOT runtime refuses for any member the
+        // release did not mark dynamically callable: on a device, a patched
+        // `initState` calling `_start()` failed with "has no instance method
+        // '_start'". The name resolves because the private-names flag is
+        // passed for a private receiver (asserted below). In Flutter this is
+        // the common case, because a State class is private by convention.
         expect(
           lowered(
             instanceCoverage(
@@ -546,7 +548,7 @@ void main() {
               receiverType: '_RouteBState',
             ),
           ),
-          contains('String value(dynamic self) => self.label;'),
+          contains('String value(_RouteBState self) => self.label;'),
         );
       });
 
@@ -566,7 +568,7 @@ void main() {
         );
       });
 
-      test('a private receiver class lowers a write to `dynamic` too', () {
+      test('a private receiver class keeps its type for a write too', () {
         expect(
           lowered(
             instanceCoverage(
@@ -578,7 +580,7 @@ void main() {
               receiverType: '_RouteBState',
             ),
           ),
-          contains("String value(dynamic self) => self.slot = 'NEW';"),
+          contains("String value(_RouteBState self) => self.slot = 'NEW';"),
         );
       });
 
@@ -944,7 +946,7 @@ void main() {
               classPublicMembers: ['package:app/main.dart#_RouteBState#value'],
             ),
           ),
-          contains('String value(dynamic self) => self.label;'),
+          contains('String value(_RouteBState self) => self.label;'),
         );
       });
 
@@ -965,7 +967,7 @@ void main() {
             ),
             granting: grants(classes: ['package:app/main.dart#_RouteBState']),
           ),
-          contains('String value(dynamic self) => self.label;'),
+          contains('String value(_RouteBState self) => self.label;'),
         );
       });
 
@@ -1135,6 +1137,27 @@ void main() {
           expect(
             lowered(constructs(), granting: grants(classes: [ctorKey])),
             contains('_Helper()'),
+          );
+        });
+
+        test('asks the CFE to resolve a private receiver class', () {
+          // The receiver parameter is written `_RouteBState self`, and this body
+          // touches no private member, so the class name is the only private
+          // reference. Without the flag the front end reports "Type not found".
+          lowered(
+            instanceCoverage(
+              preamble: 'class _RouteBState {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+              receiverType: '_RouteBState',
+            ),
+          );
+          expect(
+            lastArguments,
+            containsAllInOrder([
+              '--resolve-private-names-in-library',
+              'package:app/main.dart',
+            ]),
           );
         });
 
@@ -1319,7 +1342,7 @@ void main() {
                 classes: ['package:app/main.dart#_RouteBState'],
               ),
             ),
-            contains('String value(dynamic self) => self._controller;'),
+            contains('String value(_RouteBState self) => self._controller;'),
           );
           expect(
             lastArguments,
@@ -1368,7 +1391,7 @@ void main() {
                 instance: ['package:app/main.dart#_RouteBState#_controller'],
               ),
             ),
-            contains('String value(dynamic self) => self._controller;'),
+            contains('String value(_RouteBState self) => self._controller;'),
           );
         });
 
@@ -1533,7 +1556,7 @@ void main() {
                 classes: ['package:app/main.dart#_RouteBState'],
               ),
             ),
-            contains('String value(dynamic self) => self._controller;'),
+            contains('String value(_RouteBState self) => self._controller;'),
           );
         });
 

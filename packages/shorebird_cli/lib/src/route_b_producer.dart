@@ -396,9 +396,15 @@ Object? $_superIntrinsicName(
       // evidence AND a manifest grant, per construction -- has already run and
       // refused the whole patch before this point (Gate 6E). This decides only how
       // a body that was already admitted gets spelled.
+      //
+      // A PRIVATE RECEIVER CLASS is a private reference too: the receiver
+      // parameter is written with its class's own name (see the lowering), and
+      // `_FooState` is spelled in the replacement only if the front end resolves
+      // it in the target library.
       final resolvesPrivateNames =
           (lowering?.accesses.any((a) => a.privateTarget != null) ?? false) ||
-          (lowering?.privateConstructions?.isNotEmpty ?? false);
+          (lowering?.privateConstructions?.isNotEmpty ?? false) ||
+          (lowering?.receiverType.startsWith('_') ?? false);
       // IMPORT THE TARGET'S OWN LIBRARY. A replacement body may reference other
       // members of the library it replaces a function in, and a synthetic
       // library that imports nothing cannot see them:
@@ -917,31 +923,29 @@ Object? $_superIntrinsicName(
     // needed only when there is something to separate from.
     final existingParams = source.substring(open + 1, close).trim();
     final separator = existingParams.isEmpty ? '' : ', ';
-    // A PRIVATE receiver class cannot be WRITTEN here at all. Dart privacy is
-    // library-scoped and the replacement is its own library, so `_FooState self`
-    // resolves to nothing and the compile fails with "Type not found" -- after
-    // the analyzer already said `accept`, because the analyzer reports the class
-    // name without asking whether a foreign library could name it.
+    // THE RECEIVER KEEPS ITS CLASS'S OWN TYPE, private or not.
     //
-    // `dynamic` sidesteps the question rather than answering it: the front end
-    // accepts any member name on a dynamic receiver with no privacy test, so the
-    // private class name never has to appear. The cost is that every access on
-    // `self` becomes a dynamic call resolved by name at run time instead of an
-    // interface call resolved at compile time.
+    // A private class is written by name too: `_FooState self`. The replacement
+    // is its own library, so that name resolves only because
+    // `--resolve-private-names-in-library` is passed for a private receiver
+    // (see `resolvesPrivateNames`), the same front-end scope that makes
+    // `self._x` mean the app's member.
     //
-    // Only for a private class. A public receiver keeps its concrete type, so
-    // every spelling already proven on device lowers to byte-identical source.
+    // This used to lower a private receiver to `dynamic`, which made every
+    // access on `self` a DYNAMIC call. The AOT runtime refuses a dynamic call to
+    // any member the release did not mark dynamically callable, and a release
+    // marks almost nothing that way, so on a device a patched `initState`
+    // calling `_start()` died with "Class '_HomeState' has no instance method
+    // '_start'" (1.0.0+8, patch 3). The dynamic type also spread: `self._count
+    // + 1` was a dynamic `+` on an int, refused the same way. In Flutter that
+    // was most patches, because a State class is private by convention.
     //
-    // `dynamic` alone does NOT make private MEMBERS reachable: `self._x` would
-    // compile and then fail at run time, because the module's library key is
-    // not the app's. What closes that is `--resolve-private-names-in-library`
-    // (G3.6e), passed above only for a target whose private accesses the
-    // release manifest granted. Two separate mechanisms, both required:
-    // `dynamic` lets the private class go unnamed, the flag makes the private
-    // MEMBER mean the app's. See PARITY.md §3, `G3.6c`/`G3.6e`/`G3.6b`.
-    final receiverType = lowering.receiverType.startsWith('_')
-        ? 'dynamic'
-        : lowering.receiverType;
+    // Typed, the front end resolves every access statically, exactly as it did
+    // when the body was compiled inside the class: an interface call bound to
+    // the release member, with no dynamic-call check at run time. The class
+    // itself always exists in the release, because the target being replaced
+    // is one of its members.
+    final receiverType = lowering.receiverType;
     edits.add((open + 1, 0, '$receiverType $receiverName$separator'));
 
     for (final access in lowering.accesses) {
@@ -1052,6 +1056,9 @@ Object? $_superIntrinsicName(
     final granted = {
       for (final a in lowering.accesses)
         if (a.privateTarget != null) a.member,
+      // The receiver's own class, written as the receiver parameter's type. It
+      // is the class the target is declared in, so the release has it.
+      if (lowering.receiverType.startsWith('_')) lowering.receiverType,
     };
 
     // PRIVATE CONSTRUCTIONS, when the analyzer measured them (version 12).

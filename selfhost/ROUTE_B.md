@@ -244,7 +244,7 @@ support — they were never interpreted.
 | the replacement's own private helpers | | carried in the payload |
 | release-private instance **read** | `_secret` | `self._secret`, granted via G3.6b/P2 |
 | release-private **getter** call | `_codePatch` | `self._codePatch`, granted via G3.6b/P2 |
-| a target method **on a private class** | any of the above, inside `_Foo` | receiver lowered as `dynamic self` (G3.6c) + `class: '_Foo'` retention (G3.6d) |
+| a target method **on a private class** | any of the above, inside `_Foo` | receiver written as `_Foo self`, resolved by `--resolve-private-names-in-library` (G3.6c, G3.6e) + `class: '_Foo'` retention (G3.6d) |
 | a target method with **its own required positional parameters** | `tagged(String x)` | `tagged(Self self, String x)` — G3.7, patch `0006`. Device-proven on releases 37 and 38 |
 
 All device-proven; see the rung sections above for engine, release and evidence.
