@@ -28,7 +28,13 @@ set -uo pipefail
 command -v shasum >/dev/null 2>&1 || shasum() { [[ "${1:-}" == -a ]] && shift 2; sha256sum "$@"; }
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO="$(cd "$HERE/../.." >/dev/null 2>&1 && pwd)"
-CELL=${CELL:-f85251f344600ae08196925a174e9cff8f0ff18e}
+# The default is the distributed cell SUPPORTED_STATE.yaml records
+# (cell_distribution.cell_address), so it moves when a promotion does.
+supported_cell() {
+  awk '/^cell_distribution:/ {d=1; next} d && /^[^ #]/ {exit} d && $1 == "cell_address:" {print $2; exit}' \
+    "$REPO/selfhost/engine/route_b/SUPPORTED_STATE.yaml"
+}
+CELL=${CELL:-}
 DIST=""; DEST=""; EXTRAS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -39,6 +45,9 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+# After the arguments, so a bad record cannot block an explicit --cell.
+CELL=${CELL:-$(supported_cell)}
+[[ "$CELL" =~ ^[0-9a-f]{40}$ ]] || { echo "no cell: pass --cell, or record cell_distribution.cell_address in SUPPORTED_STATE.yaml" >&2; exit 2; }
 [[ -n "$DIST" && -n "$DEST" ]] || { echo "usage: --dist DIR|URL --overlay DIR" >&2; exit 2; }
 fail=0
 ok()  { printf '  \033[32mPASS\033[0m  %s\n' "$1"; }
