@@ -162,6 +162,11 @@ import 'package:kernel/text/ast_to_text.dart';
 ///       constants against the RELEASE's kernel, so a replaced body that names
 ///       an edited `const` still reads the release's value -- measured: an
 ///       iPhone printed `KT1` after a patch changing it to `KT2` shipped.
+///     - Class headers. `extends`, `with`, `implements` and type parameters
+///       were not compared. Tree shaking folds a type test where it can, so an
+///       `implements` edit surfaced as a changed body that shipped, while the
+///       release's class still answered the test the old way. Headers are a
+///       `class` declaration and refuse the patch.
 ///
 ///     The bump is mandatory: a version-13 consumer meeting the new rejection
 ///     category would refuse to parse it, which is safe, but one that skipped
@@ -317,8 +322,14 @@ coverage/census_report.py, for what the numbers may and may not be read as.
 
   // Fields and constructors a patch cannot replace. Changed or new, never
   // removed: a patch that stops using a field asks nothing of the release.
-  final baseDecl = _declarationText(base, isApp);
-  final patchedDecl = _declarationText(patched, isApp);
+  // A field present on both sides. Tree shaking drops a field nothing reads
+  // and keeps its initializer as a nameless local, so which fields exist
+  // depends on the rest of the program; see `_constructorText`.
+  final sharedFields = _fieldKeys(base, isApp).intersection(
+    _fieldKeys(patched, isApp),
+  );
+  final baseDecl = _declarationText(base, isApp, sharedFields);
+  final patchedDecl = _declarationText(patched, isApp, sharedFields);
   final declarations = <Map<String, Object?>>[
     for (final entry in patchedDecl.entries)
       if (baseDecl[entry.key]?.text != entry.value.text)
@@ -691,8 +702,8 @@ Map<String, String> _memberText(Component c, bool Function(Library) isApp) {
   return out;
 }
 
-/// `library#Class.name` -> the printed declaration, for the members a patch
-/// cannot replace: fields, `const` included, and constructors.
+/// `library#Class.name` -> the printed declaration, for what a patch cannot
+/// replace: fields, `const` included, constructors and class headers.
 ///
 /// A Route B patch replaces procedure bodies. A field's initializer runs once,
 /// from the release's code, and a constructor is not a procedure the release
@@ -717,6 +728,7 @@ Map<String, String> _memberText(Component c, bool Function(Library) isApp) {
 Map<String, ({String kind, String text})> _declarationText(
   Component c,
   bool Function(Library) isApp,
+  Set<String> sharedFields,
 ) {
   final out = <String, ({String kind, String text})>{};
   for (final lib in c.libraries.where(isApp)) {
@@ -725,6 +737,10 @@ Map<String, ({String kind, String text})> _declarationText(
       out['$uri#${f.name.text}'] = (kind: _fieldKind(f), text: _text(f));
     }
     for (final cls in lib.classes) {
+      final header = _classHeaderText(cls);
+      if (header != null) {
+        out['$uri#${cls.name}'] = (kind: 'class', text: header);
+      }
       for (final f in cls.fields) {
         out['$uri#${cls.name}.${f.name.text}'] = (
           kind: _fieldKind(f),
@@ -733,11 +749,137 @@ Map<String, ({String kind, String text})> _declarationText(
       }
       for (final k in cls.constructors) {
         final name = k.name.text.isEmpty ? 'new' : k.name.text;
-        out['$uri#${cls.name}.$name'] = (kind: 'constructor', text: _text(k));
+        out['$uri#${cls.name}.$name'] = (
+          kind: 'constructor',
+          text: _constructorText(k, '$uri#${cls.name}', sharedFields),
+        );
       }
     }
   }
   return out;
+}
+
+/// A class's header -- modifiers, type parameters, `extends`, `with`,
+/// `implements` -- or null when tree shaking stripped it.
+///
+/// A patch cannot change a class's place in the hierarchy: a replaced body that
+/// asks `x is T` is answered by the release's classes. Worse, tree shaking
+/// folds such a test where it can, so an `implements` edit can surface only as
+/// a changed body that then ships, and on the device the release's class gives
+/// the old answer.
+///
+/// Tree shaking also rewrites headers by use. A class no type names is stripped
+/// to `extends Object`, its interfaces and type parameters cleared, and a class
+/// never allocated is marked abstract. So `abstract` and the enum flag are left
+/// out, being the allocator's verdict rather than the source's, and a stripped
+/// header returns null. Null on the patched side skips the class: the patch
+/// stopped naming it, which is valid. On the release side the header is still
+/// printed, so a patch that starts naming a class the release stripped is
+/// refused, because the release cannot answer type tests against it. The cost
+/// is one blind case: an abstract class whose edit leaves it extending only
+/// `Object`, with no interfaces or type parameters, reads as stripped.
+String? _classHeaderText(Class cls) {
+  final stripped =
+      cls.isAbstract &&
+      cls.supertype?.classNode.name == 'Object' &&
+      '${cls.supertype?.classNode.enclosingLibrary.importUri}' == 'dart:core' &&
+      cls.implementedTypes.isEmpty &&
+      cls.typeParameters.isEmpty &&
+      cls.mixedInType == null;
+  if (stripped) return null;
+  final buffer = StringBuffer();
+  final printer = Printer(buffer)
+    ..writeModifier(cls.isSealed, 'sealed')
+    ..writeModifier(cls.isBase, 'base')
+    ..writeModifier(cls.isInterface, 'interface')
+    ..writeModifier(cls.isFinal, 'final')
+    ..writeModifier(cls.isMixinClass, 'mixin')
+    ..writeModifier(cls.isMixinDeclaration, 'mixin-declaration')
+    ..writeWord('class')
+    ..writeWord(cls.name)
+    ..writeTypeParameterList(cls.typeParameters);
+  if (cls.supertype case final supertype?) {
+    printer
+      ..writeSpaced('extends')
+      ..visitSupertype(supertype);
+  }
+  if (cls.mixedInType case final mixin?) {
+    printer
+      ..writeSpaced('with')
+      ..visitSupertype(mixin);
+  }
+  if (cls.implementedTypes.isNotEmpty) {
+    printer
+      ..writeSpaced('implements')
+      ..writeList(cls.implementedTypes, printer.visitSupertype);
+  }
+  return buffer.toString();
+}
+
+/// Every field key, `library#Class.name` or `library#name`.
+Set<String> _fieldKeys(Component c, bool Function(Library) isApp) => {
+  for (final lib in c.libraries.where(isApp)) ...[
+    for (final f in lib.fields) '${lib.importUri}#${f.name.text}',
+    for (final cls in lib.classes)
+      for (final f in cls.fields) '${lib.importUri}#${cls.name}.${f.name.text}',
+  ],
+};
+
+/// A constructor as `_text` prints it, except for what tree shaking does to
+/// the storage of a field that only one side keeps.
+///
+/// When nothing reads a field, the AOT tree shaker removes it and keeps its
+/// initializer as a nameless local, for its side effects:
+///
+///     release  : A::x = compute(), ...
+///     patch    : int #t1 = compute(), ...
+///
+/// The patch's source never touched the constructor -- it stopped reading `x`
+/// somewhere else -- and printing it raw refused that valid patch as a changed
+/// constructor. So an initializer of a field that is not on both sides, and a
+/// nameless local initializer, are both printed as `dropped = <value>`, after
+/// the others. The VALUE is still compared, so an edited initializer is still
+/// seen; only where it is stored is not.
+String _constructorText(
+  Constructor k,
+  String classKey,
+  Set<String> sharedFields,
+) {
+  bool isDropped(Initializer i) => switch (i) {
+    FieldInitializer(:final field) => !sharedFields.contains(
+      '$classKey.${field.name.text}',
+    ),
+    LocalInitializer(:final variable) =>
+      variable.cosmeticName == null && variable.initializer != null,
+    _ => false,
+  };
+  final buffer = StringBuffer();
+  final printer = Printer(buffer)
+    ..writeAnnotationList(k.annotations)
+    ..writeModifier(k.isExternal, 'external')
+    ..writeModifier(k.isConst, 'const')
+    ..writeWord('constructor')
+    ..writeFunction(
+      k.function,
+      name: k.name,
+      initializers: [
+        for (final i in k.initializers)
+          if (!isDropped(i)) i,
+      ],
+    );
+  for (final i in k.initializers.where(isDropped)) {
+    buffer.write('\ndropped = ');
+    printer.writeExpression(switch (i) {
+      FieldInitializer(:final value) => value,
+      LocalInitializer(:final variable) => variable.initializer!,
+      _ => throw StateError('unreachable'),
+    });
+  }
+  final named = printer.syntheticNames.constants.map;
+  for (var i = 0; i < named.length; i++) {
+    printer.writeNode(named.keys.elementAt(i));
+  }
+  return buffer.toString();
 }
 
 String _fieldKind(Field f) => f.isConst ? 'constant' : 'field';
@@ -755,10 +897,14 @@ String _declarationReason(String kind, {required bool isNew}) {
     'field' =>
       'this field\'s initializer or declaration changed; a patch replaces '
           'method bodies only, so the release keeps its own initial value',
+    'class' =>
+      'this class\'s header -- extends, with, implements, type parameters or '
+          'modifiers -- changed; a patch replaces method bodies only, so type '
+          'tests still see the release\'s class',
     _ =>
-      'this constructor, or an instance field initializer it runs, changed; '
-          'a patch replaces method bodies only, so the release keeps running '
-          'its own',
+      'this constructor, an instance field initializer it runs, or a '
+          'constant argument that every caller passes it changed; a patch '
+          'replaces method bodies only, so the release keeps running its own',
   };
 }
 

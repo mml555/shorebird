@@ -71,6 +71,11 @@ const supportedRouteBAnalysisVersion = 11;
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
 const knownRouteBAnalysisVersions = {11, 12, 13, 14};
 
+/// The first analyzer version that compares fields, `const`s, constructors and
+/// class headers. An older analyzer reads an edit to one as unchanged, so a
+/// patch carrying it alongside body edits ships without it.
+const routeBDeclarationsAnalysisVersion = 14;
+
 /// A construction of a private class inside a replaced body.
 ///
 /// [key] is spelled exactly as the release's capability manifest spells it —
@@ -493,6 +498,7 @@ enum RouteBVerdict {
 class RouteBCoverage {
   /// {@macro route_b_coverage}
   const RouteBCoverage({
+    required this.analysisVersion,
     required this.verdict,
     required this.changed,
     required this.added,
@@ -720,6 +726,7 @@ class RouteBCoverage {
     }
 
     return RouteBCoverage(
+      analysisVersion: analysisVersion,
       verdict: verdict,
       sources: sources,
       lowering: lowering,
@@ -733,6 +740,10 @@ class RouteBCoverage {
       refusalSummary: map['refusalSummary'] as String?,
     );
   }
+
+  /// The version of the analyzer that wrote this document, one of
+  /// [knownRouteBAnalysisVersions].
+  final int analysisVersion;
 
   /// The whole-patch outcome.
   final RouteBVerdict verdict;

@@ -122,7 +122,8 @@ def main():
     blind = expected.get("referenceBlind")
     r = Report(args.case, reference_blind=blind)
     if blind:
-        missing = [f for f in ("verdict", "changed", "declarations")
+        missing = [f for f in ("verdict", "changed", "added", "declarations",
+                             "rejectionReasons")
                    if f not in expected]
         if missing:
             r.problems.append(
@@ -252,8 +253,10 @@ def main():
             ("conditional", sorted(analysis["conditional"])),
             ("unreachable", sorted(analysis["unreachable"])),
             ("added", sorted(analysis["added"])),
+            # Indexed, not .get(): a document without the key must fail
+            # here, not read as "no declarations changed".
             ("declarations", sorted(d["target"]
-                                    for d in analysis.get("declarations", []))),
+                                    for d in analysis["declarations"])),
         ):
             if field in expected:
                 r.check(f"pinned {field}", "expected", expected[field],

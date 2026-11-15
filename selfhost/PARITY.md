@@ -2064,7 +2064,7 @@ Same release, same engine, same edit, patch 4 with the typed receiver:
 `applied 1/1 targets`, `shape:init=I2`, then `_start` ran (`count=1..3`,
 `done=START-DONE`) with no error.
 
-### Constants, fields and constructors are seen (2026-11-15)
+### Constants, fields, constructors and class headers are seen (2026-11-15)
 
 **An edit outside a method body could ship as a patch that left it out.** Release
 `1.0.0+10` of the shapes app took a 19-edit patch whose edits included `const
@@ -2110,12 +2110,39 @@ instead. The existing `private_accessor` case had also changed the initializer
 of its field `_slot`, which version 14 rightly refuses. Its patched side now
 leaves `_slot` alone, so it still tests what it was written for.
 
-**Open: a dependency's `const` that tree shaking removed.** The check sees a
-`const` only where the release kept the declaration. App libraries are
-retained whole by the dynamic interface, so theirs are kept. A `const` in a
-dependency that the release's tree shaking removed is in neither kernel, so an
-edit to it is seen only as a changed member, which ships with the release's
-value. Not yet closed.
+**A field the patch stops reading is not a changed constructor.** When an edit
+removes the last read of a field, tree shaking drops the field from the
+patch's kernel. It keeps the field's initializer, which can have side effects,
+as a nameless local in the constructor. The constructor's kernel then differs
+from the release's though its source did not. The analyzer prints such an
+initializer as a dropped value after the others, so the value is still
+compared: an edited initializer is still refused, and the getter edit alone
+ships. The parity case `dropped_field_read` pins it.
+
+A constructor refusal can also come from a call site. When every caller passes
+the same constant, tree shaking folds it into the constructor, so editing that
+literal changes the constructor's kernel. The refusal's reason names this.
+
+**Open: a `const` that tree shaking removed.** The check sees a `const` only
+where the release kept the declaration. A Route B release is built with a
+dynamic interface that retains the app's own libraries whole, so the app's
+`const`s are kept. A `const` in a dependency that the release's tree shaking
+removed is in neither kernel, so an edit to it is seen only as a changed
+member, which ships with the release's value. The same holds for an app
+`const` in a kernel built without that dynamic interface: a host specimen
+built that way accepts a top-level `const` edit. Not yet closed.
+
+**Class headers are compared too.** An `implements` edit was worse than
+invisible. Tree shaking folds a type test where it can, so `o is Tagged` in
+`main` became a changed `main` that the analyzer accepted, while on the device
+the release's class still answered the test. `extends`, `with`, `implements`,
+type parameters and the class modifiers are now a `class` declaration that
+refuses the patch. `abstract` and the enum flag are left out because tree
+shaking sets them by allocation. A header tree shaking stripped from the
+patch's kernel, because the patch stopped naming the class, is skipped. The
+parity case `class_header` pins the refusal. One case stays blind: an abstract
+class edited to extend only `Object`, with no interfaces or type parameters,
+looks stripped.
 
 **A cell is needed.** The analyzer ships in the compiler cell, so this takes
 effect for releases built on a cell minted with it. The CLI reads versions

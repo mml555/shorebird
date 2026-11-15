@@ -2053,6 +2053,69 @@ This may indicate that the patch contains native changes, which cannot be applie
               ).called(1);
             });
 
+            test(
+              'warns when the analyzer cannot see declaration edits',
+              () async {
+                await runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                );
+
+                verify(
+                  () => logger.warn(
+                    any(that: contains('predates analysis version 14')),
+                  ),
+                ).called(1);
+              },
+            );
+
+            test(
+              'does not warn when the analyzer sees declaration edits',
+              () async {
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: any(named: 'includePrefixes'),
+                  ),
+                ).thenReturn(
+                  RouteBCoverage.fromJson(
+                    jsonEncode({
+                      'analysisVersion': routeBDeclarationsAnalysisVersion,
+                      'verdict': 'accept',
+                      'changed': ['package:app/main.dart#routeBValue'],
+                      'added': <String>[],
+                      'removed': <String>[],
+                      'patchable': ['package:app/main.dart#routeBValue'],
+                      'conditional': <String>[],
+                      'rejections': <Object>[],
+                      'refusalSummary': null,
+                    }),
+                  ),
+                );
+
+                await runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                );
+
+                verifyNever(
+                  () => logger.warn(
+                    any(that: contains('predates analysis version')),
+                  ),
+                );
+              },
+            );
+
             test('analyzes coverage against the RELEASE kernel', () async {
               await runWithOverrides(
                 () => patcher.createPatchArtifacts(

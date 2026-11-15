@@ -241,6 +241,13 @@ class IosPatcher extends Patcher
         if (coverage.verdict != RouteBVerdict.accept) {
           _refuseCoverage(coverage);
         }
+        if (coverage.analysisVersion < routeBDeclarationsAnalysisVersion) {
+          // The analyzer ships in the release's compiler cell, so only a
+          // release cut on a newer cell can see these edits.
+          logger.warn(
+            '''This release's compiler cell predates analysis version $routeBDeclarationsAnalysisVersion. It does not check edits to constants, fields, constructors or class headers, and a patch ships without them. Check that this patch changes only method bodies.''',
+          );
+        }
 
         // ROUTE B SUPER: the patched body, for the compiler to verify against.
         //
