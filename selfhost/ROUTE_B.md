@@ -280,14 +280,20 @@ rather than of use.
 | a replacement whose signature takes NAMED parameters | the `ArgumentsDescriptor`'s names must match and that is unexercised |
 | a replacement whose signature takes OPTIONAL positionals | their defaults live in the AOT function the replacement stands in for, and nothing carries them across |
 
-#### `super.foo()` — HOST CERTIFIED, narrow-v1, ran on an iPhone from a local cell
+#### `super.foo()` — narrow-v1
 
-**2026-11-15: ran on a device, not yet published.** A patched `initState` that
-calls `super.initState()` applied and ran on an iPhone 7, from a local test
-cell built from the Dart lineage at PR #6's head. See
-[`engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md`](engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md).
-No published cell carries it yet. The engine pin is mml555/shorebird-flutter#13.
-The rest of this section describes what a shipped release does.
+**Status, 2026-11-15.**
+- **Earlier stack:** device-proven in D-SUPER-2C (see the table at the top).
+- **Flutter 3.47 stack:** the published cell `82fc78a8` predates change 0017, so
+  it refuses. 0017 is now in the Dart lineage (PR #5). A patched `initState`
+  calling `super.initState()` ran on an iPhone 7 from a local test cell built
+  from that lineage. See
+  [`engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md`](engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md).
+- **Not yet published:** no published 3.47 cell carries 0017. The engine pin is
+  mml555/shorebird-flutter#13.
+
+The text below was written before D-SUPER-2C and describes the rule; its
+"no release" applies today only to the published 3.47 cell.
 
 **No published release can use this today.** The producer carries a zero-argument
 `super.foo()` only when the resolved compiler cell implements
@@ -646,7 +652,7 @@ exercising each shape AOT actually emits:
 | top-level static, static method | **yes** |
 | instance method (monomorphic), getter | **yes** — AOT devirtualizes these into static calls |
 | dynamic instance call (`EmitTestAndCall` cid chain) | **yes** |
-| statically-typed polymorphic call (**dispatch table**) | **no** — **yes** under `--route_b_untabled_overrides` (2026-11-14, host) |
+| statically-typed polymorphic call (**dispatch table**) | **no** — **yes** under `--route_b_untabled_overrides` (2026-11-14, host; 2026-11-15, an iPhone from a local cell) |
 
 Dispatch-table calls load a raw entry point out of a data table and set up
 neither `R0` nor `R4`, so there is no cheap version: rewriting the table is
@@ -666,8 +672,9 @@ count as app code here. On a counter app
 the snapshot grows 0.33 %, the call-form inventory reports the polymorphic and
 megamorphic forms patchable, and the release probe (revision 2) finds call sites
 for `MyApp.build` and `_MyHomePageState.build`. Measured on the host only, on
-one small app; the iOS cell, the device patch, and size and frame time on a
-real app are still to come. See
+one small app. The device patch and the size on a second small app followed
+on 2026-11-15 (below). A published iOS cell, and size and frame time on a real
+app, are still to come. See
 [`engine/route_b/evidence/untabled_overrides/RESULT.md`](engine/route_b/evidence/untabled_overrides/RESULT.md).
 
 **2026-11-15: on an iPhone, from a local cell.** A patch to one override of a
