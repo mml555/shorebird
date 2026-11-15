@@ -105,8 +105,12 @@ run_arm() { # <label> <sdk-members> <expect: bind|refuse>
   local label="$1" members="$2" expect="$3"
   local dir="$WORK/$label"; mkdir -p "$dir"
 
+  # --no-framework-uses: this probe varies the SDK member list and nothing
+  # else. The target itself calls DateTime.now(), so retaining what the
+  # target already uses would declare the negative arm's symbol for it.
   "$DART" $KERNEL_PKGS "$RB/gen_dynamic_interface.dart" \
-    --dill base.dill --out "$dir/di.yaml" --sdk-members "$members" 2>/dev/null
+    --dill base.dill --out "$dir/di.yaml" --sdk-members "$members" \
+    --no-framework-uses 2>/dev/null
   kernel "$dir/release.dill" --dynamic-interface "$dir/di.yaml"
   "$GEN_SNAPSHOT" --patchable_static_calls --snapshot_kind=app-aot-elf \
     --elf="$dir/app.aot" "$dir/release.dill"

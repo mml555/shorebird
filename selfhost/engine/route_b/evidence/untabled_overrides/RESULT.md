@@ -1,9 +1,11 @@
-# `--route_b_untabled_overrides`: dispatch-table calls made patchable (host)
+<!-- cspell:words untab -->
+# `--route_b_untabled_overrides`: dispatch-table calls made patchable
 
 Measured 2026-11-14 on the Mac's host release build
 (`out/host_release_arm64_ddm`), Dart lineage branch
-`selfhost/route-b-untabled-overrides` at `4c9f79f2`. Host only: no iOS cell, no
-device patch and no frame-time number yet.
+`selfhost/route-b-untabled-overrides` at `4c9f79f2`, and on 2026-11-15 on an
+iPhone 7 (iOS 15.8) from a local test cell built from the same revision
+(sections 7 and 8). No frame-time number yet.
 
 ## What it changes
 
@@ -191,10 +193,105 @@ commented out and gen_snapshot rebuilt, the `int` rows end in a segfault
 (`si_addr=0x28`, so no FORM line, which reads INCONCLUSIVE) and the `double`
 rows read `WRONG ARGUMENT` (`NEW-2304717109306851328`); with it, all six pass.
 
+## 7. A `build()` patch on the iPhone
+
+A local test cell (`ios-release` and the host tools rebuilt from `4c9f79f2`,
+SDK hash null as in section 5) and a CLI at this branch. The app is
+`flutter create` with one widget whose `build()` carries no pragma, so the
+framework reaches it only through what was a dispatch-table call:
+
+```dart
+class Label extends StatelessWidget {
+  const Label({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = 'UNTAB-V1';
+    debugPrint('untab-label $text');
+    return Text(text, style: const TextStyle(fontSize: 48));
+  }
+}
+```
+
+`shorebird release ios` and `shorebird patch ios` both ran with
+`-- --extra-gen-snapshot-options=--route_b_untabled_overrides`. The release
+probe of the app's first release was GREEN for `Label.build`, one switchable
+site (`probe_revision: 2`). The patch changes the one string:
+
+| launch | device log | screen |
+|---|---|---|
+| base release | `no active patch`, `untab-label UNTAB-V1` | UNTAB-V1 |
+| after publishing patch 1, second launch | `ROUTEB: activated Label.build in package:untab/main.dart before main`, `applied 1/1 targets`, `Launch success for patch 1`, `untab-label UNTAB-V2` | **UNTAB-V2** |
+| after rolling patch 1 back, first launch | still `UNTAB-V2`; the check returns `rolled_back_patch_numbers: [1]` | UNTAB-V2 |
+| second launch | `Prepared boot of the base release`, `untab-label UNTAB-V1` | UNTAB-V1 |
+
+The first attempt at this, on the same cell, crashed at boot. Section 8 is why.
+
+## 8. Framework names a patch uses
+
+```
+bytecode_reader.cc: 1173: error: Unable to find class BuildContext in
+Library:'package:flutter/src/widgets/framework.dart'
+```
+
+The patch's body was the release's own, one string changed, but its signature
+names `BuildContext`, and its body names `Text`, `TextStyle` and `debugPrint`.
+The loader finds every class and member a patch names by name, and the
+release's interface had kept the app's library and four `dart:core` members,
+nothing from Flutter. Earlier device patches only replaced top-level helpers
+that named nothing outside the app, so none of them hit this.
+
+`gen_dynamic_interface.dart` now also keeps what the app's own code uses
+outside the app: each class as `can-be-used-as-type` (findable by name, members
+untouched) and each member it calls, reads or names in a constant as a
+`callable` member item. Constants count for their fields, private ones
+included, because the loader looks up every field of an instance constant:
+`const TextStyle(fontSize: 48)` names all 26 fields of `TextStyle`, including
+`_package`. The walk reads the non-AOT kernel, which is what the source says
+(the prepass has had TFA drop the `style:` argument and the constant with it),
+and takes `dart:` references from the prepass, since the non-AOT kernel does
+not carry the SDK. `--no-framework-uses` turns it off.
+
+Its cost on this app, same kernel inputs, iOS `gen_snapshot` ELF:
+
+| interface | named members | snapshot bytes |
+|---|---|---|
+| before: the app library and four `dart:core` members | 4 | 4,490,208 |
+| + framework classes as types | 4 | 4,505,504 (+0.34 %) |
+| + members the app calls | 9 | 4,511,800 (+0.48 %) |
+| + fields named by constants (what ran in section 7) | 120 | 4,547,856 (**+1.28 %**) |
+
+The fields are most of it: retaining a field keeps it, and its value, where
+TFA would have dropped a field nothing reads. A loader that skipped a constant's
+fields the release does not have would need only the first two rows, and
+nothing in the release can read such a field.
+
+One kind of member is left out: a `dart:` instance member the app reaches
+through code, such as `Iterable.iterator`. Such a member is implemented across
+the SDK, and declaring it callable keeps every implementation.
+[`probes/fw_use_binding.sh`](../../probes/fw_use_binding.sh) measured it on the
+host, with `package:crypto` in Flutter's place and a body naming `sha256`,
+`convert` and `Digest`, which the target already uses:
+
+| interface | the crypto body | snapshot bytes |
+|---|---|---|
+| `--no-framework-uses` | `Unable to find library package:crypto/src/sha256.dart` | 983,776 |
+| framework uses, `dart:` instance members included | binds | 1,084,408 (+10.2 %) |
+| framework uses, the default | binds | 985,824 (**+0.21 %**) |
+
+The Flutter app above reaches no `dart:` instance member through code, so its
+interface is the same either way, byte for byte.
+
+The cost of leaving them out: a patch that calls an SDK instance member by
+interface (`list.add`, `text.isNotEmpty`) fails at load, as it did before this
+change. The probe's first body used `.isNotEmpty`, which the target never
+calls, and died with `Unable to find function get:isNotEmpty in Library:'dart:core'
+Class: String`. A string `==` binds without it. So does a patch naming a
+framework member the release's code never used: it still fails at load, and
+the analyzer does not refuse it yet.
+
 ## Not yet
 
-- An iOS cell built from this Dart revision, and a `build()` patch on the iPhone.
-  No Flutter app has run with the flag yet: on the host it only compiles.
 - Size and frame time on a real app. The flag turns table calls into switchable
   calls, which cost more per call once megamorphic, and a shared selector
   carries SDK and framework calls along with the app's. One counter app is not
@@ -204,4 +301,11 @@ rows read `WRONG ARGUMENT` (`NEW-2304717109306851328`); with it, all six pass.
   attach a patch to one.
 - Activation timing. The runtime change assumes Route B activates before any
   switchable site links. A site linked monomorphic to the original code before
-  activation would keep calling the unpatched body, silently. Untested.
+  activation would keep calling the unpatched body, silently. Section 7
+  activates before `main`, so it does not test this.
+- A cell anyone can install. Section 7's cell is local, and a published cell
+  needs this Dart revision built into the engine with a matching SDK hash.
+- The analyzer refusing a patch that names a framework class or member the
+  release did not keep.
+- A way to keep an SDK interface member findable by name without keeping every
+  implementation, so a patch can call `list.add`.

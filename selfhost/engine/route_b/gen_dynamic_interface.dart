@@ -115,6 +115,10 @@ void main(List<String> args) {
   // Exact constructor grants, from `--grant-constructor`. Empty by default.
   final constructorGrants = <String>{};
   var policy = _Policy.p2;
+  var retainFrameworkUses = true;
+  // Which framework MEMBERS to retain alongside the types. A measurement knob:
+  // `calls` leaves out the fields named only by constants.
+  var frameworkMembersScope = 'all';
   String? manifestPath;
   final includePrefixes = <String>[];
 
@@ -206,6 +210,24 @@ void main(List<String> args) {
         // closure -- so they need their own line in measure_retention.sh rather
         // than inheriting a number measured on the cheap half.
         retainPrivateClasses = false;
+      case '--no-framework-uses':
+        // Present so the cost of framework-use retention stays measurable.
+        // Without it a patch that names a framework type or member the app
+        // already uses (BuildContext in a build() signature, a Text
+        // constructor) fails at load.
+        retainFrameworkUses = false;
+      case '--framework-members':
+        frameworkMembersScope = next();
+        if (!const [
+          'none',
+          'calls',
+          'all',
+          'with-sdk-instance',
+        ].contains(frameworkMembersScope)) {
+          _die(
+            '--framework-members must be none, calls, all or with-sdk-instance',
+          );
+        }
       case '-h':
       case '--help':
         _usage();
@@ -516,6 +538,86 @@ void main(List<String> args) {
     }
   }
 
+  // FRAMEWORK USES. Patch bytecode names every class and member it touches,
+  // and the loader finds each by name (bytecode_reader.cc, kClass/kMember), so
+  // a framework type the release never kept findable kills the patch at load:
+  //
+  //   bytecode_reader.cc: 1173: error: Unable to find class BuildContext in
+  //   Library:'package:flutter/src/widgets/framework.dart'
+  //
+  // That was the first `build()` patch on a device. Its body named nothing new;
+  // its SIGNATURE named BuildContext. So the release keeps what its own app
+  // code already uses outside the app: each class as `can-be-used-as-type`
+  // (findable by name, members untouched) and each member as a `callable`
+  // member item. A patch that reaches for a framework member the release never
+  // used still fails, and the analyzer is what should refuse it.
+  final frameworkTypes = <String, Set<String>>{};
+  final frameworkMembers = <String>{};
+  var frameworkSkipped = 0;
+  if (retainFrameworkUses) {
+    // TWO WALKS, because neither kernel is enough alone. The non-AOT kernel is
+    // what the source says, and so what a patch compiled from that source
+    // names: the prepass has had TFA drop arguments and constant fields (its
+    // `Label.build` returns `new Text()`, no style). But that kernel does not
+    // carry the SDK, so its `dart:` references are unbound, and those come
+    // from the prepass. Each name is checked against the kernel it came from.
+    final walks = <Component>{privateComponent, component};
+    for (final kernel in walks) {
+      final kernelIndex = identical(kernel, privateComponent)
+          ? index
+          : LibraryIndex.all(kernel);
+      bool found(String uri, String container, String? name) {
+        try {
+          if (name == null) {
+            kernelIndex.getClass(uri, container);
+          } else {
+            kernelIndex.getMember(uri, container, name);
+          }
+          return true;
+        } catch (_) {
+          frameworkSkipped++;
+          return false;
+        }
+      }
+
+      final collector = _FrameworkUseCollector(isApp);
+      for (final lib in kernel.libraries.where(isApp)) {
+        lib.accept(collector);
+      }
+      for (final cls in collector.classes) {
+        final uri = cls.enclosingLibrary.importUri.toString();
+        if (!found(uri, cls.name, null)) continue;
+        (frameworkTypes[uri] ??= <String>{}).add(cls.name);
+      }
+      final retainedMembers = switch (frameworkMembersScope) {
+        'none' => const <Member>{},
+        'calls' =>
+          collector.members
+              .difference(collector.constantFields)
+              .difference(collector.sdkInstanceCalls),
+        'with-sdk-instance' => collector.members,
+        _ => collector.members.difference(collector.sdkInstanceCalls),
+      };
+      for (final m in retainedMembers) {
+        final uri = m.enclosingLibrary.importUri.toString();
+        final cls = m.enclosingClass;
+        final container = cls == null ? '::' : cls.name;
+        final name = switch (m) {
+          Procedure() => _vmName(m),
+          _ => m.name.text,
+        };
+        if (!found(uri, container, name)) continue;
+        // Already named by --sdk-members: one item per member.
+        final sdkSpelling = container == '::'
+            ? '$uri#$name'
+            : '$uri#$container.$name';
+        if (includeSdk && sdkMembers.contains(sdkSpelling)) continue;
+        frameworkMembers.add('$uri#$container#$name');
+        if (cls != null) (frameworkTypes[uri] ??= <String>{}).add(cls.name);
+      }
+    }
+  }
+
   final members = includeSdk ? sdkMembers : const <String>[];
   final wholeSdk = includeSdk ? sdkLibraries : const <String>[];
 
@@ -650,12 +752,40 @@ void main(List<String> args) {
         ..writeln("    member: '${parts[2]}'");
     }
   }
+  if (frameworkMembers.isNotEmpty) {
+    buf.writeln(
+      '  # Framework and SDK members the app\'s own code already uses, so a',
+    );
+    buf.writeln('  # patch that edits that code can still name them.');
+    for (final entry in frameworkMembers.toList()..sort()) {
+      final parts = entry.split('#');
+      buf.writeln("  - library: '${parts[0]}'");
+      if (parts[1] != '::') buf.writeln("    class: '${parts[1]}'");
+      buf.writeln("    member: '${parts[2]}'");
+    }
+  }
   if (wholeSdk.isNotEmpty) {
     buf.writeln(
       '  # WHOLE SDK libraries -- expensive, see measure_retention.sh.',
     );
     for (final uri in wholeSdk) {
       buf.writeln("  - library: '$uri'");
+    }
+  }
+
+  if (frameworkTypes.isNotEmpty) {
+    // A type item keeps the class findable by name and nothing else: the VM
+    // reads it as EntryPointPragma::kTypeOnly, which retains the class without
+    // its members.
+    buf
+      ..writeln('')
+      ..writeln('# Framework and SDK classes the app\'s own code names.')
+      ..writeln('can-be-used-as-type:');
+    for (final uri in frameworkTypes.keys.toList()..sort()) {
+      final names = frameworkTypes[uri]!.toList()..sort();
+      buf
+        ..writeln("  - library: '$uri'")
+        ..writeln('    class: [${names.map((n) => "'$n'").join(', ')}]');
     }
   }
 
@@ -696,6 +826,11 @@ void main(List<String> args) {
           'implicitlyConstructible': implicitlyConstructible.length,
           'constructionWithheld': constructionWithheld.length,
           'refused': refused.length,
+          'frameworkTypes': frameworkTypes.values.fold<int>(
+            0,
+            (n, s) => n + s.length,
+          ),
+          'frameworkMembers': frameworkMembers.length,
         },
         'privateTopLevelCallable': privateMembers,
         'privateStaticsCallable': privateStatics,
@@ -740,6 +875,11 @@ void main(List<String> args) {
       '${unresolvable > 0 ? "  <- named in kernel, not indexable; see the "
           "LibraryIndex note in this file" : ""}',
     )
+    ..writeln(
+      '  framework uses       : '
+      '${frameworkTypes.values.fold<int>(0, (n, s) => n + s.length)} types, '
+      '${frameworkMembers.length} members, $frameworkSkipped not indexable',
+    )
     ..writeln('  sdk members          : ${members.length}')
     ..writeln('  sdk libraries        : ${wholeSdk.length}');
 }
@@ -783,6 +923,16 @@ gen_dynamic_interface.dart --dill <app.dill> [options]
                            recorded NON-VIABLE -- its grants are inert, because
                            a patch cannot attach to a method of a class the
                            release did not retain
+  --no-framework-uses      do not retain the framework and SDK classes and
+                           members the app's own code uses. Without them a
+                           patch naming one (BuildContext in a build()
+                           signature) fails at load
+  --framework-members <s>  which of those members: all (default; leaves out
+                           dart: instance members reached through code, whose
+                           implementations fan out across the SDK), calls
+                           (also leaves out fields named only by constants),
+                           none (classes only), with-sdk-instance (everything;
+                           +10% on probes/fw_use_binding.sh). For measuring
   --manifest <path>        write the CAPABILITY MANIFEST: what this release
                            actually granted, per target. Not derivable by
                            reading the emitted yaml, because a `class:` item
@@ -790,4 +940,252 @@ gen_dynamic_interface.dart --dill <app.dill> [options]
                            appears in none of its lines. The patch side accepts
                            a private reference against this file
 ''');
+}
+
+/// The classes and members outside the app that the app's own code names:
+/// in types, supertypes, calls, field accesses, tear-offs and constants.
+///
+/// References that are not bound in the kernel being walked are skipped: the
+/// non-AOT kernel does not carry the SDK.
+///
+/// Private names are skipped except inside constants. App code cannot call
+/// another library's private member, but a constant names every field of its
+/// class, private ones included, and the loader looks each one up
+/// (`const TextStyle(...)` names `_package`; `Curves.linear` is a `_Linear`).
+///
+/// No override calls `super`: kernel's own `visitChildren` dereferences each
+/// target, which throws on an unbound one, so each visits its children itself.
+class _FrameworkUseCollector extends RecursiveVisitor {
+  _FrameworkUseCollector(this.isApp);
+
+  final bool Function(Library) isApp;
+  final classes = <Class>{};
+  final members = <Member>{};
+  final _viaCode = <Member>{};
+  final _inConstants = <Member>{};
+
+  /// Fields named ONLY by a constant's field values, never read or called.
+  Set<Member> get constantFields => members.difference(_viaCode);
+
+  /// `dart:` instance members reached only through code, never named by a
+  /// constant. Left out: an SDK interface member such as `Iterable.iterator`
+  /// is implemented across the SDK, and retaining it keeps every
+  /// implementation (+10 % on the host probe, see fw_use_binding.sh).
+  Set<Member> get sdkInstanceCalls => {
+    for (final m in members)
+      if (m.enclosingLibrary.importUri.isScheme('dart') &&
+          m.enclosingClass != null &&
+          m.isInstanceMember &&
+          !_inConstants.contains(m))
+        m,
+  };
+  final _seenConstants = <Constant>{};
+
+  bool _outside(Library lib) {
+    if (isApp(lib)) return false;
+    // dart:_internal and friends: nothing a patch spells.
+    return !lib.importUri.toString().startsWith('dart:_');
+  }
+
+  void _class(Reference? ref, {bool allowPrivate = false}) {
+    final cls = ref?.node;
+    if (cls is! Class || !_outside(cls.enclosingLibrary)) return;
+    if (!allowPrivate && cls.name.startsWith('_')) return;
+    classes.add(cls);
+  }
+
+  void _member(
+    Reference? ref, {
+    bool allowPrivate = false,
+    bool fromConstant = false,
+  }) {
+    final m = ref?.node;
+    if (m is! Member || !_outside(m.enclosingLibrary)) return;
+    if (!allowPrivate && m.name.isPrivate) return;
+    // Synthetic lowerings carry names no patch writes and no index holds.
+    if (m.name.text.contains('#')) return;
+    members.add(m);
+    if (fromConstant) {
+      _inConstants.add(m);
+    } else {
+      _viaCode.add(m);
+    }
+  }
+
+  @override
+  void visitInterfaceType(InterfaceType node) {
+    _class(node.classReference);
+    // Not super: InterfaceType.visitChildren dereferences the class, which
+    // throws on an unbound one.
+    for (final t in node.typeArguments) {
+      t.accept(this);
+    }
+  }
+
+  @override
+  void visitSupertype(Supertype node) {
+    _class(node.className);
+    for (final t in node.typeArguments) {
+      t.accept(this);
+    }
+  }
+
+  @override
+  void visitStaticInvocation(StaticInvocation node) {
+    _member(node.targetReference);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitStaticGet(StaticGet node) {
+    _member(node.targetReference);
+  }
+
+  @override
+  void visitStaticSet(StaticSet node) {
+    _member(node.targetReference);
+    node.value.accept(this);
+  }
+
+  @override
+  void visitStaticTearOff(StaticTearOff node) {
+    _member(node.targetReference);
+  }
+
+  @override
+  void visitConstructorInvocation(ConstructorInvocation node) {
+    _member(node.targetReference);
+    final target = node.targetReference.node;
+    if (target is Constructor) _class(target.enclosingClass.reference);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitConstructorTearOff(ConstructorTearOff node) {
+    _member(node.targetReference);
+  }
+
+  @override
+  void visitRedirectingFactoryTearOff(RedirectingFactoryTearOff node) {
+    _member(node.targetReference);
+  }
+
+  @override
+  void visitInstanceInvocation(InstanceInvocation node) {
+    _member(node.interfaceTargetReference);
+    node.receiver.accept(this);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitInstanceGetterInvocation(InstanceGetterInvocation node) {
+    _member(node.interfaceTargetReference);
+    node.receiver.accept(this);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitInstanceGet(InstanceGet node) {
+    _member(node.interfaceTargetReference);
+    node.receiver.accept(this);
+  }
+
+  @override
+  void visitInstanceSet(InstanceSet node) {
+    _member(node.interfaceTargetReference);
+    node.receiver.accept(this);
+    node.value.accept(this);
+  }
+
+  @override
+  void visitInstanceTearOff(InstanceTearOff node) {
+    _member(node.interfaceTargetReference);
+    node.receiver.accept(this);
+  }
+
+  @override
+  void visitSuperMethodInvocation(SuperMethodInvocation node) {
+    _member(node.interfaceTargetReference);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitSuperPropertyGet(SuperPropertyGet node) {
+    _member(node.interfaceTargetReference);
+  }
+
+  @override
+  void visitSuperPropertySet(SuperPropertySet node) {
+    _member(node.interfaceTargetReference);
+    node.value.accept(this);
+  }
+
+  @override
+  void visitSuperInitializer(SuperInitializer node) {
+    _member(node.targetReference);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitRedirectingInitializer(RedirectingInitializer node) {
+    _member(node.targetReference);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitEqualsCall(EqualsCall node) {
+    _member(node.interfaceTargetReference);
+    node.left.accept(this);
+    node.right.accept(this);
+  }
+
+  @override
+  void visitExtensionType(ExtensionType node) {
+    for (final t in node.typeArguments) {
+      t.accept(this);
+    }
+  }
+
+  @override
+  void visitConstantExpression(ConstantExpression node) {
+    _constant(node.constant);
+    node.type.accept(this);
+  }
+
+  void _constant(Constant c) {
+    if (!_seenConstants.add(c)) return;
+    switch (c) {
+      case InstanceConstant():
+        _class(c.classReference, allowPrivate: true);
+        for (final entry in c.fieldValues.entries) {
+          _member(entry.key, allowPrivate: true, fromConstant: true);
+          _constant(entry.value);
+        }
+        for (final t in c.typeArguments) {
+          t.accept(this);
+        }
+      case ListConstant():
+        c.entries.forEach(_constant);
+      case SetConstant():
+        c.entries.forEach(_constant);
+      case MapConstant():
+        for (final e in c.entries) {
+          _constant(e.key);
+          _constant(e.value);
+        }
+      case RecordConstant():
+        c.positional.forEach(_constant);
+        c.named.values.forEach(_constant);
+      case StaticTearOffConstant():
+        _member(c.targetReference, allowPrivate: true);
+      case ConstructorTearOffConstant():
+        _member(c.targetReference, allowPrivate: true);
+      case InstantiationConstant():
+        _constant(c.tearOffConstant);
+      case TypeLiteralConstant():
+        c.type.accept(this);
+      default:
+        break;
+    }
+  }
 }
