@@ -132,7 +132,9 @@ JSON
       --patched-dill "$W/base.dill" --out "$W/release_check.json" \
       > "$W/release_check.log" 2>&1; then
     echo "  FAIL  the analyzer failed on the release check's unlinked import kernel"
-    sed 's/^/        /' "$W/release_check.log" | head -8
+    # One process, no pipe: `| head` would SIGPIPE sed on a long trace, and
+    # under set -e with pipefail that ends the whole run.
+    sed -n '1,8s/^/        /p' "$W/release_check.log"
     fail=$((fail+1)); failed_cases+=("$case_name"); continue
   fi
 
