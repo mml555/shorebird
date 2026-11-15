@@ -91,6 +91,11 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0
 
+      # The commit actually built. github.sha is the commit the workflow ran
+      # from, which on a workflow_dispatch with another ref is not this one.
+      - name: Record the source commit
+        run: echo "SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
       # linux/amd64 -> linux-amd64, for use in artifact names (which can't
       # contain a slash).
       - name: Derive platform slug
@@ -149,7 +154,7 @@ jobs:
           # Provenance the image itself carries, so a pulled image can be
           # traced to source without the registry's help.
           labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.SOURCE_COMMIT }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.ref.name=${{ inputs.ref || github.ref_name }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
@@ -195,6 +200,18 @@ jobs:
           path: ${{ runner.temp }}/digests
           pattern: digest-*
           merge-multiple: true
+
+      # Both architectures or nothing. `needs: build` already skips this job
+      # when a leg fails, but "Re-run failed jobs" after the other leg's digest
+      # artifact expired (retention-days: 1) would reach here with one digest,
+      # and publish_release.sh accepts any non-zero number of children.
+      - name: Require both architectures
+        run: |
+          n=$(find "$RUNNER_TEMP/digests" -type f | wc -l)
+          if [ "$n" -ne 2 ]; then
+            echo "::error::expected 2 image digests (linux/amd64 and linux/arm64), found $n. Re-run the whole workflow, not only the failed jobs."
+            exit 1
+          fi
 
       # No proxy or mirror hand-off here, unlike the build job: `imagetools`
       # talks to the registry from the CLI, which has the runner's proxy env;
