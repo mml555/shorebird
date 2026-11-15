@@ -163,14 +163,16 @@ build_caddy() {
   fi
   # The patched NutsDB shows as a replace of github.com/nutsdb/nutsdb by our checkout.
   if ! "$STATE/bin/caddy" build-info | grep -A1 'github.com/nutsdb/nutsdb' \
-      | grep -Eq "^=>[[:space:]]+$STATE/src/nutsdb[[:space:]]"; then
+      | grep -E "^=>[[:space:]]+$STATE/src/nutsdb[[:space:]]" >/dev/null; then   # not -q: see the list-modules check
     if [[ -n "${CADDY:-}" ]]; then
       echo "run_native.sh: WARNING: CADDY=$CADDY does not show this script's patched NutsDB; it will hold the whole cache in memory after every start" >&2
     else
       die "$STATE/bin/caddy is not linked against the patched NutsDB; remove it and re-run"
     fi
   fi
-  "$STATE/bin/caddy" list-modules | grep -qx 'http.handlers.cache' \
+  # grep -x >/dev/null, not grep -q: -q exits at the first match, caddy then dies
+  # of SIGPIPE writing the rest of the list, and pipefail fails the check (1 in 40).
+  "$STATE/bin/caddy" list-modules | grep -x 'http.handlers.cache' >/dev/null \
     || die "$STATE/bin/caddy has no http.handlers.cache module"
 }
 
