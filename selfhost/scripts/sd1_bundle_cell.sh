@@ -38,7 +38,7 @@ done
 # After the arguments, so --cell picks the descriptor too, and a bad record
 # cannot block an explicit --cell.
 CELL=${CELL:-$(supported_cell)}
-[[ "$CELL" =~ ^[0-9a-f]{40}$ ]] || { echo "no cell: pass --cell, or record cell_distribution.cell_address in SUPPORTED_STATE.yaml" >&2; exit 2; }
+[[ "$CELL" =~ ^[0-9a-f]{40}$ ]] || { echo "no cell: pass --cell, or record cell_distribution.cell_address in $REPO/selfhost/engine/route_b/SUPPORTED_STATE.yaml" >&2; exit 2; }
 MAN="$REPO/selfhost/engine/route_b/cell_manifests/$CELL.v2"
 fail=0
 ok()  { printf '  \033[32mPASS\033[0m  %s\n' "$1"; }

@@ -45,10 +45,10 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+[[ -n "$DIST" && -n "$DEST" ]] || { echo "usage: --dist DIR|URL --overlay DIR" >&2; exit 2; }
 # After the arguments, so a bad record cannot block an explicit --cell.
 CELL=${CELL:-$(supported_cell)}
-[[ "$CELL" =~ ^[0-9a-f]{40}$ ]] || { echo "no cell: pass --cell, or record cell_distribution.cell_address in SUPPORTED_STATE.yaml" >&2; exit 2; }
-[[ -n "$DIST" && -n "$DEST" ]] || { echo "usage: --dist DIR|URL --overlay DIR" >&2; exit 2; }
+[[ "$CELL" =~ ^[0-9a-f]{40}$ ]] || { echo "no cell: pass --cell, or record cell_distribution.cell_address in $REPO/selfhost/engine/route_b/SUPPORTED_STATE.yaml" >&2; exit 2; }
 fail=0
 ok()  { printf '  \033[32mPASS\033[0m  %s\n' "$1"; }
 bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; fail=$((fail+1)); }
