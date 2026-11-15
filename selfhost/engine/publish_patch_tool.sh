@@ -68,7 +68,13 @@ done
 [[ -n "$OVERLAY" && -z "$REV" ]] && die "--overlay requires --rev"
 [[ -z "$OVERLAY" && -z "$OUT_DIR" ]] && { usage; exit 1; }
 
-command -v cargo >/dev/null || die "cargo not found on PATH (on the engine Mac, source selfhost/engine/macos/env.sh, which points CARGO_HOME at the build's rustup toolchain; elsewhere install Rust with rustup)"
+# A non-interactive ssh shell does not read the profile that puts rustup's
+# shims on PATH, so look where rustup installs them before giving up.
+if ! command -v cargo >/dev/null && [ -x "${CARGO_HOME:-$HOME/.cargo}/bin/cargo" ]; then
+  echo "cargo not on PATH; using ${CARGO_HOME:-$HOME/.cargo}/bin" >&2
+  export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+fi
+command -v cargo >/dev/null || die "cargo not found on PATH or in ${CARGO_HOME:-$HOME/.cargo}/bin (on the engine Mac, source selfhost/engine/macos/env.sh, which points CARGO_HOME at the build's rustup toolchain; elsewhere install Rust with rustup)"
 command -v zip   >/dev/null || die "zip not found"
 
 # --- name the artifact the way PatchArtifact.storageUrl does -------------------
