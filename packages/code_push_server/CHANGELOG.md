@@ -8,6 +8,8 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 1.5.0 — 2026-11-15
+
 ### Added
 
 - **Rolling back a patch puts devices back on the previous one.** When the
@@ -43,6 +45,10 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **The image is published for linux/arm64 as well as linux/amd64.** The
+  release workflow builds arm64 natively on GitHub's `ubuntu-24.04-arm` runner
+  and publishes both architectures or nothing. 1.4.0 and earlier are amd64
+  only; `setup.sh` runs those under emulation on Apple silicon.
 - **Rolling back a superseded patch is a 200, not a 409.** A patch that is
   active nowhere but was promoted is marked rolled back (so it can never be
   restored) and reported in `rolled_back_patch_numbers`. A rollback also marks
