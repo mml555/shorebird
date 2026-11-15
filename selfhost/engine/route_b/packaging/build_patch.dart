@@ -234,7 +234,24 @@ String _selector(String? className, Procedure p) {
 
 String _text(Procedure p) {
   final buffer = StringBuffer();
-  Printer(buffer).writeNode(p);
+  final printer = Printer(buffer)..writeNode(p);
+  // The printer names each constant `#C1`, `#C2`, ... in order of use, so a
+  // body whose only edit is a constant's value -- `const Text('A')` to
+  // `const Text('B')`, or a top-level `const` the body reads -- would print
+  // the same and read as unchanged. Append every constant the body names, by
+  // value. Printing one can name its sub-constants, so go until none is new.
+  final printed = <Constant>{};
+  while (true) {
+    final pending = [
+      for (final c in printer.syntheticNames.constants.map.keys)
+        if (!printed.contains(c)) c,
+    ];
+    if (pending.isEmpty) break;
+    for (final c in pending) {
+      printed.add(c);
+      printer.writeNode(c);
+    }
+  }
   return buffer.toString();
 }
 

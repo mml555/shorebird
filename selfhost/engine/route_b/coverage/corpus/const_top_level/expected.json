@@ -1,0 +1,14 @@
+{
+  "note": "A top-level const the body reads changed. The read is folded into the body as a constant, which is printed by value.",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#routeBValue"
+  ],
+  "patchable": [
+    "package:corpus/main.dart#routeBValue"
+  ],
+  "conditional": [],
+  "unreachable": [],
+  "added": [],
+  "rejectionReasons": []
+}

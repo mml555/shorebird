@@ -1,0 +1,14 @@
+{
+  "note": "Only a value inside a constant changed. Constants are printed by value, so the body reads as changed.",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#routeBValue"
+  ],
+  "patchable": [
+    "package:corpus/main.dart#routeBValue"
+  ],
+  "conditional": [],
+  "unreachable": [],
+  "added": [],
+  "rejectionReasons": []
+}
