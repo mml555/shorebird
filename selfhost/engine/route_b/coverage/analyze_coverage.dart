@@ -991,21 +991,26 @@ Map<String, Object?> _lowering(
   function.accept(visitor);
   unsupported.addAll(visitor.unsupported);
 
-  // ONE SOURCE TOKEN CANNOT BE TWO EDITS. `label += 'X'`, `count++` and
+  // ONE SOURCE TOKEN, ONE EDIT. `label += 'X'`, `count++` and
   // `maybe ??= 'Z'` each report a read AND a write at the SAME offset, because
-  // one identifier is doing both jobs. The producer inserts a receiver prefix
-  // at an offset, so two edits there would yield `self.self.label`.
+  // one identifier is doing both jobs. One receiver prefix rewrites both:
+  // `self.label += 'X'` reads and writes the member the original did, and the
+  // producer emits one edit for such a position. `_count += 1` inside a
+  // setState closure, the most common shape in a Flutter app, is this.
   //
-  // Detected by the collision rather than by listing operators: it catches
-  // compound assignment, increment and if-null uniformly, including forms
-  // nobody has thought of yet. `label = label + 'Y'` is untouched by it --
-  // measured at two distinct offsets, because it really is two tokens.
+  // Anything else sharing an offset -- two members, or a call -- is refused:
+  // that is not a shape this lowering has been shown to rewrite.
+  // `label = label + 'Y'` is untouched by this -- measured at two distinct
+  // offsets, because it really is two tokens.
   final byOffset = <int, List<_Access>>{};
   for (final a in visitor.accesses) {
     byOffset.putIfAbsent(a.offset, () => []).add(a);
   }
   for (final entry in byOffset.entries) {
-    if (entry.value.length > 1) {
+    final readWriteOfOne =
+        entry.value.map((a) => a.member).toSet().length == 1 &&
+        entry.value.every((a) => a.kind == 'get' || a.kind == 'set');
+    if (entry.value.length > 1 && !readWriteOfOne) {
       final kinds = entry.value.map((a) => a.kind).join('+');
       unsupported.add(
         'reads and writes `${entry.value.first.member}` in one expression '
