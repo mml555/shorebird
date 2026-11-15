@@ -150,6 +150,27 @@ void main() {
       expect(verdicts['lib#a']!.evidence['caller_owned_pools'], 1);
     });
 
+    test('reads the members holding an inlined copy', () {
+      final verdicts = oracleOver(
+        emitting({
+          'targets': [
+            {
+              'target': 'lib#a',
+              'result': 'ZERO_QUALIFYING_CALLSITES',
+              'evidence': {
+                'inlined_into': ['lib#b', 'lib#C.c'],
+              },
+            },
+            {'target': 'lib#d', 'result': 'ZERO_QUALIFYING_CALLSITES'},
+          ],
+        }),
+      )(['lib#a', 'lib#d']);
+
+      expect(verdicts['lib#a']!.inlinedInto, {'lib#b', 'lib#C.c'});
+      // Absent is "not established", never "none".
+      expect(verdicts['lib#d']!.inlinedInto, isNull);
+    });
+
     test('a probe that could not run is UNKNOWN for every target', () {
       // An instrument that failed to execute has said NOTHING about the code,
       // which is the one thing this must not be confused with "no call site".
@@ -192,6 +213,95 @@ void main() {
       expect(verdicts['lib#a']!.survival, RouteBSurvival.survivingCallsite);
       expect(verdicts['lib#b']!.survival, RouteBSurvival.unknown);
       expect(verdicts['lib#b']!.instrumentResult, 'NO_VERDICT');
+    });
+  });
+
+  group('routeBCompanionsFor', () {
+    RouteBSurvivalVerdict verdict(
+      RouteBSurvival survival, [
+      Set<String>? inlinedInto,
+    ]) => RouteBSurvivalVerdict(
+      survival: survival,
+      instrumentResult: '',
+      inlinedInto: inlinedInto,
+    );
+
+    test('without inlining evidence, decides as before', () {
+      expect(
+        routeBCompanionsFor(verdict(RouteBSurvival.survivingCallsite)),
+        isEmpty,
+      );
+      expect(
+        routeBCompanionsFor(
+          verdict(RouteBSurvival.noSurvivingCallsite),
+          callers: ['lib#b'],
+        ),
+        isNull,
+      );
+    });
+
+    test('a surviving call site still needs its inlined copies', () {
+      expect(
+        routeBCompanionsFor(
+          verdict(RouteBSurvival.survivingCallsite, {'lib#b'}),
+        ),
+        {'lib#b'},
+      );
+    });
+
+    test('no call site: the inlined copies, else the kernel callers', () {
+      expect(
+        routeBCompanionsFor(
+          verdict(RouteBSurvival.noSurvivingCallsite, {'lib#b'}),
+          callers: ['lib#c'],
+        ),
+        {'lib#b'},
+      );
+      expect(
+        routeBCompanionsFor(
+          verdict(RouteBSurvival.noSurvivingCallsite, {}),
+          callers: ['lib#c'],
+        ),
+        {'lib#c'},
+      );
+    });
+
+    test('no call site, no copy and no caller: nothing can help', () {
+      expect(
+        routeBCompanionsFor(
+          verdict(RouteBSurvival.noSurvivingCallsite, {}),
+          callers: [],
+        ),
+        isNull,
+      );
+    });
+
+    test('UNKNOWN is never helped by carrying', () {
+      expect(
+        routeBCompanionsFor(
+          verdict(RouteBSurvival.unknown, {}),
+          callers: ['x'],
+        ),
+        isNull,
+      );
+    });
+  });
+
+  group('describeRouteBMissingCompanions', () {
+    test('names every member and says when the cell is why', () {
+      final old = describeRouteBMissingCompanions([
+        'lib#b',
+        'lib#c',
+      ], canCarry: false);
+      expect(old, contains('inside lib#b, lib#c'));
+      expect(old, contains('does not replace them'));
+      expect(old, contains('version 14 or later'));
+
+      final current = describeRouteBMissingCompanions([
+        'lib#b',
+      ], canCarry: true);
+      expect(current, contains('does not replace it.'));
+      expect(current, isNot(contains('version 14')));
     });
   });
 

@@ -97,6 +97,7 @@ class RouteBSurvivalVerdict {
     required this.instrumentResult,
     this.detail,
     this.evidence = const {},
+    this.inlinedInto,
   });
 
   /// The product-level answer.
@@ -113,6 +114,14 @@ class RouteBSurvivalVerdict {
 
   /// The raw referrer categories, carried verbatim for the log.
   final Map<String, Object?> evidence;
+
+  /// The members whose release code holds an INLINED copy of the target, in
+  /// `library#selector` form.
+  ///
+  /// Null when the probe did not say, which a probe from before inlining
+  /// evidence existed never does. Null is "not established", never "none":
+  /// the producer then decides exactly as it did before this field existed.
+  final Set<String>? inlinedInto;
 
   /// Whether publication may continue for this target.
   bool get permitsPublication => survival == RouteBSurvival.survivingCallsite;
@@ -209,13 +218,18 @@ RouteBSurvivalOracle cellSurvivalOracle({
       final target = entry['target'];
       final instrument = entry['result'];
       if (target is! String || instrument is! String) continue;
+      final evidence = entry['evidence'] is Map
+          ? (entry['evidence'] as Map).cast<String, Object?>()
+          : const <String, Object?>{};
+      final inlined = evidence['inlined_into'];
       verdicts[target] = RouteBSurvivalVerdict(
         survival: survivalForInstrumentResult(instrument),
         instrumentResult: instrument,
         detail: entry['detail'] as String?,
-        evidence: entry['evidence'] is Map
-            ? (entry['evidence'] as Map).cast<String, Object?>()
-            : const {},
+        evidence: evidence,
+        inlinedInto: inlined is List
+            ? inlined.whereType<String>().toSet()
+            : null,
       );
     }
     // A target the probe did not answer about is UNKNOWN, never assumed green.
@@ -276,3 +290,62 @@ The instrument reported ${verdict.instrumentResult}$detail. This is NOT a findin
       return 'a surviving call site was found; this is not a refusal';
   }
 }
+
+/// The members a patch must ALSO replace for its replacement of a target to
+/// take effect, or null when no set of replacements can.
+///
+/// [verdict] is the release probe's answer for the target, and [callers] the
+/// analysis's app members that name it in the patched kernel (null when the
+/// analysis predates callers).
+///
+/// - A target some release code INLINED runs its old body inside that code
+///   whatever the patch attaches to the target itself, so that code must be
+///   replaced too. This holds when call sites ALSO survived: replacing the
+///   target alone would then change some paths and not others, which is worse
+///   than refusing.
+/// - A target with no surviving call site and no inlined copy was folded away
+///   or is unreachable. Replacing the members that name it in the patched
+///   kernel makes them call it again, from bytecode, which runs the patch's
+///   body. With no such member, nothing can make the edit run, and that stays
+///   a refusal.
+/// - An unanswered question stays a refusal, as does an answer from a probe
+///   that does not report inlining: for those the result is exactly the
+///   decision this function predates, empty for a surviving call site and null
+///   otherwise.
+Set<String>? routeBCompanionsFor(
+  RouteBSurvivalVerdict verdict, {
+  List<String>? callers,
+}) {
+  final inlined = verdict.inlinedInto;
+  if (inlined == null) return verdict.permitsPublication ? const {} : null;
+  switch (verdict.survival) {
+    case RouteBSurvival.survivingCallsite:
+      return inlined;
+    case RouteBSurvival.noSurvivingCallsite:
+      if (inlined.isNotEmpty) return inlined;
+      if (callers != null && callers.isNotEmpty) return callers.toSet();
+      return null;
+    case RouteBSurvival.unknown:
+      return null;
+  }
+}
+
+/// The refusal for a target whose copies elsewhere the patch does not replace.
+///
+/// [canCarry] is whether the coverage analyzer could have carried them: when
+/// it could not, the cell is the reason, and saying so points at the fix.
+String describeRouteBMissingCompanions(
+  List<String> missing, {
+  required bool canCarry,
+}) {
+  final which = missing.length == 1 ? 'it' : 'them';
+  return 'the release runs a copy of it inside ${missing.join(', ')} '
+      '(inlined or folded there), and this patch does not replace $which. '
+      'Replacing the target alone would change some paths and leave the rest '
+      "running the release's body.${canCarry ? '' : _carryUnsupported}";
+}
+
+const _carryUnsupported =
+    " This release's compiler cell predates carrying such members into a "
+    'patch; a cell whose coverage analyzer speaks version 14 or later does it '
+    'automatically.';

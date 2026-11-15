@@ -210,6 +210,7 @@ Object? $_superIntrinsicName(
     // loop so a refusal happens before any source is written, and so the
     // binding is verified once for the whole patch rather than per target.
     final survivalVerdicts = survival == null ? null : survival(selectors);
+    final selectorSet = selectors.toSet();
 
     workingDirectory.createSync(recursive: true);
     final targets = <RouteBPatchTarget>[];
@@ -293,10 +294,28 @@ Object? $_superIntrinsicName(
             'prerequisite is not a satisfied one',
           );
         }
-        if (!verdict.permitsPublication) {
+        // A COPY OF IT ELSEWHERE. Code that inlined the target, or folded
+        // its result, runs the release's body without a call site; replacing
+        // that code too is what makes the edit run on every path. The rule is
+        // routeBCompanionsFor, shared with the loop that carries them.
+        final companions = routeBCompanionsFor(
+          verdict,
+          callers: coverage.callers?[key],
+        );
+        if (companions == null) {
           throw RouteBUnsupportedTarget(
             key,
             describeRouteBSurvivalRefusal(key, verdict),
+          );
+        }
+        final missing = companions.difference(selectorSet).toList()..sort();
+        if (missing.isNotEmpty) {
+          throw RouteBUnsupportedTarget(
+            key,
+            describeRouteBMissingCompanions(
+              missing,
+              canCarry: coverage.canCarry,
+            ),
           );
         }
       }

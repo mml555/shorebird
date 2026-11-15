@@ -27,6 +27,7 @@ import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_build_config.dart';
+import 'package:shorebird_cli/src/route_b_carry.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_binding.dart';
@@ -237,7 +238,35 @@ class IosPatcher extends Patcher
         // the ordering keeps failure attribution clean: a coverage rejection, a
         // compiler failure and a container failure are three different problems
         // and must never be reachable through one another.
-        final coverage = _analyzeCoverage(compiler, releaseArtifacts);
+        var coverage = _analyzeCoverage(compiler, releaseArtifacts);
+        if (coverage.verdict != RouteBVerdict.accept) {
+          _refuseCoverage(coverage);
+        }
+
+        // P4.1. WHAT THIS RELEASE STILL CONTAINS, as opposed to what it
+        // granted. Asked of the cell's own probe against the release's own
+        // profile, bound to the digest of the artifact downloaded just above.
+        // Memoized: the carry loop below and the producer both ask.
+        final survival = memoizeRouteBSurvival(
+          _releaseSurvivalOracle(
+            compiler: compiler,
+            releaseArtifacts: releaseArtifacts,
+            releaseArtifact: releaseArtifactFile,
+            provenance: provenance,
+          ),
+        );
+
+        // CARRY what holds a copy of a changed member: code that inlined it,
+        // or folded its result, runs the release's body until it is replaced
+        // too. The analyzer re-checks every carried member as if changed, so
+        // one it cannot represent refuses here like any other.
+        coverage = carryRouteBCompanions(
+          initial: coverage,
+          survival: survival,
+          analyze: (carry) =>
+              _analyzeCoverage(compiler, releaseArtifacts, carry: carry),
+          log: logger.detail,
+        );
         if (coverage.verdict != RouteBVerdict.accept) {
           _refuseCoverage(coverage);
         }
@@ -274,15 +303,7 @@ class IosPatcher extends Patcher
           // this patch's by _verifyBuildConfigAgrees above, so the replacement
           // compiles with the constants the release compiled with.
           buildConfig: provenance.buildConfig,
-          // P4.1. WHAT THIS RELEASE STILL CONTAINS, as opposed to what it
-          // granted. Asked of the cell's own probe against the release's own
-          // profile, bound to the digest of the artifact downloaded just above.
-          survival: _releaseSurvivalOracle(
-            compiler: compiler,
-            releaseArtifacts: releaseArtifacts,
-            releaseArtifact: releaseArtifactFile,
-            provenance: provenance,
-          ),
+          survival: survival,
           // P4.4 layers 1 and 3. What this patch is bound to, recorded IN the
           // published container so any later reader can check it rather than
           // having to trust that the names lined up.
@@ -580,10 +601,14 @@ A patch is only interpretable against one whole contract, so these cannot be mix
   }
 
   /// Classify what changed, against the release's own kernel.
+  ///
+  /// [carry] is passed only when non-empty, so an analysis that carries nothing
+  /// is the same invocation it was before carrying existed.
   RouteBCoverage _analyzeCoverage(
     RouteBCompiler compiler,
-    Map<String, File> releaseArtifacts,
-  ) {
+    Map<String, File> releaseArtifacts, {
+    Set<String> carry = const {},
+  }) {
     final patchKernel = File(appDillCopyPath);
     if (!patchKernel.existsSync()) {
       logger.err(
@@ -593,11 +618,19 @@ A patch is only interpretable against one whole contract, so these cannot be mix
     }
 
     try {
-      return routeBCoverageAnalyzer.analyze(
-        compiler: compiler,
-        baseDill: releaseArtifacts[routeBReleaseKernelFileName]!,
-        patchedDill: patchKernel,
-      );
+      final baseDill = releaseArtifacts[routeBReleaseKernelFileName]!;
+      return carry.isEmpty
+          ? routeBCoverageAnalyzer.analyze(
+              compiler: compiler,
+              baseDill: baseDill,
+              patchedDill: patchKernel,
+            )
+          : routeBCoverageAnalyzer.analyze(
+              compiler: compiler,
+              baseDill: baseDill,
+              patchedDill: patchKernel,
+              carry: carry,
+            );
     } on RouteBCompilerException catch (error) {
       logger.err(error.message);
       throw ProcessExit(ExitCode.software.code);
