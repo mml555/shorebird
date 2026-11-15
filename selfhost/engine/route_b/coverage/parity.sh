@@ -49,16 +49,17 @@ note() { echo; echo "==> $*"; }
 # A CLI_PKGS from another checkout resolves shorebird_cli there, and an older
 # parser then fails every case with "speaks version N, and this build of
 # Shorebird understands ...", which reads like an analyzer bug.
+# rootUris are URIs, so a space in the path arrives as %20 and is unquoted.
 cli_root=$(python3 -c '
 import json, os, sys
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 cfg = sys.argv[1]
 for p in json.load(open(cfg))["packages"]:
     if p["name"] == "shorebird_cli":
         u = p["rootUri"]
-        path = urlparse(u).path if u.startswith("file:") else os.path.join(os.path.dirname(cfg), u)
+        path = unquote(urlparse(u).path) if u.startswith("file:") else os.path.join(os.path.dirname(cfg), unquote(u))
         print(os.path.realpath(path)); break
-' "$CLI_PKGS")
+' "$CLI_PKGS") || die "cannot read shorebird_cli from the package config at $CLI_PKGS"
 want_root=$(cd "$REPO/packages/shorebird_cli" && pwd -P)
 [ "$cli_root" = "$want_root" ] \
   || die "CLI_PKGS resolves shorebird_cli to ${cli_root:-nothing}, not this tree's $want_root; copy the package config into $REPO/.dart_tool (its rootUris are relative) or run dart pub get there"
