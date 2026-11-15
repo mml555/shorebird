@@ -515,3 +515,8 @@ f85251f344600ae08196925a174e9cff8f0ff18e 69f9831c360d9152862ec3897c67fb09ae843f3
 # Engine d0714887 (shorebird-flutter #13: Dart b4671ab7, Route B super calls and
 # SDK calls from patches), built on the 38855c84 base like 2c4b0718.
 d0714887dd95d2990e0185fe1893523f3d600cc5 38855c84ca367c58165b8e3844dd7d6a99dec844
+# The Flutter 3.47 cell over engine d0714887 (Route B iOS), route-b-cell-v2,
+# macos-ios-android, 30 members, minted the way 82fc78a8 was over 2c4b0718. Its
+# compiler archive carries the analyzer of mml555/shorebird #184; fb12c60a, the
+# same cell with v14's analyzer, crashed releasing for iOS and was never selected.
+5f6efd9826ae8fadc6ff66150cbcac8c7201140f 38855c84ca367c58165b8e3844dd7d6a99dec844
