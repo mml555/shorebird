@@ -1,0 +1,50 @@
+Nov 15 12:37:35.070280 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+Nov 15 12:37:35.070642 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=3, built-for=241016397e06307f98593c853f16367c
+Nov 15 12:37:35.071073 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=241016397e06307f98593c853f16367c
+Nov 15 12:37:35.071111 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Nov 15 12:37:35.071278 ROUTEB: activated Label.build in package:untab/main.dart before main
+Nov 15 12:37:35.071316 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+Nov 15 12:37:35.071670 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+Nov 15 12:37:35.071688 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: applied 3/3 targets, entering main
+Nov 15 12:37:35.124745 flutter: shape:init=I1
+Nov 15 12:37:35.124882 flutter: shape:home-build=H1 0
+Nov 15 12:37:35.124918 flutter: shape:future-builder=FB1 null
+Nov 15 12:37:35.125113 flutter: shape:label=L1
+Nov 15 12:37:35.135489 [shorebird] Sending patch check request: app_id: 54c4b256-8364-2111-5e91-9eb3c18911ee, channel: stable, release_version: 1.0.0+10, platform: ios, arch: aarch64, current_patch_number: Some(4)
+Nov 15 12:37:35.282932 flutter: shape:future-builder=FB1 G1
+Nov 15 12:37:35.324238 flutter: shape:count=10
+Nov 15 12:37:35.324335 flutter: shape:events-list=e10
+Nov 15 12:37:35.329178 flutter: shape:home-build=H1 10
+Nov 15 12:37:35.329447 flutter: shape:future-builder=FB1 G1
+Nov 15 12:37:35.543275 flutter: shape:future-builder=FB1 G1
+Nov 15 12:37:35.626860 flutter: shape:count=20
+Nov 15 12:37:35.627068 flutter: shape:events-list=e10,e20
+Nov 15 12:37:35.643833 flutter: shape:home-build=H1 20
+Nov 15 12:37:35.644026 flutter: shape:future-builder=FB1 G1
+Nov 15 12:37:35.860374 flutter: shape:future-builder=FB1 G1
+Nov 15 12:37:35.929265 flutter: shape:count=30
+Nov 15 12:37:35.929335 flutter: shape:events-list=e10,e20,e30
+Nov 15 12:37:35.943350 flutter: shape:home-build=H1 30
+Nov 15 12:37:35.943591 flutter: shape:future-builder=FB1 G1
+Nov 15 12:37:36.131172 flutter: shape:greeting=G1
+Nov 15 12:37:36.143229 flutter: shape:home-build=H1 30
+Nov 15 12:37:36.143390 flutter: shape:future-builder=FB1 G1
+Nov 15 12:37:36.183690 flutter: shape:stream=T0
+Nov 15 12:37:36.236056 flutter: shape:stream=T1
+Nov 15 12:37:36.289050 flutter: shape:stream=T2
+Nov 15 12:37:36.289276 flutter: shape:poly=circle1
+Nov 15 12:37:36.289673 flutter: shape:poly=square1
+Nov 15 12:37:36.289727 flutter: shape:mood=M1
+Nov 15 12:37:36.289851 flutter: shape:const=KT1
+Nov 15 12:37:36.289908 flutter: shape:level=hi1
+Nov 15 12:37:36.289981 flutter: shape:result=ok 7
+Nov 15 12:37:36.290035 flutter: shape:stars=***
+Nov 15 12:37:36.290091 flutter: shape:static=S1
+Nov 15 12:37:36.290147 flutter: shape:generic=F1
+Nov 15 12:37:36.290188 flutter: shape:stamp=2026-11-15
+Nov 15 12:37:36.290216 flutter: shape:tally=K1 30 ||||||||||||||||||||||||||||||
+Nov 15 12:37:36.290269 flutter: shape:events=3
+Nov 15 12:37:36.290381 flutter: shape:done=START-DONE
+Nov 15 12:37:36.361675 flutter: shape:future-builder=FB1 G1
+Nov 15 12:37:36.361863 flutter: shape:route=R1 /detail
+Nov 15 12:37:36.384245 flutter: shape:detail=D1
