@@ -50,9 +50,10 @@ REPO="$(cd -- "$HERE/../.." && pwd)"
 CADDY_VERSION=v2.11.7
 XCADDY_VERSION=v0.4.7
 # Oldest Go that can build Caddy with these plugins: the highest `go` line among
-# their go.mod files. Caddy v2.11.7 says 1.26.0, cache-handler v0.17.0 1.25.1,
-# storages/nuts/caddy v0.0.23 (and storages/nuts v0.0.23) 1.27.1. Recheck it
-# whenever a version here moves. See build_caddy.
+# their go.mod files and what they pull in. Caddy v2.11.7 says 1.26.0,
+# cache-handler v0.17.0 1.25.1; storages/nuts/caddy v0.0.23, storages/nuts and
+# storages/core v0.0.23 and souin v1.7.10 say 1.27.1. Recheck it whenever a
+# version here moves. See build_caddy.
 CADDY_GO_MIN=1.27.1
 CACHE_HANDLER_VERSION=v0.17.0
 NUTS_STORAGE_VERSION=v0.0.23
