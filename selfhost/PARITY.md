@@ -2106,6 +2106,127 @@ the interpreter and AOT disagreed on where the receiver goes.
 Evidence:
 [`engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md`](engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md).
 
+### Constants, fields, constructors and class headers are seen (2026-11-15)
+
+**An edit outside a method body could ship as a patch that left it out.** Release
+`1.0.0+10` of the shapes app took a 19-edit patch whose edits included `const
+kTitle = 'KT1'` -> `'KT2'`. The analyzer accepted it, the iPhone applied 16/16
+targets, and the screen still read `const=KT1`. Nothing reported the edit as
+missing. Two blind spots in `coverage/analyze_coverage.dart` caused it:
+
+- **Constant values.** Members were compared by their printed kernel, and the
+  printer writes a constant as `#C1`, not as its value. A body whose only edit
+  was `const Text('L1')` -> `const Text('L2')` read as unchanged and the patch
+  was refused as inert.
+- **Declarations.** Only procedures were compared. A changed field initializer,
+  `const` or constructor was never seen. Alone, such an edit was refused as
+  "Nothing in this patch differs from the release". Alongside other edits it
+  was dropped while they shipped. That is the `kTitle` case.
+
+**Analysis version 14 fixes both.** Members print with their constants' values,
+so a constant literal edited inside a body is a changed member and ships: the
+literal is in the replacement's own source. Fields, constants and constructors
+are compared too, and any that changed refuses the whole patch with the member
+named and a reason. A `const` is refused even though its uses are inlined:
+`dart2bytecode` evaluates the name against the release's kernel, so a replaced
+body that names it inlines the release's value. That is why the iPhone printed
+`KT1` from a `_start` the patch had replaced.
+
+Measured against the release kernel of `1.0.0+10`, old analyzer against new,
+over the 13 patch kernels built for it and the release's own kernel:
+
+| edit | before | after |
+|---|---|---|
+| the 19-edit combination (with `kTitle`), both builds | accept, `kTitle` silently left out | **reject**: `kTitle` named |
+| `const Text('L1')` -> `'L2'` in `Label.build` | inert | **accept**, `Label.build` changed |
+| an instance field initializer (`_events`) | inert | **reject**: `_HomeState.new` named |
+| a new field `_extra` | accept, refused later by the producer | **reject**: `_HomeState._extra` named |
+| the other 8 patch kernels, and the release's own | unchanged | unchanged, no new refusal |
+
+Seven host specimens (top-level `const`, `const` literal, instance and static
+field initializers, top-level `final`, a constructor body, a no-change control)
+gave the expected verdict each. Two of them are in the parity corpus as
+`const_literal` and `field_initializer`. The frozen reference tooling is blind
+to both, so those cases mark it `referenceBlind` and pin the expected result
+instead. The existing `private_accessor` case had also changed the initializer
+of its field `_slot`, which version 14 rightly refuses. Its patched side now
+leaves `_slot` alone, so it still tests what it was written for.
+
+**A field the patch stops reading is not a changed constructor.** When an edit
+removes the last read of a field, tree shaking drops the field from the
+patch's kernel. An initializer that may have side effects stays as a nameless
+local in the constructor; one that cannot is removed, and so is a parameter
+nothing uses, with the argument every caller passed. The constructor's kernel
+then differs from the release's though its source did not. The analyzer
+prints only the parameters both sides keep, with their defaults, and prints a
+dropped field's initializer as a dropped value when it may have side effects,
+by the shaker's own test, and not at all when it cannot. A kept value is
+still compared, so an edited initializer or default is still refused. The
+parity cases `dropped_field_read` (side effects) and `dropped_parameter`
+(`A(this.x, ...)`) pin the accept.
+
+**Initializer order is compared.** Field initializers from declarations are
+lowered into the constructor in declaration order, and every initializer is
+printed in its place, dropped or not. Swapping two side-effecting
+initializers, in the constructor's list or as field declarations, is
+refused. The parity case `initializer_order` pins it.
+
+A constructor refusal can also come from a call site. When every caller passes
+the same constant, tree shaking folds it into the constructor, so editing that
+literal changes the constructor's kernel. The refusal's reason names this.
+
+**Open: a `const` that tree shaking removed.** The check sees a `const` only
+where the release kept the declaration. A Route B release is built with a
+dynamic interface that retains the app's own libraries whole, so the app's
+`const`s are kept. A `const` in a dependency that the release's tree shaking
+removed is in neither kernel, so an edit to it is seen only as a changed
+member, which ships with the release's value. The same holds for an app
+`const` in a kernel built without that dynamic interface: a host specimen
+built that way accepts a top-level `const` edit. Not yet closed.
+
+**Class headers are compared too.** An `implements` edit was worse than
+invisible. Tree shaking folds a type test where it can, so `o is Tagged` in
+`main` became a changed `main` that the analyzer accepted, while on the device
+the release's class still answered the test. `extends`, `with`, `implements`,
+type parameters and the class modifiers are now a `class` declaration that
+refuses the patch. `abstract` and the enum flag are left out because tree
+shaking sets them by allocation. A header tree shaking stripped from the
+patch's kernel, because the patch stopped naming the class, is skipped. One
+stripped only in the release's kernel reads as a class the release does not
+have, and is refused as one. A class another class extends, mixes in or
+implements is never read as stripped. The parity case `class_header` pins the
+refusal. One case stays blind: a class no other class builds on and nothing
+allocates, edited to extend only `Object` with no interfaces or type
+parameters, looks stripped.
+
+**Mixin copies are compared.** AOT copies a mixin's fields, field
+initializers and methods into each class that applies it, and moves those
+copies into `dart:mixin_deduplication`. The analyzer compared app libraries
+only, so an edit to a mixin's field initializer or method body read as
+unchanged, though the copy is what runs. Those classes are now compared too,
+and any change in them refuses the patch: a patch cannot replace the copies.
+The parity cases `mixin_initializer`, `mixin_field` and `mixin_method` pin it.
+
+AOT numbers the copies in declaration order (`_MixinApplication0&Base&M`), so
+reordering two classes renumbers them. Copies are keyed and printed without
+that counter, and with the type arguments they apply
+(`&Object&M<dart:core::int>`), so a reorder reads as unchanged. A name that
+still collides in either kernel, such as a private `_B` and `M` declared in two
+libraries, is keyed in both by the classes the copy applies, each named with
+its library. It is never keyed by position, because tree shaking can drop one
+of the two copies from one kernel only. The parity case `mixin_reorder` pins
+the reorder.
+
+**Libraries print by import URI.** The kernel printer names a library without
+a `library` directive `#lib1`, `#lib2`, in the order it meets them. So a class
+`X` from `a.dart` and one from `b.dart` printed alike, and a body or class
+header that swapped one for the other read as unchanged. The analyzer now
+names every library by its import URI.
+
+**A cell is needed.** The analyzer ships in the compiler cell, so this takes
+effect for releases built on a cell minted with it. The CLI reads versions
+11-14, and an older cell keeps its old behavior.
+
 ## 4. Release / build configuration parity
 
 > **`G4 · build-config` — goal:** a release built the way developers actually

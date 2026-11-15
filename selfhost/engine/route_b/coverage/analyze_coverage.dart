@@ -143,7 +143,35 @@ import 'package:kernel/text/ast_to_text.dart';
 ///     The bump is mandatory for the usual reason: a version-12 consumer would
 ///     read a version-13 document, find only the candidate list it already
 ///     understands, and admit a construction with no same-method evidence.
-const analysisVersion = 13;
+/// 14: edits a patch cannot carry are no longer invisible.
+///
+///     Two blind spots, both measured on an iPhone release on 2026-11-15:
+///
+///     - Constant values. A member was compared by its printed form, and the
+///       kernel printer writes a constant as `#C1`, not as its value, so a
+///       body whose only edit was `const Text('a')` -> `const Text('b')` read
+///       as unchanged and the patch was refused as inert. Members now print
+///       with their constants' values, so such an edit is a changed member and
+///       ships like any other body edit: the literal is in the replacement's
+///       own source.
+///     - Fields and constructors. Only procedures were compared, so a changed
+///       field initializer, `const` or constructor was never seen. These are
+///       reported in `declarations` and refuse the patch: a patch replaces
+///       method bodies and the release keeps its own. A `const` is no
+///       exception, though its uses are inlined. The patch compiler evaluates
+///       constants against the RELEASE's kernel, so a replaced body that names
+///       an edited `const` still reads the release's value -- measured: an
+///       iPhone printed `KT1` after a patch changing it to `KT2` shipped.
+///     - Class headers. `extends`, `with`, `implements` and type parameters
+///       were not compared. Tree shaking folds a type test where it can, so an
+///       `implements` edit surfaced as a changed body that shipped, while the
+///       release's class still answered the test the old way. Headers are a
+///       `class` declaration and refuse the patch.
+///
+///     The bump is mandatory: a version-13 consumer meeting the new rejection
+///     category would refuse to parse it, which is safe, but one that skipped
+///     unknown categories would ship the patch the analyzer refused.
+const analysisVersion = 14;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -261,6 +289,11 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   final targets = _manifest(base, isApp);
 
   // ---- what changed -----------------------------------------------------
+  // Mixin copy names that collide in EITHER kernel, so both key and print
+  // them alike; see `_comparedClasses` and `_UriPrinter`.
+  final ambiguous = _ambiguousCopyNames(base)
+      .union(_ambiguousCopyNames(patched));
+  _ambiguousCopies = ambiguous;
   final baseText = _memberText(base, isApp);
   final patchedText = _memberText(patched, isApp);
   // P4.4. The SIGNATURE, separately from the whole printed procedure.
@@ -291,6 +324,28 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   changed.sort();
   added.sort();
   removed.sort();
+
+  // Fields and constructors a patch cannot replace. Changed or new, never
+  // removed: a patch that stops using a field asks nothing of the release.
+  // Fields and constructor parameters present on both sides. Tree shaking
+  // drops a field nothing reads, and a parameter nothing uses, so which exist
+  // depends on the rest of the program; see `_constructorText`.
+  final sharedFields = _keptKeys(
+    base,
+    isApp,
+    ambiguous,
+  ).intersection(_keptKeys(patched, isApp, ambiguous));
+  final baseDecl = _declarationText(base, isApp, sharedFields, ambiguous);
+  final patchedDecl = _declarationText(patched, isApp, sharedFields, ambiguous);
+  final declarations = <Map<String, Object?>>[
+    for (final entry in patchedDecl.entries)
+      if (baseDecl[entry.key]?.text != entry.value.text)
+        {
+          'target': entry.key,
+          'kind': entry.value.kind,
+          'new': !baseDecl.containsKey(entry.key),
+        },
+  ]..sort((a, b) => (a['target']! as String).compareTo(b['target']! as String));
 
   // ---- where each changed member's new body lives ------------------------
   //
@@ -454,6 +509,15 @@ coverage/census_report.py, for what the numbers may and may not be read as.
         'reason': 'a patch replaces bodies and cannot introduce members, so '
             'bytecode referencing them would fail to bind',
       },
+    for (final d in declarations)
+      {
+        'target': d['target'],
+        'category': 'declaration',
+        'reason': _declarationReason(
+          d['kind']! as String,
+          isNew: d['new']! as bool,
+        ),
+      },
   ];
 
   // Verbatim from build_patch.dart, including the order, so the harness can
@@ -472,12 +536,23 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     );
   }
 
+  if (declarations.isNotEmpty) {
+    reasons.add(
+      '${declarations.length} field(s), constant(s) or constructor(s) '
+      'changed; a patch replaces method bodies only, so the release would '
+      'keep its own',
+    );
+  }
+
   // Three outcomes, matching the reference tool's exit codes 0 / 3 / 4. `inert`
   // is not a failure and not a success: a patch carrying nothing installs and
   // changes nothing, which is worse than refusing because it looks like it
   // worked.
   final String verdict;
-  if (changed.isEmpty && added.isEmpty && removed.isEmpty) {
+  if (changed.isEmpty &&
+      added.isEmpty &&
+      removed.isEmpty &&
+      declarations.isEmpty) {
     verdict = 'inert';
   } else if (changed.isEmpty) {
     verdict = reasons.isEmpty ? 'inert' : 'reject';
@@ -505,6 +580,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     'changed': changed,
     'added': added,
     'removed': removed,
+    'declarations': declarations,
     'patchable': patchable,
     'conditional': conditional,
     'unreachable': unreachable,
@@ -633,6 +709,452 @@ Map<String, String> _memberText(Component c, bool Function(Library) isApp) {
   return out;
 }
 
+/// `library#Class.name` -> the printed declaration, for what a patch cannot
+/// replace: fields, `const` included, constructors and class headers.
+///
+/// A Route B patch replaces procedure bodies. A field's initializer runs once,
+/// from the release's code, and a constructor is not a procedure the release
+/// can redirect. An edit to either used to be invisible here -- this tool only
+/// compared procedures -- so it was reported as "nothing changed" when it stood
+/// alone and dropped without a word when it rode along with other edits, which
+/// shipped a patch that did not do what its source said.
+///
+/// A `const` is kept apart as its own kind, because the reason differs. Its
+/// value is inlined at every use, so it might look carried by the members that
+/// use it. It is not: the patch compiler resolves the name against the
+/// RELEASE's kernel and inlines the release's value. A device printed the old
+/// value of an edited `const` from a replaced body that named it.
+///
+/// This sees a `const` only where the release kept the declaration. A Route B
+/// release is built with a dynamic interface that retains the app's libraries
+/// whole, so the app's `const`s are kept. A dependency's `const` that tree
+/// shaking removed from both kernels is not seen here, and neither is an app
+/// `const` in a kernel built without that dynamic interface: a known gap.
+///
+/// The unnamed constructor is keyed `new`, as the capability manifest spells
+/// it.
+Map<String, ({String kind, String text})> _declarationText(
+  Component c,
+  bool Function(Library) isApp,
+  Set<String> sharedFields,
+  Set<String> ambiguous,
+) {
+  final out = <String, ({String kind, String text})>{};
+  // A class another class extends, mixes in or implements is named as a type,
+  // so tree shaking cannot have stripped its header; see `_classHeaderText`.
+  final supertypes = <Class>{
+    for (final lib in c.libraries)
+      for (final cls in lib.classes)
+        for (final s in [
+          ?cls.supertype,
+          ?cls.mixedInType,
+          ...cls.implementedTypes,
+        ])
+          s.classNode,
+  };
+  for (final lib in c.libraries.where(isApp)) {
+    final uri = lib.importUri.toString();
+    for (final f in lib.fields) {
+      out['$uri#${f.name.text}'] = (kind: _fieldKind(f), text: _text(f));
+    }
+  }
+  for (final (:cls, :key, :isMixinCopy) in _comparedClasses(
+    c,
+    isApp,
+    ambiguous,
+  )) {
+    final header = _classHeaderText(cls, supertypes.contains(cls));
+    if (header != null) {
+      out[key] = (kind: 'class', text: header);
+    }
+    for (final f in cls.fields) {
+      out['$key.${f.name.text}'] = (kind: _fieldKind(f), text: _text(f));
+    }
+    for (final k in cls.constructors) {
+      final name = k.name.text.isEmpty ? 'new' : k.name.text;
+      out['$key.$name'] = (
+        kind: 'constructor',
+        text: _constructorText(k, key, sharedFields),
+      );
+    }
+    if (isMixinCopy) {
+      // The procedure diff above walks app libraries only, so a mixin's
+      // methods are compared here. A body the shaker made unreachable on
+      // this side says nothing about the source, so it is left out.
+      for (final m in cls.procedures) {
+        final text = _text(m);
+        if (text.contains(_tfaRemovedCode)) continue;
+        out['$key.${_selector(null, m)}'] = (kind: 'mixin member', text: text);
+      }
+    }
+  }
+  return out;
+}
+
+const _mixinLibrary = 'dart:mixin_deduplication';
+const _tfaRemovedCode =
+    'Attempt to execute code removed by Dart AOT compiler (TFA)';
+
+/// Every class whose declarations are compared, with the key it is reported
+/// under.
+///
+/// App classes, and the classes AOT made of mixin applications. Before tree
+/// shaking, the VM's mixin transformation copies a mixin's fields, methods and
+/// field initializers into each class that applies it, and deduplicates those
+/// into `dart:mixin_deduplication`. That copy is the code that runs: an edit to
+/// a mixin's field initializer or method body shows only there, and a patch
+/// cannot replace it. So those classes are compared too, and any change in
+/// them refuses the patch.
+///
+/// Their names carry a counter, `_MixinApplication0&Base&M`, that shifts when
+/// another mixin application comes or goes, so the key drops it:
+/// `dart:mixin_deduplication#&Base&M`. The type arguments it applies are
+/// added, `&Object&M<dart:core::int>`, so `M<int>` and `M<String>` keep
+/// their own keys when their classes are reordered.
+///
+/// A name that still collides -- `_B` and `M` declared in two libraries --
+/// in either kernel ([ambiguous]) is keyed in both by what the copy applies,
+/// each class named with its library: `&_B&M@(package:a/a.dart::_B & ...)`.
+/// Never by position: when tree shaking drops one of two copies from one
+/// kernel, a survivor numbered `~2` in one kernel and `~1` in the other is
+/// compared with the wrong copy.
+Iterable<({Class cls, String key, bool isMixinCopy})> _comparedClasses(
+  Component c,
+  bool Function(Library) isApp,
+  Set<String> ambiguous,
+) sync* {
+  for (final lib in c.libraries.where(isApp)) {
+    for (final cls in lib.classes) {
+      yield (cls: cls, key: '${lib.importUri}#${cls.name}', isMixinCopy: false);
+    }
+  }
+  final seen = <String, int>{};
+  for (final cls in _mixinCopies(c)) {
+    final stem = _copyStem(cls, ambiguous);
+    // AOT deduplicates identical applications, so two copies with one
+    // identity should not exist; if they do, they stay apart.
+    final n = seen[stem] = (seen[stem] ?? 0) + 1;
+    yield (
+      cls: cls,
+      key: '$_mixinLibrary#$stem${n == 1 ? '' : '~$n'}',
+      isMixinCopy: true,
+    );
+  }
+}
+
+/// How a mixin copy is keyed and printed: [_applicationName], plus what it
+/// applies when that name is [ambiguous].
+String _copyStem(Class cls, Set<String> ambiguous) {
+  final name = _applicationName(cls);
+  return ambiguous.contains(name) ? '$name@${_applicationIdentity(cls)}' : name;
+}
+
+/// The names [_ambiguousCopyNames] finds in either kernel of this run, for
+/// [_UriPrinter], which has no other way to learn them.
+var _ambiguousCopies = <String>{};
+
+Iterable<Class> _mixinCopies(Component c) => [
+  for (final lib in c.libraries)
+    if ('${lib.importUri}' == _mixinLibrary) ...lib.classes,
+];
+
+/// Mixin copy names ([_applicationName]) that two copies share in [c].
+Set<String> _ambiguousCopyNames(Component c) {
+  final counts = <String, int>{};
+  for (final cls in _mixinCopies(c)) {
+    final name = _applicationName(cls);
+    counts[name] = (counts[name] ?? 0) + 1;
+  }
+  return {
+    for (final MapEntry(:key, :value) in counts.entries)
+      if (value > 1) key,
+  };
+}
+
+/// A mixin copy's name without AOT's counter, plus the type arguments it
+/// applies: `&Object&M<dart:core::int>`.
+String _applicationName(Class cls) {
+  final arguments = [
+    ...?cls.supertype?.typeArguments,
+    ...?cls.mixedInType?.typeArguments,
+    // An eliminated application implements the mixin instead.
+    for (final t in cls.implementedTypes) ...t.typeArguments,
+  ];
+  return cls.name.replaceFirst(RegExp(r'^_MixinApplication\d+'), '') +
+      (arguments.isEmpty
+          ? ''
+          : '<${arguments.map((t) => _typeText(t, copyStems: false)).join(', ')}>');
+}
+
+/// What a mixin copy applies, with each class named by its library, so two
+/// copies whose names collide (`_B` and `M` declared in two libraries) are
+/// told apart the same way in both kernels.
+String _applicationIdentity(Class cls) {
+  String ref(Class c) => '${c.enclosingLibrary.importUri}' == _mixinLibrary
+      ? _applicationIdentity(c)
+      : '${c.enclosingLibrary.importUri}::${c.name}';
+  final applied = [
+    if (cls.supertype case final s?) ref(s.classNode),
+    if (cls.mixedInType case final m?) ref(m.classNode),
+    for (final t in cls.implementedTypes) ref(t.classNode),
+  ];
+  return '(${applied.join(' & ')})';
+}
+
+/// [t] as text. Inside a copy's own name ([_applicationName]) a type can be
+/// the copy's own type parameter, and naming that names the copy again, so
+/// there copies keep AOT's name, with the counter dropped.
+String _typeText(DartType t, {bool copyStems = true}) {
+  final buffer = StringBuffer();
+  _UriPrinter(buffer, copyStems: copyStems).writeType(t);
+  return _unnumbered(buffer.toString());
+}
+
+/// Printed text with AOT's mixin application counter dropped. References to a
+/// copy already print as its key ([_UriPrinter]); what is left is a copy's own
+/// name in its header, which would otherwise change whenever reordering two
+/// class declarations renumbers the copies.
+String _unnumbered(String text) =>
+    text.replaceAll(_mixinApplicationCounter, '_MixinApplication&');
+
+final _mixinApplicationCounter = RegExp(r'_MixinApplication\d+&');
+
+/// A class's header -- modifiers, type parameters, `extends`, `with`,
+/// `implements` -- or null when tree shaking stripped it.
+///
+/// A patch cannot change a class's place in the hierarchy: a replaced body that
+/// asks `x is T` is answered by the release's classes. Worse, tree shaking
+/// folds such a test where it can, so an `implements` edit can surface only as
+/// a changed body that then ships, and on the device the release's class gives
+/// the old answer.
+///
+/// Tree shaking also rewrites headers by use. A class no type names is stripped
+/// to `extends Object`, its interfaces and type parameters cleared, and a class
+/// never allocated is marked abstract. So `abstract` and the enum flag are left
+/// out, being the allocator's verdict rather than the source's, and a stripped
+/// header returns null. Null on the patched side skips the class: the patch
+/// stopped naming it, which is valid. Null on the release side only reads as a
+/// class the release does not have, and is refused as one: the patch starts
+/// naming a class whose hierarchy the release threw away, so the release
+/// cannot answer type tests against it. A class
+/// another class extends, mixes in or implements is named as a type, so it is
+/// never read as stripped. The cost is one blind case: a class no other class
+/// builds on, never allocated (tree shaking marks those abstract), whose edit
+/// leaves it extending only `Object` with no interfaces or type parameters.
+String? _classHeaderText(Class cls, bool isSupertype) {
+  final stripped =
+      !isSupertype &&
+      cls.isAbstract &&
+      cls.supertype?.classNode.name == 'Object' &&
+      '${cls.supertype?.classNode.enclosingLibrary.importUri}' == 'dart:core' &&
+      cls.implementedTypes.isEmpty &&
+      cls.typeParameters.isEmpty &&
+      cls.mixedInType == null;
+  if (stripped) return null;
+  final buffer = StringBuffer();
+  final printer = _UriPrinter(buffer)
+    ..writeModifier(cls.isSealed, 'sealed')
+    ..writeModifier(cls.isBase, 'base')
+    ..writeModifier(cls.isInterface, 'interface')
+    ..writeModifier(cls.isFinal, 'final')
+    ..writeModifier(cls.isMixinClass, 'mixin')
+    ..writeModifier(cls.isMixinDeclaration, 'mixin-declaration')
+    ..writeWord('class')
+    ..writeWord(cls.name)
+    ..writeTypeParameterList(cls.typeParameters);
+  if (cls.supertype case final supertype?) {
+    printer
+      ..writeSpaced('extends')
+      ..visitSupertype(supertype);
+  }
+  if (cls.mixedInType case final mixin?) {
+    printer
+      ..writeSpaced('with')
+      ..visitSupertype(mixin);
+  }
+  if (cls.implementedTypes.isNotEmpty) {
+    printer
+      ..writeSpaced('implements')
+      ..writeList(cls.implementedTypes, printer.visitSupertype);
+  }
+  return _unnumbered(buffer.toString());
+}
+
+/// Every field key, `library#Class.name` or `library#name`, and every
+/// constructor parameter key, `library#Class.constructor(parameter)`.
+Set<String> _keptKeys(
+  Component c,
+  bool Function(Library) isApp,
+  Set<String> ambiguous,
+) => {
+  for (final lib in c.libraries.where(isApp))
+    for (final f in lib.fields) '${lib.importUri}#${f.name.text}',
+  for (final (:cls, :key, isMixinCopy: _) in _comparedClasses(
+    c,
+    isApp,
+    ambiguous,
+  )) ...[
+    for (final f in cls.fields) '$key.${f.name.text}',
+    for (final k in cls.constructors)
+      for (final p in [
+        ...k.function.positionalParameters,
+        ...k.function.namedParameters,
+      ])
+        _parameterKey(key, k, p),
+  ],
+};
+
+// A parameter is keyed by its name. A rename therefore drops it from the
+// shared set and its default is not compared there, which is safe: the renamed
+// parameter's uses in the initializers and body print differently, so the
+// constructor still reads as changed.
+String _parameterKey(String classKey, Constructor k, FunctionParameter p) =>
+    '$classKey.${k.name.text.isEmpty ? 'new' : k.name.text}'
+    '(${p.cosmeticName})';
+
+/// A constructor as `_text` prints it, except for what tree shaking does to
+/// the storage of a field that only one side keeps.
+///
+/// When nothing reads a field, the AOT tree shaker removes it. An initializer
+/// that may have side effects is kept as a nameless local; one that cannot is
+/// removed outright:
+///
+///     release  : A::x = compute(), A::y = y, ...
+///     patch    : int #t1 = compute(), ...
+///
+/// The patch's source never touched the constructor -- it stopped reading `x`
+/// and `y` somewhere else -- and printing it raw refused that valid patch as a
+/// changed constructor. So an initializer of a field that is not on both
+/// sides, and a nameless local, are printed as `dropped = <value>` when the
+/// value may have side effects, and left out when it cannot, by the shaker's
+/// own test. The value of a kept one is still compared, so an edited
+/// initializer is still seen.
+///
+/// Tree shaking also removes a parameter nothing uses, and stops passing it at
+/// every call site. So only the parameters both sides keep are printed, with
+/// their types and defaults: a default runs in the release's constructor, so
+/// an edited one is an edit the release would not carry. A parameter the patch
+/// newly passes needs no check here, because the patch is compiled against
+/// the release's declarations and a call the release's constructor cannot
+/// take fails to compile.
+///
+/// Every initializer is printed in its own position, one per line. Field
+/// initializers from declarations are lowered into the constructor in
+/// declaration order, so the order is the order side effects run in, and a
+/// reordering is an edit the release would not carry.
+String _constructorText(
+  Constructor k,
+  String classKey,
+  Set<String> sharedFields,
+) {
+  // null: printed as it is. Otherwise the value whose storage is dropped.
+  Expression? droppedValue(Initializer i) => switch (i) {
+    FieldInitializer(:final field, :final value)
+        when !sharedFields.contains('$classKey.${field.name.text}') =>
+      value,
+    LocalInitializer(:final variable)
+        when variable.cosmeticName == null && variable.initializer != null =>
+      variable.initializer,
+    _ => null,
+  };
+  final buffer = StringBuffer();
+  final printer = _UriPrinter(buffer)
+    ..writeAnnotationList(k.annotations)
+    ..writeModifier(k.isExternal, 'external')
+    ..writeModifier(k.isConst, 'const')
+    ..writeWord('constructor')
+    ..writeName(k.name)
+    ..writeSymbol('(');
+  for (final p in [
+    ...k.function.positionalParameters,
+    ...k.function.namedParameters,
+  ]) {
+    if (sharedFields.contains(_parameterKey(classKey, k, p))) {
+      printer
+        ..writeVariable(p)
+        ..writeSymbol(';');
+    }
+  }
+  printer.writeSymbol(')');
+  if (k.function.body case final body?) {
+    buffer.write('\nbody ');
+    printer.writeNode(body);
+  }
+  for (final i in k.initializers) {
+    final dropped = droppedValue(i);
+    if (dropped == null) {
+      buffer.write('\ninitializer ');
+      printer.writeNode(i);
+    } else if (_mayHaveSideEffects(dropped)) {
+      buffer.write('\ndropped = ');
+      printer.writeExpression(dropped);
+    }
+  }
+  final named = printer.syntheticNames.constants.map;
+  for (var i = 0; i < named.length; i++) {
+    printer.writeNode(named.keys.elementAt(i));
+  }
+  return _unnumbered(buffer.toString());
+}
+
+/// The AOT tree shaker's own test for whether it may delete an expression it
+/// no longer needs the value of: `mayHaveSideEffects` in
+/// `pkg/vm/lib/transformations/type_flow/utils.dart`. Copied, not imported,
+/// to keep this tool on `package:kernel` alone. Keep it in step with the copy
+/// in the Dart tree the release was built from.
+bool _mayHaveSideEffects(Expression node) {
+  if (node is BasicLiteral ||
+      node is ConstantExpression ||
+      node is ThisExpression) {
+    return false;
+  }
+  if (node is VariableGet && !node.variable.isLate) {
+    return false;
+  }
+  if (node is StaticGet) {
+    final target = node.target;
+    if (target is Field && !target.isLate) {
+      final initializer = target.initializer;
+      if (initializer == null ||
+          initializer is BasicLiteral ||
+          initializer is ConstantExpression) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+String _fieldKind(Field f) => f.isConst ? 'constant' : 'field';
+
+/// Why a field or constructor edit refuses the patch, in the user's terms.
+String _declarationReason(String kind, {required bool isNew}) {
+  if (isNew) {
+    return 'this $kind is not in the release -- it is new, or the release '
+        'tree-shook it because nothing used it -- and a patch cannot add one';
+  }
+  return switch (kind) {
+    'constant' =>
+      'this constant changed; a patch is compiled against the release\'s '
+          'declarations, so code naming it would still read the old value',
+    'field' =>
+      'this field\'s initializer or declaration changed; a patch replaces '
+          'method bodies only, so the release keeps its own initial value',
+    'mixin member' =>
+      'this member of a mixin changed; AOT copies a mixin\'s members into '
+          'each class that applies it, and a patch cannot replace those '
+          'copies',
+    'class' =>
+      'this class\'s header -- extends, with, implements, type parameters or '
+          'modifiers -- changed; a patch replaces method bodies only, so type '
+          'tests still see the release\'s class',
+    _ =>
+      'this constructor, an instance field initializer it runs, or a '
+          'constant argument that every caller passes it changed; a patch '
+          'replaces method bodies only, so the release keeps running its own',
+  };
+}
+
 String _selector(String? className, Procedure p) {
   final name = switch (p.kind) {
     ProcedureKind.Getter => 'get:${p.name.text}',
@@ -670,7 +1192,7 @@ String _signature(Procedure p) {
   final f = p.function;
   String type(DartType t) {
     final buffer = StringBuffer();
-    Printer(buffer).writeType(t);
+    _UriPrinter(buffer).writeType(t);
     return buffer.toString();
   }
 
@@ -691,10 +1213,56 @@ String _signature(Procedure p) {
       '->${type(f.returnType)}';
 }
 
-String _text(Procedure p) {
+/// The printed member, followed by the VALUE of every constant it uses.
+///
+/// The kernel printer writes a constant as a reference, `#C1`, and prints the
+/// values only in a component-wide table. A member printed alone therefore
+/// read the same whether its `const Text('a')` said 'a' or 'b', and whether the
+/// top-level `const` it inlines held one value or another. A release compiles
+/// every use of a `const` to its value, so an edit to a constant IS an edit to
+/// each member that uses it, and has to read as one.
+///
+/// The table is walked until it stops growing: printing one constant names the
+/// constants inside it (`Box{v: #C2}`), and those must be printed too.
+String _text(Member m) {
   final buffer = StringBuffer();
-  Printer(buffer).writeNode(p);
-  return buffer.toString();
+  final printer = _UriPrinter(buffer)..writeNode(m);
+  final named = printer.syntheticNames.constants.map;
+  for (var i = 0; i < named.length; i++) {
+    printer.writeNode(named.keys.elementAt(i));
+  }
+  return _unnumbered(buffer.toString());
+}
+
+/// A [Printer] that names every library by its import URI.
+///
+/// A bare [Printer] has no import table, so it names a library without a
+/// `library` directive `#lib1`, `#lib2`, in the order it meets them -- and
+/// every member is printed by a fresh one. Two classes `X` from `a.dart` and
+/// `b.dart` then print alike, and a body or header that swaps one for the
+/// other reads as unchanged. The import URI is the same in both kernels and
+/// unique, so it names each library the same way every time.
+///
+/// AOT's mixin copies are renamed the same way; see [getClassName].
+class _UriPrinter extends Printer {
+  _UriPrinter(super.sink, {this.copyStems = true});
+
+  final bool copyStems;
+
+  /// A mixin copy prints as its key does ([_copyStem]), not as AOT named it:
+  /// the counter in `_MixinApplication0&Object&M` says nothing, and dropping it
+  /// alone would print copies of `M<int>` and `M<String>` alike.
+  @override
+  String getClassName(Class node) =>
+      copyStems && '${node.enclosingLibrary.importUri}' == _mixinLibrary
+      ? _copyStem(node, _ambiguousCopies)
+      : super.getClassName(node);
+
+  @override
+  String getLibraryReference(Reference reference) => switch (reference.node) {
+    final Library library => '${library.importUri}',
+    _ => super.getLibraryReference(reference),
+  };
 }
 
 Never _die(String message) {

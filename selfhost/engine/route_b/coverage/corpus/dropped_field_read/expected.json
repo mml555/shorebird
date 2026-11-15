@@ -1,0 +1,15 @@
+{
+  "note": "A method stops reading a field. Tree shaking drops the field from the patched kernel and keeps its initializer as a nameless local in the constructor, so the constructor's kernel differs though its source did not. The analyzer compares the dropped value instead, so only the method changed and it ships.",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#Box.value"
+  ],
+  "patchable": [],
+  "conditional": [
+    "package:corpus/main.dart#Box.value"
+  ],
+  "unreachable": [],
+  "added": [],
+  "declarations": [],
+  "rejectionReasons": []
+}

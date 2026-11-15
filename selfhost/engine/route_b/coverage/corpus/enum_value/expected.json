@@ -1,0 +1,15 @@
+{
+  "note": "An enum value's constructor argument changes. The value is a constant printed inline in the body that reads it, so that body reads as changed and ships with the new value. The reference agrees. Pins today's constant printing: if constants stopped printing inline, this would read as unchanged.",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#weightAt"
+  ],
+  "patchable": [
+    "package:corpus/main.dart#weightAt"
+  ],
+  "conditional": [],
+  "unreachable": [],
+  "added": [],
+  "declarations": [],
+  "rejectionReasons": []
+}

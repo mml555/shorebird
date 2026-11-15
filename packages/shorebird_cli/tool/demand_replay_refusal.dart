@@ -180,6 +180,7 @@ void main(List<String> args) {
 /// about this pair, and editing them to keep the replay going would change what
 /// the document says.
 RouteBCoverage _without(RouteBCoverage c, String target) => RouteBCoverage(
+  analysisVersion: c.analysisVersion,
   verdict: c.verdict,
   changed: c.changed.where((t) => t != target).toList(),
   added: c.added,

@@ -1,0 +1,13 @@
+{
+  "note": "Two initializers with side effects swap places. The release runs its own order, so the patch is refused and names the constructor. The frozen reference tooling compares procedures only and calls this inert, so it is not a witness here.",
+  "referenceBlind": "the reference compares procedures only",
+  "verdict": "reject",
+  "changed": [],
+  "added": [],
+  "declarations": [
+    "package:corpus/main.dart#Pair.new"
+  ],
+  "rejectionReasons": [
+    "this constructor, an instance field initializer it runs, or a constant argument that every caller passes it changed; a patch replaces method bodies only, so the release keeps running its own"
+  ]
+}

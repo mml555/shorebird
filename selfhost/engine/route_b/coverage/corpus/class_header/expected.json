@@ -1,0 +1,17 @@
+{
+  "note": "A class's implements clause edited. Tree shaking folds the type test into main, so the edit also shows as a changed main, but the release's class answers the test, so the patch is refused and names the class. The release had stripped Tagged's header, because only the folded test named it, so Tagged reads as a class the release does not have. The frozen reference tooling compares procedures only and accepts main, so it is not a witness here.",
+  "referenceBlind": "the reference compares procedures only",
+  "verdict": "reject",
+  "changed": [
+    "package:corpus/main.dart#main"
+  ],
+  "added": [],
+  "declarations": [
+    "package:corpus/main.dart#Item",
+    "package:corpus/main.dart#Tagged"
+  ],
+  "rejectionReasons": [
+    "this class is not in the release -- it is new, or the release tree-shook it because nothing used it -- and a patch cannot add one",
+    "this class's header -- extends, with, implements, type parameters or modifiers -- changed; a patch replaces method bodies only, so type tests still see the release's class"
+  ]
+}

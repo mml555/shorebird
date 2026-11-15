@@ -324,12 +324,13 @@ selector_chain:
   engine_version_committed: true
 
 analysis_versions:
-  known: [11, 12, 13]
+  known: [11, 12, 13, 14]
   # A document declaring anything else is REFUSED. A missing v11 field is never
   # read as an empty list -- absent, empty and populated are three states.
   unknown_version_behaviour: refuse
   v12_adds: privateConstructions
   v13_adds: releasePrivateConstructions
+  v14_adds: declarations
 
 retention_policy:
   policy: p2
