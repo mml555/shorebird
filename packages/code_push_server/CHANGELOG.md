@@ -43,6 +43,10 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     span. A window that is not positive, or a span or `window_days` over 366
     days, is a 400. patch-adoption's `start`/`end` on `analytics/` are as before.
 
+- **`CRASH_RETENTION_DAYS`** (default `0` = keep forever, like
+  `EVENT_RETENTION_DAYS`) sweeps `crash_reports` hourly. In production the
+  server warns at startup while event or crash retention is unlimited.
+
 ### Changed
 
 - **The image is published for linux/arm64 as well as linux/amd64.** The
@@ -85,26 +89,6 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     (`GET .../patches` shows `is_rolled_back`): promoting a rolled-back patch
     leaves it active and also listed in `rolled_back_patch_numbers`, and devices
     keep dropping and re-fetching it.
-
-### Security
-
-- **IdP id_tokens are now validated.** Broker login checks `aud` (must contain
-  `IDP_CLIENT_ID`, plus `azp` if several), `exp`, `iss` (against the new
-  `IDP_ISSUER`) and `email_verified`, and logs the reason for each rejection.
-  A top-level `email` in the token response is no longer accepted.
-  - **Action required if your IdP omits `email_verified`** (Microsoft Entra
-    does): logins fail with `invalid_id_token` until you set
-    `IDP_ALLOW_UNVERIFIED_EMAIL=true`.
-  - **Action required in production with an IdP:** `IDP_ISSUER` is now
-    mandatory and the server refuses to boot without it.
-
-### Added
-
-- **`CRASH_RETENTION_DAYS`** (default `0` = keep forever, like
-  `EVENT_RETENTION_DAYS`) sweeps `crash_reports` hourly. In production the
-  server warns at startup while event or crash retention is unlimited.
-
-### Fixed
 
 - **A failed object-store write no longer strands a patch upload.** When
   `store.put` threw (store down, disk full, timeout) the artifact stayed
@@ -150,6 +134,24 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **The filesystem store's temp files** use a random suffix and are swept in
   the background at startup when older than a day (matched on the file name). A 500 names its request id and the log line
   carries it with the method and path.
+
+- **`setup.sh` on Apple silicon** runs an amd64-only server image under
+  emulation instead of failing with `no matching manifest for linux/arm64/v8`,
+  and reads the platforms of a single-manifest image as well as a list.
+- **`tool/ios_resign.sh`** sets `CFBundleIdentifier` to the bundle id it signs
+  for, so a re-signed build keeps one identity on the device.
+
+### Security
+
+- **IdP id_tokens are now validated.** Broker login checks `aud` (must contain
+  `IDP_CLIENT_ID`, plus `azp` if several), `exp`, `iss` (against the new
+  `IDP_ISSUER`) and `email_verified`, and logs the reason for each rejection.
+  A top-level `email` in the token response is no longer accepted.
+  - **Action required if your IdP omits `email_verified`** (Microsoft Entra
+    does): logins fail with `invalid_id_token` until you set
+    `IDP_ALLOW_UNVERIFIED_EMAIL=true`.
+  - **Action required in production with an IdP:** `IDP_ISSUER` is now
+    mandatory and the server refuses to boot without it.
 
 ## 1.4.0 — 2026-11-08
 
