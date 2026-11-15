@@ -796,8 +796,11 @@ const _tfaRemovedCode =
 ///
 /// Their names carry a counter, `_MixinApplication0&Base&M`, that shifts when
 /// another mixin application comes or goes, so the key drops it:
-/// `dart:mixin_deduplication#&Base&M`. Two applications that share a name
-/// after that get `~2`, `~3`, in kernel order.
+/// `dart:mixin_deduplication#&Base&M`. The type arguments it applies are
+/// added, `&Object&M<dart.core::int>`, so `M<int>` and `M<String>` keep
+/// their own keys when their classes are reordered. Two applications that
+/// still share a key get `~2`, `~3`, ordered by the libraries of the classes
+/// they apply, which import order does not change.
 Iterable<({Class cls, String key, bool isMixinCopy})> _comparedClasses(
   Component c,
   bool Function(Library) isApp,
@@ -807,20 +810,80 @@ Iterable<({Class cls, String key, bool isMixinCopy})> _comparedClasses(
       yield (cls: cls, key: '${lib.importUri}#${cls.name}', isMixinCopy: false);
     }
   }
+  final copies = [
+    for (final lib in c.libraries)
+      if ('${lib.importUri}' == _mixinLibrary)
+        for (final cls in lib.classes)
+          (
+            cls: cls,
+            name: _applicationName(cls),
+            identity: _applicationIdentity(cls),
+          ),
+  ];
+  // Copies that share a name are numbered in the order of their identity, not
+  // of the kernel, which follows import order: `~2` must name the same copy in
+  // both kernels or each is compared with the other's.
+  final indexed = copies.indexed.toList()
+    ..sort((a, b) {
+      final byName = a.$2.name.compareTo(b.$2.name);
+      if (byName != 0) return byName;
+      final byIdentity = a.$2.identity.compareTo(b.$2.identity);
+      return byIdentity != 0 ? byIdentity : a.$1.compareTo(b.$1);
+    });
   final seen = <String, int>{};
-  for (final lib in c.libraries) {
-    if ('${lib.importUri}' != _mixinLibrary) continue;
-    for (final cls in lib.classes) {
-      final name = cls.name.replaceFirst(RegExp(r'^_MixinApplication\d+'), '');
-      final n = seen[name] = (seen[name] ?? 0) + 1;
-      yield (
-        cls: cls,
-        key: '$_mixinLibrary#$name${n == 1 ? '' : '~$n'}',
-        isMixinCopy: true,
-      );
-    }
+  for (final (_, copy) in indexed) {
+    final n = seen[copy.name] = (seen[copy.name] ?? 0) + 1;
+    yield (
+      cls: copy.cls,
+      key: '$_mixinLibrary#${copy.name}${n == 1 ? '' : '~$n'}',
+      isMixinCopy: true,
+    );
   }
 }
+
+/// A mixin copy's name without AOT's counter, plus the type arguments it
+/// applies: `&Object&M<dart.core::int>`.
+String _applicationName(Class cls) {
+  final arguments = [
+    ...?cls.supertype?.typeArguments,
+    ...?cls.mixedInType?.typeArguments,
+    // An eliminated application implements the mixin instead.
+    for (final t in cls.implementedTypes) ...t.typeArguments,
+  ];
+  return cls.name.replaceFirst(RegExp(r'^_MixinApplication\d+'), '') +
+      (arguments.isEmpty ? '' : '<${arguments.map(_typeText).join(', ')}>');
+}
+
+/// What a mixin copy applies, with each class named by its library, so two
+/// copies whose names collide (`_B` and `M` declared in two libraries) are
+/// told apart the same way in both kernels.
+String _applicationIdentity(Class cls) {
+  String ref(Class c) => '${c.enclosingLibrary.importUri}' == _mixinLibrary
+      ? _applicationIdentity(c)
+      : '${c.enclosingLibrary.importUri}::${c.name}';
+  final applied = [
+    if (cls.supertype case final s?) ref(s.classNode),
+    if (cls.mixedInType case final m?) ref(m.classNode),
+    for (final t in cls.implementedTypes) ref(t.classNode),
+  ];
+  return '(${applied.join(' & ')})';
+}
+
+String _typeText(DartType t) {
+  final buffer = StringBuffer();
+  Printer(buffer).writeType(t);
+  return buffer.toString();
+}
+
+/// Printed text with AOT's mixin application counter dropped, as the keys of
+/// [_comparedClasses] drop it: `_MixinApplication0&Base&M` and
+/// `_MixinApplication3&Base&M` print alike. Without this, reordering two class
+/// declarations renumbers the applications and every header and body naming
+/// one reads as changed.
+String _unnumbered(String text) =>
+    text.replaceAll(_mixinApplicationCounter, '_MixinApplication&');
+
+final _mixinApplicationCounter = RegExp(r'_MixinApplication\d+&');
 
 /// A class's header -- modifiers, type parameters, `extends`, `with`,
 /// `implements` -- or null when tree shaking stripped it.
@@ -880,7 +943,7 @@ String? _classHeaderText(Class cls, bool isSupertype) {
       ..writeSpaced('implements')
       ..writeList(cls.implementedTypes, printer.visitSupertype);
   }
-  return buffer.toString();
+  return _unnumbered(buffer.toString());
 }
 
 /// Every field key, `library#Class.name` or `library#name`, and every
@@ -989,7 +1052,7 @@ String _constructorText(
   for (var i = 0; i < named.length; i++) {
     printer.writeNode(named.keys.elementAt(i));
   }
-  return buffer.toString();
+  return _unnumbered(buffer.toString());
 }
 
 /// The AOT tree shaker's own test for whether it may delete an expression it
@@ -1126,7 +1189,7 @@ String _text(Member m) {
   for (var i = 0; i < named.length; i++) {
     printer.writeNode(named.keys.elementAt(i));
   }
-  return buffer.toString();
+  return _unnumbered(buffer.toString());
 }
 
 Never _die(String message) {

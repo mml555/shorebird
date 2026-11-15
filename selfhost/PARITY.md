@@ -2204,9 +2204,16 @@ initializers and methods into each class that applies it, and moves those
 copies into `dart:mixin_deduplication`. The analyzer compared app libraries
 only, so an edit to a mixin's field initializer or method body read as
 unchanged, though the copy is what runs. Those classes are now compared too,
-keyed by their name without AOT's counter, and any change in them refuses the
-patch: a patch cannot replace the copies. The parity case
-`mixin_initializer` pins it.
+and any change in them refuses the patch: a patch cannot replace the copies.
+The parity cases `mixin_initializer`, `mixin_field` and `mixin_method` pin it.
+
+AOT numbers the copies in declaration order (`_MixinApplication0&Base&M`), so
+reordering two classes renumbers them. Keys and printed text drop that counter
+and add the type arguments a copy applies (`&Object&M<dart.core::int>`), so a
+reorder reads as unchanged. Copies that still share a name, such as a private
+`_B` and `M` declared in two libraries, are numbered in the order of the
+libraries they come from, which import order does not change. The parity case
+`mixin_reorder` pins the reorder.
 
 **A cell is needed.** The analyzer ships in the compiler cell, so this takes
 effect for releases built on a cell minted with it. The CLI reads versions
