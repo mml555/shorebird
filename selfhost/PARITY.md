@@ -2199,6 +2199,15 @@ refusal. One case stays blind: a class no other class builds on and nothing
 allocates, edited to extend only `Object` with no interfaces or type
 parameters, looks stripped.
 
+**Mixin copies are compared.** AOT copies a mixin's fields, field
+initializers and methods into each class that applies it, and moves those
+copies into `dart:mixin_deduplication`. The analyzer compared app libraries
+only, so an edit to a mixin's field initializer or method body read as
+unchanged, though the copy is what runs. Those classes are now compared too,
+keyed by their name without AOT's counter, and any change in them refuses the
+patch: a patch cannot replace the copies. The parity case
+`mixin_initializer` pins it.
+
 **A cell is needed.** The analyzer ships in the compiler cell, so this takes
 effect for releases built on a cell minted with it. The CLI reads versions
 11-14, and an older cell keeps its old behavior.

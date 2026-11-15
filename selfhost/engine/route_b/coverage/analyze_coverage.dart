@@ -749,27 +749,77 @@ Map<String, ({String kind, String text})> _declarationText(
     for (final f in lib.fields) {
       out['$uri#${f.name.text}'] = (kind: _fieldKind(f), text: _text(f));
     }
-    for (final cls in lib.classes) {
-      final header = _classHeaderText(cls, supertypes.contains(cls));
-      if (header != null) {
-        out['$uri#${cls.name}'] = (kind: 'class', text: header);
-      }
-      for (final f in cls.fields) {
-        out['$uri#${cls.name}.${f.name.text}'] = (
-          kind: _fieldKind(f),
-          text: _text(f),
-        );
-      }
-      for (final k in cls.constructors) {
-        final name = k.name.text.isEmpty ? 'new' : k.name.text;
-        out['$uri#${cls.name}.$name'] = (
-          kind: 'constructor',
-          text: _constructorText(k, '$uri#${cls.name}', sharedFields),
-        );
+  }
+  for (final (:cls, :key, :isMixinCopy) in _comparedClasses(c, isApp)) {
+    final header = _classHeaderText(cls, supertypes.contains(cls));
+    if (header != null) {
+      out[key] = (kind: 'class', text: header);
+    }
+    for (final f in cls.fields) {
+      out['$key.${f.name.text}'] = (kind: _fieldKind(f), text: _text(f));
+    }
+    for (final k in cls.constructors) {
+      final name = k.name.text.isEmpty ? 'new' : k.name.text;
+      out['$key.$name'] = (
+        kind: 'constructor',
+        text: _constructorText(k, key, sharedFields),
+      );
+    }
+    if (isMixinCopy) {
+      // The procedure diff above walks app libraries only, so a mixin's
+      // methods are compared here. A body the shaker made unreachable on
+      // this side says nothing about the source, so it is left out.
+      for (final m in cls.procedures) {
+        final text = _text(m);
+        if (text.contains(_tfaRemovedCode)) continue;
+        out['$key.${_selector(null, m)}'] = (kind: 'mixin member', text: text);
       }
     }
   }
   return out;
+}
+
+const _mixinLibrary = 'dart:mixin_deduplication';
+const _tfaRemovedCode =
+    'Attempt to execute code removed by Dart AOT compiler (TFA)';
+
+/// Every class whose declarations are compared, with the key it is reported
+/// under.
+///
+/// App classes, and the classes AOT made of mixin applications. Before tree
+/// shaking, the VM's mixin transformation copies a mixin's fields, methods and
+/// field initializers into each class that applies it, and deduplicates those
+/// into `dart:mixin_deduplication`. That copy is the code that runs: an edit to
+/// a mixin's field initializer or method body shows only there, and a patch
+/// cannot replace it. So those classes are compared too, and any change in
+/// them refuses the patch.
+///
+/// Their names carry a counter, `_MixinApplication0&Base&M`, that shifts when
+/// another mixin application comes or goes, so the key drops it:
+/// `dart:mixin_deduplication#&Base&M`. Two applications that share a name
+/// after that get `~2`, `~3`, in kernel order.
+Iterable<({Class cls, String key, bool isMixinCopy})> _comparedClasses(
+  Component c,
+  bool Function(Library) isApp,
+) sync* {
+  for (final lib in c.libraries.where(isApp)) {
+    for (final cls in lib.classes) {
+      yield (cls: cls, key: '${lib.importUri}#${cls.name}', isMixinCopy: false);
+    }
+  }
+  final seen = <String, int>{};
+  for (final lib in c.libraries) {
+    if ('${lib.importUri}' != _mixinLibrary) continue;
+    for (final cls in lib.classes) {
+      final name = cls.name.replaceFirst(RegExp(r'^_MixinApplication\d+'), '');
+      final n = seen[name] = (seen[name] ?? 0) + 1;
+      yield (
+        cls: cls,
+        key: '$_mixinLibrary#$name${n == 1 ? '' : '~$n'}',
+        isMixinCopy: true,
+      );
+    }
+  }
 }
 
 /// A class's header -- modifiers, type parameters, `extends`, `with`,
@@ -836,17 +886,16 @@ String? _classHeaderText(Class cls, bool isSupertype) {
 /// Every field key, `library#Class.name` or `library#name`, and every
 /// constructor parameter key, `library#Class.constructor(parameter)`.
 Set<String> _keptKeys(Component c, bool Function(Library) isApp) => {
-  for (final lib in c.libraries.where(isApp)) ...[
+  for (final lib in c.libraries.where(isApp))
     for (final f in lib.fields) '${lib.importUri}#${f.name.text}',
-    for (final cls in lib.classes) ...[
-      for (final f in cls.fields) '${lib.importUri}#${cls.name}.${f.name.text}',
-      for (final k in cls.constructors)
-        for (final p in [
-          ...k.function.positionalParameters,
-          ...k.function.namedParameters,
-        ])
-          _parameterKey('${lib.importUri}#${cls.name}', k, p),
-    ],
+  for (final (:cls, :key, isMixinCopy: _) in _comparedClasses(c, isApp)) ...[
+    for (final f in cls.fields) '$key.${f.name.text}',
+    for (final k in cls.constructors)
+      for (final p in [
+        ...k.function.positionalParameters,
+        ...k.function.namedParameters,
+      ])
+        _parameterKey(key, k, p),
   ],
 };
 
@@ -982,6 +1031,10 @@ String _declarationReason(String kind, {required bool isNew}) {
     'field' =>
       'this field\'s initializer or declaration changed; a patch replaces '
           'method bodies only, so the release keeps its own initial value',
+    'mixin member' =>
+      'this member of a mixin changed; AOT copies a mixin\'s members into '
+          'each class that applies it, and a patch cannot replace those '
+          'copies',
     'class' =>
       'this class\'s header -- extends, with, implements, type parameters or '
           'modifiers -- changed; a patch replaces method bodies only, so type '
