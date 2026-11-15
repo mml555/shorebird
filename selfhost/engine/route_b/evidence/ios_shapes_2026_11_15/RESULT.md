@@ -20,7 +20,7 @@
 - p17 and p27 both edit `_HomeState._start`;
 - p23 sits inside the `_HomeState.build` that p02 edits.
 
-The "before" values come from the patch 2 launch in `async_loop_patch2_launch1.log`. Patch 2 replaces only `_start` (with p07), so every other target there runs its release code. Long values are shortened.
+The "before" values come from the patch 2 launch in `async_loop_patch2_launch1.log`. Patch 2 replaces only `_start` (with p07), so every other target there runs its release code. `label=L1` is the exception: that launch did not capture it, because the log stream attached late, so it is read from the release source. Long values are shortened.
 
 | edit | shape | before | after |
 |---|---|---|---|
