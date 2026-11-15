@@ -45,6 +45,23 @@ note() { echo; echo "==> $*"; }
 [ -x "$DART" ] || die "no host dart at $DART"
 [ -f "$ANALYZER" ] || die "no analyzer at $ANALYZER — run build_route_b_analyzer.sh"
 [ -f "$CLI_PKGS" ] || die "no package config at $CLI_PKGS; run dart pub get at the repo root"
+# The CLI parser this harness checks the analysis against must be THIS tree's.
+# A CLI_PKGS from another checkout resolves shorebird_cli there, and an older
+# parser then fails every case with "speaks version N, and this build of
+# Shorebird understands ...", which reads like an analyzer bug.
+cli_root=$(python3 -c '
+import json, os, sys
+from urllib.parse import urlparse
+cfg = sys.argv[1]
+for p in json.load(open(cfg))["packages"]:
+    if p["name"] == "shorebird_cli":
+        u = p["rootUri"]
+        path = urlparse(u).path if u.startswith("file:") else os.path.join(os.path.dirname(cfg), u)
+        print(os.path.realpath(path)); break
+' "$CLI_PKGS")
+want_root=$(cd "$REPO/packages/shorebird_cli" && pwd -P)
+[ "$cli_root" = "$want_root" ] \
+  || die "CLI_PKGS resolves shorebird_cli to ${cli_root:-nothing}, not this tree's $want_root; copy the package config into $REPO/.dart_tool (its rootUris are relative) or run dart pub get there"
 
 CASES=("$@")
 if [ ${#CASES[@]} -eq 0 ]; then
