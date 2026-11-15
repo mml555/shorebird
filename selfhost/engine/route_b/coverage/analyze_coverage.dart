@@ -322,11 +322,11 @@ coverage/census_report.py, for what the numbers may and may not be read as.
 
   // Fields and constructors a patch cannot replace. Changed or new, never
   // removed: a patch that stops using a field asks nothing of the release.
-  // A field present on both sides. Tree shaking drops a field nothing reads
-  // and keeps its initializer as a nameless local, so which fields exist
+  // Fields and constructor parameters present on both sides. Tree shaking
+  // drops a field nothing reads, and a parameter nothing uses, so which exist
   // depends on the rest of the program; see `_constructorText`.
-  final sharedFields = _fieldKeys(base, isApp).intersection(
-    _fieldKeys(patched, isApp),
+  final sharedFields = _keptKeys(base, isApp).intersection(
+    _keptKeys(patched, isApp),
   );
   final baseDecl = _declarationText(base, isApp, sharedFields);
   final patchedDecl = _declarationText(patched, isApp, sharedFields);
@@ -732,13 +732,25 @@ Map<String, ({String kind, String text})> _declarationText(
   Set<String> sharedFields,
 ) {
   final out = <String, ({String kind, String text})>{};
+  // A class another class extends, mixes in or implements is named as a type,
+  // so tree shaking cannot have stripped its header; see `_classHeaderText`.
+  final supertypes = <Class>{
+    for (final lib in c.libraries)
+      for (final cls in lib.classes)
+        for (final s in [
+          ?cls.supertype,
+          ?cls.mixedInType,
+          ...cls.implementedTypes,
+        ])
+          s.classNode,
+  };
   for (final lib in c.libraries.where(isApp)) {
     final uri = lib.importUri.toString();
     for (final f in lib.fields) {
       out['$uri#${f.name.text}'] = (kind: _fieldKind(f), text: _text(f));
     }
     for (final cls in lib.classes) {
-      final header = _classHeaderText(cls);
+      final header = _classHeaderText(cls, supertypes.contains(cls));
       if (header != null) {
         out['$uri#${cls.name}'] = (kind: 'class', text: header);
       }
@@ -774,13 +786,17 @@ Map<String, ({String kind, String text})> _declarationText(
 /// never allocated is marked abstract. So `abstract` and the enum flag are left
 /// out, being the allocator's verdict rather than the source's, and a stripped
 /// header returns null. Null on the patched side skips the class: the patch
-/// stopped naming it, which is valid. On the release side the header is still
-/// printed, so a patch that starts naming a class the release stripped is
-/// refused, because the release cannot answer type tests against it. The cost
-/// is one blind case: an abstract class whose edit leaves it extending only
-/// `Object`, with no interfaces or type parameters, reads as stripped.
-String? _classHeaderText(Class cls) {
+/// stopped naming it, which is valid. Null on the release side only reads as a
+/// class the release does not have, and is refused as one: the patch starts
+/// naming a class whose hierarchy the release threw away, so the release
+/// cannot answer type tests against it. A class
+/// another class extends, mixes in or implements is named as a type, so it is
+/// never read as stripped. The cost is one blind case: a class no other class
+/// builds on, never allocated (tree shaking marks those abstract), whose edit
+/// leaves it extending only `Object` with no interfaces or type parameters.
+String? _classHeaderText(Class cls, bool isSupertype) {
   final stripped =
+      !isSupertype &&
       cls.isAbstract &&
       cls.supertype?.classNode.name == 'Object' &&
       '${cls.supertype?.classNode.enclosingLibrary.importUri}' == 'dart:core' &&
@@ -817,42 +833,71 @@ String? _classHeaderText(Class cls) {
   return buffer.toString();
 }
 
-/// Every field key, `library#Class.name` or `library#name`.
-Set<String> _fieldKeys(Component c, bool Function(Library) isApp) => {
+/// Every field key, `library#Class.name` or `library#name`, and every
+/// constructor parameter key, `library#Class.constructor(parameter)`.
+Set<String> _keptKeys(Component c, bool Function(Library) isApp) => {
   for (final lib in c.libraries.where(isApp)) ...[
     for (final f in lib.fields) '${lib.importUri}#${f.name.text}',
-    for (final cls in lib.classes)
+    for (final cls in lib.classes) ...[
       for (final f in cls.fields) '${lib.importUri}#${cls.name}.${f.name.text}',
+      for (final k in cls.constructors)
+        for (final p in [
+          ...k.function.positionalParameters,
+          ...k.function.namedParameters,
+        ])
+          _parameterKey('${lib.importUri}#${cls.name}', k, p),
+    ],
   ],
 };
+
+String _parameterKey(String classKey, Constructor k, FunctionParameter p) =>
+    '$classKey.${k.name.text.isEmpty ? 'new' : k.name.text}'
+    '(${p.cosmeticName})';
 
 /// A constructor as `_text` prints it, except for what tree shaking does to
 /// the storage of a field that only one side keeps.
 ///
-/// When nothing reads a field, the AOT tree shaker removes it and keeps its
-/// initializer as a nameless local, for its side effects:
+/// When nothing reads a field, the AOT tree shaker removes it. An initializer
+/// that may have side effects is kept as a nameless local; one that cannot is
+/// removed outright:
 ///
-///     release  : A::x = compute(), ...
+///     release  : A::x = compute(), A::y = y, ...
 ///     patch    : int #t1 = compute(), ...
 ///
 /// The patch's source never touched the constructor -- it stopped reading `x`
-/// somewhere else -- and printing it raw refused that valid patch as a changed
-/// constructor. So an initializer of a field that is not on both sides, and a
-/// nameless local initializer, are both printed as `dropped = <value>`, after
-/// the others. The VALUE is still compared, so an edited initializer is still
-/// seen; only where it is stored is not.
+/// and `y` somewhere else -- and printing it raw refused that valid patch as a
+/// changed constructor. So an initializer of a field that is not on both
+/// sides, and a nameless local, are printed as `dropped = <value>` when the
+/// value may have side effects, and left out when it cannot, by the shaker's
+/// own test. The value of a kept one is still compared, so an edited
+/// initializer is still seen.
+///
+/// Tree shaking also removes a parameter nothing uses, and stops passing it at
+/// every call site. So only the parameters both sides keep are printed, with
+/// their types and defaults: a default runs in the release's constructor, so
+/// an edited one is an edit the release would not carry. A parameter the patch
+/// newly passes needs no check here, because the patch is compiled against
+/// the release's declarations and a call the release's constructor cannot
+/// take fails to compile.
+///
+/// Every initializer is printed in its own position, one per line. Field
+/// initializers from declarations are lowered into the constructor in
+/// declaration order, so the order is the order side effects run in, and a
+/// reordering is an edit the release would not carry.
 String _constructorText(
   Constructor k,
   String classKey,
   Set<String> sharedFields,
 ) {
-  bool isDropped(Initializer i) => switch (i) {
-    FieldInitializer(:final field) => !sharedFields.contains(
-      '$classKey.${field.name.text}',
-    ),
-    LocalInitializer(:final variable) =>
-      variable.cosmeticName == null && variable.initializer != null,
-    _ => false,
+  // null: printed as it is. Otherwise the value whose storage is dropped.
+  Expression? droppedValue(Initializer i) => switch (i) {
+    FieldInitializer(:final field, :final value)
+        when !sharedFields.contains('$classKey.${field.name.text}') =>
+      value,
+    LocalInitializer(:final variable)
+        when variable.cosmeticName == null && variable.initializer != null =>
+      variable.initializer,
+    _ => null,
   };
   final buffer = StringBuffer();
   final printer = Printer(buffer)
@@ -860,27 +905,66 @@ String _constructorText(
     ..writeModifier(k.isExternal, 'external')
     ..writeModifier(k.isConst, 'const')
     ..writeWord('constructor')
-    ..writeFunction(
-      k.function,
-      name: k.name,
-      initializers: [
-        for (final i in k.initializers)
-          if (!isDropped(i)) i,
-      ],
-    );
-  for (final i in k.initializers.where(isDropped)) {
-    buffer.write('\ndropped = ');
-    printer.writeExpression(switch (i) {
-      FieldInitializer(:final value) => value,
-      LocalInitializer(:final variable) => variable.initializer!,
-      _ => throw StateError('unreachable'),
-    });
+    ..writeName(k.name)
+    ..writeSymbol('(');
+  for (final p in [
+    ...k.function.positionalParameters,
+    ...k.function.namedParameters,
+  ]) {
+    if (sharedFields.contains(_parameterKey(classKey, k, p))) {
+      printer
+        ..writeVariable(p)
+        ..writeSymbol(';');
+    }
+  }
+  printer.writeSymbol(')');
+  if (k.function.body case final body?) {
+    buffer.write('\nbody ');
+    printer.writeNode(body);
+  }
+  for (final i in k.initializers) {
+    final dropped = droppedValue(i);
+    if (dropped == null) {
+      buffer.write('\ninitializer ');
+      printer.writeNode(i);
+    } else if (_mayHaveSideEffects(dropped)) {
+      buffer.write('\ndropped = ');
+      printer.writeExpression(dropped);
+    }
   }
   final named = printer.syntheticNames.constants.map;
   for (var i = 0; i < named.length; i++) {
     printer.writeNode(named.keys.elementAt(i));
   }
   return buffer.toString();
+}
+
+/// The AOT tree shaker's own test for whether it may delete an expression it
+/// no longer needs the value of: `mayHaveSideEffects` in
+/// `pkg/vm/lib/transformations/type_flow/utils.dart`. Copied, not imported,
+/// to keep this tool on `package:kernel` alone. Keep it in step with the copy
+/// in the Dart tree the release was built from.
+bool _mayHaveSideEffects(Expression node) {
+  if (node is BasicLiteral ||
+      node is ConstantExpression ||
+      node is ThisExpression) {
+    return false;
+  }
+  if (node is VariableGet && !node.variable.isLate) {
+    return false;
+  }
+  if (node is StaticGet) {
+    final target = node.target;
+    if (target is Field && !target.isLate) {
+      final initializer = target.initializer;
+      if (initializer == null ||
+          initializer is BasicLiteral ||
+          initializer is ConstantExpression) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 String _fieldKind(Field f) => f.isConst ? 'constant' : 'field';

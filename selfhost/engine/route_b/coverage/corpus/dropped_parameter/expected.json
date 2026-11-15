@@ -1,0 +1,20 @@
+{
+  "note": "A getter stops reading a field set by an initializing formal. Tree shaking removes the field, the parameter and the argument callers pass, and the initializer has no side effects, so nothing of it is left. The constructor's source did not change; only the kept parameters are compared, so the getter and the callers whose argument was pruned ship.",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#Box.value",
+    "package:corpus/main.dart#main",
+    "package:corpus/main.dart#routeBMake"
+  ],
+  "patchable": [
+    "package:corpus/main.dart#main",
+    "package:corpus/main.dart#routeBMake"
+  ],
+  "conditional": [
+    "package:corpus/main.dart#Box.value"
+  ],
+  "unreachable": [],
+  "added": [],
+  "declarations": [],
+  "rejectionReasons": []
+}

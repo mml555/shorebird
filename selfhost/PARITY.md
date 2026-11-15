@@ -2112,12 +2112,22 @@ leaves `_slot` alone, so it still tests what it was written for.
 
 **A field the patch stops reading is not a changed constructor.** When an edit
 removes the last read of a field, tree shaking drops the field from the
-patch's kernel. It keeps the field's initializer, which can have side effects,
-as a nameless local in the constructor. The constructor's kernel then differs
-from the release's though its source did not. The analyzer prints such an
-initializer as a dropped value after the others, so the value is still
-compared: an edited initializer is still refused, and the getter edit alone
-ships. The parity case `dropped_field_read` pins it.
+patch's kernel. An initializer that may have side effects stays as a nameless
+local in the constructor; one that cannot is removed, and so is a parameter
+nothing uses, with the argument every caller passed. The constructor's kernel
+then differs from the release's though its source did not. The analyzer
+prints only the parameters both sides keep, with their defaults, and prints a
+dropped field's initializer as a dropped value when it may have side effects,
+by the shaker's own test, and not at all when it cannot. A kept value is
+still compared, so an edited initializer or default is still refused. The
+parity cases `dropped_field_read` (side effects) and `dropped_parameter`
+(`A(this.x, ...)`) pin the accept.
+
+**Initializer order is compared.** Field initializers from declarations are
+lowered into the constructor in declaration order, and every initializer is
+printed in its place, dropped or not. Swapping two side-effecting
+initializers, in the constructor's list or as field declarations, is
+refused. The parity case `initializer_order` pins it.
 
 A constructor refusal can also come from a call site. When every caller passes
 the same constant, tree shaking folds it into the constructor, so editing that
@@ -2139,10 +2149,13 @@ the release's class still answered the test. `extends`, `with`, `implements`,
 type parameters and the class modifiers are now a `class` declaration that
 refuses the patch. `abstract` and the enum flag are left out because tree
 shaking sets them by allocation. A header tree shaking stripped from the
-patch's kernel, because the patch stopped naming the class, is skipped. The
-parity case `class_header` pins the refusal. One case stays blind: an abstract
-class edited to extend only `Object`, with no interfaces or type parameters,
-looks stripped.
+patch's kernel, because the patch stopped naming the class, is skipped. One
+stripped only in the release's kernel reads as a class the release does not
+have, and is refused as one. A class another class extends, mixes in or
+implements is never read as stripped. The parity case `class_header` pins the
+refusal. One case stays blind: a class no other class builds on and nothing
+allocates, edited to extend only `Object` with no interfaces or type
+parameters, looks stripped.
 
 **A cell is needed.** The analyzer ships in the compiler cell, so this takes
 effect for releases built on a cell minted with it. The CLI reads versions
