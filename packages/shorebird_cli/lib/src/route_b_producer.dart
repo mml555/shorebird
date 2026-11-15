@@ -869,10 +869,12 @@ Object? $_superIntrinsicName(
     // both. One receiver prefix there is the whole rewrite --
     // `self.label += 'X'` reads and writes the same member the original did --
     // while two insertions would produce `self.self.label`. So a position
-    // carrying only a read and a write of ONE member gets one edit. Anything
-    // else sharing a position means the analyzer and this producer disagree
-    // about the source, which is exactly when a silent wrong edit is likeliest.
+    // carrying exactly one read and one write of ONE member gets one edit.
+    // Anything else sharing a position -- a third access, two reads, two
+    // members -- means the analyzer and this producer disagree about the
+    // source, which is exactly when a silent wrong edit is likeliest.
     final edited = <int, RouteBReceiverAccess>{};
+    final paired = <int>{};
     for (final access in lowering.accesses) {
       final first = edited[access.offset];
       if (first == null) {
@@ -880,7 +882,9 @@ Object? $_superIntrinsicName(
         continue;
       }
       const readWrite = {'get', 'set'};
-      if (first.member != access.member ||
+      if (!paired.add(access.offset) ||
+          first.member != access.member ||
+          first.kind == access.kind ||
           !readWrite.contains(first.kind) ||
           !readWrite.contains(access.kind)) {
         throw RouteBUnsupportedTarget(

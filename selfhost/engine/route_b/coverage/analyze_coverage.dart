@@ -998,8 +998,12 @@ Map<String, Object?> _lowering(
   // producer emits one edit for such a position. `_count += 1` inside a
   // setState closure, the most common shape in a Flutter app, is this.
   //
-  // Anything else sharing an offset -- two members, or a call -- is refused:
-  // that is not a shape this lowering has been shown to rewrite.
+  // Anything else sharing an offset -- two members, two reads, a third
+  // access, or a call -- is refused: that is not a shape this lowering has
+  // been shown to rewrite. Measured on the host front end: `this._a += 2`,
+  // `this.b++`, `++this.b`, `this._c ??= 4` and `_d += 2` inside a closure all
+  // put the read and the write at the member NAME, so an explicit `this.` is
+  // still one edit (the producer replaces `this.` with the receiver).
   // `label = label + 'Y'` is untouched by this -- measured at two distinct
   // offsets, because it really is two tokens.
   final byOffset = <int, List<_Access>>{};
@@ -1007,9 +1011,11 @@ Map<String, Object?> _lowering(
     byOffset.putIfAbsent(a.offset, () => []).add(a);
   }
   for (final entry in byOffset.entries) {
-    final readWriteOfOne =
+    // Exactly one read and one write: a third access, or two of one kind, is
+    // not something a compound assignment produces.
+    final readWriteOfOne = entry.value.length == 2 &&
         entry.value.map((a) => a.member).toSet().length == 1 &&
-        entry.value.every((a) => a.kind == 'get' || a.kind == 'set');
+        entry.value.map((a) => a.kind).toSet().containsAll(const {'get', 'set'});
     if (entry.value.length > 1 && !readWriteOfOne) {
       final kinds = entry.value.map((a) => a.kind).join('+');
       unsupported.add(
