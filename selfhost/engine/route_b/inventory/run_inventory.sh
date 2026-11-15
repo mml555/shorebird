@@ -65,10 +65,10 @@ note "release kernel + snapshot (gen_snapshot flags: ${FLAGS:-none})"
 
 # One replacement per target. The bodies differ only in their marker, and each
 # must match its target's signature -- the attach swaps a body, not an API.
-emit_bytecode() {  # emit_bytecode <file> <fn-name> <marker>
+emit_bytecode() {  # emit_bytecode <file> <fn-name> <marker> [<params> <value>]
   cat > "$WORK/$1.dart" <<DART
 @pragma('dyn-module:entry-point')
-String $2() => 'NEW-$3';
+String $2(${4:-}) => ${5:-'NEW-$3'};
 DART
   "$DART" "$DART2BC" --platform "$OUT/vm_platform.dill" \
     --import-dill import.dill -o "$WORK/$1.bytecode" "$WORK/$1.dart" \
@@ -80,6 +80,11 @@ emit_bytecode static_m  staticMethod   static_m
 emit_bytecode mono     monomorphic    mono
 emit_bytecode getter   getter         getter
 emit_bytecode circle   describe       circle
+emit_bytecode part3    render         part3
+emit_bytecode tile3    paint          tile3
+# An instance method's replacement takes the receiver first.
+emit_bytecode itile3   paintn         itile3 'Object self, int n' "'NEW-\$n'"
+emit_bytecode dtile3   paintd         dtile3 'Object self, double x' "'NEW-\$x'"
 
 # target name -> which FORM line should flip if that form is patchable
 declare -a CASES=(
@@ -95,7 +100,35 @@ declare -a CASES=(
   # while the statically-typed one does not, the gap is dispatch-table
   # specialization and not the patch.
   "Circle.describe|circle|dynamic-instance"
+  # The framework's shape: one site, eight receivers. -first is the site's
+  # first link, -late is after it has gone megamorphic, and -other must stay
+  # original or the patch is reaching receivers it does not own.
+  "Part3.render|part3|megamorphic-first"
+  "Part3.render|part3|megamorphic-late"
+  "Part3.render|part3|megamorphic-other"
+  # The same shape with no vm:entry-point on the method, as in real code.
+  "Tile3.paint|tile3|noentry-first"
+  "Tile3.paint|tile3|noentry-late"
+  "Tile3.paint|tile3|noentry-other"
+  # An int and a double parameter. The patched body echoes its argument.
+  "Itile3.paintn|itile3|int-first"
+  "Itile3.paintn|itile3|int-late"
+  "Itile3.paintn|itile3|int-other"
+  "Dtile3.paintd|dtile3|double-first"
+  "Dtile3.paintd|dtile3|double-late"
+  "Dtile3.paintd|dtile3|double-other"
 )
+
+# What a patched body that echoes its argument must print (bash 3.2, the
+# macOS /bin/bash, has no associative arrays).
+echo_of() {
+  case $1 in
+    int-first) echo NEW-41 ;;
+    int-late) echo NEW-42 ;;
+    double-first) echo NEW-1.5 ;;
+    double-late) echo NEW-3.5 ;;
+  esac
+}
 
 printf '\n%-22s  %-20s  %s\n' "target attached" "form under test" "outcome"
 printf -- '-%.0s' {1..74}; printf '\n'
@@ -109,6 +142,21 @@ for c in "${CASES[@]}"; do
 
   if grep -q "^attach\[$target\]: false" "$log" || grep -q '^ATTACH: .*not found' "$log"; then
     outcome="ATTACH FAILED (harness) -- $(grep -m1 '^ATTACH: .*not found' "$log" || echo 'attach returned false')"
+  elif [[ $form == *-other ]]; then
+    # A control, not a form: the patch must NOT reach a receiver it was not
+    # attached to, so the verdicts are inverted.
+    if grep -q "^FORM $form: original" "$log"; then
+      outcome="untouched (correct)"
+    elif grep -q "^FORM $form: PATCHED" "$log"; then
+      outcome="WRONG RECEIVER PATCHED"
+    else
+      outcome="INCONCLUSIVE (no FORM $form line; see $log)"
+    fi
+  elif [[ -n $(echo_of "$form") ]] && grep -q "^FORM $form: PATCHED" "$log" &&
+    ! grep -qF "FORM $form: PATCHED ($(echo_of "$form"))" "$log"; then
+    # Reached the patch, with the wrong argument: an unboxed value read as
+    # a boxed one.
+    outcome="WRONG ARGUMENT -- $(grep -m1 "^FORM $form:" "$log")"
   elif grep -q "^FORM $form: PATCHED" "$log"; then
     outcome="PATCHABLE"
   elif grep -q "^FORM $form: original" "$log"; then

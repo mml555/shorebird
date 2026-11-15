@@ -636,13 +636,29 @@ exercising each shape AOT actually emits:
 | top-level static, static method | **yes** |
 | instance method (monomorphic), getter | **yes** — AOT devirtualizes these into static calls |
 | dynamic instance call (`EmitTestAndCall` cid chain) | **yes** |
-| statically-typed polymorphic call (**dispatch table**) | **no** |
+| statically-typed polymorphic call (**dispatch table**) | **no** — **yes** under `--route_b_untabled_overrides` (2026-11-14, host) |
 
 Dispatch-table calls load a raw entry point out of a data table and set up
 neither `R0` nor `R4`, so there is no cheap version: rewriting the table is
 legal on iOS but insufficient, and making `EmitDispatchTableCall` go through the
 `Function` taxes **every instance call in the program** — straight onto the step
 7 veto. That decision wants the real-app benchmark first.
+
+**2026-11-14: a targeted version instead.** `--route_b_untabled_overrides`
+(Dart lineage PR 3) keeps a selector out of the table when a regular method
+implementing it lives outside `dart:` and `package:flutter/`, so its calls stay
+switchable calls (or cid-check chains), whose stubs load `R0` and `R4`. Every
+`Widget.build` an app defines is such a selector. The cost is not confined to
+the app: a selector is shared by every class that implements it, so an app
+`build` untables the framework's `build` calls too, and an app class
+implementing `Iterable` or `Map` would untable those SDK calls. Pub packages
+count as app code here. On a counter app
+the snapshot grows 0.33 %, the call-form inventory reports the polymorphic and
+megamorphic forms patchable, and the release probe (revision 2) finds call sites
+for `MyApp.build` and `_MyHomePageState.build`. Measured on the host only, on
+one small app; the iOS cell, the device patch, and size and frame time on a
+real app are still to come. See
+[`engine/route_b/evidence/untabled_overrides/RESULT.md`](engine/route_b/evidence/untabled_overrides/RESULT.md).
 
 **The consequence for step 5 is concrete:** patch coverage is not "any Dart
 function", and Shorebird's link percentage has a direct analogue here. Say so in

@@ -24,6 +24,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:shorebird_cli/src/route_b.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 
 /// The probe revision this CLI writes into a release's profile binding.
@@ -32,7 +33,45 @@ import 'package:shorebird_cli/src/route_b_compiler.dart';
 /// the probe refuses a binding written for another. That is what stops a
 /// profile emitted under one classification from being read under a different
 /// one -- the bytes would still parse, and the answer could still be wrong.
+///
+/// This is the revision of a release built without
+/// `--route_b_untabled_overrides`; see [routeBReleaseProbeRevisionFor].
 const routeBReleaseProbeRevision = 1;
+
+/// The probe revision a release built with `--route_b_untabled_overrides`
+/// writes.
+///
+/// Only such a release has selectors with no dispatch-table row, and only for
+/// those is a switchable call naming the selector evidence that a call reaches
+/// the patched body. The probe counts switchable sites for a binding of this
+/// revision alone, so a release built without the flag cannot pass on an
+/// unrelated call of the same name, and a revision-1 probe refuses the binding
+/// instead of reading it without that category.
+const routeBUntabledReleaseProbeRevision = 2;
+
+/// The probe revision to bind a release built with [buildArgs] to.
+///
+/// gen_snapshot applies its options in order, so the last mention of the flag
+/// decides, as it does for gen_snapshot.
+int routeBReleaseProbeRevisionFor(List<String> buildArgs) {
+  const prefix = '--extra-gen-snapshot-options=';
+  const flag = '--$routeBUntabledOverridesFlag';
+  var untabled = false;
+  for (final arg in buildArgs) {
+    if (!arg.startsWith(prefix)) continue;
+    for (final option in arg.substring(prefix.length).split(',')) {
+      if (option == flag || option == '$flag=true') {
+        untabled = true;
+      } else if (option == '--no-$routeBUntabledOverridesFlag' ||
+          option == '$flag=false') {
+        untabled = false;
+      }
+    }
+  }
+  return untabled
+      ? routeBUntabledReleaseProbeRevision
+      : routeBReleaseProbeRevision;
+}
 
 /// The three answers the publication decision is allowed to see.
 enum RouteBSurvival {

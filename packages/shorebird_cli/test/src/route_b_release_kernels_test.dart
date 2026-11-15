@@ -712,6 +712,86 @@ void main() {
         expect(interfaceArgs(), isNot(contains('--private-dill')));
       });
 
+      test('passes the Flutter platform with the private kernel', () {
+        // The import kernel is compiled against the cell's Flutter platform
+        // and leaves `dart:` unlinked; the generator binds it only when given
+        // that same platform.
+        final privates = File(p.join(prepass.parent.path, 'early_import.dill'))
+          ..writeAsStringSync('IMPORT-KERNEL');
+
+        expect(
+          interfaceArgs(privateEnumerationKernel: privates),
+          containsAllInOrder([
+            '--private-dill',
+            privates.path,
+            '--platform',
+            compiler().flutterPlatformDill.path,
+          ]),
+        );
+        expect(interfaceArgs(), isNot(contains('--platform')));
+      });
+
+      test('retries without --platform for a generator that rejects it', () {
+        final privates = File(p.join(prepass.parent.path, 'early_import.dill'))
+          ..writeAsStringSync('IMPORT-KERNEL');
+        final calls = <List<String>>[];
+        final result = runWithOverrides(
+          () => const RouteBReleaseKernelBuilder().generateDynamicInterface(
+            compiler: compiler(),
+            prepassKernel: prepass,
+            outputFile: output,
+            appPackageName: 'my_app',
+            privateEnumerationKernel: privates,
+            run: (executable, arguments) {
+              // The constructor census runs through the same runner first.
+              if (arguments.contains('--census')) {
+                return ProcessResult(0, 0, '', '');
+              }
+              calls.add(arguments);
+              if (arguments.contains('--platform')) {
+                return ProcessResult(0, 2, '', 'unknown argument: --platform');
+              }
+              output.writeAsStringSync('callable:');
+              return ProcessResult(0, 0, '', '');
+            },
+          ),
+        );
+
+        expect(result, isNotNull);
+        expect(calls, hasLength(2));
+        expect(calls.last, isNot(contains('--platform')));
+        expect(
+          calls.last,
+          containsAllInOrder(['--private-dill', privates.path]),
+        );
+        verifyNever(() => logger.warn(any()));
+      });
+
+      test('does not retry a generator that failed for another reason', () {
+        final privates = File(p.join(prepass.parent.path, 'early_import.dill'))
+          ..writeAsStringSync('IMPORT-KERNEL');
+        var calls = 0;
+        final result = runWithOverrides(
+          () => const RouteBReleaseKernelBuilder().generateDynamicInterface(
+            compiler: compiler(),
+            prepassKernel: prepass,
+            outputFile: output,
+            appPackageName: 'my_app',
+            privateEnumerationKernel: privates,
+            run: (executable, arguments) {
+              if (arguments.contains('--census')) {
+                return ProcessResult(0, 0, '', '');
+              }
+              calls++;
+              return ProcessResult(0, 2, '', 'unknown argument: --policy');
+            },
+          ),
+        );
+
+        expect(result, isNull);
+        expect(calls, 1);
+      });
+
       test('names the chosen policy rather than taking the default', () {
         // P2 is a decision with a recorded cost (+7.83% on Wonderous) and a
         // recorded alternative (P3, NON-VIABLE). Relying on the generator's

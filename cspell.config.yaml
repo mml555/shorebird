@@ -469,6 +469,21 @@ words:
   #
   # Route B / this fork's own identifiers:
   - sbrbptch # the Route B container extension, .sbrbptch
+  - untabled # --route_b_untabled_overrides: a selector kept out of the dispatch table
+  - untable # to keep a selector out of the dispatch table (see untabled)
+  - untables
+  - noentry # the call-form inventory's case without vm:entry-point on the method
+  - swunowned # release probe gate mutation: count a switchable call in an unowned pool
+  - swtearoff # release probe gate mutation: count a switchable call in a tear-off's pool
+  - anyrev # release probe gate mutation: count switchable calls under any binding revision
+  - dtile # route b inventory: a double-parameter specimen
+  - dtiles
+  - itile # route b inventory: an int-parameter specimen
+  - itiles
+  - paintd
+  - paintn
+  - selfname # the release probe gate's mutation that matches own code by name
+  - sbrel # the counter app the Route B measurements build
   - codepatch # fixture marker string
   - runmain # the _runMain seam
   - handpack # probes/device_handpack.sh, a hand-written replacement body

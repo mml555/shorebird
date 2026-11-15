@@ -81,6 +81,95 @@ File iosReleaseEngineBinary({
   );
 }
 
+/// The gen_snapshot flag that keeps app-overridden methods out of the dispatch
+/// table, so a Route B patch reaches calls such as the framework's
+/// `widget.build(this)`. Measured on the host; no device patch yet
+/// (`selfhost/engine/route_b/evidence/untabled_overrides/RESULT.md`).
+///
+/// A dispatch-table call loads a raw entry point and never consults
+/// `Function.entry_point_`, so a patch to a `build` method attached, reported
+/// success, and had no surviving call site. Under this flag those calls stay
+/// switchable calls, which the runtime links through the `Function`.
+const routeBUntabledOverridesFlag = 'route_b_untabled_overrides';
+
+/// The gen_snapshot an iOS release build in [flutterDirectory] runs.
+///
+/// With `--local-engine` it is the first `gen_snapshot_arm64` in the local
+/// build, searched in flutter_tools' own order (`_genSnapshotPath` in
+/// `artifacts.dart`), so the binary inspected here is the one the build runs.
+/// Otherwise it is in the Flutter checkout's cached `ios-release` artifacts.
+File iosReleaseGenSnapshot({
+  required Directory flutterDirectory,
+  String? localEngineSrcPath,
+  String? localEngine,
+}) {
+  if (localEngine != null && localEngineSrcPath != null) {
+    final out = p.join(localEngineSrcPath, 'out', localEngine);
+    const flutterToolsOrder = [
+      '.',
+      'universal',
+      'clang_x64',
+      'clang_x86',
+      'clang_i386',
+      'clang_arm64',
+      'clang_riscv64',
+    ];
+    final candidates = [
+      for (final dir in flutterToolsOrder)
+        File(p.normalize(p.join(out, dir, 'gen_snapshot_arm64'))),
+    ];
+    return candidates.firstWhere(
+      (f) => f.existsSync(),
+      orElse: () => candidates.first,
+    );
+  }
+  return File(
+    p.join(
+      flutterDirectory.path,
+      'bin',
+      'cache',
+      'artifacts',
+      'engine',
+      'ios-release',
+      'gen_snapshot_arm64',
+    ),
+  );
+}
+
+/// Whether [genSnapshot] defines the VM flag [flag].
+///
+/// Read from the bytes rather than by running the binary: gen_snapshot rejects
+/// an unknown flag only once it is compiling, and `--version` exits 0 whatever
+/// flags precede it.
+bool genSnapshotHasFlag(File genSnapshot, String flag) {
+  if (!genSnapshot.existsSync()) return false;
+  return containsFlagName(genSnapshot.readAsBytesSync(), flag);
+}
+
+/// Whether [bytes] hold [flag] as a whole name: with a non-identifier byte (or
+/// the end of the data) on both sides, so a flag is not matched inside a longer
+/// one. The VM stores flag names as plain strings in the executable.
+bool containsFlagName(List<int> bytes, String flag) {
+  final needle = flag.codeUnits;
+  outer:
+  for (var i = 0; i + needle.length <= bytes.length; i++) {
+    for (var j = 0; j < needle.length; j++) {
+      if (bytes[i + j] != needle[j]) continue outer;
+    }
+    final before = i == 0 ? 0 : bytes[i - 1];
+    final afterIndex = i + needle.length;
+    final after = afterIndex < bytes.length ? bytes[afterIndex] : 0;
+    if (!_isIdentifierByte(before) && !_isIdentifierByte(after)) return true;
+  }
+  return false;
+}
+
+bool _isIdentifierByte(int b) =>
+    (b >= 0x30 && b <= 0x39) ||
+    (b >= 0x41 && b <= 0x5a) ||
+    (b >= 0x61 && b <= 0x7a) ||
+    b == 0x5f;
+
 /// Whether [engineBinary] declares, in its own log text, that it cannot run
 /// iOS patches ([iosPatchesDeclinedMarker]). Reads the file once.
 ///

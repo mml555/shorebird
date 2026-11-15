@@ -152,6 +152,8 @@ selfhost/engine/route_b/inventory/run_inventory.sh
 | instance getter | devirtualized to a static call | **yes** |
 | dynamic instance call | `EmitTestAndCall` cid chain | **yes** — after widening |
 | statically-typed polymorphic call | **dispatch table** | **no** |
+| the same, under `--route_b_untabled_overrides` | cid chain (few receivers) or switchable call (many) | **yes** (2026-11-14, host) |
+| megamorphic call, eight receivers, flag on | switchable call | **yes**; a receiver the patch was not attached to keeps its old body |
 
 Two of those deserve comment. Monomorphic instance methods and getters came out
 patchable **for free** — AOT devirtualizes them into static calls, so form (c)
@@ -164,7 +166,11 @@ direct calls, so form (c) moved from `EmitOptimizedStaticCall` into
 check if a third one ever appears.
 
 **Dispatch-table calls are the one genuinely unreachable form, and they are a
-different order of work.** The call site is:
+different order of work.** *(2026-11-14: `--route_b_untabled_overrides` keeps
+app method selectors out of the table instead, so those calls never take this
+form; see the end of this section and
+[`evidence/untabled_overrides/RESULT.md`](evidence/untabled_overrides/RESULT.md).
+What follows is why the table itself stays unpatchable.)* The call site is:
 
 ```
 movz r0, #0xec                    ; folded (cid, selector) slot
@@ -186,6 +192,69 @@ Deciding between those wants the real-app benchmark first, which is why this
 stops here rather than guessing. Note the practical consequence for step 5: a
 patch's coverage is *not* "any Dart function", and the link-percentage figure
 Shorebird reports has a direct analogue here.
+
+### Third option, taken 2026-11-14: keep the selector out of the table
+
+Neither option above is needed for the methods a patch actually changes.
+`--route_b_untabled_overrides` (gen_snapshot; Dart lineage `4c9f79f2`) gives a
+selector no table row when a regular method implementing it lives outside
+`dart:` and `package:flutter/`. Getters, setters, fields and a handful of hot
+selectors (`==`, `toString`, `call`, `compareTo`, `moveNext`, `noSuchMethod`)
+stay tabled. With no row, `AotCallSpecializer` emits a cid-check chain of direct
+calls for a site with few receivers and a switchable call for one with many.
+Both reach a patched body: the first through form (c), the second through the
+switchable-call stubs, which load `R0` and `R4` before jumping through
+`Function.entry_point_`.
+
+Five VM changes come with it:
+
+- **`Function::NeedsMonomorphicCheckedEntry`** answers true for an untabled
+  selector's implementations. A switchable site links monomorphic and enters
+  through the receiver check, and the same answer keeps the function in its
+  class's function array (where the runtime resolves the selector) and keeps
+  its `Code`. Without it a real Flutter app lost the code of `MyApp.build`,
+  `_MyHomePageState.build` and about 800 other functions, and its snapshot came out
+  6.9 % *smaller*. The inventory could not see this: every one of its targets
+  is `vm:entry-point`, which already counts as a dynamic caller.
+- **`Precompiler::AddTypesOf`** files every untabled selector's implementation
+  as called dynamically, including those `NeedsMonomorphicCheckedEntry` skips
+  because their prologue needs an arguments descriptor (optional, named or
+  type parameters). Without it those were pruned from the function array and
+  the call ended in `noSuchMethod`.
+- **`Function::MaxNumberOfParametersInRegisters`** answers 0 for an untabled
+  selector, so its implementations and its callers use the stack calling
+  convention. A switchable call passes every argument on the stack, and TFA
+  forces that convention only for functions it sees called dynamically. Without
+  it an untabled method that is not a `vm:entry-point` took its receiver in a
+  register no switchable call fills, and the first call failed with
+  `NoSuchMethodError` on an `int` receiver. Entry points already use the stack,
+  which is why every inventory case passed until it gained one without the
+  pragma.
+- **`Precompiler::BoxRouteBUntabledSignatures`** clears TFA's unboxing of an
+  untabled selector's parameters and return value before anything compiles.
+  The interpreter takes boxed values only, and the AOT runtime keeps no record
+  of which parameters a method takes unboxed, so the attach native cannot
+  refuse such a method. A release never had one (its dynamic interface makes
+  every app method dynamically callable, which already keeps values boxed), but
+  under the flag the attach finds any untabled method by name, including ones
+  no interface covers. Without it a patched `paintn(int)` crashed and a patched
+  `paintd(double)` received a garbage value. Without a
+  release's interface this is defense in depth; each of the other four fixed
+  a failure a program hit without it.
+- **`Function::PrologueNeedsArgumentsDescriptor`** answers true at runtime for
+  a function `AttachBytecode` replaced, so a switchable site goes through
+  `ICCallThroughCode` instead of linking monomorphic straight to the
+  InterpretCall stub. Without it the second call through such a site
+  segfaulted (`si_addr=0x1f`). Today's cells link the same way, so a
+  switchable call that reaches a replaced function directly (not through a
+  `dyn:` forwarder) would meet the same crash there. That case was reasoned
+  from the code, not reproduced.
+
+The CLI passes the flag to every iOS release whose gen_snapshot contains it, so
+it takes effect with the first cell built from that Dart revision. Releases
+built before it keep their table calls, and a patch to them is refused the way
+it is today. Measurements:
+[`evidence/untabled_overrides/RESULT.md`](evidence/untabled_overrides/RESULT.md).
 
 ## Step 2 — symbol retention, and the policy the measurement forced
 

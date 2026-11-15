@@ -475,7 +475,7 @@ ${result.stderr}''',
       run: run,
     );
 
-    final result = run(compiler.runtime.path, [
+    List<String> arguments({required bool withPlatform}) => [
       compiler.interfaceGenerator.path,
       '--dill',
       prepassKernel.path,
@@ -503,6 +503,14 @@ ${result.stderr}''',
       if (privateEnumerationKernel != null) ...[
         '--private-dill',
         privateEnumerationKernel.path,
+        // The platform that kernel was compiled against (see _compile). Read
+        // under it, the kernel's `dart:` references bind, so the generator can
+        // walk it whole for the framework and SDK names app code uses, which a
+        // patch resolves by name on device.
+        if (withPlatform) ...[
+          '--platform',
+          compiler.flutterPlatformDill.path,
+        ],
       ],
       // THE CHOSEN POLICY, named rather than implied. P2 retains app-private
       // members AND the private classes required to make those members
@@ -527,7 +535,19 @@ ${result.stderr}''',
       for (final grant in constructorGrants) ...['--grant-constructor', grant],
       '--sdk-members',
       sdkMembers.join(','),
-    ]);
+    ];
+
+    var result = run(
+      compiler.runtime.path,
+      arguments(withPlatform: privateEnumerationKernel != null),
+    );
+    // A cell minted before the generator took --platform rejects it as an
+    // unknown argument. Its generator walks both kernels instead, which is
+    // what it did before, so run it the old way rather than lose the interface.
+    if (result.exitCode == 2 &&
+        '${result.stderr}'.contains('unknown argument: --platform')) {
+      result = run(compiler.runtime.path, arguments(withPlatform: false));
+    }
     if (result.exitCode != 0 || !outputFile.existsSync()) {
       logger.warn(
         '''Could not generate this release's retention interface (exit ${result.exitCode}); patches for it will only be able to replace bodies that name nothing.

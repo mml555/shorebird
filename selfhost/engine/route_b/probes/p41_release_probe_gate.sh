@@ -36,6 +36,12 @@
 #   count unowned pools as callers    (deliberately ambiguous evidence passes)
 #   drop library scoping              (a wrong-library target resolves)
 #   drop the edges-consumed check     (a structurally broken profile is read)
+#   tell own code from a caller by name (a switchable site called from a
+#                                        same-named function is dropped)
+#   drop the switchable unowned guard   (an unowned UnlinkedCall passes)
+#   drop the switchable tear-off guard  (a tear-off's UnlinkedCall passes)
+#   count switchable calls under any binding (a release built without the
+#                                        flag passes on a same-named call)
 #
 # Host only. No device, no mint.
 #
@@ -101,8 +107,94 @@ class _Priv {
       DateTime.now().millisecondsSinceEpoch >= 0 ? 'PRV' : 'X';
 }
 
+// Revision 2's shapes. Without --route_b_untabled_overrides both calls below
+// are dispatch-table calls and have no site the probe can see. With it:
+//   * render() has eight implementations, too many for a cid-check chain, so
+//     its call is a switchable call naming the selector;
+//   * pick() has two, so its call becomes a cid-check chain of direct calls.
+// Each is called only from a function that SHARES the selector's name, as
+// StatelessElement.build shares build() with every widget it calls: a probe
+// that tells a target's own code from a caller by name drops both sites.
+abstract class _Part {
+  String render();
+}
+
+class _P0 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P0' : 'X';
+}
+
+class _P1 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P1' : 'X';
+}
+
+class _P2 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P2' : 'X';
+}
+
+class _P3 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P3' : 'X';
+}
+
+class _P4 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P4' : 'X';
+}
+
+class _P5 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P5' : 'X';
+}
+
+class _P6 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P6' : 'X';
+}
+
+class _P7 extends _Part {
+  @pragma('vm:never-inline')
+  @override
+  String render() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'P7' : 'X';
+}
+
+@pragma('vm:never-inline')
+String render(_Part part) => part.render();
+
+abstract class _Duo {
+  String pick();
+}
+
+class _DuoA extends _Duo {
+  @pragma('vm:never-inline')
+  @override
+  String pick() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'DA' : 'X';
+}
+
+class _DuoB extends _Duo {
+  @pragma('vm:never-inline')
+  @override
+  String pick() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'DB' : 'X';
+}
+
+@pragma('vm:never-inline')
+String pick(_Duo duo) => duo.pick();
+
 String _specimenLine() {
-  final live = '${foldOpaque()}/${foldConst()}/${_Priv().privTarget()}';
+  final parts = <_Part>[_P0(), _P1(), _P2(), _P3(), _P4(), _P5(), _P6(), _P7()];
+  final duos = <_Duo>[_DuoA(), _DuoB()];
+  final now = DateTime.now().millisecondsSinceEpoch;
+  final live = '${foldOpaque()}/${foldConst()}/${_Priv().privTarget()}/'
+      '${parts.map(render).join()}/${pick(duos[now & 1])}';
   if (DateTime.now().millisecondsSinceEpoch < 0) {
     return '$live/${deadBranch('never')}';
   }
@@ -260,6 +352,9 @@ def intern(s):
 
 def append_node(typename, name, out_edges):
     global n
+    # A profile lists only the node types it holds; a specimen with no
+    # switchable call has no UnlinkedCall type to index.
+    if typename not in NT: NT.append(typename)
     nodes.extend([NT.index(typename), intern(name), 900000 + n, 8, len(out_edges)])
     for kind, label, dstnode in out_edges:
         edges.extend([ET.index(kind), intern(label) if label else 0, dstnode * NF])
@@ -298,6 +393,16 @@ elif mode == 'add-tearoff-pool':
                        [('element', None, find(target))])
     append_node('Code', f'[Optimized] [tear-off] {target}',
                 [('property', 'object_pool_', pool)])
+elif mode in ('add-unowned-switchable', 'add-tearoff-switchable'):
+    # Revision 2's input, in a pool no caller owns: an UnlinkedCall naming the
+    # target's selector, in an unowned pool or in a tear-off's pool.
+    name = append_node('CanonicalString', target, [])
+    call = append_node('UnlinkedCall', target, [('property', 'target_name_', name)])
+    pool = append_node('ObjectPool', 'Unnamed [ObjectPool] (nil)',
+                       [('element', None, call)])
+    if mode == 'add-tearoff-switchable':
+        append_node('Code', f'[Optimized] [tear-off] {target}',
+                    [('property', 'object_pool_', pool)])
 else:
     raise SystemExit(f'unknown mode {mode}')
 json.dump(d, open(dst, 'w'))
@@ -392,6 +497,86 @@ note "MUTATION -- drop the artifact-digest comparison"
 mutate nobind "  if (declaredArtifact.toLowerCase() != artifactSha.toLowerCase()) {=>>  if (false) {"
 check "mutant accepts a profile of a DIFFERENT artifact" \
   "$(result "$WORK/m_nobind.dart" profile.json binding.json "$BAD" "$LIB#foldOpaque")" \
+  ONE_OR_MORE_QUALIFYING_CALLSITES
+
+# ---- SWITCHABLE SITES (probe revision 2) -----------------------------------
+# The same kernel, compiled again with --route_b_untabled_overrides. A
+# gen_snapshot from before that flag cannot make the shape, so the rows are
+# skipped there rather than failed: the revision-1 rows above still bind it.
+note "SWITCHABLE -- an untabled selector's call site (revision 2)"
+if grep -q route_b_untabled_overrides "$GEN_SNAPSHOT"; then
+  "$GEN_SNAPSHOT" --patchable_static_calls --route_b_untabled_overrides \
+    --snapshot_kind=app-aot-assembly --assembly=app_u.S \
+    --write-v8-snapshot-profile-to=profile_u.json release.dill
+  ART_U=$(shasum -a 256 app_u.S | cut -d' ' -f1)
+  python3 - "$ART_U" <<'PY'
+import json, sys
+b = json.load(open('binding.json')); b['release_artifact_sha256'] = sys.argv[1]
+b['probe_revision'] = 2
+json.dump(b, open('binding_u.json', 'w'))
+# The same artifact bound at revision 1, as a release built without the flag
+# would be: its switchable calls are not evidence.
+b['probe_revision'] = 1
+json.dump(b, open('binding_u1.json', 'w'))
+PY
+  for t in _P3.render _DuoA.pick; do
+    echo "    $t table:      $(evidence "$PROBE" profile.json binding.json "$ART" "$LIB#$t")"
+    echo "    $t untabled:   $(evidence "$PROBE" profile_u.json binding_u.json "$ART_U" "$LIB#$t")"
+    check "$t through the dispatch table -> ZERO (the gap the flag closes)" \
+      "$(result "$PROBE" profile.json binding.json "$ART" "$LIB#$t")" \
+      ZERO_QUALIFYING_CALLSITES
+    check "$t untabled -> GREEN" \
+      "$(result "$PROBE" profile_u.json binding_u.json "$ART_U" "$LIB#$t")" \
+      ONE_OR_MORE_QUALIFYING_CALLSITES
+  done
+  check "  ...render's site is the SWITCHABLE call, not some other referrer" \
+    "$(evidence "$PROBE" profile_u.json binding_u.json "$ART_U" "$LIB#_P3.render" \
+        | grep -o 'switchable_sites=[1-9]' | head -1)" switchable_sites=1
+  check "render under a revision-1 binding -> ZERO (no flag, no switchable evidence)" \
+    "$(result "$PROBE" profile_u.json binding_u1.json "$ART_U" "$LIB#_P3.render")" \
+    ZERO_QUALIFYING_CALLSITES
+
+  note "MUTATION -- count switchable calls whatever the binding says"
+  mutate anyrev "  final switchableCalls = countSwitchable=>>  final switchableCalls = true"
+  check "mutant counts render's switchable call under a revision-1 binding" \
+    "$(result "$WORK/m_anyrev.dart" profile_u.json binding_u1.json "$ART_U" "$LIB#_P3.render")" \
+    ONE_OR_MORE_QUALIFYING_CALLSITES
+
+  note "MUTATION -- tell the target's own code from a caller by NAME"
+  mutate selfname "    p.property(code, 'owner_') == fn;=>>    p.nameOf(code).replaceAll('[Optimized] ', '') == p.nameOf(fn);"
+  for t in _P3.render _DuoA.pick; do
+    check "mutant drops $t's site, whose caller shares its name" \
+      "$(result "$WORK/m_selfname.dart" profile_u.json binding_u.json "$ART_U" "$LIB#$t")" \
+      ZERO_QUALIFYING_CALLSITES
+  done
+else
+  echo "  SKIP  this gen_snapshot predates --route_b_untabled_overrides"
+fi
+
+# ---- SWITCHABLE GUARDS (revision 2, synthetic) -----------------------------
+# The switchable path has its own copies of the unowned and tear-off guards.
+# Built on the FOLDED target, so the unmutated probe must still refuse them.
+note "SWITCHABLE GUARDS -- an UnlinkedCall no caller owns is not a site"
+python3 - <<'PY'
+import json
+b = json.load(open('binding.json')); b['probe_revision'] = 2
+json.dump(b, open('binding_r2.json', 'w'))
+PY
+python3 surgery.py add-unowned-switchable profile.json p_sw_unowned.json foldConst
+python3 surgery.py add-tearoff-switchable profile.json p_sw_tearoff.json foldConst
+check "switchable call in an unowned pool -> still ZERO" \
+  "$(result "$PROBE" p_sw_unowned.json binding_r2.json "$ART" "$LIB#foldConst")" \
+  ZERO_QUALIFYING_CALLSITES
+check "switchable call in a tear-off's pool -> still ZERO" \
+  "$(result "$PROBE" p_sw_tearoff.json binding_r2.json "$ART" "$LIB#foldConst")" \
+  ZERO_QUALIFYING_CALLSITES
+mutate swunowned "      if (owners.isEmpty ||=>>      if (false ||"
+check "mutant counts a switchable call in an unowned pool" \
+  "$(result "$WORK/m_swunowned.dart" p_sw_unowned.json binding_r2.json "$ART" "$LIB#foldConst")" \
+  ONE_OR_MORE_QUALIFYING_CALLSITES
+mutate swtearoff "          owners.any((o) => p.nameOf(o).contains('[tear-off]')) ||=>>          false ||"
+check "mutant counts a switchable call in a tear-off's pool" \
+  "$(result "$WORK/m_swtearoff.dart" p_sw_tearoff.json binding_r2.json "$ART" "$LIB#foldConst")" \
   ONE_OR_MORE_QUALIFYING_CALLSITES
 
 # ---- WORDING ---------------------------------------------------------------

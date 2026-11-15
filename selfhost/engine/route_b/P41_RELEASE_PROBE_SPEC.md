@@ -58,6 +58,7 @@ caller_owned_pools:    1
 tearoff_pools:         1
 self_owned_pools:      0
 unowned_pools:         1
+switchable_sites:      0    (revision 2)
 other_referrers:       0
 ```
 
@@ -65,6 +66,56 @@ The policy fact is derived from `caller_owned_pools` **alone**. This exists so
 that today's incidental "3 pools" cannot become tomorrow's accidental contract:
 the measured 3 decomposes into 1 caller-owned + 1 tear-off + 1 unowned, and only
 the first is load-bearing.
+
+### Revision 2 (2026-11-14): switchable sites, and "own code" by identity
+
+A release built with `--route_b_untabled_overrides` keeps app method selectors
+out of the dispatch table, so their calls become switchable calls. Such a call
+does not reference the target `Function` at all: the caller's pool holds an
+`UnlinkedCall` whose `target_name_` is the selector, and the runtime links it
+to whatever the receiver's class implements. Revision 2 counts that shape too:
+
+| category | counts as surviving invocation |
+|---|---|
+| `UnlinkedCall(target_name_ == member)` in a pool owned by a caller's `Code` | **yes** — `switchable_sites` |
+| the same, in an unowned pool, a tear-off's pool or the target's own pool | no |
+
+The policy fact becomes `caller_owned_pools + switchable_sites >= 1`.
+
+A switchable site names a SELECTOR, not a class's member, so it is green for
+every implementation of that selector, including one whose class never reaches
+the site. That is the same direction as the dead-branch control: it reports a
+site that may never run the target, never the reverse, and it cannot report a
+site for a target that was folded (a folded target's selector has no call).
+
+Revision 2 also decides "the target's own `Code`" by IDENTITY (the `Code`'s
+`owner_` is the target `Function`) instead of revision 1's name comparison.
+Same-named callers are the normal case: the framework calls every widget's
+`build()` from `StatelessElement.build` and `StatefulElement.build`, and a
+cid-check chain over two implementations of `pick` sits in whatever calls
+`pick`. Revision 1 filed both as the target's own pool. The gate's
+`selfname` mutation puts the name test back and requires both sites to vanish.
+
+Switchable sites count only under a revision-2 binding. The CLI writes
+revision 2 exactly when it built the release with
+`--route_b_untabled_overrides`, and revision 1 otherwise. Without the flag no
+selector lacks a table row, so an `UnlinkedCall` with the target's name is a
+different call, and counting it could pass a patch whose real callers go
+through the table. The direction argument above covers a site that exists but
+may not run; it does not cover that case. In practice AOT names an ordinary
+dynamic call `dyn:<name>`, so plain-named `UnlinkedCall`s come only from
+untabled selectors (the counter app's flag-less profile holds only `dyn:*`,
+`dyn:+`, `dyn:-`, `dyn:call` and `dyn:toJson`), but the binding makes the rule
+explicit instead of leaning on that naming. A revision-2 probe reads a
+revision-1 binding with revision 1's classification; a revision-1 probe refuses
+a revision-2 binding. The gate checks both the ZERO under a revision-1 binding
+and a mutant that counts switchable calls whatever the binding says.
+
+The identity test reads `Code.owner_`. For a retained function that is the
+`Function` itself. `DropFunctions` wraps `owner_` in a
+`WeakSerializationReference` only for a dropped function, which has no target
+node for the probe to find, so the comparison never meets the wrapper for a
+target it can classify.
 
 ## 3. Internal result model, frozen before the product vocabulary
 

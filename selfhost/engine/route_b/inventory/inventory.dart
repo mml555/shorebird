@@ -73,6 +73,281 @@ class Square extends Shape {
   String describe() => _old('Square.describe');
 }
 
+// --- 7. instance method, megamorphic -----------------------------------------
+// Eight implementations behind ONE call site, which is the shape the framework
+// gives every Widget.build and State.initState: too many receivers for a
+// cid-check chain, so AOT emits a dispatch-table call or, when the selector has
+// no table slot (--route_b_untabled_overrides), a switchable call that the
+// runtime links on first use. Part3 is called through that site FIRST, so the
+// site's very first link targets the patched function -- the path that would
+// link monomorphic straight to the InterpretCall stub if nothing stopped it.
+abstract class Part {
+  String render();
+}
+
+class Part0 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part0.render');
+}
+
+class Part1 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part1.render');
+}
+
+class Part2 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part2.render');
+}
+
+class Part3 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part3.render');
+}
+
+class Part4 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part4.render');
+}
+
+class Part5 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part5.render');
+}
+
+class Part6 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part6.render');
+}
+
+class Part7 extends Part {
+  @pragma('vm:never-inline')
+  @pragma('vm:entry-point')
+  @override
+  String render() => _old('Part7.render');
+}
+
+// The single call site every Part reaches.
+@pragma('vm:never-inline')
+String renderPart(Part part) => part.render();
+
+// --- the same shape without vm:entry-point on the method ----------------------
+// A real build() carries no pragma, and the pragma is not inert: TFA gives an
+// entry point the stack calling convention because it can be called
+// dynamically. An untabled method without it once took its receiver in a
+// register that a switchable call never fills (NoSuchMethodError on an int
+// receiver), and every Part case above passed regardless. Only the CLASS is an
+// entry point here, so the attach native can still find it by name.
+abstract class Tile {
+  String paint();
+}
+
+@pragma('vm:entry-point')
+class Tile0 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile0.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile1 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile1.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile2 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile2.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile3 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile3.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile4 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile4.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile5 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile5.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile6 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile6.paint');
+}
+
+@pragma('vm:entry-point')
+class Tile7 extends Tile {
+  @pragma('vm:never-inline')
+  @override
+  String paint() => _old('Tile7.paint');
+}
+
+@pragma('vm:never-inline')
+String paintTile(Tile tile) => tile.paint();
+
+// --- the same, taking an int and a double ------------------------------------
+// TFA unboxes an int or double parameter of a method it never sees called
+// dynamically, and the bytecode interpreter takes boxed values only. A release
+// is unaffected (its dynamic interface makes every app method dynamically
+// callable, so nothing is unboxed), but under --route_b_untabled_overrides the
+// attach native finds any untabled method by name, so gen_snapshot boxes them.
+// Without that, the int case crashed and the double case printed garbage.
+abstract class Itile {
+  String paintn(int n);
+}
+
+@pragma('vm:entry-point')
+class Itile0 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile0.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile1 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile1.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile2 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile2.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile3 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile3.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile4 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile4.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile5 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile5.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile6 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile6.paintn$n');
+}
+
+@pragma('vm:entry-point')
+class Itile7 extends Itile {
+  @pragma('vm:never-inline')
+  @override
+  String paintn(int n) => _old('Itile7.paintn$n');
+}
+
+abstract class Dtile {
+  String paintd(double x);
+}
+
+@pragma('vm:entry-point')
+class Dtile0 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile0.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile1 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile1.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile2 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile2.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile3 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile3.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile4 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile4.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile5 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile5.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile6 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile6.paintd$x');
+}
+
+@pragma('vm:entry-point')
+class Dtile7 extends Dtile {
+  @pragma('vm:never-inline')
+  @override
+  String paintd(double x) => _old('Dtile7.paintd$x');
+}
+
+@pragma('vm:never-inline')
+String paintItile(Itile tile, int n) => tile.paintn(n);
+
+@pragma('vm:never-inline')
+String paintDtile(Dtile tile, double x) => tile.paintd(x);
+
 void main(List<String> args) {
   if (args.isEmpty) {
     stderr.writeln('usage: inventory <bytecode> <libraryUri> <target>');
@@ -111,6 +386,60 @@ void main(List<String> args) {
   // branches through Function.entry_point_ on its own. If those two lines
   // disagree, that difference IS the finding.
   _report('dynamic-instance', (shapes[0] as dynamic).describe() as String);
+
+  final parts = <Part>[
+    Part0(), Part1(), Part2(), Part3(), Part4(), Part5(), Part6(), Part7(), //
+  ];
+  _report('megamorphic-first', renderPart(parts[3]));
+  // Drive the site through every receiver so it ends up megamorphic, then ask
+  // again: the patched target must still be reached and the others must not.
+  for (var round = 0; round < 3; round++) {
+    for (final part in parts) {
+      renderPart(part);
+    }
+  }
+  _report('megamorphic-late', renderPart(parts[3]));
+  _report('megamorphic-other', renderPart(parts[5]));
+
+  final tiles = <Tile>[
+    Tile0(), Tile1(), Tile2(), Tile3(), Tile4(), Tile5(), Tile6(), Tile7(), //
+  ];
+  _report('noentry-first', paintTile(tiles[3]));
+  for (var round = 0; round < 3; round++) {
+    for (final tile in tiles) {
+      paintTile(tile);
+    }
+  }
+  _report('noentry-late', paintTile(tiles[3]));
+  _report('noentry-other', paintTile(tiles[5]));
+
+  // The patched body echoes its argument, so a wrong value shows as well as a
+  // crash does.
+  final itiles = <Itile>[
+    Itile0(), Itile1(), Itile2(), Itile3(), Itile4(), Itile5(), Itile6(), //
+    Itile7(),
+  ];
+  _report('int-first', paintItile(itiles[3], 41));
+  for (var round = 0; round < 3; round++) {
+    for (final tile in itiles) {
+      paintItile(tile, round);
+    }
+  }
+  _report('int-late', paintItile(itiles[3], 42));
+  _report('int-other', paintItile(itiles[5], 43));
+
+  final dtiles = <Dtile>[
+    Dtile0(), Dtile1(), Dtile2(), Dtile3(), Dtile4(), Dtile5(), Dtile6(), //
+    Dtile7(),
+  ];
+  _report('double-first', paintDtile(dtiles[3], 1.5));
+  for (var round = 0; round < 3; round++) {
+    for (final tile in dtiles) {
+      paintDtile(tile, 2.5);
+    }
+  }
+  _report('double-late', paintDtile(dtiles[3], 3.5));
+  _report('double-other', paintDtile(dtiles[5], 4.5));
 
   // Tear-off and dynamic shapes, for continuity with the kill gate.
   final String Function() torn = topLevelStatic;
