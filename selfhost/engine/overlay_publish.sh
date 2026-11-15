@@ -190,6 +190,13 @@ copy "$HOST_DEBUG_OUT/zip_archives/flutter_patched_sdk.zip" "$INFRA/flutter_patc
 # the hash to the Caddyfile's per-cell font-subset arm when it is promoted.
 copy "$HOST_OUT/zip_archives/$HOST_TAG/font-subset.zip" "$INFRA/$HOST_TAG/font-subset.zip"
 
+# Ask the ninja gclient pinned into the checkout, as build.sh does: over a
+# non-interactive ssh shell neither it nor depot_tools' wrapper is on PATH, and
+# "unable to ask" counts as stale, so every publish there exited 3.
+if [[ -x "$FLUTTER_ROOT/third_party/ninja/ninja" ]]; then
+  export PATH="$FLUTTER_ROOT/third_party/ninja:$PATH"
+fi
+
 # The host toolchain must come from the same tree as the Android engine it
 # ships with. After `build.sh --no-host`, or a host build that failed, the
 # files above are still there from an earlier tree and would be published
@@ -199,12 +206,6 @@ copy "$HOST_OUT/zip_archives/$HOST_TAG/font-subset.zip" "$INFRA/$HOST_TAG/font-s
 # The Android cells are checked the same way: an ABI left over from an older
 # tree, published next to a newer host gen_snapshot, dies at launch with
 # "Wrong full snapshot version". Unable to ask counts as stale.
-# Ask the ninja gclient pinned into the checkout, as build.sh does: over a
-# non-interactive ssh shell neither it nor depot_tools' wrapper is on PATH, and
-# "unable to ask" counts as stale, so every publish there exited 3.
-if [[ -x "$FLUTTER_ROOT/third_party/ninja/ninja" ]]; then
-  export PATH="$FLUTTER_ROOT/third_party/ninja:$PATH"
-fi
 stale_check() {  # stale_check <out dir> <ninja target>...
   local out="$1"; shift
   [[ -d "$out" ]] || return 0   # absent: already reported MISSING above
