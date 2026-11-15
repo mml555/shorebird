@@ -742,7 +742,10 @@ Map<String, ({String kind, String text})> _declarationText(
   final out = <String, ({String kind, String text})>{};
   // A class another class extends, mixes in or implements is named as a type,
   // so tree shaking cannot have stripped its header; see `_classHeaderText`.
-  final supertypes = <Class>{
+  // As references, not classes: a release's import kernel is built with
+  // --no-link-platform, so `dart:core::Object` and every other SDK supertype is
+  // a reference with no class behind it, and asking it for one throws.
+  final supertypes = <Reference>{
     for (final lib in c.libraries)
       for (final cls in lib.classes)
         for (final s in [
@@ -750,7 +753,7 @@ Map<String, ({String kind, String text})> _declarationText(
           ?cls.mixedInType,
           ...cls.implementedTypes,
         ])
-          s.classNode,
+          s.className,
   };
   for (final lib in c.libraries.where(isApp)) {
     final uri = lib.importUri.toString();
@@ -763,7 +766,7 @@ Map<String, ({String kind, String text})> _declarationText(
     isApp,
     ambiguous,
   )) {
-    final header = _classHeaderText(cls, supertypes.contains(cls));
+    final header = _classHeaderText(cls, supertypes.contains(cls.reference));
     if (header != null) {
       out[key] = (kind: 'class', text: header);
     }
@@ -890,15 +893,35 @@ String _applicationName(Class cls) {
 /// copies whose names collide (`_B` and `M` declared in two libraries) are
 /// told apart the same way in both kernels.
 String _applicationIdentity(Class cls) {
-  String ref(Class c) => '${c.enclosingLibrary.importUri}' == _mixinLibrary
-      ? _applicationIdentity(c)
-      : '${c.enclosingLibrary.importUri}::${c.name}';
+  String ref(Reference r) => switch (r.node) {
+    final Class c when '${c.enclosingLibrary.importUri}' == _mixinLibrary =>
+      _applicationIdentity(c),
+    _ => _classId(r),
+  };
   final applied = [
-    if (cls.supertype case final s?) ref(s.classNode),
-    if (cls.mixedInType case final m?) ref(m.classNode),
-    for (final t in cls.implementedTypes) ref(t.classNode),
+    if (cls.supertype case final s?) ref(s.className),
+    if (cls.mixedInType case final m?) ref(m.className),
+    for (final t in cls.implementedTypes) ref(t.className),
   ];
   return '(${applied.join(' & ')})';
+}
+
+/// The class [r] names, as `<library URI>::<name>`, without needing the class.
+///
+/// A release's import kernel is built with --no-link-platform, so a class from
+/// the SDK (`dart:core::Object`, which nearly every class extends) is a
+/// reference with no node, and `Supertype.classNode` throws on it. Its
+/// canonical name still says which class it is.
+String _classId(Reference r) {
+  if (r.node case final Class c) {
+    return '${c.enclosingLibrary.importUri}::${c.name}';
+  }
+  final name = r.canonicalName;
+  final library = name?.parent;
+  if (name == null || library == null) {
+    _die('a class reference with neither a class nor a canonical name');
+  }
+  return '${library.name}::${name.name}';
 }
 
 /// [t] as text. Inside a copy's own name ([_applicationName]) a type can be
@@ -945,8 +968,8 @@ String? _classHeaderText(Class cls, bool isSupertype) {
   final stripped =
       !isSupertype &&
       cls.isAbstract &&
-      cls.supertype?.classNode.name == 'Object' &&
-      '${cls.supertype?.classNode.enclosingLibrary.importUri}' == 'dart:core' &&
+      cls.supertype != null &&
+      _classId(cls.supertype!.className) == 'dart:core::Object' &&
       cls.implementedTypes.isEmpty &&
       cls.typeParameters.isEmpty &&
       cls.mixedInType == null;
