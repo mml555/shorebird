@@ -1,0 +1,61 @@
+Nov 15 07:02:30.704845 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+Nov 15 07:02:30.704904 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=16, built-for=241016397e06307f98593c853f16367c
+Nov 15 07:02:30.705175 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=241016397e06307f98593c853f16367c
+Nov 15 07:02:30.705286 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Nov 15 07:02:30.705379 ROUTEB: activated tallyLabel in package:tally/tally.dart before main
+Nov 15 07:02:30.705491 ROUTEB: activated Circle.describe in package:untab/main.dart before main
+Nov 15 07:02:30.705576 ROUTEB: activated DetailPage.build in package:untab/main.dart before main
+Nov 15 07:02:30.706294 ROUTEB: activated Label.build in package:untab/main.dart before main
+Nov 15 07:02:30.706676 ROUTEB: activated Util.tag in package:untab/main.dart before main
+Nov 15 07:02:30.707046 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+Nov 15 07:02:30.707212 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+Nov 15 07:02:30.707248 ROUTEB: activated _HomeState.build in package:untab/main.dart before main
+Nov 15 07:02:30.707694 ROUTEB: activated _HomeState.get:mood in package:untab/main.dart before main
+Nov 15 07:02:30.707837 ROUTEB: activated _HomeState.initState in package:untab/main.dart before main
+Nov 15 07:02:30.707941 ROUTEB: activated describeResult in package:untab/main.dart before main
+Nov 15 07:02:30.708193 ROUTEB: activated formatStamp in package:untab/main.dart before main
+Nov 15 07:02:30.708371 ROUTEB: activated levelName in package:untab/main.dart before main
+Nov 15 07:02:30.708450 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+Nov 15 07:02:30.708520 ROUTEB: activated routeFor in package:untab/main.dart before main
+Nov 15 07:02:30.708722 ROUTEB: activated ticker in package:untab/main.dart before main
+Nov 15 07:02:30.709444 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: applied 16/16 targets, entering main
+Nov 15 07:02:30.779219 flutter: shape:init=I2
+Nov 15 07:02:30.779291 flutter: shape:home-build=H2 0
+Nov 15 07:02:30.779324 flutter: shape:future-builder=FB2 null
+Nov 15 07:02:30.779356 flutter: shape:label=L2
+Nov 15 07:02:30.785605 [shorebird] Sending patch check request: app_id: 54c4b256-8364-2111-5e91-9eb3c18911ee, channel: stable, release_version: 1.0.0+10, platform: ios, arch: aarch64, current_patch_number: Some(3)
+Nov 15 07:02:30.932726 flutter: shape:future-builder=FB2 G2
+Nov 15 07:02:31.019678 flutter: shape:count=c1
+Nov 15 07:02:31.031811 flutter: shape:home-build=H2 1
+Nov 15 07:02:31.032140 flutter: shape:future-builder=FB2 G2
+Nov 15 07:02:31.249391 flutter: shape:future-builder=FB2 G2
+Nov 15 07:02:31.321567 flutter: shape:count=c2
+Nov 15 07:02:31.333129 flutter: shape:home-build=H2 2
+Nov 15 07:02:31.333320 flutter: shape:future-builder=FB2 G2
+Nov 15 07:02:31.549197 flutter: shape:future-builder=FB2 G2
+Nov 15 07:02:31.623737 flutter: shape:count=c3
+Nov 15 07:02:31.632293 flutter: shape:home-build=H2 3
+Nov 15 07:02:31.632551 flutter: shape:future-builder=FB2 G2
+Nov 15 07:02:31.828315 flutter: shape:greeting=G2
+Nov 15 07:02:31.834880 flutter: shape:home-build=H2 3
+Nov 15 07:02:31.837720 flutter: shape:future-builder=FB2 G2
+Nov 15 07:02:31.881232 flutter: shape:stream=U0
+Nov 15 07:02:31.934920 flutter: shape:stream=U1
+Nov 15 07:02:31.995510 flutter: shape:stream=U2
+Nov 15 07:02:31.996202 flutter: shape:poly=circle2
+Nov 15 07:02:31.997118 flutter: shape:poly=square1
+Nov 15 07:02:31.997891 flutter: shape:mood=M2
+Nov 15 07:02:31.998736 flutter: shape:const=KT1
+Nov 15 07:02:31.999715 flutter: shape:level=hi2
+Nov 15 07:02:32.000458 flutter: shape:result=OK 7
+Nov 15 07:02:32.000978 flutter: shape:stars=***
+Nov 15 07:02:32.001395 flutter: shape:static=S2
+Nov 15 07:02:32.001801 flutter: shape:generic=F2
+Nov 15 07:02:32.002207 flutter: shape:stamp=15 Nov 2026
+Nov 15 07:02:32.002613 flutter: shape:tally=K2 3 |||
+Nov 15 07:02:32.003089 flutter: shape:events=0
+Nov 15 07:02:32.003486 flutter: shape:words=[A, C]
+Nov 15 07:02:32.003892 flutter: shape:done=START-DONE
+Nov 15 07:02:32.056575 flutter: shape:future-builder=FB2 G2
+Nov 15 07:02:32.059165 flutter: shape:route=R2 /detail
+Nov 15 07:02:32.070446 flutter: shape:detail=D2
