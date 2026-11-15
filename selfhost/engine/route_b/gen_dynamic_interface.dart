@@ -37,6 +37,9 @@ import 'package:kernel/binary/ast_from_binary.dart';
 // that annotator would reject.
 import 'package:kernel/library_index.dart';
 
+/// The library `MixinDeduplication` creates in an AOT kernel; see `found`.
+const _mixinDeduplicationLibrary = 'dart:mixin_deduplication';
+
 /// SDK symbols a patch may call into, as `library#member` pairs.
 ///
 /// MEMBER-scoped, not library-scoped, and that distinction is the whole result
@@ -601,7 +604,14 @@ void main(List<String> args) {
       }
 
       bool found(String uri, String container, String? name) {
-        var ok = resolves(kernelIndex, uri, container, name);
+        // AOT's mixin deduplication moves shared mixin applications into this
+        // synthetic library after the annotator has run, so an AOT kernel
+        // (the prepass, or a --dill with no --private-dill) can name it and
+        // the annotator can never find it: gen_kernel then dies with "The
+        // library 'dart:mixin_deduplication' has not been indexed".
+        var ok =
+            uri != _mixinDeduplicationLibrary &&
+            resolves(kernelIndex, uri, container, name);
         if (ok &&
             isPrepass &&
             privateDillPath != null &&
