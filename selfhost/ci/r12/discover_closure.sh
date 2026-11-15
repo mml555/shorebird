@@ -35,15 +35,37 @@ REPO_SHA="${R12_REPO_SHA:?set R12_REPO_SHA}"
 note() { printf '   %s\n' "$*"; }
 say()  { printf '\n== %s ==\n' "$*"; }
 
+# A running container is reused only if it was created with this environment and
+# its /r12src is at this REPO_SHA; otherwise it would silently keep the old ones.
+want_env=(
+  HOME=/r12home
+  SHOREBIRD_FLUTTER_GIT_URL=git://host.docker.internal:9418/flutter.git
+  FLUTTER_STORAGE_BASE_URL="$SEALED"
+)
+if docker ps --format '{{.Names}}' | grep -qx r12-discovery; then
+  stale=()
+  for kv in "${want_env[@]}"; do
+    [[ "$(docker exec r12-discovery printenv "${kv%%=*}" 2>/dev/null)" == "${kv#*=}" ]] || stale+=("${kv%%=*}")
+  done
+  have_sha="$(docker exec r12-discovery git -C /r12src rev-parse HEAD 2>/dev/null || true)"
+  [[ "$have_sha" == "$REPO_SHA" ]] || stale+=("/r12src at ${have_sha:-nothing}, wanted $REPO_SHA")
+  if (( ${#stale[@]} )); then
+    say "recreating the discovery container — its environment is stale"
+    note "differs: ${stale[*]}"
+    docker rm -f r12-discovery >/dev/null 2>&1
+  else
+    note "reusing the discovery container (environment matches)"
+  fi
+fi
+
 if ! docker ps --format '{{.Names}}' | grep -qx r12-discovery; then
   say "creating the discovery container"
   docker rm -f r12-discovery >/dev/null 2>&1
+  env_args=(); for kv in "${want_env[@]}"; do env_args+=(-e "$kv"); done
   # --add-host: Docker Desktop defines host.docker.internal, a Linux engine does not.
   docker run -d --name r12-discovery --platform linux/amd64 \
     --add-host host.docker.internal:host-gateway \
-    -e HOME=/r12home \
-    -e SHOREBIRD_FLUTTER_GIT_URL=git://host.docker.internal:9418/flutter.git \
-    -e FLUTTER_STORAGE_BASE_URL="$SEALED" \
+    "${env_args[@]}" \
     r12-builder:substrate sleep infinity >/dev/null
   docker exec r12-discovery bash -lc "
     mkdir -p /r12home &&

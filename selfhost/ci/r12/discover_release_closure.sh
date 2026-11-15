@@ -73,6 +73,8 @@ if docker ps --format '{{.Names}}' | grep -qx "$C"; then
   done
   have_heap="$(docker exec "$C" sh -c 'grep -o "Xmx[0-9]*[gm]" /r12home/.gradle/gradle.properties 2>/dev/null' || true)"
   [[ "$have_heap" == "Xmx3g" ]] || stale+=("gradle.properties heap (${have_heap:-none}, wanted Xmx3g)")
+  have_sha="$(docker exec "$C" git -C /r12src rev-parse HEAD 2>/dev/null || true)"
+  [[ "$have_sha" == "$R12_REPO_SHA" ]] || stale+=("/r12src at ${have_sha:-nothing}, wanted $R12_REPO_SHA")
   if (( ${#stale[@]} )); then
     say "recreating the discovery container — its environment is stale"
     note "differs: ${stale[*]}"
