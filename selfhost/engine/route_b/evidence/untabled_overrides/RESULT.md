@@ -248,11 +248,19 @@ untouched) and each member it calls, reads or names in a constant as a
 included, because the loader looks up every field of an instance constant:
 `const TextStyle(fontSize: 48)` names all 26 fields of `TextStyle`, including
 `_package`. The walk reads the non-AOT kernel, which is what the source says
-(the prepass has had TFA drop the `style:` argument and the constant with it),
-and takes `dart:` references from the prepass, since the non-AOT kernel does
-not carry the SDK. `--no-framework-uses` turns it off.
+(the prepass has had TFA drop the `style:` argument and the constant with it).
+That kernel is compiled without the SDK linked in, so a release passes the
+cell's Flutter platform with `--platform` and the generator reads the two
+together: every reference binds, and each name is checked against the same
+program the annotator resolves against. A cell minted before `--platform`
+rejects it, and the CLI runs that cell's generator the old way, which walks the
+prepass as well for `dart:` names and keeps a prepass name only if the non-AOT
+kernel has it too. Any declaration the walk cannot read is listed on stderr and
+costs only its own names. `--no-framework-uses` turns it all off.
 
-Its cost on this app, same kernel inputs, iOS `gen_snapshot` ELF:
+Its cost on this app, same kernel inputs, measured with the older two-walk
+generator, iOS `gen_snapshot` output as an ELF file (the same code the Mach-O
+`App` carries, in a container that is easy to size):
 
 | interface | named members | snapshot bytes |
 |---|---|---|
@@ -263,8 +271,8 @@ Its cost on this app, same kernel inputs, iOS `gen_snapshot` ELF:
 
 The fields are most of it: retaining a field keeps it, and its value, where
 TFA would have dropped a field nothing reads. A loader that skipped a constant's
-fields the release does not have would need only the first two rows, and
-nothing in the release can read such a field.
+fields the release does not have would cost only the rows above the last one
+(+0.48 %), and nothing in the release can read such a field.
 
 One kind of member is left out: a `dart:` instance member the app reaches
 through code, such as `Iterable.iterator`. Such a member is implemented across
@@ -273,14 +281,16 @@ the SDK, and declaring it callable keeps every implementation.
 host, with `package:crypto` in Flutter's place and a body naming `sha256`,
 `convert` and `Digest`, which the target already uses:
 
-| interface | the crypto body | snapshot bytes |
-|---|---|---|
-| `--no-framework-uses` | `Unable to find library package:crypto/src/sha256.dart` | 983,776 |
-| framework uses, `dart:` instance members included | binds | 1,084,408 (+10.2 %) |
-| framework uses, the default | binds | 985,824 (**+0.21 %**) |
+| probe arm | interface | the crypto body | snapshot bytes |
+|---|---|---|---|
+| negative | `--no-framework-uses` | `Unable to find library package:crypto/src/sha256.dart` | 983,776 |
+| sdk-instance | framework uses, `dart:` instance members included | binds | 1,084,408 (+10.2 %) |
+| positive | framework uses, the default, one walk under `--platform` | binds | 985,824 (**+0.21 %**) |
+| two-walks | the same from a generator without `--platform` | binds | 985,824, the same interface |
 
-The Flutter app above reaches no `dart:` instance member through code, so its
-interface is the same either way, byte for byte.
+The counter app in section 7 reaches no `dart:` instance member through code:
+its interface came out identical with and without them (compared with `diff`).
+A larger app will reach some, and pays nothing for them by default.
 
 The cost of leaving them out: a patch that calls an SDK instance member by
 interface (`list.add`, `text.isNotEmpty`) fails at load, as it did before this

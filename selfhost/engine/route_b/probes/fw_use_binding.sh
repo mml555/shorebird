@@ -16,9 +16,19 @@
 # the app; this probe is that change on the host, with package:crypto standing
 # in for Flutter (the target already calls `sha256.convert(...)`).
 #
-#   control   a body naming nothing                       -- must bind
-#   negative  the crypto body, --no-framework-uses        -- must NOT bind
-#   positive  the crypto body, framework uses retained    -- must bind
+#   control      a body naming nothing                    -- must bind
+#   negative     the crypto body, --no-framework-uses     -- must NOT bind, and
+#                must fail at load naming package:crypto
+#   positive     the crypto body, framework uses retained,
+#                one walk of the import kernel read under
+#                --platform (what a release does)         -- must bind
+#   two-walks    the same without --platform (a cell
+#                minted before it): import + prepass      -- must bind
+#   sdk-instance --framework-members with-sdk-instance,
+#                to measure the tax the default avoids    -- must bind
+#
+# Every arm also fails if the generator reports a declaration it could not
+# walk: that costs the release those names silently on a real app.
 set -euo pipefail
 
 SRC=${SRC:-/Volumes/build/route-b/flutter/engine/src}
@@ -78,15 +88,23 @@ kernel base.dill
   -o import.dill "$URI" >/dev/null
 
 # One arm per SDK member list. Everything else is held constant.
-run_arm() { # <label> <sdk-members> <expect: bind|refuse>
-  local label="$1" members="$2" expect="$3"
+run_arm() { # <label> <sdk-members> <expect: bind|refuse> [load-error regex]
+  local label="$1" members="$2" expect="$3" load_error="${4:-}"
   local dir="$WORK/$label"; mkdir -p "$dir"
 
   # The app is the target's own package; package:crypto is "the framework".
+  # $FW_FLAG is split on purpose: it holds zero or more flags.
+  # shellcheck disable=SC2086
   "$DART" $KERNEL_PKGS "$RB/gen_dynamic_interface.dart" \
     --dill base.dill --private-dill import.dill --out "$dir/di.yaml" \
     --include package:dynamic_modules/ --sdk-members "$members" \
-    $FW_FLAG 2>/dev/null
+    $FW_FLAG 2> "$dir/gen.log"
+  grep -m1 'framework uses' "$dir/gen.log" | sed 's/^ */  generator: /' || true
+  if grep -q 'framework walk failed' "$dir/gen.log"; then
+    echo "  FAIL  $label (the generator could not walk a declaration)"
+    grep 'framework walk failed' "$dir/gen.log" | sed 's/^/      /' | head -4
+    fail=$((fail+1)); return
+  fi
   kernel "$dir/release.dill" --dynamic-interface "$dir/di.yaml"
   "$GEN_SNAPSHOT" --patchable_static_calls --snapshot_kind=app-aot-elf \
     --elf="$dir/app.aot" "$dir/release.dill"
@@ -137,6 +155,13 @@ DART
 
   if [ "$expect" = bind ] && [ "$bound" = yes ]; then
     echo "  PASS  $label (bound)"; pass=$((pass+1))
+  elif [ "$expect" = refuse ] && [ "$bound" = no ] && [ -n "$load_error" ] &&
+      ! grep -Eq "$load_error" "$dir/run.log"; then
+    # Not binding for some other reason (a crash, a refusal) would pass a
+    # bare "did not bind" for the wrong reason.
+    echo "  FAIL  $label (did not bind, but not with /$load_error/)"
+    sed 's/^/      /' "$dir/run.log" | head -6
+    fail=$((fail+1))
   elif [ "$expect" = refuse ] && [ "$bound" = no ]; then
     echo "  PASS  $label (did not bind, as expected)"; pass=$((pass+1))
   else
@@ -152,17 +177,28 @@ FW_FLAG=--no-framework-uses run_arm control "$MEMBERS" bind
 BODY="$BODY_SAVED"
 
 note "negative - the crypto body, framework uses NOT retained"
-FW_FLAG=--no-framework-uses run_arm negative "$MEMBERS" refuse
+FW_FLAG=--no-framework-uses run_arm negative "$MEMBERS" refuse \
+  'Unable to find .*package:crypto'
 
-note "positive - the crypto body, framework uses retained"
-FW_FLAG= run_arm positive "$MEMBERS" bind
+note "positive - the crypto body, framework uses retained (one walk, --platform)"
+FW_FLAG="--platform $OUT/vm_platform.dill" run_arm positive "$MEMBERS" bind
 
-note "retention tax"
+note "two-walks - the same, without --platform"
+FW_FLAG= run_arm two-walks "$MEMBERS" bind
+
+note "sdk-instance - dart: instance members reached through code retained too"
+FW_FLAG="--platform $OUT/vm_platform.dill --framework-members with-sdk-instance" \
+  run_arm sdk-instance "$MEMBERS" bind
+
+note "retention tax, against the negative arm"
 base=$(wc -c < "$WORK/negative/app.aot" | tr -d ' ')
-widened=$(wc -c < "$WORK/positive/app.aot" | tr -d ' ')
-printf '  snapshot  : %s -> %s bytes (%+d, %s%%)\n' "$base" "$widened" \
-  "$((widened - base))" \
-  "$(python3 -c "print(f'{($widened-$base)/$base*100:+.4f}')")"
+for arm in positive two-walks sdk-instance; do
+  [ -f "$WORK/$arm/app.aot" ] || continue
+  widened=$(wc -c < "$WORK/$arm/app.aot" | tr -d ' ')
+  printf '  %-12s: %s -> %s bytes (%+d, %s%%)\n' "$arm" "$base" "$widened" \
+    "$((widened - base))" \
+    "$(python3 -c "print(f'{($widened-$base)/$base*100:+.4f}')")"
+done
 printf '  retained  : %s framework members, %s type entries\n' \
   "$(grep -c 'member:' "$WORK/positive/di.yaml")" \
   "$(sed -n '/^can-be-used-as-type:/,$p' "$WORK/positive/di.yaml" | grep -c 'library:')"

@@ -106,6 +106,7 @@ enum _Policy {
 void main(List<String> args) {
   String? dillPath;
   String? privateDillPath;
+  String? platformPath;
   String outPath = 'dynamic_interface.yaml';
   var sdkMembers = _defaultSdkMembers;
   var sdkLibraries = const <String>[];
@@ -151,6 +152,13 @@ void main(List<String> args) {
         // measure_real_app.sh prices it, and the policy should be chosen from that
         // number rather than assumed.
         privateDillPath = next();
+      case '--platform':
+        // The platform --private-dill was compiled against (the release passes
+        // the cell's flutter_platform_strong.dill). Read under it, the non-AOT
+        // kernel's `dart:` references bind, so the framework-use walk reads
+        // one complete kernel and checks every name against the same program
+        // the annotator resolves against.
+        platformPath = next();
       case '--out':
         outPath = next();
       case '--include':
@@ -254,10 +262,16 @@ void main(List<String> args) {
   var privateComponent = component;
   if (privateDillPath != null) {
     privateComponent = Component();
+    if (platformPath != null) {
+      BinaryBuilder(
+        File(platformPath).readAsBytesSync(),
+      ).readComponent(privateComponent);
+    }
     BinaryBuilder(
       File(privateDillPath).readAsBytesSync(),
     ).readComponent(privateComponent);
   }
+  final privateIsComplete = privateDillPath != null && platformPath != null;
 
   // Which libraries are "the app"? Default: everything that is not a platform
   // library, since the platform half is handled by the SDK allowlist and
@@ -553,37 +567,60 @@ void main(List<String> args) {
   // used still fails, and the analyzer is what should refuse it.
   final frameworkTypes = <String, Set<String>>{};
   final frameworkMembers = <String>{};
-  var frameworkSkipped = 0;
+  final frameworkSkipped = <String>{};
+  // Declarations whose walk threw. Each costs only that declaration's uses,
+  // never the interface, and is listed so it is not silent.
+  final frameworkWalkFailures = <String>[];
   if (retainFrameworkUses) {
-    // TWO WALKS, because neither kernel is enough alone. The non-AOT kernel is
-    // what the source says, and so what a patch compiled from that source
-    // names: the prepass has had TFA drop arguments and constant fields (its
-    // `Label.build` returns `new Text()`, no style). But that kernel does not
-    // carry the SDK, so its `dart:` references are unbound, and those come
-    // from the prepass. Each name is checked against the kernel it came from.
-    final walks = <Component>{privateComponent, component};
+    // WHICH KERNEL. The non-AOT kernel is what the source says, and so what
+    // a patch compiled from that source names: the prepass has had TFA drop
+    // arguments and constant fields (its `Label.build` returns `new Text()`,
+    // no style). Read under --platform it is complete and is the only walk.
+    // Without --platform its `dart:` references are unbound, so the prepass
+    // is walked too, for those; its other names must also resolve in the
+    // non-AOT kernel, the program the annotator sees.
+    final walks = <Component>{
+      privateComponent,
+      if (!privateIsComplete) component,
+    };
+    final privateIndex = index;
     for (final kernel in walks) {
-      final kernelIndex = identical(kernel, privateComponent)
-          ? index
-          : LibraryIndex.all(kernel);
-      bool found(String uri, String container, String? name) {
+      final isPrepass = !identical(kernel, privateComponent);
+      final kernelIndex = isPrepass ? LibraryIndex.all(kernel) : privateIndex;
+      bool resolves(LibraryIndex idx, String uri, String container, String? n) {
         try {
-          if (name == null) {
-            kernelIndex.getClass(uri, container);
+          if (n == null) {
+            idx.getClass(uri, container);
           } else {
-            kernelIndex.getMember(uri, container, name);
+            idx.getMember(uri, container, n);
           }
           return true;
         } catch (_) {
-          frameworkSkipped++;
           return false;
         }
       }
 
+      bool found(String uri, String container, String? name) {
+        var ok = resolves(kernelIndex, uri, container, name);
+        if (ok &&
+            isPrepass &&
+            privateDillPath != null &&
+            !uri.startsWith('dart:')) {
+          ok = resolves(privateIndex, uri, container, name);
+        }
+        if (!ok) {
+          frameworkSkipped.add(
+            name == null ? '$uri#$container' : '$uri#$container#$name',
+          );
+        }
+        return ok;
+      }
+
       final collector = _FrameworkUseCollector(isApp);
       for (final lib in kernel.libraries.where(isApp)) {
-        lib.accept(collector);
+        collector.walk(lib);
       }
+      frameworkWalkFailures.addAll(collector.failures);
       for (final cls in collector.classes) {
         final uri = cls.enclosingLibrary.importUri.toString();
         if (!found(uri, cls.name, null)) continue;
@@ -831,6 +868,7 @@ void main(List<String> args) {
             (n, s) => n + s.length,
           ),
           'frameworkMembers': frameworkMembers.length,
+          'frameworkSkipped': frameworkSkipped.length,
         },
         'privateTopLevelCallable': privateMembers,
         'privateStaticsCallable': privateStatics,
@@ -878,10 +916,18 @@ void main(List<String> args) {
     ..writeln(
       '  framework uses       : '
       '${frameworkTypes.values.fold<int>(0, (n, s) => n + s.length)} types, '
-      '${frameworkMembers.length} members, $frameworkSkipped not indexable',
+      '${frameworkMembers.length} members, '
+      '${frameworkSkipped.length} not indexable, '
+      '${frameworkWalkFailures.length} declarations not walked',
     )
     ..writeln('  sdk members          : ${members.length}')
     ..writeln('  sdk libraries        : ${wholeSdk.length}');
+  for (final name in frameworkSkipped.toList()..sort()) {
+    stderr.writeln('  framework use not indexable: $name');
+  }
+  for (final failure in frameworkWalkFailures) {
+    stderr.writeln('  framework walk failed: $failure');
+  }
 }
 
 /// How the VM names a member of this kind, which is what the dynamic interface
@@ -927,6 +973,9 @@ gen_dynamic_interface.dart --dill <app.dill> [options]
                            members the app's own code uses. Without them a
                            patch naming one (BuildContext in a build()
                            signature) fails at load
+  --platform <dill>        the platform --private-dill was compiled against;
+                           with it the framework-use walk reads one complete
+                           kernel
   --framework-members <s>  which of those members: all (default; leaves out
                            dart: instance members reached through code, whose
                            implementations fan out across the SDK), calls
@@ -959,6 +1008,7 @@ class _FrameworkUseCollector extends RecursiveVisitor {
   _FrameworkUseCollector(this.isApp);
 
   final bool Function(Library) isApp;
+  final failures = <String>[];
   final classes = <Class>{};
   final members = <Member>{};
   final _viaCode = <Member>{};
@@ -980,6 +1030,25 @@ class _FrameworkUseCollector extends RecursiveVisitor {
         m,
   };
   final _seenConstants = <Constant>{};
+
+  /// Walks [lib] one declaration at a time, so a node this visitor does not
+  /// handle costs that declaration's uses, never the whole interface.
+  void walk(Library lib) {
+    void guarded(String what, void Function() visit) {
+      try {
+        visit();
+      } catch (error) {
+        failures.add('${lib.importUri}#$what: $error');
+      }
+    }
+
+    for (final m in [...lib.procedures, ...lib.fields]) {
+      guarded(m.name.text, () => m.accept(this));
+    }
+    for (final c in lib.classes) {
+      guarded(c.name, () => c.accept(this));
+    }
+  }
 
   bool _outside(Library lib) {
     if (isApp(lib)) return false;
@@ -1140,6 +1209,38 @@ class _FrameworkUseCollector extends RecursiveVisitor {
   }
 
   @override
+  void visitTypedefType(TypedefType node) {
+    // Not super: visitChildren dereferences the typedef.
+    for (final t in node.typeArguments) {
+      t.accept(this);
+    }
+  }
+
+  @override
+  void visitFunctionNode(FunctionNode node) {
+    // Not super: visitChildren dereferences a redirecting factory's target.
+    for (final t in node.typeParameters) {
+      t.accept(this);
+    }
+    for (final v in node.positionalParameters) {
+      v.accept(this);
+    }
+    for (final v in node.namedParameters) {
+      v.accept(this);
+    }
+    node.returnType.accept(this);
+    node.emittedValueType?.accept(this);
+    final redirect = node.redirectingFactoryTarget;
+    if (redirect != null) {
+      _member(redirect.targetReference);
+      for (final t in redirect.typeArguments ?? const <DartType>[]) {
+        t.accept(this);
+      }
+    }
+    node.body?.accept(this);
+  }
+
+  @override
   void visitExtensionType(ExtensionType node) {
     for (final t in node.typeArguments) {
       t.accept(this);
@@ -1165,15 +1266,20 @@ class _FrameworkUseCollector extends RecursiveVisitor {
           t.accept(this);
         }
       case ListConstant():
+        c.typeArgument.accept(this);
         c.entries.forEach(_constant);
       case SetConstant():
+        c.typeArgument.accept(this);
         c.entries.forEach(_constant);
       case MapConstant():
+        c.keyType.accept(this);
+        c.valueType.accept(this);
         for (final e in c.entries) {
           _constant(e.key);
           _constant(e.value);
         }
       case RecordConstant():
+        c.recordType.accept(this);
         c.positional.forEach(_constant);
         c.named.values.forEach(_constant);
       case StaticTearOffConstant():
@@ -1182,6 +1288,16 @@ class _FrameworkUseCollector extends RecursiveVisitor {
         _member(c.targetReference, allowPrivate: true);
       case InstantiationConstant():
         _constant(c.tearOffConstant);
+        for (final t in c.types) {
+          t.accept(this);
+        }
+      case RedirectingFactoryTearOffConstant():
+        _member(c.targetReference, allowPrivate: true);
+      case TypedefTearOffConstant():
+        _constant(c.tearOffConstant);
+        for (final t in c.types) {
+          t.accept(this);
+        }
       case TypeLiteralConstant():
         c.type.accept(this);
       default:
