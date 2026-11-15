@@ -96,6 +96,38 @@ void main() {
       return ProcessResult(0, 0, '', '');
     }
 
+    test('a compile error names what the compiler printed on stdout', () {
+      // dart2bytecode reports front-end errors on stdout, not stderr.
+      expect(
+        () => runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: coverage(),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            run: (_, _) => ProcessResult(
+              0,
+              254,
+              "replacement_0.dart:3:30: Error: Can't access 'this' here.\n",
+              '',
+            ),
+          ),
+        ),
+        throwsA(
+          isA<RouteBUnsupportedTarget>().having(
+            (e) => e.reason,
+            'reason',
+            allOf(
+              contains('(exit 254)'),
+              contains("Error: Can't access 'this' here."),
+            ),
+          ),
+        ),
+      );
+    });
+
     test('writes one replacement library per target, with the pragma', () {
       // One payload is one function: Dart_RouteBActivatePatch attaches the
       // single Function LoadBytecode returns, so a payload has to hold exactly
