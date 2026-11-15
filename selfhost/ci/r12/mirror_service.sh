@@ -31,7 +31,7 @@ docker run -d --name r12-flutter-git --platform linux/amd64 \
 for _ in $(seq 1 20); do
   got="$(docker run --rm --platform linux/amd64 --add-host host.docker.internal:host-gateway --entrypoint git alpine/git:latest \
           ls-remote git://host.docker.internal:9418/flutter.git \
-          "$FLUTTER_REF" 2>/dev/null | awk '{print $1}')"
+          "$FLUTTER_REF" 2>/dev/null | awk '{print $1}')" || true   # git-daemon may still be installing: retry, don't exit
   [[ -n "$got" ]] && break
   sleep 2
 done
