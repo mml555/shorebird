@@ -899,6 +899,10 @@ Set<String> _keptKeys(Component c, bool Function(Library) isApp) => {
   ],
 };
 
+// A parameter is keyed by its name. A rename therefore drops it from the
+// shared set and its default is not compared there, which is safe: the renamed
+// parameter's uses in the initializers and body print differently, so the
+// constructor still reads as changed.
 String _parameterKey(String classKey, Constructor k, FunctionParameter p) =>
     '$classKey.${k.name.text.isEmpty ? 'new' : k.name.text}'
     '(${p.cosmeticName})';

@@ -1,0 +1,13 @@
+{
+  "note": "A mixin field's literal initializer changes, the mixin applied straight to Object. AOT copies the field into dart:mixin_deduplication's &Object&Counter, and a patch cannot replace that copy, so the patch is refused and names the copied field. The frozen reference tooling compares procedures only and calls this inert, so it is not a witness here.",
+  "referenceBlind": "the reference compares procedures only",
+  "verdict": "reject",
+  "changed": [],
+  "added": [],
+  "declarations": [
+    "dart:mixin_deduplication#&Object&Counter.start"
+  ],
+  "rejectionReasons": [
+    "this field's initializer or declaration changed; a patch replaces method bodies only, so the release keeps its own initial value"
+  ]
+}
