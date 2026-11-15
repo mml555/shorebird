@@ -96,9 +96,26 @@ cid-check chain over two implementations of `pick` sits in whatever calls
 `pick`. Revision 1 filed both as the target's own pool. The gate's
 `selfname` mutation puts the name test back and requires both sites to vanish.
 
-A revision-2 probe reads revision-1 bindings, since `UnlinkedCall` nodes are
-in every profile a revision-1 release wrote. A revision-1 probe still refuses a
-revision-2 binding.
+Switchable sites count only under a revision-2 binding. The CLI writes
+revision 2 exactly when it built the release with
+`--route_b_untabled_overrides`, and revision 1 otherwise. Without the flag no
+selector lacks a table row, so an `UnlinkedCall` with the target's name is a
+different call, and counting it could pass a patch whose real callers go
+through the table. The direction argument above covers a site that exists but
+may not run; it does not cover that case. In practice AOT names an ordinary
+dynamic call `dyn:<name>`, so plain-named `UnlinkedCall`s come only from
+untabled selectors (the counter app's flag-less profile holds only `dyn:*`,
+`dyn:+`, `dyn:-`, `dyn:call` and `dyn:toJson`), but the binding makes the rule
+explicit instead of leaning on that naming. A revision-2 probe reads a
+revision-1 binding with revision 1's classification; a revision-1 probe refuses
+a revision-2 binding. The gate checks both the ZERO under a revision-1 binding
+and a mutant that counts switchable calls whatever the binding says.
+
+The identity test reads `Code.owner_`. For a retained function that is the
+`Function` itself. `DropFunctions` wraps `owner_` in a
+`WeakSerializationReference` only for a dropped function, which has no target
+node for the probe to find, so the comparison never meets the wrapper for a
+target it can classify.
 
 ## 3. Internal result model, frozen before the product vocabulary
 

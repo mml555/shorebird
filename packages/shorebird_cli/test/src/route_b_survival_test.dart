@@ -240,4 +240,49 @@ void main() {
       expect(text, contains('not a refusal'));
     });
   });
+
+  group('routeBReleaseProbeRevisionFor', () {
+    test('binds a release built without the flag to revision 1', () {
+      expect(
+        routeBReleaseProbeRevisionFor([
+          '--extra-gen-snapshot-options=--patchable_static_calls',
+        ]),
+        routeBReleaseProbeRevision,
+      );
+    });
+
+    test('binds a release built with the flag to revision 2', () {
+      expect(
+        routeBReleaseProbeRevisionFor([
+          '--extra-gen-snapshot-options=--patchable_static_calls',
+          '--extra-gen-snapshot-options=--route_b_untabled_overrides',
+        ]),
+        routeBUntabledReleaseProbeRevision,
+      );
+    });
+
+    test('finds the flag among comma-separated options', () {
+      expect(
+        routeBReleaseProbeRevisionFor([
+          '--extra-gen-snapshot-options=--a,--route_b_untabled_overrides=true',
+        ]),
+        routeBUntabledReleaseProbeRevision,
+      );
+    });
+
+    test('reads a negated or disabled flag as off', () {
+      for (final arg in [
+        '--extra-gen-snapshot-options=--no-route_b_untabled_overrides',
+        '--extra-gen-snapshot-options=--route_b_untabled_overrides=false',
+        // Not a gen_snapshot option at all.
+        '--route_b_untabled_overrides',
+      ]) {
+        expect(
+          routeBReleaseProbeRevisionFor([arg]),
+          routeBReleaseProbeRevision,
+          reason: arg,
+        );
+      }
+    });
+  });
 }

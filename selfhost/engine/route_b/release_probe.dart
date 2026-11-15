@@ -32,6 +32,10 @@
 // green, and the spec says why that direction is the right one to be wrong in.
 // Revision 2 also tells the target's own code from a caller by identity, not
 // by name (see _isOwnCode): revision 1 misfiled same-named callers.
+// Switchable sites count only under a revision-2 binding, which the CLI writes
+// for a release built with --route_b_untabled_overrides: without the flag no
+// selector lacks a table row, and an UnlinkedCall of the same name is some
+// other call.
 import 'dart:convert';
 import 'dart:io';
 
@@ -40,11 +44,16 @@ import 'dart:io';
 /// one revision cannot be silently consumed under another.
 const probeRevision = 2;
 
-/// Binding revisions this probe reads. Revision 2 only ADDS a category, and its
-/// inputs (`UnlinkedCall` nodes) are in every profile a revision-1 release
-/// wrote, so a revision-1 binding is read correctly here. The reverse is not
-/// true, which is why a revision-1 probe still refuses a revision-2 binding.
+/// Binding revisions this probe reads. A revision-1 binding is read with
+/// revision 1's classification: the CLI writes revision 2 exactly when it built
+/// the release with `--route_b_untabled_overrides`, and without that flag no
+/// selector lacks a table row, so an `UnlinkedCall` naming the target is an
+/// unrelated call and must not count. A revision-1 probe refuses a revision-2
+/// binding rather than read it without the switchable category.
 const _acceptedBindingRevisions = {1, 2};
+
+/// The first binding revision whose release has untabled selectors.
+const _switchableBindingRevision = 2;
 
 /// The profile schema this probe was written against. There is no version field
 /// in the profile itself, so the shape is asserted STRUCTURALLY: if gen_snapshot
@@ -311,7 +320,10 @@ class Verdict {
 }
 
 /// Resolves [id] to a single Function node and classifies its referrers.
-Verdict classify(Profile p, TargetId id) {
+/// [countSwitchable] is true only for a release built with
+/// `--route_b_untabled_overrides` (a revision-2 binding); see
+/// [_acceptedBindingRevisions].
+Verdict classify(Profile p, TargetId id, {required bool countSwitchable}) {
   final ev = Evidence();
 
   // Identity: library URI -> owning class -> member. A bare selector is NOT the
@@ -376,7 +388,10 @@ Verdict classify(Profile p, TargetId id) {
   }
 
   final selector = p.nameOf(fn);
-  for (final call in p.nodesOfType('UnlinkedCall')) {
+  final switchableCalls = countSwitchable
+      ? p.nodesOfType('UnlinkedCall')
+      : const <int>[];
+  for (final call in switchableCalls) {
     final name = p.property(call, 'target_name_');
     if (name == null || p.nameOf(name) != selector) continue;
     for (final e in p.referrersOf(call)) {
@@ -579,9 +594,17 @@ Future<int> main(List<String> args) async {
   out['profile'] = {'status': 'OK', 'nodes': profile.nodeCount};
 
   final verdicts = <Map<String, Object?>>[];
+  final countSwitchable =
+      (binding.fields['probe_revision']! as int) >= _switchableBindingRevision;
   for (final spec in targets) {
     try {
-      verdicts.add(classify(profile, TargetId.parse(spec)).toJson());
+      verdicts.add(
+        classify(
+          profile,
+          TargetId.parse(spec),
+          countSwitchable: countSwitchable,
+        ).toJson(),
+      );
     } on FormatException catch (e) {
       stderr.writeln('bad target "$spec": ${e.message}');
       return 2;

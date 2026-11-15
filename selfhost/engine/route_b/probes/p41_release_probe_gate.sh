@@ -40,6 +40,8 @@
 #                                        same-named function is dropped)
 #   drop the switchable unowned guard   (an unowned UnlinkedCall passes)
 #   drop the switchable tear-off guard  (a tear-off's UnlinkedCall passes)
+#   count switchable calls under any binding (a release built without the
+#                                        flag passes on a same-named call)
 #
 # Host only. No device, no mint.
 #
@@ -512,6 +514,10 @@ import json, sys
 b = json.load(open('binding.json')); b['release_artifact_sha256'] = sys.argv[1]
 b['probe_revision'] = 2
 json.dump(b, open('binding_u.json', 'w'))
+# The same artifact bound at revision 1, as a release built without the flag
+# would be: its switchable calls are not evidence.
+b['probe_revision'] = 1
+json.dump(b, open('binding_u1.json', 'w'))
 PY
   for t in _P3.render _DuoA.pick; do
     echo "    $t table:      $(evidence "$PROBE" profile.json binding.json "$ART" "$LIB#$t")"
@@ -526,6 +532,15 @@ PY
   check "  ...render's site is the SWITCHABLE call, not some other referrer" \
     "$(evidence "$PROBE" profile_u.json binding_u.json "$ART_U" "$LIB#_P3.render" \
         | grep -o 'switchable_sites=[1-9]' | head -1)" switchable_sites=1
+  check "render under a revision-1 binding -> ZERO (no flag, no switchable evidence)" \
+    "$(result "$PROBE" profile_u.json binding_u1.json "$ART_U" "$LIB#_P3.render")" \
+    ZERO_QUALIFYING_CALLSITES
+
+  note "MUTATION -- count switchable calls whatever the binding says"
+  mutate anyrev "  final switchableCalls = countSwitchable=>>  final switchableCalls = true"
+  check "mutant counts render's switchable call under a revision-1 binding" \
+    "$(result "$WORK/m_anyrev.dart" profile_u.json binding_u1.json "$ART_U" "$LIB#_P3.render")" \
+    ONE_OR_MORE_QUALIFYING_CALLSITES
 
   note "MUTATION -- tell the target's own code from a caller by NAME"
   mutate selfname "    p.property(code, 'owner_') == fn;=>>    p.nameOf(code).replaceAll('[Optimized] ', '') == p.nameOf(fn);"
@@ -542,21 +557,26 @@ fi
 # The switchable path has its own copies of the unowned and tear-off guards.
 # Built on the FOLDED target, so the unmutated probe must still refuse them.
 note "SWITCHABLE GUARDS -- an UnlinkedCall no caller owns is not a site"
+python3 - <<'PY'
+import json
+b = json.load(open('binding.json')); b['probe_revision'] = 2
+json.dump(b, open('binding_r2.json', 'w'))
+PY
 python3 surgery.py add-unowned-switchable profile.json p_sw_unowned.json foldConst
 python3 surgery.py add-tearoff-switchable profile.json p_sw_tearoff.json foldConst
 check "switchable call in an unowned pool -> still ZERO" \
-  "$(result "$PROBE" p_sw_unowned.json binding.json "$ART" "$LIB#foldConst")" \
+  "$(result "$PROBE" p_sw_unowned.json binding_r2.json "$ART" "$LIB#foldConst")" \
   ZERO_QUALIFYING_CALLSITES
 check "switchable call in a tear-off's pool -> still ZERO" \
-  "$(result "$PROBE" p_sw_tearoff.json binding.json "$ART" "$LIB#foldConst")" \
+  "$(result "$PROBE" p_sw_tearoff.json binding_r2.json "$ART" "$LIB#foldConst")" \
   ZERO_QUALIFYING_CALLSITES
 mutate swunowned "      if (owners.isEmpty ||=>>      if (false ||"
 check "mutant counts a switchable call in an unowned pool" \
-  "$(result "$WORK/m_swunowned.dart" p_sw_unowned.json binding.json "$ART" "$LIB#foldConst")" \
+  "$(result "$WORK/m_swunowned.dart" p_sw_unowned.json binding_r2.json "$ART" "$LIB#foldConst")" \
   ONE_OR_MORE_QUALIFYING_CALLSITES
 mutate swtearoff "          owners.any((o) => p.nameOf(o).contains('[tear-off]')) ||=>>          false ||"
 check "mutant counts a switchable call in a tear-off's pool" \
-  "$(result "$WORK/m_swtearoff.dart" p_sw_tearoff.json binding.json "$ART" "$LIB#foldConst")" \
+  "$(result "$WORK/m_swtearoff.dart" p_sw_tearoff.json binding_r2.json "$ART" "$LIB#foldConst")" \
   ONE_OR_MORE_QUALIFYING_CALLSITES
 
 # ---- WORDING ---------------------------------------------------------------

@@ -527,6 +527,7 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
         supplement: supplement,
         appBinary: appBinary,
         artifacts: artifacts,
+        buildArgs: buildArgs,
       );
       await _captureImportKernel(
         compiler: compiler,
@@ -626,6 +627,7 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
     required Directory supplement,
     required File appBinary,
     required Map<String, String> artifacts,
+    required List<String> buildArgs,
   }) {
     final profile = _snapshotProfile;
     if (profile == null || !profile.existsSync()) {
@@ -658,7 +660,7 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
         // version field, so the probe asserts the layout it was written
         // against and this names which layout that was.
         'profile_format_revision': 'v8-snapshot-profile/gen_snapshot',
-        'probe_revision': routeBReleaseProbeRevision,
+        'probe_revision': routeBReleaseProbeRevisionFor(buildArgs),
         'cell_id': shorebirdEnv.shorebirdEngineRevision,
         'release_artifact_sha256': sha256
             .convert(appBinary.readAsBytesSync())

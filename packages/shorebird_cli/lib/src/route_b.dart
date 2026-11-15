@@ -83,7 +83,8 @@ File iosReleaseEngineBinary({
 
 /// The gen_snapshot flag that keeps app-overridden methods out of the dispatch
 /// table, so a Route B patch reaches calls such as the framework's
-/// `widget.build(this)`.
+/// `widget.build(this)`. Measured on the host; no device patch yet
+/// (`selfhost/engine/route_b/evidence/untabled_overrides/RESULT.md`).
 ///
 /// A dispatch-table call loads a raw entry point and never consults
 /// `Function.entry_point_`, so a patch to a `build` method attached, reported

@@ -108,10 +108,16 @@ callers are named `build` too. Revision 2 decides it by identity (the `Code`'s
 path had the same flaw: a cid-check chain over two `pick()` implementations sits
 in a function named `pick`.
 
-`probes/p41_release_probe_gate.sh` (PASS=36 FAIL=0) now has a second specimen
+`probes/p41_release_probe_gate.sh` (PASS=42 FAIL=0) now has a second specimen
 compiled with the flag. Its `_P3.render` (eight receivers, switchable) and
 `_DuoA.pick` (two receivers, direct calls) are ZERO through the table and GREEN
 untabled. The `selfname` mutation puts the name test back and both go ZERO.
+
+Switchable sites count only under a revision-2 binding, which the CLI writes
+exactly when it passed the flag. Bound at revision 1, the flagged specimen's
+`_P3.render` is ZERO, and a mutant that ignores the binding's revision turns it
+GREEN. Synthetic rows put an `UnlinkedCall` in an unowned pool and in a
+tear-off's pool; both stay ZERO, and each has a mutant that counts it.
 
 ## 5. Two runtime failures the inventory could not see
 
@@ -159,4 +165,9 @@ value (`0000000000`), which the VM accepts from any revision.
   calls, which cost more per call once megamorphic, and a shared selector
   carries SDK and framework calls along with the app's. One counter app is not
   a measurement of that.
-- `routeBReleaseProbeRevision` in the CLI stays 1 until that cell is the pin.
+- Patch and roll back a method with optional, named or type parameters
+  through a switchable site. Section 5 shows such calls run; it does not
+  attach a patch to one.
+- Activation timing. The runtime change assumes Route B activates before any
+  switchable site links. A site linked monomorphic to the original code before
+  activation would keep calling the unpatched body, silently. Untested.
