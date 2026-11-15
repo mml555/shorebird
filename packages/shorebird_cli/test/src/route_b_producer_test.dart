@@ -117,6 +117,23 @@ void main() {
         );
       });
 
+      test('reads past nested, generic and string annotation arguments', () {
+        expect(
+          RouteBProducer.topLevelForm('@Foo(Bar())\nstatic int a() => 1;'),
+          '@Foo(Bar())\nint a() => 1;',
+        );
+        expect(
+          RouteBProducer.topLevelForm('@Foo<int>() static int a() => 1;'),
+          '@Foo<int>() int a() => 1;',
+        );
+        expect(
+          RouteBProducer.topLevelForm(
+            "@Foo(')') @a.b /* c */ static int a() => 1;",
+          ),
+          "@Foo(')') @a.b /* c */ int a() => 1;",
+        );
+      });
+
       test('leaves a top-level function and a static-named one alone', () {
         expect(
           RouteBProducer.topLevelForm("String tag() => 'static ';"),
