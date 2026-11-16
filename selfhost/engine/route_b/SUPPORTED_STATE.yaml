@@ -245,8 +245,8 @@ cells:
     # The same engine bytes as 5f6efd98: every member is the file engine d0714887
     # published, byte for byte, except the seven rendered to the new address and
     # the compiler archive, whose route_b_analyze.aot (v15), route_b_release_probe.aot
-    # and route_b_gen_dynamic_interface.aot are built from main 0d7e6192; its other
-    # six members are 5f6efd98's. The same 26 unaddressed host files ship as
+    # and route_b_gen_dynamic_interface.aot are built from main 0d7e6192; five of its
+    # other six members are 5f6efd98's, and PROVENANCE.txt records the new build. The same 26 unaddressed host files ship as
     # host-extras-<address>.tar.
     pin_flutter_revision: 0987ce0a23c873fbab3832ff0fbf229c7b207b84   # shorebird-flutter PR #15: engine.version = d0714887
     pin_engine_version: d0714887dd95d2990e0185fe1893523f3d600cc5     # merge of shorebird-flutter #13; Dart b4671ab7
@@ -262,7 +262,8 @@ cells:
       edits: widget builds, initState, async, async*, routes, a getter, a static, a generic,
       an override, an enum switch, a pattern switch, a dependency's body and an intl call)
       applied 16/16 targets on two launches; patch 2 (setState closure, List.add, a
-      const-only build edit, a longer await loop) applied 3/3 on two launches; a changed
+      const-only build edit, a longer await loop) applied 3/3 on two launches (the const-only
+      edit's on-screen text was not captured; the other three showed in the logs); a changed
       top-level const and a changed field initializer were refused before upload (exit 70);
       rollback of patch 2 returned the device to patch 1 (rolled_back_patch_numbers [2]). PASS.
       Evidence: evidence/ios-cell-aab9fd07/RESULT.md. Android is proven on the Linux

@@ -29,7 +29,7 @@ so the change needs a new address.
 
 The compiler archive is `5f6efd98`'s with three members replaced: `route_b_analyze.aot` (v15,
 `a7c2663c...`), `route_b_release_probe.aot` and `route_b_gen_dynamic_interface.aot`, each built from
-`0d7e6192`. The other six members are byte-identical. Archive `70f72462...`, 19810923 B.
+`0d7e6192`. Five of the other six members are byte-identical; `PROVENANCE.txt` differs, because it records the new build (its time and the tools' digests). Archive `70f72462...`, 19810923 B.
 
 Every other member comes from the published `d0714887` overlay. The members rendered to the address
 (`engine_stamp.json`, the four POMs, `artifacts_manifest.yaml` against the 38855c84 base, and the

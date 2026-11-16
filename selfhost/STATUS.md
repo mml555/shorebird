@@ -15,7 +15,7 @@ are in [`compatibility.yaml`](compatibility.yaml) and
 [`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml). The evidence is in
 [`PROMOTION_aab9fd07.md`](evidence/r12-linux-ci/PROMOTION_aab9fd07.md) and
 [`ios-cell-aab9fd07`](engine/route_b/evidence/ios-cell-aab9fd07/RESULT.md): on an iPhone, 22 ordinary edits
-(widget builds, `initState` with `super`, `setState`, async, `async*`, routes, a getter, a static, a generic,
+(21 with their effect observed; the const-only widget text was not captured on screen) (widget builds, `initState` with `super`, `setState`, async, `async*`, routes, a getter, a static, a generic,
 an override, `switch`es, a local package and `intl`) patched through the published cell, and a changed `const`
 or field initializer was refused before upload.
 
