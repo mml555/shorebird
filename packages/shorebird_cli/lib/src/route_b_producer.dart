@@ -310,7 +310,7 @@ Object? $_superIntrinsicName(
         // routeBCompanionsFor, shared with the loop that carries them.
         final companions = routeBCompanionsFor(
           verdict,
-          callers: coverage.callers?[key],
+          callers: coverage.releaseCallersOf(key),
         );
         if (companions == null) {
           throw RouteBUnsupportedTarget(
@@ -385,13 +385,17 @@ Object? $_superIntrinsicName(
               },
             )
           : _Lowered(topLevelForm(_slice(key, source)));
-      // HELPERS this target transitively needs, as source, after the entry.
       // Whether this target compiles with private names resolved against the
-      // release's library; see the comment where it is passed.
+      // release's library; see where `--resolve-private-names-in-library` is
+      // passed. A PRIVATE RECEIVER CLASS is a private reference too: the
+      // receiver parameter is written with its class's own name (see the
+      // lowering), and `_FooState` is spelled in the replacement only if the
+      // front end resolves it in the target library.
       final resolvesPrivateNames =
           (lowering?.accesses.any((a) => a.privateTarget != null) ?? false) ||
           (lowering?.privateConstructions?.isNotEmpty ?? false) ||
           (lowering?.receiverType.startsWith('_') ?? false);
+      // HELPERS this target transitively needs, as source, after the entry.
       final helperText = _helperSources(key, resolvesPrivateNames, coverage);
       final declaration = lowered.declaration;
       // G4.1c link 2, the LEGACY case. A release cut before injected defines
@@ -447,11 +451,6 @@ Object? $_superIntrinsicName(
       // refused the whole patch before this point (Gate 6E). This decides only how
       // a body that was already admitted gets spelled.
       //
-      // A PRIVATE RECEIVER CLASS is a private reference too: the receiver
-      // parameter is written with its class's own name (see the lowering), and
-      // `_FooState` is spelled in the replacement only if the front end resolves
-      // it in the target library.
-      // (`resolvesPrivateNames`, computed above.)
       // IMPORT THE TARGET'S OWN LIBRARY. A replacement body may reference other
       // members of the library it replaces a function in, and a synthetic
       // library that imports nothing cannot see them:
@@ -628,8 +627,10 @@ Object? $_superIntrinsicName(
   /// text names any private identifier, could then bind to a release member
   /// nobody granted, so those combinations are refused. Not measured to be
   /// unsafe; not measured to be safe. Without that flag a private name
-  /// resolves in the replacement library, where a private helper is declared
-  /// and a release-private name fails to compile rather than binding.
+  /// resolves in the replacement library, where a private helper is declared.
+  /// A helper's text may name no other private identifier: a release-private
+  /// one could not bind there, and its dynamic form (`d._secret`) would
+  /// compile and fail on the device rather than here.
   String _helperSources(
     String key,
     bool resolvesPrivateNames,
@@ -660,8 +661,36 @@ Object? $_superIntrinsicName(
         );
       }
       final text = _slice(key, span);
+      final name = helper.split('#').last;
+      // Its own annotations are copied with it, and exactly one declaration in
+      // the library may be the entry point.
+      if (text.contains('dyn-module:entry-point')) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'it needs the new function `$name`, which is annotated as a dynamic '
+          "module entry point; only the patch's replacement may be one",
+        );
+      }
+      // Private names in a helper must be helpers the library carries. Any
+      // other one is a release-private name or a local: the first cannot bind
+      // in the replacement library (a dynamic `d._secret` would compile and
+      // fail on the device), and the second is refused with it rather than
+      // told apart from it.
+      final carried = {
+        for (final h in coverage.helpers)
+          h.split('#').last.replaceFirst(RegExp(r'^[gs]et:'), ''),
+      };
+      for (final private in _privateIdentifiers(text)) {
+        if (carried.contains(private)) continue;
+        throw RouteBUnsupportedTarget(
+          key,
+          'it needs the new function `$name`, which names `$private`, a '
+          'private identifier that is not a new function this patch carries. '
+          'A new function may name private members only if they are other new '
+          'functions',
+        );
+      }
       if (resolvesPrivateNames) {
-        final name = helper.split('#').last;
         if (name.replaceFirst(RegExp(r'^[gs]et:'), '').startsWith('_') ||
             _privateIdentifiers(text).isNotEmpty) {
           throw RouteBUnsupportedTarget(

@@ -216,6 +216,14 @@ import 'package:kernel/text/ast_to_text.dart';
 ///     A helper nothing in the patch reaches is NOT refused: it is listed in
 ///     `unusedHelpers` and not shipped.
 ///
+///     A new function used as a VALUE (torn off, including inside a constant)
+///     is refused: each replacement library carries its own copy, so a
+///     tear-off taken in one patched function is not identical to one taken
+///     in another, and `removeListener` of the second would remove nothing.
+///     Constants are now walked for tear-offs everywhere `_References` runs,
+///     so a `const [f]` or a default value naming a member is a reference to
+///     it in `callers` too; before 16 it was not seen.
+///
 ///     The bump is mandatory: a version-15 consumer reads `added` as "all
 ///     refused", and a consumer that wrongly trusted a version-16 document
 ///     would have no `helpers` to slice, so the two must be told apart.
@@ -349,8 +357,9 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   // ---- what changed -----------------------------------------------------
   // Mixin copy names that collide in EITHER kernel, so both key and print
   // them alike; see `_comparedClasses` and `_UriPrinter`.
-  final ambiguous = _ambiguousCopyNames(base)
-      .union(_ambiguousCopyNames(patched));
+  final ambiguous = _ambiguousCopyNames(
+    base,
+  ).union(_ambiguousCopyNames(patched));
   _ambiguousCopies = ambiguous;
   final baseText = _memberText(base, isApp);
   final patchedText = _memberText(patched, isApp);
@@ -576,7 +585,8 @@ coverage/census_report.py, for what the numbers may and may not be read as.
       {
         'target': key,
         'category': 'unknown',
-        'reason': 'not in the release manifest; unknown reachability is not '
+        'reason':
+            'not in the release manifest; unknown reachability is not '
             'the same as reachable',
       },
     for (final key in rejectedAdded)
@@ -929,29 +939,34 @@ _HelperPlan _helperPlan(
       if (!addedSet.contains(key)) return;
       final String? reason;
       if (cls != null) {
-        reason = '${p.isStatic ? 'a static member' : 'an instance member'} of '
+        reason =
+            '${p.isStatic ? 'a static member' : 'an instance member'} of '
             '`${cls.name}`; a replacement calling it would bind to the '
             "release's `${cls.name}`, which has no such member. Only a "
             'top-level function or getter can be added';
       } else if (p.kind != ProcedureKind.Method &&
           p.kind != ProcedureKind.Getter) {
-        reason = 'a ${p.kind == ProcedureKind.Setter ? 'setter' : 'operator'}'
+        reason =
+            'a ${p.kind == ProcedureKind.Setter ? 'setter' : 'operator'}'
             '; only a top-level function or getter can be added';
       } else if (p.isExtensionMember ||
           p.isExtensionTypeMember ||
           p.name.text.contains('|') ||
           p.name.text.contains('#')) {
-        reason = 'an extension member, which cannot be sliced out of its '
+        reason =
+            'an extension member, which cannot be sliced out of its '
             'extension; only a top-level function or getter can be added';
       } else if (p.isAbstract || p.isExternal) {
         reason = 'abstract or external, so it has no body to carry';
       } else if (p.fileStartOffset < 0 ||
           p.fileEndOffset < 0 ||
           p.fileEndOffset <= p.fileStartOffset) {
-        reason = 'the kernel records no source span for it, so its source '
+        reason =
+            'the kernel records no source span for it, so its source '
             'cannot be carried';
       } else if (p.fileUri != lib.fileUri) {
-        reason = 'declared in a `part` file, which a replacement library '
+        reason =
+            'declared in a `part` file, which a replacement library '
             'cannot reproduce; move it into the library file';
       } else {
         reason = null;
@@ -979,6 +994,26 @@ _HelperPlan _helperPlan(
     }
   }
 
+  // A helper used as a value is refused. Each replacement library carries its
+  // own copy of a helper, so a tear-off taken in one patched function is not
+  // identical to one taken in another: `addListener(_onTick)` in one and
+  // `removeListener(_onTick)` in the other would remove nothing.
+  final values = _References();
+  for (final lib in patched.libraries.where(isApp)) {
+    lib.accept(values);
+  }
+  for (final m in values.tearOffs) {
+    if (m is! Procedure || m.enclosingClass != null) continue;
+    final key = '${m.enclosingLibrary.importUri}#${_selector(null, m)}';
+    if (candidates.remove(key)) {
+      rejected[key] =
+          'new member, and it is used as a value (torn off), not '
+          'only called. Each patched function carries its own copy of a new '
+          'function, so two copies of it would not be identical; call it '
+          'instead, for example through a closure';
+    }
+  }
+
   final callers = _callers(patched, isApp, candidates);
   String libraryOf(String key) => key.split('#').first;
 
@@ -993,10 +1028,12 @@ _HelperPlan _helperPlan(
       String? bad;
       for (final c in callers[key]!) {
         if (libraryOf(c) != libraryOf(key)) {
-          bad = '`$c` in another library calls it; a replacement library '
+          bad =
+              '`$c` in another library calls it; a replacement library '
               'holds one library\'s helpers';
         } else if (!subjects.contains(c) && !accepted.contains(c)) {
-          bad = '`$c` calls it, and that is neither a changed member nor a '
+          bad =
+              '`$c` calls it, and that is neither a changed member nor a '
               'helper the patch can carry, so the release would call a '
               'function it does not have';
         }
@@ -1017,7 +1054,9 @@ _HelperPlan _helperPlan(
     again = false;
     for (final key in accepted) {
       if (reached.contains(key)) continue;
-      if (callers[key]!.any((c) => subjects.contains(c) || reached.contains(c))) {
+      if (callers[key]!.any(
+        (c) => subjects.contains(c) || reached.contains(c),
+      )) {
         reached.add(key);
         again = true;
       }
@@ -1079,10 +1118,60 @@ class _References extends RecursiveVisitor {
     super.visitStaticSet(node);
   }
 
+  /// Members used as a value (torn off) rather than called, constants
+  /// included. A subset of [members].
+  final tearOffs = <Member>{};
+
   @override
   void visitStaticTearOff(StaticTearOff node) {
     members.add(node.target);
+    tearOffs.add(node.target);
     super.visitStaticTearOff(node);
+  }
+
+  // A tear-off inside a constant (`const [helper]`, a default value) is a
+  // reference too. Version 16: before it, these were not seen at all.
+  @override
+  void visitConstantExpression(ConstantExpression node) {
+    _constant(node.constant, <Constant>{});
+    super.visitConstantExpression(node);
+  }
+
+  void _constant(Constant c, Set<Constant> seen) {
+    if (!seen.add(c)) return;
+    switch (c) {
+      case StaticTearOffConstant():
+        members.add(c.target);
+        tearOffs.add(c.target);
+      case InstantiationConstant():
+        _constant(c.tearOffConstant, seen);
+      case ListConstant():
+        for (final e in c.entries) {
+          _constant(e, seen);
+        }
+      case SetConstant():
+        for (final e in c.entries) {
+          _constant(e, seen);
+        }
+      case MapConstant():
+        for (final e in c.entries) {
+          _constant(e.key, seen);
+          _constant(e.value, seen);
+        }
+      case InstanceConstant():
+        for (final v in c.fieldValues.values) {
+          _constant(v, seen);
+        }
+      case RecordConstant():
+        for (final v in c.positional) {
+          _constant(v, seen);
+        }
+        for (final v in c.named.values) {
+          _constant(v, seen);
+        }
+      default:
+        break;
+    }
   }
 
   @override
@@ -1643,7 +1732,10 @@ String _selector(String? className, Procedure p) {
 /// required, the named parameters BY NAME, type-parameter count, and the return
 /// and parameter types -- so a reordering of named parameters (which callers do
 /// not see) does not read as a change, while adding one does.
-Map<String, String> _memberSignature(Component c, bool Function(Library) isApp) {
+Map<String, String> _memberSignature(
+  Component c,
+  bool Function(Library) isApp,
+) {
   final out = <String, String>{};
   for (final lib in c.libraries.where(isApp)) {
     final uri = lib.importUri.toString();
@@ -1675,8 +1767,9 @@ String _signature(Procedure p) {
   // Sorted by name: callers pass named arguments by name, so their ORDER in the
   // declaration is not part of the contract and must not read as a change.
   final named = [
-    for (final n in [...f.namedParameters]
-      ..sort((a, b) => a.parameterName.compareTo(b.parameterName)))
+    for (final n in [
+      ...f.namedParameters,
+    ]..sort((a, b) => a.parameterName.compareTo(b.parameterName)))
       '${n.isRequired ? 'required ' : ''}${n.parameterName}:${type(n.type)}',
   ];
   return '<${f.typeParameters.length}>(${positional.join(',')}'
@@ -1825,8 +1918,8 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
   bool isGenerated(Uri uri) => generatedCache.putIfAbsent(uri.toString(), () {
     final text = sourceOf(uri);
     if (text == null) return false;
-    final head =
-        (text.length > 2048 ? text.substring(0, 2048) : text).toLowerCase();
+    final head = (text.length > 2048 ? text.substring(0, 2048) : text)
+        .toLowerCase();
     if (head.contains('@generated')) return true;
     return head.contains('generated') &&
         (head.contains('do not edit') || head.contains('do not modify'));
@@ -1857,8 +1950,7 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
         }
 
         final lowering = _lowering(cls, p, censusHierarchy);
-        final unsupported =
-            (lowering['unsupported']! as List).cast<String>();
+        final unsupported = (lowering['unsupported']! as List).cast<String>();
         final accesses = (lowering['accesses']! as List).length;
 
         // WHY THE `this` REFUSAL FIRED, which its own reason string cannot say.
@@ -1916,9 +2008,9 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
           // product's surface, so a reported super site keeps counting as a
           // blocker here -- otherwise D0.2/D0.4's banked numbers would move with
           // no change in what a user can actually patch.
-          'superInvocations':
-              (lowering['superInvocations']! as List).length,
-          'lowerable': unsupported.isEmpty &&
+          'superInvocations': (lowering['superInvocations']! as List).length,
+          'lowerable':
+              unsupported.isEmpty &&
               (lowering['superInvocations']! as List).isEmpty,
           'unsupported': unsupported,
           // null when the source file could not be read, so "no rename needed"
@@ -2052,9 +2144,13 @@ Map<String, Object?> _lowering(
   for (final entry in byOffset.entries) {
     // Exactly one read and one write: a third access, or two of one kind, is
     // not something a compound assignment produces.
-    final readWriteOfOne = entry.value.length == 2 &&
+    final readWriteOfOne =
+        entry.value.length == 2 &&
         entry.value.map((a) => a.member).toSet().length == 1 &&
-        entry.value.map((a) => a.kind).toSet().containsAll(const {'get', 'set'});
+        entry.value.map((a) => a.kind).toSet().containsAll(const {
+          'get',
+          'set',
+        });
     if (entry.value.length > 1 && !readWriteOfOne) {
       final kinds = entry.value.map((a) => a.kind).join('+');
       unsupported.add(

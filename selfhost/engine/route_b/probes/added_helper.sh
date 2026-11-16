@@ -24,6 +24,10 @@
 #   refused_*           an added static member of a class; an added instance
 #                       member (setters, operators, extension members and
 #                       part-file members are covered by the analyzer's reasons)
+#   refused_tear_off    an added function used as a value, plain or in a const:
+#                       each patched function would carry its own copy
+#   refused_entry_point_helper, refused_release_private_in_helper,
+#   refused_setter      the producer's and analyzer's other helper refusals
 #   back_compat         the OLD cell (analysis 15) must still refuse a helper
 #
 # Host, not device. Needs a runtime that attaches (host_release_arm64_ddm).
@@ -181,6 +185,11 @@ method method_public_helper "rbBox()" "String rbBox() => 'PUB-BOX';" PUB-BOX
 
 refused refused_static_member "$CELL_NEW" "ApplyResult.rbS()" "" "static String rbS() => 'S';" "static member"
 refused refused_instance_member "$CELL_NEW" "ApplyResult(true, '', const []).rbI()" "" "String rbI() => 'I';" "instance member"
+refused refused_tear_off "$CELL_NEW" "rbApply(rbShout, 'x')" "String rbShout(String s) => 'X'; String rbApply(String Function(String) f, String s) => f(s);" "" "torn off"
+refused refused_const_tear_off "$CELL_NEW" "rbFirst(const [rbShout2])" "String rbShout2() => 'X'; String rbFirst(List<String Function()> fs) => fs[0]();" "" "torn off"
+refused refused_entry_point_helper "$CELL_NEW" "rbMarked()" "@pragma('dyn-module:entry-point') String rbMarked() => 'M';" "" "entry point"
+refused refused_release_private_in_helper "$CELL_NEW" "rbUsesState()" "String rbUsesState() { _state('x'); return 'S'; }" "" "not a new function this patch carries"
+refused refused_setter "$CELL_NEW" "(rbSet = 'v')" "set rbSet(String v) {}" "" "setter"
 refused back_compat_old_cell "$CELL_OLD" "rbAdded()" "String rbAdded() => $NOW ? 'NEW-HELPER' : 'X';" "" "cannot introduce members"
 
 echo; echo "== SUMMARY"

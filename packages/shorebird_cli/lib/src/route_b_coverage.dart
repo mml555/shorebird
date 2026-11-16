@@ -816,6 +816,12 @@ class RouteBCoverage {
   /// shipped and not a rejection.
   final List<String> unusedHelpers;
 
+  /// The [callers] of [key] that the RELEASE has, which leaves out [helpers]:
+  /// a helper is new, so the release never runs a copy of anything inside it.
+  List<String>? releaseCallersOf(String key) => callers?[key]
+      ?.where((c) => !helpers.contains(c) && !unusedHelpers.contains(c))
+      .toList();
+
   /// Members the patch drops. Reported, never fatal: the release keeps them and
   /// nothing calls them from the patch's own code.
   final List<String> removed;
@@ -863,7 +869,8 @@ class RouteBCoverage {
         .length;
     // Helpers are in `added` but are not rejections; count only the new
     // members that are.
-    final refusedAdded = added.length - helpers.length - unusedHelpers.length;
+    final refusedAdded = (added.length - helpers.length - unusedHelpers.length)
+        .clamp(0, added.length);
     final buffer = StringBuffer()
       ..writeln(
         'This patch cannot be built: ${rejections.length} of '

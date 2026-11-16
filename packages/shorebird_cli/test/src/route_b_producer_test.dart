@@ -442,6 +442,43 @@ void main() {
           );
         });
 
+        test('refuses a helper naming a private identifier that is not a '
+            'helper, even when private names resolve in the replacement', () {
+          expect(
+            () => produceFor(
+              instance('rbH', 'String rbH(dynamic d) => d._secret;'),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains(
+                  '`_secret`, a private identifier that is not a new '
+                  'function this patch carries',
+                ),
+              ),
+            ),
+          );
+        });
+
+        test('refuses a helper annotated as an entry point', () {
+          expect(
+            () => produceFor(
+              instance(
+                'rbH',
+                "@pragma('dyn-module:entry-point')\nString rbH() => 'H';",
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('dynamic module entry point'),
+              ),
+            ),
+          );
+        });
+
         test('refuses a private helper when the target resolves private '
             'names against the release, and says why', () {
           expect(
