@@ -71,7 +71,7 @@ V = {
     'p27_generic': [('main', "'F1'));", "'F2'));")],
     'p28_new_top_level_fn': [('main', "log('done', 'START-DONE');", "log('helper', helper2());\n    log('done', 'START-DONE');"),
                              ('main', '\nvoid main()', "\nString helper2() => 'HP2';\n\nvoid main()")],
-    # --- cell 2fc41d3f: a patch may ADD a private top-level function (#193) and a private
+    # --- (history: added for cell 2fc41d3f) a patch may ADD a private top-level function (#193) and a private
     # instance method of an existing class (#194).
     'h1_new_private_top_level_fn': [
         ('main', "    log('count', _count);\n  }\n\n  @override\n  Widget build",

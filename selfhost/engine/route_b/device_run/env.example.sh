@@ -34,6 +34,12 @@ for v in R CLI UDID BASE ARTIFACT_UPSTREAM ENGINE_REV FLUTTER_REV SIGN_IDENTITY 
     return 1 2>/dev/null || exit 1
   fi
 done
+FLUTTER_DIR="$CLI/bin/cache/flutter/$FLUTTER_REV"
+[ "$R" != / ] && [ -d "$R" ] || { echo "env.sh: ""R=$R must be an existing directory, dedicated to this harness (release.sh deletes $R/work and $R/signed)" >&2; return 1 2>/dev/null || exit 1; }
+[ -d "$CLI" ] && [ -x "$CLI/bin/shorebird" ] || { echo "env.sh: ""CLI=$CLI must be a repo checkout with bin/shorebird" >&2; return 1 2>/dev/null || exit 1; }
+[ -f "$PROVISIONING_PROFILE" ] || { echo "env.sh: ""PROVISIONING_PROFILE=$PROVISIONING_PROFILE is not a file" >&2; return 1 2>/dev/null || exit 1; }
+[ -d "$FLUTTER_DIR" ] || { echo "env.sh: ""$FLUTTER_DIR is missing. Check FLUTTER_REV, and run \"$CLI/bin/shorebird --version\" once to populate the cache" >&2; return 1 2>/dev/null || exit 1; }
+case "$BASE" in *:"$SERVER_PORT"|*:"$SERVER_PORT"/*) ;; *) echo "env.sh: BASE=$BASE must carry the port SERVER_PORT=$SERVER_PORT" >&2; return 1 2>/dev/null || exit 1 ;; esac
 if [ ! -f "$SECRETS_FILE" ]; then
   echo "env.sh: SECRETS_FILE $SECRETS_FILE not found; it must export API_KEY and URL_SIGNING_SECRET" >&2
   return 1 2>/dev/null || exit 1
@@ -45,14 +51,15 @@ for v in API_KEY URL_SIGNING_SECRET; do
   [ -n "$val" ] || { echo "env.sh: $v missing from $SECRETS_FILE" >&2; return 1 2>/dev/null || exit 1; }
 done
 
-export PATH="$EXTRA_PATH:$PATH"
+[ -n "$EXTRA_PATH" ] && export PATH="$EXTRA_PATH:$PATH"
 export HTTPS_PROXY="http://127.0.0.1:$PROXY_PORT" HTTP_PROXY="http://127.0.0.1:$PROXY_PORT"
-export NO_PROXY="$NO_PROXY_HOSTS,$(echo "$ARTIFACT_UPSTREAM" | sed -E 's#^[a-z]+://##; s#[:/].*##'),$(echo "$BASE" | sed -E 's#^[a-z]+://##; s#[:/].*##')"
+NO_PROXY_UP="$(echo "$ARTIFACT_UPSTREAM" | sed -E 's#^[a-z]+://##; s#[:/].*##'),$(echo "$BASE" | sed -E 's#^[a-z]+://##; s#[:/].*##')"
+export NO_PROXY="${NO_PROXY_HOSTS:+$NO_PROXY_HOSTS,}127.0.0.1,localhost,$NO_PROXY_UP"
 export JAVA_TOOL_OPTIONS="-Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=$PROXY_PORT -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=$PROXY_PORT -Dhttp.nonProxyHosts=localhost|127.*"
 export SHOREBIRD_ARTIFACT_ORIGIN="http://127.0.0.1:$ORIGIN_PORT" FLUTTER_STORAGE_BASE_URL="http://127.0.0.1:$ORIGIN_PORT"
 export CI=true LANG=en_US.UTF-8
 export SB="$CLI/bin/shorebird"
-export FLUTTER_DIR="$CLI/bin/cache/flutter/$FLUTTER_REV"
+export FLUTTER_DIR
 export FLUTTER="$FLUTTER_DIR/bin/flutter"
 export SHOREBIRD_HOSTED_URL="$BASE" SHOREBIRD_TOKEN="$API_KEY"
 mkdir -p "$R/logs" "$R/shots"

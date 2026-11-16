@@ -38,14 +38,16 @@ variable is missing. `DEVRUN_ENV` points the scripts at another env file.
 All in `bin/`. Run them in this order.
 
 1. `up.sh` starts the recording artifact origin (`origin.py`), the connection
-   proxy that logs the phone's outbound hosts (`connproxy.py`), the syslog
+   proxy (`connproxy.py`) that logs the hosts the Mac-side tooling (CLI, Flutter, Java)
+   connects to; the phone does not use it, the syslog
    capture, and the control-plane server. It checks that the CLI resolves
    `ENGINE_REV`. `run_up.sh` just calls it.
 2. `release.sh` creates the test app, creates the app on the server, runs
    `shorebird release ios`, re-signs the build, and installs it on the phone.
 3. `steps.sh` is the regression sequence: release boots, a combined patch, a
-   three-edit patch, two patches that must be refused, then a rollback.
-4. `steps2.sh` is the newer set: three edits that must publish, two that must be
+   four-edit patch (p03, p16, p29, p07), two patches that must be refused, then a rollback.
+4. `steps2.sh` is the newer set. Run it only after `steps.sh`, because it rolls back
+   patch 5: three edits that must publish, two that must be
    refused before upload, then a rollback of the newest patch.
 5. `all.sh` runs `steps.sh` then `steps2.sh`.
 
@@ -54,12 +56,15 @@ and screenshots to `$R/shots`.
 
 `shapes/` is the test app: `main.dart` and `tally.dart` are the base, and
 `variants.py` applies one named edit (or several joined with `+`) to them.
-The variant names are the keys of `V` in `variants.py`.
+The variant names are the keys of `V` in `variants.py`, plus `combo` and `base`.
 
 ## Rules
 
 - Installs must be upgrade installs. Never uninstall the app. After an uninstall
   the Local Network prompt must be approved again on the phone.
-- Patch numbers in `steps.sh` and `steps2.sh` (the rollback calls) assume a fresh
-  release. Run `release.sh` again before rerunning the steps.
+- `release.sh` wipes `$R/work` and creates a new app on the server each time, so
+  patch numbers restart. The rollback numbers in `steps.sh` (2) and `steps2.sh` (5)
+  assume a fresh release followed by `steps.sh`, then `steps2.sh`. Rerun
+  `release.sh` before rerunning the steps.
+- `R` must be a dedicated directory. `release.sh` deletes `$R/work` and `$R/signed`.
 - `up.sh` leaves its processes running. Stop them with the pids in `$R/*.pid`.
