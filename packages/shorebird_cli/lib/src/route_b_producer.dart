@@ -404,6 +404,7 @@ Object? $_superIntrinsicName(
         capabilities,
         compiler,
         patchedVerificationKernel,
+        resolvesPrivateNames: resolvesPrivateNames,
       );
       final declaration = lowered.declaration;
       // G4.1c link 2, the LEGACY case. A release cut before injected defines
@@ -588,14 +589,14 @@ Object? $_superIntrinsicName(
             member: dotted > 0 ? selector.substring(dotted + 1) : selector,
             releaseSignature: signature?.release,
             replacementSignature: signature?.patch,
-            capabilitiesConsumed: [
+            capabilitiesConsumed: {
               for (final access in [
                 ...?lowering?.accesses,
                 for (final l in helperLowerings) ...l.accesses,
               ])
                 if (access.privateTarget case final t?)
                   '${t.library}#${t.className}#${t.name}',
-            ],
+            }.toList(),
             survivalResult:
                 survivalVerdicts?[key]?.instrumentResult ?? 'NOT_ASKED',
             measuredAgainstArtifactSha256:
@@ -640,7 +641,10 @@ Object? $_superIntrinsicName(
     return needed;
   }
 
-  /// A helper's simple name: `lib#_f` and `lib#Cls._f` are both `_f`.
+  /// A helper's simple name: `lib#_f` and `lib#Cls._f` are both `_f`. The last
+  /// `.` splits the class from the member because a class name cannot contain
+  /// one; the analysis proves the name is unique in its library, so a text
+  /// match on it can only mean the helper.
   static String _helperName(String key) =>
       key.split('#').last.split('.').last.replaceFirst(RegExp(r'^[gs]et:'), '');
 
@@ -688,8 +692,9 @@ Object? $_superIntrinsicName(
     RouteBCoverage coverage,
     RouteBCapabilities? capabilities,
     RouteBCompiler compiler,
-    File? patchedVerificationKernel,
-  ) {
+    File? patchedVerificationKernel, {
+    required bool resolvesPrivateNames,
+  }) {
     final buffer = StringBuffer();
     for (final helper in needed.toList()..sort()) {
       final span = coverage.sources[helper];
@@ -725,6 +730,25 @@ Object? $_superIntrinsicName(
             ),
           );
         continue;
+      }
+      // Before analysis version 17 nothing showed that a private name binds
+      // to the helper when private names resolve against the release's
+      // library, so a version 16 document keeps rung 1's refusal. From 17 the
+      // analysis proves a helper's private name is unique in its library.
+      if (resolvesPrivateNames &&
+          coverage.analysisVersion < routeBInstanceHelpersAnalysisVersion) {
+        if (name.replaceFirst(RegExp(r'^[gs]et:'), '').startsWith('_') ||
+            _privateIdentifiers(text).isNotEmpty) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'it needs the new function `$name`, which names a private '
+            'identifier, and this target is compiled with private names '
+            "resolved against the release's library because it reaches a "
+            'private member of the release. A private name could then bind to '
+            'a member the release never granted. Make the helper public and '
+            'free of private names',
+          );
+        }
       }
       // Private names in a helper must be helpers the library carries. Any
       // other one is a release-private name or a local: the first cannot bind

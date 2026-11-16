@@ -1008,6 +1008,16 @@ _HelperPlan _helperPlan(
         reason =
             'declared in a `part` file, which a replacement library '
             'cannot reproduce; move it into the library file';
+      } else if (p.name.isPrivate &&
+          (_declarationClash(base, uri, p.name, null) ??
+                  _declarationClash(patched, uri, p.name, p)) !=
+              null) {
+        // Version 17: a private name the producer exempts from its backstop
+        // as "a helper this patch carries" must mean only the helper.
+        reason =
+            'its private name is also used by '
+            '${_declarationClash(base, uri, p.name, null) ?? _declarationClash(patched, uri, p.name, p)}'
+            '; a carried helper\'s private name must be unique in its library';
       } else {
         reason = null;
       }
@@ -1067,22 +1077,25 @@ _HelperPlan _helperPlan(
       }
     }
   }
+  final instanceNames = {
+    for (final e in instanceMembers.entries) e.value: e.key.name.text,
+  };
   final uses = _InstanceHelperUses(instanceMembers);
   if (instanceMembers.isNotEmpty) {
     for (final lib in patched.libraries.where(isApp)) {
+      final uri = lib.importUri;
       for (final p in lib.procedures) {
-        uses.scan(p);
+        uses.scan(p, '$uri#${_selector(null, p)}');
       }
       for (final f in lib.fields) {
-        uses.scan(f);
+        uses.scan(f, null);
       }
       for (final cls in lib.classes) {
-        for (final m in <Member>[
-          ...cls.procedures,
-          ...cls.constructors,
-          ...cls.fields,
-        ]) {
-          uses.scan(m);
+        for (final p in cls.procedures) {
+          uses.scan(p, '$uri#${_selector(cls.name, p)}');
+        }
+        for (final m in <Member>[...cls.constructors, ...cls.fields]) {
+          uses.scan(m, null);
         }
       }
     }
@@ -1103,6 +1116,22 @@ _HelperPlan _helperPlan(
     again = false;
     for (final key in accepted.toList()) {
       String? bad = uses.bad[key];
+      // A local, parameter or local function of the helper's name in a body
+      // that calls it: `this.m()` rewritten to `m(self)` would bind to it.
+      final helperName = instanceNames[key];
+      if (bad == null && helperName != null) {
+        final shadowing = callers[key]!
+            .where(
+              (c) => uses.localNames[helperName]?.contains(c) ?? false,
+            )
+            .firstOrNull;
+        if (shadowing != null) {
+          bad =
+              'a local variable, parameter or local function named '
+              '`$helperName` in `$shadowing`, which calls it, would capture '
+              'the call once it is rewritten';
+        }
+      }
       for (final c in bad != null ? const <String>[] : callers[key]!) {
         if (libraryOf(c) != libraryOf(key)) {
           bad =
@@ -1186,16 +1215,13 @@ String? _instanceHelperReason(
   if (_findClass(base, uri, cls.name) == null) {
     return 'a member of `${cls.name}`, which the release does not have';
   }
-  final name = p.name.text;
   final clash =
-      lib.procedures.any((q) => q.name.text == name) ||
-      lib.fields.any((f) => f.name.text == name) ||
-      lib.classes.any((c) => c.name == name) ||
-      lib.typedefs.any((t) => t.name == name) ||
-      lib.extensions.any((e) => e.name == name);
-  if (clash) {
-    return 'named like a top-level declaration of its library, which the '
-        'copy shipped with a patch would shadow';
+      _declarationClash(base, uri, p.name, null) ??
+      _declarationClash(patched, uri, p.name, p);
+  if (clash != null) {
+    return "its name is also used by $clash; a carried helper's private name "
+        'must be unique in its library, or a reference to the other '
+        'declaration could bind to the helper (or the reverse)';
   }
   for (final (label, component) in [('release', base), ('patch', patched)]) {
     final clashWith = _hierarchyClash(component, uri, cls.name, p.name);
@@ -1203,6 +1229,12 @@ String? _instanceHelperReason(
       return 'overriding or overridden ($clashWith in the $label kernel); a '
           'call by selector would miss the copy a patch ships';
     }
+  }
+  if (!p.name.isPrivate) {
+    return 'a PUBLIC method, which code outside this library can call by name '
+        "(`jsonEncode` calls `toJson` on what it is given), and the release's "
+        '`${cls.name}` has no such method; only a private instance method '
+        'can be added';
   }
   if (p.fileStartOffset < 0 ||
       p.fileEndOffset < 0 ||
@@ -1215,6 +1247,72 @@ String? _instanceHelperReason(
         'reproduce; move it into the library file';
   }
   return null;
+}
+
+/// A description of a declaration of the library [uri] in [component], other
+/// than [except], that is named [name] (same text), or null. Covers top-level
+/// declarations, the members of every class, constructors and extension
+/// members: a carried helper's private name has to be unique in its library.
+String? _declarationClash(
+  Component component,
+  String uri,
+  Name name,
+  Member? except,
+) {
+  for (final lib in component.libraries) {
+    if (lib.importUri.toString() != uri) continue;
+    bool same(Name n) => n.text == name.text;
+    for (final p in lib.procedures) {
+      if (p != except && same(p.name)) return 'the top-level `${p.name.text}`';
+    }
+    for (final f in lib.fields) {
+      if (f != except && same(f.name)) return 'the top-level `${f.name.text}`';
+    }
+    for (final c in lib.classes) {
+      if (c.name == name.text) return 'the class `${c.name}`';
+      for (final p in c.procedures) {
+        if (p != except && same(p.name)) {
+          return '`${c.name}.${p.name.text}`';
+        }
+      }
+      for (final f in c.fields) {
+        if (f != except && same(f.name)) return '`${c.name}.${f.name.text}`';
+      }
+      for (final k in c.constructors) {
+        if (same(k.name)) return 'a constructor of `${c.name}`';
+      }
+    }
+    for (final t in lib.typedefs) {
+      if (t.name == name.text) return 'the typedef `${t.name}`';
+    }
+    for (final e in lib.extensions) {
+      if (e.name == name.text) return 'the extension `${e.name}`';
+      for (final d in e.memberDescriptors) {
+        if (same(d.name)) return 'a member of the extension `${e.name}`';
+      }
+    }
+  }
+  return null;
+}
+
+/// The supertype closure of every class of a component, computed once.
+final _supersCache = Expando<Map<Class, Set<Class>?>>('route b supertypes');
+
+/// Every class reachable up from [k], or null when one cannot be read.
+Set<Class>? _supertypeClosure(Class k) {
+  final out = <Class>{};
+  final pending = [k];
+  try {
+    while (pending.isNotEmpty) {
+      final next = pending.removeLast();
+      for (final s in next.supers) {
+        if (out.add(s.classNode)) pending.add(s.classNode);
+      }
+    }
+  } on Object {
+    return null;
+  }
+  return out;
 }
 
 /// A description of a class that, in [component], declares a member named
@@ -1238,22 +1336,9 @@ String? _hierarchyClash(
         k.fields.any((f) => same(f.name));
   }
 
-  // Every class reachable up from [k], or null when one cannot be read.
-  Set<Class>? supers(Class k) {
-    final out = <Class>{};
-    final pending = [k];
-    try {
-      while (pending.isNotEmpty) {
-        final next = pending.removeLast();
-        for (final s in next.supers) {
-          if (out.add(s.classNode)) pending.add(s.classNode);
-        }
-      }
-    } on Object {
-      return null;
-    }
-    return out;
-  }
+  final cache = _supersCache[component] ??= {};
+  Set<Class>? supers(Class k) =>
+      cache.containsKey(k) ? cache[k] : cache[k] = _supertypeClosure(k);
 
   final up = supers(cls);
   if (up == null) return 'its supertypes could not be read';
@@ -1292,10 +1377,27 @@ class _InstanceHelperUses extends RecursiveVisitor {
   final _byName = <String, Set<String>>{};
   Member? _context;
 
-  void scan(Member m) {
+  /// Names of the locals, parameters and local functions declared in each
+  /// scanned member, by name then by member key.
+  final localNames = <String, Set<String>>{};
+  String? _contextKey;
+
+  void scan(Member m, String? key) {
     _context = m;
+    _contextKey = key;
     m.accept(this);
     _context = null;
+    _contextKey = null;
+  }
+
+  @override
+  void visitVariableDeclaration(VariableDeclaration node) {
+    final name = node.variable.cosmeticName;
+    final key = _contextKey;
+    if (name != null && key != null && _byName.containsKey(name)) {
+      (localNames[name] ??= {}).add(key);
+    }
+    super.visitVariableDeclaration(node);
   }
 
   void _flag(Member? m, String why) {

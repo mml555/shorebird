@@ -346,6 +346,7 @@ void main() {
           String helperText, {
           String receiver = 'RouteBThing',
           String decl = 'String value() => label;',
+          int version = routeBHelpersAnalysisVersion,
         }) {
           final body = 'class $receiver {\n  $decl\n}\n$helperText\n';
           source.writeAsStringSync(body);
@@ -356,7 +357,7 @@ void main() {
           };
           return RouteBCoverage.fromJson(
             jsonEncode({
-              'analysisVersion': routeBHelpersAnalysisVersion,
+              'analysisVersion': version,
               'verdict': 'accept',
               'changed': [instanceKey],
               'carried': <String>[],
@@ -422,13 +423,14 @@ void main() {
         });
 
         test('takes a private helper the method body names when the target '
-            'resolves private names against the release', () {
+            'resolves private names against the release (version 17)', () {
           final out = produceFor(
             instance(
               '_rbH',
               'String _rbH(String l) => l;',
               decl: 'String value() => _rbH(label);',
               receiver: '_RouteBThing',
+              version: routeBInstanceHelpersAnalysisVersion,
             ),
           );
           expect(out, contains('String _rbH(String l) => l;'));
@@ -472,17 +474,47 @@ void main() {
           );
         });
 
-        test('takes a private helper under a private receiver', () {
-          expect(
-            produceFor(
-              instance(
-                '_rbH',
-                "String _rbH() => 'H';",
-                receiver: '_RouteBThing',
+        test(
+          'takes a private helper under a private receiver (version 17)',
+          () {
+            expect(
+              produceFor(
+                instance(
+                  '_rbH',
+                  "String _rbH() => 'H';",
+                  receiver: '_RouteBThing',
+                  version: routeBInstanceHelpersAnalysisVersion,
+                ),
               ),
-            ),
-            contains("String _rbH() => 'H';"),
-          );
+              contains("String _rbH() => 'H';"),
+            );
+          },
+        );
+
+        test('a version 16 document keeps refusing a private helper under a '
+            'private receiver', () {
+          for (final (helperName, text) in [
+            ('_rbH', "String _rbH() => 'H';"),
+            ('rbH', "String rbH() => _rbOther();"),
+          ]) {
+            expect(
+              () => produceFor(
+                instance(
+                  helperName,
+                  text,
+                  decl: 'String value() => label;',
+                  receiver: '_RouteBThing',
+                ),
+              ),
+              throwsA(
+                isA<RouteBUnsupportedTarget>().having(
+                  (e) => e.reason,
+                  'reason',
+                  contains('Make the helper public'),
+                ),
+              ),
+            );
+          }
         });
 
         test('refuses a public helper that names a private identifier', () {

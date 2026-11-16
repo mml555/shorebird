@@ -756,8 +756,13 @@ Nothing was uploaded. Create a new release and patch that instead.''',
     RouteBCompiler compiler,
     RouteBCoverage coverage,
   ) {
-    final needed = coverage.lowering.values.any(
-      (l) => l.superInvocations.isNotEmpty,
+    // An instance helper's lowering (a key in `helpers`) is left out: a
+    // helper that calls `super` is refused by the producer, so building the
+    // kernel for it would only delay that refusal.
+    final needed = coverage.lowering.entries.any(
+      (e) =>
+          !coverage.helpers.contains(e.key) &&
+          e.value.superInvocations.isNotEmpty,
     );
     if (!needed) return null;
 

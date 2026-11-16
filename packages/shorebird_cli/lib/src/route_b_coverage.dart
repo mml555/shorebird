@@ -854,7 +854,8 @@ class RouteBCoverage {
   /// Where each changed member's new body lives, by `library#selector`.
   final Map<String, RouteBSourceSpan> sources;
 
-  /// Implicit-`this` lowering facts, for changed INSTANCE members only.
+  /// Implicit-`this` lowering facts, for changed INSTANCE members and, from
+  /// analysis version 17, for each instance helper (keyed `library#Class.m`).
   final Map<String, RouteBLowering> lowering;
 
   /// Signature identities for changed members, keyed by `library#selector`.
