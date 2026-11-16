@@ -372,6 +372,8 @@ Object? $_superIntrinsicName(
               patchedVerificationKernel,
             )
           : _Lowered(topLevelForm(_slice(key, source)));
+      // HELPERS this target transitively needs, as source, after the entry.
+      final helperText = _helperSources(key, lowering != null, coverage);
       final declaration = lowered.declaration;
       // G4.1c link 2, the LEGACY case. A release cut before injected defines
       // were recorded cannot be given them retroactively — the values came from
@@ -389,7 +391,7 @@ Object? $_superIntrinsicName(
       // release would strand releases that have a perfectly correct answer —
       // release 95 and every one before it — to protect against a construct
       // almost none of them contain.
-      if (_readsCompileTimeEnvironment(declaration) &&
+      if (_readsCompileTimeEnvironment('$declaration\n$helperText') &&
           buildConfig != null &&
           !buildConfig.recordsInjectedDefines) {
         throw RouteBUnsupportedTarget(
@@ -463,7 +465,10 @@ Object? $_superIntrinsicName(
           // pragma must land on the replacement, and exactly one declaration in
           // the library may carry it.
           '${lowered.preamble}'
-          '$entryPointPragma\n$declaration\n',
+          '$entryPointPragma\n$declaration\n'
+          // Helpers never carry the entry-point pragma: exactly one
+          // declaration in the library may.
+          '$helperText',
         );
       final payload = File(
         p.join(workingDirectory.path, 'replacement_$i.bytecode'),
@@ -587,6 +592,70 @@ Object? $_superIntrinsicName(
           ? null
           : RouteBPatchBinding(evidence: releaseEvidence, receipts: receipts),
     );
+  }
+
+  /// The source of every helper [key] reaches, for appending to its
+  /// replacement library, in sorted order so the output is reproducible.
+  ///
+  /// A helper is a function the patch adds (analysis version 16). The release
+  /// has no such function, so a replacement can only call it if the library
+  /// carries its source. Reached means: named by [key]'s body, or by a helper
+  /// that is, per the analysis' `callers`. Each replacement gets its own copy,
+  /// so two targets using one helper do not share it (a tear-off of it is not
+  /// identical across them).
+  ///
+  /// An INSTANCE target (one the producer lowers) is compiled with the
+  /// private-name resolution that its private accesses may need, and that flag
+  /// makes every private name in the whole library resolve against the release
+  /// library rather than the replacement. A private helper, or a helper whose
+  /// text names any private identifier, could then bind to a release member
+  /// nobody granted, so those combinations are refused. Not measured to be
+  /// unsafe; not measured to be safe.
+  String _helperSources(String key, bool lowered, RouteBCoverage coverage) {
+    if (coverage.helpers.isEmpty) return '';
+    final needed = <String>{};
+    var grew = true;
+    while (grew) {
+      grew = false;
+      for (final helper in coverage.helpers) {
+        if (needed.contains(helper)) continue;
+        final callers = coverage.callers?[helper] ?? const <String>[];
+        if (callers.contains(key) || callers.any(needed.contains)) {
+          needed.add(helper);
+          grew = true;
+        }
+      }
+    }
+    final buffer = StringBuffer();
+    for (final helper in needed.toList()..sort()) {
+      final span = coverage.sources[helper];
+      if (span == null) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'it needs the new function `${helper.split('#').last}`, and the '
+          'analysis reports no source span for it',
+        );
+      }
+      final text = _slice(key, span);
+      if (lowered) {
+        final name = helper.split('#').last;
+        if (name.replaceFirst(RegExp(r'^[gs]et:'), '').startsWith('_') ||
+            _privateIdentifiers(text).isNotEmpty) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'it needs the new function `$name`, which names a private '
+            'identifier, and a method target is compiled with private names '
+            "resolved against the release's library. A private name could "
+            'then bind to a member the release never granted. Make the helper '
+            'public and free of private names, or patch a top-level function',
+          );
+        }
+      }
+      buffer
+        ..writeln()
+        ..writeln(text);
+    }
+    return buffer.toString();
   }
 
   /// The import directives of the library being patched, for the replacement

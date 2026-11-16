@@ -69,7 +69,7 @@ const supportedRouteBAnalysisVersion = 11;
 ///
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
-const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15};
+const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15, 16};
 
 /// The first analyzer version that compares fields, `const`s, constructors and
 /// class headers. An older analyzer reads an edit to one as unchanged, so a
@@ -78,6 +78,11 @@ const routeBDeclarationsAnalysisVersion = 14;
 
 /// The first analyzer version that takes `--carry` and reports `callers`.
 const routeBCarryAnalysisVersion = 15;
+
+/// The first analyzer version that accepts an added top-level function as a
+/// helper and reports `helpers`. An older analyzer lists every new member as a
+/// rejection, and this build keeps refusing them for such a cell.
+const routeBHelpersAnalysisVersion = 16;
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -129,7 +134,10 @@ enum RouteBRepresentability {
   /// Not in the release's manifest. Unknown reachability is not reachability.
   unknown,
 
-  /// New in the patch. A patch replaces bodies; it cannot introduce members.
+  /// New in the patch and not carriable. A patch replaces bodies; from
+  /// analysis version 16 it may also add a top-level function that only the
+  /// patch calls (a helper), and every other new member lands here, with a
+  /// reason naming why.
   added,
 
   /// A changed or new field, `const` or constructor (analysis version 14).
@@ -516,6 +524,8 @@ class RouteBCoverage {
     this.carried = const [],
     this.callers,
     this.canCarry = false,
+    this.helpers = const [],
+    this.unusedHelpers = const [],
   });
 
   /// Parses the analyzer's JSON document.
@@ -756,6 +766,12 @@ class RouteBCoverage {
       signatures: signatures,
       changed: strings('changed'),
       added: strings('added'),
+      helpers: analysisVersion >= routeBHelpersAnalysisVersion
+          ? strings('helpers')
+          : const [],
+      unusedHelpers: analysisVersion >= routeBHelpersAnalysisVersion
+          ? strings('unusedHelpers')
+          : const [],
       removed: strings('removed'),
       representable: strings('patchable'),
       conditional: strings('conditional'),
@@ -787,8 +803,18 @@ class RouteBCoverage {
   /// Whether the analyzer that wrote this takes `--carry`.
   final bool canCarry;
 
-  /// Members the patch introduces. Always a rejection.
+  /// Every member only the patched kernel has. Before version 16 each is a
+  /// rejection; from 16 the ones in [helpers] and [unusedHelpers] are not.
   final List<String> added;
+
+  /// New top-level functions and getters the patch carries as source, inside
+  /// every replacement library that needs them (version 16). A subset of
+  /// [added]. Each has a `sources` span and a `callers` entry.
+  final List<String> helpers;
+
+  /// New top-level functions nothing in the patch reaches (version 16). Not
+  /// shipped and not a rejection.
+  final List<String> unusedHelpers;
 
   /// Members the patch drops. Reported, never fatal: the release keeps them and
   /// nothing calls them from the patch's own code.
@@ -835,10 +861,13 @@ class RouteBCoverage {
     final declarations = rejections
         .where((r) => r.category == RouteBRepresentability.declaration)
         .length;
+    // Helpers are in `added` but are not rejections; count only the new
+    // members that are.
+    final refusedAdded = added.length - helpers.length - unusedHelpers.length;
     final buffer = StringBuffer()
       ..writeln(
         'This patch cannot be built: ${rejections.length} of '
-        '${changed.length + carried.length + added.length + declarations} '
+        '${changed.length + carried.length + refusedAdded + declarations} '
         '${carried.isEmpty ? 'changed ' : ''}members cannot be carried by '
         'a Route B patch.',
       )
