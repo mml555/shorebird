@@ -24,8 +24,9 @@
 #   m_writes_field      ... a new method assigning a field
 #   m_public_reads_private  a new PUBLIC method reading a release-private
 #                       field (needs the manifest grant)
-#   refused_private_reads_private  the same, private: refused (see the notes in
-#                       the producer: private names resolve against the release)
+#   st_*                a PRIVATE class (_RbState, the Flutter State shape) whose patched
+#                       method calls a new private method / private top-level function
+#                       while private names resolve against the release
 #   refused_other_receiver, refused_tear_off, refused_overrides_super,
 #   refused_overridden, refused_static, refused_getter, refused_top_level_clash,
 #   refused_super_call, refused_subclass_call
@@ -86,12 +87,26 @@ class RbKid extends RbBox {
   String kidOnly() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'K' : 'X';
 }
 
+// The Flutter shape: a PRIVATE class (a State) with a private field the release
+// never reads, a patched method, and private top-level functions of the library.
+class _RbState {
+  String _title = 'TTL';
+  @pragma('vm:never-inline')
+  String build() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD-st' : 'X';
+}
+
+@pragma('vm:never-inline')
+String _rbRel() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'REL' : 'X';
+
+@pragma('vm:never-inline')
+String _rbDup() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'DUP' : 'X';
+
 @pragma('vm:never-inline')
 String rbClash() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'T' : 'X';
 '''
 old = "void _state(String when) => print('$when alpha=${alpha()} beta=${beta()}');"
 assert old in s
-s = s.replace(old, "void _state(String when) => print('$when alpha=${alpha()} beta=${beta()} box=${RbBox().show()} oth=${RbBox().other()} kid=${RbKid().kidOnly()} clash=${rbClash()}');")
+s = s.replace(old, "void _state(String when) => print('$when alpha=${alpha()} beta=${beta()} box=${RbBox().show()} oth=${RbBox().other()} kid=${RbKid().kidOnly()} clash=${rbClash()} st=${_RbState().build()} rel=${_rbRel()} dup=${_rbDup()}');")
 p.write_text(s)
 PY
 "$DART" "$GEN_KERNEL" --platform "$PLAT" --aot --packages .dart_tool/package_config.json -o prepass.dill "$URI" >/dev/null
@@ -153,6 +168,51 @@ show_cli() {
   done
 }
 
+# patch_st <build body> <members for _RbState> <top-level text>
+patch_st() {
+  cp release_source.dart lib/container_target.dart
+  SHOW="$1" BOX="${2:-}" TOP="${3:-}" python3 - lib/container_target.dart <<'PY'
+import os, sys, pathlib
+p = pathlib.Path(sys.argv[1]); s = p.read_text()
+old = "  String build() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD-st' : 'X';"
+assert old in s
+s = s.replace(old, "  String build() => %s;\n%s" % (os.environ['SHOW'], os.environ['BOX']))
+s += "\n" + os.environ['TOP'] + "\n"
+p.write_text(s)
+PY
+  "$DART" "$GEN_KERNEL" --platform "$PLAT" --aot --packages .dart_tool/package_config.json --dynamic-interface di.yaml -o patched.dill "$URI" >"$d/gen_kernel.log" 2>&1 \
+    || { echo "  ! patched source did not compile"; sed 's/^/  ! /' "$d/gen_kernel.log" | head; return 1; }
+}
+
+# arm_st <label> <want st> <build body> <members> <top-level>
+arm_st() {
+  local label=$1 want=$2
+  d=$WORK/$label; mkdir -p "$d"
+  echo; echo "==> $label"
+  patch_st "$3" "${4:-}" "${5:-}" || { record "$label" "FAIL (harness)"; return; }
+  drive "$CELL_NEW" "$d"
+  show_cli
+  local c; c=$(sed -n 's/^OUT=//p' "$d/cli.log")
+  if [ -z "$c" ]; then tail -12 "$d/cli.log" | sed 's/^/  ! /'; record "$label" "FAIL (no container)"; return; fi
+  "$OUT/dartaotruntime" app.aot "$c" > "$d/run.log" 2>&1 || true
+  grep -E '^(APPLY|after)|ATTACH: C\+\+|Error' "$d/run.log" | sed 's/^/  /'
+  local got; got=$(sed -n 's/^after .* st=\([^ ]*\).*/\1/p' "$d/run.log")
+  if [ "$got" = "$want" ]; then record "$label" PASS; else record "$label" "FAIL got st=${got:-none} want $want"; fi
+}
+
+# refused_st <label> <phrase> <build body> <members> <top-level>
+refused_st() {
+  local label=$1 phrase=$2
+  d=$WORK/$label; mkdir -p "$d"
+  echo; echo "==> $label"
+  patch_st "$3" "${4:-}" "${5:-}" || { record "$label" "FAIL (harness)"; return; }
+  drive "$CELL_NEW" "$d"
+  grep -E '^(coverage|REFUSED|REJECT|container)|^ +(new member|a patch)|^           ' "$d/cli.log" | sed 's/^/  /' || true
+  if [ "$CLI_EXIT" -ne 0 ] && ! grep -q '^OUT=' "$d/cli.log" && grep -qF -- "$phrase" "$d/cli.log"; then
+    record "$label" PASS
+  else record "$label" "FAIL (exit $CLI_EXIT, wanted a refusal containing: $phrase)"; tail -8 "$d/cli.log" | sed 's/^/  ! /'; fi
+}
+
 # arm <label> <cell> <want box> <show> <box members> [<kid members> <top> <kid body>]
 arm() {
   local label=$1 cell=$2 want=$3
@@ -182,14 +242,24 @@ refused() {
   else record "$label" "FAIL (exit $CLI_EXIT, wanted a refusal containing: $phrase)"; tail -8 "$d/cli.log" | sed 's/^/  ! /'; fi
 }
 
-arm m_private_method "$CELL_NEW" P-BOX "_h()" "  String _h() => 'P-' + tag;"
+arm m_private_method "$CELL_NEW" P-BOX "_h()" "  String _h() => 'P-\$tag';"
 arm m_args "$CELL_NEW" R "_pick('L', 'R', 1)" "  String _pick(String a, String b, int n) => n == 0 ? a : b;"
-arm m_chain "$CELL_NEW" B! "_a()" "  String _a() => _b() + '!'; String _b() => 'B';"
-arm m_calls_existing "$CELL_NEW" OTH-BOX+ "_viaOther()" "  String _viaOther() => other() + '+';"
+arm m_chain "$CELL_NEW" B! "_a()" "  String _a() => '\${_b()}!'; String _b() => 'B';"
+arm m_calls_existing "$CELL_NEW" OTH-BOX+ "_viaOther()" "  String _viaOther() => '\${other()}+';"
 arm m_explicit_this "$CELL_NEW" BOX "this._h()" "  String _h() => this.tag;"
-arm m_writes_field "$CELL_NEW" BOX+ "_bump()" "  String _bump() { tag = tag + '+'; return tag; }"
+arm m_writes_field "$CELL_NEW" BOX+ "_bump()" "  String _bump() { tag = '\${tag}+'; return tag; }"
 arm m_public_reads_private "$CELL_NEW" S3 "rbSecret()" "  String rbSecret() => _secret;"
-refused refused_private_reads_private "$CELL_NEW" "is private" "_sec()" "  String _sec() => _secret;"
+arm m_private_reads_private "$CELL_NEW" S3 "_sec()" "  String _sec() => _secret;"
+
+# THE FLUTTER CASE: a private class, so private names resolve against the
+# release (--resolve-private-names-in-library). The private `_title` is granted
+# by the manifest; the new private helper must still bind to its own copy.
+arm_st st_private_method H-TTL "_rbHeader()" "  String _rbHeader() => 'H-\$_title';"
+arm_st st_private_top T-TTL "_rbTop2(_title)" "" "String _rbTop2(String s) => 'T-\$s';"
+refused_st refused_st_ungranted_in_method "private identifier this analysis did not resolve" "_rbHeader()" "  String _rbHeader() => _rbRel();"
+refused_st refused_st_ungranted_in_top "not a new function this patch carries" "_rbTop3()" "" "String _rbTop3() => _rbRel();"
+refused_st refused_st_dynamic_private_in_top "not a new function this patch carries" "_rbPeek(_title)" "" "String _rbPeek(dynamic d) => (d as dynamic)._title;"
+refused_st refused_st_same_name_as_release_private "top-level declaration" "_rbDup()" "  String _rbDup() => 'NEWDUP';"
 
 refused refused_other_receiver "$CELL_NEW" "another receiver" "RbBox()._h()" "  String _h() => 'H';"
 refused refused_tear_off "$CELL_NEW" "torn off" "(() { final f = _h; return f(); })()" "  String _h() => 'H';"

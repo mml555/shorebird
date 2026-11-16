@@ -421,25 +421,18 @@ void main() {
           expect(out, contains('_rbH(self.label)'));
         });
 
-        test('refuses a private helper the method body names when the target '
+        test('takes a private helper the method body names when the target '
             'resolves private names against the release', () {
-          expect(
-            () => produceFor(
-              instance(
-                '_rbH',
-                'String _rbH(String l) => l;',
-                decl: 'String value() => _rbH(label);',
-                receiver: '_RouteBThing',
-              ),
-            ),
-            throwsA(
-              isA<RouteBUnsupportedTarget>().having(
-                (e) => e.reason,
-                'reason',
-                contains('names a private identifier'),
-              ),
+          final out = produceFor(
+            instance(
+              '_rbH',
+              'String _rbH(String l) => l;',
+              decl: 'String value() => _rbH(label);',
+              receiver: '_RouteBThing',
             ),
           );
+          expect(out, contains('String _rbH(String l) => l;'));
+          expect(out, contains('_rbH(self.label)'));
         });
 
         test('refuses a helper naming a private identifier that is not a '
@@ -479,23 +472,16 @@ void main() {
           );
         });
 
-        test('refuses a private helper when the target resolves private '
-            'names against the release, and says why', () {
+        test('takes a private helper under a private receiver', () {
           expect(
-            () => produceFor(
+            produceFor(
               instance(
                 '_rbH',
                 "String _rbH() => 'H';",
                 receiver: '_RouteBThing',
               ),
             ),
-            throwsA(
-              isA<RouteBUnsupportedTarget>().having(
-                (e) => e.reason,
-                'reason',
-                contains('names a private identifier'),
-              ),
-            ),
+            contains("String _rbH() => 'H';"),
           );
         });
 
@@ -665,15 +651,33 @@ void main() {
           expect(out, contains('_h (self, self.label)'));
         });
 
-        test('refuses a private helper when the target resolves private '
-            'names against the release', () {
+        test(
+          'a private instance helper is carried under a private receiver',
+          () {
+            final out = produceFor(v17(receiver: '_RouteBThing'));
+            expect(out, contains('_h(self, self.label)'));
+            expect(
+              out,
+              contains(
+                'String _h(_RouteBThing self, String l) => l + self.label;',
+              ),
+            );
+          },
+        );
+
+        test('a private instance helper naming an ungranted private member '
+            'is refused', () {
           expect(
-            () => produceFor(v17(receiver: '_RouteBThing')),
+            () => produceFor(
+              v17(
+                helper: 'String _h(String l) => _release();',
+              ),
+            ),
             throwsA(
               isA<RouteBUnsupportedTarget>().having(
                 (e) => e.reason,
                 'reason',
-                allOf(contains('`RouteBThing._h`'), contains('is private')),
+                contains('`_release`'),
               ),
             ),
           );

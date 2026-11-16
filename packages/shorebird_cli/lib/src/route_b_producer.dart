@@ -746,20 +746,6 @@ Object? $_superIntrinsicName(
           'functions',
         );
       }
-      if (resolvesPrivateNames) {
-        if (name.replaceFirst(RegExp(r'^[gs]et:'), '').startsWith('_') ||
-            _privateIdentifiers(text).isNotEmpty) {
-          throw RouteBUnsupportedTarget(
-            key,
-            'it needs the new function `$name`, which names a private '
-            "identifier, and this target is compiled with private names "
-            "resolved against the release's library because it reaches a "
-            'private member of the release. A private name could then bind to '
-            'a member the release never granted. Make the helper public and '
-            'free of private names',
-          );
-        }
-      }
       buffer
         ..writeln()
         ..writeln(text);
@@ -791,16 +777,6 @@ Object? $_superIntrinsicName(
     }
     if (lowering.superInvocations.isNotEmpty) {
       refuse('calls `super`, which a new method has no release version of');
-    }
-    // See `_helperSources`: with private names resolved against the release,
-    // a private helper name is not known to bind to the helper.
-    if (resolvesPrivateNames && _helperName(helper).startsWith('_')) {
-      refuse(
-        'is private, and this target is compiled with private names resolved '
-        "against the release's library because it reaches a private member of "
-        'the release. A private name could then bind to a member the release '
-        'never granted. Make the method public',
-      );
     }
     try {
       return _lower(
