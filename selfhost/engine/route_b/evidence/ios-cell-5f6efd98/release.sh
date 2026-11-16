@@ -1,3 +1,4 @@
+# cspell:words nostart
 set -uo pipefail
 . "$(dirname "$0")/../env.sh"
 export PATH="$CLI/bin:$PATH"
