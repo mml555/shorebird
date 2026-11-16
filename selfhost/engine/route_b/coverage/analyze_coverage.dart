@@ -189,7 +189,45 @@ import 'package:kernel/text/ast_to_text.dart';
 ///
 ///     The bump is mandatory: a version-14 analyzer exits 2 on `--carry`, so a
 ///     consumer must know which document it holds before it passes one.
-const analysisVersion = 15;
+///
+/// 16: an `added` member may be a HELPER, and ship. A top-level function or
+///     getter the patch introduces is accepted when everything that calls it is
+///     part of the patch, because the patch then carries its source: the
+///     producer appends it to each replacement library that needs it. The
+///     document gains `helpers`, `unusedHelpers` and, for each helper, a
+///     `sources` span and a `callers` entry. `added` still lists EVERY new
+///     member (the release-kernel agreement check reads it that way); the
+///     rejections of category `added` are now only the ones that stay refused,
+///     each with its own reason.
+///
+///     WHY. Until now any new function made the whole patch unrepresentable,
+///     though a replacement library can hold more than the one entry
+///     declaration (measured on host: public and private helpers, helpers with
+///     arguments, closures, chains, and calls into the release all bind and
+///     run). Helpers are the narrowest slice of "a patch may add a function"
+///     that needs no change to the release.
+///
+///     WHAT STAYS REFUSED, each with a reason: a class member (static or
+///     instance), because a sliced `Cls.helper()` would bind to the release's
+///     class, which lacks it; a setter or operator; an extension member; a
+///     member with no usable source span or declared in a `part` file; and any
+///     function with a caller that is not a changed member or an accepted
+///     helper, since that caller is the release's own code and cannot see it.
+///     A helper nothing in the patch reaches is NOT refused: it is listed in
+///     `unusedHelpers` and not shipped.
+///
+///     A new function used as a VALUE (torn off, including inside a constant)
+///     is refused: each replacement library carries its own copy, so a
+///     tear-off taken in one patched function is not identical to one taken
+///     in another, and `removeListener` of the second would remove nothing.
+///     Constants are now walked for tear-offs everywhere `_References` runs,
+///     so a `const [f]` or a default value naming a member is a reference to
+///     it in `callers` too; before 16 it was not seen.
+///
+///     The bump is mandatory: a version-15 consumer reads `added` as "all
+///     refused", and a consumer that wrongly trusted a version-16 document
+///     would have no `helpers` to slice, so the two must be told apart.
+const analysisVersion = 16;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -319,8 +357,9 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   // ---- what changed -----------------------------------------------------
   // Mixin copy names that collide in EITHER kernel, so both key and print
   // them alike; see `_comparedClasses` and `_UriPrinter`.
-  final ambiguous = _ambiguousCopyNames(base)
-      .union(_ambiguousCopyNames(patched));
+  final ambiguous = _ambiguousCopyNames(
+    base,
+  ).union(_ambiguousCopyNames(patched));
   _ambiguousCopies = ambiguous;
   final baseText = _memberText(base, isApp);
   final patchedText = _memberText(patched, isApp);
@@ -386,6 +425,9 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   ]..sort();
   final subjects = {...changed, ...carried};
   final callers = _callers(patched, isApp, subjects);
+  // Version 16. Which new members are helpers; see `_helperPlan`.
+  final plan = _helperPlan(patched, isApp, added, subjects);
+  callers.addAll(plan.callers);
 
   // ---- where each changed member's new body lives ------------------------
   //
@@ -401,7 +443,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     final uri = lib.importUri.toString();
     void record(String? className, Procedure p) {
       final key = '$uri#${_selector(className, p)}';
-      if (!subjects.contains(key)) return;
+      if (!subjects.contains(key) && !plan.helpers.contains(key)) return;
       // fileStartOffset spans the declaration INCLUDING annotations;
       // fileEndOffset is the closing token. Together they are the exact
       // source a single-function replacement library needs.
@@ -532,6 +574,10 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   // Rejection reasons are attributed PER TARGET here, where the reference tool
   // reports counts. Same rule, same strings; a count cannot tell you which
   // function to go look at.
+  final rejectedAdded = [
+    for (final key in added)
+      if (plan.rejected.containsKey(key)) key,
+  ];
   final rejections = <Map<String, Object?>>[
     for (final key in unreachable)
       {'target': key, 'category': 'unreachable', 'reason': reasonFor[key]},
@@ -539,16 +585,12 @@ coverage/census_report.py, for what the numbers may and may not be read as.
       {
         'target': key,
         'category': 'unknown',
-        'reason': 'not in the release manifest; unknown reachability is not '
+        'reason':
+            'not in the release manifest; unknown reachability is not '
             'the same as reachable',
       },
-    for (final key in added)
-      {
-        'target': key,
-        'category': 'added',
-        'reason': 'a patch replaces bodies and cannot introduce members, so '
-            'bytecode referencing them would fail to bind',
-      },
+    for (final key in rejectedAdded)
+      {'target': key, 'category': 'added', 'reason': plan.rejected[key]},
     for (final d in declarations)
       {
         'target': d['target'],
@@ -569,10 +611,11 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   if (unknown.isNotEmpty) {
     reasons.add('${unknown.length} changed member(s) are not in the manifest');
   }
-  if (added.isNotEmpty) {
+  if (rejectedAdded.isNotEmpty) {
     reasons.add(
-      '${added.length} member(s) are new; a patch replaces bodies and cannot '
-      'introduce members, so bytecode referencing them would fail to bind',
+      '${rejectedAdded.length} member(s) are new and cannot be carried; a '
+      'patch replaces bodies, and only a top-level function or getter used '
+      'by nothing outside the patch can be added',
     );
   }
 
@@ -590,7 +633,8 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   // worked.
   final String verdict;
   if (changed.isEmpty &&
-      added.isEmpty &&
+      rejectedAdded.isEmpty &&
+      plan.helpers.isEmpty &&
       removed.isEmpty &&
       declarations.isEmpty) {
     verdict = 'inert';
@@ -621,6 +665,8 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     'carried': carried,
     'callers': callers,
     'added': added,
+    'helpers': plan.helpers.toList()..sort(),
+    'unusedHelpers': plan.unused.toList()..sort(),
     'removed': removed,
     'declarations': declarations,
     'patchable': patchable,
@@ -851,6 +897,179 @@ Map<String, List<String>> _callers(
   return {for (final e in out.entries) e.key: e.value.toList()..sort()};
 }
 
+/// Version 16: what to do with each member only the patched kernel has.
+class _HelperPlan {
+  _HelperPlan(this.helpers, this.unused, this.rejected, this.callers);
+
+  /// Accepted: shipped inside every replacement library that needs it.
+  final Set<String> helpers;
+
+  /// Eligible and called by nothing the patch reaches. Not shipped, not fatal.
+  final Set<String> unused;
+
+  /// Every other added member, with the reason it stays refused.
+  final Map<String, String> rejected;
+
+  /// For each helper (accepted or unused), the app members that name it.
+  final Map<String, List<String>> callers;
+}
+
+/// Decides which of [added] are helpers.
+///
+/// A helper is a top-level method or getter, declared in its library's own file
+/// with a usable source span, whose every caller is a [subjects] member or
+/// another accepted helper, and which some subject reaches. The caller test is
+/// the point: the release's own code cannot call a function the release lacks,
+/// so a caller outside the patch means the member would be unreachable or the
+/// patch would be changing code it does not carry. Callers come from the same
+/// walk as version 15's (`_callers`), closures and dynamic accesses included.
+_HelperPlan _helperPlan(
+  Component patched,
+  bool Function(Library) isApp,
+  List<String> added,
+  Set<String> subjects,
+) {
+  final rejected = <String, String>{};
+  final candidates = <String>{};
+  final addedSet = added.toSet();
+  for (final lib in patched.libraries.where(isApp)) {
+    final uri = lib.importUri.toString();
+    void visit(Class? cls, Procedure p) {
+      final key = '$uri#${_selector(cls?.name, p)}';
+      if (!addedSet.contains(key)) return;
+      final String? reason;
+      if (cls != null) {
+        reason =
+            '${p.isStatic ? 'a static member' : 'an instance member'} of '
+            '`${cls.name}`; a replacement calling it would bind to the '
+            "release's `${cls.name}`, which has no such member. Only a "
+            'top-level function or getter can be added';
+      } else if (p.kind != ProcedureKind.Method &&
+          p.kind != ProcedureKind.Getter) {
+        reason =
+            'a ${p.kind == ProcedureKind.Setter ? 'setter' : 'operator'}'
+            '; only a top-level function or getter can be added';
+      } else if (p.isExtensionMember ||
+          p.isExtensionTypeMember ||
+          p.name.text.contains('|') ||
+          p.name.text.contains('#')) {
+        reason =
+            'an extension member, which cannot be sliced out of its '
+            'extension; only a top-level function or getter can be added';
+      } else if (p.isAbstract || p.isExternal) {
+        reason = 'abstract or external, so it has no body to carry';
+      } else if (p.fileStartOffset < 0 ||
+          p.fileEndOffset < 0 ||
+          p.fileEndOffset <= p.fileStartOffset) {
+        reason =
+            'the kernel records no source span for it, so its source '
+            'cannot be carried';
+      } else if (p.fileUri != lib.fileUri) {
+        reason =
+            'declared in a `part` file, which a replacement library '
+            'cannot reproduce; move it into the library file';
+      } else {
+        reason = null;
+      }
+      if (reason == null) {
+        candidates.add(key);
+      } else {
+        rejected[key] = 'new member, and $reason';
+      }
+    }
+
+    for (final p in lib.procedures) {
+      visit(null, p);
+    }
+    for (final cls in lib.classes) {
+      for (final p in cls.procedures) {
+        visit(cls, p);
+      }
+    }
+  }
+  // An added member with no procedure form (should not happen) stays refused.
+  for (final key in added) {
+    if (!candidates.contains(key) && !rejected.containsKey(key)) {
+      rejected[key] = 'new member that this analysis cannot classify';
+    }
+  }
+
+  // A helper used as a value is refused. Each replacement library carries its
+  // own copy of a helper, so a tear-off taken in one patched function is not
+  // identical to one taken in another: `addListener(_onTick)` in one and
+  // `removeListener(_onTick)` in the other would remove nothing.
+  final values = _References();
+  for (final lib in patched.libraries.where(isApp)) {
+    lib.accept(values);
+  }
+  for (final m in values.tearOffs) {
+    if (m is! Procedure || m.enclosingClass != null) continue;
+    final key = '${m.enclosingLibrary.importUri}#${_selector(null, m)}';
+    if (candidates.remove(key)) {
+      rejected[key] =
+          'new member, and it is used as a value (torn off), not '
+          'only called. Each patched function carries its own copy of a new '
+          'function, so two copies of it would not be identical; call it '
+          'instead, for example through a closure';
+    }
+  }
+
+  final callers = _callers(patched, isApp, candidates);
+  String libraryOf(String key) => key.split('#').first;
+
+  // Drop a candidate with a caller outside the patch, until nothing changes: a
+  // dropped helper is not part of the patch, so what only IT called loses its
+  // justification too.
+  final accepted = {...candidates};
+  var again = true;
+  while (again) {
+    again = false;
+    for (final key in accepted.toList()) {
+      String? bad;
+      for (final c in callers[key]!) {
+        if (libraryOf(c) != libraryOf(key)) {
+          bad =
+              '`$c` in another library calls it; a replacement library '
+              'holds one library\'s helpers';
+        } else if (!subjects.contains(c) && !accepted.contains(c)) {
+          bad =
+              '`$c` calls it, and that is neither a changed member nor a '
+              'helper the patch can carry, so the release would call a '
+              'function it does not have';
+        }
+        if (bad != null) break;
+      }
+      if (bad != null) {
+        accepted.remove(key);
+        rejected[key] = 'new member, and $bad';
+        again = true;
+      }
+    }
+  }
+
+  // Reachable from a subject, through accepted helpers only.
+  final reached = <String>{};
+  again = true;
+  while (again) {
+    again = false;
+    for (final key in accepted) {
+      if (reached.contains(key)) continue;
+      if (callers[key]!.any(
+        (c) => subjects.contains(c) || reached.contains(c),
+      )) {
+        reached.add(key);
+        again = true;
+      }
+    }
+  }
+  return _HelperPlan(
+    reached,
+    accepted.difference(reached),
+    rejected,
+    {for (final key in accepted) key: callers[key]!},
+  );
+}
+
 /// Every member a body names, closures included, and the names it accesses
 /// dynamically.
 class _References extends RecursiveVisitor {
@@ -899,10 +1118,60 @@ class _References extends RecursiveVisitor {
     super.visitStaticSet(node);
   }
 
+  /// Members used as a value (torn off) rather than called, constants
+  /// included. A subset of [members].
+  final tearOffs = <Member>{};
+
   @override
   void visitStaticTearOff(StaticTearOff node) {
     members.add(node.target);
+    tearOffs.add(node.target);
     super.visitStaticTearOff(node);
+  }
+
+  // A tear-off inside a constant (`const [helper]`, a default value) is a
+  // reference too. Version 16: before it, these were not seen at all.
+  @override
+  void visitConstantExpression(ConstantExpression node) {
+    _constant(node.constant, <Constant>{});
+    super.visitConstantExpression(node);
+  }
+
+  void _constant(Constant c, Set<Constant> seen) {
+    if (!seen.add(c)) return;
+    switch (c) {
+      case StaticTearOffConstant():
+        members.add(c.target);
+        tearOffs.add(c.target);
+      case InstantiationConstant():
+        _constant(c.tearOffConstant, seen);
+      case ListConstant():
+        for (final e in c.entries) {
+          _constant(e, seen);
+        }
+      case SetConstant():
+        for (final e in c.entries) {
+          _constant(e, seen);
+        }
+      case MapConstant():
+        for (final e in c.entries) {
+          _constant(e.key, seen);
+          _constant(e.value, seen);
+        }
+      case InstanceConstant():
+        for (final v in c.fieldValues.values) {
+          _constant(v, seen);
+        }
+      case RecordConstant():
+        for (final v in c.positional) {
+          _constant(v, seen);
+        }
+        for (final v in c.named.values) {
+          _constant(v, seen);
+        }
+      default:
+        break;
+    }
   }
 
   @override
@@ -1463,7 +1732,10 @@ String _selector(String? className, Procedure p) {
 /// required, the named parameters BY NAME, type-parameter count, and the return
 /// and parameter types -- so a reordering of named parameters (which callers do
 /// not see) does not read as a change, while adding one does.
-Map<String, String> _memberSignature(Component c, bool Function(Library) isApp) {
+Map<String, String> _memberSignature(
+  Component c,
+  bool Function(Library) isApp,
+) {
   final out = <String, String>{};
   for (final lib in c.libraries.where(isApp)) {
     final uri = lib.importUri.toString();
@@ -1495,8 +1767,9 @@ String _signature(Procedure p) {
   // Sorted by name: callers pass named arguments by name, so their ORDER in the
   // declaration is not part of the contract and must not read as a change.
   final named = [
-    for (final n in [...f.namedParameters]
-      ..sort((a, b) => a.parameterName.compareTo(b.parameterName)))
+    for (final n in [
+      ...f.namedParameters,
+    ]..sort((a, b) => a.parameterName.compareTo(b.parameterName)))
       '${n.isRequired ? 'required ' : ''}${n.parameterName}:${type(n.type)}',
   ];
   return '<${f.typeParameters.length}>(${positional.join(',')}'
@@ -1645,8 +1918,8 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
   bool isGenerated(Uri uri) => generatedCache.putIfAbsent(uri.toString(), () {
     final text = sourceOf(uri);
     if (text == null) return false;
-    final head =
-        (text.length > 2048 ? text.substring(0, 2048) : text).toLowerCase();
+    final head = (text.length > 2048 ? text.substring(0, 2048) : text)
+        .toLowerCase();
     if (head.contains('@generated')) return true;
     return head.contains('generated') &&
         (head.contains('do not edit') || head.contains('do not modify'));
@@ -1677,8 +1950,7 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
         }
 
         final lowering = _lowering(cls, p, censusHierarchy);
-        final unsupported =
-            (lowering['unsupported']! as List).cast<String>();
+        final unsupported = (lowering['unsupported']! as List).cast<String>();
         final accesses = (lowering['accesses']! as List).length;
 
         // WHY THE `this` REFUSAL FIRED, which its own reason string cannot say.
@@ -1736,9 +2008,9 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
           // product's surface, so a reported super site keeps counting as a
           // blocker here -- otherwise D0.2/D0.4's banked numbers would move with
           // no change in what a user can actually patch.
-          'superInvocations':
-              (lowering['superInvocations']! as List).length,
-          'lowerable': unsupported.isEmpty &&
+          'superInvocations': (lowering['superInvocations']! as List).length,
+          'lowerable':
+              unsupported.isEmpty &&
               (lowering['superInvocations']! as List).isEmpty,
           'unsupported': unsupported,
           // null when the source file could not be read, so "no rename needed"
@@ -1872,9 +2144,13 @@ Map<String, Object?> _lowering(
   for (final entry in byOffset.entries) {
     // Exactly one read and one write: a third access, or two of one kind, is
     // not something a compound assignment produces.
-    final readWriteOfOne = entry.value.length == 2 &&
+    final readWriteOfOne =
+        entry.value.length == 2 &&
         entry.value.map((a) => a.member).toSet().length == 1 &&
-        entry.value.map((a) => a.kind).toSet().containsAll(const {'get', 'set'});
+        entry.value.map((a) => a.kind).toSet().containsAll(const {
+          'get',
+          'set',
+        });
     if (entry.value.length > 1 && !readWriteOfOne) {
       final kinds = entry.value.map((a) => a.kind).join('+');
       unsupported.add(

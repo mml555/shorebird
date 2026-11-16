@@ -32,6 +32,83 @@ void main() {
       'refusalSummary': refusalSummary,
     });
 
+    group('helpers (analysis version 16)', () {
+      String v16({
+        List<String> added = const ['a#h1', 'a#h2', 'a#nope'],
+        Object? helpers = const ['a#h1'],
+        Object? unusedHelpers = const ['a#h2'],
+      }) => jsonEncode({
+        'analysisVersion': 16,
+        'verdict': 'reject',
+        'changed': ['a#alpha'],
+        'carried': <String>[],
+        'callers': <String, Object>{},
+        'added': added,
+        'helpers': ?helpers,
+        'unusedHelpers': ?unusedHelpers,
+        'removed': <String>[],
+        'patchable': ['a#alpha'],
+        'conditional': <String>[],
+        'rejections': [
+          {
+            'target': 'a#nope',
+            'category': 'added',
+            'reason': 'new member, and a setter',
+          },
+        ],
+        'refusalSummary': null,
+      });
+
+      test('reads the helpers and the unused ones', () {
+        final coverage = RouteBCoverage.fromJson(v16());
+        expect(coverage.helpers, ['a#h1']);
+        expect(coverage.unusedHelpers, ['a#h2']);
+        expect(coverage.added, ['a#h1', 'a#h2', 'a#nope']);
+      });
+
+      test('a version 16 document without helpers is malformed', () {
+        expect(
+          () => RouteBCoverage.fromJson(v16(helpers: null)),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              contains('"helpers"'),
+            ),
+          ),
+        );
+      });
+
+      test('the refusal counts only the new members that are refused', () {
+        final message = RouteBCoverage.fromJson(v16()).refusalMessage;
+        expect(message, contains('1 of 2 changed members'));
+      });
+
+      test('an older analysis reports no helpers, so every addition stays '
+          'refused', () {
+        final coverage = RouteBCoverage.fromJson(
+          document(
+            version: 15,
+            verdict: 'reject',
+            added: ['a#h1'],
+            rejections: [
+              {
+                'target': 'a#h1',
+                'category': 'added',
+                'reason': 'cannot introduce members',
+              },
+            ],
+          ).replaceFirst(
+            '"verdict"',
+            '"carried":[],"callers":{},"verdict"',
+          ),
+        );
+        expect(coverage.helpers, isEmpty);
+        expect(coverage.unusedHelpers, isEmpty);
+        expect(coverage.refusalMessage, contains('1 of 1'));
+      });
+    });
+
     group('carrying (analysis version 15)', () {
       String v15({Object? callers = const <String, Object>{}}) => jsonEncode({
         'analysisVersion': 15,
@@ -235,12 +312,12 @@ void main() {
 
       test('an unknown version is refused, and names what is understood', () {
         expect(
-          () => RouteBCoverage.fromJson(doc(16, body)),
+          () => RouteBCoverage.fromJson(doc(17, body)),
           throwsA(
             isA<FormatException>().having(
               (e) => e.message,
               'message',
-              allOf(contains('version 16'), contains('11, 12, 13, 14, 15')),
+              allOf(contains('version 17'), contains('11, 12, 13, 14, 15, 16')),
             ),
           ),
         );

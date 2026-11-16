@@ -105,7 +105,15 @@ Future<void> main(List<String> args) async {
       print('           UNSUPPORTED: $unsupported');
     }
   }
-  if (coverage.verdict != RouteBVerdict.accept) exit(1);
+  if (coverage.verdict != RouteBVerdict.accept) {
+    // The product's own words, so a probe can assert on the reason.
+    print(
+      'REJECT   : ${coverage.refusalMessage.replaceAll('\n', '\n           ')}',
+    );
+    exit(1);
+  }
+  print('helpers  : ${coverage.helpers.join(', ')}');
+  print('unused   : ${coverage.unusedHelpers.join(', ')}');
 
   final Uint8List bytes;
   try {
@@ -113,7 +121,7 @@ Future<void> main(List<String> args) async {
       () => const RouteBProducer().produce(
         compiler: compiler,
         coverage: coverage,
-        importKernel: importDill,
+        releaseImportKernel: importDill,
         releaseBuildId: buildId,
         workingDirectory: work,
         projectRoot: projectRoot,
@@ -141,6 +149,19 @@ Future<void> main(List<String> args) async {
           // private names is otherwise only inferable from the value the app
           // reports, and an inference is not evidence: a mechanism that
           // happened to work for another reason would read identically.
+          // A SECOND declared deviation. The test app imports `dart:_internal`
+          // for the installer it embeds, the producer copies the import into
+          // the replacement as it does every import of the library, and
+          // dart2bytecode rejects a private platform library. A real app does
+          // not import one. The replacement never uses it, so it is dropped
+          // here, in the harness, and the producer is left alone.
+          final replacement = File(rewritten.last);
+          replacement.writeAsStringSync(
+            replacement.readAsStringSync().replaceAll(
+              RegExp(r"import 'dart:_[^;]*;"),
+              '',
+            ),
+          );
           print('compile  : ${rewritten.join(' ')}');
           return Process.runSync(executable, rewritten);
         },

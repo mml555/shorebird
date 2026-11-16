@@ -43,7 +43,7 @@ RouteBCoverage carryRouteBCompanions({
       if (verdict == null) continue;
       final companions = routeBCompanionsFor(
         verdict,
-        callers: coverage.callers?[key],
+        callers: coverage.releaseCallersOf(key),
       );
       if (companions == null) continue;
       need.addAll(companions.difference(selectors));

@@ -132,6 +132,388 @@ void main() {
       );
     });
 
+    group('helpers (analysis version 16)', () {
+      const lib = 'package:app/main.dart';
+      const entry = 'String routeBValue() => helperA();';
+      const helperA = 'String helperA() => helperB();';
+      const helperB = "String helperB() => 'NEW';";
+      const unused = "String unusedOne() => 'u';";
+      const other = 'String routeBOther() => helperB();';
+      final text = [entry, helperA, helperB, unused, other].join('\n');
+
+      Map<String, Object?> span(String piece) => {
+        'fileUri': source.uri.toString(),
+        'start': text.indexOf(piece),
+        'end': text.indexOf(piece) + piece.length,
+      };
+
+      RouteBCoverage withHelpers({
+        List<String> targets = const ['$lib#routeBValue'],
+        Map<String, Object?>? extraSources,
+        String entryText = entry,
+      }) {
+        source.writeAsStringSync(text);
+        return RouteBCoverage.fromJson(
+          jsonEncode({
+            'analysisVersion': routeBHelpersAnalysisVersion,
+            'verdict': 'accept',
+            'changed': targets,
+            'carried': <String>[],
+            'callers': {
+              '$lib#helperA': ['$lib#routeBValue'],
+              '$lib#helperB': ['$lib#helperA', '$lib#routeBOther'],
+              '$lib#unusedOne': <String>[],
+            },
+            'added': ['$lib#helperA', '$lib#helperB', '$lib#unusedOne'],
+            'helpers': ['$lib#helperA', '$lib#helperB'],
+            'unusedHelpers': ['$lib#unusedOne'],
+            'removed': <String>[],
+            'patchable': targets,
+            'conditional': <String>[],
+            'sources': {
+              '$lib#routeBValue': span(entryText),
+              '$lib#routeBOther': span(other),
+              '$lib#helperA': span(helperA),
+              '$lib#helperB': span(helperB),
+              '$lib#unusedOne': span(unused),
+              ...?extraSources,
+            },
+            'rejections': <Object>[],
+            'refusalSummary': null,
+          }),
+        );
+      }
+
+      String produceFor(RouteBCoverage coverage, [int index = 0]) {
+        runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: coverage,
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            run: compileOk,
+          ),
+        );
+        return File(
+          p.join(work.path, 'replacement_$index.dart'),
+        ).readAsStringSync();
+      }
+
+      test('appends what the target reaches, after the entry, in order', () {
+        final generated = produceFor(withHelpers());
+        expect(
+          generated,
+          endsWith(
+            '${RouteBProducer.entryPointPragma}\n$entry\n\n$helperA\n\n'
+            '$helperB\n',
+          ),
+        );
+      });
+
+      test('never puts the entry-point pragma on a helper', () {
+        final generated = produceFor(withHelpers());
+        expect(
+          RouteBProducer.entryPointPragma.allMatches(generated),
+          hasLength(1),
+        );
+      });
+
+      test('leaves out a helper nothing in the patch reaches', () {
+        expect(produceFor(withHelpers()), isNot(contains('unusedOne')));
+      });
+
+      test('gives each target its own copy of a shared helper', () {
+        final coverage = withHelpers(
+          targets: ['$lib#routeBOther', '$lib#routeBValue'],
+        );
+        // Sorted: routeBOther is replacement_0, routeBValue replacement_1.
+        final first = produceFor(coverage, 0);
+        final second = produceFor(coverage, 1);
+        expect(first, endsWith('$other\n\n$helperB\n'));
+        expect(first, isNot(contains('helperA')));
+        expect(second, contains(helperB));
+        expect(second, contains(helperA));
+      });
+
+      test('a target needing no helper is unchanged by their presence', () {
+        final coverage = withHelpers(
+          targets: ['$lib#routeBOther'],
+        );
+        expect(
+          produceFor(coverage),
+          isNot(contains('String helperA')),
+        );
+      });
+
+      test('refuses a helper with no source span', () {
+        final coverage = RouteBCoverage.fromJson(
+          jsonEncode({
+            'analysisVersion': routeBHelpersAnalysisVersion,
+            'verdict': 'accept',
+            'changed': ['$lib#routeBValue'],
+            'carried': <String>[],
+            'callers': {
+              '$lib#helperA': ['$lib#routeBValue'],
+            },
+            'added': ['$lib#helperA'],
+            'helpers': ['$lib#helperA'],
+            'unusedHelpers': <String>[],
+            'removed': <String>[],
+            'patchable': ['$lib#routeBValue'],
+            'conditional': <String>[],
+            'sources': {'$lib#routeBValue': span(entry)},
+            'rejections': <Object>[],
+            'refusalSummary': null,
+          }),
+        );
+        source.writeAsStringSync(text);
+        expect(
+          () => produceFor(coverage),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('no source span'),
+            ),
+          ),
+        );
+      });
+
+      test('a helper reading the compile-time environment is refused on a '
+          'release that predates the defines record', () {
+        const reader = "String helperB() => const String.fromEnvironment('X');";
+        final body = [entry, helperA, reader].join('\n');
+        source.writeAsStringSync(body);
+        Map<String, Object?> at(String piece) => {
+          'fileUri': source.uri.toString(),
+          'start': body.indexOf(piece),
+          'end': body.indexOf(piece) + piece.length,
+        };
+        final coverage = RouteBCoverage.fromJson(
+          jsonEncode({
+            'analysisVersion': routeBHelpersAnalysisVersion,
+            'verdict': 'accept',
+            'changed': ['$lib#routeBValue'],
+            'carried': <String>[],
+            'callers': {
+              '$lib#helperA': ['$lib#routeBValue'],
+              '$lib#helperB': ['$lib#helperA'],
+            },
+            'added': ['$lib#helperA', '$lib#helperB'],
+            'helpers': ['$lib#helperA', '$lib#helperB'],
+            'unusedHelpers': <String>[],
+            'removed': <String>[],
+            'patchable': ['$lib#routeBValue'],
+            'conditional': <String>[],
+            'sources': {
+              '$lib#routeBValue': at(entry),
+              '$lib#helperA': at(helperA),
+              '$lib#helperB': at(reader),
+            },
+            'rejections': <Object>[],
+            'refusalSummary': null,
+          }),
+        );
+        expect(
+          () => runWithOverrides(
+            () => const RouteBProducer().produce(
+              compiler: compiler(),
+              coverage: coverage,
+              releaseImportKernel: File(
+                p.join(cell.path, 'release_import.dill'),
+              ),
+              releaseBuildId: 'deadbeef',
+              workingDirectory: work,
+              projectRoot: project,
+              buildConfig: RouteBBuildConfig.fromJson(<String, dynamic>{
+                'rawArgs': <String>[],
+                'effectiveDefines': <String, String>{},
+              }),
+              run: compileOk,
+            ),
+          ),
+          throwsA(isA<RouteBUnsupportedTarget>()),
+        );
+      });
+
+      group('for an instance target', () {
+        const instanceKey = '$lib#RouteBThing.value';
+
+        RouteBCoverage instance(
+          String helperName,
+          String helperText, {
+          String receiver = 'RouteBThing',
+          String decl = 'String value() => label;',
+        }) {
+          final body = 'class $receiver {\n  $decl\n}\n$helperText\n';
+          source.writeAsStringSync(body);
+          Map<String, Object?> at(String piece) => {
+            'fileUri': source.uri.toString(),
+            'start': body.indexOf(piece),
+            'end': body.indexOf(piece) + piece.length,
+          };
+          return RouteBCoverage.fromJson(
+            jsonEncode({
+              'analysisVersion': routeBHelpersAnalysisVersion,
+              'verdict': 'accept',
+              'changed': [instanceKey],
+              'carried': <String>[],
+              'callers': {
+                '$lib#$helperName': [instanceKey],
+              },
+              'added': ['$lib#$helperName'],
+              'helpers': ['$lib#$helperName'],
+              'unusedHelpers': <String>[],
+              'removed': <String>[],
+              'patchable': <String>[],
+              'conditional': [instanceKey],
+              'sources': {
+                instanceKey: at(decl),
+                '$lib#$helperName': at(helperText),
+              },
+              'lowering': {
+                instanceKey: {
+                  'receiverType': receiver,
+                  'nameOffset': body.indexOf('value'),
+                  'accesses': [
+                    {
+                      'offset': body.indexOf('label'),
+                      'member': 'label',
+                      'kind': 'get',
+                    },
+                  ],
+                  'unsupported': <String>[],
+                  'privateConstructions': <Object>[],
+                },
+              },
+              'rejections': <Object>[],
+              'refusalSummary': null,
+            }),
+          );
+        }
+
+        test('takes a public helper', () {
+          expect(
+            produceFor(instance('rbH', "String rbH() => 'H';")),
+            contains("String rbH() => 'H';"),
+          );
+        });
+
+        test('takes a private helper when no private name resolves against '
+            'the release', () {
+          expect(
+            produceFor(instance('_rbH', "String _rbH() => 'H';")),
+            contains("String _rbH() => 'H';"),
+          );
+        });
+
+        test('takes a private helper the method body names', () {
+          final out = produceFor(
+            instance(
+              '_rbH',
+              'String _rbH(String l) => l;',
+              decl: 'String value() => _rbH(label);',
+            ),
+          );
+          expect(out, contains('String _rbH(String l) => l;'));
+          expect(out, contains('_rbH(self.label)'));
+        });
+
+        test('refuses a private helper the method body names when the target '
+            'resolves private names against the release', () {
+          expect(
+            () => produceFor(
+              instance(
+                '_rbH',
+                'String _rbH(String l) => l;',
+                decl: 'String value() => _rbH(label);',
+                receiver: '_RouteBThing',
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('names a private identifier'),
+              ),
+            ),
+          );
+        });
+
+        test('refuses a helper naming a private identifier that is not a '
+            'helper, even when private names resolve in the replacement', () {
+          expect(
+            () => produceFor(
+              instance('rbH', 'String rbH(dynamic d) => d._secret;'),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains(
+                  '`_secret`, a private identifier that is not a new '
+                  'function this patch carries',
+                ),
+              ),
+            ),
+          );
+        });
+
+        test('refuses a helper annotated as an entry point', () {
+          expect(
+            () => produceFor(
+              instance(
+                'rbH',
+                "@pragma('dyn-module:entry-point')\nString rbH() => 'H';",
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('dynamic module entry point'),
+              ),
+            ),
+          );
+        });
+
+        test('refuses a private helper when the target resolves private '
+            'names against the release, and says why', () {
+          expect(
+            () => produceFor(
+              instance(
+                '_rbH',
+                "String _rbH() => 'H';",
+                receiver: '_RouteBThing',
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('names a private identifier'),
+              ),
+            ),
+          );
+        });
+
+        test('refuses a public helper that names a private identifier', () {
+          expect(
+            () => produceFor(
+              instance(
+                'rbH',
+                "String rbH() { var _x = 'H'; return _x; }",
+                receiver: '_RouteBThing',
+              ),
+            ),
+            throwsA(isA<RouteBUnsupportedTarget>()),
+          );
+        });
+      });
+    });
+
     group('topLevelForm', () {
       test("drops a static member's modifier", () {
         expect(
