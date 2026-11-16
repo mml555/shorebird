@@ -1,0 +1,14 @@
+# docker VM and co-tenants at collection time
+MemTotal=25370324992 NCPU=32
+r12-cdn-sealed 36.47MiB / 54.55GiB 0.07%
+r12cold-artifact-proxy-1 5.562MiB / 54.55GiB 0.01%
+r12-flutter-git 235.6MiB / 54.55GiB 0.42%
+jew1506-pg 6.977MiB / 54.55GiB 0.01%
+shorebird-cdn-cdn-cache-1 21.52MiB / 8GiB 0.26%
+shorebird-cdn-artifact-proxy-1 1.629MiB / 54.55GiB 0.00%
+signed-in-chrome-chrome-1 109MiB / 6GiB 1.77%
+browser-pool-chrome-1 64.05MiB / 6GiB 1.04%
+browser-pool-edge-1 55.5MiB / 3GiB 1.81%
+browser-pool-firefox-1 63.13MiB / 3GiB 2.05%
+browser-pool-hub-1 118MiB / 54.55GiB 0.21%
+browser-pool-playwright-1 26.96MiB / 6GiB 0.44%

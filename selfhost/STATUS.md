@@ -9,15 +9,18 @@ when an item here changes; history of how things got here lives in the PRs and i
 Feature-by-feature comparison with upstream Shorebird: [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md).
 
 **Supported stack since 2026-11-16** (newer than the sections below, which still describe 2026-11-11): CLI
-`dd93e875`, shorebird-flutter `7def8a99`, cell `aab9fd07` over engine `d0714887` (Dart `b4671ab7`), with the
-v15 coverage analyzer. It replaces cell `5f6efd98` the same day; only the compiler tools changed. The values
-are in [`compatibility.yaml`](compatibility.yaml) and
+`f9c56698`, shorebird-flutter `5c60356c`, cell `2fc41d3f` over engine `d0714887` (Dart `b4671ab7`), with the
+v17 coverage analyzer. It replaces cell `aab9fd07` the same day; only the analyzer in the compiler archive
+changed. The values are in [`compatibility.yaml`](compatibility.yaml) and
 [`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml). The evidence is in
-[`PROMOTION_aab9fd07.md`](evidence/r12-linux-ci/PROMOTION_aab9fd07.md) and
-[`ios-cell-aab9fd07`](engine/route_b/evidence/ios-cell-aab9fd07/RESULT.md): on an iPhone, 22 ordinary edits
-(21 with their effect observed; the const-only widget text was not captured on screen) (widget builds, `initState` with `super`, `setState`, async, `async*`, routes, a getter, a static, a generic,
-an override, `switch`es, a local package and `intl`) patched through the published cell, and a changed `const`
-or field initializer was refused before upload.
+[`PROMOTION_2fc41d3f.md`](evidence/r12-linux-ci/PROMOTION_2fc41d3f.md) and
+[`ios-cell-2fc41d3f`](engine/route_b/evidence/ios-cell-2fc41d3f/RESULT.md). What a patch can now add: a
+private top-level function and a private instance method of an existing class. On an iPhone, through the
+cell's address, the `aab9fd07` regression (22 ordinary edits, a changed `const` and a changed field
+initializer refused) was repeated, and three new patches added a private top-level function, a private
+instance method, and a private method that calls an existing one and writes a field. A new public method and a
+private name that another member of the library already uses were refused before upload. The tag
+`selfhost-flutter-cell-2fc41d3f` and the release `cell-2fc41d3f` are pending the owner.
 
 ## The four repositories
 

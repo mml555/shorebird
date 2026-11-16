@@ -473,6 +473,15 @@ words:
   - untable # to keep a selector out of the dispatch table (see untabled)
   - untables
   - untab # the Route B device test app's project name (dev.selfhost.untab), in its evidence and scripts
+  - devrun # the iPhone run's working directory name, in its evidence scripts
+  - connproxy # the iPhone run's CONNECT-logging proxy (connproxy.py), in its evidence
+  - pubget # `dart pub get`, spelled as a log file name in the iPhone run's up.sh
+  - tojson # the public method the iPhone run's refusal case adds (toJson), spelled lowercase in a variant name
+  - setstate # a variant name in the iPhone run's evidence (p03_setstate_closure)
+  - rdwr # socket.SHUT_RDWR in connproxy.py
+  - dhttp # JAVA_TOOL_OPTIONS -Dhttp.proxyHost, in the iPhone run's env.sh
+  - dhttps # JAVA_TOOL_OPTIONS -Dhttps.proxyHost, in the iPhone run's env.sh
+  - promotin # the CLI's track warning cut off at a column limit in steps.out
   - noentry # the call-form inventory's case without vm:entry-point on the method
   - swunowned # release probe gate mutation: count a switchable call in an unowned pool
   - swtearoff # release probe gate mutation: count a switchable call in a tear-off's pool

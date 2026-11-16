@@ -1,0 +1,14 @@
+# Excerpt of the verbose release log. The full log (727 KB) dumps the build environment, including the API token, so it is not kept.
+# Lines 1-3, 16-18 (bundletool), 450-452 (engine artifacts), 5335 (extra gen_snapshot options), 7168 and 7211 of the original.
+[env] SHOREBIRD_TOKEN detected
+[env] SHOREBIRD_TOKEN parsed as API key
+[WARN] No patch public key was provided. Patches for this release will not be cryptographically verified on the device.
+Starting Downloading bundletool.jar......
+[HTTP] GET https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
+Done Downloading bundletool.jar...
+[HTTP] GET http://127.0.0.1:18185/flutter_infra_release/flutter/2fc41d3fbd9966958ba3ccf2be9761e064e92bcc/ios/artifacts.zip
+[HTTP] GET http://127.0.0.1:18185/flutter_infra_release/flutter/2fc41d3fbd9966958ba3ccf2be9761e064e92bcc/ios-profile/artifacts.zip
+[HTTP] GET http://127.0.0.1:18185/flutter_infra_release/flutter/2fc41d3fbd9966958ba3ccf2be9761e064e92bcc/ios-release/artifacts.zip
+            [        ] Extra gen_snapshot options: [--patchable_static_calls, --route_b_untabled_overrides, --write-v8-snapshot-profile-to=/Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b_snapshot_profile.json]
+📦 Release Version: 1.0.0+33
+✅ Published Release 1.0.0+33!

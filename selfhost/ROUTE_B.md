@@ -293,7 +293,37 @@ rather than of use.
   `aab9fd07` (same engine, newer compiler tools). Through `aab9fd07`, a patched
   `initState` calling `super.initState()` ran on an iPhone 7
   ([`ios-cell-aab9fd07`](engine/route_b/evidence/ios-cell-aab9fd07/RESULT.md),
-  edit p05). The previous cell `82fc78a8` predates 0017 and refuses it.
+  edit p05), and again through the cell that replaced it,
+  `2fc41d3f` (same engine, newer analyzer;
+  [`ios-cell-2fc41d3f`](engine/route_b/evidence/ios-cell-2fc41d3f/RESULT.md),
+  the `aab9fd07` sequence repeated). The previous cell `82fc78a8` predates 0017
+  and refuses it.
+
+### What a patch may add (cell `2fc41d3f`, analysis version 17)
+
+A patch is a set of replaced bodies. From the cell `2fc41d3f` it may also carry
+members the release does not have, as helpers of the replaced code:
+
+- **A private top-level function** (analysis 16, PR #193), when the patch's
+  changed code calls it. Run on an iPhone 7 as edit h1: a new
+  `String _greet(int n) => 'N$n';` called from `_increment`.
+- **A private instance method of an existing class** (analysis 17, PR #194),
+  lowered with the receiver as its first argument. Run on an iPhone 7 as edits
+  m1 (`_HomeState._label()`) and m2 (a new `_HomeState._bump()` that calls the
+  existing `_increment()` and writes a field).
+
+Still refused, before anything is uploaded, with the reason named:
+
+- a **public** new method (outside code can call it by name, for example
+  `jsonEncode` calls `toJson`; run as edit r1, exit 70);
+- a new private name that another member of its library already uses, even in
+  another class (run as edit r2, exit 70);
+- a new class, a new field, a new top-level public function, and the other
+  shapes listed as refused in `PARITY.md`.
+
+The cell `aab9fd07` and earlier refuse every new member. Not exercised on a
+device: a patch whose added method is reached only by a tap, a new method on a
+class other than `State`, and an obfuscated release.
 
 The text below was written before D-SUPER-2C and describes the rule; its
 "no release" applies today only to the published 3.47 cell.
@@ -655,7 +685,7 @@ exercising each shape AOT actually emits:
 | top-level static, static method | **yes** |
 | instance method (monomorphic), getter | **yes** — AOT devirtualizes these into static calls |
 | dynamic instance call (`EmitTestAndCall` cid chain) | **yes** |
-| statically-typed polymorphic call (**dispatch table**) | **no** — **yes** under `--route_b_untabled_overrides` (2026-11-14, host; 2026-11-15, an iPhone from a local cell; 2026-11-16, an iPhone through the published cell `aab9fd07`) |
+| statically-typed polymorphic call (**dispatch table**) | **no** — **yes** under `--route_b_untabled_overrides` (2026-11-14, host; 2026-11-15, an iPhone from a local cell; 2026-11-16, an iPhone through the published cell `aab9fd07`, and again through `2fc41d3f`) |
 
 Dispatch-table calls load a raw entry point out of a data table and set up
 neither `R0` nor `R4`, so there is no cheap version: rewriting the table is

@@ -352,11 +352,12 @@ not an untested guess. Ordered roughly by expected cost.
 | ☐ | **NOT BUILT** Cascades | |
 | ☐ | **NOT BUILT** Closures capturing `this` | |
 | ☐ | **NOT BUILT** `super` getter access | |
-| ◐ | **DEVICE-PROVEN ON THE EARLIER STACK (D-SUPER-2C); ON 3.47 THROUGH THE PUBLISHED CELL aab9fd07 2026-11-16** zero-argument `super` method calls | on 3.47, `initState` calling `super.initState()` patched and ran on an iPhone 7, first from a local cell (`engine/route_b/evidence/ios_shapes_2026_11_15/`), then through the published cell `aab9fd07` (2026-11-16, `engine/route_b/evidence/ios-cell-aab9fd07/`). The earlier cell `82fc78a8` refuses it. Arguments, getters and setters are refused |
+| ◐ | **DEVICE-PROVEN ON THE EARLIER STACK (D-SUPER-2C); ON 3.47 THROUGH THE PUBLISHED CELL aab9fd07 2026-11-16, AGAIN THROUGH 2fc41d3f** zero-argument `super` method calls | on 3.47, `initState` calling `super.initState()` patched and ran on an iPhone 7, first from a local cell (`engine/route_b/evidence/ios_shapes_2026_11_15/`), then through the published cell `aab9fd07` (2026-11-16, `engine/route_b/evidence/ios-cell-aab9fd07/`), and again through `2fc41d3f` (the same day, `engine/route_b/evidence/ios-cell-2fc41d3f/`). The earlier cell `82fc78a8` refuses it. Arguments, getters and setters are refused |
 | ☐ | **NOT BUILT** Operators requiring receiver lowering | |
 | ☐ | **NOT BUILT** More complex generic / type-context cases | |
-| ◐ | **RAN ON DEVICE THROUGH THE PUBLISHED CELL aab9fd07 2026-11-16** Broader async / closure corpus | an `async` function, an `async*` generator, an `await` inside a counted `for` loop, and a closure inside `build` that does not capture `this` all patched and ran, first from a local cell (`engine/route_b/evidence/ios_shapes_2026_11_15/`), then through the published cell (`engine/route_b/evidence/ios-cell-aab9fd07/`) |
+| ◐ | **RAN ON DEVICE THROUGH THE PUBLISHED CELL aab9fd07 2026-11-16, AGAIN THROUGH 2fc41d3f** Broader async / closure corpus | an `async` function, an `async*` generator, an `await` inside a counted `for` loop, and a closure inside `build` that does not capture `this` all patched and ran, first from a local cell (`engine/route_b/evidence/ios_shapes_2026_11_15/`), then through the published cell (`engine/route_b/evidence/ios-cell-aab9fd07/`) |
 | ☐ | **NOT BUILT** Extensions / mixins / records / pattern cases as applicable | |
+| ◐ | **RAN ON DEVICE THROUGH CELL 2fc41d3f 2026-11-16** A patch adds a private top-level function, or a private instance method of an existing class | analysis versions 16 and 17 (PRs #193, #194). On an iPhone 7: a new private top-level function (2/2 targets), a new private instance method (2/2) and a new private method that calls an existing one and writes a field (1/1) each showed their new values on two launches (`engine/route_b/evidence/ios-cell-2fc41d3f/`). Refused before upload, exit 70: a new public method, and a private name that another member of its library already uses. Not exercised: a method reached only by a tap |
 
 ### `G3` sub-goals, and why they are mostly a queue
 
@@ -2101,7 +2102,9 @@ the interpreter and AOT disagreed on where the receiver goes.
 - It came from a local test cell; the engine pin is mml555/shorebird-flutter#13.
 - It is one app on one device, with no obfuscated release.
 - Edits that add a class, page, field or top-level function were not tried on
-  the device.
+  the device. (Later, through cell `2fc41d3f`, a private top-level function and
+  a private instance method were; a class, a field and a public function are
+  still refused.)
 
 Evidence:
 [`engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md`](engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md).
