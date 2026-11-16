@@ -352,10 +352,10 @@ not an untested guess. Ordered roughly by expected cost.
 | ☐ | **NOT BUILT** Cascades | |
 | ☐ | **NOT BUILT** Closures capturing `this` | |
 | ☐ | **NOT BUILT** `super` getter access | |
-| ◐ | **DEVICE-PROVEN ON THE EARLIER STACK (D-SUPER-2C); ON 3.47 FROM A LOCAL CELL 2026-11-15** zero-argument `super` method calls | on 3.47, `initState` calling `super.initState()` patched and ran on an iPhone 7 (`engine/route_b/evidence/ios_shapes_2026_11_15/`). The published 3.47 cell `5f6efd98` (2026-11-16) carries the change, not yet device-run with a `super` call; the earlier cell `82fc78a8` refuses it. Arguments, getters and setters are refused |
+| ◐ | **DEVICE-PROVEN ON THE EARLIER STACK (D-SUPER-2C); ON 3.47 THROUGH THE PUBLISHED CELL aab9fd07 2026-11-16** zero-argument `super` method calls | on 3.47, `initState` calling `super.initState()` patched and ran on an iPhone 7, first from a local cell (`engine/route_b/evidence/ios_shapes_2026_11_15/`), then through the published cell `aab9fd07` (2026-11-16, `engine/route_b/evidence/ios-cell-aab9fd07/`). The earlier cell `82fc78a8` refuses it. Arguments, getters and setters are refused |
 | ☐ | **NOT BUILT** Operators requiring receiver lowering | |
 | ☐ | **NOT BUILT** More complex generic / type-context cases | |
-| ◐ | **RAN ON DEVICE FROM A LOCAL CELL 2026-11-15** Broader async / closure corpus | an `async` function, an `async*` generator, an `await` inside a counted `for` loop, and a closure inside `build` that does not capture `this` all patched and ran (`engine/route_b/evidence/ios_shapes_2026_11_15/`). Not in a published cell yet |
+| ◐ | **RAN ON DEVICE THROUGH THE PUBLISHED CELL aab9fd07 2026-11-16** Broader async / closure corpus | an `async` function, an `async*` generator, an `await` inside a counted `for` loop, and a closure inside `build` that does not capture `this` all patched and ran, first from a local cell (`engine/route_b/evidence/ios_shapes_2026_11_15/`), then through the published cell (`engine/route_b/evidence/ios-cell-aab9fd07/`) |
 | ☐ | **NOT BUILT** Extensions / mixins / records / pattern cases as applicable | |
 
 ### `G3` sub-goals, and why they are mostly a queue

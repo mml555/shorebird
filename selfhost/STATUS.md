@@ -9,11 +9,15 @@ when an item here changes; history of how things got here lives in the PRs and i
 Feature-by-feature comparison with upstream Shorebird: [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md).
 
 **Supported stack since 2026-11-16** (newer than the sections below, which still describe 2026-11-11): CLI
-`22f14441`, shorebird-flutter `ef0eec1b`, cell `5f6efd98` over engine `d0714887` (Dart `b4671ab7`). The values
+`dd93e875`, shorebird-flutter `7def8a99`, cell `aab9fd07` over engine `d0714887` (Dart `b4671ab7`), with the
+v15 coverage analyzer. It replaces cell `5f6efd98` the same day; only the compiler tools changed. The values
 are in [`compatibility.yaml`](compatibility.yaml) and
 [`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml). The evidence is in
-[`PROMOTION_5f6efd98.md`](evidence/r12-linux-ci/PROMOTION_5f6efd98.md) and
-[`ios-cell-5f6efd98`](engine/route_b/evidence/ios-cell-5f6efd98/RESULT.md).
+[`PROMOTION_aab9fd07.md`](evidence/r12-linux-ci/PROMOTION_aab9fd07.md) and
+[`ios-cell-aab9fd07`](engine/route_b/evidence/ios-cell-aab9fd07/RESULT.md): on an iPhone, 22 ordinary edits
+(21 with their effect observed; the const-only widget text was not captured on screen) (widget builds, `initState` with `super`, `setState`, async, `async*`, routes, a getter, a static, a generic,
+an override, `switch`es, a local package and `intl`) patched through the published cell, and a changed `const`
+or field initializer was refused before upload.
 
 ## The four repositories
 

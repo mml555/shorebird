@@ -1,0 +1,161 @@
+
+== preflight (host side) ==
+  ok      shape: 40 lowercase hex
+  ok      resolves to a published cell in the overlay
+  ok      publishes android-arm64-release/linux-x64.zip (2.1M)
+  ok      CDN serves it: HTTP 200
+  REVISION ACCEPTED  aab9fd07857142c232e4b5a41e41814b8dbf640f
+bootstrap closure guard
+  ok      candidate flutter_revision (R12_FLUTTER_REVISION): 7def8a997dd87eaad43d88ddfa283ed9f4e1127b
+  ok      owned mirror contains the pinned revision
+  ok      engine.version resolves: aab9fd07857142c232e4b5a41e41814b8dbf640f
+  ok      owned cell exists for the supported engine
+  ok      dart-sdk-linux-x64.zip  214945654 bytes  sha256 91dfc837f10ccd2d…
+  ok      engine_stamp.json  239 bytes  sha256 1fa4303aeb471a39…
+  ok      closure manifest rows for this engine: 2
+  ok      proxy mapping pinned: manifest e430e15429b90fca… -> flutter_engine_revision 89c39edfdfae2949…
+
+  CLOSURE OK  7def8a997dd87eaad43d88ddfa283ed9f4e1127b -> aab9fd07857142c232e4b5a41e41814b8dbf640f  (2 artifacts, size + sha256 verified)
+   owned flutter mirror     : serves 7def8a997dd87eaad43d88ddfa283ed9f4e1127b
+   CDN                      : https://host.docker.internal:8087/flutter_infra_release/flutter/ -> 200
+   control-plane            : http://host.docker.internal:18081/ -> 200
+
+== builder memory headroom ==
+   docker VM MemTotal      : 30057381888 bytes
+   co-tenant containers    :
+r12-cdn-sealed 24.73MiB / 54.55GiB
+r12cold-artifact-proxy-1 3.551MiB / 54.55GiB
+r12-discovery-rp 522MiB / 54.55GiB
+r12-cps 141.8MiB / 54.55GiB
+r12-flutter-git 479.2MiB / 54.55GiB
+jew1506-pg 21.63MiB / 54.55GiB
+shorebird-cdn-cdn-cache-1 29.84MiB / 8GiB
+shorebird-cdn-artifact-proxy-1 2.418MiB / 54.55GiB
+signed-in-chrome-chrome-1 381.9MiB / 6GiB
+browser-pool-chrome-1 378.2MiB / 6GiB
+browser-pool-edge-1 303.5MiB / 3GiB
+browser-pool-firefox-1 350.2MiB / 3GiB
+
+== arm A — fresh container, no host mounts ==
+
+== container cleanliness ==
+   arm label                : A
+   uname                    : Linux/x86_64
+   HOME                     : /r12home
+   flutter/dart/shorebird   : absent from PATH (as required)
+   caches                   : none present
+   CI detection vars        : none set
+
+== control-plane loopback forwarder ==
+   localhost:18081          : 200 (forwarded to the host control plane)
+
+== gradle configuration ==
+   GRADLE_USER_HOME         : /r12home/.gradle (location only)
+   gradle properties        : NONE — the fixture's android/gradle.properties
+                              governs, including its -Xmx8G
+
+== trusting the mirror CA ==
+   CA installed             : system bundle + JDK cacerts
+   mirror over TLS          : https://host.docker.internal:8087 -> 502 (CA validation enforced)
+
+== bootstrap the OWNED toolchain ==
+   repo                     : https://github.com/mml555/shorebird.git
+   sha                      : a443d87cded02537348bb204a08d99f074e7b1d4
+   checked out              : a443d87cded02537348bb204a08d99f074e7b1d4
+   flutter.version (pinned) : 7def8a997dd87eaad43d88ddfa283ed9f4e1127b
+   flutter git url          : git://host.docker.internal:9418/flutter.git
+   artifact CDN (flutter)   : https://host.docker.internal:8087
+   artifact CDN (shorebird) : https://host.docker.internal:8087 / download.shorebird.dev
+
+== first shorebird invocation (this is what performs the bootstrap) ==
+   bootstrap OK
+     | Tools • Dart 3.13.7 • DevTools 2.60.0
+     | Building Shorebird...
+     | Resolving dependencies in `/r12src`...
+     | Downloading packages...
+     | Got dependencies in `/r12src`.
+     | Shorebird 1.6.138+selfhost.1 • git@github.com:shorebirdtech/shorebird.git
+     | Flutter • revision 7def8a997dd87eaad43d88ddfa283ed9f4e1127b
+     | Engine • revision aab9fd07857142c232e4b5a41e41814b8dbf640f
+   shorebird                : /r12src/bin/shorebird
+     | Shorebird 1.6.138+selfhost.1 • git@github.com:shorebirdtech/shorebird.git
+     | Flutter • revision 7def8a997dd87eaad43d88ddfa283ed9f4e1127b
+     | Engine • revision aab9fd07857142c232e4b5a41e41814b8dbf640f
+   bootstrapped flutter sha : 7def8a997dd87eaad43d88ddfa283ed9f4e1127b
+
+== ephemeral Android release key ==
+   keystore                 : /r12home/r12-ephemeral.jks (ephemeral, dies with the container)
+   key.properties           : written, not echoed
+   release version          : 1.0.0+1 (recorded adaptation)
+
+== pre-arm control-plane state ==
+   control plane            : http://localhost:18081
+     | Starting Fetching releases...
+     | Done Fetching releases
+     | 1  0.8.1+1  android: active
+
+== frozen ci_noninteractive.sh ==
+   cmd: ci_noninteractive.sh --app-dir /r12src/selfhost/fixtures/android_signing_app --out /r12out/harness
+   harness exit             : 0
+     | 
+     | == preflight ==
+     |    app dir                  : /r12src/selfhost/fixtures/android_signing_app
+     |    stdout is a TTY          : no
+     |    stdin  is a TTY          : no (bash isatty) / YES to the CLI -- stdin is a
+     |                               CHARACTER DEVICE, which Dart reports as
+     |                               StdioType.terminal. canAcceptUserInput is TRUE.
+     |                               Attribute refusals to stdout, not to stdin.
+     |    CI detection vars        : none set
+     |    SHOREBIRD_TOKEN          : set (71 chars, not echoed)
+     |    control plane            : http://localhost:18081 -> 200
+     |    shorebird                : /r12src/bin/shorebird
+     | 
+     | == self-test A — preview, NO --json (TTY predicate only) ==
+     |    cmd: (cd /r12out/harness/detector_selftest_app && shorebird preview)
+     |    exit: 64  log: /r12out/harness/detector_selftest.log
+     |    exit: 64 (expected 64)   'non-interactive context' lines: 1 (expected >=1)
+     | 
+     | == self-test B — preview, WITH --json (arm 2's exact grep) ==
+     |    cmd: (cd /r12out/harness/detector_selftest_app && shorebird --json preview)
+     |    exit: 64  log: /r12out/harness/detector_selftest_json.log
+     |    exit: 64 (expected 64)   interactive_prompt_required: 1 (expected >=1)
+     |    host                     : Linux
+     |    release version          : 1.0.0+1
+     | 
+     | == arm 1 — release, NO --json ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird release android --no-confirm)
+     |    exit: 0  log: /r12out/harness/ci_run_notty.log
+     | 
+     | == arm 1 — patch, NO --json ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird patch android --no-confirm --release-version 1.0.0+1)
+     |    exit: 0  log: /r12out/harness/ci_run_notty.log.patch
+     | 
+     | == arm 2 — patch, WITH --json ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && shorebird --json patch android --no-confirm --release-version 1.0.0+1)
+     |    exit: 0  log: /r12out/harness/ci_run_json.log
+     |    interactive_prompt_required in arm 2: 0 (expected 0)
+     | 
+     | == arm 3 — patch, NO --release-version (the release chooser) ==
+     |    cmd: (cd /r12src/selfhost/fixtures/android_signing_app && timeout 600 shorebird patch android --no-confirm)
+     |    exit: 64  log: /r12out/harness/ci_run_chooser.log
+     |    arm 3 refused the CHOOSER by name (exit 64) — outcome 11, the good failure
+     | 
+     | == verdict ==
+     |    PASS — the detector self-test fired (so a prompt WOULD have been seen),
+     |    and both arms completed with no TTY against http://localhost:18081.
+     |    
+     |    PARITY.md:2375 names exactly this arm as what its row requires; :2376 is
+     |    its patch twin. A green run here is the evidence for them — it is NOT
+     |    self-certifying. PROVEN means the real product workflow completed and the
+     |    observable result was verified (PARITY.md:3582-3583); a script printing
+     |    PASS is not that verification. Record the logs and let the row be moved
+     |    by whoever reads them.
+
+== arm A finished with exit 0 ==
+
+== collecting evidence ==
+   container state          : exit=0 oomkilled=false error= started=2026-11-16T06:33:22.693457752Z finished=2026-11-16T06:42:42.402015983Z
+   evidence                 : /srv/ci-cache/shorebird-engine/promo-aab9/evidence/arms/arm-A
+
+== arm A exit 0 ==
+EXIT=0
