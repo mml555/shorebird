@@ -171,7 +171,25 @@ import 'package:kernel/text/ast_to_text.dart';
 ///     The bump is mandatory: a version-13 consumer meeting the new rejection
 ///     category would refuse to parse it, which is safe, but one that skipped
 ///     unknown categories would ship the patch the analyzer refused.
-const analysisVersion = 14;
+///
+/// 15: `--carry <key>` analyzes an UNCHANGED member as if it had changed, and
+///     the document lists such members under `carried`, apart from `changed`.
+///     Every member analyzed, changed or carried, gets a `callers` entry: the
+///     app members whose bodies (closures included) name it, or name a member
+///     it overrides, in the patched kernel, including constructors and field
+///     initializers, which no patch can carry (see `_callers`).
+///
+///     WHY. A target can have no call site left in the release because its
+///     callers inlined it, or because TFA folded its result into them. The
+///     release's code then runs the old body inside each caller whatever the
+///     patch attaches to the target. Replacing those callers too, unchanged,
+///     makes them call the new body. The producer asks the release probe which
+///     members hold an inlined copy and, for a folded target, carries these
+///     callers.
+///
+///     The bump is mandatory: a version-14 analyzer exits 2 on `--carry`, so a
+///     consumer must know which document it holds before it passes one.
+const analysisVersion = 15;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -190,6 +208,8 @@ void main(List<String> args) {
   var census = false;
   String? censusPath;
   final includePrefixes = <String>[];
+  // Version 15: unchanged members to analyze as if they had changed.
+  final carryKeys = <String>{};
 
   for (var i = 0; i < args.length; i++) {
     final a = args[i];
@@ -207,6 +227,8 @@ void main(List<String> args) {
         outPath = next();
       case '--include':
         includePrefixes.add(next());
+      case '--carry':
+        carryKeys.add(next());
       case '--census':
         census = true;
       case '--dill':
@@ -218,6 +240,12 @@ Route B coverage analyzer -- classifies a kernel change against a release.
 
 analyze_coverage --base-dill <release.dill> --patched-dill <patched.dill>
                  [--include <library-uri-prefix>]... [--out coverage.json]
+                 [--carry <library#selector>]...
+
+--carry analyzes an unchanged member as if it had changed, for a patch that must
+replace callers holding an inlined or folded copy of a changed member. A key
+that is not an unchanged app member present on both sides is ignored, and so
+never appears under `carried`.
 
 Writes one JSON document (stdout if --out is omitted) and always exits 0: the
 verdict is data, not an exit code, so a caller cannot act on it by accident.
@@ -347,6 +375,18 @@ coverage/census_report.py, for what the numbers may and may not be read as.
         },
   ]..sort((a, b) => (a['target']! as String).compareTo(b['target']! as String));
 
+  // Version 15. Carried members go through everything a changed member does,
+  // and stay out of `changed`, so carrying alone never makes a patch.
+  final carried = [
+    for (final key in carryKeys)
+      if (!changed.contains(key) &&
+          baseText.containsKey(key) &&
+          patchedText.containsKey(key))
+        key,
+  ]..sort();
+  final subjects = {...changed, ...carried};
+  final callers = _callers(patched, isApp, subjects);
+
   // ---- where each changed member's new body lives ------------------------
   //
   // From the PATCHED component, because that is the body a replacement carries.
@@ -361,7 +401,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     final uri = lib.importUri.toString();
     void record(String? className, Procedure p) {
       final key = '$uri#${_selector(className, p)}';
-      if (!changed.contains(key)) return;
+      if (!subjects.contains(key)) return;
       // fileStartOffset spans the declaration INCLUDING annotations;
       // fileEndOffset is the closing token. Together they are the exact
       // source a single-function replacement library needs.
@@ -403,7 +443,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     for (final cls in lib.classes) {
       for (final p in cls.procedures) {
         final key = '$uri#${_selector(cls.name, p)}';
-        if (!changed.contains(key) || p.isStatic) continue;
+        if (!subjects.contains(key) || p.isStatic) continue;
         lowering[key] = _lowering(cls, p, patchedHierarchy);
         // RELEASE EVIDENCE for the SAME method (analysis version 11).
         //
@@ -469,7 +509,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   final conditional = <String>[];
   final unreachable = <String>[];
   final unknown = <String>[];
-  for (final key in changed) {
+  for (final key in subjects.toList()..sort()) {
     switch (reach[key]) {
       case 'yes':
         patchable.add(key);
@@ -563,7 +603,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   // Only for members that exist on BOTH sides: an added member has no release
   // signature to compare against, and a removed one has no replacement.
   final signatures = <String, Map<String, Object?>>{
-    for (final key in changed)
+    for (final key in subjects.toList()..sort())
       if (baseSig[key] != null && patchedSig[key] != null)
         key: {
           'release': baseSig[key],
@@ -578,6 +618,8 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     'patchedDill': patchedPath,
     'targets': targets,
     'changed': changed,
+    'carried': carried,
+    'callers': callers,
     'added': added,
     'removed': removed,
     'declarations': declarations,
@@ -685,6 +727,232 @@ Component _load(String path) {
   final c = Component();
   BinaryBuilder(File(path).readAsBytesSync()).readComponent(c);
   return c;
+}
+
+/// Version 15: for each key in [subjects], the app members in [c] whose bodies
+/// name it -- a call, a get or set, a tear-off, a super access, an `==` -- or
+/// name a member it overrides, since a call through the overridden member can
+/// reach it. A dynamic access counts for every subject of its name. A
+/// reference inside a closure counts for the member the closure is written in.
+/// Constructors and field initializers are included under their own keys
+/// (`Class.new`, `Class.name`, a top-level field's name); no patch can carry
+/// them, so naming them makes the CLI refuse. Sorted, without the member
+/// itself.
+Map<String, List<String>> _callers(
+  Component c,
+  bool Function(Library) isApp,
+  Set<String> subjects,
+) {
+  String? keyOf(Member m) {
+    if (m is! Procedure) return null;
+    final lib = m.enclosingLibrary;
+    if (!isApp(lib)) return null;
+    return '${lib.importUri}#${_selector(m.enclosingClass?.name, m)}';
+  }
+
+  // Each subject, and every member it overrides, by the member object.
+  final wanted = <Member, Set<String>>{};
+  for (final lib in c.libraries.where(isApp)) {
+    for (final p in lib.procedures) {
+      final key = keyOf(p);
+      if (key != null && subjects.contains(key)) (wanted[p] ??= {}).add(key);
+    }
+    for (final cls in lib.classes) {
+      for (final p in cls.procedures) {
+        final key = keyOf(p);
+        if (key == null || !subjects.contains(key)) continue;
+        (wanted[p] ??= {}).add(key);
+        if (p.isStatic) continue;
+        final seen = <Class>{};
+        void up(Class k) {
+          for (final s in k.supers) {
+            final sc = s.classNode;
+            if (!seen.add(sc)) continue;
+            for (final q in sc.procedures) {
+              if (q.name == p.name && q.kind == p.kind && !q.isStatic) {
+                (wanted[q] ??= {}).add(key);
+              }
+            }
+            up(sc);
+          }
+        }
+
+        up(cls);
+      }
+    }
+  }
+
+  // A dynamic access names a member, not a target: it can reach any member of
+  // that name, so it counts as a call to every subject called that.
+  final byName = <String, Set<String>>{};
+  for (final e in wanted.entries) {
+    (byName[e.key.name.text] ??= {}).addAll(e.value);
+  }
+
+  final out = {for (final k in subjects) k: <String>{}};
+  void record(String caller, TreeNode node) {
+    final refs = _References();
+    node.accept(refs);
+    final hit = <String>{
+      for (final m in refs.members) ...?wanted[m],
+      for (final n in refs.dynamicNames) ...?byName[n],
+    };
+    for (final key in hit) {
+      if (key != caller) out[key]!.add(caller);
+    }
+  }
+
+  void scan(Procedure p) {
+    final caller = keyOf(p);
+    if (caller != null) record(caller, p.function);
+  }
+
+  // NOT ONLY PROCEDURES. A constructor's initializers and body, and a field's
+  // initializer, run code too, and a folded target's old value can sit in them.
+  // A patch replaces procedures only, so these callers can never be carried.
+  // They are reported anyway, under their own keys: the CLI then lacks them as
+  // companions and refuses the patch, naming them, instead of shipping one that
+  // leaves those paths on the release's value.
+  String nonProcedureKey(Library lib, Class? cls, String name) =>
+      '${lib.importUri}#${cls == null ? name : '${cls.name}.$name'}';
+
+  void scanConstructor(Library lib, Class cls, Constructor k) {
+    final key = nonProcedureKey(
+      lib,
+      cls,
+      k.name.text.isEmpty ? 'new' : k.name.text,
+    );
+    for (final i in k.initializers) {
+      record(key, i);
+    }
+    record(key, k.function);
+  }
+
+  void scanField(Library lib, Class? cls, Field f) {
+    final init = f.initializer;
+    if (init != null) record(nonProcedureKey(lib, cls, f.name.text), init);
+  }
+
+  for (final lib in c.libraries.where(isApp)) {
+    lib.procedures.forEach(scan);
+    for (final f in lib.fields) {
+      scanField(lib, null, f);
+    }
+    for (final cls in lib.classes) {
+      cls.procedures.forEach(scan);
+      for (final k in cls.constructors) {
+        scanConstructor(lib, cls, k);
+      }
+      for (final f in cls.fields) {
+        scanField(lib, cls, f);
+      }
+    }
+  }
+  return {for (final e in out.entries) e.key: e.value.toList()..sort()};
+}
+
+/// Every member a body names, closures included, and the names it accesses
+/// dynamically.
+class _References extends RecursiveVisitor {
+  final members = <Member>{};
+  final dynamicNames = <String>{};
+
+  @override
+  void visitEqualsCall(EqualsCall node) {
+    members.add(node.interfaceTarget);
+    super.visitEqualsCall(node);
+  }
+
+  @override
+  void visitDynamicInvocation(DynamicInvocation node) {
+    dynamicNames.add(node.name.text);
+    super.visitDynamicInvocation(node);
+  }
+
+  @override
+  void visitDynamicGet(DynamicGet node) {
+    dynamicNames.add(node.name.text);
+    super.visitDynamicGet(node);
+  }
+
+  @override
+  void visitDynamicSet(DynamicSet node) {
+    dynamicNames.add(node.name.text);
+    super.visitDynamicSet(node);
+  }
+
+  @override
+  void visitStaticInvocation(StaticInvocation node) {
+    members.add(node.target);
+    super.visitStaticInvocation(node);
+  }
+
+  @override
+  void visitStaticGet(StaticGet node) {
+    members.add(node.target);
+    super.visitStaticGet(node);
+  }
+
+  @override
+  void visitStaticSet(StaticSet node) {
+    members.add(node.target);
+    super.visitStaticSet(node);
+  }
+
+  @override
+  void visitStaticTearOff(StaticTearOff node) {
+    members.add(node.target);
+    super.visitStaticTearOff(node);
+  }
+
+  @override
+  void visitInstanceInvocation(InstanceInvocation node) {
+    members.add(node.interfaceTarget);
+    super.visitInstanceInvocation(node);
+  }
+
+  @override
+  void visitInstanceGetterInvocation(InstanceGetterInvocation node) {
+    members.add(node.interfaceTarget);
+    super.visitInstanceGetterInvocation(node);
+  }
+
+  @override
+  void visitInstanceGet(InstanceGet node) {
+    members.add(node.interfaceTarget);
+    super.visitInstanceGet(node);
+  }
+
+  @override
+  void visitInstanceSet(InstanceSet node) {
+    members.add(node.interfaceTarget);
+    super.visitInstanceSet(node);
+  }
+
+  @override
+  void visitInstanceTearOff(InstanceTearOff node) {
+    members.add(node.interfaceTarget);
+    super.visitInstanceTearOff(node);
+  }
+
+  @override
+  void visitSuperMethodInvocation(SuperMethodInvocation node) {
+    final target = node.interfaceTarget;
+    members.add(target);
+    super.visitSuperMethodInvocation(node);
+  }
+
+  @override
+  void visitSuperPropertyGet(SuperPropertyGet node) {
+    members.add(node.interfaceTarget);
+    super.visitSuperPropertyGet(node);
+  }
+
+  @override
+  void visitSuperPropertySet(SuperPropertySet node) {
+    members.add(node.interfaceTarget);
+    super.visitSuperPropertySet(node);
+  }
 }
 
 /// `library#selector` -> a stable textual form of the member.
@@ -1582,21 +1850,32 @@ Map<String, Object?> _lowering(
   function.accept(visitor);
   unsupported.addAll(visitor.unsupported);
 
-  // ONE SOURCE TOKEN CANNOT BE TWO EDITS. `label += 'X'`, `count++` and
+  // ONE SOURCE TOKEN, ONE EDIT. `label += 'X'`, `count++` and
   // `maybe ??= 'Z'` each report a read AND a write at the SAME offset, because
-  // one identifier is doing both jobs. The producer inserts a receiver prefix
-  // at an offset, so two edits there would yield `self.self.label`.
+  // one identifier is doing both jobs. One receiver prefix rewrites both:
+  // `self.label += 'X'` reads and writes the member the original did, and the
+  // producer emits one edit for such a position. `_count += 1` inside a
+  // setState closure, the most common shape in a Flutter app, is this.
   //
-  // Detected by the collision rather than by listing operators: it catches
-  // compound assignment, increment and if-null uniformly, including forms
-  // nobody has thought of yet. `label = label + 'Y'` is untouched by it --
-  // measured at two distinct offsets, because it really is two tokens.
+  // Anything else sharing an offset -- two members, two reads, a third
+  // access, or a call -- is refused: that is not a shape this lowering has
+  // been shown to rewrite. Measured on the host front end: `this._a += 2`,
+  // `this.b++`, `++this.b`, `this._c ??= 4` and `_d += 2` inside a closure all
+  // put the read and the write at the member NAME, so an explicit `this.` is
+  // still one edit (the producer replaces `this.` with the receiver).
+  // `label = label + 'Y'` is untouched by this -- measured at two distinct
+  // offsets, because it really is two tokens.
   final byOffset = <int, List<_Access>>{};
   for (final a in visitor.accesses) {
     byOffset.putIfAbsent(a.offset, () => []).add(a);
   }
   for (final entry in byOffset.entries) {
-    if (entry.value.length > 1) {
+    // Exactly one read and one write: a third access, or two of one kind, is
+    // not something a compound assignment produces.
+    final readWriteOfOne = entry.value.length == 2 &&
+        entry.value.map((a) => a.member).toSet().length == 1 &&
+        entry.value.map((a) => a.kind).toSet().containsAll(const {'get', 'set'});
+    if (entry.value.length > 1 && !readWriteOfOne) {
       final kinds = entry.value.map((a) => a.kind).join('+');
       unsupported.add(
         'reads and writes `${entry.value.first.member}` in one expression '

@@ -51,9 +51,13 @@ void main() {
       List<String> representable = const ['package:app/main.dart#routeBValue'],
       Map<String, Object?>? sources,
       Map<String, Object?>? lowering,
+      Map<String, List<String>>? callers,
     }) => RouteBCoverage.fromJson(
       jsonEncode({
-        'analysisVersion': supportedRouteBAnalysisVersion,
+        'analysisVersion': callers == null
+            ? supportedRouteBAnalysisVersion
+            : routeBCarryAnalysisVersion,
+        if (callers != null) ...{'carried': <String>[], 'callers': callers},
         'verdict': 'accept',
         'changed': representable,
         'added': <String>[],
@@ -95,6 +99,123 @@ void main() {
       File(output).writeAsStringSync('BYTECODE-FOR-${p.basename(output)}');
       return ProcessResult(0, 0, '', '');
     }
+
+    test('a compile error names what the compiler printed on stdout', () {
+      // dart2bytecode reports front-end errors on stdout, not stderr.
+      expect(
+        () => runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: coverage(),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            run: (_, _) => ProcessResult(
+              0,
+              254,
+              "replacement_0.dart:3:30: Error: Can't access 'this' here.\n",
+              '',
+            ),
+          ),
+        ),
+        throwsA(
+          isA<RouteBUnsupportedTarget>().having(
+            (e) => e.reason,
+            'reason',
+            allOf(
+              contains('(exit 254)'),
+              contains("Error: Can't access 'this' here."),
+            ),
+          ),
+        ),
+      );
+    });
+
+    group('topLevelForm', () {
+      test("drops a static member's modifier", () {
+        expect(
+          RouteBProducer.topLevelForm("static String tag() => 'S2';"),
+          "String tag() => 'S2';",
+        );
+        expect(
+          RouteBProducer.topLevelForm('static int get count => 1;'),
+          'int get count => 1;',
+        );
+      });
+
+      test('keeps annotations ahead of it', () {
+        expect(
+          RouteBProducer.topLevelForm(
+            "@pragma('vm:never-inline')\n  static String tag() => 'S2';",
+          ),
+          "@pragma('vm:never-inline')\n  String tag() => 'S2';",
+        );
+      });
+
+      test('reads past nested, generic and string annotation arguments', () {
+        expect(
+          RouteBProducer.topLevelForm('@Foo(Bar())\nstatic int a() => 1;'),
+          '@Foo(Bar())\nint a() => 1;',
+        );
+        expect(
+          RouteBProducer.topLevelForm('@Foo<int>() static int a() => 1;'),
+          '@Foo<int>() int a() => 1;',
+        );
+        expect(
+          RouteBProducer.topLevelForm(
+            "@Foo(')') @a.b /* c */ static int a() => 1;",
+          ),
+          "@Foo(')') @a.b /* c */ int a() => 1;",
+        );
+      });
+
+      test('leaves a top-level function and a static-named one alone', () {
+        expect(
+          RouteBProducer.topLevelForm("String tag() => 'static ';"),
+          "String tag() => 'static ';",
+        );
+        expect(
+          RouteBProducer.topLevelForm('int staticCount() => 1;'),
+          'int staticCount() => 1;',
+        );
+      });
+    });
+
+    test('writes a static method without its modifier', () {
+      const member = "static String tag() => 'NEW';";
+      source.writeAsStringSync('class Util {\n  $member\n}\n');
+      runWithOverrides(
+        () => const RouteBProducer().produce(
+          compiler: compiler(),
+          coverage: coverage(
+            representable: ['package:app/main.dart#Util.tag'],
+            sources: {
+              'package:app/main.dart#Util.tag': {
+                'fileUri': source.uri.toString(),
+                'start': 15,
+                'end': 15 + member.length,
+              },
+            },
+          ),
+          releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
+          releaseBuildId: 'deadbeef',
+          workingDirectory: work,
+          projectRoot: project,
+          run: compileOk,
+        ),
+      );
+
+      final generated = File(
+        p.join(work.path, 'replacement_0.dart'),
+      ).readAsStringSync();
+      expect(
+        generated,
+        endsWith(
+          "${RouteBProducer.entryPointPragma}\nString tag() => 'NEW';\n",
+        ),
+      );
+    });
 
     test('writes one replacement library per target, with the pragma', () {
       // One payload is one function: Dart_RouteBActivatePatch attaches the
@@ -395,6 +516,7 @@ void main() {
         // The target's own key. Only a test about the target's LIBRARY needs to
         // change it; everything else wants the one shared key.
         String targetKey = key,
+        String name = 'value',
         String member = 'label',
         String kind = 'get',
         // A second receiver access, for an argument that itself touches the
@@ -429,7 +551,7 @@ void main() {
             'lowering': {
               targetKey: {
                 'receiverType': receiverType,
-                'nameOffset': start + decl.indexOf('value'),
+                'nameOffset': start + decl.indexOf(name),
                 'accesses': [
                   if (access.isNotEmpty)
                     {
@@ -529,6 +651,84 @@ void main() {
           ),
           contains('String value(RouteBThing self) => self.label;'),
         );
+      });
+
+      group('an instance getter target', () {
+        const getterKey = 'package:app/main.dart#RouteBThing.get:value';
+
+        test('becomes a one-parameter function, past a call in its body', () {
+          // Scanning for a parameter list would find `toUpperCase(` instead.
+          expect(
+            lowered(
+              instanceCoverage(
+                targetKey: getterKey,
+                preamble: 'class RouteBThing {\n  ',
+                decl: 'String get value => label.toUpperCase();',
+                access: 'label',
+              ),
+            ),
+            contains(
+              'String value(RouteBThing self) => self.label.toUpperCase();',
+            ),
+          );
+        });
+
+        test('keeps a block body and its annotation', () {
+          expect(
+            lowered(
+              instanceCoverage(
+                targetKey: getterKey,
+                preamble: 'class RouteBThing {\n  ',
+                decl:
+                    "@pragma('vm:never-inline')\n  String get value {\n"
+                    '    return label;\n  }',
+                access: 'label',
+              ),
+            ),
+            contains(
+              "@pragma('vm:never-inline')\n  String value(RouteBThing self) {\n"
+              '    return self.label;\n  }',
+            ),
+          );
+        });
+
+        test('takes a private getter, the common Flutter shape', () {
+          // `bool get _isEmpty` on a private State: the selector is
+          // `get:_isEmpty`, and its own name must not read as a private
+          // reference the release did not grant.
+          expect(
+            lowered(
+              instanceCoverage(
+                targetKey: 'package:app/main.dart#RouteBThing.get:_value',
+                preamble: 'class RouteBThing {\n  ',
+                decl: 'String get _value => label;',
+                name: '_value',
+                access: 'label',
+              ),
+            ),
+            contains('String _value(RouteBThing self) => self.label;'),
+          );
+        });
+
+        test('refuses when the source has no `get` ahead of the name', () {
+          expect(
+            () => lowered(
+              instanceCoverage(
+                targetKey: getterKey,
+                preamble: 'class RouteBThing {\n  ',
+                decl: 'String value() => label;',
+                access: 'label',
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('`get` keyword'),
+              ),
+            ),
+          );
+        });
       });
 
       test('a private receiver class keeps its own type', () {
@@ -928,11 +1128,61 @@ void main() {
         );
       });
 
-      test('refuses a read and a write at one position', () {
+      test('rewrites a read and a write at one position once', () {
         // `label += 'X'`, `count++` and `maybe ??= 'Z'` each report a read AND a
-        // write at the same identifier — measured, not assumed. Two insertions
-        // there would produce `self.self.label`. The analyzer refuses it; this
-        // is the producer's backstop for the two disagreeing.
+        // write at the same identifier — measured, not assumed. One prefix is
+        // the whole rewrite; two would produce `self.self.label`.
+        for (final (decl, out) in [
+          (
+            "String value() => label += 'X';",
+            "String value(RouteBThing self) => self.label += 'X';",
+          ),
+          (
+            'int value() => count++;',
+            'int value(RouteBThing self) => self.count++;',
+          ),
+          (
+            "String value() => label ??= 'Z';",
+            "String value(RouteBThing self) => self.label ??= 'Z';",
+          ),
+          // An explicit `this.`: the read and the write are measured at the
+          // member name, so `this.` is replaced once.
+          (
+            "String value() => this.label += 'X';",
+            "String value(RouteBThing self) => self.label += 'X';",
+          ),
+          (
+            'int value() => ++this.count;',
+            'int value(RouteBThing self) => ++self.count;',
+          ),
+          // Inside a closure, the setState shape.
+          (
+            'void value() => run(() { count += 1; });',
+            'void value(RouteBThing self) => run(() { self.count += 1; });',
+          ),
+        ]) {
+          final name = decl.contains('count') ? 'count' : 'label';
+          final access = decl.contains('this.') ? 'this.$name' : name;
+          expect(
+            lowered(
+              instanceCoverage(
+                preamble: 'class RouteBThing {\n  ',
+                decl: decl,
+                access: access,
+                member: name,
+                kind: 'set',
+                also: access,
+                alsoMember: name,
+              ),
+            ),
+            contains(out),
+          );
+        }
+      });
+
+      test('refuses two different members at one position', () {
+        // Not a shape the analyzer reports; the backstop for the two
+        // disagreeing about the source.
         expect(
           () => lowered(
             instanceCoverage(
@@ -941,7 +1191,27 @@ void main() {
               access: 'label',
               kind: 'set',
               also: 'label',
-              alsoKind: 'get',
+              alsoMember: 'other',
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('twice at one position'),
+            ),
+          ),
+        );
+      });
+
+      test('refuses two reads of one member at one position', () {
+        expect(
+          () => lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+              also: 'label',
             ),
           ),
           throwsA(
@@ -1661,10 +1931,13 @@ void main() {
         };
       }
 
-      Uint8List produceWith(RouteBSurvivalOracle? survival) => runWithOverrides(
+      Uint8List produceWith(
+        RouteBSurvivalOracle? survival, {
+        RouteBCoverage? analysis,
+      }) => runWithOverrides(
         () => const RouteBProducer().produce(
           compiler: compiler(),
-          coverage: coverage(),
+          coverage: analysis ?? coverage(),
           releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
@@ -1684,6 +1957,86 @@ void main() {
           ),
           returnsNormally,
         );
+      });
+
+      group('copies of the target elsewhere', () {
+        const target = 'package:app/main.dart#routeBValue';
+        const inliner = 'package:app/main.dart#caller';
+
+        RouteBSurvivalOracle withCopies(
+          RouteBSurvival survival,
+          Set<String> inlinedInto,
+        ) =>
+            (targets) => {
+              for (final t in targets)
+                t: RouteBSurvivalVerdict(
+                  survival: survival,
+                  instrumentResult: '',
+                  inlinedInto: inlinedInto,
+                ),
+            };
+
+        test('refuses a target whose inlined copy the patch leaves', () {
+          // Call sites survived, and one caller ALSO inlined it. Publishing
+          // would change the calls and leave that caller on the old body.
+          expect(
+            () => produceWith(
+              withCopies(RouteBSurvival.survivingCallsite, {inliner}),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.toString(),
+                'message',
+                allOf(
+                  contains('runs a copy of it inside $inliner'),
+                  contains('version 15 or later'),
+                ),
+              ),
+            ),
+          );
+        });
+
+        test('publishes when every holder of a copy is replaced too', () {
+          // The holder is the target itself here only to keep the fixture to
+          // one source span; what is under test is that a companion inside
+          // the patch satisfies the rule.
+          expect(
+            () => produceWith(
+              withCopies(RouteBSurvival.noSurvivingCallsite, {target}),
+            ),
+            returnsNormally,
+          );
+        });
+
+        test('publishes a folded target whose kernel callers are replaced', () {
+          expect(
+            () => produceWith(
+              withCopies(RouteBSurvival.noSurvivingCallsite, {}),
+              analysis: coverage(
+                callers: {
+                  target: [target],
+                },
+              ),
+            ),
+            returnsNormally,
+          );
+        });
+
+        test('still refuses a folded target nothing calls', () {
+          expect(
+            () => produceWith(
+              withCopies(RouteBSurvival.noSurvivingCallsite, {}),
+              analysis: coverage(callers: {target: []}),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.toString(),
+                'message',
+                contains('no surviving call site'),
+              ),
+            ),
+          );
+        });
       });
 
       test('refuses authoritative absence, and says the release is why', () {
@@ -1964,6 +2317,9 @@ void main() {
         // is not evidence that it lowered anything.
         expect(emitted, contains("@pragma('shorebird:direct-super')"));
         expect(emitted, isNot(contains('super.dispose')));
+        // `dynamic`, so a private class's `dynamic self` reaches the compiler
+        // as the bare parameter rather than wrapped in an implicit cast.
+        expect(emitted, contains('  dynamic receiver,'));
         // Full site identity, INCLUDING memberKind: a class may hold a method,
         // a getter and a setter of one name, and the compiler resolves on both.
         expect(

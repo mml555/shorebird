@@ -140,11 +140,21 @@ class RouteBProducer {
   static const _superIntrinsicName = r'$routeBSuper';
 
   /// The declaration, emitted only for a replacement that needs it.
+  ///
+  /// The receiver is `dynamic`, not `Object`. The compiler requires the
+  /// receiver argument to be exactly the entry point's parameter 0, and any
+  /// implicit cast around it breaks that. When a private receiver class was
+  /// written `dynamic self`, an `Object` parameter wrapped it in `self as
+  /// Object`, and every `super` call in a private class -- every State's
+  /// `initState` and `dispose` -- was refused on the iPhone (exit 255,
+  /// "receiver is not parameter 0 of the entry point"). The receiver is now
+  /// typed with its own class, which an `Object` parameter would take as a
+  /// plain upcast; `dynamic` stays because it takes any spelling with no cast.
   static const _superIntrinsicDeclaration =
       '''
 @pragma('shorebird:direct-super')
 Object? $_superIntrinsicName(
-  Object receiver,
+  dynamic receiver,
   String originLibrary,
   String originClass,
   String originMember,
@@ -210,6 +220,7 @@ Object? $_superIntrinsicName(
     // loop so a refusal happens before any source is written, and so the
     // binding is verified once for the whole patch rather than per target.
     final survivalVerdicts = survival == null ? null : survival(selectors);
+    final selectorSet = selectors.toSet();
 
     workingDirectory.createSync(recursive: true);
     final targets = <RouteBPatchTarget>[];
@@ -293,10 +304,28 @@ Object? $_superIntrinsicName(
             'prerequisite is not a satisfied one',
           );
         }
-        if (!verdict.permitsPublication) {
+        // A COPY OF IT ELSEWHERE. Code that inlined the target, or folded
+        // its result, runs the release's body without a call site; replacing
+        // that code too is what makes the edit run on every path. The rule is
+        // routeBCompanionsFor, shared with the loop that carries them.
+        final companions = routeBCompanionsFor(
+          verdict,
+          callers: coverage.callers?[key],
+        );
+        if (companions == null) {
           throw RouteBUnsupportedTarget(
             key,
             describeRouteBSurvivalRefusal(key, verdict),
+          );
+        }
+        final missing = companions.difference(selectorSet).toList()..sort();
+        if (missing.isNotEmpty) {
+          throw RouteBUnsupportedTarget(
+            key,
+            describeRouteBMissingCompanions(
+              missing,
+              canCarry: coverage.canCarry,
+            ),
           );
         }
       }
@@ -342,7 +371,7 @@ Object? $_superIntrinsicName(
               compiler,
               patchedVerificationKernel,
             )
-          : _Lowered(_slice(key, source));
+          : _Lowered(topLevelForm(_slice(key, source)));
       final declaration = lowered.declaration;
       // G4.1c link 2, the LEGACY case. A release cut before injected defines
       // were recorded cannot be given them retroactively — the values came from
@@ -496,10 +525,18 @@ Object? $_superIntrinsicName(
         // target CAN be carried, so a failure here is the compiler's, and
         // conflating the two sends someone to change their Dart when the
         // problem is the toolchain.
+        // BOTH STREAMS. dart2bytecode prints front-end diagnostics -- the
+        // `Error: ...` lines that say what is wrong with the body -- to
+        // STDOUT, and only crashes reach stderr. Showing stderr alone left a
+        // bare exit code for every ordinary compile error.
+        final output = [
+          '${result.stdout}'.trim(),
+          '${result.stderr}'.trim(),
+        ].where((s) => s.isNotEmpty).join('\n');
         throw RouteBUnsupportedTarget(
           key,
           'the bytecode compiler refused its replacement body '
-          '(exit ${result.exitCode})\n${result.stderr}',
+          '(exit ${result.exitCode})${output.isEmpty ? '' : '\n$output'}',
         );
       }
 
@@ -870,13 +907,29 @@ Object? $_superIntrinsicName(
       source.substring(span.start, span.end),
     );
 
-    // ONE EDIT PER OFFSET. `label += 'X'` reports a read and a write at the same
-    // identifier, and two insertions there would produce `self.self.label`. The
-    // analyzer refuses that, so reaching here means the two disagree — which is
-    // exactly when a silent wrong edit is most likely.
-    final seen = <int>{};
+    // ONE EDIT PER OFFSET. `label += 'X'`, `count++` and `maybe ??= 'Z'`
+    // report a read AND a write at the same identifier, because one token does
+    // both. One receiver prefix there is the whole rewrite --
+    // `self.label += 'X'` reads and writes the same member the original did --
+    // while two insertions would produce `self.self.label`. So a position
+    // carrying exactly one read and one write of ONE member gets one edit.
+    // Anything else sharing a position -- a third access, two reads, two
+    // members -- means the analyzer and this producer disagree about the
+    // source, which is exactly when a silent wrong edit is likeliest.
+    final edited = <int, RouteBReceiverAccess>{};
+    final paired = <int>{};
     for (final access in lowering.accesses) {
-      if (!seen.add(access.offset)) {
+      final first = edited[access.offset];
+      if (first == null) {
+        edited[access.offset] = access;
+        continue;
+      }
+      const readWrite = {'get', 'set'};
+      if (!paired.add(access.offset) ||
+          first.member != access.member ||
+          first.kind == access.kind ||
+          !readWrite.contains(first.kind) ||
+          !readWrite.contains(access.kind)) {
         throw RouteBUnsupportedTarget(
           key,
           'uses `${access.member}` twice at one position, which cannot be '
@@ -895,34 +948,6 @@ Object? $_superIntrinsicName(
       edits.add((offset, length, text.replaceAll('@RECEIVER@', receiverName)));
     }
 
-    // The receiver parameter goes into the method's own parameter list, found
-    // by scanning from the NAME — an annotation's parentheses come earlier and
-    // would otherwise match first.
-    final open = source.indexOf('(', lowering.nameOffset);
-    if (open < 0 || open >= span.end) {
-      throw RouteBUnsupportedTarget(
-        key,
-        'its parameter list could not be found',
-      );
-    }
-    final close = source.indexOf(')', open);
-    if (close < 0) {
-      throw RouteBUnsupportedTarget(
-        key,
-        'its parameter list is not closed',
-      );
-    }
-    // G3.7: the target's OWN parameters stay, and the receiver goes in FRONT of
-    // them. The existing list is copied verbatim -- exactly as the argument list
-    // of a call is copied verbatim -- so nothing here reconstructs Dart syntax:
-    // no types are parsed, no defaults are interpreted, no names are rewritten.
-    //
-    // The analyzer refuses named parameters, optional positionals and generics,
-    // matching the compiler contract clause for clause, so a non-empty list
-    // reaching this point is a list of required positionals. A separator is
-    // needed only when there is something to separate from.
-    final existingParams = source.substring(open + 1, close).trim();
-    final separator = existingParams.isEmpty ? '' : ', ';
     // THE RECEIVER KEEPS ITS CLASS'S OWN TYPE, private or not.
     //
     // A private class is written by name too: `_FooState self`. The replacement
@@ -951,13 +976,78 @@ Object? $_superIntrinsicName(
     // backstop instead would admit it at every position, so `_FooState()`, a
     // tear-off or a static on the class would pass ungated. The placeholder
     // cannot match a private identifier (`_TYPE` follows a letter).
-    edits.add((
-      open + 1,
-      0,
-      '$_receiverTypePlaceholder $receiverName$separator',
-    ));
+    final receiverParameter = '$_receiverTypePlaceholder $receiverName';
 
-    for (final access in lowering.accesses) {
+    // AN INSTANCE GETTER has no parameter list to put the receiver in, and
+    // scanning for one would find the first `(` of its BODY: `get label =>
+    // compute(x)` would become `compute(Thing self, x)`. In the VM a getter
+    // is a one-parameter function named `get:label` -- the parameter is the
+    // receiver -- and the device resolves the target by that name, so the
+    // replacement is the same one-parameter function as for a method:
+    // `String get label => x` becomes `String label(Thing self) => x`.
+    final selector = key.contains('#') ? key.split('#').last : key;
+    final getterName = selector.contains('.get:')
+        ? selector.substring(selector.indexOf('.get:') + '.get:'.length)
+        : null;
+    if (getterName != null) {
+      final nameEnd = lowering.nameOffset + getterName.length;
+      if (nameEnd > span.end ||
+          source.substring(lowering.nameOffset, nameEnd) != getterName) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'its name `$getterName` is not where the analyzer reported it',
+        );
+      }
+      var back = lowering.nameOffset;
+      while (back > span.start && _isBlank(source.codeUnitAt(back - 1))) {
+        back--;
+      }
+      const keyword = 'get';
+      final keywordStart = back - keyword.length;
+      if (back == lowering.nameOffset ||
+          keywordStart < span.start ||
+          source.substring(keywordStart, back) != keyword ||
+          (keywordStart > 0 &&
+              _isIdentifierPart(source.codeUnitAt(keywordStart - 1)))) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'its `get` keyword could not be found ahead of its name',
+        );
+      }
+      edits
+        ..add((keywordStart, lowering.nameOffset - keywordStart, ''))
+        ..add((nameEnd, 0, '($receiverParameter)'));
+    } else {
+      // The receiver parameter goes into the method's own parameter list, found
+      // by scanning from the NAME — an annotation's parentheses come earlier and
+      // would otherwise match first.
+      final open = source.indexOf('(', lowering.nameOffset);
+      if (open < 0 || open >= span.end) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'its parameter list could not be found',
+        );
+      }
+      final close = source.indexOf(')', open);
+      if (close < 0) {
+        throw RouteBUnsupportedTarget(key, 'its parameter list is not closed');
+      }
+      // G3.7: the target's OWN parameters stay, and the receiver goes in FRONT
+      // of them. The existing list is copied verbatim -- exactly as the
+      // argument list of a call is copied verbatim -- so nothing here
+      // reconstructs Dart syntax: no types are parsed, no defaults are
+      // interpreted, no names are rewritten.
+      //
+      // The analyzer refuses named parameters, optional positionals and
+      // generics, matching the compiler contract clause for clause, so a
+      // non-empty list reaching this point is a list of required positionals.
+      // A separator is needed only when there is something to separate from.
+      final existingParams = source.substring(open + 1, close).trim();
+      final separator = existingParams.isEmpty ? '' : ', ';
+      edits.add((open + 1, 0, '$receiverParameter$separator'));
+    }
+
+    for (final access in edited.values) {
       // The edit below inserts or replaces a receiver prefix immediately before
       // the identifier, which suits a read and a zero-argument call alike. A
       // kind added later may not work that way, so refuse rather than guess --
@@ -1142,8 +1232,14 @@ Object? $_superIntrinsicName(
       }
     }
     // The declaration's own name may be private -- patching `_helper` is
-    // ordinary -- and it is a declaration here, not a reference.
-    final own = key.split('#').last.split('.').last;
+    // ordinary -- and it is a declaration here, not a reference. A getter's or
+    // setter's selector is `get:_name`, and the text says `_name`.
+    final own = key
+        .split('#')
+        .last
+        .split('.')
+        .last
+        .replaceFirst(RegExp(r'^[gs]et:'), '');
     for (final name in _privateIdentifiers(text)) {
       if (granted.contains(name) || name == own) continue;
       throw RouteBUnsupportedTarget(
@@ -1295,6 +1391,107 @@ Object? $_superIntrinsicName(
   static final _privateIdentifier = RegExp(
     r'(?<![A-Za-z0-9_$])_[A-Za-z0-9_$]*',
   );
+
+  /// [declaration] as the replacement library declares it: at top level.
+  ///
+  /// A class's static member is sliced with its `static` modifier, which is a
+  /// compile error outside a class, so dart2bytecode refused every static
+  /// method with exit 254. Annotations ahead of the modifier are kept, and
+  /// skipped by a scan rather than a pattern: an annotation's arguments nest
+  /// (`@Foo(Bar())`), take type arguments (`@Foo<int>()`) and hold strings
+  /// with brackets in them (`@Foo(')')`).
+  @visibleForTesting
+  static String topLevelForm(String declaration) {
+    final at = _modifierPosition(declaration);
+    if (at < 0) return declaration;
+    var end = at + 'static'.length;
+    while (end < declaration.length && _isSpace(declaration, end)) {
+      end++;
+    }
+    return declaration.replaceRange(at, end, '');
+  }
+
+  /// Where [declaration]'s leading `static` starts, past whitespace, comments
+  /// and annotations; -1 when it does not start with one.
+  static int _modifierPosition(String declaration) {
+    var i = 0;
+    while (true) {
+      i = _skipTrivia(declaration, i);
+      if (i >= declaration.length || declaration[i] != '@') break;
+      i++;
+      while (i < declaration.length &&
+          _nameCharacter.hasMatch(declaration[i])) {
+        i++;
+      }
+      i = _skipTrivia(declaration, i);
+      if (i < declaration.length && declaration[i] == '<') {
+        i = _skipBalanced(declaration, i, '<', '>');
+        i = _skipTrivia(declaration, i);
+      }
+      if (i < declaration.length && declaration[i] == '(') {
+        i = _skipBalanced(declaration, i, '(', ')');
+      }
+      if (i < 0) return -1;
+    }
+    return _staticWord.matchAsPrefix(declaration, i) == null ? -1 : i;
+  }
+
+  static final _nameCharacter = RegExp(r'[\w$.]');
+  static final _staticWord = RegExp(r'static(?![\w$])');
+
+  static bool _isSpace(String s, int i) => ' \t\r\n'.contains(s[i]);
+
+  /// Past whitespace and comments from [from].
+  static int _skipTrivia(String s, int from) {
+    var i = from;
+    while (i < s.length) {
+      if (_isSpace(s, i)) {
+        i++;
+      } else if (s.startsWith('//', i)) {
+        final eol = s.indexOf('\n', i);
+        i = eol < 0 ? s.length : eol + 1;
+      } else if (s.startsWith('/*', i)) {
+        final close = s.indexOf('*/', i + 2);
+        i = close < 0 ? s.length : close + 2;
+      } else {
+        break;
+      }
+    }
+    return i;
+  }
+
+  /// Past the bracket at [from] and everything up to its partner, skipping
+  /// strings; -1 when it never closes.
+  static int _skipBalanced(String s, int from, String open, String close) {
+    var i = from;
+    var depth = 0;
+    while (i < s.length) {
+      final c = s[i];
+      if (c == "'" || c == '"') {
+        final quote = s.startsWith(c * 3, i) ? c * 3 : c;
+        i += quote.length;
+        while (i < s.length && !s.startsWith(quote, i)) {
+          i += s[i] == r'\' ? 2 : 1;
+        }
+        i += quote.length;
+        continue;
+      }
+      if (c == open) depth++;
+      if (c == close && --depth == 0) return i + 1;
+      i++;
+    }
+    return -1;
+  }
+
+  static bool _isBlank(int c) =>
+      c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D;
+
+  static bool _isIdentifierPart(int c) =>
+      (c >= 0x30 && c <= 0x39) ||
+      (c >= 0x41 && c <= 0x5A) ||
+      (c >= 0x61 && c <= 0x7A) ||
+      c == 0x5F ||
+      c == 0x24;
 
   /// The declaration's source text, from the patch's own file.
   String _slice(String key, RouteBSourceSpan span) {
