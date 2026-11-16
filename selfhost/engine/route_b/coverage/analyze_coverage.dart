@@ -1166,8 +1166,7 @@ String? _instanceHelperReason(
       'of an existing class, can be added';
   if (p.isStatic) {
     return 'a static member of `${cls.name}`; a replacement calling it would '
-        "bind to the release's `${cls.name}`, which has no such member. "
-        '$tail';
+        "bind to the release's `${cls.name}`, which has no such member; $tail";
   }
   if (p.kind != ProcedureKind.Method) {
     return 'an instance ${switch (p.kind) {
@@ -1181,7 +1180,7 @@ String? _instanceHelperReason(
   }
   if (cls.isMixinDeclaration || cls.isAnonymousMixin || cls.isEnum) {
     return 'a member of ${cls.isEnum ? 'an enum' : 'a mixin'}, which is not '
-        'supported; $tail on a class';
+        'supported; $tail';
   }
   final uri = lib.importUri.toString();
   if (_findClass(base, uri, cls.name) == null) {
