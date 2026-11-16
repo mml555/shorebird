@@ -1,0 +1,11 @@
+# Local settings and run output. None of this is ever committed.
+/env.sh
+/secrets.sh
+/app.env
+*.pid
+/logs/
+/shots/
+/work/
+/data/
+/signed/
+/cli/
