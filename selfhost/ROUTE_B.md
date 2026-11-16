@@ -293,7 +293,55 @@ rather than of use.
   `aab9fd07` (same engine, newer compiler tools). Through `aab9fd07`, a patched
   `initState` calling `super.initState()` ran on an iPhone 7
   ([`ios-cell-aab9fd07`](engine/route_b/evidence/ios-cell-aab9fd07/RESULT.md),
-  edit p05). The previous cell `82fc78a8` predates 0017 and refuses it.
+  edit p05), and again through the cell that replaced it,
+  `2fc41d3f` (same engine, newer analyzer;
+  [`ios-cell-2fc41d3f`](engine/route_b/evidence/ios-cell-2fc41d3f/RESULT.md),
+  the `aab9fd07` sequence repeated). The previous cell `82fc78a8` predates 0017
+  and refuses it.
+
+### What a patch may add (cell `2fc41d3f`, analysis version 17)
+
+A patch is a set of replaced bodies. From the cell `2fc41d3f` it may also carry
+members the release does not have, as helpers of the replaced code:
+
+- **A top-level function or getter, public or private** (analysis 16, PR
+  #193), when everything that calls it is part of the patch (a changed member
+  or another helper the patch carries) and it is in the same library. It is
+  refused when something outside the patch calls it, when it is torn off, or
+  when it is a setter, an operator, an extension member, abstract or external,
+  or declared in a `part` file. A private name must also be unique in its
+  library. On an iPhone 7 only the private form was run, as edit h1: a new
+  `String _greet(int n) => 'N$n';` called from `_increment`. The public form
+  (edit p28's shape) is accepted by the analyzer (`added_helper.sh`,
+  `public_helper` arm) but was not run on the device.
+- **A private instance method of an existing class** (analysis 17, PR #194),
+  lowered with the receiver as its first argument. The analyzer requires that
+  the class exists in the release and is not a mixin or an enum; the method is
+  an instance method (not static, a getter, a setter or an operator), is not
+  abstract or external, is private, overrides nothing and is overridden by
+  nothing (checked in both the release and the patch kernels), has a name no
+  other declaration of its library uses (top-level, class member, constructor,
+  extension member or extension type member), and is not in a `part` file. It
+  must be called only from changed or carried members of its own class, on
+  `this` (implicit or explicit): a call on another receiver, a tear-off, a
+  read as a property, a `super` call, a dynamic access that could reach it, or
+  a local variable, parameter or local function of the same name in a calling
+  body is refused. Run on an iPhone 7 as edits m1 (`_HomeState._label()`) and
+  m2 (a new `_HomeState._bump()` that calls the existing `_increment()` and
+  writes a field).
+
+Still refused, before anything is uploaded, with the reason named:
+
+- a **public** new instance method (outside code can call it by name, for example
+  `jsonEncode` calls `toJson`; run as edit r1, exit 70);
+- a new private name that another member of its library already uses, even in
+  another class (run as edit r2, exit 70);
+- a new top-level function that something outside the patch also calls, a new
+  class, a new field, and the other shapes listed as refused in `PARITY.md`.
+
+The cell `aab9fd07` and earlier refuse every new member. Not exercised on a
+device: a patch whose added method is reached only by a tap, a new method on a
+class other than `State`, and an obfuscated release.
 
 The text below was written before D-SUPER-2C and describes the rule; its
 "no release" applies today only to the published 3.47 cell.
@@ -655,7 +703,7 @@ exercising each shape AOT actually emits:
 | top-level static, static method | **yes** |
 | instance method (monomorphic), getter | **yes** — AOT devirtualizes these into static calls |
 | dynamic instance call (`EmitTestAndCall` cid chain) | **yes** |
-| statically-typed polymorphic call (**dispatch table**) | **no** — **yes** under `--route_b_untabled_overrides` (2026-11-14, host; 2026-11-15, an iPhone from a local cell; 2026-11-16, an iPhone through the published cell `aab9fd07`) |
+| statically-typed polymorphic call (**dispatch table**) | **no** — **yes** under `--route_b_untabled_overrides` (2026-11-14, host; 2026-11-15, an iPhone from a local cell; 2026-11-16, an iPhone through the published cell `aab9fd07`, and again through `2fc41d3f`) |
 
 Dispatch-table calls load a raw entry point out of a data table and set up
 neither `R0` nor `R4`, so there is no cheap version: rewriting the table is

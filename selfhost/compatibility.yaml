@@ -13,8 +13,18 @@
 # never discovered after.
 shorebird:
   cli_version: 1.6.138+selfhost.1                                # fork build of upstream 1.6.138 (was 1.6.115)
-  cli_revision: dd93e875720f96518d00020326922b04a91cb560          # the CLI cell aab9fd07 was qualified with (SUPPORTED_STATE.yaml lineage.cli_revision); was 22f14441 (cell 5f6efd98), 357bc24f (cell 82fc78a8)
-  flutter_revision: 7def8a997dd87eaad43d88ddfa283ed9f4e1127b      # bin/internal/flutter.version. RE-CELLED 2026-11-16 (ROUTE-B-CELL-AAB9FD07) from ef0eec1b: the same
+  cli_revision: f9c566982a592a42039e0d1f6d74c4ce927e4125          # the CLI cell 2fc41d3f was qualified with (SUPPORTED_STATE.yaml lineage.cli_revision); was dd93e875 (cell aab9fd07), 22f14441 (cell 5f6efd98), 357bc24f (cell 82fc78a8)
+  flutter_revision: 5c60356ca635c74696ab737e2d5e77f04d615057      # bin/internal/flutter.version. RE-CELLED 2026-11-16 (ROUTE-B-CELL-2FC41D3F) from 7def8a99: the same
+                                                                  # parent 0987ce0a (engine d0714887, Dart b4671ab7) plus ONE line, bin/internal/engine.version =
+                                                                  # 2fc41d3fbd9966958ba3ccf2be9761e064e92bcc, a cell over the same engine bytes whose compiler archive
+                                                                  # (768ad4b8..., 19835885 B) carries the v17 coverage analyzer (a patch may add a private top-level function and a
+                                                                  # private instance method of an existing class; PRs #193 and #194). Only route_b_analyze.aot changed in the archive.
+                                                                  # shorebird-flutter branch selfhost/3.47-cell-2fc41d3f. The chain was RE-RUN for this pin:
+                                                                  # evidence/r12-linux-ci/PROMOTION_2fc41d3f.md (sealed cold bootstrap 0 additions, CLOSURE OK, fresh cold
+                                                                  # bootstrap PASS, release/patch closure 10 imports, R12 arm A PASS; arm B not re-run). iPhone run:
+                                                                  # engine/route_b/evidence/ios-cell-2fc41d3f/RESULT.md.
+                                                                  # --- the 2026-11-16 pin this replaces, kept as written: 7def8a997dd87eaad43d88ddfa283ed9f4e1127b ---
+                                                                  # RE-CELLED 2026-11-16 (ROUTE-B-CELL-AAB9FD07) from ef0eec1b: the same
                                                                   # parent 0987ce0a (engine d0714887, Dart b4671ab7) plus ONE line, bin/internal/engine.version =
                                                                   # aab9fd07857142c232e4b5a41e41814b8dbf640f, a cell over the same engine bytes whose compiler archive
                                                                   # (70f72462..., 19810923 B) carries the v15 coverage analyzer (a443d87c's CLI ships the callers an
@@ -105,7 +115,7 @@ shorebird:
                                                                   # BUILD (ci-build Linux + arm64 Mac), published as the GitHub release
                                                                   # engine-d0714887... on mml555/shorebird-flutter, served from the overlay.
                                                                   # Was 2c4b071817c52c27142b35ff789749951e5b4d22 (cell 82fc78a8). Unchanged by
-                                                                  # cell aab9fd07 (2026-11-16), which is minted over the same engine.
+                                                                  # cells aab9fd07 and 2fc41d3f (2026-11-16), which are minted over the same engine.
                                                                   # Falls back to 38855c84ca367c58165b8e3844dd7d6a99dec844 for what was not built
                                                                   # (experimental_hashes.map).
                                                                     # general toolchain's engine, and it is also the
