@@ -32,6 +32,69 @@ void main() {
       'refusalSummary': refusalSummary,
     });
 
+    group('carrying (analysis version 15)', () {
+      String v15({Object? callers = const <String, Object>{}}) => jsonEncode({
+        'analysisVersion': 15,
+        'verdict': 'reject',
+        'changed': [target],
+        'carried': ['package:app/main.dart#caller'],
+        'callers': ?callers,
+        'added': <String>[],
+        'removed': <String>[],
+        'patchable': <String>[],
+        'conditional': <String>[],
+        'rejections': [
+          {
+            'target': 'package:app/main.dart#caller',
+            'category': 'unreachable',
+            'reason': 'calls super',
+          },
+        ],
+        'refusalSummary': null,
+      });
+
+      test('reads carried members and callers', () {
+        final coverage = RouteBCoverage.fromJson(
+          v15(
+            callers: {
+              target: ['package:app/main.dart#caller'],
+            },
+          ),
+        );
+        expect(coverage.canCarry, isTrue);
+        expect(coverage.carried, ['package:app/main.dart#caller']);
+        expect(coverage.callers, {
+          target: ['package:app/main.dart#caller'],
+        });
+      });
+
+      test('a version 15 document without callers is malformed', () {
+        expect(
+          () => RouteBCoverage.fromJson(v15(callers: null)),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              contains('"callers"'),
+            ),
+          ),
+        );
+      });
+
+      test('an older document cannot carry', () {
+        final coverage = RouteBCoverage.fromJson(document(version: 14));
+        expect(coverage.canCarry, isFalse);
+        expect(coverage.carried, isEmpty);
+        expect(coverage.callers, isNull);
+      });
+
+      test('the refusal says why an unchanged member is in it', () {
+        final message = RouteBCoverage.fromJson(v15()).refusalMessage;
+        expect(message, contains('1 of 2 members cannot be carried'));
+        expect(message, contains('(unchanged, but the release holds a copy'));
+      });
+    });
+
     // VERSION-ASYMMETRIC MEASUREMENT STATE (analysis versions 11 and 12).
     //
     // v12 adds `privateConstructions`. The decoder must keep the two versions'

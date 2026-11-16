@@ -69,12 +69,15 @@ const supportedRouteBAnalysisVersion = 11;
 ///
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
-const knownRouteBAnalysisVersions = {11, 12, 13, 14};
+const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15};
 
 /// The first analyzer version that compares fields, `const`s, constructors and
 /// class headers. An older analyzer reads an edit to one as unchanged, so a
 /// patch carrying it alongside body edits ships without it.
 const routeBDeclarationsAnalysisVersion = 14;
+
+/// The first analyzer version that takes `--carry` and reports `callers`.
+const routeBCarryAnalysisVersion = 15;
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -510,6 +513,9 @@ class RouteBCoverage {
     this.signatures = const {},
     this.sources = const {},
     this.lowering = const {},
+    this.carried = const [],
+    this.callers,
+    this.canCarry = false,
   });
 
   /// Parses the analyzer's JSON document.
@@ -725,9 +731,26 @@ class RouteBCoverage {
       }
     }
 
+    Map<String, List<String>>? callers;
+    if (analysisVersion >= routeBCarryAnalysisVersion) {
+      final raw = map['callers'];
+      if (raw is! Map<String, dynamic>) {
+        throw const FormatException('the analysis is missing "callers"');
+      }
+      callers = {
+        for (final entry in raw.entries)
+          entry.key: (entry.value as List).cast<String>(),
+      };
+    }
+
     return RouteBCoverage(
       analysisVersion: analysisVersion,
       verdict: verdict,
+      canCarry: analysisVersion >= routeBCarryAnalysisVersion,
+      carried: analysisVersion >= routeBCarryAnalysisVersion
+          ? strings('carried')
+          : const [],
+      callers: callers,
       sources: sources,
       lowering: lowering,
       signatures: signatures,
@@ -750,6 +773,19 @@ class RouteBCoverage {
 
   /// Members whose compiled form differs from the release's.
   final List<String> changed;
+
+  /// UNCHANGED members analyzed as if they had changed, because the release
+  /// holds an inlined or folded copy of a changed member inside them. They
+  /// appear in [representable] or [conditional] like any changed member, and
+  /// never in [changed].
+  final List<String> carried;
+
+  /// For each analyzed member, the app members whose bodies name it in the
+  /// patched kernel. Null for an analysis from before version 14.
+  final Map<String, List<String>>? callers;
+
+  /// Whether the analyzer that wrote this takes `--carry`.
+  final bool canCarry;
 
   /// Members the patch introduces. Always a rejection.
   final List<String> added;
@@ -802,12 +838,19 @@ class RouteBCoverage {
     final buffer = StringBuffer()
       ..writeln(
         'This patch cannot be built: ${rejections.length} of '
-        '${changed.length + added.length + declarations} changed members '
-        'cannot be carried by a Route B patch.',
+        '${changed.length + carried.length + added.length + declarations} '
+        '${carried.isEmpty ? 'changed ' : ''}members cannot be carried by '
+        'a Route B patch.',
       )
       ..writeln();
     for (final rejection in rejections) {
       buffer.writeln('  ${rejection.target}');
+      if (carried.contains(rejection.target)) {
+        buffer.writeln(
+          '      (unchanged, but the release holds a copy of a changed member '
+          'inside it, so the patch must replace it too)',
+        );
+      }
       buffer.writeln('      ${rejection.reason}');
     }
     buffer
@@ -830,11 +873,16 @@ class RouteBCoverageAnalyzer {
   const RouteBCoverageAnalyzer();
 
   /// Analyze the change between [baseDill] and [patchedDill].
+  ///
+  /// [carry] names unchanged members to analyze as if they had changed. Only
+  /// an analyzer of [routeBCarryAnalysisVersion] or later takes it; pass it
+  /// only when an earlier analysis said [RouteBCoverage.canCarry].
   RouteBCoverage analyze({
     required RouteBCompiler compiler,
     required File baseDill,
     required File patchedDill,
     List<String> includePrefixes = const [],
+    Set<String> carry = const {},
   }) {
     final result = Process.runSync(compiler.runtime.path, [
       compiler.analyzer.path,
@@ -843,6 +891,7 @@ class RouteBCoverageAnalyzer {
       '--patched-dill',
       patchedDill.path,
       for (final prefix in includePrefixes) ...['--include', prefix],
+      for (final key in carry.toList()..sort()) ...['--carry', key],
     ]);
 
     if (result.exitCode != 0) {

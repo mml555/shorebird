@@ -51,9 +51,13 @@ void main() {
       List<String> representable = const ['package:app/main.dart#routeBValue'],
       Map<String, Object?>? sources,
       Map<String, Object?>? lowering,
+      Map<String, List<String>>? callers,
     }) => RouteBCoverage.fromJson(
       jsonEncode({
-        'analysisVersion': supportedRouteBAnalysisVersion,
+        'analysisVersion': callers == null
+            ? supportedRouteBAnalysisVersion
+            : routeBCarryAnalysisVersion,
+        if (callers != null) ...{'carried': <String>[], 'callers': callers},
         'verdict': 'accept',
         'changed': representable,
         'added': <String>[],
@@ -1908,10 +1912,13 @@ void main() {
         };
       }
 
-      Uint8List produceWith(RouteBSurvivalOracle? survival) => runWithOverrides(
+      Uint8List produceWith(
+        RouteBSurvivalOracle? survival, {
+        RouteBCoverage? analysis,
+      }) => runWithOverrides(
         () => const RouteBProducer().produce(
           compiler: compiler(),
-          coverage: coverage(),
+          coverage: analysis ?? coverage(),
           releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
           releaseBuildId: 'deadbeef',
           workingDirectory: work,
@@ -1931,6 +1938,86 @@ void main() {
           ),
           returnsNormally,
         );
+      });
+
+      group('copies of the target elsewhere', () {
+        const target = 'package:app/main.dart#routeBValue';
+        const inliner = 'package:app/main.dart#caller';
+
+        RouteBSurvivalOracle withCopies(
+          RouteBSurvival survival,
+          Set<String> inlinedInto,
+        ) =>
+            (targets) => {
+              for (final t in targets)
+                t: RouteBSurvivalVerdict(
+                  survival: survival,
+                  instrumentResult: '',
+                  inlinedInto: inlinedInto,
+                ),
+            };
+
+        test('refuses a target whose inlined copy the patch leaves', () {
+          // Call sites survived, and one caller ALSO inlined it. Publishing
+          // would change the calls and leave that caller on the old body.
+          expect(
+            () => produceWith(
+              withCopies(RouteBSurvival.survivingCallsite, {inliner}),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.toString(),
+                'message',
+                allOf(
+                  contains('runs a copy of it inside $inliner'),
+                  contains('version 14 or later'),
+                ),
+              ),
+            ),
+          );
+        });
+
+        test('publishes when every holder of a copy is replaced too', () {
+          // The holder is the target itself here only to keep the fixture to
+          // one source span; what is under test is that a companion inside
+          // the patch satisfies the rule.
+          expect(
+            () => produceWith(
+              withCopies(RouteBSurvival.noSurvivingCallsite, {target}),
+            ),
+            returnsNormally,
+          );
+        });
+
+        test('publishes a folded target whose kernel callers are replaced', () {
+          expect(
+            () => produceWith(
+              withCopies(RouteBSurvival.noSurvivingCallsite, {}),
+              analysis: coverage(
+                callers: {
+                  target: [target],
+                },
+              ),
+            ),
+            returnsNormally,
+          );
+        });
+
+        test('still refuses a folded target nothing calls', () {
+          expect(
+            () => produceWith(
+              withCopies(RouteBSurvival.noSurvivingCallsite, {}),
+              analysis: coverage(callers: {target: []}),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.toString(),
+                'message',
+                contains('no surviving call site'),
+              ),
+            ),
+          );
+        });
       });
 
       test('refuses authoritative absence, and says the release is why', () {
