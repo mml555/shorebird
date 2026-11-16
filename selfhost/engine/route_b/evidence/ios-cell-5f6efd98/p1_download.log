@@ -1,0 +1,15 @@
+Nov 15 19:33:46.670290 Runner(Flutter)[24018] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+Nov 15 19:33:46.670308 Runner(Flutter)[24018] <Notice>: [shorebird] Preparing next boot.
+Nov 15 19:33:46.670375 Runner(Flutter)[24018] <Notice>: [shorebird] Prepared boot of the base release.
+Nov 15 19:33:46.670450 Runner(Flutter)[24018] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(633)] Shorebird updater: no active patch.
+Nov 15 19:33:46.797109 Runner(Flutter)[24018] <Notice>: flutter: CELL5F6E-MARKER CELL5F6E-V1-RELEASE
+Nov 15 19:33:46.797200 Runner(Flutter)[24018] <Notice>: [shorebird] Reporting successful launch.
+Nov 15 19:33:46.834318 Runner(Flutter)[24018] <Notice>: [shorebird] Sending patch check request: app_id: a73a7379-3c1f-c483-1579-71940c73d38d, channel: stable, release_version: 1.0.0+31, platform: ios, arch: aarch64, current_patch_number: None
+Nov 15 19:33:46.879465 Runner(Flutter)[24018] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "2ce053dc64a778ea96a30a65c9b10259e2f4ab37f68c6d9c318b9db34ea7dc34", download_url: "http://10.0.0.115:18290/download/e00eef635d1fc5ea55cccecf6ef8c78f?exp=1794789526&sig=35798873a39920d57ec6947358dd5748a0bb6ec2e237aa440fc40f36cc42efe7", hash_signature: None, kind: Code }), rolled_back_patch_numbers: Some([]) }
+Nov 15 19:33:46.880516 Runner(Flutter)[24018] <Notice>: [shorebird] Downloading patch 1 for app a73a7379-3c1f-c483-1579-71940c73d38d (version 1.0.0+31)
+Nov 15 19:33:46.892979 Runner(Flutter)[24018] <Notice>: [shorebird] Downloading patch from: http://10.0.0.115:18290/download/e00eef635d1fc5ea55cccecf6ef8c78f?exp=1794789526&sig=35798873a39920d57ec6947358dd5748a0bb6ec2e237aa440fc40f36cc42efe7
+Nov 15 19:33:46.915265 Runner(Flutter)[24018] <Notice>: [shorebird] Downloaded patch to: "/private/var/mobile/Containers/Data/Application/F85342B7-FEB2-44AE-BB4B-869A5B140F6A/Library/Application Support/shorebird/shorebird_updater/downloads/1" (1105 bytes)
+Nov 15 19:33:46.920116 Runner(Flutter)[24018] <Notice>: [shorebird] Inflating patch from "/private/var/mobile/Containers/Data/Application/F85342B7-FEB2-44AE-BB4B-869A5B140F6A/Library/Application Support/shorebird/shorebird_updater/downloads/1" (1105 bytes)
+Nov 15 19:33:46.920663 Runner(Flutter)[24018] <Notice>: [shorebird] Patch successfully applied to "/private/var/mobile/Containers/Data/Application/F85342B7-FEB2-44AE-BB4B-869A5B140F6A/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode". patch_file=1105b base_size=2659162b decompressed=1779b base_read=0b base_last_seek_pos=0 base_seeks=1 output_written=1767b
+Nov 15 19:33:46.936495 Runner(Flutter)[24018] <Notice>: [shorebird] Patch 1 successfully downloaded. It will be launched when the app next restarts.
+Nov 15 19:33:46.944051 Runner(Flutter)[24018] <Notice>: [shorebird] Update thread finished with status: Update installed

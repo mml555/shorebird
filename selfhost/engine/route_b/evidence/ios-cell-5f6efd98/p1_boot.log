@@ -1,0 +1,17 @@
+Nov 15 19:34:25.962038 Runner(Flutter)[24026] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+Nov 15 19:34:25.962057 Runner(Flutter)[24026] <Notice>: [shorebird] Preparing next boot.
+Nov 15 19:34:25.962177 Runner(Flutter)[24026] <Notice>: [shorebird] Prepared boot of patch 1.
+Nov 15 19:34:25.962195 Runner(Flutter)[24026] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/F85342B7-FEB2-44AE-BB4B-869A5B140F6A/Library/Application Support/shorebird/shorebird_updater/patches/1/dlc.vmcode
+Nov 15 19:34:25.962233 Runner(Flutter)[24026] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+Nov 15 19:34:26.009458 Runner(Flutter)[24026] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+Nov 15 19:34:26.009503 Runner(Flutter)[24026] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=1, built-for=7f8263293922305fbd076b3db4a401cf
+Nov 15 19:34:26.011824 Runner(Flutter)[24026] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=7f8263293922305fbd076b3db4a401cf
+Nov 15 19:34:26.061466 Runner(Flutter)[24026] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Nov 15 19:34:26.070388 Runner(Flutter)[24026] <Notice>: ROUTEB: activated markerText in package:cell5f6e/main.dart before main
+Nov 15 19:34:26.070479 Runner(Flutter)[24026] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: applied 1/1 targets, entering main
+Nov 15 19:34:26.102303 Runner(Flutter)[24026] <Notice>: flutter: CELL5F6E-MARKER CELL5F6E-V2-PATCH1
+Nov 15 19:34:26.102321 Runner(Flutter)[24026] <Notice>: [shorebird] Reporting successful launch.
+Nov 15 19:34:26.102339 Runner(Flutter)[24026] <Notice>: [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+Nov 15 19:34:26.154228 Runner(Flutter)[24026] <Notice>: [shorebird] Sending patch check request: app_id: a73a7379-3c1f-c483-1579-71940c73d38d, channel: stable, release_version: 1.0.0+31, platform: ios, arch: aarch64, current_patch_number: Some(1)
+Nov 15 19:34:26.209474 Runner(Flutter)[24026] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Nov 15 19:34:26.210003 Runner(Flutter)[24026] <Notice>: [shorebird] Update thread finished with status: No update

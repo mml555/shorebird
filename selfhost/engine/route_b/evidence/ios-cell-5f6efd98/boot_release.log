@@ -1,0 +1,10 @@
+Nov 15 19:31:49.765265 Runner(Flutter)[24000] <Notice>: [shorebird] release_version changed 1.0.0+30 -> 1.0.0+31, creating new state
+Nov 15 19:31:49.773154 Runner(Flutter)[24000] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+Nov 15 19:31:49.773255 Runner(Flutter)[24000] <Notice>: [shorebird] Preparing next boot.
+Nov 15 19:31:49.778130 Runner(Flutter)[24000] <Notice>: [shorebird] Prepared boot of the base release.
+Nov 15 19:31:49.778202 Runner(Flutter)[24000] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(633)] Shorebird updater: no active patch.
+Nov 15 19:31:50.001825 Runner(Flutter)[24000] <Notice>: flutter: CELL5F6E-MARKER CELL5F6E-V1-RELEASE
+Nov 15 19:31:50.001855 Runner(Flutter)[24000] <Notice>: [shorebird] Reporting successful launch.
+Nov 15 19:31:50.007225 Runner(Flutter)[24000] <Notice>: [shorebird] Sending patch check request: app_id: a73a7379-3c1f-c483-1579-71940c73d38d, channel: stable, release_version: 1.0.0+31, platform: ios, arch: aarch64, current_patch_number: None
+Nov 15 19:31:50.024693 Runner(Flutter)[24000] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+Nov 15 19:31:50.024817 Runner(Flutter)[24000] <Notice>: [shorebird] Update thread finished with status: No update

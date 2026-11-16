@@ -58,7 +58,22 @@ lineage:
   # minted over the published bytes of engine 2c4b0718 -- the engine whose iOS
   # release build runs Route B patches on a physical device (iPhone 7, iOS
   # 15.8.8, 2026-11-11). The Route B compiler archive and analyzer moved with it.
-  cli_revision: 357bc24f89c2c0739205e2ed2d55dda3d94e94c3   # was 12f2b3d4 (the mint); 357bc24f binds the combined cell to the iOS compiler and is the CLI the 2026-11-12 iPhone run used
+  # Re-pinned 2026-11-15 (ROUTE-B-REPIN-D0714887). Previous identity retained:
+  #   superseded: cli_revision 357bc24f89c2c0739205e2ed2d55dda3d94e94c3
+  #               packages_shorebird_cli 9d22b7d7e94e1713a0052d1236bc5100d7d5419b
+  #               bin_internal 219c662ff0588d20f4afce6f6738cabb9b6f0e22
+  #               flutter_selector f6bbc8a0b4e4d12f824edea754d05f86047d6c8f
+  #               cell_address 82fc78a817ce8290b108cea4dec1ee58317e9a9c
+  # What moved: the ENGINE and its Dart SDK. bin/internal/flutter.version now
+  # names shorebird-flutter ef0eec1b, whose engine.version is the cell 5f6efd98,
+  # minted over the published bytes of engine d0714887 (shorebird-flutter #13:
+  # Dart b4671ab7, which adds direct `super` calls and by-name SDK calls to
+  # Route B patches). The compiler archive and analyzer moved with it; the
+  # coverage analyzer is v14 (PR #172) with PR #184's fix: it no longer
+  # crashes on a release dill whose platform is not linked in, which broke every
+  # iOS patch through the first cell minted over d0714887 (fb12c60a, never
+  # recorded here; see PROMOTION_5f6efd98.md).
+  cli_revision: 22f1444159f1af7870a33354f551a87ad0983e51   # the merge of PR #185, which selects 5f6efd98; its packages/shorebird_cli and bin/internal trees equal those of #185's head d227ec00, the CLI the chain ran; the CLI under test in PROMOTION_5f6efd98.md
   cli_contains: 6b4f6c422bab55143ef04c8f43f92015ee3b3feb   # private-name resolution for constructions
   # THE FLUTTER REVISION, and it is now the one that actually selects the
   # supported cell. e64eb0af's own engine.version names the SUPERSEDED cell
@@ -67,18 +82,21 @@ lineage:
   # because it read HEAD's blob. It now reads the blob AT THIS REVISION.
   #
   #   superseded: flutter_selector e64eb0af52e1c43c3b21a39556d789538d0df9b3
-  flutter_selector: f6bbc8a0b4e4d12f824edea754d05f86047d6c8f
+  #   superseded: flutter_selector f6bbc8a0b4e4d12f824edea754d05f86047d6c8f
+  flutter_selector: ef0eec1b3868b4d42f9429328554361ad415dbb6
   flutter_selector_durability:
     remote: https://github.com/mml555/shorebird-flutter.git
     refs:
-      - refs/heads/selfhost/3.47-cell-82fc78a8
-      - refs/tags/selfhost-flutter-cell-82fc78a8   # annotated; immutable intent
-    parent: d12e29eccfd56355cebdfb40ef0cb2dc674d65f8
-    tree: 41a8ce7ac8b0aef1de98ad231d04cdd4de51d1d9
+      - refs/heads/selfhost/3.47-cell-5f6efd98
+      - refs/tags/selfhost-flutter-cell-5f6efd98   # annotated; immutable intent
+    parent: 0987ce0a23c873fbab3832ff0fbf229c7b207b84   # shorebird-flutter PR #15 head: engine.version = d0714887
+    tree: f6c7379a928f825d1f8de9f3594d21d8be0b195e
     delta_from_parent: >-
       exactly one file and one line -- bin/internal/engine.version,
-      2c4b071817c52c27142b35ff789749951e5b4d22 -> 82fc78a8…. Nothing else.
-    # SUPERSEDED selector, kept so an older evidence document stays readable:
+      d0714887dd95d2990e0185fe1893523f3d600cc5 -> 5f6efd98…. Nothing else.
+    # SUPERSEDED selectors, kept so an older evidence document stays readable:
+    #   f6bbc8a0b4e4d12f824edea754d05f86047d6c8f  (refs/heads/selfhost/3.47-cell-82fc78a8,
+    #   refs/tags/selfhost-flutter-cell-82fc78a8), parent d12e29ec, tree 41a8ce7a.
     #   5b180d224df04a267a19888c3f344474e243b382  (refs/heads/selfhost/3.44.8-v13-cell-f85251f3,
     #   refs/tags/selfhost-flutter-cell-f85251f3), parent e64eb0af, tree 0c265f64.
     # The paragraph below was measured against that selector and describes
@@ -102,14 +120,21 @@ lineage:
     # CI-NONINTERACTIVE-1, fixed by pushing the tags, and now asserted by
     # bootstrap_selfhost.sh so it cannot regress silently.
     version_tags_on_remote: 1101
-    version_resolves_to: 3.46.0-1.0.pre-863   # `flutter --version` at the selector f6bbc8a0 (Dart 3.13.7, engine 82fc78a8), measured in the cold bootstrap, evidence/r12-linux-ci/promotion-82fc78a8/arms/arm-BOOT1/bootstrap.log
-    # (3.46.0-1.0.pre-167 was the value at the SUPERSEDED selector 5b180d22.) Read from the tool's own output, not derived.
+    version_resolves_to: 3.46.0-1.0.pre-866   # `flutter --version` at the selector ef0eec1b (Dart 3.13.7, engine 5f6efd98), measured in the cold bootstrap, evidence/r12-linux-ci/promotion-5f6efd98/arms/arm-BOOT1/bootstrap.log
+    # (3.46.0-1.0.pre-863 at the SUPERSEDED selector f6bbc8a0; 3.46.0-1.0.pre-167 at 5b180d22.) Read from the tool's own output, not derived.
     clone_url_default: >-
       third_party/flutter/bin/internal/shared.sh defaults to this fork.
       shorebirdtech/flutter does NOT carry the selector, and a clean bootstrap
       against it died with "upload-pack: not our ref".
       SHOREBIRD_FLUTTER_GIT_URL still overrides for a local mirror.
-  # MOVED 2026-11-12 by ROUTE-B-REPIN-2C4B0718, from f85251f3 (below), to the
+  # MOVED 2026-11-15 by ROUTE-B-REPIN-D0714887, from 82fc78a8, to the cell
+  # minted over engine d0714887's published bytes, the same way: 5f6efd98 is
+  # the route-b-cell-v2 address (macos-ios-android, 30 members), and
+  # engine_stamp.json, the four POMs, artifacts_manifest.yaml and the
+  # descriptor are rendered to it. 82fc78a8 is retained under `cells:` as
+  # SUPERSEDED, and still serves.
+  #
+  # PREVIOUS MOVE, 2026-11-12 by ROUTE-B-REPIN-2C4B0718, from f85251f3 (below), to the
   # cell minted over engine 2c4b0718's published bytes. 82fc78a8 is the
   # route-b-cell-v2 address (macos-ios-android, 30 members) of those bytes; the
   # raw engine revision cannot be pinned directly because a clean install finds
@@ -127,10 +152,10 @@ lineage:
   #
   # The 16 macOS/iOS members are the BYTE-IDENTICAL bytes cd848320 published, so
   # this move does not disturb any iOS claim in this file; it widens the cell.
-  cell_address: 82fc78a817ce8290b108cea4dec1ee58317e9a9c
-  compiler_archive_sha256: c79e606d29bad618611ac4a42cecadbbb0c4c8343d5aba0ffcd15fdecdd34b03
-  compiler_archive_bytes: 19705681
-  analyzer_sha256: 4f787e109a25bfd5cc8cd7fbe4fc3f178b9535c25aad21527e9903430a9ca478
+  cell_address: 5f6efd9826ae8fadc6ff66150cbcac8c7201140f
+  compiler_archive_sha256: 3adce5e4dd028635dc21ca23d6aff27becaf36dbe672672396ead482dedb2369   # was c79e606d… (19705681 B) in 82fc78a8
+  compiler_archive_bytes: 19789182
+  analyzer_sha256: 0ad7cd521bc52845bfee21aaaad4b3dd2b40909eb8a9531d78544b982f4f8f12   # route_b_analyze.aot in the archive; was 4f787e10…
   updater_revision: 87c198d30f87   # full SHA 87c198d30f875a3da317d70935e1025dc13064dd, DEPS updater_rev at the selector
 
   # THE QUALIFIED CLI PRODUCT TREE, as git tree objects at cli_revision.
@@ -146,11 +171,11 @@ lineage:
   # is a change to what "qualified" was established against. Re-qualifying is a
   # matter of re-running the verifier and updating two lines here.
   cli_product_tree:
-    packages_shorebird_cli: 9d22b7d7e94e1713a0052d1236bc5100d7d5419b   # at 357bc24f; was 8e80b47c at 12f2b3d4
-    bin_internal: 219c662ff0588d20f4afce6f6738cabb9b6f0e22
-  producer_engine_revision: 2c4b071817c52c27142b35ff789749951e5b4d22   # built in; NOT the address. Read from the archive's PROVENANCE.txt
-  fallback_engine_revision: 38855c84ca367c58165b8e3844dd7d6a99dec844   # as 2c4b0718's own experimental_hashes.map entry
-  dart_revision: d2df9606d11f9260bcf5a2118245c322cc2baf8b
+    packages_shorebird_cli: d25369bc3a2981c3957f99f834dcc2a1992ffad0   # at 22f14441; was 9d22b7d7 at 357bc24f
+    bin_internal: 2ffb6e8bcd0581a86c5095f5eb67e8809a2621cc             # at 22f14441; was 219c662f
+  producer_engine_revision: d0714887dd95d2990e0185fe1893523f3d600cc5   # built in; NOT the address. Read from the archive's PROVENANCE.txt
+  fallback_engine_revision: 38855c84ca367c58165b8e3844dd7d6a99dec844   # as d0714887's own experimental_hashes.map entry
+  dart_revision: b4671ab7334caa33015d93a1501db974bdfb25f4   # mml555/dart-sdk-shorebird-lineage; DEPS dart_sdk_revision at the selector
 
 # FLUTTER 3.47 PIN. This block said NOT QUALIFIED while `lineage` still
 # described f85251f3; it no longer does. `lineage` above now describes the 3.47
@@ -158,7 +183,8 @@ lineage:
 # What this block still holds is the identity of the PIN the cell was minted for.
 flutter_3_47_pin:
   status: >-
-    PROMOTED on the frozen chain as cell 82fc78a8 (2026-11-12), and `lineage` is moved to it. DEVICE-QUALIFIED
+    SUPERSEDED 2026-11-15 as the supported pin by engine d0714887 (cell 5f6efd98; see cells.5f6efd98…).
+    PROMOTED on the frozen chain as cell 82fc78a8 (2026-11-12), and `lineage` was moved to it. DEVICE-QUALIFIED
     through the cell address on 2026-11-12 (iPhone 7, clean install: release, Route B patch, rollback), which was
     the stated precondition for the tag selfhost-v1.2.0. See cells.82fc78a8….physically_qualified.
   pin_flutter_revision: d12e29eccfd56355cebdfb40ef0cb2dc674d65f8   # mml555/shorebird-flutter, head of shorebird/dev (PR #12); engine.version 2c4b0718
@@ -186,6 +212,38 @@ flutter_3_47_pin:
 # unchanged; this block exists because a second cell now exists and a reader
 # must be able to tell them apart without reading a conversation.
 cells:
+  5f6efd9826ae8fadc6ff66150cbcac8c7201140f:
+    scope: macos-ios-android
+    members: 30
+    minted: 2026-11-15 (ROUTE-B-REPIN-D0714887)
+    status: >-
+      SELECTED, promoted on the frozen chain -- this is lineage.cell_address (moved here 2026-11-15).
+      DEVICE-QUALIFIED on iOS through the cell address on 2026-11-16 (see physically_qualified).
+    # Every member is the file engine d0714887 published, byte for byte, except
+    # the seven rendered to the new address: engine_stamp.json (git_revision %H),
+    # the four POMs, artifacts_manifest.yaml (regenerated against the 38855c84
+    # base, so flutter_engine_revision stays upstream's 89c39edf) and the
+    # descriptor. 49 served files are byte-identical to d0714887's; the compiler
+    # archive is rebuilt with PR #184's analyzer (route_b_analyze.aot only). The same 26
+    # unaddressed host files as 82fc78a8 ship as host-extras-<address>.tar.
+    pin_flutter_revision: 0987ce0a23c873fbab3832ff0fbf229c7b207b84   # shorebird-flutter PR #15: engine.version = d0714887
+    pin_engine_version: d0714887dd95d2990e0185fe1893523f3d600cc5     # merge of shorebird-flutter #13; Dart b4671ab7
+    proven: >-
+      sealed cold bootstrap, bootstrap_closure_guard and the sealed release/patch
+      chain, re-run for this cell with the CLI that selects it (R12 arm A only; arm B
+      not re-run). See evidence/r12-linux-ci/PROMOTION_5f6efd98.md.
+    physically_qualified: >-
+      2026-11-16, physical iPhone 7 (iOS 15.8), upgrade install over the same bundle id, with
+      the CLI at 22f14441 and flutter ef0eec1b (engine resolved to 5f6efd98 via
+      cell-manifests/5f6efd98….v2, served by the production cdn-cache on ci-build):
+      release 1.0.0+31, Route B patch 1 applied (ROUTEB: applied 1/1 targets) on two
+      launches, rollback back to the release (rolled_back_patch_numbers [1]). PASS.
+      Evidence: evidence/ios-cell-5f6efd98/RESULT.md. Android is proven on the Linux
+      chain (R12 arm A), not on a device.
+    producer_lineage: d0714887dd95d2990e0185fe1893523f3d600cc5
+    fallback_engine_revision: 38855c84ca367c58165b8e3844dd7d6a99dec844
+    evidence: evidence/r12-linux-ci/PROMOTION_5f6efd98.md
+
   cd848320d605ff8af5060cabf9a8d1b35853f752:
     scope: macos-ios
     members: 16
@@ -204,7 +262,7 @@ cells:
     members: 30
     minted: 2026-11-12 (ROUTE-B-REPIN-2C4B0718)
     status: >-
-      SELECTED and device-qualified on iOS — this is lineage.cell_address (moved here 2026-11-12). Qualified
+      SUPERSEDED 2026-11-15 by 5f6efd98. Was SELECTED and device-qualified on iOS — lineage.cell_address from 2026-11-12. Qualified
       on the promotion chain and, on 2026-11-12, by a physical iPhone run through THIS ADDRESS on a clean
       install, served by the production cdn-cache on ci-build after its reload (see physically_qualified).
     # Every member is the file engine 2c4b0718 published, byte for byte, except
@@ -311,15 +369,20 @@ cells:
 # The chain a build actually walks. Each link was read from the artifact itself.
 selector_chain:
   links:
-    - "CLI bin/internal/flutter.version        -> f6bbc8a0b4e4d12f824edea754d05f86047d6c8f"
-    - "F5  bin/internal/engine.version         -> 82fc78a817ce8290b108cea4dec1ee58317e9a9c"
-    - "cell 82fc78a8 route-b-compiler-darwin-arm64.zip -> c79e606d…4b03"
+    - "CLI bin/internal/flutter.version        -> ef0eec1b3868b4d42f9429328554361ad415dbb6"
+    - "F6  bin/internal/engine.version         -> 5f6efd9826ae8fadc6ff66150cbcac8c7201140f"
+    - "cell 5f6efd98 route-b-compiler-darwin-arm64.zip -> 3adce5e4…2369"
+  # The compiler archive CHANGED again on 2026-11-15 (c79e606d…, 19705681 B ->
+  # 3adce5e4…, 19789182 B): it is the one published with engine d0714887.
+  #   superseded: CLI flutter.version -> f6bbc8a0b4e4d12f824edea754d05f86047d6c8f
+  #   superseded: F5 engine.version -> 82fc78a817ce8290b108cea4dec1ee58317e9a9c
+  # The 2026-11-12 move, kept as written:
   # The compiler archive CHANGED in this move (7975b27c…, 19256864 B -> c79e606d…,
   # 19705681 B): it is the one published with engine 2c4b0718. Nothing here
   # claims the f85251f3 iOS qualification carries over to it.
   #   superseded: CLI flutter.version -> 5b180d224df04a267a19888c3f344474e243b382
   #   superseded: F4 engine.version -> f85251f344600ae08196925a174e9cff8f0ff18e
-  # F5's engine.version is a COMMITTED blob at F5's HEAD and its tree is clean.
+  # F6's engine.version is a COMMITTED blob at F6's HEAD and its tree is clean.
   # No uncommitted engine.version is part of this lineage.
   engine_version_committed: true
 
@@ -367,14 +430,17 @@ unsupported:
 # the ones already published and qualified -- not a rebuild, which would be a
 # different cell.
 cell_distribution:
-  cell_address: 82fc78a817ce8290b108cea4dec1ee58317e9a9c
+  cell_address: 5f6efd9826ae8fadc6ff66150cbcac8c7201140f
   members: 30
-  bundle: cell-82fc78a817ce8290b108cea4dec1ee58317e9a9c.tar
-  bundle_sha256: daafa933a42bc202c270dcdf957e816944639f79cdf86e1260cb2b7eea4a46c0
-  bundle_bytes: 740705280
-  layout_sha256: 56675f34d899497b6f98660f937d32170ecc9255d90b37c5e5deb931afc39984
-  descriptor_sha256: 82fc78a817ce8290b108cea4dec1ee58317e9a9cadd5c1cd4e25f64d3f5bf0b2
-  host_extras_sha256: 64cc4a24bb793d670e85a24bf6ec41d2f837d474b7402fbde59c1aa6c083eb5f   # host-extras-<address>.tar, 843810304 B; additive, not addressed
+  bundle: cell-5f6efd9826ae8fadc6ff66150cbcac8c7201140f.tar
+  bundle_sha256: ef568465c9848fe71454b91e29590926de04d11c9184904339abb5ada17ef356
+  bundle_bytes: 740817920
+  layout_sha256: 37ce7822ebe70c40717bb6db1b4cb42bd9e2ace2439a8f178de3ea830343c846
+  descriptor_sha256: 5f6efd9826ae8fadc6ff66150cbcac8c7201140fdadceeefdb9dd47e1bc75349
+  host_extras_sha256: 92478549a83688f99cd75d62da99d31bfe7348d3465083b3ed049207c84f2a8e   # host-extras-<address>.tar, 843897344 B; additive, not addressed
+  # PREVIOUS DISTRIBUTION (still published, tag cell-82fc78a8): bundle
+  # cell-82fc78a817ce8290b108cea4dec1ee58317e9a9c.tar, 740705280 B, sha256
+  # daafa933a42bc202c270dcdf957e816944639f79cdf86e1260cb2b7eea4a46c0.
   # PREVIOUS DISTRIBUTION (still published, tag cell-f85251f3): bundle
   # cell-f85251f344600ae08196925a174e9cff8f0ff18e.tar, 550801920 B, sha256
   # 63f3104d6c45a0d1a937ae0814a32361a07bd920067a8c105c35fff93898d333.
@@ -388,14 +454,14 @@ cell_distribution:
   location:
     kind: github-release-asset
     repo: https://github.com/mml555/shorebird
-    tag: cell-82fc78a8
+    tag: cell-5f6efd98
     assets:
-      - cell-82fc78a817ce8290b108cea4dec1ee58317e9a9c.tar
+      - cell-5f6efd9826ae8fadc6ff66150cbcac8c7201140f.tar
       - cell_manifest.v2
       - LAYOUT.txt
       - MANIFEST.sha256
       - CELL.txt
-      - host-extras-82fc78a817ce8290b108cea4dec1ee58317e9a9c.tar   # additive: the 26 unaddressed host files, NOT part of the address
+      - host-extras-5f6efd9826ae8fadc6ff66150cbcac8c7201140f.tar   # additive: the 26 unaddressed host files, NOT part of the address
   # LAYOUT.txt gives each member's overlay-relative path, RAW sha256 and size,
   # so a consumer reconstructs the CDN hierarchy without knowing anything about
   # our tree. cell_manifest.v2 carries the CANONICAL-form digests the address is
