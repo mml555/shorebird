@@ -1215,9 +1215,12 @@ String? _instanceHelperReason(
   if (_findClass(base, uri, cls.name) == null) {
     return 'a member of `${cls.name}`, which the release does not have';
   }
-  final clash =
-      _declarationClash(base, uri, p.name, null) ??
-      _declarationClash(patched, uri, p.name, p);
+  // A public name is refused below, after the hierarchy check names an
+  // override; uniqueness matters for the private names a helper carries.
+  final clash = !p.name.isPrivate
+      ? null
+      : _declarationClash(base, uri, p.name, null) ??
+            _declarationClash(patched, uri, p.name, p);
   if (clash != null) {
     return "its name is also used by $clash; a carried helper's private name "
         'must be unique in its library, or a reference to the other '
