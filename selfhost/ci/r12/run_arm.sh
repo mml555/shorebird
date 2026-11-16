@@ -81,12 +81,18 @@ say "control-plane loopback forwarder"
 # dialling localhost reaches itself, so the upload is refused with errno 111.
 # Forwarding our own loopback to the host means the arm talks to EXACTLY the
 # historical endpoint, and no shared configuration is repointed.
-socat TCP-LISTEN:18081,fork,reuseaddr TCP:host.docker.internal:18081 &
-sleep 2
-fwd="$(curl -sS -o /dev/null -m 15 -w '%{http_code}' http://localhost:18081/ || echo FAIL)"
-[[ "$fwd" == "200" ]] || die "loopback forwarder is not working (localhost:18081 -> $fwd).
+# A bootstrap-only arm uploads nothing and exits before any control-plane call,
+# so it neither needs the control plane running nor checks it.
+if [[ "$BOOTSTRAP_ONLY" == "1" ]]; then
+  note "localhost:18081          : not checked (bootstrap-only)"
+else
+  socat TCP-LISTEN:18081,fork,reuseaddr TCP:host.docker.internal:18081 &
+  sleep 2
+  fwd="$(curl -sS -o /dev/null -m 15 -w '%{http_code}' http://localhost:18081/ || echo FAIL)"
+  [[ "$fwd" == "200" ]] || die "loopback forwarder is not working (localhost:18081 -> $fwd).
      Every artifact upload would fail with connection refused."
-note "localhost:18081          : $fwd (forwarded to the host control plane)"
+  note "localhost:18081          : $fwd (forwarded to the host control plane)"
+fi
 
 say "gradle configuration"
 # LOCATION ONLY -- NO PROPERTIES ARE SET HERE. An earlier revision wrote
