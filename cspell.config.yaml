@@ -472,6 +472,7 @@ words:
   - untabled # --route_b_untabled_overrides: a selector kept out of the dispatch table
   - untable # to keep a selector out of the dispatch table (see untabled)
   - untables
+  - untab # the Route B device test app's project name (dev.selfhost.untab), in its evidence and scripts
   - noentry # the call-form inventory's case without vm:entry-point on the method
   - swunowned # release probe gate mutation: count a switchable call in an unowned pool
   - swtearoff # release probe gate mutation: count a switchable call in a tear-off's pool

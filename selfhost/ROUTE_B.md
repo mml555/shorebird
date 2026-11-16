@@ -288,12 +288,12 @@ rather than of use.
   `initState` calling `super.initState()` ran on an iPhone 7 from a local test
   cell built from that lineage. See
   [`engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md`](engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md).
-- **Published, 2026-11-16:** the supported cell `5f6efd98` (engine `d0714887`,
-  Dart `b4671ab7`) carries 0017. Its device run
-  ([`ios-cell-5f6efd98`](engine/route_b/evidence/ios-cell-5f6efd98/RESULT.md))
-  patched a plain function; a `super` call through the published cell has not
-  been run on a device yet. The previous cell `82fc78a8` predates 0017 and
-  refuses it.
+- **Published, 2026-11-16:** cell `5f6efd98` (engine `d0714887`, Dart
+  `b4671ab7`) carries 0017, and so does the cell that replaced it the same day,
+  `aab9fd07` (same engine, newer compiler tools). Through `aab9fd07`, a patched
+  `initState` calling `super.initState()` ran on an iPhone 7
+  ([`ios-cell-aab9fd07`](engine/route_b/evidence/ios-cell-aab9fd07/RESULT.md),
+  edit p05). The previous cell `82fc78a8` predates 0017 and refuses it.
 
 The text below was written before D-SUPER-2C and describes the rule; its
 "no release" applies today only to the published 3.47 cell.
@@ -655,7 +655,7 @@ exercising each shape AOT actually emits:
 | top-level static, static method | **yes** |
 | instance method (monomorphic), getter | **yes** — AOT devirtualizes these into static calls |
 | dynamic instance call (`EmitTestAndCall` cid chain) | **yes** |
-| statically-typed polymorphic call (**dispatch table**) | **no** — **yes** under `--route_b_untabled_overrides` (2026-11-14, host; 2026-11-15, an iPhone from a local cell) |
+| statically-typed polymorphic call (**dispatch table**) | **no** — **yes** under `--route_b_untabled_overrides` (2026-11-14, host; 2026-11-15, an iPhone from a local cell; 2026-11-16, an iPhone through the published cell `aab9fd07`) |
 
 Dispatch-table calls load a raw entry point out of a data table and set up
 neither `R0` nor `R4`, so there is no cheap version: rewriting the table is
