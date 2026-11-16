@@ -134,7 +134,7 @@ enum RouteBRepresentability {
   /// Not in the release's manifest. Unknown reachability is not reachability.
   unknown,
 
-  /// New in the patch and not carriable. A patch replaces bodies; from
+  /// New in the patch and not carried. A patch replaces bodies; from
   /// analysis version 16 it may also add a top-level function that only the
   /// patch calls (a helper), and every other new member lands here, with a
   /// reason naming why.
