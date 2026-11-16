@@ -1970,7 +1970,7 @@ void main() {
                 'message',
                 allOf(
                   contains('runs a copy of it inside $inliner'),
-                  contains('version 14 or later'),
+                  contains('version 15 or later'),
                 ),
               ),
             ),
