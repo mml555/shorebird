@@ -106,7 +106,7 @@ shorebird:
        # DEFAULTS patch_verification to install_only (updater-mirror yaml.rs:13-14 at 87c198d3; af6e842c defaulted to strict, yaml.rs:7-8),
        # so a release without an explicit patch_verification verifies the patch signature at install
        # time only, not on every boot.
-                                                             superseded_updater_revision_2026_11_12: af6e842ccf87              # was updater_revision until the 3.47 promotion; its comment block follows, verbatim
+  superseded_updater_revision_2026_11_12: af6e842ccf87              # was updater_revision until the 3.47 promotion; its comment block follows, verbatim
        # --- the comment block below describes the superseded af6e842ccf87 (it said NOT YET in eligibleUpdaterRevisions; that was true then) ---
                                                                     # RESTAMPED 2026-08-27 for cell 4792f0ec. Full SHA
                                                                     # af6e842ccf87a083d1598b1e7c9e0868c5731931, durable
