@@ -69,7 +69,7 @@ const supportedRouteBAnalysisVersion = 11;
 ///
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
-const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15, 16};
+const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15, 16, 17};
 
 /// The first analyzer version that compares fields, `const`s, constructors and
 /// class headers. An older analyzer reads an edit to one as unchanged, so a
@@ -83,6 +83,11 @@ const routeBCarryAnalysisVersion = 15;
 /// helper and reports `helpers`. An older analyzer lists every new member as a
 /// rejection, and this build keeps refusing them for such a cell.
 const routeBHelpersAnalysisVersion = 16;
+
+/// The first analyzer version that also accepts a new INSTANCE METHOD of an
+/// existing class as a helper, with its own `lowering` and `helperCall`
+/// accesses. A version-16 document never lists one: its analyzer refuses them.
+const routeBInstanceHelpersAnalysisVersion = 17;
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -267,7 +272,9 @@ class RouteBReceiverAccess {
   final String member;
 
   /// `get` for `label`, `set` for `label = x`, `invoke` for `helper()` with or
-  /// without arguments. The
+  /// without arguments, `helperCall` for a call to a NEW instance method the
+  /// patch carries (version 17), which takes the receiver as its first
+  /// argument instead of being prefixed by it. The
   /// argument list is copied verbatim and never interpreted, so its shape is
   /// not part of what the lowering has to understand. The surface
   /// widens one form at a time, and the producer refuses a kind it does not

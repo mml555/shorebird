@@ -32,6 +32,82 @@ void main() {
       'refusalSummary': refusalSummary,
     });
 
+    group('instance helpers (analysis version 17)', () {
+      String v17({int version = 17}) => jsonEncode({
+        'analysisVersion': version,
+        'verdict': 'reject',
+        'changed': ['a#Box.show'],
+        'carried': <String>[],
+        'callers': {
+          'a#Box._h': ['a#Box.show'],
+        },
+        'added': ['a#Box._h', 'a#Box._s'],
+        'helpers': ['a#Box._h'],
+        'unusedHelpers': <String>[],
+        'removed': <String>[],
+        'patchable': ['a#Box.show'],
+        'conditional': <String>[],
+        'sources': {
+          'a#Box.show': {'fileUri': 'file:///a.dart', 'start': 0, 'end': 9},
+          'a#Box._h': {'fileUri': 'file:///a.dart', 'start': 10, 'end': 19},
+        },
+        'lowering': {
+          for (final key in ['a#Box.show', 'a#Box._h'])
+            key: {
+              'receiverType': 'Box',
+              'nameOffset': 3,
+              'accesses': [
+                {'offset': 4, 'member': '_h', 'kind': 'helperCall'},
+                {'offset': 8, 'member': 'tag', 'kind': 'get'},
+              ],
+              'unsupported': <String>[],
+              'privateConstructions': <Object>[],
+            },
+        },
+        'rejections': [
+          {
+            'target': 'a#Box._s',
+            'category': 'added',
+            'reason': 'new member, and a static member of `Box`',
+          },
+        ],
+        'refusalSummary': null,
+      });
+
+      test('reads an instance helper, its lowering and the helperCall '
+          'access', () {
+        final coverage = RouteBCoverage.fromJson(v17());
+        expect(coverage.helpers, ['a#Box._h']);
+        expect(coverage.lowering.keys, containsAll(['a#Box.show', 'a#Box._h']));
+        final access = coverage.lowering['a#Box._h']!.accesses.first;
+        expect(access.kind, 'helperCall');
+        expect(access.privateTarget, isNull);
+        expect(coverage.sources['a#Box._h'], isNotNull);
+      });
+
+      test('the refusal counts only the new members that are refused', () {
+        expect(
+          RouteBCoverage.fromJson(v17()).refusalMessage,
+          contains('1 of 2 changed members'),
+        );
+      });
+
+      test('a release callers list leaves out the helper', () {
+        final coverage = RouteBCoverage.fromJson(
+          v17().replaceFirst(
+            '"a#Box._h":["a#Box.show"]',
+            '"a#Box.show":["a#Box._h"]',
+          ),
+        );
+        expect(coverage.releaseCallersOf('a#Box.show'), isEmpty);
+      });
+
+      test('a version 16 document is still read, as before', () {
+        expect(RouteBCoverage.fromJson(v17(version: 16)).helpers, isNotEmpty);
+        expect(knownRouteBAnalysisVersions, containsAll([16, 17]));
+      });
+    });
+
     group('helpers (analysis version 16)', () {
       String v16({
         List<String> added = const ['a#h1', 'a#h2', 'a#nope'],
@@ -312,12 +388,15 @@ void main() {
 
       test('an unknown version is refused, and names what is understood', () {
         expect(
-          () => RouteBCoverage.fromJson(doc(17, body)),
+          () => RouteBCoverage.fromJson(doc(18, body)),
           throwsA(
             isA<FormatException>().having(
               (e) => e.message,
               'message',
-              allOf(contains('version 17'), contains('11, 12, 13, 14, 15, 16')),
+              allOf(
+                contains('version 18'),
+                contains('11, 12, 13, 14, 15, 16, 17'),
+              ),
             ),
           ),
         );

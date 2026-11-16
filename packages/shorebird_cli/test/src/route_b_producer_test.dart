@@ -512,6 +512,294 @@ void main() {
           );
         });
       });
+
+      group('an instance helper (analysis version 17)', () {
+        const targetKey = '$lib#RouteBThing.value';
+
+        /// `class RouteBThing { <decl> <helper> }`, analyzed as the version 17
+        /// analyzer would: the call is a `helperCall` access, and the helper
+        /// has a lowering of its own.
+        RouteBCoverage v17({
+          String decl = 'String value() => _h(label);',
+          String helper = 'String _h(String l) => l + label;',
+          String callName = '_h',
+          int version = routeBInstanceHelpersAnalysisVersion,
+          String receiver = 'RouteBThing',
+          List<Object> helperUnsupported = const [],
+          List<Object> helperAccesses = const [],
+          List<Object> helperSupers = const [],
+          Map<String, Object?>? extra,
+        }) {
+          final helperKey = '$lib#RouteBThing.$callName';
+          final body = 'class RouteBThing {\n  $decl\n  $helper\n}\n';
+          source.writeAsStringSync(body);
+          Map<String, Object?> at(String piece) => {
+            'fileUri': source.uri.toString(),
+            'start': body.indexOf(piece),
+            'end': body.indexOf(piece) + piece.length,
+          };
+          final declAt = body.indexOf(decl);
+          final helperAt = body.indexOf(helper);
+          return RouteBCoverage.fromJson(
+            jsonEncode({
+              'analysisVersion': version,
+              'verdict': 'accept',
+              'changed': [targetKey],
+              'carried': <String>[],
+              'callers': {
+                helperKey: [targetKey],
+              },
+              'added': [helperKey],
+              'helpers': [helperKey],
+              'unusedHelpers': <String>[],
+              'removed': <String>[],
+              'patchable': <String>[],
+              'conditional': [targetKey],
+              'sources': {targetKey: at(decl), helperKey: at(helper)},
+              'lowering': {
+                targetKey: {
+                  'receiverType': receiver,
+                  'nameOffset': body.indexOf('value'),
+                  'accesses': [
+                    {
+                      'offset': declAt + decl.indexOf(callName),
+                      'member': callName,
+                      'kind': 'helperCall',
+                    },
+                    if (decl.contains('label'))
+                      {
+                        'offset': declAt + decl.indexOf('label'),
+                        'member': 'label',
+                        'kind': 'get',
+                      },
+                  ],
+                  'unsupported': <String>[],
+                  'privateConstructions': <Object>[],
+                },
+                helperKey: {
+                  'receiverType': receiver,
+                  'nameOffset': helperAt + helper.indexOf(callName),
+                  'accesses': [
+                    if (helper.contains('label'))
+                      {
+                        'offset': helperAt + helper.indexOf('label'),
+                        'member': 'label',
+                        'kind': 'get',
+                      },
+                    ...helperAccesses,
+                  ],
+                  'unsupported': helperUnsupported,
+                  'superInvocations': helperSupers,
+                  'privateConstructions': <Object>[],
+                },
+              },
+              ...?extra,
+              'rejections': <Object>[],
+              'refusalSummary': null,
+            }),
+          );
+        }
+
+        test('passes the receiver to the call and lowers the helper', () {
+          final out = produceFor(v17());
+          expect(
+            out,
+            contains(
+              'String value(RouteBThing self) => _h(self, self.label);',
+            ),
+          );
+          expect(
+            out,
+            contains(
+              'String _h(RouteBThing self, String l) => l + self.label;',
+            ),
+          );
+          // One entry point, and it is the target's.
+          expect(RegExp('entry-point').allMatches(out), hasLength(1));
+        });
+
+        test('a call with no arguments is passed only the receiver', () {
+          final out = produceFor(
+            v17(
+              decl: 'String value() => _h();',
+              helper: 'String _h() => label;',
+            ),
+          );
+          expect(out, contains('String value(RouteBThing self) => _h(self);'));
+          expect(out, contains('String _h(RouteBThing self) => self.label;'));
+        });
+
+        test('`this._h()` loses its `this.` and `this.label` becomes the '
+            'receiver', () {
+          final out = produceFor(
+            v17(
+              decl: 'String value() => this._h(1);',
+              helper: 'String _h(int n) => this.label;',
+            ),
+          );
+          expect(
+            out,
+            contains('String value(RouteBThing self) => _h(self, 1);'),
+          );
+          expect(
+            out,
+            contains('String _h(RouteBThing self, int n) => self.label;'),
+          );
+        });
+
+        test('a receiver use that opens the argument list does not collide '
+            'with the receiver argument', () {
+          final out = produceFor(
+            v17(decl: 'String value() => _h(label);'),
+          );
+          expect(out, contains('_h(self, self.label)'));
+        });
+
+        test('names its helper like the call does, however it is spelled', () {
+          final out = produceFor(
+            v17(
+              decl: 'String value() => _h (label);',
+              helper: 'String _h(String l) => l;',
+            ),
+          );
+          expect(out, contains('_h (self, self.label)'));
+        });
+
+        test('refuses a private helper when the target resolves private '
+            'names against the release', () {
+          expect(
+            () => produceFor(v17(receiver: '_RouteBThing')),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                allOf(contains('`RouteBThing._h`'), contains('is private')),
+              ),
+            ),
+          );
+        });
+
+        test('a version 16 analysis cannot carry an instance helper', () {
+          expect(
+            () => produceFor(v17(version: 16)),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('predates instance helpers'),
+              ),
+            ),
+          );
+        });
+
+        test('a helper whose body cannot be lowered refuses the patch, and '
+            'says which helper', () {
+          expect(
+            () => produceFor(
+              v17(
+                helperUnsupported: ['uses `this` other than to read a member'],
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                allOf(
+                  contains('`RouteBThing._h`'),
+                  contains('cannot be lowered'),
+                  contains('uses `this`'),
+                ),
+              ),
+            ),
+          );
+        });
+
+        test('a helper with a private access needs the release manifest', () {
+          expect(
+            () => produceFor(
+              v17(
+                decl: 'String value() => rbH(label);',
+                helper: 'String rbH(String l) => l + label;',
+                callName: 'rbH',
+                helperAccesses: [
+                  {
+                    'offset': 0,
+                    'member': '_secret',
+                    'kind': 'get',
+                    'private': {
+                      'library': lib,
+                      'class': 'RouteBThing',
+                      'name': '_secret',
+                    },
+                  },
+                ],
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                allOf(
+                  contains('`RouteBThing.rbH`'),
+                  contains('published no capability manifest'),
+                ),
+              ),
+            ),
+          );
+        });
+
+        test('a helper calling `super` is refused', () {
+          expect(
+            () => produceFor(
+              v17(
+                helperSupers: [
+                  {'offset': 1, 'member': 'toString', 'kind': 'method'},
+                ],
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('calls `super`'),
+              ),
+            ),
+          );
+        });
+
+        test('a call spelled with a type argument list is refused', () {
+          expect(
+            () => produceFor(
+              v17(
+                decl: 'String value() => _h<int>(label);',
+                helper: 'String _h(String l) => l;',
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('not written as a plain call'),
+              ),
+            ),
+          );
+        });
+
+        test('a call on another receiver is refused, not rewritten', () {
+          expect(
+            () => produceFor(
+              v17(decl: 'String value() => other._h(label);'),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('through a receiver this lowering cannot rewrite'),
+              ),
+            ),
+          );
+        });
+      });
     });
 
     group('topLevelForm', () {
