@@ -89,8 +89,9 @@ PASS. See `selfhost/engine/route_b/evidence/ios-cell-aab9fd07/RESULT.md`.
 
 ## Published
 
-Not yet. The owner creates the tag `selfhost-flutter-cell-aab9fd07` on shorebird-flutter at `7def8a99` and
-the release `cell-aab9fd07` on mml555/shorebird. Its assets, from the mint, are:
+The owner created both on 2026-11-16. The tag `selfhost-flutter-cell-aab9fd07` on shorebird-flutter
+points at `7def8a99`. The release `cell-aab9fd07` on mml555/shorebird targets `dd93e875`, and GitHub's
+digest of each of its six files matches this record:
 
 | File | SHA-256 |
 |---|---|
@@ -99,7 +100,10 @@ the release `cell-aab9fd07` on mml555/shorebird. Its assets, from the mint, are:
 | `LAYOUT.txt` | `275c2494...` |
 | descriptor `cell_manifest.v2` | `aab9fd07...` |
 
-The bootstrap ledger rows point at those two tars. They resolve only once the release exists.
+`CELL.txt` and `MANIFEST.sha256` match the mint's copies. Both bootstrap ledger URLs resolve (200), and
+the members they name hash to the rows' SHA-256 and sizes: `dart-sdk-linux-x64.zip` `91dfc837...`
+(214945654 B) and `engine_stamp.json` `1fa4303a...` (239 B). The engine release `engine-d0714887...` on
+shorebird-flutter is unchanged; it was already marked latest for the `5f6efd98` cell.
 
 ## Not done
 
