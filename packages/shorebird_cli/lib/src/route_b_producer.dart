@@ -496,10 +496,18 @@ Object? $_superIntrinsicName(
         // target CAN be carried, so a failure here is the compiler's, and
         // conflating the two sends someone to change their Dart when the
         // problem is the toolchain.
+        // BOTH STREAMS. dart2bytecode prints front-end diagnostics -- the
+        // `Error: ...` lines that say what is wrong with the body -- to
+        // STDOUT, and only crashes reach stderr. Showing stderr alone left a
+        // bare exit code for every ordinary compile error.
+        final output = [
+          '${result.stdout}'.trim(),
+          '${result.stderr}'.trim(),
+        ].where((s) => s.isNotEmpty).join('\n');
         throw RouteBUnsupportedTarget(
           key,
           'the bytecode compiler refused its replacement body '
-          '(exit ${result.exitCode})\n${result.stderr}',
+          '(exit ${result.exitCode})${output.isEmpty ? '' : '\n$output'}',
         );
       }
 
