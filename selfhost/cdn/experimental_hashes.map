@@ -520,3 +520,8 @@ d0714887dd95d2990e0185fe1893523f3d600cc5 38855c84ca367c58165b8e3844dd7d6a99dec84
 # compiler archive carries the analyzer of mml555/shorebird #184; fb12c60a, the
 # same cell with v14's analyzer, crashed releasing for iOS and was never selected.
 5f6efd9826ae8fadc6ff66150cbcac8c7201140f 38855c84ca367c58165b8e3844dd7d6a99dec844
+# The Flutter 3.47 cell over engine d0714887 (Route B iOS), route-b-cell-v2,
+# macos-ios-android, 30 members, minted like 5f6efd98 with only its compiler
+# archive changed: the tools of mml555/shorebird #189 (coverage analyzer v15,
+# carry and callers; release probe inlined_into and held tear-offs).
+aab9fd07857142c232e4b5a41e41814b8dbf640f 38855c84ca367c58165b8e3844dd7d6a99dec844
