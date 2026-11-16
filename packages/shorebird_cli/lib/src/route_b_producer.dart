@@ -140,11 +140,20 @@ class RouteBProducer {
   static const _superIntrinsicName = r'$routeBSuper';
 
   /// The declaration, emitted only for a replacement that needs it.
+  ///
+  /// The receiver is `dynamic`, not `Object`. A private receiver class is
+  /// written `dynamic self`, and passing that to an `Object` parameter makes
+  /// the front end wrap it in an implicit `self as Object`. The compiler
+  /// requires the receiver argument to be exactly the entry point's parameter
+  /// 0, so it refused every `super` call in a private class -- every State's
+  /// `initState` and `dispose`, measured on the iPhone (exit 255, "receiver is
+  /// not parameter 0 of the entry point"). A `dynamic` parameter takes either
+  /// spelling with no cast.
   static const _superIntrinsicDeclaration =
       '''
 @pragma('shorebird:direct-super')
 Object? $_superIntrinsicName(
-  Object receiver,
+  dynamic receiver,
   String originLibrary,
   String originClass,
   String originMember,
