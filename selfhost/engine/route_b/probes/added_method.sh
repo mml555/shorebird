@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime prepass sbrbptch
+# cspell:words dartaotruntime prepass sbrbptch KIDBODY NEWDUP
 #
 # added_method.sh -- a Route B patch may ADD an instance METHOD to an existing
 # class, called from a replaced instance method of the same class (analysis
