@@ -312,12 +312,12 @@ void main() {
 
       test('an unknown version is refused, and names what is understood', () {
         expect(
-          () => RouteBCoverage.fromJson(doc(16, body)),
+          () => RouteBCoverage.fromJson(doc(17, body)),
           throwsA(
             isA<FormatException>().having(
               (e) => e.message,
               'message',
-              allOf(contains('version 16'), contains('11, 12, 13, 14, 15')),
+              allOf(contains('version 17'), contains('11, 12, 13, 14, 15, 16')),
             ),
           ),
         );

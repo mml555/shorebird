@@ -381,6 +381,7 @@ void main() {
                     },
                   ],
                   'unsupported': <String>[],
+                  'privateConstructions': <Object>[],
                 },
               },
               'rejections': <Object>[],
