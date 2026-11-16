@@ -8,6 +8,13 @@ when an item here changes; history of how things got here lives in the PRs and i
 
 Feature-by-feature comparison with upstream Shorebird: [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md).
 
+**Supported stack since 2026-11-16** (newer than the sections below, which still describe 2026-11-11): CLI
+`22f14441`, shorebird-flutter `ef0eec1b`, cell `5f6efd98` over engine `d0714887` (Dart `b4671ab7`). The values
+are in [`compatibility.yaml`](compatibility.yaml) and
+[`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml). The evidence is in
+[`PROMOTION_5f6efd98.md`](evidence/r12-linux-ci/PROMOTION_5f6efd98.md) and
+[`ios-cell-5f6efd98`](engine/route_b/evidence/ios-cell-5f6efd98/RESULT.md).
+
 ## The four repositories
 
 | Repository | Active branch | State |

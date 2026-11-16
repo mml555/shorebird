@@ -188,7 +188,7 @@ flutter_3_47_pin:
     through the cell address on 2026-11-12 (iPhone 7, clean install: release, Route B patch, rollback), which was
     the stated precondition for the tag selfhost-v1.2.0. See cells.82fc78a8….physically_qualified.
   pin_flutter_revision: d12e29eccfd56355cebdfb40ef0cb2dc674d65f8   # mml555/shorebird-flutter, head of shorebird/dev (PR #12); engine.version 2c4b0718
-  selected_by_flutter_revision: f6bbc8a0b4e4d12f824edea754d05f86047d6c8f   # d12e29ec + engine.version = 82fc78a8; this is lineage.flutter_selector
+  selected_by_flutter_revision: f6bbc8a0b4e4d12f824edea754d05f86047d6c8f   # d12e29ec + engine.version = 82fc78a8; was lineage.flutter_selector until 2026-11-16 (now ef0eec1b, cell 5f6efd98)
   pin_engine_version: 2c4b071817c52c27142b35ff789749951e5b4d22     # the engine whose bytes the cell publishes
   pin_updater_revision: 87c198d30f875a3da317d70935e1025dc13064dd   # DEPS updater_rev at that revision
   pin_fallback_engine_revision: 38855c84ca367c58165b8e3844dd7d6a99dec844   # experimental_hashes.map; unbuilt artifacts (Android debug and profile) come from here
