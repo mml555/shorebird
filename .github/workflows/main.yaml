@@ -90,6 +90,24 @@ jobs:
       - name: 🪄 Spell Check (declared full-tree scope)
         run: npx --yes cspell@10.4.0 --dot --no-progress --no-summary selfhost packages/code_push_server/lib
 
+  # Most scripts here read YAML a line at a time with sed or grep, so a file can
+  # stop being YAML without anything failing: selfhost/compatibility.yaml did,
+  # from #134 until #187. The home runner has PyYAML; where it is missing the
+  # script exits 2 and says so.
+  yaml_parses:
+    name: 🧾 YAML Loads
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
+    timeout-minutes: 5
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 🧾 Every tracked YAML file loads
+        run: python3 tool/check_yaml_parses.py
+
   changes:
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
@@ -227,7 +245,7 @@ jobs:
 
   ci:
     needs:
-      [actionlint, changes, cspell_full_tree, license_check, updater_rust, verify_packages]
+      [actionlint, changes, cspell_full_tree, license_check, updater_rust, verify_packages, yaml_parses]
     # Not always(): that keeps this job alive through a run cancellation,
     # so a superseded push would report ci red on the stale commit. A
     # skipped required check reports success, which is the right answer
