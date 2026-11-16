@@ -516,6 +516,7 @@ void main() {
         // The target's own key. Only a test about the target's LIBRARY needs to
         // change it; everything else wants the one shared key.
         String targetKey = key,
+        String name = 'value',
         String member = 'label',
         String kind = 'get',
         // A second receiver access, for an argument that itself touches the
@@ -550,7 +551,7 @@ void main() {
             'lowering': {
               targetKey: {
                 'receiverType': receiverType,
-                'nameOffset': start + decl.indexOf('value'),
+                'nameOffset': start + decl.indexOf(name),
                 'accesses': [
                   if (access.isNotEmpty)
                     {
@@ -688,6 +689,24 @@ void main() {
               "@pragma('vm:never-inline')\n  String value(RouteBThing self) {\n"
               '    return self.label;\n  }',
             ),
+          );
+        });
+
+        test('takes a private getter, the common Flutter shape', () {
+          // `bool get _isEmpty` on a private State: the selector is
+          // `get:_isEmpty`, and its own name must not read as a private
+          // reference the release did not grant.
+          expect(
+            lowered(
+              instanceCoverage(
+                targetKey: 'package:app/main.dart#RouteBThing.get:_value',
+                preamble: 'class RouteBThing {\n  ',
+                decl: 'String get _value => label;',
+                name: '_value',
+                access: 'label',
+              ),
+            ),
+            contains('String _value(RouteBThing self) => self.label;'),
           );
         });
 

@@ -116,6 +116,44 @@ void main() {
       expect(result.carried, [start]);
     });
 
+    test('leaves a constructor caller of a folded target uncarried', () {
+      // The analyzer reports a constructor whose initializer calls the target,
+      // and a field initializer, as callers too. Neither is a procedure, so
+      // `--carry` cannot carry them; the loop must stop with them still
+      // missing, for the producer to refuse rather than ship half a patch.
+      const box = '$lib#Box.new';
+      const field = '$lib#viaField';
+      final initial = analysis(
+        callers: {
+          increment: [box, start, field],
+        },
+      );
+      final result = carryRouteBCompanions(
+        initial: initial,
+        survival: over({
+          increment: zero(),
+          start: green(),
+        }),
+        // As the analyzer does: `carried` holds only the procedures it knows.
+        analyze: (carry) => analysis(
+          carried: carry.where((k) => k == start).toList(),
+          callers: {
+            increment: [box, start, field],
+          },
+        ),
+      );
+
+      expect(result.carried, [start]);
+      final companions = routeBCompanionsFor(
+        zero(),
+        callers: result.callers?[increment],
+      );
+      expect(
+        companions!.difference({...result.changed, ...result.carried}),
+        {box, field},
+      );
+    });
+
     test('follows a carried member that was itself inlined', () {
       final carries = <Set<String>>[];
       carryRouteBCompanions(

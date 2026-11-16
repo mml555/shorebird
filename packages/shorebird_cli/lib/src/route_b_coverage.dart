@@ -781,7 +781,7 @@ class RouteBCoverage {
   final List<String> carried;
 
   /// For each analyzed member, the app members whose bodies name it in the
-  /// patched kernel. Null for an analysis from before version 14.
+  /// patched kernel. Null for an analysis from before version 15.
   final Map<String, List<String>>? callers;
 
   /// Whether the analyzer that wrote this takes `--carry`.

@@ -176,7 +176,8 @@ import 'package:kernel/text/ast_to_text.dart';
 ///     the document lists such members under `carried`, apart from `changed`.
 ///     Every member analyzed, changed or carried, gets a `callers` entry: the
 ///     app members whose bodies (closures included) name it, or name a member
-///     it overrides, in the patched kernel.
+///     it overrides, in the patched kernel, including constructors and field
+///     initializers, which no patch can carry (see `_callers`).
 ///
 ///     WHY. A target can have no call site left in the release because its
 ///     callers inlined it, or because TFA folded its result into them. The
@@ -207,7 +208,7 @@ void main(List<String> args) {
   var census = false;
   String? censusPath;
   final includePrefixes = <String>[];
-  // Version 14: unchanged members to analyze as if they had changed.
+  // Version 15: unchanged members to analyze as if they had changed.
   final carryKeys = <String>{};
 
   for (var i = 0; i < args.length; i++) {
@@ -728,11 +729,15 @@ Component _load(String path) {
   return c;
 }
 
-/// Version 14: for each key in [subjects], the app members in [c] whose bodies
-/// name it -- a call, a get or set, a tear-off, a super access -- or name a
-/// member it overrides, since a call through the overridden member can reach
-/// it. A reference inside a closure counts for the member the closure is
-/// written in. Sorted, without the member itself.
+/// Version 15: for each key in [subjects], the app members in [c] whose bodies
+/// name it -- a call, a get or set, a tear-off, a super access, an `==` -- or
+/// name a member it overrides, since a call through the overridden member can
+/// reach it. A dynamic access counts for every subject of its name. A
+/// reference inside a closure counts for the member the closure is written in.
+/// Constructors and field initializers are included under their own keys
+/// (`Class.new`, `Class.name`, a top-level field's name); no patch can carry
+/// them, so naming them makes the CLI refuse. Sorted, without the member
+/// itself.
 Map<String, List<String>> _callers(
   Component c,
   bool Function(Library) isApp,
@@ -777,31 +782,104 @@ Map<String, List<String>> _callers(
     }
   }
 
+  // A dynamic access names a member, not a target: it can reach any member of
+  // that name, so it counts as a call to every subject called that.
+  final byName = <String, Set<String>>{};
+  for (final e in wanted.entries) {
+    (byName[e.key.name.text] ??= {}).addAll(e.value);
+  }
+
   final out = {for (final k in subjects) k: <String>{}};
+  void record(String caller, TreeNode node) {
+    final refs = _References();
+    node.accept(refs);
+    final hit = <String>{
+      for (final m in refs.members) ...?wanted[m],
+      for (final n in refs.dynamicNames) ...?byName[n],
+    };
+    for (final key in hit) {
+      if (key != caller) out[key]!.add(caller);
+    }
+  }
+
   void scan(Procedure p) {
     final caller = keyOf(p);
-    if (caller == null) return;
-    final refs = _References();
-    p.function.accept(refs);
-    for (final m in refs.members) {
-      for (final key in wanted[m] ?? const <String>{}) {
-        if (key != caller) out[key]!.add(caller);
-      }
+    if (caller != null) record(caller, p.function);
+  }
+
+  // NOT ONLY PROCEDURES. A constructor's initializers and body, and a field's
+  // initializer, run code too, and a folded target's old value can sit in them.
+  // A patch replaces procedures only, so these callers can never be carried.
+  // They are reported anyway, under their own keys: the CLI then lacks them as
+  // companions and refuses the patch, naming them, instead of shipping one that
+  // leaves those paths on the release's value.
+  String nonProcedureKey(Library lib, Class? cls, String name) =>
+      '${lib.importUri}#${cls == null ? name : '${cls.name}.$name'}';
+
+  void scanConstructor(Library lib, Class cls, Constructor k) {
+    final key = nonProcedureKey(
+      lib,
+      cls,
+      k.name.text.isEmpty ? 'new' : k.name.text,
+    );
+    for (final i in k.initializers) {
+      record(key, i);
     }
+    record(key, k.function);
+  }
+
+  void scanField(Library lib, Class? cls, Field f) {
+    final init = f.initializer;
+    if (init != null) record(nonProcedureKey(lib, cls, f.name.text), init);
   }
 
   for (final lib in c.libraries.where(isApp)) {
     lib.procedures.forEach(scan);
+    for (final f in lib.fields) {
+      scanField(lib, null, f);
+    }
     for (final cls in lib.classes) {
       cls.procedures.forEach(scan);
+      for (final k in cls.constructors) {
+        scanConstructor(lib, cls, k);
+      }
+      for (final f in cls.fields) {
+        scanField(lib, cls, f);
+      }
     }
   }
   return {for (final e in out.entries) e.key: e.value.toList()..sort()};
 }
 
-/// Every member a body names, closures included.
+/// Every member a body names, closures included, and the names it accesses
+/// dynamically.
 class _References extends RecursiveVisitor {
   final members = <Member>{};
+  final dynamicNames = <String>{};
+
+  @override
+  void visitEqualsCall(EqualsCall node) {
+    members.add(node.interfaceTarget);
+    super.visitEqualsCall(node);
+  }
+
+  @override
+  void visitDynamicInvocation(DynamicInvocation node) {
+    dynamicNames.add(node.name.text);
+    super.visitDynamicInvocation(node);
+  }
+
+  @override
+  void visitDynamicGet(DynamicGet node) {
+    dynamicNames.add(node.name.text);
+    super.visitDynamicGet(node);
+  }
+
+  @override
+  void visitDynamicSet(DynamicSet node) {
+    dynamicNames.add(node.name.text);
+    super.visitDynamicSet(node);
+  }
 
   @override
   void visitStaticInvocation(StaticInvocation node) {

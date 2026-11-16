@@ -141,14 +141,15 @@ class RouteBProducer {
 
   /// The declaration, emitted only for a replacement that needs it.
   ///
-  /// The receiver is `dynamic`, not `Object`. A private receiver class is
-  /// written `dynamic self`, and passing that to an `Object` parameter makes
-  /// the front end wrap it in an implicit `self as Object`. The compiler
-  /// requires the receiver argument to be exactly the entry point's parameter
-  /// 0, so it refused every `super` call in a private class -- every State's
-  /// `initState` and `dispose`, measured on the iPhone (exit 255, "receiver is
-  /// not parameter 0 of the entry point"). A `dynamic` parameter takes either
-  /// spelling with no cast.
+  /// The receiver is `dynamic`, not `Object`. The compiler requires the
+  /// receiver argument to be exactly the entry point's parameter 0, and any
+  /// implicit cast around it breaks that. When a private receiver class was
+  /// written `dynamic self`, an `Object` parameter wrapped it in `self as
+  /// Object`, and every `super` call in a private class -- every State's
+  /// `initState` and `dispose` -- was refused on the iPhone (exit 255,
+  /// "receiver is not parameter 0 of the entry point"). The receiver is now
+  /// typed with its own class, which an `Object` parameter would take as a
+  /// plain upcast; `dynamic` stays because it takes any spelling with no cast.
   static const _superIntrinsicDeclaration =
       '''
 @pragma('shorebird:direct-super')
@@ -1231,8 +1232,14 @@ Object? $_superIntrinsicName(
       }
     }
     // The declaration's own name may be private -- patching `_helper` is
-    // ordinary -- and it is a declaration here, not a reference.
-    final own = key.split('#').last.split('.').last;
+    // ordinary -- and it is a declaration here, not a reference. A getter's or
+    // setter's selector is `get:_name`, and the text says `_name`.
+    final own = key
+        .split('#')
+        .last
+        .split('.')
+        .last
+        .replaceFirst(RegExp(r'^[gs]et:'), '');
     for (final name in _privateIdentifiers(text)) {
       if (granted.contains(name) || name == own) continue;
       throw RouteBUnsupportedTarget(
