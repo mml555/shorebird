@@ -342,7 +342,7 @@ Object? $_superIntrinsicName(
               compiler,
               patchedVerificationKernel,
             )
-          : _Lowered(_slice(key, source));
+          : _Lowered(topLevelForm(_slice(key, source)));
       final declaration = lowered.declaration;
       // G4.1c link 2, the LEGACY case. A release cut before injected defines
       // were recorded cannot be given them retroactively — the values came from
@@ -1303,6 +1303,97 @@ Object? $_superIntrinsicName(
   static final _privateIdentifier = RegExp(
     r'(?<![A-Za-z0-9_$])_[A-Za-z0-9_$]*',
   );
+
+  /// [declaration] as the replacement library declares it: at top level.
+  ///
+  /// A class's static member is sliced with its `static` modifier, which is a
+  /// compile error outside a class, so dart2bytecode refused every static
+  /// method with exit 254. Annotations ahead of the modifier are kept, and
+  /// skipped by a scan rather than a pattern: an annotation's arguments nest
+  /// (`@Foo(Bar())`), take type arguments (`@Foo<int>()`) and hold strings
+  /// with brackets in them (`@Foo(')')`).
+  @visibleForTesting
+  static String topLevelForm(String declaration) {
+    final at = _modifierPosition(declaration);
+    if (at < 0) return declaration;
+    var end = at + 'static'.length;
+    while (end < declaration.length && _isSpace(declaration, end)) {
+      end++;
+    }
+    return declaration.replaceRange(at, end, '');
+  }
+
+  /// Where [declaration]'s leading `static` starts, past whitespace, comments
+  /// and annotations; -1 when it does not start with one.
+  static int _modifierPosition(String declaration) {
+    var i = 0;
+    while (true) {
+      i = _skipTrivia(declaration, i);
+      if (i >= declaration.length || declaration[i] != '@') break;
+      i++;
+      while (i < declaration.length &&
+          _nameCharacter.hasMatch(declaration[i])) {
+        i++;
+      }
+      i = _skipTrivia(declaration, i);
+      if (i < declaration.length && declaration[i] == '<') {
+        i = _skipBalanced(declaration, i, '<', '>');
+        i = _skipTrivia(declaration, i);
+      }
+      if (i < declaration.length && declaration[i] == '(') {
+        i = _skipBalanced(declaration, i, '(', ')');
+      }
+      if (i < 0) return -1;
+    }
+    return _staticWord.matchAsPrefix(declaration, i) == null ? -1 : i;
+  }
+
+  static final _nameCharacter = RegExp(r'[\w$.]');
+  static final _staticWord = RegExp(r'static(?![\w$])');
+
+  static bool _isSpace(String s, int i) => ' \t\r\n'.contains(s[i]);
+
+  /// Past whitespace and comments from [from].
+  static int _skipTrivia(String s, int from) {
+    var i = from;
+    while (i < s.length) {
+      if (_isSpace(s, i)) {
+        i++;
+      } else if (s.startsWith('//', i)) {
+        final eol = s.indexOf('\n', i);
+        i = eol < 0 ? s.length : eol + 1;
+      } else if (s.startsWith('/*', i)) {
+        final close = s.indexOf('*/', i + 2);
+        i = close < 0 ? s.length : close + 2;
+      } else {
+        break;
+      }
+    }
+    return i;
+  }
+
+  /// Past the bracket at [from] and everything up to its partner, skipping
+  /// strings; -1 when it never closes.
+  static int _skipBalanced(String s, int from, String open, String close) {
+    var i = from;
+    var depth = 0;
+    while (i < s.length) {
+      final c = s[i];
+      if (c == "'" || c == '"') {
+        final quote = s.startsWith(c * 3, i) ? c * 3 : c;
+        i += quote.length;
+        while (i < s.length && !s.startsWith(quote, i)) {
+          i += s[i] == r'\' ? 2 : 1;
+        }
+        i += quote.length;
+        continue;
+      }
+      if (c == open) depth++;
+      if (c == close && --depth == 0) return i + 1;
+      i++;
+    }
+    return -1;
+  }
 
   /// The declaration's source text, from the patch's own file.
   String _slice(String key, RouteBSourceSpan span) {
