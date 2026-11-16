@@ -1,0 +1,14 @@
+{
+  "note": "A field read and written by one token (`_count += 10`). The analyzer reports a get and a set at one offset; one receiver prefix rewrites both, so it comes out CONDITIONAL and ships like any instance member.",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#Counter.bump"
+  ],
+  "patchable": [],
+  "conditional": [
+    "package:corpus/main.dart#Counter.bump"
+  ],
+  "unreachable": [],
+  "added": [],
+  "rejectionReasons": []
+}

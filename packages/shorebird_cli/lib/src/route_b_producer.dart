@@ -878,13 +878,29 @@ Object? $_superIntrinsicName(
       source.substring(span.start, span.end),
     );
 
-    // ONE EDIT PER OFFSET. `label += 'X'` reports a read and a write at the same
-    // identifier, and two insertions there would produce `self.self.label`. The
-    // analyzer refuses that, so reaching here means the two disagree — which is
-    // exactly when a silent wrong edit is most likely.
-    final seen = <int>{};
+    // ONE EDIT PER OFFSET. `label += 'X'`, `count++` and `maybe ??= 'Z'`
+    // report a read AND a write at the same identifier, because one token does
+    // both. One receiver prefix there is the whole rewrite --
+    // `self.label += 'X'` reads and writes the same member the original did --
+    // while two insertions would produce `self.self.label`. So a position
+    // carrying exactly one read and one write of ONE member gets one edit.
+    // Anything else sharing a position -- a third access, two reads, two
+    // members -- means the analyzer and this producer disagree about the
+    // source, which is exactly when a silent wrong edit is likeliest.
+    final edited = <int, RouteBReceiverAccess>{};
+    final paired = <int>{};
     for (final access in lowering.accesses) {
-      if (!seen.add(access.offset)) {
+      final first = edited[access.offset];
+      if (first == null) {
+        edited[access.offset] = access;
+        continue;
+      }
+      const readWrite = {'get', 'set'};
+      if (!paired.add(access.offset) ||
+          first.member != access.member ||
+          first.kind == access.kind ||
+          !readWrite.contains(first.kind) ||
+          !readWrite.contains(access.kind)) {
         throw RouteBUnsupportedTarget(
           key,
           'uses `${access.member}` twice at one position, which cannot be '
@@ -965,7 +981,7 @@ Object? $_superIntrinsicName(
       '$_receiverTypePlaceholder $receiverName$separator',
     ));
 
-    for (final access in lowering.accesses) {
+    for (final access in edited.values) {
       // The edit below inserts or replaces a receiver prefix immediately before
       // the identifier, which suits a read and a zero-argument call alike. A
       // kind added later may not work that way, so refuse rather than guess --

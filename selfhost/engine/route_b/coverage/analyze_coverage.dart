@@ -1582,21 +1582,32 @@ Map<String, Object?> _lowering(
   function.accept(visitor);
   unsupported.addAll(visitor.unsupported);
 
-  // ONE SOURCE TOKEN CANNOT BE TWO EDITS. `label += 'X'`, `count++` and
+  // ONE SOURCE TOKEN, ONE EDIT. `label += 'X'`, `count++` and
   // `maybe ??= 'Z'` each report a read AND a write at the SAME offset, because
-  // one identifier is doing both jobs. The producer inserts a receiver prefix
-  // at an offset, so two edits there would yield `self.self.label`.
+  // one identifier is doing both jobs. One receiver prefix rewrites both:
+  // `self.label += 'X'` reads and writes the member the original did, and the
+  // producer emits one edit for such a position. `_count += 1` inside a
+  // setState closure, the most common shape in a Flutter app, is this.
   //
-  // Detected by the collision rather than by listing operators: it catches
-  // compound assignment, increment and if-null uniformly, including forms
-  // nobody has thought of yet. `label = label + 'Y'` is untouched by it --
-  // measured at two distinct offsets, because it really is two tokens.
+  // Anything else sharing an offset -- two members, two reads, a third
+  // access, or a call -- is refused: that is not a shape this lowering has
+  // been shown to rewrite. Measured on the host front end: `this._a += 2`,
+  // `this.b++`, `++this.b`, `this._c ??= 4` and `_d += 2` inside a closure all
+  // put the read and the write at the member NAME, so an explicit `this.` is
+  // still one edit (the producer replaces `this.` with the receiver).
+  // `label = label + 'Y'` is untouched by this -- measured at two distinct
+  // offsets, because it really is two tokens.
   final byOffset = <int, List<_Access>>{};
   for (final a in visitor.accesses) {
     byOffset.putIfAbsent(a.offset, () => []).add(a);
   }
   for (final entry in byOffset.entries) {
-    if (entry.value.length > 1) {
+    // Exactly one read and one write: a third access, or two of one kind, is
+    // not something a compound assignment produces.
+    final readWriteOfOne = entry.value.length == 2 &&
+        entry.value.map((a) => a.member).toSet().length == 1 &&
+        entry.value.map((a) => a.kind).toSet().containsAll(const {'get', 'set'});
+    if (entry.value.length > 1 && !readWriteOfOne) {
       final kinds = entry.value.map((a) => a.kind).join('+');
       unsupported.add(
         'reads and writes `${entry.value.first.member}` in one expression '

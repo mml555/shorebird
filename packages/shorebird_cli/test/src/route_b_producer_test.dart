@@ -1045,11 +1045,61 @@ void main() {
         );
       });
 
-      test('refuses a read and a write at one position', () {
+      test('rewrites a read and a write at one position once', () {
         // `label += 'X'`, `count++` and `maybe ??= 'Z'` each report a read AND a
-        // write at the same identifier — measured, not assumed. Two insertions
-        // there would produce `self.self.label`. The analyzer refuses it; this
-        // is the producer's backstop for the two disagreeing.
+        // write at the same identifier — measured, not assumed. One prefix is
+        // the whole rewrite; two would produce `self.self.label`.
+        for (final (decl, out) in [
+          (
+            "String value() => label += 'X';",
+            "String value(RouteBThing self) => self.label += 'X';",
+          ),
+          (
+            'int value() => count++;',
+            'int value(RouteBThing self) => self.count++;',
+          ),
+          (
+            "String value() => label ??= 'Z';",
+            "String value(RouteBThing self) => self.label ??= 'Z';",
+          ),
+          // An explicit `this.`: the read and the write are measured at the
+          // member name, so `this.` is replaced once.
+          (
+            "String value() => this.label += 'X';",
+            "String value(RouteBThing self) => self.label += 'X';",
+          ),
+          (
+            'int value() => ++this.count;',
+            'int value(RouteBThing self) => ++self.count;',
+          ),
+          // Inside a closure, the setState shape.
+          (
+            'void value() => run(() { count += 1; });',
+            'void value(RouteBThing self) => run(() { self.count += 1; });',
+          ),
+        ]) {
+          final name = decl.contains('count') ? 'count' : 'label';
+          final access = decl.contains('this.') ? 'this.$name' : name;
+          expect(
+            lowered(
+              instanceCoverage(
+                preamble: 'class RouteBThing {\n  ',
+                decl: decl,
+                access: access,
+                member: name,
+                kind: 'set',
+                also: access,
+                alsoMember: name,
+              ),
+            ),
+            contains(out),
+          );
+        }
+      });
+
+      test('refuses two different members at one position', () {
+        // Not a shape the analyzer reports; the backstop for the two
+        // disagreeing about the source.
         expect(
           () => lowered(
             instanceCoverage(
@@ -1058,7 +1108,27 @@ void main() {
               access: 'label',
               kind: 'set',
               also: 'label',
-              alsoKind: 'get',
+              alsoMember: 'other',
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('twice at one position'),
+            ),
+          ),
+        );
+      });
+
+      test('refuses two reads of one member at one position', () {
+        expect(
+          () => lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: 'String value() => label;',
+              access: 'label',
+              also: 'label',
             ),
           ),
           throwsA(
