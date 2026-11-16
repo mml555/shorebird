@@ -370,10 +370,29 @@ Object? $_superIntrinsicName(
               capabilities,
               compiler,
               patchedVerificationKernel,
+              {
+                // The names of the helpers this target calls. They are
+                // declared in the replacement library itself, not the
+                // release's, so the private-name backstop does not apply to
+                // them; `_helperSources` decides whether a private one may
+                // ship.
+                for (final helper in coverage.helpers)
+                  if (coverage.callers?[helper]?.contains(key) ?? false)
+                    helper
+                        .split('#')
+                        .last
+                        .replaceFirst(RegExp(r'^[gs]et:'), ''),
+              },
             )
           : _Lowered(topLevelForm(_slice(key, source)));
       // HELPERS this target transitively needs, as source, after the entry.
-      final helperText = _helperSources(key, lowering != null, coverage);
+      // Whether this target compiles with private names resolved against the
+      // release's library; see the comment where it is passed.
+      final resolvesPrivateNames =
+          (lowering?.accesses.any((a) => a.privateTarget != null) ?? false) ||
+          (lowering?.privateConstructions?.isNotEmpty ?? false) ||
+          (lowering?.receiverType.startsWith('_') ?? false);
+      final helperText = _helperSources(key, resolvesPrivateNames, coverage);
       final declaration = lowered.declaration;
       // G4.1c link 2, the LEGACY case. A release cut before injected defines
       // were recorded cannot be given them retroactively — the values came from
@@ -432,10 +451,7 @@ Object? $_superIntrinsicName(
       // parameter is written with its class's own name (see the lowering), and
       // `_FooState` is spelled in the replacement only if the front end resolves
       // it in the target library.
-      final resolvesPrivateNames =
-          (lowering?.accesses.any((a) => a.privateTarget != null) ?? false) ||
-          (lowering?.privateConstructions?.isNotEmpty ?? false) ||
-          (lowering?.receiverType.startsWith('_') ?? false);
+      // (`resolvesPrivateNames`, computed above.)
       // IMPORT THE TARGET'S OWN LIBRARY. A replacement body may reference other
       // members of the library it replaces a function in, and a synthetic
       // library that imports nothing cannot see them:
@@ -604,14 +620,21 @@ Object? $_superIntrinsicName(
   /// so two targets using one helper do not share it (a tear-off of it is not
   /// identical across them).
   ///
-  /// An INSTANCE target (one the producer lowers) is compiled with the
-  /// private-name resolution that its private accesses may need, and that flag
-  /// makes every private name in the whole library resolve against the release
+  /// A target that reaches release-private members ([resolvesPrivateNames]:
+  /// a granted private access, a private construction or a private receiver
+  /// class) is compiled with `--resolve-private-names-in-library`, which makes
+  /// every private name in the whole library resolve against the release
   /// library rather than the replacement. A private helper, or a helper whose
   /// text names any private identifier, could then bind to a release member
   /// nobody granted, so those combinations are refused. Not measured to be
-  /// unsafe; not measured to be safe.
-  String _helperSources(String key, bool lowered, RouteBCoverage coverage) {
+  /// unsafe; not measured to be safe. Without that flag a private name
+  /// resolves in the replacement library, where a private helper is declared
+  /// and a release-private name fails to compile rather than binding.
+  String _helperSources(
+    String key,
+    bool resolvesPrivateNames,
+    RouteBCoverage coverage,
+  ) {
     if (coverage.helpers.isEmpty) return '';
     final needed = <String>{};
     var grew = true;
@@ -637,17 +660,18 @@ Object? $_superIntrinsicName(
         );
       }
       final text = _slice(key, span);
-      if (lowered) {
+      if (resolvesPrivateNames) {
         final name = helper.split('#').last;
         if (name.replaceFirst(RegExp(r'^[gs]et:'), '').startsWith('_') ||
             _privateIdentifiers(text).isNotEmpty) {
           throw RouteBUnsupportedTarget(
             key,
             'it needs the new function `$name`, which names a private '
-            'identifier, and a method target is compiled with private names '
-            "resolved against the release's library. A private name could "
-            'then bind to a member the release never granted. Make the helper '
-            'public and free of private names, or patch a top-level function',
+            "identifier, and this target is compiled with private names "
+            "resolved against the release's library because it reaches a "
+            'private member of the release. A private name could then bind to '
+            'a member the release never granted. Make the helper public and '
+            'free of private names',
           );
         }
       }
@@ -718,6 +742,7 @@ Object? $_superIntrinsicName(
     RouteBCapabilities? capabilities,
     RouteBCompiler compiler,
     File? patchedVerificationKernel,
+    Set<String> helperNames,
   ) {
     // ANALYSIS VERSION 10: `super.member()`, admitted from the SOURCE.
     if (lowering.unsupported.isNotEmpty) {
@@ -1310,7 +1335,9 @@ Object? $_superIntrinsicName(
         .last
         .replaceFirst(RegExp(r'^[gs]et:'), '');
     for (final name in _privateIdentifiers(text)) {
-      if (granted.contains(name) || name == own) continue;
+      if (granted.contains(name) || name == own || helperNames.contains(name)) {
+        continue;
+      }
       throw RouteBUnsupportedTarget(
         key,
         'its body names `$name`, a private identifier this analysis did not '

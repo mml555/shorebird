@@ -341,9 +341,13 @@ void main() {
       group('for an instance target', () {
         const instanceKey = '$lib#RouteBThing.value';
 
-        RouteBCoverage instance(String helperName, String helperText) {
-          const decl = 'String value() => label;';
-          final body = 'class RouteBThing {\n  $decl\n}\n$helperText\n';
+        RouteBCoverage instance(
+          String helperName,
+          String helperText, {
+          String receiver = 'RouteBThing',
+          String decl = 'String value() => label;',
+        }) {
+          final body = 'class $receiver {\n  $decl\n}\n$helperText\n';
           source.writeAsStringSync(body);
           Map<String, Object?> at(String piece) => {
             'fileUri': source.uri.toString(),
@@ -371,7 +375,7 @@ void main() {
               },
               'lowering': {
                 instanceKey: {
-                  'receiverType': 'RouteBThing',
+                  'receiverType': receiver,
                   'nameOffset': body.indexOf('value'),
                   'accesses': [
                     {
@@ -397,9 +401,57 @@ void main() {
           );
         });
 
-        test('refuses a private helper, and says why', () {
+        test('takes a private helper when no private name resolves against '
+            'the release', () {
           expect(
-            () => produceFor(instance('_rbH', "String _rbH() => 'H';")),
+            produceFor(instance('_rbH', "String _rbH() => 'H';")),
+            contains("String _rbH() => 'H';"),
+          );
+        });
+
+        test('takes a private helper the method body names', () {
+          final out = produceFor(
+            instance(
+              '_rbH',
+              'String _rbH(String l) => l;',
+              decl: 'String value() => _rbH(label);',
+            ),
+          );
+          expect(out, contains('String _rbH(String l) => l;'));
+          expect(out, contains('_rbH(self.label)'));
+        });
+
+        test('refuses a private helper the method body names when the target '
+            'resolves private names against the release', () {
+          expect(
+            () => produceFor(
+              instance(
+                '_rbH',
+                'String _rbH(String l) => l;',
+                decl: 'String value() => _rbH(label);',
+                receiver: '_RouteBThing',
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('names a private identifier'),
+              ),
+            ),
+          );
+        });
+
+        test('refuses a private helper when the target resolves private '
+            'names against the release, and says why', () {
+          expect(
+            () => produceFor(
+              instance(
+                '_rbH',
+                "String _rbH() => 'H';",
+                receiver: '_RouteBThing',
+              ),
+            ),
             throwsA(
               isA<RouteBUnsupportedTarget>().having(
                 (e) => e.reason,
@@ -413,7 +465,11 @@ void main() {
         test('refuses a public helper that names a private identifier', () {
           expect(
             () => produceFor(
-              instance('rbH', "String rbH() { var _x = 'H'; return _x; }"),
+              instance(
+                'rbH',
+                "String rbH() { var _x = 'H'; return _x; }",
+                receiver: '_RouteBThing',
+              ),
             ),
             throwsA(isA<RouteBUnsupportedTarget>()),
           );

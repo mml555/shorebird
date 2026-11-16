@@ -58,6 +58,18 @@ URI=package:dynamic_modules/container_target.dart
 PLAT=$OUT/vm_platform.dill
 cd "$WORK"
 cp "$RB/packaging/container_target.dart" lib/container_target.dart
+# An instance method for the method-target arm, the shape of a widget's
+# `build`: it reads its own field. Printed with alpha and beta.
+cat >> lib/container_target.dart <<'DART'
+
+class RbBox {
+  String tag = 'BOX';
+  @pragma('vm:never-inline')
+  String show() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'OLD-box' : 'X';
+}
+DART
+sed -i '' 's|^void _state(String when) => print(.\$when alpha=\${alpha()} beta=\${beta()}.);|void _state(String when) => print('"'"'$when alpha=${alpha()} beta=${beta()} box=${RbBox().show()}'"'"');|' lib/container_target.dart
+grep -q 'box=\${RbBox().show()}' lib/container_target.dart || { echo "ERROR: could not add box= to _state"; exit 1; }
 "$DART" "$GEN_KERNEL" --platform "$PLAT" --aot --packages .dart_tool/package_config.json -o prepass.dill "$URI" >/dev/null
 "$DART" $KERNEL_PKGS "$RB/gen_dynamic_interface.dart" --dill prepass.dill --out di.yaml --sdk-members \
   'dart:core#print,dart:core#DateTime.now,dart:core#DateTime.get:millisecondsSinceEpoch' 2>/dev/null
@@ -142,6 +154,31 @@ arm helper_calls_release "$CELL_NEW" "rbVia()" "" "String rbVia() => beta();" ""
 arm shared_by_two "$CELL_NEW" "rbTag('a')" "rbTag('b')" "String rbTag(String s) => $NOW ? 'T-\$s' : 'X';" "" T-a T-b
 arm unused_helper "$CELL_NEW" "'NEW-a'" "" "String rbNobody() => 'N';" "" NEW-a OLD-b
 if grep -q rbNobody "$WORK/unused_helper/cli/replacement_0.dart"; then record unused_helper_not_shipped "FAIL (shipped)"; else record unused_helper_not_shipped PASS; fi
+# method <label> <show body> <text> <want box>: patch RbBox.show, a method
+# target, with a helper. Its accesses are public, so private names resolve in
+# the replacement library and a private helper is allowed.
+method() {
+  local label=$1
+  d=$WORK/$label; mkdir -p "$d"
+  echo; echo "==> $label"
+  cp release_source.dart lib/container_target.dart
+  sed -i '' "s|^  String show() => .*|  String show() => $2;|" lib/container_target.dart
+  printf '\n%s\n' "$3" >> lib/container_target.dart
+  "$DART" "$GEN_KERNEL" --platform "$PLAT" --aot --packages .dart_tool/package_config.json --dynamic-interface di.yaml -o patched.dill "$URI" >"$d/gen_kernel.log" 2>&1 \
+    || { sed 's/^/  ! /' "$d/gen_kernel.log" | head; record "$label" "FAIL (harness)"; return; }
+  drive "$CELL_NEW" "$d"
+  grep -E '^(coverage|helpers|REFUSED|container|  target)' "$d/cli.log" | sed 's/^/  /' || true
+  if [ -f "$d/cli/replacement_0.dart" ]; then sed 's/^/  | /' "$d/cli/replacement_0.dart" | sed -n '/entry-point/,$p'; fi
+  local c; c=$(sed -n 's/^OUT=//p' "$d/cli.log")
+  if [ -z "$c" ]; then tail -12 "$d/cli.log" | sed 's/^/  ! /'; record "$label" "FAIL (no container)"; return; fi
+  "$OUT/dartaotruntime" app.aot "$c" > "$d/run.log" 2>&1 || true
+  grep -E '^(APPLY|after)' "$d/run.log" | sed 's/^/  /'
+  local got; got=$(sed -n 's/^after .*box=\([^ ]*\).*/\1/p' "$d/run.log")
+  if [ "$got" = "$4" ]; then record "$label" PASS; else record "$label" "FAIL got box=${got:-none} want $4"; fi
+}
+method method_private_helper "_rbBox(tag)" "String _rbBox(String t) => t == 'BOX' ? 'NEW-BOX' : 'X';" NEW-BOX
+method method_public_helper "rbBox()" "String rbBox() => 'PUB-BOX';" PUB-BOX
+
 refused refused_static_member "$CELL_NEW" "ApplyResult.rbS()" "" "static String rbS() => 'S';" "static member"
 refused refused_instance_member "$CELL_NEW" "ApplyResult(true, '', const []).rbI()" "" "String rbI() => 'I';" "instance member"
 refused back_compat_old_cell "$CELL_OLD" "rbAdded()" "String rbAdded() => $NOW ? 'NEW-HELPER' : 'X';" "" "cannot introduce members"
