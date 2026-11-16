@@ -14,6 +14,8 @@ selfhost/engine/route_b/create_checkout.sh   # ~90 s, ~0 bytes
 selfhost/engine/route_b/build_host.sh        # run under screen, see below
 ```
 
+On-device checks (an iPhone, upgrade installs only) live in [`device_run/`](device_run/README.md).
+
 ### The other build drivers
 
 Six more drivers were vendored on 2026-09-10 from `/Volumes/build/route-b`,
