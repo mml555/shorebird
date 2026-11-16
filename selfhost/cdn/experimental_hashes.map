@@ -525,3 +525,7 @@ d0714887dd95d2990e0185fe1893523f3d600cc5 38855c84ca367c58165b8e3844dd7d6a99dec84
 # archive changed: the tools of mml555/shorebird #189 (coverage analyzer v15,
 # carry and callers; release probe inlined_into and held tear-offs).
 aab9fd07857142c232e4b5a41e41814b8dbf640f 38855c84ca367c58165b8e3844dd7d6a99dec844
+# The same cell with only its compiler archive changed again: the coverage
+# analyzer of mml555/shorebird #194 (analysis 17: added top-level helpers, #193,
+# and added private instance methods).
+2fc41d3fbd9966958ba3ccf2be9761e064e92bcc 38855c84ca367c58165b8e3844dd7d6a99dec844
