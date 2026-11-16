@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:words strerror
 """Fail when a tracked YAML file does not load.
 
 The repo's scripts mostly read YAML one line at a time with sed or grep, so a
