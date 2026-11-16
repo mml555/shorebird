@@ -115,6 +115,29 @@ JSON
   "$AOT_RUNTIME" "$ANALYZER" --base-dill "$W/base.dill" \
     --patched-dill "$W/patched.dill" --out "$W/analysis.json"
 
+  # ---- the release check's shape ----------------------------------------
+  # At release time the CLI runs the analyzer with the release's IMPORT kernel
+  # as the base (route_b_release_kernels.dart, agreesWith), and that kernel is
+  # built --no-aot --no-link-platform: every SDK class in it is a reference
+  # with no class behind it. The --aot kernels above link the platform, so
+  # they never asked the analyzer to cope with that, and v14 shipped crashing on
+  # `dart:core::Object` there (an iPhone release, and 15 of these 19 cases).
+  # Completing is the whole check here.
+  cp "$CASE_SRC/base.dart" "$W/lib/main.dart"
+  ( cd "$W" && "$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" \
+      --no-aot --no-link-platform --packages .dart_tool/package_config.json \
+      -o "$W/base_import.dill" package:corpus/main.dart >/dev/null 2>&1 ) \
+    || die "$case_name: base import kernel failed"
+  if ! "$AOT_RUNTIME" "$ANALYZER" --base-dill "$W/base_import.dill" \
+      --patched-dill "$W/base.dill" --out "$W/release_check.json" \
+      > "$W/release_check.log" 2>&1; then
+    echo "  FAIL  the analyzer failed on the release check's unlinked import kernel"
+    # One process, no pipe: `| head` would SIGPIPE sed on a long trace, and
+    # under set -e with pipefail that ends the whole run.
+    sed -n '1,8s/^/        /p' "$W/release_check.log"
+    fail=$((fail+1)); failed_cases+=("$case_name"); continue
+  fi
+
   # ---- cli parser ------------------------------------------------------
   set +e
   "$DART" --packages="$CLI_PKGS" "$HERE/cli_verdict.dart" "$W/analysis.json" \
