@@ -227,7 +227,35 @@ import 'package:kernel/text/ast_to_text.dart';
 ///     The bump is mandatory: a version-15 consumer reads `added` as "all
 ///     refused", and a consumer that wrongly trusted a version-16 document
 ///     would have no `helpers` to slice, so the two must be told apart.
-const analysisVersion = 16;
+///
+/// 17. A new INSTANCE METHOD of an existing app class is a helper too, when
+///     only patched code calls it. `helpers` then holds keys like
+///     `lib#_HomeState._buildHeader`, and each gets its own `lowering` entry
+///     (the same one an instance target gets), because the producer emits it
+///     as a top-level function taking its receiver as argument 0, exactly like
+///     a lowered target.
+///
+///     A call to such a helper from a lowered body is reported as an access of
+///     kind `helperCall`, at the identifier's offset: `_m(a)` / `this._m(a)`
+///     becomes `_m(self, a)`. It carries no `private` key, since the helper is
+///     declared by the replacement itself and nothing is asked of the release.
+///
+///     WHAT QUALIFIES: a non-static METHOD (not a getter, setter or operator)
+///     of a class that exists in the release and is not a mixin; with a body;
+///     in the library's own file; that overrides nothing and is overridden by
+///     nothing in EITHER kernel (a call by selector from AOT code, or on a
+///     subclass, would miss the copy); whose name no top-level declaration of
+///     its library uses (the shipped function would shadow it); and whose
+///     every use is a call with implicit `this` or `this.` from an instance
+///     member of the SAME class that is a changed/carried member or another
+///     such helper. A call on another receiver, a super call, a dynamic call
+///     of the same name or a tear-off refuses it, with the reason.
+///
+///     STILL REFUSED: static methods, instance getters, setters and operators.
+///
+///     The bump is mandatory for the reason 16's was: a version-16 consumer
+///     would read `lib#Cls.m` in `helpers` as a top-level function.
+const analysisVersion = 17;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -426,7 +454,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   final subjects = {...changed, ...carried};
   final callers = _callers(patched, isApp, subjects);
   // Version 16. Which new members are helpers; see `_helperPlan`.
-  final plan = _helperPlan(patched, isApp, added, subjects);
+  final plan = _helperPlan(base, patched, isApp, added, subjects);
   callers.addAll(plan.callers);
 
   // ---- where each changed member's new body lives ------------------------
@@ -480,13 +508,27 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   // compiles and then misbehaves on a device, which is the failure mode this
   // whole project is organised against.
   final lowering = <String, Map<String, Object?>>{};
+  // Version 17: the instance helpers a lowered body may call.
+  final helperMembers = <Member>{
+    for (final lib in patched.libraries.where(isApp))
+      for (final cls in lib.classes)
+        for (final p in cls.procedures)
+          if (!p.isStatic &&
+              plan.helpers.contains(
+                '${lib.importUri}#${_selector(cls.name, p)}',
+              ))
+            p,
+  };
   for (final lib in patched.libraries.where(isApp)) {
     final uri = lib.importUri.toString();
     for (final cls in lib.classes) {
       for (final p in cls.procedures) {
         final key = '$uri#${_selector(cls.name, p)}';
-        if (!subjects.contains(key) || p.isStatic) continue;
-        lowering[key] = _lowering(cls, p, patchedHierarchy);
+        if (!(subjects.contains(key) || plan.helpers.contains(key)) ||
+            p.isStatic) {
+          continue;
+        }
+        lowering[key] = _lowering(cls, p, patchedHierarchy, helperMembers);
         // RELEASE EVIDENCE for the SAME method (analysis version 11).
         //
         // Same-method, never program-wide: the causal argument for the target
@@ -614,8 +656,9 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   if (rejectedAdded.isNotEmpty) {
     reasons.add(
       '${rejectedAdded.length} member(s) are new and cannot be carried; a '
-      'patch replaces bodies, and only a top-level function or getter used '
-      'by nothing outside the patch can be added',
+      'patch replaces bodies, and only a top-level function or getter, or an '
+      'instance method of an existing class, used by nothing outside the '
+      'patch can be added',
     );
   }
 
@@ -924,6 +967,7 @@ class _HelperPlan {
 /// patch would be changing code it does not carry. Callers come from the same
 /// walk as version 15's (`_callers`), closures and dynamic accesses included.
 _HelperPlan _helperPlan(
+  Component base,
   Component patched,
   bool Function(Library) isApp,
   List<String> added,
@@ -939,11 +983,7 @@ _HelperPlan _helperPlan(
       if (!addedSet.contains(key)) return;
       final String? reason;
       if (cls != null) {
-        reason =
-            '${p.isStatic ? 'a static member' : 'an instance member'} of '
-            '`${cls.name}`; a replacement calling it would bind to the '
-            "release's `${cls.name}`, which has no such member. Only a "
-            'top-level function or getter can be added';
+        reason = _instanceHelperReason(base, patched, lib, cls, p);
       } else if (p.kind != ProcedureKind.Method &&
           p.kind != ProcedureKind.Getter) {
         reason =
@@ -968,6 +1008,16 @@ _HelperPlan _helperPlan(
         reason =
             'declared in a `part` file, which a replacement library '
             'cannot reproduce; move it into the library file';
+      } else if (p.name.isPrivate &&
+          (_declarationClash(base, uri, p.name, null) ??
+                  _declarationClash(patched, uri, p.name, p)) !=
+              null) {
+        // Version 17: a private name the producer exempts from its backstop
+        // as "a helper this patch carries" must mean only the helper.
+        reason =
+            'its private name is also used by '
+            '${_declarationClash(base, uri, p.name, null) ?? _declarationClash(patched, uri, p.name, p)}'
+            '; a carried helper\'s private name must be unique in its library';
       } else {
         reason = null;
       }
@@ -1016,6 +1066,46 @@ _HelperPlan _helperPlan(
 
   final callers = _callers(patched, isApp, candidates);
   String libraryOf(String key) => key.split('#').first;
+  // Version 17: how each instance candidate is USED, which `callers` cannot
+  // say (it does not tell a call on `this` from a call on another receiver).
+  final instanceMembers = <Member, String>{};
+  for (final lib in patched.libraries.where(isApp)) {
+    for (final cls in lib.classes) {
+      for (final p in cls.procedures) {
+        final key = '${lib.importUri}#${_selector(cls.name, p)}';
+        if (!p.isStatic && candidates.contains(key)) instanceMembers[p] = key;
+      }
+    }
+  }
+  final instanceNames = {
+    for (final e in instanceMembers.entries) e.value: e.key.name.text,
+  };
+  final uses = _InstanceHelperUses(instanceMembers);
+  if (instanceMembers.isNotEmpty) {
+    for (final lib in patched.libraries.where(isApp)) {
+      final uri = lib.importUri;
+      for (final p in lib.procedures) {
+        uses.scan(p, '$uri#${_selector(null, p)}');
+      }
+      for (final f in lib.fields) {
+        uses.scan(f, null);
+      }
+      for (final cls in lib.classes) {
+        for (final p in cls.procedures) {
+          uses.scan(p, '$uri#${_selector(cls.name, p)}');
+        }
+        for (final m in <Member>[...cls.constructors, ...cls.fields]) {
+          uses.scan(m, null);
+        }
+      }
+    }
+  }
+  // The class a member key belongs to, or null for a top-level member.
+  String? classOf(String key) {
+    final selector = key.split('#').last;
+    final dot = selector.indexOf('.');
+    return dot < 0 ? null : selector.substring(0, dot);
+  }
 
   // Drop a candidate with a caller outside the patch, until nothing changes: a
   // dropped helper is not part of the patch, so what only IT called loses its
@@ -1025,12 +1115,33 @@ _HelperPlan _helperPlan(
   while (again) {
     again = false;
     for (final key in accepted.toList()) {
-      String? bad;
-      for (final c in callers[key]!) {
+      String? bad = uses.bad[key];
+      // A local, parameter or local function of the helper's name in a body
+      // that calls it: `this.m()` rewritten to `m(self)` would bind to it.
+      final helperName = instanceNames[key];
+      if (bad == null && helperName != null) {
+        final shadowing = callers[key]!
+            .where(
+              (c) => uses.localNames[helperName]?.contains(c) ?? false,
+            )
+            .firstOrNull;
+        if (shadowing != null) {
+          bad =
+              'a local variable, parameter or local function named '
+              '`$helperName` in `$shadowing`, which calls it, would capture '
+              'the call once it is rewritten';
+        }
+      }
+      for (final c in bad != null ? const <String>[] : callers[key]!) {
         if (libraryOf(c) != libraryOf(key)) {
           bad =
               '`$c` in another library calls it; a replacement library '
               'holds one library\'s helpers';
+        } else if (instanceMembers.containsValue(key) &&
+            classOf(c) != classOf(key)) {
+          bad =
+              '`$c` calls it, and an instance method can only be called from '
+              'its own class';
         } else if (!subjects.contains(c) && !accepted.contains(c)) {
           bad =
               '`$c` calls it, and that is neither a changed member nor a '
@@ -1068,6 +1179,328 @@ _HelperPlan _helperPlan(
     rejected,
     {for (final key in accepted) key: callers[key]!},
   );
+}
+
+/// Why [p], a member of [cls] that only the patched kernel has, cannot be an
+/// instance helper; null when it can. See analysis version 17.
+String? _instanceHelperReason(
+  Component base,
+  Component patched,
+  Library lib,
+  Class cls,
+  Procedure p,
+) {
+  const tail =
+      'only a top-level function or getter, or an instance method '
+      'of an existing class, can be added';
+  if (p.isStatic) {
+    return 'a static member of `${cls.name}`; a replacement calling it would '
+        "bind to the release's `${cls.name}`, which has no such member; $tail";
+  }
+  if (p.kind != ProcedureKind.Method) {
+    return 'an instance ${switch (p.kind) {
+      ProcedureKind.Getter => 'getter',
+      ProcedureKind.Setter => 'setter',
+      _ => 'operator',
+    }} of `${cls.name}`; only an instance METHOD can be added';
+  }
+  if (p.isAbstract || p.isExternal) {
+    return 'abstract or external, so it has no body to carry';
+  }
+  if (cls.isMixinDeclaration || cls.isAnonymousMixin || cls.isEnum) {
+    return 'a member of ${cls.isEnum ? 'an enum' : 'a mixin'}, which is not '
+        'supported; $tail';
+  }
+  final uri = lib.importUri.toString();
+  if (_findClass(base, uri, cls.name) == null) {
+    return 'a member of `${cls.name}`, which the release does not have';
+  }
+  // A public name is refused below, after the hierarchy check names an
+  // override; uniqueness matters for the private names a helper carries.
+  final clash = !p.name.isPrivate
+      ? null
+      : _declarationClash(base, uri, p.name, null) ??
+            _declarationClash(patched, uri, p.name, p);
+  if (clash != null) {
+    return "its name is also used by $clash; a carried helper's private name "
+        'must be unique in its library, or a reference to the other '
+        'declaration could bind to the helper (or the reverse)';
+  }
+  for (final (label, component) in [('release', base), ('patch', patched)]) {
+    final clashWith = _hierarchyClash(component, uri, cls.name, p.name);
+    if (clashWith != null) {
+      return 'overriding or overridden ($clashWith in the $label kernel); a '
+          'call by selector would miss the copy a patch ships';
+    }
+  }
+  if (!p.name.isPrivate) {
+    return 'a PUBLIC method, which code outside this library can call by name '
+        "(`jsonEncode` calls `toJson` on what it is given), and the release's "
+        '`${cls.name}` has no such method; only a private instance method '
+        'can be added';
+  }
+  if (p.fileStartOffset < 0 ||
+      p.fileEndOffset < 0 ||
+      p.fileEndOffset <= p.fileStartOffset) {
+    return 'the kernel records no source span for it, so its source cannot be '
+        'carried';
+  }
+  if (p.fileUri != lib.fileUri) {
+    return 'declared in a `part` file, which a replacement library cannot '
+        'reproduce; move it into the library file';
+  }
+  return null;
+}
+
+/// A description of a declaration of the library [uri] in [component], other
+/// than [except], that is named [name] (same text), or null. Covers top-level
+/// declarations, the members of every class, constructors and extension
+/// members: a carried helper's private name has to be unique in its library.
+String? _declarationClash(
+  Component component,
+  String uri,
+  Name name,
+  Member? except,
+) {
+  for (final lib in component.libraries) {
+    if (lib.importUri.toString() != uri) continue;
+    bool same(Name n) => n.text == name.text;
+    for (final p in lib.procedures) {
+      if (p != except && same(p.name)) return 'the top-level `${p.name.text}`';
+    }
+    for (final f in lib.fields) {
+      if (f != except && same(f.name)) return 'the top-level `${f.name.text}`';
+    }
+    for (final c in lib.classes) {
+      if (c.name == name.text) return 'the class `${c.name}`';
+      for (final p in c.procedures) {
+        if (p != except && same(p.name)) {
+          return '`${c.name}.${p.name.text}`';
+        }
+      }
+      for (final f in c.fields) {
+        if (f != except && same(f.name)) return '`${c.name}.${f.name.text}`';
+      }
+      for (final k in c.constructors) {
+        if (same(k.name)) return 'a constructor of `${c.name}`';
+      }
+    }
+    for (final t in lib.typedefs) {
+      if (t.name == name.text) return 'the typedef `${t.name}`';
+    }
+    for (final e in lib.extensionTypeDeclarations) {
+      if (e.name == name.text) return 'the extension type `${e.name}`';
+      if (e.representationName == name.text) {
+        return 'the representation field of the extension type `${e.name}`';
+      }
+      for (final d in e.memberDescriptors) {
+        if (same(d.name)) return 'a member of the extension type `${e.name}`';
+      }
+    }
+    for (final e in lib.extensions) {
+      if (e.name == name.text) return 'the extension `${e.name}`';
+      for (final d in e.memberDescriptors) {
+        if (same(d.name)) return 'a member of the extension `${e.name}`';
+      }
+    }
+  }
+  return null;
+}
+
+/// The supertype closure of every class of a component, computed once.
+final _supersCache = Expando<Map<Class, Set<Class>?>>('route b supertypes');
+
+/// Every class reachable up from [k], or null when one cannot be read.
+Set<Class>? _supertypeClosure(Class k) {
+  final out = <Class>{};
+  final pending = [k];
+  try {
+    while (pending.isNotEmpty) {
+      final next = pending.removeLast();
+      for (final s in next.supers) {
+        if (out.add(s.classNode)) pending.add(s.classNode);
+      }
+    }
+  } on Object {
+    return null;
+  }
+  return out;
+}
+
+/// A description of a class that, in [component], declares a member named
+/// [name] while being a supertype or subtype of the class `uri#className`,
+/// or null. A private [name] only matches a member of its own library. An
+/// unlinked kernel (a supertype with no AST) answers with a refusal, since the
+/// hierarchy cannot be read.
+String? _hierarchyClash(
+  Component component,
+  String uri,
+  String className,
+  Name name,
+) {
+  final cls = _findClass(component, uri, className);
+  if (cls == null) return null;
+  bool declares(Class k) {
+    bool same(Name n) =>
+        n.text == name.text &&
+        (!name.isPrivate || n.library?.importUri.toString() == uri);
+    return k.procedures.any((q) => same(q.name)) ||
+        k.fields.any((f) => same(f.name));
+  }
+
+  final cache = _supersCache[component] ??= {};
+  Set<Class>? supers(Class k) =>
+      cache.containsKey(k) ? cache[k] : cache[k] = _supertypeClosure(k);
+
+  final up = supers(cls);
+  if (up == null) return 'its supertypes could not be read';
+  for (final k in up) {
+    if (declares(k)) return '`${k.name}` declares `${name.text}`';
+  }
+  for (final lib in component.libraries) {
+    if (lib.importUri.toString().startsWith('dart:')) continue;
+    for (final k in lib.classes) {
+      if (k == cls) continue;
+      final ks = supers(k);
+      if (ks == null) return 'a supertype could not be read';
+      if (ks.contains(cls) && declares(k)) {
+        return '`${k.name}` declares `${name.text}`';
+      }
+    }
+  }
+  return null;
+}
+
+/// Version 17: how each instance helper candidate is used. A use is valid only
+/// as a call with implicit `this` (or `this.`) from an instance procedure of
+/// the candidate's own class; everything else is recorded, with its reason, in
+/// [bad]: a call on another receiver, a super call, a tear-off, a dynamic
+/// access of the same name, or any use from a constructor, a field initializer,
+/// a static or top-level member, or another class.
+class _InstanceHelperUses extends RecursiveVisitor {
+  _InstanceHelperUses(this.targets) {
+    for (final e in targets.entries) {
+      (_byName[e.key.name.text] ??= {}).add(e.value);
+    }
+  }
+
+  final Map<Member, String> targets;
+  final bad = <String, String>{};
+  final _byName = <String, Set<String>>{};
+  Member? _context;
+
+  /// Names of the locals, parameters and local functions declared in each
+  /// scanned member, by name then by member key.
+  final localNames = <String, Set<String>>{};
+  String? _contextKey;
+
+  void scan(Member m, String? key) {
+    _context = m;
+    _contextKey = key;
+    m.accept(this);
+    _context = null;
+    _contextKey = null;
+  }
+
+  @override
+  void visitVariableDeclaration(VariableDeclaration node) {
+    final name = node.variable.cosmeticName;
+    final key = _contextKey;
+    if (name != null && key != null && _byName.containsKey(name)) {
+      (localNames[name] ??= {}).add(key);
+    }
+    super.visitVariableDeclaration(node);
+  }
+
+  void _flag(Member? m, String why) {
+    final key = targets[m];
+    if (key != null) bad.putIfAbsent(key, () => why);
+  }
+
+  void _dynamic(Name name) {
+    for (final key in _byName[name.text] ?? const <String>{}) {
+      bad.putIfAbsent(
+        key,
+        () => 'a dynamic access of `${name.text}` could reach it',
+      );
+    }
+  }
+
+  @override
+  void visitInstanceInvocation(InstanceInvocation node) {
+    final target = node.interfaceTarget;
+    if (targets.containsKey(target)) {
+      final context = _context;
+      if (node.receiver is! ThisExpression) {
+        _flag(target, 'it is called on another receiver (`other.m()`)');
+      } else if (context is! Procedure ||
+          context.isStatic ||
+          context.enclosingClass != target.enclosingClass) {
+        _flag(
+          target,
+          'it is called from outside an instance method of `${target.enclosingClass!.name}`',
+        );
+      }
+    }
+    super.visitInstanceInvocation(node);
+  }
+
+  @override
+  void visitInstanceTearOff(InstanceTearOff node) {
+    _flag(
+      node.interfaceTarget,
+      'it is used as a value (torn off), not only called',
+    );
+    super.visitInstanceTearOff(node);
+  }
+
+  @override
+  void visitInstanceGet(InstanceGet node) {
+    _flag(node.interfaceTarget, 'it is read as a property');
+    super.visitInstanceGet(node);
+  }
+
+  @override
+  void visitInstanceGetterInvocation(InstanceGetterInvocation node) {
+    _flag(node.interfaceTarget, 'it is read as a property');
+    super.visitInstanceGetterInvocation(node);
+  }
+
+  @override
+  void visitInstanceSet(InstanceSet node) {
+    _flag(node.interfaceTarget, 'it is assigned');
+    super.visitInstanceSet(node);
+  }
+
+  @override
+  void visitSuperMethodInvocation(SuperMethodInvocation node) {
+    _flag(node.interfaceTarget, 'it is called through `super`');
+    super.visitSuperMethodInvocation(node);
+  }
+
+  @override
+  void visitSuperPropertyGet(SuperPropertyGet node) {
+    _flag(node.interfaceTarget, 'it is read through `super`');
+    super.visitSuperPropertyGet(node);
+  }
+
+  @override
+  void visitDynamicInvocation(DynamicInvocation node) {
+    _dynamic(node.name);
+    super.visitDynamicInvocation(node);
+  }
+
+  @override
+  void visitDynamicGet(DynamicGet node) {
+    _dynamic(node.name);
+    super.visitDynamicGet(node);
+  }
+
+  @override
+  void visitDynamicSet(DynamicSet node) {
+    _dynamic(node.name);
+    super.visitDynamicSet(node);
+  }
 }
 
 /// Every member a body names, closures included, and the names it accesses
@@ -2091,8 +2524,9 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
 Map<String, Object?> _lowering(
   Class cls,
   Procedure p,
-  ClassHierarchy hierarchy,
-) {
+  ClassHierarchy hierarchy, [
+  Set<Member> helperMembers = const {},
+]) {
   final unsupported = <String>[];
 
   final function = p.function;
@@ -2118,7 +2552,7 @@ Map<String, Object?> _lowering(
     unsupported.add('the method is generic');
   }
 
-  final visitor = _ReceiverUses();
+  final visitor = _ReceiverUses(helperMembers);
   function.accept(visitor);
   unsupported.addAll(visitor.unsupported);
 
@@ -2392,6 +2826,13 @@ class _ThisExpressions extends RecursiveVisitor {
 
 /// Every use of the receiver, and a reason for each one that is not supported.
 class _ReceiverUses extends RecursiveVisitor {
+  _ReceiverUses([this.helperMembers = const {}]);
+
+  /// Version 17: instance helpers the patch carries. A call to one is a
+  /// `helperCall` access: it is rewritten to pass the receiver, not prefixed
+  /// with it.
+  final Set<Member> helperMembers;
+
   final accesses = <_Access>[];
   final unsupported = <String>[];
 
@@ -2510,6 +2951,11 @@ class _ReceiverUses extends RecursiveVisitor {
       // Receiver uses INSIDE the arguments are a different matter, and they
       // are handled by the ordinary recursion: `helper(label)` reports two
       // accesses and becomes `self.helper(self.label)`.
+      if (helperMembers.contains(node.interfaceTarget)) {
+        accesses.add(_Access(node.fileOffset, node.name.text, 'helperCall'));
+        node.visitChildren(this);
+        return;
+      }
       _record(
         node.fileOffset,
         node.name.text,

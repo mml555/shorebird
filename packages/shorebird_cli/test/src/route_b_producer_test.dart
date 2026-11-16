@@ -132,6 +132,86 @@ void main() {
       );
     });
 
+    group('a top-level helper naming a private identifier', () {
+      const libA = 'package:app/main.dart';
+      const libB = 'package:app/other.dart';
+      const entry = 'String routeBValue() => _g(1) + _x();';
+      const g = 'String _g(dynamic o) => o._x;';
+      const x = "String _x() => 'X';";
+      final text = [entry, g, x].join('\n');
+
+      Map<String, Object?> span(String piece) => {
+        'fileUri': source.uri.toString(),
+        'start': text.indexOf(piece),
+        'end': text.indexOf(piece) + piece.length,
+      };
+
+      RouteBCoverage coverage({required List<String> gCalls}) {
+        source.writeAsStringSync(text);
+        return RouteBCoverage.fromJson(
+          jsonEncode({
+            'analysisVersion': routeBHelpersAnalysisVersion,
+            'verdict': 'accept',
+            'changed': ['$libA#routeBValue'],
+            'carried': <String>[],
+            'callers': {
+              '$libA#_g': ['$libA#routeBValue'],
+              '$libB#_x': ['$libA#routeBValue', ...gCalls],
+            },
+            'added': ['$libA#_g', '$libB#_x'],
+            'helpers': ['$libA#_g', '$libB#_x'],
+            'unusedHelpers': <String>[],
+            'removed': <String>[],
+            'patchable': ['$libA#routeBValue'],
+            'conditional': <String>[],
+            'sources': {
+              '$libA#routeBValue': span(entry),
+              '$libA#_g': span(g),
+              '$libB#_x': span(x),
+            },
+            'rejections': <Object>[],
+            'refusalSummary': null,
+          }),
+        );
+      }
+
+      String produce(RouteBCoverage c) {
+        runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: c,
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            run: compileOk,
+          ),
+        );
+        return File(p.join(work.path, 'replacement_0.dart')).readAsStringSync();
+      }
+
+      test('refuses a private name that is another library\'s helper, not '
+          'one this helper calls', () {
+        expect(
+          () => produce(coverage(gCalls: const [])),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('`_x`, a private identifier that is not a new function'),
+            ),
+          ),
+        );
+      });
+
+      test('takes a private name of a helper it does call', () {
+        expect(
+          produce(coverage(gCalls: ['$libA#_g'])),
+          contains('String _g(dynamic o) => o._x;'),
+        );
+      });
+    });
+
     group('helpers (analysis version 16)', () {
       const lib = 'package:app/main.dart';
       const entry = 'String routeBValue() => helperA();';
@@ -346,6 +426,7 @@ void main() {
           String helperText, {
           String receiver = 'RouteBThing',
           String decl = 'String value() => label;',
+          int version = routeBHelpersAnalysisVersion,
         }) {
           final body = 'class $receiver {\n  $decl\n}\n$helperText\n';
           source.writeAsStringSync(body);
@@ -356,7 +437,7 @@ void main() {
           };
           return RouteBCoverage.fromJson(
             jsonEncode({
-              'analysisVersion': routeBHelpersAnalysisVersion,
+              'analysisVersion': version,
               'verdict': 'accept',
               'changed': [instanceKey],
               'carried': <String>[],
@@ -421,25 +502,19 @@ void main() {
           expect(out, contains('_rbH(self.label)'));
         });
 
-        test('refuses a private helper the method body names when the target '
-            'resolves private names against the release', () {
-          expect(
-            () => produceFor(
-              instance(
-                '_rbH',
-                'String _rbH(String l) => l;',
-                decl: 'String value() => _rbH(label);',
-                receiver: '_RouteBThing',
-              ),
-            ),
-            throwsA(
-              isA<RouteBUnsupportedTarget>().having(
-                (e) => e.reason,
-                'reason',
-                contains('names a private identifier'),
-              ),
+        test('takes a private helper the method body names when the target '
+            'resolves private names against the release (version 17)', () {
+          final out = produceFor(
+            instance(
+              '_rbH',
+              'String _rbH(String l) => l;',
+              decl: 'String value() => _rbH(label);',
+              receiver: '_RouteBThing',
+              version: routeBInstanceHelpersAnalysisVersion,
             ),
           );
+          expect(out, contains('String _rbH(String l) => l;'));
+          expect(out, contains('_rbH(self.label)'));
         });
 
         test('refuses a helper naming a private identifier that is not a '
@@ -479,24 +554,47 @@ void main() {
           );
         });
 
-        test('refuses a private helper when the target resolves private '
-            'names against the release, and says why', () {
-          expect(
-            () => produceFor(
-              instance(
-                '_rbH',
-                "String _rbH() => 'H';",
-                receiver: '_RouteBThing',
+        test(
+          'takes a private helper under a private receiver (version 17)',
+          () {
+            expect(
+              produceFor(
+                instance(
+                  '_rbH',
+                  "String _rbH() => 'H';",
+                  receiver: '_RouteBThing',
+                  version: routeBInstanceHelpersAnalysisVersion,
+                ),
               ),
-            ),
-            throwsA(
-              isA<RouteBUnsupportedTarget>().having(
-                (e) => e.reason,
-                'reason',
-                contains('names a private identifier'),
+              contains("String _rbH() => 'H';"),
+            );
+          },
+        );
+
+        test('a version 16 document keeps refusing a private helper under a '
+            'private receiver', () {
+          for (final (helperName, text) in [
+            ('_rbH', "String _rbH() => 'H';"),
+            ('rbH', "String rbH() => _rbOther();"),
+          ]) {
+            expect(
+              () => produceFor(
+                instance(
+                  helperName,
+                  text,
+                  decl: 'String value() => label;',
+                  receiver: '_RouteBThing',
+                ),
               ),
-            ),
-          );
+              throwsA(
+                isA<RouteBUnsupportedTarget>().having(
+                  (e) => e.reason,
+                  'reason',
+                  contains('Make the helper public'),
+                ),
+              ),
+            );
+          }
         });
 
         test('refuses a public helper that names a private identifier', () {
@@ -509,6 +607,312 @@ void main() {
               ),
             ),
             throwsA(isA<RouteBUnsupportedTarget>()),
+          );
+        });
+      });
+
+      group('an instance helper (analysis version 17)', () {
+        const targetKey = '$lib#RouteBThing.value';
+
+        /// `class RouteBThing { <decl> <helper> }`, analyzed as the version 17
+        /// analyzer would: the call is a `helperCall` access, and the helper
+        /// has a lowering of its own.
+        RouteBCoverage v17({
+          String decl = 'String value() => _h(label);',
+          String helper = 'String _h(String l) => l + label;',
+          String callName = '_h',
+          int version = routeBInstanceHelpersAnalysisVersion,
+          String receiver = 'RouteBThing',
+          List<Object> helperUnsupported = const [],
+          List<Object> helperAccesses = const [],
+          List<Object> helperSupers = const [],
+          Map<String, Object?>? extra,
+        }) {
+          final helperKey = '$lib#RouteBThing.$callName';
+          final body = 'class RouteBThing {\n  $decl\n  $helper\n}\n';
+          source.writeAsStringSync(body);
+          Map<String, Object?> at(String piece) => {
+            'fileUri': source.uri.toString(),
+            'start': body.indexOf(piece),
+            'end': body.indexOf(piece) + piece.length,
+          };
+          final declAt = body.indexOf(decl);
+          final helperAt = body.indexOf(helper);
+          return RouteBCoverage.fromJson(
+            jsonEncode({
+              'analysisVersion': version,
+              'verdict': 'accept',
+              'changed': [targetKey],
+              'carried': <String>[],
+              'callers': {
+                helperKey: [targetKey],
+              },
+              'added': [helperKey],
+              'helpers': [helperKey],
+              'unusedHelpers': <String>[],
+              'removed': <String>[],
+              'patchable': <String>[],
+              'conditional': [targetKey],
+              'sources': {targetKey: at(decl), helperKey: at(helper)},
+              'lowering': {
+                targetKey: {
+                  'receiverType': receiver,
+                  'nameOffset': body.indexOf('value'),
+                  'accesses': [
+                    {
+                      'offset': declAt + decl.indexOf(callName),
+                      'member': callName,
+                      'kind': 'helperCall',
+                    },
+                    if (decl.contains('label'))
+                      {
+                        'offset': declAt + decl.indexOf('label'),
+                        'member': 'label',
+                        'kind': 'get',
+                      },
+                  ],
+                  'unsupported': <String>[],
+                  'privateConstructions': <Object>[],
+                },
+                helperKey: {
+                  'receiverType': receiver,
+                  'nameOffset': helperAt + helper.indexOf(callName),
+                  'accesses': [
+                    if (helper.contains('label'))
+                      {
+                        'offset': helperAt + helper.indexOf('label'),
+                        'member': 'label',
+                        'kind': 'get',
+                      },
+                    ...helperAccesses,
+                  ],
+                  'unsupported': helperUnsupported,
+                  'superInvocations': helperSupers,
+                  'privateConstructions': <Object>[],
+                },
+              },
+              ...?extra,
+              'rejections': <Object>[],
+              'refusalSummary': null,
+            }),
+          );
+        }
+
+        test('passes the receiver to the call and lowers the helper', () {
+          final out = produceFor(v17());
+          expect(
+            out,
+            contains(
+              'String value(RouteBThing self) => _h(self, self.label);',
+            ),
+          );
+          expect(
+            out,
+            contains(
+              'String _h(RouteBThing self, String l) => l + self.label;',
+            ),
+          );
+          // One entry point, and it is the target's.
+          expect(RegExp('entry-point').allMatches(out), hasLength(1));
+        });
+
+        test('a call with no arguments is passed only the receiver', () {
+          final out = produceFor(
+            v17(
+              decl: 'String value() => _h();',
+              helper: 'String _h() => label;',
+            ),
+          );
+          expect(out, contains('String value(RouteBThing self) => _h(self);'));
+          expect(out, contains('String _h(RouteBThing self) => self.label;'));
+        });
+
+        test('`this._h()` loses its `this.` and `this.label` becomes the '
+            'receiver', () {
+          final out = produceFor(
+            v17(
+              decl: 'String value() => this._h(1);',
+              helper: 'String _h(int n) => this.label;',
+            ),
+          );
+          expect(
+            out,
+            contains('String value(RouteBThing self) => _h(self, 1);'),
+          );
+          expect(
+            out,
+            contains('String _h(RouteBThing self, int n) => self.label;'),
+          );
+        });
+
+        test('a receiver use that opens the argument list does not collide '
+            'with the receiver argument', () {
+          final out = produceFor(
+            v17(decl: 'String value() => _h(label);'),
+          );
+          expect(out, contains('_h(self, self.label)'));
+        });
+
+        test('names its helper like the call does, however it is spelled', () {
+          final out = produceFor(
+            v17(
+              decl: 'String value() => _h (label);',
+              helper: 'String _h(String l) => l;',
+            ),
+          );
+          expect(out, contains('_h (self, self.label)'));
+        });
+
+        test(
+          'a private instance helper is carried under a private receiver',
+          () {
+            final out = produceFor(v17(receiver: '_RouteBThing'));
+            expect(out, contains('_h(self, self.label)'));
+            expect(
+              out,
+              contains(
+                'String _h(_RouteBThing self, String l) => l + self.label;',
+              ),
+            );
+          },
+        );
+
+        test('a private instance helper naming an ungranted private member '
+            'is refused', () {
+          expect(
+            () => produceFor(
+              v17(
+                helper: 'String _h(String l) => _release();',
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('`_release`'),
+              ),
+            ),
+          );
+        });
+
+        test('a version 16 analysis cannot carry an instance helper', () {
+          expect(
+            () => produceFor(v17(version: 16)),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('predates instance helpers'),
+              ),
+            ),
+          );
+        });
+
+        test('a helper whose body cannot be lowered refuses the patch, and '
+            'says which helper', () {
+          expect(
+            () => produceFor(
+              v17(
+                helperUnsupported: ['uses `this` other than to read a member'],
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                allOf(
+                  contains('`RouteBThing._h`'),
+                  contains('cannot be lowered'),
+                  contains('uses `this`'),
+                ),
+              ),
+            ),
+          );
+        });
+
+        test('a helper with a private access needs the release manifest', () {
+          expect(
+            () => produceFor(
+              v17(
+                decl: 'String value() => rbH(label);',
+                helper: 'String rbH(String l) => l + label;',
+                callName: 'rbH',
+                helperAccesses: [
+                  {
+                    'offset': 0,
+                    'member': '_secret',
+                    'kind': 'get',
+                    'private': {
+                      'library': lib,
+                      'class': 'RouteBThing',
+                      'name': '_secret',
+                    },
+                  },
+                ],
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                allOf(
+                  contains('`RouteBThing.rbH`'),
+                  contains('published no capability manifest'),
+                ),
+              ),
+            ),
+          );
+        });
+
+        test('a helper calling `super` is refused', () {
+          expect(
+            () => produceFor(
+              v17(
+                helperSupers: [
+                  {'offset': 1, 'member': 'toString', 'kind': 'method'},
+                ],
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('calls `super`'),
+              ),
+            ),
+          );
+        });
+
+        test('a call spelled with a type argument list is refused', () {
+          expect(
+            () => produceFor(
+              v17(
+                decl: 'String value() => _h<int>(label);',
+                helper: 'String _h(String l) => l;',
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('not written as a plain call'),
+              ),
+            ),
+          );
+        });
+
+        test('a call on another receiver is refused, not rewritten', () {
+          expect(
+            () => produceFor(
+              v17(decl: 'String value() => other._h(label);'),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('through a receiver this lowering cannot rewrite'),
+              ),
+            ),
           );
         });
       });

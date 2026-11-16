@@ -21,7 +21,7 @@
 #   helper_calls_release  an added function calling a release function
 #   shared_by_two       alpha and beta both call one added function
 #   unused_helper       an added function nothing calls: shipped nowhere, no refusal
-#   refused_*           an added static member of a class; an added instance
+#   refused_*           an added static member of a class; an added instance method (a public one is refused: SDK code can call it by name)
 #                       member (setters, operators, extension members and
 #                       part-file members are covered by the analyzer's reasons)
 #   refused_tear_off    an added function used as a value, plain or in a const:
@@ -113,11 +113,14 @@ drive() { # <cell> <outdir>
   set -e
 }
 
+# ONLY=<regex> runs just the arms whose label matches.
+want() { [ -z "${ONLY:-}" ] || [[ $1 =~ $ONLY ]]; }
 record() { RESULTS+=("$1|$2"); echo "  RESULT $1: $2"; [ "$2" = PASS ] || FAILS=$((FAILS+1)); }
 
 # arm <label> <cell> <alpha> <beta> <text> <class-edit> <want-alpha> <want-beta> [<shipped-grep-not>]
 arm() {
   local label=$1 cell=$2
+  want "$label" || return 0
   d=$WORK/$label; mkdir -p "$d"
   echo; echo "==> $label"
   patch_source "$3" "$4" "${5:-}" "${6:-}" || { record "$label" "FAIL (harness)"; return; }
@@ -137,6 +140,7 @@ arm() {
 # refused <label> <cell> <alpha> <text> <class-edit> <phrase the refusal must contain>
 refused() {
   local label=$1 cell=$2
+  want "$label" || return 0
   d=$WORK/$label; mkdir -p "$d"
   echo; echo "==> $label"
   patch_source "$3" "" "${4:-}" "${5:-}" || { record "$label" "FAIL (harness)"; return; }
@@ -163,6 +167,7 @@ if grep -q rbNobody "$WORK/unused_helper/cli/replacement_0.dart"; then record un
 # the replacement library and a private helper is allowed.
 method() {
   local label=$1
+  want "$label" || return 0
   d=$WORK/$label; mkdir -p "$d"
   echo; echo "==> $label"
   cp release_source.dart lib/container_target.dart
@@ -184,7 +189,7 @@ method method_private_helper "_rbBox(tag)" "String _rbBox(String t) => t == 'BOX
 method method_public_helper "rbBox()" "String rbBox() => 'PUB-BOX';" PUB-BOX
 
 refused refused_static_member "$CELL_NEW" "ApplyResult.rbS()" "" "static String rbS() => 'S';" "static member"
-refused refused_instance_member "$CELL_NEW" "ApplyResult(true, '', const []).rbI()" "" "String rbI() => 'I';" "instance member"
+refused refused_instance_member "$CELL_NEW" "ApplyResult(true, '', const []).rbI()" "" "String rbI() => 'I';" "a PUBLIC method"
 refused refused_tear_off "$CELL_NEW" "rbApply(rbShout, 'x')" "String rbShout(String s) => 'X'; String rbApply(String Function(String) f, String s) => f(s);" "" "torn off"
 refused refused_const_tear_off "$CELL_NEW" "rbFirst(const [rbShout2])" "String rbShout2() => 'X'; String rbFirst(List<String Function()> fs) => fs[0]();" "" "torn off"
 refused refused_entry_point_helper "$CELL_NEW" "rbMarked()" "@pragma('dyn-module:entry-point') String rbMarked() => 'M';" "" "entry point"

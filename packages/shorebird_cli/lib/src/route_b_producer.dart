@@ -370,21 +370,17 @@ Object? $_superIntrinsicName(
               capabilities,
               compiler,
               patchedVerificationKernel,
-              {
-                // The names of the helpers this target calls. They are
-                // declared in the replacement library itself, not the
-                // release's, so the private-name backstop does not apply to
-                // them; `_helperSources` decides whether a private one may
-                // ship.
-                for (final helper in coverage.helpers)
-                  if (coverage.callers?[helper]?.contains(key) ?? false)
-                    helper
-                        .split('#')
-                        .last
-                        .replaceFirst(RegExp(r'^[gs]et:'), ''),
-              },
+              _helperNamesCalledBy(key, coverage),
             )
           : _Lowered(topLevelForm(_slice(key, source)));
+      // HELPERS this target transitively needs, as source, after the entry.
+      final neededHelpers = _neededHelpers(key, coverage);
+      // The lowering of each needed INSTANCE helper (analysis version 17): it
+      // is compiled in this replacement, so what it reaches counts here.
+      final helperLowerings = [
+        for (final h in neededHelpers)
+          if (coverage.lowering[h] case final RouteBLowering l) l,
+      ];
       // Whether this target compiles with private names resolved against the
       // release's library; see where `--resolve-private-names-in-library` is
       // passed. A PRIVATE RECEIVER CLASS is a private reference too: the
@@ -392,11 +388,24 @@ Object? $_superIntrinsicName(
       // lowering), and `_FooState` is spelled in the replacement only if the
       // front end resolves it in the target library.
       final resolvesPrivateNames =
-          (lowering?.accesses.any((a) => a.privateTarget != null) ?? false) ||
-          (lowering?.privateConstructions?.isNotEmpty ?? false) ||
-          (lowering?.receiverType.startsWith('_') ?? false);
-      // HELPERS this target transitively needs, as source, after the entry.
-      final helperText = _helperSources(key, resolvesPrivateNames, coverage);
+          [
+            ?lowering,
+            ...helperLowerings,
+          ].any(
+            (l) =>
+                l.accesses.any((a) => a.privateTarget != null) ||
+                (l.privateConstructions?.isNotEmpty ?? false) ||
+                l.receiverType.startsWith('_'),
+          );
+      final helperText = _helperSources(
+        key,
+        neededHelpers,
+        coverage,
+        capabilities,
+        compiler,
+        patchedVerificationKernel,
+        resolvesPrivateNames: resolvesPrivateNames,
+      );
       final declaration = lowered.declaration;
       // G4.1c link 2, the LEGACY case. A release cut before injected defines
       // were recorded cannot be given them retroactively — the values came from
@@ -580,11 +589,14 @@ Object? $_superIntrinsicName(
             member: dotted > 0 ? selector.substring(dotted + 1) : selector,
             releaseSignature: signature?.release,
             replacementSignature: signature?.patch,
-            capabilitiesConsumed: [
-              for (final access in lowering?.accesses ?? const [])
+            capabilitiesConsumed: {
+              for (final access in [
+                ...?lowering?.accesses,
+                for (final l in helperLowerings) ...l.accesses,
+              ])
                 if (access.privateTarget case final t?)
                   '${t.library}#${t.className}#${t.name}',
-            ],
+            }.toList(),
             survivalResult:
                 survivalVerdicts?[key]?.instrumentResult ?? 'NOT_ASKED',
             measuredAgainstArtifactSha256:
@@ -609,35 +621,11 @@ Object? $_superIntrinsicName(
     );
   }
 
-  /// The source of every helper [key] reaches, for appending to its
-  /// replacement library, in sorted order so the output is reproducible.
-  ///
-  /// A helper is a function the patch adds (analysis version 16). The release
-  /// has no such function, so a replacement can only call it if the library
-  /// carries its source. Reached means: named by [key]'s body, or by a helper
-  /// that is, per the analysis' `callers`. Each replacement gets its own copy,
-  /// so two targets using one helper do not share it (a tear-off of it is not
-  /// identical across them).
-  ///
-  /// A target that reaches release-private members ([resolvesPrivateNames]:
-  /// a granted private access, a private construction or a private receiver
-  /// class) is compiled with `--resolve-private-names-in-library`, which makes
-  /// every private name in the whole library resolve against the release
-  /// library rather than the replacement. A private helper, or a helper whose
-  /// text names any private identifier, could then bind to a release member
-  /// nobody granted, so those combinations are refused. Not measured to be
-  /// unsafe; not measured to be safe. Without that flag a private name
-  /// resolves in the replacement library, where a private helper is declared.
-  /// A helper's text may name no other private identifier: a release-private
-  /// one could not bind there, and its dynamic form (`d._secret`) would
-  /// compile and fail on the device rather than here.
-  String _helperSources(
-    String key,
-    bool resolvesPrivateNames,
-    RouteBCoverage coverage,
-  ) {
-    if (coverage.helpers.isEmpty) return '';
+  /// The helpers [key] reaches: named by its body, or by a helper that is, per
+  /// the analysis' `callers`.
+  Set<String> _neededHelpers(String key, RouteBCoverage coverage) {
     final needed = <String>{};
+    if (coverage.helpers.isEmpty) return needed;
     var grew = true;
     while (grew) {
       grew = false;
@@ -650,6 +638,63 @@ Object? $_superIntrinsicName(
         }
       }
     }
+    return needed;
+  }
+
+  /// A helper's simple name: `lib#_f` and `lib#Cls._f` are both `_f`. The last
+  /// `.` splits the class from the member because a class name cannot contain
+  /// one; the analysis proves the name is unique in its library, so a text
+  /// match on it can only mean the helper.
+  static String _helperName(String key) =>
+      key.split('#').last.split('.').last.replaceFirst(RegExp(r'^[gs]et:'), '');
+
+  /// The names of the helpers [key] calls. They are declared in the
+  /// replacement library itself, not the release's, so the private-name
+  /// backstop does not apply to them; `_helperSources` decides whether a
+  /// private one may ship.
+  Set<String> _helperNamesCalledBy(String key, RouteBCoverage coverage) => {
+    for (final helper in coverage.helpers)
+      if (coverage.callers?[helper]?.contains(key) ?? false)
+        _helperName(helper),
+  };
+
+  /// The source of every helper in [needed], for appending to a replacement
+  /// library, in sorted order so the output is reproducible.
+  ///
+  /// A helper is a function the patch adds (analysis version 16, and from 17 an
+  /// instance method of an existing class). The release has no such function,
+  /// so a replacement can only call it if the library carries its source. Each
+  /// replacement gets its own copy, so two targets using one helper do not
+  /// share it (a tear-off of it is not identical across them).
+  ///
+  /// A top-level helper is copied as written. An INSTANCE helper is lowered
+  /// exactly as an instance target is (`_lower`): a top-level function whose
+  /// first parameter is the receiver, with its receiver accesses rewritten, its
+  /// private accesses checked against the release's manifest and its
+  /// unsupported shapes refused. Its callers pass the receiver (see
+  /// `helperCall` in `_lower`).
+  ///
+  /// PRIVATE NAMES. A target that reaches release-private members compiles
+  /// with `--resolve-private-names-in-library`, so private names resolve as if
+  /// in the release's library. Measured on host (probes/added_method.sh,
+  /// `st_*` arms): a new private method on a private class, and a new private
+  /// top-level function, still bind to the replacement's own declaration, and
+  /// naming an ungranted release-private member from a helper is refused here.
+  /// So a private helper is allowed; what its text may name is limited to the
+  /// other helpers this patch carries, and for an instance helper also the
+  /// private accesses its own lowering reported and the manifest granted. A
+  /// helper named like a top-level declaration of its library is refused by
+  /// the analysis. A top-level helper's text may name no other private
+  /// identifier: a dynamic `d._secret` would compile and fail on the device.
+  String _helperSources(
+    String key,
+    Set<String> needed,
+    RouteBCoverage coverage,
+    RouteBCapabilities? capabilities,
+    RouteBCompiler compiler,
+    File? patchedVerificationKernel, {
+    required bool resolvesPrivateNames,
+  }) {
     final buffer = StringBuffer();
     for (final helper in needed.toList()..sort()) {
       final span = coverage.sources[helper];
@@ -671,14 +716,51 @@ Object? $_superIntrinsicName(
           "module entry point; only the patch's replacement may be one",
         );
       }
+      if (name.contains('.')) {
+        buffer
+          ..writeln()
+          ..writeln(
+            _lowerInstanceHelper(
+              key,
+              helper,
+              coverage,
+              capabilities,
+              compiler,
+              patchedVerificationKernel,
+            ),
+          );
+        continue;
+      }
+      // Before analysis version 17 nothing showed that a private name binds
+      // to the helper when private names resolve against the release's
+      // library, so a version 16 document keeps rung 1's refusal. From 17 the
+      // analysis proves a helper's private name is unique in its library.
+      if (resolvesPrivateNames &&
+          coverage.analysisVersion < routeBInstanceHelpersAnalysisVersion) {
+        if (name.replaceFirst(RegExp(r'^[gs]et:'), '').startsWith('_') ||
+            _privateIdentifiers(text).isNotEmpty) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'it needs the new function `$name`, which names a private '
+            'identifier, and this target is compiled with private names '
+            "resolved against the release's library because it reaches a "
+            'private member of the release. A private name could then bind to '
+            'a member the release never granted. Make the helper public and '
+            'free of private names',
+          );
+        }
+      }
       // Private names in a helper must be helpers the library carries. Any
       // other one is a release-private name or a local: the first cannot bind
       // in the replacement library (a dynamic `d._secret` would compile and
       // fail on the device), and the second is refused with it rather than
       // told apart from it.
+      // Only the helpers THIS helper calls (and itself, for recursion): a
+      // helper of another library, or one it does not call, is not in scope
+      // here, so a private name equal to its name means some other member.
       final carried = {
-        for (final h in coverage.helpers)
-          h.split('#').last.replaceFirst(RegExp(r'^[gs]et:'), ''),
+        ..._helperNamesCalledBy(helper, coverage),
+        _helperName(helper),
       };
       for (final private in _privateIdentifiers(text)) {
         if (carried.contains(private)) continue;
@@ -690,25 +772,51 @@ Object? $_superIntrinsicName(
           'functions',
         );
       }
-      if (resolvesPrivateNames) {
-        if (name.replaceFirst(RegExp(r'^[gs]et:'), '').startsWith('_') ||
-            _privateIdentifiers(text).isNotEmpty) {
-          throw RouteBUnsupportedTarget(
-            key,
-            'it needs the new function `$name`, which names a private '
-            "identifier, and this target is compiled with private names "
-            "resolved against the release's library because it reaches a "
-            'private member of the release. A private name could then bind to '
-            'a member the release never granted. Make the helper public and '
-            'free of private names',
-          );
-        }
-      }
       buffer
         ..writeln()
         ..writeln(text);
     }
     return buffer.toString();
+  }
+
+  /// The top-level function an instance helper becomes; see `_helperSources`.
+  String _lowerInstanceHelper(
+    String key,
+    String helper,
+    RouteBCoverage coverage,
+    RouteBCapabilities? capabilities,
+    RouteBCompiler compiler,
+    File? patchedVerificationKernel,
+  ) {
+    final name = helper.split('#').last;
+    Never refuse(String why) => throw RouteBUnsupportedTarget(
+      key,
+      'it needs the new method `$name`, which $why',
+    );
+    if (coverage.analysisVersion < routeBInstanceHelpersAnalysisVersion) {
+      refuse('this analysis predates instance helpers');
+    }
+    final lowering = coverage.lowering[helper];
+    if (lowering == null) {
+      refuse('the analysis gives no lowering for, so it cannot be carried');
+    }
+    if (lowering.superInvocations.isNotEmpty) {
+      refuse('calls `super`, which a new method has no release version of');
+    }
+    try {
+      return _lower(
+        helper,
+        coverage.sources[helper]!,
+        lowering,
+        capabilities,
+        compiler,
+        patchedVerificationKernel,
+        _helperNamesCalledBy(helper, coverage),
+      ).declaration;
+    } on RouteBUnsupportedTarget catch (e) {
+      // The reason is the lowering's own, with the helper named in front.
+      refuse('cannot be lowered: ${e.reason}');
+    }
   }
 
   /// The import directives of the library being patched, for the replacement
@@ -1176,12 +1284,67 @@ Object? $_superIntrinsicName(
       // kind added later may not work that way, so refuse rather than guess --
       // the analyzer and the producer are versioned together for this reason,
       // and this is the backstop when that pairing is somehow wrong.
-      if (!const {'get', 'set', 'invoke'}.contains(access.kind)) {
+      if (!const {'get', 'set', 'invoke', 'helperCall'}.contains(access.kind)) {
         throw RouteBUnsupportedTarget(
           key,
           'uses the receiver in a way this lowering does not know how to '
           'rewrite (`${access.kind}` on `${access.member}`)',
         );
+      }
+      // A CALL TO A NEW INSTANCE METHOD (analysis version 17). The helper is a
+      // top-level function taking the receiver first, so `_m(a)` and
+      // `this._m(a)` both become `_m(self, a)`: the `(` after the name gains the
+      // receiver, and an explicit `this.` goes. The argument list is otherwise
+      // copied verbatim. The `(` is replaced rather than inserted after, so
+      // that a receiver use that starts the argument list (`_m(label)`, whose
+      // own edit sits at the next offset) cannot collide with it.
+      if (access.kind == 'helperCall') {
+        final nameEnd = access.offset + access.member.length;
+        if (nameEnd > span.end ||
+            source.substring(access.offset, nameEnd) != access.member) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'its call to `${access.member}` is not where the analyzer '
+            'reported it',
+          );
+        }
+        var open = nameEnd;
+        while (open < span.end && _isBlank(source.codeUnitAt(open))) {
+          open++;
+        }
+        if (open >= span.end || source[open] != '(') {
+          throw RouteBUnsupportedTarget(
+            key,
+            'its call to `${access.member}` is not written as a plain call '
+            '(a type argument list or a tear-off), which this lowering '
+            'will not rewrite',
+          );
+        }
+        var after = open + 1;
+        while (after < span.end && _isBlank(source.codeUnitAt(after))) {
+          after++;
+        }
+        final empty = after < span.end && source[after] == ')';
+        edits.add((open, 1, empty ? '($receiverName' : '($receiverName, '));
+        const explicitThis = 'this.';
+        final thisStart = access.offset - explicitThis.length;
+        if (thisStart >= span.start &&
+            source.substring(thisStart, access.offset) == explicitThis) {
+          edits.add((thisStart, explicitThis.length, ''));
+        } else {
+          var back = access.offset - 1;
+          while (back >= 0 && _isBlank(source.codeUnitAt(back))) {
+            back--;
+          }
+          if (back >= 0 && source[back] == '.') {
+            throw RouteBUnsupportedTarget(
+              key,
+              'calls `${access.member}` through a receiver this lowering '
+              'cannot rewrite safely',
+            );
+          }
+        }
+        continue;
       }
       // The argument list, if any, is not touched: the edit below inserts or
       // replaces a prefix immediately BEFORE the identifier, and everything
