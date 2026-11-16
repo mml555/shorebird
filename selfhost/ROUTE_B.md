@@ -284,13 +284,16 @@ rather than of use.
 
 **Status, 2026-11-15.**
 - **Earlier stack:** device-proven in D-SUPER-2C (see the table at the top).
-- **Flutter 3.47 stack:** the published cell `82fc78a8` predates change 0017, so
-  it refuses. 0017 is now in the Dart lineage (PR #5). A patched `initState`
-  calling `super.initState()` ran on an iPhone 7 from a local test cell built
-  from that lineage. See
+- **Flutter 3.47 stack:** 0017 is in the Dart lineage (PR #5). A patched
+  `initState` calling `super.initState()` ran on an iPhone 7 from a local test
+  cell built from that lineage. See
   [`engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md`](engine/route_b/evidence/ios_shapes_2026_11_15/RESULT.md).
-- **Not yet published:** no published 3.47 cell carries 0017. The engine pin is
-  mml555/shorebird-flutter#13.
+- **Published, 2026-11-16:** the supported cell `5f6efd98` (engine `d0714887`,
+  Dart `b4671ab7`) carries 0017. Its device run
+  ([`ios-cell-5f6efd98`](engine/route_b/evidence/ios-cell-5f6efd98/RESULT.md))
+  patched a plain function; a `super` call through the published cell has not
+  been run on a device yet. The previous cell `82fc78a8` predates 0017 and
+  refuses it.
 
 The text below was written before D-SUPER-2C and describes the rule; its
 "no release" applies today only to the published 3.47 cell.
