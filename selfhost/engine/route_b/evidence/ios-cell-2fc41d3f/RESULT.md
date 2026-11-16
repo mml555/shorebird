@@ -77,7 +77,9 @@ That is not a Shorebird host. No request went to `*.shorebird.dev` or `storage.g
 
 - A tap-driven increment: the app drives itself, so the "after a tap" case for m1 was the automatic `_increment` calls only.
 - m2 does not show the new method's field write persisting beyond the log (`events` stays 0 by design).
-- Not tried: p11, p12, p14, p22, p25, p28 (p28's shape, a new top-level function, is covered by h1).
+- Not tried: p11, p12, p14, p22, p25, p28. p28 adds a PUBLIC top-level `helper2()`; h1 covers the private form of a
+  new top-level function only. The analyzer on main accepts a public one when only the patch calls it
+  (`added_helper.sh`'s `public_helper` arm), but this run did not exercise it on the device.
 - One app on one device, no obfuscated release, no frame-time measurement.
 - Each CLI command printed `Unable to check for updates … ref HEAD is not a symbolic ref` (detached checkout); no effect.
 - Screenshots were taken only on `combo_boot` and `trio_boot` (the others were not kept beyond the three listed); the combo shots were not examined.

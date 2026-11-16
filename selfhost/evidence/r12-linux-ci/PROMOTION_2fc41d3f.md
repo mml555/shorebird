@@ -17,9 +17,9 @@ Run in `/srv/ci-cache/shorebird-engine/promo-2fc4` on ci-build with `R12_REPO_SH
 
 ## Why a new cell over the same engine
 
-PR #193 and PR #194 made the coverage analyzer v16 and v17. From v16 a patch may add a private top-level
-function that the patch's changed code calls; from v17 it may also add a private instance method of an
-existing class (lowered with the receiver as its first argument). The v15 analyzer in `aab9fd07` lists every
+PR #193 and PR #194 made the coverage analyzer v16 and v17. From v16 a patch may add a top-level function or
+getter (public or private) when everything that calls it is part of the patch; from v17 it may also add a
+private instance method of an existing class (lowered with the receiver as its first argument). The v15 analyzer in `aab9fd07` lists every
 new member as a rejection, and the CLI from #193 and #194 needs v17 to ship them. The analyzer lives in the
 compiler archive, which is a cell member, so the change needs a new address.
 
@@ -32,9 +32,10 @@ probe and the dynamic-interface generator (their sources are unchanged since `0d
 differs, because it records the new build time and the analyzer's digest. Archive `768ad4b8...`, 19835885 B
 (was `70f72462...`, 19810923 B).
 
-The 49 other files from the published `d0714887` overlay are identical to `aab9fd07`'s shipped copies. The six
-rendered members (`engine_stamp.json`, the four POMs and `artifacts_manifest.yaml`) are identical to
-`aab9fd07`'s once both addresses are normalized. The product's own `v2_transaction` staged, addressed,
+The 49 other files from the published `d0714887` overlay are identical to `aab9fd07`'s shipped copies. Seven
+members are rendered to the address: `engine_stamp.json`, the four POMs, `artifacts_manifest.yaml` and the
+descriptor. The first six are identical to `aab9fd07`'s once both addresses are normalized; the descriptor
+differs, as it names the address and the new compiler archive. The product's own `v2_transaction` staged, addressed,
 rendered, verified and published it: `CELL MEMBERS VERIFIED`, `AUDIT CLEAN`, `COMPLETE`, and
 `route-b-cell-v2 QUALIFIED`. The same 26 unaddressed host files ship as `host-extras-<address>.tar`.
 
@@ -86,24 +87,32 @@ were refused before upload (exit 70); rolling back patch 5 returned the device t
 
 ## What a patch can add now, and what is still refused
 
-Added by this cell: a private top-level function (v16), and a private instance method of an existing class
-(v17). Still refused, before upload: a public new method (code outside the library can call it by name), a new
-private name that another member of its library already uses, a new class, a new field, a new public top-level
-function, and the other shapes `PARITY.md` lists as refused. The `aab9fd07` cell refuses every new member.
+Added by this cell: a new top-level function or getter, public or private (v16), accepted when every caller is
+in the patch, and refused when something outside the patch calls it; and a new private instance method of an
+existing class (v17, conditions in `ROUTE_B.md`). Only a new instance method has to be private. Still refused,
+before upload: a public new instance method (code outside the library can call it by name), a private name
+that another member of its library already uses, a new class, a new field, and the other shapes `PARITY.md`
+lists as refused. The `aab9fd07` cell refuses every new member. The device run covered the private forms only:
+a public top-level function (the `p28` shape) was not run on the device.
 
 ## Published
 
-Not yet. The owner creates the tag `selfhost-flutter-cell-2fc41d3f` on shorebird-flutter at `5c60356c` and the
-release `cell-2fc41d3f` on mml555/shorebird. Its assets, from the mint, are:
+The owner created both on 2026-11-16. The tag `selfhost-flutter-cell-2fc41d3f` on shorebird-flutter is
+annotated (tag object `c49018d4`) and points at `5c60356c`. The release `cell-2fc41d3f` on mml555/shorebird
+targets `f9c56698` and is not marked latest. GitHub's digest of each of its six files matches this record:
 
 | File | SHA-256 |
 |---|---|
 | bundle `cell-2fc41d3f....tar` (740864512 B) | `2626334b...` |
 | `host-extras-2fc41d3f....tar` (843897344 B) | `1455a371...` |
-| `LAYOUT.txt` | `6b1ad1d9...` |
-| descriptor `cell_manifest.v2` | `2fc41d3f...` |
+| descriptor `cell_manifest.v2` (4141 B) | `2fc41d3f...a9b72f5c...` |
+| `LAYOUT.txt` (5993 B) | `6b1ad1d9...` |
+| `CELL.txt` (386 B) | `08e0f6c9...` |
+| `MANIFEST.sha256` (276 B) | `a9aef6ce...` |
 
-The two bootstrap ledger rows point at those two tars. They resolve only once the release exists.
+Both bootstrap ledger URLs return 200, and the members they name hash to the rows' SHA-256 and sizes:
+`dart-sdk-linux-x64.zip` `91dfc837...` (214945654 B, from the host-extras tar) and `engine_stamp.json`
+`8cdabc19...` (239 B, from the cell tar).
 
 ## Not done
 
@@ -112,5 +121,5 @@ The two bootstrap ledger rows point at those two tars. They resolve only once th
   the release chooser or `--release-version` (checked by grepping the `lib/` diff from `a443d87c` to `d7e5325e`
   for those words: no changed line mentions them).
 - Not exercised on a device: a tap-driven call of an added method, an added method on a class other than
-  `State`, an obfuscated release.
+  `State`, a public top-level function (the `p28` shape), an obfuscated release.
 - `verify_supported_state.sh` is run against this branch before merge; its result is in the PR.

@@ -122,7 +122,7 @@ lineage:
     remote: https://github.com/mml555/shorebird-flutter.git
     refs:
       - refs/heads/selfhost/3.47-cell-2fc41d3f
-      - refs/tags/selfhost-flutter-cell-2fc41d3f   # annotated; immutable intent; PENDING, the owner creates it after this record merges
+      - refs/tags/selfhost-flutter-cell-2fc41d3f   # annotated; immutable intent; created 2026-11-16, annotated tag object c49018d4 at 5c60356c
     parent: 0987ce0a23c873fbab3832ff0fbf229c7b207b84   # shorebird-flutter PR #15 head: engine.version = d0714887
     tree: c93ba984f939828cafa85947026a366076882a2e
     delta_from_parent: >-
@@ -270,12 +270,12 @@ cells:
       DEVICE-QUALIFIED on iOS through the cell address on 2026-11-16 (see physically_qualified).
     # aab9fd07 with ONE archive member replaced. Every cell member is the file
     # engine d0714887 published, byte for byte, except the seven rendered to the
-    # new address and the compiler archive. In the archive, route_b_analyze.aot (v17)
+    # new address (engine_stamp.json, four POMs, artifacts_manifest.yaml and the
+    # descriptor) and the compiler archive. In the archive, route_b_analyze.aot (v17)
     # is built from main 806db5d4; seven of the other eight members are aab9fd07's
     # (the release probe and the dynamic-interface generator are reused byte for
     # byte), and PROVENANCE.txt records the new build (its time and the analyzer's
-    # digest). The six rendered members (engine_stamp.json, four POMs,
-    # artifacts_manifest.yaml) equal aab9fd07's once both addresses are
+    # digest). The first six rendered members (all but the descriptor) equal aab9fd07's once both addresses are
     # normalized. The same 26 unaddressed host files ship as host-extras-<address>.tar.
     pin_flutter_revision: 0987ce0a23c873fbab3832ff0fbf229c7b207b84   # shorebird-flutter PR #15: engine.version = d0714887
     pin_engine_version: d0714887dd95d2990e0185fe1893523f3d600cc5     # merge of shorebird-flutter #13; Dart b4671ab7
@@ -604,7 +604,7 @@ cell_distribution:
   location:
     kind: github-release-asset
     repo: https://github.com/mml555/shorebird
-    tag: cell-2fc41d3f   # PENDING: the owner creates the release after this record merges
+    tag: cell-2fc41d3f   # created 2026-11-16, targets f9c56698, not marked latest
     assets:
       - cell-2fc41d3fbd9966958ba3ccf2be9761e064e92bcc.tar
       - cell_manifest.v2

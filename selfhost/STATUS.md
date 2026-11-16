@@ -15,12 +15,14 @@ changed. The values are in [`compatibility.yaml`](compatibility.yaml) and
 [`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml). The evidence is in
 [`PROMOTION_2fc41d3f.md`](evidence/r12-linux-ci/PROMOTION_2fc41d3f.md) and
 [`ios-cell-2fc41d3f`](engine/route_b/evidence/ios-cell-2fc41d3f/RESULT.md). What a patch can now add: a
-private top-level function and a private instance method of an existing class. On an iPhone, through the
-cell's address, the `aab9fd07` regression (22 ordinary edits, a changed `const` and a changed field
-initializer refused) was repeated, and three new patches added a private top-level function, a private
+top-level function or getter whose callers are all in the patch, and a private instance method of an existing
+class. On an iPhone, through the
+cell's address, the `aab9fd07` regression was repeated (22 ordinary edits, all 22 effects now observed, including the const-only
+widget text on screen; the combo screenshots were not examined, the values come from the logs; a changed `const`
+and a changed field initializer refused), and three new patches added a private top-level function, a private
 instance method, and a private method that calls an existing one and writes a field. A new public method and a
 private name that another member of the library already uses were refused before upload. The tag
-`selfhost-flutter-cell-2fc41d3f` and the release `cell-2fc41d3f` are pending the owner.
+`selfhost-flutter-cell-2fc41d3f` and the release `cell-2fc41d3f` were created by the owner on 2026-11-16.
 
 ## The four repositories
 
