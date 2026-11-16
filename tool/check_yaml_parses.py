@@ -52,6 +52,9 @@ for name in files:
     except (yaml.YAMLError, UnicodeDecodeError) as e:
         bad += 1
         print(f"::error file={name}::does not load as YAML: {' '.join(str(e).split())}")
+    except OSError as e:  # tracked but unreadable: a broken symlink, or deleted in the working tree
+        bad += 1
+        print(f"::error file={name}::cannot be read: {e.strerror or e}")
 
 print(f"{len(files) - bad} of {len(files)} tracked YAML files load")
 sys.exit(1 if bad else 0)
