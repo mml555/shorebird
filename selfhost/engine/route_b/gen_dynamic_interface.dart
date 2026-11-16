@@ -125,6 +125,7 @@ void main(List<String> args) {
   var frameworkMembersScope = 'all';
   String? manifestPath;
   final includePrefixes = <String>[];
+  final extendableSpecs = <String>[];
 
   for (var i = 0; i < args.length; i++) {
     final a = args[i];
@@ -221,6 +222,17 @@ void main(List<String> args) {
         // closure -- so they need their own line in measure_retention.sh rather
         // than inheriting a number measured on the cheap half.
         retainPrivateClasses = false;
+      case '--extendable':
+        // OFF BY DEFAULT. Repeatable. `library#Class` declares the class
+        // `extendable` (a patch module may extend, mix in or implement it) and
+        // every public member of it `can-be-overridden`; `library#Class.member`
+        // narrows can-be-overridden to that member. Without these two sections
+        // a module class that extends an AOT class aborts (tabled calls) or
+        // silently runs the wrong override (untabled calls); see
+        // probes/added_class.sh. The cost is real -- AOT can no longer
+        // devirtualize calls on these classes -- so nothing passes this by
+        // default. See extendableSections.
+        extendableSpecs.add(next());
       case '--no-framework-uses':
         // Present so the cost of framework-use retention stays measurable.
         // Without it a patch that names a framework type or member the app
@@ -836,6 +848,14 @@ void main(List<String> args) {
     }
   }
 
+  if (extendableSpecs.isNotEmpty) {
+    try {
+      buf.write(extendableSections(extendableSpecs));
+    } on FormatException catch (e) {
+      _die(e.message);
+    }
+  }
+
   File(outPath).writeAsStringSync(buf.toString());
 
   // THE CAPABILITY MANIFEST. Five categories, and the last two are the ones that
@@ -948,6 +968,80 @@ String _vmName(Procedure p) => switch (p.kind) {
   _ => p.name.text,
 };
 
+/// The `extendable:` and `can-be-overridden:` sections for `--extendable`
+/// specs, each `library#Class` or `library#Class.member`.
+///
+/// `library#Class` makes the class extendable and ALL its public members
+/// overridable (a `class:` item with no `member:`, per pkg/vm's
+/// dynamic_interface.md); `library#Class.member` names one overridable member
+/// and still makes the class extendable. Output is sorted so a run is
+/// reproducible. Returns the empty string for no specs, so the interface is
+/// byte-identical to today's. Throws [FormatException] on a malformed spec.
+String extendableSections(List<String> specs) {
+  // library -> class -> members; an empty member set means "every member".
+  final extendable = <String, Map<String, Set<String>>>{};
+  final wholeClass = <String, Set<String>>{};
+  for (final spec in specs) {
+    final i = spec.indexOf('#');
+    if (i <= 0 || i == spec.length - 1) {
+      throw FormatException(
+        "--extendable entry must be 'library#Class' or "
+        "'library#Class.member', got: $spec",
+      );
+    }
+    final library = spec.substring(0, i);
+    final rest = spec.substring(i + 1);
+    final dot = rest.indexOf('.');
+    final cls = dot < 0 ? rest : rest.substring(0, dot);
+    final member = dot < 0 ? null : rest.substring(dot + 1);
+    if (cls.isEmpty || (member != null && member.isEmpty)) {
+      throw FormatException(
+        "--extendable entry must be 'library#Class' or "
+        "'library#Class.member', got: $spec",
+      );
+    }
+    final members = (extendable[library] ??= {})[cls] ??= <String>{};
+    if (member == null) {
+      (wholeClass[library] ??= <String>{}).add(cls);
+    } else {
+      members.add(member);
+    }
+  }
+  if (extendable.isEmpty) return '';
+  final libs = extendable.keys.toList()..sort();
+  final out = StringBuffer()
+    ..writeln('')
+    ..writeln('# --extendable: classes a patch module may extend.')
+    ..writeln('extendable:');
+  for (final lib in libs) {
+    final names = extendable[lib]!.keys.toList()..sort();
+    out
+      ..writeln("  - library: '$lib'")
+      ..writeln('    class: [${names.map((n) => "'$n'").join(', ')}]');
+  }
+  out
+    ..writeln('')
+    ..writeln('can-be-overridden:');
+  for (final lib in libs) {
+    final names = extendable[lib]!.keys.toList()..sort();
+    for (final cls in names) {
+      if (wholeClass[lib]?.contains(cls) ?? false) {
+        out
+          ..writeln("  - library: '$lib'")
+          ..writeln("    class: '$cls'");
+        continue;
+      }
+      for (final m in extendable[lib]![cls]!.toList()..sort()) {
+        out
+          ..writeln("  - library: '$lib'")
+          ..writeln("    class: '$cls'")
+          ..writeln("    member: '$m'");
+      }
+    }
+  }
+  return out.toString();
+}
+
 Never _die(String message) {
   stderr.writeln('error: $message');
   exit(2);
@@ -979,6 +1073,11 @@ gen_dynamic_interface.dart --dill <app.dill> [options]
                            recorded NON-VIABLE -- its grants are inert, because
                            a patch cannot attach to a method of a class the
                            release did not retain
+  --extendable <l#C[.m]>   repeatable, OFF by default: emit `extendable:` for
+                           class C and `can-be-overridden:` for all its public
+                           members (or only member m), so a patch module may
+                           declare a class extending an AOT class. Costs AOT
+                           devirtualization on C; see probes/added_class.sh
   --no-framework-uses      do not retain the framework and SDK classes and
                            members the app's own code uses. Without them a
                            patch naming one (BuildContext in a build()
