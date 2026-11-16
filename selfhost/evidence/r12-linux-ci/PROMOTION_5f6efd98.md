@@ -74,6 +74,16 @@ what arm 3 needs to see two releases.
 Through the cell address on a physical iPhone 7 (iOS 15.8), 2026-11-16: release, Route B patch applied on
 two launches, rollback back to the release. PASS. `selfhost/engine/route_b/evidence/ios-cell-5f6efd98/RESULT.md`.
 
+## Published
+
+The owner created both on 2026-11-16. The tag `selfhost-flutter-cell-5f6efd98` on shorebird-flutter
+points at `ef0eec1b`. The release `cell-5f6efd98` on mml555/shorebird targets `22f14441`, and GitHub's
+digest of each of its six files matches this record: the bundle `ef568465...`, the host extras
+`92478549...`, the layout `37ce7822...` and the descriptor `5f6efd98...`. Both bootstrap ledger URLs
+resolve (200), and the members they name hash to the rows' SHA-256 and sizes: `dart-sdk-linux-x64.zip`
+`91dfc837...` (214945654 B) and `engine_stamp.json` `06677562...` (239 B). The engine release
+`engine-d0714887...` on shorebird-flutter is now marked latest.
+
 ## Verification of the record
 
 `verify_supported_state.sh` on the arm64 Mac, against this branch's record with the minted cell's overlay
@@ -88,5 +98,3 @@ members against the bytes served and `audit_route_b_compiler: AUDIT CLEAN`).
   chooser or `--release-version`. `selfhost/ci/r12` changed in PR #177 (mirror startup retries; scripts reach
   their own error instead of exiting silently) and PR #183 (discovery container reuse), neither of which
   changes what the arms run.
-- The tag `selfhost-flutter-cell-5f6efd98` on shorebird-flutter, and the release `cell-5f6efd98` on
-  mml555/shorebird that the bootstrap ledger rows point at, are the owner's to create.
