@@ -928,34 +928,6 @@ Object? $_superIntrinsicName(
       edits.add((offset, length, text.replaceAll('@RECEIVER@', receiverName)));
     }
 
-    // The receiver parameter goes into the method's own parameter list, found
-    // by scanning from the NAME — an annotation's parentheses come earlier and
-    // would otherwise match first.
-    final open = source.indexOf('(', lowering.nameOffset);
-    if (open < 0 || open >= span.end) {
-      throw RouteBUnsupportedTarget(
-        key,
-        'its parameter list could not be found',
-      );
-    }
-    final close = source.indexOf(')', open);
-    if (close < 0) {
-      throw RouteBUnsupportedTarget(
-        key,
-        'its parameter list is not closed',
-      );
-    }
-    // G3.7: the target's OWN parameters stay, and the receiver goes in FRONT of
-    // them. The existing list is copied verbatim -- exactly as the argument list
-    // of a call is copied verbatim -- so nothing here reconstructs Dart syntax:
-    // no types are parsed, no defaults are interpreted, no names are rewritten.
-    //
-    // The analyzer refuses named parameters, optional positionals and generics,
-    // matching the compiler contract clause for clause, so a non-empty list
-    // reaching this point is a list of required positionals. A separator is
-    // needed only when there is something to separate from.
-    final existingParams = source.substring(open + 1, close).trim();
-    final separator = existingParams.isEmpty ? '' : ', ';
     // THE RECEIVER KEEPS ITS CLASS'S OWN TYPE, private or not.
     //
     // A private class is written by name too: `_FooState self`. The replacement
@@ -984,11 +956,76 @@ Object? $_superIntrinsicName(
     // backstop instead would admit it at every position, so `_FooState()`, a
     // tear-off or a static on the class would pass ungated. The placeholder
     // cannot match a private identifier (`_TYPE` follows a letter).
-    edits.add((
-      open + 1,
-      0,
-      '$_receiverTypePlaceholder $receiverName$separator',
-    ));
+    final receiverParameter = '$_receiverTypePlaceholder $receiverName';
+
+    // AN INSTANCE GETTER has no parameter list to put the receiver in, and
+    // scanning for one would find the first `(` of its BODY: `get label =>
+    // compute(x)` would become `compute(Thing self, x)`. In the VM a getter
+    // is a one-parameter function named `get:label` -- the parameter is the
+    // receiver -- and the device resolves the target by that name, so the
+    // replacement is the same one-parameter function as for a method:
+    // `String get label => x` becomes `String label(Thing self) => x`.
+    final selector = key.contains('#') ? key.split('#').last : key;
+    final getterName = selector.contains('.get:')
+        ? selector.substring(selector.indexOf('.get:') + '.get:'.length)
+        : null;
+    if (getterName != null) {
+      final nameEnd = lowering.nameOffset + getterName.length;
+      if (nameEnd > span.end ||
+          source.substring(lowering.nameOffset, nameEnd) != getterName) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'its name `$getterName` is not where the analyzer reported it',
+        );
+      }
+      var back = lowering.nameOffset;
+      while (back > span.start && _isBlank(source.codeUnitAt(back - 1))) {
+        back--;
+      }
+      const keyword = 'get';
+      final keywordStart = back - keyword.length;
+      if (back == lowering.nameOffset ||
+          keywordStart < span.start ||
+          source.substring(keywordStart, back) != keyword ||
+          (keywordStart > 0 &&
+              _isIdentifierPart(source.codeUnitAt(keywordStart - 1)))) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'its `get` keyword could not be found ahead of its name',
+        );
+      }
+      edits
+        ..add((keywordStart, lowering.nameOffset - keywordStart, ''))
+        ..add((nameEnd, 0, '($receiverParameter)'));
+    } else {
+      // The receiver parameter goes into the method's own parameter list, found
+      // by scanning from the NAME — an annotation's parentheses come earlier and
+      // would otherwise match first.
+      final open = source.indexOf('(', lowering.nameOffset);
+      if (open < 0 || open >= span.end) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'its parameter list could not be found',
+        );
+      }
+      final close = source.indexOf(')', open);
+      if (close < 0) {
+        throw RouteBUnsupportedTarget(key, 'its parameter list is not closed');
+      }
+      // G3.7: the target's OWN parameters stay, and the receiver goes in FRONT
+      // of them. The existing list is copied verbatim -- exactly as the
+      // argument list of a call is copied verbatim -- so nothing here
+      // reconstructs Dart syntax: no types are parsed, no defaults are
+      // interpreted, no names are rewritten.
+      //
+      // The analyzer refuses named parameters, optional positionals and
+      // generics, matching the compiler contract clause for clause, so a
+      // non-empty list reaching this point is a list of required positionals.
+      // A separator is needed only when there is something to separate from.
+      final existingParams = source.substring(open + 1, close).trim();
+      final separator = existingParams.isEmpty ? '' : ', ';
+      edits.add((open + 1, 0, '$receiverParameter$separator'));
+    }
 
     for (final access in edited.values) {
       // The edit below inserts or replaces a receiver prefix immediately before
@@ -1419,6 +1456,16 @@ Object? $_superIntrinsicName(
     }
     return -1;
   }
+
+  static bool _isBlank(int c) =>
+      c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D;
+
+  static bool _isIdentifierPart(int c) =>
+      (c >= 0x30 && c <= 0x39) ||
+      (c >= 0x41 && c <= 0x5A) ||
+      (c >= 0x61 && c <= 0x7A) ||
+      c == 0x5F ||
+      c == 0x24;
 
   /// The declaration's source text, from the patch's own file.
   String _slice(String key, RouteBSourceSpan span) {

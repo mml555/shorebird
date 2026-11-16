@@ -648,6 +648,66 @@ void main() {
         );
       });
 
+      group('an instance getter target', () {
+        const getterKey = 'package:app/main.dart#RouteBThing.get:value';
+
+        test('becomes a one-parameter function, past a call in its body', () {
+          // Scanning for a parameter list would find `toUpperCase(` instead.
+          expect(
+            lowered(
+              instanceCoverage(
+                targetKey: getterKey,
+                preamble: 'class RouteBThing {\n  ',
+                decl: 'String get value => label.toUpperCase();',
+                access: 'label',
+              ),
+            ),
+            contains(
+              'String value(RouteBThing self) => self.label.toUpperCase();',
+            ),
+          );
+        });
+
+        test('keeps a block body and its annotation', () {
+          expect(
+            lowered(
+              instanceCoverage(
+                targetKey: getterKey,
+                preamble: 'class RouteBThing {\n  ',
+                decl:
+                    "@pragma('vm:never-inline')\n  String get value {\n"
+                    '    return label;\n  }',
+                access: 'label',
+              ),
+            ),
+            contains(
+              "@pragma('vm:never-inline')\n  String value(RouteBThing self) {\n"
+              '    return self.label;\n  }',
+            ),
+          );
+        });
+
+        test('refuses when the source has no `get` ahead of the name', () {
+          expect(
+            () => lowered(
+              instanceCoverage(
+                targetKey: getterKey,
+                preamble: 'class RouteBThing {\n  ',
+                decl: 'String value() => label;',
+                access: 'label',
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('`get` keyword'),
+              ),
+            ),
+          );
+        });
+      });
+
       test('a private receiver class keeps its own type', () {
         // Not `dynamic`. A dynamic receiver makes every access on `self` a
         // dynamic call, which the AOT runtime refuses for any member the
