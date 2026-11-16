@@ -116,7 +116,7 @@ void main() {
       expect(result.carried, [start]);
     });
 
-    test('leaves a constructor caller of a folded target uncarried', () {
+    test('never carries a constructor caller of a folded target', () {
       // The analyzer reports a constructor whose initializer calls the target,
       // and a field initializer, as callers too. Neither is a procedure, so
       // `--carry` cannot carry them; the loop must stop with them still
