@@ -132,6 +132,86 @@ void main() {
       );
     });
 
+    group('a top-level helper naming a private identifier', () {
+      const libA = 'package:app/main.dart';
+      const libB = 'package:app/other.dart';
+      const entry = 'String routeBValue() => _g(1) + _x();';
+      const g = 'String _g(dynamic o) => o._x;';
+      const x = "String _x() => 'X';";
+      final text = [entry, g, x].join('\n');
+
+      Map<String, Object?> span(String piece) => {
+        'fileUri': source.uri.toString(),
+        'start': text.indexOf(piece),
+        'end': text.indexOf(piece) + piece.length,
+      };
+
+      RouteBCoverage coverage({required List<String> gCalls}) {
+        source.writeAsStringSync(text);
+        return RouteBCoverage.fromJson(
+          jsonEncode({
+            'analysisVersion': routeBHelpersAnalysisVersion,
+            'verdict': 'accept',
+            'changed': ['$libA#routeBValue'],
+            'carried': <String>[],
+            'callers': {
+              '$libA#_g': ['$libA#routeBValue'],
+              '$libB#_x': ['$libA#routeBValue', ...gCalls],
+            },
+            'added': ['$libA#_g', '$libB#_x'],
+            'helpers': ['$libA#_g', '$libB#_x'],
+            'unusedHelpers': <String>[],
+            'removed': <String>[],
+            'patchable': ['$libA#routeBValue'],
+            'conditional': <String>[],
+            'sources': {
+              '$libA#routeBValue': span(entry),
+              '$libA#_g': span(g),
+              '$libB#_x': span(x),
+            },
+            'rejections': <Object>[],
+            'refusalSummary': null,
+          }),
+        );
+      }
+
+      String produce(RouteBCoverage c) {
+        runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: c,
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            run: compileOk,
+          ),
+        );
+        return File(p.join(work.path, 'replacement_0.dart')).readAsStringSync();
+      }
+
+      test('refuses a private name that is another library\'s helper, not '
+          'one this helper calls', () {
+        expect(
+          () => produce(coverage(gCalls: const [])),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('`_x`, a private identifier that is not a new function'),
+            ),
+          ),
+        );
+      });
+
+      test('takes a private name of a helper it does call', () {
+        expect(
+          produce(coverage(gCalls: ['$libA#_g'])),
+          contains('String _g(dynamic o) => o._x;'),
+        );
+      });
+    });
+
     group('helpers (analysis version 16)', () {
       const lib = 'package:app/main.dart';
       const entry = 'String routeBValue() => helperA();';

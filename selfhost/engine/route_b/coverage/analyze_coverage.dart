@@ -1288,6 +1288,15 @@ String? _declarationClash(
     for (final t in lib.typedefs) {
       if (t.name == name.text) return 'the typedef `${t.name}`';
     }
+    for (final e in lib.extensionTypeDeclarations) {
+      if (e.name == name.text) return 'the extension type `${e.name}`';
+      if (e.representationName == name.text) {
+        return 'the representation field of the extension type `${e.name}`';
+      }
+      for (final d in e.memberDescriptors) {
+        if (same(d.name)) return 'a member of the extension type `${e.name}`';
+      }
+    }
     for (final e in lib.extensions) {
       if (e.name == name.text) return 'the extension `${e.name}`';
       for (final d in e.memberDescriptors) {

@@ -35,6 +35,8 @@
 #                       name), used or not
 #   refused_st_other_class_same_name  a new private method named like a private
 #                       member of another class of the library
+#   refused_st_ext_type_same_name  a new private method named like a member of an
+#                       extension type of the library
 #   refused_local_shadow  a local named like the helper in a calling body
 #   refused_st_v16_private_top  a version-16 document keeps rung 1's refusal of
 #                       a private top-level helper under a private receiver
@@ -102,6 +104,11 @@ class RbOther {
   String _x() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'OX' : 'X';
 }
 
+extension type RbId(int _v) {
+  @pragma('vm:never-inline')
+  String _y() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'EY' : 'X';
+}
+
 class _RbState {
   String _title = 'TTL';
   @pragma('vm:never-inline')
@@ -119,7 +126,7 @@ String rbClash() => DateTime.now().millisecondsSinceEpoch >= 0 ? 'T' : 'X';
 '''
 old = "void _state(String when) => print('$when alpha=${alpha()} beta=${beta()}');"
 assert old in s
-s = s.replace(old, "void _state(String when) => print('$when alpha=${alpha()} beta=${beta()} box=${RbBox().show()} oth=${RbBox().other()} kid=${RbKid().kidOnly()} clash=${rbClash()} st=${_RbState().build()} rel=${_rbRel()} dup=${_rbDup()} ox=${RbOther()._x()}');")
+s = s.replace(old, "void _state(String when) => print('$when alpha=${alpha()} beta=${beta()} box=${RbBox().show()} oth=${RbBox().other()} kid=${RbKid().kidOnly()} clash=${rbClash()} st=${_RbState().build()} rel=${_rbRel()} dup=${_rbDup()} ox=${RbOther()._x()} ey=${RbId(1)._y()}');")
 p.write_text(s)
 PY
 "$DART" "$GEN_KERNEL" --platform "$PLAT" --aot --packages .dart_tool/package_config.json -o prepass.dill "$URI" >/dev/null
@@ -279,6 +286,7 @@ refused_st refused_st_ungranted_in_top "not a new function this patch carries" "
 refused_st refused_st_dynamic_private_in_top "not a new function this patch carries" "_rbPeek(_title)" "" "String _rbPeek(dynamic d) => (d as dynamic)._title;"
 refused_st refused_st_same_name_as_release_private "also used by" "_rbDup()" "  String _rbDup() => 'NEWDUP';"
 refused_st refused_st_other_class_same_name "also used by" "_x()" "  String _x() => 'NX';"
+refused_st refused_st_ext_type_same_name "also used by" "_y()" "  String _y() => 'NY';"
 refused_st refused_st_v16_private_top "names a private identifier" "_rbTop2(_title)" "" "String _rbTop2(String s) => 'T-\$s';" "$CELL_16"
 
 refused refused_public_method "$CELL_NEW" "a PUBLIC method" "toJson()" "  String toJson() => 'J';"

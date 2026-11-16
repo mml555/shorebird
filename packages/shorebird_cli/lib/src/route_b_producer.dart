@@ -755,7 +755,13 @@ Object? $_superIntrinsicName(
       // in the replacement library (a dynamic `d._secret` would compile and
       // fail on the device), and the second is refused with it rather than
       // told apart from it.
-      final carried = {for (final h in coverage.helpers) _helperName(h)};
+      // Only the helpers THIS helper calls (and itself, for recursion): a
+      // helper of another library, or one it does not call, is not in scope
+      // here, so a private name equal to its name means some other member.
+      final carried = {
+        ..._helperNamesCalledBy(helper, coverage),
+        _helperName(helper),
+      };
       for (final private in _privateIdentifiers(text)) {
         if (carried.contains(private)) continue;
         throw RouteBUnsupportedTarget(
