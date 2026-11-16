@@ -135,6 +135,8 @@ drive() { # <cell> <outdir>
   CLI_EXIT=$?
   set -e
 }
+# ONLY=<regex> runs just the arms whose label matches.
+want() { [ -z "${ONLY:-}" ] || [[ $1 =~ $ONLY ]]; }
 record() { RESULTS+=("$1|$2"); echo "  RESULT $1: $2"; [ "$2" = PASS ] || FAILS=$((FAILS+1)); }
 
 # patch <show body> <members for RbBox> <members for RbKid> <top-level text> <kid body or empty>
@@ -187,6 +189,7 @@ PY
 # arm_st <label> <want st> <build body> <members> <top-level>
 arm_st() {
   local label=$1 want=$2
+  want "$label" || return 0
   d=$WORK/$label; mkdir -p "$d"
   echo; echo "==> $label"
   patch_st "$3" "${4:-}" "${5:-}" || { record "$label" "FAIL (harness)"; return; }
@@ -203,6 +206,7 @@ arm_st() {
 # refused_st <label> <phrase> <build body> <members> <top-level>
 refused_st() {
   local label=$1 phrase=$2
+  want "$label" || return 0
   d=$WORK/$label; mkdir -p "$d"
   echo; echo "==> $label"
   patch_st "$3" "${4:-}" "${5:-}" || { record "$label" "FAIL (harness)"; return; }
@@ -216,6 +220,7 @@ refused_st() {
 # arm <label> <cell> <want box> <show> <box members> [<kid members> <top> <kid body>]
 arm() {
   local label=$1 cell=$2 want=$3
+  want "$label" || return 0
   d=$WORK/$label; mkdir -p "$d"
   echo; echo "==> $label"
   patch "$4" "${5:-}" "${6:-}" "${7:-}" "${8:-}" || { record "$label" "FAIL (harness)"; return; }
@@ -232,6 +237,7 @@ arm() {
 # refused <label> <cell> <phrase> <show> <box members> [<kid members> <top> <kid body>]
 refused() {
   local label=$1 cell=$2 phrase=$3
+  want "$label" || return 0
   d=$WORK/$label; mkdir -p "$d"
   echo; echo "==> $label"
   patch "$4" "${5:-}" "${6:-}" "${7:-}" "${8:-}" || { record "$label" "FAIL (harness)"; return; }

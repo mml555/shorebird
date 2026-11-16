@@ -400,7 +400,6 @@ Object? $_superIntrinsicName(
       final helperText = _helperSources(
         key,
         neededHelpers,
-        resolvesPrivateNames,
         coverage,
         capabilities,
         compiler,
@@ -671,23 +670,21 @@ Object? $_superIntrinsicName(
   /// unsupported shapes refused. Its callers pass the receiver (see
   /// `helperCall` in `_lower`).
   ///
-  /// A target that reaches release-private members ([resolvesPrivateNames]:
-  /// a granted private access, a private construction or a private receiver
-  /// class, in the target or in a helper) is compiled with
-  /// `--resolve-private-names-in-library`, which makes every private name in
-  /// the whole library resolve against the release library rather than the
-  /// replacement. A private helper, or a top-level helper whose text names any
-  /// private identifier, could then bind to a release member nobody granted, so
-  /// those combinations are refused. Not measured to be unsafe; not measured to
-  /// be safe. Without that flag a private name resolves in the replacement
-  /// library, where a private helper is declared. A top-level helper's text
-  /// may name no other private identifier: a release-private one could not bind
-  /// there, and its dynamic form (`d._secret`) would compile and fail on the
-  /// device rather than here.
+  /// PRIVATE NAMES. A target that reaches release-private members compiles
+  /// with `--resolve-private-names-in-library`, so private names resolve as if
+  /// in the release's library. Measured on host (probes/added_method.sh,
+  /// `st_*` arms): a new private method on a private class, and a new private
+  /// top-level function, still bind to the replacement's own declaration, and
+  /// naming an ungranted release-private member from a helper is refused here.
+  /// So a private helper is allowed; what its text may name is limited to the
+  /// other helpers this patch carries, and for an instance helper also the
+  /// private accesses its own lowering reported and the manifest granted. A
+  /// helper named like a top-level declaration of its library is refused by
+  /// the analysis. A top-level helper's text may name no other private
+  /// identifier: a dynamic `d._secret` would compile and fail on the device.
   String _helperSources(
     String key,
     Set<String> needed,
-    bool resolvesPrivateNames,
     RouteBCoverage coverage,
     RouteBCapabilities? capabilities,
     RouteBCompiler compiler,
@@ -721,7 +718,6 @@ Object? $_superIntrinsicName(
             _lowerInstanceHelper(
               key,
               helper,
-              resolvesPrivateNames,
               coverage,
               capabilities,
               compiler,
@@ -757,7 +753,6 @@ Object? $_superIntrinsicName(
   String _lowerInstanceHelper(
     String key,
     String helper,
-    bool resolvesPrivateNames,
     RouteBCoverage coverage,
     RouteBCapabilities? capabilities,
     RouteBCompiler compiler,
