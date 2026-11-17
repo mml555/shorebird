@@ -895,6 +895,54 @@ callable:
         );
       });
 
+      group('a VM-predefined dart:core class named as a type', () {
+        test('is kept though the interface lists none of them', () {
+          for (final name in [
+            'Object',
+            'Null',
+            'bool',
+            'int',
+            'double',
+            'num',
+            'String',
+          ]) {
+            expect(
+              refusal([_ref('class', 'dart:core', cls: name)]),
+              isNull,
+              reason: name,
+            );
+          }
+        });
+
+        test('does not make other dart:core classes kept', () {
+          expect(
+            refusal([_ref('class', 'dart:core', cls: 'Stopwatch')]),
+            contains('Stopwatch'),
+          );
+        });
+
+        test('does not make a member or constructor of one kept', () {
+          expect(
+            refusal([
+              _ref(
+                'constructor',
+                'dart:core',
+                cls: 'bool',
+                member: 'fromEnvironment',
+              ),
+            ]),
+            contains('fromEnvironment'),
+          );
+        });
+
+        test('is not said of an app class of the same name', () {
+          expect(
+            refusal([_ref('class', 'package:other/other.dart', cls: 'bool')]),
+            contains('bool'),
+          );
+        });
+      });
+
       group('an extension getter the release called itself', () {
         const lib = 'package:app/main.dart';
         final starsRef = _ref('top-level', lib, member: 'Stars|get#stars');

@@ -645,11 +645,27 @@ void main() {
       expect(reason, contains('without compiled code'));
     });
 
-    test('refuses a measured member on a class the release lacks', () {
-      expect(
-        refusal(retention(snapshot: kept), sdk('trim')),
-        contains('no class `_TwoByteString`'),
+    test('skips a measured class the release lacks, when others are there', () {
+      // `trim` was measured on _OneByteString and _TwoByteString; the release
+      // has no _TwoByteString, so no receiver can be one.
+      expect(refusal(retention(snapshot: kept), sdk('trim')), isNull);
+    });
+
+    test('still checks the measured classes the release has', () {
+      // `endsWith` was measured on _OneByteString only, where it is a stub.
+      final r = RouteBRetention.parse(
+        _interface,
+        measuredAccepted: const {'dart:core#String#endsWith'},
+        measuredFailing: const {},
+        measuredVmClasses: const {
+          'dart:core#String#endsWith': ['_TwoByteString', '_OneByteString'],
+        },
+        kept: kept,
       );
+      expect(refusal(r, sdk('endsWith')), contains('without compiled code'));
+    });
+
+    test('refuses a measured member on a class the release lacks', () {
       expect(
         refusal(retention(snapshot: kept), sdk('containsKey', 'Map')),
         contains('no class `_Map`'),

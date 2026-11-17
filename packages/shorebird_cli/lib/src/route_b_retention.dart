@@ -491,6 +491,7 @@ class RouteBRetention {
     }
     if (member == null) {
       // A class named as a type.
+      if (!r.isPrivate && _isVmPredefinedCore(r)) return true;
       return classes.contains('${r.library}#$cls') ||
           (!r.isPrivate && wholeLibraries.contains(r.library));
     }
@@ -502,6 +503,33 @@ class RouteBRetention {
     }
     return !r.isPrivate && wholeLibraries.contains(r.library);
   }
+
+  /// The `dart:core` classes the VM itself defines before any library loads
+  /// (`Object`, `Null`, `bool`, `int`, `double`, `num`, `String`): named as a
+  /// TYPE, they need no interface item.
+  ///
+  /// The loader finds a class a patch names by looking it up in its library
+  /// (`Unable to find class X in Library`). These are the classes the VM has
+  /// fixed class ids for and allocates literals of (`true`, `1`, `1.5`, `'s'`,
+  /// `null`), so the precompiler cannot drop them and the library always holds
+  /// them. The snapshot profile of release 1.0.0+34 shows all seven in the
+  /// `dart:core` dictionary though its interface lists none of `bool`, `num`
+  /// or `Null`, because the app never wrote them as types. A patch cannot name
+  /// one of their members this way (that is a member reference, answered by
+  /// the interface); only the bare class. `dynamic` and `Never` are not
+  /// classes and arrive as no reference.
+  bool _isVmPredefinedCore(RouteBExternalReference r) =>
+      r.library == 'dart:core' &&
+      r.kind == 'class' &&
+      const {
+        'Object',
+        'Null',
+        'bool',
+        'int',
+        'double',
+        'num',
+        'String',
+      }.contains(r.className);
 
   bool _manifestSkips(String key) =>
       capabilities?.skipped.any((s) => s.startsWith(key)) ?? false;

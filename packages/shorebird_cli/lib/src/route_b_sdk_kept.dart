@@ -472,13 +472,34 @@ class RouteBSnapshotKept {
     required List<String> measured,
     required String selector,
   }) {
+    // A class the device measured the member on, and this release's snapshot
+    // does not hold at all, is skipped: the receiver cannot be one. The
+    // precompiler keeps a class only when code it compiled allocates it (or
+    // the interface keeps it), so a class with no node has no instance, and the
+    // only way a patch could make one is to call a constructor, factory or
+    // static of the SDK that allocates it: `Iterable.generate`, `List.generate`
+    // and the like. Each of those is a reference the retention check answers
+    // on its own (`_retained`: a `dart:` member is kept only if the interface
+    // lists it), and a function the release kept with code that allocates the
+    // class would have kept the class. At least one measured class must be
+    // present, so a profile that names none of them (a wrong or truncated one)
+    // still refuses; every candidate receiver class is checked below.
+    String? absent;
+    var present = 0;
     for (final name in measured) {
       final classes = _sdkClasses(name);
-      if (classes.isEmpty) return 'this release has no class `$name`';
+      if (classes.isEmpty) {
+        absent ??= name;
+        continue;
+      }
+      present++;
       for (final c in classes) {
         final why = _problemOn(c, selector);
         if (why != null) return why;
       }
+    }
+    if (present == 0 && absent != null) {
+      return 'this release has no class `$absent`';
     }
     final Iterable<int> candidates;
     if (declaredClass == null) {
