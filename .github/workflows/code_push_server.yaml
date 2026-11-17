@@ -9,10 +9,16 @@ on:
     branches: [main]
     paths:
       - packages/code_push_server/**
+      # The contract test drives the real client against the real server.
+      - packages/shorebird_code_push_client/**
+      - packages/shorebird_code_push_protocol/**
       - .github/workflows/code_push_server.yaml
   pull_request:
     paths:
       - packages/code_push_server/**
+      # The contract test drives the real client against the real server.
+      - packages/shorebird_code_push_client/**
+      - packages/shorebird_code_push_protocol/**
       - .github/workflows/code_push_server.yaml
 
 # Cancel superseded runs on the same ref.

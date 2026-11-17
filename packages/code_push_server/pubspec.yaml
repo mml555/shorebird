@@ -33,6 +33,4 @@ dev_dependencies:
   # The real client, driven against the real handler by test/contract.
   shorebird_code_push_client:
     path: ../shorebird_code_push_client
-  shorebird_code_push_protocol:
-    path: ../shorebird_code_push_protocol
   test: ^1.31.2
