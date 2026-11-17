@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
@@ -897,7 +898,9 @@ callable:
 
       group('an extension getter the release called itself', () {
         const lib = 'package:app/main.dart';
-        final starsRef = _ref('top-level', lib, member: 'Stars|get#stars');
+        const fn = 'Stars|get#stars';
+        const code = '[Optimized] Stars|get#stars';
+        final starsRef = _ref('top-level', lib, member: fn);
 
         RouteBRetention withProfile(Map<String, RouteBProfileClass> classes) =>
             RouteBRetention.parse(
@@ -905,48 +908,156 @@ callable:
               kept: RouteBSnapshotKept.fromProfileJson(routeBProfile(classes)),
             );
 
+        void expectRefused(Map<String, RouteBProfileClass> classes) {
+          expect(
+            refusal([starsRef], with_: withProfile(classes)),
+            contains(fn),
+          );
+        }
+
         test('is kept when the snapshot holds it with code', () {
           final kept = withProfile({
-            'top': const RouteBProfileClass(
-              '::',
-              lib,
-              fns: {'Stars|get#stars': '[Optimized] Stars|get#stars'},
-            ),
+            'top': const RouteBProfileClass('::', lib, fns: {fn: code}),
           });
           expect(refusal([starsRef], with_: kept), isNull);
         });
 
         test('is refused when the snapshot lacks it', () {
-          final kept = withProfile({
-            'top': const RouteBProfileClass(
-              '::',
-              lib,
-              fns: {'other': '[Optimized] other'},
-            ),
+          expectRefused({
+            'top': const RouteBProfileClass('::', lib, fns: {'o': 'o'}),
           });
-          expect(refusal([starsRef], with_: kept), contains('Stars|get#stars'));
         });
 
-        test('is refused when only a stub is there, or another library', () {
-          final stub = withProfile({
+        test('is refused when only a stub is there', () {
+          expectRefused({
             'top': const RouteBProfileClass(
               '::',
               lib,
-              fns: {'Stars|get#stars': '[Stub] CompileFunction'},
+              fns: {fn: '[Stub] CompileFunction'},
             ),
+          });
+        });
+
+        test('is refused when only another library holds it', () {
+          expectRefused({
+            'top': const RouteBProfileClass('::', lib, fns: {'o': 'o'}),
             'dep': const RouteBProfileClass(
               '::',
               'package:dep/dep.dart',
-              fns: {'Stars|get#stars': '[Optimized] Stars|get#stars'},
+              fns: {fn: code},
             ),
           });
-          expect(refusal([starsRef], with_: stub), contains('Stars|get#stars'));
         });
 
-        test('is refused with no snapshot profile', () {
+        test('is refused on a class that is not the top-level class', () {
+          expectRefused({
+            'top': const RouteBProfileClass('Other', lib, fns: {fn: code}),
+          });
+        });
+
+        test('is refused when only the dispatcher cache holds it', () {
+          expectRefused({
+            'top': const RouteBProfileClass(
+              '::',
+              lib,
+              fns: {'o': 'o'},
+              decoys: {fn: code},
+            ),
+          });
+        });
+
+        test('is refused when one entry of the name is a stub', () {
+          expectRefused({
+            'top': const RouteBProfileClass(
+              '::',
+              lib,
+              fns: {fn: code},
+              moreFns: [(fn, '[Stub] CompileFunction')],
+            ),
+          });
+        });
+
+        test('is refused for a private reference', () {
+          final kept = withProfile({
+            'top': const RouteBProfileClass('::', lib, fns: {fn: code}),
+          });
+          const private = RouteBExternalReference(
+            kind: 'top-level',
+            library: lib,
+            member: fn,
+            isPrivate: true,
+          );
+          expect(kept.refuse(private), isNotNull);
+        });
+
+        test('is kept for an extension of the SDK the profile holds', () {
+          // A change from before: the SDK is in the snapshot, and the loader
+          // resolves its top-level functions the same way.
+          const wait = 'FutureRecord2|get#wait';
+          final ref = _ref('top-level', 'dart:async', member: wait);
           expect(
-            refusal([starsRef], with_: RouteBRetention.parse(_interface)),
-            contains('Stars|get#stars'),
+            refusal(
+              [ref],
+              with_: withProfile({
+                'a': const RouteBProfileClass(
+                  '::',
+                  'dart:async',
+                  fns: {wait: '[Optimized] $wait'},
+                ),
+              }),
+            ),
+            isNull,
+          );
+          // And refused when this release's snapshot does not.
+          expect(
+            refusal(
+              [ref],
+              with_: withProfile({
+                'a': const RouteBProfileClass('::', 'dart:async'),
+              }),
+            ),
+            contains(wait),
+          );
+        });
+
+        test('is refused when the profile cannot be read', () {
+          final dir = Directory.systemTemp.createTempSync();
+          addTearDown(() => dir.deleteSync(recursive: true));
+          final good = routeBProfile({
+            'top': const RouteBProfileClass('::', lib, fns: {fn: code}),
+          });
+          final file = File(p.join(dir.path, 'profile.json'));
+          RouteBRetention fromFile(String text, String digestOf) {
+            file.writeAsStringSync(text);
+            final read = RouteBSnapshotKept.read(
+              file,
+              expectedSha256: sha256.convert(utf8.encode(digestOf)).toString(),
+            );
+            expect(read.kept, isNull);
+            return RouteBRetention.parse(_interface, kept: read.kept);
+          }
+
+          // Malformed (digest right), and well-formed with the wrong digest.
+          expect(
+            refusal([starsRef], with_: fromFile('{', '{')),
+            contains(fn),
+          );
+          expect(
+            refusal([starsRef], with_: fromFile(good, 'other')),
+            contains(fn),
+          );
+          // The same file with its own digest is read and answers.
+          file.writeAsStringSync(good);
+          final ok = RouteBSnapshotKept.read(
+            file,
+            expectedSha256: sha256.convert(utf8.encode(good)).toString(),
+          );
+          expect(
+            refusal(
+              [starsRef],
+              with_: RouteBRetention.parse(_interface, kept: ok.kept),
+            ),
+            isNull,
           );
         });
       });
