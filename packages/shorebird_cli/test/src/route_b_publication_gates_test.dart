@@ -157,6 +157,16 @@ void main() {
           'signatures': {
             target: ?signature,
           },
+          // The analyzer writes the member's scope; none of its own statics
+          // is used here.
+          'enclosingScope': {
+            target: {
+              'class': '_S',
+              'staticReferences': <Object>[],
+              'usedTypeParameters': <String>[],
+              'problems': <String>[],
+            },
+          },
           'rejections': <Object>[],
           'refusalSummary': null,
         }),
