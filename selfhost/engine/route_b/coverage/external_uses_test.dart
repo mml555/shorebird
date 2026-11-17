@@ -76,7 +76,7 @@ Map<String, Object?>? _find(
 Arguments get _noArgs => Arguments([]);
 
 void main() {
-  check(analysisVersion == 20, 'analysis version is 20');
+  check(analysisVersion == 21, 'analysis version is 21');
 
   final app = _lib('package:app/a.dart');
   final core = _lib('dart:core');

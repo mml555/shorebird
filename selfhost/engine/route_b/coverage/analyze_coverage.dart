@@ -37,6 +37,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dart2bytecode/bytecode_serialization.dart'
+    show BufferedReader, LinkReader;
+import 'package:dart2bytecode/declarations.dart' as bytecode show Component;
 import 'package:dart2bytecode/recognized_methods.dart' show RecognizedMethods;
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
@@ -301,7 +304,16 @@ import 'package:kernel/type_environment.dart';
 /// copy: both operands statically exactly `int`, or exactly `double`), and set
 /// only when no site of the member is a real call.
 /// A document below 20 never has it.
-const analysisVersion = 20;
+///
+/// Version 21 adds `signatureTypes` to a `lowering` entry: the INFERRED type of
+/// each positional parameter and of the return, as source the replacement
+/// library can write (`int`, `List<String>?`, `dynamic`), or null where the type
+/// cannot be named there. The producer lowers an instance member to a top-level
+/// function, which overrides nothing, so a parameter or return type the source
+/// omitted (inherited from the overridden member) would become `dynamic` in the
+/// lowered form; the producer writes these types in, or refuses. A document
+/// below 21 never has them, and `inlined` is not believed below 21.
+const analysisVersion = 21;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -324,6 +336,13 @@ void main(List<String> args) {
   final carryKeys = <String>{};
   // Probe only: carry EVERY member present on both sides (the retention sweep).
   var carryAll = false;
+
+  // `--scan-bytecode <file>`: not an analysis. Prints which selectors the
+  // compiled replacement still calls BY NAME; see [_scanBytecode].
+  if (args.length == 2 && args[0] == '--scan-bytecode') {
+    _scanBytecode(args[1]);
+    return;
+  }
 
   for (var i = 0; i < args.length; i++) {
     final a = args[i];
@@ -2618,6 +2637,85 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
   }
 }
 
+/// Reads a compiled replacement (`.bytecode`) with the SAME bytecode reader the
+/// compiler ships with, and prints one JSON line:
+///
+///   {"functions": <n>, "calls": ["+", "unary-", ...]}
+///
+/// `calls` is every member name the bytecode looks up at run time: the operand
+/// of every InterfaceCall, UncheckedInterfaceCall, InstantiatedInterfaceCall
+/// and DynamicCall, read from the constant pool entries the opcodes point at
+/// (`[1] = InterfaceCall 'dart:core::num::+', ...`). The patcher uses it to check an `inlined` claim against what
+/// was really compiled, where the analyzer could only predict it (the analyzer
+/// reads the patched kernel, the compiler reads the producer's lowered form).
+/// The disassembly text is parsed, so a count of zero functions is reported as
+/// is and the caller treats it as "could not read": never as "calls nothing".
+void _scanBytecode(String path) {
+  final bytes = File(path).readAsBytesSync();
+  final text = bytecode.Component.read(
+    BufferedReader(LinkReader(), bytes),
+  ).toString();
+  final calls = <String>{};
+  final call = RegExp(
+    r"\[\d+\]\s+=\s+\w*(?:Interface|Dynamic)Call\w*\s+'([^']+)'",
+  );
+  for (final m in call.allMatches(text)) {
+    final name = m.group(1)!;
+    calls.add(name.substring(name.lastIndexOf('::') + 2));
+  }
+  final functions = RegExp(r'^Function ', multiLine: true).allMatches(text);
+  stdout.writeln(
+    jsonEncode({'functions': functions.length, 'calls': calls.toList()..sort()}),
+  );
+}
+
+/// [type] as source the replacement library can write, or null when it cannot.
+///
+/// The replacement imports the target library and what that library imports, so
+/// only names that resolve there with certainty are written: `dynamic`, `void`,
+/// a public class of `dart:core` or of the target's own library (not shadowed
+/// by a declaration of the target's library), with type arguments written the
+/// same way. A class type parameter, a function or record type, a typedef, a
+/// private class and a class of any other library are null: not nameable, so
+/// the producer refuses a target whose omitted type would need one.
+String? _writableType(DartType type, Library target) {
+  switch (type) {
+    case DynamicType():
+      return 'dynamic';
+    case VoidType():
+      return 'void';
+    case InterfaceType():
+      final cls = type.classNode;
+      final lib = cls.enclosingLibrary;
+      final name = cls.name;
+      if (name.startsWith('_')) return null;
+      final isCore = lib.importUri.toString() == 'dart:core';
+      if (isCore) {
+        if (target.classes.any((c) => c.name == name) ||
+            target.typedefs.any((t) => t.name == name)) {
+          return null;
+        }
+      } else if (lib != target) {
+        return null;
+      }
+      final nullable = switch (type.declaredNullability) {
+        Nullability.nullable => '?',
+        Nullability.nonNullable => '',
+        _ => null,
+      };
+      if (nullable == null) return null;
+      final args = <String>[];
+      for (final a in type.typeArguments) {
+        final w = _writableType(a, target);
+        if (w == null) return null;
+        args.add(w);
+      }
+      return '$name${args.isEmpty ? '' : '<${args.join(', ')}>'}$nullable';
+    default:
+      return null;
+  }
+}
+
 /// What a producer needs to turn an instance method into a static replacement
 /// taking its receiver as argument 0.
 ///
@@ -2717,6 +2815,13 @@ Map<String, Object?> _lowering(
     // parentheses of its own, so scanning from the declaration start would find
     // the wrong ones.
     'nameOffset': p.fileOffset,
+    'signatureTypes': {
+      'params': [
+        for (final v in function.positionalParameters)
+          _writableType(v.type, cls.enclosingLibrary),
+      ],
+      'returnType': _writableType(function.returnType, cls.enclosingLibrary),
+    },
     'accesses': [
       for (final a in visitor.accesses)
         {

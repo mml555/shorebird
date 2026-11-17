@@ -8,6 +8,8 @@
 // ignore_for_file: unused_element, unnecessary_non_null_assertion, unused_local_variable
 // cspell:words shl shr
 
+import 'dart:math' show Point;
+
 // BEGIN-FUNCTIONS (the qualification also copies these into `class F`, so each
 // shape is checked as a static function and as an instance method the producer
 // lowers to a static taking `self`)
@@ -87,23 +89,122 @@ bool no__not_equals(int a, int b) => a != b;
 // in the compiled slice whatever it is in the patched kernel.
 @pragma('vm:entry-point')
 class A {
+  @pragma('vm:entry-point')
   int get no__super_n => 1;
+  @pragma('vm:entry-point')
   int no__super_m() => 2;
+  @pragma('vm:entry-point')
   int get no__super_unused => 3;
 }
 
 @pragma('vm:entry-point')
 class B extends A {
   @override
+  @pragma('vm:entry-point')
   int get no__super_n => super.no__super_n + 1;
   @override
+  @pragma('vm:entry-point')
   int no__super_m() => 1 + super.no__super_m();
+  @pragma('vm:entry-point')
   int no__super_local() { var x = super.no__super_n; return x + 1; }
+  @pragma('vm:entry-point')
   int conservative__super_other_site(int a, int b) { var y = super.no__super_unused; return a + b; }
+  @pragma('vm:entry-point')
   int yes__sibling_without_super(int a, int b) => a + b;
+}
+
+// An override may OMIT a parameter or return type: Dart takes it from the member
+// it overrides. The producer lowers a member to a top-level function, which
+// overrides nothing, so it writes the inferred type in (`@override f(a)` over
+// `f(int a)` becomes `f(Self self, int a)`); a type it cannot name in the
+// replacement library refuses the target (`refused__`).
+@pragma('vm:entry-point')
+class UA {
+  int k = 1;
+  @pragma('vm:entry-point')
+  Object? yes__untyped_f(int a) => a + 1;
+  @pragma('vm:entry-point')
+  Object? yes__untyped_g(int a, double d) => a * 2 > 1 ? d * 2.0 : d - d;
+  @pragma('vm:entry-point')
+  Object? yes__untyped_nullable(int? a) => a! + 1;
+  @pragma('vm:entry-point')
+  Object? yes__untyped_list(List<int> xs) => xs.length + 1;
+  @pragma('vm:entry-point')
+  Object? no__untyped_num(num a) => a + 1;
+  @pragma('vm:entry-point')
+  num yes__untyped_ret(int a) => a - 1;
+  @pragma('vm:entry-point')
+  int get yes__untyped_getter => k + k;
+  @pragma('vm:entry-point')
+  Object? refused__untyped_foreign(Point<int> p) => p.x + 1;
+}
+
+@pragma('vm:entry-point')
+class UB extends UA {
+  @override
+  @pragma('vm:entry-point')
+  Object? yes__untyped_f(a) => a + 1;
+  @override
+  @pragma('vm:entry-point')
+  Object? yes__untyped_g(a, d) => a * 2 > 1 ? d * 2.0 : d - d;
+  @override
+  @pragma('vm:entry-point')
+  Object? yes__untyped_nullable(a) => a! + 1;
+  @override
+  @pragma('vm:entry-point')
+  Object? yes__untyped_list(xs) => xs.length + 1;
+  @override
+  @pragma('vm:entry-point')
+  Object? no__untyped_num(a) => a + 1;
+  @override
+  yes__untyped_ret(a) => a - 1;
+  @override
+  @pragma('vm:entry-point')
+  get yes__untyped_getter => k + k;
+  @override
+  @pragma('vm:entry-point')
+  Object? refused__untyped_foreign(p) => p.x + 1;
+}
+
+// A class type parameter in the receiver: the receiver is written as the raw
+// class (`Gen self`), so `T` is its bound there.
+@pragma('vm:entry-point')
+class Gen<T extends num> {
+  Gen(this.t);
+  T t;
+  int n = 1;
+  @pragma('vm:entry-point')
+  int yes__gen_int(int a) => a + n;
+  @pragma('vm:entry-point')
+  num no__gen_t() => t + 1;
+}
+
+@pragma('vm:entry-point')
+class Box<T> {
+  List<T> xs = [];
+  @pragma('vm:entry-point')
+  int yes__box_len() => xs.length + 1;
+}
+
+// A private receiver class is written by name (`_Priv self`) and resolved with
+// `--resolve-private-names-in-library`. Only its PUBLIC members are used: the
+// fixture tool has no capability manifest, which a private member needs.
+@pragma('vm:entry-point')
+class _Priv {
+  int n = 1;
+  @pragma('vm:entry-point')
+  int yes__priv_n() => n + n;
+  @pragma('vm:entry-point')
+  int yes__priv_param(int a) => a + n;
+  @pragma('vm:entry-point')
+  int no__priv_num(num a) => (a + n).toInt();
 }
 
 void main() {
   F();
   B();
+  UB();
+  Gen<int>(1);
+  Box<int>();
+  _Priv();
 }

@@ -37,15 +37,18 @@ RouteBCoverage _analysis(
   List<Map<String, Object?>> references, {
   int version = 19,
   Map<String, List<Map<String, Object?>>> otherBodies = const {},
+  // Helpers the target's replacement library carries, and who calls them.
+  List<String> helpers = const [],
+  Map<String, List<String>> callers = const {},
 }) => RouteBCoverage.fromJson(
   jsonEncode({
     'analysisVersion': version,
     'verdict': 'accept',
     'changed': [_target],
     'carried': <String>[],
-    'callers': <String, Object?>{},
+    'callers': callers,
     'added': <String>[],
-    'helpers': <String>[],
+    'helpers': helpers,
     'unusedHelpers': <String>[],
     'removed': <String>[],
     'patchable': [_target],
@@ -433,7 +436,7 @@ void main() {
       ]) => {...sdk(member, cls), 'inlined': opcode};
       String? refusal20(
         Map<String, Object?> ref, {
-        int version = 20,
+        int version = 21,
         String target = _target,
         Map<String, List<Map<String, Object?>>> others = const {},
       }) => r.refusalForTarget(
@@ -441,7 +444,7 @@ void main() {
         target,
       );
 
-      test('is not looked up when analysis 20 says every site is one', () {
+      test('is not looked up when analysis 21 says every site is one', () {
         expect(refusal20(inlined('&', 'int')), isNull);
         // Neither the list nor the snapshot is asked: `>>` is on no list.
         expect(refusal20(inlined('>>', 'int', 'ShrInt')), isNull);
@@ -457,10 +460,26 @@ void main() {
         expect(refusal20(sdk('+', 'num')), contains('no class `_Smi`'));
       });
 
-      test('is looked up when the field comes from an analysis below 20', () {
+      test('is looked up when the field comes from an analysis below 21', () {
+        // 20 predicted the flag from the patched kernel and is not believed.
+        for (final version in [19, 20]) {
+          expect(
+            refusal20(inlined('&', 'int'), version: version),
+            contains('no class `_Smi`'),
+          );
+        }
+      });
+
+      test('is looked up when the compiled replacement says it is not one', () {
+        final doc = _analysis([inlined('&', 'int')], version: 21);
+        // `inlinedHolds` is the producer's check of the compiled bytecode.
         expect(
-          refusal20(inlined('&', 'int'), version: 19),
+          r.refusalForTarget(doc, _target, inlinedHolds: (_) => false),
           contains('no class `_Smi`'),
+        );
+        expect(
+          r.refusalForTarget(doc, _target, inlinedHolds: (_) => true),
+          isNull,
         );
       });
 
@@ -468,28 +487,61 @@ void main() {
         final doc = _analysis([
           inlined('&', 'int'),
           sdk('+', 'num'),
-        ], version: 20);
+        ], version: 21);
         expect(r.refusalForTarget(doc, _target), contains('no class `_Smi`'));
         final onlyFlagged = _analysis([
           inlined('&', 'int'),
           inlined('+', 'num', 'AddInt'),
-        ], version: 20);
+        ], version: 21);
         expect(r.refusalForTarget(onlyFlagged, _target), isNull);
       });
 
       test('is not carried from one body to another', () {
-        // The flag is per body: the same member is flagged in the target and
-        // a call in a helper, and the helper is still refused.
+        // The flag is per body: the same member is flagged in the target and a
+        // call in a helper the target's replacement carries, so the target's
+        // own refusal (target plus helpers) still stands.
         const helper = 'package:app/main.dart#helper';
         final doc = _analysis(
           [inlined('&', 'int')],
-          version: 20,
+          version: 21,
           otherBodies: {
             helper: [sdk('&', 'int')],
           },
+          helpers: [helper],
+          callers: {
+            helper: [_target],
+          },
         );
-        expect(r.refusalForTarget(doc, _target), isNull);
-        expect(r.refusalForTarget(doc, helper), contains('no class `_Smi`'));
+        expect(r.refusalForTarget(doc, _target), contains('no class `_Smi`'));
+        // And the other way: flagged in the helper, a call in the target.
+        final reverse = _analysis(
+          [sdk('&', 'int')],
+          version: 21,
+          otherBodies: {
+            helper: [inlined('&', 'int')],
+          },
+          helpers: [helper],
+          callers: {
+            helper: [_target],
+          },
+        );
+        expect(
+          r.refusalForTarget(reverse, _target),
+          contains('no class `_Smi`'),
+        );
+        // Both flagged: nothing is looked up.
+        final both = _analysis(
+          [inlined('&', 'int')],
+          version: 21,
+          otherBodies: {
+            helper: [inlined('&', 'int')],
+          },
+          helpers: [helper],
+          callers: {
+            helper: [_target],
+          },
+        );
+        expect(r.refusalForTarget(both, _target), isNull);
       });
 
       test('is ignored on a member that is not an operator', () {

@@ -79,21 +79,30 @@ metadata (`allow_unchecked_sdk_calls`).
   2fc41d3f. The analysis does not yet say which static types a call site has,
   so these keys are checked like any other and refused on this release. (The
   same holds for every operator, `num` ones included: no key is skipped.)
-  Analysis 20 closes that: the analyzer asks dart2bytecode's own
+  Analysis 21 closes that: the analyzer asks dart2bytecode's own
   `RecognizedMethods` about each operator site and marks an instance
   reference `inlined: <Opcode>` (several opcodes, when the key has int and
   double sites, are joined with `|`) only when EVERY site of it in the body is
   an opcode. The CLI accepts the flag only on the 16 operator selectors of
   `int`/`double`/`num` with an opcode that selector can have, only from a
-  document of analysis 20 or later, and then asks neither the device list nor
+  document of analysis 21 or later (20 predicted it without the signature
+  types below and is not believed), and then asks neither the device list nor
   the snapshot for that reference; anything else it ignores.
   The analyzer decides on the PATCHED kernel, but dart2bytecode compiles the
-  producer's lowered slice, so a producer rewrite that makes an operand's
-  static type less specific would make the flag wrong. The only such rewrite
-  is `super.x` -> `$routeBSuper(...) as dynamic`, so the analyzer clears
-  `inlined` on every reference in a body that contains a `super.` use. The
-  other rewrites (`this` -> `self`, instance helpers, getter -> method,
-  `${self.NAME}` in strings) keep or sharpen types.
+  producer's lowered slice, so correctness does not rest on a list of
+  rewrites. Three layers: (1) the analyzer clears `inlined` in a body with a
+  `super.` use (the producer emits `as dynamic`); (2) the analyzer reports the
+  INFERRED parameter and return types (`signatureTypes`) and the producer
+  writes them into the lowered signature where the source omitted them (an
+  override's `f(a)` takes `a` from the overridden member; a top-level function
+  overrides nothing), refusing the target when the type cannot be named in the
+  replacement library; (3) after compiling, the producer has the cell's
+  analyzer read the payload (`route_b_analyze --scan-bytecode`) and drops the
+  flag of any reference whose selector the bytecode still calls by name
+  (InterfaceCall, DynamicCall, ...); a payload that cannot be read drops every
+  flag. Dropping the flag means the normal check, which normally refuses.
+  `coverage/inlined_ops_qualify.sh` asks the same question of the real
+  producer and compiler on a fixture, and the cell mint runs it.
   `coverage/inlined_ops_qualify.sh` proves the flag: it runs the real
   producer and a real dart2bytecode over every member of
   `inlined_ops_fixture.dart` (as top-level functions and as instance methods,

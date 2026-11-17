@@ -596,19 +596,31 @@ files=(
   "flutter_platform_strong.dill:$FLUTTER_PLATFORM"
 )
 
-# QUALIFY THE `inlined` FLAG (analysis 20) against THIS cell's own compiler.
+# QUALIFY THE `inlined` FLAG (analysis 21) against THIS cell's own files.
 # The analyzer's claim "dart2bytecode emits an opcode here" is about the bytecode
 # of what the producer hands the compiler, and the analyzer links
 # RecognizedMethods from the tree; only the shipped dart2bytecode.aot says
 # whether the two still agree. A mismatch in either direction is a blocker, and
-# a run that compared nothing fails. An analyzer older than analysis 20 has no
-# flag and is skipped. Set SKIP_INLINED_QUALIFY=1 only for a --dry-run
-# address check.
-if [[ "$DRY" != 1 && "${SKIP_INLINED_QUALIFY:-0}" != 1 ]]; then
+# a run that compared nothing fails. It runs the cell's own analyzer and
+# compiler under this build's dartaotruntime, against the platform dill the cell
+# ships (`$FLUTTER_PLATFORM`, which the address covers), not a path derived from
+# `$OUT`. Nothing skips it but --dry-run, which publishes nothing: there is no
+# switch that mints an unqualified cell. It needs a standalone `dart` on PATH
+# (the producer is run with `dart run`, and a Flutter-bundled Dart formats and
+# resolves differently), and a resolved packages/shorebird_cli.
+if [[ "$DRY" != 1 ]]; then
+  command -v dart >/dev/null \
+    || die "no \`dart\` on PATH: the inlined-flag qualification runs the producer with it"
+  case "$(command -v dart)" in
+    */flutter/*|*/fvm/*) die "\`dart\` on PATH is Flutter's bundled Dart ($(command -v dart)); put the standalone SDK first (the one CI installs)" ;;
+  esac
+  [[ -f "$(dirname "$0")/../../../packages/shorebird_cli/.dart_tool/package_config.json" ]] \
+    || die "packages/shorebird_cli is not resolved; run scripts/bootstrap.sh"
   SRC="$SRC" "$(dirname "$0")/coverage/inlined_ops_qualify.sh" \
     "$OUT/zip_archives/route_b_analyze.aot" \
     --compiler-aot "$OUT/zip_archives/dart2bytecode_aot.snapshot" \
     --runtime "$OUT/dartaotruntime" --out "$OUT" \
+    --flutter-platform "$FLUTTER_PLATFORM" --require-v21 \
     || die "the analyzer's inlined flag disagrees with this cell's dart2bytecode (inlined_ops_qualify.sh); do not publish this cell"
 fi
 

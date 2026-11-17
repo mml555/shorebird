@@ -808,6 +808,39 @@ Object? $_superIntrinsicName(
         );
       }
 
+      // FAIL-CLOSED CHECK OF THE `inlined` CLAIM, against what was compiled.
+      //
+      // The analysis marks an SDK operator `inlined` (an opcode, no lookup) by
+      // predicting what dart2bytecode does with the PATCHED kernel. The
+      // compiler is fed something else: this producer's lowered form, where an
+      // operand's static type can differ in a way no list of rewrites is sure
+      // to cover (`super` becomes `as dynamic`, an omitted override type, ...).
+      // So correctness must not rest on that prediction: the compiled payload
+      // is
+      // read, and a flag survives only where it holds no call by that name. A
+      // payload that cannot be read drops every flag, which is the normal check
+      // (a refusal, unless the device list or the release's own snapshot vouch
+      // for the member).
+      if (retention != null &&
+          _hasInlinedReference(coverage, [key, ...neededHelpers])) {
+        final calls = _selectorsCalledByName(compiler, payload, run);
+        final unkept = retention.refusalForTarget(
+          coverage,
+          key,
+          inlinedHolds: (r) => calls != null && !calls.contains(r.member),
+        );
+        if (unkept != null) {
+          final why = calls == null
+              ? 'could not be read to check it'
+              : 'still looks it up by name';
+          throw RouteBUnsupportedTarget(
+            key,
+            '$unkept. The analysis expected the compiler to turn it into an '
+            'opcode, but the compiled replacement $why',
+          );
+        }
+      }
+
       final parts = key.split('#');
       targets.add(
         RouteBPatchTarget(
@@ -1495,8 +1528,19 @@ Object? $_superIntrinsicName(
           'its `get` keyword could not be found ahead of its name',
         );
       }
+      final written = _returnTypeToWrite(
+        key,
+        source,
+        span.start,
+        keywordStart,
+        lowering.signatureTypes,
+      );
       edits
-        ..add((keywordStart, lowering.nameOffset - keywordStart, ''))
+        ..add((
+          keywordStart,
+          lowering.nameOffset - keywordStart,
+          written == null ? '' : '$written ',
+        ))
         ..add((nameEnd, 0, '($receiverParameter)'));
     } else {
       // The receiver parameter goes into the method's own parameter list, found
@@ -1509,23 +1553,59 @@ Object? $_superIntrinsicName(
           'its parameter list could not be found',
         );
       }
-      final close = source.indexOf(')', open);
-      if (close < 0) {
+      final listed = _parameterList(source, open, span.end);
+      if (listed == null) {
         throw RouteBUnsupportedTarget(key, 'its parameter list is not closed');
       }
       // G3.7: the target's OWN parameters stay, and the receiver goes in FRONT
-      // of them. The existing list is copied verbatim -- exactly as the
-      // argument list of a call is copied verbatim -- so nothing here
-      // reconstructs Dart syntax: no types are parsed, no defaults are
-      // interpreted, no names are rewritten.
+      // of them. The existing list is copied as written -- exactly as the
+      // argument list of a call is copied -- so no default is interpreted and
+      // no
+      // name is rewritten.
+      //
+      // The one thing added is a TYPE the source left out. Dart takes an
+      // omitted
+      // parameter or return type from the member being overridden, and the
+      // lowered form is a top-level function, which overrides nothing: left
+      // alone, `a` in `@override Object? f(a) => a + 1` becomes `dynamic` and
+      // the `+` a lookup by name. The analysis reports the inferred types
+      // (analysis 21) and they are written in; one that cannot be named in the
+      // replacement library refuses the target.
       //
       // The analyzer refuses named parameters, optional positionals and
-      // generics, matching the compiler contract clause for clause, so a
-      // non-empty list reaching this point is a list of required positionals.
-      // A separator is needed only when there is something to separate from.
-      final existingParams = source.substring(open + 1, close).trim();
-      final separator = existingParams.isEmpty ? '' : ', ';
-      edits.add((open + 1, 0, '$receiverParameter$separator'));
+      // generics, so what is here is a list of required positionals. A
+      // separator is needed only when there is something to separate from.
+      final separator = listed.parameters.isEmpty ? '' : ', ';
+      final typeEdits = _parameterTypeEdits(
+        key,
+        source,
+        listed.parameters,
+        lowering.signatureTypes,
+      );
+      var receiverEditLength = 0;
+      var receiverEditText = '$receiverParameter$separator';
+      // An edit at the same offset as the receiver's would tie in the sort, so
+      // it is folded into the receiver's own.
+      for (final e in [...typeEdits]) {
+        if (e.$1 == open + 1) {
+          receiverEditLength = e.$2;
+          receiverEditText += e.$3;
+          typeEdits.remove(e);
+        }
+      }
+      edits
+        ..add((open + 1, receiverEditLength, receiverEditText))
+        ..addAll(typeEdits);
+      final returnWritten = _returnTypeToWrite(
+        key,
+        source,
+        span.start,
+        lowering.nameOffset,
+        lowering.signatureTypes,
+      );
+      if (returnWritten != null) {
+        edits.add((lowering.nameOffset, 0, '$returnWritten '));
+      }
     }
 
     for (final access in edited.values) {
@@ -1806,6 +1886,262 @@ Object? $_superIntrinsicName(
       preamble: superEdits.isEmpty ? '' : '$_superIntrinsicDeclaration\n',
       needsSuperVerification: superEdits.isNotEmpty,
     );
+  }
+
+  /// Whether any reference of [keys] is marked `inlined`.
+  static bool _hasInlinedReference(
+    RouteBCoverage coverage,
+    List<String> keys,
+  ) => keys.any(
+    (k) =>
+        coverage.externalReferences?[k]?.any((r) => r.inlined != null) ?? false,
+  );
+
+  /// The member names the compiled replacement at [payload] looks up at run
+  /// time (every interface and dynamic call), read by the cell's own analyzer
+  /// with the compiler's own bytecode reader. Null when it could not be read:
+  /// an analyzer without the mode, a payload it cannot parse, or one with no
+  /// function in it. "Could not read" is never "calls nothing".
+  static Set<String>? _selectorsCalledByName(
+    RouteBCompiler compiler,
+    File payload,
+    ProcessResult Function(String executable, List<String> arguments) run,
+  ) {
+    try {
+      final result = run(compiler.runtime.path, [
+        compiler.analyzer.path,
+        '--scan-bytecode',
+        payload.path,
+      ]);
+      if (result.exitCode != 0) return null;
+      final lines = '${result.stdout}'.trim().split('\n');
+      final json = jsonDecode(lines.last);
+      if (json is! Map<String, dynamic> ||
+          json['functions'] is! int ||
+          (json['functions'] as int) < 1 ||
+          json['calls'] is! List) {
+        return null;
+      }
+      return (json['calls'] as List).whereType<String>().toSet();
+    } on Object {
+      return null;
+    }
+  }
+
+  /// The return type to write ahead of a lowered member's name, or null when
+  /// nothing needs writing.
+  ///
+  /// Needed only when the source omitted it (Dart then takes it from the member
+  /// being overridden, which the lowered function no longer overrides) and the
+  /// inferred type is not `dynamic`. The prefix is the source from the start of
+  /// the
+  /// declaration to just before the name (or the `get` keyword).
+  static String? _returnTypeToWrite(
+    String key,
+    String source,
+    int start,
+    int end,
+    RouteBSignatureTypes? types,
+  ) {
+    if (types == null || types.returnType == 'dynamic') return null;
+    final omitted = end < start || end > source.length
+        ? null
+        : _returnTypeOmitted(source.substring(start, end));
+    if (omitted == false) return null;
+    final inferred = types.returnType;
+    if (omitted == null || inferred == null) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'its return type is not written in the source, and the type it '
+        'inherits from the member it overrides (${inferred ?? 'one the '
+                'replacement cannot name'}) cannot be written into the lowered '
+        'function, which would otherwise take `dynamic`. Write the return type',
+      );
+    }
+    return inferred;
+  }
+
+  /// Whether the declaration prefix [prefix] has no return type: only comments,
+  /// annotations and modifiers. Null when it cannot be told (a trailing
+  /// `operator`, or an annotation this does not parse).
+  static bool? _returnTypeOmitted(String prefix) {
+    final masked = _maskComments(prefix);
+    final start = _skipAnnotations(masked, 0);
+    if (start == null) return null;
+    final words = masked.substring(start).trim().split(RegExp(r'\s+'))
+      ..removeWhere((w) => w.isEmpty);
+    if (words.contains('operator')) return null;
+    const modifiers = {'static', 'external', 'covariant', 'abstract'};
+    return words.every(modifiers.contains);
+  }
+
+  /// [text] with every comment replaced by spaces of the same length, so
+  /// offsets into it are offsets into the source.
+  static String _maskComments(String text) {
+    final out = StringBuffer();
+    var i = 0;
+    while (i < text.length) {
+      if (text.startsWith('//', i)) {
+        while (i < text.length && text[i] != '\n') {
+          out.write(' ');
+          i++;
+        }
+      } else if (text.startsWith('/*', i)) {
+        final end = text.indexOf('*/', i + 2);
+        final stop = end < 0 ? text.length : end + 2;
+        for (; i < stop; i++) {
+          out.write(text[i] == '\n' ? '\n' : ' ');
+        }
+      } else {
+        out.write(text[i]);
+        i++;
+      }
+    }
+    return '$out';
+  }
+
+  /// The index after any annotations at the start of [masked] (from [from]), or
+  /// null when one cannot be parsed.
+  static int? _skipAnnotations(String masked, int from) {
+    var i = from;
+    final name = RegExp(r'@\s*[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*');
+    while (true) {
+      while (i < masked.length && _isBlank(masked.codeUnitAt(i))) {
+        i++;
+      }
+      if (i >= masked.length || masked[i] != '@') return i;
+      final m = name.matchAsPrefix(masked, i);
+      if (m == null) return null;
+      i = m.end;
+      var j = i;
+      while (j < masked.length && _isBlank(masked.codeUnitAt(j))) {
+        j++;
+      }
+      if (j < masked.length && masked[j] == '(') {
+        final close = _closing(masked, j);
+        if (close == null) return null;
+        i = close + 1;
+      }
+    }
+  }
+
+  /// The index of the bracket closing the one at [open], skipping strings, or
+  /// null when it is not closed.
+  static int? _closing(String text, int open, [int? limit]) {
+    var depth = 0;
+    final end = limit ?? text.length;
+    for (var i = open; i < end; i++) {
+      final c = text[i];
+      if (c == "'" || c == '"') {
+        i++;
+        while (i < end && text[i] != c) {
+          if (text[i] == r'\') i++;
+          i++;
+        }
+      } else if (c == '(' || c == '[' || c == '{' || c == '<') {
+        depth++;
+      } else if (c == ')' || c == ']' || c == '}' || c == '>') {
+        // `=>` is not a closing angle bracket.
+        if (c == '>' && i > 0 && text[i - 1] == '=') continue;
+        depth--;
+        if (depth == 0) return i;
+      }
+    }
+    return null;
+  }
+
+  /// The parameters of the list opening at [open], split on top-level commas
+  /// (commas inside `<>`, `()`, `[]`, `{}` belong to a type), and where it
+  /// closes. Null when it is not closed before [limit].
+  static ({List<(int, int)> parameters, int close})? _parameterList(
+    String source,
+    int open,
+    int limit,
+  ) {
+    final masked = _maskComments(source.substring(0, limit));
+    final close = _closing(masked, open);
+    if (close == null) return null;
+    final ranges = <(int, int)>[];
+    var depth = 0;
+    var from = open + 1;
+    for (var i = open + 1; i < close; i++) {
+      final c = masked[i];
+      if (c == "'" || c == '"') {
+        i++;
+        while (i < close && masked[i] != c) {
+          if (masked[i] == r'\') i++;
+          i++;
+        }
+      } else if (c == '(' || c == '[' || c == '{' || c == '<') {
+        depth++;
+      } else if (c == ')' || c == ']' || c == '}' || c == '>') {
+        if (c == '>' && masked[i - 1] == '=') continue;
+        depth--;
+      } else if (c == ',' && depth == 0) {
+        ranges.add((from, i));
+        from = i + 1;
+      }
+    }
+    ranges.add((from, close));
+    return (
+      parameters: [
+        for (final r in ranges)
+          if (masked.substring(r.$1, r.$2).trim().isNotEmpty) r,
+      ],
+      close: close,
+    );
+  }
+
+  /// The edits that write the INFERRED type of each parameter whose type the
+  /// source left out; see the call site. Empty without analysis 21's types.
+  static List<(int, int, String)> _parameterTypeEdits(
+    String key,
+    String source,
+    List<(int, int)> parameters,
+    RouteBSignatureTypes? types,
+  ) {
+    if (types == null) return [];
+    if (types.params.length != parameters.length) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'its parameter list does not match the analysis '
+        '(${parameters.length} written, ${types.params.length} reported)',
+      );
+    }
+    final untyped = RegExp(
+      r'^(covariant\s+)?(?:(final|var)\s+)?([A-Za-z_$][\w$]*)$',
+    );
+    final edits = <(int, int, String)>[];
+    for (var i = 0; i < parameters.length; i++) {
+      final inferred = types.params[i];
+      if (inferred == 'dynamic') continue;
+      final (start, end) = parameters[i];
+      final masked = _maskComments(source.substring(start, end));
+      final first = _skipAnnotations(masked, 0);
+      final match = first == null
+          ? null
+          : untyped.firstMatch(masked.substring(first).trim());
+      // A written type, however complicated, is copied as it is.
+      if (first != null && match == null) continue;
+      if (first == null || inferred == null) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'its parameter `${masked.trim()}` has no written type, and the type '
+          'it inherits (${inferred ?? 'one the replacement cannot name'}) '
+          'cannot be written into the lowered function, which would otherwise '
+          'take `dynamic`. Write the parameter type',
+        );
+      }
+      final name = match!.group(3)!;
+      final nameAt = start + masked.lastIndexOf(name);
+      if (match.group(2) == 'var') {
+        final varAt = start + masked.indexOf('var', first);
+        edits.add((varAt, 'var'.length, inferred));
+      } else {
+        edits.add((nameAt, 0, '$inferred '));
+      }
+    }
+    return edits;
   }
 
   /// Every private identifier in `text` that could be a reference.

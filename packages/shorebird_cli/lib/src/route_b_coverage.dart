@@ -69,7 +69,9 @@ const supportedRouteBAnalysisVersion = 11;
 ///
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
-const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+const knownRouteBAnalysisVersions = {
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, //
+};
 
 /// The first analyzer version that compares fields, `const`s, constructors and
 /// class headers. An older analyzer reads an edit to one as unchanged, so a
@@ -111,7 +113,12 @@ const routeBSelectorCallsAnalysisVersion = 19;
 /// own `RecognizedMethods`, so the member is never looked up when it runs. A
 /// document below it never has the field, and one that carries it anyway is
 /// not believed.
-const routeBInlinedOpsAnalysisVersion = 20;
+///
+/// 21, not 20: version 20 predicted the flag from the patched kernel, where an
+/// override's omitted parameter type is the inherited one, while the producer
+/// lowers the member to a function that overrides nothing. Version 21 reports
+/// the inferred signature so the producer can write it in (`signatureTypes`).
+const routeBInlinedOpsAnalysisVersion = 21;
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -327,6 +334,7 @@ class RouteBLowering {
     required this.unsupported,
     this.origin,
     this.superInvocations = const [],
+    this.signatureTypes,
     this.releaseSuperTargets,
     this.privateConstructions,
     this.releasePrivateConstructions,
@@ -346,6 +354,17 @@ class RouteBLowering {
   /// Reasons this body is outside the supported surface. Non-empty means
   /// refuse by name rather than lower on a guess.
   final List<String> unsupported;
+
+  /// The INFERRED type of each positional parameter and of the return, as
+  /// source the replacement can write (analysis version 21), or null for a
+  /// document that predates it.
+  ///
+  /// The lowered form is a top-level function, which overrides nothing, so a
+  /// parameter or return type the source left out (Dart takes it from the
+  /// overridden member) would become `dynamic`. The producer writes these in
+  /// where the source omitted a type. A null ELEMENT is a type the replacement
+  /// library cannot name; the producer refuses a target that would need it.
+  final RouteBSignatureTypes? signatureTypes;
 
   /// Where this method lives, in SOURCE terms (analysis version 10).
   ///
@@ -412,6 +431,21 @@ class RouteBLowering {
   /// yet produce a direct-super replacement, so a non-empty list is refused;
   /// see `_lower` in `route_b_producer.dart`.
   final List<RouteBSuperInvocation> superInvocations;
+}
+
+/// The inferred signature of a lowered member; see
+/// [RouteBLowering.signatureTypes].
+@immutable
+class RouteBSignatureTypes {
+  /// {@macro route_b_signature_types}
+  const RouteBSignatureTypes({required this.params, required this.returnType});
+
+  /// One entry per positional parameter, in order: the type as source, or null
+  /// when it cannot be written in the replacement library.
+  final List<String?> params;
+
+  /// The return type as source, or null when it cannot be written.
+  final String? returnType;
 }
 
 /// A method's source-level identity (analysis version 10).
@@ -854,6 +888,16 @@ class RouteBCoverage {
               member: o['member']! as String,
               memberKind: o['memberKind']! as String,
             ),
+            _ => null,
+          },
+          signatureTypes: switch (l['signatureTypes']) {
+            final Map<String, dynamic> t when t['params'] is List<Object?> =>
+              RouteBSignatureTypes(
+                params: [
+                  for (final v in t['params']! as List<Object?>) v as String?,
+                ],
+                returnType: t['returnType'] as String?,
+              ),
             _ => null,
           },
           superInvocations: [

@@ -1,4 +1,4 @@
-// Unit test of `inlined` (analysis version 20): which operator references the
+// Unit test of `inlined` (analysis version 21): which operator references the
 // analyzer marks, the AND across the sites of one member, and the body-wide
 // clear for `super.`. Builds kernel nodes by hand over the real core library of
 // a platform dill, so `RecognizedMethods` sees real `int`/`double`/`num`.
@@ -76,8 +76,13 @@ void main() {
     List<(String, Class, DartType, DartType?)> sites, {
     String member = '',
     bool withSuper = false,
+    // Which super form the body holds, if any: 'get', 'method', 'operator'
+    // (`super + x`), 'set', or any of them inside a closure ('closure-get',
+    // 'closure-method').
+    String? superKind,
     bool typed = true,
   }) {
+    superKind ??= withSuper ? 'get' : null;
     final params = <PositionalParameter>[];
     final body = <Statement>[];
     for (final (op, cls, aType, bType) in sites) {
@@ -99,14 +104,42 @@ void main() {
         ),
       );
     }
-    if (withSuper) {
+    if (superKind != null) {
+      final inClosure = superKind.startsWith('closure-');
+      final kind = superKind.replaceFirst('closure-', '');
+      final Expression site = switch (kind) {
+        'get' => SuperPropertyGet(
+          ThisExpression(),
+          Name('hashCode'),
+          this_member(core('Object'), 'hashCode', getter: true),
+        ),
+        'method' => SuperMethodInvocation(
+          ThisExpression(),
+          Name('toString'),
+          Arguments([]),
+          this_member(core('Object'), 'toString'),
+        ),
+        'operator' => SuperMethodInvocation(
+          ThisExpression(),
+          Name('=='),
+          Arguments([NullLiteral()]),
+          this_member(core('Object'), '=='),
+        ),
+        'set' => SuperPropertySet(
+          ThisExpression(),
+          Name('hashCode'),
+          NullLiteral(),
+          this_member(core('Object'), 'hashCode', getter: true),
+        ),
+        _ => throw ArgumentError(superKind),
+      };
       body.add(
         ExpressionStatement(
-          SuperPropertyGet(
-            ThisExpression(),
-            Name('hashCode'),
-            this_member(core('Object'), 'hashCode', getter: true),
-          ),
+          inClosure
+              ? FunctionExpression(
+                  FunctionNode(ReturnStatement(site)),
+                )
+              : site,
         ),
       );
     }
@@ -219,6 +252,27 @@ void main() {
   check(
     flag(refOf([('+', numC, i, i)], member: '+', withSuper: true)) == null,
     'a super call in the body clears inlined',
+  );
+
+  // The producer rewrites every super form, not only a getter, and a closure in
+  // the body holds its own: each clears the flags of the whole body.
+  for (final kind in [
+    'get',
+    'method',
+    'operator',
+    'set',
+    'closure-get',
+    'closure-method',
+    'closure-operator',
+  ]) {
+    check(
+      flag(refOf([('+', numC, i, i)], member: '+', superKind: kind)) == null,
+      'a super $kind in the body clears inlined',
+    );
+  }
+  check(
+    refOf([('+', numC, i, i)], member: '+', superKind: 'method') != null,
+    'the reference is still listed after the clear',
   );
 
   // Without a type environment nothing is marked.

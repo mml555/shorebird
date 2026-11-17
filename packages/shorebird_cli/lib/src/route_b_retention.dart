@@ -279,7 +279,15 @@ class RouteBRetention {
   final bool skipKeptCheck;
 
   /// Why [reference] cannot be shown to be retained, or null when it can.
-  String? refuse(RouteBExternalReference reference) {
+  ///
+  /// [inlinedHolds] is asked for a reference the analysis marks `inlined`: true
+  /// (the default, before anything is compiled) lets it through, false makes it
+  /// an ordinary SDK member again. The producer passes what the compiled
+  /// bytecode really does, see `RouteBProducer`.
+  String? refuse(
+    RouteBExternalReference reference, {
+    bool Function(RouteBExternalReference)? inlinedHolds,
+  }) {
     final r = reference;
     if (r.kind == 'unanalyzed') {
       return 'the analysis could not tell what it uses (${r.reason}), and a '
@@ -295,7 +303,7 @@ class RouteBRetention {
       // Every site is an opcode the patch's compiler emits (analysis 20): no
       // member is looked up, so neither the device list nor the snapshot is
       // asked. Only the analyzer's own per-site answer lifts the check.
-      if (r.inlined != null) return null;
+      if (r.inlined != null && (inlinedHolds?.call(r) ?? true)) return null;
       final why = _sdkRefusal(_sdkKey(r));
       return why == null ? null : _describeSdkInstance(r, why);
     }
@@ -497,7 +505,11 @@ class RouteBRetention {
   }
 
   /// The symbols among [keys]' references that the release did not keep.
-  List<String> unretained(RouteBCoverage coverage, Iterable<String> keys) {
+  List<String> unretained(
+    RouteBCoverage coverage,
+    Iterable<String> keys, {
+    bool Function(RouteBExternalReference)? inlinedHolds,
+  }) {
     final all = coverage.externalReferences;
     if (all == null) return const [];
     final out = <String>{};
@@ -512,7 +524,9 @@ class RouteBRetention {
         continue;
       }
       for (final r in references) {
-        if (refuse(r) case final why?) out.add(why);
+        if (refuse(r, inlinedHolds: inlinedHolds) case final why?) {
+          out.add(why);
+        }
       }
     }
     return out.toList();
@@ -521,8 +535,15 @@ class RouteBRetention {
   static String _selector(String key) => key.substring(key.indexOf('#') + 1);
 
   /// [refusal] for [key] and the helpers its replacement library carries.
-  String? refusalForTarget(RouteBCoverage coverage, String key) =>
-      refusal(coverage, [key, ...coverage.helpersNeededBy(key)]);
+  String? refusalForTarget(
+    RouteBCoverage coverage,
+    String key, {
+    bool Function(RouteBExternalReference)? inlinedHolds,
+  }) => refusal(
+    coverage,
+    [key, ...coverage.helpersNeededBy(key)],
+    inlinedHolds: inlinedHolds,
+  );
 
   /// Why the members [keys] cannot be built, or null when the release kept
   /// everything they use.
@@ -530,8 +551,12 @@ class RouteBRetention {
   /// Null also when [coverage] predates analysis version 18 and so cannot say
   /// (see [routeBRetentionAnalysisVersion]); the caller decides what that
   /// means, and today it means a warning rather than a refusal.
-  String? refusal(RouteBCoverage coverage, Iterable<String> keys) {
-    final all = unretained(coverage, keys);
+  String? refusal(
+    RouteBCoverage coverage,
+    Iterable<String> keys, {
+    bool Function(RouteBExternalReference)? inlinedHolds,
+  }) {
+    final all = unretained(coverage, keys, inlinedHolds: inlinedHolds);
     final sdk = all
         .where((d) => d.contains('(an SDK instance member'))
         .toList();

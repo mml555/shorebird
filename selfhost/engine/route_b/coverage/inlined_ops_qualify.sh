@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # cspell:words dartaotruntime tfa
 #
-# inlined_ops_qualify.sh -- does the analyzer's `inlined` flag (analysis 20)
+# inlined_ops_qualify.sh -- does the analyzer's `inlined` flag (analysis 21)
 # agree with what the shipped compiler really emits for the PRODUCER'S output?
 #
 # The flag is a claim about the bytecode of the slice the producer hands to
@@ -29,28 +29,42 @@
 #
 # The fixture is compiled the way a release is: flutter target, --aot --tfa.
 #
-# usage: inlined_ops_qualify.sh <route_b_analyze.aot> [--compiler-aot <dart2bytecode.aot> --runtime <dartaotruntime>] [--out <engine out dir>] [--require-v20]
+# usage: inlined_ops_qualify.sh <route_b_analyze.aot> [--compiler-aot <dart2bytecode.aot> --runtime <dartaotruntime>] [--out <engine out dir>] [--require-v21]
 #   With --compiler-aot the CELL's shipped compiler is the one compared against
 #   (the check that matters: the analyzer's imported RecognizedMethods may have
 #   drifted from it). Without it the engine tree's dart2bytecode source runs
 #   under JIT, which only proves the two trees agree. The cell mint runs it with
-#   the cell's own files (mint_route_b_cell.sh); do not publish a v20 cell that
+#   the cell's own files (mint_route_b_cell.sh); do not publish a v21 cell that
 #   has not passed it.
-#   An analyzer older than analysis 20 has no flag: that is "nothing to
-#   qualify" (exit 0) unless --require-v20.
+#   An analyzer older than analysis 21 is not qualified: that is "nothing to
+#   qualify" (exit 0) unless --require-v21.
+#
+# NOT COVERED (so a pass is not over-read): a private MEMBER of a lowered class
+# (the fixture tool has no capability manifest, so one is refused: only a
+# private receiver CLASS with public members is exercised), a super call in a
+# private class, mixins/extensions/enums as receivers, and the analyzer's
+# treatment of a TFA-shaken program other than this fixture's.
+#
+# RUNTIME: one producer compile per target (~230 targets). Under the tree's JIT
+# dart2bytecode that is ~10 s each (about 40 minutes on a shared host); with
+# --compiler-aot (what the mint passes) it is a few seconds each. Run it with
+# the cell's compiler whenever a cell is being minted. ONLY=<substring> narrows
+# the targets for a quick look (the floor then fails, by design: a narrowed run
+# qualifies nothing).
 set -euo pipefail
 
 ANALYZER=${1:?usage: inlined_ops_qualify.sh <route_b_analyze.aot> [options]}
 shift
 SRC=${SRC:-$HOME/shorebird-engine/flutter/engine/src}
 OUT=$SRC/out/host_release_arm64_ddm
-COMPILER_AOT=; RUNTIME=; REQUIRE=0
+COMPILER_AOT=; RUNTIME=; REQUIRE=0; PLATFORM=
 while [ $# -gt 0 ]; do
   case "$1" in
     --compiler-aot) COMPILER_AOT=$2; shift 2 ;;
     --runtime) RUNTIME=$2; shift 2 ;;
     --out) OUT=$2; shift 2 ;;
-    --require-v20) REQUIRE=1; shift ;;
+    --flutter-platform) PLATFORM=$2; shift 2 ;;
+    --require-v21) REQUIRE=1; shift ;;
     *) echo "ERROR: unknown argument $1" >&2; exit 1 ;;
   esac
 done
@@ -59,10 +73,11 @@ HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO="$(cd "$HERE/../../../.." && pwd)"
 die() { echo "ERROR: $*" >&2; exit 1; }
 
+command -v dart >/dev/null || die "no \`dart\` on PATH: the producer is run with \`dart run\` (the standalone SDK CI uses, not Flutter's)"
 [ -f "$ANALYZER" ] || die "no analyzer at $ANALYZER"
 [ -x "$OUT/dart-sdk/bin/dart" ] || die "no host dart at $OUT/dart-sdk/bin/dart"
 [ -x "$OUT/dartaotruntime" ] || die "no dartaotruntime at $OUT"
-FLUTTER_PLATFORM=$OUT/flutter_patched_sdk/platform_strong.dill
+FLUTTER_PLATFORM=${PLATFORM:-$OUT/flutter_patched_sdk/platform_strong.dill}
 [ -f "$FLUTTER_PLATFORM" ] || die "no flutter platform at $FLUTTER_PLATFORM"
 if [ -n "$COMPILER_AOT" ]; then
   [ -f "$COMPILER_AOT" ] || die "no compiler at $COMPILER_AOT"
@@ -99,9 +114,9 @@ FX=file://$W/fixture.dart
 
 echo "== analysis kernel (flutter target, --aot --tfa) and the pre-AOT kernel the compiler imports =="
 dart_tree "$DT/pkg/vm/bin/gen_kernel.dart" --platform "$FLUTTER_PLATFORM" \
-  --target flutter --aot --tfa -o "$W/release.dill" "$W/fixture.dart" >/dev/null
+  --target flutter --aot --tfa -o "$W/release.dill" "$W/fixture.dart"
 dart_tree "$DT/pkg/vm/bin/gen_kernel.dart" --platform "$FLUTTER_PLATFORM" \
-  --target flutter --no-aot --no-link-platform -o "$W/import.dill" "$W/fixture.dart" >/dev/null
+  --target flutter --no-aot --no-link-platform -o "$W/import.dill" "$W/fixture.dart"
 cp "$W/import.dill" "$W/verification.dill"
 
 echo "== the BUILT analyzer, every member carried =="
@@ -109,8 +124,8 @@ echo "== the BUILT analyzer, every member carried =="
   --patched-dill "$W/release.dill" --carry-all --include file: \
   --out "$W/coverage.json"
 VER=$(python3 -I -c "import json,sys;print(json.load(open(sys.argv[1]))['analysisVersion'])" "$W/coverage.json")
-if [ "$VER" -lt 20 ] && [ "$REQUIRE" = 0 ]; then
-  echo "analyzer is analysis $VER: it has no \`inlined\` flag, nothing to qualify"
+if [ "$VER" -lt 21 ] && [ "$REQUIRE" = 0 ]; then
+  echo "analyzer is analysis $VER: it is below 21, whose `inlined` flag is the one qualified, nothing to qualify"
   exit 0
 fi
 
@@ -126,9 +141,16 @@ while IFS=$'\t' read -r n key status; do
   [ "$status" = ok ] || continue
   dart_tree "$DT/pkg/dart2bytecode/bin/dump_bytecode.dart" "$W/lowered/$n.bytecode" \
     > "$W/lowered/$n.dump"
+  # What the patcher itself reads after compiling (the fail-closed check in the
+  # producer): the cell analyzer's bytecode scan. It must agree with the dump.
+  "$OUT/dartaotruntime" "$ANALYZER" --scan-bytecode "$W/lowered/$n.bytecode" \
+    > "$W/lowered/$n.scan"
 done < "$W/lowered/index.tsv"
 
-python3 -I - "$W/lowered" "$W/coverage.json" "${MIN_TARGETS:-100}" <<'PY'
+# The floor is fixed here and not read from the environment: a caller's
+# MIN_TARGETS could otherwise lower it and let a run that compared little pass.
+MIN_TARGETS=140
+python3 -I - "$W/lowered" "$W/coverage.json" "$MIN_TARGETS" <<'PY'
 import json, re, sys
 
 work, cov_path, min_targets = sys.argv[1], sys.argv[2], int(sys.argv[3])
@@ -164,8 +186,17 @@ flagged_n = unflagged_n = 0
 for line in open(f'{work}/index.tsv'):
     n, key, status = line.rstrip('\n').split('\t')
     name = key.split('#', 1)[1]
-    short = name.split('.')[-1]
+    short = re.sub(r'^get:', '', name.split('.')[-1])
     if '__' not in short:
+        continue
+    if short.startswith('refused__') and name.startswith('UB.'):
+        # A type the replacement library cannot name: the producer must refuse
+        # the target, loudly, and never lower it to `dynamic`.
+        if status == 'ok' or 'has no written type' not in status:
+            bad.append(f'{name}: expected the producer to refuse an inferred '
+                       f'parameter type it cannot write, got {status}')
+        else:
+            expected_refusals += 1
         continue
     if status != 'ok':
         # A generic function is not a valid replacement entry point; the
@@ -178,6 +209,11 @@ for line in open(f'{work}/index.tsv'):
     text = open(f'{work}/{n}.dump').read()
     ops = set(re.findall(r'^\s+([A-Z]\w+(?:Int|Double)\w*)\b', text, re.M)) & ALL_OPCODES
     calls = {m.group(2) for m in CALL.finditer(text)} & set(OPCODES)
+    scan = json.loads(open(f'{work}/{n}.scan').read().strip().splitlines()[-1])
+    if scan['functions'] < 1 or set(scan['calls']) & set(OPCODES) != calls:
+        bad.append(f'{name}: the analyzer\'s bytecode scan disagrees with the '
+                   f'dump (scan {sorted(set(scan["calls"]) & set(OPCODES))}, '
+                   f'dump {sorted(calls)})')
     rs = refs_by_target.get(name)
     if rs is None:
         bad.append(f'{name}: the analyzer reported no entry for it')
@@ -232,7 +268,7 @@ if not flagged_n or not unflagged_n:
 
 print(f'{targets} targets, {flagged_n} flagged and {unflagged_n} unflagged '
       f'operator references compared against the producer\'s bytecode '
-      f'({expected_refusals} generic targets refused by the producer, not compared)')
+      f'({expected_refusals} targets refused by the producer, not compared)')
 if bad:
     print('\nMISMATCH (blocker):')
     print('\n'.join('  ' + b for b in bad))

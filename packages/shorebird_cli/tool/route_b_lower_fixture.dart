@@ -75,7 +75,7 @@ void _run(List<String> args) {
       exe,
       jit != null ? ['--packages=${need('packages')}', ...a] : a,
     );
-    if (r.exitCode != 0) {
+    if (r.exitCode != 0 && !a.contains('--scan-bytecode')) {
       stderr.writeln('compiler exit ${r.exitCode}: ${r.stderr}\n${r.stdout}');
     }
     return r;
@@ -130,7 +130,11 @@ class _KeepsEverything implements RouteBRetention {
   const _KeepsEverything();
 
   @override
-  String? refusalForTarget(RouteBCoverage coverage, String key) => null;
+  String? refusalForTarget(
+    RouteBCoverage coverage,
+    String key, {
+    bool Function(RouteBExternalReference)? inlinedHolds,
+  }) => null;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
