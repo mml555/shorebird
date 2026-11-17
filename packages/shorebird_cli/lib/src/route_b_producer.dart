@@ -124,7 +124,7 @@ bool _readsCompileTimeEnvironment(String declaration) =>
     declaration.contains('int.fromEnvironment') ||
     declaration.contains('bool.fromEnvironment');
 
-/// Why a top-level or static target's [declaration] cannot be an entry point,
+/// Why a top-level or static target's `declaration` cannot be an entry point,
 /// or null when it can.
 ///
 /// The compiler takes an entry point whose parameters are all required
@@ -158,6 +158,9 @@ String? routeBEntryShapeProblem(String key, String rawDeclaration) {
   for (var i = match.end - 1; i < declaration.length; i++) {
     final c = declaration[i];
     if (quote != null) {
+      // A one-character backslash literal reads better escaped than raw.
+      // A one-character backslash literal reads better escaped than raw.
+      // ignore: use_raw_strings
       if (c == '\\') {
         i++;
       } else if (c == quote) {
@@ -280,6 +283,8 @@ int _skipString(String s, int start, {required bool raw}) {
   var i = start + (triple ? 3 : 1);
   while (i < s.length) {
     final c = s[i];
+    // A one-character backslash literal reads better escaped than raw.
+    // ignore: use_raw_strings
     if (!raw && c == '\\') {
       i += 2;
       continue;
@@ -855,7 +860,7 @@ Object? $_superIntrinsicName(
     );
   }
 
-  /// The helpers [key] reaches: named by its body, or by a helper that is, per
+  /// The helpers `key` reaches: named by its body, or by a helper that is, per
   /// the analysis' `callers`.
   /// Whether any of [keys] names a private top-level member of its own
   /// library that the release's manifest lists in `privateTopLevelCallable`.

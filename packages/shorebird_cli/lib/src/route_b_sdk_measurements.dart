@@ -2,10 +2,11 @@
 // from the host matrix's members.json. Do not edit by hand.
 //
 // Host-measured, NOT device-proven. Measured on a minimal pure-Dart release
-// (id be90832ae422864831117f3c3ca1d486), on the host `dartaotruntime`, one probe per process, over the
-// runtime classes and forms listed in `gen_probe.py`. A FAILURE here is real
-// (the call threw or stopped the app on that class). A SUCCESS is evidence on
-// that release only (it may come from code that release happens to contain), so
+// (id be90832ae422864831117f3c3ca1d486),
+// on the host `dartaotruntime`, one probe per process, over the runtime
+// classes and forms listed in `gen_probe.py`. A FAILURE here is real (the call
+// threw or stopped the app on that class). A SUCCESS is evidence on that
+// release only (it may come from code that release happens to contain), so
 // a member accepted here still wants a device spot check on a Flutter release.
 
 /// The release the measurement ran on.

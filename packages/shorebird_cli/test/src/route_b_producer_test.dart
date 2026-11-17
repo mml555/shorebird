@@ -194,15 +194,15 @@ void main() {
         expect(
           routeBEntryShapeProblem(
             key,
-            "String routeBValue(Map<String, List<int>> m, Function(int, [int]) f, "
-            "String s) => ', {[';",
+            'String routeBValue(Map<String, List<int>> m, '
+            "Function(int, [int]) f, String s) => ', {[';",
           ),
           isNull,
         );
         expect(
           routeBEntryShapeProblem(
             key,
-            r"String routeBValue(String a, [String b = 'x, {']) => a;",
+            "String routeBValue(String a, [String b = 'x, {']) => a;",
           ),
           contains('optional positional'),
         );
@@ -266,7 +266,7 @@ void main() {
         expect(
           routeBEntryShapeProblem(
             key,
-            "String routeBValue(String a) => \'\'\'x (\${a + ')'}) {\'\'\';",
+            r"String routeBValue(String a) => '''x (${a + ')'}) {''';",
           ),
           isNull,
         );
