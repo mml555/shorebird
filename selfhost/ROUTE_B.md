@@ -78,9 +78,17 @@ metadata (`allow_unchecked_sdk_calls`).
   is a call looked up by name, and `_Smi`/`_Mint` have no such member on
   2fc41d3f. The analysis does not yet say which static types a call site has,
   so these keys are checked like any other and refused on this release. (The
-  same holds for every operator, `num` ones included: no key is skipped.) A
-  later analysis version is meant to mark a site the compiler certainly
-  specializes.
+  same holds for every operator, `num` ones included: no key is skipped.)
+  Analysis 20 closes that: the analyzer asks dart2bytecode's own
+  `RecognizedMethods` about each operator site and marks an instance
+  reference `inlined: <Opcode>` only when EVERY site of it in the body is an
+  opcode. The CLI then asks neither the device list nor the snapshot for it,
+  and only for a document of analysis 20 or later that carries the field.
+  `coverage/inlined_ops_qualify.sh` proves the flag against the cell's own
+  dart2bytecode in both directions (flagged iff the bytecode has no
+  InterfaceCall to that selector) over `inlined_ops_fixture.dart`; a mismatch
+  either way is a blocker. A cell must be built with this analyzer for the
+  flag to exist: a cell with an older analyzer behaves as before.
 - A dynamic call (`declaredClass == null`) is checked against every instance
   class of the snapshot; a declared type with no class in the snapshot, or only
   in another library, is refused.

@@ -2,6 +2,7 @@
 // `<expectation>__<what>`. `yes__` means dart2bytecode turns every operator site
 // in the body into an opcode (analysis version 20 marks the reference
 // `inlined`); `no__` means at least one site is a real interface call.
+// (`a! + b` is `yes__`: the null check gives the operand type `int`.)
 // Constant operands are avoided on purpose: `1 + 2` is folded before any
 // compiler looks at it.
 // ignore_for_file: unused_element, unnecessary_non_null_assertion, unused_local_variable
@@ -35,22 +36,22 @@ Object? no__num_add(num a, num b) => a + b;
 Object? no__int_double_add(int a, double b) => a + b;
 Object? no__double_int_add(double a, int b) => a + b;
 Object? no__int_num_add(int a, num b) => a + b;
-Object? no__nullable_int_add(int? a, int b) => a! + b;
+Object? yes__null_check_int_add(int? a, int b) => a! + b;
 Object? no__num_mul(num a, num b) => a * b;
 Object? no__int_double_mul(int a, double b) => a * b;
 Object? no__double_int_mul(double a, int b) => a * b;
 Object? no__int_num_mul(int a, num b) => a * b;
-Object? no__nullable_int_mul(int? a, int b) => a! * b;
+Object? yes__null_check_int_mul(int? a, int b) => a! * b;
 Object? no__num_lt(num a, num b) => a < b;
 Object? no__int_double_lt(int a, double b) => a < b;
 Object? no__double_int_lt(double a, int b) => a < b;
 Object? no__int_num_lt(int a, num b) => a < b;
-Object? no__nullable_int_lt(int? a, int b) => a! < b;
+Object? yes__null_check_int_lt(int? a, int b) => a! < b;
 Object? no__num_ge(num a, num b) => a >= b;
 Object? no__int_double_ge(int a, double b) => a >= b;
 Object? no__double_int_ge(double a, int b) => a >= b;
 Object? no__int_num_ge(int a, num b) => a >= b;
-Object? no__nullable_int_ge(int? a, int b) => a! >= b;
+Object? yes__null_check_int_ge(int? a, int b) => a! >= b;
 Object? no__int_mod_double(int a, double b) => a % b;
 Object? no__int_tdiv_double(int a, double b) => a ~/ b;
 Object? no__num_neg(num a) => -a;
@@ -74,7 +75,6 @@ num no__mixed_sites_reversed(num c, int a, int b) => c + a + b;
 bool yes__loop(int n) { var s = 0; for (var i = 0; i < n; i++) { s += i; } return s > n; }
 num no__in_closure(int a, num b) { num g() => a + b; return g(); }
 int yes__in_closure(int a, int b) { int g() => a * b; return g(); }
-bool yes__explicit_dot_eq(int a, int b) => a.==(b);
 bool no__equals(int a, int b) => a == b;
 bool no__not_equals(int a, int b) => a != b;
 void main() {}

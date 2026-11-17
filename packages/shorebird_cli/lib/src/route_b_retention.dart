@@ -292,6 +292,10 @@ class RouteBRetention {
     if (r.kind == 'instance' &&
         r.library.startsWith('dart:') &&
         !r.viaConstant) {
+      // Every site is an opcode the patch's compiler emits (analysis 20): no
+      // member is looked up, so neither the device list nor the snapshot is
+      // asked. Only the analyzer's own per-site answer lifts the check.
+      if (r.inlined != null) return null;
       final why = _sdkRefusal(_sdkKey(r));
       return why == null ? null : _describeSdkInstance(r, why);
     }
@@ -306,10 +310,7 @@ class RouteBRetention {
     final sel = r.member ?? '';
     final bare = sel.startsWith('get:') ? sel.substring(4) : null;
     // A dynamic `get` may be a tear-off of a method of that name.
-    final keys = [
-      'dynamic#$sel',
-      if (bare != null) 'dynamic#tearoff:$bare',
-    ];
+    final keys = ['dynamic#$sel', if (bare != null) 'dynamic#tearoff:$bare'];
     final failed = keys.where(measuredFailing.containsKey).toList();
     final shown = _bareSelector(sel);
     if (failed.isNotEmpty) {

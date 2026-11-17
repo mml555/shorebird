@@ -69,7 +69,7 @@ const supportedRouteBAnalysisVersion = 11;
 ///
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
-const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15, 16, 17, 18, 19};
+const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
 /// The first analyzer version that compares fields, `const`s, constructors and
 /// class headers. An older analyzer reads an edit to one as unchanged, so a
@@ -104,6 +104,14 @@ const routeBRetentionAnalysisVersion = 18;
 /// show any of those, so the patcher refuses it unless the developer opts out
 /// (`--allow-unchecked-sdk-calls`).
 const routeBSelectorCallsAnalysisVersion = 19;
+
+/// The first analyzer version that marks an `instance` reference `inlined`:
+/// every site of that member in the body is an opcode the patch's bytecode
+/// compiler emits (`AddInt`, `CompareIntLt`, ...), decided by dart2bytecode's
+/// own `RecognizedMethods`, so the member is never looked up when it runs. A
+/// document below it never has the field, and one that carries it anyway is
+/// not believed.
+const routeBInlinedOpsAnalysisVersion = 20;
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -531,11 +539,19 @@ class RouteBExternalReference {
     this.member,
     this.isPrivate = false,
     this.viaConstant = false,
+    this.inlined,
     this.reason,
   });
 
   /// Parses one entry of `externalReferences`.
-  factory RouteBExternalReference.fromJson(Map<String, dynamic> json) {
+  ///
+  /// [readInlined] is true only for a document of analysis
+  /// [routeBInlinedOpsAnalysisVersion] or later: an `inlined` field on an
+  /// older one is ignored, so only an analyzer that computes it can say it.
+  factory RouteBExternalReference.fromJson(
+    Map<String, dynamic> json, {
+    bool readInlined = false,
+  }) {
     final kind = json['kind'];
     if (kind is! String || !_kinds.contains(kind)) {
       throw FormatException('an external reference has the unknown kind $kind');
@@ -557,6 +573,9 @@ class RouteBExternalReference {
       member: json['member'] as String?,
       isPrivate: json['private'] == true,
       viaConstant: json['viaConstant'] == true,
+      inlined: readInlined && json['inlined'] is String
+          ? json['inlined'] as String
+          : null,
     );
   }
 
@@ -591,6 +610,11 @@ class RouteBExternalReference {
   /// Whether a constant names it, which the release's interface retained even
   /// for an instance member of `dart:`.
   final bool viaConstant;
+
+  /// The opcode the bytecode compiler emits for EVERY site of this member in
+  /// the body (analysis 20 and later), so none is looked up at run time; null
+  /// when any site is a call, or the analysis predates the field.
+  final String? inlined;
 
   /// Why the body could not be walked, for `unanalyzed`.
   final String? reason;
@@ -881,7 +905,10 @@ class RouteBCoverage {
         for (final entry in raw.entries)
           entry.key: [
             for (final r in entry.value as List)
-              RouteBExternalReference.fromJson(r as Map<String, dynamic>),
+              RouteBExternalReference.fromJson(
+                r as Map<String, dynamic>,
+                readInlined: analysisVersion >= routeBInlinedOpsAnalysisVersion,
+              ),
           ],
       };
     }
@@ -1106,16 +1133,13 @@ class RouteBCoverageAnalyzer {
     ]);
 
     if (result.exitCode != 0) {
-      throw RouteBCompilerException(
-        RouteBCompilerProblem.invalid,
-        '''
+      throw RouteBCompilerException(RouteBCompilerProblem.invalid, '''
 The Route B coverage analyzer failed (exit ${result.exitCode}):
 
 ${result.stderr}
 
 Treat this as corruption or a bad cache, not as a problem with the release.
-Nothing was uploaded.''',
-      );
+Nothing was uploaded.''');
     }
 
     return RouteBCoverage.fromJson(result.stdout as String);

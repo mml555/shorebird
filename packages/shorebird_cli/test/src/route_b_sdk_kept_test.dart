@@ -33,26 +33,28 @@ Map<String, Object?> _ref(
   'private': false,
 };
 
-RouteBCoverage _analysis(List<Map<String, Object?>> references) =>
-    RouteBCoverage.fromJson(
-      jsonEncode({
-        'analysisVersion': 19,
-        'verdict': 'accept',
-        'changed': [_target],
-        'carried': <String>[],
-        'callers': <String, Object?>{},
-        'added': <String>[],
-        'helpers': <String>[],
-        'unusedHelpers': <String>[],
-        'removed': <String>[],
-        'patchable': [_target],
-        'conditional': <String>[],
-        'sources': <String, Object?>{},
-        'externalReferences': {_target: references},
-        'rejections': <Object>[],
-        'refusalSummary': null,
-      }),
-    );
+RouteBCoverage _analysis(
+  List<Map<String, Object?>> references, {
+  int version = 19,
+}) => RouteBCoverage.fromJson(
+  jsonEncode({
+    'analysisVersion': version,
+    'verdict': 'accept',
+    'changed': [_target],
+    'carried': <String>[],
+    'callers': <String, Object?>{},
+    'added': <String>[],
+    'helpers': <String>[],
+    'unusedHelpers': <String>[],
+    'removed': <String>[],
+    'patchable': [_target],
+    'conditional': <String>[],
+    'sources': <String, Object?>{},
+    'externalReferences': {_target: references},
+    'rejections': <Object>[],
+    'refusalSummary': null,
+  }),
+);
 
 void main() {
   useTempWorkingDirectory();
@@ -234,13 +236,11 @@ void main() {
       });
 
       test('a non-integer in the node table', () {
-        rejects(
-          (d) {
-            final nodes = <Object?>[...(d['nodes']! as List)];
-            nodes[0] = 'x';
-            return d..['nodes'] = nodes;
-          },
-        );
+        rejects((d) {
+          final nodes = <Object?>[...(d['nodes']! as List)];
+          nodes[0] = 'x';
+          return d..['nodes'] = nodes;
+        });
       });
 
       test('a node table that is not a whole number of rows', () {
@@ -414,6 +414,50 @@ void main() {
       expect(refusal(r, sdk('+', 'num')), contains('no class `_Smi`'));
     });
 
+    group('an operator the bytecode compiler turns into an opcode', () {
+      final r = RouteBRetention.parse(
+        _interface,
+        measuredAccepted: const {'dart:core#int#&', 'dart:core#num#+'},
+        measuredFailing: const {},
+        measuredVmClasses: const {
+          'dart:core#int#&': ['_Smi'],
+          'dart:core#num#+': ['_Smi'],
+        },
+        kept: kept,
+      );
+      Map<String, Object?> inlined(String member, String cls) => {
+        ...sdk(member, cls),
+        'inlined': 'BitAndInt',
+      };
+      String? refusal20(Map<String, Object?> ref, {int version = 20}) =>
+          r.refusalForTarget(_analysis([ref], version: version), _target);
+
+      test('is not looked up when analysis 20 says every site is one', () {
+        expect(refusal20(inlined('&', 'int')), isNull);
+        // Neither the list nor the snapshot is asked: this key is on no list.
+        expect(refusal20(inlined('padLeft', 'String')), isNull);
+      });
+
+      test('is looked up when the analysis does not say so', () {
+        expect(refusal20(sdk('&', 'int')), contains('no class `_Smi`'));
+        expect(refusal20(sdk('padLeft')), isNotNull);
+      });
+
+      test('is looked up when the field comes from an analysis below 20', () {
+        expect(
+          refusal20(inlined('&', 'int'), version: 19),
+          contains('no class `_Smi`'),
+        );
+      });
+
+      test('is looked up through a constant', () {
+        expect(
+          refusal20({...inlined('&', 'int'), 'viaConstant': true}),
+          isNotNull,
+        );
+      });
+    });
+
     test('refuses a declared type the snapshot has no class for', () {
       // Zero roots would make the subtype walk visit nothing and pass.
       final r = RouteBRetention.parse(
@@ -564,10 +608,7 @@ void main() {
     });
 
     test('refuses with no profile and no reason given', () {
-      expect(
-        refusal(retention(), sdk('split')),
-        contains('cannot be checked'),
-      );
+      expect(refusal(retention(), sdk('split')), contains('cannot be checked'));
     });
 
     test('a member the release interface names passes without a profile', () {
