@@ -37,11 +37,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dart2bytecode/recognized_methods.dart' show RecognizedMethods;
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
 import 'package:kernel/text/ast_to_text.dart';
+import 'package:kernel/type_environment.dart';
 
 /// Bump when a consumer would have to change. The CLI refuses a version it does
 /// not know rather than reading fields that may have moved -- the `*.vmcode`
@@ -289,7 +291,15 @@ import 'package:kernel/text/ast_to_text.dart';
 ///     The bump is mandatory for the reason 12's was: a version-17 document
 ///     has no list, and a consumer cannot tell "nothing referenced" from "not
 ///     measured" unless the version says which it holds.
-const analysisVersion = 19;
+///
+/// Version 20 adds `inlined` to an `instance` reference: the name of the
+/// opcode (`AddInt`, `CompareIntLt`, ...) the patch's bytecode compiler emits
+/// for EVERY site of that member in the body, so no member is looked up when it
+/// runs. It is decided by dart2bytecode's own `RecognizedMethods` (imported, so
+/// the condition is one copy: both operands statically exactly `int`, or
+/// exactly `double`), and set only when no site of the member is a real call.
+/// A document below 20 never has it.
+const analysisVersion = 20;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -665,6 +675,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
         carriedBodies[key]!,
         carriedMembers,
         appMembersByName: appMembersByName,
+        types: TypeEnvironment(CoreTypes(patched), patchedHierarchy),
       ),
   };
 
@@ -2907,22 +2918,36 @@ Map<String, Object?>? _privateKey(Member? target) {
 ///
 /// A walk failure yields ONE `unanalyzed` entry and nothing else: a partial list
 /// would read as a complete one.
+///
+/// [types] is the type environment of the component [p] lives in. With it, an
+/// operator site the bytecode compiler turns into an opcode is marked
+/// `inlined` (analysis version 20); without it nothing is.
 List<Map<String, Object?>> externalReferencesOf(
   Procedure p,
   Set<Member> carried, {
   Map<String, List<Member>> appMembersByName = const {},
-}) => _externalReferences(p, carried, appMembersByName: appMembersByName);
+  TypeEnvironment? types,
+}) => _externalReferences(
+  p,
+  carried,
+  appMembersByName: appMembersByName,
+  types: types,
+);
 
 List<Map<String, Object?>> _externalReferences(
   Procedure p,
   Set<Member> carried, {
   Map<String, List<Member>> appMembersByName = const {},
+  TypeEnvironment? types,
 }) {
   final uses = _ExternalUses(
     carried,
     p.enclosingClass,
     p.enclosingLibrary,
     appMembersByName,
+    recognized: types == null
+        ? null
+        : RecognizedMethods(StaticTypeContext(p, types)),
   );
   try {
     p.function.accept(uses);
@@ -2950,8 +2975,13 @@ class _ExternalUses extends RecursiveVisitor {
     this.carried,
     this.owner,
     this.ownerLibrary,
-    this.appMembersByName,
-  );
+    this.appMembersByName, {
+    this.recognized,
+  });
+
+  /// dart2bytecode's own rule for which calls become opcodes (analysis version
+  /// 20); null when the caller has no type environment.
+  final RecognizedMethods? recognized;
 
   /// The app's instance members by plain name; see [_dynamic].
   final Map<String, List<Member>> appMembersByName;
@@ -3008,6 +3038,7 @@ class _ExternalUses extends RecursiveVisitor {
     Reference? ref, {
     bool viaConstant = false,
     bool tearOff = false,
+    String? inlined,
   }) {
     final m = ref?.node;
     if (m is! Member || carried.contains(m)) return;
@@ -3054,13 +3085,22 @@ class _ExternalUses extends RecursiveVisitor {
     // A tear-off needs a method extractor the AOT compiler emits only where
     // some code tears that selector off, so it is its own key.
     if (tearOff) name = 'tearoff:$name';
-    found['$kind|$library|${cls?.name}|$name|${viaConstant ? 'c' : 'd'}'] = {
+    final key = '$kind|$library|${cls?.name}|$name|${viaConstant ? 'c' : 'd'}';
+    final seen = found[key];
+    if (seen != null) {
+      // `inlined` holds only while EVERY site of the member is an opcode: a
+      // later real call clears it.
+      if (inlined == null) seen.remove('inlined');
+      return;
+    }
+    found[key] = {
       'kind': kind,
       'library': library,
       'class': cls?.name,
       'member': name,
       'private': isPrivate,
       if (viaConstant) 'viaConstant': true,
+      if (inlined != null) 'inlined': inlined,
     };
   }
 
@@ -3152,7 +3192,13 @@ class _ExternalUses extends RecursiveVisitor {
 
   @override
   void visitInstanceInvocation(InstanceInvocation node) {
-    _member(node.interfaceTargetReference);
+    // Asked of dart2bytecode's own function, on the same node kind its
+    // generator asks it of (`_genMethodInvocation`), so the two cannot differ.
+    final opcode = recognized?.specializedBytecodeFor(node);
+    _member(
+      node.interfaceTargetReference,
+      inlined: opcode == null ? null : opcode.name.substring(1),
+    );
     node.receiver.accept(this);
     node.arguments.accept(this);
   }
