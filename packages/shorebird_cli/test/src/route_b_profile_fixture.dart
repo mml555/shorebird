@@ -1,4 +1,4 @@
-// cspell:words tearoff
+// cspell:words ifaces tearoff
 import 'dart:convert';
 
 /// One class of a synthetic profile. [fns] maps a function name to the name of
