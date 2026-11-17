@@ -1,0 +1,900 @@
+SDKPROBE RESULT future_then__delayed__d ABORTS
+SDKPROBE RESULT future_then__delayed__td OK
+SDKPROBE RESULT future_catchError__async_fn__s OK
+SDKPROBE RESULT future_catchError__async_fn__ts OK
+SDKPROBE RESULT future_catchError__async_fn__d ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'catchError' with matching arguments.
+SDKPROBE RESULT future_catchError__async_fn__td OK
+SDKPROBE RESULT future_catchError__value__s OK
+SDKPROBE RESULT future_catchError__value__ts OK
+SDKPROBE RESULT future_catchError__value__d ABORTS
+SDKPROBE RESULT future_catchError__value__td OK
+SDKPROBE RESULT future_catchError__completer__s OK
+SDKPROBE RESULT future_catchError__completer__ts OK
+SDKPROBE RESULT future_catchError__completer__d ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'catchError' with matching arguments.
+SDKPROBE RESULT future_catchError__completer__td OK
+SDKPROBE RESULT future_catchError__delayed__s OK
+SDKPROBE RESULT future_catchError__delayed__ts OK
+SDKPROBE RESULT future_catchError__delayed__d ABORTS
+SDKPROBE RESULT future_catchError__delayed__td OK
+SDKPROBE RESULT future_whenComplete__async_fn__s OK
+SDKPROBE RESULT future_whenComplete__async_fn__ts OK
+SDKPROBE RESULT future_whenComplete__async_fn__d ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'whenComplete' with matching arguments.
+SDKPROBE RESULT future_whenComplete__async_fn__td OK
+SDKPROBE RESULT future_whenComplete__value__s OK
+SDKPROBE RESULT future_whenComplete__value__ts OK
+SDKPROBE RESULT future_whenComplete__value__d ABORTS
+SDKPROBE RESULT future_whenComplete__value__td OK
+SDKPROBE RESULT future_whenComplete__completer__s OK
+SDKPROBE RESULT future_whenComplete__completer__ts OK
+SDKPROBE RESULT future_whenComplete__completer__d ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'whenComplete' with matching arguments.
+SDKPROBE RESULT future_whenComplete__completer__td OK
+SDKPROBE RESULT future_whenComplete__delayed__s OK
+SDKPROBE RESULT future_whenComplete__delayed__ts OK
+SDKPROBE RESULT future_whenComplete__delayed__d ABORTS
+SDKPROBE RESULT future_whenComplete__delayed__td OK
+SDKPROBE RESULT future_timeout__async_fn__s OK
+SDKPROBE RESULT future_timeout__async_fn__ts OK
+SDKPROBE RESULT future_timeout__async_fn__d ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'timeout' with matching arguments.
+SDKPROBE RESULT future_timeout__async_fn__td OK
+SDKPROBE RESULT future_timeout__value__s OK
+SDKPROBE RESULT future_timeout__value__ts OK
+SDKPROBE RESULT future_timeout__value__d ABORTS
+SDKPROBE RESULT future_timeout__value__td OK
+SDKPROBE RESULT future_timeout__completer__s OK
+SDKPROBE RESULT future_timeout__completer__ts OK
+SDKPROBE RESULT future_timeout__completer__d ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'timeout' with matching arguments.
+SDKPROBE RESULT future_timeout__completer__td OK
+SDKPROBE RESULT future_timeout__delayed__s OK
+SDKPROBE RESULT future_timeout__delayed__ts OK
+SDKPROBE RESULT future_timeout__delayed__d ABORTS
+SDKPROBE RESULT future_timeout__delayed__td OK
+SDKPROBE RESULT stream_listen__from_iterable__s OK
+SDKPROBE RESULT stream_listen__from_iterable__ts OK
+SDKPROBE RESULT stream_listen__from_iterable__d ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance method 'listen' with matching arguments.
+SDKPROBE RESULT stream_listen__from_iterable__td OK
+SDKPROBE RESULT stream_listen__value__s OK
+SDKPROBE RESULT stream_listen__value__ts OK
+SDKPROBE RESULT stream_listen__value__d ERR NoSuchMethodError: Class '_ControllerStream<int>' has no instance method 'listen' with matching arguments.
+SDKPROBE RESULT stream_listen__value__td OK
+SDKPROBE RESULT stream_listen__as_broadcast__s OK
+SDKPROBE RESULT stream_listen__as_broadcast__ts OK
+SDKPROBE RESULT stream_listen__as_broadcast__d ERR NoSuchMethodError: Class '_AsBroadcastStream<int>' has no instance method 'listen' with matching arguments.
+SDKPROBE RESULT stream_listen__as_broadcast__td OK
+SDKPROBE RESULT stream_where__from_iterable__s OK
+SDKPROBE RESULT stream_where__from_iterable__ts OK
+SDKPROBE RESULT stream_where__from_iterable__d ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance method 'where' with matching arguments.
+SDKPROBE RESULT stream_where__from_iterable__td ABORTS
+SDKPROBE RESULT stream_where__value__s OK
+SDKPROBE RESULT stream_where__value__ts OK
+SDKPROBE RESULT stream_where__value__d ERR NoSuchMethodError: Class '_ControllerStream<int>' has no instance method 'where' with matching arguments.
+SDKPROBE RESULT stream_where__value__td ABORTS
+SDKPROBE RESULT stream_where__as_broadcast__s OK
+SDKPROBE RESULT stream_where__as_broadcast__ts OK
+SDKPROBE RESULT stream_where__as_broadcast__d ERR NoSuchMethodError: Class '_AsBroadcastStream<int>' has no instance method 'where' with matching arguments.
+SDKPROBE RESULT stream_where__as_broadcast__td ABORTS
+SDKPROBE RESULT stream_map__from_iterable__s OK
+SDKPROBE RESULT stream_map__from_iterable__ts OK
+SDKPROBE RESULT stream_map__from_iterable__d ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance method 'map' with matching arguments.
+SDKPROBE RESULT stream_map__from_iterable__td ABORTS
+SDKPROBE RESULT stream_map__value__s OK
+SDKPROBE RESULT stream_map__value__ts OK
+SDKPROBE RESULT stream_map__value__d ERR NoSuchMethodError: Class '_ControllerStream<int>' has no instance method 'map' with matching arguments.
+SDKPROBE RESULT stream_map__value__td ABORTS
+SDKPROBE RESULT stream_map__as_broadcast__s OK
+SDKPROBE RESULT stream_map__as_broadcast__ts OK
+SDKPROBE RESULT stream_map__as_broadcast__d ERR NoSuchMethodError: Class '_AsBroadcastStream<int>' has no instance method 'map' with matching arguments.
+SDKPROBE RESULT stream_map__as_broadcast__td ABORTS
+SDKPROBE RESULT stream_toList__from_iterable__s OK
+SDKPROBE RESULT stream_toList__from_iterable__ts OK
+SDKPROBE RESULT stream_toList__from_iterable__d ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance method 'toList' with matching arguments.
+SDKPROBE RESULT stream_toList__from_iterable__td ABORTS
+SDKPROBE RESULT stream_toList__value__s OK
+SDKPROBE RESULT stream_toList__value__ts OK
+SDKPROBE RESULT stream_toList__value__d ERR NoSuchMethodError: Class '_ControllerStream<int>' has no instance method 'toList' with matching arguments.
+SDKPROBE RESULT stream_toList__value__td ABORTS
+SDKPROBE RESULT stream_toList__as_broadcast__s OK
+SDKPROBE RESULT stream_toList__as_broadcast__ts OK
+SDKPROBE RESULT stream_toList__as_broadcast__d ERR NoSuchMethodError: Class '_AsBroadcastStream<int>' has no instance method 'toList' with matching arguments.
+SDKPROBE RESULT stream_toList__as_broadcast__td ABORTS
+SDKPROBE RESULT stream_first__from_iterable__s OK
+SDKPROBE RESULT stream_first__from_iterable__d ABORTS
+SDKPROBE RESULT stream_first__value__s OK
+SDKPROBE RESULT stream_first__value__d ABORTS
+SDKPROBE RESULT stream_first__as_broadcast__s OK
+SDKPROBE RESULT stream_first__as_broadcast__d ABORTS
+SDKPROBE RESULT stream_isBroadcast__from_iterable__s OK
+SDKPROBE RESULT stream_isBroadcast__from_iterable__d ABORTS
+SDKPROBE RESULT stream_isBroadcast__value__s OK
+SDKPROBE RESULT stream_isBroadcast__value__d ABORTS
+SDKPROBE RESULT stream_isBroadcast__as_broadcast__s OK
+SDKPROBE RESULT stream_isBroadcast__as_broadcast__d ABORTS
+SDKPROBE RESULT ctl_add__plain__s OK
+SDKPROBE RESULT ctl_add__plain__ts OK
+SDKPROBE RESULT ctl_add__plain__d ERR NoSuchMethodError: Class '_AsyncStreamController<int>' has no instance method 'add' with matching arguments.
+SDKPROBE RESULT ctl_add__plain__td OK
+SDKPROBE RESULT ctl_add__broadcast__s OK
+SDKPROBE RESULT ctl_add__broadcast__ts OK
+SDKPROBE RESULT ctl_add__broadcast__d ERR NoSuchMethodError: Class '_AsyncBroadcastStreamController<int>' has no instance method 'add' with matching arguments.
+SDKPROBE RESULT ctl_add__broadcast__td OK
+SDKPROBE RESULT ctl_stream__plain__s OK
+SDKPROBE RESULT ctl_stream__plain__d ABORTS
+SDKPROBE RESULT ctl_stream__broadcast__s OK
+SDKPROBE RESULT ctl_stream__broadcast__d ABORTS
+SDKPROBE RESULT ctl_sink__plain__s OK
+SDKPROBE RESULT ctl_sink__plain__d ABORTS
+SDKPROBE RESULT ctl_sink__broadcast__s OK
+SDKPROBE RESULT ctl_sink__broadcast__d ABORTS
+SDKPROBE RESULT ctl_isClosed__plain__s OK
+SDKPROBE RESULT ctl_isClosed__plain__d ABORTS
+SDKPROBE RESULT ctl_isClosed__broadcast__s OK
+SDKPROBE RESULT ctl_isClosed__broadcast__d ABORTS
+SDKPROBE RESULT ctl_close__plain__s OK
+SDKPROBE RESULT ctl_close__plain__ts OK
+SDKPROBE RESULT ctl_close__plain__d ERR NoSuchMethodError: Class '_AsyncStreamController<int>' has no instance method 'close' with matching arguments.
+SDKPROBE RESULT ctl_close__plain__td OK
+SDKPROBE RESULT ctl_close__broadcast__s OK
+SDKPROBE RESULT ctl_close__broadcast__ts OK
+SDKPROBE RESULT ctl_close__broadcast__d ERR NoSuchMethodError: Class '_AsyncBroadcastStreamController<int>' has no instance method 'close' with matching arguments.
+SDKPROBE RESULT ctl_close__broadcast__td OK
+SDKPROBE RESULT timer_cancel__periodic_or_oneshot__s OK
+SDKPROBE RESULT timer_cancel__periodic_or_oneshot__ts OK
+SDKPROBE RESULT timer_cancel__periodic_or_oneshot__d ERR NoSuchMethodError: Class '_Timer' has no instance method 'cancel' with matching arguments.
+SDKPROBE RESULT timer_cancel__periodic_or_oneshot__td OK
+SDKPROBE RESULT timer_isActive__periodic_or_oneshot__s OK
+SDKPROBE RESULT timer_isActive__periodic_or_oneshot__d ABORTS
+SDKPROBE RESULT timer_tick__periodic_or_oneshot__s OK
+SDKPROBE RESULT timer_tick__periodic_or_oneshot__d ABORTS
+SDKPROBE RESULT map_keys__literal__s OK
+SDKPROBE RESULT map_keys__literal__d ABORTS
+SDKPROBE RESULT map_keys__const__s OK
+SDKPROBE RESULT map_keys__const__d ABORTS
+SDKPROBE RESULT map_keys__unmodifiable__s OK
+SDKPROBE RESULT map_keys__unmodifiable__d ABORTS
+SDKPROBE RESULT map_keys__json__s OK
+SDKPROBE RESULT map_keys__json__d ABORTS
+SDKPROBE RESULT map_values__literal__s OK
+SDKPROBE RESULT map_values__literal__d ABORTS
+SDKPROBE RESULT map_values__const__s OK
+SDKPROBE RESULT map_values__const__d ABORTS
+SDKPROBE RESULT map_values__unmodifiable__s OK
+SDKPROBE RESULT map_values__unmodifiable__d ABORTS
+SDKPROBE RESULT map_values__json__s OK
+SDKPROBE RESULT map_values__json__d ABORTS
+SDKPROBE RESULT map_get__literal__s OK
+SDKPROBE RESULT map_get__literal__d ERR NoSuchMethodError: Class '_Map<String, Object?>' has no instance method '[]' with matching arguments.
+SDKPROBE RESULT map_get__const__s OK
+SDKPROBE RESULT map_get__const__d ERR NoSuchMethodError: Class '_ConstMap<String, Object?>' has no instance method '[]' with matching arguments.
+SDKPROBE RESULT map_get__unmodifiable__s OK
+SDKPROBE RESULT map_get__unmodifiable__d ERR NoSuchMethodError: Class 'UnmodifiableMapView<String, Object?>' has no instance method '[]' with matching arguments.
+SDKPROBE RESULT map_get__json__s OK
+SDKPROBE RESULT map_get__json__d ABORTS
+SDKPROBE RESULT map_set__literal__s OK
+SDKPROBE RESULT map_set__literal__d ERR NoSuchMethodError: Class '_Map<String, Object?>' has no instance method '[]=' with matching arguments.
+SDKPROBE RESULT map_set__const__s ERR Unsupported operation: Cannot modify unmodifiable map
+SDKPROBE RESULT map_set__const__d ERR NoSuchMethodError: Class '_ConstMap<String, Object?>' has no instance method '[]=' with matching arguments.
+SDKPROBE RESULT map_set__unmodifiable__s ERR Unsupported operation: Cannot modify unmodifiable map
+SDKPROBE RESULT map_set__unmodifiable__d ERR NoSuchMethodError: Class 'UnmodifiableMapView<String, Object?>' has no instance method '[]=' with matching arguments.
+SDKPROBE RESULT map_set__json__s OK
+SDKPROBE RESULT map_set__json__d ABORTS
+SDKPROBE RESULT map_containsKey__literal__s OK
+SDKPROBE RESULT map_containsKey__literal__ts OK
+SDKPROBE RESULT map_containsKey__literal__d ERR NoSuchMethodError: Class '_Map<String, Object?>' has no instance method 'containsKey' with matching arguments.
+SDKPROBE RESULT map_containsKey__literal__td OK
+SDKPROBE RESULT map_containsKey__const__s OK
+SDKPROBE RESULT map_containsKey__const__ts OK
+SDKPROBE RESULT map_containsKey__const__d ERR NoSuchMethodError: Class '_ConstMap<String, Object?>' has no instance method 'containsKey' with matching arguments.
+SDKPROBE RESULT map_containsKey__const__td OK
+SDKPROBE RESULT map_containsKey__unmodifiable__s OK
+SDKPROBE RESULT map_containsKey__unmodifiable__ts OK
+SDKPROBE RESULT map_containsKey__unmodifiable__d ERR NoSuchMethodError: Class 'UnmodifiableMapView<String, Object?>' has no instance method 'containsKey' with matching arguments.
+SDKPROBE RESULT map_containsKey__unmodifiable__td OK
+SDKPROBE RESULT map_containsKey__json__s OK
+SDKPROBE RESULT map_containsKey__json__ts OK
+SDKPROBE RESULT map_containsKey__json__d ABORTS
+SDKPROBE RESULT map_containsKey__json__td OK
+SDKPROBE RESULT map_containsValue__literal__s OK
+SDKPROBE RESULT map_containsValue__literal__ts OK
+SDKPROBE RESULT map_containsValue__literal__d ERR NoSuchMethodError: Class '_Map<String, Object?>' has no instance method 'containsValue' with matching arguments.
+SDKPROBE RESULT map_containsValue__literal__td OK
+SDKPROBE RESULT map_containsValue__const__s OK
+SDKPROBE RESULT map_containsValue__const__ts OK
+SDKPROBE RESULT map_containsValue__const__d ERR NoSuchMethodError: Class '_ConstMap<String, Object?>' has no instance method 'containsValue' with matching arguments.
+SDKPROBE RESULT map_containsValue__const__td OK
+SDKPROBE RESULT map_containsValue__unmodifiable__s OK
+SDKPROBE RESULT map_containsValue__unmodifiable__ts OK
+SDKPROBE RESULT map_containsValue__unmodifiable__d ERR NoSuchMethodError: Class 'UnmodifiableMapView<String, Object?>' has no instance method 'containsValue' with matching arguments.
+SDKPROBE RESULT map_containsValue__unmodifiable__td OK
+SDKPROBE RESULT map_containsValue__json__s OK
+SDKPROBE RESULT map_containsValue__json__ts OK
+SDKPROBE RESULT map_containsValue__json__d ABORTS
+SDKPROBE RESULT map_containsValue__json__td OK
+SDKPROBE RESULT map_remove__literal__s OK
+SDKPROBE RESULT map_remove__literal__ts OK
+SDKPROBE RESULT map_remove__literal__d ERR NoSuchMethodError: Class '_Map<String, Object?>' has no instance method 'remove' with matching arguments.
+SDKPROBE RESULT map_remove__literal__td OK
+SDKPROBE RESULT map_remove__const__s ERR Unsupported operation: Cannot modify unmodifiable map
+SDKPROBE RESULT map_remove__const__ts OK
+SDKPROBE RESULT map_remove__const__d ERR NoSuchMethodError: Class '_ConstMap<String, Object?>' has no instance method 'remove' with matching arguments.
+SDKPROBE RESULT map_remove__const__td OK
+SDKPROBE RESULT map_remove__unmodifiable__s ERR Unsupported operation: Cannot modify unmodifiable map
+SDKPROBE RESULT map_remove__unmodifiable__ts OK
+SDKPROBE RESULT map_remove__unmodifiable__d ERR NoSuchMethodError: Class 'UnmodifiableMapView<String, Object?>' has no instance method 'remove' with matching arguments.
+SDKPROBE RESULT map_remove__unmodifiable__td OK
+SDKPROBE RESULT map_remove__json__s OK
+SDKPROBE RESULT map_remove__json__ts OK
+SDKPROBE RESULT map_remove__json__d ABORTS
+SDKPROBE RESULT map_remove__json__td OK
+SDKPROBE RESULT map_entries__literal__s OK
+SDKPROBE RESULT map_entries__literal__d ABORTS
+SDKPROBE RESULT map_entries__const__s OK
+SDKPROBE RESULT map_entries__const__d ABORTS
+SDKPROBE RESULT map_entries__unmodifiable__s OK
+SDKPROBE RESULT map_entries__unmodifiable__d ABORTS
+SDKPROBE RESULT map_entries__json__s OK
+SDKPROBE RESULT map_entries__json__d ABORTS
+SDKPROBE RESULT map_length__literal__s OK
+SDKPROBE RESULT map_length__literal__d ABORTS
+SDKPROBE RESULT map_length__const__s OK
+SDKPROBE RESULT map_length__const__d ABORTS
+SDKPROBE RESULT map_length__unmodifiable__s OK
+SDKPROBE RESULT map_length__unmodifiable__d ABORTS
+SDKPROBE RESULT map_length__json__s OK
+SDKPROBE RESULT map_length__json__d ABORTS
+SDKPROBE RESULT map_isEmpty__literal__s OK
+SDKPROBE RESULT map_isEmpty__literal__d ABORTS
+SDKPROBE RESULT map_isEmpty__const__s OK
+SDKPROBE RESULT map_isEmpty__const__d ABORTS
+SDKPROBE RESULT map_isEmpty__unmodifiable__s OK
+SDKPROBE RESULT map_isEmpty__unmodifiable__d ABORTS
+SDKPROBE RESULT map_isEmpty__json__s OK
+SDKPROBE RESULT map_isEmpty__json__d ABORTS
+SDKPROBE RESULT map_isNotEmpty__literal__s OK
+SDKPROBE RESULT map_isNotEmpty__literal__d ABORTS
+SDKPROBE RESULT map_isNotEmpty__const__s OK
+SDKPROBE RESULT map_isNotEmpty__const__d ABORTS
+SDKPROBE RESULT map_isNotEmpty__unmodifiable__s OK
+SDKPROBE RESULT map_isNotEmpty__unmodifiable__d ABORTS
+SDKPROBE RESULT map_isNotEmpty__json__s OK
+SDKPROBE RESULT map_isNotEmpty__json__d ABORTS
+SDKPROBE RESULT map_forEach__literal__s OK
+SDKPROBE RESULT map_forEach__literal__ts OK
+SDKPROBE RESULT map_forEach__literal__d ERR NoSuchMethodError: Class '_Map<String, Object?>' has no instance method 'forEach' with matching arguments.
+SDKPROBE RESULT map_forEach__literal__td OK
+SDKPROBE RESULT map_forEach__const__s OK
+SDKPROBE RESULT map_forEach__const__ts OK
+SDKPROBE RESULT map_forEach__const__d ERR NoSuchMethodError: Class '_ConstMap<String, Object?>' has no instance method 'forEach' with matching arguments.
+SDKPROBE RESULT map_forEach__const__td OK
+SDKPROBE RESULT map_forEach__unmodifiable__s OK
+SDKPROBE RESULT map_forEach__unmodifiable__ts OK
+SDKPROBE RESULT map_forEach__unmodifiable__d ERR NoSuchMethodError: Class 'UnmodifiableMapView<String, Object?>' has no instance method 'forEach' with matching arguments.
+SDKPROBE RESULT map_forEach__unmodifiable__td OK
+SDKPROBE RESULT map_forEach__json__s OK
+SDKPROBE RESULT map_forEach__json__ts OK
+SDKPROBE RESULT map_forEach__json__d ABORTS
+SDKPROBE RESULT map_forEach__json__td OK
+SDKPROBE RESULT map_addAll__literal__ts OK
+SDKPROBE RESULT map_addAll__const__ts OK
+SDKPROBE RESULT map_addAll__unmodifiable__ts OK
+SDKPROBE RESULT map_addAll__json__ts OK
+SDKPROBE RESULT map_putIfAbsent__literal__s OK
+SDKPROBE RESULT map_putIfAbsent__literal__ts OK
+SDKPROBE RESULT map_putIfAbsent__const__s ERR Unsupported operation: Cannot modify unmodifiable map
+SDKPROBE RESULT map_putIfAbsent__const__ts OK
+SDKPROBE RESULT map_putIfAbsent__unmodifiable__s ERR Unsupported operation: Cannot modify unmodifiable map
+SDKPROBE RESULT map_putIfAbsent__unmodifiable__ts OK
+SDKPROBE RESULT map_putIfAbsent__json__s OK
+SDKPROBE RESULT map_putIfAbsent__json__ts OK
+SDKPROBE RESULT list_contains__growable__s OK
+SDKPROBE RESULT list_contains__growable__ts OK
+SDKPROBE RESULT list_contains__growable__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'contains' with matching arguments.
+SDKPROBE RESULT list_contains__growable__td OK
+SDKPROBE RESULT list_contains__filled_fixed__s OK
+SDKPROBE RESULT list_contains__filled_fixed__ts OK
+SDKPROBE RESULT list_contains__filled_fixed__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'contains' with matching arguments.
+SDKPROBE RESULT list_contains__filled_fixed__td OK
+SDKPROBE RESULT list_contains__const__s OK
+SDKPROBE RESULT list_contains__const__ts OK
+SDKPROBE RESULT list_contains__const__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'contains' with matching arguments.
+SDKPROBE RESULT list_contains__const__td OK
+SDKPROBE RESULT list_contains__unmodifiable__s OK
+SDKPROBE RESULT list_contains__unmodifiable__ts OK
+SDKPROBE RESULT list_contains__unmodifiable__d ABORTS
+SDKPROBE RESULT list_contains__unmodifiable__td OK
+SDKPROBE RESULT list_contains__generate__s OK
+SDKPROBE RESULT list_contains__generate__ts OK
+SDKPROBE RESULT list_contains__generate__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'contains' with matching arguments.
+SDKPROBE RESULT list_contains__generate__td OK
+SDKPROBE RESULT list_contains__json__s OK
+SDKPROBE RESULT list_contains__json__ts OK
+SDKPROBE RESULT list_contains__json__d ABORTS
+SDKPROBE RESULT list_contains__json__td OK
+SDKPROBE RESULT list_remove__growable__s OK
+SDKPROBE RESULT list_remove__growable__ts OK
+SDKPROBE RESULT list_remove__growable__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'remove' with matching arguments.
+SDKPROBE RESULT list_remove__growable__td OK
+SDKPROBE RESULT list_remove__filled_fixed__s ERR Unsupported operation: Cannot remove from a fixed-length list
+SDKPROBE RESULT list_remove__filled_fixed__ts OK
+SDKPROBE RESULT list_remove__filled_fixed__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'remove' with matching arguments.
+SDKPROBE RESULT list_remove__filled_fixed__td OK
+SDKPROBE RESULT list_remove__const__s ERR Unsupported operation: Cannot remove from an unmodifiable list
+SDKPROBE RESULT list_remove__const__ts OK
+SDKPROBE RESULT list_remove__const__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'remove' with matching arguments.
+SDKPROBE RESULT list_remove__const__td OK
+SDKPROBE RESULT list_remove__unmodifiable__s ERR Unsupported operation: Cannot remove from an unmodifiable list
+SDKPROBE RESULT list_remove__unmodifiable__ts OK
+SDKPROBE RESULT list_remove__unmodifiable__d ABORTS
+SDKPROBE RESULT list_remove__unmodifiable__td OK
+SDKPROBE RESULT list_remove__generate__s OK
+SDKPROBE RESULT list_remove__generate__ts OK
+SDKPROBE RESULT list_remove__generate__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'remove' with matching arguments.
+SDKPROBE RESULT list_remove__generate__td OK
+SDKPROBE RESULT list_remove__json__s OK
+SDKPROBE RESULT list_remove__json__ts OK
+SDKPROBE RESULT list_remove__json__d ABORTS
+SDKPROBE RESULT list_remove__json__td OK
+SDKPROBE RESULT list_insert__growable__s OK
+SDKPROBE RESULT list_insert__growable__ts OK
+SDKPROBE RESULT list_insert__growable__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'insert' with matching arguments.
+SDKPROBE RESULT list_insert__growable__td OK
+SDKPROBE RESULT list_insert__filled_fixed__s ERR Unsupported operation: Cannot add to a fixed-length list
+SDKPROBE RESULT list_insert__filled_fixed__ts OK
+SDKPROBE RESULT list_insert__filled_fixed__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'insert' with matching arguments.
+SDKPROBE RESULT list_insert__filled_fixed__td OK
+SDKPROBE RESULT list_insert__const__s ERR Unsupported operation: Cannot add to an unmodifiable list
+SDKPROBE RESULT list_insert__const__ts OK
+SDKPROBE RESULT list_insert__const__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'insert' with matching arguments.
+SDKPROBE RESULT list_insert__const__td OK
+SDKPROBE RESULT list_insert__unmodifiable__s ERR Unsupported operation: Cannot add to an unmodifiable list
+SDKPROBE RESULT list_insert__unmodifiable__ts OK
+SDKPROBE RESULT list_insert__unmodifiable__d ABORTS
+SDKPROBE RESULT list_insert__unmodifiable__td OK
+SDKPROBE RESULT list_insert__generate__s OK
+SDKPROBE RESULT list_insert__generate__ts OK
+SDKPROBE RESULT list_insert__generate__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'insert' with matching arguments.
+SDKPROBE RESULT list_insert__generate__td OK
+SDKPROBE RESULT list_insert__json__s OK
+SDKPROBE RESULT list_insert__json__ts OK
+SDKPROBE RESULT list_insert__json__d ABORTS
+SDKPROBE RESULT list_insert__json__td OK
+SDKPROBE RESULT list_length__growable__s OK
+SDKPROBE RESULT list_length__growable__d ABORTS
+SDKPROBE RESULT list_length__filled_fixed__s OK
+SDKPROBE RESULT list_length__filled_fixed__d ABORTS
+SDKPROBE RESULT list_length__const__s OK
+SDKPROBE RESULT list_length__const__d ABORTS
+SDKPROBE RESULT list_length__unmodifiable__s OK
+SDKPROBE RESULT list_length__unmodifiable__d ABORTS
+SDKPROBE RESULT list_length__generate__s OK
+SDKPROBE RESULT list_length__generate__d ABORTS
+SDKPROBE RESULT list_length__json__s OK
+SDKPROBE RESULT list_length__json__d ABORTS
+SDKPROBE RESULT list_get__growable__s OK
+SDKPROBE RESULT list_get__growable__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]' with matching arguments.
+SDKPROBE RESULT list_get__filled_fixed__s OK
+SDKPROBE RESULT list_get__filled_fixed__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]' with matching arguments.
+SDKPROBE RESULT list_get__const__s OK
+SDKPROBE RESULT list_get__const__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]' with matching arguments.
+SDKPROBE RESULT list_get__unmodifiable__s OK
+SDKPROBE RESULT list_get__unmodifiable__d ABORTS
+SDKPROBE RESULT list_get__generate__s OK
+SDKPROBE RESULT list_get__generate__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]' with matching arguments.
+SDKPROBE RESULT list_get__json__s OK
+SDKPROBE RESULT list_get__json__d ABORTS
+SDKPROBE RESULT list_set__growable__s OK
+SDKPROBE RESULT list_set__growable__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]=' with matching arguments.
+SDKPROBE RESULT list_set__filled_fixed__s OK
+SDKPROBE RESULT list_set__filled_fixed__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]=' with matching arguments.
+SDKPROBE RESULT list_set__const__s ERR Unsupported operation: Cannot modify an unmodifiable list
+SDKPROBE RESULT list_set__const__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]=' with matching arguments.
+SDKPROBE RESULT list_set__unmodifiable__s ERR Unsupported operation: Cannot modify an unmodifiable list
+SDKPROBE RESULT list_set__unmodifiable__d ABORTS
+SDKPROBE RESULT list_set__generate__s OK
+SDKPROBE RESULT list_set__generate__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]=' with matching arguments.
+SDKPROBE RESULT list_set__json__s OK
+SDKPROBE RESULT list_set__json__d ABORTS
+SDKPROBE RESULT list_isEmpty__growable__s OK
+SDKPROBE RESULT list_isEmpty__growable__d ABORTS
+SDKPROBE RESULT list_isEmpty__filled_fixed__s OK
+SDKPROBE RESULT list_isEmpty__filled_fixed__d ABORTS
+SDKPROBE RESULT list_isEmpty__const__s OK
+SDKPROBE RESULT list_isEmpty__const__d ABORTS
+SDKPROBE RESULT list_isEmpty__unmodifiable__s OK
+SDKPROBE RESULT list_isEmpty__unmodifiable__d ABORTS
+SDKPROBE RESULT list_isEmpty__generate__s OK
+SDKPROBE RESULT list_isEmpty__generate__d ABORTS
+SDKPROBE RESULT list_isEmpty__json__s OK
+SDKPROBE RESULT list_isEmpty__json__d ABORTS
+SDKPROBE RESULT list_isNotEmpty__growable__s OK
+SDKPROBE RESULT list_isNotEmpty__growable__d ABORTS
+SDKPROBE RESULT list_isNotEmpty__filled_fixed__s OK
+SDKPROBE RESULT list_isNotEmpty__filled_fixed__d ABORTS
+SDKPROBE RESULT list_isNotEmpty__const__s OK
+SDKPROBE RESULT list_isNotEmpty__const__d ABORTS
+SDKPROBE RESULT list_isNotEmpty__unmodifiable__s OK
+SDKPROBE RESULT list_isNotEmpty__unmodifiable__d ABORTS
+SDKPROBE RESULT list_isNotEmpty__generate__s OK
+SDKPROBE RESULT list_isNotEmpty__generate__d ABORTS
+SDKPROBE RESULT list_isNotEmpty__json__s OK
+SDKPROBE RESULT list_isNotEmpty__json__d ABORTS
+SDKPROBE RESULT list_first__growable__s OK
+SDKPROBE RESULT list_first__growable__d ABORTS
+SDKPROBE RESULT list_first__filled_fixed__s OK
+SDKPROBE RESULT list_first__filled_fixed__d ABORTS
+SDKPROBE RESULT list_first__const__s OK
+SDKPROBE RESULT list_first__const__d ABORTS
+SDKPROBE RESULT list_first__unmodifiable__s OK
+SDKPROBE RESULT list_first__unmodifiable__d ABORTS
+SDKPROBE RESULT list_first__generate__s OK
+SDKPROBE RESULT list_first__generate__d ABORTS
+SDKPROBE RESULT list_first__json__s OK
+SDKPROBE RESULT list_first__json__d ABORTS
+SDKPROBE RESULT list_last__growable__s OK
+SDKPROBE RESULT list_last__growable__d ABORTS
+SDKPROBE RESULT list_last__filled_fixed__s OK
+SDKPROBE RESULT list_last__filled_fixed__d ABORTS
+SDKPROBE RESULT list_last__const__s OK
+SDKPROBE RESULT list_last__const__d ABORTS
+SDKPROBE RESULT list_last__unmodifiable__s OK
+SDKPROBE RESULT list_last__unmodifiable__d ABORTS
+SDKPROBE RESULT list_last__generate__s OK
+SDKPROBE RESULT list_last__generate__d ABORTS
+SDKPROBE RESULT list_last__json__s OK
+SDKPROBE RESULT list_last__json__d ABORTS
+SDKPROBE RESULT list_indexOf__growable__s OK
+SDKPROBE RESULT list_indexOf__growable__ts OK
+SDKPROBE RESULT list_indexOf__growable__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'indexOf' with matching arguments.
+SDKPROBE RESULT list_indexOf__growable__td ABORTS
+SDKPROBE RESULT list_indexOf__filled_fixed__s OK
+SDKPROBE RESULT list_indexOf__filled_fixed__ts OK
+SDKPROBE RESULT list_indexOf__filled_fixed__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'indexOf' with matching arguments.
+SDKPROBE RESULT list_indexOf__filled_fixed__td ABORTS
+SDKPROBE RESULT list_indexOf__const__s OK
+SDKPROBE RESULT list_indexOf__const__ts OK
+SDKPROBE RESULT list_indexOf__const__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'indexOf' with matching arguments.
+SDKPROBE RESULT list_indexOf__const__td ABORTS
+SDKPROBE RESULT list_indexOf__unmodifiable__s OK
+SDKPROBE RESULT list_indexOf__unmodifiable__ts OK
+SDKPROBE RESULT list_indexOf__unmodifiable__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'indexOf' with matching arguments.
+SDKPROBE RESULT list_indexOf__unmodifiable__td ABORTS
+SDKPROBE RESULT list_indexOf__generate__s OK
+SDKPROBE RESULT list_indexOf__generate__ts OK
+SDKPROBE RESULT list_indexOf__generate__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'indexOf' with matching arguments.
+SDKPROBE RESULT list_indexOf__generate__td ABORTS
+SDKPROBE RESULT list_indexOf__json__s OK
+SDKPROBE RESULT list_indexOf__json__ts OK
+SDKPROBE RESULT list_indexOf__json__d ERR NoSuchMethodError: Class 'List<dynamic>' has no instance method 'indexOf' with matching arguments.
+SDKPROBE RESULT list_indexOf__json__td ABORTS
+SDKPROBE RESULT list_sort__growable__s OK
+SDKPROBE RESULT list_sort__growable__ts OK
+SDKPROBE RESULT list_sort__growable__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sort' with matching arguments.
+SDKPROBE RESULT list_sort__growable__td OK
+SDKPROBE RESULT list_sort__filled_fixed__s OK
+SDKPROBE RESULT list_sort__filled_fixed__ts OK
+SDKPROBE RESULT list_sort__filled_fixed__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sort' with matching arguments.
+SDKPROBE RESULT list_sort__filled_fixed__td OK
+SDKPROBE RESULT list_sort__const__s ERR Unsupported operation: Cannot modify an unmodifiable list
+SDKPROBE RESULT list_sort__const__ts OK
+SDKPROBE RESULT list_sort__const__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sort' with matching arguments.
+SDKPROBE RESULT list_sort__const__td OK
+SDKPROBE RESULT list_sort__unmodifiable__s ERR Unsupported operation: Cannot modify an unmodifiable list
+SDKPROBE RESULT list_sort__unmodifiable__ts OK
+SDKPROBE RESULT list_sort__unmodifiable__d ABORTS
+SDKPROBE RESULT list_sort__unmodifiable__td OK
+SDKPROBE RESULT list_sort__generate__s OK
+SDKPROBE RESULT list_sort__generate__ts OK
+SDKPROBE RESULT list_sort__generate__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sort' with matching arguments.
+SDKPROBE RESULT list_sort__generate__td OK
+SDKPROBE RESULT list_sort__json__s OK
+SDKPROBE RESULT list_sort__json__ts OK
+SDKPROBE RESULT list_sort__json__d ABORTS
+SDKPROBE RESULT list_sort__json__td OK
+SDKPROBE RESULT list_sublist__growable__s OK
+SDKPROBE RESULT list_sublist__growable__ts OK
+SDKPROBE RESULT list_sublist__growable__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sublist' with matching arguments.
+SDKPROBE RESULT list_sublist__growable__td OK
+SDKPROBE RESULT list_sublist__filled_fixed__s OK
+SDKPROBE RESULT list_sublist__filled_fixed__ts OK
+SDKPROBE RESULT list_sublist__filled_fixed__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sublist' with matching arguments.
+SDKPROBE RESULT list_sublist__filled_fixed__td OK
+SDKPROBE RESULT list_sublist__const__s OK
+SDKPROBE RESULT list_sublist__const__ts OK
+SDKPROBE RESULT list_sublist__const__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sublist' with matching arguments.
+SDKPROBE RESULT list_sublist__const__td OK
+SDKPROBE RESULT list_sublist__unmodifiable__s OK
+SDKPROBE RESULT list_sublist__unmodifiable__ts OK
+SDKPROBE RESULT list_sublist__unmodifiable__d ABORTS
+SDKPROBE RESULT list_sublist__unmodifiable__td OK
+SDKPROBE RESULT list_sublist__generate__s OK
+SDKPROBE RESULT list_sublist__generate__ts OK
+SDKPROBE RESULT list_sublist__generate__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sublist' with matching arguments.
+SDKPROBE RESULT list_sublist__generate__td OK
+SDKPROBE RESULT list_sublist__json__s OK
+SDKPROBE RESULT list_sublist__json__ts OK
+SDKPROBE RESULT list_sublist__json__d ABORTS
+SDKPROBE RESULT list_sublist__json__td OK
+SDKPROBE RESULT list_addAll__growable__s OK
+SDKPROBE RESULT list_addAll__growable__ts OK
+SDKPROBE RESULT list_addAll__filled_fixed__s ERR Unsupported operation: Cannot add to a fixed-length list
+SDKPROBE RESULT list_addAll__filled_fixed__ts OK
+SDKPROBE RESULT list_addAll__const__s ERR Unsupported operation: Cannot add to an unmodifiable list
+SDKPROBE RESULT list_addAll__const__ts OK
+SDKPROBE RESULT list_addAll__unmodifiable__s ERR Unsupported operation: Cannot add to an unmodifiable list
+SDKPROBE RESULT list_addAll__unmodifiable__ts OK
+SDKPROBE RESULT list_addAll__generate__s OK
+SDKPROBE RESULT list_addAll__generate__ts OK
+SDKPROBE RESULT list_addAll__json__s OK
+SDKPROBE RESULT list_addAll__json__ts OK
+SDKPROBE RESULT list_removeLast__growable__s OK
+SDKPROBE RESULT list_removeLast__growable__ts OK
+SDKPROBE RESULT list_removeLast__growable__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeLast' with matching arguments.
+SDKPROBE RESULT list_removeLast__growable__td OK
+SDKPROBE RESULT list_removeLast__filled_fixed__s ERR Unsupported operation: Cannot remove from a fixed-length list
+SDKPROBE RESULT list_removeLast__filled_fixed__ts OK
+SDKPROBE RESULT list_removeLast__filled_fixed__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeLast' with matching arguments.
+SDKPROBE RESULT list_removeLast__filled_fixed__td OK
+SDKPROBE RESULT list_removeLast__const__s ERR Unsupported operation: Cannot remove from an unmodifiable list
+SDKPROBE RESULT list_removeLast__const__ts OK
+SDKPROBE RESULT list_removeLast__const__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeLast' with matching arguments.
+SDKPROBE RESULT list_removeLast__const__td OK
+SDKPROBE RESULT list_removeLast__unmodifiable__s ERR Unsupported operation: Cannot remove from an unmodifiable list
+SDKPROBE RESULT list_removeLast__unmodifiable__ts OK
+SDKPROBE RESULT list_removeLast__unmodifiable__d ABORTS
+SDKPROBE RESULT list_removeLast__unmodifiable__td OK
+SDKPROBE RESULT list_removeLast__generate__s OK
+SDKPROBE RESULT list_removeLast__generate__ts OK
+SDKPROBE RESULT list_removeLast__generate__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeLast' with matching arguments.
+SDKPROBE RESULT list_removeLast__generate__td OK
+SDKPROBE RESULT list_removeLast__json__s OK
+SDKPROBE RESULT list_removeLast__json__ts OK
+SDKPROBE RESULT list_removeLast__json__d ABORTS
+SDKPROBE RESULT list_removeLast__json__td OK
+SDKPROBE RESULT list_removeAt__growable__s OK
+SDKPROBE RESULT list_removeAt__growable__ts OK
+SDKPROBE RESULT list_removeAt__growable__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeAt' with matching arguments.
+SDKPROBE RESULT list_removeAt__growable__td OK
+SDKPROBE RESULT list_removeAt__filled_fixed__s ERR Unsupported operation: Cannot remove from a fixed-length list
+SDKPROBE RESULT list_removeAt__filled_fixed__ts OK
+SDKPROBE RESULT list_removeAt__filled_fixed__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeAt' with matching arguments.
+SDKPROBE RESULT list_removeAt__filled_fixed__td OK
+SDKPROBE RESULT list_removeAt__const__s ERR Unsupported operation: Cannot remove from an unmodifiable list
+SDKPROBE RESULT list_removeAt__const__ts OK
+SDKPROBE RESULT list_removeAt__const__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeAt' with matching arguments.
+SDKPROBE RESULT list_removeAt__const__td OK
+SDKPROBE RESULT list_removeAt__unmodifiable__s ERR Unsupported operation: Cannot remove from an unmodifiable list
+SDKPROBE RESULT list_removeAt__unmodifiable__ts OK
+SDKPROBE RESULT list_removeAt__unmodifiable__d ABORTS
+SDKPROBE RESULT list_removeAt__unmodifiable__td OK
+SDKPROBE RESULT list_removeAt__generate__s OK
+SDKPROBE RESULT list_removeAt__generate__ts OK
+SDKPROBE RESULT list_removeAt__generate__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeAt' with matching arguments.
+SDKPROBE RESULT list_removeAt__generate__td OK
+SDKPROBE RESULT list_removeAt__json__s OK
+SDKPROBE RESULT list_removeAt__json__ts OK
+SDKPROBE RESULT list_removeAt__json__d ABORTS
+SDKPROBE RESULT list_removeAt__json__td OK
+SDKPROBE RESULT list_reversed__growable__s OK
+SDKPROBE RESULT list_reversed__growable__d ABORTS
+SDKPROBE RESULT list_reversed__filled_fixed__s OK
+SDKPROBE RESULT list_reversed__filled_fixed__d ABORTS
+SDKPROBE RESULT list_reversed__const__s OK
+SDKPROBE RESULT list_reversed__const__d ABORTS
+SDKPROBE RESULT list_reversed__unmodifiable__s OK
+SDKPROBE RESULT list_reversed__unmodifiable__d ABORTS
+SDKPROBE RESULT list_reversed__generate__s OK
+SDKPROBE RESULT list_reversed__generate__d ABORTS
+SDKPROBE RESULT list_reversed__json__s OK
+SDKPROBE RESULT list_reversed__json__d ABORTS
+SDKPROBE RESULT list_clear__growable__s OK
+SDKPROBE RESULT list_clear__growable__ts OK
+SDKPROBE RESULT list_clear__growable__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'clear' with matching arguments.
+SDKPROBE RESULT list_clear__growable__td OK
+SDKPROBE RESULT list_clear__filled_fixed__s ERR Unsupported operation: Cannot clear a fixed-length list
+SDKPROBE RESULT list_clear__filled_fixed__ts OK
+SDKPROBE RESULT list_clear__filled_fixed__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'clear' with matching arguments.
+SDKPROBE RESULT list_clear__filled_fixed__td OK
+SDKPROBE RESULT list_clear__const__s ERR Unsupported operation: Cannot clear an unmodifiable list
+SDKPROBE RESULT list_clear__const__ts OK
+SDKPROBE RESULT list_clear__const__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'clear' with matching arguments.
+SDKPROBE RESULT list_clear__const__td OK
+SDKPROBE RESULT list_clear__unmodifiable__s ERR Unsupported operation: Cannot clear an unmodifiable list
+SDKPROBE RESULT list_clear__unmodifiable__ts OK
+SDKPROBE RESULT list_clear__unmodifiable__d ABORTS
+SDKPROBE RESULT list_clear__unmodifiable__td OK
+SDKPROBE RESULT list_clear__generate__s OK
+SDKPROBE RESULT list_clear__generate__ts OK
+SDKPROBE RESULT list_clear__generate__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'clear' with matching arguments.
+SDKPROBE RESULT list_clear__generate__td OK
+SDKPROBE RESULT list_clear__json__s OK
+SDKPROBE RESULT list_clear__json__ts OK
+SDKPROBE RESULT list_clear__json__d ABORTS
+SDKPROBE RESULT list_clear__json__td OK
+SDKPROBE RESULT iter_any__list__s OK
+SDKPROBE RESULT iter_any__list__ts OK
+SDKPROBE RESULT iter_any__list__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'any' with matching arguments.
+SDKPROBE RESULT iter_any__list__td OK
+SDKPROBE RESULT iter_any__set__s OK
+SDKPROBE RESULT iter_any__set__ts OK
+SDKPROBE RESULT iter_any__set__d ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'any' with matching arguments.
+SDKPROBE RESULT iter_any__set__td OK
+SDKPROBE RESULT iter_any__generate__s OK
+SDKPROBE RESULT iter_any__generate__ts OK
+SDKPROBE RESULT iter_any__generate__d ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'any' with matching arguments.
+SDKPROBE RESULT iter_any__generate__td OK
+SDKPROBE RESULT iter_every__list__s OK
+SDKPROBE RESULT iter_every__list__ts OK
+SDKPROBE RESULT iter_every__list__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'every' with matching arguments.
+SDKPROBE RESULT iter_every__list__td OK
+SDKPROBE RESULT iter_every__set__s OK
+SDKPROBE RESULT iter_every__set__ts OK
+SDKPROBE RESULT iter_every__set__d ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'every' with matching arguments.
+SDKPROBE RESULT iter_every__set__td OK
+SDKPROBE RESULT iter_every__generate__s OK
+SDKPROBE RESULT iter_every__generate__ts OK
+SDKPROBE RESULT iter_every__generate__d ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'every' with matching arguments.
+SDKPROBE RESULT iter_every__generate__td OK
+SDKPROBE RESULT iter_firstWhere__list__s OK
+SDKPROBE RESULT iter_firstWhere__list__ts OK
+SDKPROBE RESULT iter_firstWhere__list__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'firstWhere' with matching arguments.
+SDKPROBE RESULT iter_firstWhere__list__td OK
+SDKPROBE RESULT iter_firstWhere__set__s OK
+SDKPROBE RESULT iter_firstWhere__set__ts OK
+SDKPROBE RESULT iter_firstWhere__set__d ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'firstWhere' with matching arguments.
+SDKPROBE RESULT iter_firstWhere__set__td OK
+SDKPROBE RESULT iter_firstWhere__generate__s OK
+SDKPROBE RESULT iter_firstWhere__generate__ts OK
+SDKPROBE RESULT iter_firstWhere__generate__d ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'firstWhere' with matching arguments.
+SDKPROBE RESULT iter_firstWhere__generate__td OK
+SDKPROBE RESULT iter_fold__list__s OK
+SDKPROBE RESULT iter_fold__list__ts OK
+SDKPROBE RESULT iter_fold__list__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'fold' with matching arguments.
+SDKPROBE RESULT iter_fold__list__td OK
+SDKPROBE RESULT iter_fold__set__s OK
+SDKPROBE RESULT iter_fold__set__ts OK
+SDKPROBE RESULT iter_fold__set__d ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'fold' with matching arguments.
+SDKPROBE RESULT iter_fold__set__td OK
+SDKPROBE RESULT iter_fold__generate__s OK
+SDKPROBE RESULT iter_fold__generate__ts OK
+SDKPROBE RESULT iter_fold__generate__d ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'fold' with matching arguments.
+SDKPROBE RESULT iter_fold__generate__td OK
+SDKPROBE RESULT iter_reduce__list__s OK
+SDKPROBE RESULT iter_reduce__list__ts OK
+SDKPROBE RESULT iter_reduce__list__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'reduce' with matching arguments.
+SDKPROBE RESULT iter_reduce__list__td OK
+SDKPROBE RESULT iter_reduce__set__s OK
+SDKPROBE RESULT iter_reduce__set__ts OK
+SDKPROBE RESULT iter_reduce__set__d ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'reduce' with matching arguments.
+SDKPROBE RESULT iter_reduce__set__td OK
+SDKPROBE RESULT iter_reduce__generate__s OK
+SDKPROBE RESULT iter_reduce__generate__ts OK
+SDKPROBE RESULT iter_reduce__generate__d ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'reduce' with matching arguments.
+SDKPROBE RESULT iter_reduce__generate__td OK
+SDKPROBE RESULT iter_length__list__s OK
+SDKPROBE RESULT iter_length__list__d ABORTS
+SDKPROBE RESULT iter_length__set__s OK
+SDKPROBE RESULT iter_length__set__d ABORTS
+SDKPROBE RESULT iter_length__generate__s OK
+SDKPROBE RESULT iter_length__generate__d ABORTS
+SDKPROBE RESULT iter_isEmpty__list__s OK
+SDKPROBE RESULT iter_isEmpty__list__d ABORTS
+SDKPROBE RESULT iter_isEmpty__set__s OK
+SDKPROBE RESULT iter_isEmpty__set__d ABORTS
+SDKPROBE RESULT iter_isEmpty__generate__s OK
+SDKPROBE RESULT iter_isEmpty__generate__d ABORTS
+SDKPROBE RESULT iter_isNotEmpty__list__s OK
+SDKPROBE RESULT iter_isNotEmpty__list__d ABORTS
+SDKPROBE RESULT iter_isNotEmpty__set__s OK
+SDKPROBE RESULT iter_isNotEmpty__set__d ABORTS
+SDKPROBE RESULT iter_isNotEmpty__generate__s OK
+SDKPROBE RESULT iter_isNotEmpty__generate__d ABORTS
+SDKPROBE RESULT iter_first__list__s OK
+SDKPROBE RESULT iter_first__list__d ABORTS
+SDKPROBE RESULT iter_first__set__s OK
+SDKPROBE RESULT iter_first__set__d ABORTS
+SDKPROBE RESULT iter_first__generate__s OK
+SDKPROBE RESULT iter_first__generate__d ABORTS
+SDKPROBE RESULT iter_last__list__s OK
+SDKPROBE RESULT iter_last__list__d ABORTS
+SDKPROBE RESULT iter_last__set__s OK
+SDKPROBE RESULT iter_last__set__d ABORTS
+SDKPROBE RESULT iter_last__generate__s OK
+SDKPROBE RESULT iter_last__generate__d ABORTS
+SDKPROBE RESULT iter_contains__list__s OK
+SDKPROBE RESULT iter_contains__list__ts OK
+SDKPROBE RESULT iter_contains__list__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'contains' with matching arguments.
+SDKPROBE RESULT iter_contains__list__td OK
+SDKPROBE RESULT iter_contains__set__s OK
+SDKPROBE RESULT iter_contains__set__ts OK
+SDKPROBE RESULT iter_contains__set__d ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'contains' with matching arguments.
+SDKPROBE RESULT iter_contains__set__td OK
+SDKPROBE RESULT iter_contains__generate__s OK
+SDKPROBE RESULT iter_contains__generate__ts OK
+SDKPROBE RESULT iter_contains__generate__d ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'contains' with matching arguments.
+SDKPROBE RESULT iter_contains__generate__td OK
+SDKPROBE RESULT iter_toSet__list__s OK
+SDKPROBE RESULT iter_toSet__list__ts OK
+SDKPROBE RESULT iter_toSet__list__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'toSet' with matching arguments.
+SDKPROBE RESULT iter_toSet__list__td OK
+SDKPROBE RESULT iter_toSet__set__s OK
+SDKPROBE RESULT iter_toSet__set__ts OK
+SDKPROBE RESULT iter_toSet__set__d ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'toSet' with matching arguments.
+SDKPROBE RESULT iter_toSet__set__td OK
+SDKPROBE RESULT iter_toSet__generate__s OK
+SDKPROBE RESULT iter_toSet__generate__ts OK
+SDKPROBE RESULT iter_toSet__generate__d ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'toSet' with matching arguments.
+SDKPROBE RESULT iter_toSet__generate__td OK
+SDKPROBE RESULT iter_take__list__s OK
+SDKPROBE RESULT iter_take__list__ts OK
+SDKPROBE RESULT iter_take__list__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'take' with matching arguments.
+SDKPROBE RESULT iter_take__list__td OK
+SDKPROBE RESULT iter_take__set__s OK
+SDKPROBE RESULT iter_take__set__ts OK
+SDKPROBE RESULT iter_take__set__d ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'take' with matching arguments.
+SDKPROBE RESULT iter_take__set__td OK
+SDKPROBE RESULT iter_take__generate__s OK
+SDKPROBE RESULT iter_take__generate__ts OK
+SDKPROBE RESULT iter_take__generate__d ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'take' with matching arguments.
+SDKPROBE RESULT iter_take__generate__td OK
+SDKPROBE RESULT iter_skip__list__s OK
+SDKPROBE RESULT iter_skip__list__ts OK
+SDKPROBE RESULT iter_skip__list__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'skip' with matching arguments.
+SDKPROBE RESULT iter_skip__list__td OK
+SDKPROBE RESULT iter_skip__set__s OK
+SDKPROBE RESULT iter_skip__set__ts OK
+SDKPROBE RESULT iter_skip__set__d ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'skip' with matching arguments.
+SDKPROBE RESULT iter_skip__set__td OK
+SDKPROBE RESULT iter_skip__generate__s OK
+SDKPROBE RESULT iter_skip__generate__ts OK
+SDKPROBE RESULT iter_skip__generate__d ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'skip' with matching arguments.
+SDKPROBE RESULT iter_skip__generate__td OK
+SDKPROBE RESULT iter_elementAt__list__s OK
+SDKPROBE RESULT iter_elementAt__list__ts OK
+SDKPROBE RESULT iter_elementAt__list__d ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'elementAt' with matching arguments.
+SDKPROBE RESULT iter_elementAt__list__td OK
+SDKPROBE RESULT iter_elementAt__set__s OK
+SDKPROBE RESULT iter_elementAt__set__ts OK
+SDKPROBE RESULT iter_elementAt__set__d ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'elementAt' with matching arguments.
+SDKPROBE RESULT iter_elementAt__set__td OK
+SDKPROBE RESULT iter_elementAt__generate__s OK
+SDKPROBE RESULT iter_elementAt__generate__ts OK
+SDKPROBE RESULT iter_elementAt__generate__d ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'elementAt' with matching arguments.
+SDKPROBE RESULT iter_elementAt__generate__td OK
+SDKPROBE RESULT set_contains__literal__s OK
+SDKPROBE RESULT set_contains__literal__ts OK
+SDKPROBE RESULT set_contains__literal__d ABORTS
+SDKPROBE RESULT set_contains__literal__td OK
+SDKPROBE RESULT set_contains__const__s OK
+SDKPROBE RESULT set_contains__const__ts OK
+SDKPROBE RESULT set_contains__const__d ERR NoSuchMethodError: Class '_ConstSet<Object?>' has no instance method 'contains' with matching arguments.
+SDKPROBE RESULT set_contains__const__td OK
+SDKPROBE RESULT set_add__literal__s OK
+SDKPROBE RESULT set_add__literal__ts OK
+SDKPROBE RESULT set_add__literal__d ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'add' with matching arguments.
+SDKPROBE RESULT set_add__literal__td OK
+SDKPROBE RESULT set_add__const__s ERR Unsupported operation: Cannot change an unmodifiable set
+SDKPROBE RESULT set_add__const__ts OK
+SDKPROBE RESULT set_add__const__d ERR NoSuchMethodError: Class '_ConstSet<Object?>' has no instance method 'add' with matching arguments.
+SDKPROBE RESULT set_add__const__td OK
+SDKPROBE RESULT set_remove__literal__ts OK
+SDKPROBE RESULT set_remove__literal__d ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'remove' with matching arguments.
+SDKPROBE RESULT set_remove__literal__td OK
+SDKPROBE RESULT set_remove__const__s ERR Unsupported operation: Cannot change an unmodifiable set
+SDKPROBE RESULT set_remove__const__ts OK
+SDKPROBE RESULT set_remove__const__d ERR NoSuchMethodError: Class '_ConstSet<Object?>' has no instance method 'remove' with matching arguments.
+SDKPROBE RESULT set_remove__const__td OK
+SDKPROBE RESULT set_length__literal__s OK
+SDKPROBE RESULT set_length__literal__d ABORTS
+SDKPROBE RESULT set_length__const__s OK
+SDKPROBE RESULT set_length__const__d ABORTS
+SDKPROBE RESULT str_length__one_byte__s OK
+SDKPROBE RESULT str_length__one_byte__d ABORTS
+SDKPROBE RESULT str_length__two_byte__s OK
+SDKPROBE RESULT str_length__two_byte__d ABORTS
+SDKPROBE RESULT str_isEmpty__one_byte__s OK
+SDKPROBE RESULT str_isEmpty__one_byte__d ABORTS
+SDKPROBE RESULT str_isEmpty__two_byte__s OK
+SDKPROBE RESULT str_isEmpty__two_byte__d ABORTS
+SDKPROBE RESULT str_isNotEmpty__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance getter 'isNotEmpty'.
+SDKPROBE RESULT str_isNotEmpty__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance getter 'isNotEmpty'.
+SDKPROBE RESULT str_contains__one_byte__s OK
+SDKPROBE RESULT str_contains__one_byte__ts OK
+SDKPROBE RESULT str_contains__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'contains' with matching arguments.
+SDKPROBE RESULT str_contains__one_byte__td OK
+SDKPROBE RESULT str_contains__two_byte__s OK
+SDKPROBE RESULT str_contains__two_byte__ts OK
+SDKPROBE RESULT str_contains__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'contains' with matching arguments.
+SDKPROBE RESULT str_contains__two_byte__td OK
+SDKPROBE RESULT str_startsWith__one_byte__s OK
+SDKPROBE RESULT str_startsWith__one_byte__ts OK
+SDKPROBE RESULT str_startsWith__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'startsWith' with matching arguments.
+SDKPROBE RESULT str_startsWith__one_byte__td OK
+SDKPROBE RESULT str_startsWith__two_byte__s OK
+SDKPROBE RESULT str_startsWith__two_byte__ts OK
+SDKPROBE RESULT str_startsWith__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'startsWith' with matching arguments.
+SDKPROBE RESULT str_startsWith__two_byte__td OK
+SDKPROBE RESULT str_endsWith__one_byte__s ABORTS
+SDKPROBE RESULT str_endsWith__one_byte__ts OK
+SDKPROBE RESULT str_endsWith__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'endsWith' with matching arguments.
+SDKPROBE RESULT str_endsWith__one_byte__td OK
+SDKPROBE RESULT str_endsWith__two_byte__s ABORTS
+SDKPROBE RESULT str_endsWith__two_byte__ts OK
+SDKPROBE RESULT str_endsWith__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'endsWith' with matching arguments.
+SDKPROBE RESULT str_endsWith__two_byte__td OK
+SDKPROBE RESULT str_substring__one_byte__s OK
+SDKPROBE RESULT str_substring__one_byte__ts OK
+SDKPROBE RESULT str_substring__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'substring' with matching arguments.
+SDKPROBE RESULT str_substring__one_byte__td OK
+SDKPROBE RESULT str_substring__two_byte__s OK
+SDKPROBE RESULT str_substring__two_byte__ts OK
+SDKPROBE RESULT str_substring__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'substring' with matching arguments.
+SDKPROBE RESULT str_substring__two_byte__td OK
+SDKPROBE RESULT str_trim__one_byte__s OK
+SDKPROBE RESULT str_trim__one_byte__ts OK
+SDKPROBE RESULT str_trim__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'trim' with matching arguments.
+SDKPROBE RESULT str_trim__one_byte__td OK
+SDKPROBE RESULT str_trim__two_byte__s OK
+SDKPROBE RESULT str_trim__two_byte__ts OK
+SDKPROBE RESULT str_trim__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'trim' with matching arguments.
+SDKPROBE RESULT str_trim__two_byte__td OK
+SDKPROBE RESULT str_toUpperCase__one_byte__s OK
+SDKPROBE RESULT str_toUpperCase__one_byte__ts OK
+SDKPROBE RESULT str_toUpperCase__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'toUpperCase' with matching arguments.
+SDKPROBE RESULT str_toUpperCase__one_byte__td OK
+SDKPROBE RESULT str_toUpperCase__two_byte__s OK
+SDKPROBE RESULT str_toUpperCase__two_byte__ts OK
+SDKPROBE RESULT str_toUpperCase__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'toUpperCase' with matching arguments.
+SDKPROBE RESULT str_toUpperCase__two_byte__td OK
+SDKPROBE RESULT str_toLowerCase__one_byte__s OK
+SDKPROBE RESULT str_toLowerCase__one_byte__ts OK
+SDKPROBE RESULT str_toLowerCase__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'toLowerCase' with matching arguments.
+SDKPROBE RESULT str_toLowerCase__one_byte__td OK
+SDKPROBE RESULT str_toLowerCase__two_byte__s OK
+SDKPROBE RESULT str_toLowerCase__two_byte__ts OK
+SDKPROBE RESULT str_toLowerCase__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'toLowerCase' with matching arguments.
+SDKPROBE RESULT str_toLowerCase__two_byte__td OK
+SDKPROBE RESULT str_replaceAll__one_byte__s OK
+SDKPROBE RESULT str_replaceAll__one_byte__ts OK
+SDKPROBE RESULT str_replaceAll__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'replaceAll' with matching arguments.
+SDKPROBE RESULT str_replaceAll__one_byte__td OK
+SDKPROBE RESULT str_replaceAll__two_byte__s OK
+SDKPROBE RESULT str_replaceAll__two_byte__ts OK
+SDKPROBE RESULT str_replaceAll__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'replaceAll' with matching arguments.
+SDKPROBE RESULT str_replaceAll__two_byte__td OK
+SDKPROBE RESULT str_padLeft__one_byte__s OK
+SDKPROBE RESULT str_padLeft__one_byte__ts OK
+SDKPROBE RESULT str_padLeft__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'padLeft' with matching arguments.
+SDKPROBE RESULT str_padLeft__one_byte__td OK
+SDKPROBE RESULT str_padLeft__two_byte__s OK
+SDKPROBE RESULT str_padLeft__two_byte__ts OK
+SDKPROBE RESULT str_padLeft__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'padLeft' with matching arguments.
+SDKPROBE RESULT str_padLeft__two_byte__td OK
+SDKPROBE RESULT str_codeUnitAt__one_byte__s OK
+SDKPROBE RESULT str_codeUnitAt__one_byte__ts OK
+SDKPROBE RESULT str_codeUnitAt__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'codeUnitAt' with matching arguments.
+SDKPROBE RESULT str_codeUnitAt__one_byte__td ABORTS
+SDKPROBE RESULT str_codeUnitAt__two_byte__s OK
+SDKPROBE RESULT str_codeUnitAt__two_byte__ts OK
+SDKPROBE RESULT str_codeUnitAt__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'codeUnitAt' with matching arguments.
+SDKPROBE RESULT str_codeUnitAt__two_byte__td ABORTS
+SDKPROBE RESULT str_indexOf__one_byte__s OK
+SDKPROBE RESULT str_indexOf__one_byte__ts OK
+SDKPROBE RESULT str_indexOf__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'indexOf' with matching arguments.
+SDKPROBE RESULT str_indexOf__one_byte__td ABORTS
+SDKPROBE RESULT str_indexOf__two_byte__s OK
+SDKPROBE RESULT str_indexOf__two_byte__ts OK
+SDKPROBE RESULT str_indexOf__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'indexOf' with matching arguments.
+SDKPROBE RESULT str_indexOf__two_byte__td ABORTS
+SDKPROBE RESULT str_index__one_byte__s OK
+SDKPROBE RESULT str_index__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method '[]' with matching arguments.
+SDKPROBE RESULT str_index__two_byte__s OK
+SDKPROBE RESULT str_index__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method '[]' with matching arguments.
+SDKPROBE RESULT str_plus__one_byte__s OK
+SDKPROBE RESULT str_plus__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method '+' with matching arguments.
+SDKPROBE RESULT str_plus__two_byte__s OK
+SDKPROBE RESULT str_plus__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method '+' with matching arguments.
+SDKPROBE RESULT str_times__one_byte__s OK
+SDKPROBE RESULT str_times__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method '*' with matching arguments.
+SDKPROBE RESULT str_times__two_byte__s OK
+SDKPROBE RESULT str_times__two_byte__d ERR NoSuchMethodError: Class 'String' has no instance method '*' with matching arguments.
+SDKPROBE RESULT str_compareTo__one_byte__s OK
+SDKPROBE RESULT str_compareTo__one_byte__ts OK
+SDKPROBE RESULT str_compareTo__one_byte__d ERR NoSuchMethodError: Class 'String' has no instance method 'compareTo' with matching arguments.

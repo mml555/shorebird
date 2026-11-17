@@ -1,5 +1,10 @@
 # SDK instance members on a device: which ones crash a Route B patch
 
+> Update with #221: a tear-off probe only creates the closure and never calls it, so `compare.py` now gives a `#tearoff:` key the verdict
+> `UNCALLED` unless its call-form key is SAFE too. `result/members.tsv` and `result/comparison.md` were regenerated: SAFE 136 became 112 and 24 keys
+> are UNCALLED. The SAFE and comparison counts in this file are the earlier ones. See `RESULT_KEPT.md`.
+
+
 ## Scope: read this first
 
 - The release is a bare `flutter create` counter app, with one extra file of probe stubs, built at engine cell `2fc41d3f`

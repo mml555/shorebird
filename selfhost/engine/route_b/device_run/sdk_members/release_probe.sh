@@ -33,6 +33,10 @@ cd "$APP"
 nice -n 10 "$SB" release ios --no-codesign --no-confirm -v > "$R/logs/release.log" 2>&1; rc=$?
 echo "release exit=$rc"; tail -4 "$R/logs/release.log" | cut -c1-200
 [ $rc = 0 ] || die "shorebird release"
+if [ -n "${KEPT_GATE:-}" ]; then
+  # The kept release must have real code for every member the counter release threw on, before it goes on the phone.
+  python3 -I "$HERE/check_kept.py" "$APP/build/route_b_snapshot_profile.json" "$R/gen/probes.tsv" "$HERE/result/results.tsv" "$R/logs/kept_check.tsv" --gate "$KEPT_GATE" || die "kept gate: members still missing (see $R/logs/kept_check.tsv)"
+fi
 grep -o -- '--extra-gen-snapshot-options=--route_b_untabled_overrides' "$R/logs/release.log" | head -1
 APPB=$(find build/ios/archive -name Runner.app -path '*Products/Applications*' | head -1)
 rm -rf "$R/signed" && mkdir -p "$R/signed" && cp -R "$APPB" "$R/signed/" && APPB="$R/signed/Runner.app"

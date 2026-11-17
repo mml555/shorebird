@@ -1,427 +1,427 @@
-key	device_verdict	thin	pr209	probes	runtime_classes	resolves	throws	aborts	not_run	crashing_runtime_classes_and_forms
-dart:async#Future#catchError	SAFE		refused	4	4	4	0	0	0	
-dart:async#Future#tearoff:catchError	SAFE		refused	4	4	4	0	0	0	
-dart:async#Future#tearoff:then	SAFE		accepted	4	4	4	0	0	0	
-dart:async#Future#tearoff:timeout	SAFE		accepted	4	4	4	0	0	0	
-dart:async#Future#tearoff:whenComplete	SAFE		accepted	4	4	4	0	0	0	
-dart:async#Future#then	SAFE		accepted	4	4	4	0	0	0	
-dart:async#Future#timeout	SAFE		accepted	4	4	4	0	0	0	
-dart:async#Future#whenComplete	SAFE		accepted	4	4	4	0	0	0	
-dart:async#Stream#get:first	THROWS		refused	3	3	0	3	0	0	
-dart:async#Stream#get:isBroadcast	THROWS		refused	3	3	0	3	0	0	
-dart:async#Stream#listen	THROWS		refused	3	3	0	3	0	0	
-dart:async#Stream#map	THROWS		refused	3	3	0	3	0	0	
-dart:async#Stream#tearoff:listen	SAFE		accepted	3	3	3	0	0	0	
-dart:async#Stream#tearoff:map	THROWS		refused	3	3	0	3	0	0	
-dart:async#Stream#tearoff:toList	THROWS		refused	3	3	0	3	0	0	
-dart:async#Stream#tearoff:where	THROWS		refused	3	3	0	3	0	0	
-dart:async#Stream#toList	THROWS		refused	3	3	0	3	0	0	
-dart:async#Stream#where	THROWS		refused	3	3	0	3	0	0	
-dart:async#StreamController#add	SAFE		refused	2	2	2	0	0	0	
-dart:async#StreamController#close	SAFE		accepted	2	2	2	0	0	0	
-dart:async#StreamController#get:isClosed	SAFE		accepted	2	2	2	0	0	0	
-dart:async#StreamController#get:sink	THROWS		refused	2	2	0	2	0	0	
-dart:async#StreamController#get:stream	SAFE		refused	2	2	2	0	0	0	
-dart:async#StreamController#tearoff:add	SAFE		accepted	2	2	2	0	0	0	
-dart:async#StreamController#tearoff:close	SAFE		accepted	2	2	2	0	0	0	
-dart:async#StreamSubscription#cancel	CRASH		refused	3	3	0	1	2	0	controller:static;broadcast:static
-dart:async#StreamSubscription#tearoff:cancel	CRASH		refused	3	3	0	1	2	0	controller:tearoff-static;broadcast:tearoff-static
-dart:async#Timer#cancel	SAFE	thin	accepted	1	1	1	0	0	0	
-dart:async#Timer#get:isActive	THROWS		refused	1	1	0	1	0	0	
-dart:async#Timer#get:tick	THROWS		refused	1	1	0	1	0	0	
-dart:async#Timer#tearoff:cancel	SAFE	thin	accepted	1	1	1	0	0	0	
-dart:core#DateTime#add	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#difference	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#get:microsecondsSinceEpoch	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#get:month	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#get:weekday	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#get:year	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#isAfter	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#isBefore	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#subtract	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#tearoff:add	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#tearoff:difference	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#tearoff:isAfter	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#tearoff:isBefore	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#tearoff:subtract	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#tearoff:toIso8601String	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#tearoff:toUtc	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#toIso8601String	THROWS		refused	1	1	0	1	0	0	
-dart:core#DateTime#toUtc	THROWS		refused	1	1	0	1	0	0	
-dart:core#Duration#+	SAFE	thin	refused	1	1	1	0	0	0	
-dart:core#Duration#>	THROWS		refused	1	1	0	1	0	0	
-dart:core#Duration#get:inMicroseconds	SAFE	thin	refused	1	1	1	0	0	0	
-dart:core#Duration#get:inMilliseconds	THROWS		refused	1	1	0	1	0	0	
-dart:core#Duration#get:inMinutes	THROWS		refused	1	1	0	1	0	0	
-dart:core#Duration#get:inSeconds	THROWS		refused	1	1	0	1	0	0	
-dart:core#Duration#get:isNegative	THROWS		refused	1	1	0	1	0	0	
-dart:core#Error#get:stackTrace	SAFE	thin	refused	1	1	1	0	0	0	
-dart:core#FormatException#message	SAFE	thin	refused	1	1	1	0	0	0	
-dart:core#Iterable#any	CRASH		refused	3	3	2	0	1	0	generate:static
-dart:core#Iterable#contains	CRASH		refused	9	8	5	1	3	0	filled_fixed:static;const:static;unmodifiable:static
-dart:core#Iterable#elementAt	THROWS		refused	3	3	0	3	0	0	
-dart:core#Iterable#every	CRASH		refused	3	3	0	2	1	0	list:static
-dart:core#Iterable#firstWhere	THROWS		refused	3	3	1	2	0	0	
-dart:core#Iterable#fold	THROWS		refused	3	3	1	2	0	0	
-dart:core#Iterable#get:first	SAFE		refused	9	8	9	0	0	0	
-dart:core#Iterable#get:isEmpty	CRASH		refused	9	8	8	0	1	0	generate:static
-dart:core#Iterable#get:isNotEmpty	CRASH		refused	9	8	8	0	1	0	generate:static
-dart:core#Iterable#get:iterator	SAFE		refused	3	3	3	0	0	0	
-dart:core#Iterable#get:last	CRASH		refused	9	8	7	1	1	0	generate:static
-dart:core#Iterable#get:length	SAFE		accepted	5	5	5	0	0	0	
-dart:core#Iterable#join	THROWS		refused	3	3	2	1	0	0	
-dart:core#Iterable#map	THROWS		refused	3	3	2	1	0	0	
-dart:core#Iterable#reduce	THROWS		refused	3	3	0	3	0	0	
-dart:core#Iterable#skip	THROWS		refused	3	3	0	3	0	0	
-dart:core#Iterable#take	THROWS		refused	3	3	0	3	0	0	
-dart:core#Iterable#tearoff:any	SAFE		refused	3	3	3	0	0	0	
-dart:core#Iterable#tearoff:contains	THROWS		refused	9	8	8	1	0	0	
-dart:core#Iterable#tearoff:elementAt	THROWS		refused	3	3	0	3	0	0	
-dart:core#Iterable#tearoff:every	THROWS		refused	3	3	1	2	0	0	
-dart:core#Iterable#tearoff:firstWhere	THROWS		refused	3	3	1	2	0	0	
-dart:core#Iterable#tearoff:fold	THROWS		refused	3	3	1	2	0	0	
-dart:core#Iterable#tearoff:join	THROWS		refused	3	3	2	1	0	0	
-dart:core#Iterable#tearoff:map	THROWS		refused	3	3	2	1	0	0	
-dart:core#Iterable#tearoff:reduce	THROWS		refused	3	3	0	3	0	0	
-dart:core#Iterable#tearoff:skip	THROWS		refused	3	3	0	3	0	0	
-dart:core#Iterable#tearoff:take	THROWS		refused	3	3	0	3	0	0	
-dart:core#Iterable#tearoff:toList	SAFE		refused	3	3	3	0	0	0	
-dart:core#Iterable#tearoff:toSet	SAFE		refused	3	3	3	0	0	0	
-dart:core#Iterable#tearoff:where	SAFE		refused	3	3	3	0	0	0	
-dart:core#Iterable#toList	SAFE		refused	3	3	3	0	0	0	
-dart:core#Iterable#toSet	SAFE		refused	3	3	3	0	0	0	
-dart:core#Iterable#where	SAFE		refused	3	3	3	0	0	0	
-dart:core#Iterator#get:current	SAFE		refused	3	3	3	0	0	0	
-dart:core#Iterator#moveNext	SAFE		refused	3	3	3	0	0	0	
-dart:core#List#[]	SAFE		refused	6	6	6	0	0	0	
-dart:core#List#[]=	SAFE		refused	6	6	6	0	0	0	
-dart:core#List#add	SAFE		refused	6	6	6	0	0	0	
-dart:core#List#addAll	THROWS		refused	6	6	3	3	0	0	
-dart:core#List#clear	THROWS		refused	6	6	3	3	0	0	
-dart:core#List#get:length	SAFE		refused	6	6	6	0	0	0	
-dart:core#List#get:reversed	SAFE		refused	6	6	6	0	0	0	
-dart:core#List#indexOf	THROWS		refused	6	6	0	6	0	0	
-dart:core#List#insert	THROWS		refused	6	6	0	6	0	0	
-dart:core#List#remove	SAFE		refused	6	6	6	0	0	0	
-dart:core#List#removeAt	THROWS		refused	6	6	0	6	0	0	
-dart:core#List#removeLast	SAFE		accepted	6	6	6	0	0	0	
-dart:core#List#sort	CRASH		refused	6	6	3	0	3	0	filled_fixed:static;const:static;unmodifiable:static
-dart:core#List#sublist	THROWS		refused	6	6	0	6	0	0	
-dart:core#List#tearoff:add	SAFE		accepted	6	6	6	0	0	0	
-dart:core#List#tearoff:addAll	THROWS		refused	6	6	3	3	0	0	
-dart:core#List#tearoff:clear	THROWS		refused	6	6	3	3	0	0	
-dart:core#List#tearoff:indexOf	THROWS		refused	6	6	0	6	0	0	
-dart:core#List#tearoff:insert	THROWS		refused	6	6	0	6	0	0	
-dart:core#List#tearoff:remove	SAFE		refused	6	6	6	0	0	0	
-dart:core#List#tearoff:removeAt	THROWS		refused	6	6	0	6	0	0	
-dart:core#List#tearoff:removeLast	SAFE		accepted	6	6	6	0	0	0	
-dart:core#List#tearoff:sort	SAFE		refused	6	6	6	0	0	0	
-dart:core#List#tearoff:sublist	THROWS		refused	6	6	0	6	0	0	
-dart:core#Map#[]	SAFE		refused	4	4	4	0	0	0	
-dart:core#Map#[]=	SAFE		refused	4	4	4	0	0	0	
-dart:core#Map#addAll	CRASH		refused	4	4	0	0	1	3	literal:static;const:static;unmodifiable:static;json:static
-dart:core#Map#containsKey	SAFE		accepted	4	4	4	0	0	0	
-dart:core#Map#containsValue	THROWS		refused	4	4	0	4	0	0	
-dart:core#Map#forEach	SAFE		accepted	4	4	4	0	0	0	
-dart:core#Map#get:entries	SAFE		refused	4	4	4	0	0	0	
-dart:core#Map#get:isEmpty	SAFE		accepted	4	4	4	0	0	0	
-dart:core#Map#get:isNotEmpty	THROWS		refused	4	4	2	2	0	0	
-dart:core#Map#get:keys	SAFE		refused	4	4	4	0	0	0	
-dart:core#Map#get:length	SAFE		accepted	4	4	4	0	0	0	
-dart:core#Map#get:values	SAFE		refused	4	4	4	0	0	0	
-dart:core#Map#putIfAbsent	SAFE		refused	4	4	4	0	0	0	
-dart:core#Map#remove	SAFE		refused	4	4	4	0	0	0	
-dart:core#Map#tearoff:addAll	THROWS		refused	4	4	2	2	0	0	
-dart:core#Map#tearoff:containsKey	SAFE		accepted	4	4	4	0	0	0	
-dart:core#Map#tearoff:containsValue	THROWS		refused	4	4	0	4	0	0	
-dart:core#Map#tearoff:forEach	SAFE		accepted	4	4	4	0	0	0	
-dart:core#Map#tearoff:putIfAbsent	SAFE		refused	4	4	4	0	0	0	
-dart:core#Map#tearoff:remove	SAFE		refused	4	4	4	0	0	0	
-dart:core#Object#==	SAFE		refused	3	3	3	0	0	0	
-dart:core#Object#get:hashCode	SAFE		accepted	3	3	3	0	0	0	
-dart:core#Object#get:runtimeType	SAFE	thin	accepted	1	1	1	0	0	0	
-dart:core#Object#tearoff:toString	SAFE		accepted	5	5	5	0	0	0	
-dart:core#Object#toString	SAFE		accepted	5	5	5	0	0	0	
-dart:core#Set#add	SAFE		refused	2	2	2	0	0	0	
-dart:core#Set#contains	SAFE		refused	2	2	2	0	0	0	
-dart:core#Set#remove	CRASH(host)		refused	2	2	1	0	0	1	literal:static
-dart:core#Set#tearoff:add	SAFE		accepted	2	2	2	0	0	0	
-dart:core#Set#tearoff:contains	SAFE		refused	2	2	2	0	0	0	
-dart:core#Set#tearoff:remove	SAFE		accepted	2	2	2	0	0	0	
-dart:core#StateError#message	THROWS		refused	1	1	0	1	0	0	
-dart:core#String#*	THROWS		refused	2	2	1	1	0	0	
-dart:core#String#+	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#==	SAFE		refused	2	2	2	0	0	0	
-dart:core#String#[]	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#codeUnitAt	THROWS		refused	2	2	0	2	0	0	
-dart:core#String#compareTo	THROWS		refused	2	2	0	2	0	0	
-dart:core#String#contains	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#endsWith	CRASH		refused	2	2	0	0	2	0	one_byte:static;two_byte:static
-dart:core#String#get:isEmpty	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#get:isNotEmpty	CRASH(host)		refused	2	2	0	0	0	2	one_byte:static;two_byte:static
-dart:core#String#get:length	THROWS		refused	2	2	0	2	0	0	
-dart:core#String#indexOf	THROWS		refused	2	2	0	2	0	0	
-dart:core#String#padLeft	THROWS		refused	2	2	0	2	0	0	
-dart:core#String#replaceAll	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#split	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#startsWith	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#substring	THROWS		refused	2	2	0	2	0	0	
-dart:core#String#tearoff:codeUnitAt	THROWS		refused	2	2	0	2	0	0	
-dart:core#String#tearoff:compareTo	THROWS		refused	2	2	0	2	0	0	
-dart:core#String#tearoff:contains	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#tearoff:endsWith	SAFE		refused	2	2	2	0	0	0	
-dart:core#String#tearoff:indexOf	THROWS		refused	2	2	0	2	0	0	
-dart:core#String#tearoff:padLeft	THROWS		refused	2	2	0	2	0	0	
-dart:core#String#tearoff:replaceAll	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#tearoff:split	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#tearoff:startsWith	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#tearoff:substring	THROWS		refused	2	2	0	2	0	0	
-dart:core#String#tearoff:toLowerCase	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#tearoff:toUpperCase	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#tearoff:trim	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#toLowerCase	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#toUpperCase	SAFE		accepted	2	2	2	0	0	0	
-dart:core#String#trim	SAFE		accepted	2	2	2	0	0	0	
-dart:core#bool#tearoff:toString	SAFE	thin	accepted	1	1	1	0	0	0	
-dart:core#bool#toString	SAFE	thin	accepted	1	1	1	0	0	0	
-dart:core#double#%	THROWS		refused	1	1	0	1	0	0	
-dart:core#double#*	SAFE	thin	accepted	1	1	1	0	0	0	
-dart:core#double#+	SAFE	thin	refused	1	1	1	0	0	0	
-dart:core#double#-	SAFE	thin	accepted	1	1	1	0	0	0	
-dart:core#double#/	SAFE	thin	accepted	1	1	1	0	0	0	
-dart:core#double#abs	THROWS		refused	1	1	0	1	0	0	
-dart:core#double#ceil	THROWS		refused	1	1	0	1	0	0	
-dart:core#double#floor	THROWS		refused	1	1	0	1	0	0	
-dart:core#double#round	THROWS		refused	1	1	0	1	0	0	
-dart:core#double#tearoff:abs	THROWS		refused	1	1	0	1	0	0	
-dart:core#double#tearoff:ceil	THROWS		refused	1	1	0	1	0	0	
-dart:core#double#tearoff:floor	THROWS		refused	1	1	0	1	0	0	
-dart:core#double#tearoff:round	THROWS		refused	1	1	0	1	0	0	
-dart:core#double#tearoff:toString	SAFE	thin	accepted	1	1	1	0	0	0	
-dart:core#double#tearoff:truncate	THROWS		refused	1	1	0	1	0	0	
-dart:core#double#toString	SAFE	thin	accepted	1	1	1	0	0	0	
-dart:core#double#truncate	THROWS		refused	1	1	0	1	0	0	
-dart:core#double#unary-	SAFE	thin	accepted	1	1	1	0	0	0	
-dart:core#double#~/	THROWS		refused	1	1	0	1	0	0	
-dart:core#int#&	SAFE		refused	2	2	2	0	0	0	
-dart:core#int#<<	SAFE		refused	2	2	2	0	0	0	
-dart:core#int#abs	THROWS		refused	2	2	0	2	0	0	
-dart:core#int#get:isEven	CRASH(host)		refused	2	2	0	0	0	2	smi:static;mint:static
-dart:core#int#tearoff:abs	THROWS		refused	2	2	0	2	0	0	
-dart:core#int#tearoff:toString	SAFE		accepted	2	2	2	0	0	0	
-dart:core#int#toString	SAFE		accepted	2	2	2	0	0	0	
-dart:core#int#unary-	SAFE		refused	2	2	2	0	0	0	
-dart:core#num#%	THROWS		refused	5	3	4	1	0	0	
-dart:core#num#*	SAFE		refused	5	3	5	0	0	0	
-dart:core#num#+	SAFE		refused	5	3	5	0	0	0	
-dart:core#num#-	SAFE		refused	5	3	5	0	0	0	
-dart:core#num#/	THROWS		refused	5	3	0	5	0	0	
-dart:core#num#<	SAFE		refused	6	3	6	0	0	0	
-dart:core#num#<=	THROWS		refused	6	3	3	3	0	0	
-dart:core#num#==	SAFE		refused	6	3	6	0	0	0	
-dart:core#num#>	SAFE		refused	6	3	6	0	0	0	
-dart:core#num#>=	THROWS		refused	6	3	3	3	0	0	
-dart:core#num#abs	THROWS		refused	3	3	0	3	0	0	
-dart:core#num#clamp	THROWS		refused	6	3	0	6	0	0	
-dart:core#num#compareTo	THROWS		refused	6	3	0	6	0	0	
-dart:core#num#floor	THROWS		refused	3	3	0	3	0	0	
-dart:core#num#get:isNaN	SAFE	thin	refused	1	1	1	0	0	0	
-dart:core#num#remainder	THROWS		refused	2	2	0	2	0	0	
-dart:core#num#round	THROWS		refused	3	3	0	3	0	0	
-dart:core#num#tearoff:abs	THROWS		refused	3	3	0	3	0	0	
-dart:core#num#tearoff:clamp	THROWS		refused	6	3	0	6	0	0	
-dart:core#num#tearoff:compareTo	THROWS		refused	6	3	0	6	0	0	
-dart:core#num#tearoff:floor	THROWS		refused	3	3	0	3	0	0	
-dart:core#num#tearoff:remainder	THROWS		refused	2	2	0	2	0	0	
-dart:core#num#tearoff:round	THROWS		refused	3	3	0	3	0	0	
-dart:core#num#tearoff:toDouble	SAFE		accepted	5	3	5	0	0	0	
-dart:core#num#tearoff:toInt	THROWS		refused	4	3	0	4	0	0	
-dart:core#num#tearoff:toStringAsFixed	THROWS		refused	6	3	0	6	0	0	
-dart:core#num#toDouble	SAFE		accepted	5	3	5	0	0	0	
-dart:core#num#toInt	THROWS		refused	4	3	0	4	0	0	
-dart:core#num#toStringAsFixed	THROWS		refused	6	3	0	6	0	0	
-dart:core#num#unary-	THROWS		refused	3	3	0	3	0	0	
-dart:core#num#~/	SAFE		refused	2	2	2	0	0	0	
-dart:ui#Offset#get:dx	THROWS		refused	1	1	0	1	0	0	
-dart:ui#Offset#get:dy	THROWS		refused	1	1	0	1	0	0	
-dart:ui#Size#get:height	THROWS		refused	1	1	0	1	0	0	
-dart:ui#Size#get:width	THROWS		refused	1	1	0	1	0	0	
-dynamic#%	CRASH		refused	6	3	0	4	2	0	mint:dynamic;mint:dynamic
-dynamic#&	PARTIAL		refused	2	2	0	0	0	2	
-dynamic#*	CRASH		refused	8	5	0	6	2	0	mint:dynamic;mint:dynamic
-dynamic#+	CRASH		refused	9	6	0	7	2	0	mint:dynamic;mint:dynamic
-dynamic#-	CRASH		refused	6	3	0	4	2	0	mint:dynamic;mint:dynamic
-dynamic#/	THROWS		refused	6	3	0	6	0	0	
-dynamic#<	CRASH		refused	6	3	0	4	2	0	mint:dynamic;mint:dynamic
-dynamic#<<	THROWS		refused	2	2	0	2	0	0	
-dynamic#<=	THROWS		refused	6	3	0	6	0	0	
-dynamic#==	SAFE		refused	11	8	11	0	0	0	
-dynamic#>	CRASH		refused	7	4	0	5	2	0	mint:dynamic;mint:dynamic
-dynamic#>=	THROWS		refused	6	3	0	6	0	0	
-dynamic#[]	CRASH		refused	12	9	0	9	3	0	json:dynamic;unmodifiable:dynamic;json:dynamic
-dynamic#[]=	CRASH		refused	10	7	0	7	3	0	json:dynamic;unmodifiable:dynamic;json:dynamic
-dynamic#abs	THROWS		refused	6	3	0	6	0	0	
-dynamic#add	CRASH		refused	11	10	0	9	2	0	unmodifiable:dynamic;json:dynamic
-dynamic#addAll	CRASH(host)		refused	10	7	0	0	0	10	literal:dynamic;const:dynamic;unmodifiable:dynamic;json:dynamic
-dynamic#any	THROWS		refused	3	3	0	3	0	0	
-dynamic#cancel	CRASH		refused	4	4	0	2	2	0	controller:dynamic;broadcast:dynamic
-dynamic#catchError	CRASH		refused	4	4	0	2	2	0	value:dynamic;delayed:dynamic
-dynamic#ceil	THROWS		refused	1	1	0	1	0	0	
-dynamic#clamp	PARTIAL		refused	6	3	0	0	0	6	
-dynamic#clear	CRASH		refused	6	6	0	5	1	0	generate:dynamic
-dynamic#close	THROWS		refused	2	2	0	2	0	0	
-dynamic#codeUnitAt	THROWS		refused	2	2	0	2	0	0	
-dynamic#compareTo	THROWS		refused	8	5	0	8	0	0	
-dynamic#contains	CRASH		refused	13	11	0	12	1	0	json:dynamic
-dynamic#containsKey	CRASH		refused	4	4	0	3	1	0	json:dynamic
-dynamic#containsValue	THROWS		refused	4	4	0	4	0	0	
-dynamic#difference	THROWS		refused	1	1	0	1	0	0	
-dynamic#elementAt	THROWS		refused	3	3	0	3	0	0	
-dynamic#endsWith	THROWS		refused	2	2	0	2	0	0	
-dynamic#every	THROWS		refused	3	3	0	3	0	0	
-dynamic#firstWhere	THROWS		refused	3	3	0	3	0	0	
-dynamic#floor	THROWS		refused	4	3	0	4	0	0	
-dynamic#fold	THROWS		refused	3	3	0	3	0	0	
-dynamic#forEach	CRASH		refused	4	4	0	3	1	0	json:dynamic
-dynamic#get:current	CRASH		refused	3	3	0	0	3	0	list:dynamic;set:dynamic;generate:dynamic
-dynamic#get:dx	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:dy	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:entries	CRASH		refused	4	4	0	0	4	0	literal:dynamic;const:dynamic;unmodifiable:dynamic;json:dynamic
-dynamic#get:first	CRASH		refused	12	11	0	3	9	0	growable:dynamic;filled_fixed:dynamic;const:dynamic;unmodifiable:dynamic;generate:dynamic;json:dynamic;list:dynamic;set:dynamic;generate:dynamic
-dynamic#get:hashCode	SAFE		refused	3	3	3	0	0	0	
-dynamic#get:height	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:inMicroseconds	CRASH		refused	1	1	0	0	1	0	duration:dynamic
-dynamic#get:inMilliseconds	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:inMinutes	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:inSeconds	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:isActive	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:isBroadcast	THROWS		refused	3	3	0	3	0	0	
-dynamic#get:isClosed	CRASH		refused	2	2	0	0	2	0	plain:dynamic;broadcast:dynamic
-dynamic#get:isEmpty	CRASH		refused	15	11	0	1	14	0	literal:dynamic;const:dynamic;unmodifiable:dynamic;json:dynamic;growable:dynamic;filled_fixed:dynamic;const:dynamic;unmodifiable:dynamic;generate:dynamic;json:dynamic;list:dynamic;set:dynamic;one_byte:dynamic;two_byte:dynamic
-dynamic#get:isEven	CRASH		refused	2	2	0	1	1	0	mint:dynamic
-dynamic#get:isNaN	CRASH		refused	1	1	0	0	1	0	double:dynamic
-dynamic#get:isNegative	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:isNotEmpty	CRASH		refused	15	11	0	5	10	0	literal:dynamic;json:dynamic;growable:dynamic;filled_fixed:dynamic;const:dynamic;unmodifiable:dynamic;generate:dynamic;json:dynamic;list:dynamic;set:dynamic
-dynamic#get:iterator	CRASH		refused	3	3	0	0	3	0	list:dynamic;set:dynamic;generate:dynamic
-dynamic#get:keys	CRASH		refused	4	4	0	0	4	0	literal:dynamic;const:dynamic;unmodifiable:dynamic;json:dynamic
-dynamic#get:last	CRASH		refused	9	8	0	2	7	0	growable:dynamic;filled_fixed:dynamic;const:dynamic;unmodifiable:dynamic;generate:dynamic;json:dynamic;list:dynamic
-dynamic#get:length	CRASH		refused	17	11	0	2	15	0	literal:dynamic;const:dynamic;unmodifiable:dynamic;json:dynamic;growable:dynamic;filled_fixed:dynamic;const:dynamic;unmodifiable:dynamic;generate:dynamic;json:dynamic;list:dynamic;set:dynamic;generate:dynamic;literal:dynamic;const:dynamic
-dynamic#get:microsecondsSinceEpoch	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:month	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:reversed	CRASH		refused	6	6	0	0	6	0	growable:dynamic;filled_fixed:dynamic;const:dynamic;unmodifiable:dynamic;generate:dynamic;json:dynamic
-dynamic#get:runtimeType	SAFE	thin	refused	1	1	1	0	0	0	
-dynamic#get:sink	THROWS		refused	2	2	0	2	0	0	
-dynamic#get:stackTrace	CRASH		refused	1	1	0	0	1	0	state_error:dynamic
-dynamic#get:stream	CRASH		refused	2	2	0	0	2	0	plain:dynamic;broadcast:dynamic
-dynamic#get:tick	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:values	CRASH		refused	4	4	0	0	4	0	literal:dynamic;const:dynamic;unmodifiable:dynamic;json:dynamic
-dynamic#get:weekday	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:width	THROWS		refused	1	1	0	1	0	0	
-dynamic#get:year	THROWS		refused	1	1	0	1	0	0	
-dynamic#indexOf	THROWS		refused	8	8	0	8	0	0	
-dynamic#insert	THROWS		refused	6	6	0	6	0	0	
-dynamic#isAfter	THROWS		refused	1	1	0	1	0	0	
-dynamic#isBefore	THROWS		refused	1	1	0	1	0	0	
-dynamic#join	THROWS		refused	3	3	0	3	0	0	
-dynamic#listen	THROWS		refused	3	3	0	3	0	0	
-dynamic#map	THROWS		refused	6	6	0	6	0	0	
-dynamic#message	CRASH		refused	2	2	0	1	1	0	format_exception:dynamic
-dynamic#moveNext	PARTIAL		refused	3	3	0	0	0	3	
-dynamic#padLeft	THROWS		refused	2	2	0	2	0	0	
-dynamic#putIfAbsent	PARTIAL		refused	4	4	0	0	0	4	
-dynamic#reduce	THROWS		refused	3	3	0	3	0	0	
-dynamic#remainder	THROWS		refused	2	2	0	2	0	0	
-dynamic#remove	CRASH		refused	12	7	0	9	3	0	json:dynamic;unmodifiable:dynamic;json:dynamic
-dynamic#removeAt	THROWS		refused	6	6	0	6	0	0	
-dynamic#removeLast	CRASH		refused	6	6	0	4	2	0	unmodifiable:dynamic;json:dynamic
-dynamic#replaceAll	THROWS		refused	2	2	0	2	0	0	
-dynamic#round	THROWS		refused	4	3	0	4	0	0	
-dynamic#skip	THROWS		refused	3	3	0	3	0	0	
-dynamic#sort	CRASH		refused	6	6	0	5	1	0	json:dynamic
-dynamic#split	THROWS		refused	2	2	0	2	0	0	
-dynamic#startsWith	THROWS		refused	2	2	0	2	0	0	
-dynamic#sublist	THROWS		refused	6	6	0	6	0	0	
-dynamic#substring	THROWS		refused	2	2	0	2	0	0	
-dynamic#subtract	THROWS		refused	1	1	0	1	0	0	
-dynamic#take	THROWS		refused	3	3	0	3	0	0	
-dynamic#tearoff:abs	THROWS		refused	6	3	0	6	0	0	
-dynamic#tearoff:add	THROWS		refused	11	10	10	1	0	0	
-dynamic#tearoff:addAll	PARTIAL		refused	10	7	0	0	0	10	
-dynamic#tearoff:any	CRASH		refused	3	3	2	0	1	0	generate:tearoff-dynamic
-dynamic#tearoff:cancel	CRASH		accepted	4	4	1	1	2	0	controller:tearoff-dynamic;broadcast:tearoff-dynamic
-dynamic#tearoff:catchError	SAFE		refused	4	4	4	0	0	0	
-dynamic#tearoff:ceil	THROWS		refused	1	1	0	1	0	0	
-dynamic#tearoff:clamp	PARTIAL		refused	6	3	0	0	0	6	
-dynamic#tearoff:clear	THROWS		refused	6	6	3	3	0	0	
-dynamic#tearoff:close	SAFE		accepted	2	2	2	0	0	0	
-dynamic#tearoff:codeUnitAt	THROWS		refused	2	2	0	2	0	0	
-dynamic#tearoff:compareTo	THROWS		refused	8	5	0	8	0	0	
-dynamic#tearoff:contains	THROWS		refused	13	11	12	1	0	0	
-dynamic#tearoff:containsKey	SAFE		accepted	4	4	4	0	0	0	
-dynamic#tearoff:containsValue	THROWS		refused	4	4	0	4	0	0	
-dynamic#tearoff:difference	THROWS		refused	1	1	0	1	0	0	
-dynamic#tearoff:elementAt	THROWS		refused	3	3	0	3	0	0	
-dynamic#tearoff:endsWith	SAFE		refused	2	2	2	0	0	0	
-dynamic#tearoff:every	THROWS		refused	3	3	1	2	0	0	
-dynamic#tearoff:firstWhere	THROWS		refused	3	3	1	2	0	0	
-dynamic#tearoff:floor	THROWS		refused	4	3	0	4	0	0	
-dynamic#tearoff:fold	THROWS		refused	3	3	1	2	0	0	
-dynamic#tearoff:forEach	SAFE		accepted	4	4	4	0	0	0	
-dynamic#tearoff:indexOf	THROWS		refused	8	8	0	8	0	0	
-dynamic#tearoff:insert	THROWS		refused	6	6	0	6	0	0	
-dynamic#tearoff:isAfter	THROWS		refused	1	1	0	1	0	0	
-dynamic#tearoff:isBefore	THROWS		refused	1	1	0	1	0	0	
-dynamic#tearoff:join	THROWS		refused	3	3	2	1	0	0	
-dynamic#tearoff:listen	SAFE		accepted	3	3	3	0	0	0	
-dynamic#tearoff:map	THROWS		refused	6	6	2	4	0	0	
-dynamic#tearoff:padLeft	THROWS		refused	2	2	0	2	0	0	
-dynamic#tearoff:putIfAbsent	PARTIAL		refused	4	4	0	0	0	4	
-dynamic#tearoff:reduce	THROWS		refused	3	3	0	3	0	0	
-dynamic#tearoff:remainder	THROWS		refused	2	2	0	2	0	0	
-dynamic#tearoff:remove	SAFE		refused	12	7	12	0	0	0	
-dynamic#tearoff:removeAt	THROWS		refused	6	6	0	6	0	0	
-dynamic#tearoff:removeLast	SAFE		accepted	6	6	6	0	0	0	
-dynamic#tearoff:replaceAll	SAFE		accepted	2	2	2	0	0	0	
-dynamic#tearoff:round	THROWS		refused	4	3	0	4	0	0	
-dynamic#tearoff:skip	THROWS		refused	3	3	0	3	0	0	
-dynamic#tearoff:sort	SAFE		refused	6	6	6	0	0	0	
-dynamic#tearoff:split	SAFE		accepted	2	2	2	0	0	0	
-dynamic#tearoff:startsWith	SAFE		accepted	2	2	2	0	0	0	
-dynamic#tearoff:sublist	THROWS		refused	6	6	0	6	0	0	
-dynamic#tearoff:substring	THROWS		refused	2	2	0	2	0	0	
-dynamic#tearoff:subtract	THROWS		refused	1	1	0	1	0	0	
-dynamic#tearoff:take	THROWS		refused	3	3	0	3	0	0	
-dynamic#tearoff:then	SAFE		accepted	4	4	4	0	0	0	
-dynamic#tearoff:timeout	SAFE		accepted	4	4	4	0	0	0	
-dynamic#tearoff:toDouble	SAFE		accepted	5	3	5	0	0	0	
-dynamic#tearoff:toInt	THROWS		refused	4	3	0	4	0	0	
-dynamic#tearoff:toIso8601String	THROWS		refused	1	1	0	1	0	0	
-dynamic#tearoff:toList	THROWS		refused	6	6	3	3	0	0	
-dynamic#tearoff:toLowerCase	SAFE		accepted	2	2	2	0	0	0	
-dynamic#tearoff:toSet	CRASH		refused	3	3	2	0	1	0	generate:tearoff-dynamic
-dynamic#tearoff:toString	SAFE		accepted	9	9	9	0	0	0	
-dynamic#tearoff:toStringAsFixed	THROWS		refused	6	3	0	6	0	0	
-dynamic#tearoff:toUpperCase	SAFE		accepted	2	2	2	0	0	0	
-dynamic#tearoff:toUtc	THROWS		refused	1	1	0	1	0	0	
-dynamic#tearoff:trim	SAFE		accepted	2	2	2	0	0	0	
-dynamic#tearoff:truncate	THROWS		refused	1	1	0	1	0	0	
-dynamic#tearoff:whenComplete	SAFE		accepted	4	4	4	0	0	0	
-dynamic#tearoff:where	THROWS		refused	6	6	3	3	0	0	
-dynamic#then	CRASH		refused	4	4	0	2	2	0	value:dynamic;delayed:dynamic
-dynamic#timeout	CRASH		refused	4	4	0	2	2	0	value:dynamic;delayed:dynamic
-dynamic#toDouble	CRASH		refused	5	3	0	3	2	0	mint:dynamic;mint:dynamic
-dynamic#toInt	THROWS		refused	4	3	0	4	0	0	
-dynamic#toIso8601String	THROWS		refused	1	1	0	1	0	0	
-dynamic#toList	THROWS		refused	6	6	0	6	0	0	
-dynamic#toLowerCase	THROWS		refused	2	2	0	2	0	0	
-dynamic#toSet	THROWS		refused	3	3	0	3	0	0	
-dynamic#toString	SAFE		refused	9	9	9	0	0	0	
-dynamic#toStringAsFixed	THROWS		refused	6	3	0	6	0	0	
-dynamic#toUpperCase	THROWS		refused	2	2	0	2	0	0	
-dynamic#toUtc	THROWS		refused	1	1	0	1	0	0	
-dynamic#trim	THROWS		refused	2	2	0	2	0	0	
-dynamic#truncate	THROWS		refused	1	1	0	1	0	0	
-dynamic#unary-	THROWS		refused	6	3	0	6	0	0	
-dynamic#whenComplete	CRASH		refused	4	4	0	2	2	0	value:dynamic;delayed:dynamic
-dynamic#where	THROWS		refused	6	6	0	6	0	0	
-dynamic#~/	CRASH		refused	3	3	0	2	1	0	mint:dynamic
+key	device_verdict	thin	pr209	probes	runtime_classes	resolves	throws	aborts	not_run	crashing_runtime_classes_and_forms	callform_verdict
+dart:async#Future#catchError	SAFE		refused	4	4	4	0	0	0		
+dart:async#Future#tearoff:catchError	SAFE		refused	4	4	4	0	0	0		SAFE
+dart:async#Future#tearoff:then	SAFE		accepted	4	4	4	0	0	0		SAFE
+dart:async#Future#tearoff:timeout	SAFE		accepted	4	4	4	0	0	0		SAFE
+dart:async#Future#tearoff:whenComplete	SAFE		accepted	4	4	4	0	0	0		SAFE
+dart:async#Future#then	SAFE		accepted	4	4	4	0	0	0		
+dart:async#Future#timeout	SAFE		accepted	4	4	4	0	0	0		
+dart:async#Future#whenComplete	SAFE		accepted	4	4	4	0	0	0		
+dart:async#Stream#get:first	THROWS		refused	3	3	0	3	0	0		
+dart:async#Stream#get:isBroadcast	THROWS		refused	3	3	0	3	0	0		
+dart:async#Stream#listen	THROWS		refused	3	3	0	3	0	0		
+dart:async#Stream#map	THROWS		refused	3	3	0	3	0	0		
+dart:async#Stream#tearoff:listen	UNCALLED		accepted	3	3	3	0	0	0		THROWS
+dart:async#Stream#tearoff:map	THROWS		refused	3	3	0	3	0	0		THROWS
+dart:async#Stream#tearoff:toList	THROWS		refused	3	3	0	3	0	0		THROWS
+dart:async#Stream#tearoff:where	THROWS		refused	3	3	0	3	0	0		THROWS
+dart:async#Stream#toList	THROWS		refused	3	3	0	3	0	0		
+dart:async#Stream#where	THROWS		refused	3	3	0	3	0	0		
+dart:async#StreamController#add	SAFE		refused	2	2	2	0	0	0		
+dart:async#StreamController#close	SAFE		accepted	2	2	2	0	0	0		
+dart:async#StreamController#get:isClosed	SAFE		accepted	2	2	2	0	0	0		
+dart:async#StreamController#get:sink	THROWS		refused	2	2	0	2	0	0		
+dart:async#StreamController#get:stream	SAFE		refused	2	2	2	0	0	0		
+dart:async#StreamController#tearoff:add	SAFE		accepted	2	2	2	0	0	0		SAFE
+dart:async#StreamController#tearoff:close	SAFE		accepted	2	2	2	0	0	0		SAFE
+dart:async#StreamSubscription#cancel	CRASH		refused	3	3	0	1	2	0	controller:static;broadcast:static	
+dart:async#StreamSubscription#tearoff:cancel	CRASH		refused	3	3	0	1	2	0	controller:tearoff-static;broadcast:tearoff-static	CRASH
+dart:async#Timer#cancel	SAFE	thin	accepted	1	1	1	0	0	0		
+dart:async#Timer#get:isActive	THROWS		refused	1	1	0	1	0	0		
+dart:async#Timer#get:tick	THROWS		refused	1	1	0	1	0	0		
+dart:async#Timer#tearoff:cancel	SAFE	thin	accepted	1	1	1	0	0	0		SAFE
+dart:core#DateTime#add	THROWS		refused	1	1	0	1	0	0		
+dart:core#DateTime#difference	THROWS		refused	1	1	0	1	0	0		
+dart:core#DateTime#get:microsecondsSinceEpoch	THROWS		refused	1	1	0	1	0	0		
+dart:core#DateTime#get:month	THROWS		refused	1	1	0	1	0	0		
+dart:core#DateTime#get:weekday	THROWS		refused	1	1	0	1	0	0		
+dart:core#DateTime#get:year	THROWS		refused	1	1	0	1	0	0		
+dart:core#DateTime#isAfter	THROWS		refused	1	1	0	1	0	0		
+dart:core#DateTime#isBefore	THROWS		refused	1	1	0	1	0	0		
+dart:core#DateTime#subtract	THROWS		refused	1	1	0	1	0	0		
+dart:core#DateTime#tearoff:add	THROWS		refused	1	1	0	1	0	0		THROWS
+dart:core#DateTime#tearoff:difference	THROWS		refused	1	1	0	1	0	0		THROWS
+dart:core#DateTime#tearoff:isAfter	THROWS		refused	1	1	0	1	0	0		THROWS
+dart:core#DateTime#tearoff:isBefore	THROWS		refused	1	1	0	1	0	0		THROWS
+dart:core#DateTime#tearoff:subtract	THROWS		refused	1	1	0	1	0	0		THROWS
+dart:core#DateTime#tearoff:toIso8601String	THROWS		refused	1	1	0	1	0	0		THROWS
+dart:core#DateTime#tearoff:toUtc	THROWS		refused	1	1	0	1	0	0		THROWS
+dart:core#DateTime#toIso8601String	THROWS		refused	1	1	0	1	0	0		
+dart:core#DateTime#toUtc	THROWS		refused	1	1	0	1	0	0		
+dart:core#Duration#+	SAFE	thin	refused	1	1	1	0	0	0		
+dart:core#Duration#>	THROWS		refused	1	1	0	1	0	0		
+dart:core#Duration#get:inMicroseconds	SAFE	thin	refused	1	1	1	0	0	0		
+dart:core#Duration#get:inMilliseconds	THROWS		refused	1	1	0	1	0	0		
+dart:core#Duration#get:inMinutes	THROWS		refused	1	1	0	1	0	0		
+dart:core#Duration#get:inSeconds	THROWS		refused	1	1	0	1	0	0		
+dart:core#Duration#get:isNegative	THROWS		refused	1	1	0	1	0	0		
+dart:core#Error#get:stackTrace	SAFE	thin	refused	1	1	1	0	0	0		
+dart:core#FormatException#message	SAFE	thin	refused	1	1	1	0	0	0		
+dart:core#Iterable#any	CRASH		refused	3	3	2	0	1	0	generate:static	
+dart:core#Iterable#contains	CRASH		refused	9	8	5	1	3	0	filled_fixed:static;const:static;unmodifiable:static	
+dart:core#Iterable#elementAt	THROWS		refused	3	3	0	3	0	0		
+dart:core#Iterable#every	CRASH		refused	3	3	0	2	1	0	list:static	
+dart:core#Iterable#firstWhere	THROWS		refused	3	3	1	2	0	0		
+dart:core#Iterable#fold	THROWS		refused	3	3	1	2	0	0		
+dart:core#Iterable#get:first	SAFE		refused	9	8	9	0	0	0		
+dart:core#Iterable#get:isEmpty	CRASH		refused	9	8	8	0	1	0	generate:static	
+dart:core#Iterable#get:isNotEmpty	CRASH		refused	9	8	8	0	1	0	generate:static	
+dart:core#Iterable#get:iterator	SAFE		refused	3	3	3	0	0	0		
+dart:core#Iterable#get:last	CRASH		refused	9	8	7	1	1	0	generate:static	
+dart:core#Iterable#get:length	SAFE		accepted	5	5	5	0	0	0		
+dart:core#Iterable#join	THROWS		refused	3	3	2	1	0	0		
+dart:core#Iterable#map	THROWS		refused	3	3	2	1	0	0		
+dart:core#Iterable#reduce	THROWS		refused	3	3	0	3	0	0		
+dart:core#Iterable#skip	THROWS		refused	3	3	0	3	0	0		
+dart:core#Iterable#take	THROWS		refused	3	3	0	3	0	0		
+dart:core#Iterable#tearoff:any	UNCALLED		refused	3	3	3	0	0	0		CRASH
+dart:core#Iterable#tearoff:contains	THROWS		refused	9	8	8	1	0	0		CRASH
+dart:core#Iterable#tearoff:elementAt	THROWS		refused	3	3	0	3	0	0		THROWS
+dart:core#Iterable#tearoff:every	THROWS		refused	3	3	1	2	0	0		CRASH
+dart:core#Iterable#tearoff:firstWhere	THROWS		refused	3	3	1	2	0	0		THROWS
+dart:core#Iterable#tearoff:fold	THROWS		refused	3	3	1	2	0	0		THROWS
+dart:core#Iterable#tearoff:join	THROWS		refused	3	3	2	1	0	0		THROWS
+dart:core#Iterable#tearoff:map	THROWS		refused	3	3	2	1	0	0		THROWS
+dart:core#Iterable#tearoff:reduce	THROWS		refused	3	3	0	3	0	0		THROWS
+dart:core#Iterable#tearoff:skip	THROWS		refused	3	3	0	3	0	0		THROWS
+dart:core#Iterable#tearoff:take	THROWS		refused	3	3	0	3	0	0		THROWS
+dart:core#Iterable#tearoff:toList	SAFE		refused	3	3	3	0	0	0		SAFE
+dart:core#Iterable#tearoff:toSet	SAFE		refused	3	3	3	0	0	0		SAFE
+dart:core#Iterable#tearoff:where	SAFE		refused	3	3	3	0	0	0		SAFE
+dart:core#Iterable#toList	SAFE		refused	3	3	3	0	0	0		
+dart:core#Iterable#toSet	SAFE		refused	3	3	3	0	0	0		
+dart:core#Iterable#where	SAFE		refused	3	3	3	0	0	0		
+dart:core#Iterator#get:current	SAFE		refused	3	3	3	0	0	0		
+dart:core#Iterator#moveNext	SAFE		refused	3	3	3	0	0	0		
+dart:core#List#[]	SAFE		refused	6	6	6	0	0	0		
+dart:core#List#[]=	SAFE		refused	6	6	6	0	0	0		
+dart:core#List#add	SAFE		refused	6	6	6	0	0	0		
+dart:core#List#addAll	THROWS		refused	6	6	3	3	0	0		
+dart:core#List#clear	THROWS		refused	6	6	3	3	0	0		
+dart:core#List#get:length	SAFE		refused	6	6	6	0	0	0		
+dart:core#List#get:reversed	SAFE		refused	6	6	6	0	0	0		
+dart:core#List#indexOf	THROWS		refused	6	6	0	6	0	0		
+dart:core#List#insert	THROWS		refused	6	6	0	6	0	0		
+dart:core#List#remove	SAFE		refused	6	6	6	0	0	0		
+dart:core#List#removeAt	THROWS		refused	6	6	0	6	0	0		
+dart:core#List#removeLast	SAFE		accepted	6	6	6	0	0	0		
+dart:core#List#sort	CRASH		refused	6	6	3	0	3	0	filled_fixed:static;const:static;unmodifiable:static	
+dart:core#List#sublist	THROWS		refused	6	6	0	6	0	0		
+dart:core#List#tearoff:add	SAFE		accepted	6	6	6	0	0	0		SAFE
+dart:core#List#tearoff:addAll	THROWS		refused	6	6	3	3	0	0		THROWS
+dart:core#List#tearoff:clear	THROWS		refused	6	6	3	3	0	0		THROWS
+dart:core#List#tearoff:indexOf	THROWS		refused	6	6	0	6	0	0		THROWS
+dart:core#List#tearoff:insert	THROWS		refused	6	6	0	6	0	0		THROWS
+dart:core#List#tearoff:remove	SAFE		refused	6	6	6	0	0	0		SAFE
+dart:core#List#tearoff:removeAt	THROWS		refused	6	6	0	6	0	0		THROWS
+dart:core#List#tearoff:removeLast	SAFE		accepted	6	6	6	0	0	0		SAFE
+dart:core#List#tearoff:sort	UNCALLED		refused	6	6	6	0	0	0		CRASH
+dart:core#List#tearoff:sublist	THROWS		refused	6	6	0	6	0	0		THROWS
+dart:core#Map#[]	SAFE		refused	4	4	4	0	0	0		
+dart:core#Map#[]=	SAFE		refused	4	4	4	0	0	0		
+dart:core#Map#addAll	CRASH		refused	4	4	0	0	1	3	literal:static;const:static;unmodifiable:static;json:static	
+dart:core#Map#containsKey	SAFE		accepted	4	4	4	0	0	0		
+dart:core#Map#containsValue	THROWS		refused	4	4	0	4	0	0		
+dart:core#Map#forEach	SAFE		accepted	4	4	4	0	0	0		
+dart:core#Map#get:entries	SAFE		refused	4	4	4	0	0	0		
+dart:core#Map#get:isEmpty	SAFE		accepted	4	4	4	0	0	0		
+dart:core#Map#get:isNotEmpty	THROWS		refused	4	4	2	2	0	0		
+dart:core#Map#get:keys	SAFE		refused	4	4	4	0	0	0		
+dart:core#Map#get:length	SAFE		accepted	4	4	4	0	0	0		
+dart:core#Map#get:values	SAFE		refused	4	4	4	0	0	0		
+dart:core#Map#putIfAbsent	SAFE		refused	4	4	4	0	0	0		
+dart:core#Map#remove	SAFE		refused	4	4	4	0	0	0		
+dart:core#Map#tearoff:addAll	THROWS		refused	4	4	2	2	0	0		CRASH
+dart:core#Map#tearoff:containsKey	SAFE		accepted	4	4	4	0	0	0		SAFE
+dart:core#Map#tearoff:containsValue	THROWS		refused	4	4	0	4	0	0		THROWS
+dart:core#Map#tearoff:forEach	SAFE		accepted	4	4	4	0	0	0		SAFE
+dart:core#Map#tearoff:putIfAbsent	SAFE		refused	4	4	4	0	0	0		SAFE
+dart:core#Map#tearoff:remove	SAFE		refused	4	4	4	0	0	0		SAFE
+dart:core#Object#==	SAFE		refused	3	3	3	0	0	0		
+dart:core#Object#get:hashCode	SAFE		accepted	3	3	3	0	0	0		
+dart:core#Object#get:runtimeType	SAFE	thin	accepted	1	1	1	0	0	0		
+dart:core#Object#tearoff:toString	SAFE		accepted	5	5	5	0	0	0		SAFE
+dart:core#Object#toString	SAFE		accepted	5	5	5	0	0	0		
+dart:core#Set#add	SAFE		refused	2	2	2	0	0	0		
+dart:core#Set#contains	SAFE		refused	2	2	2	0	0	0		
+dart:core#Set#remove	CRASH(host)		refused	2	2	1	0	0	1	literal:static	
+dart:core#Set#tearoff:add	SAFE		accepted	2	2	2	0	0	0		SAFE
+dart:core#Set#tearoff:contains	SAFE		refused	2	2	2	0	0	0		SAFE
+dart:core#Set#tearoff:remove	UNCALLED		accepted	2	2	2	0	0	0		CRASH(host)
+dart:core#StateError#message	THROWS		refused	1	1	0	1	0	0		
+dart:core#String#*	THROWS		refused	2	2	1	1	0	0		
+dart:core#String#+	SAFE		accepted	2	2	2	0	0	0		
+dart:core#String#==	SAFE		refused	2	2	2	0	0	0		
+dart:core#String#[]	SAFE		accepted	2	2	2	0	0	0		
+dart:core#String#codeUnitAt	THROWS		refused	2	2	0	2	0	0		
+dart:core#String#compareTo	THROWS		refused	2	2	0	2	0	0		
+dart:core#String#contains	SAFE		accepted	2	2	2	0	0	0		
+dart:core#String#endsWith	CRASH		refused	2	2	0	0	2	0	one_byte:static;two_byte:static	
+dart:core#String#get:isEmpty	SAFE		accepted	2	2	2	0	0	0		
+dart:core#String#get:isNotEmpty	CRASH(host)		refused	2	2	0	0	0	2	one_byte:static;two_byte:static	
+dart:core#String#get:length	THROWS		refused	2	2	0	2	0	0		
+dart:core#String#indexOf	THROWS		refused	2	2	0	2	0	0		
+dart:core#String#padLeft	THROWS		refused	2	2	0	2	0	0		
+dart:core#String#replaceAll	SAFE		accepted	2	2	2	0	0	0		
+dart:core#String#split	SAFE		accepted	2	2	2	0	0	0		
+dart:core#String#startsWith	SAFE		accepted	2	2	2	0	0	0		
+dart:core#String#substring	THROWS		refused	2	2	0	2	0	0		
+dart:core#String#tearoff:codeUnitAt	THROWS		refused	2	2	0	2	0	0		THROWS
+dart:core#String#tearoff:compareTo	THROWS		refused	2	2	0	2	0	0		THROWS
+dart:core#String#tearoff:contains	SAFE		accepted	2	2	2	0	0	0		SAFE
+dart:core#String#tearoff:endsWith	UNCALLED		refused	2	2	2	0	0	0		CRASH
+dart:core#String#tearoff:indexOf	THROWS		refused	2	2	0	2	0	0		THROWS
+dart:core#String#tearoff:padLeft	THROWS		refused	2	2	0	2	0	0		THROWS
+dart:core#String#tearoff:replaceAll	SAFE		accepted	2	2	2	0	0	0		SAFE
+dart:core#String#tearoff:split	SAFE		accepted	2	2	2	0	0	0		SAFE
+dart:core#String#tearoff:startsWith	SAFE		accepted	2	2	2	0	0	0		SAFE
+dart:core#String#tearoff:substring	THROWS		refused	2	2	0	2	0	0		THROWS
+dart:core#String#tearoff:toLowerCase	SAFE		accepted	2	2	2	0	0	0		SAFE
+dart:core#String#tearoff:toUpperCase	SAFE		accepted	2	2	2	0	0	0		SAFE
+dart:core#String#tearoff:trim	SAFE		accepted	2	2	2	0	0	0		SAFE
+dart:core#String#toLowerCase	SAFE		accepted	2	2	2	0	0	0		
+dart:core#String#toUpperCase	SAFE		accepted	2	2	2	0	0	0		
+dart:core#String#trim	SAFE		accepted	2	2	2	0	0	0		
+dart:core#bool#tearoff:toString	SAFE	thin	accepted	1	1	1	0	0	0		SAFE
+dart:core#bool#toString	SAFE	thin	accepted	1	1	1	0	0	0		
+dart:core#double#%	THROWS		refused	1	1	0	1	0	0		
+dart:core#double#*	SAFE	thin	accepted	1	1	1	0	0	0		
+dart:core#double#+	SAFE	thin	refused	1	1	1	0	0	0		
+dart:core#double#-	SAFE	thin	accepted	1	1	1	0	0	0		
+dart:core#double#/	SAFE	thin	accepted	1	1	1	0	0	0		
+dart:core#double#abs	THROWS		refused	1	1	0	1	0	0		
+dart:core#double#ceil	THROWS		refused	1	1	0	1	0	0		
+dart:core#double#floor	THROWS		refused	1	1	0	1	0	0		
+dart:core#double#round	THROWS		refused	1	1	0	1	0	0		
+dart:core#double#tearoff:abs	THROWS		refused	1	1	0	1	0	0		THROWS
+dart:core#double#tearoff:ceil	THROWS		refused	1	1	0	1	0	0		THROWS
+dart:core#double#tearoff:floor	THROWS		refused	1	1	0	1	0	0		THROWS
+dart:core#double#tearoff:round	THROWS		refused	1	1	0	1	0	0		THROWS
+dart:core#double#tearoff:toString	SAFE	thin	accepted	1	1	1	0	0	0		SAFE
+dart:core#double#tearoff:truncate	THROWS		refused	1	1	0	1	0	0		THROWS
+dart:core#double#toString	SAFE	thin	accepted	1	1	1	0	0	0		
+dart:core#double#truncate	THROWS		refused	1	1	0	1	0	0		
+dart:core#double#unary-	SAFE	thin	accepted	1	1	1	0	0	0		
+dart:core#double#~/	THROWS		refused	1	1	0	1	0	0		
+dart:core#int#&	SAFE		refused	2	2	2	0	0	0		
+dart:core#int#<<	SAFE		refused	2	2	2	0	0	0		
+dart:core#int#abs	THROWS		refused	2	2	0	2	0	0		
+dart:core#int#get:isEven	CRASH(host)		refused	2	2	0	0	0	2	smi:static;mint:static	
+dart:core#int#tearoff:abs	THROWS		refused	2	2	0	2	0	0		THROWS
+dart:core#int#tearoff:toString	SAFE		accepted	2	2	2	0	0	0		SAFE
+dart:core#int#toString	SAFE		accepted	2	2	2	0	0	0		
+dart:core#int#unary-	SAFE		refused	2	2	2	0	0	0		
+dart:core#num#%	THROWS		refused	5	3	4	1	0	0		
+dart:core#num#*	SAFE		refused	5	3	5	0	0	0		
+dart:core#num#+	SAFE		refused	5	3	5	0	0	0		
+dart:core#num#-	SAFE		refused	5	3	5	0	0	0		
+dart:core#num#/	THROWS		refused	5	3	0	5	0	0		
+dart:core#num#<	SAFE		refused	6	3	6	0	0	0		
+dart:core#num#<=	THROWS		refused	6	3	3	3	0	0		
+dart:core#num#==	SAFE		refused	6	3	6	0	0	0		
+dart:core#num#>	SAFE		refused	6	3	6	0	0	0		
+dart:core#num#>=	THROWS		refused	6	3	3	3	0	0		
+dart:core#num#abs	THROWS		refused	3	3	0	3	0	0		
+dart:core#num#clamp	THROWS		refused	6	3	0	6	0	0		
+dart:core#num#compareTo	THROWS		refused	6	3	0	6	0	0		
+dart:core#num#floor	THROWS		refused	3	3	0	3	0	0		
+dart:core#num#get:isNaN	SAFE	thin	refused	1	1	1	0	0	0		
+dart:core#num#remainder	THROWS		refused	2	2	0	2	0	0		
+dart:core#num#round	THROWS		refused	3	3	0	3	0	0		
+dart:core#num#tearoff:abs	THROWS		refused	3	3	0	3	0	0		THROWS
+dart:core#num#tearoff:clamp	THROWS		refused	6	3	0	6	0	0		THROWS
+dart:core#num#tearoff:compareTo	THROWS		refused	6	3	0	6	0	0		THROWS
+dart:core#num#tearoff:floor	THROWS		refused	3	3	0	3	0	0		THROWS
+dart:core#num#tearoff:remainder	THROWS		refused	2	2	0	2	0	0		THROWS
+dart:core#num#tearoff:round	THROWS		refused	3	3	0	3	0	0		THROWS
+dart:core#num#tearoff:toDouble	SAFE		accepted	5	3	5	0	0	0		SAFE
+dart:core#num#tearoff:toInt	THROWS		refused	4	3	0	4	0	0		THROWS
+dart:core#num#tearoff:toStringAsFixed	THROWS		refused	6	3	0	6	0	0		THROWS
+dart:core#num#toDouble	SAFE		accepted	5	3	5	0	0	0		
+dart:core#num#toInt	THROWS		refused	4	3	0	4	0	0		
+dart:core#num#toStringAsFixed	THROWS		refused	6	3	0	6	0	0		
+dart:core#num#unary-	THROWS		refused	3	3	0	3	0	0		
+dart:core#num#~/	SAFE		refused	2	2	2	0	0	0		
+dart:ui#Offset#get:dx	THROWS		refused	1	1	0	1	0	0		
+dart:ui#Offset#get:dy	THROWS		refused	1	1	0	1	0	0		
+dart:ui#Size#get:height	THROWS		refused	1	1	0	1	0	0		
+dart:ui#Size#get:width	THROWS		refused	1	1	0	1	0	0		
+dynamic#%	CRASH		refused	6	3	0	4	2	0	mint:dynamic;mint:dynamic	
+dynamic#&	PARTIAL		refused	2	2	0	0	0	2		
+dynamic#*	CRASH		refused	8	5	0	6	2	0	mint:dynamic;mint:dynamic	
+dynamic#+	CRASH		refused	9	6	0	7	2	0	mint:dynamic;mint:dynamic	
+dynamic#-	CRASH		refused	6	3	0	4	2	0	mint:dynamic;mint:dynamic	
+dynamic#/	THROWS		refused	6	3	0	6	0	0		
+dynamic#<	CRASH		refused	6	3	0	4	2	0	mint:dynamic;mint:dynamic	
+dynamic#<<	THROWS		refused	2	2	0	2	0	0		
+dynamic#<=	THROWS		refused	6	3	0	6	0	0		
+dynamic#==	SAFE		refused	11	8	11	0	0	0		
+dynamic#>	CRASH		refused	7	4	0	5	2	0	mint:dynamic;mint:dynamic	
+dynamic#>=	THROWS		refused	6	3	0	6	0	0		
+dynamic#[]	CRASH		refused	12	9	0	9	3	0	json:dynamic;unmodifiable:dynamic;json:dynamic	
+dynamic#[]=	CRASH		refused	10	7	0	7	3	0	json:dynamic;unmodifiable:dynamic;json:dynamic	
+dynamic#abs	THROWS		refused	6	3	0	6	0	0		
+dynamic#add	CRASH		refused	11	10	0	9	2	0	unmodifiable:dynamic;json:dynamic	
+dynamic#addAll	CRASH(host)		refused	10	7	0	0	0	10	literal:dynamic;const:dynamic;unmodifiable:dynamic;json:dynamic	
+dynamic#any	THROWS		refused	3	3	0	3	0	0		
+dynamic#cancel	CRASH		refused	4	4	0	2	2	0	controller:dynamic;broadcast:dynamic	
+dynamic#catchError	CRASH		refused	4	4	0	2	2	0	value:dynamic;delayed:dynamic	
+dynamic#ceil	THROWS		refused	1	1	0	1	0	0		
+dynamic#clamp	PARTIAL		refused	6	3	0	0	0	6		
+dynamic#clear	CRASH		refused	6	6	0	5	1	0	generate:dynamic	
+dynamic#close	THROWS		refused	2	2	0	2	0	0		
+dynamic#codeUnitAt	THROWS		refused	2	2	0	2	0	0		
+dynamic#compareTo	THROWS		refused	8	5	0	8	0	0		
+dynamic#contains	CRASH		refused	13	11	0	12	1	0	json:dynamic	
+dynamic#containsKey	CRASH		refused	4	4	0	3	1	0	json:dynamic	
+dynamic#containsValue	THROWS		refused	4	4	0	4	0	0		
+dynamic#difference	THROWS		refused	1	1	0	1	0	0		
+dynamic#elementAt	THROWS		refused	3	3	0	3	0	0		
+dynamic#endsWith	THROWS		refused	2	2	0	2	0	0		
+dynamic#every	THROWS		refused	3	3	0	3	0	0		
+dynamic#firstWhere	THROWS		refused	3	3	0	3	0	0		
+dynamic#floor	THROWS		refused	4	3	0	4	0	0		
+dynamic#fold	THROWS		refused	3	3	0	3	0	0		
+dynamic#forEach	CRASH		refused	4	4	0	3	1	0	json:dynamic	
+dynamic#get:current	CRASH		refused	3	3	0	0	3	0	list:dynamic;set:dynamic;generate:dynamic	
+dynamic#get:dx	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:dy	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:entries	CRASH		refused	4	4	0	0	4	0	literal:dynamic;const:dynamic;unmodifiable:dynamic;json:dynamic	
+dynamic#get:first	CRASH		refused	12	11	0	3	9	0	growable:dynamic;filled_fixed:dynamic;const:dynamic;unmodifiable:dynamic;generate:dynamic;json:dynamic;list:dynamic;set:dynamic;generate:dynamic	
+dynamic#get:hashCode	SAFE		refused	3	3	3	0	0	0		
+dynamic#get:height	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:inMicroseconds	CRASH		refused	1	1	0	0	1	0	duration:dynamic	
+dynamic#get:inMilliseconds	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:inMinutes	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:inSeconds	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:isActive	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:isBroadcast	THROWS		refused	3	3	0	3	0	0		
+dynamic#get:isClosed	CRASH		refused	2	2	0	0	2	0	plain:dynamic;broadcast:dynamic	
+dynamic#get:isEmpty	CRASH		refused	15	11	0	1	14	0	literal:dynamic;const:dynamic;unmodifiable:dynamic;json:dynamic;growable:dynamic;filled_fixed:dynamic;const:dynamic;unmodifiable:dynamic;generate:dynamic;json:dynamic;list:dynamic;set:dynamic;one_byte:dynamic;two_byte:dynamic	
+dynamic#get:isEven	CRASH		refused	2	2	0	1	1	0	mint:dynamic	
+dynamic#get:isNaN	CRASH		refused	1	1	0	0	1	0	double:dynamic	
+dynamic#get:isNegative	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:isNotEmpty	CRASH		refused	15	11	0	5	10	0	literal:dynamic;json:dynamic;growable:dynamic;filled_fixed:dynamic;const:dynamic;unmodifiable:dynamic;generate:dynamic;json:dynamic;list:dynamic;set:dynamic	
+dynamic#get:iterator	CRASH		refused	3	3	0	0	3	0	list:dynamic;set:dynamic;generate:dynamic	
+dynamic#get:keys	CRASH		refused	4	4	0	0	4	0	literal:dynamic;const:dynamic;unmodifiable:dynamic;json:dynamic	
+dynamic#get:last	CRASH		refused	9	8	0	2	7	0	growable:dynamic;filled_fixed:dynamic;const:dynamic;unmodifiable:dynamic;generate:dynamic;json:dynamic;list:dynamic	
+dynamic#get:length	CRASH		refused	17	11	0	2	15	0	literal:dynamic;const:dynamic;unmodifiable:dynamic;json:dynamic;growable:dynamic;filled_fixed:dynamic;const:dynamic;unmodifiable:dynamic;generate:dynamic;json:dynamic;list:dynamic;set:dynamic;generate:dynamic;literal:dynamic;const:dynamic	
+dynamic#get:microsecondsSinceEpoch	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:month	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:reversed	CRASH		refused	6	6	0	0	6	0	growable:dynamic;filled_fixed:dynamic;const:dynamic;unmodifiable:dynamic;generate:dynamic;json:dynamic	
+dynamic#get:runtimeType	SAFE	thin	refused	1	1	1	0	0	0		
+dynamic#get:sink	THROWS		refused	2	2	0	2	0	0		
+dynamic#get:stackTrace	CRASH		refused	1	1	0	0	1	0	state_error:dynamic	
+dynamic#get:stream	CRASH		refused	2	2	0	0	2	0	plain:dynamic;broadcast:dynamic	
+dynamic#get:tick	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:values	CRASH		refused	4	4	0	0	4	0	literal:dynamic;const:dynamic;unmodifiable:dynamic;json:dynamic	
+dynamic#get:weekday	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:width	THROWS		refused	1	1	0	1	0	0		
+dynamic#get:year	THROWS		refused	1	1	0	1	0	0		
+dynamic#indexOf	THROWS		refused	8	8	0	8	0	0		
+dynamic#insert	THROWS		refused	6	6	0	6	0	0		
+dynamic#isAfter	THROWS		refused	1	1	0	1	0	0		
+dynamic#isBefore	THROWS		refused	1	1	0	1	0	0		
+dynamic#join	THROWS		refused	3	3	0	3	0	0		
+dynamic#listen	THROWS		refused	3	3	0	3	0	0		
+dynamic#map	THROWS		refused	6	6	0	6	0	0		
+dynamic#message	CRASH		refused	2	2	0	1	1	0	format_exception:dynamic	
+dynamic#moveNext	PARTIAL		refused	3	3	0	0	0	3		
+dynamic#padLeft	THROWS		refused	2	2	0	2	0	0		
+dynamic#putIfAbsent	PARTIAL		refused	4	4	0	0	0	4		
+dynamic#reduce	THROWS		refused	3	3	0	3	0	0		
+dynamic#remainder	THROWS		refused	2	2	0	2	0	0		
+dynamic#remove	CRASH		refused	12	7	0	9	3	0	json:dynamic;unmodifiable:dynamic;json:dynamic	
+dynamic#removeAt	THROWS		refused	6	6	0	6	0	0		
+dynamic#removeLast	CRASH		refused	6	6	0	4	2	0	unmodifiable:dynamic;json:dynamic	
+dynamic#replaceAll	THROWS		refused	2	2	0	2	0	0		
+dynamic#round	THROWS		refused	4	3	0	4	0	0		
+dynamic#skip	THROWS		refused	3	3	0	3	0	0		
+dynamic#sort	CRASH		refused	6	6	0	5	1	0	json:dynamic	
+dynamic#split	THROWS		refused	2	2	0	2	0	0		
+dynamic#startsWith	THROWS		refused	2	2	0	2	0	0		
+dynamic#sublist	THROWS		refused	6	6	0	6	0	0		
+dynamic#substring	THROWS		refused	2	2	0	2	0	0		
+dynamic#subtract	THROWS		refused	1	1	0	1	0	0		
+dynamic#take	THROWS		refused	3	3	0	3	0	0		
+dynamic#tearoff:abs	THROWS		refused	6	3	0	6	0	0		THROWS
+dynamic#tearoff:add	THROWS		refused	11	10	10	1	0	0		CRASH
+dynamic#tearoff:addAll	PARTIAL		refused	10	7	0	0	0	10		CRASH(host)
+dynamic#tearoff:any	CRASH		refused	3	3	2	0	1	0	generate:tearoff-dynamic	THROWS
+dynamic#tearoff:cancel	CRASH		accepted	4	4	1	1	2	0	controller:tearoff-dynamic;broadcast:tearoff-dynamic	CRASH
+dynamic#tearoff:catchError	UNCALLED		refused	4	4	4	0	0	0		CRASH
+dynamic#tearoff:ceil	THROWS		refused	1	1	0	1	0	0		THROWS
+dynamic#tearoff:clamp	PARTIAL		refused	6	3	0	0	0	6		PARTIAL
+dynamic#tearoff:clear	THROWS		refused	6	6	3	3	0	0		CRASH
+dynamic#tearoff:close	UNCALLED		accepted	2	2	2	0	0	0		THROWS
+dynamic#tearoff:codeUnitAt	THROWS		refused	2	2	0	2	0	0		THROWS
+dynamic#tearoff:compareTo	THROWS		refused	8	5	0	8	0	0		THROWS
+dynamic#tearoff:contains	THROWS		refused	13	11	12	1	0	0		CRASH
+dynamic#tearoff:containsKey	UNCALLED		accepted	4	4	4	0	0	0		CRASH
+dynamic#tearoff:containsValue	THROWS		refused	4	4	0	4	0	0		THROWS
+dynamic#tearoff:difference	THROWS		refused	1	1	0	1	0	0		THROWS
+dynamic#tearoff:elementAt	THROWS		refused	3	3	0	3	0	0		THROWS
+dynamic#tearoff:endsWith	UNCALLED		refused	2	2	2	0	0	0		THROWS
+dynamic#tearoff:every	THROWS		refused	3	3	1	2	0	0		THROWS
+dynamic#tearoff:firstWhere	THROWS		refused	3	3	1	2	0	0		THROWS
+dynamic#tearoff:floor	THROWS		refused	4	3	0	4	0	0		THROWS
+dynamic#tearoff:fold	THROWS		refused	3	3	1	2	0	0		THROWS
+dynamic#tearoff:forEach	UNCALLED		accepted	4	4	4	0	0	0		CRASH
+dynamic#tearoff:indexOf	THROWS		refused	8	8	0	8	0	0		THROWS
+dynamic#tearoff:insert	THROWS		refused	6	6	0	6	0	0		THROWS
+dynamic#tearoff:isAfter	THROWS		refused	1	1	0	1	0	0		THROWS
+dynamic#tearoff:isBefore	THROWS		refused	1	1	0	1	0	0		THROWS
+dynamic#tearoff:join	THROWS		refused	3	3	2	1	0	0		THROWS
+dynamic#tearoff:listen	UNCALLED		accepted	3	3	3	0	0	0		THROWS
+dynamic#tearoff:map	THROWS		refused	6	6	2	4	0	0		THROWS
+dynamic#tearoff:padLeft	THROWS		refused	2	2	0	2	0	0		THROWS
+dynamic#tearoff:putIfAbsent	PARTIAL		refused	4	4	0	0	0	4		PARTIAL
+dynamic#tearoff:reduce	THROWS		refused	3	3	0	3	0	0		THROWS
+dynamic#tearoff:remainder	THROWS		refused	2	2	0	2	0	0		THROWS
+dynamic#tearoff:remove	UNCALLED		refused	12	7	12	0	0	0		CRASH
+dynamic#tearoff:removeAt	THROWS		refused	6	6	0	6	0	0		THROWS
+dynamic#tearoff:removeLast	UNCALLED		accepted	6	6	6	0	0	0		CRASH
+dynamic#tearoff:replaceAll	UNCALLED		accepted	2	2	2	0	0	0		THROWS
+dynamic#tearoff:round	THROWS		refused	4	3	0	4	0	0		THROWS
+dynamic#tearoff:skip	THROWS		refused	3	3	0	3	0	0		THROWS
+dynamic#tearoff:sort	UNCALLED		refused	6	6	6	0	0	0		CRASH
+dynamic#tearoff:split	UNCALLED		accepted	2	2	2	0	0	0		THROWS
+dynamic#tearoff:startsWith	UNCALLED		accepted	2	2	2	0	0	0		THROWS
+dynamic#tearoff:sublist	THROWS		refused	6	6	0	6	0	0		THROWS
+dynamic#tearoff:substring	THROWS		refused	2	2	0	2	0	0		THROWS
+dynamic#tearoff:subtract	THROWS		refused	1	1	0	1	0	0		THROWS
+dynamic#tearoff:take	THROWS		refused	3	3	0	3	0	0		THROWS
+dynamic#tearoff:then	UNCALLED		accepted	4	4	4	0	0	0		CRASH
+dynamic#tearoff:timeout	UNCALLED		accepted	4	4	4	0	0	0		CRASH
+dynamic#tearoff:toDouble	UNCALLED		accepted	5	3	5	0	0	0		CRASH
+dynamic#tearoff:toInt	THROWS		refused	4	3	0	4	0	0		THROWS
+dynamic#tearoff:toIso8601String	THROWS		refused	1	1	0	1	0	0		THROWS
+dynamic#tearoff:toList	THROWS		refused	6	6	3	3	0	0		THROWS
+dynamic#tearoff:toLowerCase	UNCALLED		accepted	2	2	2	0	0	0		THROWS
+dynamic#tearoff:toSet	CRASH		refused	3	3	2	0	1	0	generate:tearoff-dynamic	THROWS
+dynamic#tearoff:toString	SAFE		accepted	9	9	9	0	0	0		SAFE
+dynamic#tearoff:toStringAsFixed	THROWS		refused	6	3	0	6	0	0		THROWS
+dynamic#tearoff:toUpperCase	UNCALLED		accepted	2	2	2	0	0	0		THROWS
+dynamic#tearoff:toUtc	THROWS		refused	1	1	0	1	0	0		THROWS
+dynamic#tearoff:trim	UNCALLED		accepted	2	2	2	0	0	0		THROWS
+dynamic#tearoff:truncate	THROWS		refused	1	1	0	1	0	0		THROWS
+dynamic#tearoff:whenComplete	UNCALLED		accepted	4	4	4	0	0	0		CRASH
+dynamic#tearoff:where	THROWS		refused	6	6	3	3	0	0		THROWS
+dynamic#then	CRASH		refused	4	4	0	2	2	0	value:dynamic;delayed:dynamic	
+dynamic#timeout	CRASH		refused	4	4	0	2	2	0	value:dynamic;delayed:dynamic	
+dynamic#toDouble	CRASH		refused	5	3	0	3	2	0	mint:dynamic;mint:dynamic	
+dynamic#toInt	THROWS		refused	4	3	0	4	0	0		
+dynamic#toIso8601String	THROWS		refused	1	1	0	1	0	0		
+dynamic#toList	THROWS		refused	6	6	0	6	0	0		
+dynamic#toLowerCase	THROWS		refused	2	2	0	2	0	0		
+dynamic#toSet	THROWS		refused	3	3	0	3	0	0		
+dynamic#toString	SAFE		refused	9	9	9	0	0	0		
+dynamic#toStringAsFixed	THROWS		refused	6	3	0	6	0	0		
+dynamic#toUpperCase	THROWS		refused	2	2	0	2	0	0		
+dynamic#toUtc	THROWS		refused	1	1	0	1	0	0		
+dynamic#trim	THROWS		refused	2	2	0	2	0	0		
+dynamic#truncate	THROWS		refused	1	1	0	1	0	0		
+dynamic#unary-	THROWS		refused	6	3	0	6	0	0		
+dynamic#whenComplete	CRASH		refused	4	4	0	2	2	0	value:dynamic;delayed:dynamic	
+dynamic#where	THROWS		refused	6	6	0	6	0	0		
+dynamic#~/	CRASH		refused	3	3	0	2	1	0	mint:dynamic	

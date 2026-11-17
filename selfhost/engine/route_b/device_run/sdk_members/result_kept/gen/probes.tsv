@@ -1,0 +1,1514 @@
+future_then__async_fn__s	Future<int>	async_fn	static	then
+future_then__async_fn__ts	Future<int>	async_fn	tearoff-static	tearoff:then
+future_then__async_fn__d	Future<int>	async_fn	dynamic	then
+future_then__async_fn__td	Future<int>	async_fn	tearoff-dynamic	tearoff:then
+future_then__value__s	Future<int>	value	static	then
+future_then__value__ts	Future<int>	value	tearoff-static	tearoff:then
+future_then__value__d	Future<int>	value	dynamic	then
+future_then__value__td	Future<int>	value	tearoff-dynamic	tearoff:then
+future_then__completer__s	Future<int>	completer	static	then
+future_then__completer__ts	Future<int>	completer	tearoff-static	tearoff:then
+future_then__completer__d	Future<int>	completer	dynamic	then
+future_then__completer__td	Future<int>	completer	tearoff-dynamic	tearoff:then
+future_then__delayed__s	Future<int>	delayed	static	then
+future_then__delayed__ts	Future<int>	delayed	tearoff-static	tearoff:then
+future_then__delayed__d	Future<int>	delayed	dynamic	then
+future_then__delayed__td	Future<int>	delayed	tearoff-dynamic	tearoff:then
+future_catchError__async_fn__s	Future<int>	async_fn	static	catchError
+future_catchError__async_fn__ts	Future<int>	async_fn	tearoff-static	tearoff:catchError
+future_catchError__async_fn__d	Future<int>	async_fn	dynamic	catchError
+future_catchError__async_fn__td	Future<int>	async_fn	tearoff-dynamic	tearoff:catchError
+future_catchError__value__s	Future<int>	value	static	catchError
+future_catchError__value__ts	Future<int>	value	tearoff-static	tearoff:catchError
+future_catchError__value__d	Future<int>	value	dynamic	catchError
+future_catchError__value__td	Future<int>	value	tearoff-dynamic	tearoff:catchError
+future_catchError__completer__s	Future<int>	completer	static	catchError
+future_catchError__completer__ts	Future<int>	completer	tearoff-static	tearoff:catchError
+future_catchError__completer__d	Future<int>	completer	dynamic	catchError
+future_catchError__completer__td	Future<int>	completer	tearoff-dynamic	tearoff:catchError
+future_catchError__delayed__s	Future<int>	delayed	static	catchError
+future_catchError__delayed__ts	Future<int>	delayed	tearoff-static	tearoff:catchError
+future_catchError__delayed__d	Future<int>	delayed	dynamic	catchError
+future_catchError__delayed__td	Future<int>	delayed	tearoff-dynamic	tearoff:catchError
+future_whenComplete__async_fn__s	Future<int>	async_fn	static	whenComplete
+future_whenComplete__async_fn__ts	Future<int>	async_fn	tearoff-static	tearoff:whenComplete
+future_whenComplete__async_fn__d	Future<int>	async_fn	dynamic	whenComplete
+future_whenComplete__async_fn__td	Future<int>	async_fn	tearoff-dynamic	tearoff:whenComplete
+future_whenComplete__value__s	Future<int>	value	static	whenComplete
+future_whenComplete__value__ts	Future<int>	value	tearoff-static	tearoff:whenComplete
+future_whenComplete__value__d	Future<int>	value	dynamic	whenComplete
+future_whenComplete__value__td	Future<int>	value	tearoff-dynamic	tearoff:whenComplete
+future_whenComplete__completer__s	Future<int>	completer	static	whenComplete
+future_whenComplete__completer__ts	Future<int>	completer	tearoff-static	tearoff:whenComplete
+future_whenComplete__completer__d	Future<int>	completer	dynamic	whenComplete
+future_whenComplete__completer__td	Future<int>	completer	tearoff-dynamic	tearoff:whenComplete
+future_whenComplete__delayed__s	Future<int>	delayed	static	whenComplete
+future_whenComplete__delayed__ts	Future<int>	delayed	tearoff-static	tearoff:whenComplete
+future_whenComplete__delayed__d	Future<int>	delayed	dynamic	whenComplete
+future_whenComplete__delayed__td	Future<int>	delayed	tearoff-dynamic	tearoff:whenComplete
+future_timeout__async_fn__s	Future<int>	async_fn	static	timeout
+future_timeout__async_fn__ts	Future<int>	async_fn	tearoff-static	tearoff:timeout
+future_timeout__async_fn__d	Future<int>	async_fn	dynamic	timeout
+future_timeout__async_fn__td	Future<int>	async_fn	tearoff-dynamic	tearoff:timeout
+future_timeout__value__s	Future<int>	value	static	timeout
+future_timeout__value__ts	Future<int>	value	tearoff-static	tearoff:timeout
+future_timeout__value__d	Future<int>	value	dynamic	timeout
+future_timeout__value__td	Future<int>	value	tearoff-dynamic	tearoff:timeout
+future_timeout__completer__s	Future<int>	completer	static	timeout
+future_timeout__completer__ts	Future<int>	completer	tearoff-static	tearoff:timeout
+future_timeout__completer__d	Future<int>	completer	dynamic	timeout
+future_timeout__completer__td	Future<int>	completer	tearoff-dynamic	tearoff:timeout
+future_timeout__delayed__s	Future<int>	delayed	static	timeout
+future_timeout__delayed__ts	Future<int>	delayed	tearoff-static	tearoff:timeout
+future_timeout__delayed__d	Future<int>	delayed	dynamic	timeout
+future_timeout__delayed__td	Future<int>	delayed	tearoff-dynamic	tearoff:timeout
+stream_listen__from_iterable__s	Stream<int>	from_iterable	static	listen
+stream_listen__from_iterable__ts	Stream<int>	from_iterable	tearoff-static	tearoff:listen
+stream_listen__from_iterable__d	Stream<int>	from_iterable	dynamic	listen
+stream_listen__from_iterable__td	Stream<int>	from_iterable	tearoff-dynamic	tearoff:listen
+stream_listen__value__s	Stream<int>	value	static	listen
+stream_listen__value__ts	Stream<int>	value	tearoff-static	tearoff:listen
+stream_listen__value__d	Stream<int>	value	dynamic	listen
+stream_listen__value__td	Stream<int>	value	tearoff-dynamic	tearoff:listen
+stream_listen__as_broadcast__s	Stream<int>	as_broadcast	static	listen
+stream_listen__as_broadcast__ts	Stream<int>	as_broadcast	tearoff-static	tearoff:listen
+stream_listen__as_broadcast__d	Stream<int>	as_broadcast	dynamic	listen
+stream_listen__as_broadcast__td	Stream<int>	as_broadcast	tearoff-dynamic	tearoff:listen
+stream_where__from_iterable__s	Stream<int>	from_iterable	static	where
+stream_where__from_iterable__ts	Stream<int>	from_iterable	tearoff-static	tearoff:where
+stream_where__from_iterable__d	Stream<int>	from_iterable	dynamic	where
+stream_where__from_iterable__td	Stream<int>	from_iterable	tearoff-dynamic	tearoff:where
+stream_where__value__s	Stream<int>	value	static	where
+stream_where__value__ts	Stream<int>	value	tearoff-static	tearoff:where
+stream_where__value__d	Stream<int>	value	dynamic	where
+stream_where__value__td	Stream<int>	value	tearoff-dynamic	tearoff:where
+stream_where__as_broadcast__s	Stream<int>	as_broadcast	static	where
+stream_where__as_broadcast__ts	Stream<int>	as_broadcast	tearoff-static	tearoff:where
+stream_where__as_broadcast__d	Stream<int>	as_broadcast	dynamic	where
+stream_where__as_broadcast__td	Stream<int>	as_broadcast	tearoff-dynamic	tearoff:where
+stream_map__from_iterable__s	Stream<int>	from_iterable	static	map
+stream_map__from_iterable__ts	Stream<int>	from_iterable	tearoff-static	tearoff:map
+stream_map__from_iterable__d	Stream<int>	from_iterable	dynamic	map
+stream_map__from_iterable__td	Stream<int>	from_iterable	tearoff-dynamic	tearoff:map
+stream_map__value__s	Stream<int>	value	static	map
+stream_map__value__ts	Stream<int>	value	tearoff-static	tearoff:map
+stream_map__value__d	Stream<int>	value	dynamic	map
+stream_map__value__td	Stream<int>	value	tearoff-dynamic	tearoff:map
+stream_map__as_broadcast__s	Stream<int>	as_broadcast	static	map
+stream_map__as_broadcast__ts	Stream<int>	as_broadcast	tearoff-static	tearoff:map
+stream_map__as_broadcast__d	Stream<int>	as_broadcast	dynamic	map
+stream_map__as_broadcast__td	Stream<int>	as_broadcast	tearoff-dynamic	tearoff:map
+stream_toList__from_iterable__s	Stream<int>	from_iterable	static	toList
+stream_toList__from_iterable__ts	Stream<int>	from_iterable	tearoff-static	tearoff:toList
+stream_toList__from_iterable__d	Stream<int>	from_iterable	dynamic	toList
+stream_toList__from_iterable__td	Stream<int>	from_iterable	tearoff-dynamic	tearoff:toList
+stream_toList__value__s	Stream<int>	value	static	toList
+stream_toList__value__ts	Stream<int>	value	tearoff-static	tearoff:toList
+stream_toList__value__d	Stream<int>	value	dynamic	toList
+stream_toList__value__td	Stream<int>	value	tearoff-dynamic	tearoff:toList
+stream_toList__as_broadcast__s	Stream<int>	as_broadcast	static	toList
+stream_toList__as_broadcast__ts	Stream<int>	as_broadcast	tearoff-static	tearoff:toList
+stream_toList__as_broadcast__d	Stream<int>	as_broadcast	dynamic	toList
+stream_toList__as_broadcast__td	Stream<int>	as_broadcast	tearoff-dynamic	tearoff:toList
+stream_first__from_iterable__s	Stream<int>	from_iterable	static	get:first
+stream_first__from_iterable__d	Stream<int>	from_iterable	dynamic	get:first
+stream_first__value__s	Stream<int>	value	static	get:first
+stream_first__value__d	Stream<int>	value	dynamic	get:first
+stream_first__as_broadcast__s	Stream<int>	as_broadcast	static	get:first
+stream_first__as_broadcast__d	Stream<int>	as_broadcast	dynamic	get:first
+stream_isBroadcast__from_iterable__s	Stream<int>	from_iterable	static	get:isBroadcast
+stream_isBroadcast__from_iterable__d	Stream<int>	from_iterable	dynamic	get:isBroadcast
+stream_isBroadcast__value__s	Stream<int>	value	static	get:isBroadcast
+stream_isBroadcast__value__d	Stream<int>	value	dynamic	get:isBroadcast
+stream_isBroadcast__as_broadcast__s	Stream<int>	as_broadcast	static	get:isBroadcast
+stream_isBroadcast__as_broadcast__d	Stream<int>	as_broadcast	dynamic	get:isBroadcast
+ctl_add__plain__s	StreamController<int>	plain	static	add
+ctl_add__plain__ts	StreamController<int>	plain	tearoff-static	tearoff:add
+ctl_add__plain__d	StreamController<int>	plain	dynamic	add
+ctl_add__plain__td	StreamController<int>	plain	tearoff-dynamic	tearoff:add
+ctl_add__broadcast__s	StreamController<int>	broadcast	static	add
+ctl_add__broadcast__ts	StreamController<int>	broadcast	tearoff-static	tearoff:add
+ctl_add__broadcast__d	StreamController<int>	broadcast	dynamic	add
+ctl_add__broadcast__td	StreamController<int>	broadcast	tearoff-dynamic	tearoff:add
+ctl_stream__plain__s	StreamController<int>	plain	static	get:stream
+ctl_stream__plain__d	StreamController<int>	plain	dynamic	get:stream
+ctl_stream__broadcast__s	StreamController<int>	broadcast	static	get:stream
+ctl_stream__broadcast__d	StreamController<int>	broadcast	dynamic	get:stream
+ctl_sink__plain__s	StreamController<int>	plain	static	get:sink
+ctl_sink__plain__d	StreamController<int>	plain	dynamic	get:sink
+ctl_sink__broadcast__s	StreamController<int>	broadcast	static	get:sink
+ctl_sink__broadcast__d	StreamController<int>	broadcast	dynamic	get:sink
+ctl_isClosed__plain__s	StreamController<int>	plain	static	get:isClosed
+ctl_isClosed__plain__d	StreamController<int>	plain	dynamic	get:isClosed
+ctl_isClosed__broadcast__s	StreamController<int>	broadcast	static	get:isClosed
+ctl_isClosed__broadcast__d	StreamController<int>	broadcast	dynamic	get:isClosed
+ctl_close__plain__s	StreamController<int>	plain	static	close
+ctl_close__plain__ts	StreamController<int>	plain	tearoff-static	tearoff:close
+ctl_close__plain__d	StreamController<int>	plain	dynamic	close
+ctl_close__plain__td	StreamController<int>	plain	tearoff-dynamic	tearoff:close
+ctl_close__broadcast__s	StreamController<int>	broadcast	static	close
+ctl_close__broadcast__ts	StreamController<int>	broadcast	tearoff-static	tearoff:close
+ctl_close__broadcast__d	StreamController<int>	broadcast	dynamic	close
+ctl_close__broadcast__td	StreamController<int>	broadcast	tearoff-dynamic	tearoff:close
+timer_cancel__periodic_or_oneshot__s	Timer	periodic_or_oneshot	static	cancel
+timer_cancel__periodic_or_oneshot__ts	Timer	periodic_or_oneshot	tearoff-static	tearoff:cancel
+timer_cancel__periodic_or_oneshot__d	Timer	periodic_or_oneshot	dynamic	cancel
+timer_cancel__periodic_or_oneshot__td	Timer	periodic_or_oneshot	tearoff-dynamic	tearoff:cancel
+timer_isActive__periodic_or_oneshot__s	Timer	periodic_or_oneshot	static	get:isActive
+timer_isActive__periodic_or_oneshot__d	Timer	periodic_or_oneshot	dynamic	get:isActive
+timer_tick__periodic_or_oneshot__s	Timer	periodic_or_oneshot	static	get:tick
+timer_tick__periodic_or_oneshot__d	Timer	periodic_or_oneshot	dynamic	get:tick
+map_keys__literal__s	Map<String, Object?>	literal	static	get:keys
+map_keys__literal__d	Map<String, Object?>	literal	dynamic	get:keys
+map_keys__const__s	Map<String, Object?>	const	static	get:keys
+map_keys__const__d	Map<String, Object?>	const	dynamic	get:keys
+map_keys__unmodifiable__s	Map<String, Object?>	unmodifiable	static	get:keys
+map_keys__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	get:keys
+map_keys__json__s	Map<String, Object?>	json	static	get:keys
+map_keys__json__d	Map<String, Object?>	json	dynamic	get:keys
+map_values__literal__s	Map<String, Object?>	literal	static	get:values
+map_values__literal__d	Map<String, Object?>	literal	dynamic	get:values
+map_values__const__s	Map<String, Object?>	const	static	get:values
+map_values__const__d	Map<String, Object?>	const	dynamic	get:values
+map_values__unmodifiable__s	Map<String, Object?>	unmodifiable	static	get:values
+map_values__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	get:values
+map_values__json__s	Map<String, Object?>	json	static	get:values
+map_values__json__d	Map<String, Object?>	json	dynamic	get:values
+map_get__literal__s	Map<String, Object?>	literal	static	[]
+map_get__literal__d	Map<String, Object?>	literal	dynamic	[]
+map_get__const__s	Map<String, Object?>	const	static	[]
+map_get__const__d	Map<String, Object?>	const	dynamic	[]
+map_get__unmodifiable__s	Map<String, Object?>	unmodifiable	static	[]
+map_get__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	[]
+map_get__json__s	Map<String, Object?>	json	static	[]
+map_get__json__d	Map<String, Object?>	json	dynamic	[]
+map_set__literal__s	Map<String, Object?>	literal	static	[]=
+map_set__literal__d	Map<String, Object?>	literal	dynamic	[]=
+map_set__const__s	Map<String, Object?>	const	static	[]=
+map_set__const__d	Map<String, Object?>	const	dynamic	[]=
+map_set__unmodifiable__s	Map<String, Object?>	unmodifiable	static	[]=
+map_set__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	[]=
+map_set__json__s	Map<String, Object?>	json	static	[]=
+map_set__json__d	Map<String, Object?>	json	dynamic	[]=
+map_containsKey__literal__s	Map<String, Object?>	literal	static	containsKey
+map_containsKey__literal__ts	Map<String, Object?>	literal	tearoff-static	tearoff:containsKey
+map_containsKey__literal__d	Map<String, Object?>	literal	dynamic	containsKey
+map_containsKey__literal__td	Map<String, Object?>	literal	tearoff-dynamic	tearoff:containsKey
+map_containsKey__const__s	Map<String, Object?>	const	static	containsKey
+map_containsKey__const__ts	Map<String, Object?>	const	tearoff-static	tearoff:containsKey
+map_containsKey__const__d	Map<String, Object?>	const	dynamic	containsKey
+map_containsKey__const__td	Map<String, Object?>	const	tearoff-dynamic	tearoff:containsKey
+map_containsKey__unmodifiable__s	Map<String, Object?>	unmodifiable	static	containsKey
+map_containsKey__unmodifiable__ts	Map<String, Object?>	unmodifiable	tearoff-static	tearoff:containsKey
+map_containsKey__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	containsKey
+map_containsKey__unmodifiable__td	Map<String, Object?>	unmodifiable	tearoff-dynamic	tearoff:containsKey
+map_containsKey__json__s	Map<String, Object?>	json	static	containsKey
+map_containsKey__json__ts	Map<String, Object?>	json	tearoff-static	tearoff:containsKey
+map_containsKey__json__d	Map<String, Object?>	json	dynamic	containsKey
+map_containsKey__json__td	Map<String, Object?>	json	tearoff-dynamic	tearoff:containsKey
+map_containsValue__literal__s	Map<String, Object?>	literal	static	containsValue
+map_containsValue__literal__ts	Map<String, Object?>	literal	tearoff-static	tearoff:containsValue
+map_containsValue__literal__d	Map<String, Object?>	literal	dynamic	containsValue
+map_containsValue__literal__td	Map<String, Object?>	literal	tearoff-dynamic	tearoff:containsValue
+map_containsValue__const__s	Map<String, Object?>	const	static	containsValue
+map_containsValue__const__ts	Map<String, Object?>	const	tearoff-static	tearoff:containsValue
+map_containsValue__const__d	Map<String, Object?>	const	dynamic	containsValue
+map_containsValue__const__td	Map<String, Object?>	const	tearoff-dynamic	tearoff:containsValue
+map_containsValue__unmodifiable__s	Map<String, Object?>	unmodifiable	static	containsValue
+map_containsValue__unmodifiable__ts	Map<String, Object?>	unmodifiable	tearoff-static	tearoff:containsValue
+map_containsValue__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	containsValue
+map_containsValue__unmodifiable__td	Map<String, Object?>	unmodifiable	tearoff-dynamic	tearoff:containsValue
+map_containsValue__json__s	Map<String, Object?>	json	static	containsValue
+map_containsValue__json__ts	Map<String, Object?>	json	tearoff-static	tearoff:containsValue
+map_containsValue__json__d	Map<String, Object?>	json	dynamic	containsValue
+map_containsValue__json__td	Map<String, Object?>	json	tearoff-dynamic	tearoff:containsValue
+map_remove__literal__s	Map<String, Object?>	literal	static	remove
+map_remove__literal__ts	Map<String, Object?>	literal	tearoff-static	tearoff:remove
+map_remove__literal__d	Map<String, Object?>	literal	dynamic	remove
+map_remove__literal__td	Map<String, Object?>	literal	tearoff-dynamic	tearoff:remove
+map_remove__const__s	Map<String, Object?>	const	static	remove
+map_remove__const__ts	Map<String, Object?>	const	tearoff-static	tearoff:remove
+map_remove__const__d	Map<String, Object?>	const	dynamic	remove
+map_remove__const__td	Map<String, Object?>	const	tearoff-dynamic	tearoff:remove
+map_remove__unmodifiable__s	Map<String, Object?>	unmodifiable	static	remove
+map_remove__unmodifiable__ts	Map<String, Object?>	unmodifiable	tearoff-static	tearoff:remove
+map_remove__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	remove
+map_remove__unmodifiable__td	Map<String, Object?>	unmodifiable	tearoff-dynamic	tearoff:remove
+map_remove__json__s	Map<String, Object?>	json	static	remove
+map_remove__json__ts	Map<String, Object?>	json	tearoff-static	tearoff:remove
+map_remove__json__d	Map<String, Object?>	json	dynamic	remove
+map_remove__json__td	Map<String, Object?>	json	tearoff-dynamic	tearoff:remove
+map_entries__literal__s	Map<String, Object?>	literal	static	get:entries
+map_entries__literal__d	Map<String, Object?>	literal	dynamic	get:entries
+map_entries__const__s	Map<String, Object?>	const	static	get:entries
+map_entries__const__d	Map<String, Object?>	const	dynamic	get:entries
+map_entries__unmodifiable__s	Map<String, Object?>	unmodifiable	static	get:entries
+map_entries__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	get:entries
+map_entries__json__s	Map<String, Object?>	json	static	get:entries
+map_entries__json__d	Map<String, Object?>	json	dynamic	get:entries
+map_length__literal__s	Map<String, Object?>	literal	static	get:length
+map_length__literal__d	Map<String, Object?>	literal	dynamic	get:length
+map_length__const__s	Map<String, Object?>	const	static	get:length
+map_length__const__d	Map<String, Object?>	const	dynamic	get:length
+map_length__unmodifiable__s	Map<String, Object?>	unmodifiable	static	get:length
+map_length__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	get:length
+map_length__json__s	Map<String, Object?>	json	static	get:length
+map_length__json__d	Map<String, Object?>	json	dynamic	get:length
+map_isEmpty__literal__s	Map<String, Object?>	literal	static	get:isEmpty
+map_isEmpty__literal__d	Map<String, Object?>	literal	dynamic	get:isEmpty
+map_isEmpty__const__s	Map<String, Object?>	const	static	get:isEmpty
+map_isEmpty__const__d	Map<String, Object?>	const	dynamic	get:isEmpty
+map_isEmpty__unmodifiable__s	Map<String, Object?>	unmodifiable	static	get:isEmpty
+map_isEmpty__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	get:isEmpty
+map_isEmpty__json__s	Map<String, Object?>	json	static	get:isEmpty
+map_isEmpty__json__d	Map<String, Object?>	json	dynamic	get:isEmpty
+map_isNotEmpty__literal__s	Map<String, Object?>	literal	static	get:isNotEmpty
+map_isNotEmpty__literal__d	Map<String, Object?>	literal	dynamic	get:isNotEmpty
+map_isNotEmpty__const__s	Map<String, Object?>	const	static	get:isNotEmpty
+map_isNotEmpty__const__d	Map<String, Object?>	const	dynamic	get:isNotEmpty
+map_isNotEmpty__unmodifiable__s	Map<String, Object?>	unmodifiable	static	get:isNotEmpty
+map_isNotEmpty__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	get:isNotEmpty
+map_isNotEmpty__json__s	Map<String, Object?>	json	static	get:isNotEmpty
+map_isNotEmpty__json__d	Map<String, Object?>	json	dynamic	get:isNotEmpty
+map_forEach__literal__s	Map<String, Object?>	literal	static	forEach
+map_forEach__literal__ts	Map<String, Object?>	literal	tearoff-static	tearoff:forEach
+map_forEach__literal__d	Map<String, Object?>	literal	dynamic	forEach
+map_forEach__literal__td	Map<String, Object?>	literal	tearoff-dynamic	tearoff:forEach
+map_forEach__const__s	Map<String, Object?>	const	static	forEach
+map_forEach__const__ts	Map<String, Object?>	const	tearoff-static	tearoff:forEach
+map_forEach__const__d	Map<String, Object?>	const	dynamic	forEach
+map_forEach__const__td	Map<String, Object?>	const	tearoff-dynamic	tearoff:forEach
+map_forEach__unmodifiable__s	Map<String, Object?>	unmodifiable	static	forEach
+map_forEach__unmodifiable__ts	Map<String, Object?>	unmodifiable	tearoff-static	tearoff:forEach
+map_forEach__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	forEach
+map_forEach__unmodifiable__td	Map<String, Object?>	unmodifiable	tearoff-dynamic	tearoff:forEach
+map_forEach__json__s	Map<String, Object?>	json	static	forEach
+map_forEach__json__ts	Map<String, Object?>	json	tearoff-static	tearoff:forEach
+map_forEach__json__d	Map<String, Object?>	json	dynamic	forEach
+map_forEach__json__td	Map<String, Object?>	json	tearoff-dynamic	tearoff:forEach
+map_addAll__literal__s	Map<String, Object?>	literal	static	addAll
+map_addAll__literal__ts	Map<String, Object?>	literal	tearoff-static	tearoff:addAll
+map_addAll__literal__d	Map<String, Object?>	literal	dynamic	addAll
+map_addAll__literal__td	Map<String, Object?>	literal	tearoff-dynamic	tearoff:addAll
+map_addAll__const__s	Map<String, Object?>	const	static	addAll
+map_addAll__const__ts	Map<String, Object?>	const	tearoff-static	tearoff:addAll
+map_addAll__const__d	Map<String, Object?>	const	dynamic	addAll
+map_addAll__const__td	Map<String, Object?>	const	tearoff-dynamic	tearoff:addAll
+map_addAll__unmodifiable__s	Map<String, Object?>	unmodifiable	static	addAll
+map_addAll__unmodifiable__ts	Map<String, Object?>	unmodifiable	tearoff-static	tearoff:addAll
+map_addAll__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	addAll
+map_addAll__unmodifiable__td	Map<String, Object?>	unmodifiable	tearoff-dynamic	tearoff:addAll
+map_addAll__json__s	Map<String, Object?>	json	static	addAll
+map_addAll__json__ts	Map<String, Object?>	json	tearoff-static	tearoff:addAll
+map_addAll__json__d	Map<String, Object?>	json	dynamic	addAll
+map_addAll__json__td	Map<String, Object?>	json	tearoff-dynamic	tearoff:addAll
+map_putIfAbsent__literal__s	Map<String, Object?>	literal	static	putIfAbsent
+map_putIfAbsent__literal__ts	Map<String, Object?>	literal	tearoff-static	tearoff:putIfAbsent
+map_putIfAbsent__literal__d	Map<String, Object?>	literal	dynamic	putIfAbsent
+map_putIfAbsent__literal__td	Map<String, Object?>	literal	tearoff-dynamic	tearoff:putIfAbsent
+map_putIfAbsent__const__s	Map<String, Object?>	const	static	putIfAbsent
+map_putIfAbsent__const__ts	Map<String, Object?>	const	tearoff-static	tearoff:putIfAbsent
+map_putIfAbsent__const__d	Map<String, Object?>	const	dynamic	putIfAbsent
+map_putIfAbsent__const__td	Map<String, Object?>	const	tearoff-dynamic	tearoff:putIfAbsent
+map_putIfAbsent__unmodifiable__s	Map<String, Object?>	unmodifiable	static	putIfAbsent
+map_putIfAbsent__unmodifiable__ts	Map<String, Object?>	unmodifiable	tearoff-static	tearoff:putIfAbsent
+map_putIfAbsent__unmodifiable__d	Map<String, Object?>	unmodifiable	dynamic	putIfAbsent
+map_putIfAbsent__unmodifiable__td	Map<String, Object?>	unmodifiable	tearoff-dynamic	tearoff:putIfAbsent
+map_putIfAbsent__json__s	Map<String, Object?>	json	static	putIfAbsent
+map_putIfAbsent__json__ts	Map<String, Object?>	json	tearoff-static	tearoff:putIfAbsent
+map_putIfAbsent__json__d	Map<String, Object?>	json	dynamic	putIfAbsent
+map_putIfAbsent__json__td	Map<String, Object?>	json	tearoff-dynamic	tearoff:putIfAbsent
+list_contains__growable__s	List<Object?>	growable	static	contains
+list_contains__growable__ts	List<Object?>	growable	tearoff-static	tearoff:contains
+list_contains__growable__d	List<Object?>	growable	dynamic	contains
+list_contains__growable__td	List<Object?>	growable	tearoff-dynamic	tearoff:contains
+list_contains__filled_fixed__s	List<Object?>	filled_fixed	static	contains
+list_contains__filled_fixed__ts	List<Object?>	filled_fixed	tearoff-static	tearoff:contains
+list_contains__filled_fixed__d	List<Object?>	filled_fixed	dynamic	contains
+list_contains__filled_fixed__td	List<Object?>	filled_fixed	tearoff-dynamic	tearoff:contains
+list_contains__const__s	List<Object?>	const	static	contains
+list_contains__const__ts	List<Object?>	const	tearoff-static	tearoff:contains
+list_contains__const__d	List<Object?>	const	dynamic	contains
+list_contains__const__td	List<Object?>	const	tearoff-dynamic	tearoff:contains
+list_contains__unmodifiable__s	List<Object?>	unmodifiable	static	contains
+list_contains__unmodifiable__ts	List<Object?>	unmodifiable	tearoff-static	tearoff:contains
+list_contains__unmodifiable__d	List<Object?>	unmodifiable	dynamic	contains
+list_contains__unmodifiable__td	List<Object?>	unmodifiable	tearoff-dynamic	tearoff:contains
+list_contains__generate__s	List<Object?>	generate	static	contains
+list_contains__generate__ts	List<Object?>	generate	tearoff-static	tearoff:contains
+list_contains__generate__d	List<Object?>	generate	dynamic	contains
+list_contains__generate__td	List<Object?>	generate	tearoff-dynamic	tearoff:contains
+list_contains__json__s	List<Object?>	json	static	contains
+list_contains__json__ts	List<Object?>	json	tearoff-static	tearoff:contains
+list_contains__json__d	List<Object?>	json	dynamic	contains
+list_contains__json__td	List<Object?>	json	tearoff-dynamic	tearoff:contains
+list_remove__growable__s	List<Object?>	growable	static	remove
+list_remove__growable__ts	List<Object?>	growable	tearoff-static	tearoff:remove
+list_remove__growable__d	List<Object?>	growable	dynamic	remove
+list_remove__growable__td	List<Object?>	growable	tearoff-dynamic	tearoff:remove
+list_remove__filled_fixed__s	List<Object?>	filled_fixed	static	remove
+list_remove__filled_fixed__ts	List<Object?>	filled_fixed	tearoff-static	tearoff:remove
+list_remove__filled_fixed__d	List<Object?>	filled_fixed	dynamic	remove
+list_remove__filled_fixed__td	List<Object?>	filled_fixed	tearoff-dynamic	tearoff:remove
+list_remove__const__s	List<Object?>	const	static	remove
+list_remove__const__ts	List<Object?>	const	tearoff-static	tearoff:remove
+list_remove__const__d	List<Object?>	const	dynamic	remove
+list_remove__const__td	List<Object?>	const	tearoff-dynamic	tearoff:remove
+list_remove__unmodifiable__s	List<Object?>	unmodifiable	static	remove
+list_remove__unmodifiable__ts	List<Object?>	unmodifiable	tearoff-static	tearoff:remove
+list_remove__unmodifiable__d	List<Object?>	unmodifiable	dynamic	remove
+list_remove__unmodifiable__td	List<Object?>	unmodifiable	tearoff-dynamic	tearoff:remove
+list_remove__generate__s	List<Object?>	generate	static	remove
+list_remove__generate__ts	List<Object?>	generate	tearoff-static	tearoff:remove
+list_remove__generate__d	List<Object?>	generate	dynamic	remove
+list_remove__generate__td	List<Object?>	generate	tearoff-dynamic	tearoff:remove
+list_remove__json__s	List<Object?>	json	static	remove
+list_remove__json__ts	List<Object?>	json	tearoff-static	tearoff:remove
+list_remove__json__d	List<Object?>	json	dynamic	remove
+list_remove__json__td	List<Object?>	json	tearoff-dynamic	tearoff:remove
+list_insert__growable__s	List<Object?>	growable	static	insert
+list_insert__growable__ts	List<Object?>	growable	tearoff-static	tearoff:insert
+list_insert__growable__d	List<Object?>	growable	dynamic	insert
+list_insert__growable__td	List<Object?>	growable	tearoff-dynamic	tearoff:insert
+list_insert__filled_fixed__s	List<Object?>	filled_fixed	static	insert
+list_insert__filled_fixed__ts	List<Object?>	filled_fixed	tearoff-static	tearoff:insert
+list_insert__filled_fixed__d	List<Object?>	filled_fixed	dynamic	insert
+list_insert__filled_fixed__td	List<Object?>	filled_fixed	tearoff-dynamic	tearoff:insert
+list_insert__const__s	List<Object?>	const	static	insert
+list_insert__const__ts	List<Object?>	const	tearoff-static	tearoff:insert
+list_insert__const__d	List<Object?>	const	dynamic	insert
+list_insert__const__td	List<Object?>	const	tearoff-dynamic	tearoff:insert
+list_insert__unmodifiable__s	List<Object?>	unmodifiable	static	insert
+list_insert__unmodifiable__ts	List<Object?>	unmodifiable	tearoff-static	tearoff:insert
+list_insert__unmodifiable__d	List<Object?>	unmodifiable	dynamic	insert
+list_insert__unmodifiable__td	List<Object?>	unmodifiable	tearoff-dynamic	tearoff:insert
+list_insert__generate__s	List<Object?>	generate	static	insert
+list_insert__generate__ts	List<Object?>	generate	tearoff-static	tearoff:insert
+list_insert__generate__d	List<Object?>	generate	dynamic	insert
+list_insert__generate__td	List<Object?>	generate	tearoff-dynamic	tearoff:insert
+list_insert__json__s	List<Object?>	json	static	insert
+list_insert__json__ts	List<Object?>	json	tearoff-static	tearoff:insert
+list_insert__json__d	List<Object?>	json	dynamic	insert
+list_insert__json__td	List<Object?>	json	tearoff-dynamic	tearoff:insert
+list_length__growable__s	List<Object?>	growable	static	get:length
+list_length__growable__d	List<Object?>	growable	dynamic	get:length
+list_length__filled_fixed__s	List<Object?>	filled_fixed	static	get:length
+list_length__filled_fixed__d	List<Object?>	filled_fixed	dynamic	get:length
+list_length__const__s	List<Object?>	const	static	get:length
+list_length__const__d	List<Object?>	const	dynamic	get:length
+list_length__unmodifiable__s	List<Object?>	unmodifiable	static	get:length
+list_length__unmodifiable__d	List<Object?>	unmodifiable	dynamic	get:length
+list_length__generate__s	List<Object?>	generate	static	get:length
+list_length__generate__d	List<Object?>	generate	dynamic	get:length
+list_length__json__s	List<Object?>	json	static	get:length
+list_length__json__d	List<Object?>	json	dynamic	get:length
+list_get__growable__s	List<Object?>	growable	static	[]
+list_get__growable__d	List<Object?>	growable	dynamic	[]
+list_get__filled_fixed__s	List<Object?>	filled_fixed	static	[]
+list_get__filled_fixed__d	List<Object?>	filled_fixed	dynamic	[]
+list_get__const__s	List<Object?>	const	static	[]
+list_get__const__d	List<Object?>	const	dynamic	[]
+list_get__unmodifiable__s	List<Object?>	unmodifiable	static	[]
+list_get__unmodifiable__d	List<Object?>	unmodifiable	dynamic	[]
+list_get__generate__s	List<Object?>	generate	static	[]
+list_get__generate__d	List<Object?>	generate	dynamic	[]
+list_get__json__s	List<Object?>	json	static	[]
+list_get__json__d	List<Object?>	json	dynamic	[]
+list_set__growable__s	List<Object?>	growable	static	[]=
+list_set__growable__d	List<Object?>	growable	dynamic	[]=
+list_set__filled_fixed__s	List<Object?>	filled_fixed	static	[]=
+list_set__filled_fixed__d	List<Object?>	filled_fixed	dynamic	[]=
+list_set__const__s	List<Object?>	const	static	[]=
+list_set__const__d	List<Object?>	const	dynamic	[]=
+list_set__unmodifiable__s	List<Object?>	unmodifiable	static	[]=
+list_set__unmodifiable__d	List<Object?>	unmodifiable	dynamic	[]=
+list_set__generate__s	List<Object?>	generate	static	[]=
+list_set__generate__d	List<Object?>	generate	dynamic	[]=
+list_set__json__s	List<Object?>	json	static	[]=
+list_set__json__d	List<Object?>	json	dynamic	[]=
+list_isEmpty__growable__s	List<Object?>	growable	static	get:isEmpty
+list_isEmpty__growable__d	List<Object?>	growable	dynamic	get:isEmpty
+list_isEmpty__filled_fixed__s	List<Object?>	filled_fixed	static	get:isEmpty
+list_isEmpty__filled_fixed__d	List<Object?>	filled_fixed	dynamic	get:isEmpty
+list_isEmpty__const__s	List<Object?>	const	static	get:isEmpty
+list_isEmpty__const__d	List<Object?>	const	dynamic	get:isEmpty
+list_isEmpty__unmodifiable__s	List<Object?>	unmodifiable	static	get:isEmpty
+list_isEmpty__unmodifiable__d	List<Object?>	unmodifiable	dynamic	get:isEmpty
+list_isEmpty__generate__s	List<Object?>	generate	static	get:isEmpty
+list_isEmpty__generate__d	List<Object?>	generate	dynamic	get:isEmpty
+list_isEmpty__json__s	List<Object?>	json	static	get:isEmpty
+list_isEmpty__json__d	List<Object?>	json	dynamic	get:isEmpty
+list_isNotEmpty__growable__s	List<Object?>	growable	static	get:isNotEmpty
+list_isNotEmpty__growable__d	List<Object?>	growable	dynamic	get:isNotEmpty
+list_isNotEmpty__filled_fixed__s	List<Object?>	filled_fixed	static	get:isNotEmpty
+list_isNotEmpty__filled_fixed__d	List<Object?>	filled_fixed	dynamic	get:isNotEmpty
+list_isNotEmpty__const__s	List<Object?>	const	static	get:isNotEmpty
+list_isNotEmpty__const__d	List<Object?>	const	dynamic	get:isNotEmpty
+list_isNotEmpty__unmodifiable__s	List<Object?>	unmodifiable	static	get:isNotEmpty
+list_isNotEmpty__unmodifiable__d	List<Object?>	unmodifiable	dynamic	get:isNotEmpty
+list_isNotEmpty__generate__s	List<Object?>	generate	static	get:isNotEmpty
+list_isNotEmpty__generate__d	List<Object?>	generate	dynamic	get:isNotEmpty
+list_isNotEmpty__json__s	List<Object?>	json	static	get:isNotEmpty
+list_isNotEmpty__json__d	List<Object?>	json	dynamic	get:isNotEmpty
+list_first__growable__s	List<Object?>	growable	static	get:first
+list_first__growable__d	List<Object?>	growable	dynamic	get:first
+list_first__filled_fixed__s	List<Object?>	filled_fixed	static	get:first
+list_first__filled_fixed__d	List<Object?>	filled_fixed	dynamic	get:first
+list_first__const__s	List<Object?>	const	static	get:first
+list_first__const__d	List<Object?>	const	dynamic	get:first
+list_first__unmodifiable__s	List<Object?>	unmodifiable	static	get:first
+list_first__unmodifiable__d	List<Object?>	unmodifiable	dynamic	get:first
+list_first__generate__s	List<Object?>	generate	static	get:first
+list_first__generate__d	List<Object?>	generate	dynamic	get:first
+list_first__json__s	List<Object?>	json	static	get:first
+list_first__json__d	List<Object?>	json	dynamic	get:first
+list_last__growable__s	List<Object?>	growable	static	get:last
+list_last__growable__d	List<Object?>	growable	dynamic	get:last
+list_last__filled_fixed__s	List<Object?>	filled_fixed	static	get:last
+list_last__filled_fixed__d	List<Object?>	filled_fixed	dynamic	get:last
+list_last__const__s	List<Object?>	const	static	get:last
+list_last__const__d	List<Object?>	const	dynamic	get:last
+list_last__unmodifiable__s	List<Object?>	unmodifiable	static	get:last
+list_last__unmodifiable__d	List<Object?>	unmodifiable	dynamic	get:last
+list_last__generate__s	List<Object?>	generate	static	get:last
+list_last__generate__d	List<Object?>	generate	dynamic	get:last
+list_last__json__s	List<Object?>	json	static	get:last
+list_last__json__d	List<Object?>	json	dynamic	get:last
+list_indexOf__growable__s	List<Object?>	growable	static	indexOf
+list_indexOf__growable__ts	List<Object?>	growable	tearoff-static	tearoff:indexOf
+list_indexOf__growable__d	List<Object?>	growable	dynamic	indexOf
+list_indexOf__growable__td	List<Object?>	growable	tearoff-dynamic	tearoff:indexOf
+list_indexOf__filled_fixed__s	List<Object?>	filled_fixed	static	indexOf
+list_indexOf__filled_fixed__ts	List<Object?>	filled_fixed	tearoff-static	tearoff:indexOf
+list_indexOf__filled_fixed__d	List<Object?>	filled_fixed	dynamic	indexOf
+list_indexOf__filled_fixed__td	List<Object?>	filled_fixed	tearoff-dynamic	tearoff:indexOf
+list_indexOf__const__s	List<Object?>	const	static	indexOf
+list_indexOf__const__ts	List<Object?>	const	tearoff-static	tearoff:indexOf
+list_indexOf__const__d	List<Object?>	const	dynamic	indexOf
+list_indexOf__const__td	List<Object?>	const	tearoff-dynamic	tearoff:indexOf
+list_indexOf__unmodifiable__s	List<Object?>	unmodifiable	static	indexOf
+list_indexOf__unmodifiable__ts	List<Object?>	unmodifiable	tearoff-static	tearoff:indexOf
+list_indexOf__unmodifiable__d	List<Object?>	unmodifiable	dynamic	indexOf
+list_indexOf__unmodifiable__td	List<Object?>	unmodifiable	tearoff-dynamic	tearoff:indexOf
+list_indexOf__generate__s	List<Object?>	generate	static	indexOf
+list_indexOf__generate__ts	List<Object?>	generate	tearoff-static	tearoff:indexOf
+list_indexOf__generate__d	List<Object?>	generate	dynamic	indexOf
+list_indexOf__generate__td	List<Object?>	generate	tearoff-dynamic	tearoff:indexOf
+list_indexOf__json__s	List<Object?>	json	static	indexOf
+list_indexOf__json__ts	List<Object?>	json	tearoff-static	tearoff:indexOf
+list_indexOf__json__d	List<Object?>	json	dynamic	indexOf
+list_indexOf__json__td	List<Object?>	json	tearoff-dynamic	tearoff:indexOf
+list_sort__growable__s	List<Object?>	growable	static	sort
+list_sort__growable__ts	List<Object?>	growable	tearoff-static	tearoff:sort
+list_sort__growable__d	List<Object?>	growable	dynamic	sort
+list_sort__growable__td	List<Object?>	growable	tearoff-dynamic	tearoff:sort
+list_sort__filled_fixed__s	List<Object?>	filled_fixed	static	sort
+list_sort__filled_fixed__ts	List<Object?>	filled_fixed	tearoff-static	tearoff:sort
+list_sort__filled_fixed__d	List<Object?>	filled_fixed	dynamic	sort
+list_sort__filled_fixed__td	List<Object?>	filled_fixed	tearoff-dynamic	tearoff:sort
+list_sort__const__s	List<Object?>	const	static	sort
+list_sort__const__ts	List<Object?>	const	tearoff-static	tearoff:sort
+list_sort__const__d	List<Object?>	const	dynamic	sort
+list_sort__const__td	List<Object?>	const	tearoff-dynamic	tearoff:sort
+list_sort__unmodifiable__s	List<Object?>	unmodifiable	static	sort
+list_sort__unmodifiable__ts	List<Object?>	unmodifiable	tearoff-static	tearoff:sort
+list_sort__unmodifiable__d	List<Object?>	unmodifiable	dynamic	sort
+list_sort__unmodifiable__td	List<Object?>	unmodifiable	tearoff-dynamic	tearoff:sort
+list_sort__generate__s	List<Object?>	generate	static	sort
+list_sort__generate__ts	List<Object?>	generate	tearoff-static	tearoff:sort
+list_sort__generate__d	List<Object?>	generate	dynamic	sort
+list_sort__generate__td	List<Object?>	generate	tearoff-dynamic	tearoff:sort
+list_sort__json__s	List<Object?>	json	static	sort
+list_sort__json__ts	List<Object?>	json	tearoff-static	tearoff:sort
+list_sort__json__d	List<Object?>	json	dynamic	sort
+list_sort__json__td	List<Object?>	json	tearoff-dynamic	tearoff:sort
+list_sublist__growable__s	List<Object?>	growable	static	sublist
+list_sublist__growable__ts	List<Object?>	growable	tearoff-static	tearoff:sublist
+list_sublist__growable__d	List<Object?>	growable	dynamic	sublist
+list_sublist__growable__td	List<Object?>	growable	tearoff-dynamic	tearoff:sublist
+list_sublist__filled_fixed__s	List<Object?>	filled_fixed	static	sublist
+list_sublist__filled_fixed__ts	List<Object?>	filled_fixed	tearoff-static	tearoff:sublist
+list_sublist__filled_fixed__d	List<Object?>	filled_fixed	dynamic	sublist
+list_sublist__filled_fixed__td	List<Object?>	filled_fixed	tearoff-dynamic	tearoff:sublist
+list_sublist__const__s	List<Object?>	const	static	sublist
+list_sublist__const__ts	List<Object?>	const	tearoff-static	tearoff:sublist
+list_sublist__const__d	List<Object?>	const	dynamic	sublist
+list_sublist__const__td	List<Object?>	const	tearoff-dynamic	tearoff:sublist
+list_sublist__unmodifiable__s	List<Object?>	unmodifiable	static	sublist
+list_sublist__unmodifiable__ts	List<Object?>	unmodifiable	tearoff-static	tearoff:sublist
+list_sublist__unmodifiable__d	List<Object?>	unmodifiable	dynamic	sublist
+list_sublist__unmodifiable__td	List<Object?>	unmodifiable	tearoff-dynamic	tearoff:sublist
+list_sublist__generate__s	List<Object?>	generate	static	sublist
+list_sublist__generate__ts	List<Object?>	generate	tearoff-static	tearoff:sublist
+list_sublist__generate__d	List<Object?>	generate	dynamic	sublist
+list_sublist__generate__td	List<Object?>	generate	tearoff-dynamic	tearoff:sublist
+list_sublist__json__s	List<Object?>	json	static	sublist
+list_sublist__json__ts	List<Object?>	json	tearoff-static	tearoff:sublist
+list_sublist__json__d	List<Object?>	json	dynamic	sublist
+list_sublist__json__td	List<Object?>	json	tearoff-dynamic	tearoff:sublist
+list_addAll__growable__s	List<Object?>	growable	static	addAll
+list_addAll__growable__ts	List<Object?>	growable	tearoff-static	tearoff:addAll
+list_addAll__growable__d	List<Object?>	growable	dynamic	addAll
+list_addAll__growable__td	List<Object?>	growable	tearoff-dynamic	tearoff:addAll
+list_addAll__filled_fixed__s	List<Object?>	filled_fixed	static	addAll
+list_addAll__filled_fixed__ts	List<Object?>	filled_fixed	tearoff-static	tearoff:addAll
+list_addAll__filled_fixed__d	List<Object?>	filled_fixed	dynamic	addAll
+list_addAll__filled_fixed__td	List<Object?>	filled_fixed	tearoff-dynamic	tearoff:addAll
+list_addAll__const__s	List<Object?>	const	static	addAll
+list_addAll__const__ts	List<Object?>	const	tearoff-static	tearoff:addAll
+list_addAll__const__d	List<Object?>	const	dynamic	addAll
+list_addAll__const__td	List<Object?>	const	tearoff-dynamic	tearoff:addAll
+list_addAll__unmodifiable__s	List<Object?>	unmodifiable	static	addAll
+list_addAll__unmodifiable__ts	List<Object?>	unmodifiable	tearoff-static	tearoff:addAll
+list_addAll__unmodifiable__d	List<Object?>	unmodifiable	dynamic	addAll
+list_addAll__unmodifiable__td	List<Object?>	unmodifiable	tearoff-dynamic	tearoff:addAll
+list_addAll__generate__s	List<Object?>	generate	static	addAll
+list_addAll__generate__ts	List<Object?>	generate	tearoff-static	tearoff:addAll
+list_addAll__generate__d	List<Object?>	generate	dynamic	addAll
+list_addAll__generate__td	List<Object?>	generate	tearoff-dynamic	tearoff:addAll
+list_addAll__json__s	List<Object?>	json	static	addAll
+list_addAll__json__ts	List<Object?>	json	tearoff-static	tearoff:addAll
+list_addAll__json__d	List<Object?>	json	dynamic	addAll
+list_addAll__json__td	List<Object?>	json	tearoff-dynamic	tearoff:addAll
+list_removeLast__growable__s	List<Object?>	growable	static	removeLast
+list_removeLast__growable__ts	List<Object?>	growable	tearoff-static	tearoff:removeLast
+list_removeLast__growable__d	List<Object?>	growable	dynamic	removeLast
+list_removeLast__growable__td	List<Object?>	growable	tearoff-dynamic	tearoff:removeLast
+list_removeLast__filled_fixed__s	List<Object?>	filled_fixed	static	removeLast
+list_removeLast__filled_fixed__ts	List<Object?>	filled_fixed	tearoff-static	tearoff:removeLast
+list_removeLast__filled_fixed__d	List<Object?>	filled_fixed	dynamic	removeLast
+list_removeLast__filled_fixed__td	List<Object?>	filled_fixed	tearoff-dynamic	tearoff:removeLast
+list_removeLast__const__s	List<Object?>	const	static	removeLast
+list_removeLast__const__ts	List<Object?>	const	tearoff-static	tearoff:removeLast
+list_removeLast__const__d	List<Object?>	const	dynamic	removeLast
+list_removeLast__const__td	List<Object?>	const	tearoff-dynamic	tearoff:removeLast
+list_removeLast__unmodifiable__s	List<Object?>	unmodifiable	static	removeLast
+list_removeLast__unmodifiable__ts	List<Object?>	unmodifiable	tearoff-static	tearoff:removeLast
+list_removeLast__unmodifiable__d	List<Object?>	unmodifiable	dynamic	removeLast
+list_removeLast__unmodifiable__td	List<Object?>	unmodifiable	tearoff-dynamic	tearoff:removeLast
+list_removeLast__generate__s	List<Object?>	generate	static	removeLast
+list_removeLast__generate__ts	List<Object?>	generate	tearoff-static	tearoff:removeLast
+list_removeLast__generate__d	List<Object?>	generate	dynamic	removeLast
+list_removeLast__generate__td	List<Object?>	generate	tearoff-dynamic	tearoff:removeLast
+list_removeLast__json__s	List<Object?>	json	static	removeLast
+list_removeLast__json__ts	List<Object?>	json	tearoff-static	tearoff:removeLast
+list_removeLast__json__d	List<Object?>	json	dynamic	removeLast
+list_removeLast__json__td	List<Object?>	json	tearoff-dynamic	tearoff:removeLast
+list_removeAt__growable__s	List<Object?>	growable	static	removeAt
+list_removeAt__growable__ts	List<Object?>	growable	tearoff-static	tearoff:removeAt
+list_removeAt__growable__d	List<Object?>	growable	dynamic	removeAt
+list_removeAt__growable__td	List<Object?>	growable	tearoff-dynamic	tearoff:removeAt
+list_removeAt__filled_fixed__s	List<Object?>	filled_fixed	static	removeAt
+list_removeAt__filled_fixed__ts	List<Object?>	filled_fixed	tearoff-static	tearoff:removeAt
+list_removeAt__filled_fixed__d	List<Object?>	filled_fixed	dynamic	removeAt
+list_removeAt__filled_fixed__td	List<Object?>	filled_fixed	tearoff-dynamic	tearoff:removeAt
+list_removeAt__const__s	List<Object?>	const	static	removeAt
+list_removeAt__const__ts	List<Object?>	const	tearoff-static	tearoff:removeAt
+list_removeAt__const__d	List<Object?>	const	dynamic	removeAt
+list_removeAt__const__td	List<Object?>	const	tearoff-dynamic	tearoff:removeAt
+list_removeAt__unmodifiable__s	List<Object?>	unmodifiable	static	removeAt
+list_removeAt__unmodifiable__ts	List<Object?>	unmodifiable	tearoff-static	tearoff:removeAt
+list_removeAt__unmodifiable__d	List<Object?>	unmodifiable	dynamic	removeAt
+list_removeAt__unmodifiable__td	List<Object?>	unmodifiable	tearoff-dynamic	tearoff:removeAt
+list_removeAt__generate__s	List<Object?>	generate	static	removeAt
+list_removeAt__generate__ts	List<Object?>	generate	tearoff-static	tearoff:removeAt
+list_removeAt__generate__d	List<Object?>	generate	dynamic	removeAt
+list_removeAt__generate__td	List<Object?>	generate	tearoff-dynamic	tearoff:removeAt
+list_removeAt__json__s	List<Object?>	json	static	removeAt
+list_removeAt__json__ts	List<Object?>	json	tearoff-static	tearoff:removeAt
+list_removeAt__json__d	List<Object?>	json	dynamic	removeAt
+list_removeAt__json__td	List<Object?>	json	tearoff-dynamic	tearoff:removeAt
+list_reversed__growable__s	List<Object?>	growable	static	get:reversed
+list_reversed__growable__d	List<Object?>	growable	dynamic	get:reversed
+list_reversed__filled_fixed__s	List<Object?>	filled_fixed	static	get:reversed
+list_reversed__filled_fixed__d	List<Object?>	filled_fixed	dynamic	get:reversed
+list_reversed__const__s	List<Object?>	const	static	get:reversed
+list_reversed__const__d	List<Object?>	const	dynamic	get:reversed
+list_reversed__unmodifiable__s	List<Object?>	unmodifiable	static	get:reversed
+list_reversed__unmodifiable__d	List<Object?>	unmodifiable	dynamic	get:reversed
+list_reversed__generate__s	List<Object?>	generate	static	get:reversed
+list_reversed__generate__d	List<Object?>	generate	dynamic	get:reversed
+list_reversed__json__s	List<Object?>	json	static	get:reversed
+list_reversed__json__d	List<Object?>	json	dynamic	get:reversed
+list_clear__growable__s	List<Object?>	growable	static	clear
+list_clear__growable__ts	List<Object?>	growable	tearoff-static	tearoff:clear
+list_clear__growable__d	List<Object?>	growable	dynamic	clear
+list_clear__growable__td	List<Object?>	growable	tearoff-dynamic	tearoff:clear
+list_clear__filled_fixed__s	List<Object?>	filled_fixed	static	clear
+list_clear__filled_fixed__ts	List<Object?>	filled_fixed	tearoff-static	tearoff:clear
+list_clear__filled_fixed__d	List<Object?>	filled_fixed	dynamic	clear
+list_clear__filled_fixed__td	List<Object?>	filled_fixed	tearoff-dynamic	tearoff:clear
+list_clear__const__s	List<Object?>	const	static	clear
+list_clear__const__ts	List<Object?>	const	tearoff-static	tearoff:clear
+list_clear__const__d	List<Object?>	const	dynamic	clear
+list_clear__const__td	List<Object?>	const	tearoff-dynamic	tearoff:clear
+list_clear__unmodifiable__s	List<Object?>	unmodifiable	static	clear
+list_clear__unmodifiable__ts	List<Object?>	unmodifiable	tearoff-static	tearoff:clear
+list_clear__unmodifiable__d	List<Object?>	unmodifiable	dynamic	clear
+list_clear__unmodifiable__td	List<Object?>	unmodifiable	tearoff-dynamic	tearoff:clear
+list_clear__generate__s	List<Object?>	generate	static	clear
+list_clear__generate__ts	List<Object?>	generate	tearoff-static	tearoff:clear
+list_clear__generate__d	List<Object?>	generate	dynamic	clear
+list_clear__generate__td	List<Object?>	generate	tearoff-dynamic	tearoff:clear
+list_clear__json__s	List<Object?>	json	static	clear
+list_clear__json__ts	List<Object?>	json	tearoff-static	tearoff:clear
+list_clear__json__d	List<Object?>	json	dynamic	clear
+list_clear__json__td	List<Object?>	json	tearoff-dynamic	tearoff:clear
+iter_any__list__s	Iterable<Object?>	list	static	any
+iter_any__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:any
+iter_any__list__d	Iterable<Object?>	list	dynamic	any
+iter_any__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:any
+iter_any__set__s	Iterable<Object?>	set	static	any
+iter_any__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:any
+iter_any__set__d	Iterable<Object?>	set	dynamic	any
+iter_any__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:any
+iter_any__generate__s	Iterable<Object?>	generate	static	any
+iter_any__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:any
+iter_any__generate__d	Iterable<Object?>	generate	dynamic	any
+iter_any__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:any
+iter_every__list__s	Iterable<Object?>	list	static	every
+iter_every__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:every
+iter_every__list__d	Iterable<Object?>	list	dynamic	every
+iter_every__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:every
+iter_every__set__s	Iterable<Object?>	set	static	every
+iter_every__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:every
+iter_every__set__d	Iterable<Object?>	set	dynamic	every
+iter_every__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:every
+iter_every__generate__s	Iterable<Object?>	generate	static	every
+iter_every__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:every
+iter_every__generate__d	Iterable<Object?>	generate	dynamic	every
+iter_every__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:every
+iter_firstWhere__list__s	Iterable<Object?>	list	static	firstWhere
+iter_firstWhere__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:firstWhere
+iter_firstWhere__list__d	Iterable<Object?>	list	dynamic	firstWhere
+iter_firstWhere__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:firstWhere
+iter_firstWhere__set__s	Iterable<Object?>	set	static	firstWhere
+iter_firstWhere__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:firstWhere
+iter_firstWhere__set__d	Iterable<Object?>	set	dynamic	firstWhere
+iter_firstWhere__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:firstWhere
+iter_firstWhere__generate__s	Iterable<Object?>	generate	static	firstWhere
+iter_firstWhere__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:firstWhere
+iter_firstWhere__generate__d	Iterable<Object?>	generate	dynamic	firstWhere
+iter_firstWhere__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:firstWhere
+iter_fold__list__s	Iterable<Object?>	list	static	fold
+iter_fold__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:fold
+iter_fold__list__d	Iterable<Object?>	list	dynamic	fold
+iter_fold__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:fold
+iter_fold__set__s	Iterable<Object?>	set	static	fold
+iter_fold__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:fold
+iter_fold__set__d	Iterable<Object?>	set	dynamic	fold
+iter_fold__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:fold
+iter_fold__generate__s	Iterable<Object?>	generate	static	fold
+iter_fold__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:fold
+iter_fold__generate__d	Iterable<Object?>	generate	dynamic	fold
+iter_fold__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:fold
+iter_reduce__list__s	Iterable<Object?>	list	static	reduce
+iter_reduce__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:reduce
+iter_reduce__list__d	Iterable<Object?>	list	dynamic	reduce
+iter_reduce__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:reduce
+iter_reduce__set__s	Iterable<Object?>	set	static	reduce
+iter_reduce__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:reduce
+iter_reduce__set__d	Iterable<Object?>	set	dynamic	reduce
+iter_reduce__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:reduce
+iter_reduce__generate__s	Iterable<Object?>	generate	static	reduce
+iter_reduce__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:reduce
+iter_reduce__generate__d	Iterable<Object?>	generate	dynamic	reduce
+iter_reduce__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:reduce
+iter_length__list__s	Iterable<Object?>	list	static	get:length
+iter_length__list__d	Iterable<Object?>	list	dynamic	get:length
+iter_length__set__s	Iterable<Object?>	set	static	get:length
+iter_length__set__d	Iterable<Object?>	set	dynamic	get:length
+iter_length__generate__s	Iterable<Object?>	generate	static	get:length
+iter_length__generate__d	Iterable<Object?>	generate	dynamic	get:length
+iter_isEmpty__list__s	Iterable<Object?>	list	static	get:isEmpty
+iter_isEmpty__list__d	Iterable<Object?>	list	dynamic	get:isEmpty
+iter_isEmpty__set__s	Iterable<Object?>	set	static	get:isEmpty
+iter_isEmpty__set__d	Iterable<Object?>	set	dynamic	get:isEmpty
+iter_isEmpty__generate__s	Iterable<Object?>	generate	static	get:isEmpty
+iter_isEmpty__generate__d	Iterable<Object?>	generate	dynamic	get:isEmpty
+iter_isNotEmpty__list__s	Iterable<Object?>	list	static	get:isNotEmpty
+iter_isNotEmpty__list__d	Iterable<Object?>	list	dynamic	get:isNotEmpty
+iter_isNotEmpty__set__s	Iterable<Object?>	set	static	get:isNotEmpty
+iter_isNotEmpty__set__d	Iterable<Object?>	set	dynamic	get:isNotEmpty
+iter_isNotEmpty__generate__s	Iterable<Object?>	generate	static	get:isNotEmpty
+iter_isNotEmpty__generate__d	Iterable<Object?>	generate	dynamic	get:isNotEmpty
+iter_first__list__s	Iterable<Object?>	list	static	get:first
+iter_first__list__d	Iterable<Object?>	list	dynamic	get:first
+iter_first__set__s	Iterable<Object?>	set	static	get:first
+iter_first__set__d	Iterable<Object?>	set	dynamic	get:first
+iter_first__generate__s	Iterable<Object?>	generate	static	get:first
+iter_first__generate__d	Iterable<Object?>	generate	dynamic	get:first
+iter_last__list__s	Iterable<Object?>	list	static	get:last
+iter_last__list__d	Iterable<Object?>	list	dynamic	get:last
+iter_last__set__s	Iterable<Object?>	set	static	get:last
+iter_last__set__d	Iterable<Object?>	set	dynamic	get:last
+iter_last__generate__s	Iterable<Object?>	generate	static	get:last
+iter_last__generate__d	Iterable<Object?>	generate	dynamic	get:last
+iter_contains__list__s	Iterable<Object?>	list	static	contains
+iter_contains__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:contains
+iter_contains__list__d	Iterable<Object?>	list	dynamic	contains
+iter_contains__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:contains
+iter_contains__set__s	Iterable<Object?>	set	static	contains
+iter_contains__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:contains
+iter_contains__set__d	Iterable<Object?>	set	dynamic	contains
+iter_contains__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:contains
+iter_contains__generate__s	Iterable<Object?>	generate	static	contains
+iter_contains__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:contains
+iter_contains__generate__d	Iterable<Object?>	generate	dynamic	contains
+iter_contains__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:contains
+iter_toSet__list__s	Iterable<Object?>	list	static	toSet
+iter_toSet__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:toSet
+iter_toSet__list__d	Iterable<Object?>	list	dynamic	toSet
+iter_toSet__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:toSet
+iter_toSet__set__s	Iterable<Object?>	set	static	toSet
+iter_toSet__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:toSet
+iter_toSet__set__d	Iterable<Object?>	set	dynamic	toSet
+iter_toSet__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:toSet
+iter_toSet__generate__s	Iterable<Object?>	generate	static	toSet
+iter_toSet__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:toSet
+iter_toSet__generate__d	Iterable<Object?>	generate	dynamic	toSet
+iter_toSet__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:toSet
+iter_take__list__s	Iterable<Object?>	list	static	take
+iter_take__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:take
+iter_take__list__d	Iterable<Object?>	list	dynamic	take
+iter_take__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:take
+iter_take__set__s	Iterable<Object?>	set	static	take
+iter_take__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:take
+iter_take__set__d	Iterable<Object?>	set	dynamic	take
+iter_take__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:take
+iter_take__generate__s	Iterable<Object?>	generate	static	take
+iter_take__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:take
+iter_take__generate__d	Iterable<Object?>	generate	dynamic	take
+iter_take__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:take
+iter_skip__list__s	Iterable<Object?>	list	static	skip
+iter_skip__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:skip
+iter_skip__list__d	Iterable<Object?>	list	dynamic	skip
+iter_skip__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:skip
+iter_skip__set__s	Iterable<Object?>	set	static	skip
+iter_skip__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:skip
+iter_skip__set__d	Iterable<Object?>	set	dynamic	skip
+iter_skip__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:skip
+iter_skip__generate__s	Iterable<Object?>	generate	static	skip
+iter_skip__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:skip
+iter_skip__generate__d	Iterable<Object?>	generate	dynamic	skip
+iter_skip__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:skip
+iter_elementAt__list__s	Iterable<Object?>	list	static	elementAt
+iter_elementAt__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:elementAt
+iter_elementAt__list__d	Iterable<Object?>	list	dynamic	elementAt
+iter_elementAt__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:elementAt
+iter_elementAt__set__s	Iterable<Object?>	set	static	elementAt
+iter_elementAt__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:elementAt
+iter_elementAt__set__d	Iterable<Object?>	set	dynamic	elementAt
+iter_elementAt__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:elementAt
+iter_elementAt__generate__s	Iterable<Object?>	generate	static	elementAt
+iter_elementAt__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:elementAt
+iter_elementAt__generate__d	Iterable<Object?>	generate	dynamic	elementAt
+iter_elementAt__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:elementAt
+set_contains__literal__s	Set<Object?>	literal	static	contains
+set_contains__literal__ts	Set<Object?>	literal	tearoff-static	tearoff:contains
+set_contains__literal__d	Set<Object?>	literal	dynamic	contains
+set_contains__literal__td	Set<Object?>	literal	tearoff-dynamic	tearoff:contains
+set_contains__const__s	Set<Object?>	const	static	contains
+set_contains__const__ts	Set<Object?>	const	tearoff-static	tearoff:contains
+set_contains__const__d	Set<Object?>	const	dynamic	contains
+set_contains__const__td	Set<Object?>	const	tearoff-dynamic	tearoff:contains
+set_add__literal__s	Set<Object?>	literal	static	add
+set_add__literal__ts	Set<Object?>	literal	tearoff-static	tearoff:add
+set_add__literal__d	Set<Object?>	literal	dynamic	add
+set_add__literal__td	Set<Object?>	literal	tearoff-dynamic	tearoff:add
+set_add__const__s	Set<Object?>	const	static	add
+set_add__const__ts	Set<Object?>	const	tearoff-static	tearoff:add
+set_add__const__d	Set<Object?>	const	dynamic	add
+set_add__const__td	Set<Object?>	const	tearoff-dynamic	tearoff:add
+set_remove__literal__s	Set<Object?>	literal	static	remove
+set_remove__literal__ts	Set<Object?>	literal	tearoff-static	tearoff:remove
+set_remove__literal__d	Set<Object?>	literal	dynamic	remove
+set_remove__literal__td	Set<Object?>	literal	tearoff-dynamic	tearoff:remove
+set_remove__const__s	Set<Object?>	const	static	remove
+set_remove__const__ts	Set<Object?>	const	tearoff-static	tearoff:remove
+set_remove__const__d	Set<Object?>	const	dynamic	remove
+set_remove__const__td	Set<Object?>	const	tearoff-dynamic	tearoff:remove
+set_length__literal__s	Set<Object?>	literal	static	get:length
+set_length__literal__d	Set<Object?>	literal	dynamic	get:length
+set_length__const__s	Set<Object?>	const	static	get:length
+set_length__const__d	Set<Object?>	const	dynamic	get:length
+str_length__one_byte__s	String	one_byte	static	get:length
+str_length__one_byte__d	String	one_byte	dynamic	get:length
+str_length__two_byte__s	String	two_byte	static	get:length
+str_length__two_byte__d	String	two_byte	dynamic	get:length
+str_isEmpty__one_byte__s	String	one_byte	static	get:isEmpty
+str_isEmpty__one_byte__d	String	one_byte	dynamic	get:isEmpty
+str_isEmpty__two_byte__s	String	two_byte	static	get:isEmpty
+str_isEmpty__two_byte__d	String	two_byte	dynamic	get:isEmpty
+str_isNotEmpty__one_byte__s	String	one_byte	static	get:isNotEmpty
+str_isNotEmpty__one_byte__d	String	one_byte	dynamic	get:isNotEmpty
+str_isNotEmpty__two_byte__s	String	two_byte	static	get:isNotEmpty
+str_isNotEmpty__two_byte__d	String	two_byte	dynamic	get:isNotEmpty
+str_contains__one_byte__s	String	one_byte	static	contains
+str_contains__one_byte__ts	String	one_byte	tearoff-static	tearoff:contains
+str_contains__one_byte__d	String	one_byte	dynamic	contains
+str_contains__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:contains
+str_contains__two_byte__s	String	two_byte	static	contains
+str_contains__two_byte__ts	String	two_byte	tearoff-static	tearoff:contains
+str_contains__two_byte__d	String	two_byte	dynamic	contains
+str_contains__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:contains
+str_startsWith__one_byte__s	String	one_byte	static	startsWith
+str_startsWith__one_byte__ts	String	one_byte	tearoff-static	tearoff:startsWith
+str_startsWith__one_byte__d	String	one_byte	dynamic	startsWith
+str_startsWith__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:startsWith
+str_startsWith__two_byte__s	String	two_byte	static	startsWith
+str_startsWith__two_byte__ts	String	two_byte	tearoff-static	tearoff:startsWith
+str_startsWith__two_byte__d	String	two_byte	dynamic	startsWith
+str_startsWith__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:startsWith
+str_endsWith__one_byte__s	String	one_byte	static	endsWith
+str_endsWith__one_byte__ts	String	one_byte	tearoff-static	tearoff:endsWith
+str_endsWith__one_byte__d	String	one_byte	dynamic	endsWith
+str_endsWith__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:endsWith
+str_endsWith__two_byte__s	String	two_byte	static	endsWith
+str_endsWith__two_byte__ts	String	two_byte	tearoff-static	tearoff:endsWith
+str_endsWith__two_byte__d	String	two_byte	dynamic	endsWith
+str_endsWith__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:endsWith
+str_substring__one_byte__s	String	one_byte	static	substring
+str_substring__one_byte__ts	String	one_byte	tearoff-static	tearoff:substring
+str_substring__one_byte__d	String	one_byte	dynamic	substring
+str_substring__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:substring
+str_substring__two_byte__s	String	two_byte	static	substring
+str_substring__two_byte__ts	String	two_byte	tearoff-static	tearoff:substring
+str_substring__two_byte__d	String	two_byte	dynamic	substring
+str_substring__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:substring
+str_trim__one_byte__s	String	one_byte	static	trim
+str_trim__one_byte__ts	String	one_byte	tearoff-static	tearoff:trim
+str_trim__one_byte__d	String	one_byte	dynamic	trim
+str_trim__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:trim
+str_trim__two_byte__s	String	two_byte	static	trim
+str_trim__two_byte__ts	String	two_byte	tearoff-static	tearoff:trim
+str_trim__two_byte__d	String	two_byte	dynamic	trim
+str_trim__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:trim
+str_toUpperCase__one_byte__s	String	one_byte	static	toUpperCase
+str_toUpperCase__one_byte__ts	String	one_byte	tearoff-static	tearoff:toUpperCase
+str_toUpperCase__one_byte__d	String	one_byte	dynamic	toUpperCase
+str_toUpperCase__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:toUpperCase
+str_toUpperCase__two_byte__s	String	two_byte	static	toUpperCase
+str_toUpperCase__two_byte__ts	String	two_byte	tearoff-static	tearoff:toUpperCase
+str_toUpperCase__two_byte__d	String	two_byte	dynamic	toUpperCase
+str_toUpperCase__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:toUpperCase
+str_toLowerCase__one_byte__s	String	one_byte	static	toLowerCase
+str_toLowerCase__one_byte__ts	String	one_byte	tearoff-static	tearoff:toLowerCase
+str_toLowerCase__one_byte__d	String	one_byte	dynamic	toLowerCase
+str_toLowerCase__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:toLowerCase
+str_toLowerCase__two_byte__s	String	two_byte	static	toLowerCase
+str_toLowerCase__two_byte__ts	String	two_byte	tearoff-static	tearoff:toLowerCase
+str_toLowerCase__two_byte__d	String	two_byte	dynamic	toLowerCase
+str_toLowerCase__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:toLowerCase
+str_replaceAll__one_byte__s	String	one_byte	static	replaceAll
+str_replaceAll__one_byte__ts	String	one_byte	tearoff-static	tearoff:replaceAll
+str_replaceAll__one_byte__d	String	one_byte	dynamic	replaceAll
+str_replaceAll__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:replaceAll
+str_replaceAll__two_byte__s	String	two_byte	static	replaceAll
+str_replaceAll__two_byte__ts	String	two_byte	tearoff-static	tearoff:replaceAll
+str_replaceAll__two_byte__d	String	two_byte	dynamic	replaceAll
+str_replaceAll__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:replaceAll
+str_padLeft__one_byte__s	String	one_byte	static	padLeft
+str_padLeft__one_byte__ts	String	one_byte	tearoff-static	tearoff:padLeft
+str_padLeft__one_byte__d	String	one_byte	dynamic	padLeft
+str_padLeft__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:padLeft
+str_padLeft__two_byte__s	String	two_byte	static	padLeft
+str_padLeft__two_byte__ts	String	two_byte	tearoff-static	tearoff:padLeft
+str_padLeft__two_byte__d	String	two_byte	dynamic	padLeft
+str_padLeft__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:padLeft
+str_codeUnitAt__one_byte__s	String	one_byte	static	codeUnitAt
+str_codeUnitAt__one_byte__ts	String	one_byte	tearoff-static	tearoff:codeUnitAt
+str_codeUnitAt__one_byte__d	String	one_byte	dynamic	codeUnitAt
+str_codeUnitAt__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:codeUnitAt
+str_codeUnitAt__two_byte__s	String	two_byte	static	codeUnitAt
+str_codeUnitAt__two_byte__ts	String	two_byte	tearoff-static	tearoff:codeUnitAt
+str_codeUnitAt__two_byte__d	String	two_byte	dynamic	codeUnitAt
+str_codeUnitAt__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:codeUnitAt
+str_indexOf__one_byte__s	String	one_byte	static	indexOf
+str_indexOf__one_byte__ts	String	one_byte	tearoff-static	tearoff:indexOf
+str_indexOf__one_byte__d	String	one_byte	dynamic	indexOf
+str_indexOf__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:indexOf
+str_indexOf__two_byte__s	String	two_byte	static	indexOf
+str_indexOf__two_byte__ts	String	two_byte	tearoff-static	tearoff:indexOf
+str_indexOf__two_byte__d	String	two_byte	dynamic	indexOf
+str_indexOf__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:indexOf
+str_index__one_byte__s	String	one_byte	static	[]
+str_index__one_byte__d	String	one_byte	dynamic	[]
+str_index__two_byte__s	String	two_byte	static	[]
+str_index__two_byte__d	String	two_byte	dynamic	[]
+str_plus__one_byte__s	String	one_byte	static	+
+str_plus__one_byte__d	String	one_byte	dynamic	+
+str_plus__two_byte__s	String	two_byte	static	+
+str_plus__two_byte__d	String	two_byte	dynamic	+
+str_times__one_byte__s	String	one_byte	static	*
+str_times__one_byte__d	String	one_byte	dynamic	*
+str_times__two_byte__s	String	two_byte	static	*
+str_times__two_byte__d	String	two_byte	dynamic	*
+str_compareTo__one_byte__s	String	one_byte	static	compareTo
+str_compareTo__one_byte__ts	String	one_byte	tearoff-static	tearoff:compareTo
+str_compareTo__one_byte__d	String	one_byte	dynamic	compareTo
+str_compareTo__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:compareTo
+str_compareTo__two_byte__s	String	two_byte	static	compareTo
+str_compareTo__two_byte__ts	String	two_byte	tearoff-static	tearoff:compareTo
+str_compareTo__two_byte__d	String	two_byte	dynamic	compareTo
+str_compareTo__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:compareTo
+str_eq__one_byte__s	String	one_byte	static	==
+str_eq__one_byte__d	String	one_byte	dynamic	==
+str_eq__two_byte__s	String	two_byte	static	==
+str_eq__two_byte__d	String	two_byte	dynamic	==
+int_toStringAsFixed__smi__s	int	smi	static	toStringAsFixed
+int_toStringAsFixed__smi__ts	int	smi	tearoff-static	tearoff:toStringAsFixed
+int_toStringAsFixed__smi__d	int	smi	dynamic	toStringAsFixed
+int_toStringAsFixed__smi__td	int	smi	tearoff-dynamic	tearoff:toStringAsFixed
+int_toStringAsFixed__mint__s	int	mint	static	toStringAsFixed
+int_toStringAsFixed__mint__ts	int	mint	tearoff-static	tearoff:toStringAsFixed
+int_toStringAsFixed__mint__d	int	mint	dynamic	toStringAsFixed
+int_toStringAsFixed__mint__td	int	mint	tearoff-dynamic	tearoff:toStringAsFixed
+int_abs__smi__s	int	smi	static	abs
+int_abs__smi__ts	int	smi	tearoff-static	tearoff:abs
+int_abs__smi__d	int	smi	dynamic	abs
+int_abs__smi__td	int	smi	tearoff-dynamic	tearoff:abs
+int_abs__mint__s	int	mint	static	abs
+int_abs__mint__ts	int	mint	tearoff-static	tearoff:abs
+int_abs__mint__d	int	mint	dynamic	abs
+int_abs__mint__td	int	mint	tearoff-dynamic	tearoff:abs
+int_clamp__smi__s	int	smi	static	clamp
+int_clamp__smi__ts	int	smi	tearoff-static	tearoff:clamp
+int_clamp__smi__d	int	smi	dynamic	clamp
+int_clamp__smi__td	int	smi	tearoff-dynamic	tearoff:clamp
+int_clamp__mint__s	int	mint	static	clamp
+int_clamp__mint__ts	int	mint	tearoff-static	tearoff:clamp
+int_clamp__mint__d	int	mint	dynamic	clamp
+int_clamp__mint__td	int	mint	tearoff-dynamic	tearoff:clamp
+int_compareTo__smi__s	int	smi	static	compareTo
+int_compareTo__smi__ts	int	smi	tearoff-static	tearoff:compareTo
+int_compareTo__smi__d	int	smi	dynamic	compareTo
+int_compareTo__smi__td	int	smi	tearoff-dynamic	tearoff:compareTo
+int_compareTo__mint__s	int	mint	static	compareTo
+int_compareTo__mint__ts	int	mint	tearoff-static	tearoff:compareTo
+int_compareTo__mint__d	int	mint	dynamic	compareTo
+int_compareTo__mint__td	int	mint	tearoff-dynamic	tearoff:compareTo
+int_isEven__smi__s	int	smi	static	get:isEven
+int_isEven__smi__d	int	smi	dynamic	get:isEven
+int_isEven__mint__s	int	mint	static	get:isEven
+int_isEven__mint__d	int	mint	dynamic	get:isEven
+int_remainder__smi__s	int	smi	static	remainder
+int_remainder__smi__ts	int	smi	tearoff-static	tearoff:remainder
+int_remainder__smi__d	int	smi	dynamic	remainder
+int_remainder__smi__td	int	smi	tearoff-dynamic	tearoff:remainder
+int_remainder__mint__s	int	mint	static	remainder
+int_remainder__mint__ts	int	mint	tearoff-static	tearoff:remainder
+int_remainder__mint__d	int	mint	dynamic	remainder
+int_remainder__mint__td	int	mint	tearoff-dynamic	tearoff:remainder
+int_toDouble__smi__s	int	smi	static	toDouble
+int_toDouble__smi__ts	int	smi	tearoff-static	tearoff:toDouble
+int_toDouble__smi__d	int	smi	dynamic	toDouble
+int_toDouble__smi__td	int	smi	tearoff-dynamic	tearoff:toDouble
+int_toDouble__mint__s	int	mint	static	toDouble
+int_toDouble__mint__ts	int	mint	tearoff-static	tearoff:toDouble
+int_toDouble__mint__d	int	mint	dynamic	toDouble
+int_toDouble__mint__td	int	mint	tearoff-dynamic	tearoff:toDouble
+int_and__smi__s	int	smi	static	&
+int_and__smi__d	int	smi	dynamic	&
+int_and__mint__s	int	mint	static	&
+int_and__mint__d	int	mint	dynamic	&
+int_shl__smi__s	int	smi	static	<<
+int_shl__smi__d	int	smi	dynamic	<<
+int_shl__mint__s	int	mint	static	<<
+int_shl__mint__d	int	mint	dynamic	<<
+int_floorDiv__smi__s	int	smi	static	~/
+int_floorDiv__smi__d	int	smi	dynamic	~/
+int_floorDiv__mint__s	int	mint	static	~/
+int_floorDiv__mint__d	int	mint	dynamic	~/
+dbl_toStringAsFixed__double__s	double	double	static	toStringAsFixed
+dbl_toStringAsFixed__double__ts	double	double	tearoff-static	tearoff:toStringAsFixed
+dbl_toStringAsFixed__double__d	double	double	dynamic	toStringAsFixed
+dbl_toStringAsFixed__double__td	double	double	tearoff-dynamic	tearoff:toStringAsFixed
+dbl_round__double__s	double	double	static	round
+dbl_round__double__ts	double	double	tearoff-static	tearoff:round
+dbl_round__double__d	double	double	dynamic	round
+dbl_round__double__td	double	double	tearoff-dynamic	tearoff:round
+dbl_floor__double__s	double	double	static	floor
+dbl_floor__double__ts	double	double	tearoff-static	tearoff:floor
+dbl_floor__double__d	double	double	dynamic	floor
+dbl_floor__double__td	double	double	tearoff-dynamic	tearoff:floor
+dbl_ceil__double__s	double	double	static	ceil
+dbl_ceil__double__ts	double	double	tearoff-static	tearoff:ceil
+dbl_ceil__double__d	double	double	dynamic	ceil
+dbl_ceil__double__td	double	double	tearoff-dynamic	tearoff:ceil
+dbl_abs__double__s	double	double	static	abs
+dbl_abs__double__ts	double	double	tearoff-static	tearoff:abs
+dbl_abs__double__d	double	double	dynamic	abs
+dbl_abs__double__td	double	double	tearoff-dynamic	tearoff:abs
+dbl_clamp__double__s	double	double	static	clamp
+dbl_clamp__double__ts	double	double	tearoff-static	tearoff:clamp
+dbl_clamp__double__d	double	double	dynamic	clamp
+dbl_clamp__double__td	double	double	tearoff-dynamic	tearoff:clamp
+dbl_compareTo__double__s	double	double	static	compareTo
+dbl_compareTo__double__ts	double	double	tearoff-static	tearoff:compareTo
+dbl_compareTo__double__d	double	double	dynamic	compareTo
+dbl_compareTo__double__td	double	double	tearoff-dynamic	tearoff:compareTo
+dbl_truncate__double__s	double	double	static	truncate
+dbl_truncate__double__ts	double	double	tearoff-static	tearoff:truncate
+dbl_truncate__double__d	double	double	dynamic	truncate
+dbl_truncate__double__td	double	double	tearoff-dynamic	tearoff:truncate
+dbl_isNaN__double__s	double	double	static	get:isNaN
+dbl_isNaN__double__d	double	double	dynamic	get:isNaN
+dbl_toInt__double__s	double	double	static	toInt
+dbl_toInt__double__ts	double	double	tearoff-static	tearoff:toInt
+dbl_toInt__double__d	double	double	dynamic	toInt
+dbl_toInt__double__td	double	double	tearoff-dynamic	tearoff:toInt
+num_toStringAsFixed__smi__s	num	smi	static	toStringAsFixed
+num_toStringAsFixed__smi__ts	num	smi	tearoff-static	tearoff:toStringAsFixed
+num_toStringAsFixed__smi__d	num	smi	dynamic	toStringAsFixed
+num_toStringAsFixed__smi__td	num	smi	tearoff-dynamic	tearoff:toStringAsFixed
+num_toStringAsFixed__mint__s	num	mint	static	toStringAsFixed
+num_toStringAsFixed__mint__ts	num	mint	tearoff-static	tearoff:toStringAsFixed
+num_toStringAsFixed__mint__d	num	mint	dynamic	toStringAsFixed
+num_toStringAsFixed__mint__td	num	mint	tearoff-dynamic	tearoff:toStringAsFixed
+num_toStringAsFixed__double__s	num	double	static	toStringAsFixed
+num_toStringAsFixed__double__ts	num	double	tearoff-static	tearoff:toStringAsFixed
+num_toStringAsFixed__double__d	num	double	dynamic	toStringAsFixed
+num_toStringAsFixed__double__td	num	double	tearoff-dynamic	tearoff:toStringAsFixed
+num_round__smi__s	num	smi	static	round
+num_round__smi__ts	num	smi	tearoff-static	tearoff:round
+num_round__smi__d	num	smi	dynamic	round
+num_round__smi__td	num	smi	tearoff-dynamic	tearoff:round
+num_round__mint__s	num	mint	static	round
+num_round__mint__ts	num	mint	tearoff-static	tearoff:round
+num_round__mint__d	num	mint	dynamic	round
+num_round__mint__td	num	mint	tearoff-dynamic	tearoff:round
+num_round__double__s	num	double	static	round
+num_round__double__ts	num	double	tearoff-static	tearoff:round
+num_round__double__d	num	double	dynamic	round
+num_round__double__td	num	double	tearoff-dynamic	tearoff:round
+num_floor__smi__s	num	smi	static	floor
+num_floor__smi__ts	num	smi	tearoff-static	tearoff:floor
+num_floor__smi__d	num	smi	dynamic	floor
+num_floor__smi__td	num	smi	tearoff-dynamic	tearoff:floor
+num_floor__mint__s	num	mint	static	floor
+num_floor__mint__ts	num	mint	tearoff-static	tearoff:floor
+num_floor__mint__d	num	mint	dynamic	floor
+num_floor__mint__td	num	mint	tearoff-dynamic	tearoff:floor
+num_floor__double__s	num	double	static	floor
+num_floor__double__ts	num	double	tearoff-static	tearoff:floor
+num_floor__double__d	num	double	dynamic	floor
+num_floor__double__td	num	double	tearoff-dynamic	tearoff:floor
+num_abs__smi__s	num	smi	static	abs
+num_abs__smi__ts	num	smi	tearoff-static	tearoff:abs
+num_abs__smi__d	num	smi	dynamic	abs
+num_abs__smi__td	num	smi	tearoff-dynamic	tearoff:abs
+num_abs__mint__s	num	mint	static	abs
+num_abs__mint__ts	num	mint	tearoff-static	tearoff:abs
+num_abs__mint__d	num	mint	dynamic	abs
+num_abs__mint__td	num	mint	tearoff-dynamic	tearoff:abs
+num_abs__double__s	num	double	static	abs
+num_abs__double__ts	num	double	tearoff-static	tearoff:abs
+num_abs__double__d	num	double	dynamic	abs
+num_abs__double__td	num	double	tearoff-dynamic	tearoff:abs
+num_clamp__smi__s	num	smi	static	clamp
+num_clamp__smi__ts	num	smi	tearoff-static	tearoff:clamp
+num_clamp__smi__d	num	smi	dynamic	clamp
+num_clamp__smi__td	num	smi	tearoff-dynamic	tearoff:clamp
+num_clamp__mint__s	num	mint	static	clamp
+num_clamp__mint__ts	num	mint	tearoff-static	tearoff:clamp
+num_clamp__mint__d	num	mint	dynamic	clamp
+num_clamp__mint__td	num	mint	tearoff-dynamic	tearoff:clamp
+num_clamp__double__s	num	double	static	clamp
+num_clamp__double__ts	num	double	tearoff-static	tearoff:clamp
+num_clamp__double__d	num	double	dynamic	clamp
+num_clamp__double__td	num	double	tearoff-dynamic	tearoff:clamp
+num_compareTo__smi__s	num	smi	static	compareTo
+num_compareTo__smi__ts	num	smi	tearoff-static	tearoff:compareTo
+num_compareTo__smi__d	num	smi	dynamic	compareTo
+num_compareTo__smi__td	num	smi	tearoff-dynamic	tearoff:compareTo
+num_compareTo__mint__s	num	mint	static	compareTo
+num_compareTo__mint__ts	num	mint	tearoff-static	tearoff:compareTo
+num_compareTo__mint__d	num	mint	dynamic	compareTo
+num_compareTo__mint__td	num	mint	tearoff-dynamic	tearoff:compareTo
+num_compareTo__double__s	num	double	static	compareTo
+num_compareTo__double__ts	num	double	tearoff-static	tearoff:compareTo
+num_compareTo__double__d	num	double	dynamic	compareTo
+num_compareTo__double__td	num	double	tearoff-dynamic	tearoff:compareTo
+num_toInt__smi__s	num	smi	static	toInt
+num_toInt__smi__ts	num	smi	tearoff-static	tearoff:toInt
+num_toInt__smi__d	num	smi	dynamic	toInt
+num_toInt__smi__td	num	smi	tearoff-dynamic	tearoff:toInt
+num_toInt__mint__s	num	mint	static	toInt
+num_toInt__mint__ts	num	mint	tearoff-static	tearoff:toInt
+num_toInt__mint__d	num	mint	dynamic	toInt
+num_toInt__mint__td	num	mint	tearoff-dynamic	tearoff:toInt
+num_toInt__double__s	num	double	static	toInt
+num_toInt__double__ts	num	double	tearoff-static	tearoff:toInt
+num_toInt__double__d	num	double	dynamic	toInt
+num_toInt__double__td	num	double	tearoff-dynamic	tearoff:toInt
+num_toDouble__smi__s	num	smi	static	toDouble
+num_toDouble__smi__ts	num	smi	tearoff-static	tearoff:toDouble
+num_toDouble__smi__d	num	smi	dynamic	toDouble
+num_toDouble__smi__td	num	smi	tearoff-dynamic	tearoff:toDouble
+num_toDouble__mint__s	num	mint	static	toDouble
+num_toDouble__mint__ts	num	mint	tearoff-static	tearoff:toDouble
+num_toDouble__mint__d	num	mint	dynamic	toDouble
+num_toDouble__mint__td	num	mint	tearoff-dynamic	tearoff:toDouble
+num_toDouble__double__s	num	double	static	toDouble
+num_toDouble__double__ts	num	double	tearoff-static	tearoff:toDouble
+num_toDouble__double__d	num	double	dynamic	toDouble
+num_toDouble__double__td	num	double	tearoff-dynamic	tearoff:toDouble
+date_difference__utc__s	DateTime	utc	static	difference
+date_difference__utc__ts	DateTime	utc	tearoff-static	tearoff:difference
+date_difference__utc__d	DateTime	utc	dynamic	difference
+date_difference__utc__td	DateTime	utc	tearoff-dynamic	tearoff:difference
+date_add__utc__s	DateTime	utc	static	add
+date_add__utc__ts	DateTime	utc	tearoff-static	tearoff:add
+date_add__utc__d	DateTime	utc	dynamic	add
+date_add__utc__td	DateTime	utc	tearoff-dynamic	tearoff:add
+date_subtract__utc__s	DateTime	utc	static	subtract
+date_subtract__utc__ts	DateTime	utc	tearoff-static	tearoff:subtract
+date_subtract__utc__d	DateTime	utc	dynamic	subtract
+date_subtract__utc__td	DateTime	utc	tearoff-dynamic	tearoff:subtract
+date_isBefore__utc__s	DateTime	utc	static	isBefore
+date_isBefore__utc__ts	DateTime	utc	tearoff-static	tearoff:isBefore
+date_isBefore__utc__d	DateTime	utc	dynamic	isBefore
+date_isBefore__utc__td	DateTime	utc	tearoff-dynamic	tearoff:isBefore
+date_isAfter__utc__s	DateTime	utc	static	isAfter
+date_isAfter__utc__ts	DateTime	utc	tearoff-static	tearoff:isAfter
+date_isAfter__utc__d	DateTime	utc	dynamic	isAfter
+date_isAfter__utc__td	DateTime	utc	tearoff-dynamic	tearoff:isAfter
+date_year__utc__s	DateTime	utc	static	get:year
+date_year__utc__d	DateTime	utc	dynamic	get:year
+date_month__utc__s	DateTime	utc	static	get:month
+date_month__utc__d	DateTime	utc	dynamic	get:month
+date_weekday__utc__s	DateTime	utc	static	get:weekday
+date_weekday__utc__d	DateTime	utc	dynamic	get:weekday
+date_toIso8601String__utc__s	DateTime	utc	static	toIso8601String
+date_toIso8601String__utc__ts	DateTime	utc	tearoff-static	tearoff:toIso8601String
+date_toIso8601String__utc__d	DateTime	utc	dynamic	toIso8601String
+date_toIso8601String__utc__td	DateTime	utc	tearoff-dynamic	tearoff:toIso8601String
+date_toUtc__utc__s	DateTime	utc	static	toUtc
+date_toUtc__utc__ts	DateTime	utc	tearoff-static	tearoff:toUtc
+date_toUtc__utc__d	DateTime	utc	dynamic	toUtc
+date_toUtc__utc__td	DateTime	utc	tearoff-dynamic	tearoff:toUtc
+date_microsecondsSinceEpoch__utc__s	DateTime	utc	static	get:microsecondsSinceEpoch
+date_microsecondsSinceEpoch__utc__d	DateTime	utc	dynamic	get:microsecondsSinceEpoch
+dur_inMilliseconds__duration__s	Duration	duration	static	get:inMilliseconds
+dur_inMilliseconds__duration__d	Duration	duration	dynamic	get:inMilliseconds
+dur_inSeconds__duration__s	Duration	duration	static	get:inSeconds
+dur_inSeconds__duration__d	Duration	duration	dynamic	get:inSeconds
+dur_inMinutes__duration__s	Duration	duration	static	get:inMinutes
+dur_inMinutes__duration__d	Duration	duration	dynamic	get:inMinutes
+dur_inMicroseconds__duration__s	Duration	duration	static	get:inMicroseconds
+dur_inMicroseconds__duration__d	Duration	duration	dynamic	get:inMicroseconds
+dur_plus__duration__s	Duration	duration	static	+
+dur_plus__duration__d	Duration	duration	dynamic	+
+dur_gt__duration__s	Duration	duration	static	>
+dur_gt__duration__d	Duration	duration	dynamic	>
+dur_isNegative__duration__s	Duration	duration	static	get:isNegative
+dur_isNegative__duration__d	Duration	duration	dynamic	get:isNegative
+state_error_message__state_error__s	StateError	state_error	static	message
+state_error_message__state_error__d	StateError	state_error	dynamic	message
+format_exception_message__format_exception__s	FormatException	format_exception	static	message
+format_exception_message__format_exception__d	FormatException	format_exception	dynamic	message
+error_stackTrace__state_error__s	StateError	state_error	static	get:stackTrace
+error_stackTrace__state_error__d	StateError	state_error	dynamic	get:stackTrace
+object_runtimeType__state_error__s	StateError	state_error	static	get:runtimeType
+object_runtimeType__state_error__d	StateError	state_error	dynamic	get:runtimeType
+int_plus__smi__s	int	smi	static	+
+int_plus__smi__d	int	smi	dynamic	+
+int_plus__mint__s	int	mint	static	+
+int_plus__mint__d	int	mint	dynamic	+
+int_minus__smi__s	int	smi	static	-
+int_minus__smi__d	int	smi	dynamic	-
+int_minus__mint__s	int	mint	static	-
+int_minus__mint__d	int	mint	dynamic	-
+int_times__smi__s	int	smi	static	*
+int_times__smi__d	int	smi	dynamic	*
+int_times__mint__s	int	mint	static	*
+int_times__mint__d	int	mint	dynamic	*
+int_div__smi__s	int	smi	static	/
+int_div__smi__d	int	smi	dynamic	/
+int_div__mint__s	int	mint	static	/
+int_div__mint__d	int	mint	dynamic	/
+int_mod__smi__s	int	smi	static	%
+int_mod__smi__d	int	smi	dynamic	%
+int_mod__mint__s	int	mint	static	%
+int_mod__mint__d	int	mint	dynamic	%
+int_lt__smi__s	int	smi	static	<
+int_lt__smi__d	int	smi	dynamic	<
+int_lt__mint__s	int	mint	static	<
+int_lt__mint__d	int	mint	dynamic	<
+int_gt__smi__s	int	smi	static	>
+int_gt__smi__d	int	smi	dynamic	>
+int_gt__mint__s	int	mint	static	>
+int_gt__mint__d	int	mint	dynamic	>
+int_le__smi__s	int	smi	static	<=
+int_le__smi__d	int	smi	dynamic	<=
+int_le__mint__s	int	mint	static	<=
+int_le__mint__d	int	mint	dynamic	<=
+int_ge__smi__s	int	smi	static	>=
+int_ge__smi__d	int	smi	dynamic	>=
+int_ge__mint__s	int	mint	static	>=
+int_ge__mint__d	int	mint	dynamic	>=
+int_neg__smi__s	int	smi	static	unary-
+int_neg__smi__d	int	smi	dynamic	unary-
+int_neg__mint__s	int	mint	static	unary-
+int_neg__mint__d	int	mint	dynamic	unary-
+int_eqop__smi__s	int	smi	static	==
+int_eqop__smi__d	int	smi	dynamic	==
+int_eqop__mint__s	int	mint	static	==
+int_eqop__mint__d	int	mint	dynamic	==
+int_toString__smi__s	int	smi	static	toString
+int_toString__smi__ts	int	smi	tearoff-static	tearoff:toString
+int_toString__smi__d	int	smi	dynamic	toString
+int_toString__smi__td	int	smi	tearoff-dynamic	tearoff:toString
+int_toString__mint__s	int	mint	static	toString
+int_toString__mint__ts	int	mint	tearoff-static	tearoff:toString
+int_toString__mint__d	int	mint	dynamic	toString
+int_toString__mint__td	int	mint	tearoff-dynamic	tearoff:toString
+dbl_plus__double__s	double	double	static	+
+dbl_plus__double__d	double	double	dynamic	+
+dbl_minus__double__s	double	double	static	-
+dbl_minus__double__d	double	double	dynamic	-
+dbl_times__double__s	double	double	static	*
+dbl_times__double__d	double	double	dynamic	*
+dbl_div__double__s	double	double	static	/
+dbl_div__double__d	double	double	dynamic	/
+dbl_floorDiv__double__s	double	double	static	~/
+dbl_floorDiv__double__d	double	double	dynamic	~/
+dbl_mod__double__s	double	double	static	%
+dbl_mod__double__d	double	double	dynamic	%
+dbl_lt__double__s	double	double	static	<
+dbl_lt__double__d	double	double	dynamic	<
+dbl_gt__double__s	double	double	static	>
+dbl_gt__double__d	double	double	dynamic	>
+dbl_le__double__s	double	double	static	<=
+dbl_le__double__d	double	double	dynamic	<=
+dbl_ge__double__s	double	double	static	>=
+dbl_ge__double__d	double	double	dynamic	>=
+dbl_neg__double__s	double	double	static	unary-
+dbl_neg__double__d	double	double	dynamic	unary-
+dbl_eqop__double__s	double	double	static	==
+dbl_eqop__double__d	double	double	dynamic	==
+dbl_toString__double__s	double	double	static	toString
+dbl_toString__double__ts	double	double	tearoff-static	tearoff:toString
+dbl_toString__double__d	double	double	dynamic	toString
+dbl_toString__double__td	double	double	tearoff-dynamic	tearoff:toString
+num_plus__smi__s	num	smi	static	+
+num_plus__smi__d	num	smi	dynamic	+
+num_plus__mint__s	num	mint	static	+
+num_plus__mint__d	num	mint	dynamic	+
+num_plus__double__s	num	double	static	+
+num_plus__double__d	num	double	dynamic	+
+num_minus__smi__s	num	smi	static	-
+num_minus__smi__d	num	smi	dynamic	-
+num_minus__mint__s	num	mint	static	-
+num_minus__mint__d	num	mint	dynamic	-
+num_minus__double__s	num	double	static	-
+num_minus__double__d	num	double	dynamic	-
+num_times__smi__s	num	smi	static	*
+num_times__smi__d	num	smi	dynamic	*
+num_times__mint__s	num	mint	static	*
+num_times__mint__d	num	mint	dynamic	*
+num_times__double__s	num	double	static	*
+num_times__double__d	num	double	dynamic	*
+num_div__smi__s	num	smi	static	/
+num_div__smi__d	num	smi	dynamic	/
+num_div__mint__s	num	mint	static	/
+num_div__mint__d	num	mint	dynamic	/
+num_div__double__s	num	double	static	/
+num_div__double__d	num	double	dynamic	/
+num_mod__smi__s	num	smi	static	%
+num_mod__smi__d	num	smi	dynamic	%
+num_mod__mint__s	num	mint	static	%
+num_mod__mint__d	num	mint	dynamic	%
+num_mod__double__s	num	double	static	%
+num_mod__double__d	num	double	dynamic	%
+num_lt__smi__s	num	smi	static	<
+num_lt__smi__d	num	smi	dynamic	<
+num_lt__mint__s	num	mint	static	<
+num_lt__mint__d	num	mint	dynamic	<
+num_lt__double__s	num	double	static	<
+num_lt__double__d	num	double	dynamic	<
+num_gt__smi__s	num	smi	static	>
+num_gt__smi__d	num	smi	dynamic	>
+num_gt__mint__s	num	mint	static	>
+num_gt__mint__d	num	mint	dynamic	>
+num_gt__double__s	num	double	static	>
+num_gt__double__d	num	double	dynamic	>
+num_le__smi__s	num	smi	static	<=
+num_le__smi__d	num	smi	dynamic	<=
+num_le__mint__s	num	mint	static	<=
+num_le__mint__d	num	mint	dynamic	<=
+num_le__double__s	num	double	static	<=
+num_le__double__d	num	double	dynamic	<=
+num_ge__smi__s	num	smi	static	>=
+num_ge__smi__d	num	smi	dynamic	>=
+num_ge__mint__s	num	mint	static	>=
+num_ge__mint__d	num	mint	dynamic	>=
+num_ge__double__s	num	double	static	>=
+num_ge__double__d	num	double	dynamic	>=
+num_neg__smi__s	num	smi	static	unary-
+num_neg__smi__d	num	smi	dynamic	unary-
+num_neg__mint__s	num	mint	static	unary-
+num_neg__mint__d	num	mint	dynamic	unary-
+num_neg__double__s	num	double	static	unary-
+num_neg__double__d	num	double	dynamic	unary-
+num_eqop__smi__s	num	smi	static	==
+num_eqop__smi__d	num	smi	dynamic	==
+num_eqop__mint__s	num	mint	static	==
+num_eqop__mint__d	num	mint	dynamic	==
+num_eqop__double__s	num	double	static	==
+num_eqop__double__d	num	double	dynamic	==
+bool_toString__bool__s	bool	bool	static	toString
+bool_toString__bool__ts	bool	bool	tearoff-static	tearoff:toString
+bool_toString__bool__d	bool	bool	dynamic	toString
+bool_toString__bool__td	bool	bool	tearoff-dynamic	tearoff:toString
+str_toString__one_byte__s	String	one_byte	static	toString
+str_toString__one_byte__ts	String	one_byte	tearoff-static	tearoff:toString
+str_toString__one_byte__d	String	one_byte	dynamic	toString
+str_toString__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:toString
+str_toString__two_byte__s	String	two_byte	static	toString
+str_toString__two_byte__ts	String	two_byte	tearoff-static	tearoff:toString
+str_toString__two_byte__d	String	two_byte	dynamic	toString
+str_toString__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:toString
+str_split__one_byte__s	String	one_byte	static	split
+str_split__one_byte__ts	String	one_byte	tearoff-static	tearoff:split
+str_split__one_byte__d	String	one_byte	dynamic	split
+str_split__one_byte__td	String	one_byte	tearoff-dynamic	tearoff:split
+str_split__two_byte__s	String	two_byte	static	split
+str_split__two_byte__ts	String	two_byte	tearoff-static	tearoff:split
+str_split__two_byte__d	String	two_byte	dynamic	split
+str_split__two_byte__td	String	two_byte	tearoff-dynamic	tearoff:split
+list_add__growable__s	List<Object?>	growable	static	add
+list_add__growable__ts	List<Object?>	growable	tearoff-static	tearoff:add
+list_add__growable__d	List<Object?>	growable	dynamic	add
+list_add__growable__td	List<Object?>	growable	tearoff-dynamic	tearoff:add
+list_add__filled_fixed__s	List<Object?>	filled_fixed	static	add
+list_add__filled_fixed__ts	List<Object?>	filled_fixed	tearoff-static	tearoff:add
+list_add__filled_fixed__d	List<Object?>	filled_fixed	dynamic	add
+list_add__filled_fixed__td	List<Object?>	filled_fixed	tearoff-dynamic	tearoff:add
+list_add__const__s	List<Object?>	const	static	add
+list_add__const__ts	List<Object?>	const	tearoff-static	tearoff:add
+list_add__const__d	List<Object?>	const	dynamic	add
+list_add__const__td	List<Object?>	const	tearoff-dynamic	tearoff:add
+list_add__unmodifiable__s	List<Object?>	unmodifiable	static	add
+list_add__unmodifiable__ts	List<Object?>	unmodifiable	tearoff-static	tearoff:add
+list_add__unmodifiable__d	List<Object?>	unmodifiable	dynamic	add
+list_add__unmodifiable__td	List<Object?>	unmodifiable	tearoff-dynamic	tearoff:add
+list_add__generate__s	List<Object?>	generate	static	add
+list_add__generate__ts	List<Object?>	generate	tearoff-static	tearoff:add
+list_add__generate__d	List<Object?>	generate	dynamic	add
+list_add__generate__td	List<Object?>	generate	tearoff-dynamic	tearoff:add
+list_add__json__s	List<Object?>	json	static	add
+list_add__json__ts	List<Object?>	json	tearoff-static	tearoff:add
+list_add__json__d	List<Object?>	json	dynamic	add
+list_add__json__td	List<Object?>	json	tearoff-dynamic	tearoff:add
+iter_join__list__s	Iterable<Object?>	list	static	join
+iter_join__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:join
+iter_join__list__d	Iterable<Object?>	list	dynamic	join
+iter_join__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:join
+iter_join__set__s	Iterable<Object?>	set	static	join
+iter_join__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:join
+iter_join__set__d	Iterable<Object?>	set	dynamic	join
+iter_join__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:join
+iter_join__generate__s	Iterable<Object?>	generate	static	join
+iter_join__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:join
+iter_join__generate__d	Iterable<Object?>	generate	dynamic	join
+iter_join__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:join
+iter_where__list__s	Iterable<Object?>	list	static	where
+iter_where__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:where
+iter_where__list__d	Iterable<Object?>	list	dynamic	where
+iter_where__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:where
+iter_where__set__s	Iterable<Object?>	set	static	where
+iter_where__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:where
+iter_where__set__d	Iterable<Object?>	set	dynamic	where
+iter_where__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:where
+iter_where__generate__s	Iterable<Object?>	generate	static	where
+iter_where__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:where
+iter_where__generate__d	Iterable<Object?>	generate	dynamic	where
+iter_where__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:where
+iter_map__list__s	Iterable<Object?>	list	static	map
+iter_map__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:map
+iter_map__list__d	Iterable<Object?>	list	dynamic	map
+iter_map__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:map
+iter_map__set__s	Iterable<Object?>	set	static	map
+iter_map__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:map
+iter_map__set__d	Iterable<Object?>	set	dynamic	map
+iter_map__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:map
+iter_map__generate__s	Iterable<Object?>	generate	static	map
+iter_map__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:map
+iter_map__generate__d	Iterable<Object?>	generate	dynamic	map
+iter_map__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:map
+iter_toList__list__s	Iterable<Object?>	list	static	toList
+iter_toList__list__ts	Iterable<Object?>	list	tearoff-static	tearoff:toList
+iter_toList__list__d	Iterable<Object?>	list	dynamic	toList
+iter_toList__list__td	Iterable<Object?>	list	tearoff-dynamic	tearoff:toList
+iter_toList__set__s	Iterable<Object?>	set	static	toList
+iter_toList__set__ts	Iterable<Object?>	set	tearoff-static	tearoff:toList
+iter_toList__set__d	Iterable<Object?>	set	dynamic	toList
+iter_toList__set__td	Iterable<Object?>	set	tearoff-dynamic	tearoff:toList
+iter_toList__generate__s	Iterable<Object?>	generate	static	toList
+iter_toList__generate__ts	Iterable<Object?>	generate	tearoff-static	tearoff:toList
+iter_toList__generate__d	Iterable<Object?>	generate	dynamic	toList
+iter_toList__generate__td	Iterable<Object?>	generate	tearoff-dynamic	tearoff:toList
+iter_iterator__list__s	Iterable<Object?>	list	static	get:iterator
+iter_iterator__list__d	Iterable<Object?>	list	dynamic	get:iterator
+iter_iterator__set__s	Iterable<Object?>	set	static	get:iterator
+iter_iterator__set__d	Iterable<Object?>	set	dynamic	get:iterator
+iter_iterator__generate__s	Iterable<Object?>	generate	static	get:iterator
+iter_iterator__generate__d	Iterable<Object?>	generate	dynamic	get:iterator
+iter_moveNext__list__s	Iterable<Object?>	list	static	moveNext
+iter_moveNext__list__d	Iterable<Object?>	list	dynamic	moveNext
+iter_moveNext__set__s	Iterable<Object?>	set	static	moveNext
+iter_moveNext__set__d	Iterable<Object?>	set	dynamic	moveNext
+iter_moveNext__generate__s	Iterable<Object?>	generate	static	moveNext
+iter_moveNext__generate__d	Iterable<Object?>	generate	dynamic	moveNext
+iter_current__list__s	Iterable<Object?>	list	static	get:current
+iter_current__list__d	Iterable<Object?>	list	dynamic	get:current
+iter_current__set__s	Iterable<Object?>	set	static	get:current
+iter_current__set__d	Iterable<Object?>	set	dynamic	get:current
+iter_current__generate__s	Iterable<Object?>	generate	static	get:current
+iter_current__generate__d	Iterable<Object?>	generate	dynamic	get:current
+obj_eq__string__s	Object	string	static	==
+obj_eq__string__d	Object	string	dynamic	==
+obj_eq__int__s	Object	int	static	==
+obj_eq__int__d	Object	int	dynamic	==
+obj_eq__list__s	Object	list	static	==
+obj_eq__list__d	Object	list	dynamic	==
+obj_toString__string__s	Object	string	static	toString
+obj_toString__string__ts	Object	string	tearoff-static	tearoff:toString
+obj_toString__string__d	Object	string	dynamic	toString
+obj_toString__string__td	Object	string	tearoff-dynamic	tearoff:toString
+obj_toString__int__s	Object	int	static	toString
+obj_toString__int__ts	Object	int	tearoff-static	tearoff:toString
+obj_toString__int__d	Object	int	dynamic	toString
+obj_toString__int__td	Object	int	tearoff-dynamic	tearoff:toString
+obj_toString__list__s	Object	list	static	toString
+obj_toString__list__ts	Object	list	tearoff-static	tearoff:toString
+obj_toString__list__d	Object	list	dynamic	toString
+obj_toString__list__td	Object	list	tearoff-dynamic	tearoff:toString
+obj_hashCode__string__s	Object	string	static	get:hashCode
+obj_hashCode__string__d	Object	string	dynamic	get:hashCode
+obj_hashCode__int__s	Object	int	static	get:hashCode
+obj_hashCode__int__d	Object	int	dynamic	get:hashCode
+obj_hashCode__list__s	Object	list	static	get:hashCode
+obj_hashCode__list__d	Object	list	dynamic	get:hashCode
+size_width__size__s	Size	size	static	get:width
+size_width__size__d	Size	size	dynamic	get:width
+size_height__size__s	Size	size	static	get:height
+size_height__size__d	Size	size	dynamic	get:height
+offset_dx__offset__s	Offset	offset	static	get:dx
+offset_dx__offset__d	Offset	offset	dynamic	get:dx
+offset_dy__offset__s	Offset	offset	static	get:dy
+offset_dy__offset__d	Offset	offset	dynamic	get:dy
+sub_cancel__from_iterable__s	StreamSubscription<int>	from_iterable	static	cancel
+sub_cancel__from_iterable__ts	StreamSubscription<int>	from_iterable	tearoff-static	tearoff:cancel
+sub_cancel__from_iterable__d	StreamSubscription<int>	from_iterable	dynamic	cancel
+sub_cancel__from_iterable__td	StreamSubscription<int>	from_iterable	tearoff-dynamic	tearoff:cancel
+sub_cancel__controller__s	StreamSubscription<int>	controller	static	cancel
+sub_cancel__controller__ts	StreamSubscription<int>	controller	tearoff-static	tearoff:cancel
+sub_cancel__controller__d	StreamSubscription<int>	controller	dynamic	cancel
+sub_cancel__controller__td	StreamSubscription<int>	controller	tearoff-dynamic	tearoff:cancel
+sub_cancel__broadcast__s	StreamSubscription<int>	broadcast	static	cancel
+sub_cancel__broadcast__ts	StreamSubscription<int>	broadcast	tearoff-static	tearoff:cancel
+sub_cancel__broadcast__d	StreamSubscription<int>	broadcast	dynamic	cancel
+sub_cancel__broadcast__td	StreamSubscription<int>	broadcast	tearoff-dynamic	tearoff:cancel

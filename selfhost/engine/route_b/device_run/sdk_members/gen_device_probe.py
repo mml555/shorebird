@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# cspell:words eqop xhello oneshot sdkprobe SDKPROBE NOTPATCHED xids
+# cspell:words eqop xhello oneshot sdkprobe SDKPROBE NOTPATCHED xids ddecl dstmt
 """gen_device_probe.py <out_dir>
 
 Device version of the host matrix generator (../../evidence/sdk_instance_members
@@ -20,6 +20,7 @@ patched leaves `lastResult` null and cannot be read as a result. The runner
 marks each probe with files before the call, so an abort is attributed to the
 probe whose marker has no result on the next launch.
 """
+import os
 import re
 import sys
 import pathlib
@@ -433,7 +434,37 @@ def main():
     keep = ", ".join(recv_names)
     rel.append("\n@pragma('vm:never-inline')\nvoid _sink(Object o) {\n  axNow();\n}\n\n"
                "void keepReceivers() {\n" + "".join(f"  _sink({n});\n" for n in recv_names) + "}\n")
-    rel.append(MAIN_FN)
+    kept = bool(os.environ.get('KEPT_CALLS'))
+    if kept:
+        # The kept release: every probed member is called from code the compiler cannot prove dead, on
+        # the receivers the probes use, so the release keeps it (typed and tear-off forms; a `dynamic`
+        # probe binds by selector to whatever the receiver's class kept).
+        kc = []
+        dyn_sel = set(open(os.environ['KEPT_DYNAMIC_SELECTORS']).read().split()) if os.environ.get('KEPT_DYNAMIC_SELECTORS') else set()
+        for pid, typ, label, form, sel, kind, payload in probes:
+            if 'dynamic' in form:
+                continue
+            if kind == 'recv':
+                prefix, e = payload
+                decl = f"final {TYPES[prefix]} R = {prefix}__{label} as {TYPES[prefix]};"
+            else:
+                decl = f"final StreamSubscription<int> R = {payload}.listen((int v) {{}});"
+                e = 'R.cancel()' if not form.startswith('tearoff') else 'R.cancel'
+            stmt = f"_sink({e} as Object);" if form.startswith('tearoff') else f"{e};"
+            rel.append(f"\n@pragma('vm:never-inline')\nvoid k_{pid}() {{\n  {decl}\n  {stmt}\n}}\n")
+            kc.append(f"  k_{pid}();\n")
+            # A typed call can be inlined or folded away (String.length, num operators on a smi), which
+            # leaves the member without code. A call by name on a `dynamic` receiver cannot: the compiler
+            # keeps every member of that name. Used for the selectors the first build still missed.
+            plain = re.sub(r'^tearoff:', '', sel)
+            if plain in dyn_sel and kind == 'recv':
+                ddecl = f"dynamic R = {prefix}__{label};"
+                dstmt = f"_sink({e} as Object);" if form.startswith('tearoff') else f"{e};"
+                rel.append(f"\n@pragma('vm:never-inline')\nvoid kd_{pid}() {{\n  {ddecl}\n  {dstmt}\n}}\n")
+                kc.append(f"  kd_{pid}();\n")
+        rel.append("\n// Never runs (no machine has a million cores), but the compiler cannot know that.\n"
+                   "void keptCalls() {\n" + "".join(kc) + "}\n")
+    rel.append(MAIN_FN.replace("  keepReceivers();\n", "  keepReceivers();\n  if (Platform.numberOfProcessors > 1000000) keptCalls();\n") if kept else MAIN_FN)
     release = "".join(rel)
     (out / 'main_release.dart').write_text(release)
 
@@ -441,7 +472,6 @@ def main():
     # Probes left out of the patch (still stubs in the release, so they report NOTPATCHED):
     # PATCH_EXCLUDE is a comma list of selectors; a probe is left out when its selector is listed
     # and its form is dynamic.
-    import os
     excl = set(filter(None, os.environ.get('PATCH_EXCLUDE_DYNAMIC', '').split(',')))
     left_out = []
     # excluded_ids.tsv: id, kind. `host-abort` ids aborted the process on the host matrix and are
@@ -491,7 +521,7 @@ def main():
     print(len(ids), 'probes')
 
 
-RUN_ID = 'S2'
+RUN_ID = os.environ.get('RUN_ID', 'S2')  # a new id gives the app a fresh Documents folder of markers
 RUNNER_HEAD = '''
 late String _dir;
 
