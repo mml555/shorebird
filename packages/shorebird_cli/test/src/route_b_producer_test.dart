@@ -3003,6 +3003,255 @@ callable:
           );
         });
       });
+
+      group('class scope', () {
+        // The replacement is a top-level function. A name the class scope
+        // resolved to the class's own static would otherwise be looked up
+        // among the library's top-level names, where a same-named one wins
+        // without a diagnostic:
+        //
+        //   double k = 1.5;
+        //   class C { static int k = 2; int f(int a) => a + k; }
+        //
+        // `a + k` is an int sum in the app and a double sum in the patch.
+
+        /// A document for [decl], with the class scope the analyzer reports.
+        /// Each of [uses] is `(needle, member, kind)`: the offset is that of
+        /// [member] inside the first occurrence of [needle].
+        RouteBCoverage scoped({
+          required String decl,
+          List<(String, String, String)> uses = const [],
+          List<String> names = const ['k'],
+          List<String> typeParameters = const [],
+          bool instance = true,
+          String className = 'RouteBThing',
+          int? offsetOf,
+        }) {
+          const preamble = 'double k = 1.5;\n';
+          source.writeAsStringSync('$preamble$decl');
+          const start = preamble.length;
+          final nameOffset = start + decl.indexOf('f(');
+          return RouteBCoverage.fromJson(
+            jsonEncode({
+              'analysisVersion': supportedRouteBAnalysisVersion,
+              'verdict': 'accept',
+              'changed': [key],
+              'added': <String>[],
+              'removed': <String>[],
+              'patchable': <String>[],
+              'conditional': [key],
+              'sources': {
+                key: {
+                  'fileUri': source.uri.toString(),
+                  'start': start,
+                  'end': start + decl.length,
+                },
+              },
+              if (instance)
+                'lowering': {
+                  key: {
+                    'receiverType': className,
+                    'nameOffset': nameOffset,
+                    'accesses': <Object>[],
+                    'unsupported': <String>[],
+                  },
+                },
+              'enclosingScope': {
+                key: {
+                  'class': className,
+                  'nameOffset': nameOffset,
+                  'staticReferences': [
+                    for (final (needle, member, kind) in uses)
+                      {
+                        'offset':
+                            offsetOf ??
+                            start +
+                                decl.indexOf(needle) +
+                                needle.lastIndexOf(member),
+                        'member': member,
+                        'kind': kind,
+                      },
+                  ],
+                  'staticNames': names,
+                  'usedTypeParameters': typeParameters,
+                  'shadowsTopLevel': false,
+                },
+              },
+              'rejections': <Object>[],
+              'refusalSummary': null,
+            }),
+          );
+        }
+
+        test('qualifies a static read in an instance method', () {
+          final out = lowered(
+            scoped(decl: 'int f(int a) => a + k;', uses: [('k', 'k', 'get')]),
+          );
+          expect(
+            out,
+            contains('int f(RouteBThing self, int a) => a + RouteBThing.k;'),
+          );
+          expect(
+            lastArguments,
+            isNot(contains('--resolve-private-names-in-library')),
+          );
+        });
+
+        test('qualifies a static read in a static method', () {
+          final out = lowered(
+            scoped(
+              decl: 'static int f(int a) => a + k;',
+              uses: [('k', 'k', 'get')],
+              instance: false,
+            ),
+          );
+          expect(out, contains('int f(int a) => a + RouteBThing.k;'));
+          expect(out, isNot(contains('static int f')));
+        });
+
+        test('qualifies a write, a call and a closure body', () {
+          final out = lowered(
+            scoped(
+              decl:
+                  'int f(int a) { k = 3; '
+                  'return [1].map((e) => g(e) + k).first; }',
+              names: ['k', 'g'],
+              uses: [
+                ('k = 3', 'k', 'set'),
+                ('g(e)', 'g', 'invoke'),
+                ('+ k', 'k', 'get'),
+              ],
+            ),
+          );
+          expect(out, contains('RouteBThing.k = 3;'));
+          expect(out, contains('RouteBThing.g(e)'));
+        });
+
+        test('qualifies a use in an interpolation', () {
+          final out = lowered(
+            scoped(decl: r"String f() => 'v=$k';", uses: [('k', 'k', 'get')]),
+          );
+          expect(out, contains(r"'v=${RouteBThing.k}'"));
+        });
+
+        test('leaves a use that is already qualified alone', () {
+          final out = lowered(
+            scoped(
+              decl: 'int f(int a) => a + RouteBThing.k;',
+              uses: [('RouteBThing.k', 'k', 'get')],
+            ),
+          );
+          expect(out, contains('a + RouteBThing.k;'));
+          expect(out, isNot(contains('RouteBThing.RouteBThing')));
+        });
+
+        test('qualifies a folded static const where the token is its name', () {
+          final out = lowered(
+            scoped(
+              decl: 'int f(int a) => a + k;',
+              uses: [('k', 'k', 'constant')],
+            ),
+          );
+          expect(out, contains('a + RouteBThing.k;'));
+        });
+
+        test('does not touch a folded constant written as a literal', () {
+          // The analyzer reports every static const equal to the folded value;
+          // the source token decides which was written.
+          final out = lowered(
+            scoped(
+              decl: 'int f(int a) => a + 2;',
+              uses: [('2', 'k', 'constant')],
+              offsetOf:
+                  'double k = 1.5;\n'.length + 'int f(int a) => a + '.length,
+            ),
+          );
+          expect(out, contains('a + 2;'));
+        });
+
+        test('refuses a spelling of a class static it has no use for', () {
+          // No reported use, e.g. inside a folded constant collection: the name
+          // could be rebound and there is no offset to qualify.
+          expect(
+            () => lowered(scoped(decl: 'int f(int a) => a + k;')),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                allOf(contains('`k`'), contains('RouteBThing.k')),
+              ),
+            ),
+          );
+        });
+
+        test('does not mistake a named argument label for a use', () {
+          final out = lowered(
+            scoped(decl: 'int f(int a) => g(k: a);', names: ['k']),
+          );
+          expect(out, contains('g(k: a)'));
+        });
+
+        test('refuses a use that is not where the analyzer said', () {
+          expect(
+            () => lowered(
+              scoped(
+                decl: 'int f(int a) => a + k;',
+                uses: [('k', 'k', 'get')],
+                offsetOf: 3,
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('not where the analyzer reported it'),
+              ),
+            ),
+          );
+        });
+
+        test('refuses an instance method that uses a class type parameter', () {
+          expect(
+            () => lowered(
+              scoped(decl: 'int f(int a) => a;', typeParameters: ['T']),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('class type parameter `T`'),
+              ),
+            ),
+          );
+        });
+
+        test('a private class resolves private names for its static', () {
+          final out = lowered(
+            scoped(
+              decl: 'static int f(int a) => a + k;',
+              uses: [('k', 'k', 'get')],
+              instance: false,
+              className: '_RouteBThing',
+            ),
+          );
+          expect(out, contains('a + _RouteBThing.k;'));
+          expect(lastArguments, contains('--resolve-private-names-in-library'));
+        });
+
+        test('a private receiver class is qualified past the name scan', () {
+          final out = lowered(
+            scoped(
+              decl: 'int f(int a) => a + k;',
+              uses: [('k', 'k', 'get')],
+              className: '_RouteBThing',
+            ),
+          );
+          expect(
+            out,
+            contains('int f(_RouteBThing self, int a) => a + _RouteBThing.k;'),
+          );
+        });
+      });
     });
 
     group('P4.1 survival gate', () {

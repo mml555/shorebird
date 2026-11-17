@@ -65,7 +65,10 @@ RouteBProducer get routeBProducer => read(routeBProducerRef);
 
 /// Runs the cell's bytecode compiler.
 typedef RouteBCompileRunner =
-    ProcessResult Function(String executable, List<String> arguments);
+    ProcessResult Function(
+      String executable,
+      List<String> arguments,
+    );
 
 /// A target the producer cannot turn into a payload, and why.
 class RouteBUnsupportedTarget implements Exception {
@@ -80,6 +83,20 @@ class RouteBUnsupportedTarget implements Exception {
 
   @override
   String toString() => '$target: $reason';
+}
+
+/// A member's class scope as the producer holds it.
+class _ClassScope {
+  _ClassScope(this.scope, {required this.measured, this.ownName});
+
+  final RouteBEnclosingScope scope;
+
+  /// False when the analysis did not report class scope and this was
+  /// reconstructed from its external references.
+  final bool measured;
+
+  /// The member's own name, which its declaration spells.
+  final String? ownName;
 }
 
 /// A lowered replacement: the declaration, plus anything the library needs
@@ -594,10 +611,30 @@ Object? $_superIntrinsicName(
               compiler,
               patchedVerificationKernel,
               _helperNamesCalledBy(key, coverage),
+              _scopeOf(key, coverage),
             )
-          : _Lowered(topLevelForm(_slice(key, source)));
+          : _Lowered(
+              topLevelForm(
+                _qualifiedStaticSlice(key, source, _scopeOf(key, coverage)),
+              ),
+            );
       // HELPERS this target transitively needs, as source, after the entry.
       final neededHelpers = _neededHelpers(key, coverage);
+      // THE ENTRY HIDES A TOP-LEVEL OF ITS OWN NAME. A class member becomes a
+      // top-level function of the same name in the replacement, and a
+      // declaration there shadows the imported library's. Every helper the
+      // replacement carries is written against the library, where that name
+      // meant the top-level one, and would now call the entry.
+      if (neededHelpers.isNotEmpty &&
+          (coverage.enclosingScope?[key]?.shadowsTopLevel ?? false)) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'its replacement is a top-level function named '
+          '`${_helperName(key)}`, and the library also has a top-level of that '
+          'name, which the new functions this patch carries would now call '
+          'instead. Rename one of them',
+        );
+      }
       // The lowering of each needed INSTANCE helper (analysis version 17): it
       // is compiled in this replacement, so what it reaches counts here.
       final helperLowerings = [
@@ -611,15 +648,15 @@ Object? $_superIntrinsicName(
       // lowering), and `_FooState` is spelled in the replacement only if the
       // front end resolves it in the target library.
       final resolvesPrivateNames =
-          [
-            ?lowering,
-            ...helperLowerings,
-          ].any(
+          [?lowering, ...helperLowerings].any(
             (l) =>
                 l.accesses.any((a) => a.privateTarget != null) ||
                 (l.privateConstructions?.isNotEmpty ?? false) ||
                 l.receiverType.startsWith('_'),
           ) ||
+          // A static target of a private class that now names its class to
+          // qualify a static (`_Cls.k`) spells a private name too.
+          _qualifiesPrivateClass(_scopeOf(key, coverage)) ||
           // G5. A PRIVATE TOP-LEVEL FUNCTION the release holds (`_fmt(x)`)
           // is a private name of the target's library, and the replacement
           // library cannot spell it without the flag:
@@ -629,11 +666,10 @@ Object? $_superIntrinsicName(
           // Gated on the release's own manifest list, so only a name the
           // release was built to keep switches the resolution on, and a target
           // that names no private top-level compiles exactly as before.
-          _namesGrantedPrivateTopLevel(
-            coverage,
-            [key, ...neededHelpers],
-            capabilities,
-          );
+          _namesGrantedPrivateTopLevel(coverage, [
+            key,
+            ...neededHelpers,
+          ], capabilities);
       final helperText = _helperSources(
         key,
         neededHelpers,
@@ -1061,6 +1097,7 @@ Object? $_superIntrinsicName(
         compiler,
         patchedVerificationKernel,
         _helperNamesCalledBy(helper, coverage),
+        _scopeOf(helper, coverage),
       ).declaration;
     } on RouteBUnsupportedTarget catch (e) {
       // The reason is the lowering's own, with the helper named in front.
@@ -1129,6 +1166,7 @@ Object? $_superIntrinsicName(
     RouteBCompiler compiler,
     File? patchedVerificationKernel,
     Set<String> helperNames,
+    _ClassScope? scope,
   ) {
     // ANALYSIS VERSION 10: `super.member()`, admitted from the SOURCE.
     if (lowering.unsupported.isNotEmpty) {
@@ -1671,7 +1709,21 @@ Object? $_superIntrinsicName(
       edits.add((access.offset, 0, '$receiverName.'));
     }
 
-    edits.sort((a, b) => b.$1.compareTo(a.$1));
+    // THE CLASS SCOPE THE LOWERING DROPS. Written with a placeholder for the
+    // class name, which is substituted after the private-name backstop below
+    // for the reason the receiver type's placeholder is.
+    edits
+      ..addAll(
+        _staticQualification(
+          key,
+          source,
+          span,
+          scope,
+          _classQualifierPlaceholder,
+          instance: true,
+        ),
+      )
+      ..sort((a, b) => b.$1.compareTo(a.$1));
     var text = source.substring(span.start, span.end);
     for (final (offset, length, replacement) in edits) {
       final at = offset - span.start;
@@ -1800,12 +1852,278 @@ Object? $_superIntrinsicName(
         'reserves for the receiver parameter',
       );
     }
-    text = text.replaceFirst(_receiverTypePlaceholder, lowering.receiverType);
+    text = text
+        .replaceFirst(_receiverTypePlaceholder, lowering.receiverType)
+        .replaceAll(_classQualifierPlaceholder, lowering.receiverType);
     return _Lowered(
       text,
       preamble: superEdits.isEmpty ? '' : '$_superIntrinsicDeclaration\n',
       needsSuperVerification: superEdits.isNotEmpty,
     );
+  }
+
+  /// Stands in for the class name where a static is qualified, until the
+  /// private-name scan has run; see the lowering.
+  static const _classQualifierPlaceholder = '@CLASS_QUALIFIER@';
+
+  /// The class scope of [key], from the analysis, or what an analysis that did
+  /// not report one still shows: the statics of its own class the body names.
+  _ClassScope? _scopeOf(String key, RouteBCoverage coverage) {
+    final scope = coverage.enclosingScope?[key];
+    if (scope != null) return _ClassScope(scope, measured: true);
+    final external = coverage.externalReferences?[key];
+    final selector = key.split('#').last;
+    if (external == null || !selector.contains('.')) return null;
+    final className = selector.split('.').first;
+    final names = {
+      for (final r in external)
+        if (r.kind == 'static' && r.className == className && r.member != null)
+          r.member!.replaceFirst(RegExp('^[gs]et:'), ''),
+    };
+    if (names.isEmpty) return null;
+    return _ClassScope(
+      RouteBEnclosingScope(
+        className: className,
+        nameOffset: -1,
+        staticReferences: const [],
+        staticNames: names.toList(),
+        usedTypeParameters: const [],
+        shadowsTopLevel: false,
+      ),
+      measured: false,
+      ownName: selector.split('.').last.replaceFirst(RegExp('^[gs]et:'), ''),
+    );
+  }
+
+  static bool _qualifiesPrivateClass(_ClassScope? scope) =>
+      scope != null &&
+      scope.measured &&
+      scope.scope.className.startsWith('_') &&
+      scope.scope.staticReferences.isNotEmpty;
+
+  /// A static member's source with each unqualified use of a static of its own
+  /// class written `Class.name`.
+  String _qualifiedStaticSlice(
+    String key,
+    RouteBSourceSpan span,
+    _ClassScope? scope,
+  ) {
+    final slice = _slice(key, span);
+    if (scope == null) return slice;
+    final source = utf8.decode(
+      File.fromUri(Uri.parse(span.fileUri)).readAsBytesSync(),
+    );
+    final edits = _staticQualification(
+      key,
+      source,
+      span,
+      scope,
+      scope.scope.className,
+      instance: false,
+    )..sort((a, b) => b.$1.compareTo(a.$1));
+    var text = slice;
+    for (final (offset, length, replacement) in edits) {
+      final at = offset - span.start;
+      text = text.replaceRange(at, at + length, replacement);
+    }
+    return text;
+  }
+
+  /// The edits that write [qualifier] in front of every unqualified use of a
+  /// static of the member's own class.
+  ///
+  /// KERNEL DECIDES which uses those are (the analysis lists each resolved
+  /// static with the offset of its identifier); the source supplies only
+  /// whether a qualifier is already there. A body that spells one of the
+  /// class's static names somewhere the analysis did not account for, such as
+  /// inside a folded constant collection, is refused: the name could be
+  /// rebound and there is no offset to put the class at.
+  List<(int, int, String)> _staticQualification(
+    String key,
+    String source,
+    RouteBSourceSpan span,
+    _ClassScope? scope,
+    String qualifier, {
+    required bool instance,
+  }) {
+    if (scope == null) return const [];
+    final info = scope.scope;
+    if (info.unanalyzed != null) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'its class scope could not be analysed (${info.unanalyzed}), so a '
+        'static of the class it names cannot be shown to mean the same thing '
+        'in the replacement library',
+      );
+    }
+    if (instance && info.usedTypeParameters.isNotEmpty) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'its body uses the class type parameter '
+        '`${info.usedTypeParameters.first}`, which is not in scope in the '
+        'top-level function a replacement is, and a top-level type of that '
+        'name would be bound instead',
+      );
+    }
+    final edits = <(int, int, String)>[];
+    final accounted = <int>{};
+    for (final ref in info.staticReferences) {
+      final end = ref.offset + ref.member.length;
+      if (ref.offset < span.start ||
+          end > span.end ||
+          !source.startsWith(ref.member, ref.offset) ||
+          (end < source.length && _isIdentifierPart(source.codeUnitAt(end)))) {
+        // Folded constants have no identifier of their own at their offset
+        // when the source wrote a qualified name or a literal.
+        if (ref.kind == 'constant') continue;
+        throw RouteBUnsupportedTarget(
+          key,
+          'its use of the static `${ref.member}` is not where the analyzer '
+          'reported it (offset ${ref.offset}), so it cannot be qualified',
+        );
+      }
+      accounted.add(ref.offset);
+      if (_precededByDot(source, ref.offset, span.start)) continue;
+      if (edits.any((e) => e.$1 == ref.offset || e.$1 == ref.offset - 1)) {
+        continue;
+      }
+      final dollar = ref.offset - 1;
+      if (dollar >= span.start && source[dollar] == r'$') {
+        if (dollar - 1 >= span.start && source[dollar - 1] == r'$') {
+          throw RouteBUnsupportedTarget(
+            key,
+            'uses `${ref.member}` inside an escaped `\$\$` sequence, which '
+            'this lowering will not rewrite',
+          );
+        }
+        edits.add((
+          dollar,
+          1 + ref.member.length,
+          '\${$qualifier.${ref.member}}',
+        ));
+        continue;
+      }
+      edits.add((ref.offset, 0, '$qualifier.'));
+    }
+    if (info.staticNames.isEmpty) return edits;
+    final names = info.staticNames.toSet();
+    final masked = _maskedCode(source.substring(span.start, span.end));
+    for (final match in _identifierToken.allMatches(masked)) {
+      final name = match[0]!;
+      if (!names.contains(name)) continue;
+      final at = span.start + match.start;
+      if (accounted.contains(at) ||
+          at == info.nameOffset ||
+          name == scope.ownName ||
+          _precededByDot(source, at, span.start) ||
+          _isNamedArgumentLabel(source, at, at + name.length, span)) {
+        continue;
+      }
+      throw RouteBUnsupportedTarget(
+        key,
+        scope.measured
+            ? 'its body spells `$name`, which is also a static of '
+                  '`${info.className}`, where the analysis did not report a '
+                  'use of that static to qualify. In the replacement library '
+                  'a top-level `$name` would be bound instead. Write '
+                  '`${info.className}.$name`'
+            : 'its body names the static `${info.className}.$name` '
+                  'unqualified, and this analysis does not report class '
+                  'scope, so it cannot show the replacement library resolves '
+                  '`$name` the same way. Write `${info.className}.$name`, or '
+                  'patch with a current analyzer',
+      );
+    }
+    return edits;
+  }
+
+  static final _identifierToken = RegExp(
+    '(?<![A-Za-z0-9_])[A-Za-z_][A-Za-z0-9_]*',
+  );
+
+  static bool _precededByDot(String source, int offset, int floor) {
+    var back = offset - 1;
+    while (back >= floor && _isBlank(source.codeUnitAt(back))) {
+      back--;
+    }
+    return back >= floor && source[back] == '.';
+  }
+
+  /// `name:` directly inside an argument list, which is a label and not a use.
+  static bool _isNamedArgumentLabel(
+    String source,
+    int start,
+    int end,
+    RouteBSourceSpan span,
+  ) {
+    var after = end;
+    while (after < span.end && _isBlank(source.codeUnitAt(after))) {
+      after++;
+    }
+    if (after >= span.end || source[after] != ':') return false;
+    var back = start - 1;
+    while (back >= span.start && _isBlank(source.codeUnitAt(back))) {
+      back--;
+    }
+    return back >= span.start && (source[back] == '(' || source[back] == ',');
+  }
+
+  /// [text] with comments, and string text that cannot interpolate, blanked
+  /// out, so an identifier scan sees only code. Offsets are preserved.
+  static String _maskedCode(String text) {
+    final out = text.split('');
+    void blank(int from, int to) {
+      for (var k = from; k < to && k < out.length; k++) {
+        if (out[k] != '\n') out[k] = ' ';
+      }
+    }
+
+    var i = 0;
+    while (i < text.length) {
+      if (text.startsWith('//', i)) {
+        var j = i;
+        while (j < text.length && text[j] != '\n') {
+          j++;
+        }
+        blank(i, j);
+        i = j;
+        continue;
+      }
+      if (text.startsWith('/*', i)) {
+        var depth = 1;
+        var j = i + 2;
+        while (j < text.length && depth > 0) {
+          if (text.startsWith('/*', j)) {
+            depth++;
+            j += 2;
+          } else if (text.startsWith('*/', j)) {
+            depth--;
+            j += 2;
+          } else {
+            j++;
+          }
+        }
+        blank(i, j);
+        i = j;
+        continue;
+      }
+      final c = text[i];
+      if (c == "'" || c == '"') {
+        final delim = text.startsWith(c * 3, i) ? c * 3 : c;
+        var j = i + delim.length;
+        while (j < text.length && !text.startsWith(delim, j)) {
+          j += text[j] == r'\' ? 2 : 1;
+        }
+        final end = j < text.length ? j + delim.length : text.length;
+        if (!text.substring(i, end).contains(r'$')) {
+          blank(i, end);
+        }
+        i = end;
+        continue;
+      }
+      i++;
+    }
+    return out.join();
   }
 
   /// Every private identifier in `text` that could be a reference.

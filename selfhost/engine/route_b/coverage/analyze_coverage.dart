@@ -807,6 +807,13 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     'sources': sources,
     'lowering': lowering,
     'externalReferences': externalReferences,
+    // What the enclosing class's scope gives a copied body, per class member
+    // the patch would carry. Absent on a document from an older analyzer, which
+    // the producer reads as "not measured". See `enclosingScopeOf`.
+    'enclosingScope': {
+      for (final key in carriedBodies.keys.toList()..sort())
+        if (enclosingScopeOf(carriedBodies[key]!) case final scope?) key: scope,
+    },
     'signatures': signatures,
     'rejections': rejections,
     'refusalSummary': reasons.isEmpty ? null : reasons.join('; '),
@@ -2935,6 +2942,130 @@ List<Map<String, Object?>> _externalReferences(
     ];
   }
   return [for (final k in uses.found.keys.toList()..sort()) uses.found[k]!];
+}
+
+/// What a class member's body takes from its CLASS SCOPE, which a replacement
+/// library does not have.
+///
+/// A replacement is a top-level function in a library that imports the target
+/// library, so an unqualified `k` meaning the class's `static k` is looked up
+/// among the library's top-level names instead, and a same-named top-level `k`
+/// wins without any diagnostic. Kernel resolved the name correctly; the source
+/// text did not say how. This reports what Kernel resolved, so the producer can
+/// write the class in front of it.
+///
+/// `staticReferences`: every use of one of the class's OWN statics (static
+/// field, getter, setter, method), with the offset of its identifier. A static
+/// const that Kernel folded into a constant has no static node left; it is
+/// reported as `constant` at the offset of the folded expression, for every own
+/// static const whose value equals the folded one, and the producer qualifies it
+/// only where the source token there IS that name.
+///
+/// `staticNames`: every static the class declares, so the producer can refuse a
+/// body that spells one in a place this report did not account for.
+///
+/// `usedTypeParameters`: class type parameters the body mentions. They are not
+/// in scope in a top-level function.
+///
+/// `shadowsTopLevel`: the library also declares a top-level of the member's
+/// name. The lowered member is declared at top level in the replacement, where
+/// it hides that one for every helper the replacement carries.
+///
+/// Null for a member outside a class.
+Map<String, Object?>? enclosingScopeOf(Procedure p) {
+  final cls = p.enclosingClass;
+  if (cls == null) return null;
+  final uses = _ScopeUses(cls);
+  try {
+    p.function.accept(uses);
+  } catch (error) {
+    return {
+      'class': cls.name,
+      'unanalyzed': 'the body could not be walked: $error',
+    };
+  }
+  final statics = <String>{
+    for (final m in cls.members)
+      if (m is! Constructor && !m.isInstanceMember) m.name.text,
+  };
+  return {
+    'class': cls.name,
+    'nameOffset': p.fileOffset,
+    'staticReferences': [
+      for (final r in uses.references)
+        {'offset': r.$1, 'member': r.$2, 'kind': r.$3},
+    ],
+    'staticNames': statics.toList()..sort(),
+    'usedTypeParameters': uses.typeParameters.toList()..sort(),
+    'shadowsTopLevel': p.enclosingLibrary.members.any(
+      (m) => m.name.text == p.name.text,
+    ),
+  };
+}
+
+class _ScopeUses extends RecursiveVisitor {
+  _ScopeUses(this.cls);
+
+  final Class cls;
+  final references = <(int, String, String)>[];
+  final typeParameters = <String>{};
+
+  bool _own(Member m) =>
+      !m.isInstanceMember &&
+      m is! Constructor &&
+      !(m is Procedure && m.isFactory) &&
+      identical(m.enclosingClass, cls);
+
+  void _static(Member m, int offset, String kind) {
+    if (_own(m)) references.add((offset, m.name.text, kind));
+  }
+
+  @override
+  void visitStaticGet(StaticGet node) {
+    _static(node.target, node.fileOffset, 'get');
+    super.visitStaticGet(node);
+  }
+
+  @override
+  void visitStaticSet(StaticSet node) {
+    _static(node.target, node.fileOffset, 'set');
+    super.visitStaticSet(node);
+  }
+
+  @override
+  void visitStaticInvocation(StaticInvocation node) {
+    _static(node.target, node.fileOffset, 'invoke');
+    super.visitStaticInvocation(node);
+  }
+
+  @override
+  void visitStaticTearOff(StaticTearOff node) {
+    _static(node.target, node.fileOffset, 'tearoff');
+    super.visitStaticTearOff(node);
+  }
+
+  @override
+  void visitConstantExpression(ConstantExpression node) {
+    for (final f in cls.fields) {
+      final init = f.initializer;
+      if (f.isStatic &&
+          f.isConst &&
+          init is ConstantExpression &&
+          init.constant == node.constant) {
+        references.add((node.fileOffset, f.name.text, 'constant'));
+      }
+    }
+    super.visitConstantExpression(node);
+  }
+
+  @override
+  void visitTypeParameterType(TypeParameterType node) {
+    final parameter = node.parameter;
+    if (identical(parameter.parent, cls) && parameter.name != null) {
+      typeParameters.add(parameter.name!);
+    }
+    super.visitTypeParameterType(node);
+  }
 }
 
 /// Every symbol a body asks the loader to find by name.
