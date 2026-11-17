@@ -2,16 +2,16 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/route_b_abi.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
-import 'package:scoped_deps/scoped_deps.dart';
 import 'package:test/test.dart';
 
-import 'mocks.dart';
 import 'helpers.dart';
+import 'mocks.dart';
 
 void main() {
   useTempWorkingDirectory();
@@ -123,7 +123,8 @@ void main() {
       provenance: '',
     );
 
-    /// Coverage whose one target is an INSTANCE member, so it is lowered and the
+    /// Coverage whose one target is an INSTANCE member, so it is lowered and
+    /// the
     /// lowering's `unsupported` list is the ABI gate.
     // Read from the FILE, not from a constant: a test that rewrites the source
     // and leaves the span pinned to the old length silently slices a truncated
@@ -189,7 +190,8 @@ void main() {
       values: {loggerRef.overrideWith(() => logger)},
     );
 
-    // THE STAGE. Every row below refuses inside produce(), which runs before any
+    // THE STAGE. Every row below refuses inside produce(), which runs before
+    // any
     // bytecode is compiled and long before anything is uploaded. That is the
     // property being pinned, not merely that a refusal happens somewhere.
     test('required positionals only: PUBLISHES', () {
@@ -279,15 +281,17 @@ void main() {
       );
     });
 
-    test('MUTATION: the analyzer\'s list is the ONLY thing enforcing this', () {
+    test("MUTATION: the analyzer's list is the ONLY thing enforcing this", () {
       // A source that really does take named parameters, with the analyzer
-      // reporting nothing, PUBLISHES. So the boundary is enforced in exactly one
+      // reporting nothing, PUBLISHES. So the boundary is enforced in exactly
+      // one
       // place -- the cell's `unsupported` list -- and the producer does not
       // independently re-derive the shape.
       //
       // That is worth pinning rather than assuming: it says where to look when
       // the boundary moves, and it makes the rows above meaningful, since they
-      // would otherwise be consistent with a second hidden check doing the work.
+      // would otherwise be consistent with a second hidden check doing the
+      // work.
       source.writeAsStringSync('String m({String? x}) => "v";');
       expect(() => produce(const []), returnsNormally);
       final generated = File(

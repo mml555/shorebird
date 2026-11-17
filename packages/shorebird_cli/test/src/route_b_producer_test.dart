@@ -10,8 +10,8 @@ import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
-import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
+import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';
@@ -73,7 +73,7 @@ void main() {
                 'end': declaration.length,
               },
             },
-        if (lowering != null) 'lowering': lowering,
+        'lowering': ?lowering,
         'rejections': <Object>[],
         'refusalSummary': null,
       }),
@@ -190,7 +190,7 @@ void main() {
         return File(p.join(work.path, 'replacement_0.dart')).readAsStringSync();
       }
 
-      test('refuses a private name that is another library\'s helper, not '
+      test("refuses a private name that is another library's helper, not "
           'one this helper calls', () {
         expect(
           () => produce(coverage(gCalls: const [])),
@@ -309,7 +309,7 @@ void main() {
           targets: ['$lib#routeBOther', '$lib#routeBValue'],
         );
         // Sorted: routeBOther is replacement_0, routeBValue replacement_1.
-        final first = produceFor(coverage, 0);
+        final first = produceFor(coverage);
         final second = produceFor(coverage, 1);
         expect(first, endsWith('$other\n\n$helperB\n'));
         expect(first, isNot(contains('helperA')));
@@ -575,14 +575,13 @@ void main() {
             'private receiver', () {
           for (final (helperName, text) in [
             ('_rbH', "String _rbH() => 'H';"),
-            ('rbH', "String rbH() => _rbOther();"),
+            ('rbH', 'String rbH() => _rbOther();'),
           ]) {
             expect(
               () => produceFor(
                 instance(
                   helperName,
                   text,
-                  decl: 'String value() => label;',
                   receiver: '_RouteBThing',
                 ),
               ),
@@ -748,7 +747,7 @@ void main() {
         test('a receiver use that opens the argument list does not collide '
             'with the receiver argument', () {
           final out = produceFor(
-            v17(decl: 'String value() => _h(label);'),
+            v17(),
           );
           expect(out, contains('_h(self, self.label)'));
         });
@@ -1117,7 +1116,8 @@ void main() {
     test('G4.1c: threads the INJECTED defines too, ahead of the user ones', () {
       // Link 2. The release's `-D` environment is both maps: the user's defines
       // and the ones Flutter injected. Before this, `compilerArgs` came from
-      // `effectiveDefines` alone and a replacement reading FLUTTER_VERSION baked
+      // `effectiveDefines` alone and a replacement reading FLUTTER_VERSION
+      // baked
       // the empty string while the release held 3.44.8.
       late List<String> args;
       runWithOverrides(
@@ -1157,7 +1157,7 @@ void main() {
       /// import kernel.
       RouteBCoverage coverageReadingEnvironment() {
         const envDeclaration =
-            "String routeBValue() => "
+            'String routeBValue() => '
             "const String.fromEnvironment('FLUTTER_VERSION');";
         source.writeAsStringSync(envDeclaration);
         return coverage(
@@ -1421,8 +1421,7 @@ void main() {
           'policy': 'p2',
           'privateInstanceCallable': instance,
           'privateClassesConstructible': classes,
-          if (classPublicMembers != null)
-            'privateClassPublicMembers': classPublicMembers,
+          'privateClassPublicMembers': ?classPublicMembers,
         }),
       );
 
@@ -1788,7 +1787,8 @@ void main() {
       });
 
       test('leaves a named argument exactly as written', () {
-        // Nothing here is parsed. If the edit is only `helper` -> `self.helper`,
+        // Nothing here is parsed. If the edit is only `helper` ->
+        // `self.helper`,
         // named arguments and nesting cannot be disturbed — this pins that.
         expect(
           lowered(
@@ -1801,7 +1801,7 @@ void main() {
             ),
           ),
           contains(
-            "String value(RouteBThing self) => "
+            'String value(RouteBThing self) => '
             "self.helper('a', b: f(1, 2), c: [3]);",
           ),
         );
@@ -1839,7 +1839,7 @@ void main() {
         );
       });
 
-      test('G3.7: keeps the target\'s own parameters and puts self first', () {
+      test("G3.7: keeps the target's own parameters and puts self first", () {
         // The entry-point contract permits any number of required positionals
         // (patch 0006), so the receiver is inserted IN FRONT of the existing
         // list rather than into an empty one. The list is copied verbatim: no
@@ -1848,13 +1848,13 @@ void main() {
           lowered(
             instanceCoverage(
               preamble: 'class RouteBThing {\n  ',
-              decl: "String tagged(String x) => 'NEW-\$x' + label;",
+              decl: r"String tagged(String x) => 'NEW-$x' + label;",
               access: 'label',
-              kind: 'get',
             ),
           ),
           contains(
-            "String tagged(RouteBThing self, String x) => 'NEW-\$x' + self.label;",
+            'String tagged(RouteBThing self, String x) => '
+            r"'NEW-$x' + self.label;",
           ),
         );
       });
@@ -1868,7 +1868,6 @@ void main() {
                 preamble: 'class RouteBThing {\n  ',
                 decl: 'String pair(String a, int b) => label;',
                 access: 'label',
-                kind: 'get',
               ),
             ),
             contains(
@@ -1908,14 +1907,15 @@ void main() {
             ),
           ),
           contains(
-            "String value(RouteBThing self) => "
+            'String value(RouteBThing self) => '
             "self.label = self.label + f(1, 'x');",
           ),
         );
       });
 
       test('rewrites a read and a write at one position once', () {
-        // `label += 'X'`, `count++` and `maybe ??= 'Z'` each report a read AND a
+        // `label += 'X'`, `count++` and `maybe ??= 'Z'` each report a read AND
+        // a
         // write at the same identifier — measured, not assumed. One prefix is
         // the whole rewrite; two would produce `self.self.label`.
         for (final (decl, out) in [
@@ -2193,7 +2193,7 @@ void main() {
         }) {
           const preamble = 'class RouteBThing {\n  ';
           source.writeAsStringSync('$preamble$decl');
-          final start = preamble.length;
+          const start = preamble.length;
           Map<String, Object?> entry(String key) => {
             'offset': start + decl.indexOf('_'),
             'library': 'package:app/main.dart',
@@ -2251,7 +2251,8 @@ void main() {
         });
 
         test('asks the CFE to resolve a private receiver class', () {
-          // The receiver parameter is written `_RouteBState self`, and this body
+          // The receiver parameter is written `_RouteBState self`, and this
+          // body
           // touches no private member, so the class name is the only private
           // reference. Without the flag the front end reports "Type not found".
           lowered(
@@ -2272,17 +2273,22 @@ void main() {
         });
 
         test('asks the CFE to resolve a construction-only private name', () {
-          // GATE 6F's BUG, RED FIRST. The test above asserts the lowered SOURCE and
-          // nothing else, so it passed while the compile could not possibly succeed:
+          // GATE 6F's BUG, RED FIRST. The test above asserts the lowered SOURCE
+          // and
+          // nothing else, so it passed while the compile could not possibly
+          // succeed:
           // `_Helper` is private to the target library and the replacement is a
           // separate synthetic library, so without this flag the CFE reports
           //
           //   Error: Method not found: '_Helper'.
           //
-          // and the producer surfaces a bare "exit 254". Retention and the manifest
-          // grant make the constructor exist and be callable; only this flag lets the
+          // and the producer surfaces a bare "exit 254". Retention and the
+          // manifest
+          // grant make the constructor exist and be callable; only this flag
+          // lets the
           // replacement SPELL it. The predicate used to key on private member
-          // ACCESSES alone, and this body has none -- `accesses` is empty and the
+          // ACCESSES alone, and this body has none -- `accesses` is empty and
+          // the
           // construction is the sole private reference.
           lowered(constructs(), granting: grants(classes: [ctorKey]));
           expect(
@@ -2318,16 +2324,22 @@ void main() {
         });
 
         test('carries defines AND private-name resolution together', () {
-          // ROUTE-B-PRODUCTIONIZATION-1 item B, the interaction the workflow matrix
-          // could not see. G4.1 (defines) and the private-name flag are certified on
+          // ROUTE-B-PRODUCTIONIZATION-1 item B, the interaction the workflow
+          // matrix
+          // could not see. G4.1 (defines) and the private-name flag are
+          // certified on
           // separate bodies: every defines test uses a body with no private
-          // reference, so the flag is OFF in all of them, and every private-name test
+          // reference, so the flag is OFF in all of them, and every
+          // private-name test
           // passes no defines. A release that uses BOTH -- a flavored or
-          // define-carrying app patching a method that constructs a private class --
+          // define-carrying app patching a method that constructs a private
+          // class --
           // was covered by neither.
           //
-          // Both must survive in one argument list: losing the defines silently bakes
-          // a DEFAULT into the replacement while the release holds the real value,
+          // Both must survive in one argument list: losing the defines silently
+          // bakes
+          // a DEFAULT into the replacement while the release holds the real
+          // value,
           // and losing the flag fails the compile outright.
           lowered(
             constructs(),
@@ -2482,7 +2494,8 @@ void main() {
         });
 
         test('accepts a granted private member with no class grant', () {
-          // ~~P3's failure.~~ **REWRITTEN 2026-08-25.** The member grant is what
+          // ~~P3's failure.~~ **REWRITTEN 2026-08-25.** The member grant is
+          // what
           // attach needs; a class-level grant is not, and requiring one was a
           // misattribution of why P3's grants were inert (P3 never granted the
           // TARGET member, a public method of a private class). Measured in
@@ -2490,7 +2503,8 @@ void main() {
           // attaches and reads a private field with no class item anywhere,
           // Cfix -- the same grants minus the target member -- fails at ATTACH.
           //
-          // Load-bearing now rather than merely correct: the generator no longer
+          // Load-bearing now rather than merely correct: the generator no
+          // longer
           // emits bare private class items at all, so a release that grants no
           // constructors has an EMPTY constructible set, and the old rule would
           // refuse every private reference on every release.
@@ -2551,13 +2565,14 @@ void main() {
           // to a real screen. Nothing failed anywhere. See
           // selfhost/fixtures/privatestate_app/evidence/VERDICT.md.
           //
-          // The braced form `${_x}` was always fine, which is why exactly one of
+          // The braced form `${_x}` was always fine, which is why exactly one
+          // of
           // three accesses worked in that specimen.
           expect(
             lowered(
               instanceCoverage(
                 preamble: 'class _RouteBState {\n  ',
-                decl: "String value() => 'v=\$_controller';",
+                decl: r"String value() => 'v=$_controller';",
                 access: '_controller',
                 member: '_controller',
                 receiverType: '_RouteBState',
@@ -2579,7 +2594,8 @@ void main() {
           // The release interface no longer grants construction implicitly --
           // `gen_dynamic_interface.dart` stopped emitting bare private `class:`
           // items, which is what used to grant every private class's public
-          // constructors (measured: `p1_dead_allocatability.sh` C1). If a future
+          // constructors (measured: `p1_dead_allocatability.sh` C1). If a
+          // future
           // interface regression re-granted one, this still refuses: `_Dead()`
           // puts the private identifier `_Dead` in the body, and the gate
           // accepts a private identifier only when it is a granted ACCESS.
@@ -2900,7 +2916,8 @@ void main() {
     group("the target library's own imports", () {
       // Dart imports are NOT transitive, so a replacement that imports only the
       // target library cannot compile a body referencing anything the target
-      // IMPORTS. Found on device by the P6 flavor arm, whose body read Flutter's
+      // IMPORTS. Found on device by the P6 flavor arm, whose body read
+      // Flutter's
       // `appFlavor`; the symptom was a bare "the bytecode compiler refused its
       // replacement body (exit 254)".
       test('are carried into the replacement library', () {
@@ -3499,7 +3516,7 @@ void main() {
       // began mid-word and ended before its closing `;`.
       const preamble = '// em dashes — — — before the declaration\n';
       source.writeAsStringSync('$preamble$declaration');
-      final start = preamble.length; // code units, as the kernel reports
+      const start = preamble.length; // code units, as the kernel reports
 
       runWithOverrides(
         () => const RouteBProducer().produce(

@@ -95,7 +95,7 @@ const symbolsArch = 'symbols';
 /// (no `--split-debug-info`), symbols without assets (no `--assets`), or
 /// neither, which is the default and matches stock behavior exactly.
 ///
-/// [assetsHashSignature] is the signature of the assets bundle's sha256, made
+/// `assetsHashSignature` is the signature of the assets bundle's sha256, made
 /// with the same key as the code artifact's (null when no key is configured).
 /// Devices verify `dlc.assets` against it in Strict mode exactly as they verify
 /// code, and the server requires it for customer-signed releases. Symbols are

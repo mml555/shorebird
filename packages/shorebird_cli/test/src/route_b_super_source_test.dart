@@ -12,10 +12,11 @@ void main() {
   useTempWorkingDirectory();
   group('routeBSuperCallArgs', () {
     RouteBSuperArgs read(String source, String member) {
-      // The Kernel offset points at the MEMBER NAME, measured on both kernels of
+      // The Kernel offset points at the MEMBER NAME, measured on both kernels
+      // of
       // the control specimen. The tests locate it the same way rather than
       // hardcoding a number, so a reformatted fixture cannot silently pass.
-      final offset = source.indexOf('super') >= 0
+      final offset = source.contains('super')
           ? source.indexOf(member, source.indexOf('super'))
           : -1;
       return routeBSuperCallArgs(
@@ -118,7 +119,7 @@ void main() {
     test('does not match a longer identifier that starts the same way', () {
       // `tag` must not be found inside `tagged`: the offset would land on a
       // different member and the argument list read would belong to it.
-      final source = 'String t() => super.tagged();';
+      const source = 'String t() => super.tagged();';
       expect(
         routeBSuperCallArgs(
           source: source,

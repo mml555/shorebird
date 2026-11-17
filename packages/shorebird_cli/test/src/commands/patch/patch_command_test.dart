@@ -9,7 +9,6 @@ import 'package:equatable/equatable.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
-import 'package:pub_semver/pub_semver.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/archive_analysis/archive_analysis.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
@@ -29,8 +28,8 @@ import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/flutter_build_options.dart';
 import 'package:shorebird_cli/src/gen_snapshot_probe.dart';
-import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/interactive_mode.dart';
+import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
@@ -263,7 +262,8 @@ void main() {
         () => argResults['track'],
       ).thenReturn(DeploymentTrack.stable.channel);
       when(() => argResults.wasParsed(any())).thenReturn(true);
-      // wasParsed(any()) is stubbed true above, so ForwardedArgs._flagNamed goes
+      // wasParsed(any()) is stubbed true above, so ForwardedArgs._flagNamed
+      // goes
       // on to cast `this['obfuscate'] as bool`. The command reads forwardedArgs
       // to compute the patch's effective configuration, so this flag needs a
       // value.
@@ -978,7 +978,7 @@ void main() {
         ]);
       });
 
-      test('runs every patcher\'s engine check, in the release revision, '
+      test("runs every patcher's engine check, in the release revision, "
           'before building any of them', () async {
         final revisions = <String>[];
         when(() => patcher.assertEngineCanPatch()).thenAnswer((_) async {
@@ -1112,7 +1112,6 @@ void main() {
             runWithOverrides(command.run),
             exitsWithError(
               message: contains('covering Android and iOS'),
-              exitCode: ExitCode.usage,
             ),
           );
           verifyNever(anyPublishPatch);
@@ -1296,7 +1295,7 @@ void main() {
         ).called(1);
       });
 
-      group('when the engine cannot run the patcher\'s patches', () {
+      group("when the engine cannot run the patcher's patches", () {
         setUp(() {
           when(() => patcher.assertEngineCanPatch()).thenThrow(
             CommandError(
@@ -1306,7 +1305,7 @@ void main() {
           );
         });
 
-        test('runs with the release\'s Flutter revision selected', () async {
+        test("runs with the release's Flutter revision selected", () async {
           String? seen;
           when(() => patcher.assertEngineCanPatch()).thenAnswer((_) async {
             seen = shorebirdEnv.flutterRevision;
@@ -2191,8 +2190,8 @@ A patch cannot change the Flutter version a release was built with. To fix this,
             ).thenAnswer((invocation) async {
               final out =
                   invocation.namedArguments[const Symbol('outputDirectory')]
-                      as Directory;
-              out.createSync(recursive: true);
+                        as Directory
+                    ..createSync(recursive: true);
               final config = RouteBBuildConfig.fromBuildArgs(
                 const [],
                 flavor: releaseFlavor,
@@ -2220,8 +2219,8 @@ A patch cannot change the Flutter version a release was built with. To fix this,
             ).thenAnswer((invocation) async {
               final out =
                   invocation.namedArguments[const Symbol('outputDirectory')]
-                      as Directory;
-              out.createSync(recursive: true);
+                        as Directory
+                    ..createSync(recursive: true);
               File(
                 p.join(out.path, Releaser.buildConfigFileName),
               ).writeAsStringSync(
@@ -2460,7 +2459,8 @@ A patch cannot change the Flutter version a release was built with. To fix this,
               // THE REASON THERE ARE TWO CHECKS. On the real run the stamps
               // agreed when the command started and the Flutter build rewrote
               // `bin/internal/engine.version` to the hash it downloaded — so a
-              // single up-front check passes and the kernel is still produced by
+              // single up-front check passes and the kernel is still produced
+              // by
               // the wrong frontend.
               routeBSupplement(releaseEngine);
               var reads = 0;
@@ -2476,7 +2476,8 @@ A patch cannot change the Flutter version a release was built with. To fix this,
                 throwsA(isA<ProcessExit>()),
               );
 
-              // The build DID run — proving the first gate passed and the second
+              // The build DID run — proving the first gate passed and the
+              // second
               // one is what fired.
               verify(
                 () => patcher.buildPatchArtifact(
@@ -4209,7 +4210,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
         });
 
         test(
-          'builds an obfuscated release\'s patch with its obfuscation map',
+          "builds an obfuscated release's patch with its obfuscation map",
           () async {
             when(
               () => codePushClientWrapper.getRelease(

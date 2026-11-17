@@ -798,7 +798,8 @@ This is only applicable when previewing Android releases.''',
   /// preview is supposed to show.
   void _warnAppDataNotCleared(UninstallAppException error) {
     logger.warn(
-      'Could not reinstall the app cleanly on this device, so the preview kept any '
+      'Could not reinstall the app cleanly on this device, so the preview '
+      'kept any '
       'data from a previous install.',
     );
     if (error.isPermissionDenied) {

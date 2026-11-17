@@ -121,7 +121,8 @@ class RouteBReleaseKernelBuilder {
   ///
   /// THE BUG IT CLOSES, stated narrowly: the shipped flavored release receives
   /// FLUTTER_APP_FLAVOR, while these kernels did not — so retention and binding
-  /// could be computed against a different Dart program than the one that shipped.
+  /// could be computed against a different Dart program than the one that
+  /// shipped.
   /// This CLI passes flavor to `buildIpa` as a separate parameter, so it never
   /// entered `buildArgs` and could not be forwarded from there.
   ///
@@ -147,7 +148,8 @@ class RouteBReleaseKernelBuilder {
     if (!expansion.ok) return null;
     // G4.1c: the defines FLUTTER injects, which the user never typed and which
     // this list carried none of until now. Emitted first because their position
-    // is unobservable -- Flutter refuses a build whose user defines collide with
+    // is unobservable -- Flutter refuses a build whose user defines collide
+    // with
     // any of these keys, so no later `-D` can ever overwrite one.
     //
     // A null map is NOT "no injected defines": it means the caller could not
@@ -170,7 +172,8 @@ class RouteBReleaseKernelBuilder {
         forwarded.add(arg);
       }
     }
-    // Appended last so it wins over anything already present, mirroring Flutter's
+    // Appended last so it wins over anything already present, mirroring
+    // Flutter's
     // own xcodebuild-stage removeWhere-then-add (flutter/issues/169598) and
     // gen_kernel's last-wins duplicate handling, which
     // probes/g41_define_semantics.sh measured.
@@ -298,7 +301,8 @@ class RouteBReleaseKernelBuilder {
 
     if (result.exitCode != 0 || !outputFile.existsSync()) {
       logger.warn(
-        '''Could not compile the kernel a patch would be built against (exit ${result.exitCode}); patches for this release will be refused.
+        '''
+Could not compile the kernel a patch would be built against (exit ${result.exitCode}); patches for this release will be refused.
 ${result.stderr}''',
       );
       return null;
@@ -373,7 +377,7 @@ ${result.stderr}''',
       ]);
       if (result.exitCode != 0 || !census.existsSync()) {
         logger.detail(
-          'Route B: could not enumerate this release\'s private constructions '
+          "Route B: could not enumerate this release's private constructions "
           '(exit ${result.exitCode}); no constructors will be retained.',
         );
         return const [];
@@ -485,7 +489,8 @@ ${result.stderr}''',
       // framework and the SDK, handled by the named-member list below.
       '--include',
       'package:$packageName/',
-      // PRIVATE ENUMERATION SOURCE, and it is a correctness choice before it is a
+      // PRIVATE ENUMERATION SOURCE, and it is a correctness choice before it is
+      // a
       // breadth one.
       //
       // Without this the private list comes from the `--aot` prepass, where TFA
@@ -498,7 +503,8 @@ ${result.stderr}''',
       //
       // The caller supplies this only when the import kernel has been checked
       // against the prepass. If they disagree the caller passes null and the
-      // release falls back to prepass-only enumeration -- a NARROWER release, not
+      // release falls back to prepass-only enumeration -- a NARROWER release,
+      // not
       // a failed one.
       if (privateEnumerationKernel != null) ...[
         '--private-dill',
@@ -550,7 +556,8 @@ ${result.stderr}''',
     }
     if (result.exitCode != 0 || !outputFile.existsSync()) {
       logger.warn(
-        '''Could not generate this release's retention interface (exit ${result.exitCode}); patches for it will only be able to replace bodies that name nothing.
+        '''
+Could not generate this release's retention interface (exit ${result.exitCode}); patches for it will only be able to replace bodies that name nothing.
 ${result.stderr}''',
       );
       return null;
@@ -588,7 +595,8 @@ ${result.stderr}''',
   /// outcomes: late, against the real release kernel, where disagreement means
   /// patches are refused; and early, against the prepass, where it only means
   /// private enumeration falls back to the prepass and the release is narrower.
-  /// Printing "patches will be refused" for the second would be a lie that sends
+  /// Printing "patches will be refused" for the second would be a lie that
+  /// sends
   /// the reader looking for a broken release.
   bool agreesWith({
     required RouteBCompiler compiler,
@@ -618,7 +626,8 @@ ${result.stderr}''',
     if (missing.isEmpty) return true;
 
     logger.warn(
-      '''The two kernels this release produced do not describe the same program: ${missing.length} member(s) the release compiled are missing from the kernel a patch would be built against, starting with ${missing.first}.
+      '''
+The two kernels this release produced do not describe the same program: ${missing.length} member(s) the release compiled are missing from the kernel a patch would be built against, starting with ${missing.first}.
 
 ${consequence.substring(0, 1).toUpperCase()}${consequence.substring(1)}.''',
     );

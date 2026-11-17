@@ -22,18 +22,18 @@ import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b.dart';
+import 'package:shorebird_cli/src/route_b_binding.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
+import 'package:shorebird_cli/src/route_b_carry.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
-import 'package:shorebird_cli/src/route_b_build_config.dart';
-import 'package:shorebird_cli/src/route_b_carry.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
-import 'package:shorebird_cli/src/route_b_binding.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
-import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
+import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
@@ -174,25 +174,33 @@ class IosPatcher extends Patcher
       // meaningful if the RELEASE was built with patchable call sites. Checked
       // here, against the release artifact we just downloaded, because the
       // alternative is the worst failure in this project: the patch builds,
-      // uploads, downloads, installs, validates, attaches, reports success — and
-      // the app behaves identically, because AOT emitted direct calls that never
+      // uploads, downloads, installs, validates, attaches, reports success —
+      // and
+      // the app behaves identically, because AOT emitted direct calls that
+      // never
       // consult `Function.entry_point_`.
       //
-      // Two ways in, and the first is the real one. A release that carries Route
+      // Two ways in, and the first is the real one. A release that carries
+      // Route
       // B provenance says so itself, from its own uploaded bytes, so the branch
       // is taken for the right releases even on a machine whose engine has been
-      // switched to something else. The local-engine check stays as a safety net
-      // for releases cut before provenance existed: without it, a Route B release
+      // switched to something else. The local-engine check stays as a safety
+      // net
+      // for releases cut before provenance existed: without it, a Route B
+      // release
       // built without the flag would fall through to the private AOT linker
       // instead of getting the "not patchable, cut a new release" diagnosis.
       if (!assetsOnly &&
           (hasRouteBReleaseProvenance(releaseSupplementDir) ||
               _engineSupportsIosCodePush())) {
         _verifyReleaseIsPatchable(releaseArtifactFile);
-        // The release IS Route B. From here the only valid outcomes are a Route B
+        // The release IS Route B. From here the only valid outcomes are a Route
+        // B
         // patch or an explicit refusal — never a fall through to the private
-        // linker. Letting the legacy path catch a Route B release would leave the
-        // old architecture as an accidental fallback, and it would fail somewhere
+        // linker. Letting the legacy path catch a Route B release would leave
+        // the
+        // old architecture as an accidental fallback, and it would fail
+        // somewhere
         // downstream with a message about a linker nobody asked for.
         final provenance = _readReleaseProvenance(releaseSupplementDir);
         final releaseArtifacts = _verifyReleaseArtifacts(
@@ -201,23 +209,31 @@ class IosPatcher extends Patcher
         );
         // G4.1: THE DEFINES MUST MATCH, CHECKED BEFORE ANY COMPILATION.
         //
-        // `const String.fromEnvironment` resolves at COMPILE time, so a patch built
-        // with a different effective define set than its release does not fail -- it
-        // bakes in a different constant and ships. Nothing downstream can catch it,
+        // `const String.fromEnvironment` resolves at COMPILE time, so a patch
+        // built
+        // with a different effective define set than its release does not fail
+        // -- it
+        // bakes in a different constant and ships. Nothing downstream can catch
+        // it,
         // because by then the wrong value is already a literal.
         //
-        // Placed here deliberately: before the compiler is resolved, before coverage,
+        // Placed here deliberately: before the compiler is resolved, before
+        // coverage,
         // before any kernel, bytecode or container exists. It is NOT before the
-        // patch's own `flutter build ipa`, which runs in `buildPatchArtifact` --
-        // the release supplement, and so the release's provenance, is not downloaded
+        // patch's own `flutter build ipa`, which runs in `buildPatchArtifact`
+        // --
+        // the release supplement, and so the release's provenance, is not
+        // downloaded
         // until after that. Refusing ahead of that build means fetching the
         // supplement earlier in the patcher lifecycle, which is its own change;
         // that build alone produces nothing shippable.
         await _verifyBuildConfigAgrees(provenance);
 
         // P5-TARGET OPEN, logged and NOT gated. If a target difference is ever
-        // shown to admit a semantic mismatch, this line is the evidence that was
-        // already being recorded; until then, inequality is not unsafe and saying
+        // shown to admit a semantic mismatch, this line is the evidence that
+        // was
+        // already being recorded; until then, inequality is not unsafe and
+        // saying
         // so would refuse patches with no defect.
         _noteTargetProvenance(provenance);
 
@@ -280,9 +296,12 @@ class IosPatcher extends Patcher
 
         // ROUTE B SUPER: the patched body, for the compiler to verify against.
         //
-        // CONDITIONAL ON THE ANALYSIS STRUCTURE, not on admission. Whether a site
-        // may actually be carried is the producer's decision — it owns the source
-        // argument gate and the release-evidence rule — and duplicating that here
+        // CONDITIONAL ON THE ANALYSIS STRUCTURE, not on admission. Whether a
+        // site
+        // may actually be carried is the producer's decision — it owns the
+        // source
+        // argument gate and the release-evidence rule — and duplicating that
+        // here
         // to decide whether to build an artifact would be a second admission
         // implementation. A site can therefore cause this build and then be
         // refused; that is the correct trade.
@@ -300,13 +319,15 @@ class IosPatcher extends Patcher
           patchedVerificationKernel: patchedVerificationKernel,
           releaseBuildId: buildId,
           // WHAT THIS RELEASE GRANTED, from the release's own hash-verified
-          // artifact. Absent for a release cut before manifests existed, and the
+          // artifact. Absent for a release cut before manifests existed, and
+          // the
           // producer reads absence as "nothing provable" rather than as
           // permission — so an older release keeps working for everything that
           // worked before and refuses only the private references it cannot
           // vouch for.
           capabilities: _readReleaseCapabilities(releaseArtifacts),
-          // G4.1. The release's own effective define set, already proven to match
+          // G4.1. The release's own effective define set, already proven to
+          // match
           // this patch's by _verifyBuildConfigAgrees above, so the replacement
           // compiles with the constants the release compiled with.
           buildConfig: provenance.buildConfig,
@@ -495,7 +516,8 @@ Nothing was uploaded. Create a new release and patch that instead.''',
 
   /// Refuse a release cut under a different Route B contract revision.
   ///
-  /// A missing revision is a release from before the field existed. It cannot be
+  /// A missing revision is a release from before the field existed. It cannot
+  /// be
   /// established retroactively, and an unproven prerequisite is not a satisfied
   /// one -- the same rule the snapshot profile follows.
   void _verifyCompatibilityRevision(RouteBReleaseProvenance provenance) {
@@ -876,7 +898,8 @@ uploaded.''',
   /// release's.
   ///
   /// Compares the EFFECTIVE define set, never the command line: two invocations
-  /// that supply the same defines in a different order compile to byte-identical
+  /// that supply the same defines in a different order compile to
+  /// byte-identical
   /// kernels (measured by `probes/g41_define_semantics.sh`), so refusing on
   /// textual inequality would reject a patch with nothing wrong with it.
   ///
@@ -899,7 +922,8 @@ uploaded.''',
   /// [_resolvedFlavor], spelled the way the SHIPPED kernel will spell it.
   ///
   /// On iOS, Flutter does not put the token you typed into
-  /// `FLUTTER_APP_FLAVOR`. It parses the flavor from the Xcode CONFIGURATION and
+  /// `FLUTTER_APP_FLAVOR`. It parses the flavor from the Xcode CONFIGURATION
+  /// and
   /// returns the SCHEME's own casing (`common.dart`'s
   /// `_addFlavorToDartDefines`, `xcode_project.dart`'s
   /// `parseFlavorFromConfiguration`). So `--flavor foo` against a scheme named
@@ -933,10 +957,12 @@ uploaded.''',
     );
 
     if (releaseConfig == null) {
-      // P5.1. THIS USED TO WARN AND CONTINUE, which made absent evidence read as
+      // P5.1. THIS USED TO WARN AND CONTINUE, which made absent evidence read
+      // as
       // agreement -- the one thing the P4 epoch rule forbids.
       //
-      // It is also what the RELEASE side already intends. `ios_releaser` records
+      // It is also what the RELEASE side already intends. `ios_releaser`
+      // records
       // `buildConfig: null` only when this build's define expansion DISAGREED
       // with Flutter's own, and its comment says the patch side treats that as
       // "permanently not comparable". It did not; it warned and proceeded.

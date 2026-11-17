@@ -1,4 +1,5 @@
-// Drives the PRODUCTION selection path — ShorebirdFlutter.resolveFlutterRevision
+// Drives the PRODUCTION selection path —
+// ShorebirdFlutter.resolveFlutterRevision
 // and installRevision, the exact calls `shorebird release` makes — and then
 // reads the installed checkout's engine.version and resolves the Route B
 // compiler for it. Proves the whole selector chain without cutting a release.
@@ -38,8 +39,9 @@ Future<void> main(List<String> args) async {
       // 1. the same two calls release_command makes for a non-'latest' arg
       await shorebirdFlutter.fetchRemoteRefs();
       final resolved = await shorebirdFlutter.resolveFlutterRevision(requested);
-      stdout.writeln('  requested        : $requested');
-      stdout.writeln('  revParse resolved: $resolved');
+      stdout
+        ..writeln('  requested        : $requested')
+        ..writeln('  revParse resolved: $resolved');
       if (resolved == null) {
         stdout.writeln('  RESULT: UNRESOLVED');
         return;
@@ -72,18 +74,20 @@ Future<void> main(List<String> args) async {
             '$engine-route-b-compiler-darwin-arm64.zip',
           ),
         );
-        stdout.writeln(
-          '  compiler archive : '
-          '${sha256.convert(bundle.readAsBytesSync())}',
-        );
-        stdout.writeln(
-          '  dual-kernel      : '
-          '${c.supportsDirectSuperDualKernel}',
-        );
-        stdout.writeln('  RESULT: ACCEPTED');
+        stdout
+          ..writeln(
+            '  compiler archive : '
+            '${sha256.convert(bundle.readAsBytesSync())}',
+          )
+          ..writeln(
+            '  dual-kernel      : '
+            '${c.supportsDirectSuperDualKernel}',
+          )
+          ..writeln('  RESULT: ACCEPTED');
       } on Object catch (e) {
-        stdout.writeln('  RESULT: REFUSED');
-        stdout.writeln('    ${'$e'.split('\n').first}');
+        stdout
+          ..writeln('  RESULT: REFUSED')
+          ..writeln('    ${'$e'.split('\n').first}');
       }
       stdout.writeln('  REQUESTS:');
       for (final u in recorder.urls) {

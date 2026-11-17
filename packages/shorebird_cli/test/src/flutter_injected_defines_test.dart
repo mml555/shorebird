@@ -112,7 +112,8 @@ DART_DEFINES=$encoded
 
       test('returns null for a missing file rather than an empty map', () {
         // The distinction is the whole safety property. Null makes the caller
-        // decline to produce kernels; an empty map would make it produce kernels
+        // decline to produce kernels; an empty map would make it produce
+        // kernels
         // for the wrong program, silently -- which is the bug being closed.
         expect(
           FlutterInjectedDefines.fromGeneratedXcconfig(
@@ -129,7 +130,7 @@ DART_DEFINES=$encoded
         expect(FlutterInjectedDefines.fromGeneratedXcconfig(xcconfig), isNull);
       });
 
-      test('an engine revision is read, never derived from Shorebird\'s', () {
+      test("an engine revision is read, never derived from Shorebird's", () {
         // The trap this seam exists for. FLUTTER_ENGINE_REVISION comes from the
         // engine's own engine_stamp.json (`version.dart:681`), which on the
         // pinned cell reads 11e5695710 while Shorebird's engine.version reads

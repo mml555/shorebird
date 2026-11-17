@@ -66,7 +66,8 @@ void main() {
       // grant -- fails at ATTACH, which is P3 reproduced with its real cause
       // isolated.
       //
-      // The old expectation is now actively harmful: since the generator stopped
+      // The old expectation is now actively harmful: since the generator
+      // stopped
       // emitting bare private class items, `classesConstructible` means "these
       // constructors were explicitly granted" and is EMPTY on a release that
       // grants none -- so requiring it here would refuse every private member

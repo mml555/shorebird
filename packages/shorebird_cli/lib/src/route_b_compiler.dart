@@ -134,12 +134,13 @@ String _defaultProbe(File runtime, File compilerSnapshot) {
 /// Returns null when nothing is published for that engine.
 typedef RouteBBundleFetcher = Future<File?> Function(String engineHash);
 
-/// Locates the published `route-b-cell-v2` descriptor for [engineHash].
+/// Locates the published `route-b-cell-v2` descriptor for `engineHash`.
 /// Returns null when the cell publishes none, which selects the v1 rule.
 /// The cells whose descriptors may bind the iOS Route B compiler: the iOS
 /// cell, and the combined cell that also carries the Android members.
 const routeBIosCells = {'macos-ios', 'macos-ios-android'};
 
+/// Fetches the published cell descriptor for an engine hash.
 typedef RouteBCellManifestFetcher = Future<File?> Function(String engineHash);
 
 /// The manifest member that must carry the compiler bundle's digest.

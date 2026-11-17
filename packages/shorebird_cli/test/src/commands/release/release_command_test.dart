@@ -17,18 +17,18 @@ import 'package:shorebird_cli/src/config/config.dart';
 import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/flutter_version_constraints.dart';
-import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/interactive_mode.dart';
+import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/release_type.dart';
-import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/runtime_endpoint.dart';
+import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
-import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
+import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
@@ -1641,7 +1641,8 @@ Did you mean --release-version=1.0.0+1?''',
           () async {
             // The refusal must land in the validation phase. If it only fired
             // later, a release could already have been created or artifacts
-            // uploaded, and the whole point is that the shipped configuration is
+            // uploaded, and the whole point is that the shipped configuration
+            // is
             // what determines what the device verifies.
             withYaml(PatchVerification.installOnly);
             withKey(path: false);

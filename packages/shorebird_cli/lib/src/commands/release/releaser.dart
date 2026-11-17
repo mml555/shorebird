@@ -8,11 +8,11 @@ import 'package:pub_semver/pub_semver.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/build_flags.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
-import 'package:shorebird_cli/src/dd_support.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
 import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
+import 'package:shorebird_cli/src/dd_support.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/flutter_version_constraints.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
@@ -415,7 +415,8 @@ abstract class Releaser {
   /// Gradle as a `-Pdart-defines` argument and writes it nowhere — so the
   /// Android fingerprint uses the expansion unverified. Release and patch run
   /// the same expansion, so a mismatch between them is still detected; what is
-  /// not detected is a port error that maps two genuinely different files to the
+  /// not detected is a port error that maps two genuinely different files to
+  /// the
   /// same defines on both sides.
   ///
   /// Recording the third state explicitly is the point: "absent" and "unknown"

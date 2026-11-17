@@ -4461,7 +4461,6 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               arch: assetsArch,
               platform: releasePlatform,
               hash: hash,
-              hashSignature: null,
             ),
           ).called(1);
         });

@@ -6,9 +6,9 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/archive/directory_archive.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
-import 'package:shorebird_cli/src/archive/directory_archive.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/build_flags.dart';
 import 'package:shorebird_cli/src/cache.dart';
@@ -1164,11 +1164,13 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
         : File(p.join(supplementDirectory.path, routeBInterfaceFileName));
     if (retentionInterface != null && retentionInterface.existsSync()) {
       extraBuildArgs.add(
-        '--extra-front-end-options=--dynamic-interface=${retentionInterface.path}',
+        '--extra-front-end-options='
+        '--dynamic-interface=${retentionInterface.path}',
       );
     }
 
-    // THE ENGINE-IDENTITY INVARIANT, checked BEFORE the build so a refusal costs
+    // THE ENGINE-IDENTITY INVARIANT, checked BEFORE the build so a refusal
+    // costs
     // nothing: no kernel, no coverage, no bytecode, no artifact, no upload.
     //
     // Only for a Route B release. Every other release's patch is produced the
@@ -1220,7 +1222,8 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
     // AND AGAIN, because the build can restamp the cache underneath the first
     // check. `shorebirdEngineRevision` re-reads `bin/internal/engine.version`
     // from disk, so this sees the drift rather than a cached answer — and the
-    // drift is real: a build through a CDN that maps an experimental hash onto a
+    // drift is real: a build through a CDN that maps an experimental hash onto
+    // a
     // stock one records the hash it actually downloaded.
     //
     // Still before coverage, bytecode and publication. The kernel exists by now
@@ -1601,7 +1604,7 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
     throw CommandError(
       message:
           '${app.enterpriseName ?? 'Your enterprise'} requires patch '
-          "signing, and release ${release.version} (${platform.displayName}) "
+          'signing, and release ${release.version} (${platform.displayName}) '
           "wasn't built with signing, so its devices can't verify a patch.",
       hint: 'Ship a new release and patch that.',
       exitCode: ExitCode.noPerm,

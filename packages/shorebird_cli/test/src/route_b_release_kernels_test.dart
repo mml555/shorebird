@@ -9,8 +9,8 @@ import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:test/test.dart';
 
-import 'mocks.dart';
 import 'helpers.dart';
+import 'mocks.dart';
 
 void main() {
   useTempWorkingDirectory();
@@ -87,7 +87,8 @@ void main() {
       test('carries the defines FLUTTER injects, which no user typed', () {
         // G4.1c. Flutter appends these after parsing the command line
         // (`flutter_command.dart` _addFlutterVersionToDartDefines), so the
-        // shipped kernel has them and, until this landed, no Route B kernel did.
+        // shipped kernel has them and, until this landed, no Route B kernel
+        // did.
         // Measured on a CLEAN `flutter create` app -- no flavor, no
         // --dart-define -- where the release still receives six.
         expect(
@@ -141,7 +142,8 @@ void main() {
 
       test('still appends the resolved flavor LAST', () {
         // The injected map must not displace the flavor from the end of the
-        // list, where gen_kernel's last-wins handling is what makes it decisive.
+        // list, where gen_kernel's last-wins handling is what makes it
+        // decisive.
         expect(
           RouteBReleaseKernelBuilder.forwardedArgs(
             const ['--dart-define=API=https://x'],
@@ -283,7 +285,7 @@ void main() {
         );
       });
 
-      test('carries the release\'s defines through', () {
+      test("carries the release's defines through", () {
         expect(
           capturedArgs(buildArgs: ['--dart-define=FLAVOR=prod']),
           contains('-DFLAVOR=prod'),
@@ -362,7 +364,7 @@ void main() {
         ).called(1);
       });
 
-      test('carries the build\'s Dart plugin registrant', () {
+      test("carries the build's Dart plugin registrant", () {
         // Flutter adds these three whenever the build generated a registrant,
         // so the release kernel contains it and everything it pulls in.
         // Omitting them cost 59 non-accessor members on the reference app --

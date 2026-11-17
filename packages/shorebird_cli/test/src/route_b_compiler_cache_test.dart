@@ -7,7 +7,6 @@ import 'package:http/http.dart' as http;
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
-import 'package:platform/platform.dart';
 import 'package:platform/testing.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/abi.dart';
@@ -21,8 +20,8 @@ import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:test/test.dart';
 
-import 'mocks.dart';
 import 'helpers.dart';
+import 'mocks.dart';
 
 void main() {
   useTempWorkingDirectory();

@@ -13,8 +13,8 @@ import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:test/test.dart';
 
-import 'mocks.dart';
 import 'helpers.dart';
+import 'mocks.dart';
 
 /// P4.5 — THE PUBLICATION SAFETY GATE MATRIX.
 ///
@@ -47,7 +47,8 @@ class _Gate {
 
   /// A gate whose arms cannot run in THIS harness, with the test that owns it.
   ///
-  /// The matrix drives `RouteBProducer.produce`, and one mandatory gate lives in
+  /// The matrix drives `RouteBProducer.produce`, and one mandatory gate lives
+  /// in
   /// the patcher instead. Declaring that is honest; declaring it without saying
   /// where would be a silent skip. So the pointer is CHECKED: the completeness
   /// test reads the named file and fails if the named test is not in it.
@@ -154,7 +155,7 @@ void main() {
             },
           },
           'signatures': {
-            if (signature != null) target: signature,
+            target: ?signature,
           },
           'rejections': <Object>[],
           'refusalSummary': null,
@@ -315,8 +316,10 @@ void main() {
       });
 
       test('MUTATION: with no manifest at all the reference still refuses', () {
-        // The one gate whose mutation must NOT publish. Absence of a manifest is
-        // not permission, so "disable it" cannot mean "pass" here -- and that is
+        // The one gate whose mutation must NOT publish. Absence of a manifest
+        // is
+        // not permission, so "disable it" cannot mean "pass" here -- and that
+        // is
         // itself a property worth pinning, because the obvious implementation
         // (null means unrestricted) would be a silent widening.
         expect(
@@ -518,7 +521,8 @@ void main() {
       test('--target is NOT represented, and that is recorded not claimed', () {
         // P5-TARGET OPEN. The differential matrix could not produce a patch
         // accepted against a release while differing in executable semantics
-        // solely because a different target was used, so no target-identity gate
+        // solely because a different target was used, so no target-identity
+        // gate
         // is claimed here. This test exists to make the absence deliberate: if
         // someone adds target to the canonical form, they must come here and
         // decide, rather than discovering it as a surprise.
@@ -537,7 +541,8 @@ void main() {
       final missing = <String>[];
       for (final gate in _gates.where((g) => g.mandatory)) {
         if (gate.ownedBy case final owner?) {
-          // A pointer is only honest if it is checked. Read the file and require
+          // A pointer is only honest if it is checked. Read the file and
+          // require
           // the named test to be in it, so a rename cannot leave this matrix
           // pointing at nothing while still reporting complete.
           final file = File(packagePath(owner.file));

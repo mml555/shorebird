@@ -910,7 +910,7 @@ class RouteBCoverage {
 
 /// Runs the coverage analyzer out of a resolved compiler cell.
 ///
-/// [compiler] is the cell belonging to the RELEASE's engine, so the analyzer
+/// `compiler` is the cell belonging to the RELEASE's engine, so the analyzer
 /// reading these dills is version-matched to the frontend that wrote them.
 class RouteBCoverageAnalyzer {
   /// {@macro route_b_coverage_analyzer}

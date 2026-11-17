@@ -63,8 +63,10 @@ void main() {
     // legitimate and real: `isJsonModeRef` is supplied per-invocation by the
     // command runner, and requiring it globally would be wrong.
     //
-    // A first version of this test checked only for a bare entry and flagged two
-    // refs that were fine. Over-collecting is as useless as not checking: a test
+    // A first version of this test checked only for a bare entry and flagged
+    // two
+    // refs that were fine. Over-collecting is as useless as not checking: a
+    // test
     // that cries wolf gets deleted.
     final provided = StringBuffer(scope);
     for (final entity in lib.listSync(recursive: true)) {

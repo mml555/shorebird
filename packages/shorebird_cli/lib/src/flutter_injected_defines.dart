@@ -4,13 +4,15 @@
 // described on the command line. Before it calls the frontend it appends six
 // defines of its own (`flutter_command.dart` `_addFlutterVersionToDartDefines`,
 // plus `FLUTTER_ENABLED_FEATURE_FLAGS` from `_addFeatureFlagsToDartDefines`),
-// and `String.fromEnvironment` can read every one of them. Route B's prepass and
+// and `String.fromEnvironment` can read every one of them. Route B's prepass
+// and
 // import kernels were compiled without them, so retention and binding were
 // decided against a Dart program the release does not ship.
 //
 // It is not a flavored-app edge case. Measured on a CLEAN `flutter create` app
 // with no flavor and no `--dart-define` at all, the release still receives six
-// defines the prepass never saw, and Route B's own coverage analyzer reports the
+// defines the prepass never saw, and Route B's own coverage analyzer reports
+// the
 // two kernels' `main` as CHANGED. See `probes/g41c_injected_defines.sh`.
 //
 // WHY THE VALUES ARE READ AND NOT RECONSTRUCTED

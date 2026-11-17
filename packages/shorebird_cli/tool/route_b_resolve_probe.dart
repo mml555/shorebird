@@ -7,8 +7,8 @@ import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
-import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
+import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/http_client/http_client.dart';
 import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/shorebird_logger.dart';
@@ -43,11 +43,12 @@ Future<void> main(List<String> args) async {
       final resolver = RouteBCompilerResolver();
       try {
         final compiler = await resolver.resolve(engineRevision: engine);
-        stdout.writeln('RESULT: ACCEPTED');
-        stdout.writeln(
-          '  dual-kernel capability : '
-          '${compiler.supportsDirectSuperDualKernel}',
-        );
+        stdout
+          ..writeln('RESULT: ACCEPTED')
+          ..writeln(
+            '  dual-kernel capability : '
+            '${compiler.supportsDirectSuperDualKernel}',
+          );
         final bundle = File(
           p.join(
             root.path,
@@ -72,8 +73,9 @@ Future<void> main(List<String> args) async {
           );
         }
       } on Object catch (e) {
-        stdout.writeln('RESULT: REFUSED');
-        stdout.writeln('  $e'.split('\n').take(3).join('\n  '));
+        stdout
+          ..writeln('RESULT: REFUSED')
+          ..writeln('  $e'.split('\n').take(3).join('\n  '));
       }
       stdout.writeln('REQUESTS (in order):');
       for (final u in recorder.urls) {
