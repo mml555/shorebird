@@ -69,7 +69,7 @@ const supportedRouteBAnalysisVersion = 11;
 ///
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
-const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15, 16, 17};
+const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15, 16, 17, 18};
 
 /// The first analyzer version that compares fields, `const`s, constructors and
 /// class headers. An older analyzer reads an edit to one as unchanged, so a
@@ -88,6 +88,12 @@ const routeBHelpersAnalysisVersion = 16;
 /// existing class as a helper, with its own `lowering` and `helperCall`
 /// accesses. A version-16 document never lists one: its analyzer refuses them.
 const routeBInstanceHelpersAnalysisVersion = 17;
+
+/// The first analyzer version that reports the external symbols each carried
+/// body names (`externalReferences`), which is what the retention check reads.
+/// A version-17 document has no such list, so a patch analyzed by it cannot be
+/// checked and is accepted as it always was; see `RouteBRetention`.
+const routeBRetentionAnalysisVersion = 18;
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -500,6 +506,94 @@ RouteBProvenance? _provenance(Object? value) => switch (value) {
   _ => null,
 };
 
+/// One symbol a carried body names that the release's loader must find by
+/// name (analysis version 18).
+///
+/// A FACT, not a verdict: whether the release kept it is decided against the
+/// release's own interface and manifest, in `RouteBRetention`.
+@immutable
+class RouteBExternalReference {
+  /// {@macro route_b_external_reference}
+  const RouteBExternalReference({
+    required this.kind,
+    this.library = '',
+    this.className,
+    this.member,
+    this.isPrivate = false,
+    this.viaConstant = false,
+    this.reason,
+  });
+
+  /// Parses one entry of `externalReferences`.
+  factory RouteBExternalReference.fromJson(Map<String, dynamic> json) {
+    final kind = json['kind'];
+    if (kind is! String || !_kinds.contains(kind)) {
+      throw FormatException('an external reference has the unknown kind $kind');
+    }
+    if (kind == 'unanalyzed') {
+      return RouteBExternalReference(
+        kind: kind,
+        reason: json['reason'] as String? ?? 'the body could not be walked',
+      );
+    }
+    final library = json['library'];
+    if (library is! String) {
+      throw const FormatException('an external reference names no library');
+    }
+    return RouteBExternalReference(
+      kind: kind,
+      library: library,
+      className: json['class'] as String?,
+      member: json['member'] as String?,
+      isPrivate: json['private'] == true,
+      viaConstant: json['viaConstant'] == true,
+    );
+  }
+
+  static const _kinds = {
+    'class',
+    'top-level',
+    'static',
+    'constructor',
+    'instance',
+    'unanalyzed',
+  };
+
+  /// `class` (named as a type), `top-level`, `static`, `constructor`,
+  /// `instance`, or `unanalyzed` (the analyzer could not walk the body).
+  final String kind;
+
+  /// The library URI, as the release's kernel names it.
+  final String library;
+
+  /// The declaring class, or null for a top-level member.
+  final String? className;
+
+  /// The VM's name for the member (`get:`/`set:` for an accessor, empty for an
+  /// unnamed constructor), or null for a class.
+  final String? member;
+
+  /// Whether the member, or the class holding it, is private.
+  final bool isPrivate;
+
+  /// Whether a constant names it, which the release's interface retained even
+  /// for an instance member of `dart:`.
+  final bool viaConstant;
+
+  /// Why the body could not be walked, for `unanalyzed`.
+  final String? reason;
+
+  /// `Class.member` or `member` or `Class`, as a developer would write it.
+  String get displayName {
+    final c = className;
+    final m = member;
+    if (m == null) return c ?? library;
+    final bare = m.replaceFirst(RegExp(r'^(get|set):'), '');
+    final name = bare.isEmpty ? (c ?? library) : bare;
+    return c == null || bare.isEmpty ? name : '$c.$name';
+  }
+}
+
 /// The whole-patch outcome.
 enum RouteBVerdict {
   /// Every changed member can be carried.
@@ -533,6 +627,7 @@ class RouteBCoverage {
     this.canCarry = false,
     this.helpers = const [],
     this.unusedHelpers = const [],
+    this.externalReferences,
   });
 
   /// Parses the analyzer's JSON document.
@@ -760,6 +855,25 @@ class RouteBCoverage {
       };
     }
 
+    // VERSION 18. Absent on 17 and earlier, and absent means "not measured",
+    // never "references nothing": the two are kept apart by the null.
+    Map<String, List<RouteBExternalReference>>? externalReferences;
+    if (analysisVersion >= routeBRetentionAnalysisVersion) {
+      final raw = map['externalReferences'];
+      if (raw is! Map<String, dynamic>) {
+        throw const FormatException(
+          'the analysis is missing "externalReferences"',
+        );
+      }
+      externalReferences = {
+        for (final entry in raw.entries)
+          entry.key: [
+            for (final r in entry.value as List)
+              RouteBExternalReference.fromJson(r as Map<String, dynamic>),
+          ],
+      };
+    }
+
     return RouteBCoverage(
       analysisVersion: analysisVersion,
       verdict: verdict,
@@ -779,6 +893,7 @@ class RouteBCoverage {
       unusedHelpers: analysisVersion >= routeBHelpersAnalysisVersion
           ? strings('unusedHelpers')
           : const [],
+      externalReferences: externalReferences,
       removed: strings('removed'),
       representable: strings('patchable'),
       conditional: strings('conditional'),
@@ -823,11 +938,37 @@ class RouteBCoverage {
   /// shipped and not a rejection.
   final List<String> unusedHelpers;
 
+  /// The helpers [key] reaches: named by its body, or by a helper that is, per
+  /// [callers]. They ship inside [key]'s replacement library, so what they name
+  /// is part of what that replacement asks the release to have kept.
+  Set<String> helpersNeededBy(String key) {
+    final needed = <String>{};
+    if (helpers.isEmpty) return needed;
+    var grew = true;
+    while (grew) {
+      grew = false;
+      for (final helper in helpers) {
+        if (needed.contains(helper)) continue;
+        final of = callers?[helper] ?? const <String>[];
+        if (of.contains(key) || of.any(needed.contains)) {
+          needed.add(helper);
+          grew = true;
+        }
+      }
+    }
+    return needed;
+  }
+
   /// The [callers] of [key] that the RELEASE has, which leaves out [helpers]:
   /// a helper is new, so the release never runs a copy of anything inside it.
   List<String>? releaseCallersOf(String key) => callers?[key]
       ?.where((c) => !helpers.contains(c) && !unusedHelpers.contains(c))
       .toList();
+
+  /// The external symbols each carried member's body names, keyed by
+  /// `library#selector` (analysis version 18). Null for an earlier analysis,
+  /// which did not measure them.
+  final Map<String, List<RouteBExternalReference>>? externalReferences;
 
   /// Members the patch drops. Reported, never fatal: the release keeps them and
   /// nothing calls them from the patch's own code.
