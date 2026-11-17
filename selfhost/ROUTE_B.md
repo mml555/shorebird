@@ -330,6 +330,57 @@ members the release does not have, as helpers of the replaced code:
   m2 (a new `_HomeState._bump()` that calls the existing `_increment()` and
   writes a field).
 
+### A patch may only name what the release kept (analysis version 18)
+
+A replacement is compiled against the release's whole import kernel, so it
+compiles any symbol it names. It runs against the release's AOT snapshot, and
+the bytecode loader resolves every library, class, field and function by name and
+aborts the process when one is missing (`bytecode_reader.cc`: `Unable to find
+library`, `class`, `field`, `function`). Seam 6 attaches before `main`, so that
+is a boot abort. Until analysis 18 nothing checked this: a dependency API the
+release never called was refused by accident (the patched kernel shows its
+closure as new classes), and a framework or SDK symbol the release never named
+was not refused at all.
+
+From analysis 18 the analyzer reports, for every member the patch would carry
+(changed, carried, or a helper), the external symbols its body names:
+`externalReferences`. The CLI then asks the release's own files, and refuses the
+whole patch before anything is uploaded when a symbol is not shown to be kept:
+
+| the symbol | kept when |
+|---|---|
+| public, in a library the interface lists whole (`library:` alone) | always |
+| a member the interface names (`library:`, `class:`, `member:`): SDK members, framework and dependency members the release's own code named | the item is present |
+| a class | a `class:` or `can-be-used-as-type:` item names it |
+| private, and spelled by the patch | the capability manifest granted it (as for every private reference) |
+| private, and named only by a constant | the interface item for it is present |
+
+The reason names the symbol, says the release did not keep it, and says to cut a
+new release that uses it. Fail closed: no readable interface, or a body the
+analyzer could not walk, refuses.
+
+What this does NOT check, so a pass is not read as more than it is:
+
+- an instance member of a `dart:` class (`s.substring(1)`): it binds by selector
+  at run time, the release generator leaves it out of the interface on purpose,
+  and its failure is a `NoSuchMethodError`, not an abort;
+- a reference the compiler adds that no source token names (interpolation,
+  `for`, `async`), and `dart:_` libraries;
+- the declared type of a local variable (not known to be emitted);
+- that a kept symbol has code in the snapshot. Retention is not compilation (see
+  `super0/s2b1e/`); this answers "can the loader find it", not "was it compiled".
+
+Where it lives: the analyzer states the facts, because only it can read a kernel;
+the CLI decides, because only it holds the release's interface and manifest
+(`route_b_retention.dart`; the same split as private accesses, analysis 7, and
+private constructions, analysis 12). The patcher asks before the coverage verdict
+so a dependency API is named for what it is, and the producer asks again for the
+members it carries (a carry can add members after the first analysis). A release
+whose compiler cell predates analysis 18 cannot be checked: the patch is built as
+before and the CLI warns, the same as for analysis 14. This takes effect for a
+release only once a cell with the version 18 analyzer is minted and that
+release is cut on it. Host evidence: `probes/retention_check.sh`.
+
 Still refused, before anything is uploaded, with the reason named:
 
 - a **public** new instance method (outside code can call it by name, for example

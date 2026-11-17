@@ -280,13 +280,16 @@ class IosPatcher extends Patcher
           _refuseCoverage(coverage);
         }
         if (coverage.analysisVersion < routeBRetentionAnalysisVersion) {
-          // Same shape as the warning below: the analyzer ships in the
-          // release's compiler cell, so only a release cut on a newer cell can
-          // say which symbols a patch names. Refusing here would strand every
-          // release whose cell predates it, which is not what this check is
-          // for.
-          logger.warn(
-            '''This release's compiler cell predates analysis version $routeBRetentionAnalysisVersion. It cannot say which symbols this patch uses, so Shorebird cannot check that the release kept them, and a patch that uses one it did not keep stops the app at launch. Check that this patch only uses code the release already used.''',
+          // Not a warning, unlike the one below, and deliberately: every
+          // release cut on a cell before 18 would print it on every patch,
+          // and nothing the developer can do about it changes the patch. The
+          // analyzer ships in the release's compiler cell, so only a release
+          // cut on a newer cell can say which symbols a patch names. Refusing
+          // would strand every release whose cell predates it.
+          logger.detail(
+            '[route-b] this release\'s compiler cell predates analysis '
+            'version $routeBRetentionAnalysisVersion, so whether the release '
+            'kept every symbol this patch uses was not checked',
           );
         }
         if (coverage.analysisVersion < routeBDeclarationsAnalysisVersion) {

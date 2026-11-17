@@ -528,7 +528,7 @@ selector_chain:
   engine_version_committed: true
 
 analysis_versions:
-  known: [11, 12, 13, 14, 15, 16, 17]
+  known: [11, 12, 13, 14, 15, 16, 17, 18]
   # A document declaring anything else is REFUSED. A missing v11 field is never
   # read as an empty list -- absent, empty and populated are three states.
   unknown_version_behaviour: refuse
@@ -538,6 +538,7 @@ analysis_versions:
   v15_adds: callers   # and the --carry flag; the CLI ships an inlined-into caller with the edit
   v16_adds: helpers   # and unusedHelpers; a patch may add a private top-level function (PR #193)
   v17_adds: instance helpers   # a patch may add a private instance method of an existing class, with its own lowering and helperCall accesses (PR #194)
+  v18_adds: externalReferences   # every symbol a carried body names; the CLI refuses one the release's interface did not keep, before upload (this PR; needs a cell whose analyzer is 18)
 
 retention_policy:
   policy: p2

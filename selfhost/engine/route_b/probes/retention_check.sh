@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words prepass dartaotruntime
+# cspell:words prepass dartaotruntime rtpriv
 #
 # retention_check.sh -- a Route B patch is refused, BEFORE anything is uploaded,
 # when its bytecode would name an external symbol the RELEASE did not keep
