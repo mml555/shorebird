@@ -1,185 +1,237 @@
-<!-- cspell:words hoster SBRBPTCH unvalidated -->
+<!-- cspell:words tombstones tombstoned rsassa -->
 
-# Patch signing in this fork — what verifies, and what does not
+# Patch signing: what verifies on the device, and what does not
 
-> **Is my patch signed? No — not unless you passed `--public-key-path` (or
-> `--public-key-cmd`) when you cut the release.** With the default configuration
-> a self-hosted Shorebird patch is downloaded, installed and executed with **no
-> signature verification at any point**. Nothing on the server participates in
-> patch signing; the security boundary is the device.
+> **A self-hosted release is unsigned unless you pass your own public key.**
+> Without a key, the device accepts any patch the server serves it. Anyone who can
+> publish a patch to your server, or answer the device's update check in its
+> place, can run code in your app. The server does not make up for this.
 
-Verified against the tree on **2026-08-13**. Every file:line below was read, not
-inherited — see [`evidence/g7-signing/verification_path.md`](evidence/g7-signing/verification_path.md)
-for the working.
+Checked against `fork/main` at `03a9b405d` on **2026-11-16**, by reading the
+code. Nothing here was tested on a device. Where a claim could not be confirmed
+from this repository it says **UNVERIFIED**.
 
-## The decision of record
+## What to do today for production
 
-**Option (ii), "loud opt-in": keep the permissive default, and warn when a
-release is cut with no public key.** Recorded here as the decision; the warning
-itself is **owed, not landed** — see [What is owed](#what-is-owed).
+1. **Cut every release with your own key.** Pass `--public-key-path` and
+   `--private-key-path` (or `--public-key-cmd` and `--sign-cmd` for a KMS or HSM)
+   to `shorebird release`, and the same key to every `shorebird patch` for that
+   release. See [Turning it on](#turning-it-on).
+2. **Set `patch_verification: strict`** in the checked-in `shorebird.yaml`
+   before you cut the release. Strict re-checks the signature on every boot. The
+   default does not (see [When the device verifies](#when-the-device-verifies)).
+   Whether that setting reaches the bundled `shorebird.yaml` depends on the
+   Flutter fork, which is not in this repository (**UNVERIFIED here**); check the
+   built app.
+3. **Back up the private key** somewhere other than the machine that signs. If
+   you lose it you cannot patch the releases built with it (see
+   [Keys: backup and rotation](#keys-backup-and-rotation)).
+4. Do not ignore the warning the CLI prints when no key is given.
 
-The alternatives, written down before choosing, because a decision without its
-rejected options is indistinguishable from a default nobody examined:
+## The three signing modes
 
-| option | cost | why not |
+Each release artifact records one mode, which the CLI reports in the `signing`
+field of the upload (parsed by `_parseSigning` in
+`packages/code_push_server/lib/src/api.dart`).
+
+| mode | who holds the key | who signs a patch | what the server does |
+|---|---|---|---|
+| **customer** | you | the `shorebird patch` CLI, with your private key or `--sign-cmd` | requires a `hash_signature` and stores it as sent. It never sees your public key, so it cannot check the signature (`_patchHashSignature`) |
+| **managed** | the server: one RSA-2048 key per organization, created on the first `GET /apps/{id}/signing-key` | the server, when the patch artifact is registered | signs the hash the client names; refuses a client-supplied signature |
+| **unsigned** (or not reported) | nobody | nobody | stores whatever `hash_signature` the client sent, possibly none |
+
+### Which mode the self-hosted CLI picks
+
+`Releaser.resolvePatchSigningKey` in
+`packages/shorebird_cli/lib/src/commands/release/releaser.dart` decides:
+
+1. A key passed with `--public-key-path` or `--public-key-cmd`: **customer**.
+2. Otherwise, if `--no-patch-signing` was passed, **or**
+   `shorebirdEnv.hostedEnvironment == null`: **unsigned**, with no key embedded.
+3. Otherwise **managed**: it fetches the server's key and embeds it.
+
+`hostedEnvironment` (in `shorebird_env.dart`) is null for any server that is not
+Shorebird's own hosted one, which means every self-hosted server (`base_url` in
+`shorebird.yaml`, or `SHOREBIRD_HOSTED_URL`). So **on a self-hosted server the
+CLI never picks managed**, and a release is unsigned unless you pass a customer
+key. `assertArgsAreValid` in `release_command.dart` prints a warning in that case
+and carries on.
+
+The consequence: the server's managed-signing code (`PatchSigner` in
+`patch_signing.dart`, the `signing_keys` table, and the `PATCH_SIGNING_KEY_SECRET`
+that production requires) is not reached by the supported CLI. An operator who
+sets that secret and believes patches are server-signed is wrong today. A direct
+API client can still register a `managed` release, and the server's tests
+(`test/managed_signing_test.dart`) cover that path.
+
+## What is signed, and what the device checks
+
+- **The signed message** is the lowercase hex SHA-256 string of the file the
+  device ends up holding, as UTF-8 bytes. The scheme is RSASSA-PKCS1-v1_5 with
+  SHA-256, and the signature is base64. Code: `CodeSigner` in
+  `packages/shorebird_cli/lib/src/code_signer.dart` (`Signer('SHA-256/RSA')`,
+  fixed, no negotiation); `PatchSigner.signHash` on the server; on the device
+  `check_signature` in `vendor/updater/library/src/cache/signing.rs`.
+- For an Android code patch that file is the full new `libapp.so`, not the diff
+  (`createDiffBundle` in `patcher.dart` hashes the patch artifact, then diffs it).
+  The signature does **not** cover the diff, the download URL, the patch number,
+  the release or the CPU architecture. It reaches the installed bytes because the
+  updater inflates the diff against the base on the device and then checks that
+  the result hashes to the signed string (`check_hash` in `updater.rs`).
+- For an iOS Route B patch the hashed file is the container (`ios_patcher.dart`).
+  The updater path is the same, so the same signature covers it. This file does
+  not describe how the Route B artifact is built; that is not a signing matter.
+- An assets-only patch is signed over the sha256 of the zip
+  (`patch_command.dart`); the updater hashes the downloaded archive for that kind.
+- A symbols sidecar is never signed, and devices never download it.
+- **The key** the device checks against is `patch_public_key` in the generated
+  (bundled) `shorebird.yaml`: the base64 DER `RSAPublicKey`. The CLI hands it to
+  the build as `SHOREBIRD_PUBLIC_KEY` (`artifact_builder.dart`). The step that
+  writes it into the bundled file is in the Flutter fork, so that last hop is
+  **UNVERIFIED here**. The key is fixed for every copy of that release already
+  installed.
+
+## When the device verifies
+
+All of it is in `vendor/updater/library/src`.
+
+| when | what happens | mode |
 |---|---|---|
-| **(i) ship as-is, documented** | zero code | A self-hoster reasonably assumes signing is on — the config key `patch_verification` exists, defaults to `Strict`, and *reads* as protection. Silence is free and leaves a false sense of integrity |
-| **(ii) loud opt-in** ✅ | one warning + tests | Chosen. Preserves every working flow, and the assumption above is exactly what a warning corrects |
-| **(iii) fail closed** | breaks every existing self-host flow | Refusing to publish an unsigned release breaks this fork's own acceptance scripts, and both its Android and iOS legs are PROVEN *unsigned*. Almost certainly wrong for a fork whose baseline is unsigned operation |
+| **Download time** | `download_and_install_patch` (`updater.rs`) calls `check_patch_signature` on the server's `hash` and `hash_signature` before any network fetch. A refusal tombstones that exact (hash, signature) pair, so a forged offer cannot block the genuine patch with the same number | every mode |
+| **Install** | `record_install_complete` (`cache/lifecycle.rs`) copies the stored signature and does not verify again | every mode |
+| **Boot** | `validate_installed_patch` (`cache/lifecycle.rs`) re-hashes the installed file and re-verifies the signature. A failure marks the patch bad and boots the previous patch or the base | only `patch_verification: strict`, and only with a public key |
 
-This is a design call and needed no hardware: the classification rule says a gap
-dispatches *"we should decide whether we ship that"*, not a device booking.
+The default is **`install_only`**: `PatchVerificationMode` in `yaml.rs` marks
+`InstallOnly` as `#[default]`, and `config.rs` applies `unwrap_or_default()` when
+the key is absent. So a release that has a key but no `patch_verification: strict`
+is verified at download time and **not** at boot. That covers a network attacker
+offering a forged patch. It does not catch a patch file altered on the device
+after it was installed. Strict does.
 
-## Why nothing verifies — the two gates
+Before 2026-11-16 this file said the opposite (strict as the default, and no
+install-time check in production). The updater was re-vendored since and the doc
+was not. `UPDATER_CONTRACT.md` had the same error and is corrected.
+`tool/check_updater_pin.sh`, run in CI, now fails if the default, the
+download-time call site, or the pinned revision drift again.
 
-The headline is right for a reason that is **not** the one this repo recorded
-until today. There are exactly two `check_signature` call sites outside
-`signing.rs`, and neither runs in a default production install.
+### What follows from no key
 
-### Gate 1 — boot, and only in `Strict`
+`check_patch_signature` in `cache/signing.rs` returns success when no public key
+is configured, and boot-time checking is skipped without a key too. The only check
+left is that the inflated file matches the hash the server named, and the server
+names that hash. So **with no key, the device accepts any patch the server
+serves.** With a key, a patch that has no signature, or a wrong one, is refused.
 
-`vendor/updater/library/src/cache/lifecycle.rs:796-803`:
+### Two CLI behaviours to know
 
-```rust
-if mode == PatchVerificationMode::Strict {
-    if let Some(public_key) = public_key {
-        let signature = signature.context("Patch signature is missing")?;
-        let actual_hash = signing::hash_file(&path)?;
-        signing::check_signature(&actual_hash, &signature, public_key)?;   // :800
-    } else {
-        shorebird_info!("No public key configured; skipping signature verification");
-    }
-}
-```
+- `shorebird release` **refuses** `patch_verification: install_only` in
+  `shorebird.yaml` on a self-hosted server (`assertArgsAreValid`). Its message
+  says install-time verification exists only in tests. That is stale: the
+  vendored updater verifies at download time in every mode. The refusal does no
+  harm if you set `strict`, as advised above, but do not rely on its reasoning.
+- `patch_verification.dart` lists engine revisions whose updater never checked
+  signatures in `install_only` (a bug from updater#352, since fixed), and the CLI
+  rejects `install_only` on them. The pinned engine `d0714887` is not on the list.
+  That the pinned engine's updater is `87c198d3`, which has the download-time
+  check, is what `compatibility.yaml` says. It is **UNVERIFIED here**, because the
+  engine's `DEPS` is not in this repository.
 
-`Strict` **is** the default — `vendor/updater/library/src/yaml.rs:7-8` marks it
-`#[default]`. So the mode is not what disables verification. **The `else` branch
-is.** No public key is configured unless `--public-key-path` was passed at release
-time, which sets `SHOREBIRD_PUBLIC_KEY` in the build environment, which
-`compileShorebirdYaml` copies to `patch_public_key`
-(`vendor/flutter/packages/flutter_tools/lib/src/shorebird/shorebird_yaml.dart:71-74`).
-Absent that, the updater logs one info line and proceeds.
+## The server's role
 
-Reached from `validate_installed_patch` (`lifecycle.rs:771`), itself reached only
-from `validate_next_boot_patch` (`:686`) — i.e. **boot**.
+The server does not decide whether a patch is trustworthy.
 
-### Gate 2 — install time, which does not exist in production
+- **Customer mode:** it stores `hash_signature` as sent and serves it back from
+  `/patches/check`. It cannot verify it. A bad signature is accepted, promoted and
+  served, and every device then refuses it.
+- **Managed mode:** it signs whatever `hash` the registration names. It does not
+  check that hash against the uploaded bytes: patch artifacts are verified for
+  size only, and the hash check (`checkHash`) applies to release artifacts. A
+  valid API token is therefore enough to get a validly signed patch.
+- **Unsigned:** it serves the patch with no signature, and a device whose release
+  embedded no key accepts it.
+- Do not confuse patch signing with `UrlSigner` in `signing.dart`. That is an
+  HMAC over download links that expire.
 
-`vendor/updater/library/src/cache/updater_state.rs:363` verifies in `InstallOnly`
-mode — and the function containing it is **`#[cfg(test)]`-gated at `:348`**, with
-its own doc comment (`:340-347`) saying so:
-
-> Test-only entry point. The production update flow inflates directly into the
-> lifecycle's installed location and transitions `Downloaded → Installed` via
-> `lifecycle::record_install_complete`, so no production caller goes through this
-> function.
-
-The production install path, `lifecycle::record_install_complete`
-(`lifecycle.rs:897-922`), copies the stored signature into `PatchState::Installed`
-and verifies **nothing**.
-
-**So the "install" in `InstallOnly` is a lie in both directions**: it is not the
-default, and it verifies nowhere in production. `packages/shorebird_cli/lib/src/config/shorebird_yaml.dart:11-13`
-documents the mode as "Verify the patch signature and hash before installing, but
-not when loading from cache" — which no production code does.
-
-> **Do not go looking for this in `packages/code_push_server/lib/src/signing.dart`.**
-> That is **URL** signing — `UrlSigner`, `Hmac(sha256, …)` over `"<token>.<exp>"`
-> for time-bounded download links. The server's entire patch-signing role is to
-> store `hash_signature` verbatim and echo it back; it carries no RSA library at
-> all.
+Hardening that would change this (a server-side signature check, a required
+signature for flagged apps, signing at promote time) is planned, not landed.
 
 ## Turning it on
 
-Four flags, declared at `packages/shorebird_cli/lib/src/common_arguments.dart:106`
-(`--public-key-path`), `:115` (`--private-key-path`), `:124` (`--public-key-cmd`)
-and `:134` (`--sign-cmd`), validated by `assertAbsentOrValidKeyPairOrCommands()`
-(`packages/shorebird_cli/lib/src/extensions/arg_results.dart:142`, rules
-documented `:129-141`):
+Four flags are declared in `packages/shorebird_cli/lib/src/common_arguments.dart`
+(`--public-key-path`, `--private-key-path`, `--public-key-cmd`, `--sign-cmd`) and
+checked by `assertAbsentOrValidKeyPairOrCommands()` in
+`extensions/arg_results.dart`:
 
 | configuration | valid |
 |---|---|
-| nothing provided | ✅ no signing — **the default** |
-| `--public-key-path` + `--private-key-path` | ✅ file-based |
-| `--public-key-cmd` + `--sign-cmd` | ✅ command-based (this is where a KMS or HSM goes) |
-| `--public-key-path` + `--sign-cmd` | ✅ mixed |
-| both `--public-key-path` and `--public-key-cmd` | ❌ ambiguous public key |
-| both `--private-key-path` and `--sign-cmd` | ❌ ambiguous signing method |
-| `--sign-cmd` with no public key source | ❌ |
-| `--private-key-path` without `--public-key-path` | ❌ |
+| nothing provided | yes; on a self-hosted server that means unsigned |
+| `--public-key-path` + `--private-key-path` | yes, file-based |
+| `--public-key-cmd` + `--sign-cmd` | yes, command-based (a KMS or HSM goes here) |
+| `--public-key-path` + `--sign-cmd` | yes, mixed |
+| both `--public-key-path` and `--public-key-cmd` | no, ambiguous public key |
+| both `--private-key-path` and `--sign-cmd` | no, ambiguous signing method |
+| `--sign-cmd` with no public key source | no |
+| `--private-key-path` without `--public-key-path` | no |
 
-The public key must be supplied **at release time**, not patch time: it is baked
-into the shipped `shorebird.yaml` and is what the device has at boot.
+Give the public key **at release time**: it is built into the shipped app. At
+patch time give the key pair again. For a customer release the CLI refuses a patch
+without both halves (`_assertCanSignForRelease` in `patch_command.dart`), and it
+verifies the signature against the key you pass before uploading
+(`Patcher.signHash`). It does **not** compare that key with the one the release
+embedded. A patch signed with a different key than the release's is accepted,
+promoted and served, and every device refuses it. Use the same key files, and
+try a patch on a test device before rolling it out.
 
-### The algorithm is fixed
+`--no-patch-signing` builds an unsigned release and cannot be combined with a key.
 
-`packages/shorebird_cli/lib/src/code_signer.dart:45` — `Signer('SHA-256/RSA')`,
-hardcoded. There is no negotiation and no algorithm field on the wire. This is
-what makes "KMS-backed signing" an aspiration folded into `--sign-cmd` rather
-than a mechanism: your KMS may hold the key, but it must produce a SHA-256/RSA
-signature.
+## Keys: backup and rotation
 
-What is signed is a **hash string**, not the container:
-`vendor/updater/library/src/cache/signing.rs:37` is
-`check_signature(message: &str, signature: &str, public_key: &str)`. So the patch
-container's shape — `SBRBPTCH` or otherwise — is structurally irrelevant to
-signing.
+**Your own (customer) key.**
 
-## Key rotation — the manual procedure
+- Nothing in this repository stores or backs it up. Generate it, keep it, and
+  keep a copy off the signing machine.
+- There is **no rotation and no revocation**. To change the key, cut a **new
+  release** with the new public key. Releases already installed keep trusting the
+  old key, and patches for them must keep using it for as long as those releases
+  are live. A leaked private key cannot be revoked for releases already shipped.
+- A lost private key means you can no longer patch the releases built with it.
+  This cost a rebuild of one iOS test release
+  ([`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md), "iOS release (ipa) on a device").
 
-There is **no rotation mechanism**, and none is invented here. What exists:
+**The server's managed key, and `PATCH_SIGNING_KEY_SECRET`.**
 
-1. Generate a new RSA keypair.
-2. **Cut a new release** with `--public-key-path` pointing at the new public key.
-   The key is compiled into that release's `shorebird.yaml`; it cannot be changed
-   for releases already shipped.
-3. Sign all subsequent patches for that release with the matching private key.
-4. **Patches signed with the old key are unverifiable under the new release**, and
-   patches for *older* releases must keep using the old key for as long as those
-   releases are live.
+- Managed private keys are stored encrypted (JWE `dir` + `A256GCM`) under a key
+  derived from `PATCH_SIGNING_KEY_SECRET` (`patch_signing.dart`). Production
+  requires the secret to be at least 32 characters and different from
+  `URL_SIGNING_SECRET` and `API_KEY` (`config.dart`).
+- **Back it up, and never change it.** If it is lost or changed, the stored keys
+  cannot be decrypted and the server refuses to start, naming the variable
+  (`checkPatchSigningKeys` in `api.dart`). Shipped apps embed the matching public
+  keys, so the releases built with those keys can never get another signed patch.
+  See [`backup_restore/SECRETS_BOUNDARY.md`](backup_restore/SECRETS_BOUNDARY.md),
+  which also says to keep `.env` in a separate, encrypted backup.
+- There is no tool to re-wrap the keys under a new secret, and no key revocation.
+  The JWE `kid` header exists for a future tool; only `v1` is implemented.
+- A database dump together with the secret is enough to sign for every app in the
+  organization. Keep them in separate backups.
+- Because the supported CLI does not use managed mode today, a normal
+  self-hosted release does not depend on this secret. Production still requires it.
 
-The consequence worth stating plainly: **a compromised private key cannot be
-revoked.** Every already-shipped release continues to trust its baked-in public
-key until users move to a release built with a new one. Rotation is a re-release,
-not a revocation.
+## Tests and checks
 
-## What is owed
-
-* **The warning that makes option (ii) real.** Not landed. It belongs beside the
-  existing one at
-  `packages/shorebird_cli/lib/src/commands/release/release_command.dart:423-431`,
-  which already warns in the *opposite* direction — when `patch_verification` is
-  set in `shorebird.yaml` and no public key was provided. The new case is the
-  common one: no public key provided at all. One `logger.warn` plus a test.
-* **A test crossing the Dart↔Rust key-encoding seam.** `CodeSigner.verify` takes a
-  **PEM** (`code_signer.dart:150-153`) while the updater's `ring` verifier consumes
-  the **base64 DER** that `base64PublicKey` produces (`:56-58`). Nothing anywhere
-  asserts that a Dart-produced signature verifies under the encoding the Rust side
-  is actually handed. `--sign-cmd` remains unvalidated for the same reason.
-* **On-device tamper rejection.** Only meaningful in `Strict` with a public key
-  present, and only observable at next boot. Needs hardware; not in this lane.
-
-## What already existed before this document
-
-`packages/shorebird_cli/test/src/code_signer_test.dart` — **15 tests, all
-passing** — predates this work entirely and is credited to nobody here. It covers
-signing with PKCS#8 (`:47`) and PKCS#1 (`:72`) keys, that the two agree (`:97`),
-`base64PublicKey` against openssl (`:113`), `base64PublicKeyFromPem` (`:137`), the
-round trip `sign` → `verify` true (`:150`) / false for a bad signature (`:167`) /
-false for a wrong message (`:180`), and the command-based paths `runPublicKeyCmd`
-(`:213`) and `signWithCmd` (`:310`).
-
-Two limits on reading that as coverage: the openssl-comparing group is
-`onPlatform`-`Skip`ped on Windows (`:198-199`), so it is not a cross-platform
-gate; and every one of those tests lives on one side of the encoding seam above.
-
-**Run it from the package directory, not the repo root:**
-
-```bash
-cd packages/shorebird_cli && dart test test/src/code_signer_test.dart   # 15/15
-```
-
-From the repo root, 8 of the 15 fail with
-`PathNotFoundException: test/fixtures/crypto/private.pem` — the fixtures are read
-through CWD-relative paths. That is an invocation artifact, not a defect, and it
-is worth knowing before someone reports the signing suite as broken.
+- Dart signer against the production Rust verifier:
+  `packages/shorebird_cli/test/src/code_signer_rust_seam_test.dart` (landed in
+  `0b80cdb73`; the earlier "owed" item for this seam is closed). It does not cover
+  `--sign-cmd` output.
+- `packages/shorebird_cli/test/src/code_signer_test.dart` covers signing with
+  PKCS#8 and PKCS#1 keys, `base64PublicKey`, a sign and verify round trip, and the
+  command-based paths. Its fixtures are read by relative path, so run it from
+  `packages/shorebird_cli`.
+- `tool/check_updater_pin.sh` (run in CI) fails when the vendored updater's
+  default verification mode, its download-time signature check, or its revision
+  differs from what these documents state.
+- On-device tamper rejection under Strict is **not tested** here. It needs a
+  device and shows only at the next boot.
+- [`evidence/g7-signing/`](evidence/g7-signing/verification_path.md) was written
+  for the older updater and is **historical**: its line numbers and its "no
+  install-time check" finding no longer hold.
