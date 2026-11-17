@@ -34,6 +34,7 @@ import 'package:shorebird_cli/src/route_b_binding.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
+import 'package:shorebird_cli/src/route_b_retention.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
@@ -239,6 +240,14 @@ class IosPatcher extends Patcher
         // compiler failure and a container failure are three different problems
         // and must never be reachable through one another.
         var coverage = _analyzeCoverage(compiler, releaseArtifacts);
+        // RETENTION, BEFORE THE VERDICT. A symbol the release did not keep is
+        // the root cause of two different symptoms: a boot abort on the device,
+        // and (for a dependency API the release never called) a coverage
+        // rejection about a "new class" that sends the developer to the wrong
+        // place. Asked first so the reason named is the real one. The producer
+        // asks again, for the members it carries.
+        final retention = _readRouteBRetention(releaseArtifacts);
+        _refuseUnretained(coverage, retention);
         if (coverage.verdict != RouteBVerdict.accept) {
           _refuseCoverage(coverage);
         }
@@ -269,6 +278,19 @@ class IosPatcher extends Patcher
         );
         if (coverage.verdict != RouteBVerdict.accept) {
           _refuseCoverage(coverage);
+        }
+        if (coverage.analysisVersion < routeBRetentionAnalysisVersion) {
+          // Not a warning, unlike the one below, and deliberately: every
+          // release cut on a cell before 18 would print it on every patch,
+          // and nothing the developer can do about it changes the patch. The
+          // analyzer ships in the release's compiler cell, so only a release
+          // cut on a newer cell can say which symbols a patch names. Refusing
+          // would strand every release whose cell predates it.
+          logger.detail(
+            '[route-b] this release\'s compiler cell predates analysis '
+            'version $routeBRetentionAnalysisVersion, so whether the release '
+            'kept every symbol this patch uses was not checked',
+          );
         }
         if (coverage.analysisVersion < routeBDeclarationsAnalysisVersion) {
           // The analyzer ships in the release's compiler cell, so only a
@@ -310,6 +332,7 @@ class IosPatcher extends Patcher
           // this patch's by _verifyBuildConfigAgrees above, so the replacement
           // compiles with the constants the release compiled with.
           buildConfig: provenance.buildConfig,
+          retention: retention,
           survival: survival,
           // P4.4 layers 1 and 3. What this patch is bound to, recorded IN the
           // published container so any later reader can check it rather than
@@ -607,6 +630,57 @@ A patch is only interpretable against one whole contract, so these cannot be mix
     return capabilities;
   }
 
+  /// What the release's dynamic interface kept, or null when it uploaded none
+  /// this build can read. Null is not "kept everything": see
+  /// [_refuseUnretained] and the producer.
+  RouteBRetention? _readRouteBRetention(Map<String, File> releaseArtifacts) {
+    final retention = RouteBRetention.read(
+      releaseArtifacts[routeBInterfaceFileName],
+      capabilities: _readReleaseCapabilities(releaseArtifacts),
+    );
+    if (retention == null) {
+      logger.detail(
+        '[route-b] the release has no readable $routeBInterfaceFileName',
+      );
+    }
+    return retention;
+  }
+
+  /// Refuse the whole patch when its analysis names a symbol the release did
+  /// not keep, naming each carried member and the symbols it uses.
+  ///
+  /// A no-op for an analysis that lists no symbols (version 17 and earlier).
+  void _refuseUnretained(RouteBCoverage coverage, RouteBRetention? retention) {
+    final references = coverage.externalReferences;
+    if (references == null) return;
+    final reasons = <String, String>{
+      for (final key in references.keys.toList()..sort())
+        if (retention == null)
+          key: routeBNoInterfaceReason
+        else if (retention.refusalForTarget(coverage, key) case final why?)
+          key: why,
+    };
+    if (reasons.isEmpty) return;
+    final buffer = StringBuffer()
+      ..writeln(
+        'This patch cannot be built: it uses code the release never used in its own code.',
+      )
+      ..writeln();
+    for (final entry in reasons.entries) {
+      buffer
+        ..writeln('  ${entry.key}')
+        ..writeln('      ${entry.value}');
+    }
+    buffer
+      ..writeln()
+      ..write(
+        'The whole patch is refused, not the part that failed. Nothing was '
+        'uploaded.',
+      );
+    logger.err(buffer.toString());
+    throw ProcessExit(ExitCode.software.code);
+  }
+
   /// Classify what changed, against the release's own kernel.
   ///
   /// [carry] is passed only when non-empty, so an analysis that carries nothing
@@ -821,6 +895,7 @@ Nothing was uploaded.''',
     File? patchedVerificationKernel,
     RouteBCapabilities? capabilities,
     RouteBBuildConfig? buildConfig,
+    RouteBRetention? retention,
     RouteBSurvivalOracle? survival,
     RouteBReleaseEvidence? releaseEvidence,
   }) {
@@ -839,6 +914,7 @@ Nothing was uploaded.''',
         projectRoot: projectRoot,
         capabilities: capabilities,
         buildConfig: buildConfig,
+        retention: retention,
         survival: survival,
         releaseEvidence: releaseEvidence,
       );
