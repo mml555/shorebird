@@ -1021,7 +1021,7 @@ start, and if you find yourself doing it, check whether it is already solved.
 Commands worth knowing before you touch a build:
 
 ```bash
-selfhost/engine/dart_patches.sh --dest <dart-checkout> --verify   # ALWAYS first
+selfhost/engine/dart_patches.sh --dest <dart-checkout> --verify   # ALWAYS first (add --allow-dirty on a Route B tree, which is patched on purpose)
 selfhost/cdn/audit_overlay.sh --hash <h> --cell <macos-ios|linux-android>
 selfhost/scripts/prepare_ios_endpoint.sh --mode lan
 selfhost/scripts/prepare_airgap_fixture.sh --leg ios --app-id <id>
@@ -1084,7 +1084,7 @@ selfhost/cdn/audit_overlay.sh --hash 70974f811d448da19a927c581678ef1dbd33605c --
 selfhost/cdn/audit_overlay.sh --hash 760e3fabffbf31b4e86919a0ef47d6ce5f182991 --cell linux-android
 selfhost/scripts/prepare_ios_endpoint.sh --mode lan
 selfhost/engine/dart_patches.sh \
-  --dest /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart --verify
+  --dest /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart --verify --allow-dirty
 ```
 
 **Baseline recorded 2026-08-09**, so you have something to compare against:
@@ -1118,10 +1118,13 @@ These are not hypotheticals; each one cost real time.
    every out-dir built from that tree carry it. Reverted 2026-08-07. Keep the
    patch file, not the working-tree edit.
 
-3. **`gclient sync` silently discards `0004`/`0005`/`0006`.** `managed: False`
+3. **`gclient sync` replaces the Dart tree with what DEPS pins.** `managed: False`
    protects the flutter checkout's git state, not the DEPS-managed subtrees.
-   Recovery is `dart_patches.sh --apply`; the point is to run `--verify` after
-   *any* sync, before wasting a build.
+   Our Dart changes are commits on the Dart fork
+   and `dart_patches.sh --apply` is retired; recovery is to sync to the fork
+   commit the tree's own DEPS pins (`main`: `b4671ab7`; the 3.50 candidate on
+   `selfhost/dart-3.14`: `0cd04a77`). Run `--verify` after *any* sync,
+   before wasting a build.
 
 4. **The engine hash is sha1 of the Flutter binary only.** A `gen_snapshot`-only
    change republishes under the *same* hash — delete `bin/cache/engine.stamp`,
