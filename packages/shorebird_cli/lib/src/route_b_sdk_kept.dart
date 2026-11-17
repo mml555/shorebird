@@ -15,6 +15,13 @@ import 'package:crypto/crypto.dart';
 /// in the profile: a `Class` node points at an `Array` of its `Function`
 /// nodes, and each `Function` points at its `Code`.
 ///
+/// Classes are identified by their node in the profile, never by name: the
+/// profile has several classes of one name in different libraries (a user
+/// `_List` beside the SDK's), and a lookup that merged them could report a
+/// member the SDK class does not have. Only the edges named `functions_`,
+/// `super_type_` and `interfaces_` are read; the invocation-dispatcher cache,
+/// method extractors and hash tables are ignored.
+///
 /// Measured on the iPhone 7 / cell 2fc41d3f counter release (PR #216), for the
 /// seven runtime classes that could be mapped to VM classes: every device
 /// RESOLVES was a resolved function with real code, and every device
@@ -26,11 +33,30 @@ import 'package:crypto/crypto.dart';
 /// resolved without a lookup (int and double operators), which is the safe
 /// direction.
 class RouteBSnapshotKept {
-  RouteBSnapshotKept._(this._functions, this._super);
+  RouteBSnapshotKept._(
+    this._name,
+    this._library,
+    this._functions,
+    this._hasCode,
+    this._super,
+    this._interfaces,
+  );
 
   /// Reads a snapshot profile. Throws a [FormatException] for anything that is
-  /// not one.
+  /// not one, including a table whose shape is wrong.
   factory RouteBSnapshotKept.fromProfileJson(String text) {
+    try {
+      return RouteBSnapshotKept._decode(text);
+    } on FormatException {
+      rethrow;
+      // A malformed table surfaces as a TypeError or RangeError; it is the
+      // same answer, "not a snapshot profile".
+    } catch (error) {
+      throw FormatException('the snapshot profile is malformed ($error)');
+    }
+  }
+
+  factory RouteBSnapshotKept._decode(String text) {
     final Object? decoded;
     try {
       decoded = jsonDecode(text);
@@ -53,6 +79,9 @@ class RouteBSnapshotKept {
         strings is! List ||
         meta['node_fields'] is! List ||
         meta['edge_fields'] is! List ||
+        meta['edge_types'] is! List ||
+        (meta['edge_types'] as List).isEmpty ||
+        (meta['edge_types'] as List).first is! List ||
         meta['node_types'] is! List ||
         (meta['node_types'] as List).isEmpty ||
         (meta['node_types'] as List).first is! List) {
@@ -64,13 +93,25 @@ class RouteBSnapshotKept {
     final edgeFields = (meta['edge_fields'] as List).cast<String>();
     final nodeTypes = ((meta['node_types'] as List).first as List)
         .cast<String>();
+    final edgeTypes = ((meta['edge_types'] as List).first as List)
+        .cast<String>();
     final fType = nodeFields.indexOf('type');
     final fName = nodeFields.indexOf('name');
     final fCount = nodeFields.indexOf('edge_count');
+    final eType = edgeFields.indexOf('type');
+    final eName = edgeFields.indexOf('name_or_index');
     final eTo = edgeFields.indexOf('to_node');
-    if (fType < 0 || fName < 0 || fCount < 0 || eTo < 0) {
+    final propertyEdge = edgeTypes.indexOf('property');
+    if (fType < 0 ||
+        fName < 0 ||
+        fCount < 0 ||
+        eType < 0 ||
+        eName < 0 ||
+        eTo < 0 ||
+        propertyEdge < 0) {
       throw const FormatException(
-        'the snapshot profile lacks type, name, edge_count or to_node',
+        'the snapshot profile lacks type, name, edge_count, name_or_index, '
+        'to_node or property edges',
       );
     }
     final nf = nodeFields.length;
@@ -80,22 +121,73 @@ class RouteBSnapshotKept {
     final arrayType = nodeTypes.indexOf('Array');
     final codeType = nodeTypes.indexOf('Code');
     final typeType = nodeTypes.indexOf('Type');
-    if (<int>[classType, functionType, arrayType, codeType, typeType].any(
-      (i) => i < 0,
-    )) {
+    final libraryType = nodeTypes.indexOf('Library');
+    if (<int>[
+      classType,
+      functionType,
+      arrayType,
+      codeType,
+      typeType,
+      libraryType,
+    ].any((i) => i < 0)) {
       throw const FormatException(
-        'the snapshot profile does not name Class, Function, Array, Code and '
-        'Type nodes',
+        'the snapshot profile does not name Class, Function, Array, Code, '
+        'Type and Library nodes',
+      );
+    }
+    if (nodes.length % nf != 0 || edges.length % ef != 0) {
+      throw const FormatException(
+        'the snapshot profile node or edge table is not a whole number of '
+        'rows',
       );
     }
     final count = nodes.length ~/ nf;
+    final edgeCount = edges.length ~/ ef;
+    // Validate every cell the walk below will read.
     final first = List<int>.filled(count + 1, 0);
     for (var i = 0; i < count; i++) {
-      first[i + 1] = first[i] + (nodes[i * nf + fCount] as int);
+      final type = nodes[i * nf + fType];
+      final name = nodes[i * nf + fName];
+      final n = nodes[i * nf + fCount];
+      if (type is! int ||
+          type < 0 ||
+          type >= nodeTypes.length ||
+          name is! int ||
+          name < 0 ||
+          name >= strings.length ||
+          strings[name] is! String ||
+          n is! int ||
+          n < 0) {
+        throw FormatException('the snapshot profile node $i is malformed');
+      }
+      first[i + 1] = first[i] + n;
+    }
+    if (first[count] != edgeCount) {
+      throw const FormatException(
+        'the snapshot profile node edge counts do not add up to its edges',
+      );
+    }
+    for (var e = 0; e < edgeCount; e++) {
+      final to = edges[e * ef + eTo];
+      final type = edges[e * ef + eType];
+      final name = edges[e * ef + eName];
+      if (to is! int ||
+          to < 0 ||
+          to % nf != 0 ||
+          to ~/ nf >= count ||
+          type is! int ||
+          name is! int ||
+          name < 0 ||
+          (type == propertyEdge && name >= strings.length)) {
+        throw FormatException('the snapshot profile edge $e is malformed');
+      }
     }
     int typeOf(int i) => nodes[i * nf + fType] as int;
     String nameOf(int i) => strings[nodes[i * nf + fName] as int] as String;
     int target(int edge) => (edges[edge * ef + eTo] as int) ~/ nf;
+    String? propertyOf(int edge) => edges[edge * ef + eType] == propertyEdge
+        ? strings[edges[edge * ef + eName] as int] as String
+        : null;
 
     // Function node -> does it have code that is not a lazy-compile stub.
     final realCode = <int, bool>{};
@@ -109,41 +201,70 @@ class RouteBSnapshotKept {
       return false;
     });
 
-    final functions = <String, Map<String, bool>>{};
-    final supers = <String, String>{};
-    for (var i = 0; i < count; i++) {
-      if (typeOf(i) != classType) continue;
-      final cls = _className(nameOf(i));
-      var superSeen = false;
-      final own = functions.putIfAbsent(cls, () => {});
-      for (var e = first[i]; e < first[i + 1]; e++) {
+    // The class a Type node names: its first edge to a Class.
+    int? classOfType(int type) {
+      if (typeOf(type) != typeType) return null;
+      for (var e = first[type]; e < first[type + 1]; e++) {
         final t = target(e);
-        final type = typeOf(t);
-        if (type == arrayType) {
-          for (var f = first[t]; f < first[t + 1]; f++) {
-            final fn = target(f);
-            if (typeOf(fn) != functionType) continue;
-            final name = nameOf(fn);
-            own[name] = (own[name] ?? false) || hasRealCode(fn);
-          }
-        } else if (type == typeType && !superSeen) {
-          // A class's first Type edge is its super type, and the Type points
-          // at the super class; the class's own declaration type comes after.
-          for (var s = first[t]; s < first[t + 1]; s++) {
-            final sc = target(s);
-            if (typeOf(sc) == classType) {
-              final name = _className(nameOf(sc));
-              if (name != cls) {
-                supers.putIfAbsent(cls, () => name);
-                superSeen = true;
-                break;
-              }
+        if (typeOf(t) == classType) return t;
+      }
+      return null;
+    }
+
+    final names = <int, String>{};
+    final libraries = <int, String>{};
+    final functions = <int, Map<String, bool>>{};
+    final hasCode = <int, bool>{};
+    final supers = <int, int>{};
+    final interfaces = <int, List<int>>{};
+    for (var c = 0; c < count; c++) {
+      if (typeOf(c) != classType) continue;
+      names[c] = _className(nameOf(c));
+      libraries[c] = '';
+      final own = functions[c] = {};
+      var code = false;
+      final ifaces = interfaces[c] = [];
+      for (var e = first[c]; e < first[c + 1]; e++) {
+        final property = propertyOf(e);
+        final t = target(e);
+        switch (property) {
+          case 'library_':
+            if (typeOf(t) == libraryType) libraries[c] = nameOf(t);
+          case 'functions_':
+            if (typeOf(t) != arrayType) break;
+            for (var f = first[t]; f < first[t + 1]; f++) {
+              final fn = target(f);
+              if (typeOf(fn) != functionType) continue;
+              final real = hasRealCode(fn);
+              code = code || real;
+              // Entries of one name must all have code.
+              own[nameOf(fn)] = (own[nameOf(fn)] ?? true) && real;
             }
-          }
+          case 'super_type_':
+            final sc = classOfType(t);
+            if (sc != null && sc != c) supers[c] = sc;
+          case 'interfaces_' || 'mixin_':
+            if (typeOf(t) == arrayType) {
+              for (var f = first[t]; f < first[t + 1]; f++) {
+                final ic = classOfType(target(f));
+                if (ic != null && ic != c) ifaces.add(ic);
+              }
+            } else {
+              final ic = classOfType(t);
+              if (ic != null && ic != c) ifaces.add(ic);
+            }
         }
       }
+      hasCode[c] = code;
     }
-    return RouteBSnapshotKept._(functions, supers);
+    return RouteBSnapshotKept._(
+      names,
+      libraries,
+      functions,
+      hasCode,
+      supers,
+      interfaces,
+    );
   }
 
   /// Reads the profile at [file]. [expectedSha256] is the digest the release's
@@ -171,7 +292,7 @@ class RouteBSnapshotKept {
       );
     }
     final actual = sha256.convert(bytes).toString();
-    if (actual != expectedSha256) {
+    if (actual.toLowerCase() != expectedSha256.toLowerCase()) {
       return (
         kept: null,
         problem:
@@ -184,10 +305,13 @@ class RouteBSnapshotKept {
         kept: RouteBSnapshotKept.fromProfileJson(utf8.decode(bytes)),
         problem: null,
       );
-    } on FormatException catch (error) {
+      // Anything a hashing-but-malformed file throws is "unreadable".
+      // ignore: avoid_catches_without_on_clauses
+    } catch (error) {
+      final why = error is FormatException ? error.message : '$error';
       return (
         kept: null,
-        problem: '$routeBSnapshotProfileName is unreadable (${error.message})',
+        problem: '$routeBSnapshotProfileName is unreadable ($why)',
       );
     }
   }
@@ -195,25 +319,189 @@ class RouteBSnapshotKept {
   /// The profile's file name in a release's artifacts.
   static const routeBSnapshotProfileName = 'route_b_snapshot_profile.json';
 
-  final Map<String, Map<String, bool>> _functions;
-  final Map<String, String> _super;
+  final Map<int, String> _name;
+  final Map<int, String> _library;
+  final Map<int, Map<String, bool>> _functions;
+  final Map<int, bool> _hasCode;
+  final Map<int, int> _super;
+  final Map<int, List<int>> _interfaces;
+  Map<int, List<int>>? _subs;
 
-  /// Whether the snapshot has a class named [name] (private-library suffix
-  /// ignored).
-  bool hasClass(String name) => _functions.containsKey(name);
+  /// The `dart:` classes named [name] (private-library suffix ignored).
+  List<int> _sdkClasses(String name, [String? library]) => [
+    for (final e in _name.entries)
+      if (e.value == name &&
+          (library == null
+              ? _library[e.key]!.startsWith('dart:')
+              : _library[e.key] == library))
+        e.key,
+  ];
+
+  /// Whether the snapshot has a `dart:` class named [name].
+  bool hasClass(String name) => _sdkClasses(name).isNotEmpty;
+
+  /// The library of each class named [name], for messages and tests.
+  List<String> librariesOf(String name) => [
+    for (final e in _name.entries)
+      if (e.value == name) _library[e.key]!,
+  ];
 
   /// Looks [member] up the way the VM does for a call by name on an instance
-  /// of [cls]: the class, then each super class. True: a function with real
-  /// code. False: a function with only a lazy-compile stub (it stops the app).
-  /// Null: no function of that name on the chain (a NoSuchMethodError).
-  bool? resolves(String cls, String member) {
-    String? current = cls;
+  /// of class node [cls]: the class, then each super class. True: a function
+  /// with real code. False: a function with only a lazy-compile stub (it stops
+  /// the app). Null: no function of that name on the chain (a
+  /// NoSuchMethodError), or a chain that loops or runs past 64 classes.
+  bool? _resolvesOn(int cls, String member) {
+    int? current = cls;
+    final seen = <int>{};
     for (var depth = 0; current != null && depth < 64; depth++) {
+      if (!seen.add(current)) return null;
       final own = _functions[current];
       if (own != null && own.containsKey(member)) return own[member];
       current = _super[current];
     }
     return null;
+  }
+
+  /// [_resolvesOn] for the `dart:` classes named [cls]: every one must resolve.
+  /// Null when the snapshot has no such class.
+  bool? resolves(String cls, String member) {
+    final classes = _sdkClasses(cls);
+    if (classes.isEmpty) return null;
+    bool? result = true;
+    for (final c in classes) {
+      final r = _resolvesOn(c, member);
+      if (r == null) return null;
+      if (!r) result = false;
+    }
+    return result;
+  }
+
+  Map<int, List<int>> get _subtypeEdges => _subs ??= () {
+    final map = <int, List<int>>{};
+    for (final e in _super.entries) {
+      map.putIfAbsent(e.value, () => []).add(e.key);
+    }
+    for (final e in _interfaces.entries) {
+      for (final i in e.value) {
+        map.putIfAbsent(i, () => []).add(e.key);
+      }
+    }
+    return map;
+  }();
+
+  /// Whether class node [c]'s super chain reaches `Object`. A pseudo-class the
+  /// VM makes for a library's top-level members has no super and no instances.
+  bool _reachesObject(int c) {
+    int? current = c;
+    final seen = <int>{};
+    for (var depth = 0; current != null && depth < 64; depth++) {
+      if (!seen.add(current)) return false;
+      if (_name[current] == 'Object' && _library[current] == 'dart:core') {
+        return true;
+      }
+      current = _super[current];
+    }
+    return false;
+  }
+
+  /// The classes that can hold an instance whose declared type is one of
+  /// [roots] (the profile's class nodes for the declared type): every class
+  /// whose super or interface chain reaches a root, that is a LEAF of the
+  /// profile's hierarchy (no other class extends, implements or mixes it in),
+  /// has a function with real code, and reaches `Object`.
+  ///
+  /// Why leaves. The profile does not say which classes are abstract. An
+  /// interface (`List`) or an abstract base has no code for the members it
+  /// only declares, and would refuse every member; but it has no instances, and
+  /// every instance's class is a leaf or inherits from one that this check
+  /// reaches. The one thing missed: a concrete class that is also a base class
+  /// and itself lacks a member that all of its subclasses have.
+  Set<int> _instanceClasses(Iterable<int> roots) {
+    final subs = _subtypeEdges;
+    final seen = <int>{...roots};
+    final queue = [...roots];
+    while (queue.isNotEmpty) {
+      final c = queue.removeLast();
+      for (final s in subs[c] ?? const <int>[]) {
+        if (seen.add(s)) queue.add(s);
+      }
+    }
+    return {
+      for (final c in seen)
+        if (_isInstanceClass(c)) c,
+    };
+  }
+
+  bool _isInstanceClass(int c) =>
+      !_subtypeEdges.containsKey(c) &&
+      (_hasCode[c] ?? false) &&
+      _reachesObject(c);
+
+  /// Why this release's snapshot cannot be shown to resolve [selector] for a
+  /// call on a value of declared type [declaredClass] in [declaredLibrary]
+  /// (both null for `dynamic`: any class), or null when it can.
+  ///
+  /// It must resolve with real code on (a) every `dart:` class the member was
+  /// measured on ([measured]), and (b) every class in this snapshot that is a
+  /// subtype of the declared type and can hold instances. A class that is not
+  /// in the snapshot cannot have instances, so the receiver is always one of
+  /// these.
+  String? problemFor({
+    required String? declaredLibrary,
+    required String? declaredClass,
+    required List<String> measured,
+    required String selector,
+  }) {
+    for (final name in measured) {
+      final classes = _sdkClasses(name);
+      if (classes.isEmpty) return 'this release has no class `$name`';
+      for (final c in classes) {
+        final why = _problemOn(c, selector);
+        if (why != null) return why;
+      }
+    }
+    final Iterable<int> candidates;
+    if (declaredClass == null) {
+      candidates = _name.keys.where(_isInstanceClass);
+    } else {
+      candidates = _instanceClasses(
+        _sdkClasses(declaredClass, declaredLibrary),
+      );
+    }
+    String? firstWhy;
+    var more = 0;
+    for (final c in candidates) {
+      final why = _problemOn(
+        c,
+        selector,
+        subtypeOf: declaredClass ?? 'dynamic',
+      );
+      if (why == null) continue;
+      if (firstWhy == null) {
+        firstWhy = why;
+      } else {
+        more++;
+      }
+    }
+    if (firstWhy == null) return null;
+    return more == 0 ? firstWhy : '$firstWhy, and $more more';
+  }
+
+  String? _problemOn(int cls, String selector, {String? subtypeOf}) {
+    final r = _resolvesOn(cls, selector);
+    if (r ?? false) return null;
+    final name = _name[cls]!;
+    final library = _library[cls]!;
+    // A class found only because it can be the declared type is named with its
+    // library: it may be the app's own.
+    final where = subtypeOf == null
+        ? ''
+        : ' (${library.isEmpty ? 'a class' : 'in `$library`'} that can be a '
+              '`$subtypeOf` here)';
+    return r == false
+        ? 'this release has `$name.$selector` without compiled code$where'
+        : 'this release has no `$selector` on `$name`$where';
   }
 
   /// `_OneByteString@0150898` -> `_OneByteString`.

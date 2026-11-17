@@ -60,14 +60,23 @@
 //          real code. A release whose profile is missing or does not match its
 //          recorded digest refuses (`--allow-unchecked-sdk-calls` skips this
 //          check, and only this check, for SDK members).
-//     Or when the release's own interface names the member (`--sdk-members`).
+//     Or when the release's own interface names the member: the release is
+//     built with a short `--sdk-members` list (`print`, `DateTime.now`, ...),
+//     and a member on it is accepted with neither check, not even the failing
+//     list. That is all this exception covers. The
+//     generator does NOT name an instance member of `dart:core` because the
+//     release's own code calls it, so a release that calls `Iterable.map`
+//     does not thereby get `Iterable.map` accepted.
 //     CAVEATS: the list was measured on ONE app at ONE cell, so it says what is
 //     expected, not what holds for every release; the profile check is
 //     necessary, not sufficient (`List.sort` and `Iterable.contains` on a
 //     `List.filled` list have code and abort); and a runtime class the matrix
-//     did not measure (`MappedIterable`, a user's own Iterable) is not proven.
-//     Per-release evidence (R4) is the real fix. A patch outside can always be
-//     made to work by cutting a release whose own code calls the member;
+//     did not measure (`MappedIterable`, a user's own Iterable) is not proven
+//     by the device, only by its profile entry: the profile check covers every
+//     class of this release that can be a subtype of the declared type, not
+//     only the measured ones. A refusal on the measured list is not unlocked by
+//     any flag or by any release setting; only a device measurement added to
+//     the list does that. Per-release evidence (R4) is the real fix;
 //   * a call by name on a `dynamic` value, an instance tear-off, a `for-in`'s
 //     `iterator`/`moveNext`/`current`: reported by the analyzer from analysis
 //     version 19 and answered by the same measurement. Below 19 the CLI
@@ -309,11 +318,14 @@ class RouteBRetention {
     }
     final accepted = keys.where(measuredAccepted.contains).toList();
     if (accepted.isNotEmpty) {
-      final problem = _keptProblem(accepted.first);
-      return problem == null
-          ? null
-          : 'a call by name to `$shown` on a dynamic value (a dynamic call, '
-                '$problem)';
+      for (final key in accepted) {
+        final problem = _keptProblem(key);
+        if (problem != null) {
+          return 'a call by name to `$shown` on a dynamic value (a dynamic '
+              'call, $problem)';
+        }
+      }
+      return null;
     }
     return 'a call by name to `$shown` on a dynamic value (a dynamic call, '
         'never measured)';
@@ -323,10 +335,13 @@ class RouteBRetention {
       sel.replaceFirst(RegExp('^(get|set|tearoff):'), '');
 
   /// Why an instance member of a `dart:` class [key] cannot be shown to be kept
-  /// by THIS release, or null when it can: the release's own interface
-  /// names it,
-  /// or it is on the device-measured list AND this release's snapshot resolves
-  /// it on every VM class it was measured on. An empty string is "on no list".
+  /// by THIS release, or null when it can: the release's own interface names it
+  /// (the short `--sdk-members` list; neither the allow-list, the failing list
+  /// nor the snapshot is asked for it: a release that names a member kept
+  /// it), or it is on the device-measured
+  /// list AND this release's snapshot resolves it on every VM class it was
+  /// measured on and on every class of the release that can be the declared
+  /// type. An empty string is "on no list".
   String? _sdkRefusal(String key) {
     if (members.contains(key)) return null;
     final failed = measuredFailing[key];
@@ -348,21 +363,15 @@ class RouteBRetention {
     if (classes == null || classes.isEmpty) {
       return 'no VM class was measured for it';
     }
-    final selector = _selectorOf(key);
-    for (final cls in classes) {
-      if (!snapshot.hasClass(cls)) {
-        return 'this release has no class `$cls`';
-      }
-      switch (snapshot.resolves(cls, selector)) {
-        case true:
-          continue;
-        case false:
-          return 'this release has `$cls.$selector` without compiled code';
-        case null:
-          return 'this release has no `$selector` on `$cls`';
-      }
-    }
-    return null;
+    // `library#Class#member`, or `dynamic#selector` (any class).
+    final parts = key.split('#');
+    final dynamicKey = parts.length == 2 && parts.first == 'dynamic';
+    return snapshot.problemFor(
+      declaredLibrary: dynamicKey ? null : parts.first,
+      declaredClass: dynamicKey ? null : parts[1],
+      measured: classes,
+      selector: _selectorOf(key),
+    );
   }
 
   /// `dart:core#Iterable#tearoff:map` -> `map`; `dynamic#get:length` ->
@@ -571,11 +580,14 @@ String? describeRouteBUnprovenSdkMembers(List<String> symbols) {
       : '';
   return 'it calls $named$more. An SDK instance method is looked up by name '
       'when it runs, and the app throws NoSuchMethodError at that call if the '
-      'release never called it. Members marked "measured" failed on a device; '
-      "others are refused because the release's own snapshot does not keep "
-      'them (or its snapshot profile could not be checked; '
-      '`--allow-unchecked-sdk-calls` skips that check). Cut a new '
-      'release whose own code calls it (a call is enough), then patch that';
+      'release never called it. Members marked "measured" failed on a device, '
+      'and those on no list were never measured: no flag and no release '
+      'setting unlocks either, because the patcher only lets through members '
+      'measured on a device. Only a refusal because the snapshot of this '
+      'release does not keep the member (or its snapshot profile could not be '
+      'checked) is skipped by `--allow-unchecked-sdk-calls`. To use a refused '
+      'member, call something else, or have it measured on a device and added '
+      'to the patcher list';
 }
 
 /// The refusal for a patch that calls members by name on a `dynamic` value

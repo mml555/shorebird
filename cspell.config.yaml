@@ -468,6 +468,8 @@ words:
   # SYMSRC/symsrc and CODEPATCH/codepatch pairs need one line each.
   #
   # Route B / this fork's own identifiers:
+  - oneshot # Route B SDK-member device probes: a one-shot (non-periodic) Timer receiver
+  - eqop # Route B SDK-member device probes: probes of the == operator
   - sbrbptch # the Route B container extension, .sbrbptch
   - untabled # --route_b_untabled_overrides: a selector kept out of the dispatch table
   - untable # to keep a selector out of the dispatch table (see untabled)

@@ -10,106 +10,7 @@ import 'package:shorebird_cli/src/route_b_sdk_kept.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';
-
-/// A minimal v8 snapshot profile, in the shape `gen_snapshot` writes: Class
-/// nodes pointing at an Array of Function nodes and a Type whose first Class is
-/// the super class, and Function nodes pointing at their Code.
-String _profile(Map<String, ({String? parent, Map<String, String> fns})> cls) {
-  const types = [
-    'ArtificialRoot',
-    'Array',
-    'Code',
-    'Function',
-    'Class',
-    'Type',
-    'Other',
-  ];
-  final strings = <String>[];
-  int str(String s) {
-    final i = strings.indexOf(s);
-    if (i >= 0) return i;
-    strings.add(s);
-    return strings.length - 1;
-  }
-
-  final nodes = <({int type, String name, List<int> to})>[];
-  int add(String type, String name, [List<int> to = const []]) {
-    nodes.add((type: types.indexOf(type), name: name, to: to));
-    return nodes.length - 1;
-  }
-
-  // Classes first so a Type can point at its super class by index.
-  final classIndex = <String, int>{};
-  for (final name in cls.keys) {
-    classIndex[name] = add('Class', name);
-  }
-  for (final entry in cls.entries) {
-    final fnNodes = <int>[];
-    for (final fn in entry.value.fns.entries) {
-      final code = add('Code', fn.value);
-      fnNodes.add(add('Function', fn.key, [classIndex[entry.key]!, code]));
-    }
-    final array = add('Array', 'Unnamed [Array]', fnNodes);
-    final parent = entry.value.parent;
-    final to = <int>[array];
-    if (parent != null) {
-      // The Type's own edges: the super class first, then a stub.
-      final stub = add('Code', '[Stub] DefaultTypeTest');
-      to.add(add('Type', 'Unnamed [Type]', [classIndex[parent]!, stub]));
-    }
-    final i = classIndex[entry.key]!;
-    nodes[i] = (type: nodes[i].type, name: nodes[i].name, to: to);
-  }
-  final flatNodes = <int>[];
-  final flatEdges = <int>[];
-  for (var i = 0; i < nodes.length; i++) {
-    flatNodes.addAll([
-      nodes[i].type,
-      str(nodes[i].name),
-      i,
-      0,
-      nodes[i].to.length,
-    ]);
-    for (final t in nodes[i].to) {
-      flatEdges.addAll([0, 0, t * 5]);
-    }
-  }
-  return jsonEncode({
-    'snapshot': {
-      'meta': {
-        'node_fields': ['type', 'name', 'id', 'self_size', 'edge_count'],
-        'node_types': [types],
-        'edge_fields': ['type', 'name_or_index', 'to_node'],
-        'edge_types': [
-          ['context', 'element', 'property', 'internal'],
-        ],
-      },
-    },
-    'nodes': flatNodes,
-    'edges': flatEdges,
-    'strings': strings,
-  });
-}
-
-/// `String.substring` is absent, `String.split` and `trim` are on
-/// `_StringBase`, `endsWith` is there with only a lazy-compile stub, and the
-/// one-byte string reaches all of them (and `Object.==`) through its super
-/// chain. A class name's private-library suffix is ignored.
-final _fixture = _profile({
-  'Object': (parent: null, fns: {'==': '[Optimized] =='}),
-  '_StringBase@0150898': (
-    parent: 'Object',
-    fns: {
-      'split': '[Optimized] split',
-      'trim': '[Optimized] trim',
-      'endsWith': '[Stub] LazyCompile',
-    },
-  ),
-  '_OneByteString@0150898': (
-    parent: '_StringBase@0150898',
-    fns: {'toUpperCase': '[Optimized] toUpperCase'},
-  ),
-});
+import 'route_b_profile_fixture.dart';
 
 const _interface = '''
 callable:
@@ -158,7 +59,7 @@ void main() {
 
   group(RouteBSnapshotKept, () {
     test('resolves through the super chain, and says stub and absent', () {
-      final kept = RouteBSnapshotKept.fromProfileJson(_fixture);
+      final kept = RouteBSnapshotKept.fromProfileJson(routeBStringProfile);
       expect(kept.hasClass('_OneByteString'), isTrue);
       expect(kept.hasClass('_TwoByteString'), isFalse);
       // On the class itself, on its super class, and on Object.
@@ -172,15 +73,207 @@ void main() {
       expect(kept.resolves('Object', 'split'), isNull);
     });
 
-    test('is an error for a file that is not a snapshot profile', () {
-      expect(
-        () => RouteBSnapshotKept.fromProfileJson('not json'),
-        throwsFormatException,
+    test('keeps same-named classes of different libraries apart', () {
+      // A user `_List` has `remove`; the SDK's does not. Neither the user's
+      // class nor its functions may stand in for the SDK's.
+      final kept = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          'Object': const RouteBProfileClass('Object', routeBCoreLibrary),
+          'sdk': const RouteBProfileClass(
+            '_List@0150898',
+            routeBCoreLibrary,
+            parent: 'Object',
+          ),
+          'user': const RouteBProfileClass(
+            '_List',
+            'package:app/list.dart',
+            parent: 'Object',
+            fns: {'remove': '[Optimized] remove'},
+          ),
+          'userOnly': const RouteBProfileClass('_Map', 'package:app/map.dart'),
+        }),
       );
-      expect(
-        () => RouteBSnapshotKept.fromProfileJson('{"nodes": []}'),
-        throwsFormatException,
+      expect(kept.resolves('_List', 'remove'), isNull);
+      expect(kept.hasClass('_List'), isTrue);
+      // A class the SDK dropped is not there because an app declares one.
+      expect(kept.hasClass('_Map'), isFalse);
+      expect(kept.librariesOf('_List'), hasLength(2));
+    });
+
+    test('with two SDK classes of one name, every one must resolve', () {
+      final kept = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          'a': const RouteBProfileClass(
+            '_X@1',
+            routeBCoreLibrary,
+            fns: {'m': '[Optimized] m'},
+          ),
+          'b': const RouteBProfileClass('_X@2', 'dart:collection'),
+        }),
       );
+      // `dart:collection` is an SDK library too.
+      expect(kept.resolves('_X', 'm'), isNull);
+    });
+
+    test('reads only the functions list, not the dispatcher cache', () {
+      final kept = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          'Object': const RouteBProfileClass('Object', routeBCoreLibrary),
+          'C': const RouteBProfileClass(
+            'C',
+            routeBCoreLibrary,
+            parent: 'Object',
+            fns: {'endsWith': '[Stub] LazyCompile'},
+            decoys: {
+              'endsWith': '[Optimized] endsWith',
+              'padLeft': '[Optimized] padLeft',
+            },
+          ),
+        }),
+      );
+      // A dispatcher with code does not mask the stub, or make a member exist.
+      expect(kept.resolves('C', 'endsWith'), isFalse);
+      expect(kept.resolves('C', 'padLeft'), isNull);
+    });
+
+    test('the super class is the super_type_ edge, not the first Type', () {
+      // Every class here lists its own declaration type and its interfaces
+      // before (or without) a super type. Taking the first Type edge would
+      // find `Iface` (or the class itself) as the super class.
+      final kept = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          'Object': const RouteBProfileClass(
+            'Object',
+            routeBCoreLibrary,
+            fns: {'toString': '[Optimized] toString'},
+          ),
+          'Iface': const RouteBProfileClass(
+            'Iface',
+            routeBCoreLibrary,
+            parent: 'Object',
+          ),
+          'Real': const RouteBProfileClass(
+            'Real',
+            routeBCoreLibrary,
+            parent: 'Object',
+            fns: {'only': '[Optimized] only'},
+          ),
+          'Sub': const RouteBProfileClass(
+            'Sub',
+            routeBCoreLibrary,
+            parent: 'Real',
+            ifaces: ['Iface'],
+          ),
+          // No super_type_ at all, only an interface that has `only`.
+          'NoSuper': const RouteBProfileClass(
+            'NoSuper',
+            routeBCoreLibrary,
+            ifaces: ['Real'],
+          ),
+        }),
+      );
+      expect(kept.resolves('Sub', 'only'), isTrue);
+      expect(kept.resolves('Sub', 'toString'), isTrue);
+      // An interface is not a super class: nothing is inherited from it.
+      expect(kept.resolves('NoSuper', 'only'), isNull);
+      expect(kept.resolves('NoSuper', 'toString'), isNull);
+    });
+
+    test('a looping or over-long super chain does not resolve', () {
+      final loop = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          'A': const RouteBProfileClass('A', routeBCoreLibrary, parent: 'B'),
+          'B': const RouteBProfileClass(
+            'B',
+            routeBCoreLibrary,
+            parent: 'A',
+            fns: {'m': '[O] m'},
+          ),
+          'C': const RouteBProfileClass('C', routeBCoreLibrary, parent: 'C'),
+        }),
+      );
+      expect(loop.resolves('A', 'm'), isTrue);
+      expect(loop.resolves('A', 'absent'), isNull);
+      expect(loop.resolves('C', 'm'), isNull);
+      // A chain longer than the cap is not followed to its end.
+      final long = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          for (var i = 0; i < 80; i++)
+            'c$i': RouteBProfileClass(
+              'c$i',
+              routeBCoreLibrary,
+              parent: i == 79 ? null : 'c${i + 1}',
+              fns: i == 79 ? const {'deep': '[O] deep'} : const {},
+            ),
+        }),
+      );
+      expect(long.resolves('c0', 'deep'), isNull);
+      expect(long.resolves('c70', 'deep'), isTrue);
+    });
+
+    group('is an error for', () {
+      Map<String, Object?> good() =>
+          jsonDecode(routeBStringProfile) as Map<String, Object?>;
+      void rejects(Map<String, Object?> Function(Map<String, Object?>) edit) {
+        final text = jsonEncode(edit(good()));
+        expect(
+          () => RouteBSnapshotKept.fromProfileJson(text),
+          throwsFormatException,
+        );
+      }
+
+      test('a file that is not a snapshot profile', () {
+        expect(
+          () => RouteBSnapshotKept.fromProfileJson('not json'),
+          throwsFormatException,
+        );
+        expect(
+          () => RouteBSnapshotKept.fromProfileJson('{"nodes": []}'),
+          throwsFormatException,
+        );
+      });
+
+      test('a non-integer in the node table', () {
+        rejects(
+          (d) {
+            final nodes = <Object?>[...(d['nodes']! as List)];
+            nodes[0] = 'x';
+            return d..['nodes'] = nodes;
+          },
+        );
+      });
+
+      test('a node table that is not a whole number of rows', () {
+        rejects((d) => d..['nodes'] = [...(d['nodes']! as List), 1]);
+      });
+
+      test('a truncated edge table', () {
+        rejects((d) {
+          final edges = [...(d['edges']! as List)];
+          return d..['edges'] = edges.sublist(0, edges.length - 3);
+        });
+      });
+
+      test('an edge to a node that does not exist', () {
+        rejects((d) {
+          final edges = [...(d['edges']! as List)];
+          edges[2] = 5 * 100000;
+          return d..['edges'] = edges;
+        });
+      });
+
+      test('a name that is not in the strings', () {
+        rejects((d) => d..['strings'] = <String>[]);
+      });
+
+      test('node_fields that are not strings', () {
+        rejects((d) {
+          final snapshot = d['snapshot']! as Map<String, Object?>;
+          final meta = snapshot['meta']! as Map<String, Object?>;
+          meta['node_fields'] = [1, 2, 3, 4, 5];
+          return d;
+        });
+      });
     });
 
     group('read', () {
@@ -195,7 +288,7 @@ void main() {
       });
 
       test('refuses a profile whose digest is not the recorded one', () {
-        final file = write(_fixture);
+        final file = write(routeBStringProfile);
         final result = RouteBSnapshotKept.read(file, expectedSha256: 'beef');
         expect(result.kept, isNull);
         expect(result.problem, contains('does not match'));
@@ -203,7 +296,7 @@ void main() {
 
       test('refuses a profile with no recorded digest', () {
         final result = RouteBSnapshotKept.read(
-          write(_fixture),
+          write(routeBStringProfile),
           expectedSha256: null,
         );
         expect(result.kept, isNull);
@@ -211,19 +304,52 @@ void main() {
       });
 
       test('reads a profile that hashes to the recorded digest', () {
-        final file = write(_fixture);
+        final file = write(routeBStringProfile);
+        final digest = sha256.convert(file.readAsBytesSync()).toString();
+        final result = RouteBSnapshotKept.read(file, expectedSha256: digest);
+        expect(result.problem, isNull);
+        expect(result.kept!.hasClass('Object'), isTrue);
+        // The recorded digest's case does not matter.
+        final upper = RouteBSnapshotKept.read(
+          file,
+          expectedSha256: digest.toUpperCase(),
+        );
+        expect(upper.problem, isNull);
+      });
+
+      test('says "unreadable", not a stack trace, for a malformed profile '
+          'with the right digest', () {
+        final text = jsonEncode({
+          'snapshot': {
+            'meta': {
+              'node_fields': ['type', 'name', 'id', 'self_size', 'edge_count'],
+              'node_types': [
+                ['Class'],
+              ],
+              'edge_fields': ['type', 'name_or_index', 'to_node'],
+              'edge_types': [
+                ['property'],
+              ],
+            },
+          },
+          'nodes': ['x', 1],
+          'edges': <Object>[],
+          'strings': <String>[],
+        });
+        final file = write(text);
         final result = RouteBSnapshotKept.read(
           file,
           expectedSha256: sha256.convert(file.readAsBytesSync()).toString(),
         );
-        expect(result.problem, isNull);
-        expect(result.kept!.hasClass('Object'), isTrue);
+        expect(result.kept, isNull);
+        expect(result.problem, contains('unreadable'));
+        expect(result.problem, contains('route_b_snapshot_profile.json'));
       });
     });
   });
 
   group('the per-release SDK-member check', () {
-    final kept = RouteBSnapshotKept.fromProfileJson(_fixture);
+    final kept = RouteBSnapshotKept.fromProfileJson(routeBStringProfile);
     // Measured keys and the VM classes each was measured on.
     const accepted = {
       'dart:core#String#split',
@@ -237,11 +363,8 @@ void main() {
       'dart:core#String#get:isEmpty',
       'dart:core#Map#containsKey',
     };
-    final classes = {
-      for (final k in accepted) k: ['_OneByteString'],
-    };
     final byClass = {
-      ...classes,
+      for (final k in accepted) k: ['_OneByteString'],
       // A key measured on a class this release does not have.
       'dart:core#String#trim': ['_OneByteString', '_TwoByteString'],
       'dart:core#Map#containsKey': ['_Map'],
@@ -314,6 +437,58 @@ void main() {
       );
     });
 
+    test('a dynamic call needs every class of the release to have it', () {
+      // `x` is on the measured class and on nothing else: a dynamic value
+      // could be any other class, so it is refused. `==` is on Object, which
+      // every class reaches. A pseudo-class with no super (the VM's holder of
+      // a library's top-level members) has no instances and does not count.
+      final snapshot = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          'Object': const RouteBProfileClass(
+            'Object',
+            routeBCoreLibrary,
+            fns: {'==': '[Optimized] =='},
+          ),
+          '_OneByteString': const RouteBProfileClass(
+            '_OneByteString',
+            routeBCoreLibrary,
+            parent: 'Object',
+            fns: {'x': '[Optimized] x'},
+          ),
+          'Other': const RouteBProfileClass(
+            'Other',
+            'package:app/o.dart',
+            parent: 'Object',
+            fns: {'y': '[Optimized] y'},
+          ),
+          'TopLevel': const RouteBProfileClass(
+            '::',
+            'package:app/o.dart',
+            fns: {'z': '[Optimized] z'},
+          ),
+        }),
+      );
+      final r = RouteBRetention.parse(
+        _interface,
+        measuredAccepted: const {'dynamic#==', 'dynamic#tearoff:x'},
+        measuredFailing: const {},
+        measuredVmClasses: const {
+          'dynamic#==': ['_OneByteString'],
+          'dynamic#tearoff:x': ['_OneByteString'],
+        },
+        kept: snapshot,
+      );
+      expect(refusal(r, _ref('dynamic', '', member: '==')), isNull);
+      expect(
+        refusal(r, _ref('dynamic', '', member: 'get:x')),
+        allOf(
+          contains('no `x` on `Other`'),
+          contains('`dynamic`'),
+          contains('app/o.dart'),
+        ),
+      );
+    });
+
     test('refuses with no profile, naming the file and the flag', () {
       final reason = refusal(
         retention(
@@ -328,11 +503,11 @@ void main() {
           contains('cannot be checked'),
         ),
       );
-      // The summary the developer reads offers the way out.
-      expect(
-        describeRouteBUnprovenSdkMembers(['x']),
-        contains('--allow-unchecked-sdk-calls'),
-      );
+      // The summary the developer reads says what the flag does and does not
+      // unlock.
+      final summary = describeRouteBUnprovenSdkMembers(['x']);
+      expect(summary, contains('--allow-unchecked-sdk-calls'));
+      expect(summary, contains('no flag and no release setting'));
     });
 
     test('refuses with no profile and no reason given', () {
@@ -361,6 +536,92 @@ callable:
       final r = retention(skip: true);
       expect(refusal(r, sdk('substring')), isNull);
       expect(refusal(r, sdk('padLeft')), isNotNull);
+    });
+  });
+
+  group('a receiver class the measurement did not run', () {
+    // List.get:reversed was measured on the list classes only. A Uint8List is
+    // a List: its class is a subtype of `List` in this release, and does not
+    // have `reversed`.
+    const key = 'dart:core#List#get:reversed';
+    RouteBSnapshotKept profileWith({required bool typedHasReversed}) =>
+        RouteBSnapshotKept.fromProfileJson(
+          routeBProfile({
+            'Object': const RouteBProfileClass('Object', routeBCoreLibrary),
+            // The interface: no code, no instances.
+            'List': const RouteBProfileClass(
+              'List',
+              routeBCoreLibrary,
+              parent: 'Object',
+            ),
+            'ListBase': const RouteBProfileClass(
+              'ListBase',
+              'dart:collection',
+              parent: 'Object',
+              ifaces: ['List'],
+              fns: {'get:reversed': '[Optimized] reversed'},
+            ),
+            '_GrowableList': const RouteBProfileClass(
+              '_GrowableList@0150898',
+              routeBCoreLibrary,
+              parent: 'ListBase',
+            ),
+            'Uint8List': const RouteBProfileClass(
+              'Uint8List',
+              'dart:typed_data',
+              parent: 'Object',
+              ifaces: ['List'],
+            ),
+            '_TypedListBase': const RouteBProfileClass(
+              '_TypedListBase',
+              'dart:typed_data',
+              parent: 'Object',
+              fns: {'[]': '[Optimized] []'},
+            ),
+            '_Uint8List': RouteBProfileClass(
+              '_Uint8List',
+              'dart:typed_data',
+              parent: '_TypedListBase',
+              ifaces: const ['Uint8List'],
+              fns: {
+                '_new': '[Optimized] _new',
+                if (typedHasReversed) 'get:reversed': '[Optimized] reversed',
+              },
+            ),
+          }),
+        );
+
+    RouteBRetention retention(RouteBSnapshotKept snapshot) =>
+        RouteBRetention.parse(
+          _interface,
+          measuredAccepted: {key},
+          measuredFailing: const {},
+          measuredVmClasses: {
+            key: ['_GrowableList'],
+          },
+          kept: snapshot,
+        );
+
+    String? refusal(RouteBRetention r) => r.refusalForTarget(
+      _analysis([
+        _ref('instance', 'dart:core', cls: 'List', member: 'get:reversed'),
+      ]),
+      _target,
+    );
+
+    test('is refused when its class lacks the member', () {
+      final reason = refusal(retention(profileWith(typedHasReversed: false)));
+      expect(
+        reason,
+        allOf(
+          contains('no `get:reversed` on `_Uint8List`'),
+          contains('`List`'),
+        ),
+      );
+    });
+
+    test('is accepted when every such class has it', () {
+      expect(refusal(retention(profileWith(typedHasReversed: true))), isNull);
     });
   });
 }

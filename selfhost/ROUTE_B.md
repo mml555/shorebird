@@ -31,15 +31,28 @@ such a call only when both hold:
    than one runtime class, and each runtime class maps to a VM class. Keys that
    throw `NoSuchMethodError`, crash, never ran, or are thin are refused.
 2. **This release's own snapshot.** The release's `route_b_snapshot_profile.json`
-   (already uploaded and hash-checked; no new artifact) must resolve the member,
-   for every VM class it was measured on, to a function with real code: found
-   on the class or a super class, and not a `LazyCompile` stub. A release whose
-   profile is missing, or does not hash to its recorded digest, refuses.
+   (already uploaded and hash-checked; no new artifact) must resolve the member
+   with real code (not a `LazyCompile` stub) on EVERY instance class that can
+   stand in for the declared type. For a declared type T the CLI takes the
+   classes of that name in `dart:` libraries (classes are keyed by library as
+   well as name, so a user's own `_List` never stands in for the SDK's), walks
+   the release's own `super_type_` and `interfaces_` edges to every subtype
+   present in the snapshot, keeps the instance classes (a leaf with real code
+   that reaches `Object`), and requires the member to resolve on each, on the
+   class or a super class. A missing, unreadable, malformed or digest-mismatched
+   profile (the digest compare ignores case) refuses, as does a super chain that
+   loops or is cut short. Dynamic tear-offs (`dynamic#tearoff:x`) are checked
+   against every instance class in the snapshot.
 
-A member named by the release's own interface still passes, as before.
+A member named by the release's own interface still passes, as before. The
+interface names only the members `--sdk-members` lists (`print`, `DateTime.now`,
+`DateTime.millisecondsSinceEpoch`, `identical`), so a release that calls
+`Iterable.map` does not get it accepted that way.
 
 `--allow-unchecked-sdk-calls` skips check 2 (the per-release snapshot check) and
-the analysis-19 gate. It never skips check 1. Its use is recorded in the patch
+the analysis-19 gate. It never skips check 1: a member that is not on the device
+list is refused with no flag and no release setting that unlocks it; only a
+device measurement added to the list does. Its use is recorded in the patch
 metadata (`allow_unchecked_sdk_calls`).
 
 **Caveats.**
@@ -51,9 +64,14 @@ metadata (`allow_unchecked_sdk_calls`).
   the device. That is why check 1 comes first.
 - Runtime classes the matrix did not measure (`MappedIterable`, a user's own
   Iterable) are not proven by it.
-- On the 2fc41d3f counter release's own profile, 7 of the 118 accepted keys are
-  rejected (an `Iterator` of a generator iterable, `int` `&`, `<<` and unary `-`
-  on a `Mint`, and the `endsWith` tear-offs, whose code is a stub).
+- On the 2fc41d3f counter release's own profile, 34 of the 118 accepted keys
+  are rejected: `Iterable` `first`/`toList`/`toSet`/`any` (some `Iterable`
+  subtypes in the snapshot lack them), `List.reversed`/`sort`, the `Iterator`
+  of a generator iterable, `int` `&`, `<<` and unary `-` on a `_Mint`,
+  `num.~/`, the `endsWith` tear-offs (a stub), and 17 dynamic tear-offs.
+  The leaf heuristic is conservative: a class counts as an instance class when
+  it is a leaf with real code, so a snapshot-only class a program never builds
+  can still cause a refusal.
 
 ## The capability statement, as of 2026-09-03 — READ THIS ONE
 

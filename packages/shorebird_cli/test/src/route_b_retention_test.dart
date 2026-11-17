@@ -495,7 +495,7 @@ callable:
             reason,
             allOf(
               contains('`$cls.$member`'),
-              contains('Cut a new release'),
+              contains('no flag and no release setting unlocks either'),
             ),
             reason: '$cls.$member',
           );
