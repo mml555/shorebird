@@ -79,7 +79,7 @@ echo
 echo "step 2 — symbol retention"
 run "patch binds an SDK symbol" "RESULT: PASS" "$HERE/verify_binding.sh"
 if [[ "$QUICK" -eq 0 ]]; then
-  run "retention breadth sweep" "app + named SDK members" "$HERE/measure_retention.sh"
+  run "retention breadth sweep" "app \+ named SDK members" "$HERE/measure_retention.sh"
 else
   echo "  retention breadth sweep                skipped (--quick)"
 fi

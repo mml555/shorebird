@@ -45,7 +45,7 @@ int main(){
         && c.targets.size()==1 && c.targets[0].selector=="greet"
         && std::string((const char*)c.targets[0].bytecode,c.targets[0].length)=="hello",
         "parses targets and exposes release id before targets are used");
-  CHECK(SniffFile("/definitely/not/here/dlc.vmcode")==ContainerStatus::kNotAContainer, "missing file -> not-a-container");
+  CHECK(SniffFile("/definitely/not/here/dlc.vmcode")==ContainerStatus::kUnreadable, "missing file -> unreadable");
   printf(fails? "TAXONOMY: %d FAILED\n" : "TAXONOMY: all passed\n", fails);
   return fails?1:0;
 }
