@@ -41,23 +41,19 @@ Cross-referenced against on-device observations in
 > `yaml.rs` cite pointed elsewhere, because the vendored updater was re-vendored
 > (see Provenance). Citations now name the file and the function or type; find
 > the line with `grep -n`. A wrong line anchor reads as authority, a symbol does
-> not. The signature, verification-mode and provenance sections below were
-> re-read against the vendored tree at `87c198d3` on that date; the event
-> descriptions in §1, §3 and §5 were written for `1f85c4ab` and were **not**
-> re-read (see the next warning).
+> not. The signature, verification-mode, provenance and event-delivery
+> statements below were re-read against the vendored tree at `87c198d3` on that
+> date.
 
 > ### ⚠ SECOND ADDITION — 2026-08-23. A fifth event type, a seventh dedupe field, and the flush contract has changed.
 >
-> Everything below describes the updater at `1f85c4ab`, which is **no longer the
-> vendored one** (`vendor/updater` is now `87c198d3`, see Provenance). The event
-> sections (§1, §3, §5) were not re-read against it: at `87c198d3` events go
-> through `queue_or_send_event` and `spawn_event_flush` in `updater.rs`, so
-> statements such as "sent immediately on a spawned thread" or "queue cleared
-> regardless of send success" may be out of date (UNVERIFIED at HEAD). It is also **not** accurate for the updater our own Route B engine cells
-> now ship (`f729f958e9be`, cell `2c4443ce…`), which is what the lifecycle work runs
-> on. **The source for these changes is NOT in this repo** — it lives in the engine
-> tree's `third_party/updater`, not in `vendor/updater`, so grepping `vendor/` will
-> report them absent. Until the body is reworked, treat the following as part of the
+> The updater this file was first written for (`1f85c4ab`) is **no longer the
+> vendored one** (`vendor/updater` is now `87c198d3`, see Provenance). The
+> delivery and flush behaviour below was re-read against `87c198d3` on 2026-11-16
+> and corrected in place; where a sentence says "pinned" it means the old pin. The
+> text that follows was written for the Route B engine cells of 2026-08
+> (`f729f958e9be`, cell `2c4443ce…`), whose source was then outside this repo and
+> is now vendored. Treat the following as part of the
 > contract for that client:
 >
 > * **A fifth event `type`: `__patch_boot_lifecycle__`** — NON-TERMINAL, unlike all
@@ -98,15 +94,19 @@ Citations are `library/src/<file>.rs` plus the function or type, against the ven
   (#11). `vendor/updater/VENDOR.md` is the record, and
   `selfhost/compatibility.yaml` `updater_revision: 87c198d30f12` must equal its
   first 12 characters; `tool/check_updater_pin.sh` fails CI when they differ.
-  The earlier pin was upstream `1f85c4ab1ee5b540269b9859c75e1bffbb9050c7`
-  (2026-07-02), which most of this file's body was written against. The crate
+  The pin before the previous one was upstream
+  `1f85c4ab1ee5b540269b9859c75e1bffbb9050c7` (2026-07-02), which most of this
+  file's body was first written against; `af6e842c` sat between them. The crate
   carries no release tag for the library (`library/Cargo.toml` is `0.1.0`), so
   we pin the commit.
 - **Engine → updater mapping is NOT discoverable from the updater repo alone.**
   The updater commit an engine was built from lives in the Flutter fork's
   `DEPS`, not here. `compatibility.yaml` says the supported pin consumes
-  `87c198d3`; this repo cannot confirm that (UNVERIFIED: the Flutter fork's
-  `DEPS` is not in this tree). The 2026-07 text below named engine
+  `87c198d3`; the Flutter fork's `DEPS` is not in this tree, so hosted CI cannot
+  check that. It was checked by hand on 2026-11-16 against an engine checkout at
+  `d0714887`: `updater_rev` is `87c198d30f875a3da317d70935e1025dc13064dd`, and
+  `selfhost/ci/engine_updater_evidence_guard.sh` (#206) is the check meant to run
+  on a host that has the engine tree. The 2026-07 text below named engine
   `69f9831c360d9152862ec3897c67fb09ae843f3b`, which is no longer the pin. `BEHAVIORAL_FINDINGS.md` was captured on CLI 1.6.114 / Flutter
   `309dd6573a9fe716410489284cd325a34b950375` (engine `e1eaecbc…`), the pin
   before this one. Those findings carry forward: `updater_rev` in the Flutter
@@ -196,7 +196,9 @@ Fired at the **end of a successful `update()` cycle**, once the patch is
 downloaded, zstd-inflated against the base, hash-checked, written to
 `dlc.vmcode`, and promoted to `next_boot_patch`
 (`updater.rs`, inside `install_downloaded_patch`).
-- **Sent immediately, fire-and-forget on a spawned thread** (`updater.rs`).
+- **Queued to disk, then flushed on a spawned thread** (`updater.rs`
+  `queue_or_send_event`, then `spawn_event_flush`). Only if the queue cannot be
+  saved is the event sent once on its own thread instead.
 - The patched code is NOT yet running — it runs on the next app restart.
 - `message: null`.
 
@@ -208,7 +210,9 @@ Fired from `report_launch_success()` (`updater.rs`), which the engine's
   `last_successfully_booted_patch` before vs after and suppresses the event if
   the number is unchanged (`updater.rs`). Re-launches of an
   already-booted patch send nothing.
-- **Sent immediately, fire-and-forget on a spawned thread** (`updater.rs`).
+- **Queued to disk, then flushed on a spawned thread**, as for
+  `__patch_download__`: `report_launch_success` calls `queue_or_send_event`, then
+  `spawn_event_flush` when anything is queued.
 - `message: null`.
 - **This IS the "boot-success" signal.** `BEHAVIORAL_FINDINGS.md` already
   observed it (labeled `__patch_install__`); there is no separate boot-success
@@ -216,8 +220,8 @@ Fired from `report_launch_success()` (`updater.rs`), which the engine's
   boots the patch → `__patch_install__`.
 
 #### `__patch_install_failure__` — patch failed to boot
-Two trigger paths, **both queued to disk** (not sent immediately), because the
-engine typically `abort()`s right after a boot failure:
+Two trigger paths, **both queued to disk** by `queue_event`, because the engine
+typically `abort()`s right after a boot failure:
 
 1. **Crash-detected at next init** (`updater.rs`,
    `handle_prior_boot_failure_if_necessary`): if a prior process set the
@@ -229,9 +233,10 @@ engine typically `abort()`s right after a boot failure:
    engine calls this when a patch load fails; queues with
    `message: "engine_report: patch N failed to launch"`.
 
-Queued events are flushed at the **start of the next `update()` cycle**
-(`updater.rs`) — so they arrive on the next launch that reaches a patch
-check, not in real time.
+These are not flushed by a thread of their own. They go out in the next flush: the
+one `update_internal` runs at the start of the next `update()` cycle, or the one
+`report_launch_success` starts on a later launch that has anything queued (also
+when `auto_update` is off). So they arrive on a later launch, not in real time.
 
 #### `__patch_update_failure__` — download/apply step failed
 Fired when `download_and_install_patch` returns an error inside `update_internal`
@@ -362,41 +367,29 @@ Postgres) gets `422`, a permanent refusal, not a `500` the updater would retry.
 ### Queue / retry / offline behavior
 This is the subtle part — two different delivery paths:
 
-**Immediate (fire-and-forget), NOT queued, NOT retried:**
-- `__patch_download__` (`updater.rs`) and `__patch_install__`
-  (`updater.rs`) are each sent on a **detached `std::thread`**. If the
-  send fails (offline, 5xx), the error is only logged (`updater.rs`,
-  `1196-1199`) — **the event is lost**, never retried. At-most-once.
+Every event type goes to the on-disk queue first (`queue_event`; the download and
+install-success events through `queue_or_send_event`), and a flush sends from it.
 
-**Queued (disk-persisted), flushed once next cycle:**
-- `__patch_install_failure__` and `__patch_update_failure__` are written to
-  `state.queued_events` on disk via `queue_event`
-  (`cache/updater_state.rs`).
-- At the **start of the next `update()` cycle**, up to **3** queued events are
-  copied and sent (`updater.rs`, `copy_events(3)` at
-  `cache/updater_state.rs`), then the **entire** queue is cleared
-  regardless of send success (`updater.rs`, `clear_events` at
-  `cache/updater_state.rs`).
-
-  > **CORRECTED FOR OUR CELLS — 2026-08-23.** True at the pinned revision; **false**
-  > for updater `f729f958e9be`. The unconditional `clear_events()` was a real
-  > silent-loss defect, not merely a robustness limit: the flusher sent a batch
-  > captured by an EARLIER read and then cleared the whole queue, destroying anything
-  > enqueued in between. The source comment said *"that's OK for now"* — true while
-  > events were coarse counters, false the moment a queued event carried meaning.
-  > Replaced by **exact acknowledgement** (remove only the event that was sent) plus
-  > **failure rotation**. Rotation is not optional once you retain on failure: with a
-  > first-`n` batch, `n` stuck events become a permanent batch head and censor
-  > everything behind them — a defect found by asking what the first fix implied,
-  > not by observing it.
-- **Consequences:**
-  - **Cap of 3 per cycle** — if more than 3 are queued, the extras are dropped
-    (never sent). Source comment: "We discard any events if we have more than 3
-    queued to make sure we don't stall the client" (`updater.rs`).
-  - **No persistent retry** — a failed send is not requeued; the clear happens
-    unconditionally. Effectively at-most-once with one delivery attempt on the
-    following update cycle.
-  - Offline at flush time → those events are lost.
+- **When a flush runs** (`updater.rs`): `spawn_event_flush` runs
+  `flush_queued_events` on a detached thread right after a patch is installed and
+  after a launch that has events queued; `update_internal` also sends the queue at
+  the start of every update cycle (`send_queued_events`, skipped if a flush already
+  holds `EVENT_FLUSH_LOCK`).
+- **How much per flush:** at most `MAX_EVENTS_PER_FLUSH` = **3** events, oldest
+  first. The rest stay queued for the next flush; they are not dropped.
+- **Acknowledgement:** an event is removed from the queue only after it was sent
+  (`remove_event`), one at a time. There is no whole-queue clear.
+- **Failure:** the first failed send stops the flush and leaves that event and the
+  rest queued, to be retried by a later flush. The exception is an event the
+  server refuses with `400`, `413` or `422` (`is_refused_event`): it is dropped,
+  since resending gets the same answer. Other statuses (401, 403, 404, 407, 5xx)
+  and network errors are retried.
+- **Queue bound:** `MAX_QUEUED_EVENTS` = **50** (`cache/updater_state.rs`
+  `queue_event`); beyond it the **oldest** events are dropped. If the queue cannot
+  be saved at all, `queue_or_send_event` sends that one event once, with no retry.
+- **Consequence:** delivery is at-least-once-attempted while the queue holds, with
+  loss only on queue overflow, a refused event, a full disk, or an app that is
+  never launched again. It is not "at-most-once".
 
 ### Dedup identifiers
 The updater sends **no** dedup id and no idempotency key. Dedup is entirely the
@@ -502,7 +495,7 @@ diff, streamed to `dlc.vmcode`. On Android the base is read from the split APKs
      forward and does not re-verify.
 - **The default mode is `install_only`** (`yaml.rs`: `#[default] InstallOnly` on
   `PatchVerificationMode`; test `default_verification_mode_is_install_only`).
-  The previous pin `af6e842c` defaulted to `strict`, and this file used to say
+  The pin before this one, `af6e842c`, defaulted to `strict`, and this file used to say
   "`strict` (default)", which is false for `87c198d3`. `selfhost/SIGNING.md`
   says what that means for an operator.
 - **No `patch_public_key` configured:** `check_patch_signature` returns `Ok`, so
@@ -651,25 +644,20 @@ the server offers the same `download_url` string again.
    launch-start and launch-success, e.g. crash in `main()` of the patched code)
    to produce `__patch_install_failure__`; serve a corrupt/truncated patch (our
    `fail_after` download knob, `api.dart` `_download` `fail_after`) or a wrong `hash` to produce
-   `__patch_update_failure__`. Note both are **queued** and arrive on the
-   **following** update cycle, capped at 3 per cycle — a test must trigger a
-   second check to see them, and must not queue >3.
+   `__patch_update_failure__`. Note both are **queued** and arrive in a later
+   flush, at most 3 per flush — a test must trigger a second check to see them.
 
 3. **Rotating signed download URLs defeat cross-cycle resume** (see §4). Not a
    correctness issue; a bandwidth/robustness one. Optional fix if large patches
    over flaky networks become a concern.
 
-4. **Event delivery is at-most-once.** ~~Immediate events (download / install
-   success) are fire-and-forget with no retry (`updater.rs`, `1196`); queued
-   failure events get exactly one flush attempt then are cleared unconditionally
-   (`updater.rs`).~~ **PARTLY FIXED 2026-08-20 in our own cells** (updater
-   `f729f958e9be`): queued events now survive a failed send — exact acknowledgement
-   plus failure rotation — so the queue is at-least-once-attempted rather than
-   cleared blind. **Immediate events are still fire-and-forget**, and the
-   lower-bound rule below still holds for them. One new cost, parked deliberately
-   because it delays events rather than censoring them: the queue is now unbounded
-   while the server is unreachable. The server should treat event counts as a **lower
-   bound**, never assume exactly-once, and never make correctness decisions
+4. **Event delivery is best-effort, not exactly-once.** At the old pin
+   (`1f85c4ab`) download and install events were fire-and-forget and queued events
+   were cleared after one attempt. At `87c198d3` every event is queued first and
+   removed only once sent; a failed send is retried by a later flush, the queue
+   holds at most 50 events (oldest dropped), and a `400`/`413`/`422` answer drops
+   that event (see §3). Events can still be lost, and can arrive late, in bursts of
+   three. The server should treat event counts as a **lower bound**, never assume exactly-once, and never make correctness decisions
    (e.g. billing, rollback gating) that require every event to arrive. Dedup
    protects against doubles; nothing protects against drops.
 
