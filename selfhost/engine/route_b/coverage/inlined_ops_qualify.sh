@@ -189,6 +189,8 @@ for target, rs in json.load(open(cov_path))['externalReferences'].items():
         and r['member'] in OPCODES and r['class'] in ('int', 'double', 'num')]
 
 bad, targets, refused = [], 0, []
+TPARAM_REFUSALS = {'Gen.no__gen_t', 'Box.yes__box_len'}
+tparam_refused = set()
 expected_refusals = 0
 flagged_n = unflagged_n = 0
 for line in open(f'{work}/index.tsv'):
@@ -219,8 +221,10 @@ for line in open(f'{work}/index.tsv'):
             continue
         # A member of a generic class whose body uses the class's type
         # parameter: a top-level replacement cannot name it, so the producer
-        # refuses it (fail-closed). Only the fixture's generic classes may.
-        if name.split('.')[0] in ('Gen', 'Box') and 'uses the class type parameter' in status:
+        # refuses it (fail-closed). Only these exact targets may; each must be
+        # seen refused (checked after the loop).
+        if name in TPARAM_REFUSALS and 'uses the class type parameter' in status:
+            tparam_refused.add(name)
             expected_refusals += 1
             continue
         refused.append(f'{name}: {status}')
@@ -276,6 +280,9 @@ for line in open(f'{work}/index.tsv'):
     if short.startswith(('no__equals', 'no__not_equals')) and any(flags):
         bad.append(f'{name}: == / != must never be flagged')
 
+for t in sorted(TPARAM_REFUSALS - tparam_refused):
+    bad.append(f'{t}: expected the producer to refuse it for using the class '
+               f'type parameter, and it did not (or the target is gone)')
 for r in refused:
     bad.append(f'the producer refused {r}')
 if targets < min_targets:

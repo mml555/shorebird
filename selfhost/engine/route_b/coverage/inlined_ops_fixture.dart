@@ -176,10 +176,10 @@ class UB extends UA {
   Object? refused__untyped_foreign(p) => p.x + 1;
 }
 
-// A class type parameter in the receiver. A member whose body uses `T` (even
-// through a field's type, as in `Box`) is refused by the producer, since a
-// top-level replacement cannot name it; `yes__gen_int` does not use it and is
-// compared.
+// Generic receivers (`Gen` and `Box` below). A member whose body uses the
+// class type parameter `T`, even through a field's type, is refused by the
+// producer, since a top-level replacement cannot name it: `Gen.no__gen_t` and
+// `Box.yes__box_len`. `Gen.yes__gen_int` does not use it and is compared.
 @pragma('vm:entry-point')
 class Gen<T extends num> {
   Gen(this.t);
