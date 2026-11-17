@@ -529,3 +529,7 @@ aab9fd07857142c232e4b5a41e41814b8dbf640f 38855c84ca367c58165b8e3844dd7d6a99dec84
 # analyzer of mml555/shorebird #194 (analysis 17: added top-level helpers, #193,
 # and added private instance methods).
 2fc41d3fbd9966958ba3ccf2be9761e064e92bcc 38855c84ca367c58165b8e3844dd7d6a99dec844
+# The same cell with only its compiler archive changed again: the coverage
+# analyzer of mml555/shorebird #217 (analysis 21: `inlined` operator references,
+# signatureTypes, --scan-bytecode) and #219 (enclosingScope).
+a6a48cf673a291f607323e89b41839c4b8b74e5d 38855c84ca367c58165b8e3844dd7d6a99dec844
