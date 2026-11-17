@@ -2672,31 +2672,35 @@ Map<String, Object?> scanBytecodeText(String text) {
     final at = name.lastIndexOf('::');
     calls.add(at < 0 ? name : name.substring(at + 2));
   }
-  // Self-check, independent of the `[n] =` prefix the regex above relies on:
-  // every line that names a call kind ahead of its first quote counts, except
-  // an instruction (`InterfaceCall  CP#5, 2`, which refers to the pool) and a
-  // kind that carries no selector (a direct call is bound to a member, an
-  // external or FFI call to native code). Whatever is left and was not read
-  // above means the text format changed and `calls` is a subset: the producer
-  // treats a non-zero `unparsed` as unreadable.
-  final kindToken = RegExp(r'\b(\w*Call\w*)\b(\s+CP#)?');
+  // Self-check, independent of the strict regex above. A constant-pool entry
+  // is a line shaped `[n] = Kind ...` (loosely: a number, then `=` or `:`);
+  // its kind is the token right after that, so a type or a name elsewhere
+  // (`Closure f (VoidCallback cb)`) is never taken for one. A call kind other
+  // than a direct, external or FFI call (which carry no selector) that the
+  // strict regex did not read means the text format changed under it.
+  final entry = RegExp(r'^\s*\[?\d+\]?\s*[=:]\s*(\w+)', multiLine: true);
   var counted = 0;
-  for (final line in text.split('\n')) {
-    final quote = line.indexOf("'");
-    final head = quote < 0 ? line : line.substring(0, quote);
-    for (final m in kindToken.allMatches(head)) {
-      final kind = m.group(1)!;
-      if (m.group(2) != null) continue;
-      if (kind == 'DirectCall' || kind == 'ExternalCall' || kind == 'FfiCall') {
-        continue;
-      }
-      counted++;
+  for (final m in entry.allMatches(text)) {
+    final kind = m.group(1)!;
+    if (!kind.endsWith('Call')) continue;
+    if (kind == 'DirectCall' || kind == 'ExternalCall' || kind == 'FfiCall') {
+      continue;
     }
+    counted++;
   }
+  var unparsed = counted - parsed;
+  // The entry shape itself may have changed. An instruction that calls by
+  // selector (`InterfaceCall  CP#5, 2`) refers to a pool entry, so when such
+  // instructions exist and no entry was read at all, nothing was read.
+  final byName = RegExp(
+    r'^\s+(?:\w*Interface|Dynamic)Call\w*\s+CP#',
+    multiLine: true,
+  ).allMatches(text).length;
+  if (byName > 0 && parsed == 0 && unparsed < byName) unparsed = byName;
   final functions = RegExp(r'^Function ', multiLine: true).allMatches(text);
   return {
     'functions': functions.length,
-    'unparsed': counted - parsed,
+    'unparsed': unparsed,
     'calls': calls.toList()..sort(),
   };
 }

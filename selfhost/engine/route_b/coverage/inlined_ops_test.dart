@@ -299,6 +299,22 @@ void main() {
     (moved['unparsed'] as int) > 0 && (moved['calls'] as List).isEmpty,
     'a changed pool-line prefix leaves call lines unread: $moved',
   );
+  final closure = scanBytecodeText(
+    "Function 'f'\n$body$pool"
+    'Closure a::f (VoidCallback cb) -> void\n'
+    '    parameters [dart:ui::VoidCallback \'cb\']\n',
+  );
+  check(
+    closure['unparsed'] == 0 && '${closure['calls']}' == '[+, -]',
+    'a closure header naming VoidCallback is not a call line: $closure',
+  );
+  final renamed = scanBytecodeText(
+    "Function 'f'\n$body${pool.replaceAll('  [', '  #').replaceAll('] = ', ' -> ')}",
+  );
+  check(
+    (renamed['unparsed'] as int) > 0 && (renamed['calls'] as List).isEmpty,
+    'an unrecognisable entry shape with calls in the code is unreadable',
+  );
   final quoted = scanBytecodeText(
     "Function 'f'\n$body$pool  [4] = ConstantX 'a::makeCall', ArgDesc\n",
   );
