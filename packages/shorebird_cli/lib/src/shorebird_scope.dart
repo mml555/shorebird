@@ -19,6 +19,7 @@ import 'package:shorebird_cli/src/artifact_builder/shorebird_tracer.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/auth/auth.dart';
 import 'package:shorebird_cli/src/browser.dart';
+import 'package:shorebird_cli/src/build_history.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/checksum_checker.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
@@ -71,6 +72,7 @@ Set<ScopedRef<dynamic>> shorebirdScope({
   browserRef,
   bundletoolRef,
   cacheRef,
+  buildHistoryRef,
   checksumCheckerRef,
   codePushClientWrapperRef,
   codeSignerRef,

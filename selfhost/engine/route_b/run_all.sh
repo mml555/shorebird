@@ -35,7 +35,7 @@ grep -q 'dart_dynamic_modules = true' "$OUT/args.gn" 2>/dev/null \
 # Guard the tree before trusting any result: a green suite on a tree missing a
 # patch is worse than a red one, because it is believed.
 "$REPO/selfhost/engine/dart_patches.sh" --dest "$SRC/flutter/third_party/dart" \
-  --verify >/dev/null || die "dart_patches.sh --verify is not green"
+  --verify --allow-dirty >/dev/null || die "dart_patches.sh --verify is not green"
 grep -q 'patchable_static_calls' \
   "$SRC/flutter/third_party/dart/runtime/vm/compiler/backend/flow_graph_compiler_arm64.cc" \
   || die "the Route B step 1 patch is not in this tree"
@@ -79,7 +79,7 @@ echo
 echo "step 2 — symbol retention"
 run "patch binds an SDK symbol" "RESULT: PASS" "$HERE/verify_binding.sh"
 if [[ "$QUICK" -eq 0 ]]; then
-  run "retention breadth sweep" "app + named SDK members" "$HERE/measure_retention.sh"
+  run "retention breadth sweep" "app \+ named SDK members" "$HERE/measure_retention.sh"
 else
   echo "  retention breadth sweep                skipped (--quick)"
 fi

@@ -1740,35 +1740,23 @@ and writes nothing. A vanilla-Dart `gen_snapshot` exits non-zero, and
 
 ##### Recreating the Dart checkout is now reproducible
 
-[`engine/dart_patches.sh`](engine/dart_patches.sh) pins the base commit and owns
-the series (`0001`, `0004`, `0005`, `0006`, `0008` — `0002` is the flutter tree,
-`0003` is diagnostic-only). **Since `0008` (2026-08-14) the ORDER is load-bearing
-rather than conventional:** it is the first Dart patch to touch a file another
-patch already touches (`0005` also edits `runtime/vm/compiler/aot/precompiler.cc`),
-so `0008` must be applied after `0005`, and an edit landing adjacent to `0005`'s
-hunk context makes `0005` report `[CONFLICT]` even though nothing is wrong with
-`0005`. Note the "four patches" wording elsewhere in this file refers to the TFA
-**correctness** set (`0001`/`0004`/`0005`/`0006`) and is still accurate — `0008`
-is a capability, not a TFA compensation:
+**Superseded (Dart 3.14 port).** The series below (`0001`, `0004`, `0005`, `0006`,
+`0008`) was applied by `dart_patches.sh --apply` onto a vanilla checkout. That flow
+is retired: our Dart changes are commits on `mml555/dart-sdk-shorebird-lineage`
+and each engine tree pins one in its DEPS as `dart_sdk_revision` (`main`: engine
+`d0714887`, Dart fork `b4671ab7`; the 3.50 candidate on `selfhost/dart-3.14`:
+`0cd04a77`). The `.patch` files stay in `engine/` as history of what each commit
+carries; nothing applies them. [`engine/dart_patches.sh`](engine/dart_patches.sh)
+now only verifies:
 
 ```bash
-selfhost/engine/dart_patches.sh --dest <dart-checkout> --verify   # default
-selfhost/engine/dart_patches.sh --dest <dart-checkout> --apply
+selfhost/engine/dart_patches.sh --dest <dart-checkout> --verify               # stock tree: clean
+selfhost/engine/dart_patches.sh --dest <dart-checkout> --verify --allow-dirty # Route B tree: patched on purpose
 ```
 
-`--verify` checks actual file contents (`git apply --reverse --check`), so it
-catches a missing hunk, and distinguishes *not applied* from *does not apply —
-re-derive it*. It exits non-zero with a message saying an engine built from that
-checkout is not the one the device proofs were made against. Run it before
-trusting any rebuilt engine.
-
-Note `gclient sync --no-history` leaves the tree shallow, so the pinned commit
-is usually absent as an object even when the tree is right; the script downgrades
-that to a warning and relies on the content checks. On a full clone it enforces
-the base.
-
-Verified in both directions on both hosts: the Mac's build tree reports all four
-applied; the dart-fork source repo correctly reported three missing.
+It reads the expected commit from the engine's own DEPS, requires HEAD to equal
+it, requires origin to be the fork repo, and (strict mode) clean tracked files.
+`--apply` exits with an error explaining that.
 
 ##### Before this ships to anyone but us
 
@@ -1887,8 +1875,8 @@ Not blockers on the engine, but real:
   `gclient sync`): that sync resets `engine/src/flutter/third_party/dart` to the
   pinned fork commit `6b58bb3a` and therefore **silently discards `0004`,
   `0005` and `0006`**. `managed: False` protects the *flutter* checkout's git
-  state, not the DEPS-managed subtrees. Recovery is one command now —
-  `dart_patches.sh --dest … --apply` — and `--verify` is what catches it before
+  state, not the DEPS-managed subtrees. Recovery is to `gclient sync` to the
+  commit DEPS pins (`--apply` is retired), and `--verify` is what catches it before
   you waste a build. Run verify after any `gclient sync`, always.
   - Until that passes, treat Android on a *rebuilt* engine as unverified. The
     existing `fc184af6` artifact stays valid on its own terms.
