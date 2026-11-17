@@ -36,7 +36,7 @@ for k in sorted(counter):
                      kept_in_profile=prof3.get(k, {}).get('kept_in_profile', ''),
                      kept_by=by, release_kept_1_0_0_64='2fc41d3f'))
 with open(f'{kdir}/side_by_side.tsv', 'w') as f:
-    w = csv.DictWriter(f, list(rows[0]), delimiter='\t')
+    w = csv.DictWriter(f, list(rows[0]), delimiter='\t', lineterminator='\n')
     w.writeheader()
     w.writerows(rows)
 
