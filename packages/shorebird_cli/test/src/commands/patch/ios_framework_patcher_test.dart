@@ -12,10 +12,10 @@ import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
+import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
-import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
 import 'package:shorebird_cli/src/executables/aot_tools.dart';
@@ -199,14 +199,14 @@ void main() {
 
       tearDown(() => flutterDir.deleteSync(recursive: true));
 
-      File(
+      File writeEngineBinary(
         String contents,
       ) => iosReleaseEngineBinary(flutterDirectory: flutterDir)
         ..createSync(recursive: true)
         ..writeAsStringSync(contents);
 
       test('refuses an engine that declines iOS patches', () {
-        File('InterpretCall $iosPatchesDeclinedMarker');
+        writeEngineBinary('InterpretCall $iosPatchesDeclinedMarker');
         expect(
           () => runWithOverrides(patcher.assertEngineCanPatch),
           throwsA(
@@ -220,7 +220,7 @@ void main() {
       });
 
       test('proceeds on an engine that can run iOS patches', () async {
-        File('InterpretCall');
+        writeEngineBinary('InterpretCall');
         await expectLater(
           runWithOverrides(patcher.assertEngineCanPatch),
           completes,

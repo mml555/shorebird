@@ -93,4 +93,103 @@ void main() {
       }
     });
   });
+
+  group('rollout in basis points', () {
+    bool eligible(int bps, String? clientId) => eligibleForRolloutBps(
+      appId: 'app',
+      channelId: 1,
+      patchId: 1,
+      rolloutBps: bps,
+      clientId: clientId,
+    );
+
+    test('a whole percent is the same decision as the percent function', () {
+      for (var i = 0; i < 500; i++) {
+        for (final percent in [1, 10, 50, 99]) {
+          expect(
+            eligible(percent * 100, 'client-$i'),
+            eligibleForRollout(
+              appId: 'app',
+              channelId: 1,
+              patchId: 1,
+              rollout: percent,
+              clientId: 'client-$i',
+            ),
+          );
+        }
+      }
+    });
+
+    test('0.01% is one bucket in ten thousand and 100% is everyone', () {
+      var one = 0;
+      for (var i = 0; i < 20000; i++) {
+        if (eligible(1, 'client-$i')) one++;
+        expect(eligible(10000, 'client-$i'), isTrue);
+      }
+      expect(one, lessThan(20));
+    });
+
+    test('12.5% reaches about an eighth of the clients', () {
+      var n = 0;
+      for (var i = 0; i < 4000; i++) {
+        if (eligible(1250, 'client-$i')) n++;
+      }
+      expect(n / 4000, inInclusiveRange(0.10, 0.15));
+    });
+
+    test('raising a rollout never removes a client', () {
+      for (var i = 0; i < 1000; i++) {
+        if (eligible(1250, 'client-$i')) {
+          expect(eligible(1251, 'client-$i'), isTrue);
+          expect(eligible(5000, 'client-$i'), isTrue);
+        }
+      }
+    });
+
+    test('a partial rollout fails closed without a client id', () {
+      expect(eligible(9999, null), isFalse);
+      expect(eligible(9999, ''), isFalse);
+      expect(eligible(10000, null), isTrue);
+      expect(eligible(0, 'client'), isFalse);
+    });
+  });
+
+  group('parseRolloutPercentage', () {
+    int parse(Object? v) => parseRolloutPercentage(v, field: 'p');
+
+    test('accepts multiples of 0.01 from 0.01 to 100', () {
+      expect(parse(100), 10000);
+      expect(parse(100.0), 10000);
+      expect(parse(0.01), 1);
+      expect(parse(12.5), 1250);
+      expect(parse(33.33), 3333);
+      expect(parse(0.29), 29);
+    });
+
+    test('refuses everything else', () {
+      for (final v in [0, 0.0, -1, 100.01, 101, 0.001, 12.345, '10', null]) {
+        expect(() => parse(v), throwsFormatException, reason: '$v');
+      }
+      expect(() => parse(double.nan), throwsFormatException);
+      expect(() => parse(double.infinity), throwsFormatException);
+    });
+  });
+
+  group('effectiveRolloutBps', () {
+    test('uses rollout_bps when it agrees with rollout', () {
+      expect(effectiveRolloutBps({'rollout': 12, 'rollout_bps': 1250}), 1250);
+    });
+
+    test('falls back to rollout for a row an older server wrote', () {
+      expect(effectiveRolloutBps({'rollout': 50, 'rollout_bps': null}), 5000);
+      // An older server raised `rollout` and left a stale `rollout_bps`.
+      expect(effectiveRolloutBps({'rollout': 80, 'rollout_bps': 1250}), 8000);
+    });
+  });
+
+  test('percentageOf keeps whole percentages integers', () {
+    expect(percentageOf(5000), 50);
+    expect(percentageOf(5000), isA<int>());
+    expect(percentageOf(1250), 12.5);
+  });
 }

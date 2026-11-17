@@ -226,6 +226,12 @@ void main() {
         ('POST', '/admin/apps/a1/patches/3/withdraw', 'patch.withdraw'),
         ('POST', '/admin/apps/a1/patches/3/rollout', 'patch.rollout'),
         (
+          'PUT',
+          '/api/v1/apps/a1/releases/7/patches/3/rollout',
+          'patch.rollout',
+        ),
+        ('POST', '/api/v1/apps/a1/runs', 'build_run.record'),
+        (
           'POST',
           '/api/v1/apps/a1/releases/7/patches/3/rollback',
           'patch.withdraw',

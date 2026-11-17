@@ -108,6 +108,24 @@ jobs:
       - name: 🧾 Every tracked YAML file loads
         run: python3 tool/check_yaml_parses.py
 
+  # selfhost/SIGNING.md and UPDATER_CONTRACT.md state the vendored updater's
+  # default verification mode and that it verifies a signature before download.
+  # This greps for both, and checks compatibility.yaml's updater_revision against
+  # vendor/updater/VENDOR.md, so a re-vendor cannot silently make them wrong.
+  updater_pin:
+    name: 📌 Updater Pin
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
+    timeout-minutes: 5
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 📌 Vendored updater matches the docs and the manifest
+        run: tool/check_updater_pin.sh
+
   changes:
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
@@ -247,7 +265,7 @@ jobs:
 
   ci:
     needs:
-      [actionlint, changes, cspell_full_tree, license_check, updater_rust, verify_packages, yaml_parses]
+      [actionlint, changes, cspell_full_tree, license_check, updater_pin, updater_rust, verify_packages, yaml_parses]
     # Not always(): that keeps this job alive through a run cancellation,
     # so a superseded push would report ci red on the stale commit. A
     # skipped required check reports success, which is the right answer

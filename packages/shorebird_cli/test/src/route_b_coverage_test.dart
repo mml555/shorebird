@@ -106,6 +106,32 @@ void main() {
         expect(RouteBCoverage.fromJson(v17(version: 16)).helpers, isNotEmpty);
         expect(knownRouteBAnalysisVersions, containsAll([16, 17]));
       });
+
+      test('a version 17 document lists no external references, which is '
+          '"not measured", never "none"', () {
+        expect(RouteBCoverage.fromJson(v17()).externalReferences, isNull);
+      });
+
+      test('a version 18 document lists them, and one without the field is '
+          'refused', () {
+        final withReferences = RouteBCoverage.fromJson(
+          v17(version: 18).replaceFirst(
+            '"rejections"',
+            '"externalReferences":{"a#Box.show":[{"kind":"static",'
+                '"library":"dart:core","class":"int","member":"parse",'
+                '"private":false}]},"rejections"',
+          ),
+        );
+        final reference =
+            withReferences.externalReferences!['a#Box.show']!.single;
+        expect(reference.kind, 'static');
+        expect(reference.displayName, 'int.parse');
+        expect(knownRouteBAnalysisVersions, contains(18));
+        expect(
+          () => RouteBCoverage.fromJson(v17(version: 18)),
+          throwsFormatException,
+        );
+      });
     });
 
     group('helpers (analysis version 16)', () {
@@ -388,14 +414,14 @@ void main() {
 
       test('an unknown version is refused, and names what is understood', () {
         expect(
-          () => RouteBCoverage.fromJson(doc(18, body)),
+          () => RouteBCoverage.fromJson(doc(19, body)),
           throwsA(
             isA<FormatException>().having(
               (e) => e.message,
               'message',
               allOf(
-                contains('version 18'),
-                contains('11, 12, 13, 14, 15, 16, 17'),
+                contains('version 19'),
+                contains('11, 12, 13, 14, 15, 16, 17, 18'),
               ),
             ),
           ),
@@ -562,7 +588,7 @@ void main() {
     });
 
     group('sources', () {
-      test('carries each changed member\'s source span', () {
+      test("carries each changed member's source span", () {
         // A span, not text: the analyzer has the kernel's offsets and the
         // producer has the file. One declaration per target is exactly what
         // the runtime's one-payload-one-function contract needs.

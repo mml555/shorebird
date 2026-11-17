@@ -1243,8 +1243,8 @@ origin/flutter_release/3.47.9''';
       );
 
       // An iOS release must not demand Android engine artifacts. A cell that
-      // owns only the iOS toolchain cannot serve them, and the overlay answers a
-      // loud 404 rather than falling through.
+      // owns only the iOS toolchain cannot serve them, and the overlay answers
+      // a loud 404 rather than falling through.
       test('precaches ONLY the target platform', () async {
         Directory(
           p.join(flutterDirectory.parent.path, revision),

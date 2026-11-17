@@ -255,7 +255,41 @@ import 'package:kernel/text/ast_to_text.dart';
 ///
 ///     The bump is mandatory for the reason 16's was: a version-16 consumer
 ///     would read `lib#Cls.m` in `helpers` as a top-level function.
-const analysisVersion = 17;
+///
+/// 18. Every member the patch would carry, changed, carried or helper, reports
+///     the EXTERNAL symbols its body names, under `externalReferences`: the
+///     members and classes the replacement's bytecode will ask the loader to
+///     find by name in the release's snapshot, and the loader ABORTS THE
+///     PROCESS on one it cannot find (`bytecode_reader.cc`, `Unable to find
+///     library/class/field/function`). Nothing is decided here: whether the
+///     RELEASE kept a symbol is a per-release fact (its dynamic interface and
+///     capability manifest), and this tool ships in a cell resolved by engine
+///     hash, so, as for 7 and 12, it states the fact and the holder of the
+///     release's files decides (`route_b_retention.dart`).
+///
+///     WHAT IS REPORTED, mirroring what `gen_dynamic_interface.dart`'s
+///     `_FrameworkUseCollector` retained from the release's own code, so a
+///     symbol is reported exactly when the release would have had to retain it
+///     from its own source: static, top-level and constructor targets and
+///     tear-offs, field and getter/setter targets, instance members the
+///     body calls (an `instance` entry; the CLI checks those only for
+///     non-`dart:` classes, as the generator does), classes named by an
+///     `is`/`as`, a type literal, a type argument, a constant, or the
+///     signature of the carried function or one of its closures, and the
+///     members and classes named by a constant. Not reported: a reference to
+///     a helper the patch itself carries, a class that is the enclosing class
+///     of the member being analyzed, `dart:_`-private libraries (nothing a
+///     patch spells and nothing an interface can hold) and the declared type of
+///     a local variable.
+///
+///     A body this tool could not walk reports one `unanalyzed` entry instead
+///     of a partial list: an incomplete list read as complete would be a
+///     silent accept.
+///
+///     The bump is mandatory for the reason 12's was: a version-17 document
+///     has no list, and a consumer cannot tell "nothing referenced" from "not
+///     measured" unless the version says which it holds.
+const analysisVersion = 18;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -276,6 +310,8 @@ void main(List<String> args) {
   final includePrefixes = <String>[];
   // Version 15: unchanged members to analyze as if they had changed.
   final carryKeys = <String>{};
+  // Probe only: carry EVERY member present on both sides (the retention sweep).
+  var carryAll = false;
 
   for (var i = 0; i < args.length; i++) {
     final a = args[i];
@@ -295,6 +331,8 @@ void main(List<String> args) {
         includePrefixes.add(next());
       case '--carry':
         carryKeys.add(next());
+      case '--carry-all':
+        carryAll = true;
       case '--census':
         census = true;
       case '--dill':
@@ -444,6 +482,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
 
   // Version 15. Carried members go through everything a changed member does,
   // and stay out of `changed`, so carrying alone never makes a patch.
+  if (carryAll) carryKeys.addAll(baseText.keys);
   final carried = [
     for (final key in carryKeys)
       if (!changed.contains(key) &&
@@ -579,6 +618,38 @@ coverage/census_report.py, for what the numbers may and may not be read as.
       }
     }
   }
+
+  // ---- external references, for the retention check (version 18) --------
+  //
+  // One entry per member the patch would carry. Each is walked in the PATCHED
+  // component, because that is the body whose source the replacement slices.
+  // A reference to a helper the patch carries is not external: the replacement
+  // declares it.
+  final carriedMembers = <Member>{};
+  final carriedBodies = <String, Procedure>{};
+  for (final lib in patched.libraries.where(isApp)) {
+    final uri = lib.importUri.toString();
+    void collect(Class? cls, Procedure p) {
+      final key = '$uri#${_selector(cls?.name, p)}';
+      if (plan.helpers.contains(key)) carriedMembers.add(p);
+      if (subjects.contains(key) || plan.helpers.contains(key)) {
+        carriedBodies[key] = p;
+      }
+    }
+
+    for (final p in lib.procedures) {
+      collect(null, p);
+    }
+    for (final cls in lib.classes) {
+      for (final p in cls.procedures) {
+        collect(cls, p);
+      }
+    }
+  }
+  final externalReferences = <String, List<Map<String, Object?>>>{
+    for (final key in carriedBodies.keys.toList()..sort())
+      key: _externalReferences(carriedBodies[key]!, carriedMembers),
+  };
 
   // ---- classify ---------------------------------------------------------
   final reach = <String, String>{};
@@ -718,6 +789,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     'unknown': unknown,
     'sources': sources,
     'lowering': lowering,
+    'externalReferences': externalReferences,
     'signatures': signatures,
     'rejections': rejections,
     'refusalSummary': reasons.isEmpty ? null : reasons.join('; '),
@@ -2812,6 +2884,332 @@ Map<String, Object?>? _privateKey(Member? target) {
     'class': cls.name,
     'name': name,
   };
+}
+
+/// The external symbols [p]'s body names, as data (analysis version 18).
+///
+/// A walk failure yields ONE `unanalyzed` entry and nothing else: a partial list
+/// would read as a complete one.
+List<Map<String, Object?>> _externalReferences(
+  Procedure p,
+  Set<Member> carried,
+) {
+  final uses = _ExternalUses(carried, p.enclosingClass, p.enclosingLibrary);
+  try {
+    p.function.accept(uses);
+  } catch (error) {
+    return [
+      {
+        'kind': 'unanalyzed',
+        'reason': 'the body could not be walked: $error',
+      },
+    ];
+  }
+  return [for (final k in uses.found.keys.toList()..sort()) uses.found[k]!];
+}
+
+/// Every symbol a body asks the loader to find by name.
+///
+/// The twin of `gen_dynamic_interface.dart`'s `_FrameworkUseCollector`, on
+/// purpose: that collector decided what the release retained from its own code,
+/// and this one asks the same question of the patch's code. Where they differ
+/// the difference is stated: this one skips a local's declared type (the
+/// collector keeps it as a type) and does not walk class headers (a patch
+/// carries only procedure bodies).
+class _ExternalUses extends RecursiveVisitor {
+  _ExternalUses(this.carried, this.owner, this.ownerLibrary);
+
+  /// Members the patch itself carries; naming one is not an external use.
+  final Set<Member> carried;
+
+  /// The class of the member being analyzed. Its own retention is the target
+  /// grant's question (`refuseTarget`), not this one's.
+  final Class? owner;
+
+  /// The library of the member being analyzed. A private name is scoped to its
+  /// library, so a source token can name a private symbol of THIS library only;
+  /// a private symbol of any other library in a body is something the compiler
+  /// introduced (the AOT kernel lowers a list literal to
+  /// `_GrowableList._literal1`, for one), which no interface retains and no
+  /// source spells. Those are not reported, unless a constant names them: the
+  /// release's own generator kept those (`allowPrivate`), and a constant's
+  /// private field is looked up by name like any other.
+  final Library ownerLibrary;
+
+  final found = <String, Map<String, Object?>>{};
+  final _seenConstants = <Constant>{};
+
+  bool _skipLibrary(Library lib) {
+    final uri = lib.importUri.toString();
+    // `dart:_internal` and friends: nothing a patch spells, and nothing an
+    // interface can name, so requiring it would refuse every `for` loop.
+    return uri.startsWith('dart:_');
+  }
+
+  void _class(Reference? ref, {bool viaConstant = false}) {
+    final cls = ref?.node;
+    if (cls is! Class || identical(cls, owner)) return;
+    if (_skipLibrary(cls.enclosingLibrary)) return;
+    if (cls.name.startsWith('_') &&
+        !viaConstant &&
+        !identical(cls.enclosingLibrary, ownerLibrary)) {
+      return;
+    }
+    if (cls.name.contains('&') || cls.name.contains('#')) return;
+    final library = cls.enclosingLibrary.importUri.toString();
+    found['class|$library|${cls.name}'] = {
+      'kind': 'class',
+      'library': library,
+      'class': cls.name,
+      'member': null,
+      'private': cls.name.startsWith('_'),
+      if (viaConstant) 'viaConstant': true,
+    };
+  }
+
+  void _member(Reference? ref, {bool viaConstant = false}) {
+    final m = ref?.node;
+    if (m is! Member || carried.contains(m)) return;
+    if (_skipLibrary(m.enclosingLibrary)) return;
+    final cls = m.enclosingClass;
+    if (cls != null && (cls.name.contains('&') || cls.name.contains('#'))) {
+      return;
+    }
+    if (m.name.text.contains('#')) return;
+    final isPrivate = m.name.isPrivate || (cls?.name.startsWith('_') ?? false);
+    if (isPrivate &&
+        !viaConstant &&
+        !identical(m.enclosingLibrary, ownerLibrary)) {
+      return;
+    }
+    final library = m.enclosingLibrary.importUri.toString();
+    final String kind;
+    if (m is Constructor || (m is Procedure && m.isFactory)) {
+      kind = 'constructor';
+    } else if (cls == null) {
+      kind = 'top-level';
+    } else if (m.isInstanceMember) {
+      kind = 'instance';
+    } else {
+      kind = 'static';
+    }
+    // The VM's names, which are the interface's: an accessor is `get:`/`set:`.
+    final name = m is Procedure
+        ? vmMemberName(m.name.text, switch (m.kind) {
+            ProcedureKind.Getter => 'getter',
+            ProcedureKind.Setter => 'setter',
+            _ => 'method',
+          })
+        : m.name.text;
+    found['$kind|$library|${cls?.name}|$name'] = {
+      'kind': kind,
+      'library': library,
+      'class': cls?.name,
+      'member': name,
+      'private': isPrivate,
+      if (viaConstant) 'viaConstant': true,
+    };
+  }
+
+  @override
+  void visitInterfaceType(InterfaceType node) {
+    _class(node.classReference);
+    // Not super: the default dereferences the class.
+    for (final t in node.typeArguments) {
+      t.accept(this);
+    }
+  }
+
+  @override
+  void visitTypedefType(TypedefType node) {
+    for (final t in node.typeArguments) {
+      t.accept(this);
+    }
+  }
+
+  @override
+  void visitExtensionType(ExtensionType node) {
+    for (final t in node.typeArguments) {
+      t.accept(this);
+    }
+  }
+
+  // A local's declared (or inferred) type is not a reference the bytecode is
+  // known to emit; a PARAMETER's is, because it is part of the function's
+  // signature (the first `build()` patch on a device died on `BuildContext`).
+  @override
+  void visitVariableDeclaration(VariableDeclaration node) {
+    node.initializer?.accept(this);
+  }
+
+  @override
+  void visitFunctionDeclaration(FunctionDeclaration node) {
+    node.function.accept(this);
+  }
+
+  @override
+  void visitFunctionNode(FunctionNode node) {
+    // The twin of the collector's, minus a redirecting factory (a patch carries
+    // procedure bodies, never a factory header). A type parameter's bound and
+    // an async function's emitted value type are part of the signature the
+    // loader reads, exactly as a parameter's type is.
+    for (final t in node.typeParameters) {
+      t.accept(this);
+    }
+    for (final v in [...node.positionalParameters, ...node.namedParameters]) {
+      v.type.accept(this);
+      v.initializer?.accept(this);
+    }
+    node.returnType.accept(this);
+    node.emittedValueType?.accept(this);
+    node.body?.accept(this);
+  }
+
+  @override
+  void visitStaticInvocation(StaticInvocation node) {
+    _member(node.targetReference);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitStaticGet(StaticGet node) => _member(node.targetReference);
+
+  @override
+  void visitStaticSet(StaticSet node) {
+    _member(node.targetReference);
+    node.value.accept(this);
+  }
+
+  @override
+  void visitStaticTearOff(StaticTearOff node) => _member(node.targetReference);
+
+  @override
+  void visitConstructorInvocation(ConstructorInvocation node) {
+    _member(node.targetReference);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitConstructorTearOff(ConstructorTearOff node) =>
+      _member(node.targetReference);
+
+  @override
+  void visitRedirectingFactoryTearOff(RedirectingFactoryTearOff node) =>
+      _member(node.targetReference);
+
+  @override
+  void visitInstanceInvocation(InstanceInvocation node) {
+    _member(node.interfaceTargetReference);
+    node.receiver.accept(this);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitInstanceGetterInvocation(InstanceGetterInvocation node) {
+    _member(node.interfaceTargetReference);
+    node.receiver.accept(this);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitInstanceGet(InstanceGet node) {
+    _member(node.interfaceTargetReference);
+    node.receiver.accept(this);
+  }
+
+  @override
+  void visitInstanceSet(InstanceSet node) {
+    _member(node.interfaceTargetReference);
+    node.receiver.accept(this);
+    node.value.accept(this);
+  }
+
+  @override
+  void visitInstanceTearOff(InstanceTearOff node) {
+    _member(node.interfaceTargetReference);
+    node.receiver.accept(this);
+  }
+
+  @override
+  void visitEqualsCall(EqualsCall node) {
+    _member(node.interfaceTargetReference);
+    node.left.accept(this);
+    node.right.accept(this);
+  }
+
+  @override
+  void visitSuperMethodInvocation(SuperMethodInvocation node) {
+    _member(node.interfaceTargetReference);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitSuperPropertyGet(SuperPropertyGet node) =>
+      _member(node.interfaceTargetReference);
+
+  @override
+  void visitSuperPropertySet(SuperPropertySet node) {
+    _member(node.interfaceTargetReference);
+    node.value.accept(this);
+  }
+
+  @override
+  void visitConstantExpression(ConstantExpression node) {
+    _constant(node.constant);
+    node.type.accept(this);
+  }
+
+  void _constant(Constant c) {
+    if (!_seenConstants.add(c)) return;
+    switch (c) {
+      case InstanceConstant():
+        _class(c.classReference, viaConstant: true);
+        for (final entry in c.fieldValues.entries) {
+          _member(entry.key, viaConstant: true);
+          _constant(entry.value);
+        }
+        for (final t in c.typeArguments) {
+          t.accept(this);
+        }
+      case ListConstant():
+        c.typeArgument.accept(this);
+        c.entries.forEach(_constant);
+      case SetConstant():
+        c.typeArgument.accept(this);
+        c.entries.forEach(_constant);
+      case MapConstant():
+        c.keyType.accept(this);
+        c.valueType.accept(this);
+        for (final e in c.entries) {
+          _constant(e.key);
+          _constant(e.value);
+        }
+      case RecordConstant():
+        c.recordType.accept(this);
+        c.positional.forEach(_constant);
+        c.named.values.forEach(_constant);
+      case StaticTearOffConstant():
+        _member(c.targetReference, viaConstant: true);
+      case ConstructorTearOffConstant():
+        _member(c.targetReference, viaConstant: true);
+      case RedirectingFactoryTearOffConstant():
+        _member(c.targetReference, viaConstant: true);
+      case InstantiationConstant():
+        _constant(c.tearOffConstant);
+        for (final t in c.types) {
+          t.accept(this);
+        }
+      case TypedefTearOffConstant():
+        _constant(c.tearOffConstant);
+        for (final t in c.types) {
+          t.accept(this);
+        }
+      case TypeLiteralConstant():
+        c.type.accept(this);
+      default:
+        break;
+    }
+  }
 }
 
 /// Every `ThisExpression` in a body, for the census to classify.

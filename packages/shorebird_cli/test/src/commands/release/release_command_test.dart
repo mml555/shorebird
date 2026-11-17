@@ -1750,8 +1750,8 @@ Did you mean --release-version=1.0.0+1?''',
           () async {
             // The refusal must land in the validation phase. If it only fired
             // later, a release could already have been created or artifacts
-            // uploaded, and the whole point is that the shipped configuration is
-            // what determines what the device verifies.
+            // uploaded, and the whole point is that the shipped configuration
+            // is what determines what the device verifies.
             withYaml(PatchVerification.installOnly);
             withKey(path: false);
             await expectLater(

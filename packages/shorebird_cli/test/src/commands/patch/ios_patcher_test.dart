@@ -17,6 +17,7 @@ import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
+import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/commands/apple_build_helpers.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
@@ -31,18 +32,16 @@ import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
-import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/route_b.dart';
+import 'package:shorebird_cli/src/route_b_binding.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
-import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
-import 'package:shorebird_cli/src/route_b_release_kernels.dart';
-import 'package:shorebird_cli/src/route_b_binding.dart';
-import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -50,6 +49,7 @@ import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/split_debug_info.dart';
+import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
 import 'package:shorebird_cli/src/version.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
@@ -335,7 +335,7 @@ void main() {
       late Directory flutterDir;
       late Directory localEngineSrc;
 
-      final declining =
+      const declining =
           'InterpretCall ... This $iosPatchesDeclinedMarker, not starting '
           'the Shorebird updater.';
 
@@ -1803,7 +1803,7 @@ This may indicate that the patch contains native changes, which cannot be applie
             RouteBBuildConfig flavored(String? flavor) => RouteBBuildConfig(
               rawArgs: [if (flavor != null) '--flavor=$flavor'],
               effectiveDefines: {
-                if (flavor != null) 'FLUTTER_APP_FLAVOR': flavor,
+                'FLUTTER_APP_FLAVOR': ?flavor,
               },
             );
 
@@ -1922,8 +1922,8 @@ This may indicate that the patch contains native changes, which cannot be applie
               'accepts a patch flavored ONLY by pubspec default-flavor',
               () async {
                 // The path with no command-line token to notice: a release can
-                // be flavored entirely by `default-flavor`, and reading the flag
-                // alone would record "no flavor" for it.
+                // be flavored entirely by `default-flavor`, and reading the
+                // flag alone would record "no flavor" for it.
                 final pubspec = MockPubspec();
                 when(
                   () => pubspec.flutter,
@@ -2457,9 +2457,9 @@ This may indicate that the patch contains native changes, which cannot be applie
                   ),
                 );
 
-                // The LC_UUID written into the fixture App binary (bytes 1..16),
-                // which is what OS::GetAppBuildId reports on device. Read from
-                // the shipped bytes, so re-signing cannot change it.
+                // The LC_UUID written into the fixture App binary (bytes
+                // 1..16), which is what OS::GetAppBuildId reports on device.
+                // Read from the shipped bytes, so re-signing cannot change it.
                 final buildId =
                     verify(
                           () => routeBProducer.produce(
@@ -2482,12 +2482,12 @@ This may indicate that the patch contains native changes, which cannot be applie
               },
             );
 
-            test('hands the producer the release\'s own capability set', () {
+            test("hands the producer the release's own capability set", () {
               // The producer decides a private reference against THIS, so the
               // manifest has to arrive from the release's hash-verified
               // artifact. Reading it anywhere else -- regenerating it, or
-              // trusting the policy name -- would let a patch reference a member
-              // this release never retained.
+              // trusting the policy name -- would let a patch reference a
+              // member this release never retained.
               writeReleaseProvenance(
                 engineRevision: releaseEngineRevision,
                 capabilityManifest: jsonEncode({
@@ -2536,72 +2536,75 @@ This may indicate that the patch contains native changes, which cannot be applie
               });
             });
 
-            test('P5.1: refuses a release with no build configuration', () async {
-              // This used to WARN AND CONTINUE, which made absent evidence read
-              // as agreement. It is also what the RELEASE side already intends:
-              // ios_releaser records buildConfig: null only when a build's
-              // define expansion disagreed with Flutter's own, and marks that
-              // release unpatchable when it is cut.
-              //
-              // Distinct from the legacy case on purpose: an old release also
-              // predates the contract revision and is refused EARLIER, by P4.4,
-              // with a message about the epoch. Reaching here means a
-              // revision-capable release whose evidence is incomplete.
-              writeReleaseProvenance(
-                engineRevision: releaseEngineRevision,
-                omitBuildConfig: true,
-              );
-              await expectLater(
-                runWithOverrides(
-                  () => patcher.createPatchArtifacts(
-                    appId: appId,
-                    releaseId: releaseId,
-                    releaseArtifact: releaseArtifactFile,
-                    supplementDirectory: supplementDirectory,
-                  ),
-                ),
-                throwsA(isA<ProcessExit>()),
-              );
-              verify(
-                () => logger.err(
-                  any(
-                    that: allOf(
-                      contains(
-                        RouteBBuildSemanticsProblem.evidenceAbsent.wire,
-                      ),
-                      // It must NOT read as an old release: that would send an
-                      // operator to cut a new release when the real cause is a
-                      // define expansion that disagreed with Flutter's.
-                      contains('this is not an old release'),
+            test(
+              'P5.1: refuses a release with no build configuration',
+              () async {
+                // This used to WARN AND CONTINUE, which made absent evidence
+                // read as agreement. It is also what the RELEASE side already
+                // intends: ios_releaser records buildConfig: null only when a
+                // build's define expansion disagreed with Flutter's own, and
+                // marks that release unpatchable when it is cut.
+                //
+                // Distinct from the legacy case on purpose: an old release also
+                // predates the contract revision and is refused EARLIER, by
+                // P4.4, with a message about the epoch. Reaching here means a
+                // revision-capable release whose evidence is incomplete.
+                writeReleaseProvenance(
+                  engineRevision: releaseEngineRevision,
+                  omitBuildConfig: true,
+                );
+                await expectLater(
+                  runWithOverrides(
+                    () => patcher.createPatchArtifacts(
+                      appId: appId,
+                      releaseId: releaseId,
+                      releaseArtifact: releaseArtifactFile,
+                      supplementDirectory: supplementDirectory,
                     ),
                   ),
-                ),
-              ).called(1);
-              // And nothing was produced.
-              verifyNever(
-                () => routeBProducer.produce(
-                  compiler: any(named: 'compiler'),
-                  coverage: any(named: 'coverage'),
-                  releaseImportKernel: any(named: 'releaseImportKernel'),
-                  releaseBuildId: any(named: 'releaseBuildId'),
-                  workingDirectory: any(named: 'workingDirectory'),
-                  projectRoot: any(named: 'projectRoot'),
-                  capabilities: any(named: 'capabilities'),
-                  buildConfig: any(named: 'buildConfig'),
-                  survival: any(named: 'survival'),
-                  releaseEvidence: any(named: 'releaseEvidence'),
-                ),
-              );
-            });
+                  throwsA(isA<ProcessExit>()),
+                );
+                verify(
+                  () => logger.err(
+                    any(
+                      that: allOf(
+                        contains(
+                          RouteBBuildSemanticsProblem.evidenceAbsent.wire,
+                        ),
+                        // It must NOT read as an old release: that would send
+                        // an operator to cut a new release when the real cause
+                        // is a define expansion that disagreed with Flutter's.
+                        contains('this is not an old release'),
+                      ),
+                    ),
+                  ),
+                ).called(1);
+                // And nothing was produced.
+                verifyNever(
+                  () => routeBProducer.produce(
+                    compiler: any(named: 'compiler'),
+                    coverage: any(named: 'coverage'),
+                    releaseImportKernel: any(named: 'releaseImportKernel'),
+                    releaseBuildId: any(named: 'releaseBuildId'),
+                    workingDirectory: any(named: 'workingDirectory'),
+                    projectRoot: any(named: 'projectRoot'),
+                    capabilities: any(named: 'capabilities'),
+                    buildConfig: any(named: 'buildConfig'),
+                    survival: any(named: 'survival'),
+                    releaseEvidence: any(named: 'releaseEvidence'),
+                  ),
+                );
+              },
+            );
 
             test(
               'P5.1 MUTATION: with the check gone, the same patch proceeds',
               () async {
                 // The mutation is the release recording a COMPARABLE empty
-                // configuration instead of none, with everything else identical.
-                // The same patch then reaches the producer -- which is what makes
-                // the row above a demonstration that this check is what refused,
-                // rather than something else along the way.
+                // configuration instead of none, with everything else
+                // identical. The same patch then reaches the producer -- which
+                // is what makes the row above a demonstration that this check
+                // is what refused, rather than something else along the way.
                 writeReleaseProvenance(engineRevision: releaseEngineRevision);
                 await runWithOverrides(
                   () => patcher.createPatchArtifacts(
@@ -2685,8 +2688,8 @@ This may indicate that the patch contains native changes, which cannot be applie
                 ),
                 throwsA(isA<ProcessExit>()),
               );
-              // Both revisions named: "these cannot be mixed" is only actionable
-              // if you can see which two.
+              // Both revisions named: "these cannot be mixed" is only
+              // actionable if you can see which two.
               verify(
                 () => logger.err(
                   any(
@@ -2786,7 +2789,8 @@ This may indicate that the patch contains native changes, which cannot be applie
               });
             });
 
-            test('ships the container through the normal artifact path', () async {
+            test('ships the container through the normal '
+                'artifact path', () async {
               // A Route B release must never reach the private-linker path.
               // That fallback cannot work here and would quietly leave the old
               // architecture as the default for exactly the releases that

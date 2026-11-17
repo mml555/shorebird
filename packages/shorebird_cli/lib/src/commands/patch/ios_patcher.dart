@@ -22,18 +22,19 @@ import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b.dart';
+import 'package:shorebird_cli/src/route_b_binding.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
+import 'package:shorebird_cli/src/route_b_carry.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
-import 'package:shorebird_cli/src/route_b_build_config.dart';
-import 'package:shorebird_cli/src/route_b_carry.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
-import 'package:shorebird_cli/src/route_b_binding.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
-import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
+import 'package:shorebird_cli/src/route_b_retention.dart';
+import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.dart';
@@ -173,26 +174,27 @@ class IosPatcher extends Patcher
       // meaningful if the RELEASE was built with patchable call sites. Checked
       // here, against the release artifact we just downloaded, because the
       // alternative is the worst failure in this project: the patch builds,
-      // uploads, downloads, installs, validates, attaches, reports success — and
-      // the app behaves identically, because AOT emitted direct calls that never
-      // consult `Function.entry_point_`.
+      // uploads, downloads, installs, validates, attaches, reports success —
+      // and the app behaves identically, because AOT emitted direct calls that
+      // never consult `Function.entry_point_`.
       //
-      // Two ways in, and the first is the real one. A release that carries Route
-      // B provenance says so itself, from its own uploaded bytes, so the branch
-      // is taken for the right releases even on a machine whose engine has been
-      // switched to something else. The local-engine check stays as a safety net
-      // for releases cut before provenance existed: without it, a Route B release
-      // built without the flag would fall through to the private AOT linker
-      // instead of getting the "not patchable, cut a new release" diagnosis.
+      // Two ways in, and the first is the real one. A release that carries
+      // Route B provenance says so itself, from its own uploaded bytes, so the
+      // branch is taken for the right releases even on a machine whose engine
+      // has been switched to something else. The local-engine check stays as a
+      // safety net for releases cut before provenance existed: without it, a
+      // Route B release built without the flag would fall through to the
+      // private AOT linker instead of getting the "not patchable, cut a new
+      // release" diagnosis.
       if (!assetsOnly &&
           (hasRouteBReleaseProvenance(releaseSupplementDir) ||
               _engineSupportsIosCodePush())) {
         _verifyReleaseIsPatchable(releaseArtifactFile);
-        // The release IS Route B. From here the only valid outcomes are a Route B
-        // patch or an explicit refusal — never a fall through to the private
-        // linker. Letting the legacy path catch a Route B release would leave the
-        // old architecture as an accidental fallback, and it would fail somewhere
-        // downstream with a message about a linker nobody asked for.
+        // The release IS Route B. From here the only valid outcomes are a Route
+        // B patch or an explicit refusal — never a fall through to the private
+        // linker. Letting the legacy path catch a Route B release would leave
+        // the old architecture as an accidental fallback, and it would fail
+        // somewhere downstream with a message about a linker nobody asked for.
         final provenance = _readReleaseProvenance(releaseSupplementDir);
         final releaseArtifacts = _verifyReleaseArtifacts(
           releaseSupplementDir,
@@ -200,24 +202,28 @@ class IosPatcher extends Patcher
         );
         // G4.1: THE DEFINES MUST MATCH, CHECKED BEFORE ANY COMPILATION.
         //
-        // `const String.fromEnvironment` resolves at COMPILE time, so a patch built
-        // with a different effective define set than its release does not fail -- it
-        // bakes in a different constant and ships. Nothing downstream can catch it,
-        // because by then the wrong value is already a literal.
+        // `const String.fromEnvironment` resolves at COMPILE time, so a patch
+        // built with a different effective define set than its release does not
+        // fail -- it bakes in a different constant and ships. Nothing
+        // downstream can catch it, because by then the wrong value is already a
+        // literal.
         //
-        // Placed here deliberately: before the compiler is resolved, before coverage,
+        // Placed here deliberately: before the compiler is resolved, before
+        // coverage,
         // before any kernel, bytecode or container exists. It is NOT before the
-        // patch's own `flutter build ipa`, which runs in `buildPatchArtifact` --
-        // the release supplement, and so the release's provenance, is not downloaded
+        // patch's own `flutter build ipa`, which runs in `buildPatchArtifact`
+        // --
+        // the release supplement, and so the release's provenance, is not
+        // downloaded
         // until after that. Refusing ahead of that build means fetching the
         // supplement earlier in the patcher lifecycle, which is its own change;
         // that build alone produces nothing shippable.
         await _verifyBuildConfigAgrees(provenance);
 
         // P5-TARGET OPEN, logged and NOT gated. If a target difference is ever
-        // shown to admit a semantic mismatch, this line is the evidence that was
-        // already being recorded; until then, inequality is not unsafe and saying
-        // so would refuse patches with no defect.
+        // shown to admit a semantic mismatch, this line is the evidence that
+        // was already being recorded; until then, inequality is not unsafe and
+        // saying so would refuse patches with no defect.
         _noteTargetProvenance(provenance);
 
         // P4.4. THE CONTRACT REVISION, before anything is compiled.
@@ -238,6 +244,14 @@ class IosPatcher extends Patcher
         // compiler failure and a container failure are three different problems
         // and must never be reachable through one another.
         var coverage = _analyzeCoverage(compiler, releaseArtifacts);
+        // RETENTION, BEFORE THE VERDICT. A symbol the release did not keep is
+        // the root cause of two different symptoms: a boot abort on the device,
+        // and (for a dependency API the release never called) a coverage
+        // rejection about a "new class" that sends the developer to the wrong
+        // place. Asked first so the reason named is the real one. The producer
+        // asks again, for the members it carries.
+        final retention = _readRouteBRetention(releaseArtifacts);
+        _refuseUnretained(coverage, retention);
         if (coverage.verdict != RouteBVerdict.accept) {
           _refuseCoverage(coverage);
         }
@@ -269,6 +283,19 @@ class IosPatcher extends Patcher
         if (coverage.verdict != RouteBVerdict.accept) {
           _refuseCoverage(coverage);
         }
+        if (coverage.analysisVersion < routeBRetentionAnalysisVersion) {
+          // Not a warning, unlike the one below, and deliberately: every
+          // release cut on a cell before 18 would print it on every patch,
+          // and nothing the developer can do about it changes the patch. The
+          // analyzer ships in the release's compiler cell, so only a release
+          // cut on a newer cell can say which symbols a patch names. Refusing
+          // would strand every release whose cell predates it.
+          logger.detail(
+            "[route-b] this release's compiler cell predates analysis "
+            'version $routeBRetentionAnalysisVersion, so whether the release '
+            'kept every symbol this patch uses was not checked',
+          );
+        }
         if (coverage.analysisVersion < routeBDeclarationsAnalysisVersion) {
           // The analyzer ships in the release's compiler cell, so only a
           // release cut on a newer cell can see these edits.
@@ -279,12 +306,12 @@ class IosPatcher extends Patcher
 
         // ROUTE B SUPER: the patched body, for the compiler to verify against.
         //
-        // CONDITIONAL ON THE ANALYSIS STRUCTURE, not on admission. Whether a site
-        // may actually be carried is the producer's decision — it owns the source
-        // argument gate and the release-evidence rule — and duplicating that here
-        // to decide whether to build an artifact would be a second admission
-        // implementation. A site can therefore cause this build and then be
-        // refused; that is the correct trade.
+        // CONDITIONAL ON THE ANALYSIS STRUCTURE, not on admission. Whether a
+        // site may actually be carried is the producer's decision — it owns the
+        // source argument gate and the release-evidence rule — and duplicating
+        // that here to decide whether to build an artifact would be a second
+        // admission implementation. A site can therefore cause this build and
+        // then be refused; that is the correct trade.
         final patchedVerificationKernel = _patchedVerificationKernel(
           compiler,
           coverage,
@@ -299,16 +326,17 @@ class IosPatcher extends Patcher
           patchedVerificationKernel: patchedVerificationKernel,
           releaseBuildId: buildId,
           // WHAT THIS RELEASE GRANTED, from the release's own hash-verified
-          // artifact. Absent for a release cut before manifests existed, and the
-          // producer reads absence as "nothing provable" rather than as
+          // artifact. Absent for a release cut before manifests existed, and
+          // the producer reads absence as "nothing provable" rather than as
           // permission — so an older release keeps working for everything that
           // worked before and refuses only the private references it cannot
           // vouch for.
           capabilities: _readReleaseCapabilities(releaseArtifacts),
-          // G4.1. The release's own effective define set, already proven to match
-          // this patch's by _verifyBuildConfigAgrees above, so the replacement
-          // compiles with the constants the release compiled with.
+          // G4.1. The release's own effective define set, already proven to
+          // match this patch's by _verifyBuildConfigAgrees above, so the
+          // replacement compiles with the constants the release compiled with.
           buildConfig: provenance.buildConfig,
+          retention: retention,
           survival: survival,
           // P4.4 layers 1 and 3. What this patch is bound to, recorded IN the
           // published container so any later reader can check it rather than
@@ -494,9 +522,9 @@ Nothing was uploaded. Create a new release and patch that instead.''',
 
   /// Refuse a release cut under a different Route B contract revision.
   ///
-  /// A missing revision is a release from before the field existed. It cannot be
-  /// established retroactively, and an unproven prerequisite is not a satisfied
-  /// one -- the same rule the snapshot profile follows.
+  /// A missing revision is a release from before the field existed. It cannot
+  /// be established retroactively, and an unproven prerequisite is not a
+  /// satisfied one -- the same rule the snapshot profile follows.
   void _verifyCompatibilityRevision(RouteBReleaseProvenance provenance) {
     final recorded = provenance.compatibilityRevision;
     if (recorded == routeBCompatibilityRevision) return;
@@ -604,6 +632,58 @@ A patch is only interpretable against one whole contract, so these cannot be mix
       );
     }
     return capabilities;
+  }
+
+  /// What the release's dynamic interface kept, or null when it uploaded none
+  /// this build can read. Null is not "kept everything": see
+  /// [_refuseUnretained] and the producer.
+  RouteBRetention? _readRouteBRetention(Map<String, File> releaseArtifacts) {
+    final retention = RouteBRetention.read(
+      releaseArtifacts[routeBInterfaceFileName],
+      capabilities: _readReleaseCapabilities(releaseArtifacts),
+    );
+    if (retention == null) {
+      logger.detail(
+        '[route-b] the release has no readable $routeBInterfaceFileName',
+      );
+    }
+    return retention;
+  }
+
+  /// Refuse the whole patch when its analysis names a symbol the release did
+  /// not keep, naming each carried member and the symbols it uses.
+  ///
+  /// A no-op for an analysis that lists no symbols (version 17 and earlier).
+  void _refuseUnretained(RouteBCoverage coverage, RouteBRetention? retention) {
+    final references = coverage.externalReferences;
+    if (references == null) return;
+    final reasons = <String, String>{
+      for (final key in references.keys.toList()..sort())
+        if (retention == null)
+          key: routeBNoInterfaceReason
+        else
+          key: ?retention.refusalForTarget(coverage, key),
+    };
+    if (reasons.isEmpty) return;
+    final buffer = StringBuffer()
+      ..writeln(
+        'This patch cannot be built: it uses code the release never used '
+        'in its own code.',
+      )
+      ..writeln();
+    for (final entry in reasons.entries) {
+      buffer
+        ..writeln('  ${entry.key}')
+        ..writeln('      ${entry.value}');
+    }
+    buffer
+      ..writeln()
+      ..write(
+        'The whole patch is refused, not the part that failed. Nothing was '
+        'uploaded.',
+      );
+    logger.err(buffer.toString());
+    throw ProcessExit(ExitCode.software.code);
   }
 
   /// Classify what changed, against the release's own kernel.
@@ -820,6 +900,7 @@ Nothing was uploaded.''',
     File? patchedVerificationKernel,
     RouteBCapabilities? capabilities,
     RouteBBuildConfig? buildConfig,
+    RouteBRetention? retention,
     RouteBSurvivalOracle? survival,
     RouteBReleaseEvidence? releaseEvidence,
   }) {
@@ -838,6 +919,7 @@ Nothing was uploaded.''',
         projectRoot: projectRoot,
         capabilities: capabilities,
         buildConfig: buildConfig,
+        retention: retention,
         survival: survival,
         releaseEvidence: releaseEvidence,
       );
@@ -875,9 +957,10 @@ uploaded.''',
   /// release's.
   ///
   /// Compares the EFFECTIVE define set, never the command line: two invocations
-  /// that supply the same defines in a different order compile to byte-identical
-  /// kernels (measured by `probes/g41_define_semantics.sh`), so refusing on
-  /// textual inequality would reject a patch with nothing wrong with it.
+  /// that supply the same defines in a different order compile to
+  /// byte-identical kernels (measured by `probes/g41_define_semantics.sh`), so
+  /// refusing on textual inequality would reject a patch with nothing wrong
+  /// with it.
   ///
   /// The flavor this patch actually compiles with, by Flutter's precedence —
   /// mirroring `IosReleaser`'s getter of the same name, so the release half and
@@ -898,8 +981,8 @@ uploaded.''',
   /// [_resolvedFlavor], spelled the way the SHIPPED kernel will spell it.
   ///
   /// On iOS, Flutter does not put the token you typed into
-  /// `FLUTTER_APP_FLAVOR`. It parses the flavor from the Xcode CONFIGURATION and
-  /// returns the SCHEME's own casing (`common.dart`'s
+  /// `FLUTTER_APP_FLAVOR`. It parses the flavor from the Xcode CONFIGURATION
+  /// and returns the SCHEME's own casing (`common.dart`'s
   /// `_addFlavorToDartDefines`, `xcode_project.dart`'s
   /// `parseFlavorFromConfiguration`). So `--flavor foo` against a scheme named
   /// `Foo` ships a kernel compiled with `FLUTTER_APP_FLAVOR=Foo`.
@@ -932,13 +1015,14 @@ uploaded.''',
     );
 
     if (releaseConfig == null) {
-      // P5.1. THIS USED TO WARN AND CONTINUE, which made absent evidence read as
-      // agreement -- the one thing the P4 epoch rule forbids.
+      // P5.1. THIS USED TO WARN AND CONTINUE, which made absent evidence read
+      // as agreement -- the one thing the P4 epoch rule forbids.
       //
-      // It is also what the RELEASE side already intends. `ios_releaser` records
-      // `buildConfig: null` only when this build's define expansion DISAGREED
-      // with Flutter's own, and its comment says the patch side treats that as
-      // "permanently not comparable". It did not; it warned and proceeded.
+      // It is also what the RELEASE side already intends. `ios_releaser`
+      // records `buildConfig: null` only when this build's define expansion
+      // DISAGREED with Flutter's own, and its comment says the patch side
+      // treats that as "permanently not comparable". It did not; it warned and
+      // proceeded.
       //
       // The legacy case is not this case. A release cut before configuration
       // provenance existed also predates the contract revision, and P4.4's

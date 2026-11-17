@@ -149,7 +149,7 @@ void main() {
         }
 
         final dwarfdump = Process.runSync('dwarfdump', ['--uuid', app.path]);
-        final expected = RegExp(r'UUID: ([0-9A-Fa-f-]+)')
+        final expected = RegExp('UUID: ([0-9A-Fa-f-]+)')
             .firstMatch(dwarfdump.stdout as String)
             ?.group(1)
             ?.replaceAll('-', '')

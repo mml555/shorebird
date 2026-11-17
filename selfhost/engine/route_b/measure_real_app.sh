@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # cspell:words dynmod killgate airgap tfa getsize ljust nopc nonaot NONAOT wonderous wonders
-# cspell:words prepass SUBSHELL
+# cspell:words prepass SUBSHELL nofw
 #
 # measure_real_app.sh -- Route B step 7, size half, on a REAL Flutter app.
 #
@@ -18,18 +18,37 @@
 # Frame time is not measured here at all and cannot be from a snapshot: it needs
 # the app running on a device. That half of the step 7 veto is open.
 #
-# Prerequisite: the Flutter platform dill in the Route B tree --
-#   ninja -C out/host_release_arm64 flutter_patched_sdk/platform_strong.dill
+# HOW THE INTERFACE IS BUILT. Like a shipping release (route_b_release_kernels.dart):
+# `--private-dill <non-AOT kernel> --platform <flutter platform>` on top of the
+# --aot prepass. Built from the prepass alone, the interface names accessors the
+# annotator's pre-transform component does not have, and gen_kernel rejects it on
+# the current airgap fixture ("A member with disambiguated name 'set:_rbKindMember'
+# was not found in class '_ProbeBodyState'"). That prepass-only interface is kept
+# as the CONTROL of the private-enumeration axis, and is expected not to build.
+#
+# THE ARGUMENT LIST is the release's (generateDynamicInterface): --include,
+# --private-dill, --platform, --policy p2, the four --sdk-members of
+# routeBRetainedSdkMembers, and the --grant-constructor keys the analyzer's
+# census derives from the prepass. Framework-use retention is the generator's
+# default and is on, as in a release. Only --manifest is left out: it records
+# what was granted and moves no bytes. Arms: `app_nofw` repeats the shipping
+# policy with --no-framework-uses, which isolates what that retention costs.
+#
+# Prerequisites: a dart_dynamic_modules build with the Flutter platform dill
+# (default out/host_release_arm64_ddm). With the default fixture the script
+# stages a copy under $WORK and runs `flutter pub get --offline` there, so no
+# tracked file is touched. With APP=... the app is used in place and must
+# already have its .dart_tool.
 set -euo pipefail
 
-SRC="${SRC:-/Volumes/build/route-b/flutter/engine/src}"
-OUT="${OUT:-$SRC/out/host_release_arm64}"
+SRC="${SRC:-$HOME/shorebird-engine/flutter/engine/src}"
+OUT="${OUT:-$SRC/out/host_release_arm64_ddm}"
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO="$(cd "$HERE/../../.." >/dev/null 2>&1 && pwd)"
-APP="${APP:-$REPO/selfhost/fixtures/airgap_app}"
+APP="${APP:-}"
 ENTRY="${ENTRY:-package:airgap_probe/main.dart}"
 APP_PREFIX="${APP_PREFIX:-package:airgap_probe/}"
-WORK="${WORK:-$(mktemp -d)}"
+WORK="${WORK:-$(mktemp -d)}"; mkdir -p "$WORK"
 
 DART_TREE="$SRC/flutter/third_party/dart"
 DART="$OUT/dart-sdk/bin/dart"
@@ -41,14 +60,34 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 note() { echo "==> $*"; }
 
 [ -f "$PLATFORM" ] || die "no Flutter platform dill; build flutter_patched_sdk/platform_strong.dill first"
+# A clean WORK, so a stale .dill or .aot from an earlier run can never be read as
+# this run's arm. Refused rather than emptied: nothing here deletes anything.
+[ -z "$(ls -A "$WORK")" ] || die "WORK=$WORK is not empty; use a fresh directory"
+
+if [ -z "${APP:-}" ]; then
+  # Stage the fixture and its path dependency at the same depth under $WORK, so
+  # `pub get` writes .dart_tool, pubspec.lock and .flutter-plugins-dependencies
+  # there and not in the tracked fixture.
+  FIXTURE_LOCK="$(shasum -a 256 "$REPO/selfhost/fixtures/airgap_app/pubspec.lock" | cut -d' ' -f1)"
+  mkdir -p "$WORK/tree/selfhost/fixtures" "$WORK/tree/packages"
+  cp -R "$REPO/selfhost/fixtures/airgap_app" "$WORK/tree/selfhost/fixtures/airgap_app"
+  cp -R "$REPO/packages/code_push_runtime" "$WORK/tree/packages/code_push_runtime"
+  APP="$WORK/tree/selfhost/fixtures/airgap_app"
+  note "flutter pub get --offline, in the staged copy"
+  (cd "$APP" && flutter pub get --offline >"$WORK/pub_get.log" 2>&1) \
+    || die "flutter pub get --offline failed in the staged fixture (see $WORK/pub_get.log)"
+else
+  FIXTURE_LOCK="<custom APP>"
+fi
 [ -d "$APP" ] || die "no app at $APP"
+[ -f "$APP/.dart_tool/package_config.json" ] || die "run 'flutter pub get --offline' in $APP first"
 
 kernel() { # kernel <out.dill> [extra gen_kernel args...]
   local out="$1"; shift
   (cd "$APP" && "$DART" "$GEN_KERNEL" --platform "$PLATFORM" \
     --target flutter --aot --tfa \
     --packages .dart_tool/package_config.json "$@" \
-    -o "$out" "$ENTRY") >/dev/null 2>&1 || die "gen_kernel failed for $out"
+    -o "$out" "$ENTRY") >"$out.log" 2>&1 || die "gen_kernel failed for $out (see $out.log)"
 }
 snap() { # snap <out.aot> <in.dill> [flags...]
   local out="$1" dill="$2"; shift 2
@@ -67,16 +106,60 @@ kernel "$WORK/app.dill"
 # is settled; the class shapes are far more numerous -- 1,462 classes and 6,626
 # members across a whole dependency closure -- so they get their own axis rather
 # than inheriting a number measured on the cheap half.
+# `gen` builds an interface the way a release does: private members from the
+# non-AOT kernel, read under the Flutter platform it was compiled against.
+# `gen_prepass` is the same without those two flags (the old method), kept only as
+# the control of the private-enumeration axis below.
+gen() { # gen <out.yaml> [extra flags...]
+  local out="$1"; shift
+  "$DART" "$KERNEL_PKGS" "$HERE/gen_dynamic_interface.dart" --dill "$WORK/app.dill" \
+    --private-dill "$WORK/app_nonaot_import.dill" --platform "$PLATFORM" \
+    --policy p2 --sdk-members "$SDK_MEMBERS" "${GRANTS[@]}" \
+    --out "$out" "$@" >"$out.log" 2>&1 || { tail -3 "$out.log" >&2; die "interface failed: $out"; }
+}
+gen_prepass() { # gen_prepass <out.yaml> [extra flags...]
+  local out="$1"; shift
+  "$DART" "$KERNEL_PKGS" "$HERE/gen_dynamic_interface.dart" --dill "$WORK/app.dill" \
+    --policy p2 --sdk-members "$SDK_MEMBERS" "${GRANTS[@]}" \
+    --out "$out" "$@" >"$out.log" 2>&1 || { tail -3 "$out.log" >&2; die "interface failed: $out"; }
+}
+
+# The release's retained SDK members (routeBRetainedSdkMembers, same spelling).
+SDK_MEMBERS='dart:core#print,dart:core#DateTime.now,dart:core#DateTime.get:millisecondsSinceEpoch,dart:core#identical'
+# The release's constructor grants: the analyzer's census over the prepass,
+# keys sorted and de-duplicated (_deriveConstructorGrants).
+note "census: private constructors the release's own methods construct"
+"$DART" "$KERNEL_PKGS" "$HERE/coverage/analyze_coverage.dart" --census \
+  --dill "$WORK/app.dill" --include "$APP_PREFIX" --out "$WORK/census.jsonl" \
+  >"$WORK/census.log" 2>&1 || die "census failed (see $WORK/census.log)"
+GRANTS=()
+while IFS= read -r key; do
+  GRANTS+=(--grant-constructor "$key")
+done < <(python3 - "$WORK/census.jsonl" <<'PY'
+import json, sys
+keys = set()
+for line in open(sys.argv[1]):
+    line = line.strip()
+    if not line:
+        continue
+    d = json.loads(line)
+    for e in d.get('privateConstructions') or []:
+        if isinstance(e, dict) and isinstance(e.get('key'), str):
+            keys.add(e['key'])
+print('\n'.join(sorted(keys)))
+PY
+)
+note "constructor grants: $(( ${#GRANTS[@]} / 2 ))"
+
+note "kernel: non-AOT, for private enumeration"
+kernel "$WORK/app_nonaot_import.dill" --no-aot --no-link-platform
+
 note "interfaces: app-only and all-libraries, each with and without private classes"
-"$DART" "$KERNEL_PKGS" "$HERE/gen_dynamic_interface.dart" \
-  --dill "$WORK/app.dill" --include "$APP_PREFIX" --out "$WORK/di_app.yaml"
-"$DART" "$KERNEL_PKGS" "$HERE/gen_dynamic_interface.dart" \
-  --dill "$WORK/app.dill" --include "$APP_PREFIX" --no-private-classes \
-  --out "$WORK/di_app_nopc.yaml"
-"$DART" "$KERNEL_PKGS" "$HERE/gen_dynamic_interface.dart" \
-  --dill "$WORK/app.dill" --out "$WORK/di_all.yaml"
-"$DART" "$KERNEL_PKGS" "$HERE/gen_dynamic_interface.dart" \
-  --dill "$WORK/app.dill" --no-private-classes --out "$WORK/di_all_nopc.yaml"
+gen "$WORK/di_app.yaml"       --include "$APP_PREFIX"
+gen "$WORK/di_app_nopc.yaml"  --include "$APP_PREFIX" --no-private-classes
+gen "$WORK/di_all.yaml"
+gen "$WORK/di_all_nopc.yaml"  --no-private-classes
+gen "$WORK/di_app_nofw.yaml"  --include "$APP_PREFIX" --no-framework-uses
 
 # `kernel` dies on failure, which is right for every arm the product depends on.
 # The all-libraries-plus-private-classes arm is the exception: it is a
@@ -88,7 +171,9 @@ try_kernel() { # try_kernel <out.dill> [args...] -- records failure, never dies
   # an `if kernel ...` would take the whole script down with it -- which is
   # exactly what happened the first time this arm was expected to fail.
   if ( kernel "$@" ) 2>/dev/null; then return 0; fi
-  echo "MEASURED: does not build" > "$out.failed"
+  # The cause, not just the fact: gen_kernel's own error line, so a broken
+  # toolchain cannot pass for the expected rejection.
+  { echo "MEASURED: does not build"; grep -v '^$' "$out.log" | sed -n 2p | cut -c1-240; } > "$out.failed"
   note "arm skipped: $(basename "$out") did not build (see the table)"
   return 0
 }
@@ -97,15 +182,13 @@ try_kernel() { # try_kernel <out.dill> [args...] -- records failure, never dies
 #
 # The --aot prepass has already been tree-shaken, so a private member nothing in
 # the release calls cannot be named there -- and a patch's purpose can be to start
-# calling one. The non-AOT kernel has the full private surface. That MECHANISM is
-# proven on the airgap fixture (probe D 4/4 with PRIVATE_FROM_NONAOT=1 and no
-# RETAIN_PRIVATE). This arm prices it, which is a different question and needs a
-# different fixture -- see the vacuity gate.
-note "interface: app-only with privates enumerated from the NON-AOT kernel"
-kernel "$WORK/app_nonaot_import.dill" --no-aot --no-link-platform
-"$DART" "$KERNEL_PKGS" "$HERE/gen_dynamic_interface.dart" \
-  --dill "$WORK/app.dill" --include "$APP_PREFIX" \
-  --private-dill "$WORK/app_nonaot_import.dill" --out "$WORK/di_app_np.yaml"
+# calling one. A release therefore enumerates privates from the non-AOT kernel
+# (--private-dill), and every interface above does, so the non-AOT kernel is the
+# method and not an option. The CONTROL here is the old method, the prepass alone. That MECHANISM is proven on the airgap fixture (probe D 4/4). This arm
+# prices the difference, which is a different question and needs a different
+# fixture -- see the vacuity gate.
+note "interface: app-only with privates enumerated from the --aot prepass alone (control)"
+gen_prepass "$WORK/di_app_prepass.yaml" --include "$APP_PREFIX"
 
 # ---------------------------------------------------------------------------
 # THE VACUITY GATE.
@@ -121,10 +204,10 @@ kernel "$WORK/app_nonaot_import.dill" --no-aot --no-link-platform
 #
 # So: identical interfaces => VACUOUS, loudly, and no percentage is printed.
 note "vacuity gate: did the treatment actually change the interface?"
-aot_hash=$(shasum -a 256 "$WORK/di_app.yaml" | cut -d' ' -f1)
-np_hash=$(shasum -a 256 "$WORK/di_app_np.yaml" | cut -d' ' -f1)
-aot_privates=$(grep -c "    member: '_" "$WORK/di_app.yaml" || true)
-np_privates=$(grep -c "    member: '_" "$WORK/di_app_np.yaml" || true)
+aot_hash=$(shasum -a 256 "$WORK/di_app_prepass.yaml" | cut -d' ' -f1)
+shipping_hash=$(shasum -a 256 "$WORK/di_app.yaml" | cut -d' ' -f1)
+aot_privates=$(grep -c "    member: '_" "$WORK/di_app_prepass.yaml" || true)
+shipping_privates=$(grep -c "    member: '_" "$WORK/di_app.yaml" || true)
 
 # Provenance, so a recorded number can be tied to the exact thing measured.
 {
@@ -137,25 +220,27 @@ np_privates=$(grep -c "    member: '_" "$WORK/di_app_np.yaml" || true)
   else
     echo "app commit     : <not a git checkout>"
   fi
-  echo "pubspec.lock   : $(shasum -a 256 "$APP/pubspec.lock" 2>/dev/null | cut -d' ' -f1)"
+  echo "pubspec.lock   : $(shasum -a 256 "$APP/pubspec.lock" 2>/dev/null | cut -d' ' -f1)  (checked-in: $FIXTURE_LOCK)"
+  echo "sdk members    : $SDK_MEMBERS"
+  echo "constructor grants: $(( ${#GRANTS[@]} / 2 ))"
   echo "engine tree    : $SRC"
   echo "gen_snapshot   : $(shasum -a 256 "$OUT/gen_snapshot" | cut -d' ' -f1)"
   echo "platform dill  : $(shasum -a 256 "$PLATFORM" | cut -d' ' -f1)"
   echo "control  di    : $aot_hash  ($aot_privates private member entries)"
-  echo "treatment di   : $np_hash  ($np_privates private member entries)"
+  echo "treatment di   : $shipping_hash  ($shipping_privates private member entries)"
 } | tee "$WORK/provenance.txt" | sed 's/^/    /'
 
 # The exact additional members, preserved. A count says how much moved; this says
 # WHAT moved, which is what a narrower retention policy would be written against.
-grep "    member: '_" "$WORK/di_app.yaml" | sort -u > "$WORK/privates_control.txt" || true
-grep "    member: '_" "$WORK/di_app_np.yaml" | sort -u > "$WORK/privates_treatment.txt" || true
+grep "    member: '_" "$WORK/di_app_prepass.yaml" | sort -u > "$WORK/privates_control.txt" || true
+grep "    member: '_" "$WORK/di_app.yaml" | sort -u > "$WORK/privates_treatment.txt" || true
 comm -13 "$WORK/privates_control.txt" "$WORK/privates_treatment.txt" \
   > "$WORK/privates_added.txt" || true
 added=$(wc -l < "$WORK/privates_added.txt" | tr -d ' ')
 echo "    additional privates retained by the treatment: $added"
 [ "$added" -eq 0 ] || sed 's/^/      + /' "$WORK/privates_added.txt" | head -25
 
-if [ "$aot_hash" = "$np_hash" ]; then
+if [ "$aot_hash" = "$shipping_hash" ]; then
   cat <<'VACUOUS'
 
   ############################################################
@@ -176,19 +261,24 @@ fi
 note "kernels with retention"
 kernel "$WORK/app_app.dill"      --dynamic-interface "$WORK/di_app.yaml"
 kernel "$WORK/app_app_nopc.dill" --dynamic-interface "$WORK/di_app_nopc.yaml"
-kernel "$WORK/app_app_np.dill"   --dynamic-interface "$WORK/di_app_np.yaml"
 kernel "$WORK/app_all_nopc.dill" --dynamic-interface "$WORK/di_all_nopc.yaml"
+kernel "$WORK/app_app_nofw.dill" --dynamic-interface "$WORK/di_app_nofw.yaml"
 try_kernel "$WORK/app_all.dill"  --dynamic-interface "$WORK/di_all.yaml"
+try_kernel "$WORK/app_app_prepass.dill" --dynamic-interface "$WORK/di_app_prepass.yaml"
 
 note "snapshots"
 snap "$WORK/base.aot"     "$WORK/app.dill"
 snap "$WORK/cf.aot"       "$WORK/app.dill"          --patchable_static_calls
 snap "$WORK/app_nopc.aot" "$WORK/app_app_nopc.dill" --patchable_static_calls
 snap "$WORK/app.aot"      "$WORK/app_app.dill"      --patchable_static_calls
-snap "$WORK/app_np.aot"   "$WORK/app_app_np.dill"   --patchable_static_calls
 snap "$WORK/all_nopc.aot" "$WORK/app_all_nopc.dill" --patchable_static_calls
-[ -f "$WORK/app_all.dill" ] \
-  && snap "$WORK/all.aot" "$WORK/app_all.dill" --patchable_static_calls
+snap "$WORK/app_nofw.aot" "$WORK/app_app_nofw.dill" --patchable_static_calls
+if [ -f "$WORK/app_all.dill" ]; then
+  snap "$WORK/all.aot" "$WORK/app_all.dill" --patchable_static_calls
+fi
+if [ -f "$WORK/app_app_prepass.dill" ]; then
+  snap "$WORK/app_prepass.aot" "$WORK/app_app_prepass.dill" --patchable_static_calls
+fi
 
 python3 - "$WORK" <<'PY'
 import os, sys
@@ -200,7 +290,8 @@ rows = [
     ('+ call form',                                   'cf.aot'),
     ('+ app-only, no private classes',                'app_nopc.aot'),
     ('+ app-only retention  [SHIPPING POLICY]',       'app.aot'),
-    ('+ app-only, privates from NON-AOT kernel',      'app_np.aot'),
+    ('+ app-only, privates from --aot prepass only',  'app_prepass.aot'),
+    ('+ app-only, NO framework-use retention',        'app_nofw.aot'),
     ('+ ALL libraries, no private classes',           'all_nopc.aot'),
     ('+ ALL libraries retained',                      'all.aot'),
 ]
@@ -211,6 +302,11 @@ print('-' * (width + 30))
 for label, f in rows:
     if not os.path.exists(os.path.join(w, f)):
         print(f'{label.ljust(width)}  {"DOES NOT BUILD":>12}  {"n/a":>12}')
+        dill = {'all.aot': 'app_all.dill', 'app_prepass.aot': 'app_app_prepass.dill'}.get(f)
+        fp = os.path.join(w, dill + '.failed') if dill else ''
+        if fp and os.path.exists(fp):
+            lines = [l.strip() for l in open(fp) if l.strip()]
+            print(f'    gen_kernel said: {lines[1][:150]}' if len(lines) > 1 else '    (no gen_kernel output captured)')
         continue
     s = size(f)
     print(f'{label.ljust(width)}  {s:>12,}  {(s-base)/base*100:>+11.2f}%')
@@ -223,36 +319,40 @@ def pct(a, b):
 print()
 print('PRIVATE-CLASS AXIS, isolated:')
 print(f'  at app-only breadth    {pct("app.aot", "app_nopc.aot"):+.2f}%')
-if os.path.exists(os.path.join(w, 'app_np.aot')):
-    print()
-    print('PRIVATE-ENUMERATION-SOURCE AXIS, isolated (--aot prepass -> non-AOT):')
-    if os.path.exists(os.path.join(w, 'VACUOUS')):
-        # Refusing to print the number is the point. A percentage here would be
-        # read as a cost, and there is no cost because there was no treatment.
-        print('  VACUOUS -- control and treatment interfaces are byte-identical,')
-        print('  so this fixture priced nothing. See the vacuity gate above. Any')
-        print('  delta below is snapshot noise between two identical inputs, and')
-        print('  is deliberately NOT reported as a percentage.')
-    else:
-        added = 0
-        try:
-            with open(os.path.join(w, 'privates_added.txt')) as f:
-                added = sum(1 for line in f if line.strip())
-        except OSError:
-            pass
-        print(f'  at app-only breadth    {pct("app_np.aot", "app.aot"):+.2f}%'
-              f'   for {added} additional private member(s)')
-        print('  This is the price of being able to reference a private member the')
-        print('  release does not itself call — the policy G3.6b must be written')
-        print('  against. privates_added.txt lists exactly which members moved.')
+print()
+print('PRIVATE-ENUMERATION-SOURCE AXIS, isolated (--aot prepass alone -> non-AOT, as shipped):')
+if not os.path.exists(os.path.join(w, 'app_prepass.aot')):
+    print('  prepass-only control DOES NOT BUILD -- gen_kernel rejects an interface')
+    print('  built from the --aot prepass alone on this fixture, so there is no')
+    print('  control size and no percentage. The shipping rows enumerate privates')
+    print('  from the non-AOT kernel (--private-dill), as a release does.')
+elif os.path.exists(os.path.join(w, 'VACUOUS')):
+    # Refusing to print the number is the point. A percentage here would be
+    # read as a cost, and there is no cost because there was no treatment.
+    print('  VACUOUS -- control and treatment interfaces are byte-identical,')
+    print('  so this fixture priced nothing. See the vacuity gate above. Any')
+    print('  delta below is snapshot noise between two identical inputs, and')
+    print('  is deliberately NOT reported as a percentage.')
+else:
+    added = 0
+    try:
+        with open(os.path.join(w, 'privates_added.txt')) as f:
+            added = sum(1 for line in f if line.strip())
+    except OSError:
+        pass
+    print(f'  at app-only breadth    {pct("app.aot", "app_prepass.aot"):+.2f}%'
+          f'   for {added} additional private member(s)')
+    print('  This is the price of being able to reference a private member the')
+    print('  release does not itself call. privates_added.txt lists exactly')
+    print('  which members moved.')
+print()
+print('PRIVATE-CLASS AXIS (all-library breadth):')
 if os.path.exists(os.path.join(w, 'all.aot')):
     print(f'  at all-library breadth {pct("all.aot", "all_nopc.aot"):+.2f}%')
 else:
-    print('  at all-library breadth  DOES NOT BUILD -- the interface names class')
-    print('     members that exist in the --aot prepass kernel this generator')
-    print('     reads but not in the pre-transform component the annotator')
-    print('     indexes (measured: ScaffoldMessengerState.set:_accessibleNavigation).')
-    print('     A stronger argument for the app-only policy than a size would be.')
+    print('  at all-library breadth  DOES NOT BUILD -- gen_kernel rejects the')
+    print('     all-libraries interface; its error line is under the table row above')
+    print('     (and in app_all.dill.log in the work dir).')
 print()
 print('The shipping policy is the fourth row. The all-library rows are what a')
 print('generator that retained every library would have cost -- kept measurable')

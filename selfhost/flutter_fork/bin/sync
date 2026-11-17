@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# cspell:words subn elif esac
+# sync [tree] [--dart-rev SHA|none] [--dry-run]
+# Fetch the git remotes, gclient sync the tree, verify the Dart fork checkout against
+# DEPS (or the .gclient override), re-point the Xcode SDK links, report the disk delta.
+# Default tree: 350. The frozen tree (flutter, d0714887) is refused.
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+source "$HERE/lib.sh"
+
+TREE_NAME=350; DART_REV=""; DRY=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dart-rev) DART_REV="${2:?--dart-rev needs a SHA or 'none'}"; shift 2 ;;
+    --dry-run) DRY=1; shift ;;
+    -h|--help) sed -n 2,6p "${BASH_SOURCE[0]}"; exit 0 ;;
+    -*) die "unknown flag $1" ;;
+    *) TREE_NAME="$1"; shift ;;
+  esac
+done
+TREE="$(tree_dir "$TREE_NAME")"
+require_tree "$TREE"
+is_frozen "$TREE" && die "$TREE is frozen at the supported cell's engine; sync never touches it"
+
+cat <<EOF
+sync will, in $TREE:
+  1. git fetch origin, flutter (tags only) and shorebird (if configured), blob:none
+  2. ${DART_REV:+set .gclient dart_sdk_revision override to $DART_REV; }gclient sync --no-history --jobs 8 (holds $HEAVY_LOCK)
+  3. check third_party/dart HEAD against dart_sdk_revision (override, else DEPS)
+  4. re-point engine/src/flutter/prebuilts/SDKs/* at copies without the x1 marker (tools/strip_x1.py)
+  5. print the disk delta
+EOF
+[[ "$DRY" == 1 ]] && { say "dry run, stopping"; exit 0; }
+
+heavy_acquire
+if [[ -n "$DART_REV" ]]; then
+  python3 - "$TREE" "$DART_REV" <<'PY'
+import re, sys
+tree, rev = sys.argv[1:3]
+p = tree + "/.gclient"; s = open(p).read()
+s = re.sub(r'\n\s*"dart_sdk_revision"\s*:\s*"[^"]*",', "", s)
+if rev != "none":
+    s, n = re.subn(r'("custom_vars"\s*:\s*\{)', r'\1\n      "dart_sdk_revision": "%s",' % rev, s)
+    assert n == 1, "custom_vars block not found in .gclient"
+open(p, "w").write(s)
+print(".gclient dart_sdk_revision override:", rev)
+PY
+fi
+
+need_disk 20
+before="$(free_gb)"
+cd "$TREE"
+for r in origin flutter shorebird; do
+  if git remote get-url "$r" >/dev/null 2>&1; then
+    say "fetch $r"
+    if [[ "$r" == flutter ]]; then git fetch --no-tags --filter=blob:none "$r" tag 3.50.0 || warn "fetch $r failed"
+    else git fetch --filter=blob:none "$r" || warn "fetch $r failed"; fi
+  fi
+done
+
+say "gclient sync (tree $TREE)"
+gclient sync --no-history --jobs 8
+
+dart_dir="$TREE/engine/src/flutter/third_party/dart"
+want="$(dart_rev_effective "$TREE")"
+have="$(git -C "$dart_dir" rev-parse HEAD)"
+if [[ "$want" == *PLACEHOLDER* ]]; then
+  warn "DEPS dart_sdk_revision is still the placeholder; third_party/dart is at $have. Use --dart-rev SHA."
+elif [[ "$want" != "$have" ]]; then
+  die "third_party/dart is at $have but dart_sdk_revision is $want"
+else
+  say "dart fork ok: $have"
+fi
+
+X="$(xcode-select -p)/Platforms"
+P="$TREE/engine/src/flutter/prebuilts/SDKs"
+for sdk in "$P"/MacOSX*.sdk "$P"/iPhoneOS*.sdk "$P"/iPhoneSimulator*.sdk; do
+  [[ -e "$sdk" || -L "$sdk" ]] || continue
+  name="$(basename "$sdk")"; plat="${name%%[0-9]*}"
+  if [[ ! -d "$W/sdks/$name" ]]; then "$W/tools/strip_x1.py" "$X/$plat.platform/Developer/SDKs/$name" "$W/sdks/$name"; fi
+  ln -sfn "$W/sdks/$name" "$sdk"
+done
+
+after="$(free_gb)"
+say "disk: ${before} GB free before, ${after} GB after (delta $((before - after)) GB)"
+du -sh "$TREE" 2>/dev/null | sed 's/^/tree size: /'

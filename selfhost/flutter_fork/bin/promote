@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# promote TREE [--repo DIR]
+#
+# READ-ONLY checks along the TOOLCHAIN_PROMOTION chain for the tree's current head, then prints
+# the compatibility.yaml change it would take. It never edits compatibility.yaml and never
+# tags. The sealed-cold discovery steps are the owner's (selfhost/TOOLCHAIN_PROMOTION.md).
+set -uo pipefail
+source "$(dirname "$0")/lib.sh"
+tree_arg="${1:-}"; [[ -n "$tree_arg" ]] || die "usage: promote TREE [--repo DIR]"
+shift
+repo="$WT/../shorebird"; [[ "${1:-}" == --repo ]] && repo="$2"
+[[ -d "$repo/selfhost" ]] || repo="$HOME/Developer/shorebird"
+tree="$(tree_dir "$tree_arg")"; require_tree "$tree"
+fail=0
+chk() { if "$@"; then say "ok: $1"; else warn "FAIL: $*"; fail=1; fi; }
+
+head="$(git -C "$tree" rev-parse HEAD)"
+say "candidate flutter revision: $head ($(git -C "$tree" rev-parse --abbrev-ref HEAD))"
+[[ -z "$(git -C "$tree" --no-optional-locks status --porcelain)" ]] || { warn "FAIL: tree has uncommitted changes"; fail=1; }
+git -C "$tree" ls-remote --exit-code origin >/dev/null 2>&1 || true
+if git -C "$tree" branch -r --contains "$head" 2>/dev/null | grep -q origin/; then say "ok: head is on origin"; else warn "FAIL: head is not pushed to origin (owned mirror cannot have it)"; fail=1; fi
+
+ev="$(cat "$tree/bin/internal/engine.version" 2>/dev/null || true)"
+say "engine.version: $ev"
+stock="$(git -C "$tree" show 3.50.0:bin/internal/engine.version 2>/dev/null || true)"
+if [[ -n "$stock" && "$ev" == "$stock" ]]; then warn "FAIL: engine.version is still the stock upstream hash; re-pin to the minted engine hash"; fail=1; fi
+rev="$(dart_rev_effective "$tree")"
+[[ "$rev" == *PLACEHOLDER* || -z "$rev" ]] && { warn "FAIL: dart_sdk_revision is unset/placeholder"; fail=1; } || say "ok: dart_sdk_revision $rev"
+grep -q "updater_rev" "$tree/DEPS" && say "ok: DEPS pins updater_rev $(grep -o "'updater_rev': *'[0-9a-f]*'" "$tree/DEPS" | head -1)" || { warn "FAIL: DEPS has no updater_rev"; fail=1; }
+
+for g in "$repo/selfhost/ci/bootstrap_closure_guard.sh" "$repo/selfhost/ci/r12_revision_guard.sh"; do
+  if [[ -x "$g" ]]; then say "running $(basename "$g") (read-only)"; "$g" || { warn "FAIL: $(basename "$g")"; fail=1; }
+  else warn "missing $g"; fi
+done
+
+cat <<MSG
+
+---- proposed compatibility.yaml change (NOT applied) ----
+  flutter_revision: $head
+  engine.version:   $ev
+Remaining owner steps: sealed cold bootstrap discovery, fresh sealed cold bootstrap PASS,
+sealed release/patch discovery, Linux release/patch smoke PASS; then edit
+selfhost/compatibility.yaml. See selfhost/TOOLCHAIN_PROMOTION.md.
+MSG
+[[ "$fail" == 0 ]] && say "all read-only checks passed" || { warn "some checks failed"; exit 1; }

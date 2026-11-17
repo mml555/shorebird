@@ -59,8 +59,8 @@ enum RouteBRefusal {
   ///
   /// Distinct from [memberNotEmitted], which is about a member the body
   /// REFERENCES. This is about the member being replaced, and it fails later
-  /// and worse if it is not caught here: the patch publishes, downloads, and the
-  /// engine refuses at ATTACH on the device with a message about attachment
+  /// and worse if it is not caught here: the patch publishes, downloads, and
+  /// the engine refuses at ATTACH on the device with a message about attachment
   /// rather than about capability. P4.2 exists to move that failure left.
   targetNotGranted,
 

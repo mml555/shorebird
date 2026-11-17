@@ -55,7 +55,7 @@ spoofable. See the `TRUSTED_PROXIES` row below.
 
 Health endpoints for your orchestrator / load balancer:
 - `GET /healthz` — liveness (always 200 if the process is up)
-- `GET /readyz` — readiness (`{"db":true,"object_store":true}`; checks the backends)
+- `GET /readyz` — readiness (`{"db":true,"object_store":true}`; checks the backends). Behind the shipped Caddyfile this is 404 from outside; probe it on the internal network.
 
 ## Using your existing Postgres / object store
 

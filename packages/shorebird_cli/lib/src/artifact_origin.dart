@@ -134,7 +134,7 @@ abstract final class ArtifactOrigin {
   static String? conflictWarning() {
     final set = <String, String>{
       for (final key in [downloadUrlKey, flutterStorageKey, originKey])
-        if (_nonEmpty(platform.environment[key]) case final value?) key: value,
+        key: ?_nonEmpty(platform.environment[key]),
     };
     if (set.values.toSet().length < 2) return null;
     final winner = set.keys.first;
