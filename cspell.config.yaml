@@ -790,6 +790,7 @@ words:
   - embedders
   - endtemplate
   - Entra
+  - esac # bash case terminator
   - eseidel
   - exifinterface
   - exitcode
@@ -910,6 +911,8 @@ words:
   - nonobvious # From analysis_options.yaml
   - nopasswd
   - notafile
+  - noprofile # bash --noprofile
+  - norc # bash --norc
   - nserror
   - nullptr
   - nutsdb
@@ -930,6 +933,7 @@ words:
   - pbxproj
   - pfctl
   - pinact # Third-party action-pinning tool referenced in shorebird_ci
+  - pipefail
   - Perfetto # Chrome trace viewer at ui.perfetto.dev
   - PITR
   - PKCE # OAuth Proof Key for Code Exchange (RFC 7636)
@@ -996,6 +1000,7 @@ words:
   - souin
   - resends # "server resends the same patch on rollforward"
   - rollforward # POST /.../patches/<id>/rollforward — un-rolls-back a patch
+  - rollouts # percentage rollouts of a patch on its track
   - spawnee
   - Retryable
   - RSAPKCS

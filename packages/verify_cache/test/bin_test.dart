@@ -1,3 +1,9 @@
+// Every test spawns the compiled bin, so each is seconds of process start
+// and git rather than the milliseconds the 30s default is sized for, and
+// runs sharing a machine multiply that.
+@Timeout(Duration(minutes: 5))
+library;
+
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -8,7 +14,25 @@ import 'package:verify_cache/verify_cache.dart';
 import 'src/helpers.dart';
 
 void main() {
-  final bin = p.absolute('bin', 'verify_cache.dart');
+  late Directory binDir;
+  late String bin;
+
+  setUpAll(() async {
+    binDir = Directory.systemTemp.createTempSync('verify_cache_bin.');
+    bin = p.join(binDir.path, 'verify_cache.dill');
+    final result = await Process.run(Platform.resolvedExecutable, [
+      'compile',
+      'kernel',
+      p.join('bin', 'verify_cache.dart'),
+      '-o',
+      bin,
+    ]);
+    if (result.exitCode != 0) {
+      fail('dart compile kernel failed: ${result.stderr}');
+    }
+  });
+
+  tearDownAll(() => binDir.deleteSync(recursive: true));
 
   Future<ProcessResult> verifyCache(
     Directory repo,
@@ -131,7 +155,10 @@ void main() {
       'true',
     ];
 
-    expect((await verifyCache(repo, args)).stdout, contains('recorded'));
+    expect(
+      (await verifyCache(repo, args)).stdout,
+      contains('recorded this pass'),
+    );
     File(
       p.join(repo.path, 'packages/other/lib.dart'),
     ).writeAsStringSync('// x\n');
@@ -140,7 +167,10 @@ void main() {
       contains('already verified'),
     );
     File(p.join(repo.path, 'packages/app/lib.dart')).writeAsStringSync('//\n');
-    expect((await verifyCache(repo, args)).stdout, contains('recorded'));
+    expect(
+      (await verifyCache(repo, args)).stdout,
+      contains('recorded this pass'),
+    );
   });
 
   group('--lookup', () {
@@ -197,12 +227,12 @@ void main() {
       expect(await lookup(), '[]');
       expect(
         (await verifyCache(repo, run('packages/app'))).stdout,
-        contains('recorded'),
+        contains('recorded this pass'),
       );
       expect(await lookup(), '["packages/app"]');
       expect(
         (await verifyCache(repo, run('packages/other'))).stdout,
-        contains('recorded'),
+        contains('recorded this pass'),
       );
       expect(await lookup(), '["packages/app","packages/other"]');
     });
@@ -265,7 +295,10 @@ void main() {
     final repo = gitRepo();
     final cache = tempDir();
     final args = ['--cache-dir', cache.path, '--input', 'a.txt', '--', 'true'];
-    expect((await verifyCache(repo, args)).stdout, contains('recorded'));
+    expect(
+      (await verifyCache(repo, args)).stdout,
+      contains('recorded this pass'),
+    );
     File(p.join(repo.path, 'b.txt')).writeAsStringSync('b\n');
     expect(
       (await verifyCache(repo, args)).stdout,

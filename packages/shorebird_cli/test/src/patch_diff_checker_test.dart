@@ -1,8 +1,10 @@
-// cspell:words Ljava LGreeter
+// cspell:words libnative Ljava LGreeter methname objc posthog
 import 'dart:io';
 
 import 'package:dex/dex.dart';
+import 'package:elf/elf.dart';
 import 'package:http/http.dart' as http;
+import 'package:macho/macho.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:scoped_deps/scoped_deps.dart';
@@ -119,6 +121,32 @@ void main() {
     });
 
     group('confirmUnpatchableDiffsIfNecessary', () {
+      group('when an archive cannot be read', () {
+        setUp(() {
+          when(
+            () => archiveDiffer.changedFiles(any(), any()),
+          ).thenThrow(const FormatException('damaged'));
+        });
+
+        test('fails progress and rethrows', () async {
+          await expectLater(
+            () => runWithOverrides(
+              () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+                localArchive: localArtifact,
+                releaseArchive: releaseArtifact,
+                archiveDiffer: archiveDiffer,
+                allowAssetChanges: false,
+                allowNativeChanges: false,
+              ),
+            ),
+            throwsA(isA<FormatException>()),
+          );
+
+          verify(() => progress.fail()).called(1);
+          verifyNever(() => progress.complete());
+        });
+      });
+
       group('when native diffs are detected', () {
         setUp(() {
           when(
@@ -406,13 +434,264 @@ void main() {
                 that: allOf(
                   contains('Dependency versions differ from the release:'),
                   contains('  io.branch.sdk.android:library 5.21.2 -> 5.21.3'),
-                  contains('Gradle dependency locking'),
+                  contains('''
+  dependencies {
+    constraints {
+      implementation("io.branch.sdk.android:library") { version { strictly("5.21.2") } }
+    }
+  }
+Remove these lines before your next release'''),
+                  contains('commit the lockfile with each release'),
                   contains('safe to pass --allow-native-diffs for this patch.'),
                 ),
               ),
             ),
           ).called(1);
         });
+
+        test('writes one constraint per module, none for an added or '
+            'removed library', () async {
+          when(() => archiveDiffer.changedFiles(any(), any())).thenAnswer(
+            (_) async => const AndroidFileSetDiff(
+              addedPaths: {},
+              removedPaths: {},
+              changedPaths: {'base/dex/classes3.dex'},
+              dependencyVersionChanges: [
+                DependencyVersionChange(
+                  name: 'com.example:added',
+                  oldVersion: null,
+                  newVersion: '1.0.0',
+                ),
+                DependencyVersionChange(
+                  name: 'com.example:removed',
+                  oldVersion: '2.0.0',
+                  newVersion: null,
+                ),
+                DependencyVersionChange(
+                  name: 'com.posthog:posthog',
+                  oldVersion: '6.46.2',
+                  newVersion: '6.46.3',
+                ),
+                DependencyVersionChange(
+                  name: 'com.posthog:posthog-android',
+                  oldVersion: '3.71.6',
+                  newVersion: '3.71.7',
+                ),
+                DependencyVersionChange(
+                  name: 'com.posthog:posthog-android:aar',
+                  oldVersion: '3.71.6',
+                  newVersion: '3.71.7',
+                ),
+              ],
+            ),
+          );
+
+          await runWithOverrides(
+            () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+              localArchive: localArtifact,
+              releaseArchive: releaseArtifact,
+              archiveDiffer: archiveDiffer,
+              allowAssetChanges: false,
+              allowNativeChanges: true,
+            ),
+          );
+
+          verify(
+            () => logger.info(
+              any(
+                that: allOf(
+                  contains('''
+    constraints {
+      implementation("com.posthog:posthog") { version { strictly("6.46.2") } }
+      implementation("com.posthog:posthog-android") { version { strictly("3.71.6") } }
+    }'''),
+                  isNot(contains('com.example:added")')),
+                  isNot(contains('com.example:removed")')),
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+
+        test('with only added or removed libraries, gives the general '
+            'advice', () async {
+          when(() => archiveDiffer.changedFiles(any(), any())).thenAnswer(
+            (_) async => const AndroidFileSetDiff(
+              addedPaths: {},
+              removedPaths: {},
+              changedPaths: {'base/dex/classes3.dex'},
+              dependencyVersionChanges: [
+                DependencyVersionChange(
+                  name: 'com.example:added',
+                  oldVersion: null,
+                  newVersion: '1.0.0',
+                ),
+                DependencyVersionChange(
+                  name: 'com.example:removed',
+                  oldVersion: '2.0.0',
+                  newVersion: null,
+                ),
+              ],
+            ),
+          );
+
+          await runWithOverrides(
+            () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+              localArchive: localArtifact,
+              releaseArchive: releaseArtifact,
+              archiveDiffer: archiveDiffer,
+              allowAssetChanges: false,
+              allowNativeChanges: true,
+            ),
+          );
+
+          verify(
+            () => logger.info(
+              any(
+                that: allOf(
+                  contains(
+                    'Pin dependency versions (or use Gradle dependency '
+                    'locking)',
+                  ),
+                  isNot(contains('constraints {')),
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+
+        test('names ELF symbol and code diffs for native .so files', () async {
+          const soPath = 'base/lib/arm64-v8a/libnative.so';
+          const androidDiff = AndroidFileSetDiff(
+            addedPaths: {},
+            removedPaths: {},
+            changedPaths: {soPath},
+            elfDiffResults: {
+              soPath: ElfDiffResult(
+                differences: [
+                  ElfDifference(
+                    kind: ElfDifferenceKind.functionCodeChanged,
+                    description:
+                        'Function code changed in '
+                        'Java_com_example_Native_compute',
+                  ),
+                ],
+              ),
+            },
+          );
+
+          when(
+            () => archiveDiffer.changedFiles(any(), any()),
+          ).thenAnswer((_) async => androidDiff);
+          when(
+            () => archiveDiffer.nativeFileSetDiff(any()),
+          ).thenReturn(androidDiff);
+
+          await runWithOverrides(
+            () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+              localArchive: localArtifact,
+              releaseArchive: releaseArtifact,
+              archiveDiffer: archiveDiffer,
+              allowAssetChanges: false,
+              allowNativeChanges: true,
+            ),
+          );
+
+          verify(
+            () => logger.info(
+              any(
+                that: contains(
+                  'Function code changed in Java_com_example_Native_compute',
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+
+        test(
+          'names Mach-O symbol/selector diffs and framework version changes',
+          () async {
+            const runnerPath = 'Products/Applications/Runner.app/Runner';
+            const posthogPath =
+                'Products/Applications/Runner.app/Frameworks/PostHog.framework/PostHog';
+            const appleDiff = AppleFileSetDiff(
+              addedPaths: {},
+              removedPaths: {},
+              changedPaths: {runnerPath, posthogPath},
+              machODiffResults: {
+                runnerPath: MachODiffResult(
+                  differences: [
+                    MachODifference(
+                      kind: MachODifferenceKind.functionCodeChanged,
+                      description:
+                          'Function code changed in _AppDelegate_handleChannel',
+                    ),
+                  ],
+                ),
+                posthogPath: MachODiffResult(
+                  differences: [
+                    MachODifference(
+                      kind: MachODifferenceKind.objcSelectorAdded,
+                      description:
+                          'Objective-C selector added: '
+                          'captureEvent:properties:',
+                    ),
+                  ],
+                ),
+              },
+              frameworkVersionChanges: [
+                DependencyVersionChange(
+                  name: 'PostHog.framework',
+                  oldVersion: '3.71.6',
+                  newVersion: '3.71.7',
+                ),
+              ],
+            );
+
+            when(
+              () => archiveDiffer.changedFiles(any(), any()),
+            ).thenAnswer((_) async => appleDiff);
+            when(
+              () => archiveDiffer.nativeFileSetDiff(any()),
+            ).thenReturn(appleDiff);
+
+            await runWithOverrides(
+              () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+                localArchive: localArtifact,
+                releaseArchive: releaseArtifact,
+                archiveDiffer: archiveDiffer,
+                allowAssetChanges: false,
+                allowNativeChanges: true,
+              ),
+            );
+
+            verify(
+              () => logger.info(
+                any(that: contains('_AppDelegate_handleChannel')),
+              ),
+            ).called(1);
+            verify(
+              () => logger.info(
+                any(
+                  that: contains(
+                    'Objective-C selector added: captureEvent:properties:',
+                  ),
+                ),
+              ),
+            ).called(1);
+            verify(
+              () => logger.info(
+                any(
+                  that: allOf(
+                    contains('Framework versions differ from the release:'),
+                    contains('  PostHog.framework 3.71.6 -> 3.71.7'),
+                    contains('Podfile.lock / Package.resolved'),
+                  ),
+                ),
+              ),
+            ).called(1);
+          },
+        );
 
         test('prompts user if allowNativeChanges is false', () async {
           await runWithOverrides(

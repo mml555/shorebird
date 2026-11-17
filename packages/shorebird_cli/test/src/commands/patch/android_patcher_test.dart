@@ -1,3 +1,4 @@
+// cspell:words allprojects librust posthog
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
@@ -175,6 +176,15 @@ void main() {
       });
     });
 
+    group('supplementaryReleaseArtifactArch', () {
+      test('is "android_supplement"', () {
+        expect(
+          patcher.supplementaryReleaseArtifactArch,
+          equals('android_supplement'),
+        );
+      });
+    });
+
     group('assertPreconditions', () {
       setUp(() {
         when(
@@ -336,8 +346,8 @@ void main() {
         ).thenAnswer((_) async => aabFile);
       });
 
-      // See https://github.com/shorebirdtech/updater/issues/211
-      group('when flutter version contains updater issue 211', () {
+      // See https://docs.shorebird.dev/getting-started/flutter-version/#flutter-version-notes
+      group('when flutter version has the patch uninstall issue', () {
         setUp(() {
           setUpProjectRootArtifacts();
           when(
@@ -357,7 +367,7 @@ void main() {
         });
       });
 
-      group('when flutter version does not contain updater issue 211', () {
+      group('when flutter version does not have the patch uninstall issue', () {
         setUp(setUpProjectRootArtifacts);
 
         group('when on the fixed Flutter 3.24.1 revision', () {
@@ -626,7 +636,7 @@ void main() {
       group('when releaseVersion is provided', () {
         setUp(setUpProjectRootArtifacts);
 
-        test('forwards --build-name and --build-number to builder', () async {
+        test('passes only --build-name and --build-number', () async {
           await runWithOverrides(
             () => patcher.buildPatchArtifact(releaseVersion: '1.2.3+4'),
           );
@@ -634,10 +644,10 @@ void main() {
             () => artifactBuilder.buildAppBundle(
               flavor: any(named: 'flavor'),
               target: any(named: 'target'),
-              args: any(
-                named: 'args',
-                that: containsAll(['--build-name=1.2.3', '--build-number=4']),
-              ),
+              // Exactly these: every arg goes to `flutter build appbundle`,
+              // whose parser rejects anything it doesn't know (shorebird#4406
+              // added Gradle's --init-script here and broke every patch).
+              args: ['--build-name=1.2.3', '--build-number=4'],
             ),
           ).called(1);
         });

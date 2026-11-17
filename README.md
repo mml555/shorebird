@@ -69,9 +69,10 @@ applies to working in this repository.
 
 ### Environment setup
 
-Working on Shorebird requires a standalone Dart SDK. The one bundled with a
-Flutter checkout is a different SDK that formats this tree differently, and
-the scripts below refuse it.
+Working on Shorebird needs a Dart SDK of the version CI runs, the current
+stable. The scripts below take one of that version from your PATH, including
+the one inside a Flutter checkout, and otherwise fetch it from the Dart
+archive into `~/.cache/shorebird-dart-sdks`.
 
 `./scripts/bootstrap.sh` will run `pub get` all packages in the repository.
 

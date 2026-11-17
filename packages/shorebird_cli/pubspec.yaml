@@ -2,7 +2,7 @@ name: shorebird_cli
 description: >-
   Command-line tool to interact with Shorebird code-push services, hosted or
   self-hosted. Fork build — see RELEASE_NOTES.md for what differs from upstream.
-version: 1.6.138+selfhost.1
+version: 1.6.140+selfhost.1
 repository: https://github.com/mml555/shorebird
 resolution: workspace
 
@@ -12,7 +12,7 @@ environment:
   sdk: ">=3.9.0 <4.0.0"
 
 dependencies:
-  archive: ^4.3.0
+  archive: ^4.7.1
   args: ^2.7.0
   checked_yaml: ^2.0.4
   cli_completion: ^0.6.0
@@ -22,6 +22,8 @@ dependencies:
   crypto: ^3.0.8
   dex:
     path: ../dex
+  elf:
+    path: ../elf
   equatable: ^2.1.0
   ffi: ^2.2.0
   http: ^1.5.0
@@ -29,6 +31,8 @@ dependencies:
   intl: ^0.20.3
   io: ^1.1.0
   json_annotation: ^4.12.0
+  macho:
+    path: ../macho
   mason_logger: ^0.3.6
   meta: ^1.19.0
   oauth2: ^2.0.5
@@ -63,3 +67,19 @@ dev_dependencies:
 
 executables:
   shorebird:
+
+shorebird_ci:
+  runners:
+    - macos-latest
+    - windows-latest
+    - ubuntu-latest
+  # The same figure and exclusions as the shorebird_cli job in
+  # .github/workflows/shorebird_ci.yaml (see the comment there): the macOS-only
+  # Apple patcher and releaser files count as missed on the Linux leg.
+  coverage_excludes:
+    - "**/lib/src/commands/patch/ios_patcher.dart"
+    - "**/lib/src/commands/patch/macos_patcher.dart"
+    - "**/lib/src/commands/release/ios_releaser.dart"
+    - "**/lib/src/commands/release/macos_releaser.dart"
+    - "**/lib/src/commands/release/apple_releaser_mixin.dart"
+  min_coverage: 96.1

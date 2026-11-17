@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:archive/archive.dart' show ArchiveException;
 import 'package:args/args.dart';
 import 'package:crypto/crypto.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -22,6 +23,43 @@ import 'package:shorebird_cli/src/split_debug_info.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 
+/// The hint for a [releaseType] release artifact downloaded from Shorebird
+/// that can't be read: download it again, and if that keeps failing, replace
+/// the release.
+String damagedReleaseArtifactHint(ReleaseType releaseType) =>
+    'Re-run to download it again. If this persists, the release artifact '
+    'is damaged: create a new release and patch that one. '
+    'Run: ${releaseType.releaseCommand(releaseVersion: '<new version>')}';
+
+/// Extracts [zipFile], a [releaseType] release artifact downloaded from
+/// Shorebird, to [outputDirectory].
+///
+/// If [zipFile] is not a readable zip (cut short, or damaged in storage),
+/// fails [progress] and throws a [CommandError] with
+/// [damagedReleaseArtifactHint], exiting with [ExitCode.software].
+Future<void> extractReleaseArtifact({
+  required File zipFile,
+  required Directory outputDirectory,
+  required ReleaseType releaseType,
+  Progress? progress,
+}) async {
+  try {
+    await artifactManager.extractZip(
+      zipFile: zipFile,
+      outputDirectory: outputDirectory,
+    );
+  } on ArchiveException catch (error) {
+    progress?.fail();
+    throw CommandError(
+      message:
+          'The release artifact downloaded from Shorebird is damaged: '
+          '${error.message}',
+      hint: damagedReleaseArtifactHint(releaseType),
+      exitCode: ExitCode.software,
+    );
+  }
+}
+
 /// {@template patcher}
 /// Platform-specific functionality to create a patch.
 /// {@endtemplate}
@@ -37,13 +75,20 @@ abstract class Patcher {
   /// Link percentage below which a warning is issued.
   static const double linkPercentageWarningThreshold = 90;
 
+  /// Formats [linkPercentage] to one decimal place for display.
+  ///
+  /// Truncates rather than rounds, so a value just under an integer threshold
+  /// (19.97) never reads as the threshold itself (20.0).
+  static String formatLinkPercentage(double linkPercentage) =>
+      ((linkPercentage * 10).floorToDouble() / 10).toStringAsFixed(1);
+
   /// The standard link percentage warning.
   static String lowLinkPercentageWarning(double linkPercentage) {
     return '''
-${lightCyan.wrap('shorebird patch')} was only able to share ${linkPercentage.toStringAsFixed(1)}% of Dart code with the released app.
+${lightCyan.wrap('shorebird patch')} was only able to share ${formatLinkPercentage(linkPercentage)}% of Dart code with the released app.
 This is unexpected, and means the application may execute slower than expected after patching.
 Please reach out to us over Discord or Email for help.
-More info: ${troubleshootingUrl.toLink()}.
+More info: ${linkPercentageUrl.toLink()}.
 ''';
   }
 
