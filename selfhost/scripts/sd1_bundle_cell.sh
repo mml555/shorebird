@@ -15,7 +15,9 @@
 #   LAYOUT.txt                where each member goes, and its digest
 #   MANIFEST.sha256           digests of every file in the distribution
 #
-#   sd1_bundle_cell.sh [--cell ADDR] [--out DIR]
+#   [OVERLAY=DIR] sd1_bundle_cell.sh [--cell ADDR] [--out DIR]
+#   OVERLAY names the overlay the members are read from (default: selfhost/cdn/overlay),
+#   so a cell minted in a scratch overlay can be bundled without touching the tracked tree.
 set -uo pipefail
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO="$(cd "$HERE/../.." >/dev/null 2>&1 && pwd)"
@@ -27,7 +29,7 @@ supported_cell() {
 }
 CELL=${CELL:-}
 OUT=${OUT:-/Volumes/build/route-b/sd1/dist}
-OVERLAY="$REPO/selfhost/cdn/overlay"
+OVERLAY=${OVERLAY:-$REPO/selfhost/cdn/overlay}
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cell) CELL="${2:?}"; shift 2 ;;
@@ -46,6 +48,9 @@ bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; fail=$((fail+1)); }
 note(){ printf '\n\033[1m== %s\033[0m\n' "$1"; }
 
 [[ -f "$MAN" ]] || { echo "no descriptor for $CELL" >&2; exit 2; }
+# Before $OUT is cleared, so a mistyped overlay costs nothing.
+[[ -d "$OVERLAY" ]] || { echo "no overlay at $OVERLAY (set OVERLAY, or mint into the default)" >&2; exit 2; }
+echo "overlay: $OVERLAY"
 rm -rf "$OUT"; mkdir -p "$OUT"
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/sd1stage.XXXXXX")
 trap 'rm -rf "$STAGE"' EXIT
