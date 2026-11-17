@@ -1,10 +1,12 @@
 import 'dart:io';
 
+import 'package:archive/archive.dart' show ArchiveException;
 import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
 import 'package:shorebird_cli/src/commands/commands.dart';
@@ -14,6 +16,7 @@ import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
@@ -29,6 +32,7 @@ void main() {
       registerFallbackValue(ReleasePlatform.android);
       registerFallbackValue(DeploymentTrack.stable);
       registerFallbackValue(FakeFile());
+      registerFallbackValue(FakeDirectory());
     });
 
     group('linkPercentage', () {
@@ -79,6 +83,28 @@ void main() {
           patcher(flagPassed: false, assetsOnly: true).allowAssetDiffs,
           isTrue,
         );
+      });
+    });
+
+    group('lowLinkPercentageWarning', () {
+      test('truncates the percentage and links to the performance docs', () {
+        final warning = Patcher.lowLinkPercentageWarning(12.345678901234567);
+        expect(warning, contains('share 12.3% of Dart code'));
+        expect(warning, contains(linkPercentageUrl));
+      });
+
+      test('does not round a value just under 20% up to 20.0%', () {
+        final warning = Patcher.lowLinkPercentageWarning(19.97);
+        expect(warning, contains('share 19.9% of Dart code'));
+      });
+    });
+
+    group('formatLinkPercentage', () {
+      test('shows one decimal place, truncated', () {
+        expect(Patcher.formatLinkPercentage(62.1337), equals('62.1'));
+        expect(Patcher.formatLinkPercentage(19.97), equals('19.9'));
+        expect(Patcher.formatLinkPercentage(19.9), equals('19.9'));
+        expect(Patcher.formatLinkPercentage(20), equals('20.0'));
       });
     });
 
@@ -402,6 +428,288 @@ void main() {
             );
           });
         });
+      });
+    });
+
+    group('createDiffBundle', () {
+      late ArtifactManager artifactManager;
+      late Progress progress;
+      late Directory tempDir;
+      late File patchArtifact;
+      late File diffFile;
+      late _TestPatcher patcher;
+
+      setUp(() {
+        artifactManager = MockArtifactManager();
+        progress = MockProgress();
+        tempDir = Directory.systemTemp.createTempSync();
+        patchArtifact = File(p.join(tempDir.path, 'libapp.so'))
+          ..writeAsStringSync('patch');
+        diffFile = File(p.join(tempDir.path, 'diff.patch'))
+          ..writeAsStringSync('diff!');
+        // No signing options passed, so signHash signs nothing.
+        final argParser = ArgParser()
+          ..addOption(CommonArguments.publicKeyArg.name)
+          ..addOption(CommonArguments.privateKeyArg.name)
+          ..addOption(CommonArguments.publicKeyCmd.name)
+          ..addOption(CommonArguments.signCmd.name);
+        patcher = _TestPatcher(
+          argParser: argParser,
+          argResults: argParser.parse([]),
+          flavor: null,
+          target: null,
+        );
+      });
+
+      tearDown(() => tempDir.deleteSync(recursive: true));
+
+      Future<PatchArtifactBundle> runWithOverrides(
+        Future<PatchArtifactBundle> Function() body,
+      ) {
+        return runScoped(
+          body,
+          values: {artifactManagerRef.overrideWith(() => artifactManager)},
+        );
+      }
+
+      test('diffs against the release and describes the patch', () async {
+        when(
+          () => artifactManager.createDiff(
+            releaseArtifactPath: any(named: 'releaseArtifactPath'),
+            patchArtifactPath: any(named: 'patchArtifactPath'),
+          ),
+        ).thenAnswer((_) async => diffFile.path);
+
+        final bundle = await runWithOverrides(
+          () => patcher.createDiffBundle(
+            arch: Arch.arm64,
+            releaseArtifactPath: 'release.so',
+            patchArtifactPath: patchArtifact.path,
+            progress: progress,
+            podfileLockHash: 'podfile-lock-hash',
+          ),
+        );
+
+        verify(
+          () => artifactManager.createDiff(
+            releaseArtifactPath: 'release.so',
+            patchArtifactPath: patchArtifact.path,
+          ),
+        ).called(1);
+        expect(bundle.arch, equals(Arch.arm64.arch));
+        expect(bundle.path, equals(diffFile.path));
+        // The hash is of the full patch artifact, not of the diff.
+        expect(
+          bundle.hash,
+          equals(
+            // sha256 of 'patch'
+            'a4895eb44afc336fecbba6e520cd67e178dace0276655d102fceffa8e5f70570',
+          ),
+        );
+        expect(bundle.size, equals(diffFile.lengthSync()));
+        expect(bundle.hashSignature, isNull);
+        expect(bundle.podfileLockHash, equals('podfile-lock-hash'));
+        verifyNever(() => progress.fail(any()));
+      });
+
+      test('fails progress and exits when the diff fails', () async {
+        when(
+          () => artifactManager.createDiff(
+            releaseArtifactPath: any(named: 'releaseArtifactPath'),
+            patchArtifactPath: any(named: 'patchArtifactPath'),
+          ),
+        ).thenThrow(Exception('diff failed'));
+
+        await expectLater(
+          () => runWithOverrides(
+            () => patcher.createDiffBundle(
+              arch: Arch.x86_64,
+              releaseArtifactPath: 'release.so',
+              patchArtifactPath: patchArtifact.path,
+              progress: progress,
+            ),
+          ),
+          exitsWithError(
+            message: 'Failed to create the patch diff: Exception: diff failed',
+            exitCode: ExitCode.software,
+          ),
+        );
+        verify(() => progress.fail()).called(1);
+      });
+    });
+
+    group('damagedReleaseArtifactHint', () {
+      test('names the release command for the platform', () {
+        expect(
+          damagedReleaseArtifactHint(ReleaseType.ios),
+          equals(
+            'Re-run to download it again. If this persists, the release '
+            'artifact is damaged: create a new release and patch that one. '
+            'Run: shorebird release ios',
+          ),
+        );
+      });
+
+      test('asks an add-to-app release for a new version', () {
+        expect(
+          damagedReleaseArtifactHint(ReleaseType.iosFramework),
+          endsWith(
+            'Run: shorebird release ios-framework '
+            '--release-version=<new version>',
+          ),
+        );
+      });
+    });
+
+    group('extractReleaseArtifact', () {
+      late ArtifactManager artifactManager;
+      late Progress progress;
+      final zipFile = File('release.zip');
+      final outputDirectory = Directory('out');
+
+      setUp(() {
+        artifactManager = MockArtifactManager();
+        progress = MockProgress();
+      });
+
+      Future<void> runWithOverrides(Future<void> Function() body) {
+        return runScoped(
+          body,
+          values: {artifactManagerRef.overrideWith(() => artifactManager)},
+        );
+      }
+
+      test('extracts the artifact', () async {
+        when(
+          () => artifactManager.extractZip(
+            zipFile: any(named: 'zipFile'),
+            outputDirectory: any(named: 'outputDirectory'),
+          ),
+        ).thenAnswer((_) async {});
+
+        await runWithOverrides(
+          () => extractReleaseArtifact(
+            zipFile: zipFile,
+            outputDirectory: outputDirectory,
+            releaseType: ReleaseType.linux,
+            progress: progress,
+          ),
+        );
+
+        verify(
+          () => artifactManager.extractZip(
+            zipFile: zipFile,
+            outputDirectory: outputDirectory,
+          ),
+        ).called(1);
+        verifyNever(() => progress.fail(any()));
+      });
+
+      test('fails progress and exits when the artifact is damaged', () async {
+        when(
+          () => artifactManager.extractZip(
+            zipFile: any(named: 'zipFile'),
+            outputDirectory: any(named: 'outputDirectory'),
+          ),
+        ).thenThrow(
+          ArchiveException('zip: end of central directory not found'),
+        );
+
+        await expectLater(
+          () => runWithOverrides(
+            () => extractReleaseArtifact(
+              zipFile: zipFile,
+              outputDirectory: outputDirectory,
+              releaseType: ReleaseType.linux,
+              progress: progress,
+            ),
+          ),
+          exitsWithError(
+            message:
+                'The release artifact downloaded from Shorebird is damaged: '
+                'zip: end of central directory not found',
+            hint: damagedReleaseArtifactHint(ReleaseType.linux),
+            exitCode: ExitCode.software,
+          ),
+        );
+        verify(() => progress.fail()).called(1);
+      });
+
+      test('exits without a progress to fail', () async {
+        when(
+          () => artifactManager.extractZip(
+            zipFile: any(named: 'zipFile'),
+            outputDirectory: any(named: 'outputDirectory'),
+          ),
+        ).thenThrow(ArchiveException('zip: crc32 mismatch'));
+
+        await expectLater(
+          () => runWithOverrides(
+            () => extractReleaseArtifact(
+              zipFile: zipFile,
+              outputDirectory: outputDirectory,
+              releaseType: ReleaseType.linux,
+            ),
+          ),
+          exitsWithError(
+            message:
+                'The release artifact downloaded from Shorebird is damaged: '
+                'zip: crc32 mismatch',
+            exitCode: ExitCode.software,
+          ),
+        );
+      });
+    });
+
+    group('getEncodedPublicKey', () {
+      late CodeSigner codeSigner;
+
+      setUp(() {
+        codeSigner = MockCodeSigner();
+        when(
+          () => codeSigner.base64PublicKeyFromPem(any()),
+        ).thenReturn('encoded-key');
+      });
+
+      test("returns the release's managed key when it has one", () async {
+        final argParser = ArgParser()
+          ..addOption(CommonArguments.publicKeyArg.name)
+          ..addOption(CommonArguments.publicKeyCmd.name);
+        final patcher = _TestPatcher(
+          argParser: argParser,
+          argResults: argParser.parse([]),
+          flavor: null,
+          target: null,
+        )..releaseManagedPublicKeyPem = 'managed-pem';
+
+        final key = await runScoped(
+          patcher.getEncodedPublicKey,
+          values: {codeSignerRef.overrideWith(() => codeSigner)},
+        );
+
+        expect(key, equals('encoded-key'));
+        verify(
+          () => codeSigner.base64PublicKeyFromPem('managed-pem'),
+        ).called(1);
+      });
+
+      test('returns null when no key is configured', () async {
+        final argParser = ArgParser()
+          ..addOption(CommonArguments.publicKeyArg.name)
+          ..addOption(CommonArguments.publicKeyCmd.name);
+        final patcher = _TestPatcher(
+          argParser: argParser,
+          argResults: argParser.parse([]),
+          flavor: null,
+          target: null,
+        );
+
+        final key = await runScoped(
+          patcher.getEncodedPublicKey,
+          values: {codeSignerRef.overrideWith(() => codeSigner)},
+        );
+
+        expect(key, isNull);
       });
     });
 

@@ -137,6 +137,8 @@ jobs:
               - ./.github/workflows/main.yaml
               - ./.github/actions/verify_version/action.yaml
               - packages/dex/**
+              - packages/elf/**
+              - packages/macho/**
               - packages/scoped_deps/**
               - packages/shorebird_build_trace/**
               - packages/shorebird_cli/**

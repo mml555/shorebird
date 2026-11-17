@@ -13,7 +13,11 @@ class FakeBaseRequest extends Fake implements http.BaseRequest {}
 
 class FakeChannel extends Fake implements Channel {}
 
+class FakeCreateBuildRunRequest extends Fake implements CreateBuildRunRequest {}
+
 class FakeDiffStatus extends Fake implements DiffStatus {}
+
+class FakeDirectory extends Fake implements Directory {}
 
 class FakeFile extends Fake implements File {}
 

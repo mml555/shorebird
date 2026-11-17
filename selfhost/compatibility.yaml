@@ -12,7 +12,7 @@
 # missing for the whole programme and warm caches hid it. Closure BEFORE promotion,
 # never discovered after.
 shorebird:
-  cli_version: 1.6.138+selfhost.1                                # fork build of upstream 1.6.138 (was 1.6.115)
+  cli_version: 1.6.140+selfhost.1                                # fork build of upstream 1.6.140 (was 1.6.138+selfhost.1). cli_revision below is NOT re-qualified for it: no cell has been promoted over this CLI yet
   cli_revision: f9c566982a592a42039e0d1f6d74c4ce927e4125          # the CLI cell 2fc41d3f was qualified with (SUPPORTED_STATE.yaml lineage.cli_revision); was dd93e875 (cell aab9fd07), 22f14441 (cell 5f6efd98), 357bc24f (cell 82fc78a8)
   flutter_revision: 5c60356ca635c74696ab737e2d5e77f04d615057      # bin/internal/flutter.version. RE-CELLED 2026-11-16 (ROUTE-B-CELL-2FC41D3F) from 7def8a99: the same
                                                                   # parent 0987ce0a (engine d0714887, Dart b4671ab7) plus ONE line, bin/internal/engine.version =

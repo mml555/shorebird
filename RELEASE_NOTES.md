@@ -4,10 +4,10 @@
 cspell:words pubspec erickzanardo xcframeworks cupertino codesign codecov rkishan appbundle proto tlsv kingdomseed Peetee Aditya serde bipatch GLES lipo impellerc cmdline symbolicate VoiceOver OverlayPortal Reorderable XCUITest rustls webpki xcconfig boringssl NSURLSession HttpURLConnection DWARF dSYM notarization ContextMenuButtonKind monorepos symlinked GHSA
  -->
 
-## 1.6.138+selfhost.1 (unreleased)
+## 1.6.140+selfhost.1 (unreleased)
 
-Fork build of upstream 1.6.138. Everything in the upstream 1.6.138 notes below
-applies, and the fork's own behavior is kept on top of it:
+Fork build of upstream 1.6.140. Everything in the upstream 1.6.139 and 1.6.140
+notes below applies, and the fork's own behavior is kept on top of it:
 
 - `shorebird patch --platforms=android,ios` still publishes **one** patch (one
   patch number, one promotion) spanning every platform. Every platform is
@@ -40,6 +40,84 @@ applies, and the fork's own behavior is kept on top of it:
   continue?` after the summary. With no terminal to answer it refuses (exit 64)
   instead of going ahead, and declining prints `Aborting.` and exits 0, as the
   1.6.123 backport did.
+- `shorebird patch --rollout`, `shorebird patches rollout` and the other 1.6.139
+  rollout commands send `rollout_percentage` to the control plane, and `shorebird
+  release` and `shorebird patch` record each platform's run with `POST
+  /apps/:id/runs` (build history). Both need the matching server support; a
+  server without the runs endpoint just means no record, as recording is best
+  effort. A multi-platform `shorebird patch` records one run per platform, all
+  sharing the one patch's outcome.
+- The Flutter pin (`bin/internal/flutter.version`) stays on the fork's own
+  engine cell, not upstream 1.6.140's revision `6f0092351b`. The obfuscation fix
+  in the 1.6.140 notes below is part of that engine, so it does not reach this
+  fork until a cell is built over it.
+
+## 1.6.140 (November 13, 2026)
+
+- ✨ `shorebird patch --share-debug-info` shares the patch's debug bundle
+  (`build/patch-debug.zip`, written by iOS and macOS patches) with Shorebird,
+  and failed patches share it automatically when your organization's setting
+  asks
+- 🐛 Patches with `--obfuscate` and `--split-debug-info` on iOS and macOS no
+  longer risk crashing the app at launch
+  ([#4407](https://github.com/shorebirdtech/shorebird/issues/4407)), for
+  releases built on Flutter 3.47.9 at revision `6f0092351b` or later. A patch
+  runs on its release's engine, so re-release apps built on an earlier
+  revision (`shorebird releases info --release-version <version>` shows it)
+
+The fixes outside the CLI also reach anyone building with
+`--flutter-version=3.47.9`.
+
+## 1.6.139 (November 12, 2026)
+
+- ✨ Roll a patch out to a share of a track's devices with `--rollout` on
+  `shorebird patch`, `shorebird patches set-track` and `shorebird patches
+  promote`, and raise it with `shorebird patches rollout`. `shorebird patches
+  list` and `shorebird patches info` show partial rollouts
+- ✨ `shorebird patch` checks iOS and macOS native code for changes again,
+  ignoring build noise such as UUIDs, signature padding and asset rendition IDs,
+  and only notes a `Podfile.lock` change when the binaries are identical
+- ✨ Android `shorebird patch` warns about changes to native `.so` libraries, and
+  ignores rotated Sentry and Crashlytics build IDs
+- ✨ When Android dependency versions differ from the release's, `shorebird
+  patch` prints a Gradle `strictly()` constraint you can paste to build with the
+  release's versions
+- ✨ `shorebird release --no-patch-signing`, and patches to releases built
+  without signing, stop before building when your enterprise requires patch
+  signing
+- 🐛 iOS releases archived from Xcode or fastlane after `shorebird release`
+  match the CLI's build, so patches apply to them
+- 🐛 iOS releases built with `--split-debug-info` or `--obfuscate` no longer
+  lose most of their patch linking, and other iOS releases link patches a little
+  better
+- 🐛 Android apps start with the release's code instead of failing to launch
+  when a patch can't be loaded
+- 🐛 Patched iOS apps no longer risk crashing during garbage collection after
+  resuming async code
+- 🐛 A corrupt download or a patch for the wrong base is reported as a corrupt
+  patch instead of a disk write error
+- 🐛 Shorebird commands work on Windows when your user profile path has spaces
+- 🐛 `shorebird flutter versions list` lists only full Flutter releases, newest
+  first
+- 🐛 Flutter side versions such as `3.47.9-sb.1` pass the CLI's Flutter version
+  checks and report their own name in `flutter --version`
+- 🐛 The low link percentage warning links to the docs section that explains it,
+  and `--min-link-percentage` failures show the percentage to one decimal place
+- 🐛 The Android patch warning for releases on Flutter 3.24.1 and older links to
+  the docs instead of a dead issue page
+- 🔧 iOS apps are about 3 MiB smaller, as Flutter.framework no longer exports
+  the updater's internals
+- 🔧 Debug builds no longer include the updater, so
+  `package:shorebird_code_push` reports it unavailable, as on stock Flutter
+- 🔧 When `shorebird patch` stops because its flags differ from the release's,
+  `--json` reports `interactive_prompt_required`, and declining the prompt
+  prints `Aborting.` and exits 1 instead of 64
+- 🔧 `shorebird release` and `shorebird patch` report each run's outcome,
+  failure reason and timing for Enterprise build history, without logs, paths or
+  dart-define values
+
+The fixes outside the CLI also reach anyone building with
+`--flutter-version=3.47.9`.
 
 ## 1.6.138 (November 6, 2026)
 
@@ -208,10 +286,10 @@ Flutter 3.47.8 and Dart 3.13.7 are unchanged from 1.6.133.
 ## 1.6.132 (October 25, 2026)
 
 - ✨ Refuse install_only on Flutter builds that skip its signature check
-- ✨ Add --managed-signing to sign patches with a Shorebird-managed key
 - ✨ Add Release.platforms keyed by platform, deprecate platformStatuses, and
   move the CLI to it
-- ✨ Sign patches with a Shorebird-managed key by default
+- ✨ Sign patches with a Shorebird-managed key by default; pass
+  --no-patch-signing to release with unsigned patches
 - ✨ Derive the auth service and console from the code push server
 - 🐛 Refuse a private key passed as the public key, without printing it
 - 🐛 Link the console for the API host in OIDC sign-in hints
@@ -1466,7 +1544,8 @@ these improvements.
 
 - 🔧 Fix an issue where certain packages could interact poorly with the
   Shorebird updater, causing patches to be unexpectedly uninstalled. See
-  https://github.com/shorebirdtech/updater/issues/211 for more information.
+  https://docs.shorebird.dev/getting-started/flutter-version/#flutter-version-notes
+  for more information.
 - 🔗 Remove link percentage from `shorebird patch ios` summary logs.
 - #️⃣ Fix issue where `shorebird release ios` would not accept git commit hashes
   for the `--flutter-version` argument.

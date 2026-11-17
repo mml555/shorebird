@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
+import 'package:shorebird_cli/src/build_history.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/commands/release/release.dart';
@@ -17,21 +18,22 @@ import 'package:shorebird_cli/src/config/config.dart';
 import 'package:shorebird_cli/src/dart_sdk_compatibility.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/flutter_version_constraints.dart';
-import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/interactive_mode.dart';
+import 'package:shorebird_cli/src/json_output.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/metadata/metadata.dart';
 import 'package:shorebird_cli/src/release_type.dart';
-import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/runtime_endpoint.dart';
+import 'package:shorebird_cli/src/shorebird_documentation.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
-import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
+import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
+import '../../fakes.dart';
 import '../../helpers.dart';
 import '../../matchers.dart';
 import '../../mocks.dart';
@@ -70,6 +72,8 @@ void main() {
     late ArtifactBuilder artifactBuilder;
     late Cache cache;
     late DartSdkCompatibility dartSdkCompatibility;
+    late BuildHistory buildHistory;
+    late CodePushClient codePushClient;
     late CodePushClientWrapper codePushClientWrapper;
     late Directory shorebirdRoot;
     late Directory projectRoot;
@@ -96,6 +100,7 @@ void main() {
           dartSdkCompatibilityRef.overrideWith(
             () => dartSdkCompatibility,
           ),
+          buildHistoryRef.overrideWith(() => buildHistory),
           codePushClientWrapperRef.overrideWith(() => codePushClientWrapper),
           loggerRef.overrideWith(() => logger),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
@@ -110,6 +115,7 @@ void main() {
     }
 
     setUpAll(() {
+      registerFallbackValue(FakeCreateBuildRunRequest());
       registerFallbackValue(Directory(''));
       registerFallbackValue(release);
       registerFallbackValue(ReleasePlatform.android);
@@ -128,7 +134,18 @@ void main() {
       when(artifactBuilder.writeBuildTraceSummary).thenReturn(null);
       cache = MockCache();
       dartSdkCompatibility = MockDartSdkCompatibility();
+      buildHistory = BuildHistory(runId: 'run-id');
+      codePushClient = MockCodePushClient();
       codePushClientWrapper = MockCodePushClientWrapper();
+      when(
+        () => codePushClientWrapper.codePushClient,
+      ).thenReturn(codePushClient);
+      when(
+        () => codePushClient.createBuildRun(
+          appId: any(named: 'appId'),
+          request: any(named: 'request'),
+        ),
+      ).thenAnswer((_) async => const CreateBuildRunResponse(id: 1));
       logger = MockShorebirdLogger();
       progress = MockProgress();
       releaser = MockReleaser();
@@ -546,6 +563,98 @@ void main() {
       test('releases when patches are signed', () async {
         final exitCode = await runWithOverrides(command.run);
         expect(exitCode, equals(ExitCode.success.code));
+      });
+    });
+
+    group('build history', () {
+      CreateBuildRunRequest sentRun() =>
+          verify(
+                () => codePushClient.createBuildRun(
+                  appId: appId,
+                  request: captureAny(named: 'request'),
+                ),
+              ).captured.single
+              as CreateBuildRunRequest;
+
+      test('records a published release as succeeded', () async {
+        await runWithOverrides(command.run);
+
+        final run = sentRun();
+        expect(run.runId, equals('run-id'));
+        expect(run.command, equals(BuildRunCommand.release));
+        expect(run.platform, equals(ReleasePlatform.android));
+        expect(run.outcome, equals(BuildRunOutcome.succeeded));
+        expect(run.reason, isNull);
+        expect(run.releaseId, equals(release.id));
+        expect(run.patchId, isNull);
+        expect(run.dryRun, isFalse);
+        expect(run.metadata, isNotNull);
+      });
+
+      test('records a dry run that found no issues', () async {
+        when(() => argResults['dry-run']).thenReturn(true);
+
+        await expectLater(
+          runWithOverrides(command.run),
+          exitsWithCode(ExitCode.success),
+        );
+
+        final run = sentRun();
+        expect(run.outcome, equals(BuildRunOutcome.succeeded));
+        expect(run.dryRun, isTrue);
+        expect(run.releaseId, isNull);
+        expect(run.metadata, isNotNull);
+      });
+
+      test('records a failed build', () async {
+        when(
+          () => releaser.buildReleaseArtifacts(),
+        ).thenThrow(Exception('xcode'));
+
+        await expectLater(
+          runWithOverrides(command.run),
+          exitsWithCode(ExitCode.software),
+        );
+
+        final run = sentRun();
+        expect(run.outcome, equals(BuildRunOutcome.failed));
+        expect(run.reason, equals(BuildRunFailureReason.buildFailed));
+      });
+
+      test('records a failed upload', () async {
+        when(
+          () => releaser.uploadReleaseArtifacts(
+            release: any(named: 'release'),
+            appId: any(named: 'appId'),
+          ),
+        ).thenThrow(ProcessExit(ExitCode.software.code));
+
+        await expectLater(
+          runWithOverrides(command.run),
+          exitsWithCode(ExitCode.software),
+        );
+
+        final run = sentRun();
+        expect(run.reason, equals(BuildRunFailureReason.uploadFailed));
+        expect(run.releaseId, equals(release.id));
+      });
+
+      test('records nothing before the app is confirmed', () async {
+        when(
+          () => codePushClientWrapper.getApp(appId: any(named: 'appId')),
+        ).thenThrow(ProcessExit(ExitCode.software.code));
+
+        await expectLater(
+          runWithOverrides(command.run),
+          exitsWithCode(ExitCode.software),
+        );
+
+        verifyNever(
+          () => codePushClient.createBuildRun(
+            appId: any(named: 'appId'),
+            request: any(named: 'request'),
+          ),
+        );
       });
     });
 

@@ -1,19 +1,22 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart' show ArchiveException;
 import 'package:crypto/crypto.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/archive/directory_archive.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
-import 'package:shorebird_cli/src/archive/directory_archive.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/build_flags.dart';
+import 'package:shorebird_cli/src/build_history.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/command_error.dart';
+import 'package:shorebird_cli/src/commands/patch/apple_patcher_mixin.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
@@ -37,6 +40,7 @@ import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_chooser.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/rollout_percentage.dart';
 import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_command.dart';
@@ -139,6 +143,11 @@ To target the latest release (e.g. the release that was most recently updated) u
             'The track to publish the patch to (staging, beta, stable, or a '
             'custom track). Asked for when not given.',
       )
+      ..addOption(
+        rolloutArgName,
+        help: rolloutHelp('the patch'),
+        valueHelp: 'percentage',
+      )
       ..addFlag(
         'staging',
         negatable: false,
@@ -212,6 +221,14 @@ To target the latest release (e.g. the release that was most recently updated) u
         CommonArguments.minLinkPercentage.name,
         help: CommonArguments.minLinkPercentage.description,
         defaultsTo: CommonArguments.minLinkPercentage.defaultValue,
+      )
+      ..addFlag(
+        'share-debug-info',
+        negatable: false,
+        help:
+            "Share this patch's debugging information "
+            '(build/patch-debug.zip, written when patching iOS or macOS) '
+            "with Shorebird, whatever your organization's setting.",
       )
       ..addOption(
         CommonArguments.ddMaxBytesArg.name,
@@ -344,6 +361,16 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
     return DeploymentTrack.stable;
   }
 
+  /// The share of [track]'s devices to publish the patch to (`--rollout`), or
+  /// null for all of them. [run] rejects a value that does not parse.
+  double? get rolloutPercentage => switch (results[rolloutArgName]) {
+    final String value => parseRolloutPercentage(
+      value,
+      argName: rolloutArgName,
+    ).percentage,
+    _ => null,
+  };
+
   @override
   Future<int> run() async {
     final releaseTypes = releaseTypesOrUsageError(siblingCommand: 'patches');
@@ -354,6 +381,15 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
         '--${CommonArguments.ddMaxBytesArg.name} must be a non-negative '
         'integer (got $ddMaxBytes).',
       );
+    }
+
+    // Checked before anything is built or created, so a typo costs nothing.
+    if (results[rolloutArgName] case final String rollout) {
+      final error = parseRolloutPercentage(
+        rollout,
+        argName: rolloutArgName,
+      ).error;
+      if (error != null) usageException(error);
     }
 
     if (results.wasParsed('staging')) {
@@ -367,17 +403,44 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
       for (final releaseType in releaseTypes) _resolvePatcher(releaseType),
     ];
     // One invocation publishes one patch spanning every platform.
-    final published = await createPatch(patchers);
+    final published = await _recordPatchRun(patchers);
 
     if (isJsonMode) {
       emitJsonSuccess({
         'app_id': appId,
         'track': track.channel,
+        'rollout_percentage': rolloutPercentage ?? 100.0,
         'patches': [for (final p in published) p.toJson()],
       });
+    } else if (rolloutPercentage case final percentage? when percentage < 100) {
+      _logPartialRollout(published: published, percentage: percentage);
     }
 
     return ExitCode.success.code;
+  }
+
+  /// Says what a rollout below 100% means for each of [published] and how to
+  /// raise it.
+  void _logPartialRollout({
+    required List<PublishedPatch> published,
+    required double percentage,
+  }) {
+    final share = formatRolloutPercentage(percentage);
+    for (final p in published) {
+      final releaseVersion = p.release.version;
+      final patchNumber = p.patch.number;
+      final raiseCommand = raiseRolloutCommand(
+        releaseVersion: releaseVersion,
+        patchNumber: patchNumber,
+        flavor: flavor,
+      );
+      logger.info(
+        'Patch $patchNumber on release $releaseVersion is rolling out to '
+        '$share of devices on ${track.channel}. To raise it, run:\n'
+        '  ${lightCyan.wrap(raiseCommand)}',
+      );
+    }
+    logger.info(rolloutOlderDevicesNote);
   }
 
   /// Returns a [Patcher] for the given [ReleaseType].
@@ -436,6 +499,142 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
     }
   }
 
+  /// The build history records of the platforms being patched, one per
+  /// platform, while [run] is patching. They share one outcome: the patch is
+  /// published for every platform or for none.
+  List<BuildRun> _buildRuns = const [];
+
+  /// Whether the release being patched was guessed by building the app.
+  bool _inferredReleaseVersion = false;
+
+  /// What the diff check found, per platform, once it has run.
+  final _diffStatuses = <ReleasePlatform, DiffStatus>{};
+
+  /// [shorebirdEnv] with the Flutter of the release being patched, once it
+  /// is known.
+  ShorebirdEnv? _releaseShorebirdEnv;
+
+  /// Records in each platform's build run that the patch stopped for
+  /// [reason].
+  void _failRuns(BuildRunFailureReason reason) {
+    for (final run in _buildRuns) {
+      run.failWith(reason);
+    }
+  }
+
+  /// Runs [body], blaming a failure on [reason] in every platform's run (see
+  /// [blameFailureOn]).
+  Future<T> _blameRuns<T>(
+    BuildRunFailureReason reason,
+    Future<T> Function() body,
+  ) {
+    var blamed = body;
+    for (final run in _buildRuns) {
+      final inner = blamed;
+      blamed = () => blameFailureOn(run, reason, inner);
+    }
+    return blamed();
+  }
+
+  /// Creates the patch for [patchers] with [createPatch], recording the run
+  /// in the app's build history, one record per platform.
+  ///
+  /// Build history is best effort (it never changes the run's result), and a
+  /// server that does not know the endpoint just means no record.
+  Future<List<PublishedPatch>> _recordPatchRun(List<Patcher> patchers) {
+    _inferredReleaseVersion = false;
+    _diffStatuses.clear();
+    _releaseShorebirdEnv = null;
+    final runs = _buildRuns = [
+      for (final patcher in patchers)
+        buildHistory.start(
+          command: BuildRunCommand.patch,
+          platform: patcher.releaseType.releasePlatform,
+          dryRun: results['dry-run'] == true,
+        )..shareDebugInfo = results['share-debug-info'] == true,
+    ];
+    for (var i = 0; i < patchers.length; i++) {
+      // Only the Apple patchers write the debug bundle.
+      if (patchers[i] is ApplePatcherMixin) {
+        runs[i].watchDebugBundle(Patcher.debugInfoFile);
+      }
+    }
+
+    // Each platform's record wraps the whole invocation, since the patch
+    // stands or falls as one.
+    var body = () => createPatch(patchers);
+    for (var i = patchers.length - 1; i >= 0; i--) {
+      final inner = body;
+      final patcher = patchers[i];
+      final run = runs[i];
+      body = () => buildHistory.record(
+        run,
+        inner,
+        // Described with the release's Flutter, as the published patch is.
+        metadata: () => runScoped(
+          () async => (await _runMetadata(patcher)).toJson(),
+          values: {
+            if (_releaseShorebirdEnv case final env?)
+              shorebirdEnvRef.overrideWith(() => env),
+          },
+        ),
+      );
+    }
+    return body();
+  }
+
+  /// What [patcher]'s build run got as far as, for a run that stopped before
+  /// the patch was described. Must run with [shorebirdEnv] scoped to the
+  /// release's Flutter.
+  Future<CreatePatchMetadata> _runMetadata(Patcher patcher) async {
+    final releasePlatform = patcher.releaseType.releasePlatform;
+    final diffStatus =
+        _diffStatuses[releasePlatform] ??
+        const DiffStatus(hasAssetChanges: false, hasNativeChanges: false);
+    return _createPatchMetadata(
+      platforms: {
+        releasePlatform: await patcher.updatedPlatformMetadata(
+          CreatePatchPlatformMetadata(
+            hasAssetChanges: diffStatus.hasAssetChanges,
+            hasNativeChanges: diffStatus.hasNativeChanges,
+            buildTraceSummary: buildTraceSession.summary?.toJson(),
+          ),
+        ),
+      },
+      environment: await patcher.updatedEnvironmentMetadata(
+        _baseEnvironmentMetadata(),
+      ),
+    );
+  }
+
+  /// The build environment every platform of this patch shares, before any
+  /// patcher adds the fields it owns.
+  BuildEnvironmentMetadata _baseEnvironmentMetadata() =>
+      BuildEnvironmentMetadata(
+        flutterRevision: shorebirdEnv.flutterRevision,
+        operatingSystem: platform.operatingSystem,
+        operatingSystemVersion: platform.operatingSystemVersion,
+        shorebirdVersion: packageVersion,
+        shorebirdYaml: shorebirdEnv.getShorebirdYaml()!,
+        usesShorebirdCodePushPackage: shorebirdEnv.usesShorebirdCodePushPackage,
+      );
+
+  /// The metadata sent with the patch.
+  CreatePatchMetadata _createPatchMetadata({
+    required Map<ReleasePlatform, CreatePatchPlatformMetadata> platforms,
+    required BuildEnvironmentMetadata environment,
+  }) => CreatePatchMetadata(
+    platforms: platforms,
+    usedIgnoreAssetChangesFlag: allowAssetDiffs,
+    usedIgnoreNativeChangesFlag: allowNativeDiffs,
+    inferredReleaseVersion: _inferredReleaseVersion,
+    usedDefaultTrack: _usedDefaultTrack,
+    isSigned:
+        results.wasParsed(CommonArguments.privateKeyArg.name) ||
+        results.wasParsed(CommonArguments.signCmd.name),
+    environment: environment,
+  );
+
   /// Creates a single patch spanning every platform in [patchers].
   ///
   /// One invocation produces one patch, not one per platform: patches are not
@@ -474,6 +673,21 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
 
     final resolved = await _resolveRelease(patchers);
     final release = resolved.release;
+    _inferredReleaseVersion = resolved.inferredReleaseVersion;
+    final releaseFlutterShorebirdEnv = _releaseShorebirdEnv = shorebirdEnv
+        .copyWith(flutterRevisionOverride: release.flutterRevision);
+    // Empty when a test calls this directly, rather than through [run].
+    if (_buildRuns.length == patchers.length) {
+      for (final (index, patcher) in patchers.indexed) {
+        _buildRuns[index]
+          ..appId = appId
+          ..releaseId = release.id
+          ..buildFlags = buildHistory.buildFlags(
+            results,
+            target: patcher.target,
+          );
+      }
+    }
 
     for (final patcher in patchers) {
       assertReleaseContainsPlatform(release: release, patcher: patcher);
@@ -502,10 +716,6 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
     } on Exception {
       throw ProcessExit(ExitCode.software.code);
     }
-
-    final releaseFlutterShorebirdEnv = shorebirdEnv.copyWith(
-      flutterRevisionOverride: release.flutterRevision,
-    );
 
     // AFTER selection and hydration, exactly as the release path does, and
     // against the RELEASE's revision rather than the ambient one. Asserting
@@ -570,7 +780,6 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
           patchers: patchers,
           app: app,
           release: release,
-          inferredReleaseVersion: resolved.inferredReleaseVersion,
           downloads: downloads,
         ),
         values: {
@@ -709,9 +918,10 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
     File? obfuscationMapFile;
     if (supplementArchive != null) {
       supplementDirectory = Directory.systemTemp.createTempSync();
-      await artifactManager.extractZip(
+      await extractReleaseArtifact(
         zipFile: supplementArchive,
         outputDirectory: supplementDirectory,
+        releaseType: patcher.releaseType,
       );
       final candidateMapFile = File(
         p.join(supplementDirectory.path, 'obfuscation_map.json'),
@@ -812,6 +1022,7 @@ A patch must be built with the --dart-define values and --target of its release,
     );
     if (allowBuildFlagDiffs) return;
     if (!shorebirdEnv.canAcceptUserInput) {
+      _failRuns(BuildRunFailureReason.buildFlagDiffs);
       throw CommandError(
         message: "This patch's flags don't match release ${release.version}.",
         hint:
@@ -823,6 +1034,7 @@ A patch must be built with the --dart-define values and --target of its release,
     }
     if (logger.confirm('Continue anyway?')) return;
     logger.err('Aborting.');
+    _failRuns(BuildRunFailureReason.buildFlagDiffs);
     throw PromptDeclinedExit();
   }
 
@@ -867,6 +1079,7 @@ A patch must be built with the --dart-define values and --target of its release,
           minimumObfuscationFlutterVersion,
         )) {
       if (patchesLinkAgainstRelease(releasePlatform)) {
+        _failRuns(BuildRunFailureReason.releaseIncompatible);
         throw CommandError(
           message:
               'Release ${release.version} was built with obfuscation on '
@@ -994,7 +1207,6 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
     required List<Patcher> patchers,
     required AppMetadata app,
     required Release release,
-    required bool inferredReleaseVersion,
     required Map<Patcher, _ReleaseDownloads> downloads,
   }) async {
     await cache.updateAll();
@@ -1017,14 +1229,7 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
     // Shared by every platform: one invocation builds them all on one
     // machine. Each patcher may contribute fields it owns (the Apple
     // patchers add the Xcode version).
-    var environment = BuildEnvironmentMetadata(
-      flutterRevision: shorebirdEnv.flutterRevision,
-      operatingSystem: platform.operatingSystem,
-      operatingSystemVersion: platform.operatingSystemVersion,
-      shorebirdVersion: packageVersion,
-      shorebirdYaml: shorebirdEnv.getShorebirdYaml()!,
-      usesShorebirdCodePushPackage: shorebirdEnv.usesShorebirdCodePushPackage,
-    );
+    var environment = _baseEnvironmentMetadata();
 
     for (final patcher in patchers) {
       final result = await _buildPlatformPatch(
@@ -1073,17 +1278,13 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
       patchArtifactBundles: bundles,
     );
 
-    final metadata = CreatePatchMetadata(
+    final metadata = _createPatchMetadata(
       platforms: platformMetadata,
-      usedIgnoreAssetChangesFlag: allowAssetDiffs,
-      usedIgnoreNativeChangesFlag: allowNativeDiffs,
-      inferredReleaseVersion: inferredReleaseVersion,
-      usedDefaultTrack: _usedDefaultTrack,
-      isSigned:
-          results.wasParsed(CommonArguments.privateKeyArg.name) ||
-          results.wasParsed(CommonArguments.signCmd.name),
       environment: environment,
     );
+    for (final run in _buildRuns) {
+      run.metadata = metadata.toJson();
+    }
 
     // An assets-only patch drops the code artifacts and ships the bundle
     // alone. The build still ran: `flutter_assets` comes out of the built
@@ -1108,16 +1309,23 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
     }
 
     // One patch, every platform's artifacts, one promotion at the end.
-    final patch = await codePushClientWrapper.publishPatch(
-      appId: appId,
-      releaseId: release.id,
-      metadata: metadata.toJson(),
-      track: track,
-      patchArtifactBundles: assetsOnly
-          ? {for (final platform in bundles.keys) platform: const {}}
-          : bundles,
-      sidecars: sidecars,
+    final patch = await _blameRuns(
+      BuildRunFailureReason.uploadFailed,
+      () => codePushClientWrapper.publishPatch(
+        appId: appId,
+        releaseId: release.id,
+        metadata: metadata.toJson(),
+        track: track,
+        patchArtifactBundles: assetsOnly
+            ? {for (final platform in bundles.keys) platform: const {}}
+            : bundles,
+        sidecars: sidecars,
+        rolloutPercentage: rolloutPercentage,
+      ),
     );
+    for (final run in _buildRuns) {
+      run.patchId = patch.id;
+    }
 
     return [
       for (final patcher in patchers)
@@ -1215,6 +1423,7 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
 ''');
     final patchArtifactFile = await _tryBuildingArtifact<File>(
       () => patcher.buildPatchArtifact(releaseVersion: release.version),
+      onBuildFailed: () => _failRuns(BuildRunFailureReason.buildFailed),
     );
 
     // AND AGAIN, because the build can restamp the cache underneath the first
@@ -1241,11 +1450,15 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
       patchArchive: patchArtifactFile,
       patcher: patcher,
     );
-    final patchArtifactBundles = await patcher.createPatchArtifacts(
-      appId: appId,
-      releaseId: release.id,
-      releaseArtifact: downloaded.releaseArchive,
-      supplementDirectory: supplementDirectory,
+    _diffStatuses[releasePlatform] = diffStatus;
+    final patchArtifactBundles = await _blameRuns(
+      BuildRunFailureReason.buildFailed,
+      () => patcher.createPatchArtifacts(
+        appId: appId,
+        releaseId: release.id,
+        releaseArtifact: downloaded.releaseArchive,
+        supplementDirectory: supplementDirectory,
+      ),
     );
 
     // Write the build-trace summary once this platform's compile/link work has
@@ -1287,6 +1500,7 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
     final flutterVersionAndRevision = await shorebirdFlutter
         .getVersionAndRevision();
     final cliName = patcher.releaseType.cliName;
+    _failRuns(BuildRunFailureReason.releaseIncompatible);
     throw CommandError(
       message:
           'Release ${release.version} was built with Flutter '
@@ -1403,10 +1617,12 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
       final platformName = namePlatform
           ? '${patcher.releaseType.releasePlatform.displayName} '
           : '';
+      _failRuns(BuildRunFailureReason.linkPercentage);
       throw CommandError(
         message:
             'The ${platformName}link percentage of this patch '
-            '($linkPercentage%) is below the minimum threshold '
+            '(${Patcher.formatLinkPercentage(linkPercentage)}%) is below the '
+            'minimum threshold '
             '($minLinkPercentage%).',
         hint:
             'Not publishing. Lower --min-link-percentage to accept this '
@@ -1522,6 +1738,7 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
       final releaseCommand = patcher.releaseType.releaseCommand(
         releaseVersion: release.version,
       );
+      _failRuns(BuildRunFailureReason.releaseIncompatible);
       throw CommandError(
         message:
             'Release ${release.version} has no '
@@ -1541,6 +1758,7 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
       final releaseCommand = patcher.releaseType.releaseCommand(
         releaseVersion: release.version,
       );
+      _failRuns(BuildRunFailureReason.releaseIncompatible);
       throw CommandError(
         message:
             'Release ${release.version} is incomplete: the release command '
@@ -1598,10 +1816,11 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
         signingMode == ReleaseSigningMode.customer.value) {
       return;
     }
+    _failRuns(BuildRunFailureReason.releaseIncompatible);
     throw CommandError(
       message:
           '${app.enterpriseName ?? 'Your enterprise'} requires patch '
-          "signing, and release ${release.version} (${platform.displayName}) "
+          'signing, and release ${release.version} (${platform.displayName}) '
           "wasn't built with signing, so its devices can't verify a patch.",
       hint: 'Ship a new release and patch that.',
       exitCode: ExitCode.noPerm,
@@ -1834,13 +2053,21 @@ this is refused rather than attempted. Nothing was uploaded.''');
         releaseArchive: releaseArchive,
         patchArchive: patchArchive,
       );
-    } on UserCancelledException {
+    } on UserCancelledException catch (e) {
+      _failWithChanges({e.change}, status: e.status, patcher: patcher);
       logger.err('Aborting.');
       throw PromptDeclinedExit();
+    } on ArchiveException catch (e) {
+      throw CommandError(
+        message: 'Could not compare the patch with the release: ${e.message}',
+        hint: damagedReleaseArtifactHint(patcher.releaseType),
+        exitCode: ExitCode.software,
+      );
     } on UnpatchableChangeException catch (e) {
       // The diff checker has already listed the changes.
       final changes = e.changes;
       final native = changes.contains(UnpatchableChange.native);
+      _failWithChanges(changes, status: e.status, patcher: patcher);
       final releaseCommand = patcher.releaseType.releaseCommand(
         releaseVersion: '<new version>',
       );
@@ -1860,6 +2087,25 @@ this is refused rather than attempted. Nothing was uploaded.''');
     }
   }
 
+  /// Records in the build run that the patch stopped on [changes], and
+  /// keeps [status], everything the diff check found, for the run's
+  /// metadata.
+  void _failWithChanges(
+    Set<UnpatchableChange> changes, {
+    required DiffStatus? status,
+    required Patcher patcher,
+  }) {
+    final native = changes.contains(UnpatchableChange.native);
+    final asset = changes.contains(UnpatchableChange.asset);
+    _diffStatuses[patcher.releaseType.releasePlatform] =
+        status ?? DiffStatus(hasAssetChanges: asset, hasNativeChanges: native);
+    _failRuns(
+      native
+          ? BuildRunFailureReason.nativeDiffs
+          : BuildRunFailureReason.assetDiffs,
+    );
+  }
+
   /// Logs a summary of the patch to be created, including:
   /// - The app name and ID
   /// - The release version
@@ -1873,6 +2119,11 @@ this is refused rather than attempted. Nothing was uploaded.''');
     required Map<ReleasePlatform, Map<Arch, PatchArtifactBundle>>
     patchArtifactBundles,
   }) async {
+    final rollout = switch (rolloutPercentage) {
+      final percentage? when percentage < 100 =>
+        ' ${lightCyan.wrap('(${formatRolloutPercentage(percentage)})')}',
+      _ => '',
+    };
     final trackSummary = (() {
       return switch (track) {
         DeploymentTrack.staging => '🟠 Track: ${lightCyan.wrap('Staging')}',
@@ -1902,7 +2153,7 @@ this is refused rather than attempted. Nothing was uploaded.''');
       if (flavor != null) '🍧 Flavor: ${lightCyan.wrap(flavor)}',
       '📦 Release Version: ${lightCyan.wrap(releaseVersion)}',
       ...platformLines,
-      trackSummary,
+      '$trackSummary$rollout',
       if (anyLowLinkPercentage)
         '''🔍 Debug Info: ${lightCyan.wrap(Patcher.debugInfoFile.path)}''',
     ];
@@ -1958,10 +2209,16 @@ ${summary.join('\n')}
 
 /// Executes [build] to build the artifact and includes
 /// special handling thrown exceptions such as [ArtifactBuildException].
-Future<R> _tryBuildingArtifact<R>(Future<R> Function() build) async {
+/// Calls [onBuildFailed] when the build itself fails, not when a step it
+/// takes already reported why it stopped.
+Future<R> _tryBuildingArtifact<R>(
+  Future<R> Function() build, {
+  void Function()? onBuildFailed,
+}) async {
   try {
     return await build();
   } on ArtifactBuildException catch (e) {
+    onBuildFailed?.call();
     throw CommandError(
       message: e.message,
       hint: e.fixRecommendation.isNullOrEmpty ? null : e.fixRecommendation,
@@ -1971,6 +2228,7 @@ Future<R> _tryBuildingArtifact<R>(Future<R> Function() build) async {
     // The build already reported why it stopped.
     rethrow;
   } on Exception catch (e) {
+    onBuildFailed?.call();
     throw CommandError(
       message: 'Failed to build patch artifacts: $e',
       exitCode: ExitCode.software,
