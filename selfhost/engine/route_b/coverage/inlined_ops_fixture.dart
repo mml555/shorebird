@@ -8,6 +8,9 @@
 // ignore_for_file: unused_element, unnecessary_non_null_assertion, unused_local_variable
 // cspell:words shl shr
 
+// BEGIN-FUNCTIONS (the qualification also copies these into `class F`, so each
+// shape is checked as a static function and as an instance method the producer
+// lowers to a static taking `self`)
 Object? yes__int_add(int a, int b) => a + b;
 Object? yes__int_sub(int a, int b) => a - b;
 Object? yes__int_mul(int a, int b) => a * b;
@@ -77,4 +80,30 @@ num no__in_closure(int a, num b) { num g() => a + b; return g(); }
 int yes__in_closure(int a, int b) { int g() => a * b; return g(); }
 bool no__equals(int a, int b) => a == b;
 bool no__not_equals(int a, int b) => a != b;
-void main() {}
+// END-FUNCTIONS
+
+// `super.` is rewritten by the producer to `$routeBSuper(...) as dynamic`
+// (route_b_producer.dart, `_lower`), so an operand derived from one is dynamic
+// in the compiled slice whatever it is in the patched kernel.
+@pragma('vm:entry-point')
+class A {
+  int get no__super_n => 1;
+  int no__super_m() => 2;
+  int get no__super_unused => 3;
+}
+
+@pragma('vm:entry-point')
+class B extends A {
+  @override
+  int get no__super_n => super.no__super_n + 1;
+  @override
+  int no__super_m() => 1 + super.no__super_m();
+  int no__super_local() { var x = super.no__super_n; return x + 1; }
+  int conservative__super_other_site(int a, int b) { var y = super.no__super_unused; return a + b; }
+  int yes__sibling_without_super(int a, int b) => a + b;
+}
+
+void main() {
+  F();
+  B();
+}

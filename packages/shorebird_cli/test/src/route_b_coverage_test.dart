@@ -5,7 +5,6 @@ import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:test/test.dart';
-
 import 'helpers.dart';
 
 void main() {
@@ -305,7 +304,10 @@ JSON
                 'reason': 'cannot introduce members',
               },
             ],
-          ).replaceFirst('"verdict"', '"carried":[],"callers":{},"verdict"'),
+          ).replaceFirst(
+            '"verdict"',
+            '"carried":[],"callers":{},"verdict"',
+          ),
         );
         expect(coverage.helpers, isEmpty);
         expect(coverage.unusedHelpers, isEmpty);
@@ -425,7 +427,10 @@ JSON
           ).lowering['package:app/main.dart#Thing.go']!;
 
       test('version 11 is still accepted', () {
-        expect(() => RouteBCoverage.fromJson(doc(11, body)), returnsNormally);
+        expect(
+          () => RouteBCoverage.fromJson(doc(11, body)),
+          returnsNormally,
+        );
       });
 
       test('a version-11 document leaves it UNMEASURED, not empty', () {

@@ -81,14 +81,29 @@ metadata (`allow_unchecked_sdk_calls`).
   same holds for every operator, `num` ones included: no key is skipped.)
   Analysis 20 closes that: the analyzer asks dart2bytecode's own
   `RecognizedMethods` about each operator site and marks an instance
-  reference `inlined: <Opcode>` only when EVERY site of it in the body is an
-  opcode. The CLI then asks neither the device list nor the snapshot for it,
-  and only for a document of analysis 20 or later that carries the field.
-  `coverage/inlined_ops_qualify.sh` proves the flag against the cell's own
-  dart2bytecode in both directions (flagged iff the bytecode has no
-  InterfaceCall to that selector) over `inlined_ops_fixture.dart`; a mismatch
-  either way is a blocker. A cell must be built with this analyzer for the
-  flag to exist: a cell with an older analyzer behaves as before.
+  reference `inlined: <Opcode>` (several opcodes, when the key has int and
+  double sites, are joined with `|`) only when EVERY site of it in the body is
+  an opcode. The CLI accepts the flag only on the 16 operator selectors of
+  `int`/`double`/`num` with an opcode that selector can have, only from a
+  document of analysis 20 or later, and then asks neither the device list nor
+  the snapshot for that reference; anything else it ignores.
+  The analyzer decides on the PATCHED kernel, but dart2bytecode compiles the
+  producer's lowered slice, so a producer rewrite that makes an operand's
+  static type less specific would make the flag wrong. The only such rewrite
+  is `super.x` -> `$routeBSuper(...) as dynamic`, so the analyzer clears
+  `inlined` on every reference in a body that contains a `super.` use. The
+  other rewrites (`this` -> `self`, instance helpers, getter -> method,
+  `${self.NAME}` in strings) keep or sharpen types.
+  `coverage/inlined_ops_qualify.sh` proves the flag: it runs the real
+  producer and a real dart2bytecode over every member of
+  `inlined_ops_fixture.dart` (as top-level functions and as instance methods,
+  TFA on, plus the `super.` cases), and compares per reference and per
+  selector, in both directions (flagged iff the bytecode has no call to that
+  selector). It fails on a mismatch, on a refused target, and on a run that
+  compared too little. The cell mint (`mint_route_b_cell.sh`) runs it against
+  the cell's own `dart2bytecode.aot`; run it the same way
+  (`--compiler-aot ... --runtime ...`) before publishing. A cell built with
+  an older analyzer behaves as before.
 - A dynamic call (`declaredClass == null`) is checked against every instance
   class of the snapshot; a declared type with no class in the snapshot, or only
   in another library, is refused.

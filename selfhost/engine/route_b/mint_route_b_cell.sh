@@ -596,6 +596,22 @@ files=(
   "flutter_platform_strong.dill:$FLUTTER_PLATFORM"
 )
 
+# QUALIFY THE `inlined` FLAG (analysis 20) against THIS cell's own compiler.
+# The analyzer's claim "dart2bytecode emits an opcode here" is about the bytecode
+# of what the producer hands the compiler, and the analyzer links
+# RecognizedMethods from the tree; only the shipped dart2bytecode.aot says
+# whether the two still agree. A mismatch in either direction is a blocker, and
+# a run that compared nothing fails. An analyzer older than analysis 20 has no
+# flag and is skipped. Set SKIP_INLINED_QUALIFY=1 only for a --dry-run
+# address check.
+if [[ "$DRY" != 1 && "${SKIP_INLINED_QUALIFY:-0}" != 1 ]]; then
+  SRC="$SRC" "$(dirname "$0")/coverage/inlined_ops_qualify.sh" \
+    "$OUT/zip_archives/route_b_analyze.aot" \
+    --compiler-aot "$OUT/zip_archives/dart2bytecode_aot.snapshot" \
+    --runtime "$OUT/dartaotruntime" --out "$OUT" \
+    || die "the analyzer's inlined flag disagrees with this cell's dart2bytecode (inlined_ops_qualify.sh); do not publish this cell"
+fi
+
 # THE iOS ENGINE JOINS THE IDENTITY.
 #
 # The eight files above are the HOST compiler cell. They do not cover the iOS

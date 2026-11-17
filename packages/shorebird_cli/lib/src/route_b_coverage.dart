@@ -573,10 +573,58 @@ class RouteBExternalReference {
       member: json['member'] as String?,
       isPrivate: json['private'] == true,
       viaConstant: json['viaConstant'] == true,
-      inlined: readInlined && json['inlined'] is String
-          ? json['inlined'] as String
+      inlined: readInlined
+          ? _knownInlined(
+              library: library,
+              className: json['class'],
+              member: json['member'],
+              inlined: json['inlined'],
+            )
           : null,
     );
+  }
+
+  /// The opcodes the bytecode compiler can emit for an operator, by selector
+  /// (`RecognizedMethods.binaryIntOps`, `binaryDoubleOps` and the unary
+  /// negations in dart2bytecode, `==` excluded: `a == b` is never a call the
+  /// compiler specializes). A document's `inlined` is believed only when it
+  /// names an operator of `int`, `double` or `num` with opcodes that operator
+  /// can have, so a buggy or edited document cannot waive the check for any
+  /// other member.
+  static const inlinedOpcodes = <String, Set<String>>{
+    '+': {'AddInt', 'AddDouble'},
+    '-': {'SubInt', 'SubDouble'},
+    '*': {'MulInt', 'MulDouble'},
+    '~/': {'TruncDivInt'},
+    '%': {'ModInt'},
+    '/': {'DivDouble'},
+    '&': {'BitAndInt'},
+    '|': {'BitOrInt'},
+    '^': {'BitXorInt'},
+    '<<': {'ShlInt'},
+    '>>': {'ShrInt'},
+    '>': {'CompareIntGt', 'CompareDoubleGt'},
+    '<': {'CompareIntLt', 'CompareDoubleLt'},
+    '>=': {'CompareIntGe', 'CompareDoubleGe'},
+    '<=': {'CompareIntLe', 'CompareDoubleLe'},
+    'unary-': {'NegateInt', 'NegateDouble'},
+  };
+
+  static String? _knownInlined({
+    required String library,
+    required Object? className,
+    required Object? member,
+    required Object? inlined,
+  }) {
+    if (inlined is! String || member is! String) return null;
+    if (library != 'dart:core' ||
+        !const {'int', 'double', 'num'}.contains(className)) {
+      return null;
+    }
+    final allowed = inlinedOpcodes[member];
+    if (allowed == null) return null;
+    final parts = inlined.split('|');
+    return parts.every(allowed.contains) ? inlined : null;
   }
 
   static const _kinds = {
@@ -611,9 +659,11 @@ class RouteBExternalReference {
   /// for an instance member of `dart:`.
   final bool viaConstant;
 
-  /// The opcode the bytecode compiler emits for EVERY site of this member in
-  /// the body (analysis 20 and later), so none is looked up at run time; null
-  /// when any site is a call, or the analysis predates the field.
+  /// The opcode(s), joined by `|`, the bytecode compiler emits for EVERY site
+  /// of this member in the body (analysis 20 and later), so none is looked up
+  /// at run time; null when any site is a call, the analysis predates the
+  /// field, or the document names something that is not an operator opcode
+  /// (see [inlinedOpcodes]).
   final String? inlined;
 
   /// Why the body could not be walked, for `unanalyzed`.
@@ -1133,13 +1183,16 @@ class RouteBCoverageAnalyzer {
     ]);
 
     if (result.exitCode != 0) {
-      throw RouteBCompilerException(RouteBCompilerProblem.invalid, '''
+      throw RouteBCompilerException(
+        RouteBCompilerProblem.invalid,
+        '''
 The Route B coverage analyzer failed (exit ${result.exitCode}):
 
 ${result.stderr}
 
 Treat this as corruption or a bad cache, not as a problem with the release.
-Nothing was uploaded.''');
+Nothing was uploaded.''',
+      );
     }
 
     return RouteBCoverage.fromJson(result.stdout as String);

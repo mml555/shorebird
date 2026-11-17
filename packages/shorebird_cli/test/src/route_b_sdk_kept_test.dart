@@ -36,6 +36,7 @@ Map<String, Object?> _ref(
 RouteBCoverage _analysis(
   List<Map<String, Object?>> references, {
   int version = 19,
+  Map<String, List<Map<String, Object?>>> otherBodies = const {},
 }) => RouteBCoverage.fromJson(
   jsonEncode({
     'analysisVersion': version,
@@ -50,7 +51,7 @@ RouteBCoverage _analysis(
     'patchable': [_target],
     'conditional': <String>[],
     'sources': <String, Object?>{},
-    'externalReferences': {_target: references},
+    'externalReferences': {_target: references, ...otherBodies},
     'rejections': <Object>[],
     'refusalSummary': null,
   }),
@@ -425,22 +426,35 @@ void main() {
         },
         kept: kept,
       );
-      Map<String, Object?> inlined(String member, String cls) => {
-        ...sdk(member, cls),
-        'inlined': 'BitAndInt',
-      };
-      String? refusal20(Map<String, Object?> ref, {int version = 20}) =>
-          r.refusalForTarget(_analysis([ref], version: version), _target);
+      Map<String, Object?> inlined(
+        String member,
+        String cls, [
+        String opcode = 'BitAndInt',
+      ]) => {...sdk(member, cls), 'inlined': opcode};
+      String? refusal20(
+        Map<String, Object?> ref, {
+        int version = 20,
+        String target = _target,
+        Map<String, List<Map<String, Object?>>> others = const {},
+      }) => r.refusalForTarget(
+        _analysis([ref], version: version, otherBodies: others),
+        target,
+      );
 
       test('is not looked up when analysis 20 says every site is one', () {
         expect(refusal20(inlined('&', 'int')), isNull);
-        // Neither the list nor the snapshot is asked: this key is on no list.
-        expect(refusal20(inlined('padLeft', 'String')), isNull);
+        // Neither the list nor the snapshot is asked: `>>` is on no list.
+        expect(refusal20(inlined('>>', 'int', 'ShrInt')), isNull);
+        expect(refusal20(inlined('unary-', 'int', 'NegateInt')), isNull);
+        expect(
+          refusal20(inlined('<', 'num', 'CompareDoubleLt|CompareIntLt')),
+          isNull,
+        );
       });
 
       test('is looked up when the analysis does not say so', () {
         expect(refusal20(sdk('&', 'int')), contains('no class `_Smi`'));
-        expect(refusal20(sdk('padLeft')), isNotNull);
+        expect(refusal20(sdk('+', 'num')), contains('no class `_Smi`'));
       });
 
       test('is looked up when the field comes from an analysis below 20', () {
@@ -450,10 +464,77 @@ void main() {
         );
       });
 
+      test('skips only the flagged reference, not its neighbours', () {
+        final doc = _analysis([
+          inlined('&', 'int'),
+          sdk('+', 'num'),
+        ], version: 20);
+        expect(r.refusalForTarget(doc, _target), contains('no class `_Smi`'));
+        final onlyFlagged = _analysis([
+          inlined('&', 'int'),
+          inlined('+', 'num', 'AddInt'),
+        ], version: 20);
+        expect(r.refusalForTarget(onlyFlagged, _target), isNull);
+      });
+
+      test('is not carried from one body to another', () {
+        // The flag is per body: the same member is flagged in the target and
+        // a call in a helper, and the helper is still refused.
+        const helper = 'package:app/main.dart#helper';
+        final doc = _analysis(
+          [inlined('&', 'int')],
+          version: 20,
+          otherBodies: {
+            helper: [sdk('&', 'int')],
+          },
+        );
+        expect(r.refusalForTarget(doc, _target), isNull);
+        expect(r.refusalForTarget(doc, helper), contains('no class `_Smi`'));
+      });
+
+      test('is ignored on a member that is not an operator', () {
+        expect(
+          refusal20(inlined('padLeft', 'String', 'AddInt')),
+          isNotNull,
+        );
+        expect(
+          refusal20({...inlined('split', 'String'), 'inlined': 'AddInt'}),
+          isNotNull,
+        );
+      });
+
+      test('is ignored when it names an opcode the operator cannot have', () {
+        // `&` is BitAndInt; `AddInt` is another operator's opcode.
+        expect(
+          refusal20(inlined('&', 'int', 'AddInt')),
+          contains('no class `_Smi`'),
+        );
+        expect(
+          refusal20(inlined('&', 'int', 'NotAnOpcode')),
+          contains('no class `_Smi`'),
+        );
+        expect(
+          refusal20(inlined('&', 'int', 'BitAndInt|AddInt')),
+          contains('no class `_Smi`'),
+        );
+        expect(
+          refusal20({...inlined('&', 'int'), 'inlined': true}),
+          contains('no class `_Smi`'),
+        );
+      });
+
+      test('is ignored on a class that is not int, double or num', () {
+        expect(refusal20(inlined('&', 'BigInt')), isNotNull);
+        expect(
+          refusal20({...inlined('&', 'int'), 'library': 'dart:collection'}),
+          isNotNull,
+        );
+      });
+
       test('is looked up through a constant', () {
         expect(
           refusal20({...inlined('&', 'int'), 'viaConstant': true}),
-          isNotNull,
+          allOf(contains('`int.&`'), isNot(isEmpty)),
         );
       });
     });

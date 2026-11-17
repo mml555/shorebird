@@ -310,7 +310,10 @@ class RouteBRetention {
     final sel = r.member ?? '';
     final bare = sel.startsWith('get:') ? sel.substring(4) : null;
     // A dynamic `get` may be a tear-off of a method of that name.
-    final keys = ['dynamic#$sel', if (bare != null) 'dynamic#tearoff:$bare'];
+    final keys = [
+      'dynamic#$sel',
+      if (bare != null) 'dynamic#tearoff:$bare',
+    ];
     final failed = keys.where(measuredFailing.containsKey).toList();
     final shown = _bareSelector(sel);
     if (failed.isNotEmpty) {

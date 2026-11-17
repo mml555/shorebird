@@ -292,12 +292,14 @@ import 'package:kernel/type_environment.dart';
 ///     has no list, and a consumer cannot tell "nothing referenced" from "not
 ///     measured" unless the version says which it holds.
 ///
-/// Version 20 adds `inlined` to an `instance` reference: the name of the
-/// opcode (`AddInt`, `CompareIntLt`, ...) the patch's bytecode compiler emits
-/// for EVERY site of that member in the body, so no member is looked up when it
-/// runs. It is decided by dart2bytecode's own `RecognizedMethods` (imported, so
-/// the condition is one copy: both operands statically exactly `int`, or
-/// exactly `double`), and set only when no site of the member is a real call.
+/// Version 20 adds `inlined` to an `instance` reference: the opcode name(s)
+/// (`AddInt`, `CompareIntLt`, ... joined by `|` when sites differ) the patch's
+/// bytecode compiler emits for EVERY site of that member in the body, so no
+/// member is looked up when it runs. Never set in a body with a `super.` call:
+/// the producer rewrites those to `as dynamic`. It is decided by
+/// dart2bytecode's own `RecognizedMethods` (imported, so the condition is one
+/// copy: both operands statically exactly `int`, or exactly `double`), and set
+/// only when no site of the member is a real call.
 /// A document below 20 never has it.
 const analysisVersion = 20;
 
@@ -669,13 +671,14 @@ coverage/census_report.py, for what the numbers may and may not be read as.
       }
     }
   }
+  final patchedTypes = TypeEnvironment(CoreTypes(patched), patchedHierarchy);
   final externalReferences = <String, List<Map<String, Object?>>>{
     for (final key in carriedBodies.keys.toList()..sort())
       key: _externalReferences(
         carriedBodies[key]!,
         carriedMembers,
         appMembersByName: appMembersByName,
-        types: TypeEnvironment(CoreTypes(patched), patchedHierarchy),
+        types: patchedTypes,
       ),
   };
 
@@ -2951,6 +2954,11 @@ List<Map<String, Object?>> _externalReferences(
   );
   try {
     p.function.accept(uses);
+    if (uses.hasSuper) {
+      for (final r in uses.found.values) {
+        r.remove('inlined');
+      }
+    }
   } catch (error) {
     return [
       {
@@ -3004,6 +3012,14 @@ class _ExternalUses extends RecursiveVisitor {
   final Library ownerLibrary;
 
   final found = <String, Map<String, Object?>>{};
+
+  /// Whether the body contains a `super.` call, getter or setter. The producer
+  /// does not give dart2bytecode this kernel: it rewrites each one to
+  /// `$routeBSuper(...) as dynamic` (route_b_producer.dart, `_lower`), so an
+  /// operand derived from a super member is `dynamic` there however it is
+  /// typed here (`super.n + 1`, `1 + super.m()`, `var x = super.n; x + 1`).
+  /// No `inlined` is reported for a body that has one.
+  bool hasSuper = false;
   final _seenConstants = <Constant>{};
 
   bool _skipLibrary(Library lib) {
@@ -3090,7 +3106,16 @@ class _ExternalUses extends RecursiveVisitor {
     if (seen != null) {
       // `inlined` holds only while EVERY site of the member is an opcode: a
       // later real call clears it.
-      if (inlined == null) seen.remove('inlined');
+      final had = seen['inlined'] as String?;
+      if (inlined == null || had == null) {
+        seen.remove('inlined');
+      } else {
+        // Sites of one key can be different opcodes (`num::<` for an int pair
+        // and for a double pair): every one is named, sorted.
+        seen['inlined'] = ({...had.split('|'), ...inlined.split('|')}.toList()
+              ..sort())
+            .join('|');
+      }
       return;
     }
     found[key] = {
@@ -3300,16 +3325,20 @@ class _ExternalUses extends RecursiveVisitor {
 
   @override
   void visitSuperMethodInvocation(SuperMethodInvocation node) {
+    hasSuper = true;
     _member(node.interfaceTargetReference);
     node.arguments.accept(this);
   }
 
   @override
-  void visitSuperPropertyGet(SuperPropertyGet node) =>
-      _member(node.interfaceTargetReference);
+  void visitSuperPropertyGet(SuperPropertyGet node) {
+    hasSuper = true;
+    _member(node.interfaceTargetReference);
+  }
 
   @override
   void visitSuperPropertySet(SuperPropertySet node) {
+    hasSuper = true;
     _member(node.interfaceTargetReference);
     node.value.accept(this);
   }
