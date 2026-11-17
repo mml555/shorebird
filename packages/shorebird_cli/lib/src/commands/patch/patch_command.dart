@@ -116,6 +116,15 @@ To target the latest release (e.g. the release that was most recently updated) u
         negatable: false,
       )
       ..addFlag(
+        'allow-unchecked-sdk-calls',
+        help:
+            'Publish an iOS patch even though this release\'s compiler cell '
+            'predates the extension/dynamic-call check (analysis 19), so '
+            'dynamic calls, extension getters and tear-offs in it are not '
+            'checked. Recorded in the patch metadata.',
+        negatable: false,
+      )
+      ..addFlag(
         'allow-asset-diffs',
         help: allowAssetDiffsHelpText,
         negatable: false,

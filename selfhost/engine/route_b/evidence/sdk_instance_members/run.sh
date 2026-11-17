@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run.sh <main|sub> <work dir>
+# run.sh <work dir>
 #
 # Host measurement of which dart: instance members resolve in a patch on a
 # release that never calls them. One heavy job at a time: take
@@ -7,7 +7,7 @@
 # ($OUT), a published compiler cell zip ($CELL, analysis 17) and this repo
 # bootstrapped (scripts/bootstrap.sh). Results: <work>/results.tsv
 set -uo pipefail
-VARIANT=${1:?main|sub}; WORK=${2:?work dir}
+WORK=${1:?work dir}
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=${REPO:-$(cd "$HERE/../../../../.." && pwd)}
 RB=$REPO/selfhost/engine/route_b
@@ -29,7 +29,7 @@ cat > .dart_tool/package_config.json <<JSON
   { "name": "crypto", "rootUri": "file://$PKGS/crypto", "packageUri": "lib/", "languageVersion": "3.4" },
   { "name": "typed_data", "rootUri": "file://$PKGS/typed_data", "packageUri": "lib/", "languageVersion": "3.4" } ] }
 JSON
-python3 "$HERE/gen_probe.py" "$VARIANT" "$RB/packaging/container_target.dart" "$WORK/gen" || exit 1
+python3 "$HERE/gen_probe.py" "$RB/packaging/container_target.dart" "$WORK/gen" || exit 1
 cp gen/release_source.dart lib/container_target.dart
 K="$DART $GK --platform $PLAT --packages .dart_tool/package_config.json"
 $K --aot -o prepass.dill $URI >/dev/null || exit 1
@@ -51,6 +51,10 @@ C=$(sed -n 's/^OUT=//p' cli.log); [ -n "$C" ] || { tail -20 cli.log; exit 1; }
 mkdir -p logs
 for id in $(cat gen/ids.txt); do
   python3 "$HERE/repack.py" "$C" "p_$id" logs/$id.sbrb || continue
-  PROBE=$id $OUT/dartaotruntime app.aot logs/$id.sbrb > logs/$id.log 2>&1; echo "exit=$?" >> logs/$id.log
+  PROBE=$id timeout 60 $OUT/dartaotruntime app.aot logs/$id.sbrb > logs/$id.log 2>&1; echo "exit=$?" >> logs/$id.log
+  rm -f logs/$id.sbrb
 done
-python3 "$HERE/table.py" gen/ids.txt logs "$WORK/results.tsv"
+python3 "$HERE/table.py" gen/ids.txt logs table.tsv
+$OUT/dart-sdk/bin/dart $KP "$HERE/map_keys.dart" patched.dill keys.tsv || exit 1
+$OUT/dart-sdk/bin/dart $KP "$HERE/map_keys.dart" import.dill harness.keys --harness --platform=$PLAT || exit 1
+python3 "$HERE/aggregate.py" gen/probes.tsv table.tsv keys.tsv harness.keys "$WORK/results.tsv" "$WORK/members.json"

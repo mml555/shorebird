@@ -560,6 +560,7 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
             ? sha256.convert(appBinary.readAsBytesSync()).toString()
             : null,
         compatibilityRevision: routeBCompatibilityRevision,
+        appPackageName: shorebirdEnv.getPubspecYaml()?.name,
         // Provenance only. See RouteBReleaseProvenance.releaseTarget: not part
         // of the build-semantics comparison, because no measurement has shown a
         // target difference can admit a semantic mismatch.

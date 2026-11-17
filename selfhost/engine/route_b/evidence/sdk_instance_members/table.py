@@ -13,7 +13,9 @@ for i in ids:
         if r=='OK': st,d='RESOLVES',''
         elif 'NoSuchMethodError' in r: st,d='THROWS',r
         else: st,d='RESOLVES',r   # another error type: the member was found
-    elif 'Attempt to compile' in log or 'Abort' in log or 'error:' in log:
+    elif 'CRASH' in log or 'Segmentation' in log:
+        st,d='CRASHES',(re.search(r'si_signo=([^ ]*)',log) or [None,''])[1]
+    elif 'Attempt to compile' in log or 'Abort' in log or 'error:' in log or 'unreachable' in log:
         st='ABORTS'; d=(re.search(r'error: (.*)',log) or [None,''])[1][:160]
     else: st,d='NOT-RUN',log[-120:].replace('\n',' ')
     rows.append((i,st,d))

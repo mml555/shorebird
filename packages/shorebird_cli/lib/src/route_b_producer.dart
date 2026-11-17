@@ -132,7 +132,10 @@ bool _readsCompileTimeEnvironment(String declaration) =>
 /// that names nothing the developer wrote. This reads the declaration's own
 /// text, which is all a top-level target's coverage carries, and says nothing
 /// when it cannot find the declaration (the compiler then speaks for itself).
-String? routeBEntryShapeProblem(String key, String declaration) {
+String? routeBEntryShapeProblem(String key, String rawDeclaration) {
+  // Comments, string literals and annotations are not the signature, and an
+  // earlier one that holds `f(` or an apostrophe must not be read as it.
+  final declaration = _codeOnly(rawDeclaration);
   final selector = key.split('#').last;
   if (selector.startsWith('get:') || selector.startsWith('set:')) return null;
   final name = selector.split('.').last;
@@ -189,6 +192,119 @@ String? routeBEntryShapeProblem(String key, String declaration) {
     }
   }
   return null;
+}
+
+/// [source] with comments and annotations removed and every string literal
+/// reduced to `''`, so that a scan for a signature sees only code.
+///
+/// Not a Dart parser: it knows line and (nested) block comments, single,
+/// double and triple quoted strings, raw strings, `\` escapes and `${}`
+/// interpolation, which is what can hide a quote, a bracket or a name.
+String _codeOnly(String source) {
+  final out = StringBuffer();
+  var i = 0;
+  bool isWord(String c) => RegExp(r'[\w$]').hasMatch(c);
+  while (i < source.length) {
+    final c = source[i];
+    if (source.startsWith('//', i)) {
+      while (i < source.length && source[i] != '\n') {
+        i++;
+      }
+      continue;
+    }
+    if (source.startsWith('/*', i)) {
+      var depth = 0;
+      while (i < source.length) {
+        if (source.startsWith('/*', i)) {
+          depth++;
+          i += 2;
+        } else if (source.startsWith('*/', i)) {
+          depth--;
+          i += 2;
+          if (depth == 0) break;
+        } else {
+          i++;
+        }
+      }
+      out.write(' ');
+      continue;
+    }
+    final raw =
+        c == 'r' &&
+        i + 1 < source.length &&
+        (source[i + 1] == "'" || source[i + 1] == '"') &&
+        (i == 0 || !isWord(source[i - 1]));
+    if (c == "'" || c == '"' || raw) {
+      i = _skipString(source, raw ? i + 1 : i, raw: raw);
+      out.write("''");
+      continue;
+    }
+    if (c == '@' && i + 1 < source.length && isWord(source[i + 1])) {
+      i++;
+      while (i < source.length && (isWord(source[i]) || source[i] == '.')) {
+        i++;
+      }
+      var j = i;
+      while (j < source.length && source[j].trim().isEmpty) {
+        j++;
+      }
+      if (j < source.length && source[j] == '(') {
+        var depth = 0;
+        for (; j < source.length; j++) {
+          final d = source[j];
+          if (d == "'" || d == '"') {
+            j = _skipString(source, j, raw: false) - 1;
+          } else if (d == '(') {
+            depth++;
+          } else if (d == ')' && --depth == 0) {
+            j++;
+            break;
+          }
+        }
+        i = j;
+      }
+      out.write(' ');
+      continue;
+    }
+    out.write(c);
+    i++;
+  }
+  return out.toString();
+}
+
+/// The index just past the string literal that opens at [start].
+int _skipString(String s, int start, {required bool raw}) {
+  final q = s[start];
+  final triple = s.startsWith(q * 3, start);
+  var i = start + (triple ? 3 : 1);
+  while (i < s.length) {
+    final c = s[i];
+    if (!raw && c == '\\') {
+      i += 2;
+      continue;
+    }
+    if (!raw && c == r'$' && i + 1 < s.length && s[i + 1] == '{') {
+      var depth = 0;
+      for (; i < s.length; i++) {
+        final d = s[i];
+        if (d == "'" || d == '"') {
+          i = _skipString(s, i, raw: false) - 1;
+        } else if (d == '{') {
+          depth++;
+        } else if (d == '}' && --depth == 0) {
+          i++;
+          break;
+        }
+      }
+      continue;
+    }
+    if (triple ? s.startsWith(q * 3, i) : c == q) {
+      return i + (triple ? 3 : 1);
+    }
+    if (!triple && c == '\n') return i;
+    i++;
+  }
+  return s.length;
 }
 
 /// {@template route_b_producer}

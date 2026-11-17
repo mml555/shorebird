@@ -133,6 +133,7 @@ class RouteBReleaseProvenance {
     this.releaseArtifactSha256,
     this.compatibilityRevision,
     this.releaseTarget,
+    this.appPackageName,
   });
 
   /// Parses a sidecar's contents.
@@ -209,6 +210,7 @@ class RouteBReleaseProvenance {
       compatibilityRevision: (decoded['compatibilityRevision'] as num?)
           ?.toInt(),
       releaseTarget: decoded['releaseTarget'] as String?,
+      appPackageName: decoded['appPackageName'] as String?,
     );
   }
 
@@ -277,6 +279,13 @@ class RouteBReleaseProvenance {
   /// user's shell history. Compared only in the log.
   final String? releaseTarget;
 
+  /// The app's pubspec name when the release was cut: the breadth
+  /// (`package:<name>/`) its interface was generated with, and the one the
+  /// patch must use to tell the app's libraries from the framework's. Read
+  /// from here rather than from the working tree, which may have been renamed
+  /// since. Null for a release cut before it was recorded.
+  final String? appPackageName;
+
   /// Renders the sidecar. Pretty-printed: it is small, it is read by people
   /// debugging a release, and it ships inside a zip either way.
   String toJson() => const JsonEncoder.withIndent('  ').convert({
@@ -290,6 +299,7 @@ class RouteBReleaseProvenance {
     if (compatibilityRevision != null)
       'compatibilityRevision': compatibilityRevision,
     if (releaseTarget != null) 'releaseTarget': releaseTarget,
+    if (appPackageName != null) 'appPackageName': appPackageName,
     if (buildConfig != null) 'buildConfig': buildConfig!.toJson(),
   });
 }

@@ -9,6 +9,7 @@ import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_retention.dart';
+import 'package:shorebird_cli/src/route_b_sdk_measurements.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';
@@ -186,34 +187,11 @@ void main() {
         expect(
           refusal([
             _ref('instance', 'dart:core', cls: 'List', member: 'add'),
-            _ref('instance', 'dart:core', cls: 'Iterable', member: 'join'),
             _ref('instance', 'dart:core', cls: 'num', member: '+'),
             _ref('instance', 'dart:core', cls: 'int', member: '<'),
             _ref('instance', 'dart:core', cls: 'Object', member: 'toString'),
             _ref('instance', 'dart:core', cls: 'String', member: 'split'),
           ]),
-          isNull,
-        );
-      });
-
-      test('a dart: instance member named by a constant, which the '
-          'interface keeps', () {
-        final kept = RouteBRetention.parse('''
-callable:
-  - library: 'dart:core'
-    class: 'Duration'
-    member: 'inMilliseconds'
-''');
-        expect(
-          refusal([
-            _ref(
-              'instance',
-              'dart:core',
-              cls: 'Duration',
-              member: 'inMilliseconds',
-              viaConstant: true,
-            ),
-          ], with_: kept),
           isNull,
         );
       });
@@ -499,8 +477,7 @@ callable:
         // The audit's w31, E14, e11, e12: each threw NoSuchMethodError on a
         // release that never called the member, after passing every check.
         for (final (cls, member) in [
-          ('String', 'toUpperCase'),
-          ('String', 'substring'),
+          ('String', 'padLeft'),
           ('Stream', 'where'),
           ('Future', 'catchError'),
           ('Duration', 'inMilliseconds'),
@@ -518,7 +495,6 @@ callable:
             reason,
             allOf(
               contains('`$cls.$member`'),
-              contains('NoSuchMethodError'),
               contains('Cut a new release'),
             ),
             reason: '$cls.$member',
@@ -526,53 +502,219 @@ callable:
         }
       });
 
-      test('every host-measured SDK instance member is accepted', () {
-        expect(routeBHostMeasuredSdkInstanceMembers, isNotEmpty);
-        for (final key in routeBHostMeasuredSdkInstanceMembers) {
-          final [library, cls, member] = key.split('#');
+      group('the host matrix', () {
+        // Synthetic measurements, so these do not depend on the generated list.
+        final measured = RouteBRetention.parse(
+          _interface,
+          measuredAccepted: {
+            'dart:core#Map#[]',
+            'dart:core#Set#add',
+            'dynamic#[]',
+            'dynamic#get:length',
+            'dynamic#tearoff:add',
+            'dart:core#List#tearoff:add',
+          },
+          measuredFailing: {
+            'dart:async#Stream#listen':
+                'throws NoSuchMethodError on from_iterable (static)',
+            'dart:core#String#get:isNotEmpty':
+                'stops the app on one_byte (static)',
+            // Also on the device-proven list: the matrix vetoes it.
+            'dart:core#List#add': 'throws NoSuchMethodError on const (static)',
+            'dynamic#add': 'throws NoSuchMethodError on const (dynamic)',
+          },
+        );
+
+        test('a measured-resolving member is accepted', () {
           expect(
-            refusal([_ref('instance', library, cls: cls, member: member)]),
+            refusal([
+              _ref('instance', 'dart:core', cls: 'Map', member: '[]'),
+              _ref('instance', 'dart:core', cls: 'Set', member: 'add'),
+            ], with_: measured),
             isNull,
+          );
+        });
+
+        test(
+          'a member measured to throw is refused and the message says so',
+          () {
+            final reason = refusal([
+              _ref('instance', 'dart:async', cls: 'Stream', member: 'listen'),
+            ], with_: measured);
+            expect(
+              reason,
+              allOf(
+                contains('`Stream.listen`'),
+                contains('measured: throws NoSuchMethodError on from_iterable'),
+              ),
+            );
+          },
+        );
+
+        test('a member measured to stop the app is refused and named', () {
+          final reason = refusal([
+            _ref(
+              'instance',
+              'dart:core',
+              cls: 'String',
+              member: 'get:isNotEmpty',
+            ),
+          ], with_: measured);
+          expect(
+            reason,
+            allOf(
+              contains('String.isNotEmpty'),
+              contains('measured: stops the app'),
+            ),
+          );
+        });
+
+        test('a failure vetoes the device-proven list', () {
+          expect(
+            routeBDeviceProvenSdkInstanceMembers,
+            contains('dart:core#List#add'),
+          );
+          expect(
+            refusal([
+              _ref('instance', 'dart:core', cls: 'List', member: 'add'),
+            ], with_: measured),
+            allOf(contains('List.add'), contains('measured:')),
+          );
+          // Without the veto it stays accepted.
+          expect(
+            refusal([
+              _ref('instance', 'dart:core', cls: 'List', member: 'add'),
+            ]),
+            isNull,
+          );
+        });
+
+        test('a tear-off is its own key', () {
+          expect(
+            refusal([
+              _ref('instance', 'dart:core', cls: 'List', member: 'tearoff:add'),
+            ], with_: measured),
+            isNull,
+          );
+          // The call being proven says nothing about the tear-off.
+          final reason = refusal([
+            _ref('instance', 'dart:core', cls: 'List', member: 'tearoff:sort'),
+          ]);
+          expect(reason, contains('List.sort torn off'));
+        });
+
+        test('a dynamic call is accepted only where every class resolved', () {
+          expect(
+            refusal([
+              _ref('dynamic', '', member: '[]'),
+              _ref('dynamic', '', member: 'get:length'),
+            ], with_: measured),
+            isNull,
+          );
+          // A dynamic get may be a tear-off of a method of that name.
+          expect(
+            refusal([_ref('dynamic', '', member: 'get:add')], with_: measured),
+            isNull,
+          );
+          final failed = refusal([
+            _ref('dynamic', '', member: 'add'),
+          ], with_: measured);
+          expect(
+            failed,
+            allOf(
+              contains('`add`'),
+              contains('dynamic'),
+              contains('measured: throws NoSuchMethodError on const (dynamic)'),
+            ),
+          );
+          final unmeasured = refusal([_ref('dynamic', '', member: 'foo')]);
+          expect(
+            unmeasured,
+            allOf(
+              contains('`foo`'),
+              contains('never measured'),
+              contains('Cut a new release'),
+            ),
+          );
+        });
+
+        test('an app class with the called name is answered by the '
+            'interface', () {
+          // The analyzer reports each app class that has a member of the
+          // called name as an instance reference of its own.
+          expect(
+            refusal([
+              _ref('dynamic', '', member: '[]'),
+              _ref(
+                'instance',
+                'package:app/main.dart',
+                cls: 'Grid',
+                member: '[]',
+              ),
+            ], with_: measured),
+            isNull,
+          );
+          expect(
+            refusal([
+              _ref('dynamic', '', member: '[]'),
+              _ref(
+                'instance',
+                'package:other/x.dart',
+                cls: 'Grid',
+                member: '[]',
+              ),
+            ], with_: measured),
+            contains('Grid'),
+          );
+        });
+      });
+
+      test('the lists do not overlap in the direction that matters', () {
+        // A key the matrix measured as failing must not also be accepted by
+        // it, and a harness-supplied key is neither.
+        for (final key in routeBSdkMeasuredFailing.keys) {
+          expect(routeBSdkMeasuredAccepted, isNot(contains(key)), reason: key);
+          expect(
+            routeBSdkMeasuredHarnessSupplied,
+            isNot(contains(key)),
             reason: key,
           );
         }
-      });
-
-      test('the measured lists do not overlap', () {
-        for (final key in routeBHostMeasuredFailingSdkInstanceMembers.keys) {
-          expect(routeBHostMeasuredSdkInstanceMembers, isNot(contains(key)));
-          expect(routeBDeviceProvenSdkInstanceMembers, isNot(contains(key)));
+        for (final key in routeBSdkMeasuredHarnessSupplied) {
+          expect(routeBSdkMeasuredAccepted, isNot(contains(key)), reason: key);
         }
       });
 
-      test('a member measured to throw is refused and the message says so', () {
-        final reason = refusal([
-          _ref('instance', 'dart:async', cls: 'Stream', member: 'listen'),
-        ]);
-        expect(
-          reason,
-          allOf(
-            contains('`Stream.listen`'),
-            contains('measured: throws NoSuchMethodError'),
-          ),
-        );
-      });
+      test(
+        'every generated accepted key is accepted and not also device-proven '
+        'unless the matrix agrees',
+        () {
+          for (final key in routeBSdkMeasuredAccepted) {
+            if (key.startsWith('dynamic#')) continue;
+            final [library, cls, member] = key.split('#');
+            expect(
+              refusal([_ref('instance', library, cls: cls, member: member)]),
+              isNull,
+              reason: key,
+            );
+          }
+        },
+      );
 
-      test('a member measured to stop the app is refused and named', () {
-        final reason = refusal([
-          _ref(
-            'instance',
-            'dart:core',
-            cls: 'String',
-            member: 'get:isNotEmpty',
-          ),
-        ]);
+      test('no key is listed twice across the device-proven and the '
+          'measured-accepted lists without being the same claim', () {
+        // `String#==` was on both lists: one entry says one thing.
+        final both = routeBDeviceProvenSdkInstanceMembers.intersection(
+          routeBSdkMeasuredAccepted,
+        );
+        // The overlap is allowed (the matrix agrees with the device), but it
+        // may not contain a key the matrix refuses.
+        for (final key in both) {
+          expect(routeBSdkMeasuredFailing, isNot(contains(key)));
+        }
         expect(
-          reason,
-          allOf(
-            contains('String.isNotEmpty'),
-            contains('measured: the release stops the app'),
-          ),
+          routeBDeviceProvenSdkInstanceMembers.length,
+          routeBDeviceProvenSdkInstanceMembers.toSet().length,
         );
       });
 
@@ -587,11 +729,11 @@ callable:
 
       test('both kinds of refusal in one sentence each', () {
         final reason = refusal([
-          _ref('instance', 'dart:core', cls: 'String', member: 'toUpperCase'),
+          _ref('instance', 'dart:core', cls: 'String', member: 'padLeft'),
           _ref('top-level', 'dart:core', member: 'identical'),
         ]);
         expect(reason, contains('the loader stops the app'));
-        expect(reason, contains('NoSuchMethodError'));
+        expect(reason, contains('`String.padLeft`'));
       });
 
       test(

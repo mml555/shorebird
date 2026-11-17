@@ -214,6 +214,28 @@ JSON
           throwsFormatException,
         );
       });
+
+      test('a version 19 document reads the dynamic and tear-off kinds, and '
+          'the gate version is 19', () {
+        final document = RouteBCoverage.fromJson(
+          v17(version: 19).replaceFirst(
+            '"rejections"',
+            '"externalReferences":{"a#Box.show":[{"kind":"dynamic",'
+                '"library":"","class":"","member":"[]","private":false},'
+                '{"kind":"instance","library":"dart:core","class":"List",'
+                '"member":"tearoff:add","private":false}]},"rejections"',
+          ),
+        );
+        final references = document.externalReferences!['a#Box.show']!;
+        expect(references.first.kind, 'dynamic');
+        expect(references.last.member, 'tearoff:add');
+        expect(knownRouteBAnalysisVersions, contains(19));
+        expect(routeBSelectorCallsAnalysisVersion, 19);
+        expect(
+          () => RouteBCoverage.fromJson(v17(version: 19)),
+          throwsFormatException,
+        );
+      });
     });
 
     group('helpers (analysis version 16)', () {
@@ -496,14 +518,14 @@ JSON
 
       test('an unknown version is refused, and names what is understood', () {
         expect(
-          () => RouteBCoverage.fromJson(doc(19, body)),
+          () => RouteBCoverage.fromJson(doc(20, body)),
           throwsA(
             isA<FormatException>().having(
               (e) => e.message,
               'message',
               allOf(
-                contains('version 19'),
-                contains('11, 12, 13, 14, 15, 16, 17, 18'),
+                contains('version 20'),
+                contains('11, 12, 13, 14, 15, 16, 17, 18, 19'),
               ),
             ),
           ),

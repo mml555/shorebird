@@ -69,7 +69,7 @@ const supportedRouteBAnalysisVersion = 11;
 ///
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
-const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15, 16, 17, 18};
+const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15, 16, 17, 18, 19};
 
 /// The first analyzer version that compares fields, `const`s, constructors and
 /// class headers. An older analyzer reads an edit to one as unchanged, so a
@@ -94,6 +94,16 @@ const routeBInstanceHelpersAnalysisVersion = 17;
 /// A version-17 document has no such list, so a patch analyzed by it cannot be
 /// checked and is accepted as it always was; see `RouteBRetention`.
 const routeBRetentionAnalysisVersion = 18;
+
+/// The first analyzer version that reports what a body asks for BY NAME with no
+/// declared target: a call, get or set on a `dynamic` receiver (kind
+/// `dynamic`, the selector as `member`), an instance tear-off (member
+/// `tearoff:<name>`), extension and extension-type members (`Ext|get#x`), the
+/// `iterator`/`moveNext`/`current` calls of a `for-in`, and a use that is both
+/// direct and through a constant as two entries. A document below it cannot
+/// show any of those, so the patcher refuses it unless the developer opts out
+/// (`--allow-unchecked-sdk-calls`).
+const routeBSelectorCallsAnalysisVersion = 19;
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -556,11 +566,13 @@ class RouteBExternalReference {
     'static',
     'constructor',
     'instance',
+    'dynamic',
     'unanalyzed',
   };
 
   /// `class` (named as a type), `top-level`, `static`, `constructor`,
-  /// `instance`, or `unanalyzed` (the analyzer could not walk the body).
+  /// `instance`, `dynamic` (a call by name on a `dynamic` receiver; [member]
+  /// is the selector), or `unanalyzed` (the analyzer could not walk the body).
   final String kind;
 
   /// The library URI, as the release's kernel names it.

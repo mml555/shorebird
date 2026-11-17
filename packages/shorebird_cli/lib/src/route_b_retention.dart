@@ -53,20 +53,28 @@
 //     from anything a patch has: it binds by selector, the generator leaves it
 //     out of the interface on purpose, and the AOT kernel the CLI would have to
 //     read is not parsed here. One the release never called throws
-//     `NoSuchMethodError` on a device. So it is refused unless it is on
-//     [routeBDeviceProvenSdkInstanceMembers], a short list of members measured
-//     to work. A patch outside the list can always be made to work by cutting a
+//     `NoSuchMethodError` on a device. So it is refused unless a measurement
+//     shows it resolving on EVERY runtime class and form tried
+//     ([routeBSdkMeasuredAccepted], from the host matrix) or it is on
+//     [routeBDeviceProvenSdkInstanceMembers] and the matrix did not veto it.
+//     A failure in the matrix is real; a success is evidence on one release
+//     only. A patch outside the lists can always be made to work by cutting a
 //     release whose own code calls the member; the refusal says so;
-//   * a reference the compiler adds that no source token names (string
-//     interpolation, `for`, `async`), and `dart:_` libraries, which no
-//     interface can hold and no patch spells;
-//   * an extension GETTER or SETTER (`record.wait`, `Ext|get#x`): refused
-//     always, by name. The interface never lists a `#` member (the generator
-//     skips them), so a release cannot be shown to have kept one, and one it
-//     lacks aborts the process at load. The analyzer must report it first (it
-//     did not before the fix in this tree), so a cell built before that fix
-//     still lets it through; an extension METHOD (`Ext|m`) is reported and
-//     answered like any other top-level member;
+//   * a call by name on a `dynamic` value, an instance tear-off, a `for-in`'s
+//     `iterator`/`moveNext`/`current`: reported by the analyzer from analysis
+//     version 19 and answered by the same measurement. Below 19 the CLI
+//     refuses unless told not to (`--allow-unchecked-sdk-calls`);
+//   * string interpolation's `toString` (called virtually from the core
+//     library, see [routeBDeviceProvenSdkInstanceMembers]) and `await`
+//     (the async machinery calls `_Future` internals directly, not by
+//     selector; only a user-defined thenable's `then` is by name), and
+//     `dart:_` libraries, which no interface can hold and no patch spells;
+//   * an extension or extension-type GETTER or SETTER (`record.wait`,
+//     `Ext|get#x`): refused always, by name. The interface never lists a `#`
+//     member (the generator skips them), so a release cannot be shown to have
+//     kept one, and one it lacks aborts the process at load. An extension
+//     METHOD (`Ext|m`) is reported and answered like any other top-level
+//     member. Needs analysis 19 to be reported at all;
 //   * the declared type of a local variable. Measured: a never-used class as
 //     the type of an unassigned local loads (`local_type_only`); an
 //     assignment or cast to it is a type node and is collected.
@@ -74,26 +82,33 @@ import 'dart:io';
 
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_sdk_measurements.dart';
 import 'package:yaml/yaml.dart';
 
-/// SDK instance members measured to run in a patch on a release that never
-/// named them, as `library#Class#member` (the declaring class, VM member
+/// SDK instance members that ran in a patch on a device, on a release that
+/// never named them, as `library#Class#member` (the declaring class, VM member
 /// names).
 ///
-/// A BUDGET, as the SDK-member list at release time is: a member goes on only
-/// with evidence. Everything here ran on an iPhone in
-/// `selfhost/engine/route_b/evidence/ios_shapes_2026_11_15` (`p03` and every
-/// counter in the other patches: the numeric operators and interpolation's
-/// `toString`; `p07`: a `for-in` loop's iterator calls; `p16`: `List.add` and
-/// `Iterable.join`; `p17`: `split`, `where`, `map`, `toList`), or is an
-/// operator the same runs could not avoid (`==`).
+/// Retention is per (runtime class, selector), and each run below proves ONE
+/// runtime class, named beside the entry. A key here is therefore weaker than
+/// it reads, and the host matrix (`routeBSdkMeasuredFailing`) VETOES it: a
+/// member that failed on any class or form the matrix tried is refused even
+/// though a device ran it once.
 ///
-/// NOT on it, on purpose: `String.toUpperCase` (`p17` ran it, but a host run of
-/// the same shape on a release that never called it threw `NoSuchMethodError`,
-/// so the device run does not settle it), `Stream.where`, `Future.catchError`,
-/// `Duration.inMilliseconds`, `StateError.message`, `List.contains`, and every
-/// `dart:ui` member. Widening it is a measurement, not a guess; the members
-/// measured on a host release are in [routeBHostMeasuredSdkInstanceMembers].
+/// Sources, in `selfhost/engine/route_b/evidence/ios_shapes_2026_11_15`: `p03`
+/// (a counter, `Smi`), `p07` (a `for-in` over a growable `List`), `p16`
+/// (`List.add` on a growable list, then `join`), `p17` (`split` on a one-byte
+/// `String`, then `where`, `map`, `toList`). `==` is an operator those runs
+/// could not avoid.
+///
+/// What the runs do NOT show: `~/`, `%`, unary `-` and every `double`
+/// operator, `bool`/`double`/`int`/`String` `toString` outside interpolation,
+/// and any runtime class other than the one named. They are here because the
+/// interpolation and arithmetic every patch contains reach them through the
+/// core library; the matrix decides where it has an answer.
+///
+/// NOT on it, on purpose: everything the matrix measured as failing, and every
+/// `dart:ui` member.
 final routeBDeviceProvenSdkInstanceMembers = <String>{
   for (final cls in ['num', 'int', 'double'])
     for (final op in [
@@ -111,171 +126,29 @@ final routeBDeviceProvenSdkInstanceMembers = <String>{
       '==',
     ])
       'dart:core#$cls#$op',
+  // Called virtually from the core library (map keys, interpolation,
+  // `print`), so every class keeps them.
   'dart:core#Object#==',
   'dart:core#Object#toString',
-  // Interpolation calls `toString` through the VM's own virtual call, so every
-  // class the VM allocates itself keeps its override.
+  'dart:core#Object#get:hashCode',
+  // Interpolation calls `toString` through the VM's own virtual call. Proven
+  // for `int` (Smi) in p03.
   'dart:core#int#toString',
   'dart:core#double#toString',
   'dart:core#bool#toString',
   'dart:core#String#toString',
-  'dart:core#Object#get:hashCode',
-  'dart:core#String#==',
-  'dart:core#List#add',
-  'dart:core#Iterable#join',
-  'dart:core#Iterable#where',
-  'dart:core#Iterable#map',
-  'dart:core#Iterable#toList',
+  'dart:core#String#==', // one-byte String (p17)
+  'dart:core#List#add', // growable List (p16)
+  'dart:core#Iterable#join', // growable List (p16)
+  'dart:core#Iterable#where', // growable List (p17)
+  'dart:core#Iterable#map', // growable List (p17)
+  'dart:core#Iterable#toList', // `where`/`map` result (p17)
+  // A `for-in` over a growable List (p07); the analyzer reports these three
+  // for every `for-in` from analysis 19.
   'dart:core#Iterable#get:iterator',
   'dart:core#Iterator#moveNext',
   'dart:core#Iterator#get:current',
-  'dart:core#String#split',
-};
-
-/// SDK instance members that RESOLVED when a patch called them on a minimal
-/// release that never named them, as `library#Class#member`.
-///
-/// Host-measured, NOT device-proven: the release is a minimal pure-Dart one
-/// (id 4a68e3c0b37c2c558964c334821b9204, built by
-/// `selfhost/engine/route_b/evidence/sdk_instance_members/run.sh`), run on the
-/// host `dartaotruntime`, one probe per process. Host measurement stands in for
-/// a device run. The retained set of a Flutter app is a superset of what a
-/// pure-Dart program keeps only where the framework's own startup calls the
-/// member, so treat this as a lower bound that was measured on one release,
-/// and spot check on a device (see the PR) before relying on a member.
-/// Re-run the harness to refresh the list; results are in `results.tsv` there.
-final routeBHostMeasuredSdkInstanceMembers = <String>{
-  'dart:async#Future#then',
-  'dart:async#Future#timeout',
-  'dart:async#Future#whenComplete',
-  'dart:async#StreamController#add',
-  'dart:async#StreamController#close',
-  'dart:async#StreamController#get:isClosed',
-  'dart:async#StreamController#get:stream',
-  'dart:async#Timer#cancel',
-  'dart:core#Duration#inMicroseconds',
-  'dart:core#FormatException#message',
-  'dart:core#Iterable#get:isEmpty',
-  'dart:core#Iterable#get:isNotEmpty',
-  'dart:core#Iterable#get:last',
-  'dart:core#Iterable#get:length',
-  'dart:core#List#[]',
-  'dart:core#List#[]=',
-  'dart:core#List#clear',
-  'dart:core#List#get:length',
-  'dart:core#List#get:reversed',
-  'dart:core#List#removeLast',
-  'dart:core#Map#[]',
-  'dart:core#Map#[]=',
-  'dart:core#Map#containsKey',
-  'dart:core#Map#forEach',
-  'dart:core#Map#get:isEmpty',
-  'dart:core#Map#get:keys',
-  'dart:core#Map#get:length',
-  'dart:core#Map#get:values',
-  'dart:core#Map#remove',
-  'dart:core#Object#get:runtimeType',
-  'dart:core#Set#add',
-  'dart:core#String#+',
-  'dart:core#String#==',
-  'dart:core#String#[]',
-  'dart:core#String#contains',
-  'dart:core#String#get:isEmpty',
-  'dart:core#String#replaceAll',
-  'dart:core#String#startsWith',
-  'dart:core#String#toLowerCase',
-  'dart:core#String#trim',
-  'dart:core#int#&',
-  'dart:core#int#<<',
-  'dart:core#num#toDouble',
-  'dart:core#num#~/',
-};
-
-/// SDK instance members that did NOT resolve in the same measurement: `throws`
-/// is a NoSuchMethodError at the call, `aborts` is the process stopping
-/// ("Attempt to compile function ...", the member exists without code). They
-/// stay refused, and the refusal says which.
-const routeBHostMeasuredFailingSdkInstanceMembers = <String, String>{
-  'dart:async#Future#catchError': 'throws',
-  'dart:async#Stream#get:first': 'throws',
-  'dart:async#Stream#get:isBroadcast': 'throws',
-  'dart:async#Stream#listen': 'throws',
-  'dart:async#Stream#map': 'throws',
-  'dart:async#Stream#toList': 'throws',
-  'dart:async#Stream#where': 'throws',
-  'dart:async#StreamController#get:sink': 'throws',
-  'dart:async#Timer#get:isActive': 'throws',
-  'dart:async#Timer#get:tick': 'throws',
-  'dart:core#DateTime#add': 'throws',
-  'dart:core#DateTime#difference': 'throws',
-  'dart:core#DateTime#get:microsecondsSinceEpoch': 'throws',
-  'dart:core#DateTime#get:month': 'throws',
-  'dart:core#DateTime#get:weekday': 'throws',
-  'dart:core#DateTime#get:year': 'throws',
-  'dart:core#DateTime#isAfter': 'throws',
-  'dart:core#DateTime#isBefore': 'throws',
-  'dart:core#DateTime#subtract': 'throws',
-  'dart:core#DateTime#toIso8601String': 'throws',
-  'dart:core#DateTime#toUtc': 'throws',
-  'dart:core#Duration#+': 'throws',
-  'dart:core#Duration#>': 'throws',
-  'dart:core#Duration#get:inMilliseconds': 'throws',
-  'dart:core#Duration#get:inMinutes': 'throws',
-  'dart:core#Duration#get:inSeconds': 'throws',
-  'dart:core#Duration#get:isNegative': 'throws',
-  'dart:core#Error#get:stackTrace': 'throws',
-  'dart:core#Iterable#any': 'throws',
-  'dart:core#Iterable#contains': 'throws',
-  'dart:core#Iterable#elementAt': 'throws',
-  'dart:core#Iterable#every': 'throws',
-  'dart:core#Iterable#firstWhere': 'throws',
-  'dart:core#Iterable#fold': 'throws',
-  'dart:core#Iterable#get:first': 'throws',
-  'dart:core#Iterable#reduce': 'throws',
-  'dart:core#Iterable#skip': 'throws',
-  'dart:core#Iterable#take': 'throws',
-  'dart:core#Iterable#toSet': 'throws',
-  'dart:core#List#addAll': 'throws',
-  'dart:core#List#indexOf': 'throws',
-  'dart:core#List#insert': 'throws',
-  'dart:core#List#remove': 'throws',
-  'dart:core#List#removeAt': 'throws',
-  'dart:core#List#sort': 'throws',
-  'dart:core#List#sublist': 'throws',
-  'dart:core#Map#addAll': 'aborts',
-  'dart:core#Map#containsValue': 'throws',
-  'dart:core#Map#get:entries': 'throws',
-  'dart:core#Map#get:isNotEmpty': 'throws',
-  'dart:core#Map#putIfAbsent': 'throws',
-  'dart:core#Set#contains': 'throws',
-  'dart:core#Set#remove': 'aborts',
-  'dart:core#StateError#message': 'throws',
-  'dart:core#String#*': 'throws',
-  'dart:core#String#codeUnitAt': 'throws',
-  'dart:core#String#compareTo': 'throws',
-  'dart:core#String#endsWith': 'throws',
-  'dart:core#String#get:isNotEmpty': 'aborts',
-  'dart:core#String#get:length': 'throws',
-  'dart:core#String#indexOf': 'throws',
-  'dart:core#String#padLeft': 'throws',
-  'dart:core#String#substring': 'throws',
-  'dart:core#String#toUpperCase': 'threw on an earlier host release',
-  'dart:core#double#abs': 'throws',
-  'dart:core#double#ceil': 'throws',
-  'dart:core#double#floor': 'throws',
-  'dart:core#double#round': 'throws',
-  'dart:core#double#truncate': 'throws',
-  'dart:core#int#abs': 'throws',
-  'dart:core#int#get:isEven': 'aborts',
-  'dart:core#num#abs': 'throws',
-  'dart:core#num#clamp': 'throws',
-  'dart:core#num#compareTo': 'throws',
-  'dart:core#num#floor': 'throws',
-  'dart:core#num#get:isNaN': 'throws',
-  'dart:core#num#remainder': 'throws',
-  'dart:core#num#round': 'throws',
-  'dart:core#num#toInt': 'throws',
-  'dart:core#num#toStringAsFixed': 'throws',
+  'dart:core#String#split', // one-byte String (p17)
 };
 
 /// The release's retained set, read from its dynamic interface.
@@ -287,6 +160,8 @@ class RouteBRetention {
     this.classes = const {},
     this.wholeClasses = const {},
     this.capabilities,
+    this.measuredAccepted = routeBSdkMeasuredAccepted,
+    this.measuredFailing = routeBSdkMeasuredFailing,
   });
 
   /// Parses the text of a `dynamic_interface.yaml`.
@@ -298,6 +173,8 @@ class RouteBRetention {
   factory RouteBRetention.parse(
     String interface, {
     RouteBCapabilities? capabilities,
+    Set<String> measuredAccepted = routeBSdkMeasuredAccepted,
+    Map<String, String> measuredFailing = routeBSdkMeasuredFailing,
   }) {
     final Object? loaded;
     try {
@@ -369,6 +246,8 @@ class RouteBRetention {
       classes: classes,
       wholeClasses: wholeClasses,
       capabilities: capabilities,
+      measuredAccepted: measuredAccepted,
+      measuredFailing: measuredFailing,
     );
   }
 
@@ -406,6 +285,13 @@ class RouteBRetention {
   /// The release's capability manifest, if it published one.
   final RouteBCapabilities? capabilities;
 
+  /// The keys the host matrix resolved on every runtime class and form
+  /// ([routeBSdkMeasuredAccepted] unless a test supplies its own).
+  final Set<String> measuredAccepted;
+
+  /// The keys the matrix saw fail, with why ([routeBSdkMeasuredFailing]).
+  final Map<String, String> measuredFailing;
+
   /// Why [reference] cannot be shown to be retained, or null when it can.
   String? refuse(RouteBExternalReference reference) {
     final r = reference;
@@ -413,6 +299,8 @@ class RouteBRetention {
       return 'the analysis could not tell what it uses (${r.reason}), and a '
           'symbol that cannot be shown to be kept is not kept';
     }
+    // A call by name on a `dynamic` value: no declared target to look up.
+    if (r.kind == 'dynamic') return _refuseDynamic(r);
     // Bound by selector at run time, and left out of the interface on purpose;
     // see the header. Only a member measured to work is let through.
     if (r.kind == 'instance' &&
@@ -423,19 +311,45 @@ class RouteBRetention {
     return _retained(r) ? null : _describe(r);
   }
 
-  /// Whether [r] is an instance member of a `dart:` class that is neither on
-  /// the device-proven list nor named by the release's interface. A constant that names it keeps it (the release's own
-  /// interface item), so that case is the interface's to answer.
-  bool _isUnprovenSdkInstance(RouteBExternalReference r) =>
-      r.kind == 'instance' &&
-      r.library.startsWith('dart:') &&
-      !r.viaConstant &&
-      !routeBDeviceProvenSdkInstanceMembers.contains(_sdkKey(r)) &&
-      !routeBHostMeasuredSdkInstanceMembers.contains(_sdkKey(r)) &&
-      // One the release's own interface lists by name (the SDK-member list
-      // the release was built with, e.g. `DateTime.millisecondsSinceEpoch`)
-      // is kept by that item.
-      !members.contains(_sdkKey(r));
+  /// A dynamic call is accepted only when the measurement resolved its
+  /// selector on every runtime class and form it tried. The app classes that
+  /// have a member of that name arrive as `instance` references of their own
+  /// and are answered by the interface like any other app member.
+  String? _refuseDynamic(RouteBExternalReference r) {
+    final sel = r.member ?? '';
+    final bare = sel.startsWith('get:') ? sel.substring(4) : null;
+    // A dynamic `get` may be a tear-off of a method of that name.
+    final keys = [
+      'dynamic#$sel',
+      if (bare != null) 'dynamic#tearoff:$bare',
+    ];
+    final failed = keys.where(measuredFailing.containsKey).toList();
+    final shown = _bareSelector(sel);
+    if (failed.isNotEmpty) {
+      return 'a call by name to `$shown` on a dynamic value (a dynamic call, '
+          'measured: ${measuredFailing[failed.first]})';
+    }
+    if (keys.any(measuredAccepted.contains)) return null;
+    return 'a call by name to `$shown` on a dynamic value (a dynamic call, '
+        'never measured)';
+  }
+
+  static String _bareSelector(String sel) =>
+      sel.replaceFirst(RegExp('^(get|set|tearoff):'), '');
+
+  /// Whether [r] is an instance member of a `dart:` class that cannot be shown
+  /// to be kept: not named by the release's own interface (the SDK-member list
+  /// the release was built with, e.g. `DateTime.millisecondsSinceEpoch`), and
+  /// either measured to fail on some runtime class (which also overrides the
+  /// device-proven list), or on neither list. A constant that names it is the
+  /// interface's to answer, so it never reaches here.
+  bool _isUnprovenSdkInstance(RouteBExternalReference r) {
+    final key = _sdkKey(r);
+    if (members.contains(key)) return false;
+    if (measuredFailing.containsKey(key)) return true;
+    return !routeBDeviceProvenSdkInstanceMembers.contains(key) &&
+        !measuredAccepted.contains(key);
+  }
 
   static String _sdkKey(RouteBExternalReference r) =>
       '${r.library}#${r.className}#${r.member}';
@@ -518,19 +432,16 @@ class RouteBRetention {
     ].any((k) => k.startsWith(prefix));
   }
 
-  /// `String.toUpperCase`, for the sentence about SDK instance members.
-  static String _describeSdkInstance(RouteBExternalReference r) {
-    final measured = routeBHostMeasuredFailingSdkInstanceMembers[_sdkKey(r)];
-    final how = switch (measured) {
-      null => '',
-      'aborts' => ', measured: the release stops the app at that call',
-      'throws' =>
-        ', measured: throws NoSuchMethodError on a release that '
-            'never called it',
-      _ => ', measured: $measured',
-    };
+  /// "the dart: method `String.toUpperCase` (an SDK instance member ...)".
+  String _describeSdkInstance(RouteBExternalReference r) {
+    final measured = measuredFailing[_sdkKey(r)];
+    final how = measured == null ? '' : ', measured: $measured';
+    final torn = r.member?.startsWith('tearoff:') ?? false;
+    final name = torn
+        ? '${r.className}.${_bareSelector(r.member!)} torn off'
+        : r.displayName;
     return 'the ${r.library.substring(0, r.library.indexOf(':'))}: method '
-        '`${r.displayName}` (an SDK instance member$how)';
+        '`$name` (an SDK instance member$how)';
   }
 
   /// "`Padding`", the way a developer would name it. The library is added only
@@ -591,10 +502,16 @@ class RouteBRetention {
     final sdk = all
         .where((d) => d.contains('(an SDK instance member'))
         .toList();
-    final rest = all.where((d) => !sdk.contains(d)).toList();
+    final dynamicCalls = all
+        .where((d) => d.contains('(a dynamic call'))
+        .toList();
+    final rest = all
+        .where((d) => !sdk.contains(d) && !dynamicCalls.contains(d))
+        .toList();
     return [
       ?describeRouteBUnretained(rest),
       ?describeRouteBUnprovenSdkMembers(sdk),
+      ?describeRouteBDynamicCalls(dynamicCalls),
     ].join('. ').nullIfEmpty;
   }
 }
@@ -637,6 +554,22 @@ String? describeRouteBUnprovenSdkMembers(List<String> symbols) {
       '"measured" were tried on a release that never called them and failed. '
       'Cut a new '
       'release whose own code calls it (a call is enough), then patch that';
+}
+
+/// The refusal for a patch that calls members by name on a `dynamic` value
+/// that cannot be shown to be kept, or null for an empty [symbols].
+String? describeRouteBDynamicCalls(List<String> symbols) {
+  if (symbols.isEmpty) return null;
+  const shown = 5;
+  final named = symbols.take(shown).join(', ');
+  final more = symbols.length > shown
+      ? ', and ${symbols.length - shown} more'
+      : '';
+  return 'it makes $named$more. A call on a `dynamic` value is looked up by '
+      'name when it runs, on whatever class the value turns out to be, and the '
+      'app throws NoSuchMethodError at that call if the release never made it '
+      'on that class. Cut a new release whose own code makes the same call, '
+      'then patch that';
 }
 
 /// The refusal for a release whose interface is missing or unreadable, when the

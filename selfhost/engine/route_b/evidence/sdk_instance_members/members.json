@@ -1,0 +1,3981 @@
+{
+ "dart:async#Future#catchError": {
+  "accepted": false,
+  "failing": [
+   "async_fn:static:THROWS",
+   "value:static:THROWS",
+   "completer:static:THROWS",
+   "delayed:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#Future#tearoff:catchError": {
+  "accepted": false,
+  "failing": [
+   "async_fn:tearoff-static:THROWS",
+   "value:tearoff-static:THROWS",
+   "completer:tearoff-static:THROWS",
+   "delayed:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#Future#tearoff:then": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:async#Future#tearoff:timeout": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:async#Future#tearoff:whenComplete": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:async#Future#then": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:async#Future#timeout": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:async#Future#whenComplete": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:async#Stream#get:first": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:THROWS",
+   "controller:static:THROWS",
+   "broadcast:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#Stream#get:isBroadcast": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:THROWS",
+   "controller:static:THROWS",
+   "broadcast:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#Stream#listen": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:THROWS",
+   "controller:static:THROWS",
+   "broadcast:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#Stream#map": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:THROWS",
+   "controller:static:THROWS",
+   "broadcast:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#Stream#tearoff:listen": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:async#Stream#tearoff:map": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-static:THROWS",
+   "controller:tearoff-static:THROWS",
+   "broadcast:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#Stream#tearoff:toList": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-static:THROWS",
+   "controller:tearoff-static:THROWS",
+   "broadcast:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#Stream#tearoff:where": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-static:THROWS",
+   "controller:tearoff-static:THROWS",
+   "broadcast:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#Stream#toList": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:THROWS",
+   "controller:static:THROWS",
+   "broadcast:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#Stream#where": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:THROWS",
+   "controller:static:THROWS",
+   "broadcast:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#StreamController#add": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 2
+ },
+ "dart:async#StreamController#close": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:async#StreamController#get:isClosed": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:async#StreamController#get:sink": {
+  "accepted": false,
+  "failing": [
+   "plain:static:THROWS",
+   "broadcast:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#StreamController#get:stream": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 2
+ },
+ "dart:async#StreamController#tearoff:add": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:async#StreamController#tearoff:close": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:async#Timer#cancel": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:async#Timer#get:isActive": {
+  "accepted": false,
+  "failing": [
+   "periodic_or_oneshot:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#Timer#get:tick": {
+  "accepted": false,
+  "failing": [
+   "periodic_or_oneshot:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:async#Timer#tearoff:cancel": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#DateTime#add": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#difference": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#get:microsecondsSinceEpoch": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#get:month": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#get:weekday": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#get:year": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#isAfter": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#isBefore": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#subtract": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#tearoff:add": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#tearoff:difference": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#tearoff:isAfter": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#tearoff:isBefore": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#tearoff:subtract": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#tearoff:toIso8601String": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#tearoff:toUtc": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#toIso8601String": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#DateTime#toUtc": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Duration#+": {
+  "accepted": false,
+  "failing": [
+   "duration:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Duration#>": {
+  "accepted": false,
+  "failing": [
+   "duration:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Duration#get:inMilliseconds": {
+  "accepted": false,
+  "failing": [
+   "duration:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Duration#get:inMinutes": {
+  "accepted": false,
+  "failing": [
+   "duration:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Duration#get:inSeconds": {
+  "accepted": false,
+  "failing": [
+   "duration:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Duration#get:isNegative": {
+  "accepted": false,
+  "failing": [
+   "duration:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Error#get:stackTrace": {
+  "accepted": false,
+  "failing": [
+   "state_error:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#FormatException#message": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 1
+ },
+ "dart:core#Iterable#any": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#contains": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "map_values_toList:static:THROWS",
+   "json:static:THROWS",
+   "list:static:THROWS",
+   "set:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#elementAt": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#every": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#firstWhere": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#fold": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#get:first": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "map_values_toList:static:THROWS",
+   "json:static:THROWS",
+   "list:static:THROWS",
+   "set:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#get:isEmpty": {
+  "accepted": false,
+  "failing": [
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 8
+ },
+ "dart:core#Iterable#get:isNotEmpty": {
+  "accepted": false,
+  "failing": [
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 7
+ },
+ "dart:core#Iterable#get:iterator": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 6
+ },
+ "dart:core#Iterable#get:last": {
+  "accepted": false,
+  "failing": [
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 7
+ },
+ "dart:core#Iterable#get:length": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 8
+ },
+ "dart:core#Iterable#join": {
+  "accepted": false,
+  "failing": [
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:core#Iterable#map": {
+  "accepted": false,
+  "failing": [
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 1
+ },
+ "dart:core#Iterable#reduce": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#skip": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#take": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#tearoff:any": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS",
+   "map_keys:tearoff-static:THROWS",
+   "map_values:tearoff-static:THROWS",
+   "where:tearoff-static:THROWS",
+   "map:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#tearoff:contains": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-static:THROWS",
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "map_values_toList:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS",
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#tearoff:elementAt": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS",
+   "map_keys:tearoff-static:THROWS",
+   "map_values:tearoff-static:THROWS",
+   "where:tearoff-static:THROWS",
+   "map:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#tearoff:every": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS",
+   "map_keys:tearoff-static:THROWS",
+   "map_values:tearoff-static:THROWS",
+   "where:tearoff-static:THROWS",
+   "map:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#tearoff:firstWhere": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS",
+   "map_keys:tearoff-static:THROWS",
+   "map_values:tearoff-static:THROWS",
+   "where:tearoff-static:THROWS",
+   "map:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#tearoff:fold": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS",
+   "map_keys:tearoff-static:THROWS",
+   "map_values:tearoff-static:THROWS",
+   "where:tearoff-static:THROWS",
+   "map:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#tearoff:join": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-static:THROWS",
+   "map_keys:tearoff-static:THROWS",
+   "map_values:tearoff-static:THROWS",
+   "where:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:core#Iterable#tearoff:map": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-static:THROWS",
+   "map_keys:tearoff-static:THROWS",
+   "map_values:tearoff-static:THROWS",
+   "where:tearoff-static:THROWS",
+   "map:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#Iterable#tearoff:reduce": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS",
+   "map_keys:tearoff-static:THROWS",
+   "map_values:tearoff-static:THROWS",
+   "where:tearoff-static:THROWS",
+   "map:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#tearoff:skip": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS",
+   "map_keys:tearoff-static:THROWS",
+   "map_values:tearoff-static:THROWS",
+   "where:tearoff-static:THROWS",
+   "map:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#tearoff:take": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS",
+   "map_keys:tearoff-static:THROWS",
+   "map_values:tearoff-static:THROWS",
+   "where:tearoff-static:THROWS",
+   "map:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#tearoff:toList": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:core#Iterable#tearoff:toSet": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "map_keys:tearoff-static:THROWS",
+   "map_values:tearoff-static:THROWS",
+   "where:tearoff-static:THROWS",
+   "map:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#Iterable#tearoff:where": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-static:THROWS",
+   "map_keys:tearoff-static:THROWS",
+   "map_values:tearoff-static:THROWS",
+   "where:tearoff-static:THROWS",
+   "map:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#Iterable#toList": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "map_keys:static:ABORTS",
+   "map_values:static:ABORTS",
+   "where:static:ABORTS",
+   "map:static:ABORTS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 0
+ },
+ "dart:core#Iterable#toSet": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#Iterable#where": {
+  "accepted": false,
+  "failing": [
+   "set:static:THROWS",
+   "map_keys:static:THROWS",
+   "map_values:static:THROWS",
+   "where:static:THROWS",
+   "map:static:THROWS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 1
+ },
+ "dart:core#Iterator#get:current": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 6
+ },
+ "dart:core#Iterator#moveNext": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 6
+ },
+ "dart:core#List#[]": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 6
+ },
+ "dart:core#List#[]=": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 6
+ },
+ "dart:core#List#add": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 6
+ },
+ "dart:core#List#addAll": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "map_values_toList:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#clear": {
+  "accepted": false,
+  "failing": [
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#List#get:length": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 6
+ },
+ "dart:core#List#get:reversed": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 6
+ },
+ "dart:core#List#indexOf": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "map_values_toList:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#insert": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "map_values_toList:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#remove": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "map_values_toList:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#removeAt": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "map_values_toList:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#removeLast": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 6
+ },
+ "dart:core#List#sort": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "map_values_toList:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#sublist": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "map_values_toList:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#tearoff:add": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 6
+ },
+ "dart:core#List#tearoff:addAll": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-static:THROWS",
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "map_values_toList:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#tearoff:clear": {
+  "accepted": false,
+  "failing": [
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#List#tearoff:indexOf": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-static:THROWS",
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "map_values_toList:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#tearoff:insert": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-static:THROWS",
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "map_values_toList:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#tearoff:remove": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-static:THROWS",
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "map_values_toList:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#tearoff:removeAt": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-static:THROWS",
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "map_values_toList:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#tearoff:removeLast": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 6
+ },
+ "dart:core#List#tearoff:sort": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-static:THROWS",
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "map_values_toList:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#List#tearoff:sublist": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-static:THROWS",
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "map_values_toList:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Map#[]": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 4
+ },
+ "dart:core#Map#[]=": {
+  "accepted": false,
+  "failing": [
+   "unmodifiable:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#Map#addAll": {
+  "accepted": false,
+  "failing": [
+   "literal:static:ABORTS",
+   "const:static:ABORTS",
+   "unmodifiable:static:ABORTS",
+   "json:static:ABORTS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Map#containsKey": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:core#Map#containsValue": {
+  "accepted": false,
+  "failing": [
+   "literal:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Map#forEach": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:core#Map#get:entries": {
+  "accepted": false,
+  "failing": [
+   "literal:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Map#get:isEmpty": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:core#Map#get:isNotEmpty": {
+  "accepted": false,
+  "failing": [
+   "literal:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Map#get:keys": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 4
+ },
+ "dart:core#Map#get:length": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:core#Map#get:values": {
+  "accepted": false,
+  "failing": [
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 2
+ },
+ "dart:core#Map#putIfAbsent": {
+  "accepted": false,
+  "failing": [
+   "literal:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Map#remove": {
+  "accepted": false,
+  "failing": [
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:core#Map#tearoff:addAll": {
+  "accepted": false,
+  "failing": [
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:core#Map#tearoff:containsKey": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:core#Map#tearoff:containsValue": {
+  "accepted": false,
+  "failing": [
+   "literal:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Map#tearoff:forEach": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dart:core#Map#tearoff:putIfAbsent": {
+  "accepted": false,
+  "failing": [
+   "literal:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Map#tearoff:remove": {
+  "accepted": false,
+  "failing": [
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:core#Object#==": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 3
+ },
+ "dart:core#Object#get:hashCode": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#Object#get:runtimeType": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#Object#tearoff:toString": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 6
+ },
+ "dart:core#Object#toString": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 6
+ },
+ "dart:core#Set#add": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 2
+ },
+ "dart:core#Set#contains": {
+  "accepted": false,
+  "failing": [
+   "literal:static:THROWS",
+   "const:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Set#remove": {
+  "accepted": false,
+  "failing": [
+   "literal:static:CRASHES"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#Set#tearoff:add": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:core#Set#tearoff:contains": {
+  "accepted": false,
+  "failing": [
+   "literal:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#Set#tearoff:remove": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:core#StateError#message": {
+  "accepted": false,
+  "failing": [
+   "state_error:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#*": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS",
+   "substring_result:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#+": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#==": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 3
+ },
+ "dart:core#String#[]": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#codeUnitAt": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS",
+   "substring_result:static:THROWS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 0
+ },
+ "dart:core#String#compareTo": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS",
+   "substring_result:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#contains": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#endsWith": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS",
+   "substring_result:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#get:isEmpty": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#get:isNotEmpty": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:ABORTS",
+   "two_byte:static:ABORTS",
+   "substring_result:static:ABORTS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#get:length": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS",
+   "substring_result:static:THROWS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 0
+ },
+ "dart:core#String#indexOf": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS",
+   "substring_result:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#padLeft": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS",
+   "substring_result:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#replaceAll": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#split": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#startsWith": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#substring": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS",
+   "substring_result:static:THROWS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 0
+ },
+ "dart:core#String#tearoff:codeUnitAt": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-static:THROWS",
+   "two_byte:tearoff-static:THROWS",
+   "substring_result:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#tearoff:compareTo": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-static:THROWS",
+   "two_byte:tearoff-static:THROWS",
+   "substring_result:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#tearoff:contains": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#tearoff:endsWith": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-static:THROWS",
+   "two_byte:tearoff-static:THROWS",
+   "substring_result:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#tearoff:indexOf": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-static:THROWS",
+   "two_byte:tearoff-static:THROWS",
+   "substring_result:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#tearoff:padLeft": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-static:THROWS",
+   "two_byte:tearoff-static:THROWS",
+   "substring_result:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#tearoff:replaceAll": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#tearoff:split": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#tearoff:startsWith": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#tearoff:substring": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-static:THROWS",
+   "two_byte:tearoff-static:THROWS",
+   "substring_result:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#String#tearoff:toLowerCase": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#tearoff:toUpperCase": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#tearoff:trim": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#toLowerCase": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#toUpperCase": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#String#trim": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#bool#tearoff:toString": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#bool#toString": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#double#%": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#double#*": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#double#+": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 1
+ },
+ "dart:core#double#-": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#double#/": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#double#abs": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#double#ceil": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#double#floor": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#double#round": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#double#tearoff:abs": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#double#tearoff:ceil": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#double#tearoff:floor": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#double#tearoff:round": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#double#tearoff:toString": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#double#tearoff:truncate": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#double#toString": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#double#truncate": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#double#unary-": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dart:core#double#~/": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#int#&": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 2
+ },
+ "dart:core#int#<<": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 2
+ },
+ "dart:core#int#abs": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#int#get:isEven": {
+  "accepted": false,
+  "failing": [
+   "smi:static:ABORTS",
+   "mint:static:ABORTS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 0
+ },
+ "dart:core#int#tearoff:abs": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#int#tearoff:toString": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:core#int#toString": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dart:core#int#unary-": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 2
+ },
+ "dart:core#num#%": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 2
+ },
+ "dart:core#num#*": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 5
+ },
+ "dart:core#num#+": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 5
+ },
+ "dart:core#num#-": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 2
+ },
+ "dart:core#num#/": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#<": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 5
+ },
+ "dart:core#num#<=": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dart:core#num#==": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 6
+ },
+ "dart:core#num#>": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 5
+ },
+ "dart:core#num#>=": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": true,
+  "resolving_on": 3
+ },
+ "dart:core#num#abs": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#clamp": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS",
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#compareTo": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS",
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#floor": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#get:isNaN": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#remainder": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#round": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#tearoff:abs": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#tearoff:clamp": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS",
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#tearoff:compareTo": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS",
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#tearoff:floor": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#tearoff:remainder": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#tearoff:round": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#tearoff:toDouble": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 5
+ },
+ "dart:core#num#tearoff:toInt": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-static:THROWS",
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#tearoff:toStringAsFixed": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS",
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#toDouble": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 5
+ },
+ "dart:core#num#toInt": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS",
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#toStringAsFixed": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS",
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#unary-": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dart:core#num#~/": {
+  "accepted": false,
+  "failing": [],
+  "harness_supplied": true,
+  "resolving_on": 2
+ },
+ "dynamic#%": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#&": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#*": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#+": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS",
+   "duration:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#-": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#/": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#<": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#<<": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#<=": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#>": {
+  "accepted": false,
+  "failing": [
+   "duration:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#>=": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#[]": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#[]=": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#abs": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#add": {
+  "accepted": false,
+  "failing": [
+   "plain:dynamic:THROWS",
+   "broadcast:dynamic:THROWS",
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "utc:dynamic:THROWS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#addAll": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:ABORTS",
+   "const:dynamic:ABORTS",
+   "unmodifiable:dynamic:ABORTS",
+   "json:dynamic:ABORTS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#any": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS",
+   "map:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#cancel": {
+  "accepted": false,
+  "failing": [
+   "periodic_or_oneshot:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#catchError": {
+  "accepted": false,
+  "failing": [
+   "async_fn:dynamic:THROWS",
+   "value:dynamic:THROWS",
+   "completer:dynamic:THROWS",
+   "delayed:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#ceil": {
+  "accepted": false,
+  "failing": [
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#clamp": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#clear": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "map_values_toList:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#close": {
+  "accepted": false,
+  "failing": [
+   "plain:dynamic:THROWS",
+   "broadcast:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#codeUnitAt": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#compareTo": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#contains": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "map_values_toList:dynamic:THROWS",
+   "json:dynamic:THROWS",
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#containsKey": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#containsValue": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#difference": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#elementAt": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS",
+   "map:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#endsWith": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#every": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS",
+   "map:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#firstWhere": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS",
+   "map:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#floor": {
+  "accepted": false,
+  "failing": [
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#fold": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS",
+   "map:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#forEach": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:current": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:UNATTRIBUTED",
+   "set:dynamic:UNATTRIBUTED",
+   "map_keys:dynamic:UNATTRIBUTED",
+   "map_values:dynamic:UNATTRIBUTED",
+   "where:dynamic:UNATTRIBUTED",
+   "map:dynamic:UNATTRIBUTED"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:entries": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:first": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:dynamic:THROWS",
+   "controller:dynamic:THROWS",
+   "broadcast:dynamic:THROWS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "map_values_toList:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:inMicroseconds": {
+  "accepted": false,
+  "failing": [
+   "duration:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:inMilliseconds": {
+  "accepted": false,
+  "failing": [
+   "duration:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:inMinutes": {
+  "accepted": false,
+  "failing": [
+   "duration:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:inSeconds": {
+  "accepted": false,
+  "failing": [
+   "duration:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:isActive": {
+  "accepted": false,
+  "failing": [
+   "periodic_or_oneshot:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:isBroadcast": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:dynamic:THROWS",
+   "controller:dynamic:THROWS",
+   "broadcast:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:isClosed": {
+  "accepted": false,
+  "failing": [
+   "plain:dynamic:THROWS",
+   "broadcast:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:isEmpty": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:isEven": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:isNaN": {
+  "accepted": false,
+  "failing": [
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:isNegative": {
+  "accepted": false,
+  "failing": [
+   "duration:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:isNotEmpty": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:iterator": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS",
+   "map:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:keys": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:last": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "map_values_toList:dynamic:THROWS",
+   "json:dynamic:THROWS",
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:length": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:microsecondsSinceEpoch": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:month": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:reversed": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "map_values_toList:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:sink": {
+  "accepted": false,
+  "failing": [
+   "plain:dynamic:THROWS",
+   "broadcast:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:stackTrace": {
+  "accepted": false,
+  "failing": [
+   "state_error:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:stream": {
+  "accepted": false,
+  "failing": [
+   "plain:dynamic:THROWS",
+   "broadcast:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:tick": {
+  "accepted": false,
+  "failing": [
+   "periodic_or_oneshot:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:values": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:weekday": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#get:year": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#indexOf": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "map_values_toList:dynamic:THROWS",
+   "json:dynamic:THROWS",
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#insert": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "map_values_toList:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#isAfter": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#isBefore": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#join": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS",
+   "map:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#listen": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:dynamic:THROWS",
+   "controller:dynamic:THROWS",
+   "broadcast:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#map": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:dynamic:THROWS",
+   "controller:dynamic:THROWS",
+   "broadcast:dynamic:THROWS",
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#moveNext": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:UNATTRIBUTED",
+   "set:dynamic:UNATTRIBUTED",
+   "map_keys:dynamic:UNATTRIBUTED",
+   "map_values:dynamic:UNATTRIBUTED",
+   "where:dynamic:UNATTRIBUTED",
+   "map:dynamic:UNATTRIBUTED"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#padLeft": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#putIfAbsent": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#reduce": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS",
+   "map:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#remainder": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#remove": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#removeAt": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "map_values_toList:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#removeLast": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "map_values_toList:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#replaceAll": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#round": {
+  "accepted": false,
+  "failing": [
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#skip": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS",
+   "map:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#sort": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "map_values_toList:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#split": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#startsWith": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#sublist": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "map_values_toList:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#substring": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#subtract": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#take": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS",
+   "map:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:abs": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:add": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 10
+ },
+ "dynamic#tearoff:addAll": {
+  "accepted": false,
+  "failing": [
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "growable:tearoff-dynamic:THROWS",
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "map_values_toList:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dynamic#tearoff:any": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "map_keys:tearoff-dynamic:THROWS",
+   "map_values:tearoff-dynamic:THROWS",
+   "where:tearoff-dynamic:THROWS",
+   "map:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:cancel": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dynamic#tearoff:catchError": {
+  "accepted": false,
+  "failing": [
+   "async_fn:tearoff-dynamic:THROWS",
+   "value:tearoff-dynamic:THROWS",
+   "completer:tearoff-dynamic:THROWS",
+   "delayed:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:ceil": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:clamp": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:clear": {
+  "accepted": false,
+  "failing": [
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dynamic#tearoff:close": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dynamic#tearoff:codeUnitAt": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-dynamic:THROWS",
+   "two_byte:tearoff-dynamic:THROWS",
+   "substring_result:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:compareTo": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-dynamic:THROWS",
+   "two_byte:tearoff-dynamic:THROWS",
+   "substring_result:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:contains": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-dynamic:THROWS",
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "map_values_toList:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS",
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dynamic#tearoff:containsKey": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dynamic#tearoff:containsValue": {
+  "accepted": false,
+  "failing": [
+   "literal:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:difference": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:elementAt": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "map_keys:tearoff-dynamic:THROWS",
+   "map_values:tearoff-dynamic:THROWS",
+   "where:tearoff-dynamic:THROWS",
+   "map:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:endsWith": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-dynamic:THROWS",
+   "two_byte:tearoff-dynamic:THROWS",
+   "substring_result:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:every": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "map_keys:tearoff-dynamic:THROWS",
+   "map_values:tearoff-dynamic:THROWS",
+   "where:tearoff-dynamic:THROWS",
+   "map:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:firstWhere": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "map_keys:tearoff-dynamic:THROWS",
+   "map_values:tearoff-dynamic:THROWS",
+   "where:tearoff-dynamic:THROWS",
+   "map:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:floor": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:fold": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "map_keys:tearoff-dynamic:THROWS",
+   "map_values:tearoff-dynamic:THROWS",
+   "where:tearoff-dynamic:THROWS",
+   "map:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:forEach": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dynamic#tearoff:indexOf": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-dynamic:THROWS",
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "map_values_toList:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS",
+   "one_byte:tearoff-dynamic:THROWS",
+   "two_byte:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:insert": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-dynamic:THROWS",
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "map_values_toList:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:isAfter": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:isBefore": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:join": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-dynamic:THROWS",
+   "map_keys:tearoff-dynamic:THROWS",
+   "map_values:tearoff-dynamic:THROWS",
+   "where:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 2
+ },
+ "dynamic#tearoff:listen": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dynamic#tearoff:map": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-dynamic:THROWS",
+   "controller:tearoff-dynamic:THROWS",
+   "broadcast:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "map_keys:tearoff-dynamic:THROWS",
+   "map_values:tearoff-dynamic:THROWS",
+   "where:tearoff-dynamic:THROWS",
+   "map:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dynamic#tearoff:padLeft": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-dynamic:THROWS",
+   "two_byte:tearoff-dynamic:THROWS",
+   "substring_result:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:putIfAbsent": {
+  "accepted": false,
+  "failing": [
+   "literal:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:reduce": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "map_keys:tearoff-dynamic:THROWS",
+   "map_values:tearoff-dynamic:THROWS",
+   "where:tearoff-dynamic:THROWS",
+   "map:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:remainder": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:remove": {
+  "accepted": false,
+  "failing": [
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "growable:tearoff-dynamic:THROWS",
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "map_values_toList:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dynamic#tearoff:removeAt": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-dynamic:THROWS",
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "map_values_toList:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:removeLast": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 6
+ },
+ "dynamic#tearoff:replaceAll": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dynamic#tearoff:round": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:skip": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "map_keys:tearoff-dynamic:THROWS",
+   "map_values:tearoff-dynamic:THROWS",
+   "where:tearoff-dynamic:THROWS",
+   "map:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:sort": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-dynamic:THROWS",
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "map_values_toList:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:split": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dynamic#tearoff:startsWith": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dynamic#tearoff:sublist": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-dynamic:THROWS",
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "map_values_toList:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:substring": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-dynamic:THROWS",
+   "two_byte:tearoff-dynamic:THROWS",
+   "substring_result:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:subtract": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:take": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "map_keys:tearoff-dynamic:THROWS",
+   "map_values:tearoff-dynamic:THROWS",
+   "where:tearoff-dynamic:THROWS",
+   "map:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:then": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dynamic#tearoff:timeout": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dynamic#tearoff:toDouble": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 5
+ },
+ "dynamic#tearoff:toInt": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:toIso8601String": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:toList": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-dynamic:THROWS",
+   "controller:tearoff-dynamic:THROWS",
+   "broadcast:tearoff-dynamic:THROWS",
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dynamic#tearoff:toLowerCase": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dynamic#tearoff:toSet": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "map_keys:tearoff-dynamic:THROWS",
+   "map_values:tearoff-dynamic:THROWS",
+   "where:tearoff-dynamic:THROWS",
+   "map:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dynamic#tearoff:toString": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 10
+ },
+ "dynamic#tearoff:toStringAsFixed": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:toUpperCase": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dynamic#tearoff:toUtc": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:trim": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 3
+ },
+ "dynamic#tearoff:truncate": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#tearoff:whenComplete": {
+  "accepted": true,
+  "failing": [],
+  "harness_supplied": false,
+  "resolving_on": 4
+ },
+ "dynamic#tearoff:where": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-dynamic:THROWS",
+   "controller:tearoff-dynamic:THROWS",
+   "broadcast:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "map_keys:tearoff-dynamic:THROWS",
+   "map_values:tearoff-dynamic:THROWS",
+   "where:tearoff-dynamic:THROWS",
+   "map:tearoff-dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 1
+ },
+ "dynamic#then": {
+  "accepted": false,
+  "failing": [
+   "async_fn:dynamic:THROWS",
+   "value:dynamic:THROWS",
+   "completer:dynamic:THROWS",
+   "delayed:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#timeout": {
+  "accepted": false,
+  "failing": [
+   "async_fn:dynamic:THROWS",
+   "value:dynamic:THROWS",
+   "completer:dynamic:THROWS",
+   "delayed:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#toDouble": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#toInt": {
+  "accepted": false,
+  "failing": [
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#toIso8601String": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#toList": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:dynamic:THROWS",
+   "controller:dynamic:THROWS",
+   "broadcast:dynamic:THROWS",
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#toLowerCase": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#toSet": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS",
+   "map:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#toStringAsFixed": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#toUpperCase": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#toUtc": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#trim": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "substring_result:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#truncate": {
+  "accepted": false,
+  "failing": [
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#unary-": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#whenComplete": {
+  "accepted": false,
+  "failing": [
+   "async_fn:dynamic:THROWS",
+   "value:dynamic:THROWS",
+   "completer:dynamic:THROWS",
+   "delayed:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#where": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:dynamic:THROWS",
+   "controller:dynamic:THROWS",
+   "broadcast:dynamic:THROWS",
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "map_keys:dynamic:THROWS",
+   "map_values:dynamic:THROWS",
+   "where:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ },
+ "dynamic#~/": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "harness_supplied": false,
+  "resolving_on": 0
+ }
+}

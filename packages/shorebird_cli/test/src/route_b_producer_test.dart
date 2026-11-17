@@ -208,6 +208,70 @@ void main() {
         );
       });
 
+      test('an annotation or comment ahead of the signature is not it', () {
+        // The first `routeBValue(` in the raw text is inside the annotation's
+        // string; it closes at the first `)` and used to read as "no params".
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            "@Deprecated('use routeBValue(x)') "
+            "String routeBValue(int n, {String sep = ''}) => 'x';",
+          ),
+          contains('named parameters'),
+        );
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            "@pragma('vm:never-inline')\n"
+            '// routeBValue(int n) is the old shape\n'
+            "String routeBValue({int n = 0}) => '';",
+          ),
+          contains('named parameters'),
+        );
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            '/* routeBValue<T>() */ String routeBValue(int n) => "x";',
+          ),
+          isNull,
+        );
+      });
+
+      test('a comment inside the signature cannot derail the scan', () {
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            "String routeBValue(int n, // don't use {x}\n"
+            "    {String sep = ''}) => 'x';",
+          ),
+          contains('named parameters'),
+        );
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            'String routeBValue(int n, /* [ { ( */ int m) => "x";',
+          ),
+          isNull,
+        );
+      });
+
+      test('raw strings, triple quotes and interpolation are skipped', () {
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            r"String routeBValue(String a, {String b = r'\'}) => a;",
+          ),
+          contains('named parameters'),
+        );
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            "String routeBValue(String a) => \'\'\'x (\${a + ')'}) {\'\'\';",
+          ),
+          isNull,
+        );
+      });
+
       test('says nothing for accessors or a declaration it cannot find', () {
         expect(
           routeBEntryShapeProblem(

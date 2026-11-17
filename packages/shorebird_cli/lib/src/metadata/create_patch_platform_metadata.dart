@@ -22,6 +22,7 @@ class CreatePatchPlatformMetadata extends Equatable {
     this.linkPercentage,
     this.linkMetadata,
     this.buildTraceSummary,
+    this.allowUncheckedSdkCalls,
   });
 
   // coverage:ignore-start
@@ -33,12 +34,14 @@ class CreatePatchPlatformMetadata extends Equatable {
     double? linkPercentage,
     Json? linkMetadata,
     Json? buildTraceSummary,
+    bool? allowUncheckedSdkCalls,
   }) => CreatePatchPlatformMetadata(
     hasAssetChanges: hasAssetChanges,
     hasNativeChanges: hasNativeChanges,
     linkPercentage: linkPercentage,
     linkMetadata: linkMetadata,
     buildTraceSummary: buildTraceSummary,
+    allowUncheckedSdkCalls: allowUncheckedSdkCalls,
   );
   // coverage:ignore-end
 
@@ -57,12 +60,15 @@ class CreatePatchPlatformMetadata extends Equatable {
     double? linkPercentage,
     Json? linkMetadata,
     Json? buildTraceSummary,
+    bool? allowUncheckedSdkCalls,
   }) => CreatePatchPlatformMetadata(
     hasAssetChanges: hasAssetChanges ?? this.hasAssetChanges,
     hasNativeChanges: hasNativeChanges ?? this.hasNativeChanges,
     linkPercentage: linkPercentage ?? this.linkPercentage,
     linkMetadata: linkMetadata ?? this.linkMetadata,
     buildTraceSummary: buildTraceSummary ?? this.buildTraceSummary,
+    allowUncheckedSdkCalls:
+        allowUncheckedSdkCalls ?? this.allowUncheckedSdkCalls,
   );
 
   /// Whether asset changes were detected in the patch for this platform.
@@ -99,6 +105,13 @@ class CreatePatchPlatformMetadata extends Equatable {
   /// Per-platform because each platform runs its own Flutter build.
   final Json? buildTraceSummary;
 
+  /// True when an iOS patch was published with `--allow-unchecked-sdk-calls`
+  /// on a compiler cell that predates analysis 19, so its dynamic calls,
+  /// extension getters and instance tear-offs were not checked. Omitted (null)
+  /// otherwise, the way a release records `--no-patch-signing`: the choice
+  /// stays attributable to the patch that made it.
+  final bool? allowUncheckedSdkCalls;
+
   @override
   List<Object?> get props => [
     hasAssetChanges,
@@ -106,5 +119,6 @@ class CreatePatchPlatformMetadata extends Equatable {
     linkPercentage,
     linkMetadata,
     buildTraceSummary,
+    allowUncheckedSdkCalls,
   ];
 }
