@@ -42,8 +42,10 @@
 # NOT COVERED (so a pass is not over-read): a private MEMBER of a lowered class
 # (the fixture tool has no capability manifest, so one is refused: only a
 # private receiver CLASS with public members is exercised), a super call in a
-# private class, mixins/extensions/enums as receivers, and the analyzer's
-# treatment of a TFA-shaken program other than this fixture's.
+# private class, mixins/extensions/enums as receivers, the analyzer's
+# treatment of a TFA-shaken program other than this fixture's, and a generic
+# class's member whose body uses its type parameter (the producer refuses it,
+# so `Gen.no__gen_t` and `Box.yes__box_len` count as expected refusals).
 #
 # RUNTIME: one producer compile per target (~170 targets). Under the tree's JIT
 # dart2bytecode that is ~10 s each (about 40 minutes on a shared host); with
@@ -213,6 +215,12 @@ for line in open(f'{work}/index.tsv'):
         # A generic function is not a valid replacement entry point; the
         # producer refuses it before any bytecode exists, so it is not compared.
         if 'generic' in short and 'generic' in status:
+            expected_refusals += 1
+            continue
+        # A member of a generic class whose body uses the class's type
+        # parameter: a top-level replacement cannot name it, so the producer
+        # refuses it (fail-closed). Only the fixture's generic classes may.
+        if name.split('.')[0] in ('Gen', 'Box') and 'uses the class type parameter' in status:
             expected_refusals += 1
             continue
         refused.append(f'{name}: {status}')

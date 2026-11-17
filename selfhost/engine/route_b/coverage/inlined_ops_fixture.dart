@@ -176,8 +176,10 @@ class UB extends UA {
   Object? refused__untyped_foreign(p) => p.x + 1;
 }
 
-// A class type parameter in the receiver: the receiver is written as the raw
-// class (`Gen self`), so `T` is its bound there.
+// A class type parameter in the receiver. A member whose body uses `T` (even
+// through a field's type, as in `Box`) is refused by the producer, since a
+// top-level replacement cannot name it; `yes__gen_int` does not use it and is
+// compared.
 @pragma('vm:entry-point')
 class Gen<T extends num> {
   Gen(this.t);
