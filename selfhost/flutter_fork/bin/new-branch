@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# cspell:words elif esac
+# new-branch NAME [--from REF] [--engine] [--tree TREE] [--dry-run]
+#
+# Framework/tools-only work: a git worktree of TREE (default 350) under $WT, branch NAME.
+# Engine work (--engine): an APFS copy-on-write clone of TREE without out/, as $W/flutter-NAME,
+# branch NAME. The frozen tree is never modified (a worktree add writes only its .git/worktrees).
+# Idempotent: re-running with the same arguments reports what exists and exits 0.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+name="" from="" engine=0 tree_arg=350 dry=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --from) from="$2"; shift 2 ;;
+    --engine) engine=1; shift ;;
+    --tree) tree_arg="$2"; shift 2 ;;
+    --dry-run) dry=1; shift ;;
+    -h|--help) sed -n 2,9p "$0"; exit 0 ;;
+    -*) die "unknown flag $1" ;;
+    *) [[ -z "$name" ]] || die "one NAME only"; name="$1"; shift ;;
+  esac
+done
+[[ -n "$name" ]] || die "usage: new-branch NAME [--from REF] [--engine] [--tree TREE]"
+src="$(tree_dir "$tree_arg")"; require_tree "$src"
+is_frozen "$src" && die "$src is the frozen supported-cell tree; a worktree or clone from it writes into its .git. Use --tree 350 (the default)"
+slug="${name//\//-}"
+from="${from:-$(git -C "$src" rev-parse --abbrev-ref HEAD)}"
+
+if [[ "$engine" == 1 ]]; then
+  dest="$W/flutter-$slug"
+  say "plan: APFS-clone $src (without engine/src/out) -> $dest, branch $name from $from"
+  say "      cost: ~0 GB until files diverge; out/ starts empty"
+  if [[ -d "$dest" ]]; then say "already exists: $dest"; git -C "$dest" rev-parse --abbrev-ref HEAD; exit 0; fi
+  [[ "$dry" == 1 ]] && exit 0
+  need_disk 10
+  rm -rf "$dest.partial"; mkdir "$dest.partial"; final="$dest"; dest="$dest.partial"
+  for e in "$src"/* "$src"/.[!.]*; do
+    [[ -e "$e" ]] || continue
+    b="$(basename "$e")"
+    if [[ "$b" == engine ]]; then
+      mkdir "$dest/engine"; mkdir "$dest/engine/src"
+      for s in "$src"/engine/src/* "$src"/engine/src/.[!.]*; do
+        [[ -e "$s" ]] || continue
+        [[ "$(basename "$s")" == out ]] && continue
+        cp -Rc "$s" "$dest/engine/src/"
+      done
+      mkdir "$dest/engine/src/out"
+    else
+      cp -Rc "$e" "$dest/"
+    fi
+  done
+  rm -rf "$dest/.git/worktrees"
+  git -C "$dest" checkout -q -B "$name" "$from"
+  mv "$dest" "$final"; dest="$final"
+  say "created $dest on $name; next: bin/sync $slug"
+else
+  dest="$WT/fl-$slug"
+  say "plan: git worktree add $dest -b $name $from   (framework only; uses $src's bin/cache)"
+  if [[ -d "$dest" ]]; then say "already exists: $dest"; exit 0; fi
+  [[ "$dry" == 1 ]] && exit 0
+  if git -C "$src" show-ref --verify --quiet "refs/heads/$name"; then
+    git -C "$src" worktree add "$dest" "$name"
+  else
+    git -C "$src" worktree add "$dest" -b "$name" "$from"
+  fi
+  say "created $dest (run bin/flutter there; it builds its own tool)"
+fi

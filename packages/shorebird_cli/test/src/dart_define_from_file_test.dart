@@ -13,8 +13,8 @@ import 'helpers.dart';
 // which runs `flutter build ios --config-only` and reads back the DART_DEFINES
 // Flutter wrote.
 //
-// So these tests pin the port; the probe is what says the port is right. Neither
-// is sufficient alone: a unit test can only agree with its author.
+// So these tests pin the port; the probe is what says the port is right.
+// Neither is sufficient alone: a unit test can only agree with its author.
 void main() {
   useTempWorkingDirectory();
   late Directory tempDir;

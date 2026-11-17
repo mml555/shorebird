@@ -65,15 +65,15 @@ const routeBInterfaceFileName = 'dynamic_interface.yaml';
 /// How the release's retention was produced, beside the interface that is its
 /// result.
 ///
-/// The interface is the exact emitted set. This records the things the set alone
-/// cannot answer: which kernel supplied the PRIVATE half, whether the
+/// The interface is the exact emitted set. This records the things the set
+/// alone cannot answer: which kernel supplied the PRIVATE half, whether the
 /// import/prepass agreement passed, and why it fell back if it did.
 ///
 /// It exists so the analyzer can accept a private reference on the strength of
 /// what a release ACTUALLY retained rather than what the retention policy
 /// nominally promises. Those diverge exactly when the agreement check fails --
-/// which is a narrower release, not a failed one, and therefore invisible unless
-/// it is written down.
+/// which is a narrower release, not a failed one, and therefore invisible
+/// unless it is written down.
 const routeBRetentionEvidenceFileName = 'route_b_retention.json';
 
 /// The capability set the release actually granted, per target.
@@ -186,8 +186,8 @@ class RouteBReleaseProvenance {
     // G4.1. ABSENT and UNFINGERPRINTABLE are different states and neither may
     // read as "no defines": a release built before this field existed cannot be
     // compared at all, and a release built with --dart-define-from-file cannot
-    // either. Both come back null here, and the patch side distinguishes them from
-    // an empty-but-known configuration, which IS comparable.
+    // either. Both come back null here, and the patch side distinguishes them
+    // from an empty-but-known configuration, which IS comparable.
     RouteBBuildConfig? buildConfig;
     if (decoded['buildConfig'] case final Map<String, dynamic> recorded) {
       buildConfig = RouteBBuildConfig.fromJson(recorded);
@@ -245,8 +245,8 @@ class RouteBReleaseProvenance {
   /// ([routeBUnfingerprintableOptions]).
   ///
   /// Null is NOT "no defines". A release with an empty configuration records an
-  /// empty [RouteBBuildConfig], which a patch can match; null means the comparison
-  /// is unavailable, and the patch side says which of the two it is.
+  /// empty [RouteBBuildConfig], which a patch can match; null means the
+  /// comparison is unavailable, and the patch side says which of the two it is.
   final RouteBBuildConfig? buildConfig;
 
   /// sha256 of the App binary this release shipped.
@@ -267,12 +267,12 @@ class RouteBReleaseProvenance {
 
   /// The entry point this release was built from, if it was recorded.
   ///
-  /// **INSTRUMENTATION, NOT POLICY.** `--target` is deliberately NOT part of the
-  /// build-semantics comparison: the P5 differential matrix
-  /// (`evidence/p5_build_identity_matrix.md`) could not produce a patch that was
-  /// accepted against a release while differing in executable semantics solely
-  /// because a different target was used, and gating on a string that has not
-  /// been shown to matter would refuse patches nobody can fix.
+  /// **INSTRUMENTATION, NOT POLICY.** `--target` is deliberately NOT part of
+  /// the build-semantics comparison: the P5 differential matrix
+  /// (`evidence/p5_build_identity_matrix.md`) could not produce a patch that
+  /// was accepted against a release while differing in executable semantics
+  /// solely because a different target was used, and gating on a string that
+  /// has not been shown to matter would refuse patches nobody can fix.
   ///
   /// It is recorded so that IF such a case is ever found, the evidence is
   /// already in the release rather than needing to be reconstructed from a

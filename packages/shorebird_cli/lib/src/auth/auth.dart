@@ -47,9 +47,9 @@ bool get _isSelfHosted => shorebirdEnv.hostedUri != null;
 /// Pointing its users at either is not merely unhelpful: the advice reads as
 /// authoritative, and following it has cost this fork real time.
 String get _apiKeySourceAdvice => _isSelfHosted
-    ? 'This deployment is self-hosted (${shorebirdEnv.hostedUri}), so it issues '
-          'its own API keys: create one with POST /admin/users against your '
-          'control plane. There are no Shorebird service accounts or '
+    ? 'This deployment is self-hosted (${shorebirdEnv.hostedUri}), so it '
+          'issues its own API keys: create one with POST /admin/users against '
+          'your control plane. There are no Shorebird service accounts or '
           'console.shorebird.dev here.'
     : 'Create a service account key (${serviceAccountsUrl.toLink()}).';
 
