@@ -33,6 +33,7 @@ sync will, in $TREE:
 EOF
 [[ "$DRY" == 1 ]] && { say "dry run, stopping"; exit 0; }
 
+heavy_acquire
 if [[ -n "$DART_REV" ]]; then
   python3 - "$TREE" "$DART_REV" <<'PY'
 import re, sys
@@ -58,7 +59,6 @@ for r in origin flutter shorebird; do
   fi
 done
 
-heavy_acquire
 say "gclient sync (tree $TREE)"
 gclient sync --no-history --jobs 8
 

@@ -19,14 +19,19 @@ The scripts are versioned here, in [`flutter_fork/`](flutter_fork/):
 | `flutter_fork/install.sh` | Symlinks the files above into `~/shorebird-engine` (`bin/`, `env.sh`, `bootstrap.sh`). |
 
 To set up or update a machine, run `selfhost/flutter_fork/install.sh` from a checkout of
-`main` (`--dry-run` shows the links). Each link is renamed into place, so a script that is
-running is never broken. Re-run it if you move the checkout. On a fresh machine run
+`main` that nobody switches branches in (`--dry-run` shows the links and changes nothing).
+Each link is renamed into place, so a running script is never broken. A real file already at
+a destination is backed up to `NAME.bak.<timestamp>`, never overwritten. The links follow
+that checkout: re-run `install.sh` from `main` after a PR that moved them merges, or when you
+move or remove the checkout, or they dangle. On a fresh machine run
 `~/shorebird-engine/bootstrap.sh` after installing.
 
 `bootstrap.sh` checks out the frozen revision, `d0714887dd95d2990e0185fe1893523f3d600cc5`
 (the `engine_revision` in `compatibility.yaml`). Earlier it pinned `3a565f27`, an older
-engine commit; that was stale for the frozen tree and is fixed. `REV=<sha>` overrides it
-for a deliberate re-bootstrap.
+engine commit; that was stale for the frozen tree and is fixed. `SHOREBIRD_FROZEN_REV=<40 hex>`
+overrides it for a deliberate re-bootstrap. Re-running `bootstrap.sh` on an existing tree is
+not a no-op (it rewrites `.gclient`, runs `gclient sync` and relinks the SDKs); it takes the
+heavy lock.
 
 ## Layout on the build Mac
 
@@ -35,7 +40,7 @@ All of it is under `~/shorebird-engine`.
 | Path | What it is |
 |---|---|
 | `flutter/` (alias `347`) | The Flutter 3.47 tree, frozen at `d0714887`, the supported cell's engine. Never check out anything else here and never modify it. Its `engine/src/out` holds the supported cell's builds and other configs; treat all of it as read-only. |
-| `flutter-350/` (alias `350`) | The Flutter 3.50.0 port, branch `selfhost/3.50`. An APFS clone of `flutter/` without `out/`. |
+| `flutter-350/` (alias `350`) | The Flutter 3.50.0 port, branch `selfhost/3.50`. Started as an APFS copy-on-write clone of `flutter/` without `out/`. |
 | `flutter-NAME/` | Further engine trees, made by `bin/new-branch NAME --engine`. |
 | `bin/`, `env.sh` | Symlinks to `selfhost/flutter_fork/` (see above). |
 | `logs/` | Sync and build logs, and `build.pid` while a build runs. |
@@ -106,7 +111,9 @@ A tree is about 18 GB without `out/`, 23 GB after a sync. A release iOS config i
 a host config about the same. `sync` and `build` stop below 20 GB free, and
 `new-branch --engine` below 10 GB. Time Machine local snapshots can make `df` understate
 free space. Do not delete them; if a write fails for space, stop and report. Delete unused
-`out/` configs with `bin/clean` (never on the frozen tree).
+`out/` configs with `bin/clean` (never on the frozen tree; it takes the heavy lock to delete). Set
+`SHOREBIRD_ENGINE_DIR` only to relocate the whole `~/shorebird-engine` layout; the scripts
+treat any tree they cannot resolve as frozen.
 
 ## Worktrees to prune
 

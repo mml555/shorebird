@@ -40,6 +40,7 @@ for d in "$out"/*; do
 done
 
 if [[ -n "$configs" ]]; then
+  [[ "$dry" == 1 ]] || heavy_acquire
   IFS=',' read -ra want <<<"$configs"
   for c in "${want[@]}"; do
     [[ "$c" == */* || "$c" == .* || -z "$c" ]] && die "bad config name: $c"

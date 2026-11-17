@@ -16,7 +16,7 @@ chk() { if "$@"; then say "ok: $1"; else warn "FAIL: $*"; fail=1; fi; }
 
 head="$(git -C "$tree" rev-parse HEAD)"
 say "candidate flutter revision: $head ($(git -C "$tree" rev-parse --abbrev-ref HEAD))"
-git -C "$tree" diff --quiet && git -C "$tree" diff --cached --quiet || { warn "FAIL: tree has uncommitted changes"; fail=1; }
+[[ -z "$(git -C "$tree" --no-optional-locks status --porcelain)" ]] || { warn "FAIL: tree has uncommitted changes"; fail=1; }
 git -C "$tree" ls-remote --exit-code origin >/dev/null 2>&1 || true
 if git -C "$tree" branch -r --contains "$head" 2>/dev/null | grep -q origin/; then say "ok: head is on origin"; else warn "FAIL: head is not pushed to origin (owned mirror cannot have it)"; fail=1; fi
 

@@ -38,6 +38,9 @@ spec() {
 }
 outdir() { case "$1" in ios_release|host_release_arm64) echo "$1" ;; *) echo "$1" ;; esac; }
 
+for c in "${configs[@]}"; do
+  case "$c" in ios_release|ios_release_rb|host_release_arm64|host_release_arm64_ddm) ;; *) die "unknown config $c" ;; esac
+done
 dart_rev="$(dart_rev_effective "$tree")"
 [[ "$dart_rev" == *PLACEHOLDER* ]] && die "dart_sdk_revision is still the placeholder; run bin/sync with --dart-rev SHA first"
 say "tree $tree  dart $dart_rev  -j $jobs"

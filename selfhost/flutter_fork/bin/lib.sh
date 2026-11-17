@@ -25,7 +25,14 @@ tree_dir() {
     *) echo "$W/flutter-$1" ;;
   esac
 }
-is_frozen() { [[ "$(cd "$1" && pwd -P)" == "$(cd "$FROZEN_TREE" && pwd -P)" ]]; }
+# Fails closed: if either path cannot be resolved, the tree counts as frozen.
+is_frozen() {
+  local a b
+  a="$(cd "$1" 2>/dev/null && pwd -P)" || return 0
+  b="$(cd "$FROZEN_TREE" 2>/dev/null && pwd -P)" || return 0
+  [[ -n "$a" && -n "$b" ]] || return 0
+  [[ "$a" == "$b" ]]
+}
 require_tree() { [[ -d "$1/engine/src" && -e "$1/.git" ]] || die "not a Flutter source tree: $1"; }
 
 free_gb() { df -g / | awk 'NR==2 {print $4}'; }

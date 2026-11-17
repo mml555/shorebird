@@ -1,6 +1,7 @@
+# shellcheck shell=bash
 # Source this; never add it to a shell profile. Keeps git, rust and depot_tools state inside this folder.
 # cspell:words VIRTUALENV
-W="$HOME/shorebird-engine"
+W="${SHOREBIRD_ENGINE_DIR:-$HOME/shorebird-engine}"
 export GIT_CONFIG_GLOBAL="$W/gitconfig"
 export CARGO_HOME="$W/cargo"
 export RUSTUP_HOME="$W/rustup"
