@@ -272,6 +272,19 @@ AuditRoute? classifyMutation(String method, List<String> segments) {
         releaseId: id(rest[1]),
       );
     }
+    // The same mutation as `/admin/.../rollout`, so the same operation.
+    if (rest.length == 5 &&
+        rest[2] == 'patches' &&
+        rest[4] == 'rollout' &&
+        method == 'PUT') {
+      return AuditRoute(
+        'patch.rollout',
+        'PUT /api/v1/apps/{app}/releases/{release}/patches/{patch}/rollout',
+        appId: appId,
+        releaseId: id(rest[1]),
+        patchId: id(rest[3]),
+      );
+    }
     // The same mutation as `/admin/.../withdraw?rollback=true`, so the same
     // operation: one query for "who pulled this patch" covers both routes.
     // `rollforward` is not classified — it is always refused and mutates
