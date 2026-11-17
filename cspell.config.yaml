@@ -473,6 +473,8 @@ words:
   - untable # to keep a selector out of the dispatch table (see untabled)
   - untables
   - untab # the Route B device test app's project name (dev.selfhost.untab), in its evidence and scripts
+  - oneshot # Route B SDK-member device probes: a one-shot (non-periodic) Timer receiver
+  - eqop # Route B SDK-member device probes: probes of the == operator
   - devrun # the iPhone run's working directory name, in its evidence scripts
   - connproxy # the iPhone run's CONNECT-logging proxy (connproxy.py), in its evidence
   - pubget # `dart pub get`, spelled as a log file name in the iPhone run's up.sh
