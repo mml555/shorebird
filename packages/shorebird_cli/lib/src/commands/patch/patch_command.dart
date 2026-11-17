@@ -553,11 +553,12 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
           dryRun: results['dry-run'] == true,
         )..shareDebugInfo = results['share-debug-info'] == true,
     ];
-    for (var i = 0; i < patchers.length; i++) {
-      // Only the Apple patchers write the debug bundle.
-      if (patchers[i] is ApplePatcherMixin) {
-        runs[i].watchDebugBundle(Patcher.debugInfoFile);
-      }
+    // Only the Apple patchers write the debug bundle, and they all write the
+    // same file, so only the first one's record offers it (the second would
+    // upload the same bytes again).
+    final firstApple = patchers.indexWhere((p) => p is ApplePatcherMixin);
+    if (firstApple != -1) {
+      runs[firstApple].watchDebugBundle(Patcher.debugInfoFile);
     }
 
     // Each platform's record wraps the whole invocation, since the patch

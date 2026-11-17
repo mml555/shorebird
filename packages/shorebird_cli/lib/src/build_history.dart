@@ -327,7 +327,8 @@ class BuildHistory {
     } else if (run.shareDebugInfo) {
       logger.warn(
         'No debugging information was shared: this run wrote none '
-        '(it is written when linking an iOS or macOS patch).',
+        '(it is written only when the Apple linker runs, so a Route B iOS '
+        'patch, which does not link, has none).',
       );
     }
   }

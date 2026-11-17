@@ -9,6 +9,23 @@ cspell:words pubspec erickzanardo xcframeworks cupertino codesign codecov rkisha
 Fork build of upstream 1.6.140. Everything in the upstream 1.6.139 and 1.6.140
 notes below applies, and the fork's own behavior is kept on top of it:
 
+- iOS and macOS native-change detection moved from `Podfile.lock` to a
+  comparison of the compiled native binaries (Mach-O), as upstream did. A patch
+  that changes a native binary beyond build noise (UUIDs, signature padding,
+  debug paths) now asks for confirmation, or, with no terminal, fails and needs
+  `--allow-native-diffs`. A changed `Podfile.lock` with identical binaries is
+  an info line and no longer stops the patch.
+- Upstream's HTTP client retries only idempotent requests (GET, HEAD, OPTIONS,
+  TRACE, PUT, DELETE). POST and PATCH, which include creating a release or a
+  patch against your server, are sent once; put no retry-less proxy in front
+  of a server that drops connections.
+- `shorebird patch` and `shorebird release` record build history with
+  `POST /apps/{appId}/runs`. A self-hosted server that does not implement it
+  (the answer is 404 or 501) is fine: the CLI ignores it. A server that
+  accepts and then stalls can add up to 5 seconds (30 with a debug bundle) per
+  platform at the end of a command.
+- `shorebird flutter versions list` shows only plain `X.Y.Z` versions, so the
+  fork's suffixed branches are not listed; they still work by name.
 - `shorebird patch --platforms=android,ios` still publishes **one** patch (one
   patch number, one promotion) spanning every platform. Every platform is
   checked, downloaded and configured before any is built, and nothing is

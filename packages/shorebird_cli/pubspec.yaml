@@ -73,4 +73,13 @@ shorebird_ci:
     - macos-latest
     - windows-latest
     - ubuntu-latest
-  min_coverage: 94.7
+  # The same figure and exclusions as the shorebird_cli job in
+  # .github/workflows/shorebird_ci.yaml (see the comment there): the macOS-only
+  # Apple patcher and releaser files count as missed on the Linux leg.
+  coverage_excludes:
+    - "**/lib/src/commands/patch/ios_patcher.dart"
+    - "**/lib/src/commands/patch/macos_patcher.dart"
+    - "**/lib/src/commands/release/ios_releaser.dart"
+    - "**/lib/src/commands/release/macos_releaser.dart"
+    - "**/lib/src/commands/release/apple_releaser_mixin.dart"
+  min_coverage: 96.1
