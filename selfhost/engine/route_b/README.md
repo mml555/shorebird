@@ -72,7 +72,7 @@ tree's absolute paths, and its GN config is the wrong one.
   silently replaces the Dart tree with whatever DEPS pins.
 - **Verify by content, never by exit code.** The Dart changes are commits on
   the fork, so `dart_patches.sh --verify` compares the checkout's HEAD with the
-  pinned sha. The Route B patch scripts here still check sentinel strings.
+  sha the tree's own DEPS pins. The Route B patch scripts here still check sentinel strings.
 
 ## Running the build
 

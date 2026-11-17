@@ -1120,9 +1120,10 @@ These are not hypotheticals; each one cost real time.
 
 3. **`gclient sync` replaces the Dart tree with what DEPS pins.** `managed: False`
    protects the flutter checkout's git state, not the DEPS-managed subtrees.
-   Since the Dart 3.14 port, our Dart changes are commits on the fork
-   (`selfhost/dart-3.14`) and `dart_patches.sh --apply` is retired; recovery is
-   to pin the fork commit in DEPS and sync. Run `--verify` after *any* sync,
+   Our Dart changes are commits on the Dart fork
+   and `dart_patches.sh --apply` is retired; recovery is to sync to the fork
+   commit the tree's own DEPS pins (`main`: `b4671ab7`; the 3.50 candidate on
+   `selfhost/dart-3.14`: `0cd04a77`). Run `--verify` after *any* sync,
    before wasting a build.
 
 4. **The engine hash is sha1 of the Flutter binary only.** A `gen_snapshot`-only
