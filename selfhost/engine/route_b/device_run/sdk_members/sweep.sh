@@ -10,6 +10,10 @@
 set -uo pipefail
 . "${DEVRUN_ENV:-$(dirname "$0")/../env.sh}" || exit 1
 NAME=${1:?name}; MAX=${2:-40}; SYS="$R/logs/syslog.txt"; : > "$R/logs/$NAME.txt"
+# has <pattern>: whether this launch's part of the syslog (from $off) holds the pattern. `grep -q` would end
+# the pipe early, `tail` would die of SIGPIPE, and under `pipefail` the test would then fail on a big
+# syslog (3 GB here), so a finished sweep kept launching until the budget ran out. grep -c reads it all.
+has() { [ "$(tail -c +"$off" "$SYS" | grep -ac "$1")" -gt 0 ]; }
 for n in $(seq 1 "$MAX"); do
   pkill -f "idevicedebug -u $UDID run"; idevicedebug -u "$UDID" kill "$BUNDLE" >/dev/null 2>&1; sleep 3
   off=$(stat -f %z "$SYS")
@@ -18,7 +22,7 @@ for n in $(seq 1 "$MAX"); do
   for _ in $(seq 1 240); do
     sleep 2
     cur=$(tail -c +"$off" "$SYS" | grep -ac 'SDKPROBE')
-    if tail -c +"$off" "$SYS" | grep -aq 'SDKPROBE SWEEP_DONE'; then break; fi
+    if has 'SDKPROBE SWEEP_DONE'; then break; fi
     if [ "$cur" = "$last" ]; then idle=$((idle+1)); else idle=0; last=$cur; fi
     # a patched launch spends 20-30 s activating targets and 6 s in main before the first line, so
     # idle only counts once a line was seen; a dead debugger process ends the wait after 3 idle polls
@@ -29,6 +33,6 @@ for n in $(seq 1 "$MAX"); do
   tail -c +"$off" "$SYS" | grep -a 'SDKPROBE' | sed -E 's/^.*flutter: //' >> "$R/logs/$NAME.txt"
   tail -c +"$off" "$SYS" | grep -aE 'applied [0-9]+/[0-9]+ targets|current_patch_number|Fatal|crash|Abort|Attempt to compile' | sed -E 's/^.*<Notice>: //' | cut -c1-200 | head -5
   echo "launch $n: $(tail -c +"$off" "$SYS" | grep -ac 'SDKPROBE RESULT') results, last: $(tail -c +"$off" "$SYS" | grep -a 'SDKPROBE' | tail -1 | sed -E 's/^.*flutter: //')"
-  if tail -c +"$off" "$SYS" | grep -aq 'SDKPROBE SWEEP_DONE'; then echo "SWEEP_DONE after $n launches"; pkill -f "idevicedebug -u $UDID run"; exit 0; fi
+  if has 'SDKPROBE SWEEP_DONE'; then echo "SWEEP_DONE after $n launches"; pkill -f "idevicedebug -u $UDID run"; exit 0; fi
 done
 echo "SWEEP_NOT_DONE"; exit 1

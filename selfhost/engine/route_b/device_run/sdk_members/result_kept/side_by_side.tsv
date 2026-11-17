@@ -1,0 +1,427 @@
+key	counter_release	counter_thin	kept_release	kept_thin	kept_in_profile	kept_by	release_kept_1_0_0_64
+dart:async#Future#catchError	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#Future#tearoff:catchError	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#Future#tearoff:then	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#Future#tearoff:timeout	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#Future#tearoff:whenComplete	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#Future#then	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#Future#timeout	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#Future#whenComplete	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#Stream#get:first	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:async#Stream#get:isBroadcast	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:async#Stream#listen	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:async#Stream#map	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:async#Stream#tearoff:listen	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#Stream#tearoff:map	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:async#Stream#tearoff:toList	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:async#Stream#tearoff:where	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:async#Stream#toList	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:async#Stream#where	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:async#StreamController#add	SAFE		SAFE		UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#StreamController#close	SAFE		SAFE		UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#StreamController#get:isClosed	SAFE		SAFE		UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#StreamController#get:sink	THROWS		SAFE		UNMAPPED	--sdk-members	2fc41d3f
+dart:async#StreamController#get:stream	SAFE		SAFE		UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#StreamController#tearoff:add	SAFE		SAFE		UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#StreamController#tearoff:close	SAFE		SAFE		UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#StreamSubscription#cancel	CRASH		CRASH		UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#StreamSubscription#tearoff:cancel	CRASH		CRASH		UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#Timer#cancel	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#Timer#get:isActive	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:async#Timer#get:tick	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:async#Timer#tearoff:cancel	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#DateTime#add	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#difference	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#get:microsecondsSinceEpoch	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#DateTime#get:month	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#DateTime#get:weekday	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#DateTime#get:year	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#DateTime#isAfter	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#isBefore	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#subtract	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#tearoff:add	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#tearoff:difference	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#tearoff:isAfter	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#tearoff:isBefore	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#tearoff:subtract	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#tearoff:toIso8601String	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#tearoff:toUtc	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#toIso8601String	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#DateTime#toUtc	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Duration#+	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Duration#>	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#Duration#get:inMicroseconds	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Duration#get:inMilliseconds	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#Duration#get:inMinutes	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#Duration#get:inSeconds	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#Duration#get:isNegative	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#Error#get:stackTrace	SAFE	thin	SAFE	thin	UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#FormatException#message	SAFE	thin	SAFE	thin	UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#any	CRASH		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#contains	CRASH		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#elementAt	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#every	CRASH		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#firstWhere	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#fold	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#get:first	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#get:isEmpty	CRASH		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#get:isNotEmpty	CRASH		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#get:iterator	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#get:last	CRASH		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#get:length	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#join	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#map	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#reduce	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#skip	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#take	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#tearoff:any	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#tearoff:contains	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#tearoff:elementAt	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#tearoff:every	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#tearoff:firstWhere	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#tearoff:fold	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#tearoff:join	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#tearoff:map	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#tearoff:reduce	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#tearoff:skip	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#tearoff:take	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Iterable#tearoff:toList	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#tearoff:toSet	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#tearoff:where	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#toList	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#toSet	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#where	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterator#get:current	SAFE		SAFE		MISSING	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterator#moveNext	SAFE		SAFE		MISSING	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#[]	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#[]=	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#add	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#addAll	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#List#clear	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#List#get:length	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#get:reversed	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#indexOf	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#List#insert	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#List#remove	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#removeAt	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#List#removeLast	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#sort	CRASH		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#sublist	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#List#tearoff:add	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#tearoff:addAll	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#List#tearoff:clear	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#List#tearoff:indexOf	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#List#tearoff:insert	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#List#tearoff:remove	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#tearoff:removeAt	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#List#tearoff:removeLast	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#tearoff:sort	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#tearoff:sublist	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Map#[]	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#[]=	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#addAll	CRASH		CRASH		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#containsKey	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#containsValue	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Map#forEach	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#get:entries	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#get:isEmpty	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#get:isNotEmpty	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Map#get:keys	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#get:length	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#get:values	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#putIfAbsent	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#remove	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#tearoff:addAll	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Map#tearoff:containsKey	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#tearoff:containsValue	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Map#tearoff:forEach	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#tearoff:putIfAbsent	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Map#tearoff:remove	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Object#==	SAFE		SAFE		UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Object#get:hashCode	SAFE		SAFE		UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Object#get:runtimeType	SAFE	thin	SAFE	thin	UNMAPPED	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Object#tearoff:toString	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Object#toString	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Set#add	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Set#contains	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Set#remove	CRASH(host)		CRASH(host)		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Set#tearoff:add	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Set#tearoff:contains	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Set#tearoff:remove	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#StateError#message	THROWS		SAFE	thin	UNMAPPED	--sdk-members	2fc41d3f
+dart:core#String#*	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#String#+	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#==	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#[]	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#codeUnitAt	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#String#compareTo	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#String#contains	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#endsWith	CRASH		CRASH		STUB	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#get:isEmpty	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#get:isNotEmpty	CRASH(host)		CRASH(host)		MISSING	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#get:length	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#String#indexOf	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#String#padLeft	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#String#replaceAll	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#split	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#startsWith	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#substring	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#String#tearoff:codeUnitAt	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#String#tearoff:compareTo	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#String#tearoff:contains	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#tearoff:endsWith	SAFE		SAFE		STUB	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#tearoff:indexOf	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#String#tearoff:padLeft	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#String#tearoff:replaceAll	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#tearoff:split	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#tearoff:startsWith	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#tearoff:substring	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#String#tearoff:toLowerCase	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#tearoff:toUpperCase	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#tearoff:trim	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#toLowerCase	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#toUpperCase	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#trim	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#bool#tearoff:toString	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#bool#toString	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#double#%	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#double#*	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#double#+	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#double#-	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#double#/	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#double#abs	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#double#ceil	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#double#floor	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#double#round	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#double#tearoff:abs	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#double#tearoff:ceil	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#double#tearoff:floor	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#double#tearoff:round	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#double#tearoff:toString	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#double#tearoff:truncate	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#double#toString	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#double#truncate	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:core#double#unary-	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#double#~/	THROWS		SAFE	thin	REAL	call sites and --sdk-members	2fc41d3f
+dart:core#int#&	SAFE		SAFE		MISSING	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#int#<<	SAFE		SAFE		MISSING	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#int#abs	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#int#get:isEven	CRASH(host)		CRASH(host)		STUB	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#int#tearoff:abs	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#int#tearoff:toString	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#int#toString	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#int#unary-	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#num#%	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#*	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#num#+	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#num#-	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#num#/	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#<	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#num#<=	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#==	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#num#>	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#num#>=	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#abs	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#clamp	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#num#compareTo	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#floor	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#get:isNaN	SAFE	thin	SAFE	thin	REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#num#remainder	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#num#round	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#tearoff:abs	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#tearoff:clamp	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#num#tearoff:compareTo	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#tearoff:floor	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#tearoff:remainder	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#num#tearoff:round	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#tearoff:toDouble	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#num#tearoff:toInt	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#tearoff:toStringAsFixed	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#num#toDouble	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#num#toInt	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#toStringAsFixed	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#num#unary-	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
+dart:core#num#~/	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:ui#Offset#get:dx	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:ui#Offset#get:dy	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:ui#Size#get:height	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dart:ui#Size#get:width	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
+dynamic#%	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#&	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#*	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#+	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#-	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#/	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#<	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#<<	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#<=	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#==	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#>	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#>=	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#[]	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#[]=	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#abs	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#add	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#addAll	CRASH(host)		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#any	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#cancel	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#catchError	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#ceil	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#clamp	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#clear	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#close	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#codeUnitAt	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#compareTo	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#contains	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#containsKey	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#containsValue	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#difference	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#elementAt	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#endsWith	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#every	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#firstWhere	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#floor	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#fold	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#forEach	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:current	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:dx	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:dy	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:entries	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:first	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:hashCode	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:height	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:inMicroseconds	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:inMilliseconds	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:inMinutes	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:inSeconds	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:isActive	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:isBroadcast	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:isClosed	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:isEmpty	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:isEven	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:isNaN	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:isNegative	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:isNotEmpty	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:iterator	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:keys	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:last	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:length	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:microsecondsSinceEpoch	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:month	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:reversed	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:runtimeType	SAFE	thin	SAFE	thin		not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:sink	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:stackTrace	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:stream	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:tick	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:values	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:weekday	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:width	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#get:year	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#indexOf	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#insert	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#isAfter	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#isBefore	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#join	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#listen	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#map	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#message	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#moveNext	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#padLeft	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#putIfAbsent	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#reduce	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#remainder	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#remove	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#removeAt	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#removeLast	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#replaceAll	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#round	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#skip	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#sort	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#split	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#startsWith	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#sublist	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#substring	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#subtract	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#take	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:abs	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:add	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:addAll	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:any	CRASH		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:cancel	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:catchError	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:ceil	THROWS		SAFE	thin		not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:clamp	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:clear	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:close	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:codeUnitAt	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:compareTo	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:contains	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:containsKey	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:containsValue	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:difference	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:elementAt	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:endsWith	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:every	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:firstWhere	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:floor	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:fold	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:forEach	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:indexOf	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:insert	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:isAfter	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:isBefore	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:join	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:listen	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:map	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:padLeft	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:putIfAbsent	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:reduce	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:remainder	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:remove	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:removeAt	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:removeLast	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:replaceAll	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:round	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:skip	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:sort	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:split	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:startsWith	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:sublist	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:substring	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:subtract	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:take	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:then	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:timeout	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:toDouble	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:toInt	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:toIso8601String	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:toList	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:toLowerCase	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:toSet	CRASH		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:toString	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:toStringAsFixed	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:toUpperCase	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:toUtc	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:trim	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:truncate	THROWS		SAFE	thin		not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:whenComplete	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#tearoff:where	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#then	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#timeout	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#toDouble	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#toInt	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#toIso8601String	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#toList	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#toLowerCase	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#toSet	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#toString	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#toStringAsFixed	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#toUpperCase	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#toUtc	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#trim	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#truncate	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#unary-	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#whenComplete	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#where	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#~/	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f

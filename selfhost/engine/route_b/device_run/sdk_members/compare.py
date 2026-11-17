@@ -14,6 +14,8 @@ Per key the device says one of
 """
 import collections, csv, json, re, sys
 meas, d = sys.argv[1:3]
+# optional third argument: the scope line, for a run whose release is not the plain counter app
+SCOPE = sys.argv[3] if len(sys.argv) > 3 else 'one bare `flutter create` app release at engine cell 2fc41d3f; SAFE means resolved in that release (see RESULT.md).'
 src = open(meas).read()
 acc = set(re.findall(r"^\s+'([^']+)',", src.split('routeBSdkMeasuredAccepted')[1].split('};')[0], re.M))
 rows = list(csv.DictReader(open(f'{d}/results.tsv'), delimiter='\t'))
@@ -54,7 +56,7 @@ notmeasured = sorted(acc - set(verdict))
 safe_thin = sorted(thin)
 def lst(ks): return ''.join(f'- {k}  ({len(by[k])} probes, {len({r["runtime_class"] for r in by[k]})} classes)\n' for k in ks)
 with open(f'{d}/comparison.md', 'w') as f:
-    f.write(f'# Device verdicts vs PR #209\n\nScope: one bare `flutter create` app release at engine cell 2fc41d3f; SAFE means resolved in that release (see RESULT.md).\n\n')
+    f.write(f'# Device verdicts vs PR #209\n\nScope: {SCOPE}\n\n')
     f.write(f'Device keys {len(verdict)}: {dict(tot)}; {len(thin)} of the {tot["SAFE"]} SAFE keys are thin. #209 accepts {len(acc)} keys ({len(acc & set(verdict))} of them on the device matrix). All {len(rows)} probes are keyed.\n\n')
     f.write(f'## Refused by #209, SAFE on the device, not thin ({len(a)})\n\n' + lst(a))
     f.write(f'\n## Refused by #209, SAFE on the device but thin ({len(at)})\n\nFewer than 2 probes or fewer than 2 runtime classes.\n\n' + lst(at))
