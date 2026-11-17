@@ -1929,6 +1929,23 @@ inside the budget the step-7 veto was judged on. The +275.79 % reproduces the
 +275.58 % the earlier sweep recorded for naive all-library retention, which is the
 check that both sweeps measured the same thing.
 
+> **Superseded, 2026-11-16.** The table above is the 2026-08-11 record and is kept
+> as it was. Re-run today (`measure_real_app.sh`, host AOT, `host_release_arm64_ddm`,
+> current airgap fixture) the shipping policy is baseline 5,735,656 -> 6,560,832
+> bytes, **+14.39 %**; call form +3.72 %; no private classes +14.38 %; ALL libraries,
+> no private classes +359.59 %; private-class axis +0.00 %; all-libraries retained
+> and the prepass-only interface do not build. **Cause:** the retention grew, not
+> the engine. `a2927e412` (the commit that recorded this table), built and run
+> against today's engine, gives +4.82 % (6,010,512 bytes), so engine drift is about
+> 0.4 points. Today's generator on today's fixture with `--no-framework-uses` gives
+> +4.85 % (6,013,712), so the fixture's growth and `--private-dill`/`--platform`
+> account for almost nothing. What moved the number is `4c696936d` (2026-11-15):
+> releases now retain the framework names app code uses (36 types, 67 members;
+> 88 interface members against 10 then), about +546 KB, +9.5 points. That is what a
+> shipping release retains today, so this is a real size increase in shipping
+> releases relative to this table, from a deliberate change (a `build()` patch
+> must load), not a harness artifact.
+
 ### What the sweep broke, which is why it was worth running
 
 `G3.6d`'s first version was verified on a **toy** program and was wrong on real
