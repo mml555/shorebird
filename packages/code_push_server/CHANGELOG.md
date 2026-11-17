@@ -10,6 +10,28 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Upstream CLI 1.6.140 works against this server.** The calls it added or
+  changed:
+  - `shorebird patch --rollout`, `patches promote --rollout`: `POST
+    /apps/{app}/patches/promote` takes `rollout_percentage`, a multiple of 0.01
+    from 0.01 to 100 (`rollout`, whole percent, still works). A rollout is now
+    stored in hundredths of a percent (`channel_patches.rollout_bps`, migration
+    19, backfilled from `rollout`), so existing rollouts keep the devices they
+    had. The admin rollout route accepts decimals too.
+  - `shorebird patches rollout`: `PUT /apps/{app}/releases/{release}/patches/
+    {patch}/rollout` raises the percentage. Lower is a 409, so is a patch on
+    no channel; the same percentage is a no-op. Audited as `patch.rollout`.
+  - `GET /apps/{app}/releases/{release}/patches` carries `rollout_percentage`
+    per patch, which `patches list`, `info` and `set-track` print.
+  - Build history: `POST /apps/{app}/runs` stores each release and patch run
+    (new `build_runs` table, migration 20) and answers 201 with its id;
+    `GET /apps/{app}/runs` lists them. Upstream shows it in its Enterprise
+    console; here it is on for every app.
+  - `patch --share-debug-info`: accepted and ignored. A debug bundle goes to
+    Shorebird the company, and a self-hosted server has no one to send it to,
+    so the response offers no upload and the CLI warns that nothing was
+    shared. The run is unaffected.
+
 - **Rolling back a patch puts devices back on the previous one.** When the
   active patch of a channel is rolled back (`shorebird patches rollback`, or
   `withdraw?rollback=true`), the newest earlier patch of the release that was
