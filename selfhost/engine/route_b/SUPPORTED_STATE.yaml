@@ -98,7 +98,11 @@ lineage:
   # patch may now ADD a private top-level function (PR #193, version 16) and a
   # private instance method of an existing class (PR #194, version 17). The
   # release probe and the dynamic-interface generator are aab9fd07's, byte for
-  # byte (their sources are unchanged since 0d7e6192). The CLI that reads v16
+  # byte (their sources are unchanged since 0d7e6192, as of the pinned bytes;
+  # gen_dynamic_interface.dart on main has since gained an off-by-default
+  # --extendable flag, PR #198, so a mint that REBUILDS the generator gets a
+  # different .aot hash with the same output. Reuse this .aot, or say so in the
+  # new mint's PROVENANCE) The CLI that reads v16
   # and v17 is PR #193's and #194's, in the merge of PR #195. See
   # PROMOTION_2fc41d3f.md.
   cli_revision: f9c566982a592a42039e0d1f6d74c4ce927e4125   # the merge of PR #195, which selects 2fc41d3f; its packages/shorebird_cli and bin/internal trees equal those of #195's head d7e5325e, the CLI the chain and the iPhone run used
