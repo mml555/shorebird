@@ -78,9 +78,47 @@ metadata (`allow_unchecked_sdk_calls`).
   is a call looked up by name, and `_Smi`/`_Mint` have no such member on
   2fc41d3f. The analysis does not yet say which static types a call site has,
   so these keys are checked like any other and refused on this release. (The
-  same holds for every operator, `num` ones included: no key is skipped.) A
-  later analysis version is meant to mark a site the compiler certainly
-  specializes.
+  same holds for every operator, `num` ones included: no key is skipped.)
+  Analysis 21 closes that: the analyzer asks dart2bytecode's own
+  `RecognizedMethods` about each operator site and marks an instance
+  reference `inlined: <Opcode>` (several opcodes, when the key has int and
+  double sites, are joined with `|`) only when EVERY site of it in the body is
+  an opcode. The CLI accepts the flag only on the 16 operator selectors of
+  `int`/`double`/`num` with an opcode that selector can have, only from a
+  document of analysis 21 or later (20 predicted it without the signature
+  types below and is not believed), and then asks neither the device list nor
+  the snapshot for that reference; anything else it ignores.
+  The analyzer decides on the PATCHED kernel, but dart2bytecode compiles the
+  producer's lowered slice, so correctness does not rest on a list of
+  rewrites. Three layers: (1) the analyzer clears `inlined` in a body with a
+  `super.` use (the producer emits `as dynamic`); (2) the analyzer reports the
+  INFERRED parameter and return types (`signatureTypes`) and the producer
+  writes them into the lowered signature where the source omitted them (an
+  override's `f(a)` takes `a` from the overridden member; a top-level function
+  overrides nothing), refusing the target when the type cannot be named in the
+  replacement library; (3) after compiling, the producer has the cell's
+  analyzer read the payload (`route_b_analyze --scan-bytecode`) and drops the
+  flag of any reference whose selector the bytecode still calls by name
+  (InterfaceCall, DynamicCall, ...); a payload that cannot be read drops every
+  flag, and so does one with a call line the scan could not parse (the scan
+  counts them: `unparsed` must be 0). Dropping the flag means the normal check,
+  which normally refuses. A type written into the lowered signature is refused
+  when an unprefixed import of the target library exposes the same name. The
+  analyzer tests (`inlined_ops_test.dart`, `external_uses_test.dart`) and
+  `inlined_ops_qualify.sh` need the engine's Dart and run in no CI job: the
+  cell mint is the only place they run, and the mint is also the first run of
+  the producer's scan against a real analyzer. `inlined_ops_test.dart` fails
+  when the CLI's `inlinedOpcodes` drifts from dart2bytecode's tables.
+  `coverage/inlined_ops_qualify.sh` proves the flag: it runs the real
+  producer and a real dart2bytecode over every member of
+  `inlined_ops_fixture.dart` (as top-level functions and as instance methods,
+  TFA on, plus the `super.` cases), and compares per reference and per
+  selector, in both directions (flagged iff the bytecode has no call to that
+  selector). It fails on a mismatch, on a refused target, and on a run that
+  compared too little. The cell mint (`mint_route_b_cell.sh`) runs it against
+  the cell's own `dart2bytecode.aot`; run it the same way
+  (`--compiler-aot ... --runtime ...`) before publishing. A cell built with
+  an older analyzer behaves as before.
 - A dynamic call (`declaredClass == null`) is checked against every instance
   class of the snapshot; a declared type with no class in the snapshot, or only
   in another library, is refused.

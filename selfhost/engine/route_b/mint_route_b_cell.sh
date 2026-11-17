@@ -596,6 +596,36 @@ files=(
   "flutter_platform_strong.dill:$FLUTTER_PLATFORM"
 )
 
+# QUALIFY THE `inlined` FLAG (analysis 21) against THIS cell's own files.
+# The analyzer's claim "dart2bytecode emits an opcode here" is about the bytecode
+# of what the producer hands the compiler, and the analyzer links
+# RecognizedMethods from the tree; only the shipped dart2bytecode.aot says
+# whether the two still agree. A mismatch in either direction is a blocker, and
+# a run that compared nothing fails. It runs the cell's own analyzer and
+# compiler under this build's dartaotruntime, against the platform dill the cell
+# ships (`$FLUTTER_PLATFORM`, which the address covers), not a path derived from
+# `$OUT`. Nothing skips it but --dry-run, which publishes nothing: there is no
+# switch that mints an unqualified cell. It needs the Dart CI runs (the producer
+# is run with `dart run`; tool/find_dart.sh picks it) and a resolved workspace.
+if [[ "$DRY" != 1 ]]; then
+  # The Dart CI runs, chosen the way tool/find_dart.sh does (DART_BIN names one).
+  source "$SELFHOST/../tool/find_dart.sh"
+  find_dart "$SELFHOST/.."
+  [[ -n "$dart_bin" ]] \
+    || die "no Dart of the version CI runs: the inlined-flag qualification runs the producer with it (see tool/find_dart.sh; DART_BIN names one)"
+  # A pub workspace resolves at its root; packages/shorebird_cli has no
+  # package_config.json of its own.
+  [[ -f "$SELFHOST/../.dart_tool/package_config.json" ]] \
+    || die "the workspace is not resolved; run scripts/bootstrap.sh"
+  export DART_BIN="$dart_bin"
+  SRC="$SRC" "$HERE/coverage/inlined_ops_qualify.sh" \
+    "$OUT/zip_archives/route_b_analyze.aot" \
+    --compiler-aot "$OUT/zip_archives/dart2bytecode_aot.snapshot" \
+    --runtime "$OUT/dartaotruntime" --out "$OUT" \
+    --flutter-platform "$FLUTTER_PLATFORM" --require-v21 \
+    || die "the analyzer's inlined flag disagrees with this cell's dart2bytecode (inlined_ops_qualify.sh); do not publish this cell"
+fi
+
 # THE iOS ENGINE JOINS THE IDENTITY.
 #
 # The eight files above are the HOST compiler cell. They do not cover the iOS

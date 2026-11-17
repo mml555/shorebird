@@ -37,11 +37,16 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dart2bytecode/bytecode_serialization.dart'
+    show BufferedReader, LinkReader;
+import 'package:dart2bytecode/declarations.dart' as bytecode show Component;
+import 'package:dart2bytecode/recognized_methods.dart' show RecognizedMethods;
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
 import 'package:kernel/text/ast_to_text.dart';
+import 'package:kernel/type_environment.dart';
 
 /// Bump when a consumer would have to change. The CLI refuses a version it does
 /// not know rather than reading fields that may have moved -- the `*.vmcode`
@@ -289,7 +294,26 @@ import 'package:kernel/text/ast_to_text.dart';
 ///     The bump is mandatory for the reason 12's was: a version-17 document
 ///     has no list, and a consumer cannot tell "nothing referenced" from "not
 ///     measured" unless the version says which it holds.
-const analysisVersion = 19;
+///
+/// Version 20 adds `inlined` to an `instance` reference: the opcode name(s)
+/// (`AddInt`, `CompareIntLt`, ... joined by `|` when sites differ) the patch's
+/// bytecode compiler emits for EVERY site of that member in the body, so no
+/// member is looked up when it runs. Never set in a body with a `super.` call:
+/// the producer rewrites those to `as dynamic`. It is decided by
+/// dart2bytecode's own `RecognizedMethods` (imported, so the condition is one
+/// copy: both operands statically exactly `int`, or exactly `double`), and set
+/// only when no site of the member is a real call.
+/// A document below 20 never has it.
+///
+/// Version 21 adds `signatureTypes` to a `lowering` entry: the INFERRED type of
+/// each positional parameter and of the return, as source the replacement
+/// library can write (`int`, `List<String>?`, `dynamic`), or null where the type
+/// cannot be named there. The producer lowers an instance member to a top-level
+/// function, which overrides nothing, so a parameter or return type the source
+/// omitted (inherited from the overridden member) would become `dynamic` in the
+/// lowered form; the producer writes these types in, or refuses. A document
+/// below 21 never has them, and `inlined` is not believed below 21.
+const analysisVersion = 21;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -312,6 +336,13 @@ void main(List<String> args) {
   final carryKeys = <String>{};
   // Probe only: carry EVERY member present on both sides (the retention sweep).
   var carryAll = false;
+
+  // `--scan-bytecode <file>`: not an analysis. Prints which selectors the
+  // compiled replacement still calls BY NAME; see [_scanBytecode].
+  if (args.length == 2 && args[0] == '--scan-bytecode') {
+    _scanBytecode(args[1]);
+    return;
+  }
 
   for (var i = 0; i < args.length; i++) {
     final a = args[i];
@@ -659,12 +690,14 @@ coverage/census_report.py, for what the numbers may and may not be read as.
       }
     }
   }
+  final patchedTypes = TypeEnvironment(CoreTypes(patched), patchedHierarchy);
   final externalReferences = <String, List<Map<String, Object?>>>{
     for (final key in carriedBodies.keys.toList()..sort())
       key: _externalReferences(
         carriedBodies[key]!,
         carriedMembers,
         appMembersByName: appMembersByName,
+        types: patchedTypes,
       ),
   };
 
@@ -2604,6 +2637,167 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
   }
 }
 
+/// Reads a compiled replacement (`.bytecode`) with the SAME bytecode reader the
+/// compiler ships with, and prints one JSON line:
+///
+///   {"functions": <n>, "calls": ["+", "unary-", ...]}
+///
+/// `calls` is every member name the bytecode looks up at run time: the operand
+/// of every InterfaceCall, UncheckedInterfaceCall, InstantiatedInterfaceCall
+/// and DynamicCall, read from the constant pool entries the opcodes point at
+/// (`[1] = InterfaceCall 'dart:core::num::+', ...`). The patcher uses it to check an `inlined` claim against what
+/// was really compiled, where the analyzer could only predict it (the analyzer
+/// reads the patched kernel, the compiler reads the producer's lowered form).
+/// The disassembly text is parsed, so a count of zero functions is reported as
+/// is and the caller treats it as "could not read": never as "calls nothing".
+void _scanBytecode(String path) {
+  final text = bytecode.Component.read(
+    BufferedReader(LinkReader(), File(path).readAsBytesSync()),
+  ).toString();
+  stdout.writeln(jsonEncode(scanBytecodeText(text)));
+}
+
+/// The scan of one bytecode component's text: `functions`, `unparsed` (call
+/// lines the selector regex did not read) and the sorted `calls` selectors.
+Map<String, Object?> scanBytecodeText(String text) {
+  final calls = <String>{};
+  final call = RegExp(
+    r"\[\d+\]\s+=\s+\w*(?:Interface|Dynamic)Call\w*\s+'([^']+)'",
+  );
+  var parsed = 0;
+  for (final m in call.allMatches(text)) {
+    parsed++;
+    final name = m.group(1)!;
+    // `dart:core::num::+` for an interface call, a bare `+` for a dynamic one.
+    final at = name.lastIndexOf('::');
+    calls.add(at < 0 ? name : name.substring(at + 2));
+  }
+  // Self-check, independent of the strict regex above. A constant-pool entry
+  // is a line shaped `[n] = Kind ...` (loosely: a number, then `=` or `:`);
+  // its kind is the token right after that, so a type or a name elsewhere
+  // (`Closure f (VoidCallback cb)`) is never taken for one. A call kind other
+  // than a direct, external or FFI call (which carry no selector) that the
+  // strict regex did not read means the text format changed under it.
+  final entry = RegExp(r'^\s*\[?\d+\]?\s*[=:]\s*(\w+)', multiLine: true);
+  var counted = 0;
+  for (final m in entry.allMatches(text)) {
+    final kind = m.group(1)!;
+    if (!kind.endsWith('Call')) continue;
+    if (kind == 'DirectCall' || kind == 'ExternalCall' || kind == 'FfiCall') {
+      continue;
+    }
+    counted++;
+  }
+  var unparsed = counted - parsed;
+  // The entry shape itself may have changed. An instruction that calls by
+  // selector (`InterfaceCall  CP#5, 2`) refers to a pool entry, so when such
+  // instructions exist and no entry was read at all, nothing was read.
+  final byName = RegExp(
+    r'^\s+(?:\w*Interface|Dynamic)Call\w*\s+CP#',
+    multiLine: true,
+  ).allMatches(text).length;
+  if (byName > 0 && parsed == 0 && unparsed < byName) unparsed = byName;
+  final functions = RegExp(r'^Function ', multiLine: true).allMatches(text);
+  return {
+    'functions': functions.length,
+    'unparsed': unparsed,
+    'calls': calls.toList()..sort(),
+  };
+}
+
+/// [type] as source the replacement library can write, or null when it cannot.
+///
+/// The replacement imports the target library and what that library imports, so
+/// only names that resolve there with certainty are written: `dynamic`, `void`,
+/// a public class of `dart:core` or of the target's own library (not shadowed
+/// by a declaration of the target's library), with type arguments written the
+/// same way. A class type parameter, a function or record type, a typedef, a
+/// private class and a class of any other library are null: not nameable, so
+/// the producer refuses a target whose omitted type would need one.
+String? _writableType(DartType type, Library target) {
+  switch (type) {
+    case DynamicType():
+      return 'dynamic';
+    case VoidType():
+      return 'void';
+    case InterfaceType():
+      final cls = type.classNode;
+      final lib = cls.enclosingLibrary;
+      final name = cls.name;
+      if (name.startsWith('_')) return null;
+      final isCore = lib.importUri.toString() == 'dart:core';
+      if (isCore) {
+        if (target.classes.any((c) => c.name == name) ||
+            target.typedefs.any((t) => t.name == name)) {
+          return null;
+        }
+      } else if (lib != target) {
+        return null;
+      }
+      // Core's own names lose to an explicit import; the target's own are
+      // ambiguous in the replacement, which imports both.
+      if (_importedNameClashes(target, name)) return null;
+      final nullable = switch (type.declaredNullability) {
+        Nullability.nullable => '?',
+        Nullability.nonNullable => '',
+        _ => null,
+      };
+      if (nullable == null) return null;
+      final args = <String>[];
+      for (final a in type.typeArguments) {
+        final w = _writableType(a, target);
+        if (w == null) return null;
+        args.add(w);
+      }
+      return '$name${args.isEmpty ? '' : '<${args.join(', ')}>'}$nullable';
+    default:
+      return null;
+  }
+}
+
+bool _importsAccountedFor(Library target) {
+  final bytes = target.enclosingComponent?.uriToSource[target.fileUri]?.source;
+  if (bytes == null || bytes.isEmpty) return target.dependencies.isNotEmpty;
+  final source = utf8.decode(bytes, allowMalformed: true);
+  final directives = RegExp(
+    r'^\s*(?:import|export)\s',
+    multiLine: true,
+  ).allMatches(source).length;
+  return target.dependencies.length >= directives;
+}
+
+/// For the analyzer's unit test.
+String? writableTypeForTesting(DartType type, Library target) =>
+    _writableType(type, target);
+
+/// True when an unprefixed import of [target] (any combinators ignored, which
+/// only makes this refuse more) exposes a declaration called [name] other than
+/// the one in `dart:core`: an explicit import beats the implicit `dart:core`
+/// one, so writing [name] in the replacement would bind to it.
+bool _importedNameClashes(Library target, String name) {
+  // Fail closed when the kernel's record of the imports cannot be trusted: the
+  // dependency list must not be shorter than the source's own directives, and
+  // an empty list with no source to compare against proves nothing.
+  if (!_importsAccountedFor(target)) return true;
+  final seen = <Library>{};
+  bool exposes(Library lib) {
+    if (!seen.add(lib)) return false;
+    if (lib.importUri.toString() == 'dart:core') return false;
+    if (lib.classes.any((c) => c.name == name) ||
+        lib.typedefs.any((t) => t.name == name) ||
+        lib.extensionTypeDeclarations.any((t) => t.name == name) ||
+        lib.additionalExports.any((r) => r.canonicalName?.name == name)) {
+      return true;
+    }
+    // Re-exports, followed to the end, combinators ignored.
+    return lib.dependencies.any((d) => d.isExport && exposes(d.targetLibrary));
+  }
+
+  return target.dependencies.any(
+    (d) => d.isImport && d.name == null && exposes(d.targetLibrary),
+  );
+}
+
 /// What a producer needs to turn an instance method into a static replacement
 /// taking its receiver as argument 0.
 ///
@@ -2703,6 +2897,13 @@ Map<String, Object?> _lowering(
     // parentheses of its own, so scanning from the declaration start would find
     // the wrong ones.
     'nameOffset': p.fileOffset,
+    'signatureTypes': {
+      'params': [
+        for (final v in function.positionalParameters)
+          _writableType(v.type, cls.enclosingLibrary),
+      ],
+      'returnType': _writableType(function.returnType, cls.enclosingLibrary),
+    },
     'accesses': [
       for (final a in visitor.accesses)
         {
@@ -2907,25 +3108,44 @@ Map<String, Object?>? _privateKey(Member? target) {
 ///
 /// A walk failure yields ONE `unanalyzed` entry and nothing else: a partial list
 /// would read as a complete one.
+///
+/// [types] is the type environment of the component [p] lives in. With it, an
+/// operator site the bytecode compiler turns into an opcode is marked
+/// `inlined` (analysis version 20); without it nothing is.
 List<Map<String, Object?>> externalReferencesOf(
   Procedure p,
   Set<Member> carried, {
   Map<String, List<Member>> appMembersByName = const {},
-}) => _externalReferences(p, carried, appMembersByName: appMembersByName);
+  TypeEnvironment? types,
+}) => _externalReferences(
+  p,
+  carried,
+  appMembersByName: appMembersByName,
+  types: types,
+);
 
 List<Map<String, Object?>> _externalReferences(
   Procedure p,
   Set<Member> carried, {
   Map<String, List<Member>> appMembersByName = const {},
+  TypeEnvironment? types,
 }) {
   final uses = _ExternalUses(
     carried,
     p.enclosingClass,
     p.enclosingLibrary,
     appMembersByName,
+    recognized: types == null
+        ? null
+        : RecognizedMethods(StaticTypeContext(p, types)),
   );
   try {
     p.function.accept(uses);
+    if (uses.hasSuper) {
+      for (final r in uses.found.values) {
+        r.remove('inlined');
+      }
+    }
   } catch (error) {
     return [
       {
@@ -2950,8 +3170,13 @@ class _ExternalUses extends RecursiveVisitor {
     this.carried,
     this.owner,
     this.ownerLibrary,
-    this.appMembersByName,
-  );
+    this.appMembersByName, {
+    this.recognized,
+  });
+
+  /// dart2bytecode's own rule for which calls become opcodes (analysis version
+  /// 20); null when the caller has no type environment.
+  final RecognizedMethods? recognized;
 
   /// The app's instance members by plain name; see [_dynamic].
   final Map<String, List<Member>> appMembersByName;
@@ -2974,6 +3199,14 @@ class _ExternalUses extends RecursiveVisitor {
   final Library ownerLibrary;
 
   final found = <String, Map<String, Object?>>{};
+
+  /// Whether the body contains a `super.` call, getter or setter. The producer
+  /// does not give dart2bytecode this kernel: it rewrites each one to
+  /// `$routeBSuper(...) as dynamic` (route_b_producer.dart, `_lower`), so an
+  /// operand derived from a super member is `dynamic` there however it is
+  /// typed here (`super.n + 1`, `1 + super.m()`, `var x = super.n; x + 1`).
+  /// No `inlined` is reported for a body that has one.
+  bool hasSuper = false;
   final _seenConstants = <Constant>{};
 
   bool _skipLibrary(Library lib) {
@@ -3008,6 +3241,7 @@ class _ExternalUses extends RecursiveVisitor {
     Reference? ref, {
     bool viaConstant = false,
     bool tearOff = false,
+    String? inlined,
   }) {
     final m = ref?.node;
     if (m is! Member || carried.contains(m)) return;
@@ -3054,13 +3288,31 @@ class _ExternalUses extends RecursiveVisitor {
     // A tear-off needs a method extractor the AOT compiler emits only where
     // some code tears that selector off, so it is its own key.
     if (tearOff) name = 'tearoff:$name';
-    found['$kind|$library|${cls?.name}|$name|${viaConstant ? 'c' : 'd'}'] = {
+    final key = '$kind|$library|${cls?.name}|$name|${viaConstant ? 'c' : 'd'}';
+    final seen = found[key];
+    if (seen != null) {
+      // `inlined` holds only while EVERY site of the member is an opcode: a
+      // later real call clears it.
+      final had = seen['inlined'] as String?;
+      if (inlined == null || had == null) {
+        seen.remove('inlined');
+      } else {
+        // Sites of one key can be different opcodes (`num::<` for an int pair
+        // and for a double pair): every one is named, sorted.
+        seen['inlined'] = ({...had.split('|'), ...inlined.split('|')}.toList()
+              ..sort())
+            .join('|');
+      }
+      return;
+    }
+    found[key] = {
       'kind': kind,
       'library': library,
       'class': cls?.name,
       'member': name,
       'private': isPrivate,
       if (viaConstant) 'viaConstant': true,
+      if (inlined != null) 'inlined': inlined,
     };
   }
 
@@ -3152,7 +3404,13 @@ class _ExternalUses extends RecursiveVisitor {
 
   @override
   void visitInstanceInvocation(InstanceInvocation node) {
-    _member(node.interfaceTargetReference);
+    // Asked of dart2bytecode's own function, on the same node kind its
+    // generator asks it of (`_genMethodInvocation`), so the two cannot differ.
+    final opcode = recognized?.specializedBytecodeFor(node);
+    _member(
+      node.interfaceTargetReference,
+      inlined: opcode == null ? null : opcode.name.substring(1),
+    );
     node.receiver.accept(this);
     node.arguments.accept(this);
   }
@@ -3254,16 +3512,20 @@ class _ExternalUses extends RecursiveVisitor {
 
   @override
   void visitSuperMethodInvocation(SuperMethodInvocation node) {
+    hasSuper = true;
     _member(node.interfaceTargetReference);
     node.arguments.accept(this);
   }
 
   @override
-  void visitSuperPropertyGet(SuperPropertyGet node) =>
-      _member(node.interfaceTargetReference);
+  void visitSuperPropertyGet(SuperPropertyGet node) {
+    hasSuper = true;
+    _member(node.interfaceTargetReference);
+  }
 
   @override
   void visitSuperPropertySet(SuperPropertySet node) {
+    hasSuper = true;
     _member(node.interfaceTargetReference);
     node.value.accept(this);
   }

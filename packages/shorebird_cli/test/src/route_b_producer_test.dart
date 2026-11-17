@@ -56,13 +56,16 @@ void main() {
       // Makes this an analysis-18 document that lists these references per
       // target, which is what turns the retention check on.
       Map<String, List<Map<String, Object?>>>? externalReferences,
+      int? analysisVersion,
     }) => RouteBCoverage.fromJson(
       jsonEncode({
-        'analysisVersion': externalReferences != null
-            ? routeBRetentionAnalysisVersion
-            : callers == null
-            ? supportedRouteBAnalysisVersion
-            : routeBCarryAnalysisVersion,
+        'analysisVersion':
+            analysisVersion ??
+            (externalReferences != null
+                ? routeBRetentionAnalysisVersion
+                : callers == null
+                ? supportedRouteBAnalysisVersion
+                : routeBCarryAnalysisVersion),
         if (externalReferences != null) ...{
           'carried': <String>[],
           'callers': <String, List<String>>{},
@@ -429,6 +432,130 @@ callable:
             references: [reference()],
             granted: const ['package:app/main.dart#_other'],
           ),
+          throwsA(isA<RouteBUnsupportedTarget>()),
+        );
+      });
+    });
+
+    group('the compiled replacement checks an `inlined` claim', () {
+      const target = 'package:app/main.dart#routeBValue';
+
+      Map<String, Object?> plus({bool inlined = true}) => {
+        'kind': 'instance',
+        'library': 'dart:core',
+        'class': 'int',
+        'member': '+',
+        'private': false,
+        if (inlined) 'inlined': 'AddInt',
+      };
+
+      /// Produces the target with [references], the scan answering [scan]
+      /// (null: the analyzer exits non-zero). Returns how many scans ran.
+      int produceWith(
+        List<Map<String, Object?>> references, {
+        String? scan,
+        int analysisVersion = 21,
+      }) {
+        var scans = 0;
+        runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: coverage(
+              externalReferences: {target: references},
+              analysisVersion: analysisVersion,
+            ),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            // Nothing measured: an SDK operator is refused unless flagged.
+            retention: RouteBRetention.parse(
+              "callable:\n  - library: 'package:app/main.dart'\n",
+              measuredAccepted: const {},
+              measuredFailing: const {},
+              measuredVmClasses: const {},
+            ),
+            run: (executable, args) {
+              if (args.contains('--scan-bytecode')) {
+                scans++;
+                return scan == null
+                    ? ProcessResult(0, 1, '', 'no such mode')
+                    : ProcessResult(0, 0, 'noise\n$scan\n', '');
+              }
+              return compileOk(executable, args);
+            },
+          ),
+        );
+        return scans;
+      }
+
+      test('keeps the flag when the bytecode has no call by that name', () {
+        expect(
+          produceWith(
+            [plus()],
+            scan: '{"functions":1,"unparsed":0,"calls":["-"]}',
+          ),
+          1,
+        );
+      });
+
+      test('drops the flag, and so refuses, for a call by that name', () {
+        expect(
+          () => produceWith(
+            [plus()],
+            scan: '{"functions":1,"unparsed":0,"calls":["+"]}',
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              allOf(
+                contains('int.+'),
+                contains('still looks it up by name'),
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('drops the flag when the bytecode cannot be read', () {
+        for (final scan in [
+          null,
+          '{"functions":0,"unparsed":0,"calls":[]}',
+          'not json',
+          '{"calls":[]}',
+          // A call line the scan could not read (the text format changed):
+          // the list is a subset, so nothing may be believed.
+          '{"functions":1,"unparsed":1,"calls":["-"]}',
+          // An analyzer that does not count them at all.
+          '{"functions":1,"calls":["-"]}',
+        ]) {
+          expect(
+            () => produceWith([plus()], scan: scan),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('could not be read'),
+              ),
+            ),
+            reason: '$scan',
+          );
+        }
+      });
+
+      test('reads nothing when no reference is flagged', () {
+        // The ordinary refusal stands, and there is nothing to check.
+        expect(
+          () => produceWith([plus(inlined: false)]),
+          throwsA(isA<RouteBUnsupportedTarget>()),
+        );
+        expect(produceWith(const []), 0);
+      });
+
+      test('a document below 21 has no flag to check', () {
+        expect(
+          () => produceWith([plus()], analysisVersion: 20),
           throwsA(isA<RouteBUnsupportedTarget>()),
         );
       });
@@ -1613,6 +1740,9 @@ callable:
         String alsoKind = 'get',
         String receiverType = 'RouteBThing',
         List<String> unsupported = const [],
+        // The inferred types the analysis reports for the signature (analysis
+        // 21): `{'params': [...], 'returnType': ...}`.
+        Map<String, Object?>? signatureTypes,
         // The manifest key the analyzer reports for a PRIVATE access. Set to
         // 'library#Class#name' to make the first access private.
         String? private,
@@ -1671,6 +1801,7 @@ callable:
                     },
                 ],
                 'unsupported': unsupported,
+                'signatureTypes': ?signatureTypes,
               },
             },
             'rejections': <Object>[],
@@ -1968,6 +2099,213 @@ callable:
           ),
           contains('String value(RouteBThing self) => self.label;'),
         );
+      });
+
+      group('writes the inferred types the source omitted', () {
+        String declare(
+          String decl, {
+          required Object? params,
+          Object? returnType = 'Object?',
+          String name = 'probe',
+          String member = '',
+          String access = '',
+          String kind = 'get',
+        }) => lowered(
+          instanceCoverage(
+            preamble: 'class RouteBThing {\n  ',
+            decl: decl,
+            name: name,
+            access: access,
+            member: member,
+            kind: kind,
+            signatureTypes: {'params': params, 'returnType': returnType},
+          ),
+        );
+
+        String reason(
+          String decl, {
+          required Object? params,
+          Object? ret = 'Object?',
+        }) {
+          try {
+            declare(decl, params: params, returnType: ret);
+          } on RouteBUnsupportedTarget catch (e) {
+            return e.reason;
+          }
+          fail('expected a refusal');
+        }
+
+        test('an untyped parameter takes the inherited type', () {
+          expect(
+            declare('@override\n  Object? probe(a) => a + 1;', params: ['int']),
+            contains('Object? probe(RouteBThing self, int a) => a + 1;'),
+          );
+        });
+
+        test('each untyped parameter of several, and typed ones stay', () {
+          expect(
+            declare(
+              'Object? probe(a, double d, c) => 0;',
+              params: ['int', 'double', 'List<String>?'],
+            ),
+            contains(
+              'Object? probe(RouteBThing self, int a, double d, '
+              'List<String>? c) => 0;',
+            ),
+          );
+        });
+
+        test('`final a` and `var a` and `covariant a` gain the type', () {
+          expect(
+            declare(
+              'Object? probe(final a, var b, covariant c) => 0;',
+              params: ['int', 'num', 'Object'],
+            ),
+            contains(
+              'Object? probe(RouteBThing self, final int a, num b, '
+              'covariant Object c) => 0;',
+            ),
+          );
+        });
+
+        test('`covariant var a` keeps `covariant` and replaces `var`', () {
+          expect(
+            declare('Object? probe(covariant var a) => 0;', params: ['int']),
+            contains('Object? probe(RouteBThing self, covariant int a) => 0;'),
+          );
+        });
+
+        test('the first parameter right after the parenthesis', () {
+          expect(
+            declare('Object? probe(a)=>a;', params: ['int']),
+            contains('Object? probe(RouteBThing self, int a)=>a;'),
+          );
+          expect(
+            declare('Object? probe(var a)=>a;', params: ['int']),
+            contains('Object? probe(RouteBThing self, int a)=>a;'),
+          );
+        });
+
+        test('a written type is copied as it is, however it is built', () {
+          expect(
+            declare(
+              'Object? probe(Map<String, int> m, void Function(int, int) f, '
+              '(int, String) r, a) => 0;',
+              params: [
+                'Map<String, int>',
+                'void Function(int, int)',
+                'X',
+                'int',
+              ],
+            ),
+            contains(
+              'Object? probe(RouteBThing self, Map<String, int> m, '
+              'void Function(int, int) f, (int, String) r, int a) => 0;',
+            ),
+          );
+        });
+
+        test('a parameter the analysis says is dynamic is left alone', () {
+          expect(
+            declare('Object? probe(a, b) => 0;', params: ['dynamic', 'int']),
+            contains('Object? probe(RouteBThing self, a, int b) => 0;'),
+          );
+        });
+
+        test('comments and annotations in the list do not confuse it', () {
+          expect(
+            declare(
+              'Object? probe(/* first, */ a, // second\n  @deprecated b) => 0;',
+              params: ['int', 'double'],
+            ),
+            contains(
+              'probe(RouteBThing self, /* first, */ int a, // second\n'
+              '  @deprecated double b) => 0;',
+            ),
+          );
+        });
+
+        test('a type the replacement cannot name refuses the target', () {
+          expect(
+            reason('Object? probe(a) => 0;', params: [null]),
+            allOf(contains('`a`'), contains('has no written type')),
+          );
+        });
+
+        test('a list the analysis does not match refuses', () {
+          expect(
+            reason('Object? probe(a, b) => 0;', params: ['int']),
+            contains('does not match the analysis'),
+          );
+        });
+
+        test('an omitted return type is written in', () {
+          expect(
+            declare('probe(int a) => a;', params: ['int'], returnType: 'num'),
+            contains('num probe(RouteBThing self, int a) => a;'),
+          );
+          expect(
+            declare(
+              '@override\n  static probe(int a) => a;',
+              params: ['int'],
+              returnType: 'num',
+            ),
+            contains('num probe(RouteBThing self, int a) => a;'),
+          );
+        });
+
+        test('an omitted getter return type is written in', () {
+          const getterKey = 'package:app/main.dart#RouteBThing.get:value';
+          final out = lowered(
+            instanceCoverage(
+              preamble: 'class RouteBThing {\n  ',
+              decl: '@override\n  get value => label;',
+              access: 'label',
+              targetKey: getterKey,
+              signatureTypes: {'params': <String>[], 'returnType': 'String'},
+            ),
+          );
+          expect(
+            out,
+            contains('String value(RouteBThing self) => self.label;'),
+          );
+        });
+
+        test('a written or dynamic return type is left alone', () {
+          expect(
+            declare('String probe(int a) => "";', params: ['int']),
+            contains('String probe(RouteBThing self, int a) => "";'),
+          );
+          expect(
+            declare(
+              'probe(int a) => a;',
+              params: ['int'],
+              returnType: 'dynamic',
+            ),
+            contains('probe(RouteBThing self, int a) => a;'),
+          );
+        });
+
+        test('an omitted return type that cannot be named refuses', () {
+          expect(
+            reason('probe(int a) => a;', params: ['int'], ret: null),
+            contains('return type is not written'),
+          );
+        });
+
+        test('a document without the types is lowered as before', () {
+          expect(
+            lowered(
+              instanceCoverage(
+                preamble: 'class RouteBThing {\n  ',
+                decl: 'Object? probe(a) => a;',
+                name: 'probe',
+                access: '',
+              ),
+            ),
+            contains('Object? probe(RouteBThing self, a) => a;'),
+          );
+        });
       });
 
       test('touches nothing the kernel did not report', () {
@@ -3415,7 +3753,7 @@ callable:
         expect(
           emitted,
           contains(
-            r"$routeBSuper(self, 'package:app/main.dart', 'Thing', "
+            r"($routeBSuper(self, 'package:app/main.dart', 'Thing', "
             "'routeBValue', 'Method', ",
           ),
         );
@@ -3426,7 +3764,7 @@ callable:
           emitted,
           contains(
             "'dispose', 'file:///app/main.dart', 100, 'dispose', 'Method') "
-            'as dynamic',
+            'as dynamic)',
           ),
         );
         // The intrinsic declaration must sit BEFORE the entry-point pragma, and

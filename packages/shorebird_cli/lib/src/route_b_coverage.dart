@@ -69,7 +69,9 @@ const supportedRouteBAnalysisVersion = 11;
 ///
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
-const knownRouteBAnalysisVersions = {11, 12, 13, 14, 15, 16, 17, 18, 19};
+const knownRouteBAnalysisVersions = {
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, //
+};
 
 /// The first analyzer version that compares fields, `const`s, constructors and
 /// class headers. An older analyzer reads an edit to one as unchanged, so a
@@ -104,6 +106,19 @@ const routeBRetentionAnalysisVersion = 18;
 /// show any of those, so the patcher refuses it unless the developer opts out
 /// (`--allow-unchecked-sdk-calls`).
 const routeBSelectorCallsAnalysisVersion = 19;
+
+/// The first analyzer version that marks an `instance` reference `inlined`:
+/// every site of that member in the body is an opcode the patch's bytecode
+/// compiler emits (`AddInt`, `CompareIntLt`, ...), decided by dart2bytecode's
+/// own `RecognizedMethods`, so the member is never looked up when it runs. A
+/// document below it never has the field, and one that carries it anyway is
+/// not believed.
+///
+/// 21, not 20: version 20 predicted the flag from the patched kernel, where an
+/// override's omitted parameter type is the inherited one, while the producer
+/// lowers the member to a function that overrides nothing. Version 21 reports
+/// the inferred signature so the producer can write it in (`signatureTypes`).
+const routeBInlinedOpsAnalysisVersion = 21;
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -319,6 +334,7 @@ class RouteBLowering {
     required this.unsupported,
     this.origin,
     this.superInvocations = const [],
+    this.signatureTypes,
     this.releaseSuperTargets,
     this.privateConstructions,
     this.releasePrivateConstructions,
@@ -338,6 +354,17 @@ class RouteBLowering {
   /// Reasons this body is outside the supported surface. Non-empty means
   /// refuse by name rather than lower on a guess.
   final List<String> unsupported;
+
+  /// The INFERRED type of each positional parameter and of the return, as
+  /// source the replacement can write (analysis version 21), or null for a
+  /// document that predates it.
+  ///
+  /// The lowered form is a top-level function, which overrides nothing, so a
+  /// parameter or return type the source left out (Dart takes it from the
+  /// overridden member) would become `dynamic`. The producer writes these in
+  /// where the source omitted a type. A null ELEMENT is a type the replacement
+  /// library cannot name; the producer refuses a target that would need it.
+  final RouteBSignatureTypes? signatureTypes;
 
   /// Where this method lives, in SOURCE terms (analysis version 10).
   ///
@@ -404,6 +431,21 @@ class RouteBLowering {
   /// yet produce a direct-super replacement, so a non-empty list is refused;
   /// see `_lower` in `route_b_producer.dart`.
   final List<RouteBSuperInvocation> superInvocations;
+}
+
+/// The inferred signature of a lowered member; see
+/// [RouteBLowering.signatureTypes].
+@immutable
+class RouteBSignatureTypes {
+  /// {@macro route_b_signature_types}
+  const RouteBSignatureTypes({required this.params, required this.returnType});
+
+  /// One entry per positional parameter, in order: the type as source, or null
+  /// when it cannot be written in the replacement library.
+  final List<String?> params;
+
+  /// The return type as source, or null when it cannot be written.
+  final String? returnType;
 }
 
 /// A method's source-level identity (analysis version 10).
@@ -531,11 +573,19 @@ class RouteBExternalReference {
     this.member,
     this.isPrivate = false,
     this.viaConstant = false,
+    this.inlined,
     this.reason,
   });
 
   /// Parses one entry of `externalReferences`.
-  factory RouteBExternalReference.fromJson(Map<String, dynamic> json) {
+  ///
+  /// [readInlined] is true only for a document of analysis
+  /// [routeBInlinedOpsAnalysisVersion] or later: an `inlined` field on an
+  /// older one is ignored, so only an analyzer that computes it can say it.
+  factory RouteBExternalReference.fromJson(
+    Map<String, dynamic> json, {
+    bool readInlined = false,
+  }) {
     final kind = json['kind'];
     if (kind is! String || !_kinds.contains(kind)) {
       throw FormatException('an external reference has the unknown kind $kind');
@@ -557,7 +607,58 @@ class RouteBExternalReference {
       member: json['member'] as String?,
       isPrivate: json['private'] == true,
       viaConstant: json['viaConstant'] == true,
+      inlined: readInlined
+          ? _knownInlined(
+              library: library,
+              className: json['class'],
+              member: json['member'],
+              inlined: json['inlined'],
+            )
+          : null,
     );
+  }
+
+  /// The opcodes the bytecode compiler can emit for an operator, by selector
+  /// (`RecognizedMethods.binaryIntOps`, `binaryDoubleOps` and the unary
+  /// negations in dart2bytecode, `==` excluded: `a == b` is never a call the
+  /// compiler specializes). A document's `inlined` is believed only when it
+  /// names an operator of `int`, `double` or `num` with opcodes that operator
+  /// can have, so a buggy or edited document cannot waive the check for any
+  /// other member.
+  static const inlinedOpcodes = <String, Set<String>>{
+    '+': {'AddInt', 'AddDouble'},
+    '-': {'SubInt', 'SubDouble'},
+    '*': {'MulInt', 'MulDouble'},
+    '~/': {'TruncDivInt'},
+    '%': {'ModInt'},
+    '/': {'DivDouble'},
+    '&': {'BitAndInt'},
+    '|': {'BitOrInt'},
+    '^': {'BitXorInt'},
+    '<<': {'ShlInt'},
+    '>>': {'ShrInt'},
+    '>': {'CompareIntGt', 'CompareDoubleGt'},
+    '<': {'CompareIntLt', 'CompareDoubleLt'},
+    '>=': {'CompareIntGe', 'CompareDoubleGe'},
+    '<=': {'CompareIntLe', 'CompareDoubleLe'},
+    'unary-': {'NegateInt', 'NegateDouble'},
+  };
+
+  static String? _knownInlined({
+    required String library,
+    required Object? className,
+    required Object? member,
+    required Object? inlined,
+  }) {
+    if (inlined is! String || member is! String) return null;
+    if (library != 'dart:core' ||
+        !const {'int', 'double', 'num'}.contains(className)) {
+      return null;
+    }
+    final allowed = inlinedOpcodes[member];
+    if (allowed == null) return null;
+    final parts = inlined.split('|');
+    return parts.every(allowed.contains) ? inlined : null;
   }
 
   static const _kinds = {
@@ -591,6 +692,13 @@ class RouteBExternalReference {
   /// Whether a constant names it, which the release's interface retained even
   /// for an instance member of `dart:`.
   final bool viaConstant;
+
+  /// The opcode(s), joined by `|`, the bytecode compiler emits for EVERY site
+  /// of this member in the body (analysis 20 and later), so none is looked up
+  /// at run time; null when any site is a call, the analysis predates the
+  /// field, or the document names something that is not an operator opcode
+  /// (see [inlinedOpcodes]).
+  final String? inlined;
 
   /// Why the body could not be walked, for `unanalyzed`.
   final String? reason;
@@ -782,6 +890,16 @@ class RouteBCoverage {
             ),
             _ => null,
           },
+          signatureTypes: switch (l['signatureTypes']) {
+            final Map<String, dynamic> t when t['params'] is List<Object?> =>
+              RouteBSignatureTypes(
+                params: [
+                  for (final v in t['params']! as List<Object?>) v as String?,
+                ],
+                returnType: t['returnType'] as String?,
+              ),
+            _ => null,
+          },
           superInvocations: [
             for (final v
                 in (l['superInvocations'] as List<Object?>? ?? const []))
@@ -881,7 +999,10 @@ class RouteBCoverage {
         for (final entry in raw.entries)
           entry.key: [
             for (final r in entry.value as List)
-              RouteBExternalReference.fromJson(r as Map<String, dynamic>),
+              RouteBExternalReference.fromJson(
+                r as Map<String, dynamic>,
+                readInlined: analysisVersion >= routeBInlinedOpsAnalysisVersion,
+              ),
           ],
       };
     }
