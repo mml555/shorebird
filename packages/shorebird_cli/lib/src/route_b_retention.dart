@@ -363,11 +363,15 @@ class RouteBRetention {
   /// measured on and on every class of the release that can be the declared
   /// type. An empty string is "on no list".
   String? _sdkRefusal(String key) {
+    // First: a tear-off named by the interface is still only as safe as its
+    // call, which the interface's own list does not vouch for.
+    final torn = _tearoffRefusal(key);
+    if (torn != null) return torn;
     if (members.contains(key)) return null;
     final failed = measuredFailing[key];
     if (failed != null) return 'measured: $failed';
     if (!measuredAccepted.contains(key)) return '';
-    return _tearoffRefusal(key) ?? _keptProblem(key);
+    return _keptProblem(key);
   }
 
   /// Why a measured tear-off [key] (`...#tearoff:name`) is refused because its
@@ -379,13 +383,17 @@ class RouteBRetention {
   /// yet a patch that tears a member off can call it, and a member that
   /// aborts when called (`String.endsWith`) aborts through its tear-off too.
   /// The per-release snapshot profile does not stand in for this: it asks only
-  /// whether the member has code, which `List.sort` has and still aborts.
+  /// whether the member has code, and `List.sort` has code on a `List.filled`
+  /// list and still aborts.
   String? _tearoffRefusal(String key) {
-    if (!key.contains('#tearoff:') || !measuredAccepted.contains(key)) {
+    if (!key.contains('#tearoff:') ||
+        !(measuredAccepted.contains(key) || members.contains(key))) {
       return null;
     }
     final call = key.replaceFirst('#tearoff:', '#');
-    if (measuredAccepted.contains(call)) return null;
+    if (measuredAccepted.contains(call) || members.contains(call)) {
+      return null;
+    }
     final why = measuredFailing[call];
     return 'it is torn off, and calling it is not accepted '
         '(`${call.substring(call.indexOf('#') + 1)}`: '

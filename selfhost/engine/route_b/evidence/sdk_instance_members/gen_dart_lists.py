@@ -10,6 +10,8 @@ was measured on maps to a VM class below.
 A tear-off key (`...#tearoff:name`) is accepted only when its call-form key
 (`...#name`) is accepted too: the device probe of a tear-off creates the
 closure and never calls it, so a tear-off proves nothing about calling it.
+The VM classes of an accepted tear-off must also be covered by its call form's.
+The output needs `dart format` (this script writes it unformatted).
 Everything else is listed as failing, with why.
 """
 import csv, re, sys, collections
@@ -102,6 +104,8 @@ for k in list(acc):
         continue
     call = k.replace('#tearoff:', '#', 1)
     if call in accepted:
+        assert set(classes[k]) <= set(classes[call]), (
+            f'{k}: VM classes {classes[k]} not covered by {call}: {classes[call]}')
         continue
     acc.remove(k)
     del classes[k]

@@ -75,10 +75,7 @@ metadata (`allow_unchecked_sdk_calls`).
 - Calibration: `test/src/route_b_sdk_calibration_test.dart` replays every
   measured (key, VM class) pair against the 2fc41d3f profile
   (`evidence/sdk_instance_members/profile_2fc41d3f.json.gz`); each must resolve.
-  Two groups differ and are explained there. The `endsWith` tear-offs: the
-  device probe creates the tear-off and never calls it, while a call of
-  `String.endsWith` on the same release ABORTS (`_StringBase.endsWith` has only
-  a `LazyCompile` stub), so the reader is right. `int` `&`, `<<` and unary `-`:
+  One group differs and is explained there: `int` `&`, `<<` and unary `-`:
   the device probes used plain `int` operands, which the patch's bytecode
   compiler turns into `BitAndInt`, `ShlInt` and `NegateInt` opcodes with no
   lookup (`pkg/dart2bytecode/lib/recognized_methods.dart`). It does so only
@@ -138,7 +135,8 @@ metadata (`allow_unchecked_sdk_calls`).
   document alone (`route_b_coverage_test.dart`).
 - The profile check does not cover a tear-off's call: it looks up the member
   by its bare name, so a tear-off is judged exactly like its call form, and a
-  member with code that still aborts when called (`List.sort`) passes it. Before
+  member that has code and still aborts when called (`List.sort` on a
+  `List.filled` list) passes it. Before
   the call-form rule, 22 of the 24 tear-off keys it removed were already
   rejected by it on this profile (all 19 dynamic ones, `Iterable.any`,
   `List.sort`, `String.endsWith`); `Stream.listen` and `Set.remove` were not.

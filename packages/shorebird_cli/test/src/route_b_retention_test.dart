@@ -216,6 +216,57 @@ callable:
         );
       });
 
+      test('a tear-off the interface lists still needs its call form', () {
+        const listing = '''
+callable:
+  - library: 'dart:core'
+    class: 'String'
+    member: 'tearoff:endsWith'
+  - library: 'dart:core'
+    class: 'String'
+    member: 'tearoff:trim'
+  - library: 'dart:core'
+    class: 'String'
+    member: 'trim'
+''';
+        final listed = RouteBRetention.parse(
+          listing,
+          measuredAccepted: {
+            'dart:core#String#tearoff:endsWith',
+            'dart:core#String#tearoff:trim',
+          },
+          skipKeptCheck: true,
+        );
+        // `endsWith` is not accepted as a call: its tear-off is refused though
+        // the interface names it.
+        expect(
+          refusal([
+            _ref(
+              'instance',
+              'dart:core',
+              cls: 'String',
+              member: 'tearoff:endsWith',
+            ),
+          ], with_: listed),
+          allOf(
+            contains('String.endsWith torn off'),
+            contains('`String#endsWith`'),
+          ),
+        );
+        // `trim` is named by the interface as a call: the tear-off passes.
+        expect(
+          refusal([
+            _ref(
+              'instance',
+              'dart:core',
+              cls: 'String',
+              member: 'tearoff:trim',
+            ),
+          ], with_: listed),
+          isNull,
+        );
+      });
+
       test('an extension METHOD the interface lists', () {
         final listed = RouteBRetention.parse('''
 callable:
