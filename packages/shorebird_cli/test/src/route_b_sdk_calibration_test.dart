@@ -7,6 +7,8 @@ import 'package:shorebird_cli/src/route_b_sdk_kept.dart';
 import 'package:shorebird_cli/src/route_b_sdk_measurements.dart';
 import 'package:test/test.dart';
 
+import 'helpers.dart';
+
 /// Calibrates the per-release reader against the device.
 ///
 /// `profile_2fc41d3f.json.gz` is the snapshot profile of the release the device
@@ -14,16 +16,19 @@ import 'package:test/test.dart';
 /// rejected by the reader for that class on that release's own profile: if it
 /// is, either the reader or the class mapping is wrong.
 void main() {
+  useTempWorkingDirectory();
+
   final evidence = p.normalize(
-    p.join(
-      Directory.current.path,
-      '..',
-      '..',
-      'selfhost',
-      'engine',
-      'route_b',
-      'evidence',
-      'sdk_instance_members',
+    packagePath(
+      p.join(
+        '..',
+        '..',
+        'selfhost',
+        'engine',
+        'route_b',
+        'evidence',
+        'sdk_instance_members',
+      ),
     ),
   );
 
