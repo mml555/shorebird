@@ -36,6 +36,7 @@ import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/route_b_retention.dart';
+import 'package:shorebird_cli/src/route_b_sdk_kept.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -70,9 +71,11 @@ class IosPatcher extends Patcher
   /// coverage analysis needs it.
   String? _releaseAppPackageName;
 
-  /// Whether this patch was published with `--allow-unchecked-sdk-calls` on a
-  /// cell too old to check dynamic calls, extension getters and tear-offs.
-  /// Recorded in the patch's platform metadata.
+  /// Whether this Route B patch was published with
+  /// `--allow-unchecked-sdk-calls`,
+  /// which skips the per-release SDK-member checks (this release's snapshot
+  /// profile) and the analysis-19 gate. Recorded in the patch's platform
+  /// metadata.
   @visibleForTesting
   bool usedUncheckedSdkCalls = false;
 
@@ -282,10 +285,6 @@ Nothing was uploaded.''',
             );
             throw ProcessExit(ExitCode.software.code);
           }
-          logger.warn(
-            '''--allow-unchecked-sdk-calls: this release's compiler cell has no extension/dynamic-call check (it needs analysis $routeBSelectorCallsAnalysisVersion), so dynamic calls, extension getters and instance tear-offs in this patch were not checked. This is recorded in the patch's metadata.''',
-          );
-          usedUncheckedSdkCalls = true;
         }
         // RETENTION, BEFORE THE VERDICT. A symbol the release did not keep is
         // the root cause of two different symptoms: a boot abort on the device,
@@ -293,7 +292,7 @@ Nothing was uploaded.''',
         // rejection about a "new class" that sends the developer to the wrong
         // place. Asked first so the reason named is the real one. The producer
         // asks again, for the members it carries.
-        final retention = _readRouteBRetention(releaseArtifacts);
+        final retention = _readRouteBRetention(releaseArtifacts, provenance);
         _refuseUnretained(coverage, retention);
         if (coverage.verdict != RouteBVerdict.accept) {
           _refuseCoverage(coverage);
@@ -667,10 +666,36 @@ A patch is only interpretable against one whole contract, so these cannot be mix
   /// What the release's dynamic interface kept, or null when it uploaded none
   /// this build can read. Null is not "kept everything": see
   /// [_refuseUnretained] and the producer.
-  RouteBRetention? _readRouteBRetention(Map<String, File> releaseArtifacts) {
+  RouteBRetention? _readRouteBRetention(
+    Map<String, File> releaseArtifacts,
+    RouteBReleaseProvenance provenance,
+  ) {
+    // The release's own snapshot profile says which `dart:` instance members
+    // it kept. Skipped (not even decoded) under --allow-unchecked-sdk-calls.
+    final kept = allowUncheckedSdkCalls
+        ? null
+        : RouteBSnapshotKept.read(
+            releaseArtifacts[routeBSnapshotProfileFileName],
+            expectedSha256: provenance.artifacts[routeBSnapshotProfileFileName],
+          );
+    if (allowUncheckedSdkCalls) {
+      usedUncheckedSdkCalls = true;
+      logger.warn(
+        '--allow-unchecked-sdk-calls: this patch was not checked against what '
+        "this release's snapshot kept of the dart: instance members it calls "
+        '(or against the dynamic-call check, on a cell below analysis '
+        '$routeBSelectorCallsAnalysisVersion). This is recorded in the '
+        "patch's metadata.",
+      );
+    } else if (kept?.problem != null) {
+      logger.detail('[route-b] ${kept!.problem}');
+    }
     final retention = RouteBRetention.read(
       releaseArtifacts[routeBInterfaceFileName],
       capabilities: _readReleaseCapabilities(releaseArtifacts),
+      kept: kept?.kept,
+      keptProblem: kept?.problem,
+      skipKeptCheck: allowUncheckedSdkCalls,
     );
     if (retention == null) {
       logger.detail(

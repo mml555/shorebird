@@ -110,6 +110,8 @@ void main() {
     retention = RouteBRetention.parse(
       _interface,
       capabilities: RouteBCapabilities.fromJson(_grants),
+      // The per-release snapshot check has its own group below.
+      skipKeptCheck: true,
     );
   });
 
@@ -183,14 +185,12 @@ void main() {
         );
       });
 
-      test('a device-proven instance member of a dart: class', () {
+      test('a device-measured instance member of a dart: class', () {
         expect(
           refusal([
-            _ref('instance', 'dart:core', cls: 'List', member: 'add'),
-            _ref('instance', 'dart:core', cls: 'num', member: '+'),
-            _ref('instance', 'dart:core', cls: 'int', member: '<'),
-            _ref('instance', 'dart:core', cls: 'Object', member: 'toString'),
             _ref('instance', 'dart:core', cls: 'String', member: 'split'),
+            _ref('instance', 'dart:core', cls: 'String', member: 'trim'),
+            _ref('instance', 'dart:core', cls: 'Object', member: 'toString'),
           ]),
           isNull,
         );
@@ -479,7 +479,7 @@ callable:
         for (final (cls, member) in [
           ('String', 'padLeft'),
           ('Stream', 'where'),
-          ('Future', 'catchError'),
+          ('Stream', 'listen'),
           ('Duration', 'inMilliseconds'),
           ('List', 'contains'),
         ]) {
@@ -502,7 +502,21 @@ callable:
         }
       });
 
-      group('the host matrix', () {
+      test('the device-measured list keeps a crashing key out', () {
+        // `StreamSubscription.cancel` stops the app while the patch is
+        // activated; the dynamic tear-off of `cancel` reaches the same member.
+        expect(
+          routeBSdkMeasuredAccepted,
+          isNot(contains('dynamic#tearoff:cancel')),
+        );
+        expect(
+          routeBSdkMeasuredFailing['dynamic#tearoff:cancel'],
+          contains('stops the app'),
+        );
+        expect(routeBSdkMeasuredAccepted, hasLength(118));
+      });
+
+      group('the measured matrix', () {
         // Synthetic measurements, so these do not depend on the generated list.
         final measured = RouteBRetention.parse(
           _interface,
@@ -514,12 +528,13 @@ callable:
             'dynamic#tearoff:add',
             'dart:core#List#tearoff:add',
           },
+          skipKeptCheck: true,
           measuredFailing: {
             'dart:async#Stream#listen':
                 'throws NoSuchMethodError on from_iterable (static)',
             'dart:core#String#get:isNotEmpty':
                 'stops the app on one_byte (static)',
-            // Also on the device-proven list: the matrix vetoes it.
+            // Also in the accepted set: a failure vetoes it.
             'dart:core#List#add': 'throws NoSuchMethodError on const (static)',
             'dynamic#add': 'throws NoSuchMethodError on const (dynamic)',
           },
@@ -569,23 +584,21 @@ callable:
           );
         });
 
-        test('a failure vetoes the device-proven list', () {
-          expect(
-            routeBDeviceProvenSdkInstanceMembers,
-            contains('dart:core#List#add'),
+        test('a failure vetoes an accepted key', () {
+          final both = RouteBRetention.parse(
+            _interface,
+            skipKeptCheck: true,
+            measuredAccepted: {'dart:core#List#add'},
+            measuredFailing: {
+              'dart:core#List#add':
+                  'throws NoSuchMethodError on const (static)',
+            },
           );
           expect(
             refusal([
               _ref('instance', 'dart:core', cls: 'List', member: 'add'),
-            ], with_: measured),
+            ], with_: both),
             allOf(contains('List.add'), contains('measured:')),
-          );
-          // Without the veto it stays accepted.
-          expect(
-            refusal([
-              _ref('instance', 'dart:core', cls: 'List', member: 'add'),
-            ]),
-            isNull,
           );
         });
 
@@ -598,9 +611,14 @@ callable:
           );
           // The call being proven says nothing about the tear-off.
           final reason = refusal([
-            _ref('instance', 'dart:core', cls: 'List', member: 'tearoff:sort'),
+            _ref(
+              'instance',
+              'dart:core',
+              cls: 'List',
+              member: 'tearoff:insert',
+            ),
           ]);
-          expect(reason, contains('List.sort torn off'));
+          expect(reason, contains('List.insert torn off'));
         });
 
         test('a dynamic call is accepted only where every class resolved', () {
@@ -669,52 +687,18 @@ callable:
         });
       });
 
-      test('the lists do not overlap in the direction that matters', () {
-        // A key the matrix measured as failing must not also be accepted by
-        // it, and a harness-supplied key is neither.
+      test('the generated lists agree with each other', () {
+        // A refused key is never also accepted, and every accepted key says
+        // which VM classes the per-release check must find.
         for (final key in routeBSdkMeasuredFailing.keys) {
           expect(routeBSdkMeasuredAccepted, isNot(contains(key)), reason: key);
-          expect(
-            routeBSdkMeasuredHarnessSupplied,
-            isNot(contains(key)),
-            reason: key,
-          );
         }
-        for (final key in routeBSdkMeasuredHarnessSupplied) {
-          expect(routeBSdkMeasuredAccepted, isNot(contains(key)), reason: key);
-        }
-      });
-
-      test(
-        'every generated accepted key is accepted and not also device-proven '
-        'unless the matrix agrees',
-        () {
-          for (final key in routeBSdkMeasuredAccepted) {
-            if (key.startsWith('dynamic#')) continue;
-            final [library, cls, member] = key.split('#');
-            expect(
-              refusal([_ref('instance', library, cls: cls, member: member)]),
-              isNull,
-              reason: key,
-            );
-          }
-        },
-      );
-
-      test('no key is listed twice across the device-proven and the '
-          'measured-accepted lists without being the same claim', () {
-        // `String#==` was on both lists: one entry says one thing.
-        final both = routeBDeviceProvenSdkInstanceMembers.intersection(
-          routeBSdkMeasuredAccepted,
-        );
-        // The overlap is allowed (the matrix agrees with the device), but it
-        // may not contain a key the matrix refuses.
-        for (final key in both) {
-          expect(routeBSdkMeasuredFailing, isNot(contains(key)));
+        for (final key in routeBSdkMeasuredAccepted) {
+          expect(routeBSdkMeasuredVmClasses[key], isNotEmpty, reason: key);
         }
         expect(
-          routeBDeviceProvenSdkInstanceMembers.length,
-          routeBDeviceProvenSdkInstanceMembers.toSet().length,
+          routeBSdkMeasuredVmClasses.keys.toSet(),
+          routeBSdkMeasuredAccepted,
         );
       });
 

@@ -50,22 +50,30 @@
 // WHAT IT DOES NOT COVER, said once so nobody reads more into a pass:
 //
 //   * an instance member of a `dart:` class (`s.substring(1)`) is NOT decidable
-//     from anything a patch has: it binds by selector, the generator leaves it
-//     out of the interface on purpose, and the AOT kernel the CLI would have to
-//     read is not parsed here. One the release never called throws
-//     `NoSuchMethodError` on a device. So it is refused unless a measurement
-//     shows it resolving on EVERY runtime class and form tried
-//     ([routeBSdkMeasuredAccepted], from the host matrix) or it is on
-//     [routeBDeviceProvenSdkInstanceMembers] and the matrix did not veto it.
-//     A failure in the matrix is real; a success is evidence on one release
-//     only. A patch outside the lists can always be made to work by cutting a
-//     release whose own code calls the member; the refusal says so;
+//     from the interface: it binds by selector and the generator leaves it out
+//     on purpose. One the release never kept throws `NoSuchMethodError` on a
+//     device, or stops the app. So it is accepted only when BOTH hold:
+//       1. it is on the device-measured list ([routeBSdkMeasuredAccepted]),
+//          every probe of which resolved, on more than one runtime class; and
+//       2. THIS release's own snapshot profile ([RouteBSnapshotKept]) resolves
+//          it, on every VM class the measurement ran it on, to a function with
+//          real code. A release whose profile is missing or does not match its
+//          recorded digest refuses (`--allow-unchecked-sdk-calls` skips this
+//          check, and only this check, for SDK members).
+//     Or when the release's own interface names the member (`--sdk-members`).
+//     CAVEATS: the list was measured on ONE app at ONE cell, so it says what is
+//     expected, not what holds for every release; the profile check is
+//     necessary, not sufficient (`List.sort` and `Iterable.contains` on a
+//     `List.filled` list have code and abort); and a runtime class the matrix
+//     did not measure (`MappedIterable`, a user's own Iterable) is not proven.
+//     Per-release evidence (R4) is the real fix. A patch outside can always be
+//     made to work by cutting a release whose own code calls the member;
 //   * a call by name on a `dynamic` value, an instance tear-off, a `for-in`'s
 //     `iterator`/`moveNext`/`current`: reported by the analyzer from analysis
 //     version 19 and answered by the same measurement. Below 19 the CLI
 //     refuses unless told not to (`--allow-unchecked-sdk-calls`);
 //   * string interpolation's `toString` (called virtually from the core
-//     library, see [routeBDeviceProvenSdkInstanceMembers]) and `await`
+//     library, see [routeBSdkMeasuredAccepted]) and `await`
 //     (the async machinery calls `_Future` internals directly, not by
 //     selector; only a user-defined thenable's `then` is by name), and
 //     `dart:_` libraries, which no interface can hold and no patch spells;
@@ -82,74 +90,9 @@ import 'dart:io';
 
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_sdk_kept.dart';
 import 'package:shorebird_cli/src/route_b_sdk_measurements.dart';
 import 'package:yaml/yaml.dart';
-
-/// SDK instance members that ran in a patch on a device, on a release that
-/// never named them, as `library#Class#member` (the declaring class, VM member
-/// names).
-///
-/// Retention is per (runtime class, selector), and each run below proves ONE
-/// runtime class, named beside the entry. A key here is therefore weaker than
-/// it reads, and the host matrix (`routeBSdkMeasuredFailing`) VETOES it: a
-/// member that failed on any class or form the matrix tried is refused even
-/// though a device ran it once.
-///
-/// Sources, in `selfhost/engine/route_b/evidence/ios_shapes_2026_11_15`: `p03`
-/// (a counter, `Smi`), `p07` (a `for-in` over a growable `List`), `p16`
-/// (`List.add` on a growable list, then `join`), `p17` (`split` on a one-byte
-/// `String`, then `where`, `map`, `toList`). `==` is an operator those runs
-/// could not avoid.
-///
-/// What the runs do NOT show: `~/`, `%`, unary `-` and every `double`
-/// operator, `bool`/`double`/`int`/`String` `toString` outside interpolation,
-/// and any runtime class other than the one named. They are here because the
-/// interpolation and arithmetic every patch contains reach them through the
-/// core library; the matrix decides where it has an answer.
-///
-/// NOT on it, on purpose: everything the matrix measured as failing, and every
-/// `dart:ui` member.
-final routeBDeviceProvenSdkInstanceMembers = <String>{
-  for (final cls in ['num', 'int', 'double'])
-    for (final op in [
-      '+',
-      '-',
-      '*',
-      '/',
-      '~/',
-      '%',
-      '<',
-      '>',
-      '<=',
-      '>=',
-      'unary-',
-      '==',
-    ])
-      'dart:core#$cls#$op',
-  // Called virtually from the core library (map keys, interpolation,
-  // `print`), so every class keeps them.
-  'dart:core#Object#==',
-  'dart:core#Object#toString',
-  'dart:core#Object#get:hashCode',
-  // Interpolation calls `toString` through the VM's own virtual call. Proven
-  // for `int` (Smi) in p03.
-  'dart:core#int#toString',
-  'dart:core#double#toString',
-  'dart:core#bool#toString',
-  'dart:core#String#toString',
-  'dart:core#String#==', // one-byte String (p17)
-  'dart:core#List#add', // growable List (p16)
-  'dart:core#Iterable#join', // growable List (p16)
-  'dart:core#Iterable#where', // growable List (p17)
-  'dart:core#Iterable#map', // growable List (p17)
-  'dart:core#Iterable#toList', // `where`/`map` result (p17)
-  // A `for-in` over a growable List (p07); the analyzer reports these three
-  // for every `for-in` from analysis 19.
-  'dart:core#Iterable#get:iterator',
-  'dart:core#Iterator#moveNext',
-  'dart:core#Iterator#get:current',
-  'dart:core#String#split', // one-byte String (p17)
-};
 
 /// The release's retained set, read from its dynamic interface.
 class RouteBRetention {
@@ -162,6 +105,10 @@ class RouteBRetention {
     this.capabilities,
     this.measuredAccepted = routeBSdkMeasuredAccepted,
     this.measuredFailing = routeBSdkMeasuredFailing,
+    this.measuredVmClasses = routeBSdkMeasuredVmClasses,
+    this.kept,
+    this.keptProblem,
+    this.skipKeptCheck = false,
   });
 
   /// Parses the text of a `dynamic_interface.yaml`.
@@ -175,6 +122,10 @@ class RouteBRetention {
     RouteBCapabilities? capabilities,
     Set<String> measuredAccepted = routeBSdkMeasuredAccepted,
     Map<String, String> measuredFailing = routeBSdkMeasuredFailing,
+    Map<String, List<String>> measuredVmClasses = routeBSdkMeasuredVmClasses,
+    RouteBSnapshotKept? kept,
+    String? keptProblem,
+    bool skipKeptCheck = false,
   }) {
     final Object? loaded;
     try {
@@ -248,6 +199,10 @@ class RouteBRetention {
       capabilities: capabilities,
       measuredAccepted: measuredAccepted,
       measuredFailing: measuredFailing,
+      measuredVmClasses: measuredVmClasses,
+      kept: kept,
+      keptProblem: keptProblem,
+      skipKeptCheck: skipKeptCheck,
     );
   }
 
@@ -256,12 +211,18 @@ class RouteBRetention {
   static RouteBRetention? read(
     File? file, {
     RouteBCapabilities? capabilities,
+    RouteBSnapshotKept? kept,
+    String? keptProblem,
+    bool skipKeptCheck = false,
   }) {
     if (file == null || !file.existsSync()) return null;
     try {
       return RouteBRetention.parse(
         file.readAsStringSync(),
         capabilities: capabilities,
+        kept: kept,
+        keptProblem: keptProblem,
+        skipKeptCheck: skipKeptCheck,
       );
     } on FormatException {
       return null;
@@ -285,12 +246,28 @@ class RouteBRetention {
   /// The release's capability manifest, if it published one.
   final RouteBCapabilities? capabilities;
 
-  /// The keys the host matrix resolved on every runtime class and form
-  /// ([routeBSdkMeasuredAccepted] unless a test supplies its own).
+  /// The keys the device matrix resolved on every runtime class and form
+  /// ([routeBSdkMeasuredAccepted] unless a test supplies its own). Measured on
+  /// one Flutter release: see route_b_sdk_measurements.dart.
   final Set<String> measuredAccepted;
 
   /// The keys the matrix saw fail, with why ([routeBSdkMeasuredFailing]).
   final Map<String, String> measuredFailing;
+
+  /// For each accepted key, the VM classes it was measured on
+  /// ([routeBSdkMeasuredVmClasses]).
+  final Map<String, List<String>> measuredVmClasses;
+
+  /// What THIS release's own snapshot kept (its snapshot profile), or null when
+  /// it could not be read; [keptProblem] then says why.
+  final RouteBSnapshotKept? kept;
+
+  /// Why [kept] is null, in plain words.
+  final String? keptProblem;
+
+  /// `--allow-unchecked-sdk-calls`: do not ask this release's snapshot. The
+  /// measured list still applies.
+  final bool skipKeptCheck;
 
   /// Why [reference] cannot be shown to be retained, or null when it can.
   String? refuse(RouteBExternalReference reference) {
@@ -306,7 +283,8 @@ class RouteBRetention {
     if (r.kind == 'instance' &&
         r.library.startsWith('dart:') &&
         !r.viaConstant) {
-      return _isUnprovenSdkInstance(r) ? _describeSdkInstance(r) : null;
+      final why = _sdkRefusal(_sdkKey(r));
+      return why == null ? null : _describeSdkInstance(r, why);
     }
     return _retained(r) ? null : _describe(r);
   }
@@ -329,7 +307,14 @@ class RouteBRetention {
       return 'a call by name to `$shown` on a dynamic value (a dynamic call, '
           'measured: ${measuredFailing[failed.first]})';
     }
-    if (keys.any(measuredAccepted.contains)) return null;
+    final accepted = keys.where(measuredAccepted.contains).toList();
+    if (accepted.isNotEmpty) {
+      final problem = _keptProblem(accepted.first);
+      return problem == null
+          ? null
+          : 'a call by name to `$shown` on a dynamic value (a dynamic call, '
+                '$problem)';
+    }
     return 'a call by name to `$shown` on a dynamic value (a dynamic call, '
         'never measured)';
   }
@@ -337,18 +322,54 @@ class RouteBRetention {
   static String _bareSelector(String sel) =>
       sel.replaceFirst(RegExp('^(get|set|tearoff):'), '');
 
-  /// Whether [r] is an instance member of a `dart:` class that cannot be shown
-  /// to be kept: not named by the release's own interface (the SDK-member list
-  /// the release was built with, e.g. `DateTime.millisecondsSinceEpoch`), and
-  /// either measured to fail on some runtime class (which also overrides the
-  /// device-proven list), or on neither list. A constant that names it is the
-  /// interface's to answer, so it never reaches here.
-  bool _isUnprovenSdkInstance(RouteBExternalReference r) {
-    final key = _sdkKey(r);
-    if (members.contains(key)) return false;
-    if (measuredFailing.containsKey(key)) return true;
-    return !routeBDeviceProvenSdkInstanceMembers.contains(key) &&
-        !measuredAccepted.contains(key);
+  /// Why an instance member of a `dart:` class [key] cannot be shown to be kept
+  /// by THIS release, or null when it can: the release's own interface
+  /// names it,
+  /// or it is on the device-measured list AND this release's snapshot resolves
+  /// it on every VM class it was measured on. An empty string is "on no list".
+  String? _sdkRefusal(String key) {
+    if (members.contains(key)) return null;
+    final failed = measuredFailing[key];
+    if (failed != null) return 'measured: $failed';
+    if (!measuredAccepted.contains(key)) return '';
+    return _keptProblem(key);
+  }
+
+  /// Whether this release's snapshot resolves [key] on every VM class the
+  /// measurement ran it on, or why not.
+  String? _keptProblem(String key) {
+    if (skipKeptCheck) return null;
+    final snapshot = kept;
+    if (snapshot == null) {
+      return '${keptProblem ?? 'its snapshot profile is not available'}, so '
+          'whether this release kept it cannot be checked';
+    }
+    final classes = measuredVmClasses[key];
+    if (classes == null || classes.isEmpty) {
+      return 'no VM class was measured for it';
+    }
+    final selector = _selectorOf(key);
+    for (final cls in classes) {
+      if (!snapshot.hasClass(cls)) {
+        return 'this release has no class `$cls`';
+      }
+      switch (snapshot.resolves(cls, selector)) {
+        case true:
+          continue;
+        case false:
+          return 'this release has `$cls.$selector` without compiled code';
+        case null:
+          return 'this release has no `$selector` on `$cls`';
+      }
+    }
+    return null;
+  }
+
+  /// `dart:core#Iterable#tearoff:map` -> `map`; `dynamic#get:length` ->
+  /// `get:length`.
+  static String _selectorOf(String key) {
+    final last = key.substring(key.lastIndexOf('#') + 1);
+    return last.startsWith('tearoff:') ? last.substring(8) : last;
   }
 
   static String _sdkKey(RouteBExternalReference r) =>
@@ -433,9 +454,8 @@ class RouteBRetention {
   }
 
   /// "the dart: method `String.toUpperCase` (an SDK instance member ...)".
-  String _describeSdkInstance(RouteBExternalReference r) {
-    final measured = measuredFailing[_sdkKey(r)];
-    final how = measured == null ? '' : ', measured: $measured';
+  String _describeSdkInstance(RouteBExternalReference r, String why) {
+    final how = why.isEmpty ? '' : ', $why';
     final torn = r.member?.startsWith('tearoff:') ?? false;
     final name = torn
         ? '${r.className}.${_bareSelector(r.member!)} torn off'
@@ -540,7 +560,8 @@ String? describeRouteBUnretained(List<String> symbols) {
 }
 
 /// The refusal for a patch that calls SDK instance members not on the
-/// device-proven list, or null for an empty [symbols].
+/// device-measured list or that this release did not keep, or null for an
+/// empty [symbols].
 String? describeRouteBUnprovenSdkMembers(List<String> symbols) {
   if (symbols.isEmpty) return null;
   const shown = 5;
@@ -550,9 +571,10 @@ String? describeRouteBUnprovenSdkMembers(List<String> symbols) {
       : '';
   return 'it calls $named$more. An SDK instance method is looked up by name '
       'when it runs, and the app throws NoSuchMethodError at that call if the '
-      'release never called it; nothing at patch time can tell. Members marked '
-      '"measured" were tried on a release that never called them and failed. '
-      'Cut a new '
+      'release never called it. Members marked "measured" failed on a device; '
+      "others are refused because the release's own snapshot does not keep "
+      'them (or its snapshot profile could not be checked; '
+      '`--allow-unchecked-sdk-calls` skips that check). Cut a new '
       'release whose own code calls it (a call is enough), then patch that';
 }
 

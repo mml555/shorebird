@@ -1,54 +1,137 @@
 #!/usr/bin/env python3
-"""gen_dart_lists.py <members.json> <release id> <out.dart>
+"""gen_dart_lists.py <members.tsv> <results.tsv> <cell> <out.dart>
 
 Writes packages/shorebird_cli/lib/src/route_b_sdk_measurements.dart from the
-matrix's members.json (aggregate.py). Re-run the harness, then this, to refresh.
+device matrix of PR #216 (selfhost/engine/route_b/device_run/sdk_members/result,
+copied to device/). A key is accepted only when its verdict is SAFE (every probe
+resolved) and `thin` is empty (more than one probe and more than one runtime
+class), and every runtime class it was measured on maps to a VM class below.
+Everything else is listed as failing, with why.
 """
-import json, sys, re
-members = json.load(open(sys.argv[1])); release = sys.argv[2]
-acc = sorted(k for k, m in members.items() if m['accepted'])
-harness = sorted(k for k, m in members.items() if m['harness_supplied'])
-fail = {}
-for k, m in sorted(members.items()):
-    if m['accepted'] or m['harness_supplied']: continue
-    f = m['failing']
-    def one(x):
-        label, form, st = x.split(':')
-        what = {'THROWS': 'throws NoSuchMethodError', 'ABORTS': 'stops the app',
-                'CRASHES': 'crashes the process', 'UNATTRIBUTED': 'throws an unattributed error',
-                'NOT-RUN': 'did not run'}.get(st, st)
-        return f'{what} on {label} ({form})'
-    text = one(f[0]) + (f' and {len(f) - 1} more' if len(f) > 1 else '')
-    fail[k] = text
-def q(s): return "'" + s.replace("\\", "\\\\").replace("'", "\\'") + "'"
+import csv, re, sys, collections
+
+members_tsv, results_tsv, cell, out_path = sys.argv[1:5]
+members = list(csv.DictReader(open(members_tsv), delimiter='\t'))
+rows = list(csv.DictReader(open(results_tsv), delimiter='\t'))
+
+# (declared family, runtime_class label) -> the VM classes values of it have.
+# Private-library suffixes (`@0150898`) are stripped on both sides. Where the
+# VM class is not certain, every candidate is listed and the CLI requires all
+# of them (a candidate the release's snapshot lacks refuses the key).
+VM = {
+    ('String', 'one_byte'): ['_OneByteString'],
+    ('String', 'two_byte'): ['_TwoByteString'],
+    ('Object', 'string'): ['_OneByteString'],
+    ('int', 'smi'): ['_Smi'], ('int', 'mint'): ['_Mint'],
+    ('num', 'smi'): ['_Smi'], ('num', 'mint'): ['_Mint'], ('num', 'double'): ['_Double'],
+    ('Object', 'int'): ['_Smi'],
+    ('double', 'double'): ['_Double'],
+    ('bool', 'bool'): ['bool'],
+    ('List', 'growable'): ['_GrowableList'], ('List', 'filled_fixed'): ['_List'],
+    ('List', 'const'): ['_ImmutableList'], ('List', 'unmodifiable'): ['_ImmutableList'],
+    ('List', 'json'): ['_GrowableList'], ('List', 'generate'): ['_GrowableList'],
+    ('Object', 'list'): ['_GrowableList'],
+    ('Iterable', 'list'): ['_GrowableList'], ('Iterable', 'set'): ['_Set'],
+    ('Iterable', 'generate'): ['_GeneratorIterable'],
+    ('Map', 'literal'): ['_Map'], ('Map', 'const'): ['_ConstMap'],
+    ('Map', 'unmodifiable'): ['UnmodifiableMapView'], ('Map', 'json'): ['_Map'],
+    ('Set', 'literal'): ['_Set'], ('Set', 'const'): ['_ConstSet'],
+    ('Future', 'async_fn'): ['_Future'], ('Future', 'value'): ['_Future'],
+    ('Future', 'completer'): ['_Future'], ('Future', 'delayed'): ['_Future'],
+    ('Stream', 'from_iterable'): ['_MultiStream'],
+    ('Stream', 'as_broadcast'): ['_AsBroadcastStream'],
+    ('Stream', 'value'): ['_ControllerStream'],
+    ('StreamController', 'plain'): ['_AsyncStreamController'],
+    ('StreamController', 'broadcast'): ['_AsyncBroadcastStreamController'],
+}
+# An `Iterator` key is called on the iterator of the probed Iterable.
+ITER = {
+    'generate': ['_GeneratorIterator'],
+    'list': ['ListIterator', '_ArrayIterator'],
+    'set': ['_CompactIterator'],
+}
+by_key = collections.defaultdict(list)
+for r in rows:
+    by_key[r['key']].append(r)
+
+def family(r):
+    return r['receiver_type'].split('<')[0]
+
+acc, fail, classes = [], {}, {}
+for m in members:
+    k, v, thin = m['key'], m['device_verdict'], m['thin']
+    ps = by_key.get(k, [])
+    if v == 'SAFE' and not thin:
+        vm, bad = set(), []
+        for r in ps:
+            c = (ITER.get(r['runtime_class']) if k.split('#')[1] == 'Iterator'
+                 else VM.get((family(r), r['runtime_class'])))
+            if c is None: bad.append(f"{family(r)}/{r['runtime_class']}")
+            else: vm.update(c)
+        if bad or not vm:
+            fail[k] = 'no VM class is mapped for ' + (bad[0] if bad else 'any probe')
+        else:
+            acc.append(k); classes[k] = sorted(vm)
+        continue
+    if v == 'SAFE':
+        fail[k] = f"too thin to accept ({m['probes']} probe(s) on {m['runtime_classes']} runtime class(es))"
+        continue
+    order = {'ABORTS': 0, 'THROWS': 1, 'UNATTRIBUTED': 2, 'NOT-RUN': 3}
+    bad = sorted((r for r in ps if r['result'] != 'RESOLVES'), key=lambda r: order.get(r['result'], 4))
+    what = {'THROWS': 'throws NoSuchMethodError', 'ABORTS': 'stops the app',
+            'UNATTRIBUTED': 'throws an unattributed error', 'NOT-RUN': 'never ran'}
+    if v.startswith('CRASH(host)'):
+        fail[k] = 'stops the app on the host (not tried on the device)'
+    elif bad:
+        r = bad[0]
+        extra = f' and {len(bad) - 1} more' if len(bad) > 1 else ''
+        fail[k] = f"{what.get(r['result'], r['result'])} on {r['runtime_class']} ({r['form']}){extra}"
+    else:
+        fail[k] = v.lower()
+acc.sort()
+
+def q(s): return "'" + s.replace("\\", "\\\\").replace("'", "\\'").replace('$', '\\$') + "'"
 out = f'''// GENERATED by selfhost/engine/route_b/evidence/sdk_instance_members/gen_dart_lists.py
-// from the host matrix's members.json. Do not edit by hand.
+// from the device matrix of PR #216. Do not edit by hand.
 //
-// Host-measured, NOT device-proven. Measured on a minimal pure-Dart release
-// (id {release}),
-// on the host `dartaotruntime`, one probe per process, over the runtime
-// classes and forms listed in `gen_probe.py`. A FAILURE here is real (the call
-// threw or stopped the app on that class). A SUCCESS is evidence on that
-// release only (it may come from code that release happens to contain), so
-// a member accepted here still wants a device spot check on a Flutter release.
+// DEVICE-measured: an iPhone 7 (iOS 15.8.8), a Flutter release cut at engine
+// cell {cell} (one counter app, whose own code calls none of the probed
+// members). A key is accepted only when every probe of it resolved, there was
+// more than one probe on more than one runtime class, and every runtime class
+// maps to a VM class (below).
+//
+// READ THIS BEFORE TRUSTING A KEY:
+//  * "Safe" was measured on ONE app at ONE cell. A member the Flutter framework
+//    itself uses is expected in every Flutter release, but that is not proven
+//    per release; per-release evidence (R4) is the real fix. So the CLI asks
+//    two things of an accepted key: it is listed here AND this release's own
+//    snapshot profile resolves it, for every VM class below, to a function with
+//    real code (route_b_sdk_kept.dart).
+//  * The profile check is necessary, not sufficient: `List.sort` and
+//    `Iterable.contains` on a `List.filled` list have code and still abort on
+//    the device. That is why the list is asked first.
+//  * Runtime classes the matrix did not measure (`MappedIterable`, a user's
+//    own Iterable, ...) are not proven by it.
+//  * The declared-type -> VM-class map is this script's `VM` table; where
+//    the VM class is not certain every candidate is listed and all must
+//    resolve.
 
-/// The release the measurement ran on.
-const routeBSdkMeasurementRelease = {q(release)};
+/// The engine cell the measurement ran on.
+const routeBSdkMeasurementCell = {q(cell)};
 
-/// Keys (`library#Class#member`, `...#tearoff:name`, `dynamic#selector`) that
-/// resolved on EVERY runtime class and form tried, and that the harness's own
-/// code never references.
+/// Keys (`library#Class#member`, `...#tearoff:name`, `dynamic#selector`) every
+/// probe of which resolved on the device, with enough probes to mean something.
 const routeBSdkMeasuredAccepted = <String>{{
 {"".join(f"  {q(k)},{chr(10)}" for k in acc)}}};
 
-/// Keys that failed on at least one class or form, with the first failure.
-const routeBSdkMeasuredFailing = <String, String>{{
-{"".join(f"  {q(k)}: {q(v)},{chr(10)}" for k, v in fail.items())}}};
+/// For each accepted key, the VM classes (private-library suffix removed) its
+/// probes ran on. The per-release check needs every one of them kept.
+const routeBSdkMeasuredVmClasses = <String, List<String>>{{
+{"".join(f"  {q(k)}: [{', '.join(q(c) for c in v)}],{chr(10)}" for k, v in sorted(classes.items()))}}};
 
-/// Keys that resolved but are referenced by the harness's own code, so the
-/// resolution is not evidence. Refused like an unmeasured key.
-const routeBSdkMeasuredHarnessSupplied = <String>{{
-{"".join(f"  {q(k)},{chr(10)}" for k in harness)}}};
+/// Every other key, with the first reason it is refused.
+const routeBSdkMeasuredFailing = <String, String>{{
+{"".join(f"  {q(k)}: {q(v)},{chr(10)}" for k, v in sorted(fail.items()))}}};
 '''
-open(sys.argv[3], 'w').write(out)
-print(len(acc), 'accepted', len(fail), 'failing', len(harness), 'harness-supplied')
+open(out_path, 'w').write(out)
+print(len(acc), 'accepted', len(fail), 'refused')

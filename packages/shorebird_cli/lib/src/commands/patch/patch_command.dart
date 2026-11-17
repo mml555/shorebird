@@ -122,10 +122,11 @@ To target the latest release (e.g. the release that was most recently updated) u
       ..addFlag(
         'allow-unchecked-sdk-calls',
         help:
-            "Publish an iOS patch even though this release's compiler cell "
-            'predates the extension/dynamic-call check (analysis 19), so '
-            'dynamic calls, extension getters and tear-offs in it are not '
-            'checked. Recorded in the patch metadata.',
+            'Publish an iOS patch without the per-release SDK-member checks: '
+            "skip checking that this release's own snapshot kept the dart: "
+            'instance members the patch calls, and publish even when its '
+            'compiler cell predates the extension/dynamic-call check '
+            '(analysis 19). Recorded in the patch metadata.',
         negatable: false,
       )
       ..addFlag(
