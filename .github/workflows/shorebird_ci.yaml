@@ -47,8 +47,9 @@ jobs:
   changes:
     if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) || vars.HOSTED_RUNNERS == 'true' }}
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
-    # A stalled checkout or fetch fails here instead of holding a runner
-    # for GitHub's six-hour default; the job normally takes under two minutes.
+    # A stalled checkout or network fetch (git, npx) fails here instead of
+    # holding a runner for GitHub's six-hour default; the job normally takes
+    # under two minutes.
     timeout-minutes: 10
     permissions:
       contents: read
@@ -336,8 +337,9 @@ jobs:
     name: CSpell
     if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) || vars.HOSTED_RUNNERS == 'true' }}
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
-    # A stalled checkout or fetch fails here instead of holding a runner
-    # for GitHub's six-hour default; the job normally takes under two minutes.
+    # A stalled checkout or network fetch (git, npx) fails here instead of
+    # holding a runner for GitHub's six-hour default; the job normally takes
+    # under two minutes.
     timeout-minutes: 15
     # The cspell version is pinned below, but npx still resolves its
     # transitive dependencies unpinned, so the job gets a read-only token
