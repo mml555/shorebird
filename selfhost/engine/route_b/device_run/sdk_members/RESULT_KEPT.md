@@ -27,8 +27,8 @@ This repeats `RESULT.md` on a release built so that the dart: SDK members the co
 
 Data: `result_kept/members.tsv` (one verdict per key, 426 keys), `result_kept/results.tsv` (one row per probe, 1514), `result_kept/side_by_side.tsv`
 and `.md` (counter and kept verdicts per key, the lists below), `result_kept/comparison.md` (against #209), `result_kept/kept_check_build{1,2,3}*.tsv`
-(what the snapshot profile says per probe, and per key for builds 2 and 3), `result_kept/sweep_logs/` (the sweep result lines behind
-`raw_results.tsv`, with the app container path scrubbed), `result_kept/gen/` (probe list). `cli_sdk_members.patch` is the one change to the CLI.
+(what the snapshot profile says per probe, and per key for builds 2 and 3), `result_kept/sweep_logs/` (only the `SDKPROBE RESULT` lines of the sweep logs, behind
+`raw_results.tsv`; the rest of the device logs is not published), `result_kept/gen/` (probe list). `cli_sdk_members.patch` is the one change to the CLI.
 Reproduce: `merge_raw.py result_kept raw_results.tsv 'sweep_logs/iterK*.txt' 'sweep_logs/sweepK*.txt'`, then `tables.py` and `compare.py` as in `RESULT.md`,
 then `side_by_side.py result result_kept`. `result/` was regenerated with the tear-off rule; the counts in `RESULT.md` are the earlier ones.
 
@@ -144,8 +144,8 @@ what a kept member does, not a reason to accept those keys without widening rete
 - The 246 ABORTS are 236 aborts in the call (the sweep logs hold 236) and the 10 activation aborts. 234 of the 236 have a VM
   `unreachable code` message in the sweep's debugger output; the other 2 do not, and may be harness-side (the harness kills the app on the
   next launch after an idle period). I did not check them one by one.
-- The sweep needed about 235 launches. `sweepK2.txt` carries about 100 extra `SWEEP_DONE` lines from before the `sweep.sh` fix (a
-  `grep -q` under `pipefail` failed on a multi-GB syslog, so the sweep kept launching after it was done); the merge ignores them.
+- The sweep needed about 235 launches. The raw `sweepK2.txt` carried about 100 extra `SWEEP_DONE` lines from before the `sweep.sh` fix (a
+  `grep -q` under `pipefail` failed on a multi-GB syslog, so the sweep kept launching after it was done); they are not in the committed result lines.
   `sweep.sh` now stops at the first `SWEEP_DONE`, and also stops with an error when the syslog shrinks or does not grow during a launch.
 - The caveats of `RESULT.md` about the updater's bad-patch list and the 6 s timer apply unchanged. Patch 1 of this release was marked bad,
   so the sweep ran as patch 12 of the same release.

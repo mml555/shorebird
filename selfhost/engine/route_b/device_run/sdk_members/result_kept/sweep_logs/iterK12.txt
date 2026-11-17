@@ -1,32 +1,14 @@
-SDKPROBE PATCH_INACTIVE
-SDKPROBE START K1 <app Documents>/sdkprobe_K1
-SDKPROBE ABOUT future_then__async_fn__s
 SDKPROBE RESULT future_then__async_fn__s OK
-SDKPROBE ABOUT future_then__async_fn__ts
 SDKPROBE RESULT future_then__async_fn__ts OK
-SDKPROBE ABOUT future_then__async_fn__d
 SDKPROBE RESULT future_then__async_fn__d ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'then' with matching arguments.
-SDKPROBE ABOUT future_then__async_fn__td
 SDKPROBE RESULT future_then__async_fn__td OK
-SDKPROBE ABOUT future_then__value__s
 SDKPROBE RESULT future_then__value__s OK
-SDKPROBE ABOUT future_then__value__ts
 SDKPROBE RESULT future_then__value__ts OK
-SDKPROBE ABOUT future_then__value__d
-SDKPROBE START K1 <app Documents>/sdkprobe_K1
 SDKPROBE RESULT future_then__value__d ABORTS
-SDKPROBE ABOUT future_then__value__td
 SDKPROBE RESULT future_then__value__td OK
-SDKPROBE ABOUT future_then__completer__s
 SDKPROBE RESULT future_then__completer__s OK
-SDKPROBE ABOUT future_then__completer__ts
 SDKPROBE RESULT future_then__completer__ts OK
-SDKPROBE ABOUT future_then__completer__d
 SDKPROBE RESULT future_then__completer__d ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'then' with matching arguments.
-SDKPROBE ABOUT future_then__completer__td
 SDKPROBE RESULT future_then__completer__td OK
-SDKPROBE ABOUT future_then__delayed__s
 SDKPROBE RESULT future_then__delayed__s OK
-SDKPROBE ABOUT future_then__delayed__ts
 SDKPROBE RESULT future_then__delayed__ts OK
-SDKPROBE ABOUT future_then__delayed__d
