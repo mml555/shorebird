@@ -1,0 +1,334 @@
+# Device verdicts vs PR #209
+
+Device keys 420: {'SAFE': 138, 'THROWS': 224, 'CRASH': 51, 'PARTIAL': 7}. #209 accepts 75 keys (75 of them on the device matrix).
+
+## Refused by #209, safe on the device (64)
+
+- dart:async#Future#catchError
+- dart:async#Future#tearoff:catchError
+- dart:async#StreamController#add
+- dart:async#StreamController#get:stream
+- dart:core#Duration#+
+- dart:core#Error#get:stackTrace
+- dart:core#FormatException#message
+- dart:core#Iterable#any
+- dart:core#Iterable#get:first
+- dart:core#Iterable#get:isEmpty
+- dart:core#Iterable#get:isNotEmpty
+- dart:core#Iterable#get:iterator
+- dart:core#Iterable#tearoff:any
+- dart:core#Iterable#tearoff:contains
+- dart:core#Iterable#tearoff:toList
+- dart:core#Iterable#tearoff:toSet
+- dart:core#Iterable#tearoff:where
+- dart:core#Iterable#toList
+- dart:core#Iterable#toSet
+- dart:core#Iterable#where
+- dart:core#Iterator#get:current
+- dart:core#Iterator#moveNext
+- dart:core#List#[]
+- dart:core#List#[]=
+- dart:core#List#add
+- dart:core#List#get:length
+- dart:core#List#get:reversed
+- dart:core#List#remove
+- dart:core#List#tearoff:remove
+- dart:core#List#tearoff:sort
+- dart:core#Map#[]
+- dart:core#Map#[]=
+- dart:core#Map#get:entries
+- dart:core#Map#get:keys
+- dart:core#Map#get:values
+- dart:core#Map#putIfAbsent
+- dart:core#Map#remove
+- dart:core#Map#tearoff:putIfAbsent
+- dart:core#Map#tearoff:remove
+- dart:core#Object#==
+- dart:core#Set#add
+- dart:core#Set#contains
+- dart:core#Set#tearoff:contains
+- dart:core#String#==
+- dart:core#String#tearoff:endsWith
+- dart:core#double#+
+- dart:core#int#&
+- dart:core#int#<<
+- dart:core#int#unary-
+- dart:core#num#*
+- dart:core#num#+
+- dart:core#num#-
+- dart:core#num#<
+- dart:core#num#==
+- dart:core#num#>
+- dart:core#num#get:isNaN
+- dart:core#num#~/
+- dynamic#tearoff:any
+- dynamic#tearoff:catchError
+- dynamic#tearoff:contains
+- dynamic#tearoff:endsWith
+- dynamic#tearoff:remove
+- dynamic#tearoff:sort
+- dynamic#tearoff:toSet
+
+## Refused by #209, no crash, but some probes never ran (7)
+
+- dynamic#&
+- dynamic#clamp
+- dynamic#moveNext
+- dynamic#putIfAbsent
+- dynamic#tearoff:addAll
+- dynamic#tearoff:clamp
+- dynamic#tearoff:putIfAbsent
+
+## Refused by #209, no crash but a NoSuchMethodError on some runtime class (224)
+
+- dart:async#Stream#get:first
+- dart:async#Stream#get:isBroadcast
+- dart:async#Stream#listen
+- dart:async#Stream#map
+- dart:async#Stream#tearoff:map
+- dart:async#Stream#tearoff:toList
+- dart:async#Stream#tearoff:where
+- dart:async#Stream#toList
+- dart:async#Stream#where
+- dart:async#StreamController#get:sink
+- dart:async#Timer#get:isActive
+- dart:async#Timer#get:tick
+- dart:core#DateTime#add
+- dart:core#DateTime#difference
+- dart:core#DateTime#get:microsecondsSinceEpoch
+- dart:core#DateTime#get:month
+- dart:core#DateTime#get:weekday
+- dart:core#DateTime#get:year
+- dart:core#DateTime#isAfter
+- dart:core#DateTime#isBefore
+- dart:core#DateTime#subtract
+- dart:core#DateTime#tearoff:add
+- dart:core#DateTime#tearoff:difference
+- dart:core#DateTime#tearoff:isAfter
+- dart:core#DateTime#tearoff:isBefore
+- dart:core#DateTime#tearoff:subtract
+- dart:core#DateTime#tearoff:toIso8601String
+- dart:core#DateTime#tearoff:toUtc
+- dart:core#DateTime#toIso8601String
+- dart:core#DateTime#toUtc
+- dart:core#Duration#>
+- dart:core#Duration#get:inMilliseconds
+- dart:core#Duration#get:inMinutes
+- dart:core#Duration#get:inSeconds
+- dart:core#Duration#get:isNegative
+- dart:core#Iterable#elementAt
+- dart:core#Iterable#firstWhere
+- dart:core#Iterable#fold
+- dart:core#Iterable#get:last
+- dart:core#Iterable#join
+- dart:core#Iterable#map
+- dart:core#Iterable#reduce
+- dart:core#Iterable#skip
+- dart:core#Iterable#take
+- dart:core#Iterable#tearoff:elementAt
+- dart:core#Iterable#tearoff:every
+- dart:core#Iterable#tearoff:firstWhere
+- dart:core#Iterable#tearoff:fold
+- dart:core#Iterable#tearoff:join
+- dart:core#Iterable#tearoff:map
+- dart:core#Iterable#tearoff:reduce
+- dart:core#Iterable#tearoff:skip
+- dart:core#Iterable#tearoff:take
+- dart:core#List#addAll
+- dart:core#List#clear
+- dart:core#List#indexOf
+- dart:core#List#insert
+- dart:core#List#removeAt
+- dart:core#List#sublist
+- dart:core#List#tearoff:addAll
+- dart:core#List#tearoff:clear
+- dart:core#List#tearoff:indexOf
+- dart:core#List#tearoff:insert
+- dart:core#List#tearoff:removeAt
+- dart:core#List#tearoff:sublist
+- dart:core#Map#containsValue
+- dart:core#Map#get:isNotEmpty
+- dart:core#Map#tearoff:addAll
+- dart:core#Map#tearoff:containsValue
+- dart:core#StateError#message
+- dart:core#String#*
+- dart:core#String#codeUnitAt
+- dart:core#String#compareTo
+- dart:core#String#get:length
+- dart:core#String#indexOf
+- dart:core#String#padLeft
+- dart:core#String#substring
+- dart:core#String#tearoff:codeUnitAt
+- dart:core#String#tearoff:compareTo
+- dart:core#String#tearoff:indexOf
+- dart:core#String#tearoff:padLeft
+- dart:core#String#tearoff:substring
+- dart:core#double#%
+- dart:core#double#abs
+- dart:core#double#ceil
+- dart:core#double#floor
+- dart:core#double#round
+- dart:core#double#tearoff:abs
+- dart:core#double#tearoff:ceil
+- dart:core#double#tearoff:floor
+- dart:core#double#tearoff:round
+- dart:core#double#tearoff:truncate
+- dart:core#double#truncate
+- dart:core#double#~/
+- dart:core#int#abs
+- dart:core#int#tearoff:abs
+- dart:core#num#%
+- dart:core#num#/
+- dart:core#num#<=
+- dart:core#num#>=
+- dart:core#num#abs
+- dart:core#num#clamp
+- dart:core#num#compareTo
+- dart:core#num#floor
+- dart:core#num#remainder
+- dart:core#num#round
+- dart:core#num#tearoff:abs
+- dart:core#num#tearoff:clamp
+- dart:core#num#tearoff:compareTo
+- dart:core#num#tearoff:floor
+- dart:core#num#tearoff:remainder
+- dart:core#num#tearoff:round
+- dart:core#num#tearoff:toInt
+- dart:core#num#tearoff:toStringAsFixed
+- dart:core#num#toInt
+- dart:core#num#toStringAsFixed
+- dart:core#num#unary-
+- dart:ui#Offset#get:dx
+- dart:ui#Offset#get:dy
+- dart:ui#Size#get:height
+- dart:ui#Size#get:width
+- dynamic#/
+- dynamic#<<
+- dynamic#<=
+- dynamic#>=
+- dynamic#abs
+- dynamic#any
+- dynamic#ceil
+- dynamic#clear
+- dynamic#close
+- dynamic#codeUnitAt
+- dynamic#compareTo
+- dynamic#containsValue
+- dynamic#difference
+- dynamic#elementAt
+- dynamic#endsWith
+- dynamic#every
+- dynamic#firstWhere
+- dynamic#floor
+- dynamic#fold
+- dynamic#get:dx
+- dynamic#get:dy
+- dynamic#get:height
+- dynamic#get:inMilliseconds
+- dynamic#get:inMinutes
+- dynamic#get:inSeconds
+- dynamic#get:isActive
+- dynamic#get:isBroadcast
+- dynamic#get:isNegative
+- dynamic#get:microsecondsSinceEpoch
+- dynamic#get:month
+- dynamic#get:sink
+- dynamic#get:tick
+- dynamic#get:weekday
+- dynamic#get:width
+- dynamic#get:year
+- dynamic#indexOf
+- dynamic#insert
+- dynamic#isAfter
+- dynamic#isBefore
+- dynamic#join
+- dynamic#listen
+- dynamic#map
+- dynamic#padLeft
+- dynamic#reduce
+- dynamic#remainder
+- dynamic#removeAt
+- dynamic#replaceAll
+- dynamic#round
+- dynamic#skip
+- dynamic#split
+- dynamic#startsWith
+- dynamic#sublist
+- dynamic#substring
+- dynamic#subtract
+- dynamic#take
+- dynamic#tearoff:abs
+- dynamic#tearoff:add
+- dynamic#tearoff:ceil
+- dynamic#tearoff:clear
+- dynamic#tearoff:codeUnitAt
+- dynamic#tearoff:compareTo
+- dynamic#tearoff:containsValue
+- dynamic#tearoff:difference
+- dynamic#tearoff:elementAt
+- dynamic#tearoff:every
+- dynamic#tearoff:firstWhere
+- dynamic#tearoff:floor
+- dynamic#tearoff:fold
+- dynamic#tearoff:indexOf
+- dynamic#tearoff:insert
+- dynamic#tearoff:isAfter
+- dynamic#tearoff:isBefore
+- dynamic#tearoff:join
+- dynamic#tearoff:map
+- dynamic#tearoff:padLeft
+- dynamic#tearoff:reduce
+- dynamic#tearoff:remainder
+- dynamic#tearoff:removeAt
+- dynamic#tearoff:round
+- dynamic#tearoff:skip
+- dynamic#tearoff:sublist
+- dynamic#tearoff:substring
+- dynamic#tearoff:subtract
+- dynamic#tearoff:take
+- dynamic#tearoff:toInt
+- dynamic#tearoff:toIso8601String
+- dynamic#tearoff:toList
+- dynamic#tearoff:toStringAsFixed
+- dynamic#tearoff:toUtc
+- dynamic#tearoff:truncate
+- dynamic#tearoff:where
+- dynamic#toInt
+- dynamic#toIso8601String
+- dynamic#toList
+- dynamic#toLowerCase
+- dynamic#toSet
+- dynamic#toStringAsFixed
+- dynamic#toUpperCase
+- dynamic#toUtc
+- dynamic#trim
+- dynamic#truncate
+- dynamic#unary-
+- dynamic#where
+
+## Accepted by #209, crashing on the device (1)
+
+- dynamic#tearoff:cancel
+
+## Accepted by #209, throwing or partly unmeasured on the device (0)
+
+
+## Accepted by #209, not on the device matrix (0)
+
+
+## Crashing keys
+
+- dart:async#StreamSubscription#cancel  (refused by #209)
+- dart:async#StreamSubscription#tearoff:cancel  (refused by #209)
+- dart:core#Iterable#contains  (refused by #209)
+- dart:core#Iterable#every  (refused by #209)
+- dart:core#List#sort  (refused by #209)
+- dart:core#Map#addAll  (refused by #209)
+- dart:core#Set#remove  (refused by #209)
+- dart:core#String#endsWith  (refused by #209)
+- dart:core#String#get:isNotEmpty  (refused by #209)
+- dart:core#int#get:isEven  (refused by #209)
+
+## Crashing dynamic selectors
+
+%, *, +, -, <, >, [], []=, add, addAll, cancel, catchError, contains, containsKey, forEach, get:current, get:entries, get:first, get:inMicroseconds, get:isClosed, get:isEmpty, get:isEven, get:isNaN, get:isNotEmpty, get:iterator, get:keys, get:last, get:length, get:reversed, get:stackTrace, get:stream, get:values, remove, removeLast, sort, tearoff:cancel, then, timeout, toDouble, whenComplete, ~/
