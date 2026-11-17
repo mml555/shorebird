@@ -41,7 +41,9 @@ All in `bin/`. Run them in this order.
    proxy (`connproxy.py`) that logs the hosts the Mac-side tooling (CLI, Flutter, Java)
    connects to; the phone does not use it, the syslog
    capture, and the control-plane server. It checks that the CLI resolves
-   `ENGINE_REV`. `run_up.sh` just calls it.
+   `ENGINE_REV`. It stops if `ORIGIN_PORT`, `PROXY_PORT` or `SERVER_PORT` is already in use:
+   another server on `SERVER_PORT` would answer the readiness check and receive this run's
+   app, release and patches. `run_up.sh` just calls it.
 2. `release.sh` creates the test app, creates the app on the server, runs
    `shorebird release ios`, re-signs the build, and installs it on the phone.
 3. `steps.sh` is the regression sequence: release boots, a combined patch, a
