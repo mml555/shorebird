@@ -25,11 +25,18 @@ import 'package:shelf/shelf.dart' as shelf;
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
-import '../support.dart';
+import 'support.dart';
 
 const _apiKey = 'sb_api_selfhost_dev';
 const _host = 'http://localhost:8080';
 
+/// A LOGIC contract, not a transport contract. This adapter buffers bodies,
+/// sets no `content-length`, follows no redirects, passes header names as the
+/// client wrote them and does no real streaming, so it says nothing about the
+/// HTTP layer (framing, proxies, a real socket's behaviour). It checks that the
+/// client's requests and response parsing agree with the handler's routes,
+/// fields, status codes and bodies.
+///
 /// An [http.Client] that never touches a socket: each request becomes a shelf
 /// [shelf.Request], goes to [handler], and the shelf response comes back as a
 /// [http.StreamedResponse]. Bodies are fully buffered on the way in, which is
@@ -91,6 +98,7 @@ void main() {
   late Directory tmp;
   late Repository repo;
   late Api api;
+  late ArtifactStore store;
   late ShelfClient http_;
   late CodePushClient client;
 
@@ -98,7 +106,8 @@ void main() {
     tmp = Directory.systemTemp.createTempSync('cps_contract');
     final config = sqliteConfig(tmp.path, uploadMethod: uploadMethod);
     repo = await Repository.open(config);
-    api = Api(repo, await ArtifactStore.open(config), config);
+    store = await ArtifactStore.open(config);
+    api = Api(repo, store, config);
     http_ = ShelfClient(api.handler);
     client = CodePushClient(
       httpClient: http_,
@@ -269,6 +278,18 @@ void main() {
       );
       await upload();
       await upload();
+      // The second upload rewrote nothing: the stored object is the original.
+      final row = (await repo.existingArtifact(
+        'release',
+        release.id,
+        'aab',
+        'android',
+      ))!;
+      expect(
+        await utf8.decoder.bind(await store.openRead(row.storageKey)).join(),
+        'bundle',
+      );
+      expect(row.status.name, 'verified');
     });
 
     test('patch create, patch artifact create, promote, check', () async {

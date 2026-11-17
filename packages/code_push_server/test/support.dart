@@ -18,7 +18,6 @@ Config sqliteConfig(
   String idpIssuer = '',
   bool production = false,
   String? patchSigningKeySecret = testPatchSigningKeySecret,
-  String uploadMethod = 'multipart',
 }) => Config(
   trustedProxies: trustedProxies,
   rateLimitIpPerMinute: rateLimitIpPerMinute,
@@ -41,7 +40,7 @@ Config sqliteConfig(
   downloadUrlTtl: const Duration(seconds: 300),
   rateLimitPerMinute: rateLimitPerMinute ?? 600,
   rateLimitShared: rateLimitShared,
-  uploadMethod: uploadMethod,
+  uploadMethod: 'multipart',
   // All three must be non-empty for Config.idpEnabled; setting one is not
   // enough, so flip them together.
   idpClientId: idpEnabled ? 'client-id' : '',

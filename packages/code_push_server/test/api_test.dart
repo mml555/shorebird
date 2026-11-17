@@ -26,12 +26,14 @@ void main() {
   late Repository repo;
   late Config config;
   late Api api;
+  late ArtifactStore store;
 
   Future<void> boot({Config? override}) async {
     tmp = Directory.systemTemp.createTempSync('cps_api');
     config = override ?? sqliteConfig(tmp.path);
     repo = await Repository.open(config);
-    api = Api(repo, await ArtifactStore.open(config), config);
+    store = await ArtifactStore.open(config);
+    api = Api(repo, store, config);
   }
 
   setUp(boot);
@@ -533,6 +535,20 @@ void main() {
         // replace what is stored.
         expect((await post('abd')).statusCode, HttpStatus.conflict);
         expect((await post('abc')).statusCode, HttpStatus.ok);
+        // A body too big to be the recorded 3 bytes is refused from its length,
+        // and none of this rewrote the stored object.
+        expect((await post('x' * 10000)).statusCode, HttpStatus.conflict);
+        final row = (await repo.existingArtifact(
+          'release',
+          app.releaseId,
+          'xcarchive',
+          'ios',
+        ))!;
+        expect(row.status, ArtifactStatus.verified);
+        expect(
+          await utf8.decoder.bind(await store.openRead(row.storageKey)).join(),
+          'abc',
+        );
       },
     );
 

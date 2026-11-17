@@ -2896,6 +2896,10 @@ class Api {
     return await repo.artifactByToken(art.token) ?? art;
   }
 
+  /// Upper bound on the multipart framing around a file part (boundary, part
+  /// headers, other fields), for the cheap size check on a verified token.
+  static const _multipartFramingSlack = 4096;
+
   Future<Response> _upload(Request req, String token) async {
     var art = await repo.artifactByToken(token);
     if (art == null) throw notFound('Unknown upload token');
@@ -2913,12 +2917,24 @@ class Api {
     art = await _reclaimIfStale(art);
     // A verified release artifact is re-registered idempotently (the same
     // token comes back), and the client then re-sends the bytes. Answer 200
-    // when they are the bytes already stored, as the resumable route does for
-    // a verified token. Anything else stays a conflict. Only release artifacts
+    // when they are the bytes already stored, as `_resumableUpload` does for a
+    // verified token. Anything else stays a conflict. Only release artifacts
     // carry a checked hash, so patch artifacts are not covered.
+    //
+    // The size is compared before anything is buffered or hashed: a body that
+    // cannot be the recorded size (multipart framing adds a few hundred bytes)
+    // is the 409 without being read. A body over `maxUploadBytes` is left to
+    // `_parseMultipart`, which answers 413 as it always has.
     if (art.status == ArtifactStatus.verified && art.ownerKind == 'release') {
+      final declared = req.contentLength;
+      if (declared == null || declared > config.maxUploadBytes) {
+        // No usable length (chunked) or over the cap: parse as before.
+      } else if (declared > art.size + _multipartFramingSlack) {
+        throw conflict('Upload token not reusable (status verified)');
+      }
       final (_, again) = await _parseMultipart(req);
       if (again != null &&
+          again.bytes.length == art.size &&
           sha256.convert(again.bytes).toString() == art.hash.toLowerCase()) {
         return Response(HttpStatus.ok);
       }
