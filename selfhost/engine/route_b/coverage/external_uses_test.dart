@@ -272,7 +272,10 @@ void main() {
       ),
     ),
   ]);
-  final scope = enclosingScopeOf(member)!;
+  final scope = enclosingScopeOf(
+    member,
+    source: '${' ' * 42}k;',
+  )!;
   final used = (scope['staticReferences']! as List).cast<Map>();
   check(
     used.length == 1 &&
@@ -283,8 +286,8 @@ void main() {
   );
   check(
     (scope['usedTypeParameters']! as List).contains('T') &&
-        (scope['staticNames']! as List).contains('k'),
-    'a class type parameter is reported, and the class statics are listed',
+        (scope['problems']! as List).isEmpty,
+    'a class type parameter is reported',
   );
   check(
     enclosingScopeOf(_proc(app, 'top', [])) == null,

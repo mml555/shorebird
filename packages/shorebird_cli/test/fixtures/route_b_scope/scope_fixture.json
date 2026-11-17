@@ -1,0 +1,457 @@
+{
+  "M.viaMixin": {
+    "start": 697,
+    "end": 718,
+    "static": false,
+    "scope": {
+      "class": "M",
+      "staticReferences": [
+        {
+          "offset": 715,
+          "member": "mk",
+          "kind": "get"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.g": {
+    "start": 932,
+    "end": 961,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.f": {
+    "start": 965,
+    "end": 987,
+    "static": false,
+    "scope": {
+      "class": "C",
+      "staticReferences": [
+        {
+          "offset": 985,
+          "member": "k",
+          "kind": "get"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.st": {
+    "start": 990,
+    "end": 1020,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [
+        {
+          "offset": 1018,
+          "member": "k",
+          "kind": "get"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.spread": {
+    "start": 1023,
+    "end": 1061,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [
+        {
+          "offset": 1050,
+          "member": "ls",
+          "kind": "get"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.setSpread": {
+    "start": 1064,
+    "end": 1101,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [
+        {
+          "offset": 1097,
+          "member": "ls",
+          "kind": "get"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.lineafter": {
+    "start": 1104,
+    "end": 1202,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [
+        {
+          "offset": 1168,
+          "member": "k",
+          "kind": "get"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.argAfterComment": {
+    "start": 1206,
+    "end": 1276,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [
+        {
+          "offset": 1238,
+          "member": "g",
+          "kind": "invoke"
+        },
+        {
+          "offset": 1268,
+          "member": "cc",
+          "kind": "get"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.constmap": {
+    "start": 1279,
+    "end": 1328,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "its body spells `s`, which is also a static of `C`, where no use of that static is reported to qualify (offset 1322): in the replacement library a top-level `s` would be bound instead. Write `C.s`"
+      ]
+    }
+  },
+  "C.constmapFirst": {
+    "start": 1331,
+    "end": 1385,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "its body spells `s`, which is also a static of `C`, where no use of that static is reported to qualify (offset 1371): in the replacement library a top-level `s` would be bound instead. Write `C.s`"
+      ]
+    }
+  },
+  "C.constlist": {
+    "start": 1388,
+    "end": 1430,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "its body spells `c`, which is also a static of `C`, where no use of that static is reported to qualify (offset 1424): in the replacement library a top-level `c` would be bound instead. Write `C.c`"
+      ]
+    }
+  },
+  "C.nullAssign": {
+    "start": 1433,
+    "end": 1469,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [
+        {
+          "offset": 1460,
+          "member": "nn",
+          "kind": "get"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.tearoff": {
+    "start": 1472,
+    "end": 1519,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [
+        {
+          "offset": 1507,
+          "member": "g",
+          "kind": "tearoff"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.interp": {
+    "start": 1522,
+    "end": 1563,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [
+        {
+          "offset": 1552,
+          "member": "k",
+          "kind": "get",
+          "interpolated": true
+        },
+        {
+          "offset": 1556,
+          "member": "k",
+          "kind": "get"
+        },
+        {
+          "offset": 1560,
+          "member": "c",
+          "kind": "constant",
+          "interpolated": true
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.already": {
+    "start": 1566,
+    "end": 1603,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.namedLabel": {
+    "start": 1606,
+    "end": 1641,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [
+        {
+          "offset": 1633,
+          "member": "h",
+          "kind": "invoke"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.h": {
+    "start": 1644,
+    "end": 1675,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "its body spells `k`, which is also a static of `C`, where no use of that static is reported to qualify (offset 1662): in the replacement library a top-level `k` would be bound instead. Write `C.k`"
+      ]
+    }
+  },
+  "C.param": {
+    "start": 1678,
+    "end": 1707,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "its body spells `k`, which is also a static of `C`, where no use of that static is reported to qualify (offset 1699): in the replacement library a top-level `k` would be bound instead. Write `C.k`"
+      ]
+    }
+  },
+  "C.annotated": {
+    "start": 1710,
+    "end": 1762,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "its body spells `c`, which is also a static of `C`, where no use of that static is reported to qualify (offset 1728): in the replacement library a top-level `c` would be bound instead. Write `C.c`"
+      ]
+    }
+  },
+  "C.compound": {
+    "start": 1765,
+    "end": 1820,
+    "static": true,
+    "scope": {
+      "class": "C",
+      "staticReferences": [
+        {
+          "offset": 1793,
+          "member": "k",
+          "kind": "set"
+        },
+        {
+          "offset": 1812,
+          "member": "k",
+          "kind": "get"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "C.generic": {
+    "start": 1824,
+    "end": 1846,
+    "static": false,
+    "scope": {
+      "class": "C",
+      "staticReferences": [],
+      "usedTypeParameters": [
+        "T"
+      ],
+      "problems": []
+    }
+  },
+  "C.closure": {
+    "start": 1849,
+    "end": 1912,
+    "static": false,
+    "scope": {
+      "class": "C",
+      "staticReferences": [
+        {
+          "offset": 1893,
+          "member": "k",
+          "kind": "get"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "__A&Object&M.viaMixin": {
+    "start": 697,
+    "end": 718,
+    "static": false,
+    "scope": {
+      "class": "__A&Object&M",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is a member of the synthetic class `__A&Object&M`, a mixin application copy, whose scope is not the written one"
+      ]
+    }
+  },
+  "X|s": {
+    "start": 1959,
+    "end": 1979,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [
+        {
+          "offset": 1977,
+          "member": "k",
+          "kind": "get"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  },
+  "X|inst": {
+    "start": 1982,
+    "end": 2005,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is an instance member of `X`, whose receiver a replacement does not pass"
+      ]
+    }
+  },
+  "X|get#inst": {
+    "start": 1982,
+    "end": 2005,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "its extension member could not be identified"
+      ]
+    }
+  },
+  "ET|constructor#": {
+    "start": 2026,
+    "end": 2033,
+    "static": true,
+    "scope": {
+      "class": "ET",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is an instance member of `ET`, whose receiver a replacement does not pass"
+      ]
+    }
+  },
+  "ET|constructor#_#new#tearOff": {
+    "start": 2026,
+    "end": 2027,
+    "static": true,
+    "scope": {
+      "class": "ET",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "its extension member could not be identified"
+      ]
+    }
+  },
+  "ET|s": {
+    "start": 2058,
+    "end": 2078,
+    "static": true,
+    "scope": {
+      "class": "ET",
+      "staticReferences": [
+        {
+          "offset": 2076,
+          "member": "k",
+          "kind": "get"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": []
+    }
+  }
+}

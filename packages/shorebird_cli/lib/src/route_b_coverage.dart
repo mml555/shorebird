@@ -304,7 +304,8 @@ class RouteBReceiverAccess {
   final RouteBPrivateTarget? privateTarget;
 }
 
-/// One use of a static of the member's own class, resolved by Kernel.
+/// One use of a static of the member's own class that is written without a
+/// qualifier, as the analyzer placed it.
 @immutable
 class RouteBStaticReference {
   /// {@macro route_b_static_reference}
@@ -312,6 +313,7 @@ class RouteBStaticReference {
     required this.offset,
     required this.member,
     required this.kind,
+    this.interpolated = false,
   });
 
   /// Where the identifier starts, in code units of the decoded source.
@@ -320,30 +322,29 @@ class RouteBStaticReference {
   /// The static's name.
   final String member;
 
-  /// `get`, `set`, `invoke`, `tearoff`, or `constant`: a static const that
-  /// Kernel folded away, so only the offset of the folded expression is known
-  /// and the source token there has to be checked against [member].
+  /// `get`, `set`, `invoke`, `tearoff`, or `constant`.
   final String kind;
+
+  /// Whether it is the `$name` form of a string interpolation.
+  final bool interpolated;
 }
 
-/// What a class member's body takes from its class scope (the document's
-/// `enclosingScope`), which a replacement library does not have.
+/// What a class or extension member's body takes from its enclosing scope (the
+/// document's `enclosingScope`), which a replacement library does not have.
 ///
 /// A replacement is a top-level function. An unqualified `k` that meant the
 /// class's `static k` is looked up among top-level names there, so a same-named
-/// top-level wins silently. Kernel knows what each name resolved to; this is
-/// what it reported, so the producer can write the class in front of it.
+/// top-level wins silently. Kernel knows what each name resolved to and the
+/// front end's token stream knows whether a qualifier is written; the analyzer
+/// reports only the uses that need one.
 @immutable
 class RouteBEnclosingScope {
   /// {@macro route_b_enclosing_scope}
   const RouteBEnclosingScope({
     required this.className,
-    required this.nameOffset,
     required this.staticReferences,
-    required this.staticNames,
     required this.usedTypeParameters,
-    required this.shadowsTopLevel,
-    this.unanalyzed,
+    required this.problems,
   });
 
   /// Parses one entry of `enclosingScope`.
@@ -352,58 +353,36 @@ class RouteBEnclosingScope {
     if (className is! String) {
       throw const FormatException('an enclosing scope names no class');
     }
-    final unanalyzed = json['unanalyzed'] as String?;
-    if (unanalyzed != null) {
-      return RouteBEnclosingScope(
-        className: className,
-        nameOffset: -1,
-        staticReferences: const [],
-        staticNames: const [],
-        usedTypeParameters: const [],
-        shadowsTopLevel: false,
-        unanalyzed: unanalyzed,
-      );
-    }
     List<String> names(String field) => [
       for (final n in json[field] as List? ?? const []) n as String,
     ];
     return RouteBEnclosingScope(
       className: className,
-      nameOffset: json['nameOffset'] as int? ?? -1,
       staticReferences: [
         for (final r in json['staticReferences'] as List? ?? const [])
           RouteBStaticReference(
             offset: (r as Map<String, dynamic>)['offset'] as int,
             member: r['member'] as String,
             kind: r['kind'] as String,
+            interpolated: r['interpolated'] == true,
           ),
       ],
-      staticNames: names('staticNames'),
       usedTypeParameters: names('usedTypeParameters'),
-      shadowsTopLevel: json['shadowsTopLevel'] == true,
+      problems: names('problems'),
     );
   }
 
-  /// The enclosing class.
+  /// The enclosing class or extension, which qualifies a static.
   final String className;
 
-  /// Where the member's own name starts, which is a declaration and not a use.
-  final int nameOffset;
-
-  /// Every use of one of the class's own statics.
+  /// Every use of one of its statics that needs a qualifier.
   final List<RouteBStaticReference> staticReferences;
-
-  /// Every static the class declares.
-  final List<String> staticNames;
 
   /// Class type parameters the body mentions.
   final List<String> usedTypeParameters;
 
-  /// Whether the library declares a top-level of the member's own name.
-  final bool shadowsTopLevel;
-
-  /// Why the body could not be walked, or null.
-  final String? unanalyzed;
+  /// Reasons the member cannot be carried; non-empty means refuse.
+  final List<String> problems;
 }
 
 /// What Kernel knows about turning an instance method into a static
@@ -1227,13 +1206,16 @@ class RouteBCoverageAnalyzer {
     ]);
 
     if (result.exitCode != 0) {
-      throw RouteBCompilerException(RouteBCompilerProblem.invalid, '''
+      throw RouteBCompilerException(
+        RouteBCompilerProblem.invalid,
+        '''
 The Route B coverage analyzer failed (exit ${result.exitCode}):
 
 ${result.stderr}
 
 Treat this as corruption or a bad cache, not as a problem with the release.
-Nothing was uploaded.''');
+Nothing was uploaded.''',
+      );
     }
 
     return RouteBCoverage.fromJson(result.stdout as String);
