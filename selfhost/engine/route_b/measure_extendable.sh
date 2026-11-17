@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dynmod prepass npplat untabled
+# cspell:words dynmod prepass npplat untabled funcs
 #
 # measure_extendable.sh -- what does declaring StatelessWidget, StatefulWidget
 # and State `extendable` + `can-be-overridden` cost a REAL Flutter app's AOT

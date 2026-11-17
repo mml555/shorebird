@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime prepass sbrbptch untabled
+# cspell:words dartaotruntime prepass sbrbptch untabled noext SDKM rror
 #
 # added_class.sh -- can a Route B patch module declare a NEW class? (the rung
 # after added_method.sh and added_helper.sh). See ROUTE_B.md, "New class".
