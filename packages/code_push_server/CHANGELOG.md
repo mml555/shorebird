@@ -27,6 +27,16 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     (new `build_runs` table, migration 20) and answers 201 with its id;
     `GET /apps/{app}/runs` lists them. Upstream shows it in its Enterprise
     console; here it is on for every app.
+  - Build history grows with CLI traffic. `BUILD_RUN_RETENTION_DAYS` (default
+    `0`, keep forever) drops older rows; `GET /runs` lists summaries only
+    (no `metadata` or `build_flags`), at most 200 rows. `POST /runs` is audited
+    as `build_run.record`.
+  - Downgrading is not possible after this release: a database at migration 19
+    or 20 makes an older server refuse to boot (`SchemaTooNewException`).
+    Restore a backup, or delete the `schema_migrations` rows 19 and 20 (and
+    drop `channel_patches.rollout_bps` and `build_runs`) first. During a rolling
+    upgrade an old pod's rollout changes are still honoured (it writes
+    `rollout`, which is read when `rollout_bps` disagrees).
   - `patch --share-debug-info`: accepted and ignored. A debug bundle goes to
     Shorebird the company, and a self-hosted server has no one to send it to,
     so the response offers no upload and the CLI warns that nothing was

@@ -5847,7 +5847,18 @@ void main() {
       test('refuses a percentage outside 0.01 to 100 or not a multiple of '
           '0.01', () async {
         final p = await newPatch();
-        for (final bad in [0, -5, 100.01, 250, 0.001, 12.345, '50', true]) {
+        for (final bad in [
+          0,
+          -5,
+          100.01,
+          250,
+          0.001,
+          12.345,
+          1e308,
+          -1e308,
+          '50',
+          true,
+        ]) {
           final r = await promote(p, {'rollout_percentage': bad});
           expect(r.statusCode, HttpStatus.badRequest, reason: '$bad');
         }
@@ -5930,7 +5941,7 @@ void main() {
       test('refuses a bad percentage with 400', () async {
         final p = await newPatch();
         await promote(p, {'rollout_percentage': 10});
-        for (final bad in [null, 0, -1, 101, 12.345, 'x']) {
+        for (final bad in [null, 0, -1, 101, 12.345, 1e308, 'x']) {
           final r = await setRollout(p, bad);
           expect(r.statusCode, HttpStatus.badRequest, reason: '$bad');
         }
@@ -6005,8 +6016,139 @@ void main() {
           ),
         );
         expect(((r['restored'] as List).single as Map)['rollout'], 12.5);
+        // And the restored patch is served by the fractional threshold.
+        expect(await offered(clientIn(p1, 1200, 1250)), isTrue);
+        expect(await offered(clientIn(p1, 1250, 1300)), isFalse);
+        expect((await patchJson(p1))['rollout_percentage'], 12.5);
       },
     );
+
+    test('NaN and Infinity in a body are a 400, never a 500', () async {
+      final p = await newPatch();
+      await promote(p, {'rollout_percentage': 10});
+      // Dart's JSON decoder accepts these literals; jsonEncode will not write
+      // them, so they are sent as text.
+      for (final literal in ['NaN', 'Infinity', '-Infinity', '1e999']) {
+        for (final path in [
+          '/api/v1/apps/${s.appId}/patches/promote',
+          '/api/v1/apps/${s.appId}/releases/${s.releaseId}/patches/$p/rollout',
+        ]) {
+          final promoting = path.endsWith('promote');
+          final r = await send(
+            promoting ? 'POST' : 'PUT',
+            path,
+            bearer: _bootstrapKey,
+            body: promoting
+                ? '{"patch_id":$p,"channel_id":${s.channelId},'
+                      '"rollout_percentage":$literal}'
+                : '{"rollout_percentage":$literal}',
+          );
+          expect(r.statusCode, lessThan(500), reason: '$literal $path');
+        }
+      }
+      expect((await patchJson(p))['rollout_percentage'], 10);
+    });
+
+    test(
+      'the admin route refuses NaN, Infinity and 1e308 with a 400',
+      () async {
+        final p = await newPatch();
+        await promote(p);
+        for (final bad in [
+          'NaN',
+          'Infinity',
+          '-Infinity',
+          '1e308',
+          '-1',
+          '101',
+        ]) {
+          final r = await send(
+            'POST',
+            '/admin/apps/${s.appId}/patches/$p/rollout?percent=$bad',
+            bearer: _bootstrapKey,
+          );
+          expect(r.statusCode, HttpStatus.badRequest, reason: bad);
+        }
+        expect((await patchJson(p))['rollout_percentage'], 100);
+      },
+    );
+
+    test(
+      'the conditional update refuses a lower value and a missing row',
+      () async {
+        final p = await newPatch();
+        await promote(p, {'rollout_percentage': 40});
+        expect(
+          await repo.setRollout(s.channelId, p, 1000, onlyRaise: true),
+          isFalse,
+        );
+        expect((await patchJson(p))['rollout_percentage'], 40);
+        expect(
+          await repo.setRollout(s.channelId, p, 4000, onlyRaise: true),
+          isTrue,
+        );
+        expect(
+          await repo.setRollout(s.channelId, p, 4500, onlyRaise: true),
+          isTrue,
+        );
+        // A row an older pod wrote, judged by its whole percent.
+        await repo.db.query(
+          'UPDATE channel_patches SET rollout = 80, rollout_bps = 1250 '
+          'WHERE patch_id = @p',
+          {'p': p},
+        );
+        expect(
+          await repo.setRollout(s.channelId, p, 5000, onlyRaise: true),
+          isFalse,
+        );
+        expect(
+          await repo.setRollout(s.channelId, p, 8000, onlyRaise: true),
+          isTrue,
+        );
+        expect(await repo.setRollout(s.channelId, 99999, 10000), isFalse);
+      },
+    );
+
+    test('a request lowered between the read and the write is a 409', () async {
+      // The route's own read says 20 -> 30 is a raise; the stored value has
+      // moved to 50 by the time it writes.
+      final p = await newPatch();
+      await promote(p, {'rollout_percentage': 20});
+      final racing = _RaisingRepo(repo.db, p);
+      final raceApi = Api(racing, await ArtifactStore.open(config), config);
+      final r = await raceApi.handler(
+        Request(
+          'PUT',
+          Uri.parse(
+            'http://localhost:8080/api/v1/apps/${s.appId}/releases/'
+            '${s.releaseId}/patches/$p/rollout',
+          ),
+          headers: {HttpHeaders.authorizationHeader: 'Bearer $_bootstrapKey'},
+          body: jsonEncode({'rollout_percentage': 30}),
+        ),
+      );
+      expect(r.statusCode, HttpStatus.conflict);
+      expect((await patchJson(p))['rollout_percentage'], 50);
+    });
+
+    test('a rollout change writes a patch.rollout audit row', () async {
+      final p = await newPatch();
+      await promote(p, {'rollout_percentage': 10});
+      await setRollout(p, 25);
+      final body = await jsonOf(
+        await send(
+          'GET',
+          '/admin/audit?operation=patch.rollout',
+          bearer: _bootstrapKey,
+        ),
+      );
+      final e = (body['events'] as List).single as Map;
+      expect(e['operation'], 'patch.rollout');
+      expect(e['patch_id'], p);
+      expect(e['track'], 'stable');
+      expect(e['result'], 'success');
+      expect(jsonDecode(e['detail'] as String), containsPair('percent', 25));
+    });
 
     test('the admin rollout route takes a fractional percent too', () async {
       final p = await newPatch();
@@ -6087,8 +6229,13 @@ void main() {
       expect(runs.last['release_id'], s.releaseId);
       expect(runs.last['duration_ms'], 1234);
       expect(runs.last['dry_run'], false);
-      expect((runs.last['metadata'] as Map)['flutter_version'], '3.35.7');
-      expect((runs.last['build_flags'] as Map)['dart_define_count'], 1);
+      // The list is a summary; the blobs are stored.
+      expect(runs.last.containsKey('metadata'), isFalse);
+      final stored = await repo.db.query(
+        "SELECT metadata, build_flags FROM build_runs WHERE run_id = 'run-1'",
+      );
+      expect(stored.single['metadata'], contains('3.35.7'));
+      expect(stored.single['build_flags'], contains('dart_define_count'));
     });
 
     test('a failed run records its reason', () async {
@@ -6126,6 +6273,88 @@ void main() {
       });
       expect(r.statusCode, HttpStatus.created);
       expect((await jsonOf(r)).containsKey('artifact_uploads'), isFalse);
+    });
+
+    test('the list bounds limit and leaves out the blobs', () async {
+      await record(run());
+      for (final bad in ['0', '201', '-1', 'x']) {
+        expect(
+          (await send(
+            'GET',
+            '/api/v1/apps/${s.appId}/runs?limit=$bad',
+            bearer: _bootstrapKey,
+          )).statusCode,
+          HttpStatus.badRequest,
+          reason: bad,
+        );
+      }
+      for (final ok in ['1', '200']) {
+        expect(
+          (await send(
+            'GET',
+            '/api/v1/apps/${s.appId}/runs?limit=$ok',
+            bearer: _bootstrapKey,
+          )).statusCode,
+          HttpStatus.ok,
+        );
+      }
+      final r = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/${s.appId}/runs',
+          bearer: _bootstrapKey,
+        ),
+      );
+      final row = (r['runs'] as List).single as Map;
+      expect(row.containsKey('metadata'), isFalse);
+      expect(row.containsKey('build_flags'), isFalse);
+    });
+
+    test('a record is audited as build_run.record', () async {
+      await record(run());
+      final body = await jsonOf(
+        await send(
+          'GET',
+          '/admin/audit?operation=build_run.record',
+          bearer: _bootstrapKey,
+        ),
+      );
+      expect((body['events'] as List), hasLength(1));
+    });
+
+    test('build_flags of the wrong shape are dropped, not stored', () async {
+      final bad = await jsonOf(
+        await record({
+          ...run(runId: 'bad-flags'),
+          'build_flags': {'dart_define_count': 'many', 'dart_defines': []},
+        }),
+      );
+      expect(bad['id'], isA<int>());
+      final rows = await repo.db.query(
+        'SELECT build_flags FROM build_runs WHERE run_id = @r',
+        {'r': 'bad-flags'},
+      );
+      expect(rows.single['build_flags'], isNull);
+      await record(run());
+      final good = await repo.db.query(
+        'SELECT build_flags FROM build_runs WHERE run_id = @r',
+        {'r': 'run-1'},
+      );
+      expect(good.single['build_flags'], contains('dart_define_count'));
+    });
+
+    test('the retention purge drops only old history', () async {
+      await record(run());
+      await record(run(runId: 'run-old'));
+      await repo.db.query(
+        "UPDATE build_runs SET created_at = '2020-01-01 00:00:00' "
+        "WHERE run_id = 'run-old'",
+      );
+      await repo.purgeOldBuildRuns(0);
+      expect((await repo.db.query('SELECT id FROM build_runs')).length, 2);
+      await repo.purgeOldBuildRuns(30);
+      final left = await repo.db.query('SELECT run_id FROM build_runs');
+      expect(left.map((r) => r['run_id']), ['run-1']);
     });
 
     test('refuses a malformed record', () async {
@@ -6368,5 +6597,23 @@ class _RacingRepo extends Repository {
       await setArtifactStatus(art.id, ArtifactStatus.uploading);
     }
     return art;
+  }
+}
+
+/// A repository that raises the rollout of [patchId] to 50% just after the
+/// route read the current value, as a concurrent request would.
+class _RaisingRepo extends Repository {
+  _RaisingRepo(super.db, this.patchId);
+
+  final int patchId;
+
+  @override
+  Future<ChannelPatchRow?> activeChannelPatchForPatch(
+    int channelId,
+    int patchId,
+  ) async {
+    final row = await super.activeChannelPatchForPatch(channelId, patchId);
+    if (patchId == this.patchId) await setRollout(channelId, patchId, 5000);
+    return row;
   }
 }

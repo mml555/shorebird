@@ -237,6 +237,14 @@ void main() {
     });
   });
 
+  test('build history retention is opt-in', () {
+    expect(Config.fromEnv({}).buildRunRetentionDays, 0);
+    expect(
+      Config.fromEnv({'BUILD_RUN_RETENTION_DAYS': '30'}).buildRunRetentionDays,
+      30,
+    );
+  });
+
   group('rate limits', () {
     test('the per-IP ceiling defaults above the per-principal limit', () {
       // The IP bucket is the one a caller can't rotate out of, but a single

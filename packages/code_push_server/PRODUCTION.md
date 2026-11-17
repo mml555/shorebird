@@ -340,8 +340,9 @@ only stateless `server` replicas + Caddy in compose.
       retention policy that says otherwise.
 - [ ] **Decide `EVENT_RETENTION_DAYS` and `CRASH_RETENTION_DAYS`** — both
       default to `0` (keep forever) and are filled by unauthenticated device
-      traffic, so the disk grows with fleet size. The server warns at startup
-      while either is unset in production.
+      traffic, so the disk grows with fleet size. `BUILD_RUN_RETENTION_DAYS`
+      (same default) bounds the CLI's build history the same way. The server
+      warns at startup while either of the first two is unset in production.
 - [ ] **Alert on `code_push_audit_write_failures_total > 0`** — above zero, the
       durable trail has holes: some mutation happened whose row did not land.
       The event is still on stdout (with `audit_persisted: false`) and logged as

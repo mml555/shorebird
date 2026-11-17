@@ -54,9 +54,10 @@ bool eligibleForRolloutBps({
 ///
 /// `rollout_bps` is the truth, written together with `rollout` (whole percent,
 /// rounded down). A row whose `rollout_bps` is missing, or disagrees with
-/// `rollout`, was written by a server that predates the column (a rolling
-/// upgrade, or a rollback of the binary), and `rollout` is then the one that
-/// was kept current.
+/// `rollout`, was written by a server that predates the column during a
+/// rolling upgrade (an old pod still running), and `rollout` is then the one
+/// that was kept current. A downgrade of the binary is not a case: a database
+/// at this schema makes an older server refuse to boot (`SchemaTooNewException`).
 int effectiveRolloutBps(Map<String, Object?> row) {
   final whole = (row['rollout'] as num).toInt();
   final bps = row['rollout_bps'];
@@ -76,12 +77,14 @@ int parseRolloutPercentage(Object? value, {required String field}) {
   if (value is! num || !value.isFinite) {
     throw FormatException('$field must be a number');
   }
+  // Before any arithmetic: `1e308 * 100` is infinite, and `.round()` of that
+  // throws, which would be a 500 rather than a 400.
+  if (value < 0.01 - 1e-9 || value > 100) {
+    throw FormatException('$field must be between 0.01 and 100');
+  }
   final bps = (value * 100).round();
   if ((value * 100 - bps).abs() > 1e-6) {
     throw FormatException('$field must be a multiple of 0.01');
-  }
-  if (bps < 1 || bps > 10000) {
-    throw FormatException('$field must be between 0.01 and 100');
   }
   return bps;
 }

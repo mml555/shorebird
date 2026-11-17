@@ -672,7 +672,8 @@ class Repository {
         // A rollout in basis points (hundredths of a percent), so that
         // `--rollout 12.5` and the other multiples of 0.01 the CLI accepts
         // are expressible. `rollout` (whole percent) is still written beside
-        // it; see `effectiveRolloutBps`. Backfilled from `rollout`, which
+        // it, for pods of an older release still running during a rolling
+        // upgrade; see `effectiveRolloutBps`. Backfilled from `rollout`, which
         // gives every existing row the same bucket threshold it had.
         'ALTER TABLE channel_patches ADD COLUMN rollout_bps INTEGER',
         'UPDATE channel_patches SET rollout_bps = rollout * 100',
@@ -1986,6 +1987,7 @@ class Repository {
   Future<List<Map<String, Object?>>> buildRuns(
     String appId, {
     int limit = 50,
+    bool withBlobs = true,
   }) async {
     final r = await _q(
       'SELECT * FROM build_runs WHERE app_id = @a ORDER BY id DESC LIMIT @l',
@@ -2005,24 +2007,53 @@ class Repository {
           'started_at': m['started_at'],
           'duration_ms': _int(m['duration_ms']),
           'dry_run': asDbBool(m['dry_run']),
-          'metadata': ?_decodeMetadata(m['metadata']),
-          'build_flags': ?_decodeMetadata(m['build_flags']),
+          if (withBlobs) 'metadata': ?_decodeMetadata(m['metadata']),
+          if (withBlobs) 'build_flags': ?_decodeMetadata(m['build_flags']),
           'created_at': _ts(m['created_at']),
         },
     ];
   }
 
-  Future<void> setRollout(int channelId, int patchId, int rolloutBps) => _q(
-    'UPDATE channel_patches SET rollout = @r, rollout_bps = @b '
-    'WHERE channel_id = @c AND patch_id = @p AND status = @s',
-    {
-      'r': rolloutBps ~/ 100,
-      'b': rolloutBps,
-      'c': channelId,
-      'p': patchId,
-      's': ChannelPatchStatus.active.name,
-    },
-  );
+  /// Sets the rollout of the active row of [patchId] on [channelId].
+  ///
+  /// With [onlyRaise] the UPDATE itself refuses a value below the current one
+  /// (read through the same rule as [effectiveRolloutBps], so a row an old pod
+  /// wrote is judged by its `rollout`), and the result says whether it wrote:
+  /// two concurrent raises cannot lower each other. False means nothing was
+  /// written, because the row is gone or something raised it past [rolloutBps]
+  /// first.
+  Future<bool> setRollout(
+    int channelId,
+    int patchId,
+    int rolloutBps, {
+    bool onlyRaise = false,
+  }) async {
+    final r = await _q(
+      'UPDATE channel_patches SET rollout = @r, rollout_bps = @b '
+      'WHERE channel_id = @c AND patch_id = @p AND status = @s '
+      '${onlyRaise ? 'AND (CASE WHEN rollout_bps IS NOT NULL '
+                'AND rollout_bps / 100 = rollout THEN rollout_bps '
+                'ELSE rollout * 100 END) <= @b ' : ''}'
+      'RETURNING id',
+      {
+        'r': rolloutBps ~/ 100,
+        'b': rolloutBps,
+        'c': channelId,
+        'p': patchId,
+        's': ChannelPatchStatus.active.name,
+      },
+    );
+    return r.isNotEmpty;
+  }
+
+  /// Drops build history older than [days], on the same terms as
+  /// [purgeOldEvents] (`days <= 0` keeps everything, the default).
+  Future<void> purgeOldBuildRuns(int days) async {
+    if (days <= 0) return;
+    await _q(
+      "DELETE FROM build_runs WHERE created_at < now() - interval '$days days'",
+    );
+  }
 
   Future<void> withdraw(int channelId, int patchId, {required bool rollback}) =>
       _q(

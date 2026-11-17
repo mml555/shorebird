@@ -2904,7 +2904,15 @@ class Api {
       );
     }
     if (bps > current.rolloutBps) {
-      await repo.setRollout(channel.id, patchId, bps);
+      // The UPDATE refuses a value below what is stored now, so a concurrent
+      // raise that landed after the read above cannot be lowered by this one.
+      if (!await repo.setRollout(channel.id, patchId, bps, onlyRaise: true)) {
+        throw conflict(
+          'Patch ${patch.number} was raised past ${percentageOf(bps)}% on '
+          '${channel.name} by another request, and a rollout can only be '
+          'raised.',
+        );
+      }
     }
     return Response(HttpStatus.noContent);
   }
@@ -2981,7 +2989,7 @@ class Api {
         throw badRequest('patch_id is not a patch of this app');
       }
     }
-    final flags = body['build_flags'];
+    final flags = _optBuildFlags(body['build_flags']);
     final id = await repo.recordBuildRun(
       appId,
       runId: runId,
@@ -2995,9 +3003,7 @@ class Api {
       durationMs: durationMs,
       dryRun: dryRun,
       metadata: _optMetadataField(body),
-      buildFlags: flags is Map && jsonEncode(flags).length <= _maxMetadataChars
-          ? flags.cast<String, Object?>()
-          : null,
+      buildFlags: flags,
     );
     return Response(
       HttpStatus.created,
@@ -3008,14 +3014,42 @@ class Api {
 
   /// `GET /apps/{app}/runs?limit=`: the build history, newest first. Not an
   /// upstream route (upstream reads it in its console); it is how an operator
-  /// reads what [_createBuildRun] stored.
+  /// reads what [_createBuildRun] stored. Summaries only (see below).
   Future<Response> _getBuildRuns(Request req, String appId) async {
     final raw = req.url.queryParameters['limit'];
     final limit = raw == null ? 50 : int.tryParse(raw);
     if (limit == null || limit < 1 || limit > 200) {
       throw badRequest('limit must be an integer from 1 to 200');
     }
-    return _json({'runs': await repo.buildRuns(appId, limit: limit)});
+    // Without `metadata` and `build_flags`, which can each hold tens of KB
+    // per row: the list is a summary, and the response stays small.
+    return _json({
+      'runs': await repo.buildRuns(appId, limit: limit, withBlobs: false),
+    });
+  }
+
+  /// The CLI's `BuildRunBuildFlags`: `{dart_define_count, dart_defines,
+  /// target?}`. Absent stays absent; anything of another shape, or oversized,
+  /// is dropped, as for `metadata`.
+  static Map<String, Object?>? _optBuildFlags(Object? v) {
+    if (v is! Map) return null;
+    final count = v['dart_define_count'];
+    final defines = v['dart_defines'];
+    final target = v['target'];
+    if (count is! int ||
+        count < 0 ||
+        defines is! Map ||
+        defines.values.any((e) => e is! String) ||
+        defines.keys.any((e) => e is! String) ||
+        (target != null && target is! String)) {
+      return null;
+    }
+    final out = <String, Object?>{
+      'dart_define_count': count,
+      'dart_defines': defines.cast<String, String>(),
+      'target': ?target,
+    };
+    return jsonEncode(out).length <= _maxMetadataChars ? out : null;
   }
 
   Future<Response> _promotePatch(Request req, String appId) async {
@@ -4238,16 +4272,16 @@ class Api {
         // A whole percent from 0 to 100, or a multiple of 0.01 such as 12.5.
         final raw = req.url.queryParameters['percent'] ?? '100';
         final percent = num.tryParse(raw);
-        final bps = percent == null ? null : (percent * 100).round();
+        // Range first: NaN, Infinity and 1e308 must be a 400, and `.round()`
+        // of an infinite product throws.
         if (percent == null ||
-            !percent.isFinite ||
-            (percent * 100 - bps!).abs() > 1e-6 ||
-            bps < 0 ||
-            bps > 10000) {
+            !(percent >= 0 && percent <= 100) ||
+            (percent * 100 - (percent * 100).round()).abs() > 1e-6) {
           throw badRequest(
             'percent must be a number between 0 and 100, in steps of 0.01',
           );
         }
+        final bps = (percent * 100).round();
         final cp = await repo.activeChannelPatchForPatch(channel.id, patchId);
         if (cp == null) {
           throw conflict('Patch $patchId is not active on $channelName');

@@ -217,6 +217,16 @@ AuditRoute? classifyMutation(String method, List<String> segments) {
   final appId = seg[1];
   final rest = seg.sublist(2);
 
+  // Build history is a record of what the CLI did, not an operator action,
+  // but any collaborator can write it, so each write is attributed.
+  if (rest[0] == 'runs' && rest.length == 1 && method == 'POST') {
+    return AuditRoute(
+      'build_run.record',
+      'POST /api/v1/apps/{app}/runs',
+      appId: appId,
+    );
+  }
+
   if (rest[0] == 'channels' && rest.length == 1 && method == 'POST') {
     return AuditRoute(
       'channel.create',
