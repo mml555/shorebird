@@ -367,7 +367,7 @@ ${result.stderr}''',
         '--dill',
         prepassKernel.path,
         '--include',
-        'package:$packageName/',
+        ...routeBAppIncludePrefixes(packageName),
         '--out',
         census.path,
       ]);
@@ -484,7 +484,7 @@ ${result.stderr}''',
       // The app's own libraries, whole. Everything outside this prefix is the
       // framework and the SDK, handled by the named-member list below.
       '--include',
-      'package:$packageName/',
+      ...routeBAppIncludePrefixes(packageName),
       // PRIVATE ENUMERATION SOURCE, and it is a correctness choice before it is a
       // breadth one.
       //

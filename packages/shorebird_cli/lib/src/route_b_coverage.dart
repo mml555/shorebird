@@ -1049,6 +1049,20 @@ class RouteBCoverage {
   }
 }
 
+/// The `--include` prefixes the analyzer is run with for an app whose package
+/// is [packageName]: the app's own libraries, whole, and nothing else.
+///
+/// This is the breadth the release used for its census and its dynamic
+/// interface (`route_b_release_kernels.dart`), and a patch's analysis must use
+/// the same one, or the analyzer reads the release's own framework members as
+/// changed. Empty for a null or empty name, which is the analyzer's default
+/// (every non-`dart:` library is the app) and the only safe answer when the
+/// release's package cannot be named.
+List<String> routeBAppIncludePrefixes(String? packageName) =>
+    packageName == null || packageName.isEmpty
+    ? const []
+    : ['package:$packageName/'];
+
 /// Runs the coverage analyzer out of a resolved compiler cell.
 ///
 /// [compiler] is the cell belonging to the RELEASE's engine, so the analyzer

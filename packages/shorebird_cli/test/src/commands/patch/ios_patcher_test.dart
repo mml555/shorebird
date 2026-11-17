@@ -1763,6 +1763,53 @@ This may indicate that the patch contains native changes, which cannot be applie
               writeReleaseProvenance(engineRevision: releaseEngineRevision);
             });
 
+            Future<void> patchAnalyzedWithPackage(String? name) async {
+              final pubspec = MockPubspec();
+              when(() => pubspec.name).thenReturn(name ?? '');
+              when(() => pubspec.flutter).thenReturn(null);
+              when(
+                () => shorebirdEnv.getPubspecYaml(),
+              ).thenReturn(name == null ? null : pubspec);
+              await runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              );
+            }
+
+            test('runs the analyzer with the release time --include '
+                'prefix, from the pubspec name', () async {
+              // w16: without it the analyzer reads every non-dart: library as
+              // the app and refuses a patch that touches no framework member.
+              await patchAnalyzedWithPackage('app');
+              verify(
+                () => routeBCoverageAnalyzer.analyze(
+                  compiler: any(named: 'compiler'),
+                  baseDill: any(named: 'baseDill'),
+                  patchedDill: any(named: 'patchedDill'),
+                  includePrefixes: ['package:app/'],
+                ),
+              ).called(1);
+            });
+
+            test(
+              'falls back to no prefixes when the package is unnamed',
+              () async {
+                await patchAnalyzedWithPackage(null);
+                verify(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: const <String>[],
+                  ),
+                ).called(1);
+              },
+            );
+
             test(
               'resolves the compiler for the RELEASE engine, not the '
               'environment',

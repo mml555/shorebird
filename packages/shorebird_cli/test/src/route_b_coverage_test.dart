@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:path/path.dart' as p;
+import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:test/test.dart';
 import 'helpers.dart';
@@ -30,6 +33,85 @@ void main() {
       'conditional': conditional,
       'rejections': rejections,
       'refusalSummary': refusalSummary,
+    });
+
+    group('routeBAppIncludePrefixes', () {
+      test('names the app library prefix the release used', () {
+        expect(routeBAppIncludePrefixes('shapes'), ['package:shapes/']);
+      });
+
+      test('is empty when the package cannot be named', () {
+        expect(routeBAppIncludePrefixes(null), isEmpty);
+        expect(routeBAppIncludePrefixes(''), isEmpty);
+      });
+    });
+
+    group('RouteBCoverageAnalyzer argument list', () {
+      // Pinned because the patcher and the release must agree on --include,
+      // and the analyzer is an opaque binary: a changed order or a dropped
+      // prefix would still run.
+      late Directory cell;
+
+      setUp(() => cell = Directory.systemTemp.createTempSync('cell'));
+
+      RouteBCompiler fakeCompiler(File argsOut) {
+        final runtime = File(p.join(cell.path, 'runtime.sh'))
+          ..writeAsStringSync('''
+#!/bin/sh
+shift
+printf '%s\\n' "\$@" > ${argsOut.path}
+cat <<'JSON'
+{"analysisVersion":11,"verdict":"inert","changed":[],"added":[],"removed":[],"patchable":[],"conditional":[],"rejections":[],"refusalSummary":null}
+JSON
+''');
+        Process.runSync('chmod', ['+x', runtime.path]);
+        File f(String n) => File(p.join(cell.path, n));
+        return RouteBCompiler(
+          supportsDirectSuperDualKernel: true,
+          runtime: runtime,
+          compilerSnapshot: f('c'),
+          platformDill: f('p'),
+          analyzer: f('analyzer.aot'),
+          frontend: f('fe'),
+          interfaceGenerator: f('gen'),
+          releaseProbe: f('probe'),
+          flutterPlatformDill: f('fp'),
+          provenance: '',
+        );
+      }
+
+      test('passes each include prefix, then each carry', () {
+        final out = File(p.join(cell.path, 'args.txt'));
+        const RouteBCoverageAnalyzer().analyze(
+          compiler: fakeCompiler(out),
+          baseDill: File('base.dill'),
+          patchedDill: File('patched.dill'),
+          includePrefixes: routeBAppIncludePrefixes('shapes'),
+          carry: {'b#two', 'a#one'},
+        );
+        expect(out.readAsLinesSync(), [
+          '--base-dill',
+          File('base.dill').path,
+          '--patched-dill',
+          File('patched.dill').path,
+          '--include',
+          'package:shapes/',
+          '--carry',
+          'a#one',
+          '--carry',
+          'b#two',
+        ]);
+      });
+
+      test('passes no --include when there is no prefix', () {
+        final out = File(p.join(cell.path, 'args.txt'));
+        const RouteBCoverageAnalyzer().analyze(
+          compiler: fakeCompiler(out),
+          baseDill: File('base.dill'),
+          patchedDill: File('patched.dill'),
+        );
+        expect(out.readAsStringSync(), isNot(contains('--include')));
+      });
     });
 
     group('instance helpers (analysis version 17)', () {

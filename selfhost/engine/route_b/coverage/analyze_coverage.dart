@@ -2975,7 +2975,15 @@ class _ExternalUses extends RecursiveVisitor {
     if (cls != null && (cls.name.contains('&') || cls.name.contains('#'))) {
       return;
     }
-    if (m.name.text.contains('#')) return;
+    // A `#` name is a compiler synthetic and nothing a patch spells, EXCEPT an
+    // extension getter, setter or tear-off (`Ext|get#wait`): that one is
+    // spelled by `record.wait` and looked up by name at load, and the loader
+    // aborts the process when the release lacks it. It is reported like any
+    // top-level member so the CLI can refuse it (no interface lists one).
+    if (m.name.text.contains('#') &&
+        !(m is Procedure && m.isExtensionMember)) {
+      return;
+    }
     final isPrivate = m.name.isPrivate || (cls?.name.startsWith('_') ?? false);
     if (isPrivate &&
         !viaConstant &&

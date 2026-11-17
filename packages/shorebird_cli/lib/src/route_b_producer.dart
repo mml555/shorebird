@@ -123,6 +123,74 @@ bool _readsCompileTimeEnvironment(String declaration) =>
     declaration.contains('int.fromEnvironment') ||
     declaration.contains('bool.fromEnvironment');
 
+/// Why a top-level or static target's [declaration] cannot be an entry point,
+/// or null when it can.
+///
+/// The compiler takes an entry point whose parameters are all required
+/// positionals and which has no type parameters (patch 0006). Anything else
+/// used to reach `dart2bytecode` and come back as a raw front-end stack trace
+/// that names nothing the developer wrote. This reads the declaration's own
+/// text, which is all a top-level target's coverage carries, and says nothing
+/// when it cannot find the declaration (the compiler then speaks for itself).
+String? routeBEntryShapeProblem(String key, String declaration) {
+  final selector = key.split('#').last;
+  if (selector.startsWith('get:') || selector.startsWith('set:')) return null;
+  final name = selector.split('.').last;
+  if (name.isEmpty) return null;
+  final match = RegExp(
+    '(?<![\\w\$.])${RegExp.escape(name)}\\s*([<(])',
+  ).firstMatch(declaration);
+  if (match == null) return null;
+  const tail =
+      'A replacement is an entry point, which takes only required positional '
+      'parameters and no type parameters. Cut a new release that contains '
+      'this change, then patch that';
+  if (match.group(1) == '<') {
+    return 'it is a generic function (`$name<...>`). $tail';
+  }
+  var depth = 0;
+  var atStart = true;
+  String? quote;
+  for (var i = match.end - 1; i < declaration.length; i++) {
+    final c = declaration[i];
+    if (quote != null) {
+      if (c == '\\') {
+        i++;
+      } else if (c == quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (c == "'" || c == '"') {
+      quote = c;
+      atStart = false;
+      continue;
+    }
+    if (c == '(' || c == '[' || c == '{') {
+      if (depth == 1 && atStart && c != '(') {
+        return 'its signature has '
+            '${c == '{' ? 'named' : 'optional positional'} parameters. $tail';
+      }
+      depth++;
+      atStart = depth == 1;
+      continue;
+    }
+    if (c == ')' || c == ']' || c == '}') {
+      depth--;
+      if (depth == 0) return null;
+      continue;
+    }
+    if (depth == 1) {
+      if (c == ',') {
+        atStart = true;
+      } else if (c.trim().isNotEmpty) {
+        atStart = false;
+      }
+    }
+  }
+  return null;
+}
+
 /// {@template route_b_producer}
 /// Compiles replacement bodies and packs them into an SBRBPTCH container.
 /// {@endtemplate}
@@ -384,6 +452,17 @@ Object? $_superIntrinsicName(
       }
 
       final lowering = coverage.lowering[key];
+      // An entry point the compiler cannot take is refused HERE, in words,
+      // rather than by dart2bytecode with a stack trace. A lowered target was
+      // already checked by the analyzer (it refuses named parameters, optional
+      // positionals and generics for those); a top-level or static target was
+      // not, and reaches the compiler as written.
+      if (lowering == null) {
+        if (routeBEntryShapeProblem(key, _slice(key, source))
+            case final problem?) {
+          throw RouteBUnsupportedTarget(key, problem);
+        }
+      }
       final lowered = lowering != null
           ? _lower(
               key,
@@ -418,6 +497,20 @@ Object? $_superIntrinsicName(
                 l.accesses.any((a) => a.privateTarget != null) ||
                 (l.privateConstructions?.isNotEmpty ?? false) ||
                 l.receiverType.startsWith('_'),
+          ) ||
+          // G5. A PRIVATE TOP-LEVEL FUNCTION the release holds (`_fmt(x)`)
+          // is a private name of the target's library, and the replacement
+          // library cannot spell it without the flag:
+          //
+          //   Error: Method not found: '_fmt'.
+          //
+          // Gated on the release's own manifest list, so only a name the
+          // release was built to keep switches the resolution on, and a target
+          // that names no private top-level compiles exactly as before.
+          _namesGrantedPrivateTopLevel(
+            coverage,
+            [key, ...neededHelpers],
+            capabilities,
           );
       final helperText = _helperSources(
         key,
@@ -645,6 +738,31 @@ Object? $_superIntrinsicName(
 
   /// The helpers [key] reaches: named by its body, or by a helper that is, per
   /// the analysis' `callers`.
+  /// Whether any of [keys] names a private top-level member of its own
+  /// library that the release's manifest lists in `privateTopLevelCallable`.
+  ///
+  /// Only the manifest can say so: no manifest, no switch, and retention has
+  /// already refused the reference by then.
+  static bool _namesGrantedPrivateTopLevel(
+    RouteBCoverage coverage,
+    Iterable<String> keys,
+    RouteBCapabilities? capabilities,
+  ) {
+    if (capabilities == null) return false;
+    final references = coverage.externalReferences;
+    if (references == null) return false;
+    return keys.any(
+      (k) => (references[k] ?? const []).any(
+        (r) =>
+            r.kind == 'top-level' &&
+            r.isPrivate &&
+            !r.viaConstant &&
+            r.member != null &&
+            capabilities.topLevelCallable.contains('${r.library}#${r.member}'),
+      ),
+    );
+  }
+
   Set<String> _neededHelpers(String key, RouteBCoverage coverage) =>
       coverage.helpersNeededBy(key);
 

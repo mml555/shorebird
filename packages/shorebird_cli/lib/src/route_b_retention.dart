@@ -49,15 +49,24 @@
 //
 // WHAT IT DOES NOT COVER, said once so nobody reads more into a pass:
 //
-//   * an instance member of a `dart:` class (`s.substring(1)`). KNOWN GAP: it
-//     binds by selector, the generator leaves it out of the interface on
-//     purpose, and one the release never called can throw `NoSuchMethodError`
-//     on a device;
+//   * an instance member of a `dart:` class (`s.substring(1)`) is NOT decidable
+//     from anything a patch has: it binds by selector, the generator leaves it
+//     out of the interface on purpose, and the AOT kernel the CLI would have to
+//     read is not parsed here. One the release never called throws
+//     `NoSuchMethodError` on a device. So it is refused unless it is on
+//     [routeBDeviceProvenSdkInstanceMembers], a short list of members measured
+//     to work. A patch outside the list can always be made to work by cutting a
+//     release whose own code calls the member; the refusal says so;
 //   * a reference the compiler adds that no source token names (string
 //     interpolation, `for`, `async`), and `dart:_` libraries, which no
 //     interface can hold and no patch spells;
-//   * an extension member (`list.firstOrNull`, `Ext|get#x`): the generator
-//     skips these too, so nothing checks that the release kept one;
+//   * an extension GETTER or SETTER (`record.wait`, `Ext|get#x`): refused
+//     always, by name. The interface never lists a `#` member (the generator
+//     skips them), so a release cannot be shown to have kept one, and one it
+//     lacks aborts the process at load. The analyzer must report it first (it
+//     did not before the fix in this tree), so a cell built before that fix
+//     still lets it through; an extension METHOD (`Ext|m`) is reported and
+//     answered like any other top-level member;
 //   * the declared type of a local variable. Measured: a never-used class as
 //     the type of an unassigned local loads (`local_type_only`); an
 //     assignment or cast to it is a type node and is collected.
@@ -66,6 +75,61 @@ import 'dart:io';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:yaml/yaml.dart';
+
+/// SDK instance members measured to run in a patch on a release that never
+/// named them, as `library#Class#member` (the declaring class, VM member
+/// names).
+///
+/// A BUDGET, as the SDK-member list at release time is: a member goes on only
+/// with evidence. Everything here ran on an iPhone in
+/// `selfhost/engine/route_b/evidence/ios_shapes_2026_11_15` (`p03` and every
+/// counter in the other patches: the numeric operators and interpolation's
+/// `toString`; `p07`: a `for-in` loop's iterator calls; `p16`: `List.add` and
+/// `Iterable.join`; `p17`: `split`, `where`, `map`, `toList`), or is an
+/// operator the same runs could not avoid (`==`).
+///
+/// NOT on it, on purpose: `String.toUpperCase` (`p17` ran it, but a host run of
+/// the same shape on a release that never called it threw `NoSuchMethodError`,
+/// so the device run does not settle it), `Stream.where`, `Future.catchError`,
+/// `Duration.inMilliseconds`, `StateError.message`, `List.contains`, and every
+/// `dart:ui` member. Widening it is a measurement, not a guess.
+final routeBDeviceProvenSdkInstanceMembers = <String>{
+  for (final cls in ['num', 'int', 'double'])
+    for (final op in [
+      '+',
+      '-',
+      '*',
+      '/',
+      '~/',
+      '%',
+      '<',
+      '>',
+      '<=',
+      '>=',
+      'unary-',
+      '==',
+    ])
+      'dart:core#$cls#$op',
+  'dart:core#Object#==',
+  'dart:core#Object#toString',
+  // Interpolation calls `toString` through the VM's own virtual call, so every
+  // class the VM allocates itself keeps its override.
+  'dart:core#int#toString',
+  'dart:core#double#toString',
+  'dart:core#bool#toString',
+  'dart:core#String#toString',
+  'dart:core#Object#get:hashCode',
+  'dart:core#String#==',
+  'dart:core#List#add',
+  'dart:core#Iterable#join',
+  'dart:core#Iterable#where',
+  'dart:core#Iterable#map',
+  'dart:core#Iterable#toList',
+  'dart:core#Iterable#get:iterator',
+  'dart:core#Iterator#moveNext',
+  'dart:core#Iterator#get:current',
+  'dart:core#String#split',
+};
 
 /// The release's retained set, read from its dynamic interface.
 class RouteBRetention {
@@ -203,20 +267,48 @@ class RouteBRetention {
           'symbol that cannot be shown to be kept is not kept';
     }
     // Bound by selector at run time, and left out of the interface on purpose;
-    // see the header. A KNOWN GAP: an SDK instance method the release never
-    // called can throw `NoSuchMethodError` on a device.
+    // see the header. Only a member measured to work is let through.
     if (r.kind == 'instance' &&
         r.library.startsWith('dart:') &&
         !r.viaConstant) {
-      return null;
+      return _isUnprovenSdkInstance(r) ? _describeSdkInstance(r) : null;
     }
     return _retained(r) ? null : _describe(r);
+  }
+
+  /// Whether [r] is an instance member of a `dart:` class that is neither on
+  /// the device-proven list nor named by the release's interface. A constant that names it keeps it (the release's own
+  /// interface item), so that case is the interface's to answer.
+  bool _isUnprovenSdkInstance(RouteBExternalReference r) =>
+      r.kind == 'instance' &&
+      r.library.startsWith('dart:') &&
+      !r.viaConstant &&
+      !routeBDeviceProvenSdkInstanceMembers.contains(
+        '${r.library}#${r.className}#${r.member}',
+      ) &&
+      // One the release's own interface lists by name (the SDK-member list
+      // the release was built with, e.g. `DateTime.millisecondsSinceEpoch`)
+      // is kept by that item.
+      !members.contains('${r.library}#${r.className}#${r.member}');
+
+  /// Whether [r] is an extension getter, setter or tear-off, whose `#` name no
+  /// interface lists.
+  static bool _isExtensionHashMember(RouteBExternalReference r) {
+    final member = r.member;
+    return member != null && member.contains('|') && member.contains('#');
   }
 
   bool _retained(RouteBExternalReference r) {
     final cls = r.className;
     final member = r.member;
     final key = '${r.library}#${cls ?? ''}#${member ?? ''}';
+    // An extension member named with `#` is not in any interface, and the
+    // whole-library rule must not answer for it: the generator keeps an app
+    // library's PUBLIC members whole but skips these, so the library being
+    // kept says nothing about them (e22, E13: both aborted at load).
+    if (_isExtensionHashMember(r)) {
+      return members.contains(key) && !_manifestSkips(key);
+    }
     // A PRIVATE name the patch spells is its own library's, and what answers
     // for it is the capability manifest, as everywhere else in Route B. One
     // named only by a constant is kept by the interface item itself.
@@ -277,10 +369,18 @@ class RouteBRetention {
     ].any((k) => k.startsWith(prefix));
   }
 
+  /// `String.toUpperCase`, for the sentence about SDK instance members.
+  static String _describeSdkInstance(RouteBExternalReference r) =>
+      'the ${r.library.substring(0, r.library.indexOf(':'))}: method '
+      '`${r.displayName}` (an SDK instance member)';
+
   /// "`Padding`", the way a developer would name it. The library is added only
   /// where it helps: a framework path (`package:flutter/src/widgets/...`) is
   /// not something the developer wrote.
   static String _describe(RouteBExternalReference r) {
+    if (_isExtensionHashMember(r)) {
+      return 'the extension member `${r.displayName}` (${r.library})';
+    }
     final what = switch (r.kind) {
       'class' => 'the ${r.isPrivate ? 'private ' : ''}class',
       'constructor' => 'the ${r.isPrivate ? 'private ' : ''}constructor',
@@ -327,8 +427,21 @@ class RouteBRetention {
   /// Null also when [coverage] predates analysis version 18 and so cannot say
   /// (see [routeBRetentionAnalysisVersion]); the caller decides what that
   /// means, and today it means a warning rather than a refusal.
-  String? refusal(RouteBCoverage coverage, Iterable<String> keys) =>
-      describeRouteBUnretained(unretained(coverage, keys));
+  String? refusal(RouteBCoverage coverage, Iterable<String> keys) {
+    final all = unretained(coverage, keys);
+    final sdk = all
+        .where((d) => d.contains('(an SDK instance member)'))
+        .toList();
+    final rest = all.where((d) => !sdk.contains(d)).toList();
+    return [
+      ?describeRouteBUnretained(rest),
+      ?describeRouteBUnprovenSdkMembers(sdk),
+    ].join('. ').nullIfEmpty;
+  }
+}
+
+extension on String {
+  String? get nullIfEmpty => isEmpty ? null : this;
 }
 
 /// The refusal for a patch whose analysis (version 18 or later) names symbols
@@ -348,6 +461,21 @@ String? describeRouteBUnretained(List<String> symbols) {
       'stops the app at launch when a class, constructor, static or top-level '
       'it names is not there. Cut a new release whose own code uses it (a '
       'call is enough), then patch that';
+}
+
+/// The refusal for a patch that calls SDK instance members not on the
+/// device-proven list, or null for an empty [symbols].
+String? describeRouteBUnprovenSdkMembers(List<String> symbols) {
+  if (symbols.isEmpty) return null;
+  const shown = 5;
+  final named = symbols.take(shown).join(', ');
+  final more = symbols.length > shown
+      ? ', and ${symbols.length - shown} more'
+      : '';
+  return 'it calls $named$more. An SDK instance method is looked up by name '
+      'when it runs, and the app throws NoSuchMethodError at that call if the '
+      'release never called it; nothing at patch time can tell. Cut a new '
+      'release whose own code calls it (a call is enough), then patch that';
 }
 
 /// The refusal for a release whose interface is missing or unreadable, when the

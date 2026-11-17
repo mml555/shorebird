@@ -10,8 +10,9 @@ import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
-import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
+import 'package:shorebird_cli/src/route_b_retention.dart';
+import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';
@@ -52,12 +53,26 @@ void main() {
       Map<String, Object?>? sources,
       Map<String, Object?>? lowering,
       Map<String, List<String>>? callers,
+      // Makes this an analysis-18 document that lists these references per
+      // target, which is what turns the retention check on.
+      Map<String, List<Map<String, Object?>>>? externalReferences,
     }) => RouteBCoverage.fromJson(
       jsonEncode({
-        'analysisVersion': callers == null
+        'analysisVersion': externalReferences != null
+            ? routeBRetentionAnalysisVersion
+            : callers == null
             ? supportedRouteBAnalysisVersion
             : routeBCarryAnalysisVersion,
-        if (callers != null) ...{'carried': <String>[], 'callers': callers},
+        if (externalReferences != null) ...{
+          'carried': <String>[],
+          'callers': <String, List<String>>{},
+          'helpers': <String>[],
+          'unusedHelpers': <String>[],
+          'externalReferences': externalReferences,
+        } else if (callers != null) ...{
+          'carried': <String>[],
+          'callers': callers,
+        },
         'verdict': 'accept',
         'changed': representable,
         'added': <String>[],
@@ -130,6 +145,229 @@ void main() {
           ),
         ),
       );
+    });
+
+    group('an entry point the compiler cannot take', () {
+      // e07 (a generic function), e25 and E17 (named parameters) reached
+      // dart2bytecode and came back as a raw front-end stack trace.
+      const key = 'package:app/main.dart#routeBValue';
+
+      test('a generic function is refused in words', () {
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            'T routeBValue<T>(List<T> xs, T fallback) => xs.first;',
+          ),
+          allOf(contains('generic function'), contains('Cut a new release')),
+        );
+      });
+
+      test('named, optional and required parameters', () {
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            "String routeBValue(int n, {String sep = ''}) => 'x';",
+          ),
+          allOf(contains('named parameters'), contains('Cut a new release')),
+        );
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            "String routeBValue([int n = 0]) => '';",
+          ),
+          contains('optional positional parameters'),
+        );
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            "String routeBValue(int n, List<String> xs) => 'x';",
+          ),
+          isNull,
+        );
+        expect(
+          routeBEntryShapeProblem(key, "String routeBValue() => '';"),
+          isNull,
+        );
+      });
+
+      test('reads past defaults, strings and nested brackets', () {
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            "String routeBValue(Map<String, List<int>> m, Function(int, [int]) f, "
+            "String s) => ', {[';",
+          ),
+          isNull,
+        );
+        expect(
+          routeBEntryShapeProblem(
+            key,
+            r"String routeBValue(String a, [String b = 'x, {']) => a;",
+          ),
+          contains('optional positional'),
+        );
+      });
+
+      test('says nothing for accessors or a declaration it cannot find', () {
+        expect(
+          routeBEntryShapeProblem(
+            'package:app/main.dart#get:routeBValue',
+            'String get routeBValue => x;',
+          ),
+          isNull,
+        );
+        expect(routeBEntryShapeProblem(key, 'int other() => 1;'), isNull);
+        expect(routeBEntryShapeProblem('package:app/main.dart#', 'x'), isNull);
+      });
+
+      test('a static method is read by its own name', () {
+        expect(
+          routeBEntryShapeProblem(
+            'package:app/main.dart#Box.make',
+            'static Box make<T>(T v) => Box();',
+          ),
+          contains('`make<...>`'),
+        );
+      });
+
+      test('produce refuses the target before the compiler runs', () {
+        source.writeAsStringSync("String routeBValue({int n = 0}) => 'NEW';");
+        var compiled = false;
+        expect(
+          () => runWithOverrides(
+            () => const RouteBProducer().produce(
+              compiler: compiler(),
+              coverage: coverage(
+                sources: {
+                  key: {
+                    'fileUri': source.uri.toString(),
+                    'start': 0,
+                    'end': source.lengthSync(),
+                  },
+                },
+              ),
+              releaseImportKernel: File(
+                p.join(cell.path, 'release_import.dill'),
+              ),
+              releaseBuildId: 'deadbeef',
+              workingDirectory: work,
+              projectRoot: project,
+              run: (e, a) {
+                compiled = true;
+                return compileOk(e, a);
+              },
+            ),
+          ),
+          throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              contains('named parameters'),
+            ),
+          ),
+        );
+        expect(compiled, isFalse);
+      });
+    });
+
+    group('a top-level target naming a private top-level function', () {
+      // G5. The replacement is its own synthetic library, so `_fmt` is not in
+      // scope there without --resolve-private-names-in-library, and the compile
+      // died with "Method not found: '_fmt'".
+      const target = 'package:app/main.dart#routeBValue';
+      const privateFmt = 'package:app/main.dart#_fmt';
+
+      Map<String, Object?> reference({
+        bool private = true,
+        String member = '_fmt',
+        bool viaConstant = false,
+      }) => {
+        'kind': 'top-level',
+        'library': 'package:app/main.dart',
+        'class': null,
+        'member': member,
+        'private': private,
+        if (viaConstant) 'viaConstant': true,
+      };
+
+      List<String> compileArguments({
+        required List<Map<String, Object?>> references,
+        List<String> granted = const [privateFmt],
+        bool withManifest = true,
+      }) {
+        var arguments = <String>[];
+        final capabilities = RouteBCapabilities.fromJson(
+          jsonEncode({
+            'policy': 'p2',
+            'privateTopLevelCallable': granted,
+          }),
+        );
+        runWithOverrides(
+          () => const RouteBProducer().produce(
+            compiler: compiler(),
+            coverage: coverage(externalReferences: {target: references}),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
+            releaseBuildId: 'deadbeef',
+            workingDirectory: work,
+            projectRoot: project,
+            capabilities: withManifest ? capabilities : null,
+            retention: RouteBRetention.parse(
+              '''
+callable:
+  - library: 'package:app/main.dart'
+  - library: 'package:app/main.dart'
+    member: '_fmt'
+''',
+              capabilities: capabilities,
+            ),
+            run: (executable, args) {
+              arguments = args;
+              return compileOk(executable, args);
+            },
+          ),
+        );
+        return arguments;
+      }
+
+      test('asks the CFE to resolve the private name the manifest grants', () {
+        expect(
+          compileArguments(references: [reference()]),
+          containsAllInOrder([
+            '--resolve-private-names-in-library',
+            'package:app/main.dart',
+          ]),
+        );
+      });
+
+      test('does not ask when the target names no private top-level', () {
+        expect(
+          compileArguments(
+            references: [reference(private: false, member: 'fmt')],
+            granted: const [],
+          ),
+          isNot(contains('--resolve-private-names-in-library')),
+        );
+      });
+
+      test('does not ask for a private name only a constant names', () {
+        expect(
+          compileArguments(references: [reference(viaConstant: true)]),
+          isNot(contains('--resolve-private-names-in-library')),
+        );
+      });
+
+      test('does not ask for a private name the manifest lists elsewhere', () {
+        // Retention refuses an ungranted private name before this is asked, so
+        // the only way to reach the predicate without a grant for THIS name is
+        // an unrelated grant.
+        expect(
+          () => compileArguments(
+            references: [reference()],
+            granted: const ['package:app/main.dart#_other'],
+          ),
+          throwsA(isA<RouteBUnsupportedTarget>()),
+        );
+      });
     });
 
     group('a top-level helper naming a private identifier', () {

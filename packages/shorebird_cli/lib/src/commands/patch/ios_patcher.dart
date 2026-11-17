@@ -700,16 +700,26 @@ A patch is only interpretable against one whole contract, so these cannot be mix
 
     try {
       final baseDill = releaseArtifacts[routeBReleaseKernelFileName]!;
+      // The SAME breadth the release's interface generator and census used
+      // (`package:<app>/`, from the same pubspec name). Without it the
+      // analyzer treats every non-`dart:` library as the app, so a framework
+      // member the release kept in its own library is reported as a changed
+      // framework member and a patch that touches none is refused.
+      final prefixes = routeBAppIncludePrefixes(
+        shorebirdEnv.getPubspecYaml()?.name,
+      );
       return carry.isEmpty
           ? routeBCoverageAnalyzer.analyze(
               compiler: compiler,
               baseDill: baseDill,
               patchedDill: patchKernel,
+              includePrefixes: prefixes,
             )
           : routeBCoverageAnalyzer.analyze(
               compiler: compiler,
               baseDill: baseDill,
               patchedDill: patchKernel,
+              includePrefixes: prefixes,
               carry: carry,
             );
     } on RouteBCompilerException catch (error) {
