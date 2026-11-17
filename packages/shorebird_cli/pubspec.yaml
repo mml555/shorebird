@@ -83,3 +83,8 @@ shorebird_ci:
     - "**/lib/src/commands/release/macos_releaser.dart"
     - "**/lib/src/commands/release/apple_releaser_mixin.dart"
   min_coverage: 96.1
+
+verify_cache:
+  inputs:
+    - ../../selfhost/engine/route_b/evidence/sdk_instance_members/profile_2fc41d3f.json.gz
+    - ../../selfhost/engine/route_b/device_run/sdk_members/result/results.tsv

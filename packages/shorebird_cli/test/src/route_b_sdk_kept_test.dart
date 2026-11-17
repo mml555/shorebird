@@ -397,6 +397,24 @@ void main() {
       expect(refusal(r, sdk('tearoff:split')), isNull);
     });
 
+    test('does not ask the snapshot for an int operator the bytecode compiler '
+        'turns into an opcode, and still asks for one it does not', () {
+      final r = RouteBRetention.parse(
+        _interface,
+        measuredAccepted: const {'dart:core#int#&', 'dart:core#num#+'},
+        measuredFailing: const {},
+        measuredVmClasses: const {
+          'dart:core#int#&': ['_Smi'],
+          'dart:core#num#+': ['_Smi'],
+        },
+        kept: kept,
+      );
+      // `int & int` is `BitAndInt`: no member of `_Smi` is looked up.
+      expect(refusal(r, sdk('&', 'int')), isNull);
+      // `num + num` is an interface call, looked up by name on the receiver.
+      expect(refusal(r, sdk('+', 'num')), contains('no class `_Smi`'));
+    });
+
     test('refuses one the release dropped: String.substring is absent', () {
       final reason = refusal(retention(snapshot: kept), sdk('substring'));
       expect(

@@ -234,13 +234,11 @@ const routeBSdkMeasuredVmClasses = <String, List<String>>{
     'ListIterator',
     '_ArrayIterator',
     '_CompactIterator',
-    '_GeneratorIterator',
   ],
   'dart:core#Iterator#moveNext': [
     'ListIterator',
     '_ArrayIterator',
     '_CompactIterator',
-    '_GeneratorIterator',
   ],
   'dart:core#List#[]': ['_GrowableList', '_ImmutableList', '_List'],
   'dart:core#List#[]=': ['_GrowableList', '_ImmutableList', '_List'],

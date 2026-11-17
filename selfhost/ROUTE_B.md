@@ -64,14 +64,30 @@ metadata (`allow_unchecked_sdk_calls`).
   the device. That is why check 1 comes first.
 - Runtime classes the matrix did not measure (`MappedIterable`, a user's own
   Iterable) are not proven by it.
-- On the 2fc41d3f counter release's own profile, 34 of the 118 accepted keys
-  are rejected: `Iterable` `first`/`toList`/`toSet`/`any` (some `Iterable`
-  subtypes in the snapshot lack them), `List.reversed`/`sort`, the `Iterator`
-  of a generator iterable, `int` `&`, `<<` and unary `-` on a `_Mint`,
-  `num.~/`, the `endsWith` tear-offs (a stub), and 17 dynamic tear-offs.
+- Calibration: `test/src/route_b_sdk_calibration_test.dart` replays every
+  measured (key, VM class) pair against the 2fc41d3f profile
+  (`evidence/sdk_instance_members/profile_2fc41d3f.json.gz`); each must resolve.
+  Two groups differ and are explained there. The `endsWith` tear-offs: the
+  device probe creates the tear-off and never calls it, while a call of
+  `String.endsWith` on the same release ABORTS (`_StringBase.endsWith` has only
+  a `LazyCompile` stub), so the reader is right. `int` `&`, `<<` and unary `-`:
+  the patch's bytecode compiler emits `BitAndInt`, `ShlInt` and `NegateInt` for
+  them when both operands are statically `int`
+  (`pkg/dart2bytecode/lib/recognized_methods.dart`), and the interpreter runs
+  them without a lookup (`runtime/vm/interpreter.cc`), so the profile is not
+  asked for those three keys. The same is true of `int`/`double` `+ - * < > <=
+  >= ==` and `int` `~/ % | ^ >>` when BOTH operands are statically exactly `int`
+  (or both exactly `double`), but their keys are declared on `num` and the
+  analysis does not say which static types a call site had, so they stay
+  checked until it does.
+- On the 2fc41d3f counter release's own profile, 29 of the 118 accepted keys
+  are rejected: `Iterable` `first`/`toList`/`toSet`/`any` (including tear-offs)
+  and `List.reversed`/`sort` (a subtype in the snapshot lacks them: `_ConstSet`,
+  which has 11 constants in the image, and the typed-data lists, which the VM
+  allocates), `num.~/`, the `endsWith` tear-off and 19 dynamic tear-offs.
   The leaf heuristic is conservative: a class counts as an instance class when
   it is a leaf with real code, so a snapshot-only class a program never builds
-  can still cause a refusal.
+  (for example `_ExternalFloat32x4Array`, whose only factory throws) can still cause a refusal.
 
 ## The capability statement, as of 2026-09-03 — READ THIS ONE
 

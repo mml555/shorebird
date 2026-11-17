@@ -354,6 +354,7 @@ class RouteBRetention {
   /// measurement ran it on, or why not.
   String? _keptProblem(String key) {
     if (skipKeptCheck) return null;
+    if (_bytecodeIntOperators.contains(key)) return null;
     final snapshot = kept;
     if (snapshot == null) {
       return '${keptProblem ?? 'its snapshot profile is not available'}, so '
@@ -373,6 +374,34 @@ class RouteBRetention {
       selector: _selectorOf(key),
     );
   }
+
+  /// `int` operators whose operands are `int` by their declared signature, so
+  /// the patch's bytecode compiler turns each call into a dedicated opcode
+  /// that does no member lookup: no `_Smi`/`_Mint` member needs to be kept.
+  ///
+  /// - The compiler picks the opcode from the STATIC types of both operands,
+  ///   when each is exactly `int`: `RecognizedMethods.binaryIntOps` and
+  ///   `specializedBytecodeForUnaryOp`
+  ///   (dart/pkg/dart2bytecode/lib/recognized_methods.dart:13-30, 74-124), which
+  ///   `bytecode_generator.dart:3948` consults before it emits a call.
+  /// - The interpreter runs `BitAndInt`, `ShlInt` and `NegateInt` on the raw
+  ///   integers (dart/runtime/vm/interpreter.cc:3221 for `NegateInt`, the
+  ///   `UNBOX_INT64` macro at :1224 for the operands), never asking the class.
+  ///
+  /// Only selectors whose parameter is `int` are listed (`+`, `<` and the like
+  /// are declared on `num`, and a call on a `num` receiver is looked up by
+  /// name, so they stay checked). The residual hole is an operand typed by a
+  /// type parameter bounded by `int`, which is not exactly `int` and is looked
+  /// up. The device agrees: the `int` probes of these keys resolved on
+  /// `_Smi` and `_Mint` although the snapshot has no such member.
+  static const _bytecodeIntOperators = {
+    'dart:core#int#&',
+    'dart:core#int#|',
+    'dart:core#int#^',
+    'dart:core#int#<<',
+    'dart:core#int#>>',
+    'dart:core#int#unary-',
+  };
 
   /// `dart:core#Iterable#tearoff:map` -> `map`; `dynamic#get:length` ->
   /// `get:length`.

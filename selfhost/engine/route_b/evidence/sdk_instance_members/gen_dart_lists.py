@@ -45,7 +45,9 @@ VM = {
 }
 # An `Iterator` key is called on the iterator of the probed Iterable.
 ITER = {
-    'generate': ['_GeneratorIterator'],
+    # `_GeneratorIterable extends ListIterable` (dart/sdk/lib/core/iterable.dart:914),
+    # whose `iterator` is a `ListIterator` (sdk/lib/internal/iterable.dart:44).
+    'generate': ['ListIterator'],
     'list': ['ListIterator', '_ArrayIterator'],
     'set': ['_CompactIterator'],
 }
