@@ -1388,7 +1388,10 @@ Object? $_superIntrinsicName(
           // The ANALYZER's resolved target travels with the site, so the
           // compiler can prove it arrived at the same declaration
           // independently. Provenance only: no canonical owner, no arity.
-          '$_superIntrinsicName('
+          // PARENTHESISED: `as` binds looser than `+`, so a bare
+          // `1 + $routeBSuper(...) as dynamic` casts the whole sum and does not
+          // compile (`Object?` is not a `num`).
+          '($_superIntrinsicName('
               '@RECEIVER@, '
               "'${origin.library}', "
               "'${origin.className}', "
@@ -1399,7 +1402,7 @@ Object? $_superIntrinsicName(
               "'${target.fileUri}', "
               '${target.fileOffset}, '
               "'${target.name}', "
-              "'${target.kind}') as dynamic",
+              "'${target.kind}') as dynamic)",
         ));
       }
     }

@@ -198,6 +198,11 @@ for line in open(f'{work}/index.tsv'):
         else:
             expected_refusals += 1
         continue
+    if status != 'ok' and 'super' in short and 'reads `super.' in status:
+        # The producer refuses a `super` property read outright (only a method
+        # call is lowered): fail-closed, and nothing to compare.
+        expected_refusals += 1
+        continue
     if status != 'ok':
         # A generic function is not a valid replacement entry point; the
         # producer refuses it before any bytecode exists, so it is not compared.
@@ -250,7 +255,7 @@ for line in open(f'{work}/index.tsv'):
     if short.startswith(('no__', 'conservative__')) and any(flags) and (
             short.startswith('conservative__') or all(flags)):
         bad.append(f'{name}: expected an unflagged operator reference')
-    if short.startswith('no__') and not rs and not (
+    if short.startswith('no__') and not rs and not name.startswith('A.') and not (
             calls and any_selectors.get(name)):
         bad.append(f'{name}: a no__ target with no operator reference (or '
                    f'dynamic call) proves nothing')

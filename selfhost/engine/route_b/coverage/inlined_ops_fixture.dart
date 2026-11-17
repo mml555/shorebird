@@ -86,7 +86,9 @@ bool no__not_equals(int a, int b) => a != b;
 
 // `super.` is rewritten by the producer to `$routeBSuper(...) as dynamic`
 // (route_b_producer.dart, `_lower`), so an operand derived from one is dynamic
-// in the compiled slice whatever it is in the patched kernel.
+// in the compiled slice whatever it is in the patched kernel. The producer
+// refuses a super getter and a super read it cannot lower (expected, marked in
+// qualify); a super METHOD call it lowers.
 @pragma('vm:entry-point')
 class A {
   @pragma('vm:entry-point')
@@ -104,7 +106,7 @@ class B extends A {
   int get no__super_n => super.no__super_n + 1;
   @override
   @pragma('vm:entry-point')
-  int no__super_m() => 1 + super.no__super_m();
+  int no__super_m() => (1 + super.no__super_m()) as int;
   @pragma('vm:entry-point')
   int no__super_local() { var x = super.no__super_n; return x + 1; }
   @pragma('vm:entry-point')

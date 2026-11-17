@@ -3735,7 +3735,7 @@ callable:
         expect(
           emitted,
           contains(
-            r"$routeBSuper(self, 'package:app/main.dart', 'Thing', "
+            r"($routeBSuper(self, 'package:app/main.dart', 'Thing', "
             "'routeBValue', 'Method', ",
           ),
         );
@@ -3746,7 +3746,7 @@ callable:
           emitted,
           contains(
             "'dispose', 'file:///app/main.dart', 100, 'dispose', 'Method') "
-            'as dynamic',
+            'as dynamic)',
           ),
         );
         // The intrinsic declaration must sit BEFORE the entry-point pragma, and

@@ -2661,7 +2661,9 @@ void _scanBytecode(String path) {
   );
   for (final m in call.allMatches(text)) {
     final name = m.group(1)!;
-    calls.add(name.substring(name.lastIndexOf('::') + 2));
+    // `dart:core::num::+` for an interface call, a bare `+` for a dynamic one.
+    final at = name.lastIndexOf('::');
+    calls.add(at < 0 ? name : name.substring(at + 2));
   }
   final functions = RegExp(r'^Function ', multiLine: true).allMatches(text);
   stdout.writeln(
