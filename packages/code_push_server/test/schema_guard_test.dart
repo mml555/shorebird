@@ -60,4 +60,46 @@ void main() {
       },
     );
   });
+
+  group('migration 19 (rollout in hundredths of a percent)', () {
+    late Directory tmp;
+
+    setUp(() => tmp = Directory.systemTemp.createTempSync('cps_mig19'));
+    tearDown(() => tmp.deleteSync(recursive: true));
+
+    test('backfills existing rows from rollout, so none changes', () async {
+      var repo = await Repository.open(sqliteConfig(tmp.path));
+      final org = (await repo.db.query('SELECT id FROM organizations')).first;
+      final app = await repo.createApp('a', (org['id']! as num).toInt());
+      final rel = await repo.createRelease(appId: app.appId, version: '1.0.0');
+      final ch = await repo.createChannel(app.appId, 'stable');
+      final ids = <int>[];
+      for (final percent in [0, 25, 100]) {
+        final p = await repo.createPatch(app.appId, rel.id);
+        await repo.promote(ch.id, p.id, rolloutBps: percent * 100);
+        ids.add(p.id);
+      }
+      // Put the database back as a server before migration 19 left it: no
+      // `rollout_bps` column, and the migration not recorded.
+      await repo.db.query(
+        'ALTER TABLE channel_patches DROP COLUMN rollout_bps',
+      );
+      await repo.db.query('DELETE FROM schema_migrations WHERE version >= 19');
+      await repo.db.query('DROP TABLE build_runs');
+      await repo.close();
+
+      repo = await Repository.open(sqliteConfig(tmp.path));
+      final rows = await repo.db.query(
+        'SELECT patch_id, rollout, rollout_bps FROM channel_patches '
+        'ORDER BY patch_id',
+      );
+      expect(
+        [for (final r in rows) (r['rollout'], r['rollout_bps'])],
+        [(0, 0), (25, 2500), (100, 10000)],
+      );
+      final deployments = await repo.patchDeployments(ids[1]);
+      expect(deployments.single['rollout_percentage'], 25);
+      await repo.close();
+    });
+  });
 }

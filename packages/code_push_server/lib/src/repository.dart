@@ -6,6 +6,7 @@ import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/db.dart';
 import 'package:code_push_server/src/domain.dart';
 import 'package:code_push_server/src/observability.dart';
+import 'package:code_push_server/src/rollout.dart';
 
 // ---------------------------------------------------------------------------
 // Row types
@@ -109,24 +110,29 @@ class ChannelPatchRow {
     required this.channelId,
     required this.patchId,
     required this.status,
-    required this.rollout,
+    required this.rolloutBps,
     required this.rolledBack,
   });
   final int id;
   final int channelId;
   final int patchId;
   final ChannelPatchStatus status;
-  final int rollout;
+
+  /// The share of the channel's devices the patch is offered to, in basis
+  /// points (hundredths of a percent): 0 to 10000.
+  final int rolloutBps;
   final bool rolledBack;
 }
 
 /// A patch a rollback made active again on [channelId].
 class RestoredPatch {
-  RestoredPatch(this.channelId, this.patchId, this.number, this.rollout);
+  RestoredPatch(this.channelId, this.patchId, this.number, this.rolloutBps);
   final int channelId;
   final int patchId;
   final int number;
-  final int rollout;
+
+  /// The rollout it was promoted with, in basis points.
+  final int rolloutBps;
 }
 
 /// What [Repository.rollbackAndRestore] changed.
@@ -658,6 +664,39 @@ class Repository {
         // defaults to false: nothing withdrawn before this migration is ever
         // restored automatically.
         'ALTER TABLE channel_patches ADD COLUMN superseded BOOLEAN NOT NULL DEFAULT false',
+      ],
+    ),
+    (
+      19,
+      [
+        // A rollout in basis points (hundredths of a percent), so that
+        // `--rollout 12.5` and the other multiples of 0.01 the CLI accepts
+        // are expressible. `rollout` (whole percent) is still written beside
+        // it, for pods of an older release still running during a rolling
+        // upgrade; see `effectiveRolloutBps`. Backfilled from `rollout`, which
+        // gives every existing row the same bucket threshold it had.
+        'ALTER TABLE channel_patches ADD COLUMN rollout_bps INTEGER',
+        'UPDATE channel_patches SET rollout_bps = rollout * 100',
+      ],
+    ),
+    (
+      20,
+      [
+        // The build history: one row per platform of each `shorebird release`
+        // or `shorebird patch` run, as the CLI reports it (POST
+        // /apps/{app}/runs). Never holds logs, paths or dart-define values;
+        // the CLI sends hashes.
+        '''CREATE TABLE IF NOT EXISTS build_runs(
+              id SERIAL PRIMARY KEY, app_id TEXT NOT NULL,
+              run_id TEXT NOT NULL, command TEXT NOT NULL,
+              platform TEXT NOT NULL, outcome TEXT NOT NULL, reason TEXT,
+              release_id INTEGER, patch_id INTEGER,
+              started_at TEXT NOT NULL, duration_ms BIGINT NOT NULL,
+              dry_run BOOLEAN NOT NULL DEFAULT false,
+              metadata TEXT, build_flags TEXT,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+              UNIQUE(app_id, run_id, platform))''',
+        'CREATE INDEX IF NOT EXISTS build_runs_app ON build_runs(app_id, id)',
       ],
     ),
   ];
@@ -1545,7 +1584,7 @@ class Repository {
   /// Empty = not promoted.
   Future<List<Map<String, Object?>>> patchDeployments(int patchId) async {
     final r = await _q(
-      'SELECT c.name AS channel, c.deleted_at, cp.status, cp.rollout, '
+      'SELECT c.name AS channel, c.deleted_at, cp.status, cp.rollout, cp.rollout_bps, '
       'cp.rolled_back '
       'FROM channel_patches cp JOIN channels c ON c.id = cp.channel_id '
       'WHERE cp.patch_id = @p ORDER BY cp.promoted_at DESC',
@@ -1556,7 +1595,9 @@ class Repository {
           (m) => {
             'channel': m['channel'],
             'status': m['status'],
-            'rollout': _int(m['rollout']),
+            // A number: whole percentages stay integers, as they always were.
+            'rollout': percentageOf(effectiveRolloutBps(m)),
+            'rollout_percentage': effectiveRolloutBps(m) / 100,
             'rolled_back': asDbBool(m['rolled_back']),
             'channel_deleted': m['deleted_at'] != null,
           },
@@ -1738,7 +1779,7 @@ class Repository {
   Future<void> promote(
     int channelId,
     int patchId, {
-    int rollout = 100,
+    int rolloutBps = 10000,
   }) => _db.tx((s) async {
     await s.query(
       'UPDATE channel_patches SET status = @w, withdrawn_at = now(), '
@@ -1779,13 +1820,16 @@ class Repository {
       },
     );
     await s.query(
-      'INSERT INTO channel_patches(channel_id, patch_id, status, rollout, rolled_back) '
-      'VALUES (@c,@p,@s,@r,false)',
+      'INSERT INTO channel_patches(channel_id, patch_id, status, rollout, '
+      'rollout_bps, rolled_back) VALUES (@c,@p,@s,@r,@b,false)',
       {
         'c': channelId,
         'p': patchId,
         's': ChannelPatchStatus.active.name,
-        'r': rollout,
+        // `rollout` stays the whole percentage, rounded down, for a server
+        // that predates `rollout_bps` and for anything reading the column.
+        'r': rolloutBps ~/ 100,
+        'b': rolloutBps,
       },
     );
   });
@@ -1876,19 +1920,140 @@ class Repository {
     channelId: _int(m['channel_id']),
     patchId: _int(m['patch_id']),
     status: ChannelPatchStatus.parse(m['status'] as String),
-    rollout: _int(m['rollout']),
+    rolloutBps: effectiveRolloutBps(m),
     rolledBack: asDbBool(m['rolled_back']),
   );
 
-  Future<void> setRollout(int channelId, int patchId, int rollout) => _q(
-    'UPDATE channel_patches SET rollout = @r WHERE channel_id = @c AND patch_id = @p AND status = @s',
-    {
-      'r': rollout,
-      'c': channelId,
-      'p': patchId,
-      's': ChannelPatchStatus.active.name,
-    },
-  );
+  /// Records one platform of a CLI run in [appId]'s build history. A record
+  /// the CLI sent twice (same run and platform) is kept once: the id of the
+  /// first is returned.
+  Future<int> recordBuildRun(
+    String appId, {
+    required String runId,
+    required String command,
+    required String platform,
+    required String outcome,
+    String? reason,
+    int? releaseId,
+    int? patchId,
+    required String startedAt,
+    required int durationMs,
+    required bool dryRun,
+    Map<String, Object?>? metadata,
+    Map<String, Object?>? buildFlags,
+  }) async {
+    Future<int?> existing() async {
+      final r = await _q(
+        'SELECT id FROM build_runs WHERE app_id = @a AND run_id = @r '
+        'AND platform = @p',
+        {'a': appId, 'r': runId, 'p': platform},
+      );
+      return r.isEmpty ? null : _int(r.first['id']);
+    }
+
+    final seen = await existing();
+    if (seen != null) return seen;
+    try {
+      final r = await _q(
+        'INSERT INTO build_runs(app_id, run_id, command, platform, outcome, '
+        'reason, release_id, patch_id, started_at, duration_ms, dry_run, '
+        'metadata, build_flags) VALUES (@a,@r,@c,@p,@o,@re,@rel,@pa,@st,@d,'
+        '@dr,@md,@bf) RETURNING id',
+        {
+          'a': appId,
+          'r': runId,
+          'c': command,
+          'p': platform,
+          'o': outcome,
+          're': reason,
+          'rel': releaseId,
+          'pa': patchId,
+          'st': startedAt,
+          'd': durationMs,
+          'dr': dryRun,
+          'md': metadata == null ? null : jsonEncode(metadata),
+          'bf': buildFlags == null ? null : jsonEncode(buildFlags),
+        },
+      );
+      return _int(r.first['id']);
+    } on Object catch (e) {
+      // Two sends of one record racing: the loser reads the winner's row.
+      if (!isUniqueViolation(e)) rethrow;
+      return (await existing())!;
+    }
+  }
+
+  /// [appId]'s build history, newest first.
+  Future<List<Map<String, Object?>>> buildRuns(
+    String appId, {
+    int limit = 50,
+    bool withBlobs = true,
+  }) async {
+    final r = await _q(
+      'SELECT * FROM build_runs WHERE app_id = @a ORDER BY id DESC LIMIT @l',
+      {'a': appId, 'l': limit},
+    );
+    return [
+      for (final m in r)
+        {
+          'id': _int(m['id']),
+          'run_id': m['run_id'],
+          'command': m['command'],
+          'platform': m['platform'],
+          'outcome': m['outcome'],
+          'reason': ?m['reason'],
+          'release_id': ?m['release_id'],
+          'patch_id': ?m['patch_id'],
+          'started_at': m['started_at'],
+          'duration_ms': _int(m['duration_ms']),
+          'dry_run': asDbBool(m['dry_run']),
+          if (withBlobs) 'metadata': ?_decodeMetadata(m['metadata']),
+          if (withBlobs) 'build_flags': ?_decodeMetadata(m['build_flags']),
+          'created_at': _ts(m['created_at']),
+        },
+    ];
+  }
+
+  /// Sets the rollout of the active row of [patchId] on [channelId].
+  ///
+  /// With [onlyRaise] the UPDATE itself refuses a value below the current one
+  /// (read through the same rule as [effectiveRolloutBps], so a row an old pod
+  /// wrote is judged by its `rollout`), and the result says whether it wrote:
+  /// two concurrent raises cannot lower each other. False means nothing was
+  /// written, because the row is gone or something raised it past [rolloutBps]
+  /// first.
+  Future<bool> setRollout(
+    int channelId,
+    int patchId,
+    int rolloutBps, {
+    bool onlyRaise = false,
+  }) async {
+    final r = await _q(
+      'UPDATE channel_patches SET rollout = @r, rollout_bps = @b '
+      'WHERE channel_id = @c AND patch_id = @p AND status = @s '
+      '${onlyRaise ? 'AND (CASE WHEN rollout_bps IS NOT NULL '
+                'AND rollout_bps / 100 = rollout THEN rollout_bps '
+                'ELSE rollout * 100 END) <= @b ' : ''}'
+      'RETURNING id',
+      {
+        'r': rolloutBps ~/ 100,
+        'b': rolloutBps,
+        'c': channelId,
+        'p': patchId,
+        's': ChannelPatchStatus.active.name,
+      },
+    );
+    return r.isNotEmpty;
+  }
+
+  /// Drops build history older than [days], on the same terms as
+  /// [purgeOldEvents] (`days <= 0` keeps everything, the default).
+  Future<void> purgeOldBuildRuns(int days) async {
+    if (days <= 0) return;
+    await _q(
+      "DELETE FROM build_runs WHERE created_at < now() - interval '$days days'",
+    );
+  }
 
   Future<void> withdraw(int channelId, int patchId, {required bool rollback}) =>
       _q(
@@ -2093,7 +2258,8 @@ class Repository {
     // superseded), hence the newest row first and the `seen` set below.
     final rows = await s.query(
       'SELECT cp.id AS id, cp.patch_id AS patch_id, p.number AS number, '
-      'cp.rollout AS rollout, cp.rolled_back AS rolled_back, '
+      'cp.rollout AS rollout, cp.rollout_bps AS rollout_bps, '
+      'cp.rolled_back AS rolled_back, '
       'cp.superseded AS superseded '
       'FROM channel_patches cp JOIN patches p ON p.id = cp.patch_id '
       'WHERE cp.channel_id = @c AND cp.status = @w AND p.release_id = @r '
@@ -2151,7 +2317,7 @@ class Repository {
           channelId,
           patchId,
           _int(m['number']),
-          _int(m['rollout']),
+          effectiveRolloutBps(m),
         ),
       );
       needed.removeAll(platforms);
