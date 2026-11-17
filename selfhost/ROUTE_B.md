@@ -29,7 +29,15 @@ such a call only when both hold:
    (data in `engine/route_b/device_run/sdk_members/result/`). A key is
    listed only if every probe resolved, there was more than one probe on more
    than one runtime class, and each runtime class maps to a VM class. Keys that
-   throw `NoSuchMethodError`, crash, never ran, or are thin are refused.
+   throw `NoSuchMethodError`, crash, never ran, or are thin are refused. A
+   tear-off key (`...#tearoff:name`) is accepted only when its call form (the
+   same key with `#tearoff:` replaced by `#`) is accepted too, in the CLI and in
+   the generator: the device probe of a tear-off creates the closure and never
+   calls it, so it proves nothing about calling it (`String#endsWith` aborts on
+   the phone). This took 24 keys off the list (118 to 94): 5 typed
+   (`Stream#listen`, `Iterable#any`, `List#sort`, `Set#remove`,
+   `String#endsWith`) and 19 `dynamic#tearoff:*`. A probe that calls the closure
+   needs a new device run (follow-up).
 2. **This release's own snapshot.** The release's `route_b_snapshot_profile.json`
    (already uploaded and hash-checked; no new artifact) must resolve the member
    with real code (not a `LazyCompile` stub) on EVERY instance class that can
@@ -67,10 +75,7 @@ metadata (`allow_unchecked_sdk_calls`).
 - Calibration: `test/src/route_b_sdk_calibration_test.dart` replays every
   measured (key, VM class) pair against the 2fc41d3f profile
   (`evidence/sdk_instance_members/profile_2fc41d3f.json.gz`); each must resolve.
-  Two groups differ and are explained there. The `endsWith` tear-offs: the
-  device probe creates the tear-off and never calls it, while a call of
-  `String.endsWith` on the same release ABORTS (`_StringBase.endsWith` has only
-  a `LazyCompile` stub), so the reader is right. `int` `&`, `<<` and unary `-`:
+  One group differs and is explained there: `int` `&`, `<<` and unary `-`:
   the device probes used plain `int` operands, which the patch's bytecode
   compiler turns into `BitAndInt`, `ShlInt` and `NegateInt` opcodes with no
   lookup (`pkg/dart2bytecode/lib/recognized_methods.dart`). It does so only
@@ -128,13 +133,19 @@ metadata (`allow_unchecked_sdk_calls`).
   (`_instanceHelperReason`, 'a member of `X`, which the release does not
   have'). A `class Ring extends ListBase<int>` calling `add` is refused on the
   document alone (`route_b_coverage_test.dart`).
-- On the 2fc41d3f counter release's own profile, 32 of the 118 accepted keys
-  are rejected (86 pass; the calibration test pins the exact set and the
-  profile's sha256): `Iterable` `first`/`toList`/`toSet`/`any` (including
-  tear-offs) and `List.reversed`/`sort` (a subtype in the snapshot lacks them:
+- The profile check does not cover a tear-off's call: it looks up the member
+  by its bare name, so a tear-off is judged exactly like its call form, and a
+  member that has code and still aborts when called (`List.sort` on a
+  `List.filled` list) passes it. Before
+  the call-form rule, 22 of the 24 tear-off keys it removed were already
+  rejected by it on this profile (all 19 dynamic ones, `Iterable.any`,
+  `List.sort`, `String.endsWith`); `Stream.listen` and `Set.remove` were not.
+- On the 2fc41d3f counter release's own profile, 10 of the 94 accepted keys
+  are rejected (84 pass; the calibration test pins the exact set and the
+  profile's sha256): `Iterable` `first`/`toList`/`toSet` (including
+  tear-offs) and `List.reversed` (a subtype in the snapshot lacks them:
   `_ConstSet`, which has 11 constants in the image, and the typed-data lists,
-  which the VM allocates), `num.~/`, `int` `&`/`<<`/unary `-`, the `endsWith`
-  tear-off and 19 dynamic tear-offs.
+  which the VM allocates), `num.~/`, `int` `&`/`<<`/unary `-`.
   The leaf heuristic is conservative: a class counts as an instance class when
   it is a leaf with real code, so a snapshot-only class a program never builds
   (for example `_ExternalFloat32x4Array`, whose only factory throws) can still cause a refusal.

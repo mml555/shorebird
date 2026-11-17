@@ -216,6 +216,57 @@ callable:
         );
       });
 
+      test('a tear-off the interface lists still needs its call form', () {
+        const listing = '''
+callable:
+  - library: 'dart:core'
+    class: 'String'
+    member: 'tearoff:endsWith'
+  - library: 'dart:core'
+    class: 'String'
+    member: 'tearoff:trim'
+  - library: 'dart:core'
+    class: 'String'
+    member: 'trim'
+''';
+        final listed = RouteBRetention.parse(
+          listing,
+          measuredAccepted: {
+            'dart:core#String#tearoff:endsWith',
+            'dart:core#String#tearoff:trim',
+          },
+          skipKeptCheck: true,
+        );
+        // `endsWith` is not accepted as a call: its tear-off is refused though
+        // the interface names it.
+        expect(
+          refusal([
+            _ref(
+              'instance',
+              'dart:core',
+              cls: 'String',
+              member: 'tearoff:endsWith',
+            ),
+          ], with_: listed),
+          allOf(
+            contains('String.endsWith torn off'),
+            contains('`String#endsWith`'),
+          ),
+        );
+        // `trim` is named by the interface as a call: the tear-off passes.
+        expect(
+          refusal([
+            _ref(
+              'instance',
+              'dart:core',
+              cls: 'String',
+              member: 'tearoff:trim',
+            ),
+          ], with_: listed),
+          isNull,
+        );
+      });
+
       test('an extension METHOD the interface lists', () {
         final listed = RouteBRetention.parse('''
 callable:
@@ -513,7 +564,25 @@ callable:
           routeBSdkMeasuredFailing['dynamic#tearoff:cancel'],
           contains('stops the app'),
         );
-        expect(routeBSdkMeasuredAccepted, hasLength(118));
+        expect(routeBSdkMeasuredAccepted, hasLength(94));
+      });
+
+      test('no accepted tear-off key lacks an accepted call form', () {
+        for (final key in routeBSdkMeasuredAccepted) {
+          if (!key.contains('#tearoff:')) continue;
+          expect(
+            routeBSdkMeasuredAccepted,
+            contains(key.replaceFirst('#tearoff:', '#')),
+            reason: key,
+          );
+        }
+        for (final key in [
+          'dart:core#String#tearoff:endsWith',
+          'dynamic#tearoff:endsWith',
+        ]) {
+          expect(routeBSdkMeasuredAccepted, isNot(contains(key)));
+          expect(routeBSdkMeasuredFailing[key], contains('is not accepted'));
+        }
       });
 
       group('the measured matrix', () {
@@ -525,8 +594,15 @@ callable:
             'dart:core#Set#add',
             'dynamic#[]',
             'dynamic#get:length',
+            'dynamic#clear',
+            'dynamic#tearoff:clear',
+            'dart:core#Set#tearoff:add',
+            // Torn off with no accepted call form (`List#add` is failing,
+            // `Set#remove` and `dynamic#sort` were never measured).
             'dynamic#tearoff:add',
             'dart:core#List#tearoff:add',
+            'dart:core#Set#tearoff:remove',
+            'dynamic#tearoff:sort',
           },
           skipKeptCheck: true,
           measuredFailing: {
@@ -605,7 +681,7 @@ callable:
         test('a tear-off is its own key', () {
           expect(
             refusal([
-              _ref('instance', 'dart:core', cls: 'List', member: 'tearoff:add'),
+              _ref('instance', 'dart:core', cls: 'Set', member: 'tearoff:add'),
             ], with_: measured),
             isNull,
           );
@@ -621,6 +697,71 @@ callable:
           expect(reason, contains('List.insert torn off'));
         });
 
+        test('a tear-off whose call form is refused is refused', () {
+          // `List#tearoff:add` is on the accepted list, but the call
+          // `List#add` is measured failing: the closure can be called.
+          final failing = refusal([
+            _ref('instance', 'dart:core', cls: 'List', member: 'tearoff:add'),
+          ], with_: measured);
+          expect(
+            failing,
+            allOf(
+              contains('List.add torn off'),
+              contains('calling it is not accepted'),
+              contains('`List#add`'),
+              contains('measured: throws NoSuchMethodError on const'),
+              contains('never calls the closure'),
+            ),
+          );
+          // A call form that is on no list at all.
+          expect(
+            refusal([
+              _ref(
+                'instance',
+                'dart:core',
+                cls: 'Set',
+                member: 'tearoff:remove',
+              ),
+            ], with_: measured),
+            allOf(
+              contains('Set.remove torn off'),
+              contains('never measured as a call'),
+            ),
+          );
+        });
+
+        test('a dynamic tear-off whose call form is refused is refused', () {
+          // `dynamic#add` is measured failing.
+          expect(
+            refusal([_ref('dynamic', '', member: 'get:add')], with_: measured),
+            isNotNull,
+          );
+          // `dynamic#sort` is on no list.
+          expect(
+            refusal([_ref('dynamic', '', member: 'get:sort')], with_: measured),
+            allOf(
+              contains('`sort`'),
+              contains('calling it is not accepted'),
+              contains('never measured as a call'),
+            ),
+          );
+        });
+
+        test('a tear-off whose call form is accepted is still accepted', () {
+          expect(
+            refusal([
+              _ref('dynamic', '', member: 'get:clear'),
+            ], with_: measured),
+            isNull,
+          );
+          expect(
+            refusal([
+              _ref('instance', 'dart:core', cls: 'Set', member: 'tearoff:add'),
+            ], with_: measured),
+            isNull,
+          );
+        });
+
         test('a dynamic call is accepted only where every class resolved', () {
           expect(
             refusal([
@@ -631,7 +772,9 @@ callable:
           );
           // A dynamic get may be a tear-off of a method of that name.
           expect(
-            refusal([_ref('dynamic', '', member: 'get:add')], with_: measured),
+            refusal([
+              _ref('dynamic', '', member: 'get:clear'),
+            ], with_: measured),
             isNull,
           );
           final failed = refusal([
