@@ -33,7 +33,7 @@ Yes, in every verification mode, before any download state or network call.
 `crate::cache::check_patch_signature(&patch.hash, patch.hash_signature, config.patch_public_key)`
 at lines 1119-1123. On failure it calls `record_signature_refused` (tombstones
 the pair) and returns `UpdateError::InvalidSignature` (lines 1124-1137). Only
-after that does it call `record_download_started` (about line 1160) and
+after that does it call `record_download_started` (line 1162) and
 `download_to_path`. The signature covers `patch.hash`; the post-inflate hash
 check then ties the installed bytes to that hash. `vendor/updater` has the same
 call site at the same lines.
@@ -60,14 +60,14 @@ Trace (engine tree):
    the booting patch (the start is recorded there, not in
    `runtime/dart_snapshot.cc:160-165`, which skips it under `SHOREBIRD_ROUTE_B`).
 2. `ApplyPatchToSettings` sniffs the file; a Route B container arms
-   `InstallRouteBActivationHook` (about lines 640-690).
+   `InstallRouteBActivationHook` (line 706).
 3. In the `root_isolate_create_callback` (before `main`), the hook reads
    `Dart_RouteBReleaseBuildId()` (line 398). A null id is refused. Then
    `running_id != container.release_build_id` (line 410) reports
-   `REFUSED (wrong-release)` and calls `ReportRefusal()` (lines 414-420), which
+   `REFUSED (wrong-release)` and calls `ReportRefusal()` (line 416), which
    is `Updater::Instance().ReportLaunchFailure()` (lambda at line 359-361), then
    returns without activating anything. The app boots on the release's AOT code.
-4. `shell/common/updater.cc:167-174` `ReportLaunchFailure` takes the
+4. `shell/common/shorebird/updater.cc:167-174` `ReportLaunchFailure` takes the
    once-per-process latch and calls `shorebird_report_launch_failure()`. That is
    `third_party/updater/library/src/updater.rs:1825-1856`:
    `record_boot_failure_for_patch` then `lifecycle.rs:832-843` `record_boot_failure`
@@ -77,7 +77,7 @@ Trace (engine tree):
    to launch").
 5. The success that Dart reports later (`lib/ui/hooks.dart` on `main` completion
    or first frame, `_reportLaunchSuccess`) is dropped because failure already
-   took the same latch (`updater.cc:107-114`). Hence the patch is not credited.
+   took the same latch (`shell/common/shorebird/updater.cc:107-114`). Hence the patch is not credited.
 
 So: marked Bad (`Bad{BootCrash}`, a misleading reason name for a refusal),
 `ReportLaunchFailure` is called, and it is not retried on every boot. The other
@@ -115,7 +115,7 @@ With it off:
 - `ReportLaunchStart` is called from `runtime/dart_snapshot.cc:165`
   (`ResolveIsolateData`), copying next_boot to current_boot (sets the breadcrumb
   and increments the attempt tally, `lifecycle.rs:762-784`).
-- Launch success is banked in the `Shell` constructor, `shell/common/shell.cc:546-555`
+- Launch success is banked in the `Shell` constructor, `shell/common/shell.cc:547-555`
   (`!vm_` reports failure, else `ReportLaunchSuccess`). `ReportsLaunchFromDart()`
   returns false (`lib/ui/window/platform_configuration.cc:600-606`), so Dart
   reports nothing.
