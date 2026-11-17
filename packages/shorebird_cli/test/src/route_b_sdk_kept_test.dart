@@ -363,6 +363,8 @@ void main() {
       'dart:core#String#toUpperCase',
       'dart:core#String#trim',
       'dynamic#==',
+      // A tear-off is accepted only with its call form.
+      'dynamic#substring',
       'dynamic#tearoff:substring',
       'dart:core#String#get:isEmpty',
       'dart:core#Map#containsKey',
@@ -700,10 +702,15 @@ void main() {
       );
       final r = RouteBRetention.parse(
         _interface,
-        measuredAccepted: const {'dynamic#==', 'dynamic#tearoff:x'},
+        measuredAccepted: const {
+          'dynamic#==',
+          'dynamic#x',
+          'dynamic#tearoff:x',
+        },
         measuredFailing: const {},
         measuredVmClasses: const {
           'dynamic#==': ['_OneByteString'],
+          'dynamic#x': ['_OneByteString'],
           'dynamic#tearoff:x': ['_OneByteString'],
         },
         kept: snapshot,
