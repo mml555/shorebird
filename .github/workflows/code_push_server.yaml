@@ -88,6 +88,11 @@ jobs:
       - name: Unit + backend tests
         run: dart test -x integration
 
+      # The prod compose pins the server image; it must name the version this
+      # package ships, and the Caddyfile must still hide /metrics and /readyz.
+      - name: Deploy files (compose pin, Caddyfile)
+        run: ./tool/check_deploy_files.sh
+
       - name: Native compile (production build path)
         run: dart compile exe bin/server.dart -o "$RUNNER_TEMP/server"
 
@@ -192,6 +197,14 @@ jobs:
 
       - name: Native compile
         run: dart compile exe bin/server.dart -o "$RUNNER_TEMP/server"
+
+      # Four replicas migrating the same empty database at once. Runs before
+      # anything else touches it, so it must stay ahead of the smoke test.
+      - name: Concurrent migrations (advisory lock)
+        env:
+          INTEGRATION: "1"
+          DATABASE_URL: postgres://cps:cps_ci_password@localhost:${{ job.services.postgres.ports['5432'] }}/code_push
+        run: dart test --tags integration -j 1 test/integration/migration_lock_pg_test.dart
 
       # DATABASE_URL selects the Postgres backend; S3_ENDPOINT is left unset so
       # artifacts use the filesystem store under DATA_DIR.

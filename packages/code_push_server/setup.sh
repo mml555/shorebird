@@ -435,13 +435,25 @@ say "Starting the stack (first run pulls the images)…"
 
 # --- wait for readiness -----------------------------------------------------
 set -a; . ./.env; set +a
-if [[ -n "$DOMAIN" ]]; then HEALTH="https://$DOMAIN/readyz"; CURLF=(-sk); BASE_URL="https://$DOMAIN"
+# Behind Caddy, /readyz is answered 404 from outside (it is operator-only), so
+# the public check is /healthz through Caddy (TLS + proxy) and readiness (DB +
+# store) is read inside the server container.
+if [[ -n "$DOMAIN" ]]; then HEALTH="https://$DOMAIN/healthz"; CURLF=(-sk); BASE_URL="https://$DOMAIN"
 else HEALTH="http://localhost:8080/readyz"; CURLF=(-s); BASE_URL="$PUBLIC_BASE_URL"; fi
+
+server_ready() {
+  if [[ -n "$DOMAIN" ]]; then
+    curl "${CURLF[@]}" -f "$HEALTH" >/dev/null 2>&1 || return 1
+    "${COMPOSE[@]}" exec -T server curl -fsS http://localhost:8080/readyz 2>/dev/null | grep -q '"db":true'
+  else
+    curl "${CURLF[@]}" "$HEALTH" 2>/dev/null | grep -q '"db":true'
+  fi
+}
 
 say "Waiting for the server to become ready…"
 READY=0
 for _ in $(seq 1 60); do
-  if curl "${CURLF[@]}" "$HEALTH" 2>/dev/null | grep -q '"db":true'; then READY=1; break; fi
+  if server_ready; then READY=1; break; fi
   sleep 1
 done
 [[ "$READY" == 1 ]] || die "Server did not become ready. Check logs: ${COMPOSE[*]} logs server"

@@ -1930,6 +1930,26 @@ void main() {
       );
     });
 
+    test('200 and 206 are never cached', () async {
+      // A CDN or browser cache would keep serving bytes past the signed URL's
+      // expiry and past a rollback.
+      final full = await send('GET', url);
+      expect(full.statusCode, HttpStatus.ok);
+      expect(full.headers[HttpHeaders.cacheControlHeader], 'private, no-store');
+      final part = await ranged('bytes=1-2');
+      expect(part.statusCode, HttpStatus.partialContent);
+      expect(part.headers[HttpHeaders.cacheControlHeader], 'private, no-store');
+      final bad = await ranged('bytes=9-');
+      expect(bad.statusCode, HttpStatus.requestedRangeNotSatisfiable);
+      expect(bad.headers[HttpHeaders.cacheControlHeader], 'private, no-store');
+      final forged = await send('GET', '/download/nope?exp=1&sig=bad');
+      expect(forged.statusCode, HttpStatus.forbidden);
+      expect(
+        forged.headers[HttpHeaders.cacheControlHeader],
+        'private, no-store',
+      );
+    });
+
     test('a suffix range serves the last bytes', () async {
       final r = await ranged('bytes=-2');
       expect(r.headers[HttpHeaders.contentRangeHeader], 'bytes 1-2/3');
