@@ -4,6 +4,8 @@
 # sweep.sh <name> [max launches]: launch the app until it prints SDKPROBE SWEEP_DONE. An abort kills
 # the process; the next launch marks the probe that was running as ABORTS and goes on (see the
 # runner in gen_device_probe.py), so each launch is one device cycle.
+# Needs $DEVRUN_ENV (default ../env.sh, from ../env.example.sh): R, UDID, BUNDLE; idevicesyslog must be
+# writing $R/logs/syslog.txt (../bin/up.sh starts it) and the app must be a release built by release_probe.sh.
 # Appends every SDKPROBE line of every launch to $R/logs/<name>.txt.
 set -uo pipefail
 . "${DEVRUN_ENV:-$(dirname "$0")/../env.sh}" || exit 1

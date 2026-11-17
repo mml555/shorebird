@@ -17,7 +17,7 @@ NoSuchMethodError naming it. THROWS is a NoSuchMethodError naming the member;
 ABORTS killed the process (the next launch recorded it); a NoSuchMethodError
 naming something else is UNATTRIBUTED and counts as a failure; NOT-RUN means the
 probe never ran (left out of the patch, or its stub was not patched).
-A key is accepted only when every probe of it resolved.
+A key is accepted only when every probe of it resolved. Every probe gets a key; the script stops on one it cannot key.
 """
 import json
 import re
@@ -30,6 +30,7 @@ device = sys.argv[sys.argv.index('--device') + 1] if '--device' in sys.argv else
 NEW_KEYS = {
     'size_width': 'dart:ui#Size#get:width', 'size_height': 'dart:ui#Size#get:height',
     'offset_dx': 'dart:ui#Offset#get:dx', 'offset_dy': 'dart:ui#Offset#get:dy',
+    'dur_inMicroseconds': 'dart:core#Duration#get:inMicroseconds',
 }
 
 
@@ -77,13 +78,27 @@ for l in open(f'{gen}/probes.tsv'):
         else:
             st = 'RESOLVES'
     key = key_of(pid, form, sel) or hostkey.get(pid)
-    if key == '?':
-        key = None
-    rows.append((pid, key or '?', typ, label, form, st, detail[:140], device))
-    if key:
-        e = per_key.setdefault(key, {'resolves': [], 'fails': [], 'unmeasured': []})
-        tag = f'{label}:{form}:{st}'
-        (e['resolves'] if st == 'RESOLVES' else e['unmeasured'] if st == 'NOT-RUN' else e['fails']).append(tag)
+    if key in (None, '?'):
+        # The host matrix has no key for receivers it did not build (`generate`, ...) and for `==`.
+        # A dynamic probe's key is its selector. A typed probe takes the key its siblings of the
+        # same family and form carry (resolved in the second pass below).
+        key = f'dynamic#{sel}' if 'dynamic' in form else None
+    rows.append([pid, key, typ, label, form, st, detail[:140], device])
+sib = {}
+for r in rows:
+    if r[1]:
+        sib.setdefault((r[0].split('__')[0], r[4]), set()).add(r[1])
+for r in rows:
+    if r[1] is None:
+        ks = sib.get((r[0].split('__')[0], r[4]), set())
+        if len(ks) != 1:
+            sys.exit(f'tables.py: cannot key probe {r[0]} (form {r[4]}); sibling keys {sorted(ks)}')
+        r[1] = next(iter(ks))
+for r in rows:
+    pid, key, typ, label, form, st = r[:6]
+    e = per_key.setdefault(key, {'resolves': [], 'fails': [], 'unmeasured': []})
+    tag = f'{label}:{form}:{st}'
+    (e['resolves'] if st == 'RESOLVES' else e['unmeasured'] if st == 'NOT-RUN' else e['fails']).append(tag)
 with open(f'{out}/results.tsv', 'w') as o:
     o.write('probe\tkey\treceiver_type\truntime_class\tform\tresult\tdetail\tdevice\n')
     for r in rows:

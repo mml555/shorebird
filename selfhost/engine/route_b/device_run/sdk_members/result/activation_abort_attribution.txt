@@ -1,0 +1,11 @@
+activation abort at sub_cancel__broadcast__d
+activation abort at sub_cancel__broadcast__s
+rmdir: /Users/mendel/Developer/shorebird-wt/tmp/heavy.lock: No such file or directory
+activation abort at sub_cancel__broadcast__td
+activation abort at sub_cancel__broadcast__ts
+activation abort at sub_cancel__controller__d
+activation abort at sub_cancel__controller__s
+activation abort at sub_cancel__controller__td
+activation abort at sub_cancel__controller__ts
+STARTED iter 15
+ITER_DONE

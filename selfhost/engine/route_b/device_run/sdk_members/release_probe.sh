@@ -4,6 +4,10 @@
 # Release for the SDK instance-member device probe: a Flutter app (bundle id $BUNDLE, an upgrade
 # install that keeps the Local Network grant) whose main.dart is the generated main_release.dart.
 # Like ../bin/release.sh, minus the tally package and intl. Needs ../bin/up.sh running.
+# Reads its settings from $DEVRUN_ENV (default ../env.sh; copy ../env.example.sh and fill it in): R, CLI, UDID,
+# BASE, ARTIFACT_UPSTREAM, ENGINE_REV, FLUTTER_REV, SIGN_IDENTITY, PROVISIONING_PROFILE, TEAM_ID, BUNDLE, VERSION
+# (the run used 1.0.0+63), and API_KEY from $SECRETS_FILE. It derives SB and FLUTTER. The API key goes to curl
+# through a header file descriptor, not the command line.
 set -uo pipefail
 . "${DEVRUN_ENV:-$(dirname "$0")/../env.sh}" || exit 1
 export PATH="$CLI/bin:$PATH"
@@ -18,7 +22,7 @@ rm -rf "$APP/test"
 perl -pi -e "s/^version: .*/version: $VERSION/" "$APP/pubspec.yaml"
 perl -0pi -e 's/^flutter:\n/flutter:\n  config:\n    enable-swift-package-manager: false\n/m' "$APP/pubspec.yaml"
 grep -q "PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE;" "$APP/ios/Runner.xcodeproj/project.pbxproj" || die "bundle id"
-APP_ID=$(curl -fsS -m 20 -X POST "$BASE/api/v1/apps" -H "Authorization: Bearer $API_KEY" -H 'Content-Type: application/json' -d '{"display_name":"sdkprobe"}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])') || die "create app"
+APP_ID=$(curl -fsS -m 20 -X POST "$BASE/api/v1/apps" -H @<(printf 'Authorization: Bearer %s\n' "$API_KEY") -H 'Content-Type: application/json' -d '{"display_name":"sdkprobe"}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])') || die "create app"
 printf 'app_id: %s\nbase_url: %s\n' "$APP_ID" "$BASE" > "$APP/shorebird.yaml"
 python3 -I "$CLI/selfhost/scripts/lib/add_shorebird_asset.py" "$APP/pubspec.yaml"
 echo "APP_ID=$APP_ID" > "$R/app.env"

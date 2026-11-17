@@ -1,83 +1,88 @@
 # Device verdicts vs PR #209
 
-Device keys 420: {'SAFE': 138, 'THROWS': 224, 'CRASH': 51, 'PARTIAL': 7}. #209 accepts 75 keys (75 of them on the device matrix).
+Scope: one bare `flutter create` app release at engine cell 2fc41d3f; SAFE means resolved in that release (see RESULT.md).
 
-## Refused by #209, safe on the device (64)
+Device keys 426: {'SAFE': 136, 'THROWS': 224, 'CRASH': 55, 'CRASH(host)': 4, 'PARTIAL': 7}; 18 of the 136 SAFE keys are thin. #209 accepts 75 keys (75 of them on the device matrix). All 1514 probes are keyed.
 
-- dart:async#Future#catchError
-- dart:async#Future#tearoff:catchError
-- dart:async#StreamController#add
-- dart:async#StreamController#get:stream
-- dart:core#Duration#+
-- dart:core#Error#get:stackTrace
-- dart:core#FormatException#message
-- dart:core#Iterable#any
-- dart:core#Iterable#get:first
-- dart:core#Iterable#get:isEmpty
-- dart:core#Iterable#get:isNotEmpty
-- dart:core#Iterable#get:iterator
-- dart:core#Iterable#tearoff:any
-- dart:core#Iterable#tearoff:contains
-- dart:core#Iterable#tearoff:toList
-- dart:core#Iterable#tearoff:toSet
-- dart:core#Iterable#tearoff:where
-- dart:core#Iterable#toList
-- dart:core#Iterable#toSet
-- dart:core#Iterable#where
-- dart:core#Iterator#get:current
-- dart:core#Iterator#moveNext
-- dart:core#List#[]
-- dart:core#List#[]=
-- dart:core#List#add
-- dart:core#List#get:length
-- dart:core#List#get:reversed
-- dart:core#List#remove
-- dart:core#List#tearoff:remove
-- dart:core#List#tearoff:sort
-- dart:core#Map#[]
-- dart:core#Map#[]=
-- dart:core#Map#get:entries
-- dart:core#Map#get:keys
-- dart:core#Map#get:values
-- dart:core#Map#putIfAbsent
-- dart:core#Map#remove
-- dart:core#Map#tearoff:putIfAbsent
-- dart:core#Map#tearoff:remove
-- dart:core#Object#==
-- dart:core#Set#add
-- dart:core#Set#contains
-- dart:core#Set#tearoff:contains
-- dart:core#String#==
-- dart:core#String#tearoff:endsWith
-- dart:core#double#+
-- dart:core#int#&
-- dart:core#int#<<
-- dart:core#int#unary-
-- dart:core#num#*
-- dart:core#num#+
-- dart:core#num#-
-- dart:core#num#<
-- dart:core#num#==
-- dart:core#num#>
-- dart:core#num#get:isNaN
-- dart:core#num#~/
-- dynamic#tearoff:any
-- dynamic#tearoff:catchError
-- dynamic#tearoff:contains
-- dynamic#tearoff:endsWith
-- dynamic#tearoff:remove
-- dynamic#tearoff:sort
-- dynamic#tearoff:toSet
+## Refused by #209, SAFE on the device, not thin (55)
+
+- dart:async#Future#catchError  (4 probes, 4 classes)
+- dart:async#Future#tearoff:catchError  (4 probes, 4 classes)
+- dart:async#StreamController#add  (2 probes, 2 classes)
+- dart:async#StreamController#get:stream  (2 probes, 2 classes)
+- dart:core#Iterable#get:first  (9 probes, 8 classes)
+- dart:core#Iterable#get:iterator  (3 probes, 3 classes)
+- dart:core#Iterable#tearoff:any  (3 probes, 3 classes)
+- dart:core#Iterable#tearoff:toList  (3 probes, 3 classes)
+- dart:core#Iterable#tearoff:toSet  (3 probes, 3 classes)
+- dart:core#Iterable#tearoff:where  (3 probes, 3 classes)
+- dart:core#Iterable#toList  (3 probes, 3 classes)
+- dart:core#Iterable#toSet  (3 probes, 3 classes)
+- dart:core#Iterable#where  (3 probes, 3 classes)
+- dart:core#Iterator#get:current  (3 probes, 3 classes)
+- dart:core#Iterator#moveNext  (3 probes, 3 classes)
+- dart:core#List#[]  (6 probes, 6 classes)
+- dart:core#List#[]=  (6 probes, 6 classes)
+- dart:core#List#add  (6 probes, 6 classes)
+- dart:core#List#get:length  (6 probes, 6 classes)
+- dart:core#List#get:reversed  (6 probes, 6 classes)
+- dart:core#List#remove  (6 probes, 6 classes)
+- dart:core#List#tearoff:remove  (6 probes, 6 classes)
+- dart:core#List#tearoff:sort  (6 probes, 6 classes)
+- dart:core#Map#[]  (4 probes, 4 classes)
+- dart:core#Map#[]=  (4 probes, 4 classes)
+- dart:core#Map#get:entries  (4 probes, 4 classes)
+- dart:core#Map#get:keys  (4 probes, 4 classes)
+- dart:core#Map#get:values  (4 probes, 4 classes)
+- dart:core#Map#putIfAbsent  (4 probes, 4 classes)
+- dart:core#Map#remove  (4 probes, 4 classes)
+- dart:core#Map#tearoff:putIfAbsent  (4 probes, 4 classes)
+- dart:core#Map#tearoff:remove  (4 probes, 4 classes)
+- dart:core#Object#==  (3 probes, 3 classes)
+- dart:core#Set#add  (2 probes, 2 classes)
+- dart:core#Set#contains  (2 probes, 2 classes)
+- dart:core#Set#tearoff:contains  (2 probes, 2 classes)
+- dart:core#String#==  (2 probes, 2 classes)
+- dart:core#String#tearoff:endsWith  (2 probes, 2 classes)
+- dart:core#int#&  (2 probes, 2 classes)
+- dart:core#int#<<  (2 probes, 2 classes)
+- dart:core#int#unary-  (2 probes, 2 classes)
+- dart:core#num#*  (5 probes, 3 classes)
+- dart:core#num#+  (5 probes, 3 classes)
+- dart:core#num#-  (5 probes, 3 classes)
+- dart:core#num#<  (6 probes, 3 classes)
+- dart:core#num#==  (6 probes, 3 classes)
+- dart:core#num#>  (6 probes, 3 classes)
+- dart:core#num#~/  (2 probes, 2 classes)
+- dynamic#==  (11 probes, 8 classes)
+- dynamic#get:hashCode  (3 probes, 3 classes)
+- dynamic#tearoff:catchError  (4 probes, 4 classes)
+- dynamic#tearoff:endsWith  (2 probes, 2 classes)
+- dynamic#tearoff:remove  (12 probes, 7 classes)
+- dynamic#tearoff:sort  (6 probes, 6 classes)
+- dynamic#toString  (9 probes, 9 classes)
+
+## Refused by #209, SAFE on the device but thin (7)
+
+Fewer than 2 probes or fewer than 2 runtime classes.
+
+- dart:core#Duration#+  (1 probes, 1 classes)
+- dart:core#Duration#get:inMicroseconds  (1 probes, 1 classes)
+- dart:core#Error#get:stackTrace  (1 probes, 1 classes)
+- dart:core#FormatException#message  (1 probes, 1 classes)
+- dart:core#double#+  (1 probes, 1 classes)
+- dart:core#num#get:isNaN  (1 probes, 1 classes)
+- dynamic#get:runtimeType  (1 probes, 1 classes)
 
 ## Refused by #209, no crash, but some probes never ran (7)
 
-- dynamic#&
-- dynamic#clamp
-- dynamic#moveNext
-- dynamic#putIfAbsent
-- dynamic#tearoff:addAll
-- dynamic#tearoff:clamp
-- dynamic#tearoff:putIfAbsent
+- dynamic#&  (2 probes, 2 classes)
+- dynamic#clamp  (6 probes, 3 classes)
+- dynamic#moveNext  (3 probes, 3 classes)
+- dynamic#putIfAbsent  (4 probes, 4 classes)
+- dynamic#tearoff:addAll  (10 probes, 7 classes)
+- dynamic#tearoff:clamp  (6 probes, 3 classes)
+- dynamic#tearoff:putIfAbsent  (4 probes, 4 classes)
 
 ## Refused by #209, no crash but a NoSuchMethodError on some runtime class (224)
 
@@ -119,12 +124,12 @@ Device keys 420: {'SAFE': 138, 'THROWS': 224, 'CRASH': 51, 'PARTIAL': 7}. #209 a
 - dart:core#Iterable#elementAt
 - dart:core#Iterable#firstWhere
 - dart:core#Iterable#fold
-- dart:core#Iterable#get:last
 - dart:core#Iterable#join
 - dart:core#Iterable#map
 - dart:core#Iterable#reduce
 - dart:core#Iterable#skip
 - dart:core#Iterable#take
+- dart:core#Iterable#tearoff:contains
 - dart:core#Iterable#tearoff:elementAt
 - dart:core#Iterable#tearoff:every
 - dart:core#Iterable#tearoff:firstWhere
@@ -209,7 +214,6 @@ Device keys 420: {'SAFE': 138, 'THROWS': 224, 'CRASH': 51, 'PARTIAL': 7}. #209 a
 - dynamic#abs
 - dynamic#any
 - dynamic#ceil
-- dynamic#clear
 - dynamic#close
 - dynamic#codeUnitAt
 - dynamic#compareTo
@@ -263,6 +267,7 @@ Device keys 420: {'SAFE': 138, 'THROWS': 224, 'CRASH': 51, 'PARTIAL': 7}. #209 a
 - dynamic#tearoff:clear
 - dynamic#tearoff:codeUnitAt
 - dynamic#tearoff:compareTo
+- dynamic#tearoff:contains
 - dynamic#tearoff:containsValue
 - dynamic#tearoff:difference
 - dynamic#tearoff:elementAt
@@ -306,9 +311,9 @@ Device keys 420: {'SAFE': 138, 'THROWS': 224, 'CRASH': 51, 'PARTIAL': 7}. #209 a
 - dynamic#unary-
 - dynamic#where
 
-## Accepted by #209, crashing on the device (1)
+## Accepted by #209, crashing on the device or host (1)
 
-- dynamic#tearoff:cancel
+- dynamic#tearoff:cancel: CRASH
 
 ## Accepted by #209, throwing or partly unmeasured on the device (0)
 
@@ -316,19 +321,37 @@ Device keys 420: {'SAFE': 138, 'THROWS': 224, 'CRASH': 51, 'PARTIAL': 7}. #209 a
 ## Accepted by #209, not on the device matrix (0)
 
 
+## Accepted by #209, SAFE but thin (11)
+
+- dart:async#Timer#cancel  (1 probes, 1 classes)
+- dart:async#Timer#tearoff:cancel  (1 probes, 1 classes)
+- dart:core#Object#get:runtimeType  (1 probes, 1 classes)
+- dart:core#bool#tearoff:toString  (1 probes, 1 classes)
+- dart:core#bool#toString  (1 probes, 1 classes)
+- dart:core#double#*  (1 probes, 1 classes)
+- dart:core#double#-  (1 probes, 1 classes)
+- dart:core#double#/  (1 probes, 1 classes)
+- dart:core#double#tearoff:toString  (1 probes, 1 classes)
+- dart:core#double#toString  (1 probes, 1 classes)
+- dart:core#double#unary-  (1 probes, 1 classes)
+
 ## Crashing keys
 
-- dart:async#StreamSubscription#cancel  (refused by #209)
-- dart:async#StreamSubscription#tearoff:cancel  (refused by #209)
-- dart:core#Iterable#contains  (refused by #209)
-- dart:core#Iterable#every  (refused by #209)
-- dart:core#List#sort  (refused by #209)
-- dart:core#Map#addAll  (refused by #209)
-- dart:core#Set#remove  (refused by #209)
-- dart:core#String#endsWith  (refused by #209)
-- dart:core#String#get:isNotEmpty  (refused by #209)
-- dart:core#int#get:isEven  (refused by #209)
+- dart:async#StreamSubscription#cancel: CRASH  (refused by #209)
+- dart:async#StreamSubscription#tearoff:cancel: CRASH  (refused by #209)
+- dart:core#Iterable#any: CRASH  (refused by #209)
+- dart:core#Iterable#contains: CRASH  (refused by #209)
+- dart:core#Iterable#every: CRASH  (refused by #209)
+- dart:core#Iterable#get:isEmpty: CRASH  (refused by #209)
+- dart:core#Iterable#get:isNotEmpty: CRASH  (refused by #209)
+- dart:core#Iterable#get:last: CRASH  (refused by #209)
+- dart:core#List#sort: CRASH  (refused by #209)
+- dart:core#Map#addAll: CRASH  (refused by #209)
+- dart:core#Set#remove: CRASH(host)  (refused by #209)
+- dart:core#String#endsWith: CRASH  (refused by #209)
+- dart:core#String#get:isNotEmpty: CRASH(host)  (refused by #209)
+- dart:core#int#get:isEven: CRASH(host)  (refused by #209)
 
 ## Crashing dynamic selectors
 
-%, *, +, -, <, >, [], []=, add, addAll, cancel, catchError, contains, containsKey, forEach, get:current, get:entries, get:first, get:inMicroseconds, get:isClosed, get:isEmpty, get:isEven, get:isNaN, get:isNotEmpty, get:iterator, get:keys, get:last, get:length, get:reversed, get:stackTrace, get:stream, get:values, remove, removeLast, sort, tearoff:cancel, then, timeout, toDouble, whenComplete, ~/
+%, *, +, -, <, >, [], []=, add, addAll(host), cancel, catchError, clear, contains, containsKey, forEach, get:current, get:entries, get:first, get:inMicroseconds, get:isClosed, get:isEmpty, get:isEven, get:isNaN, get:isNotEmpty, get:iterator, get:keys, get:last, get:length, get:reversed, get:stackTrace, get:stream, get:values, message, remove, removeLast, sort, tearoff:any, tearoff:cancel, tearoff:toSet, then, timeout, toDouble, whenComplete, ~/
