@@ -16,19 +16,35 @@ load-bearing facts below from source text. "Engine tree" paths are relative to
   `patch`).
 - `selfhost/compatibility.yaml` `updater_revision: 87c198d30f87` is the 12-char
   form of the same SHA. They agree.
-- `vendor/updater` (`VENDOR.md`: "Source revision 87c198d30f87...") differs from
-  the engine's copy only in the mirror#11 bounded diagnostic logs
-  (`library/src/diag_log.rs`, and the `diag_log::append` calls in `updater.rs`
-  and `cache/updater_state.rs`, plus `http.rs`, `lib.rs`, `.cargo/config.toml`,
-  `library_test_hooks`). `cache/lifecycle.rs` and the rest of `cache/` are
-  identical. `VENDOR.md` already says this ("Ahead of that revision by one
-  change"). So CI's Rust tests on `vendor/updater` exercise the same verification
-  and lifecycle code the engine ships. This is source identity, not a build
-  identity: nothing here proves the shipped binary was built from that checkout.
+- `vendor/updater` is NOT byte-identical to the engine's copy. Every difference
+  (`diff -rq`, 2026-11-16):
+  - `library/src/http.rs`: a behaviour change in the download path's error
+    classification (mirror#11): `is_transport_failure` and `ureq_send_with`,
+    so a proxy refusing CONNECT, a body stall and similar errors become
+    `NetworkError::Transport` in the ureq builds (Linux, Windows; not Android,
+    iOS or macOS). `VENDOR.md:12` describes it. Plus new tests.
+  - `library/src/diag_log.rs` (new, with `mod diag_log;` in `lib.rs`) and its
+    calls in `updater.rs` and `cache/updater_state.rs`: bounded diagnostic logs.
+  - `library_test_hooks/src/lib.rs` (and the `lib.rs` registration): the
+    fork-local engine-callback registration for the Dart-to-Rust seam test.
+  - `.github/workflows/*` (vendor carries upstream's at the base commit),
+    `.github/actionlint.yaml` (engine only), `SELFHOST_PORT_ca91f4b3.md`,
+    `VENDOR.md` (vendor only), `shorebird_code_push/coverage_badge.svg`
+    (engine only).
+  - `library/.cargo/config.toml`: line endings only.
+  `cache/lifecycle.rs`, `cache/signing.rs` and the rest of `cache/` are
+  identical, and `download_and_install_patch` is identical apart from the diag
+  calls. So CI's Rust tests on `vendor/updater` exercise the same signature and
+  lifecycle code the engine ships, but not the engine's HTTP transport
+  classification. This is source identity, not build identity: nothing here
+  proves the shipped binary was built from that checkout.
 
-## 2. Does it verify the patch signature at download time?
+## 2. Does it verify the patch signature at download time (given a key)?
 
-Yes, in every verification mode, before any download state or network call.
+Yes when the app embeds a `patch_public_key`, in every `patch_verification` mode,
+before any download state or network call. With no key, signing is off and the
+check passes (`cache/signing.rs:25-35` returns `Ok(())` for a `None` key).
+`download_and_install_patch` never reads `patch_verification`.
 `third_party/updater/library/src/updater.rs`, `download_and_install_patch`:
 `crate::cache::check_patch_signature(&patch.hash, patch.hash_signature, config.patch_public_key)`
 at lines 1119-1123. On failure it calls `record_signature_refused` (tombstones
@@ -45,9 +61,14 @@ installed artifact each boot. When the app embeds no `patch_public_key`,
 start the updater when a key is configured but no verifier is registered
 (`updater.rs:464, 488-491`, `InitError::NoSignatureVerifier`).
 
-Consequence for the CLI: its stated reason for refusing `install_only` on
-self-hosted releases (signing G4) is stale for this engine. Whether to drop
-that refusal is a CLI change, not made here.
+Consequence for the CLI: the `install_only` gate is
+`packages/shorebird_cli/lib/src/patch_verification.dart` (`installOnlyBrokenEngineRevisions`,
+used by `release_command.dart` `_assertPatchVerificationChecksSignatures`). It is
+a closed list of engine revisions known to skip the check in `install_only`. Neither
+`d0714887` nor `2c4b0718` is on it (grep: 0 matches), so the refusal does not fire for
+this engine, which is consistent with the source above. This note does not
+call the gate stale. Whether its list should also cover the fork's older engines
+is a CLI question, not settled here.
 
 ## 3. iOS Route B patch whose build id does not match the release
 
@@ -75,7 +96,10 @@ Trace (engine tree):
    tally, and `recompute_next_boot` (falls back to the last good patch or the
    base). It queues a `PatchInstallFailure` event ("engine_report: patch N failed
    to launch").
-5. The success that Dart reports later (`lib/ui/hooks.dart` on `main` completion
+5. A second reporter, `shell/common/shell.cc:830-838` (`Engine::Run` returning
+   Failure, Route B only), takes the same latch, so failure and success are
+   mutually exclusive per process.
+6. The success that Dart reports later (`lib/ui/hooks.dart` on `main` completion
    or first frame, `_reportLaunchSuccess`) is dropped because failure already
    took the same latch (`shell/common/shorebird/updater.cc:107-114`). Hence the patch is not credited.
 
@@ -85,9 +109,9 @@ refusals (malformed, unsupported version, no identity, partial apply) take the
 same path. The one exception is an unreadable artifact, which abstains
 (`AbstainFromLaunchReport`) and is bounded by the boot-attempt threshold (2).
 
-Host evidence already in the updater: `updater.rs:2971`
+Host evidence already in the updater: `updater.rs:2976` (engine tree; the vendor copy is at 2971)
 `prod_c2_explicit_failure_retires_immediately` (explicit failure retires on the
-first strike) and `lifecycle.rs:2119`
+first strike) and `lifecycle.rs:2119` (identical in both trees)
 `record_boot_failure_marks_bad_and_recomputes_next_boot`.
 
 Not covered by any test I found: the C++ hook's wrong-release branch itself.
@@ -102,13 +126,23 @@ keyed on `release_version`, so a same-version re-cut with a different binary
 reaches this check (audit Signing G5/Distribution G11). Also that a real device
 run produces this log sequence; that needs the owner's iOS device.
 
-## 4. Android pin: where launch success fires, and a crash before it
+## 4. Android (default, non-Route-B build of this tree): where launch success fires, and a crash before it
 
-The Android engine is not a Route B engine. `SHOREBIRD_ROUTE_B` comes from the
-gn arg `shorebird_route_b` (`common/config.gni:53, 118-123`, default false);
-`selfhost/STATUS.md` says only the iOS release engine is built with it on. I did
-not find an Android build recipe that sets it. Confirm in the build args of the
-published Android artifacts if that matters.
+Which engine the Android artifacts ship is UNVERIFIED for build args. What the
+repo does settle: `compatibility.yaml` `engine_revision: d0714887...` (line 114)
+is "our own build (ci-build Linux + arm64 Mac)" and the cells `aab9fd07` and
+`2fc41d3f` are minted over it; the CLI's pinned Flutter `5c60356c`
+(`bin/internal/flutter.version`) has `engine.version` `2fc41d3f` (the cell
+address, from `mml555/shorebird-flutter`), which `STATUS.md:12` says is "over
+engine `d0714887`". So the tree read here is the supported pin's producer
+engine. What is not shown: the gn args the Android arm/arm64/x64 artifacts were
+built with. `SHOREBIRD_ROUTE_B` comes from gn arg `shorebird_route_b`
+(`common/config.gni:53, 118-123`, default false), no builder file under
+`ci/builders/` sets it, and `STATUS.md:33` says the iOS release engine is built
+with it on (it does not say the Android one is not). So "Android is not Route B"
+below holds for the default build, and is UNVERIFIED for the published Android
+artifacts. Check their build args to settle it. The claims below are about this
+source tree, with `SHOREBIRD_ROUTE_B` off.
 
 With it off:
 
@@ -145,3 +179,12 @@ completion or first frame, but not crashes after that.
   does not read `BootCrash`.
 - If Android crash-after-success matters, success would have to move later on
   that engine; that is a product decision.
+
+## Guard coverage
+
+`selfhost/ci/engine_updater_evidence_guard.sh` checks 1-3 read only
+`vendor/updater` and `compatibility.yaml`. Checks 4-6 need the engine checkout
+and cannot run on hosted CI, which has none; they print a `SKIPPED` summary and
+`--require-engine` turns that into exit 2. Nothing in `.github/` invokes the
+script: it is a local check, run on a machine with the engine tree. It does not
+cover the latch in `updater.cc` or `hooks.dart`.

@@ -1,22 +1,32 @@
 #!/usr/bin/env bash
 # Host check for selfhost/engine/route_b/evidence/p16_engine_updater.md.
 #
-# Asserts, from source text only (no engine build, no device, no cargo):
+# Usage: engine_updater_evidence_guard.sh [--require-engine]
+#
+# Reads source text only (no engine build, no device, no cargo). Checks:
 #   1. compatibility.yaml's updater_revision is the revision VENDOR.md says
-#      vendor/updater is, so the vendored copy the CI tests is the updater the
-#      supported engine consumes.
-#   2. In that updater, download_and_install_patch verifies the patch signature
-#      BEFORE it records a download or touches the network.
-#   3. An explicit launch failure marks the patch Bad at once (no retry).
-# When an engine checkout is present (ENGINE_SRC, default ~/shorebird-engine/
-# flutter/engine/src) and sits on the supported engine revision, it also asserts:
-#   4. DEPS pins the same updater revision.
-#   5. The Route B wrong-release branch reports launch failure and returns.
-#   6. A Route B engine does not bank launch success in the Shell constructor.
-# Part 4-6 are skipped, loudly, when the checkout is absent or on another revision.
+#      vendor/updater is.
+#   2. download_and_install_patch verifies the signature first and returns on
+#      failure, before any download state or network call. Runs on
+#      vendor/updater, and on the engine's own updater.rs when the engine
+#      checkout is present.
+#   3. report_launch_failure -> record_boot_failure_for_patch -> record_boot_failure
+#      -> mark_bad(BootCrash) is intact, and its C2 control test is live.
+#   4. (engine) DEPS pins the same updater revision.
+#   5. (engine) the Route B wrong-release branch reports launch failure through
+#      a ReportRefusal that really calls ReportLaunchFailure, returns without
+#      activating, and the hook is still armed from ApplyPatchToSettings.
+#   6. (engine) the Route B arm of the Shell constructor never banks success.
+# Checks 4-6 need an engine checkout (ENGINE_SRC, default ~/shorebird-engine/
+# flutter/engine/src) at the supported engine_revision. Hosted CI has none, so
+# there they are SKIPPED; the final line says so and --require-engine turns the
+# skip into exit 2. Exit 1 is a failed check.
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+require_engine=0
+[ "${1:-}" = "--require-engine" ] && require_engine=1
+
+ROOT="${GUARD_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 COMPAT="$ROOT/selfhost/compatibility.yaml"
 VENDOR="$ROOT/vendor/updater"
 ENGINE_SRC="${ENGINE_SRC:-$HOME/shorebird-engine/flutter/engine/src}"
@@ -26,48 +36,122 @@ ok() { echo "ok:   $*"; }
 
 want_updater="$(sed -n 's/^  updater_revision: \([0-9a-f]\{12\}\).*/\1/p' "$COMPAT" | head -1)"
 want_engine="$(sed -n 's/^  engine_revision: \([0-9a-f]\{40\}\).*/\1/p' "$COMPAT" | head -1)"
-[ -n "$want_updater" ] && [ -n "$want_engine" ] || { echo "FAIL: cannot read revisions from $COMPAT" >&2; exit 1; }
+[ -n "$want_updater" ] && [ -n "$want_engine" ] || { echo "FAIL: cannot read updater_revision/engine_revision from $COMPAT" >&2; exit 1; }
+
+# Source-text assertions. Comment-only lines are dropped, braces are matched, so a
+# mention in a comment or a call that no longer returns cannot satisfy a check.
+PY='
+import re, sys
+def code(path):
+    return "\n".join(l for l in open(path, encoding="utf-8").read().split("\n")
+                     if not l.lstrip().startswith("//"))
+def block(text, start):
+    """Text from the first "{" at/after start to its matching "}"."""
+    i = text.index("{", start); d = 0
+    for j in range(i, len(text)):
+        d += (text[j] == "{") - (text[j] == "}")
+        if d == 0: return text[i:j+1]
+    raise ValueError("unbalanced")
+def fn(text, name):
+    m = re.search(r"\bfn " + re.escape(name) + r"\b", text)
+    if not m: raise ValueError("fn %s not found" % name)
+    return m.start(), block(text, m.start())
+def cfn(text, name):
+    m = re.search(r"\bvoid " + re.escape(name) + r"\(", text)
+    if not m: raise ValueError("function %s not found" % name)
+    return m.start(), block(text, m.start())
+def need(cond, msg):
+    if not cond: print(msg); sys.exit(1)
+
+mode = sys.argv[1]
+if mode == "sig":
+    t = code(sys.argv[2])
+    _, body = fn(t, "download_and_install_patch")
+    a = body.find("if let Err(e) = crate::cache::check_patch_signature(")
+    need(a >= 0, "no `if let Err(e) = crate::cache::check_patch_signature(` in download_and_install_patch")
+    blk = block(body, a)
+    need("return Err(e.context(UpdateError::InvalidSignature))" in blk,
+         "the failed signature branch no longer returns InvalidSignature")
+    need("record_signature_refused(" in blk, "the failed branch no longer tombstones the refusal")
+    after = body[a + len(blk):]
+    need("record_download_started(" in after and "download_to_path(" in after,
+         "record_download_started/download_to_path not found after the signature check")
+    need("record_download_started(" not in body[:a] and "download_to_path(" not in body[:a],
+         "a download call precedes the signature check")
+elif mode == "failure":
+    upd, state, life = (code(p) for p in sys.argv[2:5])
+    raw = open(sys.argv[2], encoding="utf-8").read()
+    _, f = fn(upd, "report_launch_failure")
+    need("record_boot_failure_for_patch(" in f, "report_launch_failure no longer calls record_boot_failure_for_patch")
+    _, g = fn(state, "record_boot_failure_for_patch")
+    need("self.lifecycle.record_boot_failure(" in g, "record_boot_failure_for_patch no longer calls lifecycle.record_boot_failure")
+    _, h = fn(life, "record_boot_failure")
+    need("mark_bad(n, BadReason::BootCrash)" in h, "record_boot_failure no longer marks Bad{BootCrash}")
+    m = re.search(r"((?:[ \t]*#\[[^\n]*\]\n)*)[ \t]*fn prod_c2_explicit_failure_retires_immediately\b", raw)
+    need(m is not None, "C2 control test missing")
+    need("#[ignore" not in m.group(1) and "#[test]" in m.group(1), "C2 control test is not a live #[test]")
+    _, tb = fn(raw, "prod_c2_explicit_failure_retires_immediately")
+    need("report_launch_failure()" in tb and "patch_is_bad(1)" in tb, "C2 control test body no longer asserts the failure retires the patch")
+elif mode == "wrong_release":
+    t = code(sys.argv[2])
+    m = re.search(r"auto ReportRefusal = \[\] ", t)
+    need(m is not None, "ReportRefusal lambda not found")
+    need("ReportLaunchFailure()" in block(t, m.start()), "ReportRefusal no longer calls ReportLaunchFailure()")
+    i = t.find("if (running_id != container.release_build_id)")
+    need(i >= 0, "the `running_id != container.release_build_id` test is gone (or rewritten)")
+    b = block(t, i)
+    k = b.find("ReportRefusal();")
+    need(k >= 0, "wrong-release branch does not call ReportRefusal()")
+    need(re.match(r"ReportRefusal\(\);\s*return;", b[k:]) is not None, "wrong-release branch does not return right after ReportRefusal()")
+    need("Dart_RouteBActivatePatchTraced" not in b, "wrong-release branch activates a patch")
+    need(t.find("Dart_RouteBActivatePatchTraced") > i + len(b), "activation no longer comes after the wrong-release branch")
+    _, a = cfn(t, "ApplyPatchToSettings")
+    need("InstallRouteBActivationHook(settings, patch_path);" in a, "ApplyPatchToSettings no longer arms the Route B hook")
+    _, hk = cfn(t, "InstallRouteBActivationHook")
+    need("settings.root_isolate_create_callback =" in hk, "the hook no longer registers root_isolate_create_callback")
+elif mode == "shell":
+    t = code(sys.argv[2])
+    s = t.index("#if SHOREBIRD_ROUTE_B")
+    e = min(x for x in (t.find("\n#else", s), t.find("\n#endif", s)) if x >= 0)
+    seg = t[s:e]
+    need("ReportLaunchFailure()" in seg, "Route B Shell constructor arm no longer reports failure for a null VM")
+    need("ReportLaunchSuccess" not in seg, "Route B Shell constructor banks launch success")
+'
+py() { python3 -I -c "$PY" "$@"; }
+chk() { # chk <label> <py args...>
+  local label="$1"; shift
+  local out; out="$(py "$@" 2>&1)" && ok "$label" || bad "$label: ${out:-python failed}"
+}
 
 # 1. vendored revision
 vend_rev="$(sed -n 's/.*Source revision: \([0-9a-f]\{40\}\).*/\1/p' "$VENDOR/VENDOR.md" | head -1)"
-if [ "${vend_rev:0:12}" = "$want_updater" ]; then ok "vendor/updater source revision is $want_updater"
+if [ -z "$vend_rev" ]; then bad "VENDOR.md has no 'Source revision: <40 hex>' line (reworded?)"
+elif [ "${vend_rev:0:12}" = "$want_updater" ]; then ok "vendor/updater source revision is $want_updater"
 else bad "VENDOR.md source revision '${vend_rev:0:12}' != compatibility.yaml updater_revision '$want_updater'"; fi
 
-# 2. signature verified before any download state or network call
-UPD="$VENDOR/library/src/updater.rs"
-fn_start="$(grep -n '^fn download_and_install_patch' "$UPD" | head -1 | cut -d: -f1)"
-if [ -z "$fn_start" ]; then bad "download_and_install_patch not found in $UPD"
-else
-  body="$(tail -n +"$fn_start" "$UPD" | sed -n '1,80p')"
-  sig="$(printf '%s\n' "$body" | grep -n 'check_patch_signature' | head -1 | cut -d: -f1)"
-  rec="$(printf '%s\n' "$body" | grep -n 'record_download_started' | head -1 | cut -d: -f1)"
-  net="$(printf '%s\n' "$body" | grep -n 'download_to_path' | head -1 | cut -d: -f1)"
-  if [ -n "$sig" ] && [ -n "$rec" ] && [ -n "$net" ] && [ "$sig" -lt "$rec" ] && [ "$sig" -lt "$net" ]; then
-    ok "check_patch_signature precedes record_download_started and download_to_path"
-  else bad "signature check does not precede download in download_and_install_patch (sig=$sig rec=$rec net=$net)"; fi
-fi
+# 2, 3. vendored updater
+V="$VENDOR/library/src"
+chk "vendor: signature verified first, failure returns, before any download" sig "$V/updater.rs"
+chk "vendor: report_launch_failure -> record_boot_failure -> Bad{BootCrash}; C2 test live" failure "$V/updater.rs" "$V/cache/updater_state.rs" "$V/cache/lifecycle.rs"
 
-# 3. explicit failure retires immediately
-if grep -q 'fn prod_c2_explicit_failure_retires_immediately' "$UPD" &&
-   grep -A3 'pub fn record_boot_failure' "$VENDOR/library/src/cache/lifecycle.rs" | grep -q 'mark_bad(n, BadReason::BootCrash)'; then
-  ok "record_boot_failure marks Bad{BootCrash}; C2 control test present"
-else bad "explicit-failure path or its C2 control test changed"; fi
-
-# 4-6 engine checkout
+# 4-6. engine checkout
 if [ -d "$ENGINE_SRC/flutter" ] && [ "$(git -C "$ENGINE_SRC/flutter" rev-parse HEAD 2>/dev/null)" = "$want_engine" ]; then
+  E="$ENGINE_SRC/flutter/third_party/updater/library/src"
+  chk "engine: signature verified first, failure returns, before any download" sig "$E/updater.rs"
+  chk "engine: report_launch_failure -> record_boot_failure -> Bad{BootCrash}; C2 test live" failure "$E/updater.rs" "$E/cache/updater_state.rs" "$E/cache/lifecycle.rs"
   deps_rev="$(sed -n 's/^  "updater_rev": "\([0-9a-f]*\)".*/\1/p' "$(git -C "$ENGINE_SRC/flutter" rev-parse --show-toplevel)/DEPS" | head -1)"
   [ "${deps_rev:0:12}" = "$want_updater" ] && ok "engine DEPS updater_rev is $deps_rev" ||
-    bad "engine DEPS updater_rev '$deps_rev' != $want_updater"
-  SB="$ENGINE_SRC/flutter/shell/common/shorebird/shorebird.cc"
-  if grep -A12 'running_id != container.release_build_id' "$SB" | grep -q 'ReportRefusal();'; then
-    ok "wrong-release branch calls ReportRefusal (ReportLaunchFailure)"
-  else bad "wrong-release branch no longer reports launch failure"; fi
-  # In shell.cc the Route B arm (between '#if SHOREBIRD_ROUTE_B' and '#else') must not call success.
-  if sed -n '/^#if SHOREBIRD_ROUTE_B/,/^#else/p' "$ENGINE_SRC/flutter/shell/common/shell.cc" | grep -v '^ *//' | grep -q 'ReportLaunchSuccess'; then
-    bad "Route B Shell constructor banks launch success"
-  else ok "Route B Shell constructor does not bank launch success"; fi
+    bad "engine DEPS updater_rev '${deps_rev}' != $want_updater"
+  chk "engine: wrong-release branch reports failure, returns, hook armed" wrong_release "$ENGINE_SRC/flutter/shell/common/shorebird/shorebird.cc"
+  chk "engine: Route B Shell constructor reports failure only" shell "$ENGINE_SRC/flutter/shell/common/shell.cc"
+  engine_ran=1
 else
-  echo "skip: no engine checkout at supported revision $want_engine under $ENGINE_SRC (checks 4-6 not run)"
+  engine_ran=0
 fi
 
-exit "$fail"
+if [ "$engine_ran" = 0 ]; then
+  echo "SKIPPED: engine checks (4-6 and the engine-side 2-3) did NOT run: no checkout of $want_engine under $ENGINE_SRC. Only vendor/updater was checked." >&2
+  [ "$require_engine" = 1 ] && { echo "--require-engine: refusing to pass without the engine tree" >&2; exit 2; }
+fi
+[ "$fail" = 0 ] || exit 1
+exit 0
