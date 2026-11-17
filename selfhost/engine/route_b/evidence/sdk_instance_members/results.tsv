@@ -1,0 +1,139 @@
+probe	result	member	detail
+future_then	RESOLVES	dart:async#Future#then	
+future_catchError	THROWS	dart:async#Future#catchError	ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'catchError'.
+future_whenComplete	RESOLVES	dart:async#Future#whenComplete	
+future_timeout	RESOLVES	dart:async#Future#timeout	
+stream_listen	THROWS	dart:async#Stream#listen	ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance method 'listen' with matching arguments.
+stream_where	THROWS	dart:async#Stream#where	ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance method 'where'.
+stream_map	THROWS	dart:async#Stream#map	ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance method 'map'.
+stream_toList	THROWS	dart:async#Stream#toList	ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance method 'toList'.
+stream_first	THROWS	dart:async#Stream#get:first	ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance getter 'first'.
+stream_isBroadcast	THROWS	dart:async#Stream#get:isBroadcast	ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance getter 'isBroadcast'.
+ctl_add	RESOLVES	dart:async#StreamController#add	
+ctl_stream	RESOLVES	dart:async#StreamController#get:stream	
+ctl_sink	THROWS	dart:async#StreamController#get:sink	ERR NoSuchMethodError: Class '_AsyncStreamController<int>' has no instance getter 'sink'.
+ctl_isClosed	RESOLVES	dart:async#StreamController#get:isClosed	
+ctl_close	RESOLVES	dart:async#StreamController#close	
+timer_cancel	RESOLVES	dart:async#Timer#cancel	
+timer_isActive	THROWS	dart:async#Timer#get:isActive	ERR NoSuchMethodError: Class '_Timer' has no instance getter 'isActive'.
+timer_tick	THROWS	dart:async#Timer#get:tick	ERR NoSuchMethodError: Class '_Timer' has no instance getter 'tick'.
+map_keys	RESOLVES	dart:core#Map#get:keys	
+map_values	RESOLVES	dart:core#Map#get:values	
+map_get	RESOLVES	dart:core#Map#[]	
+map_set	RESOLVES	dart:core#Map#[]=	
+map_containsKey	RESOLVES	dart:core#Map#containsKey	
+map_containsValue	THROWS	dart:core#Map#containsValue	ERR NoSuchMethodError: Class '_Map<String, int>' has no instance method 'containsValue'.
+map_remove	RESOLVES	dart:core#Map#remove	
+map_entries	THROWS	dart:core#Map#get:entries	ERR NoSuchMethodError: Class '_Map<String, int>' has no instance getter 'entries'.
+map_length	RESOLVES	dart:core#Map#get:length	
+map_isEmpty	RESOLVES	dart:core#Map#get:isEmpty	
+map_isNotEmpty	THROWS	dart:core#Map#get:isNotEmpty	ERR NoSuchMethodError: Class '_Map<String, int>' has no instance getter 'isNotEmpty'.
+map_forEach	RESOLVES	dart:core#Map#forEach	
+map_addAll	ABORTS	dart:core#Map#addAll	unreachable code
+map_putIfAbsent	THROWS	dart:core#Map#putIfAbsent	ERR NoSuchMethodError: Class '_Map<String, int>' has no instance method 'putIfAbsent'.
+list_contains	THROWS	dart:core#Iterable#contains	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'contains'.
+list_remove	THROWS	dart:core#List#remove	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'remove'.
+list_insert	THROWS	dart:core#List#insert	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'insert'.
+list_length	RESOLVES	dart:core#List#get:length	
+list_get	RESOLVES	dart:core#List#[]	
+list_set	RESOLVES	dart:core#List#[]=	
+list_isEmpty	RESOLVES	dart:core#Iterable#get:isEmpty	
+list_isNotEmpty	RESOLVES	dart:core#Iterable#get:isNotEmpty	
+list_first	THROWS	dart:core#Iterable#get:first	ERR NoSuchMethodError: Class 'List<int>' has no instance getter 'first'.
+list_last	RESOLVES	dart:core#Iterable#get:last	
+list_indexOf	THROWS	dart:core#List#indexOf	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'indexOf'.
+list_sort	THROWS	dart:core#List#sort	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'sort'.
+list_sublist	THROWS	dart:core#List#sublist	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'sublist'.
+list_addAll	THROWS	dart:core#List#addAll	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'addAll'.
+list_removeLast	RESOLVES	dart:core#List#removeLast	
+list_removeAt	THROWS	dart:core#List#removeAt	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'removeAt'.
+list_reversed	RESOLVES	dart:core#List#get:reversed	
+list_clear	RESOLVES	dart:core#List#clear	
+iter_any	THROWS	dart:core#Iterable#any	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'any'.
+iter_every	THROWS	dart:core#Iterable#every	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'every'.
+iter_firstWhere	THROWS	dart:core#Iterable#firstWhere	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'firstWhere'.
+iter_fold	THROWS	dart:core#Iterable#fold	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'fold'.
+iter_reduce	THROWS	dart:core#Iterable#reduce	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'reduce'.
+iter_length	RESOLVES	dart:core#Iterable#get:length	
+iter_isEmpty	RESOLVES	dart:core#Iterable#get:isEmpty	
+iter_isNotEmpty	RESOLVES	dart:core#Iterable#get:isNotEmpty	
+iter_first	THROWS	dart:core#Iterable#get:first	ERR NoSuchMethodError: Class 'List<int>' has no instance getter 'first'.
+iter_last	RESOLVES	dart:core#Iterable#get:last	
+iter_contains	THROWS	dart:core#Iterable#contains	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'contains'.
+iter_toSet	THROWS	dart:core#Iterable#toSet	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'toSet'.
+iter_take	THROWS	dart:core#Iterable#take	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'take'.
+iter_skip	THROWS	dart:core#Iterable#skip	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'skip'.
+iter_elementAt	THROWS	dart:core#Iterable#elementAt	ERR NoSuchMethodError: Class 'List<int>' has no instance method 'elementAt'.
+set_contains	THROWS	dart:core#Set#contains	ERR NoSuchMethodError: Class '_Set<int>' has no instance method 'contains'.
+set_add	RESOLVES	dart:core#Set#add	
+set_remove	NOT-RUN	dart:core#Set#remove	er Code slots=121)  ===== CRASH ===== si_signo=Segmentation fault: 11(11), si_code=SEGV_ACCERR(2), si_addr=0x9 exit=134 
+set_length	RESOLVES	dart:core#Iterable#get:length	
+str_length	THROWS	dart:core#String#get:length	ERR NoSuchMethodError: Class 'String' has no instance getter 'length'.
+str_isEmpty	RESOLVES	dart:core#String#get:isEmpty	
+str_isNotEmpty	ABORTS	dart:core#String#get:isNotEmpty	Attempt to compile function dart:core__StringBase@0150898_get_isNotEmpty
+str_contains	RESOLVES	dart:core#String#contains	
+str_startsWith	RESOLVES	dart:core#String#startsWith	
+str_endsWith	THROWS	dart:core#String#endsWith	ERR NoSuchMethodError: Class 'String' has no instance method 'endsWith'.
+str_substring	THROWS	dart:core#String#substring	ERR NoSuchMethodError: Class 'String' has no instance method 'substring'.
+str_trim	RESOLVES	dart:core#String#trim	
+str_toUpperCase	RESOLVES	dart:core#String#toUpperCase	
+str_toLowerCase	RESOLVES	dart:core#String#toLowerCase	
+str_replaceAll	RESOLVES	dart:core#String#replaceAll	
+str_padLeft	THROWS	dart:core#String#padLeft	ERR NoSuchMethodError: Class 'String' has no instance method 'padLeft'.
+str_codeUnitAt	THROWS	dart:core#String#codeUnitAt	ERR NoSuchMethodError: Class 'String' has no instance method 'codeUnitAt'.
+str_indexOf	THROWS	dart:core#String#indexOf	ERR NoSuchMethodError: Class 'String' has no instance method 'indexOf'.
+str_index	RESOLVES	dart:core#String#[]	
+str_plus	RESOLVES	dart:core#String#+	
+str_times	THROWS	dart:core#String#*	ERR NoSuchMethodError: Class 'String' has no instance method '*'.
+str_compareTo	THROWS	dart:core#String#compareTo	ERR NoSuchMethodError: Class 'String' has no instance method 'compareTo'.
+str_eq	RESOLVES	dart:core#String#==	
+int_toStringAsFixed	THROWS	dart:core#num#toStringAsFixed	ERR NoSuchMethodError: Class 'int' has no instance method 'toStringAsFixed'.
+int_abs	THROWS	dart:core#int#abs	ERR NoSuchMethodError: Class 'int' has no instance method 'abs'.
+int_clamp	THROWS	dart:core#num#clamp	ERR NoSuchMethodError: Class 'int' has no instance method 'clamp'.
+int_compareTo	THROWS	dart:core#num#compareTo	ERR NoSuchMethodError: Class 'int' has no instance method 'compareTo'.
+int_isEven	ABORTS	dart:core#int#get:isEven	Attempt to compile function dart:core__IntegerImplementation@0150898_get_isEven
+int_remainder	THROWS	dart:core#num#remainder	ERR NoSuchMethodError: Class 'int' has no instance method 'remainder'.
+int_toDouble	RESOLVES	dart:core#num#toDouble	
+int_and	RESOLVES	dart:core#int#&	
+int_shl	RESOLVES	dart:core#int#<<	
+int_floorDiv	RESOLVES	dart:core#num#~/	
+dbl_toStringAsFixed	THROWS	dart:core#num#toStringAsFixed	ERR NoSuchMethodError: Class 'double' has no instance method 'toStringAsFixed'.
+dbl_round	THROWS	dart:core#double#round	ERR NoSuchMethodError: Class 'double' has no instance method 'round'.
+dbl_floor	THROWS	dart:core#double#floor	ERR NoSuchMethodError: Class 'double' has no instance method 'floor'.
+dbl_ceil	THROWS	dart:core#double#ceil	ERR NoSuchMethodError: Class 'double' has no instance method 'ceil'.
+dbl_abs	THROWS	dart:core#double#abs	ERR NoSuchMethodError: Class 'double' has no instance method 'abs'.
+dbl_clamp	THROWS	dart:core#num#clamp	ERR NoSuchMethodError: Class 'double' has no instance method 'clamp'.
+dbl_compareTo	THROWS	dart:core#num#compareTo	ERR NoSuchMethodError: Class 'double' has no instance method 'compareTo'.
+dbl_truncate	THROWS	dart:core#double#truncate	ERR NoSuchMethodError: Class 'double' has no instance method 'truncate'.
+dbl_isNaN	THROWS	dart:core#num#get:isNaN	ERR NoSuchMethodError: Class 'double' has no instance getter 'isNaN'.
+dbl_toInt	THROWS	dart:core#num#toInt	ERR NoSuchMethodError: Class 'double' has no instance method 'toInt'.
+num_toStringAsFixed	THROWS	dart:core#num#toStringAsFixed	ERR NoSuchMethodError: Class 'int' has no instance method 'toStringAsFixed'.
+num_round	THROWS	dart:core#num#round	ERR NoSuchMethodError: Class 'int' has no instance method 'round'.
+num_floor	THROWS	dart:core#num#floor	ERR NoSuchMethodError: Class 'int' has no instance method 'floor'.
+num_abs	THROWS	dart:core#num#abs	ERR NoSuchMethodError: Class 'int' has no instance method 'abs'.
+num_clamp	THROWS	dart:core#num#clamp	ERR NoSuchMethodError: Class 'int' has no instance method 'clamp'.
+num_compareTo	THROWS	dart:core#num#compareTo	ERR NoSuchMethodError: Class 'int' has no instance method 'compareTo'.
+num_toInt	THROWS	dart:core#num#toInt	ERR NoSuchMethodError: Class 'int' has no instance method 'toInt'.
+num_toDouble	RESOLVES	dart:core#num#toDouble	
+date_difference	THROWS	dart:core#DateTime#difference	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'difference'.
+date_add	THROWS	dart:core#DateTime#add	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'add'.
+date_subtract	THROWS	dart:core#DateTime#subtract	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'subtract'.
+date_isBefore	THROWS	dart:core#DateTime#isBefore	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'isBefore'.
+date_isAfter	THROWS	dart:core#DateTime#isAfter	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'isAfter'.
+date_year	THROWS	dart:core#DateTime#get:year	ERR NoSuchMethodError: Class 'DateTime' has no instance getter 'year'.
+date_month	THROWS	dart:core#DateTime#get:month	ERR NoSuchMethodError: Class 'DateTime' has no instance getter 'month'.
+date_weekday	THROWS	dart:core#DateTime#get:weekday	ERR NoSuchMethodError: Class 'DateTime' has no instance getter 'weekday'.
+date_toIso8601String	THROWS	dart:core#DateTime#toIso8601String	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'toIso8601String'.
+date_toUtc	THROWS	dart:core#DateTime#toUtc	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'toUtc'.
+date_microsecondsSinceEpoch	THROWS	dart:core#DateTime#get:microsecondsSinceEpoch	ERR NoSuchMethodError: Class 'DateTime' has no instance getter 'microsecondsSinceEpoch'.
+dur_inMilliseconds	THROWS	dart:core#Duration#get:inMilliseconds	ERR NoSuchMethodError: Class 'Duration' has no instance getter 'inMilliseconds'.
+dur_inSeconds	THROWS	dart:core#Duration#get:inSeconds	ERR NoSuchMethodError: Class 'Duration' has no instance getter 'inSeconds'.
+dur_inMinutes	THROWS	dart:core#Duration#get:inMinutes	ERR NoSuchMethodError: Class 'Duration' has no instance getter 'inMinutes'.
+dur_inMicroseconds	RESOLVES	dart:core#Duration#inMicroseconds	
+dur_plus	THROWS	dart:core#Duration#+	ERR NoSuchMethodError: Class 'Duration' has no instance method '+'.
+dur_gt	THROWS	dart:core#Duration#>	ERR NoSuchMethodError: Class 'Duration' has no instance method '>'.
+dur_isNegative	THROWS	dart:core#Duration#get:isNegative	ERR NoSuchMethodError: Class 'Duration' has no instance getter 'isNegative'.
+state_error_message	THROWS	dart:core#StateError#message	ERR NoSuchMethodError: Class 'StateError' has no instance getter 'message'.
+format_exception_message	RESOLVES	dart:core#FormatException#message	
+error_stackTrace	THROWS	dart:core#Error#get:stackTrace	ERR NoSuchMethodError: Class 'StateError' has no instance getter 'stackTrace'.
+object_runtimeType	RESOLVES	dart:core#Object#get:runtimeType	

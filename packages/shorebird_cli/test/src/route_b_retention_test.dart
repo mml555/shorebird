@@ -526,6 +526,56 @@ callable:
         }
       });
 
+      test('every host-measured SDK instance member is accepted', () {
+        expect(routeBHostMeasuredSdkInstanceMembers, isNotEmpty);
+        for (final key in routeBHostMeasuredSdkInstanceMembers) {
+          final [library, cls, member] = key.split('#');
+          expect(
+            refusal([_ref('instance', library, cls: cls, member: member)]),
+            isNull,
+            reason: key,
+          );
+        }
+      });
+
+      test('the measured lists do not overlap', () {
+        for (final key in routeBHostMeasuredFailingSdkInstanceMembers.keys) {
+          expect(routeBHostMeasuredSdkInstanceMembers, isNot(contains(key)));
+          expect(routeBDeviceProvenSdkInstanceMembers, isNot(contains(key)));
+        }
+      });
+
+      test('a member measured to throw is refused and the message says so', () {
+        final reason = refusal([
+          _ref('instance', 'dart:async', cls: 'Stream', member: 'listen'),
+        ]);
+        expect(
+          reason,
+          allOf(
+            contains('`Stream.listen`'),
+            contains('measured: throws NoSuchMethodError'),
+          ),
+        );
+      });
+
+      test('a member measured to stop the app is refused and named', () {
+        final reason = refusal([
+          _ref(
+            'instance',
+            'dart:core',
+            cls: 'String',
+            member: 'get:isNotEmpty',
+          ),
+        ]);
+        expect(
+          reason,
+          allOf(
+            contains('String.isNotEmpty'),
+            contains('measured: the release stops the app'),
+          ),
+        );
+      });
+
       test('says so once for several SDK instance members', () {
         final reason = refusal([
           for (final m in ['a', 'b', 'c', 'd', 'e', 'f', 'g'])

@@ -92,7 +92,8 @@ import 'package:yaml/yaml.dart';
 /// the same shape on a release that never called it threw `NoSuchMethodError`,
 /// so the device run does not settle it), `Stream.where`, `Future.catchError`,
 /// `Duration.inMilliseconds`, `StateError.message`, `List.contains`, and every
-/// `dart:ui` member. Widening it is a measurement, not a guess.
+/// `dart:ui` member. Widening it is a measurement, not a guess; the members
+/// measured on a host release are in [routeBHostMeasuredSdkInstanceMembers].
 final routeBDeviceProvenSdkInstanceMembers = <String>{
   for (final cls in ['num', 'int', 'double'])
     for (final op in [
@@ -129,6 +130,152 @@ final routeBDeviceProvenSdkInstanceMembers = <String>{
   'dart:core#Iterator#moveNext',
   'dart:core#Iterator#get:current',
   'dart:core#String#split',
+};
+
+/// SDK instance members that RESOLVED when a patch called them on a minimal
+/// release that never named them, as `library#Class#member`.
+///
+/// Host-measured, NOT device-proven: the release is a minimal pure-Dart one
+/// (id 4a68e3c0b37c2c558964c334821b9204, built by
+/// `selfhost/engine/route_b/evidence/sdk_instance_members/run.sh`), run on the
+/// host `dartaotruntime`, one probe per process. Host measurement stands in for
+/// a device run. The retained set of a Flutter app is a superset of what a
+/// pure-Dart program keeps only where the framework's own startup calls the
+/// member, so treat this as a lower bound that was measured on one release,
+/// and spot check on a device (see the PR) before relying on a member.
+/// Re-run the harness to refresh the list; results are in `results.tsv` there.
+final routeBHostMeasuredSdkInstanceMembers = <String>{
+  'dart:async#Future#then',
+  'dart:async#Future#timeout',
+  'dart:async#Future#whenComplete',
+  'dart:async#StreamController#add',
+  'dart:async#StreamController#close',
+  'dart:async#StreamController#get:isClosed',
+  'dart:async#StreamController#get:stream',
+  'dart:async#Timer#cancel',
+  'dart:core#Duration#inMicroseconds',
+  'dart:core#FormatException#message',
+  'dart:core#Iterable#get:isEmpty',
+  'dart:core#Iterable#get:isNotEmpty',
+  'dart:core#Iterable#get:last',
+  'dart:core#Iterable#get:length',
+  'dart:core#List#[]',
+  'dart:core#List#[]=',
+  'dart:core#List#clear',
+  'dart:core#List#get:length',
+  'dart:core#List#get:reversed',
+  'dart:core#List#removeLast',
+  'dart:core#Map#[]',
+  'dart:core#Map#[]=',
+  'dart:core#Map#containsKey',
+  'dart:core#Map#forEach',
+  'dart:core#Map#get:isEmpty',
+  'dart:core#Map#get:keys',
+  'dart:core#Map#get:length',
+  'dart:core#Map#get:values',
+  'dart:core#Map#remove',
+  'dart:core#Object#get:runtimeType',
+  'dart:core#Set#add',
+  'dart:core#String#+',
+  'dart:core#String#==',
+  'dart:core#String#[]',
+  'dart:core#String#contains',
+  'dart:core#String#get:isEmpty',
+  'dart:core#String#replaceAll',
+  'dart:core#String#startsWith',
+  'dart:core#String#toLowerCase',
+  'dart:core#String#trim',
+  'dart:core#int#&',
+  'dart:core#int#<<',
+  'dart:core#num#toDouble',
+  'dart:core#num#~/',
+};
+
+/// SDK instance members that did NOT resolve in the same measurement: `throws`
+/// is a NoSuchMethodError at the call, `aborts` is the process stopping
+/// ("Attempt to compile function ...", the member exists without code). They
+/// stay refused, and the refusal says which.
+const routeBHostMeasuredFailingSdkInstanceMembers = <String, String>{
+  'dart:async#Future#catchError': 'throws',
+  'dart:async#Stream#get:first': 'throws',
+  'dart:async#Stream#get:isBroadcast': 'throws',
+  'dart:async#Stream#listen': 'throws',
+  'dart:async#Stream#map': 'throws',
+  'dart:async#Stream#toList': 'throws',
+  'dart:async#Stream#where': 'throws',
+  'dart:async#StreamController#get:sink': 'throws',
+  'dart:async#Timer#get:isActive': 'throws',
+  'dart:async#Timer#get:tick': 'throws',
+  'dart:core#DateTime#add': 'throws',
+  'dart:core#DateTime#difference': 'throws',
+  'dart:core#DateTime#get:microsecondsSinceEpoch': 'throws',
+  'dart:core#DateTime#get:month': 'throws',
+  'dart:core#DateTime#get:weekday': 'throws',
+  'dart:core#DateTime#get:year': 'throws',
+  'dart:core#DateTime#isAfter': 'throws',
+  'dart:core#DateTime#isBefore': 'throws',
+  'dart:core#DateTime#subtract': 'throws',
+  'dart:core#DateTime#toIso8601String': 'throws',
+  'dart:core#DateTime#toUtc': 'throws',
+  'dart:core#Duration#+': 'throws',
+  'dart:core#Duration#>': 'throws',
+  'dart:core#Duration#get:inMilliseconds': 'throws',
+  'dart:core#Duration#get:inMinutes': 'throws',
+  'dart:core#Duration#get:inSeconds': 'throws',
+  'dart:core#Duration#get:isNegative': 'throws',
+  'dart:core#Error#get:stackTrace': 'throws',
+  'dart:core#Iterable#any': 'throws',
+  'dart:core#Iterable#contains': 'throws',
+  'dart:core#Iterable#elementAt': 'throws',
+  'dart:core#Iterable#every': 'throws',
+  'dart:core#Iterable#firstWhere': 'throws',
+  'dart:core#Iterable#fold': 'throws',
+  'dart:core#Iterable#get:first': 'throws',
+  'dart:core#Iterable#reduce': 'throws',
+  'dart:core#Iterable#skip': 'throws',
+  'dart:core#Iterable#take': 'throws',
+  'dart:core#Iterable#toSet': 'throws',
+  'dart:core#List#addAll': 'throws',
+  'dart:core#List#indexOf': 'throws',
+  'dart:core#List#insert': 'throws',
+  'dart:core#List#remove': 'throws',
+  'dart:core#List#removeAt': 'throws',
+  'dart:core#List#sort': 'throws',
+  'dart:core#List#sublist': 'throws',
+  'dart:core#Map#addAll': 'aborts',
+  'dart:core#Map#containsValue': 'throws',
+  'dart:core#Map#get:entries': 'throws',
+  'dart:core#Map#get:isNotEmpty': 'throws',
+  'dart:core#Map#putIfAbsent': 'throws',
+  'dart:core#Set#contains': 'throws',
+  'dart:core#Set#remove': 'aborts',
+  'dart:core#StateError#message': 'throws',
+  'dart:core#String#*': 'throws',
+  'dart:core#String#codeUnitAt': 'throws',
+  'dart:core#String#compareTo': 'throws',
+  'dart:core#String#endsWith': 'throws',
+  'dart:core#String#get:isNotEmpty': 'aborts',
+  'dart:core#String#get:length': 'throws',
+  'dart:core#String#indexOf': 'throws',
+  'dart:core#String#padLeft': 'throws',
+  'dart:core#String#substring': 'throws',
+  'dart:core#String#toUpperCase': 'threw on an earlier host release',
+  'dart:core#double#abs': 'throws',
+  'dart:core#double#ceil': 'throws',
+  'dart:core#double#floor': 'throws',
+  'dart:core#double#round': 'throws',
+  'dart:core#double#truncate': 'throws',
+  'dart:core#int#abs': 'throws',
+  'dart:core#int#get:isEven': 'aborts',
+  'dart:core#num#abs': 'throws',
+  'dart:core#num#clamp': 'throws',
+  'dart:core#num#compareTo': 'throws',
+  'dart:core#num#floor': 'throws',
+  'dart:core#num#get:isNaN': 'throws',
+  'dart:core#num#remainder': 'throws',
+  'dart:core#num#round': 'throws',
+  'dart:core#num#toInt': 'throws',
+  'dart:core#num#toStringAsFixed': 'throws',
 };
 
 /// The release's retained set, read from its dynamic interface.
@@ -283,13 +430,15 @@ class RouteBRetention {
       r.kind == 'instance' &&
       r.library.startsWith('dart:') &&
       !r.viaConstant &&
-      !routeBDeviceProvenSdkInstanceMembers.contains(
-        '${r.library}#${r.className}#${r.member}',
-      ) &&
+      !routeBDeviceProvenSdkInstanceMembers.contains(_sdkKey(r)) &&
+      !routeBHostMeasuredSdkInstanceMembers.contains(_sdkKey(r)) &&
       // One the release's own interface lists by name (the SDK-member list
       // the release was built with, e.g. `DateTime.millisecondsSinceEpoch`)
       // is kept by that item.
-      !members.contains('${r.library}#${r.className}#${r.member}');
+      !members.contains(_sdkKey(r));
+
+  static String _sdkKey(RouteBExternalReference r) =>
+      '${r.library}#${r.className}#${r.member}';
 
   /// Whether [r] is an extension getter, setter or tear-off, whose `#` name no
   /// interface lists.
@@ -370,9 +519,19 @@ class RouteBRetention {
   }
 
   /// `String.toUpperCase`, for the sentence about SDK instance members.
-  static String _describeSdkInstance(RouteBExternalReference r) =>
-      'the ${r.library.substring(0, r.library.indexOf(':'))}: method '
-      '`${r.displayName}` (an SDK instance member)';
+  static String _describeSdkInstance(RouteBExternalReference r) {
+    final measured = routeBHostMeasuredFailingSdkInstanceMembers[_sdkKey(r)];
+    final how = switch (measured) {
+      null => '',
+      'aborts' => ', measured: the release stops the app at that call',
+      'throws' =>
+        ', measured: throws NoSuchMethodError on a release that '
+            'never called it',
+      _ => ', measured: $measured',
+    };
+    return 'the ${r.library.substring(0, r.library.indexOf(':'))}: method '
+        '`${r.displayName}` (an SDK instance member$how)';
+  }
 
   /// "`Padding`", the way a developer would name it. The library is added only
   /// where it helps: a framework path (`package:flutter/src/widgets/...`) is
@@ -430,7 +589,7 @@ class RouteBRetention {
   String? refusal(RouteBCoverage coverage, Iterable<String> keys) {
     final all = unretained(coverage, keys);
     final sdk = all
-        .where((d) => d.contains('(an SDK instance member)'))
+        .where((d) => d.contains('(an SDK instance member'))
         .toList();
     final rest = all.where((d) => !sdk.contains(d)).toList();
     return [
@@ -474,7 +633,9 @@ String? describeRouteBUnprovenSdkMembers(List<String> symbols) {
       : '';
   return 'it calls $named$more. An SDK instance method is looked up by name '
       'when it runs, and the app throws NoSuchMethodError at that call if the '
-      'release never called it; nothing at patch time can tell. Cut a new '
+      'release never called it; nothing at patch time can tell. Members marked '
+      '"measured" were tried on a release that never called them and failed. '
+      'Cut a new '
       'release whose own code calls it (a call is enough), then patch that';
 }
 
