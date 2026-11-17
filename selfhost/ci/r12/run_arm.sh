@@ -132,8 +132,21 @@ fi
 say "bootstrap the OWNED toolchain"
 note "repo                     : $R12_REPO_URL"
 note "sha                      : $R12_REPO_SHA"
-git clone --quiet --filter=blob:none "$R12_REPO_URL" /r12src \
-  || die "could not clone the owned repository"
+# A GitHub fetch from ci-build can stall with the connection silently gone (seen on
+# 2026-11-17: a clone sat 15 minutes at 0 bytes while the host cloned in 13 s). Each
+# attempt is bounded by wall clock and by transfer speed, and is tried three times.
+clone_owned() {
+  local a
+  for a in 1 2 3; do
+    rm -rf /r12src
+    GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
+      timeout 300 git clone --quiet --filter=blob:none "$R12_REPO_URL" /r12src && return 0
+    note "clone attempt $a failed or stalled"
+    sleep 5
+  done
+  return 1
+}
+clone_owned || die "could not clone the owned repository (3 attempts)"
 git -C /r12src checkout --quiet --detach "$R12_REPO_SHA" \
   || die "owned repository does not contain $R12_REPO_SHA"
 got="$(git -C /r12src rev-parse HEAD)"
