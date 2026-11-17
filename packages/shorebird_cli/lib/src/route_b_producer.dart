@@ -53,6 +53,7 @@ import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_retention.dart';
 import 'package:shorebird_cli/src/route_b_super_source.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 
@@ -189,6 +190,14 @@ Object? $_superIntrinsicName(
   /// unestablished shape refuses here. Null means no binding is recorded, which
   /// only a host harness should ever want.
   ///
+  /// [retention] is what the release's dynamic interface kept, and it is asked
+  /// about every external symbol the analysis (version 18 or later) says a
+  /// target, or a helper it needs, names. Null means the release has no
+  /// readable interface, which refuses such an analysis rather than waving it
+  /// through: a symbol that cannot be shown to be kept is not kept. An earlier
+  /// analysis lists no symbols, so there is nothing to ask and nothing changes
+  /// for a release whose compiler cell predates it.
+  ///
   /// [survival] is P4.1's gate: for every target, whether a supported
   /// invocation site SURVIVED compilation in the exact release artifact. Null
   /// means no gate was supplied, and the caller is then asserting that this
@@ -208,6 +217,7 @@ Object? $_superIntrinsicName(
     RouteBReleaseEvidence? releaseEvidence,
     RouteBCompileRunner run = Process.runSync,
     File? patchedVerificationKernel,
+    RouteBRetention? retention,
   }) {
     // Every changed member that can land, in a stable order so the container is
     // reproducible byte-for-byte from the same inputs.
@@ -360,6 +370,18 @@ Object? $_superIntrinsicName(
             'the member it replaces',
           );
         }
+      }
+
+      // RETENTION -- did the release KEEP everything this body names? Asked
+      // before anything is lowered or compiled: the compiler would happily
+      // compile a name the release's snapshot lacks, and the bytecode loader
+      // would then abort the process on it. The helpers this target needs are
+      // part of its replacement library, so what they name counts here too.
+      if (coverage.externalReferences != null) {
+        final unkept = retention == null
+            ? routeBNoInterfaceReason
+            : retention.refusalForTarget(coverage, key);
+        if (unkept != null) throw RouteBUnsupportedTarget(key, unkept);
       }
 
       final lowering = coverage.lowering[key];
@@ -626,23 +648,8 @@ Object? $_superIntrinsicName(
 
   /// The helpers [key] reaches: named by its body, or by a helper that is, per
   /// the analysis' `callers`.
-  Set<String> _neededHelpers(String key, RouteBCoverage coverage) {
-    final needed = <String>{};
-    if (coverage.helpers.isEmpty) return needed;
-    var grew = true;
-    while (grew) {
-      grew = false;
-      for (final helper in coverage.helpers) {
-        if (needed.contains(helper)) continue;
-        final callers = coverage.callers?[helper] ?? const <String>[];
-        if (callers.contains(key) || callers.any(needed.contains)) {
-          needed.add(helper);
-          grew = true;
-        }
-      }
-    }
-    return needed;
-  }
+  Set<String> _neededHelpers(String key, RouteBCoverage coverage) =>
+      coverage.helpersNeededBy(key);
 
   /// A helper's simple name: `lib#_f` and `lib#Cls._f` are both `_f`. The last
   /// `.` splits the class from the member because a class name cannot contain

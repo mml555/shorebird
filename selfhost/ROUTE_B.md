@@ -330,6 +330,103 @@ members the release does not have, as helpers of the replaced code:
   m2 (a new `_HomeState._bump()` that calls the existing `_increment()` and
   writes a field).
 
+### A patch may only name what the release kept (analysis version 18)
+
+A replacement is compiled against the release's whole import kernel, so it
+compiles any symbol it names. It runs against the release's AOT snapshot, and
+the bytecode loader resolves every library, class, field and function by name and
+aborts the process when one is missing (`bytecode_reader.cc`: `Unable to find
+library`, `class`, `field`, `function`). Seam 6 attaches before `main`, so that
+is a boot abort. Until analysis 18 nothing checked this: a dependency API the
+release never called was refused by accident (the patched kernel shows its
+closure as new classes), and a framework or SDK symbol the release never named
+was not refused at all.
+
+From analysis 18 the analyzer reports, for every member the patch would carry
+(changed, carried, or a helper), the external symbols its body names:
+`externalReferences`. The CLI then asks the release's own files, and refuses the
+whole patch before anything is uploaded when a symbol is not shown to be kept:
+
+| the symbol | kept when |
+|---|---|
+| public, in a library the interface lists whole (`library:` alone) | always |
+| a member the interface names (`library:`, `class:`, `member:`): SDK members, framework and dependency members the release's own code named | the item is present |
+| a class | a `class:` or `can-be-used-as-type:` item names it |
+| a bare `class:` item (older generators) | the class and its public members |
+| an instance member of a non-`dart:` class | the interface records the member (or its class item is bare, or its library is whole): an unnamed one loads but throws `NoSuchMethodError` when called, which is refused at patch time |
+| private, and spelled by the patch | the capability manifest granted it (as for every private reference); a private class named as a type is also kept by an interface item for it |
+| private constructor | not decided here: analysis 12's per-method release evidence decides whether a patch may construct it (the manifest withholds every construction, so asking it would refuse `createState() => _HomeState()`; the sweep arm found this) |
+| private, and named only by a constant | the interface item for it is present |
+
+**A patch that uses a widget or framework API the release never used is refused.**
+That is the commonest consequence: after this lands, adding `Padding(...)`,
+`Icon(...)`, `Theme.of(context)`, `EdgeInsets.all(8)` or `Navigator.of(context)
+.push(...)` to a release whose own code never called them is refused, with the
+symbol named and "cut a new release whose own code uses it". Evidence, from the
+real loader (`probes/retention_loader.sh`, a dependency package standing in for
+Flutter, one arm per kind of reference; Flutter itself was not run here):
+
+| a body that names | loader | check |
+|---|---|---|
+| a class the release never used | aborts: `Unable to find class` | refused |
+| a constructor, static, static field or top-level the release never named | aborts: `Unable to find function` / `field` | refused |
+| a static or top-level the release reaches but never names (the AOT compiler inlined it) | aborts | refused |
+| an instance member of a class the release kept, never named (field, getter, method) | loads; throws `NoSuchMethodError` when called (runs wrongly) | refused |
+| a `dart:` instance member the release never called (`'abc'.toUpperCase()`) | loads; throws `NoSuchMethodError` when called | accepted: **known gap** |
+| a local variable whose declared type is a class the release never used | loads | accepted |
+| the same with `never-inline` on it | aborts | refused |
+| a class the release allocates but never names, with a member it calls virtually (`(pick() as Circle).name()`) | binds | **refused anyway** |
+
+The last row is the check's one measured conservatism, stated rather than hidden:
+the snapshot has that class, but nothing at patch time says so (the interface is
+the only witness), so it is refused as "never used in the release's own code". A
+framework class that other framework code allocates (`Padding`, built inside
+Material widgets) may be one of them. No static, top-level, constructor or field
+arm bound without being named. Closing the class gap would take the release's AOT
+kernel at patch time, which the CLI does not have; it is not done here.
+
+The reason names the symbol, says the release never used it in its own code, and
+says to cut a new release that uses it. Fail closed: no readable interface, a
+body the analyzer could not walk, or a member the analysis recorded nothing for,
+refuses.
+
+What this does NOT check, so a pass is not read as more than it is:
+
+- an instance member of a `dart:` class (`s.substring(1)`). **Known gap:** it
+  binds by selector and the release generator leaves it out of the interface on
+  purpose, so an SDK instance method the release never called can throw
+  `NoSuchMethodError` on a device (measured: `sdk_instance_unnamed`). Refusing
+  it would need the generator to retain SDK instance members, which costs
+  every release code size (see `fw_use_binding.sh`'s `sdk-instance` arm);
+- a reference the compiler adds that no source token names (interpolation,
+  `for`, `async`), and `dart:_` libraries;
+- an extension member (`list.firstOrNull`, `Ext|get#x`): the generator skips
+  these too, so nothing checks that the release kept one;
+- the declared type of a local variable: measured to load without the class
+  (`local_type_only`); an assignment or cast to it is a type node and is checked;
+- that a kept symbol has code in the snapshot. Retention is not compilation (see
+  `super0/s2b1e/`); this answers "can the loader find it", not "was it compiled".
+
+The walker also reads type-parameter bounds and an async function's emitted value
+type, as the release generator's collector does. It is the one piece of this that
+needs the engine's `package:kernel`, so no CI job can run it; the CI tests cover
+the matcher and the producer, and the host probes cover the walker, including an
+invariant arm (`unchanged_release_sweep`): the release's own members, analyzed as
+if carried against themselves, must all be kept.
+
+Where it lives: the analyzer states the facts, because only it can read a kernel;
+the CLI decides, because only it holds the release's interface and manifest
+(`route_b_retention.dart`; the same split as private accesses, analysis 7, and
+private constructions, analysis 12). The patcher asks before the coverage verdict
+so a dependency API is named for what it is, and the producer asks again for the
+members it carries (a carry can add members after the first analysis). A release
+whose compiler cell predates analysis 18 cannot be checked: the patch is built as
+before and the CLI says so at detail level, not as a warning (every older release
+would print it on every patch, and nothing the developer can do changes it). This
+takes effect for a release only once a cell with the version 18 analyzer is
+minted and that release is cut on it. Host evidence: `probes/retention_check.sh`
+and `probes/retention_loader.sh`.
+
 Still refused, before anything is uploaded, with the reason named:
 
 - a **public** new instance method (outside code can call it by name, for example

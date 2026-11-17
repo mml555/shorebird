@@ -1929,6 +1929,37 @@ inside the budget the step-7 veto was judged on. The +275.79 % reproduces the
 +275.58 % the earlier sweep recorded for naive all-library retention, which is the
 check that both sweeps measured the same thing.
 
+> **Superseded, 2026-11-16.** The table above is the 2026-08-11 record and is kept
+> as it was. Re-run today (`measure_real_app.sh`, host AOT, `host_release_arm64_ddm`,
+> the airgap fixture staged and re-resolved with `flutter pub get --offline`, so its
+> `pubspec.lock` is not the checked-in one: sha `b946b41d...`, checked-in
+> `205f237f...`), with the release's argument list (`--private-dill`, `--platform`,
+> `--policy p2`, the four `--sdk-members`, and the one `--grant-constructor` the
+> census derives): baseline 5,735,656 bytes; call form 5,948,936 (+3.72 %); app-only
+> no private classes 6,560,640 (+14.38 %); **shipping policy 6,560,952 (+14.39 %)**;
+> app-only with framework-use retention off (`--no-framework-uses`) 6,013,912
+> (+4.85 %); ALL libraries, no private classes 26,360,616 (**+359.59 %**, was
+> +275.79 %); private-class axis +0.00 %. ALL libraries retained, and an interface
+> built from the `--aot` prepass alone, do not build (their gen_kernel error lines
+> are in the script's output).
+>
+> **Cause.** The shipping row moved by 547,040 bytes, +9.54 points, between having
+> framework-use retention on and off, and with it off the figure is +4.85 %, within
+> 0.4 points of the old +4.43 %. So the jump is the framework-use retention
+> introduced in `4c696936d` (2026-11-15; this run retains 36 types and 66 framework
+> members, and the interface has 92 `member:` entries against 26 with it off). The
+> generator also changed in `333b53b6c`, `1642fed00`, `51314f920` and `023546308`
+> since `a2927e412`; the `--no-framework-uses` arm isolates that switch, not each
+> commit. The same retention explains the ALL-libraries row: 325 types and 426
+> framework members at that breadth, against 36 and 66 app-only. Checking
+> `a2927e412`'s own script and fixture against today's engine gave +4.82 %
+> (6,010,512 over 5,733,912), so engine drift is about 0.4 points; that run's
+> baseline differs from today's by 1,744 bytes, from the fixture's changes and its
+> re-resolved lock. A real size increase in shipping releases, from a deliberate
+> change (a `build()` patch must load). It is app-dependent: `4c696936d` quotes
+> +1.28 % on its own app, and this fixture is a tiny app over a large framework
+> surface.
+
 ### What the sweep broke, which is why it was worth running
 
 `G3.6d`'s first version was verified on a **toy** program and was wrong on real

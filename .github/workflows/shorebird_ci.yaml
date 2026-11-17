@@ -70,15 +70,15 @@ jobs:
       #    its Rust (cargo) only. These two Dart packages, including the
       #    shorebird_code_push tests under vendor/updater, run NOWHERE: they
       #    need the Flutter SDK, which no runner has.
-      #  - code_push_server: standalone package with its own workflow,
-      #    code_push_server.yaml.
+      #  - code_push_server, code_push_contract_test: standalone packages
+      #    (own pubspec.lock) with their own workflow, code_push_server.yaml.
       #  - code_push_runtime: a Flutter package outside the Dart workspace
       #    (own pubspec.lock), tested with `flutter test`, and no runner has
       #    the Flutter SDK. It has tests (test/) that run nowhere for now.
       - name: Verify CI coverage
         run: >-
           shorebird_ci verify --ignore
-          airgap_probe,android_signing_app,code_push_runtime,code_push_server,dynamic_modules,first_activation_probe,flavored_probe,injected_define_probe,killswitch_probe,manual_api_app,privatestate_probe,shorebird_code_push,shorebird_code_push_example,sign_probe_app,trackprobe_app,twoengine_probe
+          airgap_probe,android_signing_app,code_push_contract_test,code_push_runtime,code_push_server,dynamic_modules,first_activation_probe,flavored_probe,injected_define_probe,killswitch_probe,manual_api_app,privatestate_probe,shorebird_code_push,shorebird_code_push_example,sign_probe_app,trackprobe_app,twoengine_probe
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
