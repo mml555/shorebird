@@ -30,6 +30,7 @@ class Config {
     this.eventRetentionDays = 0,
     this.auditRetentionDays = 0,
     this.crashRetentionDays = 0,
+    this.buildRunRetentionDays = 0,
     this.idpIssuer = '',
     this.idpAllowUnverifiedEmail = false,
     required this.uploadMethod,
@@ -162,6 +163,8 @@ class Config {
       eventRetentionDays: int.tryParse(env['EVENT_RETENTION_DAYS'] ?? '') ?? 0,
       auditRetentionDays: int.tryParse(env['AUDIT_RETENTION_DAYS'] ?? '') ?? 0,
       crashRetentionDays: int.tryParse(env['CRASH_RETENTION_DAYS'] ?? '') ?? 0,
+      buildRunRetentionDays:
+          int.tryParse(env['BUILD_RUN_RETENTION_DAYS'] ?? '') ?? 0,
       rateLimitShared: env['RATE_LIMIT_BACKEND'] == 'postgres',
       uploadMethod: env['UPLOAD_METHOD'] == 'resumable'
           ? 'resumable'
@@ -442,6 +445,12 @@ class Config {
   /// it grows the same way. The default matches [eventRetentionDays] for the
   /// same reason: a default would delete operators' history on upgrade.
   final int crashRetentionDays;
+
+  /// Days of build history (`build_runs`, one row per platform of each CLI
+  /// release or patch run) to keep; `0` (the default) keeps it forever. Any
+  /// collaborator of an app can add rows at the rate limit, so it grows with
+  /// CI traffic; dropping history is the operator's call.
+  final int buildRunRetentionDays;
 
   /// Startup warnings for settings that let unauthenticated traffic fill the
   /// disk. Production only, where nobody is watching the volume.

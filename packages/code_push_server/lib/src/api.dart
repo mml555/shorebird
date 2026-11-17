@@ -1010,6 +1010,25 @@ class Api {
           m == 'GET') {
         return _getReleasePatches(appId, _pathId(rest[1], 'release id'));
       }
+      // Upstream 1.6.140 `shorebird patches rollout`.
+      if (rest.length == 5 &&
+          rest[0] == 'releases' &&
+          rest[2] == 'patches' &&
+          rest[4] == 'rollout' &&
+          m == 'PUT') {
+        return _setPatchRollout(
+          req,
+          appId,
+          _pathId(rest[1], 'release id'),
+          _pathId(rest[3], 'patch id'),
+        );
+      }
+      // Upstream 1.6.140 build history: the CLI records each release and
+      // patch run here.
+      if (rest.length == 1 && rest[0] == 'runs') {
+        if (m == 'POST') return _createBuildRun(req, appId);
+        if (m == 'GET') return _getBuildRuns(req, appId);
+      }
       // Upstream 1.6.123 `shorebird patches rollback` / `rollforward`.
       if (rest.length == 5 &&
           rest[0] == 'releases' &&
@@ -2153,7 +2172,7 @@ class Api {
         'patch_id': r.patchId,
         'number': r.number,
         'channel': channel,
-        'rollout': r.rollout,
+        'rollout': percentageOf(r.rolloutBps),
       });
       await _auditDetail(
         req,
@@ -2162,7 +2181,7 @@ class Api {
         patchId: r.patchId,
         detail:
             'patch ${r.number} active again on $channel '
-            '(rollout ${r.rollout}) after patch ${patch.number} was rolled back',
+            '(rollout ${percentageOf(r.rolloutBps)}) after patch ${patch.number} was rolled back',
       );
     }
     return out;
@@ -2705,12 +2724,18 @@ class Api {
   /// been withdrawn or reverted — in which case it genuinely has no track.
   ///
   /// [deployments] arrives newest-first from `Repository.patchDeployments`.
-  static String? _currentTrack(List<Map<String, Object?>> deployments) {
+  static String? _currentTrack(List<Map<String, Object?>> deployments) =>
+      _currentDeployment(deployments)?['channel'] as String?;
+
+  /// The deployment [_currentTrack] names: its channel and rollout.
+  static Map<String, Object?>? _currentDeployment(
+    List<Map<String, Object?>> deployments,
+  ) {
     for (final d in deployments) {
       if (d['status'] == ChannelPatchStatus.active.name &&
           d['rolled_back'] != true &&
           d['channel_deleted'] != true) {
-        return d['channel'] as String?;
+        return d;
       }
     }
     return null;
@@ -2737,6 +2762,11 @@ class Api {
         // for a patch promoted seconds earlier. It also made `set-track`'s
         // "already in that track" check dead code, so it always re-promoted.
         'channel': _currentTrack(deployments),
+        // The share of that channel's devices the patch is offered to. Absent
+        // when the patch is on no channel, as the protocol says.
+        'rollout_percentage': ?_currentDeployment(
+          deployments,
+        )?['rollout_percentage'],
         'deployments': deployments,
         'artifacts': [
           for (final a in arts)
@@ -2820,20 +2850,239 @@ class Api {
     );
   }
 
+  /// Upstream 1.6.140 `PUT /apps/{app}/releases/{release}/patches/{patch}/
+  /// rollout`, behind `shorebird patches rollout`: raises the share of its
+  /// channel's devices the patch is offered to.
+  ///
+  /// Rollouts only go up. A lower percentage is a 409, and so is a patch that
+  /// is on no channel; the same percentage again succeeds and changes nothing.
+  /// Raising never removes a device (see [eligibleForRolloutBps]).
+  Future<Response> _setPatchRollout(
+    Request req,
+    String appId,
+    int releaseId,
+    int patchId,
+  ) async {
+    final body = await _jsonBody(req);
+    final int bps;
+    try {
+      bps = parseRolloutPercentage(
+        body['rollout_percentage'],
+        field: 'rollout_percentage',
+      );
+    } on FormatException catch (e) {
+      throw badRequest(e.message);
+    }
+    final patch = await _ownedPatch(appId, patchId);
+    if (patch.releaseId != releaseId) {
+      throw notFound('No patch $patchId on release $releaseId');
+    }
+    _audit(req)?.note(
+      releaseId: releaseId,
+      patchNumber: patch.number,
+      detail: {'percent': percentageOf(bps)},
+    );
+    final deployment = _currentDeployment(await repo.patchDeployments(patchId));
+    final channel = deployment == null
+        ? null
+        : await repo.channel(appId, deployment['channel']! as String);
+    final current = channel == null
+        ? null
+        : await repo.activeChannelPatchForPatch(channel.id, patchId);
+    if (channel == null || current == null) {
+      throw conflict(
+        'Patch ${patch.number} is on no channel, so it has no rollout to '
+        'raise. Promote it first.',
+      );
+    }
+    _audit(req)?.note(track: channel.name);
+    if (bps < current.rolloutBps) {
+      throw conflict(
+        'Patch ${patch.number} is already rolling out to '
+        '${percentageOf(current.rolloutBps)}% of devices on ${channel.name}, '
+        'and a rollout can only be raised.',
+      );
+    }
+    if (bps > current.rolloutBps) {
+      // The UPDATE refuses a value below what is stored now, so a concurrent
+      // raise that landed after the read above cannot be lowered by this one.
+      if (!await repo.setRollout(channel.id, patchId, bps, onlyRaise: true)) {
+        throw conflict(
+          'Patch ${patch.number} was raised past ${percentageOf(bps)}% on '
+          '${channel.name} by another request, and a rollout can only be '
+          'raised.',
+        );
+      }
+    }
+    return Response(HttpStatus.noContent);
+  }
+
+  static const _runCommands = {'release', 'patch'};
+  static const _runPlatforms = {'android', 'ios', 'linux', 'macos', 'windows'};
+  static const _runOutcomes = {'succeeded', 'failed'};
+  static const _runReasons = {
+    'link_percentage',
+    'asset_diffs',
+    'native_diffs',
+    'build_flag_diffs',
+    'build_failed',
+    'release_incompatible',
+    'server_rejected',
+    'upload_failed',
+    'canceled',
+    'other',
+  };
+
+  /// Upstream 1.6.140 `POST /apps/{app}/runs`: the CLI's build history, one
+  /// record per platform when a `shorebird release` or `shorebird patch` run
+  /// ends. Upstream shows it in its console (Enterprise); here it is stored
+  /// and listed by `GET` on the same path, for every app.
+  ///
+  /// The CLI sends this best effort and ignores a failure, so strictness here
+  /// costs nothing at the CLI and keeps garbage out of the table.
+  ///
+  /// `artifacts` and `share_debug_info` are accepted and ignored: a debug
+  /// bundle is shared with Shorebird, the company, for its support to read,
+  /// and a self-hosted server has nobody to share it with. The response
+  /// carries no `artifact_uploads`, which the CLI reads as "nothing was
+  /// accepted" (it warns only when the person passed `--share-debug-info`).
+  Future<Response> _createBuildRun(Request req, String appId) async {
+    final body = await _jsonBody(req);
+    String oneOf(String key, Set<String> allowed) {
+      final v = _stringField(body, key);
+      if (!allowed.contains(v)) {
+        throw badRequest('$key must be one of ${allowed.join(', ')}');
+      }
+      return v;
+    }
+
+    final runId = _stringField(body, 'run_id');
+    if (runId.isEmpty || runId.length > 128) {
+      throw badRequest('run_id must be 1 to 128 characters');
+    }
+    final command = oneOf('command', _runCommands);
+    final platform = oneOf('platform', _runPlatforms);
+    final outcome = oneOf('outcome', _runOutcomes);
+    final reason = body['reason'] == null ? null : oneOf('reason', _runReasons);
+    final startedAt = DateTime.tryParse(_stringField(body, 'started_at'));
+    if (startedAt == null) {
+      throw badRequest('started_at must be an ISO 8601 date-time');
+    }
+    final durationMs = _intField(body, 'duration_ms');
+    if (durationMs < 0) throw badRequest('duration_ms must not be negative');
+    final dryRun = body['dry_run'];
+    if (dryRun is! bool) throw badRequest('dry_run must be a boolean');
+
+    // Ids must be this app's own: a record may not point at another app's
+    // release or patch.
+    final releaseId = _optIntField(body, 'release_id');
+    if (releaseId != null) {
+      final release = await repo.release(releaseId);
+      if (release == null || release.appId != appId) {
+        throw badRequest('release_id is not a release of this app');
+      }
+    }
+    final patchId = _optIntField(body, 'patch_id');
+    if (patchId != null) {
+      final patch = await repo.patch(patchId);
+      if (patch == null || patch.appId != appId) {
+        throw badRequest('patch_id is not a patch of this app');
+      }
+    }
+    final flags = _optBuildFlags(body['build_flags']);
+    final id = await repo.recordBuildRun(
+      appId,
+      runId: runId,
+      command: command,
+      platform: platform,
+      outcome: outcome,
+      reason: reason,
+      releaseId: releaseId,
+      patchId: patchId,
+      startedAt: startedAt.toUtc().toIso8601String(),
+      durationMs: durationMs,
+      dryRun: dryRun,
+      metadata: _optMetadataField(body),
+      buildFlags: flags,
+    );
+    return Response(
+      HttpStatus.created,
+      body: jsonEncode({'id': id}),
+      headers: {HttpHeaders.contentTypeHeader: 'application/json'},
+    );
+  }
+
+  /// `GET /apps/{app}/runs?limit=`: the build history, newest first. Not an
+  /// upstream route (upstream reads it in its console); it is how an operator
+  /// reads what [_createBuildRun] stored. Summaries only (see below).
+  Future<Response> _getBuildRuns(Request req, String appId) async {
+    final raw = req.url.queryParameters['limit'];
+    final limit = raw == null ? 50 : int.tryParse(raw);
+    if (limit == null || limit < 1 || limit > 200) {
+      throw badRequest('limit must be an integer from 1 to 200');
+    }
+    // Without `metadata` and `build_flags`, which can each hold tens of KB
+    // per row: the list is a summary, and the response stays small.
+    return _json({
+      'runs': await repo.buildRuns(appId, limit: limit, withBlobs: false),
+    });
+  }
+
+  /// The CLI's `BuildRunBuildFlags`: `{dart_define_count, dart_defines,
+  /// target?}`. Absent stays absent; anything of another shape, or oversized,
+  /// is dropped, as for `metadata`.
+  static Map<String, Object?>? _optBuildFlags(Object? v) {
+    if (v is! Map) return null;
+    final count = v['dart_define_count'];
+    final defines = v['dart_defines'];
+    final target = v['target'];
+    if (count is! int ||
+        count < 0 ||
+        defines is! Map ||
+        defines.values.any((e) => e is! String) ||
+        defines.keys.any((e) => e is! String) ||
+        (target != null && target is! String)) {
+      return null;
+    }
+    final out = <String, Object?>{
+      'dart_define_count': count,
+      'dart_defines': defines.cast<String, String>(),
+      'target': ?target,
+    };
+    return jsonEncode(out).length <= _maxMetadataChars ? out : null;
+  }
+
   Future<Response> _promotePatch(Request req, String appId) async {
     final body = await _jsonBody(req);
     final patchId = _intField(body, 'patch_id');
     final channelId = _intField(body, 'channel_id');
-    final rollout = _optIntField(body, 'rollout') ?? 100;
-    if (rollout < 0 || rollout > 100) {
-      throw badRequest('rollout must be between 0 and 100');
+    // Upstream 1.6.140 sends `rollout_percentage`, a multiple of 0.01 from
+    // 0.01 to 100. `rollout`, a whole percent from 0 to 100, is this server's
+    // own older spelling and is still accepted; the new one wins if both are
+    // sent. Neither means every device.
+    final int rolloutBps;
+    if (body['rollout_percentage'] != null) {
+      try {
+        rolloutBps = parseRolloutPercentage(
+          body['rollout_percentage'],
+          field: 'rollout_percentage',
+        );
+      } on FormatException catch (e) {
+        throw badRequest(e.message);
+      }
+    } else {
+      final rollout = _optIntField(body, 'rollout') ?? 100;
+      if (rollout < 0 || rollout > 100) {
+        throw badRequest('rollout must be between 0 and 100');
+      }
+      rolloutBps = rollout * 100;
     }
     // Both ids come from the BODY on this route, so the path classification
     // could not supply them. Noted before the ownership and readiness gates so
     // a refused promotion is attributable to the patch someone tried to ship.
     _audit(req)?.note(
       patchId: patchId,
-      detail: {'channel_id': channelId, 'rollout': rollout},
+      detail: {'channel_id': channelId, 'rollout': percentageOf(rolloutBps)},
     );
     final patch = await _ownedPatch(appId, patchId);
     final channel = await _ownedChannel(appId, channelId);
@@ -2845,7 +3094,7 @@ class Api {
     if (patch.status != PatchStatus.ready) {
       throw conflict('Patch $patchId is ${patch.status.name}, not ready');
     }
-    await repo.promote(channelId, patchId, rollout: rollout);
+    await repo.promote(channelId, patchId, rolloutBps: rolloutBps);
     return Response(HttpStatus.noContent);
   }
 
@@ -3444,11 +3693,11 @@ class Api {
 
     // Partial rollout: deterministic per-client bucketing. Fail closed when a
     // partial rollout has no stable client id.
-    if (!eligibleForRollout(
+    if (!eligibleForRolloutBps(
       appId: appId,
       channelId: channel.id,
       patchId: patch.id,
-      rollout: active.rollout,
+      rolloutBps: active.rolloutBps,
       clientId: clientId,
     )) {
       return _json(resp(rolledBack: rolledBack));
@@ -3556,11 +3805,11 @@ class Api {
           patch.number <= clientPatch) {
         continue;
       }
-      if (!eligibleForRollout(
+      if (!eligibleForRolloutBps(
         appId: appId,
         channelId: channelId,
         patchId: patch.id,
-        rollout: candidate.rollout,
+        rolloutBps: candidate.rolloutBps,
         clientId: clientId,
       )) {
         continue;
@@ -4035,19 +4284,26 @@ class Api {
         });
       }
       if (action == 'rollout') {
-        final percent = int.tryParse(
-          req.url.queryParameters['percent'] ?? '100',
-        );
-        if (percent == null || percent < 0 || percent > 100) {
-          throw badRequest('percent must be an integer between 0 and 100');
+        // A whole percent from 0 to 100, or a multiple of 0.01 such as 12.5.
+        final raw = req.url.queryParameters['percent'] ?? '100';
+        final percent = num.tryParse(raw);
+        // Range first: NaN, Infinity and 1e308 must be a 400, and `.round()`
+        // of an infinite product throws.
+        if (percent == null ||
+            !(percent >= 0 && percent <= 100) ||
+            (percent * 100 - (percent * 100).round()).abs() > 1e-6) {
+          throw badRequest(
+            'percent must be a number between 0 and 100, in steps of 0.01',
+          );
         }
+        final bps = (percent * 100).round();
         final cp = await repo.activeChannelPatchForPatch(channel.id, patchId);
         if (cp == null) {
           throw conflict('Patch $patchId is not active on $channelName');
         }
-        await repo.setRollout(channel.id, patchId, percent);
-        _audit(req)?.note(detail: {'percent': percent});
-        return _json({'patch_id': patchId, 'rollout': percent});
+        await repo.setRollout(channel.id, patchId, bps);
+        _audit(req)?.note(detail: {'percent': percentageOf(bps)});
+        return _json({'patch_id': patchId, 'rollout': percentageOf(bps)});
       }
     }
     // ---- team read / manage ----

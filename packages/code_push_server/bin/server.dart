@@ -153,6 +153,8 @@ Future<void> main(List<String> args) async {
         'crash reports': () =>
             repo.purgeOldCrashReports(config.crashRetentionDays),
         'audit log': () => repo.purgeOldAuditLog(config.auditRetentionDays),
+        'build history': () =>
+            repo.purgeOldBuildRuns(config.buildRunRetentionDays),
       };
       for (final MapEntry(:key, :value) in purges.entries) {
         try {
