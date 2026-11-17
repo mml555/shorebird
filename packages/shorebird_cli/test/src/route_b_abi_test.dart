@@ -157,6 +157,16 @@ void main() {
               'unsupported': unsupported,
             },
           },
+          // The analyzer writes the member's scope; none of its own statics
+          // is used here.
+          'enclosingScope': {
+            'package:app/main.dart#C.m': {
+              'class': 'C',
+              'staticReferences': <Object>[],
+              'usedTypeParameters': <String>[],
+              'problems': <String>[],
+            },
+          },
           'rejections': <Object>[],
           'refusalSummary': null,
         }),

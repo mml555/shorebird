@@ -37,6 +37,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:_fe_analyzer_shared/src/scanner/scanner.dart' show scanString;
+import 'package:_fe_analyzer_shared/src/scanner/token.dart';
 import 'package:dart2bytecode/bytecode_serialization.dart'
     show BufferedReader, LinkReader;
 import 'package:dart2bytecode/declarations.dart' as bytecode show Component;
@@ -840,6 +842,13 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     'sources': sources,
     'lowering': lowering,
     'externalReferences': externalReferences,
+    // What the enclosing class's scope gives a copied body, per class member
+    // the patch would carry. Absent on a document from an older analyzer, which
+    // the producer reads as "not measured". See `enclosingScopeOf`.
+    'enclosingScope': {
+      for (final key in carriedBodies.keys.toList()..sort())
+        if (enclosingScopeOf(carriedBodies[key]!) case final scope?) key: scope,
+    },
     'signatures': signatures,
     'rejections': rejections,
     'refusalSummary': reasons.isEmpty ? null : reasons.join('; '),
@@ -3155,6 +3164,364 @@ List<Map<String, Object?>> _externalReferences(
     ];
   }
   return [for (final k in uses.found.keys.toList()..sort()) uses.found[k]!];
+}
+
+/// What a class (or extension) member's body takes from its enclosing SCOPE,
+/// which a replacement library does not have.
+///
+/// A replacement is a top-level function in a library that imports the target
+/// library, so an unqualified `k` meaning the enclosing class's `static k` is
+/// looked up among the library's top-level names instead, and a same-named
+/// top-level `k` wins without any diagnostic. Kernel resolved the name
+/// correctly; the source text did not say how.
+///
+/// Kernel decides WHICH names are statics of the enclosing declaration, and the
+/// front end's own token stream decides whether each is already written with a
+/// qualifier, so nothing here walks characters. The document says only what the
+/// producer has to do:
+///
+/// `staticReferences`: each use of an own static that is written WITHOUT a
+/// qualifier, with the offset of its identifier token and whether it is the
+/// `$name` form of an interpolation. A use after `.` or `?.` is left out. A
+/// static const that Kernel folded into a constant has no static node left; it
+/// is reported (kind `constant`) only where the token at the folded
+/// expression's offset IS that static's name.
+///
+/// `problems`: reasons this member cannot be carried safely. A spelling of an
+/// own static that no reported use accounts for (inside a folded constant
+/// collection, a map key, a local named like it), a use that is not at its
+/// identifier, a mixin application copy, an instance extension member, an
+/// unnamed extension. Non-empty means refuse.
+///
+/// `usedTypeParameters`: class type parameters the body mentions. They are not
+/// in scope in a top-level function.
+///
+/// Null for a member outside a class or extension. [source] is the declaring
+/// file's text (read from disk when omitted).
+Map<String, Object?>? enclosingScopeOf(Procedure p, {String? source}) {
+  final owner = _ScopeOwner.of(p);
+  if (owner == null) return null;
+  final problems = <String>[...owner.problems];
+  final uses = _ScopeUses(owner);
+  try {
+    p.function.accept(uses);
+  } catch (error) {
+    problems.add('the body could not be walked: $error');
+  }
+  final references = <Map<String, Object?>>[];
+  if (problems.isEmpty) {
+    String? text = source;
+    if (text == null) {
+      try {
+        final file = File.fromUri(p.fileUri);
+        if (file.existsSync()) {
+          text = utf8.decode(file.readAsBytesSync(), allowMalformed: true);
+        }
+      } catch (_) {}
+    }
+    if (text == null) {
+      problems.add('its source file could not be read to place the statics');
+    } else {
+      _placeStatics(owner, p, uses, text, references, problems);
+    }
+  }
+  return {
+    'class': owner.name,
+    'staticReferences': references,
+    'usedTypeParameters': uses.typeParameters.toList()..sort(),
+    'problems': problems,
+  };
+}
+
+/// The most recently scanned source and its tokens, so the members of one file
+/// are not each scanned again.
+String? _scannedSource;
+List<Token> _scannedTokens = const [];
+
+List<Token> _tokensOf(String source) {
+  if (!identical(source, _scannedSource) && source != _scannedSource) {
+    final tokens = <Token>[];
+    for (
+      Token t = scanString(source).tokens;
+      t.type != TokenType.EOF;
+      t = t.next!
+    ) {
+      tokens.add(t);
+    }
+    _scannedSource = source;
+    _scannedTokens = tokens;
+  }
+  return _scannedTokens;
+}
+
+bool _isQualifier(Token? t) =>
+    t != null &&
+    (t.type == TokenType.PERIOD || t.type == TokenType.QUESTION_PERIOD);
+
+void _placeStatics(
+  _ScopeOwner owner,
+  Procedure p,
+  _ScopeUses uses,
+  String source,
+  List<Map<String, Object?>> references,
+  List<String> problems,
+) {
+  final tokens = _tokensOf(source);
+  final byOffset = {for (final t in tokens) t.charOffset: t};
+  final accounted = <int>{};
+  final seen = <int>{};
+  for (final (offset, member, kind) in uses.references) {
+    var t = byOffset[offset];
+    if (t == null || t.lexeme != member) {
+      // `k ??= v` reports its write at the operator; the read of `k` before it
+      // is reported at the identifier and is the one that is placed.
+      if (kind == 'set' &&
+          t != null &&
+          t.type.isAssignmentOperator &&
+          t.previous?.lexeme == member) {
+        continue;
+      }
+      // A folded constant whose source did not spell this name (a literal, or a
+      // qualified one) is not a use of it.
+      if (kind == 'constant') continue;
+      problems.add(
+        'its use of the static `$member` is not at an identifier of that name '
+        '(offset $offset), so it cannot be qualified',
+      );
+      continue;
+    }
+    accounted.add(t.charOffset);
+    if (_isQualifier(t.previous)) continue;
+    if (!seen.add(t.charOffset)) continue;
+    references.add({
+      'offset': t.charOffset,
+      'member': member,
+      'kind': kind,
+      if (t.previous?.type == TokenType.STRING_INTERPOLATION_IDENTIFIER)
+        'interpolated': true,
+    });
+  }
+  // A SPELLING NO USE ACCOUNTS FOR. Walk the member's own tokens, tracking the
+  // innermost bracket, and refuse any identifier that is the name of an own
+  // static, is not qualified, and was not placed above. `name:` is an argument
+  // label only directly inside parentheses; in a `{` or `[` it is a map key.
+  final stack = <TokenType>[];
+  for (final t in tokens) {
+    if (t.charOffset < p.fileStartOffset) continue;
+    if (t.charOffset > p.fileEndOffset) break;
+    final type = t.type;
+    if (type == TokenType.OPEN_PAREN ||
+        type == TokenType.OPEN_SQUARE_BRACKET ||
+        type == TokenType.OPEN_CURLY_BRACKET ||
+        type == TokenType.STRING_INTERPOLATION_EXPRESSION) {
+      stack.add(type);
+      continue;
+    }
+    if ((type == TokenType.CLOSE_PAREN ||
+            type == TokenType.CLOSE_SQUARE_BRACKET ||
+            type == TokenType.CLOSE_CURLY_BRACKET) &&
+        stack.isNotEmpty) {
+      stack.removeLast();
+      continue;
+    }
+    if (!owner.staticNames.contains(t.lexeme) || !t.isIdentifier) continue;
+    if (accounted.contains(t.charOffset) ||
+        t.charOffset == p.fileOffset ||
+        _isQualifier(t.previous)) {
+      continue;
+    }
+    final label =
+        stack.isNotEmpty &&
+        stack.last == TokenType.OPEN_PAREN &&
+        t.next?.type == TokenType.COLON &&
+        (t.previous?.type == TokenType.OPEN_PAREN ||
+            t.previous?.type == TokenType.COMMA);
+    if (label) continue;
+    problems.add(
+      'its body spells `${t.lexeme}`, which is also a static of `${owner.name}`, '
+      'where no use of that static is reported to qualify (offset '
+      '${t.charOffset}): in the replacement library a top-level `${t.lexeme}` '
+      'would be bound instead. Write `${owner.name}.${t.lexeme}`',
+    );
+    break;
+  }
+}
+
+/// The class or extension whose scope a member's body is written in.
+class _ScopeOwner {
+  _ScopeOwner(this.name, this.staticNames, this.own, this.constants, this.cls)
+    : problems = [];
+
+  /// The name to qualify with.
+  final String name;
+  final Set<String> staticNames;
+
+  /// The static name [m] is, if it is an own static of this scope.
+  final String? Function(Member m) own;
+  final List<(String, Constant)> constants;
+  final Class? cls;
+  final List<String> problems;
+
+  static _ScopeOwner? of(Procedure p) {
+    final cls = p.enclosingClass;
+    if (cls != null) {
+      final statics = <String>{
+        for (final m in cls.members)
+          if (m is! Constructor && !m.isInstanceMember) m.name.text,
+      };
+      final owner = _ScopeOwner(
+        cls.name,
+        statics,
+        (m) =>
+            !m.isInstanceMember &&
+                m is! Constructor &&
+                !(m is Procedure && m.isFactory) &&
+                identical(m.enclosingClass, cls)
+            ? m.name.text
+            : null,
+        [
+          for (final f in cls.fields)
+            if (f.isStatic &&
+                f.isConst &&
+                f.initializer is ConstantExpression)
+              (f.name.text, (f.initializer! as ConstantExpression).constant),
+        ],
+        cls,
+      );
+      if (cls.name.contains('&') || cls.name.contains('#')) {
+        owner.problems.add(
+          'it is a member of the synthetic class `${cls.name}`, a mixin '
+          'application copy, whose scope is not the written one',
+        );
+      }
+      return owner;
+    }
+    final bar = p.name.text.indexOf('|');
+    if (bar < 0 || !(p.isExtensionMember || p.isExtensionTypeMember)) {
+      return null;
+    }
+    final extName = p.name.text.substring(0, bar);
+    final library = p.enclosingLibrary;
+    // (name, isStatic, member reference) of the declaration's members.
+    final descriptors = <(String, bool, Reference?)>[];
+    for (final e in library.extensions) {
+      if (e.name == extName) {
+        for (final d in e.memberDescriptors) {
+          descriptors.add((d.name.text, d.isStatic, d.memberReference));
+        }
+      }
+    }
+    for (final e in library.extensionTypeDeclarations) {
+      if (e.name == extName) {
+        for (final d in e.memberDescriptors) {
+          descriptors.add((d.name.text, d.isStatic, d.memberReference));
+        }
+      }
+    }
+    final statics = {
+      for (final (n, isStatic, _) in descriptors)
+        if (isStatic) n,
+    };
+    final owner = _ScopeOwner(
+      extName,
+      statics,
+      (m) {
+        if (m.enclosingClass != null) return null;
+        final n = m.name.text;
+        if (!n.startsWith('$extName|')) return null;
+        final rest = n.substring(extName.length + 1);
+        return statics.contains(rest) ? rest : null;
+      },
+      [
+        for (final f in library.fields)
+          if (f.isConst &&
+              f.name.text.startsWith('$extName|') &&
+              f.initializer is ConstantExpression &&
+              statics.contains(f.name.text.substring(extName.length + 1)))
+            (
+              f.name.text.substring(extName.length + 1),
+              (f.initializer! as ConstantExpression).constant,
+            ),
+      ],
+      null,
+    );
+    if (extName.contains('#')) {
+      owner.problems.add('it is a member of an unnamed extension');
+    }
+    final self = descriptors.where((d) => d.$3 == p.reference).toList();
+    if (self.isEmpty) {
+      owner.problems.add('its extension member could not be identified');
+    } else if (!self.first.$2) {
+      owner.problems.add(
+        'it is an instance member of `$extName`, whose receiver a replacement '
+        'does not pass',
+      );
+    }
+    return owner;
+  }
+}
+
+class _ScopeUses extends RecursiveVisitor {
+  _ScopeUses(this.owner);
+
+  final _ScopeOwner owner;
+  final references = <(int, String, String)>[];
+  final typeParameters = <String>{};
+
+  void _static(Member m, int offset, String kind) {
+    final name = owner.own(m);
+    if (name != null) references.add((offset, name, kind));
+  }
+
+  @override
+  void visitStaticGet(StaticGet node) {
+    _static(node.target, node.fileOffset, 'get');
+    super.visitStaticGet(node);
+  }
+
+  @override
+  void visitStaticSet(StaticSet node) {
+    _static(node.target, node.fileOffset, 'set');
+    super.visitStaticSet(node);
+  }
+
+  @override
+  void visitStaticInvocation(StaticInvocation node) {
+    _static(node.target, node.fileOffset, 'invoke');
+    super.visitStaticInvocation(node);
+  }
+
+  @override
+  void visitStaticTearOff(StaticTearOff node) {
+    _static(node.target, node.fileOffset, 'tearoff');
+    super.visitStaticTearOff(node);
+  }
+
+  @override
+  void visitConstantExpression(ConstantExpression node) {
+    final constant = node.constant;
+    // A static torn off in a constant context is folded to a constant too.
+    if (constant is StaticTearOffConstant) {
+      _static(constant.target, node.fileOffset, 'tearoff');
+    }
+    for (final (name, value) in owner.constants) {
+      if (value == constant) {
+        references.add((node.fileOffset, name, 'constant'));
+      }
+    }
+    super.visitConstantExpression(node);
+  }
+
+  @override
+  void visitTypeParameterType(TypeParameterType node) {
+    final parameter = node.parameter;
+    if (owner.cls != null &&
+        identical(parameter.parent, owner.cls) &&
+        parameter.name != null) {
+      typeParameters.add(parameter.name!);
+    }
+    super.visitTypeParameterType(node);
+  }
 }
 
 /// Every symbol a body asks the loader to find by name.

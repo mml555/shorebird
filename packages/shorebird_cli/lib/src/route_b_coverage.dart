@@ -319,6 +319,87 @@ class RouteBReceiverAccess {
   final RouteBPrivateTarget? privateTarget;
 }
 
+/// One use of a static of the member's own class that is written without a
+/// qualifier, as the analyzer placed it.
+@immutable
+class RouteBStaticReference {
+  /// {@macro route_b_static_reference}
+  const RouteBStaticReference({
+    required this.offset,
+    required this.member,
+    required this.kind,
+    this.interpolated = false,
+  });
+
+  /// Where the identifier starts, in code units of the decoded source.
+  final int offset;
+
+  /// The static's name.
+  final String member;
+
+  /// `get`, `set`, `invoke`, `tearoff`, or `constant`.
+  final String kind;
+
+  /// Whether it is the `$name` form of a string interpolation.
+  final bool interpolated;
+}
+
+/// What a class or extension member's body takes from its enclosing scope (the
+/// document's `enclosingScope`), which a replacement library does not have.
+///
+/// A replacement is a top-level function. An unqualified `k` that meant the
+/// class's `static k` is looked up among top-level names there, so a same-named
+/// top-level wins silently. Kernel knows what each name resolved to and the
+/// front end's token stream knows whether a qualifier is written; the analyzer
+/// reports only the uses that need one.
+@immutable
+class RouteBEnclosingScope {
+  /// {@macro route_b_enclosing_scope}
+  const RouteBEnclosingScope({
+    required this.className,
+    required this.staticReferences,
+    required this.usedTypeParameters,
+    required this.problems,
+  });
+
+  /// Parses one entry of `enclosingScope`.
+  factory RouteBEnclosingScope.fromJson(Map<String, dynamic> json) {
+    final className = json['class'];
+    if (className is! String) {
+      throw const FormatException('an enclosing scope names no class');
+    }
+    List<String> names(String field) => [
+      for (final n in json[field] as List? ?? const []) n as String,
+    ];
+    return RouteBEnclosingScope(
+      className: className,
+      staticReferences: [
+        for (final r in json['staticReferences'] as List? ?? const [])
+          RouteBStaticReference(
+            offset: (r as Map<String, dynamic>)['offset'] as int,
+            member: r['member'] as String,
+            kind: r['kind'] as String,
+            interpolated: r['interpolated'] == true,
+          ),
+      ],
+      usedTypeParameters: names('usedTypeParameters'),
+      problems: names('problems'),
+    );
+  }
+
+  /// The enclosing class or extension, which qualifies a static.
+  final String className;
+
+  /// Every use of one of its statics that needs a qualifier.
+  final List<RouteBStaticReference> staticReferences;
+
+  /// Class type parameters the body mentions.
+  final List<String> usedTypeParameters;
+
+  /// Reasons the member cannot be carried; non-empty means refuse.
+  final List<String> problems;
+}
+
 /// What Kernel knows about turning an instance method into a static
 /// replacement that takes its receiver as argument 0.
 ///
@@ -748,6 +829,7 @@ class RouteBCoverage {
     this.helpers = const [],
     this.unusedHelpers = const [],
     this.externalReferences,
+    this.enclosingScope,
   });
 
   /// Parses the analyzer's JSON document.
@@ -1007,6 +1089,19 @@ class RouteBCoverage {
       };
     }
 
+    // Present when the analyzer reports class scope. Absent means "not
+    // measured", never "uses nothing".
+    Map<String, RouteBEnclosingScope>? enclosingScope;
+    final rawScope = map['enclosingScope'];
+    if (rawScope is Map<String, dynamic>) {
+      enclosingScope = {
+        for (final entry in rawScope.entries)
+          entry.key: RouteBEnclosingScope.fromJson(
+            entry.value as Map<String, dynamic>,
+          ),
+      };
+    }
+
     return RouteBCoverage(
       analysisVersion: analysisVersion,
       verdict: verdict,
@@ -1027,6 +1122,7 @@ class RouteBCoverage {
           ? strings('unusedHelpers')
           : const [],
       externalReferences: externalReferences,
+      enclosingScope: enclosingScope,
       removed: strings('removed'),
       representable: strings('patchable'),
       conditional: strings('conditional'),
@@ -1102,6 +1198,10 @@ class RouteBCoverage {
   /// `library#selector` (analysis version 18). Null for an earlier analysis,
   /// which did not measure them.
   final Map<String, List<RouteBExternalReference>>? externalReferences;
+
+  /// What each carried class member's body takes from its class scope, keyed by
+  /// `library#selector`. Null when the analyzer did not report it.
+  final Map<String, RouteBEnclosingScope>? enclosingScope;
 
   /// Members the patch drops. Reported, never fatal: the release keeps them and
   /// nothing calls them from the patch's own code.

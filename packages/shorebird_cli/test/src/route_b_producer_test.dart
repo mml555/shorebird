@@ -1,7 +1,10 @@
-import 'dart:convert';
+// cspell:words lineafter constmap constlist
+import 'dart:convert' as convert;
+import 'dart:convert' hide jsonEncode;
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
@@ -17,6 +20,34 @@ import 'package:test/test.dart';
 
 import 'helpers.dart';
 import 'mocks.dart';
+
+/// `dart:convert`'s `jsonEncode`, except that a coverage document without an
+/// `enclosingScope` gets an empty one for each class or extension member it
+/// names. The analyzer always writes the key, and the producer refuses a class
+/// member whose document lacks it; a document that sets the key itself (to
+/// null, for a test of that refusal) is left as it is.
+String jsonEncode(Object? object) {
+  if (object is Map<String, Object?> &&
+      object.containsKey('sources') &&
+      !object.containsKey('enclosingScope')) {
+    final keys = (object['sources']! as Map<String, Object?>).keys.where(
+      (k) => k.split('#').last.contains('.') || k.split('#').last.contains('|'),
+    );
+    return convert.jsonEncode({
+      ...object,
+      'enclosingScope': {
+        for (final k in keys)
+          k: {
+            'class': k.split('#').last.split('.').first,
+            'staticReferences': <Object>[],
+            'usedTypeParameters': <String>[],
+            'problems': <String>[],
+          },
+      },
+    });
+  }
+  return convert.jsonEncode(object);
+}
 
 void main() {
   useTempWorkingDirectory();
@@ -1765,6 +1796,14 @@ callable:
                 'end': start + decl.length,
               },
             },
+            'enclosingScope': {
+              targetKey: {
+                'class': receiverType,
+                'staticReferences': <Object>[],
+                'usedTypeParameters': <String>[],
+                'problems': <String>[],
+              },
+            },
             'lowering': {
               targetKey: {
                 'receiverType': receiverType,
@@ -3338,6 +3377,600 @@ callable:
                 contains('names `_other`'),
               ),
             ),
+          );
+        });
+      });
+
+      group('class scope', () {
+        // The replacement is a top-level function. A name the class scope
+        // resolved to the class's own static would otherwise be looked up
+        // among the library's top-level names, where a same-named one wins
+        // without a diagnostic:
+        //
+        //   double k = 1.5;
+        //   class C { static int k = 2; int f(int a) => a + k; }
+        //
+        // `a + k` is an int sum in the app and a double sum in the patch.
+
+        /// A document for [decl] with the class scope [scope], as the analyzer
+        /// reports it.
+        RouteBCoverage scoped({
+          required String decl,
+          required Map<String, Object?> scope,
+          bool instance = true,
+          String className = 'RouteBThing',
+          List<String> helpers = const [],
+          Map<String, Object?>? helperSources,
+          bool withScope = true,
+        }) {
+          const preamble = 'double k = 1.5;\n';
+          source.writeAsStringSync('$preamble$decl');
+          const start = preamble.length;
+          final nameOffset = start + decl.indexOf('f(');
+          return RouteBCoverage.fromJson(
+            jsonEncode({
+              'analysisVersion': supportedRouteBAnalysisVersion,
+              'verdict': 'accept',
+              'changed': [key],
+              'added': <String>[],
+              'removed': <String>[],
+              'patchable': <String>[],
+              'conditional': [key],
+              'sources': {
+                key: {
+                  'fileUri': source.uri.toString(),
+                  'start': start,
+                  'end': start + decl.length,
+                },
+              },
+              if (instance)
+                'lowering': {
+                  key: {
+                    'receiverType': className,
+                    'nameOffset': nameOffset,
+                    'accesses': <Object>[],
+                    'unsupported': <String>[],
+                  },
+                },
+              'enclosingScope': withScope ? {key: scope} : null,
+              'rejections': <Object>[],
+              'refusalSummary': null,
+            }),
+          );
+        }
+
+        /// The scope of a use of `k` found by [needle] in [decl].
+        Map<String, Object?> use(
+          String decl,
+          String needle, {
+          String member = 'k',
+          String kind = 'get',
+          bool interpolated = false,
+          String className = 'RouteBThing',
+        }) => {
+          'class': className,
+          'staticReferences': [
+            {
+              'offset':
+                  'double k = 1.5;\n'.length +
+                  decl.indexOf(needle) +
+                  needle.lastIndexOf(member),
+              'member': member,
+              'kind': kind,
+              if (interpolated) 'interpolated': true,
+            },
+          ],
+          'usedTypeParameters': <String>[],
+          'problems': <String>[],
+        };
+
+        const empty = {
+          'class': 'RouteBThing',
+          'staticReferences': <Object>[],
+          'usedTypeParameters': <String>[],
+          'problems': <String>[],
+        };
+
+        test('qualifies a static read in an instance method', () {
+          const decl = 'int f(int a) => a + k;';
+          final out = lowered(scoped(decl: decl, scope: use(decl, 'a + k')));
+          expect(
+            out,
+            contains('int f(RouteBThing self, int a) => a + RouteBThing.k;'),
+          );
+          expect(
+            lastArguments,
+            isNot(contains('--resolve-private-names-in-library')),
+          );
+        });
+
+        test('qualifies a static read in a static method', () {
+          const decl = 'static int f(int a) => a + k;';
+          final out = lowered(
+            scoped(decl: decl, scope: use(decl, 'a + k'), instance: false),
+          );
+          expect(out, contains('int f(int a) => a + RouteBThing.k;'));
+          expect(out, isNot(contains('static int f')));
+        });
+
+        test('qualifies a use in an interpolation with braces', () {
+          const decl = r"String f() => 'v=$k';";
+          final out = lowered(
+            scoped(decl: decl, scope: use(decl, r'$k', interpolated: true)),
+          );
+          expect(out, contains(r"'v=${RouteBThing.k}'"));
+        });
+
+        test('refuses a use that is not where the analyzer said', () {
+          const decl = 'int f(int a) => a + k;';
+          final scope = use(decl, 'a + k');
+          ((scope['staticReferences']! as List).single as Map)['offset'] = 3;
+          expect(
+            () => lowered(scoped(decl: decl, scope: scope)),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('not where the analyzer reported it'),
+              ),
+            ),
+          );
+        });
+
+        test('refuses what the analyzer reported as a problem', () {
+          expect(
+            () => lowered(
+              scoped(
+                decl: 'int f(int a) => a;',
+                scope: {
+                  ...empty,
+                  'problems': ['its body spells `k` somewhere unplaced'],
+                },
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('somewhere unplaced'),
+              ),
+            ),
+          );
+        });
+
+        test('refuses an instance method that uses a class type parameter', () {
+          expect(
+            () => lowered(
+              scoped(
+                decl: 'int f(int a) => a;',
+                scope: {
+                  ...empty,
+                  'usedTypeParameters': ['T'],
+                },
+              ),
+            ),
+            throwsA(
+              isA<RouteBUnsupportedTarget>().having(
+                (e) => e.reason,
+                'reason',
+                contains('class type parameter `T`'),
+              ),
+            ),
+          );
+        });
+
+        test('a document with no class scope refuses a class member', () {
+          // The analyzer always writes `enclosingScope`, `{}` at minimum, so
+          // its absence means a cell that predates it. That cannot show a
+          // static of the class means the same thing, so it is refused, not
+          // guessed.
+          for (final instance in [true, false]) {
+            expect(
+              () => lowered(
+                scoped(
+                  decl: instance
+                      ? 'int f(int a) => a + k;'
+                      : 'static int f(int a) => a + k;',
+                  scope: empty,
+                  instance: instance,
+                  withScope: false,
+                ),
+              ),
+              throwsA(
+                isA<RouteBUnsupportedTarget>().having(
+                  (e) => e.reason,
+                  'reason',
+                  contains('does not report'),
+                ),
+              ),
+            );
+          }
+        });
+
+        test('a private class resolves private names for its static', () {
+          const decl = 'static int f(int a) => a + k;';
+          final out = lowered(
+            scoped(
+              decl: decl,
+              scope: use(decl, 'a + k', className: '_RouteBThing'),
+              instance: false,
+              className: '_RouteBThing',
+            ),
+          );
+          expect(out, contains('a + _RouteBThing.k;'));
+          expect(lastArguments, contains('--resolve-private-names-in-library'));
+        });
+
+        test('a private receiver class is qualified past the name scan', () {
+          const decl = 'int f(int a) => a + k;';
+          final out = lowered(
+            scoped(
+              decl: decl,
+              scope: use(decl, 'a + k', className: '_RouteBThing'),
+              className: '_RouteBThing',
+            ),
+          );
+          expect(
+            out,
+            contains('int f(_RouteBThing self, int a) => a + _RouteBThing.k;'),
+          );
+        });
+
+        group('against the real analyzer output', () {
+          // `scope_fixture.json` is `enclosingScopeOf` run over a kernel
+          // compiled from `scope_fixture.dart`, every static of which has a
+          // top-level twin. Nothing here is hand-placed.
+          final dir = p.join(fixturesDirectory, 'route_b_scope');
+          late String fixtureSource;
+          late Map<String, dynamic> fixture;
+
+          setUpAll(() {
+            fixtureSource = File(
+              p.join(dir, 'scope_fixture.dart'),
+            ).readAsStringSync();
+            fixture =
+                jsonDecode(
+                      File(
+                        p.join(dir, 'scope_fixture.json'),
+                      ).readAsStringSync(),
+                    )
+                    as Map<String, dynamic>;
+          });
+
+          /// Lowers the fixture member [name] as the analyzer described it.
+          String fromFixture(String name, {bool withScope = true}) {
+            final entry = fixture[name] as Map<String, dynamic>;
+            final isStatic = entry['static'] as bool;
+            final className = name.split('.').first.split('|').first;
+            final targetKey = 'package:app/main.dart#$name';
+            source.writeAsStringSync(fixtureSource);
+            final doc = RouteBCoverage.fromJson(
+              jsonEncode({
+                'analysisVersion': supportedRouteBAnalysisVersion,
+                'verdict': 'accept',
+                'changed': [targetKey],
+                'added': <String>[],
+                'removed': <String>[],
+                'patchable': <String>[],
+                'conditional': [targetKey],
+                'sources': {
+                  targetKey: {
+                    'fileUri': source.uri.toString(),
+                    'start': entry['start'],
+                    'end': entry['end'],
+                  },
+                },
+                if (!isStatic)
+                  'lowering': {
+                    targetKey: {
+                      'receiverType': className,
+                      'nameOffset': fixtureSource.indexOf(
+                        '${name.split('.').last}(',
+                        entry['start'] as int,
+                      ),
+                      'accesses': <Object>[],
+                      'unsupported': <String>[],
+                    },
+                  },
+                'enclosingScope': withScope
+                    ? {targetKey: entry['scope']}
+                    : null,
+                'rejections': <Object>[],
+                'refusalSummary': null,
+              }),
+            );
+            return runWithOverrides(() {
+              const RouteBProducer().produce(
+                compiler: compiler(),
+                coverage: doc,
+                releaseImportKernel: File(
+                  p.join(cell.path, 'release_import.dill'),
+                ),
+                releaseBuildId: 'deadbeef',
+                workingDirectory: work,
+                projectRoot: project,
+                run: (executable, arguments) {
+                  lastArguments = arguments;
+                  return compileOk(executable, arguments);
+                },
+              );
+              return File(
+                p.join(work.path, 'replacement_0.dart'),
+              ).readAsStringSync();
+            });
+          }
+
+          Matcher refusedWith(Matcher reason) => throwsA(
+            isA<RouteBUnsupportedTarget>().having(
+              (e) => e.reason,
+              'reason',
+              reason,
+            ),
+          );
+
+          test('a use after a spread is qualified', () {
+            expect(
+              fromFixture('C.spread'),
+              contains('[...C.ls].length'),
+            );
+            expect(fromFixture('C.setSpread'), contains('{...C.ls}'));
+          });
+
+          test('a use after a comment that ends in a dot is qualified', () {
+            expect(fromFixture('C.lineafter'), contains('\n      C.k,\n'));
+            expect(fromFixture('C.argAfterComment'), contains('C.cc,'));
+          });
+
+          test('an already qualified use is left alone', () {
+            final out = fromFixture('C.already');
+            expect(out, contains('a + C.k;'));
+            expect(out, isNot(contains('C.C.')));
+          });
+
+          for (final name in ['C.constmap', 'C.constmapFirst', 'C.constlist']) {
+            test('$name is refused', () {
+              expect(
+                () => fromFixture(name),
+                refusedWith(contains('spells')),
+              );
+            });
+          }
+
+          test('a null-aware assignment is qualified', () {
+            expect(fromFixture('C.nullAssign'), contains('C.nn ??= 4'));
+          });
+
+          test('a static tear-off is qualified', () {
+            expect(fromFixture('C.tearoff'), contains('.map(C.g)'));
+          });
+
+          test('compound assignment and increment are qualified', () {
+            final out = fromFixture('C.compound');
+            expect(out, contains('C.k += 1;'));
+            expect(out, contains('return C.k++;'));
+          });
+
+          test('interpolation is qualified in each of its forms', () {
+            final out = fromFixture('C.interp');
+            expect(out, contains(r"'v=${C.k} ${C.k} ${C.c}'"));
+          });
+
+          test('a named argument label is not a use', () {
+            expect(fromFixture('C.namedLabel'), contains('C.h(k: 1)'));
+          });
+
+          test('a parameter or local named like a static is refused', () {
+            expect(() => fromFixture('C.param'), refusedWith(contains('`k`')));
+          });
+
+          test('an annotation spelling a static is refused', () {
+            expect(
+              () => fromFixture('C.annotated'),
+              refusedWith(contains('`c`')),
+            );
+          });
+
+          test('a closure and a qualified use inside it', () {
+            final out = fromFixture('C.closure');
+            expect(out, contains('e + C.k + C.k'));
+          });
+
+          test('a generic class member is refused', () {
+            expect(
+              () => fromFixture('C.generic'),
+              refusedWith(contains('class type parameter `T`')),
+            );
+          });
+
+          test('a mixin application copy is refused', () {
+            expect(
+              () => fromFixture('__A&Object&M.viaMixin'),
+              refusedWith(contains('mixin application')),
+            );
+          });
+
+          test('a mixin member is qualified with the mixin', () {
+            expect(fromFixture('M.viaMixin'), contains('=> M.mk;'));
+          });
+
+          test('an extension static is qualified with the extension', () {
+            expect(fromFixture('X|s'), contains('=> X.k;'));
+            expect(fromFixture('ET|s'), contains('=> ET.k;'));
+          });
+
+          test('an extension getter, setter or tear-off key is refused', () {
+            // Their keys are `lib#X|get#zz`: the selector has no `.`, which
+            // once let them through as plain top-level members.
+            for (final name in [
+              'X|get#zz',
+              'X|set#zs',
+              'ET|get#zz',
+              'ET|set#zs',
+              'X|get#inst',
+            ]) {
+              expect(
+                () => fromFixture(name),
+                refusedWith(
+                  anyOf(
+                    contains('instance member'),
+                    contains('could not be identified'),
+                  ),
+                ),
+                reason: name,
+              );
+            }
+          });
+
+          test('the fixture json was generated from this fixture source', () {
+            // CI cannot run the analyzer. This catches a fixture edited without
+            // regenerating the json (see gen_scope_fixture.dart).
+            expect(
+              fixture['sourceSha256'],
+              sha256.convert(utf8.encode(fixtureSource)).toString(),
+              reason: 'regenerate scope_fixture.json',
+            );
+          });
+
+          test('an instance extension member is refused', () {
+            expect(
+              () => fromFixture('X|inst'),
+              refusedWith(contains('instance member')),
+            );
+          });
+
+          test('without class scope the same members are refused', () {
+            expect(
+              () => fromFixture('C.st', withScope: false),
+              refusedWith(contains('does not report')),
+            );
+            expect(
+              () => fromFixture('X|s', withScope: false),
+              refusedWith(contains('does not report')),
+            );
+          });
+        });
+
+        group('a class member that hides a name its helpers mean', () {
+          // The member becomes a top-level function of the same name, which
+          // hides a top-level, an imported function or a type of that name from
+          // every helper the replacement carries.
+          void hidden(
+            String name, {
+            required String entryKey,
+            required String entry,
+            required String helper,
+            bool refused = true,
+          }) {
+            test(name, () {
+              const helperKey = 'package:app/main.dart#helper';
+              final body = 'double k = 1.5;\n$entry\n$helper\n';
+              source.writeAsStringSync(body);
+              Map<String, Object?> at(String piece) => {
+                'fileUri': source.uri.toString(),
+                'start': body.indexOf(piece),
+                'end': body.indexOf(piece) + piece.length,
+              };
+              final doc = RouteBCoverage.fromJson(
+                jsonEncode({
+                  'analysisVersion': routeBHelpersAnalysisVersion,
+                  'verdict': 'accept',
+                  'changed': [entryKey],
+                  'added': [helperKey],
+                  'helpers': [helperKey],
+                  'unusedHelpers': <String>[],
+                  'carried': <String>[],
+                  'removed': <String>[],
+                  'patchable': <String>[],
+                  'conditional': [entryKey],
+                  'callers': {
+                    helperKey: [entryKey],
+                  },
+                  'sources': {entryKey: at(entry), helperKey: at(helper)},
+                  'enclosingScope': {entryKey: empty},
+                  'rejections': <Object>[],
+                  'refusalSummary': null,
+                }),
+              );
+              void produce() => runWithOverrides(
+                () => const RouteBProducer().produce(
+                  compiler: compiler(),
+                  coverage: doc,
+                  releaseImportKernel: File(
+                    p.join(cell.path, 'release_import.dill'),
+                  ),
+                  releaseBuildId: 'deadbeef',
+                  workingDirectory: work,
+                  projectRoot: project,
+                  run: compileOk,
+                ),
+              );
+              if (!refused) {
+                produce();
+                return;
+              }
+              expect(
+                produce,
+                throwsA(
+                  isA<RouteBUnsupportedTarget>().having(
+                    (e) => e.reason,
+                    'reason',
+                    contains('hides anything of that name'),
+                  ),
+                ),
+              );
+            });
+          }
+
+          const classKey = 'package:app/main.dart#C.total';
+          const entry = 'static int total(int a) => helper(a);';
+          hidden(
+            'is refused when a helper calls its name',
+            entryKey: classKey,
+            entry: entry,
+            helper: 'int helper(int x) => total(x) + 1;',
+          );
+          hidden(
+            r'is refused when a helper interpolates it as $name',
+            entryKey: classKey,
+            entry: entry,
+            helper: r"String helper(int x) => 'v=$total $x';",
+          );
+          hidden(
+            r'is refused when a helper interpolates it as ${name}',
+            entryKey: classKey,
+            entry: entry,
+            helper: r"String helper(int x) => 'v=${total} $x';",
+          );
+          hidden(
+            'is refused when a helper tears it off',
+            entryKey: classKey,
+            entry: entry,
+            helper: 'Object helper(int x) => total;',
+          );
+          hidden(
+            'is refused for an extension static, by its bare name',
+            entryKey: 'package:app/main.dart#X|total',
+            entry: entry,
+            helper: r"String helper(int x) => '$total' + total().toString();",
+          );
+          hidden(
+            'is refused for an extension type static',
+            entryKey: 'package:app/main.dart#ET|total',
+            entry: entry,
+            helper: 'Object helper(int x) => total;',
+          );
+          hidden(
+            r'is refused for a name containing $',
+            entryKey: r'package:app/main.dart#C.total$',
+            entry: r'static int total$(int a) => helper(a);',
+            helper: r'int helper(int x) => total$(x) + 1;',
+          );
+          hidden(
+            'is not refused when no helper spells the name',
+            entryKey: classKey,
+            entry: entry,
+            helper: 'int helper(int x) => x + 1;',
+            refused: false,
           );
         });
       });

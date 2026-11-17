@@ -239,6 +239,61 @@ void main() {
     'a direct use and a constant use are two entries',
   );
 
+  // Class scope (`enclosingScope`): a use of the class's OWN static is reported
+  // with its identifier's offset, a class type parameter is reported, and a
+  // static of another class is not.
+  final scopeLib = _lib('package:app/scope.dart');
+  final owner = _cls(scopeLib, 'C');
+  final typeParam = TypeParameter('T');
+  owner.typeParameters.add(typeParam);
+  typeParam.parent = owner;
+  final ownStatic = Field.mutable(
+    Name('k', scopeLib),
+    isStatic: true,
+    fileUri: scopeLib.fileUri,
+    type: const DynamicType(),
+  );
+  owner.addField(ownStatic);
+  final otherStatic = Field.mutable(
+    Name('j', scopeLib),
+    isStatic: true,
+    fileUri: scopeLib.fileUri,
+    type: const DynamicType(),
+  );
+  _cls(scopeLib, 'D').addField(otherStatic);
+  final member = _method(owner, 'f');
+  member.function.body = Block([
+    ExpressionStatement(StaticGet(ownStatic)..fileOffset = 42),
+    ExpressionStatement(StaticGet(otherStatic)..fileOffset = 50),
+    ExpressionStatement(
+      AsExpression(
+        NullLiteral(),
+        TypeParameterType(typeParam, Nullability.nonNullable),
+      ),
+    ),
+  ]);
+  final scope = enclosingScopeOf(
+    member,
+    source: '${' ' * 42}k;',
+  )!;
+  final used = (scope['staticReferences']! as List).cast<Map>();
+  check(
+    used.length == 1 &&
+        used.single['offset'] == 42 &&
+        used.single['member'] == 'k' &&
+        used.single['kind'] == 'get',
+    'an own class static is reported at its offset, another class is not',
+  );
+  check(
+    (scope['usedTypeParameters']! as List).contains('T') &&
+        (scope['problems']! as List).isEmpty,
+    'a class type parameter is reported',
+  );
+  check(
+    enclosingScopeOf(_proc(app, 'top', [])) == null,
+    'a top-level member has no class scope',
+  );
+
   if (_failures > 0) exit(1);
   stdout.writeln('all passed');
 }

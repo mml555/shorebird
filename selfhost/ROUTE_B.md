@@ -453,6 +453,29 @@ members the release does not have, as helpers of the replaced code:
   m2 (a new `_HomeState._bump()` that calls the existing `_increment()` and
   writes a field).
 
+### A class or extension member's own statics (class scope)
+
+A class or extension member is carried as a top-level function, so an unqualified
+`k` that meant the class's `static k` would be looked up among top-level names,
+and a same-named top-level `k` would win with no diagnostic. The analyzer
+reports `enclosingScope` for each class or extension member the patch carries:
+every use of an own static written without a qualifier, placed from the front
+end's token stream, and the producer writes `Class.` in front of it. What it
+cannot place it refuses: a class type parameter in an instance body, an own
+static spelled inside a folded `const` collection or constructor call, a
+parameter or local named like a static, an annotation naming one, a mixin
+application copy, an instance extension member, and an entry whose name a
+carried helper also spells. The refusals over `const` arguments are broader than
+the hazard (they refuse even with no top-level twin); write `Class.name`.
+
+**Rollout.** The analyzer always writes `enclosingScope` (`{}` at minimum). A
+document without it comes from a cell built before this change, and a class or
+extension member cannot be shown safe without it, so such a target is refused
+with "Re-cut the release". Every release already cut keeps the analyzer in its
+cell, so patches to class and extension members on those releases are refused
+until the release is re-cut with a current toolchain. Top-level functions are
+unaffected.
+
 ### A patch may only name what the release kept (analysis version 18)
 
 A replacement is compiled against the release's whole import kernel, so it
