@@ -17,8 +17,17 @@ import 'package:code_push_server/src/observability.dart';
 import 'package:code_push_server/src/repository.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
-Future<void> main() async {
-  final config = Config.fromEnv();
+Future<void> main(List<String> args) async {
+  final checkOnly = args.contains('--check-config');
+  final Config config;
+  try {
+    config = Config.fromEnv();
+  } on FormatException catch (e) {
+    // A malformed value (PRODUCTION=prod, S3_PATH_STYLE=maybe) is a config
+    // error with a name, not a crash with a stack trace.
+    stderr.writeln('FATAL: invalid config: ${e.message}');
+    exit(78); // EX_CONFIG
+  }
   // Set the process-wide log format before anything (migrations included) logs.
   configureLogging(json: config.logFormat == 'json');
 
@@ -27,6 +36,10 @@ Future<void> main() async {
   }
 
   for (final warning in config.retentionWarnings) {
+    logInfo('WARNING: $warning');
+  }
+
+  for (final warning in config.productionWarnings) {
     logInfo('WARNING: $warning');
   }
 
@@ -39,6 +52,12 @@ Future<void> main() async {
       );
     }
     exit(78); // EX_CONFIG
+  }
+  // `ops/preflight.sh`: validate the config the new image would boot with,
+  // before the running container is replaced. Touches no database or store.
+  if (checkOnly) {
+    stdout.writeln('config OK');
+    exit(0);
   }
   // Not fatal, and deliberately quiet for the shipped compose: that talks to
   // an in-network Postgres over a private Docker network, addressed by the
@@ -134,6 +153,8 @@ Future<void> main() async {
         'crash reports': () =>
             repo.purgeOldCrashReports(config.crashRetentionDays),
         'audit log': () => repo.purgeOldAuditLog(config.auditRetentionDays),
+        'build history': () =>
+            repo.purgeOldBuildRuns(config.buildRunRetentionDays),
       };
       for (final MapEntry(:key, :value) in purges.entries) {
         try {

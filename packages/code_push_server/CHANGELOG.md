@@ -1,4 +1,4 @@
-<!-- cspell:words ungated rsassa -->
+<!-- cspell:words ungated rsassa xact -->
 
 # Changelog
 
@@ -8,7 +8,82 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+
+### Changed (breaking)
+
+- **`PRODUCTION` accepts only these values:** `true`, `false`, `1`, `0`, `yes`,
+  `no` and `production`, in any case, or unset/empty. Any other value (`prod`,
+  `on`, `y`, `enabled`, a quoted `"true"` passed by a plain `docker run
+  --env-file`) used to boot as non-production with every production-only check
+  skipped; it now exits 78 with `PRODUCTION must be true or false`. Check the
+  value in your `.env` before upgrading (`.env.example` and `setup.sh` write
+  `true`, so deploys made with them are unaffected). `ENV=production` still
+  turns production on when `PRODUCTION` is unset.
+- **Stricter `PUBLIC_BASE_URL` in production.** It must be `https://` unless the
+  host is `localhost`, `127.0.0.1` or `::1`, judged on the parsed host rather
+  than a substring (`http://localhost.evil.example` no longer passes). A value
+  with no scheme or a leading space now also refuses to boot, where only
+  `http://` was refused before.
+- **The shipped Caddyfile answers 404 for `/metrics` and `/readyz`**, and no
+  longer compresses `/download`. Monitoring must use `/healthz` externally and
+  reach the others on the internal network (PRODUCTION.md). `setup.sh` probes
+  `/healthz` through Caddy and readiness inside the container.
+
+### Security
+
+- With production off and a non-localhost `PUBLIC_BASE_URL` the server logs a
+  WARNING at boot.
+- `/download` responses (200, 206, 403 and 416) carry
+  `Cache-Control: private, no-store`.
+- **IdP id_tokens are now validated.** Broker login checks `aud` (must contain
+  `IDP_CLIENT_ID`, plus `azp` if several), `exp`, `iss` (against the new
+  `IDP_ISSUER`) and `email_verified`, and logs the reason for each rejection.
+  A top-level `email` in the token response is no longer accepted.
+  - **Action required if your IdP omits `email_verified`** (Microsoft Entra
+    does): logins fail with `invalid_id_token` until you set
+    `IDP_ALLOW_UNVERIFIED_EMAIL=true`.
+  - **Action required in production with an IdP:** `IDP_ISSUER` is now
+    mandatory and the server refuses to boot without it.
+
 ### Added
+
+- `server --check-config` and `ops/preflight.sh`: validate the new image against
+  `.env` before `up -d` replaces the running container.
+- Migrations take a Postgres advisory lock, so replicas started together
+  cannot race the same migration.
+- CI checks that the compose image pins equal the package version
+  (`tool/check_deploy_files.sh`).
+- **Upstream CLI 1.6.140 works against this server.** The calls it added or
+  changed:
+  - `shorebird patch --rollout`, `patches promote --rollout`: `POST
+    /apps/{app}/patches/promote` takes `rollout_percentage`, a multiple of 0.01
+    from 0.01 to 100 (`rollout`, whole percent, still works). A rollout is now
+    stored in hundredths of a percent (`channel_patches.rollout_bps`, migration
+    19, backfilled from `rollout`), so existing rollouts keep the devices they
+    had. The admin rollout route accepts decimals too.
+  - `shorebird patches rollout`: `PUT /apps/{app}/releases/{release}/patches/
+    {patch}/rollout` raises the percentage. Lower is a 409, so is a patch on
+    no channel; the same percentage is a no-op. Audited as `patch.rollout`.
+  - `GET /apps/{app}/releases/{release}/patches` carries `rollout_percentage`
+    per patch, which `patches list`, `info` and `set-track` print.
+  - Build history: `POST /apps/{app}/runs` stores each release and patch run
+    (new `build_runs` table, migration 20) and answers 201 with its id;
+    `GET /apps/{app}/runs` lists them. Upstream shows it in its Enterprise
+    console; here it is on for every app.
+  - Build history grows with CLI traffic. `BUILD_RUN_RETENTION_DAYS` (default
+    `0`, keep forever) drops older rows; `GET /runs` lists summaries only
+    (no `metadata` or `build_flags`), at most 200 rows. `POST /runs` is audited
+    as `build_run.record`.
+  - Downgrading is not possible after this release: a database at migration 19
+    or 20 makes an older server refuse to boot (`SchemaTooNewException`).
+    Restore a backup, or delete the `schema_migrations` rows 19 and 20 (and
+    drop `channel_patches.rollout_bps` and `build_runs`) first. During a rolling
+    upgrade an old pod's rollout changes are still honoured (it writes
+    `rollout`, which is read when `rollout_bps` disagrees).
+  - `patch --share-debug-info`: accepted and ignored. A debug bundle goes to
+    Shorebird the company, and a self-hosted server has no one to send it to,
+    so the response offers no upload and the CLI warns that nothing was
+    shared. The run is unaffected.
 
 - **Rolling back a patch puts devices back on the previous one.** When the
   active patch of a channel is rolled back (`shorebird patches rollback`, or
@@ -40,6 +115,9 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     defaults to now and `start` to 28 days before `end`, the CLI's documented
     span. A window that is not positive, or a span or `window_days` over 366
     days, is a 400. patch-adoption's `start`/`end` on `analytics/` are as before.
+- **`CRASH_RETENTION_DAYS`** (default `0` = keep forever, like
+  `EVENT_RETENTION_DAYS`) sweeps `crash_reports` hourly. In production the
+  server warns at startup while event or crash retention is unlimited.
 
 ### Changed
 
@@ -79,27 +157,6 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     (`GET .../patches` shows `is_rolled_back`): promoting a rolled-back patch
     leaves it active and also listed in `rolled_back_patch_numbers`, and devices
     keep dropping and re-fetching it.
-
-### Security
-
-- **IdP id_tokens are now validated.** Broker login checks `aud` (must contain
-  `IDP_CLIENT_ID`, plus `azp` if several), `exp`, `iss` (against the new
-  `IDP_ISSUER`) and `email_verified`, and logs the reason for each rejection.
-  A top-level `email` in the token response is no longer accepted.
-  - **Action required if your IdP omits `email_verified`** (Microsoft Entra
-    does): logins fail with `invalid_id_token` until you set
-    `IDP_ALLOW_UNVERIFIED_EMAIL=true`.
-  - **Action required in production with an IdP:** `IDP_ISSUER` is now
-    mandatory and the server refuses to boot without it.
-
-### Added
-
-- **`CRASH_RETENTION_DAYS`** (default `0` = keep forever, like
-  `EVENT_RETENTION_DAYS`) sweeps `crash_reports` hourly. In production the
-  server warns at startup while event or crash retention is unlimited.
-
-### Fixed
-
 - **A failed object-store write no longer strands a patch upload.** When
   `store.put` threw (store down, disk full, timeout) the artifact stayed
   `uploading` for good: the retry got a 409 and re-registering hit the duplicate
