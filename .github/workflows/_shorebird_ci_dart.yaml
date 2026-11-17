@@ -147,8 +147,9 @@ jobs:
               if dart test --concurrency="$TEST_CONCURRENCY" "$@" 2>&1 | tee "$log"; then
                 return 0
               fi
-              grep -q 'Failed to load' "$log" || return 1
-              grep -q 'Connection closed before full header was received' "$log" || return 1
+              # The dropped connection reads either way, depending on which
+              # side noticed first.
+              grep -qE 'Failed to load .*(Connection closed before full header was received|Connection reset by peer), uri = http://127\.0\.0\.1:[0-9]+/.*/ws' "$log" || return 1
             done
             return 1
           }
