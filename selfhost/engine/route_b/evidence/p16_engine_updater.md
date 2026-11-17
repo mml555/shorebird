@@ -1,3 +1,4 @@
+<!-- cspell:words ureq -->
 # P16: what the pinned engine's updater does (read from source)
 
 Read-only, from the engine checkout at `~/shorebird-engine/flutter/engine/src`

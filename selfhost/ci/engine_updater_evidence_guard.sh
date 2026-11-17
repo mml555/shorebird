@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Host check for selfhost/engine/route_b/evidence/p16_engine_updater.md.
+# cspell:words lstrip
 #
 # Usage: engine_updater_evidence_guard.sh [--require-engine]
 #
