@@ -2651,10 +2651,15 @@ void _runCensus(String path, List<String> includePrefixes, String? outPath) {
 /// The disassembly text is parsed, so a count of zero functions is reported as
 /// is and the caller treats it as "could not read": never as "calls nothing".
 void _scanBytecode(String path) {
-  final bytes = File(path).readAsBytesSync();
   final text = bytecode.Component.read(
-    BufferedReader(LinkReader(), bytes),
+    BufferedReader(LinkReader(), File(path).readAsBytesSync()),
   ).toString();
+  stdout.writeln(jsonEncode(scanBytecodeText(text)));
+}
+
+/// The scan of one bytecode component's text: `functions`, `unparsed` (call
+/// lines the selector regex did not read) and the sorted `calls` selectors.
+Map<String, Object?> scanBytecodeText(String text) {
   final calls = <String>{};
   final call = RegExp(
     r"\[\d+\]\s+=\s+\w*(?:Interface|Dynamic)Call\w*\s+'([^']+)'",
@@ -2667,29 +2672,33 @@ void _scanBytecode(String path) {
     final at = name.lastIndexOf('::');
     calls.add(at < 0 ? name : name.substring(at + 2));
   }
-  // Self-check: every constant-pool line naming a call opcode must either have
-  // been read above or be a kind that carries no selector (a direct call is
-  // bound to a member, an external or FFI call to native code). Anything else
-  // means the text format changed under the regex, and `calls` is then a
-  // subset: the producer treats a non-zero `unparsed` as unreadable.
-  final anyCall = RegExp(r'\[\d+\]\s+=\s+(\w*Call\w*)');
-  var unparsed = 0;
-  for (final m in anyCall.allMatches(text)) {
-    final kind = m.group(1)!;
-    if (kind == 'DirectCall' || kind == 'ExternalCall' || kind == 'FfiCall') {
-      continue;
+  // Self-check, independent of the `[n] =` prefix the regex above relies on:
+  // every line that names a call kind ahead of its first quote counts, except
+  // an instruction (`InterfaceCall  CP#5, 2`, which refers to the pool) and a
+  // kind that carries no selector (a direct call is bound to a member, an
+  // external or FFI call to native code). Whatever is left and was not read
+  // above means the text format changed and `calls` is a subset: the producer
+  // treats a non-zero `unparsed` as unreadable.
+  final kindToken = RegExp(r'\b(\w*Call\w*)\b(\s+CP#)?');
+  var counted = 0;
+  for (final line in text.split('\n')) {
+    final quote = line.indexOf("'");
+    final head = quote < 0 ? line : line.substring(0, quote);
+    for (final m in kindToken.allMatches(head)) {
+      final kind = m.group(1)!;
+      if (m.group(2) != null) continue;
+      if (kind == 'DirectCall' || kind == 'ExternalCall' || kind == 'FfiCall') {
+        continue;
+      }
+      counted++;
     }
-    unparsed++;
   }
-  unparsed -= parsed;
   final functions = RegExp(r'^Function ', multiLine: true).allMatches(text);
-  stdout.writeln(
-    jsonEncode({
-      'functions': functions.length,
-      'unparsed': unparsed,
-      'calls': calls.toList()..sort(),
-    }),
-  );
+  return {
+    'functions': functions.length,
+    'unparsed': counted - parsed,
+    'calls': calls.toList()..sort(),
+  };
 }
 
 /// [type] as source the replacement library can write, or null when it cannot.
@@ -2742,17 +2751,37 @@ String? _writableType(DartType type, Library target) {
   }
 }
 
+bool _importsAccountedFor(Library target) {
+  final bytes = target.enclosingComponent?.uriToSource[target.fileUri]?.source;
+  if (bytes == null || bytes.isEmpty) return target.dependencies.isNotEmpty;
+  final source = utf8.decode(bytes, allowMalformed: true);
+  final directives = RegExp(
+    r'^\s*(?:import|export)\s',
+    multiLine: true,
+  ).allMatches(source).length;
+  return target.dependencies.length >= directives;
+}
+
+/// For the analyzer's unit test.
+String? writableTypeForTesting(DartType type, Library target) =>
+    _writableType(type, target);
+
 /// True when an unprefixed import of [target] (any combinators ignored, which
 /// only makes this refuse more) exposes a declaration called [name] other than
 /// the one in `dart:core`: an explicit import beats the implicit `dart:core`
 /// one, so writing [name] in the replacement would bind to it.
 bool _importedNameClashes(Library target, String name) {
+  // Fail closed when the kernel's record of the imports cannot be trusted: the
+  // dependency list must not be shorter than the source's own directives, and
+  // an empty list with no source to compare against proves nothing.
+  if (!_importsAccountedFor(target)) return true;
   final seen = <Library>{};
   bool exposes(Library lib) {
     if (!seen.add(lib)) return false;
     if (lib.importUri.toString() == 'dart:core') return false;
     if (lib.classes.any((c) => c.name == name) ||
         lib.typedefs.any((t) => t.name == name) ||
+        lib.extensionTypeDeclarations.any((t) => t.name == name) ||
         lib.additionalExports.any((r) => r.canonicalName?.name == name)) {
       return true;
     }

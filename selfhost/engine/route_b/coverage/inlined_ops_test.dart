@@ -10,6 +10,7 @@
 // inlined_ops_qualify.sh is the same question asked of the real compiler; this
 // one needs no compiler and pins the analyzer's own bookkeeping.
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dart2bytecode/recognized_methods.dart' show RecognizedMethods;
 import 'package:kernel/ast.dart';
@@ -281,6 +282,73 @@ void main() {
     refOf([('+', numC, i, i)], member: '+', typed: false) != null &&
         flag(refOf([('+', numC, i, i)], member: '+', typed: false)) == null,
     'no type environment, no inlined',
+  );
+
+  // The bytecode scan fails closed when the text format changes.
+  const pool = "  [1] = InterfaceCall 'dart:core::num::+', ArgDesc num-args 2\n"
+      "  [2] = DynamicCall '-', ArgDesc num-args 2\n"
+      '  [3] = DirectCall \'a::b\', ArgDesc num-args 0\n';
+  const body = '  InterfaceCall        CP#1, 2\n';
+  final good = scanBytecodeText("Function 'f'\n$body$pool");
+  check(
+    good['unparsed'] == 0 && '${good['calls']}' == '[+, -]',
+    'a well-formed pool reads completely: $good',
+  );
+  final moved = scanBytecodeText("Function 'f'\n$body${pool.replaceAll('] = ', ']: ')}");
+  check(
+    (moved['unparsed'] as int) > 0 && (moved['calls'] as List).isEmpty,
+    'a changed pool-line prefix leaves call lines unread: $moved',
+  );
+  final quoted = scanBytecodeText(
+    "Function 'f'\n$body$pool  [4] = ConstantX 'a::makeCall', ArgDesc\n",
+  );
+  check(quoted['unparsed'] == 0, 'a quoted name containing Call is not counted');
+
+  // _writableType and the import check (S4).
+  Library mk(String uri, {String? source}) {
+    final l = Library(Uri.parse(uri), fileUri: Uri.parse('file:///${uri.hashCode}.dart'));
+    return l;
+  }
+
+  final target = mk('package:app/t.dart');
+  final comp = Component(libraries: [target]);
+  final shadow = mk('package:app/models.dart')
+    ..addClass(Class(name: 'int', fileUri: Uri.parse('file:///m.dart')));
+  final plain = mk('package:app/plain.dart')
+    ..addClass(Class(name: 'Other', fileUri: Uri.parse('file:///p.dart')));
+  final reexport = mk('package:app/re.dart');
+  comp.libraries.addAll([shadow, plain, reexport]);
+  final intType = InterfaceType(intC, Nullability.nonNullable);
+  check(
+    writableTypeForTesting(intType, target) == null,
+    'no recorded dependencies and no source: not trusted, not written',
+  );
+  target.addDependency(LibraryDependency.import(plain));
+  check(
+    writableTypeForTesting(intType, target) == 'int',
+    'an import that does not expose the name: written',
+  );
+  target.addDependency(LibraryDependency.import(reexport));
+  reexport.addDependency(LibraryDependency.export(shadow));
+  check(
+    writableTypeForTesting(intType, target) == null,
+    'a re-export that exposes the name: refused',
+  );
+  final target2 = mk('package:app/t2.dart');
+  comp.libraries.add(target2);
+  target2.parent = comp;
+  target2.addDependency(LibraryDependency.import(plain));
+  comp.uriToSource[target2.fileUri] = Source(
+    const [0],
+    Uint8List.fromList(
+      "import 'a.dart';\nimport 'b.dart';\n".codeUnits,
+    ),
+    target2.importUri,
+    target2.fileUri,
+  );
+  check(
+    writableTypeForTesting(intType, target2) == null,
+    'fewer recorded dependencies than source directives: refused',
   );
 
   // The CLI's whitelist (route_b_coverage.dart `inlinedOpcodes`) is a hand copy
