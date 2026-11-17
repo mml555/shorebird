@@ -6,6 +6,9 @@
 //   $DART --packages=$SRC/flutter/third_party/dart/.dart_tool/package_config.json \
 //     gen_scope_fixture.dart FIXTURE.dart /tmp/fixture.dill OUT.json
 //
+// `sourceSha256` records the fixture's hash, so a test fails when the .dart is
+// edited and this is not regenerated.
+//
 // Each entry is `{start, end, static, scope}` keyed by `Class.member` (or
 // `Extension|member`), where start/end is the span the analyzer reports for the
 // member's source.
@@ -13,6 +16,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
 
@@ -22,7 +26,9 @@ void main(List<String> args) {
   final component = Component();
   BinaryBuilder(File(args[1]).readAsBytesSync()).readComponent(component);
   final fixture = File(args[0]).absolute.uri;
-  final out = <String, Object?>{};
+  final out = <String, Object?>{
+    'sourceSha256': sha256.convert(File(args[0]).readAsBytesSync()).toString(),
+  };
   for (final lib in component.libraries) {
     if (lib.fileUri != fixture) continue;
     void add(String key, Procedure p) {

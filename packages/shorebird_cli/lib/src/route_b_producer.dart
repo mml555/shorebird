@@ -124,6 +124,19 @@ bool _readsCompileTimeEnvironment(String declaration) =>
     declaration.contains('int.fromEnvironment') ||
     declaration.contains('bool.fromEnvironment');
 
+/// The part of [key] after its library: `Cls.m`, `X|s`, `X|get#g`, `get:t`.
+/// Library URIs carry no `#`, so the first one splits.
+String _selectorOf(String key) => key.substring(key.indexOf('#') + 1);
+
+/// The member's own name: after the `.` of a class key, or after the `|` of an
+/// extension key, without a `get:`/`set:` or `get#`/`set#` marker.
+String _memberNameOf(String key) {
+  final selector = _selectorOf(key);
+  final bar = selector.indexOf('|');
+  final raw = bar >= 0 ? selector.substring(bar + 1) : selector.split('.').last;
+  return raw.replaceFirst(RegExp('^[gs]et[:#]'), '');
+}
+
 /// Why a top-level or static target's `declaration` cannot be an entry point,
 /// or null when it can.
 ///
@@ -137,7 +150,7 @@ String? routeBEntryShapeProblem(String key, String rawDeclaration) {
   // Comments, string literals and annotations are not the signature, and an
   // earlier one that holds `f(` or an apostrophe must not be read as it.
   final declaration = _codeOnly(rawDeclaration);
-  final selector = key.split('#').last;
+  final selector = _selectorOf(key);
   if (selector.startsWith('get:') || selector.startsWith('set:')) return null;
   final name = selector.split('.').last;
   if (name.isEmpty) return null;
@@ -471,7 +484,7 @@ Object? $_superIntrinsicName(
       // Only a private enclosing class is checked — a `library:` item already
       // covers a public class's public members. A top-level target has no
       // enclosing class and takes the private-member path instead.
-      final selector = key.contains('#') ? key.split('#').last : '';
+      final selector = key.contains('#') ? _selectorOf(key) : '';
       final dot = selector.indexOf('.');
       if (capabilities != null && dot > 0) {
         final refusal = capabilities.refuseTarget(
@@ -661,13 +674,15 @@ Object? $_superIntrinsicName(
       // text, wherever the name could come from; a helper that merely names
       // the member is refused too, which is the safe direction.
       if (lowered.declaration.isNotEmpty &&
-          (key.split('#').last.contains('.') ||
-              key.split('#').last.contains('|')) &&
+          (_selectorOf(key).contains('.') || _selectorOf(key).contains('|')) &&
           helperText.isNotEmpty) {
         final entryName = _helperName(key);
+        // `$name` is an interpolation of it, so only a word character before
+        // or after ends a match. An operator has no such spelling.
         final escaped = RegExp.escape(entryName);
-        final hides = RegExp('(?<![\\w\$])$escaped(?![\\w\$])');
-        if (hides.hasMatch(helperText)) {
+        final hides = RegExp('(?<!\\w)$escaped(?!\\w)');
+        if (RegExp(r'^\w+$').hasMatch(entryName) &&
+            hides.hasMatch(helperText)) {
           throw RouteBUnsupportedTarget(
             key,
             'its replacement is a top-level function named `$entryName`, '
@@ -928,7 +943,7 @@ Object? $_superIntrinsicName(
   /// one; the analysis proves the name is unique in its library, so a text
   /// match on it can only mean the helper.
   static String _helperName(String key) =>
-      key.split('#').last.split('.').last.replaceFirst(RegExp('^[gs]et:'), '');
+      _memberNameOf(key);
 
   /// The names of the helpers [key] calls. They are declared in the
   /// replacement library itself, not the release's, so the private-name
@@ -1501,7 +1516,7 @@ Object? $_superIntrinsicName(
     // receiver -- and the device resolves the target by that name, so the
     // replacement is the same one-parameter function as for a method:
     // `String get label => x` becomes `String label(Thing self) => x`.
-    final selector = key.contains('#') ? key.split('#').last : key;
+    final selector = key.contains('#') ? _selectorOf(key) : key;
     final getterName = selector.contains('.get:')
         ? selector.substring(selector.indexOf('.get:') + '.get:'.length)
         : null;
@@ -1872,7 +1887,7 @@ Object? $_superIntrinsicName(
   /// would be looked up among top-level names in the replacement. That is
   /// refused, not guessed from other fields.
   RouteBEnclosingScope? _scopeOf(String key, RouteBCoverage coverage) {
-    final selector = key.split('#').last;
+    final selector = _selectorOf(key);
     if (!selector.contains('.') && !selector.contains('|')) return null;
     final scopes = coverage.enclosingScope;
     if (scopes == null) {

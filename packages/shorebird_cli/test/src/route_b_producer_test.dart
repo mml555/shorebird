@@ -4,6 +4,7 @@ import 'dart:convert' hide jsonEncode;
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
@@ -3459,6 +3460,39 @@ callable:
             expect(fromFixture('ET|s'), contains('=> ET.k;'));
           });
 
+          test('an extension getter, setter or tear-off key is refused', () {
+            // Their keys are `lib#X|get#zz`: the selector has no `.`, which
+            // once let them through as plain top-level members.
+            for (final name in [
+              'X|get#zz',
+              'X|set#zs',
+              'ET|get#zz',
+              'ET|set#zs',
+              'X|get#inst',
+            ]) {
+              expect(
+                () => fromFixture(name),
+                refusedWith(
+                  anyOf(
+                    contains('instance member'),
+                    contains('could not be identified'),
+                  ),
+                ),
+                reason: name,
+              );
+            }
+          });
+
+          test('the fixture json was generated from this fixture source', () {
+            // CI cannot run the analyzer. This catches a fixture edited without
+            // regenerating the json (see gen_scope_fixture.dart).
+            expect(
+              fixture['sourceSha256'],
+              sha256.convert(utf8.encode(fixtureSource)).toString(),
+              reason: 'regenerate scope_fixture.json',
+            );
+          });
+
           test('an instance extension member is refused', () {
             expect(
               () => fromFixture('X|inst'),
@@ -3482,40 +3516,44 @@ callable:
           // The member becomes a top-level function of the same name, which
           // hides a top-level, an imported function or a type of that name from
           // every helper the replacement carries.
-          test('is refused when a helper spells its name', () {
-            const entry = 'static int value(int a) => helper(a);';
-            const helper = 'int helper(int x) => value(x) + 1;';
-            const helperKey = 'package:app/main.dart#helper';
-            const body = 'double k = 1.5;\n$entry\n$helper\n';
-            source.writeAsStringSync(body);
-            Map<String, Object?> at(String piece) => {
-              'fileUri': source.uri.toString(),
-              'start': body.indexOf(piece),
-              'end': body.indexOf(piece) + piece.length,
-            };
-            final doc = RouteBCoverage.fromJson(
-              jsonEncode({
-                'analysisVersion': routeBHelpersAnalysisVersion,
-                'verdict': 'accept',
-                'changed': [key],
-                'added': [helperKey],
-                'helpers': [helperKey],
-                'unusedHelpers': <String>[],
-                'carried': <String>[],
-                'removed': <String>[],
-                'patchable': <String>[],
-                'conditional': [key],
-                'callers': {
-                  helperKey: [key],
-                },
-                'sources': {key: at(entry), helperKey: at(helper)},
-                'enclosingScope': {key: empty},
-                'rejections': <Object>[],
-                'refusalSummary': null,
-              }),
-            );
-            expect(
-              () => runWithOverrides(
+          void hidden(
+            String name, {
+            required String entryKey,
+            required String entry,
+            required String helper,
+            bool refused = true,
+          }) {
+            test(name, () {
+              const helperKey = 'package:app/main.dart#helper';
+              final body = 'double k = 1.5;\n$entry\n$helper\n';
+              source.writeAsStringSync(body);
+              Map<String, Object?> at(String piece) => {
+                'fileUri': source.uri.toString(),
+                'start': body.indexOf(piece),
+                'end': body.indexOf(piece) + piece.length,
+              };
+              final doc = RouteBCoverage.fromJson(
+                jsonEncode({
+                  'analysisVersion': routeBHelpersAnalysisVersion,
+                  'verdict': 'accept',
+                  'changed': [entryKey],
+                  'added': [helperKey],
+                  'helpers': [helperKey],
+                  'unusedHelpers': <String>[],
+                  'carried': <String>[],
+                  'removed': <String>[],
+                  'patchable': <String>[],
+                  'conditional': [entryKey],
+                  'callers': {
+                    helperKey: [entryKey],
+                  },
+                  'sources': {entryKey: at(entry), helperKey: at(helper)},
+                  'enclosingScope': {entryKey: empty},
+                  'rejections': <Object>[],
+                  'refusalSummary': null,
+                }),
+              );
+              void produce() => runWithOverrides(
                 () => const RouteBProducer().produce(
                   compiler: compiler(),
                   coverage: doc,
@@ -3527,16 +3565,69 @@ callable:
                   projectRoot: project,
                   run: compileOk,
                 ),
-              ),
-              throwsA(
-                isA<RouteBUnsupportedTarget>().having(
-                  (e) => e.reason,
-                  'reason',
-                  contains('hides anything of that name'),
+              );
+              if (!refused) {
+                produce();
+                return;
+              }
+              expect(
+                produce,
+                throwsA(
+                  isA<RouteBUnsupportedTarget>().having(
+                    (e) => e.reason,
+                    'reason',
+                    contains('hides anything of that name'),
+                  ),
                 ),
-              ),
-            );
-          });
+              );
+            });
+          }
+
+          const classKey = 'package:app/main.dart#C.total';
+          const entry = 'static int total(int a) => helper(a);';
+          hidden(
+            'is refused when a helper calls its name',
+            entryKey: classKey,
+            entry: entry,
+            helper: 'int helper(int x) => total(x) + 1;',
+          );
+          hidden(
+            r'is refused when a helper interpolates it as $name',
+            entryKey: classKey,
+            entry: entry,
+            helper: r"String helper(int x) => 'v=$total $x';",
+          );
+          hidden(
+            r'is refused when a helper interpolates it as ${name}',
+            entryKey: classKey,
+            entry: entry,
+            helper: r"String helper(int x) => 'v=${total} $x';",
+          );
+          hidden(
+            'is refused when a helper tears it off',
+            entryKey: classKey,
+            entry: entry,
+            helper: 'Object helper(int x) => total;',
+          );
+          hidden(
+            'is refused for an extension static, by its bare name',
+            entryKey: 'package:app/main.dart#X|total',
+            entry: entry,
+            helper: r"String helper(int x) => '$total' + total().toString();",
+          );
+          hidden(
+            'is refused for an extension type static',
+            entryKey: 'package:app/main.dart#ET|total',
+            entry: entry,
+            helper: 'Object helper(int x) => total;',
+          );
+          hidden(
+            'is not refused when no helper spells the name',
+            entryKey: classKey,
+            entry: entry,
+            helper: 'int helper(int x) => x + 1;',
+            refused: false,
+          );
         });
       });
     });

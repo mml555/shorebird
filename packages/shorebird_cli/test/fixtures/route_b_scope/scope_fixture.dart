@@ -74,11 +74,19 @@ extension X on int {
   static int k = 4;
   static int s() => k;
   int inst() => this + k;
+  int get zz => k;
+  set zs(int v) {
+    k = v;
+  }
 }
 
 extension type ET(int v) {
   static int k = 6;
   static int s() => k;
+  int get zz => k;
+  set zs(int x) {
+    k = x;
+  }
 }
 
 void main() {}
