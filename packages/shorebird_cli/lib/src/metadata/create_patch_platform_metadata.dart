@@ -110,6 +110,7 @@ class CreatePatchPlatformMetadata extends Equatable {
   /// extension getters and instance tear-offs were not checked. Omitted (null)
   /// otherwise, the way a release records `--no-patch-signing`: the choice
   /// stays attributable to the patch that made it.
+  @JsonKey(includeIfNull: false)
   final bool? allowUncheckedSdkCalls;
 
   @override
