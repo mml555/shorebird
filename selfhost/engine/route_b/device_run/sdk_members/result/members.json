@@ -1,0 +1,3729 @@
+{
+ "dart:async#Future#catchError": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:async#Future#tearoff:catchError": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:async#Future#tearoff:then": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:async#Future#tearoff:timeout": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:async#Future#tearoff:whenComplete": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:async#Future#then": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:async#Future#timeout": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:async#Future#whenComplete": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:async#Stream#get:first": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:THROWS",
+   "value:static:THROWS",
+   "as_broadcast:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#Stream#get:isBroadcast": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:THROWS",
+   "value:static:THROWS",
+   "as_broadcast:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#Stream#listen": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:THROWS",
+   "value:static:THROWS",
+   "as_broadcast:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#Stream#map": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:THROWS",
+   "value:static:THROWS",
+   "as_broadcast:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#Stream#tearoff:listen": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:async#Stream#tearoff:map": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-static:THROWS",
+   "value:tearoff-static:THROWS",
+   "as_broadcast:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#Stream#tearoff:toList": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-static:THROWS",
+   "value:tearoff-static:THROWS",
+   "as_broadcast:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#Stream#tearoff:where": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-static:THROWS",
+   "value:tearoff-static:THROWS",
+   "as_broadcast:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#Stream#toList": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:THROWS",
+   "value:static:THROWS",
+   "as_broadcast:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#Stream#where": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:THROWS",
+   "value:static:THROWS",
+   "as_broadcast:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#StreamController#add": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:async#StreamController#close": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:async#StreamController#get:isClosed": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:async#StreamController#get:sink": {
+  "accepted": false,
+  "failing": [
+   "plain:static:THROWS",
+   "broadcast:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#StreamController#get:stream": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:async#StreamController#tearoff:add": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:async#StreamController#tearoff:close": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:async#StreamSubscription#cancel": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:static:UNATTRIBUTED",
+   "controller:static:ABORTS",
+   "broadcast:static:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#StreamSubscription#tearoff:cancel": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-static:UNATTRIBUTED",
+   "controller:tearoff-static:ABORTS",
+   "broadcast:tearoff-static:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#Timer#cancel": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:async#Timer#get:isActive": {
+  "accepted": false,
+  "failing": [
+   "periodic_or_oneshot:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#Timer#get:tick": {
+  "accepted": false,
+  "failing": [
+   "periodic_or_oneshot:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:async#Timer#tearoff:cancel": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#add": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#difference": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#get:microsecondsSinceEpoch": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#get:month": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#get:weekday": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#get:year": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#isAfter": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#isBefore": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#subtract": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#tearoff:add": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#tearoff:difference": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#tearoff:isAfter": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#tearoff:isBefore": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#tearoff:subtract": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#tearoff:toIso8601String": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#tearoff:toUtc": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#toIso8601String": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#DateTime#toUtc": {
+  "accepted": false,
+  "failing": [
+   "utc:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Duration#+": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#Duration#>": {
+  "accepted": false,
+  "failing": [
+   "duration:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Duration#get:inMicroseconds": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#Duration#get:inMilliseconds": {
+  "accepted": false,
+  "failing": [
+   "duration:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Duration#get:inMinutes": {
+  "accepted": false,
+  "failing": [
+   "duration:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Duration#get:inSeconds": {
+  "accepted": false,
+  "failing": [
+   "duration:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Duration#get:isNegative": {
+  "accepted": false,
+  "failing": [
+   "duration:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Error#get:stackTrace": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#FormatException#message": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#any": {
+  "accepted": false,
+  "failing": [
+   "generate:static:ABORTS"
+  ],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#contains": {
+  "accepted": false,
+  "failing": [
+   "filled_fixed:static:ABORTS",
+   "const:static:ABORTS",
+   "unmodifiable:static:ABORTS",
+   "generate:static:THROWS"
+  ],
+  "resolving_on": 5,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#elementAt": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "generate:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#every": {
+  "accepted": false,
+  "failing": [
+   "list:static:ABORTS",
+   "set:static:THROWS",
+   "generate:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#firstWhere": {
+  "accepted": false,
+  "failing": [
+   "set:static:THROWS",
+   "generate:static:THROWS"
+  ],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#fold": {
+  "accepted": false,
+  "failing": [
+   "set:static:THROWS",
+   "generate:static:THROWS"
+  ],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#get:first": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 9,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#get:isEmpty": {
+  "accepted": false,
+  "failing": [
+   "generate:static:ABORTS"
+  ],
+  "resolving_on": 8,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#get:isNotEmpty": {
+  "accepted": false,
+  "failing": [
+   "generate:static:ABORTS"
+  ],
+  "resolving_on": 8,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#get:iterator": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#get:last": {
+  "accepted": false,
+  "failing": [
+   "set:static:THROWS",
+   "generate:static:ABORTS"
+  ],
+  "resolving_on": 7,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#get:length": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 5,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#join": {
+  "accepted": false,
+  "failing": [
+   "set:static:THROWS"
+  ],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#map": {
+  "accepted": false,
+  "failing": [
+   "set:static:THROWS"
+  ],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#reduce": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "generate:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#skip": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "generate:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#take": {
+  "accepted": false,
+  "failing": [
+   "list:static:THROWS",
+   "set:static:THROWS",
+   "generate:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:any": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:contains": {
+  "accepted": false,
+  "failing": [
+   "generate:tearoff-static:THROWS"
+  ],
+  "resolving_on": 8,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:elementAt": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS",
+   "generate:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:every": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-static:THROWS",
+   "generate:tearoff-static:THROWS"
+  ],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:firstWhere": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-static:THROWS",
+   "generate:tearoff-static:THROWS"
+  ],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:fold": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-static:THROWS",
+   "generate:tearoff-static:THROWS"
+  ],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:join": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-static:THROWS"
+  ],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:map": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-static:THROWS"
+  ],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:reduce": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS",
+   "generate:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:skip": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS",
+   "generate:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:take": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-static:THROWS",
+   "set:tearoff-static:THROWS",
+   "generate:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:toList": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:toSet": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#tearoff:where": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#toList": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#toSet": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#Iterable#where": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#Iterator#get:current": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#Iterator#moveNext": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#List#[]": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#List#[]=": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#List#add": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#List#addAll": {
+  "accepted": false,
+  "failing": [
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS"
+  ],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#List#clear": {
+  "accepted": false,
+  "failing": [
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS"
+  ],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#List#get:length": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#List#get:reversed": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#List#indexOf": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "generate:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#List#insert": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "generate:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#List#remove": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#List#removeAt": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "generate:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#List#removeLast": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#List#sort": {
+  "accepted": false,
+  "failing": [
+   "filled_fixed:static:ABORTS",
+   "const:static:ABORTS",
+   "unmodifiable:static:ABORTS"
+  ],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#List#sublist": {
+  "accepted": false,
+  "failing": [
+   "growable:static:THROWS",
+   "filled_fixed:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "generate:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#List#tearoff:add": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#List#tearoff:addAll": {
+  "accepted": false,
+  "failing": [
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS"
+  ],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#List#tearoff:clear": {
+  "accepted": false,
+  "failing": [
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS"
+  ],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#List#tearoff:indexOf": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-static:THROWS",
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "generate:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#List#tearoff:insert": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-static:THROWS",
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "generate:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#List#tearoff:remove": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#List#tearoff:removeAt": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-static:THROWS",
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "generate:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#List#tearoff:removeLast": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#List#tearoff:sort": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#List#tearoff:sublist": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-static:THROWS",
+   "filled_fixed:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "generate:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Map#[]": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#[]=": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#addAll": {
+  "accepted": false,
+  "failing": [
+   "const:static:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": [
+   "literal:static:NOT-RUN",
+   "unmodifiable:static:NOT-RUN",
+   "json:static:NOT-RUN"
+  ]
+ },
+ "dart:core#Map#containsKey": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#containsValue": {
+  "accepted": false,
+  "failing": [
+   "literal:static:THROWS",
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS",
+   "json:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Map#forEach": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#get:entries": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#get:isEmpty": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#get:isNotEmpty": {
+  "accepted": false,
+  "failing": [
+   "const:static:THROWS",
+   "unmodifiable:static:THROWS"
+  ],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#Map#get:keys": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#get:length": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#get:values": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#putIfAbsent": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#remove": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#tearoff:addAll": {
+  "accepted": false,
+  "failing": [
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS"
+  ],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#Map#tearoff:containsKey": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#tearoff:containsValue": {
+  "accepted": false,
+  "failing": [
+   "literal:tearoff-static:THROWS",
+   "const:tearoff-static:THROWS",
+   "unmodifiable:tearoff-static:THROWS",
+   "json:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#Map#tearoff:forEach": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#tearoff:putIfAbsent": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Map#tearoff:remove": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#Object#==": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#Object#get:hashCode": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#Object#get:runtimeType": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#Object#tearoff:toString": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 5,
+  "unmeasured": []
+ },
+ "dart:core#Object#toString": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 5,
+  "unmeasured": []
+ },
+ "dart:core#Set#add": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#Set#contains": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#Set#remove": {
+  "accepted": false,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": [
+   "literal:static:NOT-RUN"
+  ]
+ },
+ "dart:core#Set#tearoff:add": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#Set#tearoff:contains": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#Set#tearoff:remove": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#StateError#message": {
+  "accepted": false,
+  "failing": [
+   "state_error:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#*": {
+  "accepted": false,
+  "failing": [
+   "two_byte:static:THROWS"
+  ],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#String#+": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#==": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#[]": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#codeUnitAt": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#compareTo": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#contains": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#endsWith": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:ABORTS",
+   "two_byte:static:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#get:isEmpty": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#get:isNotEmpty": {
+  "accepted": false,
+  "failing": [],
+  "resolving_on": 0,
+  "unmeasured": [
+   "one_byte:static:NOT-RUN",
+   "two_byte:static:NOT-RUN"
+  ]
+ },
+ "dart:core#String#get:length": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#indexOf": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#padLeft": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#replaceAll": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#split": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#startsWith": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#substring": {
+  "accepted": false,
+  "failing": [
+   "one_byte:static:THROWS",
+   "two_byte:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:codeUnitAt": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-static:THROWS",
+   "two_byte:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:compareTo": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-static:THROWS",
+   "two_byte:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:contains": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:endsWith": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:indexOf": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-static:THROWS",
+   "two_byte:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:padLeft": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-static:THROWS",
+   "two_byte:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:replaceAll": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:split": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:startsWith": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:substring": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-static:THROWS",
+   "two_byte:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:toLowerCase": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:toUpperCase": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#tearoff:trim": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#toLowerCase": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#toUpperCase": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#String#trim": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#bool#tearoff:toString": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#bool#toString": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#double#%": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#double#*": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#double#+": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#double#-": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#double#/": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#double#abs": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#double#ceil": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#double#floor": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#double#round": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#double#tearoff:abs": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#double#tearoff:ceil": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#double#tearoff:floor": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#double#tearoff:round": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#double#tearoff:toString": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#double#tearoff:truncate": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#double#toString": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#double#truncate": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#double#unary-": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#double#~/": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#int#&": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#int#<<": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#int#abs": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#int#get:isEven": {
+  "accepted": false,
+  "failing": [],
+  "resolving_on": 0,
+  "unmeasured": [
+   "smi:static:NOT-RUN",
+   "mint:static:NOT-RUN"
+  ]
+ },
+ "dart:core#int#tearoff:abs": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#int#tearoff:toString": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#int#toString": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#int#unary-": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:core#num#%": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS"
+  ],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dart:core#num#*": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 5,
+  "unmeasured": []
+ },
+ "dart:core#num#+": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 5,
+  "unmeasured": []
+ },
+ "dart:core#num#-": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 5,
+  "unmeasured": []
+ },
+ "dart:core#num#/": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#<": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#num#<=": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#num#==": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#num#>": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dart:core#num#>=": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dart:core#num#abs": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#clamp": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS",
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#compareTo": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS",
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#floor": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#get:isNaN": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dart:core#num#remainder": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#round": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#tearoff:abs": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#tearoff:clamp": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS",
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#tearoff:compareTo": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS",
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#tearoff:floor": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#tearoff:remainder": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#tearoff:round": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#tearoff:toDouble": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 5,
+  "unmeasured": []
+ },
+ "dart:core#num#tearoff:toInt": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-static:THROWS",
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#tearoff:toStringAsFixed": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS",
+   "smi:tearoff-static:THROWS",
+   "mint:tearoff-static:THROWS",
+   "double:tearoff-static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#toDouble": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 5,
+  "unmeasured": []
+ },
+ "dart:core#num#toInt": {
+  "accepted": false,
+  "failing": [
+   "double:static:THROWS",
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#toStringAsFixed": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS",
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#unary-": {
+  "accepted": false,
+  "failing": [
+   "smi:static:THROWS",
+   "mint:static:THROWS",
+   "double:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:core#num#~/": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dart:ui#Offset#get:dx": {
+  "accepted": false,
+  "failing": [
+   "offset:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:ui#Offset#get:dy": {
+  "accepted": false,
+  "failing": [
+   "offset:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:ui#Size#get:height": {
+  "accepted": false,
+  "failing": [
+   "size:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dart:ui#Size#get:width": {
+  "accepted": false,
+  "failing": [
+   "size:static:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#%": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#&": {
+  "accepted": false,
+  "failing": [],
+  "resolving_on": 0,
+  "unmeasured": [
+   "smi:dynamic:NOT-RUN",
+   "mint:dynamic:NOT-RUN"
+  ]
+ },
+ "dynamic#*": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#+": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "duration:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#-": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#/": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#<": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#<<": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#<=": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#==": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 11,
+  "unmeasured": []
+ },
+ "dynamic#>": {
+  "accepted": false,
+  "failing": [
+   "duration:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#>=": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#[]": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:ABORTS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#[]=": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:ABORTS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#abs": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#add": {
+  "accepted": false,
+  "failing": [
+   "plain:dynamic:THROWS",
+   "broadcast:dynamic:THROWS",
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "utc:dynamic:THROWS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#addAll": {
+  "accepted": false,
+  "failing": [],
+  "resolving_on": 0,
+  "unmeasured": [
+   "literal:dynamic:NOT-RUN",
+   "const:dynamic:NOT-RUN",
+   "unmodifiable:dynamic:NOT-RUN",
+   "json:dynamic:NOT-RUN",
+   "growable:dynamic:NOT-RUN",
+   "filled_fixed:dynamic:NOT-RUN",
+   "const:dynamic:NOT-RUN",
+   "unmodifiable:dynamic:NOT-RUN"
+  ]
+ },
+ "dynamic#any": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#cancel": {
+  "accepted": false,
+  "failing": [
+   "periodic_or_oneshot:dynamic:THROWS",
+   "from_iterable:dynamic:UNATTRIBUTED",
+   "controller:dynamic:ABORTS",
+   "broadcast:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#catchError": {
+  "accepted": false,
+  "failing": [
+   "async_fn:dynamic:THROWS",
+   "value:dynamic:ABORTS",
+   "completer:dynamic:THROWS",
+   "delayed:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#ceil": {
+  "accepted": false,
+  "failing": [
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#clamp": {
+  "accepted": false,
+  "failing": [],
+  "resolving_on": 0,
+  "unmeasured": [
+   "smi:dynamic:NOT-RUN",
+   "mint:dynamic:NOT-RUN",
+   "double:dynamic:NOT-RUN",
+   "smi:dynamic:NOT-RUN",
+   "mint:dynamic:NOT-RUN",
+   "double:dynamic:NOT-RUN"
+  ]
+ },
+ "dynamic#clear": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "generate:dynamic:ABORTS",
+   "json:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#close": {
+  "accepted": false,
+  "failing": [
+   "plain:dynamic:THROWS",
+   "broadcast:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#codeUnitAt": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#compareTo": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#contains": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "generate:dynamic:THROWS",
+   "json:dynamic:ABORTS",
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#containsKey": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#containsValue": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#difference": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#elementAt": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#endsWith": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#every": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#firstWhere": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#floor": {
+  "accepted": false,
+  "failing": [
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#fold": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#forEach": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:current": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:ABORTS",
+   "set:dynamic:ABORTS",
+   "generate:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:dx": {
+  "accepted": false,
+  "failing": [
+   "offset:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:dy": {
+  "accepted": false,
+  "failing": [
+   "offset:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:entries": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:ABORTS",
+   "const:dynamic:ABORTS",
+   "unmodifiable:dynamic:ABORTS",
+   "json:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:first": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:dynamic:THROWS",
+   "value:dynamic:THROWS",
+   "as_broadcast:dynamic:THROWS",
+   "growable:dynamic:ABORTS",
+   "filled_fixed:dynamic:ABORTS",
+   "const:dynamic:ABORTS",
+   "unmodifiable:dynamic:ABORTS",
+   "generate:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:hashCode": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dynamic#get:height": {
+  "accepted": false,
+  "failing": [
+   "size:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:inMicroseconds": {
+  "accepted": false,
+  "failing": [
+   "duration:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:inMilliseconds": {
+  "accepted": false,
+  "failing": [
+   "duration:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:inMinutes": {
+  "accepted": false,
+  "failing": [
+   "duration:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:inSeconds": {
+  "accepted": false,
+  "failing": [
+   "duration:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:isActive": {
+  "accepted": false,
+  "failing": [
+   "periodic_or_oneshot:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:isBroadcast": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:dynamic:THROWS",
+   "value:dynamic:THROWS",
+   "as_broadcast:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:isClosed": {
+  "accepted": false,
+  "failing": [
+   "plain:dynamic:ABORTS",
+   "broadcast:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:isEmpty": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:ABORTS",
+   "const:dynamic:ABORTS",
+   "unmodifiable:dynamic:ABORTS",
+   "json:dynamic:ABORTS",
+   "growable:dynamic:ABORTS",
+   "filled_fixed:dynamic:ABORTS",
+   "const:dynamic:ABORTS",
+   "unmodifiable:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:isEven": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:isNaN": {
+  "accepted": false,
+  "failing": [
+   "double:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:isNegative": {
+  "accepted": false,
+  "failing": [
+   "duration:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:isNotEmpty": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:ABORTS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:ABORTS",
+   "growable:dynamic:ABORTS",
+   "filled_fixed:dynamic:ABORTS",
+   "const:dynamic:ABORTS",
+   "unmodifiable:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:iterator": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:ABORTS",
+   "set:dynamic:ABORTS",
+   "generate:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:keys": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:ABORTS",
+   "const:dynamic:ABORTS",
+   "unmodifiable:dynamic:ABORTS",
+   "json:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:last": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:ABORTS",
+   "filled_fixed:dynamic:ABORTS",
+   "const:dynamic:ABORTS",
+   "unmodifiable:dynamic:ABORTS",
+   "generate:dynamic:ABORTS",
+   "json:dynamic:ABORTS",
+   "list:dynamic:ABORTS",
+   "set:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:length": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:ABORTS",
+   "const:dynamic:ABORTS",
+   "unmodifiable:dynamic:ABORTS",
+   "json:dynamic:ABORTS",
+   "growable:dynamic:ABORTS",
+   "filled_fixed:dynamic:ABORTS",
+   "const:dynamic:ABORTS",
+   "unmodifiable:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:microsecondsSinceEpoch": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:month": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:reversed": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:ABORTS",
+   "filled_fixed:dynamic:ABORTS",
+   "const:dynamic:ABORTS",
+   "unmodifiable:dynamic:ABORTS",
+   "generate:dynamic:ABORTS",
+   "json:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:runtimeType": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dynamic#get:sink": {
+  "accepted": false,
+  "failing": [
+   "plain:dynamic:THROWS",
+   "broadcast:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:stackTrace": {
+  "accepted": false,
+  "failing": [
+   "state_error:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:stream": {
+  "accepted": false,
+  "failing": [
+   "plain:dynamic:ABORTS",
+   "broadcast:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:tick": {
+  "accepted": false,
+  "failing": [
+   "periodic_or_oneshot:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:values": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:ABORTS",
+   "const:dynamic:ABORTS",
+   "unmodifiable:dynamic:ABORTS",
+   "json:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:weekday": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:width": {
+  "accepted": false,
+  "failing": [
+   "size:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#get:year": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#indexOf": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "generate:dynamic:THROWS",
+   "json:dynamic:THROWS",
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#insert": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "generate:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#isAfter": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#isBefore": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#join": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#listen": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:dynamic:THROWS",
+   "value:dynamic:THROWS",
+   "as_broadcast:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#map": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:dynamic:THROWS",
+   "value:dynamic:THROWS",
+   "as_broadcast:dynamic:THROWS",
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#message": {
+  "accepted": false,
+  "failing": [
+   "state_error:dynamic:THROWS",
+   "format_exception:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#moveNext": {
+  "accepted": false,
+  "failing": [],
+  "resolving_on": 0,
+  "unmeasured": [
+   "list:dynamic:NOT-RUN",
+   "set:dynamic:NOT-RUN",
+   "generate:dynamic:NOT-RUN"
+  ]
+ },
+ "dynamic#padLeft": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#putIfAbsent": {
+  "accepted": false,
+  "failing": [],
+  "resolving_on": 0,
+  "unmeasured": [
+   "literal:dynamic:NOT-RUN",
+   "const:dynamic:NOT-RUN",
+   "unmodifiable:dynamic:NOT-RUN",
+   "json:dynamic:NOT-RUN"
+  ]
+ },
+ "dynamic#reduce": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#remainder": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#remove": {
+  "accepted": false,
+  "failing": [
+   "literal:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "json:dynamic:ABORTS",
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#removeAt": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "generate:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#removeLast": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:ABORTS",
+   "generate:dynamic:THROWS",
+   "json:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#replaceAll": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#round": {
+  "accepted": false,
+  "failing": [
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#skip": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#sort": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "generate:dynamic:THROWS",
+   "json:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#split": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#startsWith": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#sublist": {
+  "accepted": false,
+  "failing": [
+   "growable:dynamic:THROWS",
+   "filled_fixed:dynamic:THROWS",
+   "const:dynamic:THROWS",
+   "unmodifiable:dynamic:THROWS",
+   "generate:dynamic:THROWS",
+   "json:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#substring": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#subtract": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#take": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:abs": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:add": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 10,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:addAll": {
+  "accepted": false,
+  "failing": [],
+  "resolving_on": 0,
+  "unmeasured": [
+   "literal:tearoff-dynamic:NOT-RUN",
+   "const:tearoff-dynamic:NOT-RUN",
+   "unmodifiable:tearoff-dynamic:NOT-RUN",
+   "json:tearoff-dynamic:NOT-RUN",
+   "growable:tearoff-dynamic:NOT-RUN",
+   "filled_fixed:tearoff-dynamic:NOT-RUN",
+   "const:tearoff-dynamic:NOT-RUN",
+   "unmodifiable:tearoff-dynamic:NOT-RUN"
+  ]
+ },
+ "dynamic#tearoff:any": {
+  "accepted": false,
+  "failing": [
+   "generate:tearoff-dynamic:ABORTS"
+  ],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:cancel": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-dynamic:UNATTRIBUTED",
+   "controller:tearoff-dynamic:ABORTS",
+   "broadcast:tearoff-dynamic:ABORTS"
+  ],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:catchError": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:ceil": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:clamp": {
+  "accepted": false,
+  "failing": [],
+  "resolving_on": 0,
+  "unmeasured": [
+   "smi:tearoff-dynamic:NOT-RUN",
+   "mint:tearoff-dynamic:NOT-RUN",
+   "double:tearoff-dynamic:NOT-RUN",
+   "smi:tearoff-dynamic:NOT-RUN",
+   "mint:tearoff-dynamic:NOT-RUN",
+   "double:tearoff-dynamic:NOT-RUN"
+  ]
+ },
+ "dynamic#tearoff:clear": {
+  "accepted": false,
+  "failing": [
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:close": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:codeUnitAt": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-dynamic:THROWS",
+   "two_byte:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:compareTo": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-dynamic:THROWS",
+   "two_byte:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:contains": {
+  "accepted": false,
+  "failing": [
+   "generate:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 12,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:containsKey": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:containsValue": {
+  "accepted": false,
+  "failing": [
+   "literal:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:difference": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:elementAt": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "generate:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:endsWith": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:every": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-dynamic:THROWS",
+   "generate:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:firstWhere": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-dynamic:THROWS",
+   "generate:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:floor": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:fold": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-dynamic:THROWS",
+   "generate:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 1,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:forEach": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:indexOf": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-dynamic:THROWS",
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "generate:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS",
+   "one_byte:tearoff-dynamic:THROWS",
+   "two_byte:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:insert": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-dynamic:THROWS",
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "generate:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:isAfter": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:isBefore": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:join": {
+  "accepted": false,
+  "failing": [
+   "set:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:listen": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:map": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-dynamic:THROWS",
+   "value:tearoff-dynamic:THROWS",
+   "as_broadcast:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:padLeft": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-dynamic:THROWS",
+   "two_byte:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:putIfAbsent": {
+  "accepted": false,
+  "failing": [],
+  "resolving_on": 0,
+  "unmeasured": [
+   "literal:tearoff-dynamic:NOT-RUN",
+   "const:tearoff-dynamic:NOT-RUN",
+   "unmodifiable:tearoff-dynamic:NOT-RUN",
+   "json:tearoff-dynamic:NOT-RUN"
+  ]
+ },
+ "dynamic#tearoff:reduce": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "generate:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:remainder": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:remove": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 12,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:removeAt": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-dynamic:THROWS",
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "generate:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:removeLast": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:replaceAll": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:round": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:skip": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "generate:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:sort": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 6,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:split": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:startsWith": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:sublist": {
+  "accepted": false,
+  "failing": [
+   "growable:tearoff-dynamic:THROWS",
+   "filled_fixed:tearoff-dynamic:THROWS",
+   "const:tearoff-dynamic:THROWS",
+   "unmodifiable:tearoff-dynamic:THROWS",
+   "generate:tearoff-dynamic:THROWS",
+   "json:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:substring": {
+  "accepted": false,
+  "failing": [
+   "one_byte:tearoff-dynamic:THROWS",
+   "two_byte:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:subtract": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:take": {
+  "accepted": false,
+  "failing": [
+   "list:tearoff-dynamic:THROWS",
+   "set:tearoff-dynamic:THROWS",
+   "generate:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:then": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:timeout": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:toDouble": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 5,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:toInt": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:toIso8601String": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:toList": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-dynamic:THROWS",
+   "value:tearoff-dynamic:THROWS",
+   "as_broadcast:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:toLowerCase": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:toSet": {
+  "accepted": false,
+  "failing": [
+   "generate:tearoff-dynamic:ABORTS"
+  ],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:toString": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 9,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:toStringAsFixed": {
+  "accepted": false,
+  "failing": [
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS",
+   "smi:tearoff-dynamic:THROWS",
+   "mint:tearoff-dynamic:THROWS",
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:toUpperCase": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:toUtc": {
+  "accepted": false,
+  "failing": [
+   "utc:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:trim": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 2,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:truncate": {
+  "accepted": false,
+  "failing": [
+   "double:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:whenComplete": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 4,
+  "unmeasured": []
+ },
+ "dynamic#tearoff:where": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:tearoff-dynamic:THROWS",
+   "value:tearoff-dynamic:THROWS",
+   "as_broadcast:tearoff-dynamic:THROWS"
+  ],
+  "resolving_on": 3,
+  "unmeasured": []
+ },
+ "dynamic#then": {
+  "accepted": false,
+  "failing": [
+   "async_fn:dynamic:THROWS",
+   "value:dynamic:ABORTS",
+   "completer:dynamic:THROWS",
+   "delayed:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#timeout": {
+  "accepted": false,
+  "failing": [
+   "async_fn:dynamic:THROWS",
+   "value:dynamic:ABORTS",
+   "completer:dynamic:THROWS",
+   "delayed:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#toDouble": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#toInt": {
+  "accepted": false,
+  "failing": [
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#toIso8601String": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#toList": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:dynamic:THROWS",
+   "value:dynamic:THROWS",
+   "as_broadcast:dynamic:THROWS",
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#toLowerCase": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#toSet": {
+  "accepted": false,
+  "failing": [
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#toString": {
+  "accepted": true,
+  "failing": [],
+  "resolving_on": 9,
+  "unmeasured": []
+ },
+ "dynamic#toStringAsFixed": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#toUpperCase": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#toUtc": {
+  "accepted": false,
+  "failing": [
+   "utc:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#trim": {
+  "accepted": false,
+  "failing": [
+   "one_byte:dynamic:THROWS",
+   "two_byte:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#truncate": {
+  "accepted": false,
+  "failing": [
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#unary-": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS",
+   "smi:dynamic:THROWS",
+   "mint:dynamic:THROWS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#whenComplete": {
+  "accepted": false,
+  "failing": [
+   "async_fn:dynamic:THROWS",
+   "value:dynamic:ABORTS",
+   "completer:dynamic:THROWS",
+   "delayed:dynamic:ABORTS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#where": {
+  "accepted": false,
+  "failing": [
+   "from_iterable:dynamic:THROWS",
+   "value:dynamic:THROWS",
+   "as_broadcast:dynamic:THROWS",
+   "list:dynamic:THROWS",
+   "set:dynamic:THROWS",
+   "generate:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ },
+ "dynamic#~/": {
+  "accepted": false,
+  "failing": [
+   "smi:dynamic:THROWS",
+   "mint:dynamic:ABORTS",
+   "double:dynamic:THROWS"
+  ],
+  "resolving_on": 0,
+  "unmeasured": []
+ }
+}
