@@ -27,12 +27,14 @@ void main() {
   late Repository repo;
   late Config config;
   late Api api;
+  late ArtifactStore store;
 
   Future<void> boot({Config? override}) async {
     tmp = Directory.systemTemp.createTempSync('cps_api');
     config = override ?? sqliteConfig(tmp.path);
     repo = await Repository.open(config);
-    api = Api(repo, await ArtifactStore.open(config), config);
+    store = await ArtifactStore.open(config);
+    api = Api(repo, store, config);
   }
 
   setUp(boot);
@@ -505,6 +507,51 @@ void main() {
       // artifacts it still owes.
       expect((await jsonOf(again))['id'], first['id']);
     });
+
+    test(
+      're-uploading the same bytes to a verified token answers 200',
+      () async {
+        final app = await seedApp();
+        final reg = await jsonOf(
+          await register(
+            app.appId,
+            app.releaseId,
+            arch: 'xcarchive',
+            platform: 'ios',
+          ),
+        );
+        final token = (reg['url'] as String).split('/').last;
+        Future<Response> post(String content) => send(
+          'POST',
+          '/api/v1/uploads/$token',
+          bearer: _bootstrapKey,
+          headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+          body:
+              '--$bd\r\ncontent-disposition: form-data; name="file"; '
+              'filename="a"\r\n\r\n$content\r\n--$bd--\r\n',
+        );
+        expect((await post('abc')).statusCode, HttpStatus.noContent);
+        expect((await post('abc')).statusCode, HttpStatus.ok);
+        // Different bytes for a verified token stay a conflict, and do not
+        // replace what is stored.
+        expect((await post('abd')).statusCode, HttpStatus.conflict);
+        expect((await post('abc')).statusCode, HttpStatus.ok);
+        // A body too big to be the recorded 3 bytes is refused from its length,
+        // and none of this rewrote the stored object.
+        expect((await post('x' * 10000)).statusCode, HttpStatus.conflict);
+        final row = (await repo.existingArtifact(
+          'release',
+          app.releaseId,
+          'xcarchive',
+          'ios',
+        ))!;
+        expect(row.status, ArtifactStatus.verified);
+        expect(
+          await utf8.decoder.bind(await store.openRead(row.storageKey)).join(),
+          'abc',
+        );
+      },
+    );
 
     test('a rebuilt artifact supersedes the stale one while incomplete', () async {
       // The real rescue path: `shorebird release` rebuilds on every retry, so the

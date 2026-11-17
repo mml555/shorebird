@@ -9,10 +9,20 @@ on:
     branches: [main]
     paths:
       - packages/code_push_server/**
+      # The contract test package drives the real client against the real
+      # server, so client and protocol changes run it too.
+      - packages/code_push_contract_test/**
+      - packages/shorebird_code_push_client/**
+      - packages/shorebird_code_push_protocol/**
       - .github/workflows/code_push_server.yaml
   pull_request:
     paths:
       - packages/code_push_server/**
+      # The contract test package drives the real client against the real
+      # server, so client and protocol changes run it too.
+      - packages/code_push_contract_test/**
+      - packages/shorebird_code_push_client/**
+      - packages/shorebird_code_push_protocol/**
       - .github/workflows/code_push_server.yaml
 
 # Cancel superseded runs on the same ref.
@@ -103,6 +113,50 @@ jobs:
           done
           BASE="http://localhost:$PORT" KEY="$API_KEY" ./tool/smoke_test.sh
           kill $SV || true
+
+  # The real shorebird_code_push_client against the real server handler, in
+  # process. Its own standalone package (own pubspec.lock) so the server's
+  # pubspec, which its Docker build resolves alone, names no path outside it.
+  contract:
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
+    defaults:
+      run:
+        working-directory: packages/code_push_contract_test
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      # The server's SQLite backend uses libsqlite3 over FFI (see the build
+      # job); the self-hosted runners have it installed system-wide.
+      - name: Install libsqlite3
+        run: |
+          if ! dpkg -s libsqlite3-dev >/dev/null 2>&1; then
+            SUDO=""
+            if [ "$(id -u)" -ne 0 ]; then
+              if ! sudo -n true 2>/dev/null; then
+                echo "::error::libsqlite3-dev is not installed on this runner, and it has no sudo. Install it on the host (apt-get install libsqlite3-dev)."
+                exit 1
+              fi
+              SUDO=sudo
+            fi
+            $SUDO apt-get update && $SUDO apt-get install -y libsqlite3-dev
+          fi
+
+      - name: Install dependencies
+        run: dart pub get --enforce-lockfile
+
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze (fail on any lint)
+        run: dart analyze --fatal-infos --fatal-warnings
+
+      - name: Contract test
+        run: dart test -j 3
 
   # Exercises the scale backend (Postgres metadata + filesystem artifacts) that
   # the SQLite job never touches: the PgDb adapter, unrewritten Postgres SQL,
