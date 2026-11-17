@@ -418,6 +418,149 @@ and what those block on is better evidence than what a ladder suggests next.
 > like a limitation rather than a boundary. Rewording it changes the cell and so
 > costs a mint; fold it into the next mint that happens for another reason.
 
+### A new class in a patch — host results and cost (go/no-go)
+
+Question: can a patch module declare a NEW class, and what does the release pay
+for the interface that makes the interesting case work? Host only; no device was
+touched. The design is in `new_class_feasibility.md` (not checked in); this
+section records what the checked-in scripts show.
+
+**Probe:** `probes/added_class.sh`. It is hand-built: the analyzer refuses a new
+class and the producer cannot slice one, so each arm hand-writes the replacement
+library, compiles it with the cell's `dart2bytecode`, packs it with the CLI's own
+container writer and runs it on a runtime that attaches. It measures what the VM
+and the release interface allow, not what the CLI can emit.
+
+```sh
+OUT=$HOME/shorebird-engine/flutter/engine/src/out/host_release_arm64_ddm \
+CLI_PKGS=<package_config.json resolving package:shorebird_cli> \
+  selfhost/engine/route_b/probes/added_class.sh selfhost/engine/route_b <cell zip>
+```
+
+| arm | release interface | tabled | untabled |
+|---|---|---|---|
+| `class _Pt` (extends Object, field, const ctor) | any | works (`PT7`) | works (`PT7`) |
+| `RbFresh extends RbBase` | `extendable` + `can-be-overridden` for `RbBase.name` | works (`FLD`) | works (`FLD`) |
+| the same class | neither section | process abort, `object.cc: unreachable code` (exit 134) | RUNS THE WRONG OVERRIDE: `RbBase2.name` (`B2`), exit 0 |
+| two equal `const _Pt(1)` | any | equal in one function, equal across two module functions, unequal for `_Pt(2)` | same |
+
+Real Flutter classes (`fl_*` arms, against the Flutter platform dill). A module
+`MW extends StatelessWidget` with `const MW({super.key})` and a `build`, and
+`MSW extends StatefulWidget` + `_MS extends State<MSW>`:
+
+| arm | result |
+|---|---|
+| generator, no flag | no `extendable:` / `can-be-overridden:` section |
+| generator, `--extendable` for `StatelessWidget`, `StatefulWidget`, `State` | both sections; the manifest records 3 extendable, 3 can-be-overridden |
+| generator, typo'd class; `StatelessWidget.nope`; `StatelessWidget.key` (inherited from `Widget`) | each refused, exit 2, nothing written |
+| release kernel (TFA) and snapshot for each interface | both build (the annotator accepts the interface) |
+| `dart2bytecode` (cell's, `--target flutter`) on the module | compiles |
+| run the Flutter-platform snapshot on the host | aborts: `library 'dart:_builtin' not found` |
+
+**What the `fl_*` arms do not show: the module was never run.** `dartaotruntime`
+needs `dart:_builtin`, which the Flutter platform does not have, and an engine
+or device is out of scope. So whether `super.key` (a call to the framework
+constructor) and `build` dispatch work at run time, with or without `extendable`,
+is NOT established; only the toy `RbBase` arms ran. One static observation: in
+both snapshots (with and without the sections) the listing holds no function of
+`StatelessWidget`, `StatefulWidget` or `State` at all. The framework constructors
+the module would call have no kept body to bind to. What the loader does with
+such a `super` call was not exercised, and `extendable` does not grant
+constructors (`callable:` does), so treat it as the first thing to run on a
+device.
+
+The last row is asked with `==` (no `operator ==` declared, so identity), because
+`identical` is not in the release's interface and aborts the module
+(`Unable to find function identical`). The untabled row is the dangerous one: it
+is silent. Any analyzer that lets a class extend an AOT class MUST check the
+release's recorded interface for `extendable` and `can-be-overridden` and refuse
+otherwise; the VM will not.
+
+**Generator flag:** `gen_dynamic_interface.dart --extendable library#Class` (or
+`library#Class.member`), repeatable, off by default.
+- With it absent the output is unchanged **by inspection** of the diff (the code
+  runs only behind the flag, after the last existing section); the probe's
+  `flag_off` arm checks only that the two sections are absent, not equality with
+  the previous generator.
+- A bare `library#Class` makes all public instance members the class itself
+  declares overridable and subsumes any `library#Class.member`. Inherited members
+  are not covered: `StatelessWidget` alone does not make `Widget.key` or
+  `Widget.==` overridable; name `Widget`.
+- It refuses, exit 2, a class absent from the kernels, a `final` or `sealed`
+  class (the annotator would silently skip it) and a member the class does not
+  declare as a public instance member.
+- The grants are recorded in `--manifest` (`extendable`, `canBeOverridden`, and
+  counts), so a reader need not infer them from the yaml.
+- The generator's source has moved while the pinned
+  `route_b_gen_dynamic_interface.aot` has not (see `SUPPORTED_STATE.yaml`). A
+  mint that rebuilds it from main must say so in its PROVENANCE.
+
+Unit test: `probes/gen_extendable_flag_test.dart` (spec parsing, normalisation,
+and the refusals against an in-memory kernel).
+
+**Cost:** `measure_extendable.sh`, the method of `measure_real_app.sh` with one
+axis, on the airgap fixture compiled against the Flutter platform dill with TFA,
+`gen_snapshot --patchable_static_calls`, for the macOS host (not iOS).
+`measure_real_app.sh` itself cannot run on the current fixture: its shipping arm
+builds the interface from the `--aot` prepass alone and `gen_kernel` rejects it
+(`set:_rbKindMember was not found in class _ProbeBodyState`). The new script
+passes `--private-dill` and `--platform`, which resolves.
+
+```sh
+(cd selfhost/fixtures/airgap_app && flutter pub get --offline)   # edits pubspec.lock; revert it
+UNTABLED=1 selfhost/engine/route_b/measure_extendable.sh
+```
+
+| arm | snapshot bytes | vs control | Instructions cluster | functions |
+|---|---|---|---|---|
+| control (shipping interface) | 6,560,832 | | 2,705,572 | 10,871 |
+| + `StatelessWidget`, `StatefulWidget`, `State` extendable, all public members overridable | 6,577,720 | +0.257% (+16,888 B) | 2,706,992 | 10,883 |
+| + the same, only `build`, `createState`, `initState`, `didUpdateWidget`, `dispose`, `didChangeDependencies` | 6,577,856 | +0.259% | 2,706,892 | 10,883 |
+| control, untabled | 6,675,352 | | 2,725,960 | 10,874 |
+| + all three, untabled | 6,674,384 | -0.015% | 2,727,980 | 10,886 |
+
+A second build of the control differs by 8 bytes, so the deltas are real above
+that. The per-function listing (`--print_instructions_sizes_to`) shows about a
+dozen more functions and 164 shared functions growing by 248 B in total. The
+added functions are mostly unrelated to the three classes (`dart:ui`
+`_Native*.dispose`, `Color.get:colorSpace`, the diagnostics tree `toStringShort`),
+which looks like TFA and ordering churn from any kernel change. This section does
+not attribute the +0.26% to lost devirtualization; that would need a control that
+changes the kernel without changing the interface.
+
+**What this does not show.** The fixture is a tiny app (a few widget classes);
+the delta grows with the number of overriding sites and widget subclasses in a real
+app, and one number from one small app is not a size for yours. Host bytes are not
+iOS bytes (only the deltas transfer, and only roughly). Frame time and startup were
+not measured and need a device. TFA devirtualization is seen only through these
+sizes, not reported directly. No larger real app was available on this machine
+(`~/compat-corpus` is absent).
+
+**Recommendation.**
+- Plain class extending Object (a private data class, a const value class): GO.
+  No interface change by construction (its cost was not measured), and the
+  runtime arms pass on releases whose interface is unchanged. The analyzer and
+  producer cannot carry it yet.
+- Class extending an AOT class: the evidence is thinner than it looks.
+  - Runs on the host only for a toy base (`RbBase`), where it works with the two
+    sections and fails (abort, or silently wrong untabled) without them.
+  - For real `StatelessWidget`, `StatefulWidget` and `State` the host shows only
+    that the generator, annotator, release build and module compile accept it. The
+    module was not run (no host runtime for the Flutter platform), and `super.key`
+    binding to a framework constructor that is absent from the snapshot is
+    unexercised.
+  - Cost: about +0.26% snapshot on a small fixture (host, noise 8 B). Whether
+    narrowing the member list helps is inconclusive (136 B of snapshot, the
+    Instructions cluster moving the other way).
+  - So: NO-GO to ship this rung on host evidence alone. It is a GO to run the
+    next step, a device run of a module extending a real `StatelessWidget` and a
+    `State`, against a release cut with `--extendable`, because the host cost
+    gives no reason not to. Conditions for shipping: the analyzer refuses it unless
+    the release interface records `extendable` and `can-be-overridden` (the
+    untabled failure is silent); only releases cut after a cell that passes
+    `--extendable`, flag off for every existing cell; and a real-app iOS
+    measurement of size, startup and frame time.
+
 ### Seam 6 — activation, and what it closed
 
 Every question about *where and when* a Route B patch becomes live is now
