@@ -63,11 +63,11 @@ int main(){
   CHECK(SniffFile(real)==ContainerStatus::kOk, "real container file -> ok");
   std::string trunc8=TempFile(std::vector<uint8_t>{'S','B','R','B','P'});
   CHECK(SniffFile(trunc8)==ContainerStatus::kNotAContainer, "truncated file (5 bytes) -> not-a-container");
-  std::string vmfile=TempFile(v);
-  CHECK(SniffFile(vmfile)==ContainerStatus::kNotAContainer, "ordinary vmcode file -> not-a-container");
+  std::string vm_file=TempFile(v);
+  CHECK(SniffFile(vm_file)==ContainerStatus::kNotAContainer, "ordinary vmcode file -> not-a-container");
   std::string empty=TempFile({});
   CHECK(SniffFile(empty)==ContainerStatus::kNotAContainer, "empty file -> not-a-container");
-  for (auto& f : {real, trunc8, vmfile, empty}) unlink(f.c_str());
+  for (auto& f : {real, trunc8, vm_file, empty}) unlink(f.c_str());
   printf(fails? "TAXONOMY: %d FAILED\n" : "TAXONOMY: all passed\n", fails);
   return fails?1:0;
 }
