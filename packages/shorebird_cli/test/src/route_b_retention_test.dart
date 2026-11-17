@@ -11,6 +11,7 @@ import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_retention.dart';
 import 'package:test/test.dart';
 
+import 'helpers.dart';
 import 'mocks.dart';
 
 /// The shape of a release interface, as `gen_dynamic_interface.dart` writes it:
@@ -100,6 +101,8 @@ RouteBCoverage _analysis(
 );
 
 void main() {
+  useTempWorkingDirectory();
+
   late RouteBRetention retention;
 
   setUp(() {
@@ -501,6 +504,78 @@ can-be-used-as-type:
       test('and answers null for a missing file, never an empty set', () {
         expect(RouteBRetention.read(null), isNull);
         expect(RouteBRetention.read(File('/no/such/file.yaml')), isNull);
+      });
+      test('with a malformed section, as unreadable', () {
+        for (final bad in [
+          'callable: 1',
+          'callable:\n  - 1',
+          "callable:\n  - class: 'A'",
+          'can-be-used-as-type:\n  - class: [A]',
+        ]) {
+          expect(
+            () => RouteBRetention.parse(bad),
+            throwsFormatException,
+            reason: bad,
+          );
+        }
+      });
+
+      test('from a file, or null when the file is not an interface', () {
+        final dir = Directory.systemTemp.createTempSync();
+        addTearDown(() => dir.deleteSync(recursive: true));
+        final good = File(p.join(dir.path, 'good.yaml'))
+          ..writeAsStringSync(_interface);
+        final bad = File(p.join(dir.path, 'bad.yaml'))
+          ..writeAsStringSync('- a');
+        expect(RouteBRetention.read(good), isNotNull);
+        expect(RouteBRetention.read(bad), isNull);
+      });
+    });
+
+    group('a private member answers to the manifest', () {
+      final manifest = RouteBCapabilities.fromJson('''
+{
+  "policy": "p2",
+  "privateTopLevelCallable": [],
+  "privateStaticsCallable": ["package:app/main.dart#_K#_s"],
+  "privateInstanceCallable": ["package:app/main.dart#_K#_i"],
+  "privateClassPublicMembers": ["package:app/main.dart#_K#pub"],
+  "privateClassesConstructible": [],
+  "refused": []
+}
+''');
+      late RouteBRetention withManifest;
+      setUp(() {
+        withManifest = RouteBRetention.parse(
+          _interface,
+          capabilities: manifest,
+        );
+      });
+
+      String? ask(String kind, String cls, String? member) => refusal([
+        _ref(
+          kind,
+          'package:app/main.dart',
+          cls: cls,
+          member: member,
+          private: true,
+        ),
+      ], with_: withManifest);
+
+      test('a granted private static, instance member or public member', () {
+        expect(ask('static', '_K', '_s'), isNull);
+        expect(ask('instance', '_K', '_i'), isNull);
+        expect(ask('instance', '_K', 'pub'), isNull);
+      });
+
+      test('an ungranted one, and a private top-level the manifest lacks', () {
+        expect(ask('static', '_K', '_other'), isNotNull);
+        expect(ask('top-level', '', '_nope'), isNotNull);
+      });
+
+      test('a private class the manifest lists a member of', () {
+        expect(ask('class', '_K', null), isNull);
+        expect(ask('class', '_Unknown', null), isNotNull);
       });
     });
   });
