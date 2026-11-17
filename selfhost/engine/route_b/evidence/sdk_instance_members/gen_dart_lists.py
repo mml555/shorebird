@@ -98,6 +98,15 @@ for m in members:
         fail[k] = v.lower()
 # A tear-off probe never calls the closure, so a tear-off key is only as safe
 # as its call form. Fail closed: refuse it unless the call-form key is accepted.
+# The matrix marks such a key UNCALLED; a tear-off accepted anyway (a matrix
+# without that verdict) is demoted here.
+def uncalled_reason(k):
+    call = k.replace('#tearoff:', '#', 1)
+    why = fail.get(call)
+    return ('torn off, and the closure is never called by the probe; its call '
+            'form `' + call.split('#', 1)[1] + '` is not accepted'
+            + (f' ({why})' if why else ' (never measured)'))
+
 accepted = set(acc)
 for k in list(acc):
     if '#tearoff:' not in k:
@@ -109,10 +118,12 @@ for k in list(acc):
         continue
     acc.remove(k)
     del classes[k]
-    why = fail.get(call)
-    fail[k] = ('torn off, and the closure is never called by the probe; its call '
-               'form `' + call.split('#', 1)[1] + '` is not accepted'
-               + (f' ({why})' if why else ' (never measured)'))
+    fail[k] = None
+for m in members:
+    if m['device_verdict'] == 'UNCALLED':
+        fail[m['key']] = None
+for k in [k for k, v in fail.items() if v is None]:
+    fail[k] = uncalled_reason(k)
 acc.sort()
 
 def q(s): return "'" + s.replace("\\", "\\\\").replace("'", "\\'").replace('$', '\\$') + "'"
