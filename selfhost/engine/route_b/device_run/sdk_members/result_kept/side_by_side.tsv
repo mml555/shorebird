@@ -11,7 +11,7 @@ dart:async#Stream#get:first	THROWS		SAFE		REAL	call sites and --sdk-members	2fc4
 dart:async#Stream#get:isBroadcast	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
 dart:async#Stream#listen	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:async#Stream#map	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
-dart:async#Stream#tearoff:listen	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:async#Stream#tearoff:listen	UNCALLED		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
 dart:async#Stream#tearoff:map	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:async#Stream#tearoff:toList	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:async#Stream#tearoff:where	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
@@ -74,7 +74,7 @@ dart:core#Iterable#map	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:core#Iterable#reduce	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:core#Iterable#skip	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:core#Iterable#take	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
-dart:core#Iterable#tearoff:any	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Iterable#tearoff:any	UNCALLED		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
 dart:core#Iterable#tearoff:contains	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:core#Iterable#tearoff:elementAt	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:core#Iterable#tearoff:every	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
@@ -115,7 +115,7 @@ dart:core#List#tearoff:insert	THROWS		SAFE		REAL	call sites and --sdk-members	2f
 dart:core#List#tearoff:remove	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
 dart:core#List#tearoff:removeAt	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:core#List#tearoff:removeLast	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
-dart:core#List#tearoff:sort	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#List#tearoff:sort	UNCALLED		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
 dart:core#List#tearoff:sublist	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:core#Map#[]	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
 dart:core#Map#[]=	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
@@ -131,7 +131,7 @@ dart:core#Map#get:length	SAFE		SAFE		REAL	not a target (counter verdict was not 
 dart:core#Map#get:values	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
 dart:core#Map#putIfAbsent	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
 dart:core#Map#remove	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
-dart:core#Map#tearoff:addAll	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
+dart:core#Map#tearoff:addAll	THROWS		UNCALLED		REAL	call sites and --sdk-members	2fc41d3f
 dart:core#Map#tearoff:containsKey	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
 dart:core#Map#tearoff:containsValue	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:core#Map#tearoff:forEach	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
@@ -147,7 +147,7 @@ dart:core#Set#contains	SAFE		SAFE		REAL	not a target (counter verdict was not TH
 dart:core#Set#remove	CRASH(host)		CRASH(host)		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
 dart:core#Set#tearoff:add	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
 dart:core#Set#tearoff:contains	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
-dart:core#Set#tearoff:remove	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#Set#tearoff:remove	UNCALLED		UNCALLED		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
 dart:core#StateError#message	THROWS		SAFE	thin	UNMAPPED	--sdk-members	2fc41d3f
 dart:core#String#*	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:core#String#+	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
@@ -169,7 +169,7 @@ dart:core#String#substring	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41
 dart:core#String#tearoff:codeUnitAt	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
 dart:core#String#tearoff:compareTo	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
 dart:core#String#tearoff:contains	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
-dart:core#String#tearoff:endsWith	SAFE		SAFE		STUB	not a target (counter verdict was not THROWS)	2fc41d3f
+dart:core#String#tearoff:endsWith	UNCALLED		UNCALLED		STUB	not a target (counter verdict was not THROWS)	2fc41d3f
 dart:core#String#tearoff:indexOf	THROWS		SAFE		REAL	--sdk-members	2fc41d3f
 dart:core#String#tearoff:padLeft	THROWS		SAFE		REAL	call sites and --sdk-members	2fc41d3f
 dart:core#String#tearoff:replaceAll	SAFE		SAFE		REAL	not a target (counter verdict was not THROWS)	2fc41d3f
@@ -246,182 +246,182 @@ dart:ui#Offset#get:dx	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
 dart:ui#Offset#get:dy	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
 dart:ui#Size#get:height	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
 dart:ui#Size#get:width	THROWS		SAFE	thin	REAL	--sdk-members	2fc41d3f
-dynamic#%	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#&	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#*	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#+	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#-	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#/	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#<	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#<<	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#<=	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#==	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#>	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#>=	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#[]	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#[]=	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#abs	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#add	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#addAll	CRASH(host)		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#any	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#cancel	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#catchError	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#ceil	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#clamp	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#clear	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#close	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#codeUnitAt	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#compareTo	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#contains	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#containsKey	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#containsValue	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#difference	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#elementAt	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#endsWith	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#every	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#firstWhere	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#floor	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#fold	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#forEach	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:current	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:dx	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:dy	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:entries	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:first	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:hashCode	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:height	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:inMicroseconds	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:inMilliseconds	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:inMinutes	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:inSeconds	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:isActive	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:isBroadcast	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:isClosed	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:isEmpty	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:isEven	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:isNaN	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:isNegative	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:isNotEmpty	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:iterator	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:keys	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:last	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:length	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:microsecondsSinceEpoch	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:month	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:reversed	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:runtimeType	SAFE	thin	SAFE	thin		not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:sink	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:stackTrace	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:stream	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:tick	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:values	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:weekday	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:width	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#get:year	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#indexOf	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#insert	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#isAfter	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#isBefore	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#join	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#listen	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#map	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#message	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#moveNext	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#padLeft	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#putIfAbsent	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#reduce	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#remainder	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#remove	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#removeAt	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#removeLast	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#replaceAll	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#round	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#skip	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#sort	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#split	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#startsWith	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#sublist	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#substring	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#subtract	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#take	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:abs	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:add	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:addAll	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:any	CRASH		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:cancel	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:catchError	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:ceil	THROWS		SAFE	thin		not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:clamp	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:clear	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:close	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:codeUnitAt	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:compareTo	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:contains	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:containsKey	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:containsValue	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:difference	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:elementAt	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:endsWith	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:every	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:firstWhere	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:floor	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:fold	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:forEach	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:indexOf	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:insert	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:isAfter	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:isBefore	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:join	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:listen	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:map	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:padLeft	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:putIfAbsent	PARTIAL		PARTIAL			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:reduce	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:remainder	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:remove	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:removeAt	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:removeLast	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:replaceAll	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:round	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:skip	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:sort	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:split	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:startsWith	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:sublist	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:substring	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:subtract	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:take	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:then	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:timeout	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:toDouble	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:toInt	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:toIso8601String	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:toList	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:toLowerCase	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:toSet	CRASH		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:toString	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:toStringAsFixed	THROWS		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:toUpperCase	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:toUtc	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:trim	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:truncate	THROWS		SAFE	thin		not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:whenComplete	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#tearoff:where	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#then	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#timeout	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#toDouble	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#toInt	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#toIso8601String	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#toList	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#toLowerCase	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#toSet	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#toString	SAFE		SAFE			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#toStringAsFixed	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#toUpperCase	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#toUtc	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#trim	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#truncate	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#unary-	THROWS		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#whenComplete	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#where	THROWS		THROWS			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
-dynamic#~/	CRASH		CRASH			not a target (dynamic form is not covered by the retention gate)	2fc41d3f
+dynamic#%	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#&	PARTIAL		PARTIAL			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#*	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#+	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#-	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#/	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#<	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#<<	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#<=	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#==	SAFE		SAFE			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#>	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#>=	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#[]	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#[]=	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#abs	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#add	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#addAll	CRASH(host)		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#any	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#cancel	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#catchError	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#ceil	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#clamp	PARTIAL		PARTIAL			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#clear	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#close	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#codeUnitAt	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#compareTo	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#contains	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#containsKey	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#containsValue	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#difference	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#elementAt	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#endsWith	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#every	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#firstWhere	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#floor	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#fold	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#forEach	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:current	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:dx	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:dy	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:entries	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:first	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:hashCode	SAFE		SAFE			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:height	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:inMicroseconds	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:inMilliseconds	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:inMinutes	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:inSeconds	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:isActive	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:isBroadcast	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:isClosed	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:isEmpty	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:isEven	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:isNaN	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:isNegative	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:isNotEmpty	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:iterator	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:keys	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:last	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:length	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:microsecondsSinceEpoch	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:month	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:reversed	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:runtimeType	SAFE	thin	SAFE	thin		not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:sink	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:stackTrace	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:stream	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:tick	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:values	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:weekday	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:width	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#get:year	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#indexOf	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#insert	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#isAfter	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#isBefore	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#join	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#listen	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#map	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#message	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#moveNext	PARTIAL		PARTIAL			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#padLeft	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#putIfAbsent	PARTIAL		PARTIAL			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#reduce	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#remainder	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#remove	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#removeAt	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#removeLast	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#replaceAll	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#round	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#skip	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#sort	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#split	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#startsWith	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#sublist	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#substring	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#subtract	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#take	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:abs	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:add	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:addAll	PARTIAL		PARTIAL			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:any	CRASH		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:cancel	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:catchError	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:ceil	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:clamp	PARTIAL		PARTIAL			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:clear	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:close	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:codeUnitAt	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:compareTo	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:contains	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:containsKey	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:containsValue	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:difference	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:elementAt	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:endsWith	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:every	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:firstWhere	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:floor	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:fold	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:forEach	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:indexOf	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:insert	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:isAfter	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:isBefore	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:join	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:listen	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:map	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:padLeft	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:putIfAbsent	PARTIAL		PARTIAL			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:reduce	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:remainder	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:remove	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:removeAt	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:removeLast	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:replaceAll	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:round	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:skip	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:sort	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:split	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:startsWith	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:sublist	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:substring	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:subtract	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:take	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:then	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:timeout	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:toDouble	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:toInt	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:toIso8601String	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:toList	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:toLowerCase	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:toSet	CRASH		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:toString	SAFE		SAFE			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:toStringAsFixed	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:toUpperCase	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:toUtc	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:trim	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:truncate	THROWS		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:whenComplete	UNCALLED		UNCALLED			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#tearoff:where	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#then	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#timeout	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#toDouble	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#toInt	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#toIso8601String	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#toList	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#toLowerCase	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#toSet	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#toString	SAFE		SAFE			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#toStringAsFixed	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#toUpperCase	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#toUtc	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#trim	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#truncate	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#unary-	THROWS		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#whenComplete	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#where	THROWS		THROWS			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f
+dynamic#~/	CRASH		CRASH			not a target: the retention gate does not cover dynamic keys, do not widen any from this run	2fc41d3f

@@ -2,9 +2,11 @@
 
 Scope: one bare `flutter create` app release at engine cell 2fc41d3f; SAFE means resolved in that release (see RESULT.md).
 
-Device keys 426: {'SAFE': 136, 'THROWS': 224, 'CRASH': 55, 'CRASH(host)': 4, 'PARTIAL': 7}; 18 of the 136 SAFE keys are thin. #209 accepts 75 keys (75 of them on the device matrix). All 1514 probes are keyed.
+A `#tearoff:` key is SAFE only if its call-form key is SAFE too (the tear-off probe creates the closure and never calls it); otherwise it is UNCALLED.
 
-## Refused by #209, SAFE on the device, not thin (55)
+Device keys 426: {'SAFE': 112, 'THROWS': 224, 'UNCALLED': 24, 'CRASH': 55, 'CRASH(host)': 4, 'PARTIAL': 7}; 18 of the 112 SAFE keys are thin. #209 accepts 75 keys (75 of them on the device matrix). All 1514 probes are keyed.
+
+## Refused by #209, SAFE on the device, not thin (48)
 
 - dart:async#Future#catchError  (4 probes, 4 classes)
 - dart:async#Future#tearoff:catchError  (4 probes, 4 classes)
@@ -12,7 +14,6 @@ Device keys 426: {'SAFE': 136, 'THROWS': 224, 'CRASH': 55, 'CRASH(host)': 4, 'PA
 - dart:async#StreamController#get:stream  (2 probes, 2 classes)
 - dart:core#Iterable#get:first  (9 probes, 8 classes)
 - dart:core#Iterable#get:iterator  (3 probes, 3 classes)
-- dart:core#Iterable#tearoff:any  (3 probes, 3 classes)
 - dart:core#Iterable#tearoff:toList  (3 probes, 3 classes)
 - dart:core#Iterable#tearoff:toSet  (3 probes, 3 classes)
 - dart:core#Iterable#tearoff:where  (3 probes, 3 classes)
@@ -28,7 +29,6 @@ Device keys 426: {'SAFE': 136, 'THROWS': 224, 'CRASH': 55, 'CRASH(host)': 4, 'PA
 - dart:core#List#get:reversed  (6 probes, 6 classes)
 - dart:core#List#remove  (6 probes, 6 classes)
 - dart:core#List#tearoff:remove  (6 probes, 6 classes)
-- dart:core#List#tearoff:sort  (6 probes, 6 classes)
 - dart:core#Map#[]  (4 probes, 4 classes)
 - dart:core#Map#[]=  (4 probes, 4 classes)
 - dart:core#Map#get:entries  (4 probes, 4 classes)
@@ -43,7 +43,6 @@ Device keys 426: {'SAFE': 136, 'THROWS': 224, 'CRASH': 55, 'CRASH(host)': 4, 'PA
 - dart:core#Set#contains  (2 probes, 2 classes)
 - dart:core#Set#tearoff:contains  (2 probes, 2 classes)
 - dart:core#String#==  (2 probes, 2 classes)
-- dart:core#String#tearoff:endsWith  (2 probes, 2 classes)
 - dart:core#int#&  (2 probes, 2 classes)
 - dart:core#int#<<  (2 probes, 2 classes)
 - dart:core#int#unary-  (2 probes, 2 classes)
@@ -56,10 +55,6 @@ Device keys 426: {'SAFE': 136, 'THROWS': 224, 'CRASH': 55, 'CRASH(host)': 4, 'PA
 - dart:core#num#~/  (2 probes, 2 classes)
 - dynamic#==  (11 probes, 8 classes)
 - dynamic#get:hashCode  (3 probes, 3 classes)
-- dynamic#tearoff:catchError  (4 probes, 4 classes)
-- dynamic#tearoff:endsWith  (2 probes, 2 classes)
-- dynamic#tearoff:remove  (12 probes, 7 classes)
-- dynamic#tearoff:sort  (6 probes, 6 classes)
 - dynamic#toString  (9 probes, 9 classes)
 
 ## Refused by #209, SAFE on the device but thin (7)
@@ -83,6 +78,35 @@ Fewer than 2 probes or fewer than 2 runtime classes.
 - dynamic#tearoff:addAll  (10 probes, 7 classes)
 - dynamic#tearoff:clamp  (6 probes, 3 classes)
 - dynamic#tearoff:putIfAbsent  (4 probes, 4 classes)
+
+## Tear-off keys whose probes resolved but whose call form is not SAFE (24)
+
+The tear-off probe only creates the closure, so these say nothing about calling it; the verdict is UNCALLED and the call form decides.
+
+- dart:async#Stream#tearoff:listen: call form THROWS  (accepted by #209)
+- dart:core#Iterable#tearoff:any: call form CRASH  (refused by #209)
+- dart:core#List#tearoff:sort: call form CRASH  (refused by #209)
+- dart:core#Set#tearoff:remove: call form CRASH(host)  (accepted by #209)
+- dart:core#String#tearoff:endsWith: call form CRASH  (refused by #209)
+- dynamic#tearoff:catchError: call form CRASH  (refused by #209)
+- dynamic#tearoff:close: call form THROWS  (accepted by #209)
+- dynamic#tearoff:containsKey: call form CRASH  (accepted by #209)
+- dynamic#tearoff:endsWith: call form THROWS  (refused by #209)
+- dynamic#tearoff:forEach: call form CRASH  (accepted by #209)
+- dynamic#tearoff:listen: call form THROWS  (accepted by #209)
+- dynamic#tearoff:remove: call form CRASH  (refused by #209)
+- dynamic#tearoff:removeLast: call form CRASH  (accepted by #209)
+- dynamic#tearoff:replaceAll: call form THROWS  (accepted by #209)
+- dynamic#tearoff:sort: call form CRASH  (refused by #209)
+- dynamic#tearoff:split: call form THROWS  (accepted by #209)
+- dynamic#tearoff:startsWith: call form THROWS  (accepted by #209)
+- dynamic#tearoff:then: call form CRASH  (accepted by #209)
+- dynamic#tearoff:timeout: call form CRASH  (accepted by #209)
+- dynamic#tearoff:toDouble: call form CRASH  (accepted by #209)
+- dynamic#tearoff:toLowerCase: call form THROWS  (accepted by #209)
+- dynamic#tearoff:toUpperCase: call form THROWS  (accepted by #209)
+- dynamic#tearoff:trim: call form THROWS  (accepted by #209)
+- dynamic#tearoff:whenComplete: call form CRASH  (accepted by #209)
 
 ## Refused by #209, no crash but a NoSuchMethodError on some runtime class (224)
 
@@ -315,8 +339,25 @@ Fewer than 2 probes or fewer than 2 runtime classes.
 
 - dynamic#tearoff:cancel: CRASH
 
-## Accepted by #209, throwing or partly unmeasured on the device (0)
+## Accepted by #209, throwing, uncalled or partly unmeasured on the device (17)
 
+- dart:async#Stream#tearoff:listen: UNCALLED
+- dart:core#Set#tearoff:remove: UNCALLED
+- dynamic#tearoff:close: UNCALLED
+- dynamic#tearoff:containsKey: UNCALLED
+- dynamic#tearoff:forEach: UNCALLED
+- dynamic#tearoff:listen: UNCALLED
+- dynamic#tearoff:removeLast: UNCALLED
+- dynamic#tearoff:replaceAll: UNCALLED
+- dynamic#tearoff:split: UNCALLED
+- dynamic#tearoff:startsWith: UNCALLED
+- dynamic#tearoff:then: UNCALLED
+- dynamic#tearoff:timeout: UNCALLED
+- dynamic#tearoff:toDouble: UNCALLED
+- dynamic#tearoff:toLowerCase: UNCALLED
+- dynamic#tearoff:toUpperCase: UNCALLED
+- dynamic#tearoff:trim: UNCALLED
+- dynamic#tearoff:whenComplete: UNCALLED
 
 ## Accepted by #209, not on the device matrix (0)
 

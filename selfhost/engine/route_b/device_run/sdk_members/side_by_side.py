@@ -4,8 +4,8 @@
 
 Joins the counter release's verdict per key (result/members.tsv) with the kept release's
 (result_kept/members.tsv) and what the snapshot profile said about the key in the kept release
-(kept_check.keys.tsv for the final build, kept_check_build2.keys.tsv for the build before
-`--sdk-members` was widened). Writes <kept>/side_by_side.tsv and <kept>/side_by_side.md.
+(kept_check_build3.keys.tsv for the final build, kept_check_build2.keys.tsv for the build before
+`--sdk-members` was widened). A tear-off key is UNCALLED, not SAFE, when its call form is not SAFE (see compare.py). Writes <kept>/side_by_side.tsv and <kept>/side_by_side.md.
 """
 import collections, csv, sys
 
@@ -18,7 +18,7 @@ def load(path):
 
 counter = load(f'{cdir}/members.tsv')
 kept = load(f'{kdir}/members.tsv')
-prof3 = load(f'{kdir}/kept_check.keys.tsv')
+prof3 = load(f'{kdir}/kept_check_build3.keys.tsv')
 prof2 = load(f'{kdir}/kept_check_build2.keys.tsv')
 
 rows = []
@@ -28,7 +28,7 @@ for k in sorted(counter):
         # a target: the build 2 profile says whether the call sites alone kept it
         by = 'call sites and --sdk-members' if prof2.get(k, {}).get('kept_in_profile') == 'REAL' else '--sdk-members'
     elif k.startswith('dynamic#'):
-        by = 'not a target (dynamic form is not covered by the retention gate)'
+        by = 'not a target: the retention gate does not cover dynamic keys, do not widen any from this run'
     else:
         by = 'not a target (counter verdict was not THROWS)'
     rows.append(dict(key=k, counter_release=c['device_verdict'], counter_thin=c['thin'],
@@ -43,7 +43,7 @@ with open(f'{kdir}/side_by_side.tsv', 'w') as f:
 mat = collections.Counter((r['counter_release'], r['kept_release']) for r in rows)
 out = ['# Counter release vs kept release, per key', '',
        'Rows: verdict in the counter release. Columns: verdict in the kept release. Counts are keys.', '']
-cols = ['SAFE', 'THROWS', 'CRASH', 'CRASH(host)', 'PARTIAL']
+cols = ['SAFE', 'UNCALLED', 'THROWS', 'CRASH', 'CRASH(host)', 'PARTIAL']
 out += ['| counter \\ kept | ' + ' | '.join(cols) + ' | total |', '|---|' + '---|' * (len(cols) + 1)]
 for a in cols:
     n = [mat[(a, b)] for b in cols]
@@ -61,6 +61,8 @@ def listing(title, pred):
 
 listing('THROWS in the counter release, SAFE in the kept release',
         lambda r: (r['counter_release'], r['kept_release']) == ('THROWS', 'SAFE'))
+listing('THROWS in the counter release, UNCALLED in the kept release (tear-off keys whose call form is not SAFE)',
+        lambda r: (r['counter_release'], r['kept_release']) == ('THROWS', 'UNCALLED'))
 listing('THROWS in the counter release, CRASH in the kept release',
         lambda r: (r['counter_release'], r['kept_release']) == ('THROWS', 'CRASH'))
 listing('THROWS in both',

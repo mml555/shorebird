@@ -2,15 +2,16 @@
 
 Rows: verdict in the counter release. Columns: verdict in the kept release. Counts are keys.
 
-| counter \ kept | SAFE | THROWS | CRASH | CRASH(host) | PARTIAL | total |
-|---|---|---|---|---|---|---|
-| SAFE | 136 | 0 | 0 | 0 | 0 | 136 |
-| THROWS | 141 | 40 | 43 | 0 | 0 | 224 |
-| CRASH | 9 | 0 | 46 | 0 | 0 | 55 |
-| CRASH(host) | 0 | 0 | 1 | 3 | 0 | 4 |
-| PARTIAL | 0 | 0 | 0 | 0 | 7 | 7 |
+| counter \ kept | SAFE | UNCALLED | THROWS | CRASH | CRASH(host) | PARTIAL | total |
+|---|---|---|---|---|---|---|---|
+| SAFE | 112 | 0 | 0 | 0 | 0 | 0 | 112 |
+| UNCALLED | 3 | 21 | 0 | 0 | 0 | 0 | 24 |
+| THROWS | 120 | 21 | 40 | 43 | 0 | 0 | 224 |
+| CRASH | 7 | 2 | 0 | 46 | 0 | 0 | 55 |
+| CRASH(host) | 0 | 0 | 0 | 1 | 3 | 0 | 4 |
+| PARTIAL | 0 | 0 | 0 | 0 | 0 | 7 | 7 |
 
-## THROWS in the counter release, SAFE in the kept release (141)
+## THROWS in the counter release, SAFE in the kept release (120)
 
 - `dart:async#Stream#get:first`: kept by call sites and --sdk-members
 - `dart:async#Stream#get:isBroadcast`: kept by --sdk-members
@@ -79,7 +80,6 @@ Rows: verdict in the counter release. Columns: verdict in the kept release. Coun
 - `dart:core#List#tearoff:sublist`: kept by call sites and --sdk-members
 - `dart:core#Map#containsValue`: kept by call sites and --sdk-members
 - `dart:core#Map#get:isNotEmpty`: kept by call sites and --sdk-members
-- `dart:core#Map#tearoff:addAll`: kept by call sites and --sdk-members
 - `dart:core#Map#tearoff:containsValue`: kept by call sites and --sdk-members
 - `dart:core#StateError#message`: kept by --sdk-members (thin)
 - `dart:core#String#*`: kept by call sites and --sdk-members
@@ -133,117 +133,121 @@ Rows: verdict in the counter release. Columns: verdict in the kept release. Coun
 - `dart:ui#Offset#get:dy`: kept by --sdk-members (thin)
 - `dart:ui#Size#get:height`: kept by --sdk-members (thin)
 - `dart:ui#Size#get:width`: kept by --sdk-members (thin)
-- `dynamic#tearoff:ceil`: kept by not a target (dynamic form is not covered by the retention gate) (thin)
-- `dynamic#tearoff:clear`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:contains`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:containsValue`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:elementAt`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:every`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:firstWhere`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:fold`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:insert`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:join`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:padLeft`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:reduce`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:remainder`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:removeAt`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:skip`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:sublist`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:substring`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:take`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:toStringAsFixed`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:truncate`: kept by not a target (dynamic form is not covered by the retention gate) (thin)
+
+## THROWS in the counter release, UNCALLED in the kept release (tear-off keys whose call form is not SAFE) (21)
+
+- `dart:core#Map#tearoff:addAll`: kept by call sites and --sdk-members
+- `dynamic#tearoff:ceil`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:clear`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:contains`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:containsValue`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:elementAt`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:every`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:firstWhere`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:fold`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:insert`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:join`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:padLeft`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:reduce`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:remainder`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:removeAt`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:skip`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:sublist`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:substring`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:take`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:toStringAsFixed`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:truncate`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
 
 ## THROWS in the counter release, CRASH in the kept release (43)
 
-- `dynamic#/`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#<=`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#>=`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#containsValue`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:dx`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:dy`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:height`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:inMilliseconds`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:inMinutes`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:inSeconds`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:isActive`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:isBroadcast`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:isNegative`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:microsecondsSinceEpoch`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:month`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:sink`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:tick`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:weekday`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:width`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#get:year`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#insert`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#remainder`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#removeAt`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#sublist`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:abs`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:add`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:codeUnitAt`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:compareTo`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:difference`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:floor`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:indexOf`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:isAfter`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:isBefore`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:map`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:round`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:subtract`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:toInt`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:toIso8601String`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:toList`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:toUtc`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:where`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#toStringAsFixed`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#unary-`: kept by not a target (dynamic form is not covered by the retention gate)
+- `dynamic#/`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#<=`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#>=`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#containsValue`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:dx`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:dy`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:height`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:inMilliseconds`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:inMinutes`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:inSeconds`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:isActive`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:isBroadcast`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:isNegative`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:microsecondsSinceEpoch`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:month`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:sink`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:tick`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:weekday`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:width`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#get:year`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#insert`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#remainder`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#removeAt`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#sublist`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:abs`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:add`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:codeUnitAt`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:compareTo`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:difference`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:floor`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:indexOf`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:isAfter`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:isBefore`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:map`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:round`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:subtract`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:toInt`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:toIso8601String`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:toList`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:toUtc`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#tearoff:where`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#toStringAsFixed`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#unary-`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
 
 ## THROWS in both (40)
 
-- `dynamic#<<`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#abs`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#any`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#ceil`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#close`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#codeUnitAt`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#compareTo`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#difference`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#elementAt`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#endsWith`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#every`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#firstWhere`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#floor`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#fold`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#indexOf`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#isAfter`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#isBefore`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#join`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#listen`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#map`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#padLeft`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#reduce`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#replaceAll`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#round`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#skip`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#split`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#startsWith`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#substring`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#subtract`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#take`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#toInt`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#toIso8601String`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#toList`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#toLowerCase`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#toSet`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#toUpperCase`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#toUtc`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#trim`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#truncate`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#where`: kept by not a target (dynamic form is not covered by the retention gate)
+- `dynamic#<<`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#abs`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#any`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#ceil`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#close`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#codeUnitAt`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#compareTo`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#difference`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#elementAt`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#endsWith`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#every`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#firstWhere`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#floor`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#fold`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#indexOf`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#isAfter`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#isBefore`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#join`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#listen`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#map`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#padLeft`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#reduce`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#replaceAll`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#round`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#skip`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#split`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#startsWith`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#substring`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#subtract`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#take`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#toInt`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#toIso8601String`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#toList`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#toLowerCase`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#toSet`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#toUpperCase`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#toUtc`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#trim`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#truncate`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
+- `dynamic#where`: kept by not a target: the retention gate does not cover dynamic keys, do not widen any from this run
 
-## CRASH in the counter release, SAFE in the kept release (9)
+## CRASH in the counter release, SAFE in the kept release (7)
 
 - `dart:core#Iterable#any`: kept by not a target (counter verdict was not THROWS)
 - `dart:core#Iterable#contains`: kept by not a target (counter verdict was not THROWS)
@@ -252,5 +256,3 @@ Rows: verdict in the counter release. Columns: verdict in the kept release. Coun
 - `dart:core#Iterable#get:isNotEmpty`: kept by not a target (counter verdict was not THROWS)
 - `dart:core#Iterable#get:last`: kept by not a target (counter verdict was not THROWS)
 - `dart:core#List#sort`: kept by not a target (counter verdict was not THROWS)
-- `dynamic#tearoff:any`: kept by not a target (dynamic form is not covered by the retention gate)
-- `dynamic#tearoff:toSet`: kept by not a target (dynamic form is not covered by the retention gate)
