@@ -124,14 +124,8 @@ Uint8List writeRouteBContainer({
 class RouteBContainer {
   const RouteBContainer._(this.releaseBuildId, this.targets);
 
-  /// The release this container may be applied to.
-  final String releaseBuildId;
-
-  /// Every function it replaces.
-  final List<RouteBPatchTarget> targets;
-
   /// Parses [bytes], or throws [FormatException].
-  static RouteBContainer parse(Uint8List bytes) {
+  factory RouteBContainer.parse(Uint8List bytes) {
     if (bytes.length < 16) {
       throw const FormatException('too short to be a patch container');
     }
@@ -192,6 +186,12 @@ class RouteBContainer {
     final release = header['release']! as Map<String, Object?>;
     return RouteBContainer._(release['buildId']! as String, targets);
   }
+
+  /// The release this container may be applied to.
+  final String releaseBuildId;
+
+  /// Every function it replaces.
+  final List<RouteBPatchTarget> targets;
 }
 
 /// The release identity a container must be stamped with, read from the
@@ -205,8 +205,8 @@ class RouteBContainer {
 /// survives Xcode re-signing an embedded framework, unlike the engine hash.
 ///
 /// Parsed here rather than shelled out to `dwarfdump`, so it is testable, has
-/// no tool dependency, and cannot silently pick a different slice than intended.
-/// Returns null when the file carries none.
+/// no tool dependency, and cannot silently pick a different slice than
+/// intended. Returns null when the file carries none.
 String? readMachOBuildId(Uint8List bytes) {
   if (bytes.length < 8) return null;
   final data = ByteData.sublistView(bytes);
@@ -214,20 +214,20 @@ String? readMachOBuildId(Uint8List bytes) {
   // Universal binary: pick the 64-bit slices in order. iOS device builds are
   // thin arm64 in practice, but a fat file must not silently read the header of
   // whatever happens to be first.
-  final fatMagic = data.getUint32(0, Endian.big);
+  final fatMagic = data.getUint32(0);
   if (fatMagic == 0xcafebabe || fatMagic == 0xcafebabf) {
     final is64 = fatMagic == 0xcafebabf;
-    final count = data.getUint32(4, Endian.big);
+    final count = data.getUint32(4);
     var cursor = 8;
     for (var i = 0; i < count; i++) {
       final entrySize = is64 ? 32 : 20;
       if (cursor + entrySize > bytes.length) return null;
       final offset = is64
-          ? data.getUint64(cursor + 8, Endian.big)
-          : data.getUint32(cursor + 8, Endian.big);
+          ? data.getUint64(cursor + 8)
+          : data.getUint32(cursor + 8);
       final size = is64
-          ? data.getUint64(cursor + 16, Endian.big)
-          : data.getUint32(cursor + 12, Endian.big);
+          ? data.getUint64(cursor + 16)
+          : data.getUint32(cursor + 12);
       if (offset + size <= bytes.length) {
         final uuid = readMachOBuildId(
           Uint8List.sublistView(bytes, offset, offset + size),

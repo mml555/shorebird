@@ -588,7 +588,7 @@ void main() {
     });
 
     group('sources', () {
-      test('carries each changed member\'s source span', () {
+      test("carries each changed member's source span", () {
         // A span, not text: the analyzer has the kernel's offsets and the
         // producer has the file. One declaration per target is exactly what
         // the runtime's one-payload-one-function contract needs.

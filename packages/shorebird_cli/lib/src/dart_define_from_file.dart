@@ -43,34 +43,6 @@ class DartDefineFromFileExpansion {
   const DartDefineFromFileExpansion.failed(this.failureReason)
     : defines = const {};
 
-  /// The defines the named files contribute, in Flutter's merge order.
-  final Map<String, String> defines;
-
-  /// Why the expansion could not be determined, or null when it could.
-  final String? failureReason;
-
-  /// Whether the expansion is usable.
-  bool get ok => failureReason == null;
-
-  /// Every path passed to [dartDefineFromFileOption] in [buildArgs], in order.
-  ///
-  /// Both spellings: our own CLI emits `--dart-define-from-file=<path>`
-  /// (`arg_results.dart` `_argsNamed`), while a user writing
-  /// `-- --dart-define-from-file path` reaches us as two arguments.
-  static List<String> pathsIn(List<String> buildArgs) {
-    final paths = <String>[];
-    for (var i = 0; i < buildArgs.length; i++) {
-      final arg = buildArgs[i];
-      if (arg.startsWith('$dartDefineFromFileOption=')) {
-        paths.add(arg.substring(dartDefineFromFileOption.length + 1));
-      } else if (arg == dartDefineFromFileOption && i + 1 < buildArgs.length) {
-        paths.add(buildArgs[i + 1]);
-        i++;
-      }
-    }
-    return paths;
-  }
-
   /// Expands every `--dart-define-from-file` in [buildArgs].
   ///
   /// WHY THIS IS A PORT AND NOT A GUESS. Flutter parses these files with rules
@@ -86,7 +58,7 @@ class DartDefineFromFileExpansion {
   /// declines when the two disagree — see [disagreementWith]. That check, not
   /// this code's resemblance to its source, is what makes the option
   /// fingerprintable.
-  static DartDefineFromFileExpansion expand(
+  factory DartDefineFromFileExpansion.expand(
     List<String> buildArgs, {
     String? workingDirectory,
   }) {
@@ -131,7 +103,10 @@ class DartDefineFromFileExpansion {
         return DartDefineFromFileExpansion.failed(
           'could not parse $path: ${error.message}',
         );
-      } on TypeError {
+        // A wrongly-typed JSON value surfaces as a TypeError from the `as` cast
+        // above; there is no Exception to catch instead.
+      } on TypeError // ignore: avoid_catching_errors
+      {
         return DartDefineFromFileExpansion.failed(
           'the file at $path is not a JSON object',
         );
@@ -146,6 +121,34 @@ class DartDefineFromFileExpansion {
       });
     }
     return DartDefineFromFileExpansion.resolved(Map.unmodifiable(merged));
+  }
+
+  /// The defines the named files contribute, in Flutter's merge order.
+  final Map<String, String> defines;
+
+  /// Why the expansion could not be determined, or null when it could.
+  final String? failureReason;
+
+  /// Whether the expansion is usable.
+  bool get ok => failureReason == null;
+
+  /// Every path passed to [dartDefineFromFileOption] in [buildArgs], in order.
+  ///
+  /// Both spellings: our own CLI emits `--dart-define-from-file=<path>`
+  /// (`arg_results.dart` `_argsNamed`), while a user writing `--
+  /// --dart-define-from-file path` reaches us as two arguments.
+  static List<String> pathsIn(List<String> buildArgs) {
+    final paths = <String>[];
+    for (var i = 0; i < buildArgs.length; i++) {
+      final arg = buildArgs[i];
+      if (arg.startsWith('$dartDefineFromFileOption=')) {
+        paths.add(arg.substring(dartDefineFromFileOption.length + 1));
+      } else if (arg == dartDefineFromFileOption && i + 1 < buildArgs.length) {
+        paths.add(buildArgs[i + 1]);
+        i++;
+      }
+    }
+    return paths;
   }
 
   /// Converts a `.env` body to the JSON Flutter would convert it to.
@@ -202,11 +205,12 @@ class DartDefineFromFileExpansion {
   /// fingerprintable for that release.
   ///
   /// [exempt] names keys that are expected to differ and why the caller says so
-  /// — `FLUTTER_APP_FLAVOR` is the standing case, because Flutter rewrites it at
-  /// the xcodebuild stage from the Xcode CONFIGURATION (the scheme's own casing)
-  /// after the value in `Generated.xcconfig` was already written from the CLI
-  /// token. Measured on `selfhost/fixtures/flavored_app`: the xcconfig carries
-  /// `FLUTTER_APP_FLAVOR=foo` for the build whose shipped kernel contains `Foo`.
+  /// — `FLUTTER_APP_FLAVOR` is the standing case, because Flutter rewrites it
+  /// at the xcodebuild stage from the Xcode CONFIGURATION (the scheme's own
+  /// casing) after the value in `Generated.xcconfig` was already written from
+  /// the CLI token. Measured on `selfhost/fixtures/flavored_app`: the xcconfig
+  /// carries `FLUTTER_APP_FLAVOR=foo` for the build whose shipped kernel
+  /// contains `Foo`.
   ///
   /// Keys present only in [flutterResolved] are NOT a disagreement: Flutter
   /// injects `FLUTTER_VERSION` and its siblings into every build, and this

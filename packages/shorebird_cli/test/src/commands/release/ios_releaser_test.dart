@@ -719,9 +719,9 @@ $body
           // `--config-only` pass that writes it and the file it lands in.
           //
           // Stubbed for the WHOLE group for the same reason `flavor` above is:
-          // `_declareRetention` returns early when the answer cannot be read, so
-          // without this every retention assertion below would pass vacuously by
-          // never reaching the code it names.
+          // `_declareRetention` returns early when the answer cannot be read,
+          // so without this every retention assertion below would pass
+          // vacuously by never reaching the code it names.
           when(
             () => shorebirdEnv.getFlutterProjectRoot(),
           ).thenReturn(projectRoot);
@@ -750,7 +750,7 @@ $body
               workingDirectory: any(named: 'workingDirectory'),
             ),
           ).thenAnswer(
-            (_) async => ShorebirdProcessResult(
+            (_) async => const ShorebirdProcessResult(
               exitCode: 0,
               stdout: '',
               stderr: '',
@@ -889,7 +889,8 @@ $body
             contains(
               predicate<String>(
                 (a) => a.startsWith(
-                  '--extra-gen-snapshot-options=--write-v8-snapshot-profile-to=',
+                  '--extra-gen-snapshot-options='
+                  '--write-v8-snapshot-profile-to=',
                 ),
                 'asks gen_snapshot to write a v8 snapshot profile',
               ),
@@ -1070,7 +1071,8 @@ $body
             expect(captured.first, equals('Foo'));
           });
 
-          test('points the ONE real build at the generated interface', () async {
+          test('points the ONE real build at the generated '
+              'interface', () async {
             // A kernel PREPASS, not a second IPA build. The interface has to be
             // generated from a kernel and the kernel comes from the build, so
             // the circle is broken with a frontend-only compile — and its
@@ -1298,17 +1300,18 @@ $body
             );
           });
 
-          test('compiles it for the release\'s own entrypoint', () async {
+          test("compiles it for the release's own entrypoint", () async {
             when(() => argResults['target']).thenReturn(null);
             await runWithOverrides(iosReleaser.buildReleaseArtifacts);
 
             // TWO import kernels are compiled now, not one: an early one before
-            // the interface, whose only job is the private-enumeration agreement
-            // check, and the supplement copy after the real build. Every one of
-            // them must use the release's own entrypoint -- a guess at the
-            // entrypoint in either would describe a different program, which is
-            // the whole failure this test exists to catch. Asserting over all of
-            // them is stronger than the previous `.single`, not weaker.
+            // the interface, whose only job is the private-enumeration
+            // agreement check, and the supplement copy after the real build.
+            // Every one of them must use the release's own entrypoint -- a
+            // guess at the entrypoint in either would describe a different
+            // program, which is the whole failure this test exists to catch.
+            // Asserting over all of them is stronger than the previous
+            // `.single`, not weaker.
             final entrypoints = verify(
               () => routeBReleaseKernelBuilder.build(
                 compiler: any(named: 'compiler'),
@@ -1349,13 +1352,13 @@ $body
             );
           });
 
-          // THE FALLBACK PATH, and the invariant it protects: a disagreement may
-          // REDUCE PATCHABILITY and must never turn into a failed release.
+          // THE FALLBACK PATH, and the invariant it protects: a disagreement
+          // may REDUCE PATCHABILITY and must never turn into a failed release.
           //
-          // Enumerating private members from the import kernel means building it
-          // before `flutter build ipa`, which is what makes a divergence dangerous
-          // -- without a fallback it would surface as a failed release inside the
-          // CFE rather than as a refused patch.
+          // Enumerating private members from the import kernel means building
+          // it before `flutter build ipa`, which is what makes a divergence
+          // dangerous -- without a fallback it would surface as a failed
+          // release inside the CFE rather than as a refused patch.
           test(
             'enumerates privates from the import kernel when they agree',
             () {
@@ -1391,7 +1394,8 @@ $body
             },
           );
 
-          test('threads the defines FLUTTER injected into EVERY kernel', () async {
+          test('threads the defines FLUTTER injected into '
+              'EVERY kernel', () async {
             // G4.1c, and the defect it pins is not a flavored edge case.
             // Measured on a clean `flutter create` app with no flavor and no
             // `--dart-define` at all, the shipped release still receives six
@@ -1400,10 +1404,10 @@ $body
             // between a prepass compiled with them and one compiled without.
             //
             // Asserting over ALL THREE call sites rather than one is what makes
-            // this discriminate: the prepass decides retention, the early import
-            // kernel is the private-enumeration source, and the supplement copy
-            // is what a patch binds against. A kernel missing from this list is
-            // a kernel describing a different program.
+            // this discriminate: the prepass decides retention, the early
+            // import kernel is the private-enumeration source, and the
+            // supplement copy is what a patch binds against. A kernel missing
+            // from this list is a kernel describing a different program.
             await runWithOverrides(iosReleaser.buildReleaseArtifacts);
 
             const expected = {
@@ -1442,40 +1446,49 @@ $body
             expect(importDefines, everyElement(expected));
           });
 
-          test("declines retention when Flutter's answer cannot be read", () async {
-            // THE CONTROL that makes the test above mean something, and the
-            // safety property of the whole seam: an unreadable answer must NOT
-            // collapse into "no injected defines". Compiling the prepass with an
-            // empty set is exactly the bug being closed, done silently — so the
-            // release proceeds (it is a good, installable release) and simply
-            // declares no retention.
-            File(
-              p.join(projectRoot.path, 'ios', 'Flutter', 'Generated.xcconfig'),
-            ).deleteSync();
+          test(
+            "declines retention when Flutter's answer cannot be read",
+            () async {
+              // THE CONTROL that makes the test above mean something, and the
+              // safety property of the whole seam: an unreadable answer must
+              // NOT collapse into "no injected defines". Compiling the prepass
+              // with an empty set is exactly the bug being closed, done
+              // silently — so the release proceeds (it is a good, installable
+              // release) and simply declares no retention.
+              File(
+                p.join(
+                  projectRoot.path,
+                  'ios',
+                  'Flutter',
+                  'Generated.xcconfig',
+                ),
+              ).deleteSync();
 
-            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+              await runWithOverrides(iosReleaser.buildReleaseArtifacts);
 
-            verifyNever(
-              () => routeBReleaseKernelBuilder.buildPrepass(
-                compiler: any(named: 'compiler'),
-                projectRoot: any(named: 'projectRoot'),
-                entrypoint: any(named: 'entrypoint'),
-                buildArgs: any(named: 'buildArgs'),
-                outputFile: any(named: 'outputFile'),
-                flavor: any(named: 'flavor'),
-                injectedDefines: any(named: 'injectedDefines'),
-              ),
-            );
-            verify(
-              () => logger.warn(
-                any(
-                  that: contains(
-                    'Could not read the defines Flutter injects into this build',
+              verifyNever(
+                () => routeBReleaseKernelBuilder.buildPrepass(
+                  compiler: any(named: 'compiler'),
+                  projectRoot: any(named: 'projectRoot'),
+                  entrypoint: any(named: 'entrypoint'),
+                  buildArgs: any(named: 'buildArgs'),
+                  outputFile: any(named: 'outputFile'),
+                  flavor: any(named: 'flavor'),
+                  injectedDefines: any(named: 'injectedDefines'),
+                ),
+              );
+              verify(
+                () => logger.warn(
+                  any(
+                    that: contains(
+                      'Could not read the defines Flutter injects into this '
+                      'build',
+                    ),
                   ),
                 ),
-              ),
-            ).called(1);
-          });
+              ).called(1);
+            },
+          );
 
           test('compiles EVERY import kernel with the flavor', () async {
             // THE DEFECT THIS PINS. 25f8a3b8 threaded the resolved flavor into
@@ -1537,9 +1550,10 @@ $body
           test(
             'falls back to the prepass, and still releases, on disagreement',
             () async {
-              // The early check and the late one are the same helper, so stubbing
-              // it false exercises both: private enumeration falls back AND the
-              // import kernel is dropped. The release must still succeed.
+              // The early check and the late one are the same helper, so
+              // stubbing it false exercises both: private enumeration falls
+              // back AND the import kernel is dropped. The release must still
+              // succeed.
               when(
                 () => routeBReleaseKernelBuilder.agreesWith(
                   compiler: any(named: 'compiler'),
@@ -1551,8 +1565,8 @@ $body
 
               await runWithOverrides(iosReleaser.buildReleaseArtifacts);
 
-              // Narrower, not failed: the interface was still generated, and with
-              // NO private-enumeration kernel.
+              // Narrower, not failed: the interface was still generated, and
+              // with NO private-enumeration kernel.
               final kernel =
                   verify(
                         () =>
@@ -1588,7 +1602,8 @@ $body
             },
           );
 
-          test('captures the capability manifest the generator wrote', () async {
+          test('captures the capability manifest the '
+              'generator wrote', () async {
             // WHAT THE PATCH SIDE GATES ON. A private reference is accepted
             // against this file and nothing else, so a release that generated
             // one and did not upload it would refuse every private patch while
@@ -1656,8 +1671,8 @@ $body
             'drops an import kernel that disagrees with the AOT one',
             () async {
               // Forwarding the release's inputs correctly is a promise until it
-              // is checked. A kernel that describes a different program must not
-              // be advertised as this release's.
+              // is checked. A kernel that describes a different program must
+              // not be advertised as this release's.
               when(
                 () => routeBReleaseKernelBuilder.agreesWith(
                   compiler: any(named: 'compiler'),
@@ -1864,9 +1879,9 @@ $body
         () {
           // The defect this exists for: `flutter build ipa` exits 0 when its
           // export step fails, build/ios/ipa is not cleared between runs, and a
-          // presence check is then satisfied by the PREVIOUS release's .ipa. One
-          // release published with its predecessor's artifact before this check
-          // existed.
+          // presence check is then satisfied by the PREVIOUS release's .ipa.
+          // One release published with its predecessor's artifact before this
+          // check existed.
           late File staleIpa;
 
           setUp(() {

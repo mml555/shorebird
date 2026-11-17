@@ -1,39 +1,43 @@
 // cspell:words carryable
-// Route B (selfhost), G4.1: the build configuration a release was compiled with,
+// Route B (selfhost), G4.1: the build configuration a release was compiled
+// with,
 // as something a patch can be checked against.
 //
-// WHY THIS IS ITS OWN CONCEPT AND NOT A STRING COMPARISON. A patch's replacement
-// body is compiled long after the release, on a different invocation and possibly a
-// different machine. `const String.fromEnvironment('X')` is resolved at COMPILE
-// time, so a patch compiled with a different define set than its release does not
-// fail — it bakes in a different constant and ships. That is the silent-behaviour-
-// change shape this fork is organised against, and no runtime check can catch it,
-// because by the time the code runs the wrong value is already a literal.
+// WHY THIS IS ITS OWN CONCEPT AND NOT A STRING COMPARISON. A patch's
+// replacement body is compiled long after the release, on a different
+// invocation and possibly a different machine. `const
+// String.fromEnvironment('X')` is resolved at COMPILE time, so a patch compiled
+// with a different define set than its release does not fail — it bakes in a
+// different constant and ships. That is the silent-behaviour- change shape this
+// fork is organised against, and no runtime check can catch it, because by the
+// time the code runs the wrong value is already a literal.
 //
 // TWO REPRESENTATIONS, DELIBERATELY SEPARATE.
 //
 //   * `rawArgs` — how the configuration was SUPPLIED. Kept for audit and for
 //     debugging a disagreement, never for deciding compatibility.
-//   * `effectiveDefines` — what the COMPILER received, canonicalised. This is the
-//     only thing compatibility is decided on.
+//   * `effectiveDefines` — what the COMPILER received, canonicalised. This is
+//     the only thing compatibility is decided on.
 //
-// Making textual command-line equality the rule would refuse two invocations that
-// compile identically — `--dart-define=b=2 --dart-define=a=1` versus the same pair
-// in the other order — and that is a refusal the user cannot act on, because there
-// is nothing wrong with their patch.
+// Making textual command-line equality the rule would refuse two invocations
+// that compile identically — `--dart-define=b=2 --dart-define=a=1` versus the
+// same pair in the other order — and that is a refusal the user cannot act on,
+// because there is nothing wrong with their patch.
 //
 // THE CANONICAL FORM IS MEASURED, NOT ASSUMED. Every rule below cites
 // `selfhost/engine/route_b/probes/g41_define_semantics.sh`, which compiles through
 // the release's own gen_kernel/gen_snapshot path and reports:
 //
-//   1. `-Dk=first -Dk=second` yields `k=second`. Duplicates collapse LAST-WINS, so
-//      the effective configuration is a MAP, not a list. A list representation
-//      would make a redundant re-specification look like a mismatch.
-//   2. `-Da=1 -Db=2` and `-Db=2 -Da=1` produce BYTE-IDENTICAL kernels. Key order
-//      carries no meaning, so the map is compared sorted.
-//   3. `-Dk=` yields a defined EMPTY STRING, not an undefined key. So absent and
-//      empty are different configurations and must never be normalised together —
-//      the one rule a hand-rolled "drop empties" canonicaliser would have broken.
+//   1. `-Dk=first -Dk=second` yields `k=second`. Duplicates collapse LAST-WINS,
+//      so the effective configuration is a MAP, not a list. A list
+//      representation would make a redundant re-specification look like a
+//      mismatch.
+//   2. `-Da=1 -Db=2` and `-Db=2 -Da=1` produce BYTE-IDENTICAL kernels. Key
+//      order carries no meaning, so the map is compared sorted.
+//   3. `-Dk=` yields a defined EMPTY STRING, not an undefined key. So absent
+//      and empty are different configurations and must never be normalised
+//      together — the one rule a hand-rolled "drop empties" canonicaliser would
+//      have broken.
 //
 // If any of those three answers ever changes, that probe fails and this file is
 // wrong. That is the intended coupling.
@@ -48,11 +52,11 @@ import 'package:shorebird_cli/src/dart_define_from_file.dart';
 /// THIS FILE IS THE P5 AUTHORITY. The differential matrix
 /// (`evidence/p5_build_identity_matrix.md`) measured that the effective build
 /// configuration here already owns every input shown to alter patch-relevant
-/// compiler semantics -- defines, flavor via `FLUTTER_APP_FLAVOR`, obfuscation --
-/// with order independence, last-wins and absent-vs-empty all measured rather
-/// than assumed. So P5 elevates this comparison to the authority instead of
-/// wrapping it in a second identity: two hashes over one compiler fact is the
-/// coherence problem this project keeps removing.
+/// compiler semantics -- defines, flavor via `FLUTTER_APP_FLAVOR`, obfuscation
+/// -- with order independence, last-wins and absent-vs-empty all measured
+/// rather than assumed. So P5 elevates this comparison to the authority instead
+/// of wrapping it in a second identity: two hashes over one compiler fact is
+/// the coherence problem this project keeps removing.
 enum RouteBBuildSemanticsProblem {
   /// The release and the patch would compile with different semantics.
   mismatch('BUILD_CONFIG_MISMATCH'),
@@ -77,11 +81,11 @@ const _dartDefineFlag = '--dart-define=';
 /// The define Flutter uses to carry the app flavor into Dart.
 ///
 /// SEMANTIC, and it reaches the compiler as an ORDINARY DEFINE — which is why
-/// flavor is represented here and NOT as a second compatibility field. Two inputs
-/// describing one compiler fact could only drift apart.
+/// flavor is represented here and NOT as a second compatibility field. Two
+/// inputs describing one compiler fact could only drift apart.
 ///
-/// It must be SYNTHESISED from the resolved flavor rather than looked for among the
-/// dart-defines, because a legal invocation can never supply it directly:
+/// It must be SYNTHESISED from the resolved flavor rather than looked for among
+/// the dart-defines, because a legal invocation can never supply it directly:
 /// `flutter_command.dart` exits if it appears in `--dart-define`,
 /// `--dart-define-from-file`, or the environment. Measured in
 /// `probes/g42_flavor_flow.sh`, which cites each of those lines.
@@ -89,26 +93,27 @@ const _appFlavorDefine = 'FLUTTER_APP_FLAVOR';
 
 /// Flutter's obfuscation flag, as it appears in a build invocation.
 ///
-/// SEMANTIC, measured: `probes/g43_obfuscation_semantics.sh` compiles one kernel
-/// with and without it and the STRIPPED program bytes differ. So a release built
-/// obfuscated and a patch built plain are different programs, and the patch must
-/// be refused rather than warned about.
+/// SEMANTIC, measured: `probes/g43_obfuscation_semantics.sh` compiles one
+/// kernel with and without it and the STRIPPED program bytes differ. So a
+/// release built obfuscated and a patch built plain are different programs, and
+/// the patch must be refused rather than warned about.
 const _obfuscateFlag = '--obfuscate';
 
 /// Flutter's symbol-output flag, as it appears in a build invocation.
 ///
-/// NOT SEMANTIC, and this is the one worth being explicit about because it is the
-/// tempting mistake. `probes/g43_obfuscation_semantics.sh` measures it two ways:
+/// NOT SEMANTIC, and this is the one worth being explicit about because it is
+/// the tempting mistake. `probes/g43_obfuscation_semantics.sh` measures it two
+/// ways:
 ///
 ///   * adding the flag changes the emitted ELF but NOT the stripped program;
 ///   * pointing it at path A versus path B changes the emitted ELF but NOT the
 ///     stripped program.
 ///
-/// Both differences live entirely in DWARF. So the path is an output DESTINATION,
-/// and putting it in the fingerprint would make two machines that produce the
-/// byte-identical program incompatible purely because their filesystem layouts
-/// differ. It is recorded for audit and deliberately excluded from compatibility —
-/// excluded on evidence, not overlooked.
+/// Both differences live entirely in DWARF. So the path is an output
+/// DESTINATION, and putting it in the fingerprint would make two machines that
+/// produce the byte-identical program incompatible purely because their
+/// filesystem layouts differ. It is recorded for audit and deliberately
+/// excluded from compatibility — excluded on evidence, not overlooked.
 const _splitDebugInfoFlag = '--split-debug-info';
 
 /// Options whose meaning cannot be reduced to an effective define set here.
@@ -118,20 +123,21 @@ const _splitDebugInfoFlag = '--split-debug-info';
 /// the grounds that "reimplementing Flutter's `.json`/`.env` parsing would be
 /// the hand-reconstruction this design avoids". That objection was right about
 /// hand-reconstruction and wrong about the alternatives: Flutter writes its own
-/// resolved define set to `ios/Flutter/Generated.xcconfig`, so the expansion can
-/// be CHECKED against the toolchain rather than trusted. `dart_define_from_file.dart`
-/// ports the parsing and `ios_releaser` compares the result with Flutter's own
-/// answer for that same build, declining exactly as before when they disagree.
+/// resolved define set to `ios/Flutter/Generated.xcconfig`, so the expansion
+/// can be CHECKED against the toolchain rather than trusted.
+/// `dart_define_from_file.dart` ports the parsing and `ios_releaser` compares
+/// the result with Flutter's own answer for that same build, declining exactly
+/// as before when they disagree.
 ///
 /// The mechanism stays because the next unfingerprintable option needs it, and
-/// because emptying a list is not the same as deleting the branch that reads it.
-/// [isUnfingerprintable] takes the list as a parameter so a test can exercise
-/// that branch with a synthetic option — an empty `const` list would otherwise
-/// make it unreachable, which is a check that cannot fail.
+/// because emptying a list is not the same as deleting the branch that reads
+/// it. [isUnfingerprintable] takes the list as a parameter so a test can
+/// exercise that branch with a synthetic option — an empty `const` list would
+/// otherwise make it unreachable, which is a check that cannot fail.
 ///
-/// Kept in sync with `routeBUnforwardableOptions` in `route_b_release_kernels.dart`
-/// by `route_b_build_config_test.dart`, so the two cannot drift into disagreeing
-/// about what is carryable.
+/// Kept in sync with `routeBUnforwardableOptions` in
+/// `route_b_release_kernels.dart` by `route_b_build_config_test.dart`, so the
+/// two cannot drift into disagreeing about what is carryable.
 const routeBUnfingerprintableOptions = <String>[];
 
 /// Whether [arg] is one of [options], in either `--opt=value` or `--opt` form.
@@ -154,104 +160,6 @@ class RouteBBuildConfig {
     this.injectedDefines = const {},
     this.recordsInjectedDefines = false,
   });
-
-  /// The flavor that actually reaches the compiler, by Flutter's own precedence.
-  ///
-  /// `flutter_command.dart`: `cliFlavor ?? defaultFlavor`. Deriving it from the
-  /// command line alone would silently record "no flavor" for a release flavored
-  /// entirely by `pubspec.yaml`'s `default-flavor` — a release with no
-  /// command-line token to notice, which is the path most likely to regress.
-  static String? resolveFlavor({
-    String? cliFlavor,
-    Map<String, dynamic>? pubspecFlutterSection,
-  }) {
-    if (cliFlavor != null && cliFlavor.isNotEmpty) return cliFlavor;
-    final fromManifest = pubspecFlutterSection?['default-flavor'];
-    return fromManifest is String && fromManifest.isNotEmpty
-        ? fromManifest
-        : null;
-  }
-
-  /// Derives the configuration from a build invocation's arguments.
-  ///
-  /// Returns null when an option is present whose effective set cannot be
-  /// determined here — see [routeBUnfingerprintableOptions]. Null means "cannot
-  /// be fingerprinted", which the caller must treat as its own state rather than
-  /// as an empty configuration: an empty set is a real configuration that a patch
-  /// can match, and "unknown" is not.
-  static RouteBBuildConfig? fromBuildArgs(
-    List<String> buildArgs, {
-    String? flavor,
-    String? workingDirectory,
-    Map<String, String>? injectedDefines,
-  }) {
-    // FILE DEFINES FIRST, then the command line, because that is Flutter's own
-    // precedence: `extractDartDefines` emits every file entry before every
-    // `--dart-define`, and the last write wins (probe rule 1). So a key in both
-    // takes the command line's value — which is what
-    // `--dart-define-from-file`'s own help text promises.
-    final expansion = DartDefineFromFileExpansion.expand(
-      buildArgs,
-      workingDirectory: workingDirectory,
-    );
-    // "Could not determine" is still not "no defines". A named file that cannot
-    // be read leaves the configuration unknown, which is the one state that must
-    // never be confused with an empty-but-known one.
-    if (!expansion.ok) return null;
-
-    final defines = <String, String>{...expansion.defines};
-    var obfuscate = false;
-    String? splitDebugInfoPath;
-    for (var i = 0; i < buildArgs.length; i++) {
-      final arg = buildArgs[i];
-      if (arg == _obfuscateFlag) {
-        obfuscate = true;
-        continue;
-      }
-      // Both spellings, because a caller may pass either and the two mean the
-      // same thing to Flutter.
-      if (arg.startsWith('$_splitDebugInfoFlag=')) {
-        splitDebugInfoPath = arg.substring(_splitDebugInfoFlag.length + 1);
-        continue;
-      }
-      if (arg == _splitDebugInfoFlag && i + 1 < buildArgs.length) {
-        splitDebugInfoPath = buildArgs[i + 1];
-        i++;
-        continue;
-      }
-      if (isUnfingerprintable(arg)) return null;
-      if (!arg.startsWith(_dartDefineFlag)) continue;
-      final body = arg.substring(_dartDefineFlag.length);
-      final eq = body.indexOf('=');
-      // `--dart-define=K` with no `=` defines K as the empty string, which is the
-      // same effective configuration as `--dart-define=K=`. Both are DEFINED, and
-      // neither is the same as omitting K (probe rule 3).
-      final key = eq < 0 ? body : body.substring(0, eq);
-      final value = eq < 0 ? '' : body.substring(eq + 1);
-      if (key.isEmpty) continue;
-      // Last-wins, per probe rule 1.
-      defines[key] = value;
-    }
-    // THE FLAVOR WINS, mirroring Flutter's own last-write-wins: at xcodebuild time
-    // it does `dartDefines.removeWhere(FLUTTER_APP_FLAVOR)` then re-adds its value
-    // (`common.dart`, flutter/issues/169598). So the fingerprint represents the
-    // FINAL value that reaches the compiler, not the first one written.
-    if (flavor != null && flavor.isNotEmpty) {
-      defines[_appFlavorDefine] = flavor;
-    }
-    return RouteBBuildConfig(
-      rawArgs: List.unmodifiable(buildArgs),
-      effectiveDefines: Map.unmodifiable(defines),
-      obfuscate: obfuscate,
-      splitDebugInfoPath: splitDebugInfoPath,
-      flavor: flavor,
-      injectedDefines: Map.unmodifiable(injectedDefines ?? const {}),
-      // A caller that passed a map RECORDED one, even an empty one. Null means
-      // the caller had nothing to record, which is what a pre-record release
-      // looks like when this is re-read later.
-      recordsInjectedDefines: injectedDefines != null,
-    );
-  }
 
   /// Parses the persisted form. Throws [FormatException] rather than returning
   /// null: "no configuration recorded" and "unreadable configuration" have
@@ -285,6 +193,106 @@ class RouteBBuildConfig {
     );
   }
 
+  /// The flavor that actually reaches the compiler, by Flutter's own
+  /// precedence.
+  ///
+  /// `flutter_command.dart`: `cliFlavor ?? defaultFlavor`. Deriving it from the
+  /// command line alone would silently record "no flavor" for a release
+  /// flavored entirely by `pubspec.yaml`'s `default-flavor` — a release with no
+  /// command-line token to notice, which is the path most likely to regress.
+  static String? resolveFlavor({
+    String? cliFlavor,
+    Map<String, dynamic>? pubspecFlutterSection,
+  }) {
+    if (cliFlavor != null && cliFlavor.isNotEmpty) return cliFlavor;
+    final fromManifest = pubspecFlutterSection?['default-flavor'];
+    return fromManifest is String && fromManifest.isNotEmpty
+        ? fromManifest
+        : null;
+  }
+
+  /// Derives the configuration from a build invocation's arguments.
+  ///
+  /// Returns null when an option is present whose effective set cannot be
+  /// determined here — see [routeBUnfingerprintableOptions]. Null means "cannot
+  /// be fingerprinted", which the caller must treat as its own state rather
+  /// than as an empty configuration: an empty set is a real configuration that
+  /// a patch can match, and "unknown" is not.
+  static RouteBBuildConfig? fromBuildArgs(
+    List<String> buildArgs, {
+    String? flavor,
+    String? workingDirectory,
+    Map<String, String>? injectedDefines,
+  }) {
+    // FILE DEFINES FIRST, then the command line, because that is Flutter's own
+    // precedence: `extractDartDefines` emits every file entry before every
+    // `--dart-define`, and the last write wins (probe rule 1). So a key in both
+    // takes the command line's value — which is what
+    // `--dart-define-from-file`'s own help text promises.
+    final expansion = DartDefineFromFileExpansion.expand(
+      buildArgs,
+      workingDirectory: workingDirectory,
+    );
+    // "Could not determine" is still not "no defines". A named file that cannot
+    // be read leaves the configuration unknown, which is the one state that
+    // must never be confused with an empty-but-known one.
+    if (!expansion.ok) return null;
+
+    final defines = <String, String>{...expansion.defines};
+    var obfuscate = false;
+    String? splitDebugInfoPath;
+    for (var i = 0; i < buildArgs.length; i++) {
+      final arg = buildArgs[i];
+      if (arg == _obfuscateFlag) {
+        obfuscate = true;
+        continue;
+      }
+      // Both spellings, because a caller may pass either and the two mean the
+      // same thing to Flutter.
+      if (arg.startsWith('$_splitDebugInfoFlag=')) {
+        splitDebugInfoPath = arg.substring(_splitDebugInfoFlag.length + 1);
+        continue;
+      }
+      if (arg == _splitDebugInfoFlag && i + 1 < buildArgs.length) {
+        splitDebugInfoPath = buildArgs[i + 1];
+        i++;
+        continue;
+      }
+      if (isUnfingerprintable(arg)) return null;
+      if (!arg.startsWith(_dartDefineFlag)) continue;
+      final body = arg.substring(_dartDefineFlag.length);
+      final eq = body.indexOf('=');
+      // `--dart-define=K` with no `=` defines K as the empty string, which is
+      // the same effective configuration as `--dart-define=K=`. Both are
+      // DEFINED, and neither is the same as omitting K (probe rule 3).
+      final key = eq < 0 ? body : body.substring(0, eq);
+      final value = eq < 0 ? '' : body.substring(eq + 1);
+      if (key.isEmpty) continue;
+      // Last-wins, per probe rule 1.
+      defines[key] = value;
+    }
+    // THE FLAVOR WINS, mirroring Flutter's own last-write-wins: at xcodebuild
+    // time it does `dartDefines.removeWhere(FLUTTER_APP_FLAVOR)` then re-adds
+    // its value (`common.dart`, flutter/issues/169598). So the fingerprint
+    // represents the FINAL value that reaches the compiler, not the first one
+    // written.
+    if (flavor != null && flavor.isNotEmpty) {
+      defines[_appFlavorDefine] = flavor;
+    }
+    return RouteBBuildConfig(
+      rawArgs: List.unmodifiable(buildArgs),
+      effectiveDefines: Map.unmodifiable(defines),
+      obfuscate: obfuscate,
+      splitDebugInfoPath: splitDebugInfoPath,
+      flavor: flavor,
+      injectedDefines: Map.unmodifiable(injectedDefines ?? const {}),
+      // A caller that passed a map RECORDED one, even an empty one. Null means
+      // the caller had nothing to record, which is what a pre-record release
+      // looks like when this is re-read later.
+      recordsInjectedDefines: injectedDefines != null,
+    );
+  }
+
   /// How the configuration was supplied. Audit only.
   final List<String> rawArgs;
 
@@ -304,24 +312,24 @@ class RouteBBuildConfig {
   /// G4.1c kept the injected six out of the fingerprint, correctly: a release
   /// and a patch on one pinned cell resolve them identically, so an entry could
   /// only ever compare a constant with itself, and adding one would make every
-  /// previously recorded release incomparable. But [compilerArgs] was built from
-  /// the same field, so excluding them from comparison also excluded them from
-  /// the patch compiler — and a replacement reading
-  /// `const String.fromEnvironment('FLUTTER_VERSION')` baked the empty string
-  /// while the release around it held the real value. Measured by
+  /// previously recorded release incomparable. But [compilerArgs] was built
+  /// from the same field, so excluding them from comparison also excluded them
+  /// from the patch compiler — and a replacement reading `const
+  /// String.fromEnvironment('FLUTTER_VERSION')` baked the empty string while
+  /// the release around it held the real value. Measured by
   /// `probes/g41d_injected_define_patch.sh`, arms 3-5, with a user-define
   /// control proving the mechanism itself was never broken.
   ///
   /// So the two jobs are now two fields. This one feeds [compilerArgs] and
-  /// nothing else: it is absent from [canonicalText], [fingerprint] and
-  /// [agreesWith] by construction, not by a filter someone must remember.
+  /// nothing else: it is absent from `canonicalText`, [fingerprint] and
+  /// `agreesWith` by construction, not by a filter someone must remember.
   final Map<String, String> injectedDefines;
 
   /// Whether the release RECORDED its injected defines, as distinct from
   /// recording that there were none.
   ///
-  /// The two are not the same and have different remediations, which is the same
-  /// distinction [RouteBBuildConfig.fromJson] already draws between "no
+  /// The two are not the same and have different remediations, which is the
+  /// same distinction [RouteBBuildConfig.fromJson] already draws between "no
   /// configuration" and "unreadable configuration". A release cut before this
   /// field existed — release 95 and every one before it — carries no record and
   /// cannot be given one retroactively, because the values come from the build
@@ -342,12 +350,12 @@ class RouteBBuildConfig {
   final String? splitDebugInfoPath;
 
   /// The resolved flavor. AUDIT ONLY: its compiler effect is already carried by
-  /// `effectiveDefines['FLUTTER_APP_FLAVOR']`, and comparing it separately would
-  /// be a second compatibility input for one compiler fact.
+  /// `effectiveDefines['FLUTTER_APP_FLAVOR']`, and comparing it separately
+  /// would be a second compatibility input for one compiler fact.
   ///
-  /// Recorded because a reader debugging a release needs to know a flavor was in
-  /// play, and because "flavored via the manifest" and "flavored via the flag" are
-  /// worth telling apart when something goes wrong.
+  /// Recorded because a reader debugging a release needs to know a flavor was
+  /// in play, and because "flavored via the manifest" and "flavored via the
+  /// flag" are worth telling apart when something goes wrong.
   final String? flavor;
 
   /// The canonical text the fingerprint is taken over.
@@ -376,9 +384,9 @@ class RouteBBuildConfig {
 
   /// A human-readable account of the difference, for a refusal message.
   ///
-  /// Names the keys rather than dumping two command lines, because the actionable
-  /// fact is which define disagrees — the command lines may differ in ways that do
-  /// not matter at all.
+  /// Names the keys rather than dumping two command lines, because the
+  /// actionable fact is which define disagrees — the command lines may differ
+  /// in ways that do not matter at all.
   String describeDifference(RouteBBuildConfig other) {
     final lines = <String>[];
     if (obfuscate != other.obfuscate) {
@@ -430,8 +438,8 @@ class RouteBBuildConfig {
     // part of the fingerprint below.
     if (splitDebugInfoPath != null) 'splitDebugInfoPath': splitDebugInfoPath,
     // Recorded rather than recomputed on read, so a future change to the
-    // canonicalisation is detectable instead of silently re-deriving a different
-    // answer from old data.
+    // canonicalisation is detectable instead of silently re-deriving a
+    // different answer from old data.
     'fingerprint': fingerprint,
   };
 

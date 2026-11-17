@@ -588,7 +588,7 @@ class RouteBExternalReference {
     final c = className;
     final m = member;
     if (m == null) return c ?? library;
-    final bare = m.replaceFirst(RegExp(r'^(get|set):'), '');
+    final bare = m.replaceFirst(RegExp('^(get|set):'), '');
     final name = bare.isEmpty ? (c ?? library) : bare;
     return c == null || bare.isEmpty ? name : '$c.$name';
   }
@@ -1051,7 +1051,7 @@ class RouteBCoverage {
 
 /// Runs the coverage analyzer out of a resolved compiler cell.
 ///
-/// [compiler] is the cell belonging to the RELEASE's engine, so the analyzer
+/// `compiler` is the cell belonging to the RELEASE's engine, so the analyzer
 /// reading these dills is version-matched to the frontend that wrote them.
 class RouteBCoverageAnalyzer {
   /// {@macro route_b_coverage_analyzer}

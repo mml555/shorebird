@@ -165,7 +165,7 @@ void main() {
         );
       });
 
-      test('a reference resolved through the replacement\'s own helpers', () {
+      test("a reference resolved through the replacement's own helpers", () {
         // The analysis leaves a reference to a carried helper out of the
         // target's list and reports the helper's own body under the helper's
         // key. Retained code in both is accepted.

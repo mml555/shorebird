@@ -7,7 +7,9 @@ import 'package:shorebird_cli/src/route_b_coverage.dart';
 void main(List<String> args) {
   for (final path in args) {
     final c = RouteBCoverage.fromJson(File(path).readAsStringSync());
-    var absent = 0, empty = 0, populated = 0;
+    var absent = 0;
+    var empty = 0;
+    var populated = 0;
     for (final l in c.lowering.values) {
       final t = l.releaseSuperTargets;
       if (t == null) {
@@ -18,10 +20,11 @@ void main(List<String> args) {
         populated++;
       }
     }
-    stdout.writeln('  ${path.split('/').last}');
-    stdout.writeln(
-      '    parsed lowering=${c.lowering.length} '
-      'absent(null)=$absent empty=$empty populated=$populated',
-    );
+    stdout
+      ..writeln('  ${path.split('/').last}')
+      ..writeln(
+        '    parsed lowering=${c.lowering.length} '
+        'absent(null)=$absent empty=$empty populated=$populated',
+      );
   }
 }

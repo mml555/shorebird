@@ -8,8 +8,8 @@ import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 import 'package:test/test.dart';
 
-import 'mocks.dart';
 import 'helpers.dart';
+import 'mocks.dart';
 
 void main() {
   useTempWorkingDirectory();
