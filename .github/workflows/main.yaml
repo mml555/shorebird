@@ -172,6 +172,7 @@ jobs:
               - packages/shorebird_code_push_protocol/**
               - pubspec.lock
               - pubspec.yaml
+              - selfhost/engine/route_b/evidence/sdk_instance_members/profile_2fc41d3f.json.gz
             shorebird_code_push_client:
               - ./.github/workflows/main.yaml
               - ./.github/actions/verify_version/action.yaml
