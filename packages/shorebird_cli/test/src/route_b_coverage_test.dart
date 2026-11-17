@@ -808,6 +808,42 @@ JSON
         );
       });
 
+      test('refuses a class the patch adds, even one over a dart: base', () {
+        // `class Ring extends ListBase<int>` inherits `add` from the SDK, which
+        // the release may not have kept. The analyzer cannot let a patch add
+        // a class at all (`_instanceHelperReason` and the `declaration`
+        // category in analyze_coverage.dart; ROUTE_B.md, "A new class in a
+        // patch"), so the CLI refuses on the document alone.
+        const reason =
+            'this class is not in the release -- it is new, or the release '
+            'tree-shook it because nothing used it -- and a patch cannot add '
+            'one';
+        final coverage = RouteBCoverage.fromJson(
+          document(
+            version: 14,
+            verdict: 'reject',
+            rejections: [
+              {
+                'target': 'a#Ring.length',
+                'category': 'declaration',
+                'reason': reason,
+              },
+              {
+                'target': 'a#ringUse',
+                'category': 'added',
+                'reason': 'an instance operator/getter/setter of `Ring`',
+              },
+            ],
+          ),
+        );
+
+        expect(coverage.verdict, RouteBVerdict.reject);
+        expect(
+          coverage.refusalMessage,
+          allOf(contains('a#Ring.length'), contains(reason)),
+        );
+      });
+
       test('counts a changed field among what could not be carried', () {
         // A field or constructor is in neither `changed` nor `added`. Counting
         // only those would report "1 of 0" for a patch refused because of it.

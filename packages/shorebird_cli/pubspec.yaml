@@ -87,4 +87,3 @@ shorebird_ci:
 verify_cache:
   inputs:
     - ../../selfhost/engine/route_b/evidence/sdk_instance_members/profile_2fc41d3f.json.gz
-    - ../../selfhost/engine/route_b/device_run/sdk_members/result/results.tsv
