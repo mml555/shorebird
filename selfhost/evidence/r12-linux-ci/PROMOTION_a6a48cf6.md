@@ -61,6 +61,7 @@ Of the passing (fourth) run.
 | 6 | fresh sealed cold bootstrap | PASS: bootstrap-only arm BOOT1, fresh container, exit 0; `Flutter 3.46.0-1.0.pre-866`, `Shorebird Engine • revision a6a48cf6...`. Sealed mirror: 7 requests, 5 overlay hits, 0 `/gcs/`, 0 non-overlay 200s; the two 502s are both `GET /` (the harness's probe) | `promotion-a6a48cf6/fresh_bootstrap_launch.log`, `boot1_access.txt`, `arms/arm-BOOT1` |
 | 7 | sealed release/patch artifact discovery | PASS for the closure: on iteration 1 the harness exited 1 and refused nothing (`STOP — harness failed with NOTHING refused by the seal`), because the ten files had already been imported by the first run (below). The discovery harness's own verdict was FAIL (EXIT=1), which does not apply here, as in `PROMOTION_2fc41d3f.md`: its control plane holds one release, so arm 3's chooser uses it. Arm 3 is decided by arm A. `rp_access.txt`: 37 requests, 36 overlay hits, 0 `/gcs/`, 0 non-overlay 200s (the one 502 is the harness's `GET /`) | `promotion-a6a48cf6/release_patch_discovery.log`, `rp_access.txt`, `release_patch_closure.tsv` (10 rows under `a6a48cf6`, from run 1) |
 | 8 | fresh Linux release/patch smoke | PASS: R12 arm A on gate 7's control plane, fresh container, fresh cold mirror, exit 0: 40 requests, 38 overlay hits, 0 `/gcs/`, 0 non-overlay 200s (the two 502s are the harness's `GET /`); arm 3 refused the chooser by name, exit 64 | `promotion-a6a48cf6/armA.log`, `armA_access.txt`, `arms/arm-A` |
+| 8b | R12 arm B (run after the chain, `bin/armB_go.sh`) | PASS: fixture 1.0.1+1 on arm A's control plane (same volume and secrets; `releases_before.log` lists 0.8.1+1 and 1.0.0+1), fresh container, fresh cold mirror, exit 0, 22:57-23:07Z: detector self-tests exit 64/64, release and patch published, `--json` patch 0 prompt hits, arm 3 refused the chooser by name (exit 64). 40 requests, 38 overlay hits, 0 `/gcs/`, 0 non-overlay 200s (the two 502s are the harness's `GET /`) | `promotion-a6a48cf6/armB.log`, `armB_access.txt`, `arms/arm-B` |
 
 The ten imports are the same ten stock files as in the `2fc41d3f`, `aab9fd07`, `5f6efd98` and `82fc78a8` runs
 (seven `android-*/artifacts.zip` and three `android-*-profile/linux-x64.zip`), now under the `a6a48cf6` client
@@ -134,14 +135,19 @@ The two bootstrap ledger rows name `dart-sdk-linux-x64.zip` `91dfc837...` (21494
 `engine_stamp.json` `9020f215...` (239 B, in the cell tar); the gate 4 and 5 logs verified both by size and
 SHA-256.
 
+## Arm B
+
+Arm B was re-run (row 8b) because the check that let `2fc41d3f`, `aab9fd07` and `82fc78a8` skip it does not hold
+here. Grepping the `packages/shorebird_cli/lib` diff from `d7e5325e` to `af1e14a1` (58 files) for prompt,
+`canAcceptUserInput`, confirmation, release-chooser and `--release-version` words finds changed lines: the
+native-diff check in the patch command no longer tests `canAcceptUserInput` or calls `logger.confirm` in the lines
+it replaced, a `PromptDeclinedExit` mapping is added to the run-failure reasons, and `inferredReleaseVersion` is
+threaded through the patch path. It ran as `d12e29ec`'s did: after arm A, on the same control plane. The chain had
+stopped that control plane's container; `armB_go.sh` started a new one on its volume with gate 7's secrets. The
+wrapper and the launcher both wrote `logs/armB.log` on ci-build, so `armB.log` here is a copy taken while the arm
+ran (`tail -F` from byte 0), before the wrapper's last lines overwrote part of the original.
+
 ## Not done
 
-- R12 arm B was not re-run, and the check that justified that for `2fc41d3f` does NOT hold here. Grepping the
-  `packages/shorebird_cli/lib` diff from `d7e5325e` to `af1e14a1` (58 files) for prompt, `canAcceptUserInput`,
-  confirmation, release-chooser and `--release-version` words finds changed lines: the native-diff check in the patch
-  command no longer tests `canAcceptUserInput` or calls `logger.confirm` in the lines it replaced, a
-  `PromptDeclinedExit` mapping is added to the run-failure reasons, and `inferredReleaseVersion` is threaded through
-  the patch path. Arm A (the no-TTY patch, with and without `--json`, and the chooser refusal) passed on this CLI.
-  TODO for the owner: decide whether arm B must be re-run for this cell.
 - The iPhone run (above).
 - `verify_supported_state.sh` is run against this branch before merge; its result is in the PR.
