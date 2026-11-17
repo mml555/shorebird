@@ -2911,6 +2911,18 @@ class Api {
       );
     }
     art = await _reclaimIfStale(art);
+    // A verified release artifact is re-registered idempotently (the same
+    // token comes back), and the client then re-sends the bytes. Answer 200
+    // when they are the bytes already stored, as the resumable route does for
+    // a verified token. Anything else stays a conflict. Only release artifacts
+    // carry a checked hash, so patch artifacts are not covered.
+    if (art.status == ArtifactStatus.verified && art.ownerKind == 'release') {
+      final (_, again) = await _parseMultipart(req);
+      if (again != null &&
+          sha256.convert(again.bytes).toString() == art.hash.toLowerCase()) {
+        return Response(HttpStatus.ok);
+      }
+    }
     if (art.status != ArtifactStatus.pending) {
       throw conflict('Upload token not reusable (status ${art.status.name})');
     }

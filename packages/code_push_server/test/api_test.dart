@@ -505,6 +505,37 @@ void main() {
       expect((await jsonOf(again))['id'], first['id']);
     });
 
+    test(
+      're-uploading the same bytes to a verified token answers 200',
+      () async {
+        final app = await seedApp();
+        final reg = await jsonOf(
+          await register(
+            app.appId,
+            app.releaseId,
+            arch: 'xcarchive',
+            platform: 'ios',
+          ),
+        );
+        final token = (reg['url'] as String).split('/').last;
+        Future<Response> post(String content) => send(
+          'POST',
+          '/api/v1/uploads/$token',
+          bearer: _bootstrapKey,
+          headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+          body:
+              '--$bd\r\ncontent-disposition: form-data; name="file"; '
+              'filename="a"\r\n\r\n$content\r\n--$bd--\r\n',
+        );
+        expect((await post('abc')).statusCode, HttpStatus.noContent);
+        expect((await post('abc')).statusCode, HttpStatus.ok);
+        // Different bytes for a verified token stay a conflict, and do not
+        // replace what is stored.
+        expect((await post('abd')).statusCode, HttpStatus.conflict);
+        expect((await post('abc')).statusCode, HttpStatus.ok);
+      },
+    );
+
     test('a rebuilt artifact supersedes the stale one while incomplete', () async {
       // The real rescue path: `shorebird release` rebuilds on every retry, so the
       // retry's bytes differ from what landed before the interruption. Matching

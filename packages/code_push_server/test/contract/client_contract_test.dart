@@ -246,42 +246,30 @@ void main() {
       expect((await client.getApps()).map((a) => a.appId), contains(app.id));
     });
 
-    test(
-      'a byte-identical release artifact re-upload is idempotent',
-      // MISMATCH: the registration is idempotent (200 with the existing
-      // token), but the client then POSTs the bytes to that token, which is
-      // already verified, and the multipart upload route answers 409
-      // "Upload token not reusable". The client reads that as
-      // CodePushUploadException. The resumable route answers 200 for a
-      // verified artifact; the multipart one should too.
-      skip:
-          'multipart re-upload of a verified artifact token is 409, '
-          'not 200 (server _upload vs client _uploadArtifact)',
-      () async {
-        final app = await client.createApp(
-          organizationId: 1,
-          displayName: 'contract',
-        );
-        final release = await client.createRelease(
-          appId: app.id,
-          version: '1.0.0',
-          flutterRevision: 'a' * 40,
-        );
-        final bytes = utf8.encode('bundle');
-        Future<void> upload() => client.createReleaseArtifact(
-          artifactPath: writeFile('aab', bytes).path,
-          appId: app.id,
-          releaseId: release.id,
-          arch: 'aab',
-          platform: ReleasePlatform.android,
-          hash: _sha256(bytes),
-          canSideload: true,
-          podfileLockHash: null,
-        );
-        await upload();
-        await upload();
-      },
-    );
+    test('a byte-identical release artifact re-upload is idempotent', () async {
+      final app = await client.createApp(
+        organizationId: 1,
+        displayName: 'contract',
+      );
+      final release = await client.createRelease(
+        appId: app.id,
+        version: '1.0.0',
+        flutterRevision: 'a' * 40,
+      );
+      final bytes = utf8.encode('bundle');
+      Future<void> upload() => client.createReleaseArtifact(
+        artifactPath: writeFile('aab', bytes).path,
+        appId: app.id,
+        releaseId: release.id,
+        arch: 'aab',
+        platform: ReleasePlatform.android,
+        hash: _sha256(bytes),
+        canSideload: true,
+        podfileLockHash: null,
+      );
+      await upload();
+      await upload();
+    });
 
     test('patch create, patch artifact create, promote, check', () async {
       final seeded = await seedRelease();
