@@ -1,5 +1,5 @@
 # SDK instance members on a device, second release: members kept on purpose
-<!-- cspell:words callform -->
+<!-- cspell:words callform SDKPROBE -->
 
 This repeats `RESULT.md` on a release built so that the dart: SDK members the counter release lacked are kept. Read the scope first.
 
