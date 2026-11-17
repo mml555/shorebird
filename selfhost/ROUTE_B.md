@@ -418,6 +418,94 @@ and what those block on is better evidence than what a ladder suggests next.
 > like a limitation rather than a boundary. Rewording it changes the cell and so
 > costs a mint; fold it into the next mint that happens for another reason.
 
+### A new class in a patch — host results and cost (go/no-go)
+
+Question: can a patch module declare a NEW class, and what does the release pay
+for the interface that makes the interesting case work? Host only; no device was
+touched. The design is in `new_class_feasibility.md` (not checked in); this
+section records what the checked-in scripts show.
+
+**Probe:** `probes/added_class.sh`. It is hand-built: the analyzer refuses a new
+class and the producer cannot slice one, so each arm hand-writes the replacement
+library, compiles it with the cell's `dart2bytecode`, packs it with the CLI's own
+container writer and runs it on a runtime that attaches. It measures what the VM
+and the release interface allow, not what the CLI can emit.
+
+```sh
+OUT=$HOME/shorebird-engine/flutter/engine/src/out/host_release_arm64_ddm \
+CLI_PKGS=<package_config.json resolving package:shorebird_cli> \
+  selfhost/engine/route_b/probes/added_class.sh selfhost/engine/route_b <cell zip>
+```
+
+| arm | release interface | tabled | untabled |
+|---|---|---|---|
+| `class _Pt` (extends Object, field, const ctor) | any | works (`PT7`) | works (`PT7`) |
+| `RbFresh extends RbBase` | `extendable` + `can-be-overridden` for `RbBase.name` | works (`FLD`) | works (`FLD`) |
+| the same class | neither section | process abort, `object.cc: unreachable code` (exit 134) | RUNS THE WRONG OVERRIDE: `RbBase2.name` (`B2`), exit 0 |
+| two equal `const _Pt(1)` | any | equal in one function, equal across two module functions, unequal for `_Pt(2)` | same |
+
+The last row is asked with `==` (no `operator ==` declared, so identity), because
+`identical` is not in the release's interface and aborts the module
+(`Unable to find function identical`). The untabled row is the dangerous one: it
+is silent. Any analyzer that lets a class extend an AOT class MUST check the
+release's recorded interface for `extendable` and `can-be-overridden` and refuse
+otherwise; the VM will not.
+
+**Generator flag:** `gen_dynamic_interface.dart --extendable library#Class` (or
+`library#Class.member`), repeatable, off by default. With it absent the output is
+byte-identical to before (the probe's `flag_off` arm checks there is no
+`extendable:` or `can-be-overridden:` section). Unit test:
+`probes/gen_extendable_flag_test.dart`.
+
+**Cost:** `measure_extendable.sh`, the method of `measure_real_app.sh` with one
+axis, on the airgap fixture compiled against the Flutter platform dill with TFA,
+`gen_snapshot --patchable_static_calls`, for the macOS host (not iOS).
+`measure_real_app.sh` itself cannot run on the current fixture: its shipping arm
+builds the interface from the `--aot` prepass alone and `gen_kernel` rejects it
+(`set:_rbKindMember was not found in class _ProbeBodyState`). The new script
+passes `--private-dill` and `--platform`, which resolves.
+
+```sh
+(cd selfhost/fixtures/airgap_app && flutter pub get --offline)   # edits pubspec.lock; revert it
+UNTABLED=1 selfhost/engine/route_b/measure_extendable.sh
+```
+
+| arm | snapshot bytes | vs control | Instructions cluster | functions |
+|---|---|---|---|---|
+| control (shipping interface) | 6,560,832 | | 2,705,572 | 10,871 |
+| + `StatelessWidget`, `StatefulWidget`, `State` extendable, all public members overridable | 6,577,720 | +0.257% (+16,888 B) | 2,706,992 | 10,883 |
+| + the same, only `build`, `createState`, `initState`, `didUpdateWidget`, `dispose`, `didChangeDependencies` | 6,577,856 | +0.259% | 2,706,892 | 10,883 |
+| control, untabled | 6,675,352 | | 2,725,960 | 10,874 |
+| + all three, untabled | 6,674,384 | -0.015% | 2,727,980 | 10,886 |
+
+A second build of the control differs by 8 bytes, so the deltas are real above
+that. The per-function listing (`--print_instructions_sizes_to`) shows the shape:
+about a dozen more functions, `Widget.get:key` and `Widget.==` now emitted, the
+`Widget` type-test stub gone, 164 shared functions growing by 248 B in total.
+That is the loss of devirtualization on these classes showing up as extra
+out-of-line methods, not a large change.
+
+**What this does not show.** The fixture is a tiny app (a few widget classes);
+the delta grows with the number of overriding sites and widget subclasses in a real
+app, and one number from one small app is not a size for yours. Host bytes are not
+iOS bytes (only the deltas transfer, and only roughly). Frame time and startup were
+not measured and need a device. TFA devirtualization is seen only through these
+sizes, not reported directly. No larger real app was available on this machine
+(`~/compat-corpus` is absent).
+
+**Recommendation.**
+- Plain class extending Object (a private data class, a const value class): GO.
+  No interface change, no measurable cost, works on releases that already exist
+  once the analyzer and producer can carry it.
+- Class extending an AOT class (a private `StatelessWidget`, `StatefulWidget` or
+  `State`): GO on cost for the host evidence (about +0.26% snapshot on the small
+  fixture, narrowing the member list does not help), CONDITIONAL on three things
+  before it ships: the analyzer refuses it unless the release's interface records
+  `extendable` and `can-be-overridden` (the untabled failure is silent); it is
+  available only on releases cut after a cell that passes `--extendable`, with the
+  flag off for every existing cell; and the same measurement is repeated on a real
+  app on iOS, including startup and a frame-time check, before it is on by default.
+
 ### Seam 6 — activation, and what it closed
 
 Every question about *where and when* a Route B patch becomes live is now
