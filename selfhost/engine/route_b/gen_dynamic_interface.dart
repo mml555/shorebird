@@ -288,6 +288,22 @@ void main(List<String> args) {
   }
   final privateIsComplete = privateDillPath != null && platformPath != null;
 
+  // --extendable is checked against the kernels in hand before anything is
+  // written: a spec that names nothing would otherwise be a silent no-op.
+  final extendableParsed = <ExtendableSpec>[];
+  if (extendableSpecs.isNotEmpty) {
+    try {
+      extendableParsed.addAll(parseExtendableSpecs(extendableSpecs));
+    } on FormatException catch (e) {
+      _die(e.message);
+    }
+    final problems = checkExtendableSpecs(extendableParsed, [
+      component,
+      if (!identical(privateComponent, component)) privateComponent,
+    ]);
+    if (problems.isNotEmpty) _die(problems.join('\n       '));
+  }
+
   // Which libraries are "the app"? Default: everything that is not a platform
   // library, since the platform half is handled by the SDK allowlist and
   // retaining it wholesale is exactly the size blowup this tool exists to keep
@@ -899,6 +915,9 @@ void main(List<String> args) {
           ),
           'frameworkMembers': frameworkMembers.length,
           'frameworkSkipped': frameworkSkipped.length,
+          'extendable': extendableGrants(extendableParsed).extendable.length,
+          'canBeOverridden':
+              extendableGrants(extendableParsed).overridable.length,
         },
         'privateTopLevelCallable': privateMembers,
         'privateStaticsCallable': privateStatics,
@@ -917,6 +936,17 @@ void main(List<String> args) {
         // The audit trail for the authority that was removed.
         'constructionWithheld': constructionWithheld,
         'refused': refused,
+        // --extendable grants: classes a module may extend, and the public
+        // instance members it may override (`member: null` means every public
+        // instance member the class declares). Empty unless the flag was passed.
+        'extendable': [
+          for (final e in extendableGrants(extendableParsed).extendable)
+            {'library': e.library, 'class': e.cls},
+        ],
+        'canBeOverridden': [
+          for (final o in extendableGrants(extendableParsed).overridable)
+            {'library': o.library, 'class': o.cls, 'member': o.member},
+        ],
       })}\n',
     );
   }
@@ -968,6 +998,135 @@ String _vmName(Procedure p) => switch (p.kind) {
   _ => p.name.text,
 };
 
+/// One `--extendable` entry: `library#Class` (all public instance members
+/// overridable, [member] null) or `library#Class.member`.
+class ExtendableSpec {
+  const ExtendableSpec(this.library, this.cls, this.member);
+  final String library;
+  final String cls;
+  final String? member;
+}
+
+/// Parses `--extendable` values. Throws [FormatException] on a malformed one.
+List<ExtendableSpec> parseExtendableSpecs(List<String> specs) {
+  final out = <ExtendableSpec>[];
+  for (final spec in specs) {
+    final i = spec.indexOf('#');
+    final bad = FormatException(
+      "--extendable entry must be 'library#Class' or "
+      "'library#Class.member', got: $spec",
+    );
+    if (i <= 0 || i == spec.length - 1) throw bad;
+    final rest = spec.substring(i + 1);
+    final dot = rest.indexOf('.');
+    final cls = dot < 0 ? rest : rest.substring(0, dot);
+    final member = dot < 0 ? null : rest.substring(dot + 1);
+    if (cls.isEmpty || (member != null && member.isEmpty)) throw bad;
+    out.add(ExtendableSpec(spec.substring(0, i), cls, member));
+  }
+  return out;
+}
+
+/// What [specs] grant, normalised: a bare `library#C` anywhere makes every
+/// public instance member declared by C overridable and subsumes any
+/// `library#C.m`. Sorted; duplicates collapse. Used for both the yaml and the
+/// capability manifest, so they cannot disagree.
+({
+  List<({String library, String cls})> extendable,
+  List<({String library, String cls, String? member})> overridable,
+})
+extendableGrants(List<ExtendableSpec> specs) {
+  final whole = <String>{}; // 'library\u0000class'
+  final members = <String, Set<String>>{};
+  for (final s in specs) {
+    final k = '${s.library}\u0000${s.cls}';
+    members.putIfAbsent(k, () => <String>{});
+    if (s.member == null) {
+      whole.add(k);
+    } else {
+      members[k]!.add(s.member!);
+    }
+  }
+  final keys = members.keys.toList()..sort();
+  ({String library, String cls}) lc(String k) {
+    final p = k.split('\u0000');
+    return (library: p[0], cls: p[1]);
+  }
+
+  return (
+    extendable: [for (final k in keys) lc(k)],
+    overridable: [
+      for (final k in keys)
+        if (whole.contains(k))
+          (library: lc(k).library, cls: lc(k).cls, member: null)
+        else
+          for (final m in members[k]!.toList()..sort())
+            (library: lc(k).library, cls: lc(k).cls, member: m),
+    ],
+  );
+}
+
+/// Problems with [specs] against the kernels the generator holds; empty when
+/// every spec is safe to emit. Refused, because the annotator would otherwise
+/// silently do nothing (a typo, a rename in a framework bump) or skip the
+/// entry (`final` and `sealed` classes are never annotated `extendable`), and
+/// a release that believes a class is extendable when it is not is the
+/// failure `probes/added_class.sh` shows to be silent:
+///   * the class is not in any given kernel
+///   * the class is `final` or `sealed`
+///   * `Class.member` is not a PUBLIC INSTANCE member the class itself declares
+///     (`can-be-overridden` covers only those; an inherited one needs its
+///     declaring class named)
+List<String> checkExtendableSpecs(
+  List<ExtendableSpec> specs,
+  Iterable<Component> components,
+) {
+  final problems = <String>[];
+  Class? find(String library, String name) {
+    for (final c in components) {
+      for (final l in c.libraries) {
+        if (l.importUri.toString() != library) continue;
+        for (final cls in l.classes) {
+          if (cls.name == name) return cls;
+        }
+      }
+    }
+    return null;
+  }
+
+  for (final s in specs) {
+    final label = '${s.library}#${s.cls}${s.member == null ? '' : '.${s.member}'}';
+    final cls = find(s.library, s.cls);
+    if (cls == null) {
+      problems.add('--extendable $label: no class ${s.cls} in ${s.library}');
+      continue;
+    }
+    if (cls.isFinal || cls.isSealed) {
+      problems.add(
+        '--extendable $label: ${s.cls} is '
+        '${cls.isFinal ? 'final' : 'sealed'}; a module cannot extend it',
+      );
+      continue;
+    }
+    final m = s.member;
+    if (m == null) continue;
+    final declared = cls.members.any(
+      (x) =>
+          x is! Constructor &&
+          x.isInstanceMember &&
+          !x.name.isPrivate &&
+          x.name.text == m,
+    );
+    if (!declared) {
+      problems.add(
+        '--extendable $label: ${s.cls} declares no public instance member '
+        "'$m' (inherited members need their declaring class named)",
+      );
+    }
+  }
+  return problems;
+}
+
 /// The `extendable:` and `can-be-overridden:` sections for `--extendable`
 /// specs, each `library#Class` or `library#Class.member`.
 ///
@@ -975,46 +1134,21 @@ String _vmName(Procedure p) => switch (p.kind) {
 /// overridable (a `class:` item with no `member:`, per pkg/vm's
 /// dynamic_interface.md); `library#Class.member` names one overridable member
 /// and still makes the class extendable. Output is sorted so a run is
-/// reproducible. Returns the empty string for no specs, so the interface is
-/// byte-identical to today's. Throws [FormatException] on a malformed spec.
+/// reproducible. Returns the empty string for no specs. Throws
+/// [FormatException] on a malformed spec.
 String extendableSections(List<String> specs) {
-  // library -> class -> members; an empty member set means "every member".
-  final extendable = <String, Map<String, Set<String>>>{};
-  final wholeClass = <String, Set<String>>{};
-  for (final spec in specs) {
-    final i = spec.indexOf('#');
-    if (i <= 0 || i == spec.length - 1) {
-      throw FormatException(
-        "--extendable entry must be 'library#Class' or "
-        "'library#Class.member', got: $spec",
-      );
-    }
-    final library = spec.substring(0, i);
-    final rest = spec.substring(i + 1);
-    final dot = rest.indexOf('.');
-    final cls = dot < 0 ? rest : rest.substring(0, dot);
-    final member = dot < 0 ? null : rest.substring(dot + 1);
-    if (cls.isEmpty || (member != null && member.isEmpty)) {
-      throw FormatException(
-        "--extendable entry must be 'library#Class' or "
-        "'library#Class.member', got: $spec",
-      );
-    }
-    final members = (extendable[library] ??= {})[cls] ??= <String>{};
-    if (member == null) {
-      (wholeClass[library] ??= <String>{}).add(cls);
-    } else {
-      members.add(member);
-    }
+  final g = extendableGrants(parseExtendableSpecs(specs));
+  if (g.extendable.isEmpty) return '';
+  final byLib = <String, List<String>>{};
+  for (final e in g.extendable) {
+    (byLib[e.library] ??= []).add(e.cls);
   }
-  if (extendable.isEmpty) return '';
-  final libs = extendable.keys.toList()..sort();
   final out = StringBuffer()
     ..writeln('')
     ..writeln('# --extendable: classes a patch module may extend.')
     ..writeln('extendable:');
-  for (final lib in libs) {
-    final names = extendable[lib]!.keys.toList()..sort();
+  for (final lib in byLib.keys.toList()..sort()) {
+    final names = byLib[lib]!..sort();
     out
       ..writeln("  - library: '$lib'")
       ..writeln('    class: [${names.map((n) => "'$n'").join(', ')}]');
@@ -1022,22 +1156,11 @@ String extendableSections(List<String> specs) {
   out
     ..writeln('')
     ..writeln('can-be-overridden:');
-  for (final lib in libs) {
-    final names = extendable[lib]!.keys.toList()..sort();
-    for (final cls in names) {
-      if (wholeClass[lib]?.contains(cls) ?? false) {
-        out
-          ..writeln("  - library: '$lib'")
-          ..writeln("    class: '$cls'");
-        continue;
-      }
-      for (final m in extendable[lib]![cls]!.toList()..sort()) {
-        out
-          ..writeln("  - library: '$lib'")
-          ..writeln("    class: '$cls'")
-          ..writeln("    member: '$m'");
-      }
-    }
+  for (final o in g.overridable) {
+    out
+      ..writeln("  - library: '${o.library}'")
+      ..writeln("    class: '${o.cls}'");
+    if (o.member != null) out.writeln("    member: '${o.member}'");
   }
   return out.toString();
 }
@@ -1077,7 +1200,12 @@ gen_dynamic_interface.dart --dill <app.dill> [options]
                            class C and `can-be-overridden:` for all its public
                            members (or only member m), so a patch module may
                            declare a class extending an AOT class. Costs AOT
-                           devirtualization on C; see probes/added_class.sh
+                           devirtualization on C; see probes/added_class.sh.
+                           A bare l#C also subsumes any l#C.m. Only members C
+                           itself declares are covered, not inherited ones
+                           (name the declaring class). Refused: a class not in
+                           the kernels, a final or sealed class, a member C does
+                           not declare. Recorded in --manifest
   --no-framework-uses      do not retain the framework and SDK classes and
                            members the app's own code uses. Without them a
                            patch naming one (BuildContext in a build()

@@ -138,7 +138,7 @@ def cluster(n, name):
         p = line.split()
         if name in p[:2]:
             return int(p[p.index(name) + 2])
-    return 0
+    sys.exit('no %s row in %s.verbose.txt: gen_snapshot output format changed' % (name, n))
 arms = [a for a in ('ctrl', 'ext_all', 'ext_narrow', 'ctrl_untabled', 'ext_all_untabled')
         if os.path.exists(os.path.join(w, a + '.aot'))]
 print()
