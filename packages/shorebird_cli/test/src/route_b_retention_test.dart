@@ -9,11 +9,13 @@ import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_retention.dart';
+import 'package:shorebird_cli/src/route_b_sdk_kept.dart';
 import 'package:shorebird_cli/src/route_b_sdk_measurements.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';
 import 'mocks.dart';
+import 'route_b_profile_fixture.dart';
 
 /// The shape of a release interface, as `gen_dynamic_interface.dart` writes it:
 /// the app library whole, a few SDK members by name, a private top-level
@@ -311,9 +313,7 @@ callable:
                 'conditional': <String>[],
                 'sources': <String, Object?>{},
                 'externalReferences': {
-                  _target: [
-                    _ref('top-level', 'dart:core', member: 'print'),
-                  ],
+                  _target: [_ref('top-level', 'dart:core', member: 'print')],
                   framework: [
                     _ref('static', 'dart:core', cls: 'Object', member: 'hash'),
                   ],
@@ -349,11 +349,7 @@ callable:
       test('a dependency API the release never called', () {
         expectKeptNothing(
           refusal([
-            _ref(
-              'top-level',
-              'package:crypto/src/md5.dart',
-              member: 'get:md5',
-            ),
+            _ref('top-level', 'package:crypto/src/md5.dart', member: 'get:md5'),
           ]),
           '`md5` (package:crypto/src/md5.dart)',
         );
@@ -361,14 +357,7 @@ callable:
 
       test('a member of a library the release kept only in part', () {
         expectKeptNothing(
-          refusal([
-            _ref(
-              'static',
-              'dart:core',
-              cls: 'int',
-              member: 'parse',
-            ),
-          ]),
+          refusal([_ref('static', 'dart:core', cls: 'int', member: 'parse')]),
           '`int.parse`',
         );
       });
@@ -396,17 +385,14 @@ callable:
 
       test('a private member when the release published no manifest', () {
         expectKeptNothing(
-          refusal(
-            [
-              _ref(
-                'top-level',
-                'package:app/main.dart',
-                member: '_secret',
-                private: true,
-              ),
-            ],
-            with_: RouteBRetention.parse(_interface),
-          ),
+          refusal([
+            _ref(
+              'top-level',
+              'package:app/main.dart',
+              member: '_secret',
+              private: true,
+            ),
+          ], with_: RouteBRetention.parse(_interface)),
           'private member `_secret`',
         );
       });
@@ -422,17 +408,14 @@ callable:
           ),
         );
         expect(
-          refusal(
-            [
-              _ref(
-                'top-level',
-                'package:app/main.dart',
-                member: '_secret',
-                private: true,
-              ),
-            ],
-            with_: skipped,
-          ),
+          refusal([
+            _ref(
+              'top-level',
+              'package:app/main.dart',
+              member: '_secret',
+              private: true,
+            ),
+          ], with_: skipped),
           contains('`_secret`'),
         );
       });
@@ -888,11 +871,7 @@ callable:
       test('an extension getter of the SDK (the record .wait)', () {
         expect(
           refusal([
-            _ref(
-              'top-level',
-              'dart:async',
-              member: 'FutureRecord2|get#wait',
-            ),
+            _ref('top-level', 'dart:async', member: 'FutureRecord2|get#wait'),
           ]),
           contains('FutureRecord2|get#wait'),
         );
@@ -914,6 +893,62 @@ callable:
           ], with_: listed),
           isNull,
         );
+      });
+
+      group('an extension getter the release called itself', () {
+        const lib = 'package:app/main.dart';
+        final starsRef = _ref('top-level', lib, member: 'Stars|get#stars');
+
+        RouteBRetention withProfile(Map<String, RouteBProfileClass> classes) =>
+            RouteBRetention.parse(
+              _interface,
+              kept: RouteBSnapshotKept.fromProfileJson(routeBProfile(classes)),
+            );
+
+        test('is kept when the snapshot holds it with code', () {
+          final kept = withProfile({
+            'top': const RouteBProfileClass(
+              '::',
+              lib,
+              fns: {'Stars|get#stars': '[Optimized] Stars|get#stars'},
+            ),
+          });
+          expect(refusal([starsRef], with_: kept), isNull);
+        });
+
+        test('is refused when the snapshot lacks it', () {
+          final kept = withProfile({
+            'top': const RouteBProfileClass(
+              '::',
+              lib,
+              fns: {'other': '[Optimized] other'},
+            ),
+          });
+          expect(refusal([starsRef], with_: kept), contains('Stars|get#stars'));
+        });
+
+        test('is refused when only a stub is there, or another library', () {
+          final stub = withProfile({
+            'top': const RouteBProfileClass(
+              '::',
+              lib,
+              fns: {'Stars|get#stars': '[Stub] CompileFunction'},
+            ),
+            'dep': const RouteBProfileClass(
+              '::',
+              'package:dep/dep.dart',
+              fns: {'Stars|get#stars': '[Optimized] Stars|get#stars'},
+            ),
+          });
+          expect(refusal([starsRef], with_: stub), contains('Stars|get#stars'));
+        });
+
+        test('is refused with no snapshot profile', () {
+          expect(
+            refusal([starsRef], with_: RouteBRetention.parse(_interface)),
+            contains('Stars|get#stars'),
+          );
+        });
       });
 
       test('a bare class item keeps its public members', () {
@@ -938,14 +973,11 @@ callable:
       });
 
       test('a private class named as a type is kept by the interface', () {
-        final typed = RouteBRetention.parse(
-          """
+        final typed = RouteBRetention.parse("""
 can-be-used-as-type:
   - library: 'package:app/main.dart'
     class: ['_Marker']
-""",
-          capabilities: RouteBCapabilities.fromJson(_grants),
-        );
+""", capabilities: RouteBCapabilities.fromJson(_grants));
         expect(
           refusal([
             _ref(

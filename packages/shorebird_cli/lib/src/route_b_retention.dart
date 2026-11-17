@@ -318,10 +318,7 @@ class RouteBRetention {
     final sel = r.member ?? '';
     final bare = sel.startsWith('get:') ? sel.substring(4) : null;
     // A dynamic `get` may be a tear-off of a method of that name.
-    final keys = [
-      'dynamic#$sel',
-      if (bare != null) 'dynamic#tearoff:$bare',
-    ];
+    final keys = ['dynamic#$sel', if (bare != null) 'dynamic#tearoff:$bare'];
     final failed = keys.where(measuredFailing.containsKey).toList();
     final shown = _bareSelector(sel);
     if (failed.isNotEmpty) {
@@ -451,7 +448,14 @@ class RouteBRetention {
     // library's PUBLIC members whole but skips these, so the library being
     // kept says nothing about them (e22, E13: both aborted at load).
     if (_isExtensionHashMember(r)) {
-      return members.contains(key) && !_manifestSkips(key);
+      if (members.contains(key)) return !_manifestSkips(key);
+      // The interface cannot list one, so the release's own snapshot answers:
+      // a function in it with code is one the release itself calls, which is
+      // what keeps it past the precompiler (a release that never called it
+      // lacks it, and that is the case that aborts at load).
+      return !r.isPrivate &&
+          member != null &&
+          (kept?.hasTopLevelFunction(r.library, member) ?? false);
     }
     // A PRIVATE name the patch spells is its own library's, and what answers
     // for it is the capability manifest, as everywhere else in Route B. One
@@ -578,11 +582,10 @@ class RouteBRetention {
     RouteBCoverage coverage,
     String key, {
     bool Function(RouteBExternalReference)? inlinedHolds,
-  }) => refusal(
-    coverage,
-    [key, ...coverage.helpersNeededBy(key)],
-    inlinedHolds: inlinedHolds,
-  );
+  }) => refusal(coverage, [
+    key,
+    ...coverage.helpersNeededBy(key),
+  ], inlinedHolds: inlinedHolds);
 
   /// Why the members [keys] cannot be built, or null when the release kept
   /// everything they use.
