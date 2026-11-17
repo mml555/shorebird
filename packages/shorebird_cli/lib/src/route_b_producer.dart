@@ -1922,6 +1922,8 @@ Object? $_superIntrinsicName(
       if (json is! Map<String, dynamic> ||
           json['functions'] is! int ||
           (json['functions'] as int) < 1 ||
+          // A call line the scan could not read: the list is then a subset.
+          json['unparsed'] != 0 ||
           json['calls'] is! List) {
         return null;
       }
@@ -2138,7 +2140,7 @@ Object? $_superIntrinsicName(
       final name = match!.group(3)!;
       final nameAt = start + masked.lastIndexOf(name);
       if (match.group(2) == 'var') {
-        final varAt = start + masked.indexOf('var', first);
+        final varAt = start + masked.indexOf(RegExp(r'\bvar\b'), first);
         edits.add((varAt, 'var'.length, inferred));
       } else {
         edits.add((nameAt, 0, '$inferred '));

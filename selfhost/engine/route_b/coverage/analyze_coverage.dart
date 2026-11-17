@@ -2659,15 +2659,36 @@ void _scanBytecode(String path) {
   final call = RegExp(
     r"\[\d+\]\s+=\s+\w*(?:Interface|Dynamic)Call\w*\s+'([^']+)'",
   );
+  var parsed = 0;
   for (final m in call.allMatches(text)) {
+    parsed++;
     final name = m.group(1)!;
     // `dart:core::num::+` for an interface call, a bare `+` for a dynamic one.
     final at = name.lastIndexOf('::');
     calls.add(at < 0 ? name : name.substring(at + 2));
   }
+  // Self-check: every constant-pool line naming a call opcode must either have
+  // been read above or be a kind that carries no selector (a direct call is
+  // bound to a member, an external or FFI call to native code). Anything else
+  // means the text format changed under the regex, and `calls` is then a
+  // subset: the producer treats a non-zero `unparsed` as unreadable.
+  final anyCall = RegExp(r'\[\d+\]\s+=\s+(\w*Call\w*)');
+  var unparsed = 0;
+  for (final m in anyCall.allMatches(text)) {
+    final kind = m.group(1)!;
+    if (kind == 'DirectCall' || kind == 'ExternalCall' || kind == 'FfiCall') {
+      continue;
+    }
+    unparsed++;
+  }
+  unparsed -= parsed;
   final functions = RegExp(r'^Function ', multiLine: true).allMatches(text);
   stdout.writeln(
-    jsonEncode({'functions': functions.length, 'calls': calls.toList()..sort()}),
+    jsonEncode({
+      'functions': functions.length,
+      'unparsed': unparsed,
+      'calls': calls.toList()..sort(),
+    }),
   );
 }
 
@@ -2700,6 +2721,9 @@ String? _writableType(DartType type, Library target) {
       } else if (lib != target) {
         return null;
       }
+      // Core's own names lose to an explicit import; the target's own are
+      // ambiguous in the replacement, which imports both.
+      if (_importedNameClashes(target, name)) return null;
       final nullable = switch (type.declaredNullability) {
         Nullability.nullable => '?',
         Nullability.nonNullable => '',
@@ -2716,6 +2740,29 @@ String? _writableType(DartType type, Library target) {
     default:
       return null;
   }
+}
+
+/// True when an unprefixed import of [target] (any combinators ignored, which
+/// only makes this refuse more) exposes a declaration called [name] other than
+/// the one in `dart:core`: an explicit import beats the implicit `dart:core`
+/// one, so writing [name] in the replacement would bind to it.
+bool _importedNameClashes(Library target, String name) {
+  final seen = <Library>{};
+  bool exposes(Library lib) {
+    if (!seen.add(lib)) return false;
+    if (lib.importUri.toString() == 'dart:core') return false;
+    if (lib.classes.any((c) => c.name == name) ||
+        lib.typedefs.any((t) => t.name == name) ||
+        lib.additionalExports.any((r) => r.canonicalName?.name == name)) {
+      return true;
+    }
+    // Re-exports, followed to the end, combinators ignored.
+    return lib.dependencies.any((d) => d.isExport && exposes(d.targetLibrary));
+  }
+
+  return target.dependencies.any(
+    (d) => d.isImport && d.name == null && exposes(d.targetLibrary),
+  );
 }
 
 /// What a producer needs to turn an instance method into a static replacement

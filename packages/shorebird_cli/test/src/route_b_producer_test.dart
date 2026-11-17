@@ -491,14 +491,20 @@ callable:
 
       test('keeps the flag when the bytecode has no call by that name', () {
         expect(
-          produceWith([plus()], scan: '{"functions":1,"calls":["-"]}'),
+          produceWith(
+            [plus()],
+            scan: '{"functions":1,"unparsed":0,"calls":["-"]}',
+          ),
           1,
         );
       });
 
       test('drops the flag, and so refuses, for a call by that name', () {
         expect(
-          () => produceWith([plus()], scan: '{"functions":1,"calls":["+"]}'),
+          () => produceWith(
+            [plus()],
+            scan: '{"functions":1,"unparsed":0,"calls":["+"]}',
+          ),
           throwsA(
             isA<RouteBUnsupportedTarget>().having(
               (e) => e.reason,
@@ -515,9 +521,14 @@ callable:
       test('drops the flag when the bytecode cannot be read', () {
         for (final scan in [
           null,
-          '{"functions":0,"calls":[]}',
+          '{"functions":0,"unparsed":0,"calls":[]}',
           'not json',
           '{"calls":[]}',
+          // A call line the scan could not read (the text format changed):
+          // the list is a subset, so nothing may be believed.
+          '{"functions":1,"unparsed":1,"calls":["-"]}',
+          // An analyzer that does not count them at all.
+          '{"functions":1,"calls":["-"]}',
         ]) {
           expect(
             () => produceWith([plus()], scan: scan),
@@ -2154,6 +2165,13 @@ callable:
               'Object? probe(RouteBThing self, final int a, num b, '
               'covariant Object c) => 0;',
             ),
+          );
+        });
+
+        test('`covariant var a` keeps `covariant` and replaces `var`', () {
+          expect(
+            declare('Object? probe(covariant var a) => 0;', params: ['int']),
+            contains('Object? probe(RouteBThing self, covariant int a) => 0;'),
           );
         });
 

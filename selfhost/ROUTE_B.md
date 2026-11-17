@@ -100,9 +100,15 @@ metadata (`allow_unchecked_sdk_calls`).
   analyzer read the payload (`route_b_analyze --scan-bytecode`) and drops the
   flag of any reference whose selector the bytecode still calls by name
   (InterfaceCall, DynamicCall, ...); a payload that cannot be read drops every
-  flag. Dropping the flag means the normal check, which normally refuses.
-  `coverage/inlined_ops_qualify.sh` asks the same question of the real
-  producer and compiler on a fixture, and the cell mint runs it.
+  flag, and so does one with a call line the scan could not parse (the scan
+  counts them: `unparsed` must be 0). Dropping the flag means the normal check,
+  which normally refuses. A type written into the lowered signature is refused
+  when an unprefixed import of the target library exposes the same name. The
+  analyzer tests (`inlined_ops_test.dart`, `external_uses_test.dart`) and
+  `inlined_ops_qualify.sh` need the engine's Dart and run in no CI job: the
+  cell mint is the only place they run, and the mint is also the first run of
+  the producer's scan against a real analyzer. `inlined_ops_test.dart` fails
+  when the CLI's `inlinedOpcodes` drifts from dart2bytecode's tables.
   `coverage/inlined_ops_qualify.sh` proves the flag: it runs the real
   producer and a real dart2bytecode over every member of
   `inlined_ops_fixture.dart` (as top-level functions and as instance methods,

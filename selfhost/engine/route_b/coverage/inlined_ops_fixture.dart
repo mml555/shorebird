@@ -38,6 +38,14 @@ Object? yes__double_le(double a, double b) => a <= b;
 Object? yes__int_neg(int a) => -a;
 Object? yes__double_neg(double a) => -a;
 Object? no__num_add(num a, num b) => a + b;
+// State machines: the analyzer reads the kernel before the async/sync*
+// lowering, the compiler after it, and the static type of an operand can differ.
+Future<Object?> yes__async_await(Future<int> f, int b) async => await f + b;
+Stream<int> yes__asyncstar(int a, int b) async* { yield a + b; }
+Iterable<int> yes__syncstar(int a, int b) sync* { yield a + b; }
+Future<Object?> yes__await_for(Stream<int> s, int b) async { var t = 0; await for (final x in s) { t = t + x; } return t + b; }
+Future<Object?> yes__async_closure(Future<int> f, int b) async { final v = await f; return () => v + b; }
+Future<Object?> no__async_num(Future<num> f, int b) async => await f + b;
 Object? no__int_double_add(int a, double b) => a + b;
 Object? no__double_int_add(double a, int b) => a + b;
 Object? no__int_num_add(int a, num b) => a + b;

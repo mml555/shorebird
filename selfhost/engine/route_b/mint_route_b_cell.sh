@@ -605,18 +605,20 @@ files=(
 # compiler under this build's dartaotruntime, against the platform dill the cell
 # ships (`$FLUTTER_PLATFORM`, which the address covers), not a path derived from
 # `$OUT`. Nothing skips it but --dry-run, which publishes nothing: there is no
-# switch that mints an unqualified cell. It needs a standalone `dart` on PATH
-# (the producer is run with `dart run`, and a Flutter-bundled Dart formats and
-# resolves differently), and a resolved packages/shorebird_cli.
+# switch that mints an unqualified cell. It needs the Dart CI runs (the producer
+# is run with `dart run`; tool/find_dart.sh picks it) and a resolved workspace.
 if [[ "$DRY" != 1 ]]; then
-  command -v dart >/dev/null \
-    || die "no \`dart\` on PATH: the inlined-flag qualification runs the producer with it"
-  case "$(command -v dart)" in
-    */flutter/*|*/fvm/*) die "\`dart\` on PATH is Flutter's bundled Dart ($(command -v dart)); put the standalone SDK first (the one CI installs)" ;;
-  esac
-  [[ -f "$(dirname "$0")/../../../packages/shorebird_cli/.dart_tool/package_config.json" ]] \
-    || die "packages/shorebird_cli is not resolved; run scripts/bootstrap.sh"
-  SRC="$SRC" "$(dirname "$0")/coverage/inlined_ops_qualify.sh" \
+  # The Dart CI runs, chosen the way tool/find_dart.sh does (DART_BIN names one).
+  source "$SELFHOST/../tool/find_dart.sh"
+  find_dart "$SELFHOST/.."
+  [[ -n "$dart_bin" ]] \
+    || die "no Dart of the version CI runs: the inlined-flag qualification runs the producer with it (see tool/find_dart.sh; DART_BIN names one)"
+  # A pub workspace resolves at its root; packages/shorebird_cli has no
+  # package_config.json of its own.
+  [[ -f "$SELFHOST/../.dart_tool/package_config.json" ]] \
+    || die "the workspace is not resolved; run scripts/bootstrap.sh"
+  export DART_BIN="$dart_bin"
+  SRC="$SRC" "$HERE/coverage/inlined_ops_qualify.sh" \
     "$OUT/zip_archives/route_b_analyze.aot" \
     --compiler-aot "$OUT/zip_archives/dart2bytecode_aot.snapshot" \
     --runtime "$OUT/dartaotruntime" --out "$OUT" \

@@ -45,7 +45,7 @@
 # private class, mixins/extensions/enums as receivers, and the analyzer's
 # treatment of a TFA-shaken program other than this fixture's.
 #
-# RUNTIME: one producer compile per target (~230 targets). Under the tree's JIT
+# RUNTIME: one producer compile per target (~170 targets). Under the tree's JIT
 # dart2bytecode that is ~10 s each (about 40 minutes on a shared host); with
 # --compiler-aot (what the mint passes) it is a few seconds each. Run it with
 # the cell's compiler whenever a cell is being minted. ONLY=<substring> narrows
@@ -73,7 +73,13 @@ HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO="$(cd "$HERE/../../../.." && pwd)"
 die() { echo "ERROR: $*" >&2; exit 1; }
 
-command -v dart >/dev/null || die "no \`dart\` on PATH: the producer is run with \`dart run\` (the standalone SDK CI uses, not Flutter's)"
+# The Dart CI runs (tool/find_dart.sh; DART_BIN names one), not whatever is first.
+if [ -z "${DART_BIN:-}" ]; then
+  source "$REPO/tool/find_dart.sh"
+  find_dart "$REPO"
+  DART_BIN=$dart_bin
+fi
+[ -n "$DART_BIN" ] && [ -x "$DART_BIN" ] || die "no Dart of the version CI runs (tool/find_dart.sh); set DART_BIN"
 [ -f "$ANALYZER" ] || die "no analyzer at $ANALYZER"
 [ -x "$OUT/dart-sdk/bin/dart" ] || die "no host dart at $OUT/dart-sdk/bin/dart"
 [ -x "$OUT/dartaotruntime" ] || die "no dartaotruntime at $OUT"
@@ -125,12 +131,12 @@ echo "== the BUILT analyzer, every member carried =="
   --out "$W/coverage.json"
 VER=$(python3 -I -c "import json,sys;print(json.load(open(sys.argv[1]))['analysisVersion'])" "$W/coverage.json")
 if [ "$VER" -lt 21 ] && [ "$REQUIRE" = 0 ]; then
-  echo "analyzer is analysis $VER: it is below 21, whose `inlined` flag is the one qualified, nothing to qualify"
+  echo "analyzer is analysis $VER: it is below 21, whose \`inlined\` flag is the one qualified, nothing to qualify"
   exit 0
 fi
 
 echo "== the real producer, compiling with $COMPILER_NAME =="
-(cd "$REPO/packages/shorebird_cli" && dart run tool/route_b_lower_fixture.dart \
+(cd "$REPO/packages/shorebird_cli" && "$DART_BIN" run tool/route_b_lower_fixture.dart \
   --coverage "$W/coverage.json" --release-dill "$W/import.dill" \
   --verification-dill "$W/verification.dill" \
   --flutter-platform "$FLUTTER_PLATFORM" --work "$W/lowered" \

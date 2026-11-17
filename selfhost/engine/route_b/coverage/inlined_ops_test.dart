@@ -11,6 +11,7 @@
 // one needs no compiler and pins the analyzer's own bookkeeping.
 import 'dart:io';
 
+import 'package:dart2bytecode/recognized_methods.dart' show RecognizedMethods;
 import 'package:kernel/ast.dart';
 import 'package:kernel/binary/ast_from_binary.dart';
 import 'package:kernel/class_hierarchy.dart';
@@ -280,6 +281,46 @@ void main() {
     refOf([('+', numC, i, i)], member: '+', typed: false) != null &&
         flag(refOf([('+', numC, i, i)], member: '+', typed: false)) == null,
     'no type environment, no inlined',
+  );
+
+  // The CLI's whitelist (route_b_coverage.dart `inlinedOpcodes`) is a hand copy
+  // of the compiler's tables. It must be exactly them, minus `==` (which never
+  // reaches an `inlined` flag), with `unary-` added.
+  final expected = <String, Set<String>>{};
+  for (final table in [
+    RecognizedMethods.binaryIntOps,
+    RecognizedMethods.binaryDoubleOps,
+  ]) {
+    table.forEach((selector, opcode) {
+      if (selector == '==') return;
+      expected.putIfAbsent(selector, () => {}).add(opcode.name.substring(1));
+    });
+  }
+  expected['unary-'] = {'NegateInt', 'NegateDouble'};
+  final cliSource = File(
+    '${File.fromUri(Platform.script).parent.path}/../../../../packages/'
+    'shorebird_cli/lib/src/route_b_coverage.dart',
+  ).readAsStringSync();
+  final block = RegExp(
+    r'static const inlinedOpcodes = <String, Set<String>>\{(.*?)\n  \};',
+    dotAll: true,
+  ).firstMatch(cliSource)!.group(1)!;
+  final actual = <String, Set<String>>{
+    for (final m in RegExp(r"'([^']+)': \{([^}]*)\}").allMatches(block))
+      m.group(1)!: {
+        for (final o in RegExp(r"'(\w+)'").allMatches(m.group(2)!)) o.group(1)!,
+      },
+  };
+  check(
+    expected.length == actual.length &&
+        expected.entries.every(
+          (e) =>
+              actual[e.key] != null &&
+              actual[e.key]!.length == e.value.length &&
+              actual[e.key]!.containsAll(e.value),
+        ),
+    'the CLI inlinedOpcodes table equals the compiler\'s RecognizedMethods '
+    'tables (expected $expected, CLI $actual)',
   );
 
   if (_failures > 0) exit(1);
