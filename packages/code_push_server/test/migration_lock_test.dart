@@ -3,14 +3,13 @@ import 'package:code_push_server/src/db.dart';
 import 'package:code_push_server/src/repository.dart';
 import 'package:test/test.dart';
 
-/// Records every statement and which transaction ran it. Answers
-/// `schema_migrations` reads from [applied].
+/// Records every statement and which transaction ran it. Reports no applied
+/// migrations.
 class _RecordingDb implements Db {
-  _RecordingDb(this.dialect, {this.applied = const {}});
+  _RecordingDb(this.dialect);
 
   @override
   final Dialect dialect;
-  final Set<int> applied;
 
   /// One list of statements per transaction, in order.
   final txs = <List<String>>[];
@@ -19,14 +18,6 @@ class _RecordingDb implements Db {
     String sql,
     Map<String, Object?> params,
   ) async {
-    if (sql.startsWith('SELECT version FROM schema_migrations')) {
-      return [
-        for (final v in applied) {'version': v},
-      ];
-    }
-    if (sql.startsWith('SELECT 1 FROM schema_migrations WHERE')) {
-      return applied.contains(params['v']) ? [<String, Object?>{}] : [];
-    }
     return [];
   }
 
