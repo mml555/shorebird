@@ -100,6 +100,10 @@ Against #209's head `961889d35` (the host-measured list; `result/comparison.md`)
 
 ## Caveats
 
+- A tear-off probe creates the closure and never calls it (`gen_device_probe.py`: `final Object? t = ...; if (t is! Function)`). A
+  `SAFE` tear-off verdict therefore says nothing about calling it, and the CLI accepts a tear-off key only when its call form is
+  accepted too (`gen_dart_lists.py`, `RouteBRetention`). Of the 118 SAFE keys that are not thin, 24 tear-offs fail that rule, so
+  the CLI's accepted list has 94. Follow-up: make the probe call the closure and re-run on the device.
 - 53 probes never ran: 17 aborted on the host matrix and were not tried on the device (`excluded_ids.tsv`, `host-abort`), and the
   dynamic and tear-off forms of the selectors `& addAll clamp putIfAbsent moveNext`. A patch that calls a member by name makes
   the CLI keep every framework member of that name, and the CLI refuses the whole patch ("changed members cannot be carried"):

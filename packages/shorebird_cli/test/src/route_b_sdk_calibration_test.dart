@@ -43,21 +43,12 @@ void main() {
       sha256.convert(bytes).toString(),
       'f6d7b5d0d58ae6f535b6ea2d82032e2099c51cb550cef51945ff71eb41ad557d',
     );
-    kept = RouteBSnapshotKept.fromProfileJson(
-      utf8.decode(gzip.decode(bytes)),
-    );
+    kept = RouteBSnapshotKept.fromProfileJson(utf8.decode(gzip.decode(bytes)));
   });
 
   // Keys the reader rejects on a measured class, each with why that is the
   // reader being right and the device probe being weaker than its verdict.
   const explained = {
-    // The probes of a tear-off create it and do not call it. The same
-    // release's `String.endsWith` call (`str_endsWith__one_byte__s`) ABORTS:
-    // its
-    // function is `_StringBase.endsWith` with only a `[Stub] LazyCompile`, so
-    // a tear-off that is ever called stops the app.
-    'dart:core#String#tearoff:endsWith',
-    'dynamic#tearoff:endsWith',
     // `int & int`, `int << int` and `-int` are opcodes only when both operands
     // are statically exactly `int` (a `T extends int` operand is not), and the
     // analysis does not say which a call site is, so the member is looked up
@@ -89,11 +80,7 @@ void main() {
         }
       }
     }
-    expect(
-      rejected.difference(explained),
-      isEmpty,
-      reason: lines.join('\n'),
-    );
+    expect(rejected.difference(explained), isEmpty, reason: lines.join('\n'));
     // The explanation list stays honest: each entry still needs it.
     expect(explained.difference(rejected), isEmpty);
   });
@@ -117,41 +104,19 @@ void main() {
         why[key] = problem;
       }
     }
-    expect(routeBSdkMeasuredAccepted, hasLength(118));
-    expect(refused, hasLength(32), reason: why.toString());
+    expect(routeBSdkMeasuredAccepted, hasLength(94));
+    expect(refused, hasLength(10), reason: why.toString());
     expect(refused, {
       'dart:core#Iterable#get:first',
-      'dart:core#Iterable#tearoff:any',
       'dart:core#Iterable#tearoff:toList',
       'dart:core#Iterable#tearoff:toSet',
       'dart:core#Iterable#toList',
       'dart:core#Iterable#toSet',
       'dart:core#List#get:reversed',
-      'dart:core#List#tearoff:sort',
-      'dart:core#String#tearoff:endsWith',
       'dart:core#int#&',
       'dart:core#int#<<',
       'dart:core#int#unary-',
       'dart:core#num#~/',
-      'dynamic#tearoff:catchError',
-      'dynamic#tearoff:close',
-      'dynamic#tearoff:containsKey',
-      'dynamic#tearoff:endsWith',
-      'dynamic#tearoff:forEach',
-      'dynamic#tearoff:listen',
-      'dynamic#tearoff:remove',
-      'dynamic#tearoff:removeLast',
-      'dynamic#tearoff:replaceAll',
-      'dynamic#tearoff:sort',
-      'dynamic#tearoff:split',
-      'dynamic#tearoff:startsWith',
-      'dynamic#tearoff:then',
-      'dynamic#tearoff:timeout',
-      'dynamic#tearoff:toDouble',
-      'dynamic#tearoff:toLowerCase',
-      'dynamic#tearoff:toUpperCase',
-      'dynamic#tearoff:trim',
-      'dynamic#tearoff:whenComplete',
     }, reason: why.toString());
   });
 }

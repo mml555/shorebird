@@ -328,6 +328,14 @@ class RouteBRetention {
       return 'a call by name to `$shown` on a dynamic value (a dynamic call, '
           'measured: ${measuredFailing[failed.first]})';
     }
+    // A tear-off key is only as safe as the call it can become.
+    for (final key in keys) {
+      final torn = _tearoffRefusal(key);
+      if (torn != null) {
+        return 'a call by name to `$shown` on a dynamic value (a dynamic '
+            'call, $torn)';
+      }
+    }
     final accepted = keys.where(measuredAccepted.contains).toList();
     if (accepted.isNotEmpty) {
       for (final key in accepted) {
@@ -359,7 +367,30 @@ class RouteBRetention {
     final failed = measuredFailing[key];
     if (failed != null) return 'measured: $failed';
     if (!measuredAccepted.contains(key)) return '';
-    return _keptProblem(key);
+    return _tearoffRefusal(key) ?? _keptProblem(key);
+  }
+
+  /// Why a measured tear-off [key] (`...#tearoff:name`) is refused because its
+  /// call form (the same key with `#tearoff:` replaced by `#`) is not
+  /// accepted, or null for any other key and for a tear-off whose call form is
+  /// accepted.
+  ///
+  /// The device probe of a tear-off creates the closure and never calls it,
+  /// yet a patch that tears a member off can call it, and a member that
+  /// aborts when called (`String.endsWith`) aborts through its tear-off too.
+  /// The per-release snapshot profile does not stand in for this: it asks only
+  /// whether the member has code, which `List.sort` has and still aborts.
+  String? _tearoffRefusal(String key) {
+    if (!key.contains('#tearoff:') || !measuredAccepted.contains(key)) {
+      return null;
+    }
+    final call = key.replaceFirst('#tearoff:', '#');
+    if (measuredAccepted.contains(call)) return null;
+    final why = measuredFailing[call];
+    return 'it is torn off, and calling it is not accepted '
+        '(`${call.substring(call.indexOf('#') + 1)}`: '
+        '${why == null ? 'never measured as a call' : 'measured: $why'}); the '
+        'device probe of a tear-off never calls the closure';
   }
 
   /// Whether this release's snapshot resolves [key] on every VM class the
