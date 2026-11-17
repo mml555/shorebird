@@ -139,16 +139,17 @@ clone_owned() {
   local a
   for a in 1 2 3; do
     rm -rf /r12src
+    # The checkout is in the attempt too: after a blob:none clone it fetches the blobs.
     GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
-      timeout 300 git clone --quiet --filter=blob:none "$R12_REPO_URL" /r12src && return 0
-    note "clone attempt $a failed or stalled"
+      timeout -k 10 300 git clone --quiet --filter=blob:none "$R12_REPO_URL" /r12src \
+      && GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
+      timeout -k 10 300 git -C /r12src checkout --quiet --detach "$R12_REPO_SHA" && return 0
+    note "clone/checkout attempt $a failed or stalled"
     sleep 5
   done
   return 1
 }
-clone_owned || die "could not clone the owned repository (3 attempts)"
-git -C /r12src checkout --quiet --detach "$R12_REPO_SHA" \
-  || die "owned repository does not contain $R12_REPO_SHA"
+clone_owned || die "could not clone the owned repository at $R12_REPO_SHA (3 attempts)"
 got="$(git -C /r12src rev-parse HEAD)"
 [[ "$got" == "$R12_REPO_SHA" ]] || die "checked out $got, expected $R12_REPO_SHA"
 note "checked out              : $got"

@@ -69,10 +69,9 @@ if ! docker ps --format '{{.Names}}' | grep -qx r12-discovery; then
     r12-builder:substrate sleep infinity >/dev/null
   docker exec r12-discovery bash -lc "
     mkdir -p /r12home &&
-    # Bounded and retried: see clone_owned in run_arm.sh.
-    for a in 1 2 3; do rm -rf /r12src; GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 timeout 300 git clone --quiet --filter=blob:none https://github.com/mml555/shorebird.git /r12src && break; [ \$a = 3 ] && exit 1; echo \"clone attempt \$a failed or stalled\"; sleep 5; done &&
-    git -C /r12src checkout --quiet --detach $REPO_SHA" \
-    || { echo "clone failed"; exit 1; }
+    # Bounded and retried, checkout included (it fetches the blobs): see clone_owned in run_arm.sh.
+    for a in 1 2 3; do rm -rf /r12src; GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 timeout -k 10 300 git clone --quiet --filter=blob:none https://github.com/mml555/shorebird.git /r12src && GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 timeout -k 10 300 git -C /r12src checkout --quiet --detach $REPO_SHA && break; [ \$a = 3 ] && exit 1; echo \"clone/checkout attempt \$a failed or stalled\"; sleep 5; done" \
+    || { docker rm -f r12-discovery >/dev/null 2>&1; echo "clone failed"; exit 1; }
   note "cloned at $REPO_SHA"
 fi
 
