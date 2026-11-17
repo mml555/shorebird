@@ -49,15 +49,49 @@
 //
 // WHAT IT DOES NOT COVER, said once so nobody reads more into a pass:
 //
-//   * an instance member of a `dart:` class (`s.substring(1)`). KNOWN GAP: it
-//     binds by selector, the generator leaves it out of the interface on
-//     purpose, and one the release never called can throw `NoSuchMethodError`
-//     on a device;
-//   * a reference the compiler adds that no source token names (string
-//     interpolation, `for`, `async`), and `dart:_` libraries, which no
-//     interface can hold and no patch spells;
-//   * an extension member (`list.firstOrNull`, `Ext|get#x`): the generator
-//     skips these too, so nothing checks that the release kept one;
+//   * an instance member of a `dart:` class (`s.substring(1)`) is NOT decidable
+//     from the interface: it binds by selector and the generator leaves it out
+//     on purpose. One the release never kept throws `NoSuchMethodError` on a
+//     device, or stops the app. So it is accepted only when BOTH hold:
+//       1. it is on the device-measured list ([routeBSdkMeasuredAccepted]),
+//          every probe of which resolved, on more than one runtime class; and
+//       2. THIS release's own snapshot profile ([RouteBSnapshotKept]) resolves
+//          it, on every VM class the measurement ran it on, to a function with
+//          real code. A release whose profile is missing or does not match its
+//          recorded digest refuses (`--allow-unchecked-sdk-calls` skips this
+//          check, and only this check, for SDK members).
+//     Or when the release's own interface names the member: the release is
+//     built with a short `--sdk-members` list (`print`, `DateTime.now`, ...),
+//     and a member on it is accepted with neither check, not even the failing
+//     list. That is all this exception covers. The
+//     generator does NOT name an instance member of `dart:core` because the
+//     release's own code calls it, so a release that calls `Iterable.map`
+//     does not thereby get `Iterable.map` accepted.
+//     CAVEATS: the list was measured on ONE app at ONE cell, so it says what is
+//     expected, not what holds for every release; the profile check is
+//     necessary, not sufficient (`List.sort` and `Iterable.contains` on a
+//     `List.filled` list have code and abort); and a runtime class the matrix
+//     did not measure (`MappedIterable`, a user's own Iterable) is not proven
+//     by the device, only by its profile entry: the profile check covers every
+//     class of this release that can be a subtype of the declared type, not
+//     only the measured ones. A refusal on the measured list is not unlocked by
+//     any flag or by any release setting; only a device measurement added to
+//     the list does that. Per-release evidence (R4) is the real fix;
+//   * a call by name on a `dynamic` value, an instance tear-off, a `for-in`'s
+//     `iterator`/`moveNext`/`current`: reported by the analyzer from analysis
+//     version 19 and answered by the same measurement. Below 19 the CLI
+//     refuses unless told not to (`--allow-unchecked-sdk-calls`);
+//   * string interpolation's `toString` (called virtually from the core
+//     library, see [routeBSdkMeasuredAccepted]) and `await`
+//     (the async machinery calls `_Future` internals directly, not by
+//     selector; only a user-defined thenable's `then` is by name), and
+//     `dart:_` libraries, which no interface can hold and no patch spells;
+//   * an extension or extension-type GETTER or SETTER (`record.wait`,
+//     `Ext|get#x`): refused always, by name. The interface never lists a `#`
+//     member (the generator skips them), so a release cannot be shown to have
+//     kept one, and one it lacks aborts the process at load. An extension
+//     METHOD (`Ext|m`) is reported and answered like any other top-level
+//     member. Needs analysis 19 to be reported at all;
 //   * the declared type of a local variable. Measured: a never-used class as
 //     the type of an unassigned local loads (`local_type_only`); an
 //     assignment or cast to it is a type node and is collected.
@@ -65,6 +99,8 @@ import 'dart:io';
 
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_sdk_kept.dart';
+import 'package:shorebird_cli/src/route_b_sdk_measurements.dart';
 import 'package:yaml/yaml.dart';
 
 /// The release's retained set, read from its dynamic interface.
@@ -76,6 +112,12 @@ class RouteBRetention {
     this.classes = const {},
     this.wholeClasses = const {},
     this.capabilities,
+    this.measuredAccepted = routeBSdkMeasuredAccepted,
+    this.measuredFailing = routeBSdkMeasuredFailing,
+    this.measuredVmClasses = routeBSdkMeasuredVmClasses,
+    this.kept,
+    this.keptProblem,
+    this.skipKeptCheck = false,
   });
 
   /// Parses the text of a `dynamic_interface.yaml`.
@@ -87,6 +129,12 @@ class RouteBRetention {
   factory RouteBRetention.parse(
     String interface, {
     RouteBCapabilities? capabilities,
+    Set<String> measuredAccepted = routeBSdkMeasuredAccepted,
+    Map<String, String> measuredFailing = routeBSdkMeasuredFailing,
+    Map<String, List<String>> measuredVmClasses = routeBSdkMeasuredVmClasses,
+    RouteBSnapshotKept? kept,
+    String? keptProblem,
+    bool skipKeptCheck = false,
   }) {
     final Object? loaded;
     try {
@@ -158,6 +206,12 @@ class RouteBRetention {
       classes: classes,
       wholeClasses: wholeClasses,
       capabilities: capabilities,
+      measuredAccepted: measuredAccepted,
+      measuredFailing: measuredFailing,
+      measuredVmClasses: measuredVmClasses,
+      kept: kept,
+      keptProblem: keptProblem,
+      skipKeptCheck: skipKeptCheck,
     );
   }
 
@@ -166,12 +220,18 @@ class RouteBRetention {
   static RouteBRetention? read(
     File? file, {
     RouteBCapabilities? capabilities,
+    RouteBSnapshotKept? kept,
+    String? keptProblem,
+    bool skipKeptCheck = false,
   }) {
     if (file == null || !file.existsSync()) return null;
     try {
       return RouteBRetention.parse(
         file.readAsStringSync(),
         capabilities: capabilities,
+        kept: kept,
+        keptProblem: keptProblem,
+        skipKeptCheck: skipKeptCheck,
       );
     } on FormatException {
       return null;
@@ -195,6 +255,29 @@ class RouteBRetention {
   /// The release's capability manifest, if it published one.
   final RouteBCapabilities? capabilities;
 
+  /// The keys the device matrix resolved on every runtime class and form
+  /// ([routeBSdkMeasuredAccepted] unless a test supplies its own). Measured on
+  /// one Flutter release: see route_b_sdk_measurements.dart.
+  final Set<String> measuredAccepted;
+
+  /// The keys the matrix saw fail, with why ([routeBSdkMeasuredFailing]).
+  final Map<String, String> measuredFailing;
+
+  /// For each accepted key, the VM classes it was measured on
+  /// ([routeBSdkMeasuredVmClasses]).
+  final Map<String, List<String>> measuredVmClasses;
+
+  /// What THIS release's own snapshot kept (its snapshot profile), or null when
+  /// it could not be read; [keptProblem] then says why.
+  final RouteBSnapshotKept? kept;
+
+  /// Why [kept] is null, in plain words.
+  final String? keptProblem;
+
+  /// `--allow-unchecked-sdk-calls`: do not ask this release's snapshot. The
+  /// measured list still applies.
+  final bool skipKeptCheck;
+
   /// Why [reference] cannot be shown to be retained, or null when it can.
   String? refuse(RouteBExternalReference reference) {
     final r = reference;
@@ -202,21 +285,123 @@ class RouteBRetention {
       return 'the analysis could not tell what it uses (${r.reason}), and a '
           'symbol that cannot be shown to be kept is not kept';
     }
+    // A call by name on a `dynamic` value: no declared target to look up.
+    if (r.kind == 'dynamic') return _refuseDynamic(r);
     // Bound by selector at run time, and left out of the interface on purpose;
-    // see the header. A KNOWN GAP: an SDK instance method the release never
-    // called can throw `NoSuchMethodError` on a device.
+    // see the header. Only a member measured to work is let through.
     if (r.kind == 'instance' &&
         r.library.startsWith('dart:') &&
         !r.viaConstant) {
-      return null;
+      final why = _sdkRefusal(_sdkKey(r));
+      return why == null ? null : _describeSdkInstance(r, why);
     }
     return _retained(r) ? null : _describe(r);
+  }
+
+  /// A dynamic call is accepted only when the measurement resolved its
+  /// selector on every runtime class and form it tried. The app classes that
+  /// have a member of that name arrive as `instance` references of their own
+  /// and are answered by the interface like any other app member.
+  String? _refuseDynamic(RouteBExternalReference r) {
+    final sel = r.member ?? '';
+    final bare = sel.startsWith('get:') ? sel.substring(4) : null;
+    // A dynamic `get` may be a tear-off of a method of that name.
+    final keys = [
+      'dynamic#$sel',
+      if (bare != null) 'dynamic#tearoff:$bare',
+    ];
+    final failed = keys.where(measuredFailing.containsKey).toList();
+    final shown = _bareSelector(sel);
+    if (failed.isNotEmpty) {
+      return 'a call by name to `$shown` on a dynamic value (a dynamic call, '
+          'measured: ${measuredFailing[failed.first]})';
+    }
+    final accepted = keys.where(measuredAccepted.contains).toList();
+    if (accepted.isNotEmpty) {
+      for (final key in accepted) {
+        final problem = _keptProblem(key);
+        if (problem != null) {
+          return 'a call by name to `$shown` on a dynamic value (a dynamic '
+              'call, $problem)';
+        }
+      }
+      return null;
+    }
+    return 'a call by name to `$shown` on a dynamic value (a dynamic call, '
+        'never measured)';
+  }
+
+  static String _bareSelector(String sel) =>
+      sel.replaceFirst(RegExp('^(get|set|tearoff):'), '');
+
+  /// Why an instance member of a `dart:` class [key] cannot be shown to be kept
+  /// by THIS release, or null when it can: the release's own interface names it
+  /// (the short `--sdk-members` list; neither the allow-list, the failing list
+  /// nor the snapshot is asked for it: a release that names a member kept
+  /// it), or it is on the device-measured
+  /// list AND this release's snapshot resolves it on every VM class it was
+  /// measured on and on every class of the release that can be the declared
+  /// type. An empty string is "on no list".
+  String? _sdkRefusal(String key) {
+    if (members.contains(key)) return null;
+    final failed = measuredFailing[key];
+    if (failed != null) return 'measured: $failed';
+    if (!measuredAccepted.contains(key)) return '';
+    return _keptProblem(key);
+  }
+
+  /// Whether this release's snapshot resolves [key] on every VM class the
+  /// measurement ran it on, or why not.
+  String? _keptProblem(String key) {
+    if (skipKeptCheck) return null;
+    final snapshot = kept;
+    if (snapshot == null) {
+      return '${keptProblem ?? 'its snapshot profile is not available'}, so '
+          'whether this release kept it cannot be checked';
+    }
+    final classes = measuredVmClasses[key];
+    if (classes == null || classes.isEmpty) {
+      return 'no VM class was measured for it';
+    }
+    // `library#Class#member`, or `dynamic#selector` (any class).
+    final parts = key.split('#');
+    final dynamicKey = parts.length == 2 && parts.first == 'dynamic';
+    return snapshot.problemFor(
+      declaredLibrary: dynamicKey ? null : parts.first,
+      declaredClass: dynamicKey ? null : parts[1],
+      measured: classes,
+      selector: _selectorOf(key),
+    );
+  }
+
+  /// `dart:core#Iterable#tearoff:map` -> `map`; `dynamic#get:length` ->
+  /// `get:length`.
+  static String _selectorOf(String key) {
+    final last = key.substring(key.lastIndexOf('#') + 1);
+    return last.startsWith('tearoff:') ? last.substring(8) : last;
+  }
+
+  static String _sdkKey(RouteBExternalReference r) =>
+      '${r.library}#${r.className}#${r.member}';
+
+  /// Whether [r] is an extension getter, setter or tear-off, whose `#` name no
+  /// interface lists.
+  static bool _isExtensionHashMember(RouteBExternalReference r) {
+    final member = r.member;
+    return member != null && member.contains('|') && member.contains('#');
   }
 
   bool _retained(RouteBExternalReference r) {
     final cls = r.className;
     final member = r.member;
     final key = '${r.library}#${cls ?? ''}#${member ?? ''}';
+    // An extension member named with `#` is not in any interface, and the
+    // whole-library rule must not answer for it: the generator keeps an app
+    // library's PUBLIC members whole but skips these, so the library being
+    // kept says nothing about them (e22, E13: both aborted at load).
+    if (_isExtensionHashMember(r)) {
+      return members.contains(key) && !_manifestSkips(key);
+    }
     // A PRIVATE name the patch spells is its own library's, and what answers
     // for it is the capability manifest, as everywhere else in Route B. One
     // named only by a constant is kept by the interface item itself.
@@ -277,10 +462,24 @@ class RouteBRetention {
     ].any((k) => k.startsWith(prefix));
   }
 
+  /// "the dart: method `String.toUpperCase` (an SDK instance member ...)".
+  String _describeSdkInstance(RouteBExternalReference r, String why) {
+    final how = why.isEmpty ? '' : ', $why';
+    final torn = r.member?.startsWith('tearoff:') ?? false;
+    final name = torn
+        ? '${r.className}.${_bareSelector(r.member!)} torn off'
+        : r.displayName;
+    return 'the ${r.library.substring(0, r.library.indexOf(':'))}: method '
+        '`$name` (an SDK instance member$how)';
+  }
+
   /// "`Padding`", the way a developer would name it. The library is added only
   /// where it helps: a framework path (`package:flutter/src/widgets/...`) is
   /// not something the developer wrote.
   static String _describe(RouteBExternalReference r) {
+    if (_isExtensionHashMember(r)) {
+      return 'the extension member `${r.displayName}` (${r.library})';
+    }
     final what = switch (r.kind) {
       'class' => 'the ${r.isPrivate ? 'private ' : ''}class',
       'constructor' => 'the ${r.isPrivate ? 'private ' : ''}constructor',
@@ -327,8 +526,27 @@ class RouteBRetention {
   /// Null also when [coverage] predates analysis version 18 and so cannot say
   /// (see [routeBRetentionAnalysisVersion]); the caller decides what that
   /// means, and today it means a warning rather than a refusal.
-  String? refusal(RouteBCoverage coverage, Iterable<String> keys) =>
-      describeRouteBUnretained(unretained(coverage, keys));
+  String? refusal(RouteBCoverage coverage, Iterable<String> keys) {
+    final all = unretained(coverage, keys);
+    final sdk = all
+        .where((d) => d.contains('(an SDK instance member'))
+        .toList();
+    final dynamicCalls = all
+        .where((d) => d.contains('(a dynamic call'))
+        .toList();
+    final rest = all
+        .where((d) => !sdk.contains(d) && !dynamicCalls.contains(d))
+        .toList();
+    return [
+      ?describeRouteBUnretained(rest),
+      ?describeRouteBUnprovenSdkMembers(sdk),
+      ?describeRouteBDynamicCalls(dynamicCalls),
+    ].join('. ').nullIfEmpty;
+  }
+}
+
+extension on String {
+  String? get nullIfEmpty => isEmpty ? null : this;
 }
 
 /// The refusal for a patch whose analysis (version 18 or later) names symbols
@@ -348,6 +566,44 @@ String? describeRouteBUnretained(List<String> symbols) {
       'stops the app at launch when a class, constructor, static or top-level '
       'it names is not there. Cut a new release whose own code uses it (a '
       'call is enough), then patch that';
+}
+
+/// The refusal for a patch that calls SDK instance members not on the
+/// device-measured list or that this release did not keep, or null for an
+/// empty [symbols].
+String? describeRouteBUnprovenSdkMembers(List<String> symbols) {
+  if (symbols.isEmpty) return null;
+  const shown = 5;
+  final named = symbols.take(shown).join(', ');
+  final more = symbols.length > shown
+      ? ', and ${symbols.length - shown} more'
+      : '';
+  return 'it calls $named$more. An SDK instance method is looked up by name '
+      'when it runs, and the app throws NoSuchMethodError at that call if the '
+      'release never called it. Members marked "measured" failed on a device, '
+      'and those on no list were never measured: no flag and no release '
+      'setting unlocks either, because the patcher only lets through members '
+      'measured on a device. Only a refusal because the snapshot of this '
+      'release does not keep the member (or its snapshot profile could not be '
+      'checked) is skipped by `--allow-unchecked-sdk-calls`. To use a refused '
+      'member, call something else, or have it measured on a device and added '
+      'to the patcher list';
+}
+
+/// The refusal for a patch that calls members by name on a `dynamic` value
+/// that cannot be shown to be kept, or null for an empty [symbols].
+String? describeRouteBDynamicCalls(List<String> symbols) {
+  if (symbols.isEmpty) return null;
+  const shown = 5;
+  final named = symbols.take(shown).join(', ');
+  final more = symbols.length > shown
+      ? ', and ${symbols.length - shown} more'
+      : '';
+  return 'it makes $named$more. A call on a `dynamic` value is looked up by '
+      'name when it runs, on whatever class the value turns out to be, and the '
+      'app throws NoSuchMethodError at that call if the release never made it '
+      'on that class. Cut a new release whose own code makes the same call, '
+      'then patch that';
 }
 
 /// The refusal for a release whose interface is missing or unreadable, when the

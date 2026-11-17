@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:path/path.dart' as p;
+import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:test/test.dart';
 import 'helpers.dart';
@@ -30,6 +33,85 @@ void main() {
       'conditional': conditional,
       'rejections': rejections,
       'refusalSummary': refusalSummary,
+    });
+
+    group('routeBAppIncludePrefixes', () {
+      test('names the app library prefix the release used', () {
+        expect(routeBAppIncludePrefixes('shapes'), ['package:shapes/']);
+      });
+
+      test('is empty when the package cannot be named', () {
+        expect(routeBAppIncludePrefixes(null), isEmpty);
+        expect(routeBAppIncludePrefixes(''), isEmpty);
+      });
+    });
+
+    group('RouteBCoverageAnalyzer argument list', () {
+      // Pinned because the patcher and the release must agree on --include,
+      // and the analyzer is an opaque binary: a changed order or a dropped
+      // prefix would still run.
+      late Directory cell;
+
+      setUp(() => cell = Directory.systemTemp.createTempSync('cell'));
+
+      RouteBCompiler fakeCompiler(File argsOut) {
+        final runtime = File(p.join(cell.path, 'runtime.sh'))
+          ..writeAsStringSync('''
+#!/bin/sh
+shift
+printf '%s\\n' "\$@" > ${argsOut.path}
+cat <<'JSON'
+{"analysisVersion":11,"verdict":"inert","changed":[],"added":[],"removed":[],"patchable":[],"conditional":[],"rejections":[],"refusalSummary":null}
+JSON
+''');
+        Process.runSync('chmod', ['+x', runtime.path]);
+        File f(String n) => File(p.join(cell.path, n));
+        return RouteBCompiler(
+          supportsDirectSuperDualKernel: true,
+          runtime: runtime,
+          compilerSnapshot: f('c'),
+          platformDill: f('p'),
+          analyzer: f('analyzer.aot'),
+          frontend: f('fe'),
+          interfaceGenerator: f('gen'),
+          releaseProbe: f('probe'),
+          flutterPlatformDill: f('fp'),
+          provenance: '',
+        );
+      }
+
+      test('passes each include prefix, then each carry', () {
+        final out = File(p.join(cell.path, 'args.txt'));
+        const RouteBCoverageAnalyzer().analyze(
+          compiler: fakeCompiler(out),
+          baseDill: File('base.dill'),
+          patchedDill: File('patched.dill'),
+          includePrefixes: routeBAppIncludePrefixes('shapes'),
+          carry: {'b#two', 'a#one'},
+        );
+        expect(out.readAsLinesSync(), [
+          '--base-dill',
+          File('base.dill').path,
+          '--patched-dill',
+          File('patched.dill').path,
+          '--include',
+          'package:shapes/',
+          '--carry',
+          'a#one',
+          '--carry',
+          'b#two',
+        ]);
+      });
+
+      test('passes no --include when there is no prefix', () {
+        final out = File(p.join(cell.path, 'args.txt'));
+        const RouteBCoverageAnalyzer().analyze(
+          compiler: fakeCompiler(out),
+          baseDill: File('base.dill'),
+          patchedDill: File('patched.dill'),
+        );
+        expect(out.readAsStringSync(), isNot(contains('--include')));
+      });
     });
 
     group('instance helpers (analysis version 17)', () {
@@ -129,6 +211,28 @@ void main() {
         expect(knownRouteBAnalysisVersions, contains(18));
         expect(
           () => RouteBCoverage.fromJson(v17(version: 18)),
+          throwsFormatException,
+        );
+      });
+
+      test('a version 19 document reads the dynamic and tear-off kinds, and '
+          'the gate version is 19', () {
+        final document = RouteBCoverage.fromJson(
+          v17(version: 19).replaceFirst(
+            '"rejections"',
+            '"externalReferences":{"a#Box.show":[{"kind":"dynamic",'
+                '"library":"","class":"","member":"[]","private":false},'
+                '{"kind":"instance","library":"dart:core","class":"List",'
+                '"member":"tearoff:add","private":false}]},"rejections"',
+          ),
+        );
+        final references = document.externalReferences!['a#Box.show']!;
+        expect(references.first.kind, 'dynamic');
+        expect(references.last.member, 'tearoff:add');
+        expect(knownRouteBAnalysisVersions, contains(19));
+        expect(routeBSelectorCallsAnalysisVersion, 19);
+        expect(
+          () => RouteBCoverage.fromJson(v17(version: 19)),
           throwsFormatException,
         );
       });
@@ -414,14 +518,14 @@ void main() {
 
       test('an unknown version is refused, and names what is understood', () {
         expect(
-          () => RouteBCoverage.fromJson(doc(19, body)),
+          () => RouteBCoverage.fromJson(doc(20, body)),
           throwsA(
             isA<FormatException>().having(
               (e) => e.message,
               'message',
               allOf(
-                contains('version 19'),
-                contains('11, 12, 13, 14, 15, 16, 17, 18'),
+                contains('version 20'),
+                contains('11, 12, 13, 14, 15, 16, 17, 18, 19'),
               ),
             ),
           ),
@@ -701,6 +805,42 @@ void main() {
         expect(
           coverage.rejections.single.category,
           RouteBRepresentability.added,
+        );
+      });
+
+      test('refuses a class the patch adds, even one over a dart: base', () {
+        // `class Ring extends ListBase<int>` inherits `add` from the SDK, which
+        // the release may not have kept. The analyzer cannot let a patch add
+        // a class at all (`_instanceHelperReason` and the `declaration`
+        // category in analyze_coverage.dart; ROUTE_B.md, "A new class in a
+        // patch"), so the CLI refuses on the document alone.
+        const reason =
+            'this class is not in the release -- it is new, or the release '
+            'tree-shook it because nothing used it -- and a patch cannot add '
+            'one';
+        final coverage = RouteBCoverage.fromJson(
+          document(
+            version: 14,
+            verdict: 'reject',
+            rejections: [
+              {
+                'target': 'a#Ring.length',
+                'category': 'declaration',
+                'reason': reason,
+              },
+              {
+                'target': 'a#ringUse',
+                'category': 'added',
+                'reason': 'an instance operator/getter/setter of `Ring`',
+              },
+            ],
+          ),
+        );
+
+        expect(coverage.verdict, RouteBVerdict.reject);
+        expect(
+          coverage.refusalMessage,
+          allOf(contains('a#Ring.length'), contains(reason)),
         );
       });
 

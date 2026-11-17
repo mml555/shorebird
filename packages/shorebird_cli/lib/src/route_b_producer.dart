@@ -124,6 +124,195 @@ bool _readsCompileTimeEnvironment(String declaration) =>
     declaration.contains('int.fromEnvironment') ||
     declaration.contains('bool.fromEnvironment');
 
+/// Why a top-level or static target's `declaration` cannot be an entry point,
+/// or null when it can.
+///
+/// The compiler takes an entry point whose parameters are all required
+/// positionals and which has no type parameters (patch 0006). Anything else
+/// used to reach `dart2bytecode` and come back as a raw front-end stack trace
+/// that names nothing the developer wrote. This reads the declaration's own
+/// text, which is all a top-level target's coverage carries, and says nothing
+/// when it cannot find the declaration (the compiler then speaks for itself).
+String? routeBEntryShapeProblem(String key, String rawDeclaration) {
+  // Comments, string literals and annotations are not the signature, and an
+  // earlier one that holds `f(` or an apostrophe must not be read as it.
+  final declaration = _codeOnly(rawDeclaration);
+  final selector = key.split('#').last;
+  if (selector.startsWith('get:') || selector.startsWith('set:')) return null;
+  final name = selector.split('.').last;
+  if (name.isEmpty) return null;
+  final match = RegExp(
+    '(?<![\\w\$.])${RegExp.escape(name)}\\s*([<(])',
+  ).firstMatch(declaration);
+  if (match == null) return null;
+  const tail =
+      'A replacement is an entry point, which takes only required positional '
+      'parameters and no type parameters. Cut a new release that contains '
+      'this change, then patch that';
+  if (match.group(1) == '<') {
+    return 'it is a generic function (`$name<...>`). $tail';
+  }
+  var depth = 0;
+  var atStart = true;
+  String? quote;
+  for (var i = match.end - 1; i < declaration.length; i++) {
+    final c = declaration[i];
+    if (quote != null) {
+      // A one-character backslash literal reads better escaped than raw.
+      // A one-character backslash literal reads better escaped than raw.
+      // ignore: use_raw_strings
+      if (c == '\\') {
+        i++;
+      } else if (c == quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (c == "'" || c == '"') {
+      quote = c;
+      atStart = false;
+      continue;
+    }
+    if (c == '(' || c == '[' || c == '{') {
+      if (depth == 1 && atStart && c != '(') {
+        return 'its signature has '
+            '${c == '{' ? 'named' : 'optional positional'} parameters. $tail';
+      }
+      depth++;
+      atStart = depth == 1;
+      continue;
+    }
+    if (c == ')' || c == ']' || c == '}') {
+      depth--;
+      if (depth == 0) return null;
+      continue;
+    }
+    if (depth == 1) {
+      if (c == ',') {
+        atStart = true;
+      } else if (c.trim().isNotEmpty) {
+        atStart = false;
+      }
+    }
+  }
+  return null;
+}
+
+/// [source] with comments and annotations removed and every string literal
+/// reduced to `''`, so that a scan for a signature sees only code.
+///
+/// Not a Dart parser: it knows line and (nested) block comments, single,
+/// double and triple quoted strings, raw strings, `\` escapes and `${}`
+/// interpolation, which is what can hide a quote, a bracket or a name.
+String _codeOnly(String source) {
+  final out = StringBuffer();
+  var i = 0;
+  bool isWord(String c) => RegExp(r'[\w$]').hasMatch(c);
+  while (i < source.length) {
+    final c = source[i];
+    if (source.startsWith('//', i)) {
+      while (i < source.length && source[i] != '\n') {
+        i++;
+      }
+      continue;
+    }
+    if (source.startsWith('/*', i)) {
+      var depth = 0;
+      while (i < source.length) {
+        if (source.startsWith('/*', i)) {
+          depth++;
+          i += 2;
+        } else if (source.startsWith('*/', i)) {
+          depth--;
+          i += 2;
+          if (depth == 0) break;
+        } else {
+          i++;
+        }
+      }
+      out.write(' ');
+      continue;
+    }
+    final raw =
+        c == 'r' &&
+        i + 1 < source.length &&
+        (source[i + 1] == "'" || source[i + 1] == '"') &&
+        (i == 0 || !isWord(source[i - 1]));
+    if (c == "'" || c == '"' || raw) {
+      i = _skipString(source, raw ? i + 1 : i, raw: raw);
+      out.write("''");
+      continue;
+    }
+    if (c == '@' && i + 1 < source.length && isWord(source[i + 1])) {
+      i++;
+      while (i < source.length && (isWord(source[i]) || source[i] == '.')) {
+        i++;
+      }
+      var j = i;
+      while (j < source.length && source[j].trim().isEmpty) {
+        j++;
+      }
+      if (j < source.length && source[j] == '(') {
+        var depth = 0;
+        for (; j < source.length; j++) {
+          final d = source[j];
+          if (d == "'" || d == '"') {
+            j = _skipString(source, j, raw: false) - 1;
+          } else if (d == '(') {
+            depth++;
+          } else if (d == ')' && --depth == 0) {
+            j++;
+            break;
+          }
+        }
+        i = j;
+      }
+      out.write(' ');
+      continue;
+    }
+    out.write(c);
+    i++;
+  }
+  return out.toString();
+}
+
+/// The index just past the string literal that opens at [start].
+int _skipString(String s, int start, {required bool raw}) {
+  final q = s[start];
+  final triple = s.startsWith(q * 3, start);
+  var i = start + (triple ? 3 : 1);
+  while (i < s.length) {
+    final c = s[i];
+    // A one-character backslash literal reads better escaped than raw.
+    // ignore: use_raw_strings
+    if (!raw && c == '\\') {
+      i += 2;
+      continue;
+    }
+    if (!raw && c == r'$' && i + 1 < s.length && s[i + 1] == '{') {
+      var depth = 0;
+      for (; i < s.length; i++) {
+        final d = s[i];
+        if (d == "'" || d == '"') {
+          i = _skipString(s, i, raw: false) - 1;
+        } else if (d == '{') {
+          depth++;
+        } else if (d == '}' && --depth == 0) {
+          i++;
+          break;
+        }
+      }
+      continue;
+    }
+    if (triple ? s.startsWith(q * 3, i) : c == q) {
+      return i + (triple ? 3 : 1);
+    }
+    if (!triple && c == '\n') return i;
+    i++;
+  }
+  return s.length;
+}
+
 /// {@template route_b_producer}
 /// Compiles replacement bodies and packs them into an SBRBPTCH container.
 /// {@endtemplate}
@@ -385,6 +574,17 @@ Object? $_superIntrinsicName(
       }
 
       final lowering = coverage.lowering[key];
+      // An entry point the compiler cannot take is refused HERE, in words,
+      // rather than by dart2bytecode with a stack trace. A lowered target was
+      // already checked by the analyzer (it refuses named parameters, optional
+      // positionals and generics for those); a top-level or static target was
+      // not, and reaches the compiler as written.
+      if (lowering == null) {
+        if (routeBEntryShapeProblem(key, _slice(key, source))
+            case final problem?) {
+          throw RouteBUnsupportedTarget(key, problem);
+        }
+      }
       final lowered = lowering != null
           ? _lower(
               key,
@@ -419,6 +619,20 @@ Object? $_superIntrinsicName(
                 l.accesses.any((a) => a.privateTarget != null) ||
                 (l.privateConstructions?.isNotEmpty ?? false) ||
                 l.receiverType.startsWith('_'),
+          ) ||
+          // G5. A PRIVATE TOP-LEVEL FUNCTION the release holds (`_fmt(x)`)
+          // is a private name of the target's library, and the replacement
+          // library cannot spell it without the flag:
+          //
+          //   Error: Method not found: '_fmt'.
+          //
+          // Gated on the release's own manifest list, so only a name the
+          // release was built to keep switches the resolution on, and a target
+          // that names no private top-level compiles exactly as before.
+          _namesGrantedPrivateTopLevel(
+            coverage,
+            [key, ...neededHelpers],
+            capabilities,
           );
       final helperText = _helperSources(
         key,
@@ -646,8 +860,33 @@ Object? $_superIntrinsicName(
     );
   }
 
-  /// The helpers [key] reaches: named by its body, or by a helper that is, per
+  /// The helpers `key` reaches: named by its body, or by a helper that is, per
   /// the analysis' `callers`.
+  /// Whether any of [keys] names a private top-level member of its own
+  /// library that the release's manifest lists in `privateTopLevelCallable`.
+  ///
+  /// Only the manifest can say so: no manifest, no switch, and retention has
+  /// already refused the reference by then.
+  static bool _namesGrantedPrivateTopLevel(
+    RouteBCoverage coverage,
+    Iterable<String> keys,
+    RouteBCapabilities? capabilities,
+  ) {
+    if (capabilities == null) return false;
+    final references = coverage.externalReferences;
+    if (references == null) return false;
+    return keys.any(
+      (k) => (references[k] ?? const []).any(
+        (r) =>
+            r.kind == 'top-level' &&
+            r.isPrivate &&
+            !r.viaConstant &&
+            r.member != null &&
+            capabilities.topLevelCallable.contains('${r.library}#${r.member}'),
+      ),
+    );
+  }
+
   Set<String> _neededHelpers(String key, RouteBCoverage coverage) =>
       coverage.helpersNeededBy(key);
 

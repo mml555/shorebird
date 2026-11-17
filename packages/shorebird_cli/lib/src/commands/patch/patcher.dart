@@ -254,6 +254,13 @@ More info: ${linkPercentageUrl.toLink()}.
   /// Whether to allow changes in native code (--allow-native-diffs).
   bool get allowNativeDiffs => argResults['allow-native-diffs'] == true;
 
+  /// Whether the developer chose to publish a Route B patch without the
+  /// per-release SDK-member checks, and on a compiler cell that cannot check
+  /// dynamic calls, extension getters and tear-offs
+  /// (`--allow-unchecked-sdk-calls`).
+  bool get allowUncheckedSdkCalls =>
+      argResults['allow-unchecked-sdk-calls'] == true;
+
   /// Whether to print every differing instruction (--show-dex-diff).
   bool get showDexDiff => argResults['show-dex-diff'] == true;
 

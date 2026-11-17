@@ -1,4 +1,4 @@
-// cspell:words chkstk movz posthog
+// cspell:words chkstk ifaces movz posthog
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -59,6 +59,7 @@ import '../../fakes.dart';
 import '../../helpers.dart';
 import '../../matchers.dart';
 import '../../mocks.dart';
+import '../../route_b_profile_fixture.dart';
 
 /// A stand-in path for fallback values mocktail only needs to type-check.
 const _nowhere = _NowhereFile();
@@ -1513,8 +1514,34 @@ This may indicate that the patch contains native changes, which cannot be applie
           // Explicitly nullable, and defaulted to the current revision, so a
           // test can express "recorded none" as well as "recorded another".
           int? compatibilityRevision = routeBCompatibilityRevision,
+          String? appPackageName = 'app',
+          // The release's dynamic interface and snapshot profile. The profile's
+          // recorded digest is its real one unless [profileDigest] says
+          // otherwise; [omitProfileDigest] records none.
+          String? interfaceYaml,
+          String? snapshotProfile,
+          String? profileDigest,
+          bool omitProfileDigest = false,
         }) {
           final artifacts = <String, String>{};
+          if (interfaceYaml != null) {
+            final file = File(
+              p.join(supplementDirectory.path, routeBInterfaceFileName),
+            )..writeAsStringSync(interfaceYaml);
+            artifacts[routeBInterfaceFileName] = sha256
+                .convert(file.readAsBytesSync())
+                .toString();
+          }
+          if (snapshotProfile != null) {
+            final file = File(
+              p.join(supplementDirectory.path, routeBSnapshotProfileFileName),
+            )..writeAsStringSync(snapshotProfile);
+            if (!omitProfileDigest) {
+              artifacts[routeBSnapshotProfileFileName] =
+                  profileDigest ??
+                  sha256.convert(file.readAsBytesSync()).toString();
+            }
+          }
           if (capabilityManifest != null) {
             final manifest = File(
               p.join(
@@ -1564,6 +1591,7 @@ This may indicate that the patch contains native changes, which cannot be applie
               // anything else, so every fixture that expects to get FURTHER
               // than that has to record one.
               compatibilityRevision: compatibilityRevision,
+              appPackageName: appPackageName,
             ),
           );
         }
@@ -1955,6 +1983,384 @@ This may indicate that the patch contains native changes, which cannot be applie
           group('when the release records its engine', () {
             setUp(() {
               writeReleaseProvenance(engineRevision: releaseEngineRevision);
+              // Most fixtures use an old analysis version; the gate itself is
+              // tested below with the flag off.
+              when(
+                () => argResults['allow-unchecked-sdk-calls'],
+              ).thenReturn(true);
+            });
+
+            Future<void> patchAnalyzedWithPackage(String? name) async {
+              final pubspec = MockPubspec();
+              when(() => pubspec.name).thenReturn(name ?? '');
+              when(() => pubspec.flutter).thenReturn(null);
+              when(
+                () => shorebirdEnv.getPubspecYaml(),
+              ).thenReturn(name == null ? null : pubspec);
+              await runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              );
+            }
+
+            test('runs the analyzer with the release time --include '
+                'prefix, from the name the release recorded', () async {
+              // w16: without it the analyzer reads every non-dart: library as
+              // the app and refuses a patch that touches no framework member.
+              // The pubspec has since been renamed; the release's name wins.
+              await patchAnalyzedWithPackage('renamed');
+              verify(
+                () => routeBCoverageAnalyzer.analyze(
+                  compiler: any(named: 'compiler'),
+                  baseDill: any(named: 'baseDill'),
+                  patchedDill: any(named: 'patchedDill'),
+                  includePrefixes: ['package:app/'],
+                ),
+              ).called(1);
+            });
+
+            test(
+              'a release that recorded no name uses the pubspec name',
+              () async {
+                writeReleaseProvenance(
+                  engineRevision: releaseEngineRevision,
+                  appPackageName: null,
+                );
+                await patchAnalyzedWithPackage('fromPubspec');
+                verify(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: ['package:fromPubspec/'],
+                  ),
+                ).called(1);
+              },
+            );
+
+            test('refuses, rather than treating every library as the app, '
+                'when no package name is known', () async {
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                appPackageName: null,
+              );
+              await expectLater(
+                patchAnalyzedWithPackage(null),
+                throwsA(isA<ProcessExit>()),
+              );
+              verify(
+                () => logger.err(any(that: contains('package name'))),
+              ).called(1);
+              verifyNever(
+                () => routeBCoverageAnalyzer.analyze(
+                  compiler: any(named: 'compiler'),
+                  baseDill: any(named: 'baseDill'),
+                  patchedDill: any(named: 'patchedDill'),
+                  includePrefixes: any(named: 'includePrefixes'),
+                ),
+              );
+            });
+
+            group('the extension/dynamic-call gate (analysis 19)', () {
+              void coverageAt(int version) {
+                final coverage = RouteBCoverage.fromJson(
+                  jsonEncode({
+                    'analysisVersion': version,
+                    'verdict': 'accept',
+                    'changed': ['package:app/main.dart#routeBValue'],
+                    'carried': <String>[],
+                    'callers': <String, Object>{},
+                    'added': <String>[],
+                    'helpers': <String>[],
+                    'unusedHelpers': <String>[],
+                    'removed': <String>[],
+                    'patchable': ['package:app/main.dart#routeBValue'],
+                    'conditional': <String>[],
+                    'sources': <String, Object?>{},
+                    'externalReferences': {
+                      'package:app/main.dart#routeBValue': <Object>[],
+                    },
+                    'rejections': <Object>[],
+                    'refusalSummary': null,
+                  }),
+                );
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: any(named: 'includePrefixes'),
+                  ),
+                ).thenReturn(coverage);
+              }
+
+              Future<void> patch() => runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              );
+
+              test('analysis 18 is refused without the flag', () async {
+                when(
+                  () => argResults['allow-unchecked-sdk-calls'],
+                ).thenReturn(false);
+                coverageAt(18);
+                await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                verify(
+                  () => logger.err(
+                    any(
+                      that: allOf(
+                        contains('predates the extension/dynamic-call check'),
+                        contains('Update to a cell with analysis 19+'),
+                        contains('--allow-unchecked-sdk-calls'),
+                      ),
+                    ),
+                  ),
+                ).called(1);
+                expect(
+                  patcher.usedUncheckedSdkCalls,
+                  isFalse,
+                );
+              });
+
+              test('analysis 18 with the flag warns and records it', () async {
+                coverageAt(18);
+                // The retention check after the gate has no interface to read
+                // here and refuses; only the gate's own effects are under test.
+                await patch().then<void>((_) {}, onError: (Object _) {});
+                verify(
+                  () => logger.warn(
+                    any(that: contains('--allow-unchecked-sdk-calls')),
+                  ),
+                ).called(1);
+                final metadata = await patcher.updatedPlatformMetadata(
+                  CreatePatchPlatformMetadata.forTest(),
+                );
+                expect(metadata.allowUncheckedSdkCalls, isTrue);
+                expect(
+                  metadata.toJson()['allow_unchecked_sdk_calls'],
+                  isTrue,
+                );
+              });
+
+              test('analysis 19 needs no flag and records nothing', () async {
+                when(
+                  () => argResults['allow-unchecked-sdk-calls'],
+                ).thenReturn(false);
+                coverageAt(routeBSelectorCallsAnalysisVersion);
+                await patch().then<void>((_) {}, onError: (Object _) {});
+                verifyNever(
+                  () => logger.err(any(that: contains('cannot be checked'))),
+                );
+                final metadata = await patcher.updatedPlatformMetadata(
+                  CreatePatchPlatformMetadata.forTest(),
+                );
+                expect(metadata.allowUncheckedSdkCalls, isNull);
+                expect(
+                  metadata.toJson().containsKey('allow_unchecked_sdk_calls'),
+                  isFalse,
+                );
+              });
+            });
+
+            group('the per-release SDK-member check', () {
+              // `String.split` is on the device list; whether THIS release
+              // kept it is the snapshot profile's say.
+              const ref = {
+                'kind': 'instance',
+                'library': 'dart:core',
+                'class': 'String',
+                'member': 'split',
+                'private': false,
+              };
+              const interfaceYaml = """
+callable:
+  - library: 'package:app/main.dart'
+""";
+
+              void coverageCalling() {
+                final coverage = RouteBCoverage.fromJson(
+                  jsonEncode({
+                    'analysisVersion': routeBSelectorCallsAnalysisVersion,
+                    'verdict': 'accept',
+                    'changed': ['package:app/main.dart#routeBValue'],
+                    'carried': <String>[],
+                    'callers': <String, Object>{},
+                    'added': <String>[],
+                    'helpers': <String>[],
+                    'unusedHelpers': <String>[],
+                    'removed': <String>[],
+                    'patchable': ['package:app/main.dart#routeBValue'],
+                    'conditional': <String>[],
+                    'sources': <String, Object?>{},
+                    'externalReferences': {
+                      'package:app/main.dart#routeBValue': [ref],
+                    },
+                    'rejections': <Object>[],
+                    'refusalSummary': null,
+                  }),
+                );
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: any(named: 'includePrefixes'),
+                  ),
+                ).thenReturn(coverage);
+              }
+
+              // A profile whose String classes have `split` (or not).
+              String profile({required bool hasSplit}) => routeBProfile({
+                'Object': const RouteBProfileClass(
+                  'Object',
+                  routeBCoreLibrary,
+                  fns: {'==': '[Optimized] =='},
+                ),
+                'String': const RouteBProfileClass(
+                  'String',
+                  routeBCoreLibrary,
+                  parent: 'Object',
+                ),
+                '_StringBase': RouteBProfileClass(
+                  '_StringBase@0150898',
+                  routeBCoreLibrary,
+                  parent: 'Object',
+                  ifaces: const ['String'],
+                  fns: {
+                    '_a': '[Optimized] _a',
+                    if (hasSplit) 'split': '[Optimized] split',
+                  },
+                ),
+                '_OneByteString': const RouteBProfileClass(
+                  '_OneByteString@0150898',
+                  routeBCoreLibrary,
+                  parent: '_StringBase',
+                  fns: {'_b': '[Optimized] _b'},
+                ),
+                '_TwoByteString': const RouteBProfileClass(
+                  '_TwoByteString@0150898',
+                  routeBCoreLibrary,
+                  parent: '_StringBase',
+                  fns: {'_c': '[Optimized] _c'},
+                ),
+              });
+
+              void release({
+                String? snapshotProfile,
+                String? profileDigest,
+                bool omitProfileDigest = false,
+                bool flag = false,
+              }) {
+                when(
+                  () => argResults['allow-unchecked-sdk-calls'],
+                ).thenReturn(flag);
+                writeReleaseProvenance(
+                  engineRevision: releaseEngineRevision,
+                  interfaceYaml: interfaceYaml,
+                  snapshotProfile: snapshotProfile,
+                  profileDigest: profileDigest,
+                  omitProfileDigest: omitProfileDigest,
+                );
+                coverageCalling();
+              }
+
+              Future<void> patchAndSwallow() => runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              ).then<void>((_) {}, onError: (Object _) {});
+
+              /// What the patcher told the developer about SDK members.
+              final errors = <String>[];
+              List<String> sdkErrors() =>
+                  errors.where((m) => m.contains('split')).toList();
+              setUp(() {
+                errors.clear();
+                when(() => logger.err(any())).thenAnswer((invocation) {
+                  errors.add(invocation.positionalArguments.first as String);
+                });
+              });
+
+              test('a profile that hashes to its recorded digest and has the '
+                  'member lets the patch through', () async {
+                release(snapshotProfile: profile(hasSplit: true));
+                await patchAndSwallow();
+                expect(sdkErrors(), isEmpty);
+              });
+
+              test('refuses when the profile lacks the member, so the '
+                  'profile reached the check', () async {
+                release(snapshotProfile: profile(hasSplit: false));
+                await patchAndSwallow();
+                expect(
+                  sdkErrors().single,
+                  allOf(
+                    contains('has no `split` on `_OneByteString`'),
+                    contains('--allow-unchecked-sdk-calls'),
+                  ),
+                );
+              });
+
+              test('refuses when the release uploaded no profile', () async {
+                release();
+                await patchAndSwallow();
+                expect(
+                  sdkErrors().single,
+                  allOf(
+                    contains('route_b_snapshot_profile.json'),
+                    contains('cannot be checked'),
+                  ),
+                );
+              });
+
+              test('refuses a profile that is not the one the release '
+                  'recorded', () async {
+                release(
+                  snapshotProfile: profile(hasSplit: true),
+                  profileDigest: 'ab' * 32,
+                );
+                await patchAndSwallow();
+                expect(
+                  errors.single,
+                  contains(
+                    'route_b_snapshot_profile.json does not match the hash',
+                  ),
+                );
+              });
+
+              test(
+                'refuses when the release recorded no digest for it',
+                () async {
+                  release(
+                    snapshotProfile: profile(hasSplit: true),
+                    omitProfileDigest: true,
+                  );
+                  await patchAndSwallow();
+                  expect(sdkErrors().single, contains('cannot be checked'));
+                },
+              );
+
+              test('--allow-unchecked-sdk-calls does not read the profile, '
+                  'and does not unlock a member off the list', () async {
+                release(snapshotProfile: profile(hasSplit: false), flag: true);
+                await patchAndSwallow();
+                expect(sdkErrors(), isEmpty);
+                final metadata = await patcher.updatedPlatformMetadata(
+                  CreatePatchPlatformMetadata.forTest(),
+                );
+                expect(metadata.allowUncheckedSdkCalls, isTrue);
+              });
             });
 
             test(

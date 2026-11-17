@@ -9,6 +9,7 @@ import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_retention.dart';
+import 'package:shorebird_cli/src/route_b_sdk_measurements.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';
@@ -109,6 +110,8 @@ void main() {
     retention = RouteBRetention.parse(
       _interface,
       capabilities: RouteBCapabilities.fromJson(_grants),
+      // The per-release snapshot check has its own group below.
+      skipKeptCheck: true,
     );
   });
 
@@ -182,13 +185,99 @@ void main() {
         );
       });
 
-      test('an instance member of a dart: class, which binds by selector', () {
+      test('a device-measured instance member of a dart: class', () {
         expect(
           refusal([
-            _ref('instance', 'dart:core', cls: 'String', member: 'substring'),
+            _ref('instance', 'dart:core', cls: 'String', member: 'split'),
+            _ref('instance', 'dart:core', cls: 'String', member: 'trim'),
+            _ref('instance', 'dart:core', cls: 'Object', member: 'toString'),
           ]),
           isNull,
         );
+      });
+
+      test('an SDK instance member the interface lists by name', () {
+        final listed = RouteBRetention.parse('''
+callable:
+  - library: 'dart:core'
+    class: 'DateTime'
+    member: 'get:millisecondsSinceEpoch'
+''');
+        expect(
+          refusal([
+            _ref(
+              'instance',
+              'dart:core',
+              cls: 'DateTime',
+              member: 'get:millisecondsSinceEpoch',
+            ),
+          ], with_: listed),
+          isNull,
+        );
+      });
+
+      test('an extension METHOD the interface lists', () {
+        final listed = RouteBRetention.parse('''
+callable:
+  - library: 'package:collection/src/iterable_extensions.dart'
+    member: 'IterableExtension|sorted'
+''');
+        expect(
+          refusal([
+            _ref(
+              'top-level',
+              'package:collection/src/iterable_extensions.dart',
+              member: 'IterableExtension|sorted',
+            ),
+          ], with_: listed),
+          isNull,
+        );
+      });
+
+      test('the w16 shape: --include keeps a framework member out of the '
+          'changed set', () {
+        // `Theme.of(context).textTheme.headlineMedium` in build. Run WITHOUT
+        // --include, the analyzer called `IconData.hashCode` (framework code
+        // the release kept in its own library) a changed member, and its
+        // `Object.hash` is a static the release never named: the whole patch
+        // was refused for an edit that touched no framework code. With the
+        // release's own `package:<app>/` prefix only `build` changed.
+        const framework =
+            'package:flutter/src/widgets/icon_data.dart#IconData.get:hashCode';
+        RouteBCoverage analysis(List<String> changed) =>
+            RouteBCoverage.fromJson(
+              jsonEncode({
+                'analysisVersion': 18,
+                'verdict': 'accept',
+                'changed': changed,
+                'carried': <String>[],
+                'callers': <String, Object?>{},
+                'added': <String>[],
+                'helpers': <String>[],
+                'unusedHelpers': <String>[],
+                'removed': <String>[],
+                'patchable': changed,
+                'conditional': <String>[],
+                'sources': <String, Object?>{},
+                'externalReferences': {
+                  _target: [
+                    _ref('top-level', 'dart:core', member: 'print'),
+                  ],
+                  framework: [
+                    _ref('static', 'dart:core', cls: 'Object', member: 'hash'),
+                  ],
+                },
+                'rejections': <Object>[],
+                'refusalSummary': null,
+              }),
+            );
+        final withoutInclude = analysis([framework, _target]);
+        final withInclude = analysis([_target]);
+        expect(
+          retention.refusal(withoutInclude, withoutInclude.changed),
+          contains('Object.hash'),
+        );
+        expect(retention.refusal(withInclude, withInclude.changed), isNull);
       });
 
       test('an analysis that predates version 18, which lists nothing', () {
@@ -384,16 +473,302 @@ callable:
         );
       });
 
-      test('a dart: instance member is accepted, a known gap', () {
+      test('an SDK instance member the release was not shown to keep', () {
+        // The audit's w31, E14, e11, e12: each threw NoSuchMethodError on a
+        // release that never called the member, after passing every check.
+        for (final (cls, member) in [
+          ('String', 'padLeft'),
+          ('Stream', 'where'),
+          ('Stream', 'listen'),
+          ('Duration', 'inMilliseconds'),
+          ('List', 'contains'),
+        ]) {
+          final reason = refusal([
+            _ref(
+              'instance',
+              cls == 'Stream' || cls == 'Future' ? 'dart:async' : 'dart:core',
+              cls: cls,
+              member: member,
+            ),
+          ]);
+          expect(
+            reason,
+            allOf(
+              contains('`$cls.$member`'),
+              contains('no flag and no release setting unlocks either'),
+            ),
+            reason: '$cls.$member',
+          );
+        }
+      });
+
+      test('the device-measured list keeps a crashing key out', () {
+        // `StreamSubscription.cancel` stops the app while the patch is
+        // activated; the dynamic tear-off of `cancel` reaches the same member.
         expect(
-          refusal([
+          routeBSdkMeasuredAccepted,
+          isNot(contains('dynamic#tearoff:cancel')),
+        );
+        expect(
+          routeBSdkMeasuredFailing['dynamic#tearoff:cancel'],
+          contains('stops the app'),
+        );
+        expect(routeBSdkMeasuredAccepted, hasLength(118));
+      });
+
+      group('the measured matrix', () {
+        // Synthetic measurements, so these do not depend on the generated list.
+        final measured = RouteBRetention.parse(
+          _interface,
+          measuredAccepted: {
+            'dart:core#Map#[]',
+            'dart:core#Set#add',
+            'dynamic#[]',
+            'dynamic#get:length',
+            'dynamic#tearoff:add',
+            'dart:core#List#tearoff:add',
+          },
+          skipKeptCheck: true,
+          measuredFailing: {
+            'dart:async#Stream#listen':
+                'throws NoSuchMethodError on from_iterable (static)',
+            'dart:core#String#get:isNotEmpty':
+                'stops the app on one_byte (static)',
+            // Also in the accepted set: a failure vetoes it.
+            'dart:core#List#add': 'throws NoSuchMethodError on const (static)',
+            'dynamic#add': 'throws NoSuchMethodError on const (dynamic)',
+          },
+        );
+
+        test('a measured-resolving member is accepted', () {
+          expect(
+            refusal([
+              _ref('instance', 'dart:core', cls: 'Map', member: '[]'),
+              _ref('instance', 'dart:core', cls: 'Set', member: 'add'),
+            ], with_: measured),
+            isNull,
+          );
+        });
+
+        test(
+          'a member measured to throw is refused and the message says so',
+          () {
+            final reason = refusal([
+              _ref('instance', 'dart:async', cls: 'Stream', member: 'listen'),
+            ], with_: measured);
+            expect(
+              reason,
+              allOf(
+                contains('`Stream.listen`'),
+                contains('measured: throws NoSuchMethodError on from_iterable'),
+              ),
+            );
+          },
+        );
+
+        test('a member measured to stop the app is refused and named', () {
+          final reason = refusal([
             _ref(
               'instance',
               'dart:core',
               cls: 'String',
-              member: 'toUpperCase',
+              member: 'get:isNotEmpty',
+            ),
+          ], with_: measured);
+          expect(
+            reason,
+            allOf(
+              contains('String.isNotEmpty'),
+              contains('measured: stops the app'),
+            ),
+          );
+        });
+
+        test('a failure vetoes an accepted key', () {
+          final both = RouteBRetention.parse(
+            _interface,
+            skipKeptCheck: true,
+            measuredAccepted: {'dart:core#List#add'},
+            measuredFailing: {
+              'dart:core#List#add':
+                  'throws NoSuchMethodError on const (static)',
+            },
+          );
+          expect(
+            refusal([
+              _ref('instance', 'dart:core', cls: 'List', member: 'add'),
+            ], with_: both),
+            allOf(contains('List.add'), contains('measured:')),
+          );
+        });
+
+        test('a tear-off is its own key', () {
+          expect(
+            refusal([
+              _ref('instance', 'dart:core', cls: 'List', member: 'tearoff:add'),
+            ], with_: measured),
+            isNull,
+          );
+          // The call being proven says nothing about the tear-off.
+          final reason = refusal([
+            _ref(
+              'instance',
+              'dart:core',
+              cls: 'List',
+              member: 'tearoff:insert',
+            ),
+          ]);
+          expect(reason, contains('List.insert torn off'));
+        });
+
+        test('a dynamic call is accepted only where every class resolved', () {
+          expect(
+            refusal([
+              _ref('dynamic', '', member: '[]'),
+              _ref('dynamic', '', member: 'get:length'),
+            ], with_: measured),
+            isNull,
+          );
+          // A dynamic get may be a tear-off of a method of that name.
+          expect(
+            refusal([_ref('dynamic', '', member: 'get:add')], with_: measured),
+            isNull,
+          );
+          final failed = refusal([
+            _ref('dynamic', '', member: 'add'),
+          ], with_: measured);
+          expect(
+            failed,
+            allOf(
+              contains('`add`'),
+              contains('dynamic'),
+              contains('measured: throws NoSuchMethodError on const (dynamic)'),
+            ),
+          );
+          final unmeasured = refusal([_ref('dynamic', '', member: 'foo')]);
+          expect(
+            unmeasured,
+            allOf(
+              contains('`foo`'),
+              contains('never measured'),
+              contains('Cut a new release'),
+            ),
+          );
+        });
+
+        test('an app class with the called name is answered by the '
+            'interface', () {
+          // The analyzer reports each app class that has a member of the
+          // called name as an instance reference of its own.
+          expect(
+            refusal([
+              _ref('dynamic', '', member: '[]'),
+              _ref(
+                'instance',
+                'package:app/main.dart',
+                cls: 'Grid',
+                member: '[]',
+              ),
+            ], with_: measured),
+            isNull,
+          );
+          expect(
+            refusal([
+              _ref('dynamic', '', member: '[]'),
+              _ref(
+                'instance',
+                'package:other/x.dart',
+                cls: 'Grid',
+                member: '[]',
+              ),
+            ], with_: measured),
+            contains('Grid'),
+          );
+        });
+      });
+
+      test('the generated lists agree with each other', () {
+        // A refused key is never also accepted, and every accepted key says
+        // which VM classes the per-release check must find.
+        for (final key in routeBSdkMeasuredFailing.keys) {
+          expect(routeBSdkMeasuredAccepted, isNot(contains(key)), reason: key);
+        }
+        for (final key in routeBSdkMeasuredAccepted) {
+          expect(routeBSdkMeasuredVmClasses[key], isNotEmpty, reason: key);
+        }
+        expect(
+          routeBSdkMeasuredVmClasses.keys.toSet(),
+          routeBSdkMeasuredAccepted,
+        );
+      });
+
+      test('says so once for several SDK instance members', () {
+        final reason = refusal([
+          for (final m in ['a', 'b', 'c', 'd', 'e', 'f', 'g'])
+            _ref('instance', 'dart:core', cls: 'String', member: m),
+        ]);
+        expect(reason, contains('and 2 more'));
+        expect(reason, isNot(contains('the loader stops the app')));
+      });
+
+      test('both kinds of refusal in one sentence each', () {
+        final reason = refusal([
+          _ref('instance', 'dart:core', cls: 'String', member: 'padLeft'),
+          _ref('top-level', 'dart:core', member: 'identical'),
+        ]);
+        expect(reason, contains('the loader stops the app'));
+        expect(reason, contains('`String.padLeft`'));
+      });
+
+      test(
+        'an extension getter, even in a library the interface keeps whole',
+        () {
+          // e22 and E13: the generator skips `#` members, so the whole-library
+          // rule says nothing about them, and the loader aborts at load.
+          final reason = refusal([
+            _ref(
+              'top-level',
+              'package:app/main.dart',
+              member: 'TallyInt|get#tallyBars',
+            ),
+          ]);
+          expect(
+            reason,
+            allOf(
+              contains('the extension member `TallyInt|get#tallyBars`'),
+              contains('Cut a new release'),
+            ),
+          );
+        },
+      );
+
+      test('an extension getter of the SDK (the record .wait)', () {
+        expect(
+          refusal([
+            _ref(
+              'top-level',
+              'dart:async',
+              member: 'FutureRecord2|get#wait',
             ),
           ]),
+          contains('FutureRecord2|get#wait'),
+        );
+      });
+
+      test('an extension getter only when the interface itself lists it', () {
+        final listed = RouteBRetention.parse('''
+callable:
+  - library: 'package:app/main.dart'
+    member: 'TallyInt|get#tallyBars'
+''');
+        expect(
+          refusal([
+            _ref(
+              'top-level',
+              'package:app/main.dart',
+              member: 'TallyInt|get#tallyBars',
+            ),
+          ], with_: listed),
           isNull,
         );
       });

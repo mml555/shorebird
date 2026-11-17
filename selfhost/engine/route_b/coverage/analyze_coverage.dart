@@ -289,7 +289,7 @@ import 'package:kernel/text/ast_to_text.dart';
 ///     The bump is mandatory for the reason 12's was: a version-17 document
 ///     has no list, and a consumer cannot tell "nothing referenced" from "not
 ///     measured" unless the version says which it holds.
-const analysisVersion = 18;
+const analysisVersion = 19;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -646,9 +646,26 @@ coverage/census_report.py, for what the numbers may and may not be read as.
       }
     }
   }
+  // The app's instance members by plain name, for a dynamic call's candidates
+  // (analysis version 19): a call by name can land on any app class that has
+  // a member of that name.
+  final appMembersByName = <String, List<Member>>{};
+  for (final lib in patched.libraries) {
+    if (!isApp(lib)) continue;
+    for (final cls in lib.classes) {
+      for (final m in cls.members) {
+        if (m is Constructor || !m.isInstanceMember) continue;
+        (appMembersByName[m.name.text] ??= []).add(m);
+      }
+    }
+  }
   final externalReferences = <String, List<Map<String, Object?>>>{
     for (final key in carriedBodies.keys.toList()..sort())
-      key: _externalReferences(carriedBodies[key]!, carriedMembers),
+      key: _externalReferences(
+        carriedBodies[key]!,
+        carriedMembers,
+        appMembersByName: appMembersByName,
+      ),
   };
 
   // ---- classify ---------------------------------------------------------
@@ -2890,11 +2907,23 @@ Map<String, Object?>? _privateKey(Member? target) {
 ///
 /// A walk failure yields ONE `unanalyzed` entry and nothing else: a partial list
 /// would read as a complete one.
+List<Map<String, Object?>> externalReferencesOf(
+  Procedure p,
+  Set<Member> carried, {
+  Map<String, List<Member>> appMembersByName = const {},
+}) => _externalReferences(p, carried, appMembersByName: appMembersByName);
+
 List<Map<String, Object?>> _externalReferences(
   Procedure p,
-  Set<Member> carried,
-) {
-  final uses = _ExternalUses(carried, p.enclosingClass, p.enclosingLibrary);
+  Set<Member> carried, {
+  Map<String, List<Member>> appMembersByName = const {},
+}) {
+  final uses = _ExternalUses(
+    carried,
+    p.enclosingClass,
+    p.enclosingLibrary,
+    appMembersByName,
+  );
   try {
     p.function.accept(uses);
   } catch (error) {
@@ -2917,7 +2946,15 @@ List<Map<String, Object?>> _externalReferences(
 /// collector keeps it as a type) and does not walk class headers (a patch
 /// carries only procedure bodies).
 class _ExternalUses extends RecursiveVisitor {
-  _ExternalUses(this.carried, this.owner, this.ownerLibrary);
+  _ExternalUses(
+    this.carried,
+    this.owner,
+    this.ownerLibrary,
+    this.appMembersByName,
+  );
+
+  /// The app's instance members by plain name; see [_dynamic].
+  final Map<String, List<Member>> appMembersByName;
 
   /// Members the patch itself carries; naming one is not an external use.
   final Set<Member> carried;
@@ -2967,7 +3004,11 @@ class _ExternalUses extends RecursiveVisitor {
     };
   }
 
-  void _member(Reference? ref, {bool viaConstant = false}) {
+  void _member(
+    Reference? ref, {
+    bool viaConstant = false,
+    bool tearOff = false,
+  }) {
     final m = ref?.node;
     if (m is! Member || carried.contains(m)) return;
     if (_skipLibrary(m.enclosingLibrary)) return;
@@ -2975,7 +3016,16 @@ class _ExternalUses extends RecursiveVisitor {
     if (cls != null && (cls.name.contains('&') || cls.name.contains('#'))) {
       return;
     }
-    if (m.name.text.contains('#')) return;
+    // A `#` name is a compiler synthetic and nothing a patch spells, EXCEPT an
+    // extension getter, setter or tear-off (`Ext|get#wait`): that one is
+    // spelled by `record.wait` and looked up by name at load, and the loader
+    // aborts the process when the release lacks it. It is reported like any
+    // top-level member so the CLI can refuse it (no interface lists one).
+    if (m.name.text.contains('#') &&
+        !(m is Procedure &&
+            (m.isExtensionMember || m.isExtensionTypeMember))) {
+      return;
+    }
     final isPrivate = m.name.isPrivate || (cls?.name.startsWith('_') ?? false);
     if (isPrivate &&
         !viaConstant &&
@@ -2994,14 +3044,17 @@ class _ExternalUses extends RecursiveVisitor {
       kind = 'static';
     }
     // The VM's names, which are the interface's: an accessor is `get:`/`set:`.
-    final name = m is Procedure
+    var name = m is Procedure
         ? vmMemberName(m.name.text, switch (m.kind) {
             ProcedureKind.Getter => 'getter',
             ProcedureKind.Setter => 'setter',
             _ => 'method',
           })
         : m.name.text;
-    found['$kind|$library|${cls?.name}|$name'] = {
+    // A tear-off needs a method extractor the AOT compiler emits only where
+    // some code tears that selector off, so it is its own key.
+    if (tearOff) name = 'tearoff:$name';
+    found['$kind|$library|${cls?.name}|$name|${viaConstant ? 'c' : 'd'}'] = {
       'kind': kind,
       'library': library,
       'class': cls?.name,
@@ -3126,8 +3179,70 @@ class _ExternalUses extends RecursiveVisitor {
 
   @override
   void visitInstanceTearOff(InstanceTearOff node) {
-    _member(node.interfaceTargetReference);
+    _member(node.interfaceTargetReference, tearOff: true);
     node.receiver.accept(this);
+  }
+
+  // A call dispatched by name, with no interface target: whether the release
+  // kept the selector for the receiver's runtime class cannot be known here.
+  // Reported as `dynamic` with the selector (analysis version 19), plus every
+  // app class that has a member of that name, which the CLI answers with the
+  // interface like any other app member.
+  void _dynamic(String plain, String vmName) {
+    found['dynamic||null|$vmName|d'] = {
+      'kind': 'dynamic',
+      'library': '',
+      'class': null,
+      'member': vmName,
+      'private': false,
+    };
+    for (final m in appMembersByName[plain] ?? const <Member>[]) {
+      _member(m.reference);
+    }
+  }
+
+  @override
+  void visitDynamicInvocation(DynamicInvocation node) {
+    _dynamic(node.name.text, node.name.text);
+    node.receiver.accept(this);
+    node.arguments.accept(this);
+  }
+
+  @override
+  void visitDynamicGet(DynamicGet node) {
+    _dynamic(node.name.text, 'get:${node.name.text}');
+    node.receiver.accept(this);
+  }
+
+  @override
+  void visitDynamicSet(DynamicSet node) {
+    _dynamic(node.name.text, 'set:${node.name.text}');
+    node.receiver.accept(this);
+    node.value.accept(this);
+  }
+
+  // `for (x in xs)` asks the receiver's class for `iterator`, `moveNext` and
+  // `current` by selector, and no source token names them.
+  void _sdk(String library, String cls, String member) {
+    found['instance|$library|$cls|$member|d'] = {
+      'kind': 'instance',
+      'library': library,
+      'class': cls,
+      'member': member,
+      'private': false,
+    };
+  }
+
+  @override
+  void visitForInStatement(ForInStatement node) {
+    if (node.isAsync) {
+      _sdk('dart:async', 'Stream', 'listen');
+    } else {
+      _sdk('dart:core', 'Iterable', 'get:iterator');
+      _sdk('dart:core', 'Iterator', 'moveNext');
+      _sdk('dart:core', 'Iterator', 'get:current');
+    }
+    super.visitForInStatement(node);
   }
 
   @override

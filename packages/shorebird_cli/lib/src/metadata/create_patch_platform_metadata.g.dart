@@ -29,6 +29,10 @@ CreatePatchPlatformMetadata _$CreatePatchPlatformMetadataFromJson(
         'build_trace_summary',
         (v) => v as Map<String, dynamic>?,
       ),
+      allowUncheckedSdkCalls: $checkedConvert(
+        'allow_unchecked_sdk_calls',
+        (v) => v as bool?,
+      ),
     );
     return val;
   },
@@ -38,6 +42,7 @@ CreatePatchPlatformMetadata _$CreatePatchPlatformMetadataFromJson(
     'linkPercentage': 'link_percentage',
     'linkMetadata': 'link_metadata',
     'buildTraceSummary': 'build_trace_summary',
+    'allowUncheckedSdkCalls': 'allow_unchecked_sdk_calls',
   },
 );
 
@@ -49,4 +54,5 @@ Map<String, dynamic> _$CreatePatchPlatformMetadataToJson(
   'link_percentage': instance.linkPercentage,
   'link_metadata': instance.linkMetadata,
   'build_trace_summary': instance.buildTraceSummary,
+  'allow_unchecked_sdk_calls': ?instance.allowUncheckedSdkCalls,
 };

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:mason_logger/mason_logger.dart';
+import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 import 'package:pub_semver/pub_semver.dart';
 import 'package:shorebird_cli/src/archive/archive.dart';
@@ -19,6 +20,7 @@ import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/extensions/directory.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
+import 'package:shorebird_cli/src/metadata/create_patch_platform_metadata.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/route_b.dart';
@@ -34,6 +36,7 @@ import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/route_b_retention.dart';
+import 'package:shorebird_cli/src/route_b_sdk_kept.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -63,6 +66,25 @@ class IosPatcher extends Patcher
   /// source and configuration — same defines, same experiments, same flavor.
   /// Set in `buildPatchArtifact`, which always runs first.
   List<String> _patchBuildArgs = const [];
+
+  /// The pubspec name the release recorded in its provenance, read before the
+  /// coverage analysis needs it.
+  String? _releaseAppPackageName;
+
+  /// Whether this Route B patch was published with
+  /// `--allow-unchecked-sdk-calls`,
+  /// which skips the per-release SDK-member checks (this release's snapshot
+  /// profile) and the analysis-19 gate. Recorded in the patch's platform
+  /// metadata.
+  @visibleForTesting
+  bool usedUncheckedSdkCalls = false;
+
+  @override
+  Future<CreatePatchPlatformMetadata> updatedPlatformMetadata(
+    CreatePatchPlatformMetadata metadata,
+  ) async => (await super.updatedPlatformMetadata(
+    metadata,
+  )).copyWith(allowUncheckedSdkCalls: usedUncheckedSdkCalls ? true : null);
 
   @override
   ReleaseType get releaseType => ReleaseType.ios;
@@ -196,6 +218,7 @@ class IosPatcher extends Patcher
         // the old architecture as an accidental fallback, and it would fail
         // somewhere downstream with a message about a linker nobody asked for.
         final provenance = _readReleaseProvenance(releaseSupplementDir);
+        _releaseAppPackageName = provenance.appPackageName;
         final releaseArtifacts = _verifyReleaseArtifacts(
           releaseSupplementDir,
           provenance,
@@ -244,13 +267,32 @@ class IosPatcher extends Patcher
         // compiler failure and a container failure are three different problems
         // and must never be reachable through one another.
         var coverage = _analyzeCoverage(compiler, releaseArtifacts);
+        if (coverage.analysisVersion < routeBSelectorCallsAnalysisVersion) {
+          // The analyzer ships in the release's compiler cell, and a cell below
+          // 19 cannot see a call by name on a `dynamic` value, an instance
+          // tear-off, an extension getter or a `for-in`: each can throw
+          // NoSuchMethodError or abort the app at load, long after this command
+          // reports success. A comment is not a gate, so this is one; the
+          // opt-out is explicit and is recorded in the patch's metadata.
+          if (!allowUncheckedSdkCalls) {
+            logger.err(
+              '''
+This patch cannot be checked: this release's compiler cell predates the extension/dynamic-call check (analysis version ${coverage.analysisVersion}, needs $routeBSelectorCallsAnalysisVersion or later). Without it, a call by name on a dynamic value, an extension getter or an instance tear-off could crash the app after it installs the patch.
+
+Update to a cell with analysis $routeBSelectorCallsAnalysisVersion+ (cut a new release), or pass --allow-unchecked-sdk-calls to publish this patch unchecked. The choice is recorded in the patch's metadata.
+
+Nothing was uploaded.''',
+            );
+            throw ProcessExit(ExitCode.software.code);
+          }
+        }
         // RETENTION, BEFORE THE VERDICT. A symbol the release did not keep is
         // the root cause of two different symptoms: a boot abort on the device,
         // and (for a dependency API the release never called) a coverage
         // rejection about a "new class" that sends the developer to the wrong
         // place. Asked first so the reason named is the real one. The producer
         // asks again, for the members it carries.
-        final retention = _readRouteBRetention(releaseArtifacts);
+        final retention = _readRouteBRetention(releaseArtifacts, provenance);
         _refuseUnretained(coverage, retention);
         if (coverage.verdict != RouteBVerdict.accept) {
           _refuseCoverage(coverage);
@@ -282,19 +324,6 @@ class IosPatcher extends Patcher
         );
         if (coverage.verdict != RouteBVerdict.accept) {
           _refuseCoverage(coverage);
-        }
-        if (coverage.analysisVersion < routeBRetentionAnalysisVersion) {
-          // Not a warning, unlike the one below, and deliberately: every
-          // release cut on a cell before 18 would print it on every patch,
-          // and nothing the developer can do about it changes the patch. The
-          // analyzer ships in the release's compiler cell, so only a release
-          // cut on a newer cell can say which symbols a patch names. Refusing
-          // would strand every release whose cell predates it.
-          logger.detail(
-            "[route-b] this release's compiler cell predates analysis "
-            'version $routeBRetentionAnalysisVersion, so whether the release '
-            'kept every symbol this patch uses was not checked',
-          );
         }
         if (coverage.analysisVersion < routeBDeclarationsAnalysisVersion) {
           // The analyzer ships in the release's compiler cell, so only a
@@ -637,10 +666,36 @@ A patch is only interpretable against one whole contract, so these cannot be mix
   /// What the release's dynamic interface kept, or null when it uploaded none
   /// this build can read. Null is not "kept everything": see
   /// [_refuseUnretained] and the producer.
-  RouteBRetention? _readRouteBRetention(Map<String, File> releaseArtifacts) {
+  RouteBRetention? _readRouteBRetention(
+    Map<String, File> releaseArtifacts,
+    RouteBReleaseProvenance provenance,
+  ) {
+    // The release's own snapshot profile says which `dart:` instance members
+    // it kept. Skipped (not even decoded) under --allow-unchecked-sdk-calls.
+    final kept = allowUncheckedSdkCalls
+        ? null
+        : RouteBSnapshotKept.read(
+            releaseArtifacts[routeBSnapshotProfileFileName],
+            expectedSha256: provenance.artifacts[routeBSnapshotProfileFileName],
+          );
+    if (allowUncheckedSdkCalls) {
+      usedUncheckedSdkCalls = true;
+      logger.warn(
+        '--allow-unchecked-sdk-calls: this patch was not checked against what '
+        "this release's snapshot kept of the dart: instance members it calls "
+        '(or against the dynamic-call check, on a cell below analysis '
+        '$routeBSelectorCallsAnalysisVersion). This is recorded in the '
+        "patch's metadata.",
+      );
+    } else if (kept?.problem != null) {
+      logger.detail('[route-b] ${kept!.problem}');
+    }
     final retention = RouteBRetention.read(
       releaseArtifacts[routeBInterfaceFileName],
       capabilities: _readReleaseCapabilities(releaseArtifacts),
+      kept: kept?.kept,
+      keptProblem: kept?.problem,
+      skipKeptCheck: allowUncheckedSdkCalls,
     );
     if (retention == null) {
       logger.detail(
@@ -705,16 +760,39 @@ A patch is only interpretable against one whole contract, so these cannot be mix
 
     try {
       final baseDill = releaseArtifacts[routeBReleaseKernelFileName]!;
+      // The SAME breadth the release's interface generator and census used
+      // (`package:<app>/`, from the same pubspec name). Without it the
+      // analyzer treats every non-`dart:` library as the app, so a framework
+      // member the release kept in its own library is reported as a changed
+      // framework member and a patch that touches none is refused.
+      // THE RELEASE'S name when it recorded one, not the working tree's: a
+      // pubspec renamed since the release matches no library, and every
+      // member would read as a changed framework member. An empty name is
+      // refused rather than falling back to "every library is the app".
+      final packageName =
+          _releaseAppPackageName ?? shorebirdEnv.getPubspecYaml()?.name;
+      if (packageName == null || packageName.isEmpty) {
+        logger.err(
+          '''
+Could not determine this app's package name (the release recorded none and pubspec.yaml has no name), so the patch cannot tell the app's code from the framework's.
+
+Nothing was uploaded.''',
+        );
+        throw ProcessExit(ExitCode.software.code);
+      }
+      final prefixes = routeBAppIncludePrefixes(packageName);
       return carry.isEmpty
           ? routeBCoverageAnalyzer.analyze(
               compiler: compiler,
               baseDill: baseDill,
               patchedDill: patchKernel,
+              includePrefixes: prefixes,
             )
           : routeBCoverageAnalyzer.analyze(
               compiler: compiler,
               baseDill: baseDill,
               patchedDill: patchKernel,
+              includePrefixes: prefixes,
               carry: carry,
             );
     } on RouteBCompilerException catch (error) {
