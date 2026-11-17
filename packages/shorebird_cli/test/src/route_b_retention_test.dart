@@ -345,10 +345,9 @@ void main() {
     });
 
     group('the rules the loader sets', () {
-      test('an instance member needs only its class to be findable', () {
-        // `State.widget`-shaped: the member is not in the interface, the
-        // class is. The loader supplies a stand-in for an interface target
-        // (retention_loader.sh: THROWS at the call, never an abort).
+      test('an instance member the release never recorded is refused', () {
+        // Its class is kept, the member is not: the loader would bind it
+        // through a stand-in and the call would throw NoSuchMethodError.
         expect(
           refusal([
             _ref(
@@ -358,21 +357,41 @@ void main() {
               member: 'get:blockSize',
             ),
           ]),
-          isNull,
+          allOf(contains('`Hash.blockSize`'), contains('new release')),
         );
       });
 
-      test('an instance member of a class the release never kept', () {
+      test('an instance member the release recorded is accepted', () {
+        final recorded = RouteBRetention.parse("""
+callable:
+  - library: 'package:crypto/src/hash.dart'
+    class: 'Hash'
+    member: 'get:blockSize'
+""");
         expect(
           refusal([
             _ref(
               'instance',
-              'package:flutter/src/widgets/basic.dart',
-              cls: 'Padding',
-              member: 'get:child',
+              'package:crypto/src/hash.dart',
+              cls: 'Hash',
+              member: 'get:blockSize',
+            ),
+          ], with_: recorded),
+          isNull,
+        );
+      });
+
+      test('a dart: instance member is accepted, a known gap', () {
+        expect(
+          refusal([
+            _ref(
+              'instance',
+              'dart:core',
+              cls: 'String',
+              member: 'toUpperCase',
             ),
           ]),
-          allOf(contains('`Padding.child`'), contains('new release')),
+          isNull,
         );
       });
 

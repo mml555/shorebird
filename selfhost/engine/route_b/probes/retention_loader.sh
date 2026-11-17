@@ -172,11 +172,13 @@ PY
 arm control                BOUND   ACCEPT "''"
 arm sdk_instance_unnamed   THROWS  ACCEPT "'abc'.toUpperCase()"
 arm inst_named_ctor_box    BOUND   ACCEPT "Box(1, 2).describe()"
-arm inst_reached_unnamed   THROWS  ACCEPT "Box(1, 2).show()"
-arm inst_field_reached     THROWS  ACCEPT "Box(1, 2).a"
-arm inst_field_unread      THROWS  ACCEPT "Box(1, 2).b"
-arm inst_getter_uncalled   THROWS  ACCEPT "Box(1, 2).sum"
-arm inst_method_uncalled   THROWS  ACCEPT "Box(1, 2).twice()"
+# An unnamed instance member of a kept class loads and then THROWS when called:
+# a patch that runs wrongly, so it is refused at patch time.
+arm inst_reached_unnamed   THROWS  REFUSE "Box(1, 2).show()"
+arm inst_field_reached     THROWS  REFUSE "Box(1, 2).a"
+arm inst_field_unread      THROWS  REFUSE "Box(1, 2).b"
+arm inst_getter_uncalled   THROWS  REFUSE "Box(1, 2).sum"
+arm inst_method_uncalled   THROWS  REFUSE "Box(1, 2).twice()"
 arm static_reached         ABORT   REFUSE "Box.fmt(3)"
 arm static_unreached       ABORT   REFUSE "Box.unused(3)"
 arm static_field_untouched ABORT   REFUSE "Box.counter"

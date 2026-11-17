@@ -353,7 +353,7 @@ whole patch before anything is uploaded when a symbol is not shown to be kept:
 | a member the interface names (`library:`, `class:`, `member:`): SDK members, framework and dependency members the release's own code named | the item is present |
 | a class | a `class:` or `can-be-used-as-type:` item names it |
 | a bare `class:` item (older generators) | the class and its public members |
-| an instance member of a non-`dart:` class | its class is findable (see below) |
+| an instance member of a non-`dart:` class | the interface records the member (or its class item is bare, or its library is whole): an unnamed one loads but throws `NoSuchMethodError` when called, which is refused at patch time |
 | private, and spelled by the patch | the capability manifest granted it (as for every private reference); a private class named as a type is also kept by an interface item for it |
 | private constructor | not decided here: analysis 12's per-method release evidence decides whether a patch may construct it (the manifest withholds every construction, so asking it would refuse `createState() => _HomeState()`; the sweep arm found this) |
 | private, and named only by a constant | the interface item for it is present |
@@ -371,7 +371,8 @@ Flutter, one arm per kind of reference; Flutter itself was not run here):
 | a class the release never used | aborts: `Unable to find class` | refused |
 | a constructor, static, static field or top-level the release never named | aborts: `Unable to find function` / `field` | refused |
 | a static or top-level the release reaches but never names (the AOT compiler inlined it) | aborts | refused |
-| an instance member of a class the release kept, never named | loads; throws `NoSuchMethodError` when called | accepted |
+| an instance member of a class the release kept, never named (field, getter, method) | loads; throws `NoSuchMethodError` when called (runs wrongly) | refused |
+| a `dart:` instance member the release never called (`'abc'.toUpperCase()`) | loads; throws `NoSuchMethodError` when called | accepted: **known gap** |
 | a local variable whose declared type is a class the release never used | loads | accepted |
 | the same with `never-inline` on it | aborts | refused |
 | a class the release allocates but never names, with a member it calls virtually (`(pick() as Circle).name()`) | binds | **refused anyway** |
@@ -391,12 +392,12 @@ refuses.
 
 What this does NOT check, so a pass is not read as more than it is:
 
-- an instance member of a `dart:` class (`s.substring(1)`): it binds by selector
-  at run time, the release generator leaves it out of the interface on purpose,
-  and its failure is a `NoSuchMethodError`, not an abort. An instance member of
-  any other class is checked by its class only, for the same reason: the loader
-  gives an interface target a stand-in, so a missing one throws when called
-  (`inst_*` arms) rather than aborting;
+- an instance member of a `dart:` class (`s.substring(1)`). **Known gap:** it
+  binds by selector and the release generator leaves it out of the interface on
+  purpose, so an SDK instance method the release never called can throw
+  `NoSuchMethodError` on a device (measured: `sdk_instance_unnamed`). Refusing
+  it would need the generator to retain SDK instance members, which costs
+  every release code size (see `fw_use_binding.sh`'s `sdk-instance` arm);
 - a reference the compiler adds that no source token names (interpolation,
   `for`, `async`), and `dart:_` libraries;
 - an extension member (`list.firstOrNull`, `Ext|get#x`): the generator skips

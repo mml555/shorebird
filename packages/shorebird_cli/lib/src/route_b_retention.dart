@@ -18,10 +18,9 @@
 // loader, a dependency package standing in for Flutter): a class, constructor,
 // static, static field or top-level the release never named ABORTS, even when
 // release code reaches it (the AOT compiler inlines it away). An INSTANCE
-// member does not: the loader reads it through an interface target and supplies
-// a stand-in, so it needs only its class to be findable, and a call to a member
-// that is not there throws `NoSuchMethodError` when made. That is why an
-// instance member is checked by its class here and every other kind by name.
+// member does not abort (the loader gives an interface target a stand-in), but
+// a call to one the snapshot lacks throws `NoSuchMethodError`, which is a patch
+// that runs wrongly, so it is refused here too unless the release records it.
 //
 // WHAT COUNTS AS RETAINED is what the release's dynamic interface says, and
 // only that: it is the artifact the release was built with, hash-verified in
@@ -50,8 +49,10 @@
 //
 // WHAT IT DOES NOT COVER, said once so nobody reads more into a pass:
 //
-//   * an instance member of a `dart:` class (`s.substring(1)`), and whether a
-//     non-`dart:` instance member exists at run time (see above);
+//   * an instance member of a `dart:` class (`s.substring(1)`). KNOWN GAP: it
+//     binds by selector, the generator leaves it out of the interface on
+//     purpose, and one the release never called can throw `NoSuchMethodError`
+//     on a device;
 //   * a reference the compiler adds that no source token names (string
 //     interpolation, `for`, `async`), and `dart:_` libraries, which no
 //     interface can hold and no patch spells;
@@ -201,25 +202,13 @@ class RouteBRetention {
       return 'the analysis could not tell what it uses (${r.reason}), and a '
           'symbol that cannot be shown to be kept is not kept';
     }
-    // Bound by selector at run time; see the header.
+    // Bound by selector at run time, and left out of the interface on purpose;
+    // see the header. A KNOWN GAP: an SDK instance method the release never
+    // called can throw `NoSuchMethodError` on a device.
     if (r.kind == 'instance' &&
         r.library.startsWith('dart:') &&
         !r.viaConstant) {
       return null;
-    }
-    // An instance member is read through an INTERFACE target: when the member
-    // is missing the loader supplies a stand-in carrying its name (see
-    // `InterfaceTargetStandIn`, bytecode_reader.cc), so only its CLASS has to
-    // be findable for the patch to load. The call then runs, or throws
-    // `NoSuchMethodError` when it is made, which is a failure of that call and
-    // not a boot abort. The probe `retention_loader.sh` measures both. (A
-    // private member still answers to the manifest, below.)
-    if (r.kind == 'instance' && !r.isPrivate && r.className != null) {
-      final cls = r.className!;
-      final found =
-          classes.contains('${r.library}#$cls') ||
-          wholeLibraries.contains(r.library);
-      return found ? null : _describe(r);
     }
     return _retained(r) ? null : _describe(r);
   }

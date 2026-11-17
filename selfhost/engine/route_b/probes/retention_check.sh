@@ -166,6 +166,25 @@ if want unchanged_release_sweep; then
   else record unchanged_release_sweep "FAIL ($swept kept, or a refusal above)"; fi
 fi
 
+# real_release_sweep -- the same invariant over a REAL app's release, when
+# REAL_RELEASE names a directory holding its prepass.dill (the release's AOT
+# kernel), dynamic_interface.yaml and route_b_capabilities.json (a Route B
+# build's `build/route_b`). Every member of the app is carried against itself;
+# none may be refused.
+if [ -n "${REAL_RELEASE:-}" ] && want real_release_sweep; then
+  echo; echo "==> real_release_sweep ($REAL_RELEASE)"
+  d=$WORK/real_release_sweep; mkdir -p "$d"
+  inc=()
+  for pkg in ${REAL_RELEASE_PACKAGES:-}; do inc+=(--include "$pkg"); done
+  "$DART" $KERNEL_PKGS "$RB/coverage/analyze_coverage.dart" "${inc[@]}" --base-dill "$REAL_RELEASE/prepass.dill" --patched-dill "$REAL_RELEASE/prepass.dill" --carry-all --out "$d/coverage.json"
+  "$DART" --packages="$CLI_PKGS" "$HERE/cli_retention.dart" "$d/coverage.json" "$REAL_RELEASE/dynamic_interface.yaml" "$REAL_RELEASE/route_b_capabilities.json" > "$d/verdict.log" 2>&1 || true
+  swept=$(grep -c '^OK' "$d/verdict.log" || true)
+  echo "  $swept members kept, $(grep -c '^REFUSED' "$d/verdict.log" || true) refused"
+  grep '^REFUSED\|^NOT-MEASURED' "$d/verdict.log" | cut -c1-300 | sed 's/^/  /' || true
+  if ! grep -q '^REFUSED\|^NOT-MEASURED' "$d/verdict.log" && [ "$swept" -ge 10 ]; then record real_release_sweep PASS
+  else record real_release_sweep "FAIL ($swept kept, or a refusal above)"; fi
+fi
+
 echo; echo "== SUMMARY"
 for r in "${RESULTS[@]}"; do printf '  %-28s %s\n' "${r%%|*}" "${r#*|}"; done
 [ "$FAILS" -eq 0 ] && echo "ALL PASS" || { echo "$FAILS FAILED"; exit 1; }

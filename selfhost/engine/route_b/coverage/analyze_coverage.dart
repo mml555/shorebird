@@ -310,6 +310,8 @@ void main(List<String> args) {
   final includePrefixes = <String>[];
   // Version 15: unchanged members to analyze as if they had changed.
   final carryKeys = <String>{};
+  // Probe only: carry EVERY member present on both sides (the retention sweep).
+  var carryAll = false;
 
   for (var i = 0; i < args.length; i++) {
     final a = args[i];
@@ -329,6 +331,8 @@ void main(List<String> args) {
         includePrefixes.add(next());
       case '--carry':
         carryKeys.add(next());
+      case '--carry-all':
+        carryAll = true;
       case '--census':
         census = true;
       case '--dill':
@@ -478,6 +482,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
 
   // Version 15. Carried members go through everything a changed member does,
   // and stay out of `changed`, so carrying alone never makes a patch.
+  if (carryAll) carryKeys.addAll(baseText.keys);
   final carried = [
     for (final key in carryKeys)
       if (!changed.contains(key) &&
