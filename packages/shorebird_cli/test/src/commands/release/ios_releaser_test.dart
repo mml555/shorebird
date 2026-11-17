@@ -720,10 +720,8 @@ $body
           //
           // Stubbed for the WHOLE group for the same reason `flavor` above is:
           // `_declareRetention` returns early when the answer cannot be read,
-          // so
-          // without this every retention assertion below would pass vacuously
-          // by
-          // never reaching the code it names.
+          // so without this every retention assertion below would pass
+          // vacuously by never reaching the code it names.
           when(
             () => shorebirdEnv.getFlutterProjectRoot(),
           ).thenReturn(projectRoot);
@@ -1308,13 +1306,12 @@ $body
 
             // TWO import kernels are compiled now, not one: an early one before
             // the interface, whose only job is the private-enumeration
-            // agreement
-            // check, and the supplement copy after the real build. Every one of
-            // them must use the release's own entrypoint -- a guess at the
-            // entrypoint in either would describe a different program, which is
-            // the whole failure this test exists to catch. Asserting over all
-            // of
-            // them is stronger than the previous `.single`, not weaker.
+            // agreement check, and the supplement copy after the real build.
+            // Every one of them must use the release's own entrypoint -- a
+            // guess at the entrypoint in either would describe a different
+            // program, which is the whole failure this test exists to catch.
+            // Asserting over all of them is stronger than the previous
+            // `.single`, not weaker.
             final entrypoints = verify(
               () => routeBReleaseKernelBuilder.build(
                 compiler: any(named: 'compiler'),
@@ -1356,16 +1353,12 @@ $body
           });
 
           // THE FALLBACK PATH, and the invariant it protects: a disagreement
-          // may
-          // REDUCE PATCHABILITY and must never turn into a failed release.
+          // may REDUCE PATCHABILITY and must never turn into a failed release.
           //
           // Enumerating private members from the import kernel means building
-          // it
-          // before `flutter build ipa`, which is what makes a divergence
-          // dangerous
-          // -- without a fallback it would surface as a failed release inside
-          // the
-          // CFE rather than as a refused patch.
+          // it before `flutter build ipa`, which is what makes a divergence
+          // dangerous -- without a fallback it would surface as a failed
+          // release inside the CFE rather than as a refused patch.
           test(
             'enumerates privates from the import kernel when they agree',
             () {
@@ -1412,10 +1405,9 @@ $body
             //
             // Asserting over ALL THREE call sites rather than one is what makes
             // this discriminate: the prepass decides retention, the early
-            // import
-            // kernel is the private-enumeration source, and the supplement copy
-            // is what a patch binds against. A kernel missing from this list is
-            // a kernel describing a different program.
+            // import kernel is the private-enumeration source, and the
+            // supplement copy is what a patch binds against. A kernel missing
+            // from this list is a kernel describing a different program.
             await runWithOverrides(iosReleaser.buildReleaseArtifacts);
 
             const expected = {
@@ -1459,13 +1451,10 @@ $body
             () async {
               // THE CONTROL that makes the test above mean something, and the
               // safety property of the whole seam: an unreadable answer must
-              // NOT
-              // collapse into "no injected defines". Compiling the prepass with
-              // an
-              // empty set is exactly the bug being closed, done silently — so
-              // the
-              // release proceeds (it is a good, installable release) and simply
-              // declares no retention.
+              // NOT collapse into "no injected defines". Compiling the prepass
+              // with an empty set is exactly the bug being closed, done
+              // silently — so the release proceeds (it is a good, installable
+              // release) and simply declares no retention.
               File(
                 p.join(
                   projectRoot.path,
@@ -1562,9 +1551,9 @@ $body
             'falls back to the prepass, and still releases, on disagreement',
             () async {
               // The early check and the late one are the same helper, so
-              // stubbing
-              // it false exercises both: private enumeration falls back AND the
-              // import kernel is dropped. The release must still succeed.
+              // stubbing it false exercises both: private enumeration falls
+              // back AND the import kernel is dropped. The release must still
+              // succeed.
               when(
                 () => routeBReleaseKernelBuilder.agreesWith(
                   compiler: any(named: 'compiler'),
@@ -1577,8 +1566,7 @@ $body
               await runWithOverrides(iosReleaser.buildReleaseArtifacts);
 
               // Narrower, not failed: the interface was still generated, and
-              // with
-              // NO private-enumeration kernel.
+              // with NO private-enumeration kernel.
               final kernel =
                   verify(
                         () =>
@@ -1684,8 +1672,7 @@ $body
             () async {
               // Forwarding the release's inputs correctly is a promise until it
               // is checked. A kernel that describes a different program must
-              // not
-              // be advertised as this release's.
+              // not be advertised as this release's.
               when(
                 () => routeBReleaseKernelBuilder.agreesWith(
                   compiler: any(named: 'compiler'),
@@ -1893,9 +1880,8 @@ $body
           // The defect this exists for: `flutter build ipa` exits 0 when its
           // export step fails, build/ios/ipa is not cleared between runs, and a
           // presence check is then satisfied by the PREVIOUS release's .ipa.
-          // One
-          // release published with its predecessor's artifact before this check
-          // existed.
+          // One release published with its predecessor's artifact before this
+          // check existed.
           late File staleIpa;
 
           setUp(() {

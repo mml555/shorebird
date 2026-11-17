@@ -188,11 +188,10 @@ If left checked, Xcode will rewrite the build number in the uploaded IPA, so the
     if (argResults.appleCodesign) {
       final ipa = artifactManager.getIpa();
       // EXISTING IS NOT ENOUGH — IT MUST BE THIS BUILD'S. The export writes
-      // into
-      // build/ios/ipa, which is not cleared between runs, so a failed export
-      // leaves the PREVIOUS release's .ipa sitting there passing a presence
-      // check. That is not hypothetical: a release published here with its
-      // predecessor's .ipa as its stored artifact, and nothing said so.
+      // into build/ios/ipa, which is not cleared between runs, so a failed
+      // export leaves the PREVIOUS release's .ipa sitting there passing a
+      // presence check. That is not hypothetical: a release published here with
+      // its predecessor's .ipa as its stored artifact, and nothing said so.
       //
       // The .xcarchive was produced moments ago by this same invocation, so an
       // .ipa exported from it cannot be older. One that is, is a leftover.
@@ -272,11 +271,10 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
   /// The flavor that actually reaches the compiler, by Flutter's precedence.
   ///
   /// `--flavor` if given, else `pubspec.yaml`'s `default-flavor` — a release
-  /// can be
-  /// flavored with nothing on the command line, and reading only the flag would
-  /// record "no flavor" for it. Nothing in this CLI read `default-flavor`
-  /// before
-  /// G4.2, which is exactly why that path had no way to be noticed.
+  /// can be flavored with nothing on the command line, and reading only the
+  /// flag would record "no flavor" for it. Nothing in this CLI read
+  /// `default-flavor` before G4.2, which is exactly why that path had no way to
+  /// be noticed.
   String? get _resolvedFlavor => RouteBBuildConfig.resolveFlavor(
     cliFlavor: flavor,
     pubspecFlutterSection: shorebirdEnv.getPubspecYaml()?.flutter,
@@ -286,8 +284,7 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
   ///
   /// On iOS, Flutter does not put the token you typed into
   /// `FLUTTER_APP_FLAVOR`. It parses the flavor from the Xcode CONFIGURATION
-  /// and
-  /// returns the SCHEME's own casing (`common.dart`'s
+  /// and returns the SCHEME's own casing (`common.dart`'s
   /// `_addFlavorToDartDefines`, `xcode_project.dart`'s
   /// `parseFlavorFromConfiguration`). So `--flavor foo` against a scheme named
   /// `Foo` ships a kernel compiled with `FLUTTER_APP_FLAVOR=Foo`.
@@ -338,11 +335,9 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
   /// Asks Flutter to resolve this build's defines without building anything.
   ///
   /// WHY FLUTTER IS ASKED RATHER THAN IMITATED. The six values are not
-  /// derivable
-  /// from anything this CLI already knows, and each has a failure mode that
-  /// produces a plausible wrong answer — `FLUTTER_ENGINE_REVISION` in
-  /// particular
-  /// comes from the engine's own `engine_stamp.json` and is NOT
+  /// derivable from anything this CLI already knows, and each has a failure
+  /// mode that produces a plausible wrong answer — `FLUTTER_ENGINE_REVISION` in
+  /// particular comes from the engine's own `engine_stamp.json` and is NOT
   /// `shorebirdEnv.shorebirdEngineRevision`. `flutter_injected_defines.dart`
   /// records each trap with its source line.
   ///
@@ -351,11 +346,11 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
   /// so Flutter writes its resolved `DART_DEFINES` and stops before compiling.
   ///
   /// No user define arguments are passed, deliberately:
-  /// `_addFlutterVersionToDartDefines`
-  /// and `_addFeatureFlagsToDartDefines` read only `globals.flutterVersion` and
-  /// `flutter config`, never a build argument, so the injected set is invariant
-  /// across them — and forwarding a `--dart-define-from-file` here would make a
-  /// bad file fail this step instead of the check that exists to report it.
+  /// `_addFlutterVersionToDartDefines` and `_addFeatureFlagsToDartDefines` read
+  /// only `globals.flutterVersion` and `flutter config`, never a build
+  /// argument, so the injected set is invariant across them — and forwarding a
+  /// `--dart-define-from-file` here would make a bad file fail this step
+  /// instead of the check that exists to report it.
   Future<Map<String, String>?> _resolveInjectedDefines() async {
     final root = shorebirdEnv.getFlutterProjectRoot();
     if (root == null) return null;
@@ -505,8 +500,8 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
         );
       }
       // Travels with the interface, because the two are only meaningful
-      // together:
-      // the interface is the emitted set, this is how it came to be that set.
+      // together: the interface is the emitted set, this is how it came to be
+      // that set.
       if (_retentionEvidence case final evidence?) {
         artifacts[routeBRetentionEvidenceFileName] = captureRouteBReleaseKernel(
           supplement,
@@ -584,12 +579,10 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
         // FLUTTER_TARGET: that file was observed on 2026-08-26 holding a STALE
         // flavor from an earlier plain `flutter build` while the release's own
         // program had a different one, so it is not a trustworthy record of
-        // this
-        // build at an arbitrary moment.
+        // this build at an arbitrary moment.
         releaseTarget: target ?? 'lib/main.dart',
-        // G4.1. Captured from the SAME buildArgs the release compiled with,
-        // at the one moment they are unambiguously this release's. Null when
-        // the
+        // G4.1. Captured from the SAME buildArgs the release compiled with, at
+        // the one moment they are unambiguously this release's. Null when the
         // release's effective define set could not be established — which since
         // `--dart-define-from-file` became supported means the expansion
         // DISAGREED with Flutter's own, not that the option was used. The patch
@@ -668,8 +661,7 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
         )..writeAsStringSync(
           const JsonEncoder.withIndent('  ').convert({
             // Structural, not a number the profile carries: gen_snapshot emits
-            // no
-            // version field, so the probe asserts the layout it was written
+            // no version field, so the probe asserts the layout it was written
             // against and this names which layout that was.
             'profile_format_revision': 'v8-snapshot-profile/gen_snapshot',
             'probe_revision': routeBReleaseProbeRevisionFor(buildArgs),
@@ -776,8 +768,7 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
       // release, never a failed one. Returning here means no prepass, no
       // interface and no import kernel, which the patch side already reports as
       // "not patchable". The alternative -- compiling with an empty injected
-      // set
-      // -- is exactly the bug this closes, done silently.
+      // set -- is exactly the bug this closes, done silently.
       logger.warn(
         '''Could not read the defines Flutter injects into this build, so this release's retention was not declared; patches for it will be refused.''',
       );
@@ -791,8 +782,7 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
       buildArgs: buildArgs,
       injectedDefines: _injectedDefines,
       // G4.2: the prepass decides RETENTION, so it must describe the same
-      // program
-      // the release ships. Without this it was compiled with no
+      // program the release ships. Without this it was compiled with no
       // FLUTTER_APP_FLAVOR while the release had one.
       flavor: await _appleFlavor,
       outputFile: File(p.join(work.path, 'prepass.dill')),
@@ -804,27 +794,20 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
     // it from a policy name.
     //
     // The import kernel is built BEFORE the interface, which is a reordering:
-    // it
-    // is the only kernel with the full private surface, since the prepass has
-    // been
-    // tree-shaken. It is also the kernel a patch will be built against, so if
-    // the
-    // two disagree the private names taken from it would describe a program the
-    // release does not contain.
+    // it is the only kernel with the full private surface, since the prepass
+    // has been tree-shaken. It is also the kernel a patch will be built
+    // against, so if the two disagree the private names taken from it would
+    // describe a program the release does not contain.
     //
     // THE INVARIANT THIS PROTECTS: a disagreement may REDUCE PATCHABILITY, and
     // must never turn into a failed release. So this path has no fatal branch
-    // --
-    // every outcome produces an interface and continues.
+    // -- every outcome produces an interface and continues.
     //
-    // Built into `work/`, deliberately NOT reusing or pre-empting the supplement
-    // copy that `_captureImportKernel` makes after the real build. That costs
-    // one
-    // extra kernel compile per release, and the alternative is a kernel
-    // produced
-    // before `flutter build ipa` standing in for one produced after it, which
-    // is
-    // exactly the divergence being guarded against.
+    // Built into `work/`, deliberately NOT reusing or pre-empting the
+    // supplement copy that `_captureImportKernel` makes after the real build.
+    // That costs one extra kernel compile per release, and the alternative is a
+    // kernel produced before `flutter build ipa` standing in for one produced
+    // after it, which is exactly the divergence being guarded against.
     final earlyImport = builder.build(
       compiler: compiler,
       projectRoot: projectRoot,

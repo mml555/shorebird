@@ -206,8 +206,7 @@ class RouteBContainer {
 ///
 /// Parsed here rather than shelled out to `dwarfdump`, so it is testable, has
 /// no tool dependency, and cannot silently pick a different slice than
-/// intended.
-/// Returns null when the file carries none.
+/// intended. Returns null when the file carries none.
 String? readMachOBuildId(Uint8List bytes) {
   if (bytes.length < 8) return null;
   final data = ByteData.sublistView(bytes);

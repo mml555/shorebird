@@ -193,8 +193,7 @@ class ToolchainCoherence {
               detail:
                   '$mode/gen_snapshot_arm64 does not support '
                   'patchable_static_calls; a release built with it could not '
-                  'be '
-                  'patched',
+                  'be patched',
             ),
           );
         }
@@ -213,10 +212,9 @@ class ToolchainCoherence {
       //
       // The stamp comparisons read stamp CONTENTS, and a stamp asserts what the
       // cache is CLAIMED to hold; `flutter --version` writes `engine.stamp`
-      // while
-      // fetching only HOST artifacts, so it can assert iOS bytes that never
-      // arrived. And `patchable_static_calls` is carried by EVERY Route B cell,
-      // so it separates Route B from stock and never this cell from its
+      // while fetching only HOST artifacts, so it can assert iOS bytes that
+      // never arrived. And `patchable_static_calls` is carried by EVERY Route B
+      // cell, so it separates Route B from stock and never this cell from its
       // predecessor — a capability signal being read as an identity one.
       //
       // A release cut then would have been built against the previous runtime

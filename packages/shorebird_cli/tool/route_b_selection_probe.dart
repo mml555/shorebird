@@ -1,8 +1,8 @@
 // Drives the PRODUCTION selection path —
-// ShorebirdFlutter.resolveFlutterRevision
-// and installRevision, the exact calls `shorebird release` makes — and then
-// reads the installed checkout's engine.version and resolves the Route B
-// compiler for it. Proves the whole selector chain without cutting a release.
+// ShorebirdFlutter.resolveFlutterRevision and installRevision, the exact calls
+// `shorebird release` makes — and then reads the installed checkout's
+// engine.version and resolves the Route B compiler for it. Proves the whole
+// selector chain without cutting a release.
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';

@@ -1729,8 +1729,7 @@ This may indicate that the patch contains native changes, which cannot be applie
               () async {
                 // The path with no command-line token to notice: a release can
                 // be flavored entirely by `default-flavor`, and reading the
-                // flag
-                // alone would record "no flavor" for it.
+                // flag alone would record "no flavor" for it.
                 final pubspec = MockPubspec();
                 when(
                   () => pubspec.flutter,
@@ -2265,9 +2264,8 @@ This may indicate that the patch contains native changes, which cannot be applie
                 );
 
                 // The LC_UUID written into the fixture App binary (bytes
-                // 1..16),
-                // which is what OS::GetAppBuildId reports on device. Read from
-                // the shipped bytes, so re-signing cannot change it.
+                // 1..16), which is what OS::GetAppBuildId reports on device.
+                // Read from the shipped bytes, so re-signing cannot change it.
                 final buildId =
                     verify(
                           () => routeBProducer.produce(
@@ -2295,8 +2293,7 @@ This may indicate that the patch contains native changes, which cannot be applie
               // manifest has to arrive from the release's hash-verified
               // artifact. Reading it anywhere else -- regenerating it, or
               // trusting the policy name -- would let a patch reference a
-              // member
-              // this release never retained.
+              // member this release never retained.
               writeReleaseProvenance(
                 engineRevision: releaseEngineRevision,
                 capabilityManifest: jsonEncode({
@@ -2349,17 +2346,14 @@ This may indicate that the patch contains native changes, which cannot be applie
               'P5.1: refuses a release with no build configuration',
               () async {
                 // This used to WARN AND CONTINUE, which made absent evidence
-                // read
-                // as agreement. It is also what the RELEASE side already
-                // intends:
-                // ios_releaser records buildConfig: null only when a build's
-                // define expansion disagreed with Flutter's own, and marks that
-                // release unpatchable when it is cut.
+                // read as agreement. It is also what the RELEASE side already
+                // intends: ios_releaser records buildConfig: null only when a
+                // build's define expansion disagreed with Flutter's own, and
+                // marks that release unpatchable when it is cut.
                 //
                 // Distinct from the legacy case on purpose: an old release also
                 // predates the contract revision and is refused EARLIER, by
-                // P4.4,
-                // with a message about the epoch. Reaching here means a
+                // P4.4, with a message about the epoch. Reaching here means a
                 // revision-capable release whose evidence is incomplete.
                 writeReleaseProvenance(
                   engineRevision: releaseEngineRevision,
@@ -2384,10 +2378,8 @@ This may indicate that the patch contains native changes, which cannot be applie
                           RouteBBuildSemanticsProblem.evidenceAbsent.wire,
                         ),
                         // It must NOT read as an old release: that would send
-                        // an
-                        // operator to cut a new release when the real cause is
-                        // a
-                        // define expansion that disagreed with Flutter's.
+                        // an operator to cut a new release when the real cause
+                        // is a define expansion that disagreed with Flutter's.
                         contains('this is not an old release'),
                       ),
                     ),
@@ -2416,12 +2408,9 @@ This may indicate that the patch contains native changes, which cannot be applie
               () async {
                 // The mutation is the release recording a COMPARABLE empty
                 // configuration instead of none, with everything else
-                // identical.
-                // The same patch then reaches the producer -- which is what
-                // makes
-                // the row above a demonstration that this check is what
-                // refused,
-                // rather than something else along the way.
+                // identical. The same patch then reaches the producer -- which
+                // is what makes the row above a demonstration that this check
+                // is what refused, rather than something else along the way.
                 writeReleaseProvenance(engineRevision: releaseEngineRevision);
                 await runWithOverrides(
                   () => patcher.createPatchArtifacts(
@@ -2506,8 +2495,7 @@ This may indicate that the patch contains native changes, which cannot be applie
                 throwsA(isA<ProcessExit>()),
               );
               // Both revisions named: "these cannot be mixed" is only
-              // actionable
-              // if you can see which two.
+              // actionable if you can see which two.
               verify(
                 () => logger.err(
                   any(

@@ -1170,8 +1170,8 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
     }
 
     // THE ENGINE-IDENTITY INVARIANT, checked BEFORE the build so a refusal
-    // costs
-    // nothing: no kernel, no coverage, no bytecode, no artifact, no upload.
+    // costs nothing: no kernel, no coverage, no bytecode, no artifact, no
+    // upload.
     //
     // Only for a Route B release. Every other release's patch is produced the
     // way it always was, and a check that refused those would be inventing a
@@ -1223,8 +1223,7 @@ Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
     // check. `shorebirdEngineRevision` re-reads `bin/internal/engine.version`
     // from disk, so this sees the drift rather than a cached answer — and the
     // drift is real: a build through a CDN that maps an experimental hash onto
-    // a
-    // stock one records the hash it actually downloaded.
+    // a stock one records the hash it actually downloaded.
     //
     // Still before coverage, bytecode and publication. The kernel exists by now
     // and is thrown away, which is the correct trade: a wasted build costs

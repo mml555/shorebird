@@ -23,8 +23,7 @@ void main() {
     test('the two representations stay separate', () {
       final c = config(['--release', '--dart-define=A=1']);
       // rawArgs keeps everything, including args that are not defines: it is
-      // for
-      // audit, and throwing away context would defeat that.
+      // for audit, and throwing away context would defeat that.
       expect(c.rawArgs, ['--release', '--dart-define=A=1']);
       // effectiveDefines carries only what the compiler received as defines.
       expect(c.effectiveDefines, {'A': '1'});
@@ -150,9 +149,8 @@ void main() {
 
       test('same obfuscation, DIFFERENT symbol paths -> agrees', () {
         // The case that would break if the path were fingerprinted: two
-        // machines
-        // emitting the byte-identical program would become incompatible purely
-        // because their filesystem layouts differ.
+        // machines emitting the byte-identical program would become
+        // incompatible purely because their filesystem layouts differ.
         final a = config([
           '--obfuscate',
           '--split-debug-info=/builds/machine-a/symbols',
@@ -190,8 +188,7 @@ void main() {
 
       test('the path is absent from the canonical form', () {
         // Asserted directly, so a later change that folds it in fails here
-        // rather
-        // than in the field.
+        // rather than in the field.
         expect(
           config([
             '--obfuscate',
@@ -293,8 +290,7 @@ void main() {
         final c = flavored('foo');
         expect(c.effectiveDefines, {'FLUTTER_APP_FLAVOR': 'foo'});
         // Recorded for audit, and NOT compared separately: one compiler fact
-        // must
-        // have one compatibility input or the two can drift.
+        // must have one compatibility input or the two can drift.
         expect(c.flavor, 'foo');
       });
 
@@ -303,8 +299,8 @@ void main() {
         () {
           // The path most likely to regress, because there is no command-line
           // token to notice. A release flavored only by pubspec must produce
-          // the
-          // SAME effective Route B configuration as one flavored by the flag.
+          // the SAME effective Route B configuration as one flavored by the
+          // flag.
           final viaManifest = flavored(null, manifest: 'foo');
           final viaFlag = flavored('foo');
           expect(viaManifest.effectiveDefines, {'FLUTTER_APP_FLAVOR': 'foo'});
@@ -345,10 +341,9 @@ void main() {
 
       test('the flavor wins over a same-named define already present', () {
         // Mirrors Flutter's xcodebuild-stage removeWhere-then-add
-        // (flutter/issues/169598): the fingerprint must represent the FINAL value
-        // reaching the compiler. Such an invocation is a tool error upstream,
-        // so
-        // this is defence in depth rather than a supported input.
+        // (flutter/issues/169598): the fingerprint must represent the FINAL
+        // value reaching the compiler. Such an invocation is a tool error
+        // upstream, so this is defence in depth rather than a supported input.
         final c = RouteBBuildConfig.fromBuildArgs(
           ['--dart-define=FLUTTER_APP_FLAVOR=stale'],
           flavor: 'fresh',
@@ -406,10 +401,9 @@ void main() {
 
       test('a file that EXISTS is now fingerprinted, not declined', () {
         // THE ROW THIS CLOSES. Until the expansion landed this returned null
-        // and
-        // the release was permanently not comparable. The whole value of the
-        // assertion is that the file exists — see the next test for why that is
-        // not a detail.
+        // and the release was permanently not comparable. The whole value of
+        // the assertion is that the file exists — see the next test for why
+        // that is not a detail.
         write('defines.json', '{"API":"https://x","N":7}');
         final c = RouteBBuildConfig.fromBuildArgs(
           ['--dart-define-from-file=defines.json'],
@@ -423,10 +417,9 @@ void main() {
         // Before the expansion, `--dart-define-from-file=x.env` returned null
         // because the OPTION was declined. It still returns null here, and a
         // test that never puts a real file on disk cannot tell those two
-        // reasons
-        // apart — it would keep passing against an implementation that had
-        // reverted. That is precisely what the previous version of this group
-        // did, and why the test above writes the file.
+        // reasons apart — it would keep passing against an implementation that
+        // had reverted. That is precisely what the previous version of this
+        // group did, and why the test above writes the file.
         expect(
           RouteBBuildConfig.fromBuildArgs(
             ['--dart-define-from-file=absent.env'],
@@ -553,10 +546,9 @@ void main() {
       // G4.1c link 2. `compilerArgs` is not merely a debug rendering of the
       // fingerprint -- it is the -D environment handed to the REPLACEMENT
       // compiler (`route_b_producer.dart:169`). Building it from
-      // `effectiveDefines` alone meant a patch body reading
-      // `const String.fromEnvironment('FLUTTER_VERSION')` baked the empty
-      // string
-      // while the release around it held the real value. Measured by
+      // `effectiveDefines` alone meant a patch body reading `const
+      // String.fromEnvironment('FLUTTER_VERSION')` baked the empty string while
+      // the release around it held the real value. Measured by
       // `probes/g41d_injected_define_patch.sh` arms 3-5.
       const injected = {
         'FLUTTER_VERSION': '3.44.8',

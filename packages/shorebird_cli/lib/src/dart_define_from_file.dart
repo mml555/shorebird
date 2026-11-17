@@ -103,10 +103,10 @@ class DartDefineFromFileExpansion {
         return DartDefineFromFileExpansion.failed(
           'could not parse $path: ${error.message}',
         );
-        // A wrongly-typed JSON value surfaces as a TypeError from the `as`
-        // cast above; there is no Exception to catch instead.
-        // ignore: avoid_catching_errors
-      } on TypeError {
+        // A wrongly-typed JSON value surfaces as a TypeError from the `as` cast
+        // above; there is no Exception to catch instead.
+      } on TypeError // ignore: avoid_catching_errors
+      {
         return DartDefineFromFileExpansion.failed(
           'the file at $path is not a JSON object',
         );
@@ -135,8 +135,8 @@ class DartDefineFromFileExpansion {
   /// Every path passed to [dartDefineFromFileOption] in [buildArgs], in order.
   ///
   /// Both spellings: our own CLI emits `--dart-define-from-file=<path>`
-  /// (`arg_results.dart` `_argsNamed`), while a user writing
-  /// `-- --dart-define-from-file path` reaches us as two arguments.
+  /// (`arg_results.dart` `_argsNamed`), while a user writing `--
+  /// --dart-define-from-file path` reaches us as two arguments.
   static List<String> pathsIn(List<String> buildArgs) {
     final paths = <String>[];
     for (var i = 0; i < buildArgs.length; i++) {
@@ -206,13 +206,11 @@ class DartDefineFromFileExpansion {
   ///
   /// [exempt] names keys that are expected to differ and why the caller says so
   /// — `FLUTTER_APP_FLAVOR` is the standing case, because Flutter rewrites it
-  /// at
-  /// the xcodebuild stage from the Xcode CONFIGURATION (the scheme's own
-  /// casing)
-  /// after the value in `Generated.xcconfig` was already written from the CLI
-  /// token. Measured on `selfhost/fixtures/flavored_app`: the xcconfig carries
-  /// `FLUTTER_APP_FLAVOR=foo` for the build whose shipped kernel contains
-  /// `Foo`.
+  /// at the xcodebuild stage from the Xcode CONFIGURATION (the scheme's own
+  /// casing) after the value in `Generated.xcconfig` was already written from
+  /// the CLI token. Measured on `selfhost/fixtures/flavored_app`: the xcconfig
+  /// carries `FLUTTER_APP_FLAVOR=foo` for the build whose shipped kernel
+  /// contains `Foo`.
   ///
   /// Keys present only in [flutterResolved] are NOT a disagreement: Flutter
   /// injects `FLUTTER_VERSION` and its siblings into every build, and this

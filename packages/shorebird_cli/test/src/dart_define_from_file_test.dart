@@ -14,8 +14,7 @@ import 'helpers.dart';
 // Flutter wrote.
 //
 // So these tests pin the port; the probe is what says the port is right.
-// Neither
-// is sufficient alone: a unit test can only agree with its author.
+// Neither is sufficient alone: a unit test can only agree with its author.
 void main() {
   useTempWorkingDirectory();
   late Directory tempDir;

@@ -1117,8 +1117,7 @@ void main() {
       // Link 2. The release's `-D` environment is both maps: the user's defines
       // and the ones Flutter injected. Before this, `compilerArgs` came from
       // `effectiveDefines` alone and a replacement reading FLUTTER_VERSION
-      // baked
-      // the empty string while the release held 3.44.8.
+      // baked the empty string while the release held 3.44.8.
       late List<String> args;
       runWithOverrides(
         () => const RouteBProducer().produce(
@@ -1788,8 +1787,8 @@ void main() {
 
       test('leaves a named argument exactly as written', () {
         // Nothing here is parsed. If the edit is only `helper` ->
-        // `self.helper`,
-        // named arguments and nesting cannot be disturbed — this pins that.
+        // `self.helper`, named arguments and nesting cannot be disturbed — this
+        // pins that.
         expect(
           lowered(
             instanceCoverage(
@@ -1915,8 +1914,7 @@ void main() {
 
       test('rewrites a read and a write at one position once', () {
         // `label += 'X'`, `count++` and `maybe ??= 'Z'` each report a read AND
-        // a
-        // write at the same identifier — measured, not assumed. One prefix is
+        // a write at the same identifier — measured, not assumed. One prefix is
         // the whole rewrite; two would produce `self.self.label`.
         for (final (decl, out) in [
           (
@@ -2252,9 +2250,9 @@ void main() {
 
         test('asks the CFE to resolve a private receiver class', () {
           // The receiver parameter is written `_RouteBState self`, and this
-          // body
-          // touches no private member, so the class name is the only private
-          // reference. Without the flag the front end reports "Type not found".
+          // body touches no private member, so the class name is the only
+          // private reference. Without the flag the front end reports "Type not
+          // found".
           lowered(
             instanceCoverage(
               preamble: 'class _RouteBState {\n  ',
@@ -2274,22 +2272,19 @@ void main() {
 
         test('asks the CFE to resolve a construction-only private name', () {
           // GATE 6F's BUG, RED FIRST. The test above asserts the lowered SOURCE
-          // and
-          // nothing else, so it passed while the compile could not possibly
-          // succeed:
-          // `_Helper` is private to the target library and the replacement is a
-          // separate synthetic library, so without this flag the CFE reports
+          // and nothing else, so it passed while the compile could not possibly
+          // succeed: `_Helper` is private to the target library and the
+          // replacement is a separate synthetic library, so without this flag
+          // the CFE reports
           //
           //   Error: Method not found: '_Helper'.
           //
           // and the producer surfaces a bare "exit 254". Retention and the
-          // manifest
-          // grant make the constructor exist and be callable; only this flag
-          // lets the
-          // replacement SPELL it. The predicate used to key on private member
-          // ACCESSES alone, and this body has none -- `accesses` is empty and
-          // the
-          // construction is the sole private reference.
+          // manifest grant make the constructor exist and be callable; only
+          // this flag lets the replacement SPELL it. The predicate used to key
+          // on private member ACCESSES alone, and this body has none --
+          // `accesses` is empty and the construction is the sole private
+          // reference.
           lowered(constructs(), granting: grants(classes: [ctorKey]));
           expect(
             lastArguments,
@@ -2325,22 +2320,16 @@ void main() {
 
         test('carries defines AND private-name resolution together', () {
           // ROUTE-B-PRODUCTIONIZATION-1 item B, the interaction the workflow
-          // matrix
-          // could not see. G4.1 (defines) and the private-name flag are
-          // certified on
-          // separate bodies: every defines test uses a body with no private
-          // reference, so the flag is OFF in all of them, and every
-          // private-name test
-          // passes no defines. A release that uses BOTH -- a flavored or
-          // define-carrying app patching a method that constructs a private
-          // class --
-          // was covered by neither.
+          // matrix could not see. G4.1 (defines) and the private-name flag are
+          // certified on separate bodies: every defines test uses a body with
+          // no private reference, so the flag is OFF in all of them, and every
+          // private-name test passes no defines. A release that uses BOTH -- a
+          // flavored or define-carrying app patching a method that constructs a
+          // private class -- was covered by neither.
           //
           // Both must survive in one argument list: losing the defines silently
-          // bakes
-          // a DEFAULT into the replacement while the release holds the real
-          // value,
-          // and losing the flag fails the compile outright.
+          // bakes a DEFAULT into the replacement while the release holds the
+          // real value, and losing the flag fails the compile outright.
           lowered(
             constructs(),
             granting: grants(classes: [ctorKey]),
@@ -2495,19 +2484,18 @@ void main() {
 
         test('accepts a granted private member with no class grant', () {
           // ~~P3's failure.~~ **REWRITTEN 2026-08-25.** The member grant is
-          // what
-          // attach needs; a class-level grant is not, and requiring one was a
-          // misattribution of why P3's grants were inert (P3 never granted the
-          // TARGET member, a public method of a private class). Measured in
+          // what attach needs; a class-level grant is not, and requiring one
+          // was a misattribution of why P3's grants were inert (P3 never
+          // granted the TARGET member, a public method of a private class).
+          // Measured in
           // `selfhost/engine/route_b/probes/p1_dead_allocatability.sh`: Cfix3
           // attaches and reads a private field with no class item anywhere,
           // Cfix -- the same grants minus the target member -- fails at ATTACH.
           //
           // Load-bearing now rather than merely correct: the generator no
-          // longer
-          // emits bare private class items at all, so a release that grants no
-          // constructors has an EMPTY constructible set, and the old rule would
-          // refuse every private reference on every release.
+          // longer emits bare private class items at all, so a release that
+          // grants no constructors has an EMPTY constructible set, and the old
+          // rule would refuse every private reference on every release.
           expect(
             lowered(
               privateRead(),
@@ -2566,8 +2554,7 @@ void main() {
           // selfhost/fixtures/privatestate_app/evidence/VERDICT.md.
           //
           // The braced form `${_x}` was always fine, which is why exactly one
-          // of
-          // three accesses worked in that specimen.
+          // of three accesses worked in that specimen.
           expect(
             lowered(
               instanceCoverage(
@@ -2595,10 +2582,9 @@ void main() {
           // `gen_dynamic_interface.dart` stopped emitting bare private `class:`
           // items, which is what used to grant every private class's public
           // constructors (measured: `p1_dead_allocatability.sh` C1). If a
-          // future
-          // interface regression re-granted one, this still refuses: `_Dead()`
-          // puts the private identifier `_Dead` in the body, and the gate
-          // accepts a private identifier only when it is a granted ACCESS.
+          // future interface regression re-granted one, this still refuses:
+          // `_Dead()` puts the private identifier `_Dead` in the body, and the
+          // gate accepts a private identifier only when it is a granted ACCESS.
           //
           // Worth being explicit about why this matters more than tidiness: an
           // ungranted construction does not fail gracefully on device, it
@@ -2917,9 +2903,8 @@ void main() {
       // Dart imports are NOT transitive, so a replacement that imports only the
       // target library cannot compile a body referencing anything the target
       // IMPORTS. Found on device by the P6 flavor arm, whose body read
-      // Flutter's
-      // `appFlavor`; the symptom was a bare "the bytecode compiler refused its
-      // replacement body (exit 254)".
+      // Flutter's `appFlavor`; the symptom was a bare "the bytecode compiler
+      // refused its replacement body (exit 254)".
       test('are carried into the replacement library', () {
         source.writeAsStringSync(
           "import 'dart:convert';\n"

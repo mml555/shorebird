@@ -416,8 +416,7 @@ abstract class Releaser {
   /// Android fingerprint uses the expansion unverified. Release and patch run
   /// the same expansion, so a mismatch between them is still detected; what is
   /// not detected is a port error that maps two genuinely different files to
-  /// the
-  /// same defines on both sides.
+  /// the same defines on both sides.
   ///
   /// Recording the third state explicitly is the point: "absent" and "unknown"
   /// have different remediations, and collapsing them is how a patch silently

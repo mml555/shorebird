@@ -122,9 +122,8 @@ class RouteBReleaseKernelBuilder {
   /// THE BUG IT CLOSES, stated narrowly: the shipped flavored release receives
   /// FLUTTER_APP_FLAVOR, while these kernels did not — so retention and binding
   /// could be computed against a different Dart program than the one that
-  /// shipped.
-  /// This CLI passes flavor to `buildIpa` as a separate parameter, so it never
-  /// entered `buildArgs` and could not be forwarded from there.
+  /// shipped. This CLI passes flavor to `buildIpa` as a separate parameter, so
+  /// it never entered `buildArgs` and could not be forwarded from there.
   ///
   /// It is synthesised rather than expected among the defines because a legal
   /// invocation can never carry it as one: Flutter exits if a user supplies
@@ -149,8 +148,7 @@ class RouteBReleaseKernelBuilder {
     // G4.1c: the defines FLUTTER injects, which the user never typed and which
     // this list carried none of until now. Emitted first because their position
     // is unobservable -- Flutter refuses a build whose user defines collide
-    // with
-    // any of these keys, so no later `-D` can ever overwrite one.
+    // with any of these keys, so no later `-D` can ever overwrite one.
     //
     // A null map is NOT "no injected defines": it means the caller could not
     // read Flutter's answer, and callers that cannot read it decline to produce
@@ -173,10 +171,9 @@ class RouteBReleaseKernelBuilder {
       }
     }
     // Appended last so it wins over anything already present, mirroring
-    // Flutter's
-    // own xcodebuild-stage removeWhere-then-add (flutter/issues/169598) and
-    // gen_kernel's last-wins duplicate handling, which
-    // probes/g41_define_semantics.sh measured.
+    // Flutter's own xcodebuild-stage removeWhere-then-add
+    // (flutter/issues/169598) and gen_kernel's last-wins duplicate handling,
+    // which probes/g41_define_semantics.sh measured.
     if (flavor != null && flavor.isNotEmpty) {
       forwarded.add('-DFLUTTER_APP_FLAVOR=$flavor');
     }
@@ -490,8 +487,7 @@ ${result.stderr}''',
       '--include',
       'package:$packageName/',
       // PRIVATE ENUMERATION SOURCE, and it is a correctness choice before it is
-      // a
-      // breadth one.
+      // a breadth one.
       //
       // Without this the private list comes from the `--aot` prepass, where TFA
       // has already tree-shaken anything unreachable -- so a private member the
@@ -504,8 +500,7 @@ ${result.stderr}''',
       // The caller supplies this only when the import kernel has been checked
       // against the prepass. If they disagree the caller passes null and the
       // release falls back to prepass-only enumeration -- a NARROWER release,
-      // not
-      // a failed one.
+      // not a failed one.
       if (privateEnumerationKernel != null) ...[
         '--private-dill',
         privateEnumerationKernel.path,
@@ -584,20 +579,19 @@ ${result.stderr}''',
   /// Accessors are excluded, on evidence rather than to make this pass. AOT
   /// lowering materializes a field's implicit getter and setter as real
   /// procedures; a non-AOT kernel leaves them as fields, which the analyzer's
-  /// walk does not visit. On the reference app that is 250 members, and
-  /// **every single one** is a `get:`/`set:` — the 70 that were genuine (a
-  /// missing Dart plugin registrant) were all methods, and they are what this
-  /// check caught on its first real run. A whole missing library, a wrong
-  /// entrypoint, a wrong package config or a wrong target all still surface
-  /// here, because none of those lose only accessors.
-  /// [consequence] completes the sentence a disagreement prints. It exists
-  /// because this check now runs at two different points with two different
-  /// outcomes: late, against the real release kernel, where disagreement means
-  /// patches are refused; and early, against the prepass, where it only means
-  /// private enumeration falls back to the prepass and the release is narrower.
-  /// Printing "patches will be refused" for the second would be a lie that
-  /// sends
-  /// the reader looking for a broken release.
+  /// walk does not visit. On the reference app that is 250 members, and **every
+  /// single one** is a `get:`/`set:` — the 70 that were genuine (a missing Dart
+  /// plugin registrant) were all methods, and they are what this check caught
+  /// on its first real run. A whole missing library, a wrong entrypoint, a
+  /// wrong package config or a wrong target all still surface here, because
+  /// none of those lose only accessors. [consequence] completes the sentence a
+  /// disagreement prints. It exists because this check now runs at two
+  /// different points with two different outcomes: late, against the real
+  /// release kernel, where disagreement means patches are refused; and early,
+  /// against the prepass, where it only means private enumeration falls back to
+  /// the prepass and the release is narrower. Printing "patches will be
+  /// refused" for the second would be a lie that sends the reader looking for a
+  /// broken release.
   bool agreesWith({
     required RouteBCompiler compiler,
     required File importKernel,

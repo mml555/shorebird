@@ -88,8 +88,7 @@ void main() {
         // G4.1c. Flutter appends these after parsing the command line
         // (`flutter_command.dart` _addFlutterVersionToDartDefines), so the
         // shipped kernel has them and, until this landed, no Route B kernel
-        // did.
-        // Measured on a CLEAN `flutter create` app -- no flavor, no
+        // did. Measured on a CLEAN `flutter create` app -- no flavor, no
         // --dart-define -- where the release still receives six.
         expect(
           RouteBReleaseKernelBuilder.forwardedArgs(

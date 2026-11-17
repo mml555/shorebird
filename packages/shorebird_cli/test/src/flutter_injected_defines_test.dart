@@ -113,8 +113,8 @@ DART_DEFINES=$encoded
       test('returns null for a missing file rather than an empty map', () {
         // The distinction is the whole safety property. Null makes the caller
         // decline to produce kernels; an empty map would make it produce
-        // kernels
-        // for the wrong program, silently -- which is the bug being closed.
+        // kernels for the wrong program, silently -- which is the bug being
+        // closed.
         expect(
           FlutterInjectedDefines.fromGeneratedXcconfig(
             File(p.join(tempDir.path, 'absent.xcconfig')),

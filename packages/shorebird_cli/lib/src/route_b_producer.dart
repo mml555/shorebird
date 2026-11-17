@@ -108,11 +108,10 @@ class _Lowered {
 /// Whether [declaration] reads the compile-time environment directly.
 ///
 /// The three `fromEnvironment` constructors are the ONLY expressions whose
-/// value
-/// comes from the `-D` flags handed to the replacement compiler. Anything else
-/// a
-/// replacement references — including the app's own `const` declarations —
-/// resolves through the import kernel, which carries the release's real values.
+/// value comes from the `-D` flags handed to the replacement compiler. Anything
+/// else a replacement references — including the app's own `const` declarations
+/// — resolves through the import kernel, which carries the release's real
+/// values.
 ///
 /// Deliberately a TEXTUAL check and deliberately conservative: it fires on the
 /// constructor name wherever it appears, so a replacement that merely mentions
@@ -413,16 +412,14 @@ Object? $_superIntrinsicName(
       // were recorded cannot be given them retroactively — the values came from
       // a build that is over — so a replacement compiled against it would bake
       // Dart's DEFAULT for any injected define it reads, while the release
-      // around
-      // it holds Flutter's real value. Both are literals by then, so nothing
-      // downstream can notice.
+      // around it holds Flutter's real value. Both are literals by then, so
+      // nothing downstream can notice.
       //
       // REFUSED NARROWLY, and the narrowness is a mechanism argument rather
-      // than
-      // a kindness: a replacement that reads the app's own const resolves it
-      // through the IMPORT KERNEL, which does carry the injected defines since
-      // G4.1c. The only expression that compiles against these `-D` flags is a
-      // `String.fromEnvironment` (or its int/bool siblings) written in the
+      // than a kindness: a replacement that reads the app's own const resolves
+      // it through the IMPORT KERNEL, which does carry the injected defines
+      // since G4.1c. The only expression that compiles against these `-D` flags
+      // is a `String.fromEnvironment` (or its int/bool siblings) written in the
       // replacement source ITSELF. So refusing every patch to a pre-record
       // release would strand releases that have a perfectly correct answer —
       // release 95 and every one before it — to protect against a construct
@@ -433,12 +430,11 @@ Object? $_superIntrinsicName(
         throw RouteBUnsupportedTarget(
           key,
           'its replacement reads the compile-time environment, and this '
-          'release '
-          'predates the record of the defines Flutter injected into it. The '
-          'replacement would compile against a default value while the release '
-          'holds a different one, and nothing downstream could detect it. Cut '
-          'a '
-          'new release with a current CLI and patch that instead',
+          'release predates the record of the defines Flutter injected into '
+          'it. The replacement would compile against a default value while '
+          'the release holds a different one, and nothing downstream could '
+          'detect it. Cut a new release with a current CLI and patch that '
+          'instead',
         );
       }
       // ONLY WHERE A GRANTED PRIVATE REFERENCE IS ACTUALLY CARRIED. The flag
@@ -449,9 +445,8 @@ Object? $_superIntrinsicName(
       //
       // A private CONSTRUCTION is a private reference too. `_Boxed(x)` names a
       // class private to the target library, and the replacement is compiled as
-      // a
-      // separate synthetic library, so without this flag the CFE cannot see the
-      // name at all:
+      // a separate synthetic library, so without this flag the CFE cannot see
+      // the name at all:
       //
       //   Error: Method not found: '_Boxed'.
       //
@@ -460,15 +455,12 @@ Object? $_superIntrinsicName(
       // replacement library may SPELL it. Those are separate problems, and this
       // gate only ever solved the second for member accesses. Found by Gate 6F,
       // the first positive private-construction patch to reach the compiler:
-      // exit
-      // 254 with the grant for `_Boxed.new` present in the manifest.
+      // exit 254 with the grant for `_Boxed.new` present in the manifest.
       //
       // Not a broadening of the admission rule. Admission -- same-method
-      // release
-      // evidence AND a manifest grant, per construction -- has already run and
-      // refused the whole patch before this point (Gate 6E). This decides only
-      // how
-      // a body that was already admitted gets spelled.
+      // release evidence AND a manifest grant, per construction -- has already
+      // run and refused the whole patch before this point (Gate 6E). This
+      // decides only how a body that was already admitted gets spelled.
       //
       // IMPORT THE TARGET'S OWN LIBRARY. A replacement body may reference other
       // members of the library it replaces a function in, and a synthetic
@@ -532,21 +524,17 @@ Object? $_superIntrinsicName(
         ],
         // G4.1: THE RELEASE'S DEFINES, threaded into the replacement's own
         // compilation. `const String.fromEnvironment` resolves at compile time,
-        // so
-        // without these a replacement reading a define would silently bake in
-        // the
-        // DEFAULT while the release around it holds the real value -- a
-        // divergence
-        // no runtime check can see, because both are literals by then.
+        // so without these a replacement reading a define would silently bake
+        // in the DEFAULT while the release around it holds the real value -- a
+        // divergence no runtime check can see, because both are literals by
+        // then.
         //
         // Emitted in sorted key order because order is not semantic (measured
-        // by
-        // probes/g41_define_semantics.sh), which also makes the recorded compile
-        // command reproducible.
+        // by probes/g41_define_semantics.sh), which also makes the recorded
+        // compile command reproducible.
         //
         // The patcher has already refused a mismatch before reaching here, so
-        // these
-        // are the release's values and the patch's values at once.
+        // these are the release's values and the patch's values at once.
         ...?buildConfig?.compilerArgs,
         // The CFE resolves the replacement's private names AS IF it were the
         // target library, which is what makes `self._controller` mean the app's
@@ -901,8 +889,7 @@ Object? $_superIntrinsicName(
       // P4.3. The analyzer's wording is kept verbatim -- it is the part that
       // says which shape -- with a STABLE code in front of it. The prose may be
       // copy-edited; the code is the contract, so a caller or a test can pin
-      // the
-      // boundary without pinning the sentence.
+      // the boundary without pinning the sentence.
       final reason = lowering.unsupported.join('; ');
       final label = routeBAbiLabel(reason);
       throw RouteBUnsupportedTarget(
@@ -910,9 +897,8 @@ Object? $_superIntrinsicName(
         label != null
             ? '$label $reason'
             // A shape-shaped reason this build has no name for is a MAPPING
-            // GAP,
-            // not permission. It still refuses, and it says which it is, so the
-            // gap cannot be mistaken for a new supported shape.
+            // GAP, not permission. It still refuses, and it says which it is,
+            // so the gap cannot be mistaken for a new supported shape.
             : isRouteBAbiReason(reason)
             ? '${RouteBAbiCode.unclassified.wire}(unrecognised) $reason'
             : reason,
@@ -1206,13 +1192,13 @@ Object? $_superIntrinsicName(
     //
     // This used to lower a private receiver to `dynamic`, which made every
     // access on `self` a DYNAMIC call. The AOT runtime refuses a dynamic call
-    // to
-    // any member the release did not mark dynamically callable, and a release
-    // marks almost nothing that way, so on a device a patched `initState`
-    // calling `_start()` died with "Class '_HomeState' has no instance method
-    // '_start'" (1.0.0+8, patch 3). The dynamic type also spread: `self._count
-    // + 1` was a dynamic `+` on an int, refused the same way. In Flutter that
-    // was most patches, because a State class is private by convention.
+    // to any member the release did not mark dynamically callable, and a
+    // release marks almost nothing that way, so on a device a patched
+    // `initState` calling `_start()` died with "Class '_HomeState' has no
+    // instance method '_start'" (1.0.0+8, patch 3). The dynamic type also
+    // spread: `self._count + 1` was a dynamic `+` on an int, refused the same
+    // way. In Flutter that was most patches, because a State class is private
+    // by convention.
     //
     // Typed, the front end resolves every access statically, exactly as it did
     // when the body was compiled inside the class: an interface call bound to
@@ -1269,8 +1255,7 @@ Object? $_superIntrinsicName(
     } else {
       // The receiver parameter goes into the method's own parameter list, found
       // by scanning from the NAME — an annotation's parentheses come earlier
-      // and
-      // would otherwise match first.
+      // and would otherwise match first.
       final open = source.indexOf('(', lowering.nameOffset);
       if (open < 0 || open >= span.end) {
         throw RouteBUnsupportedTarget(
@@ -1313,11 +1298,11 @@ Object? $_superIntrinsicName(
       // A CALL TO A NEW INSTANCE METHOD (analysis version 17). The helper is a
       // top-level function taking the receiver first, so `_m(a)` and
       // `this._m(a)` both become `_m(self, a)`: the `(` after the name gains
-      // the
-      // receiver, and an explicit `this.` goes. The argument list is otherwise
-      // copied verbatim. The `(` is replaced rather than inserted after, so
-      // that a receiver use that starts the argument list (`_m(label)`, whose
-      // own edit sits at the next offset) cannot collide with it.
+      // the receiver, and an explicit `this.` goes. The argument list is
+      // otherwise copied verbatim. The `(` is replaced rather than inserted
+      // after, so that a receiver use that starts the argument list
+      // (`_m(label)`, whose own edit sits at the next offset) cannot collide
+      // with it.
       if (access.kind == 'helperCall') {
         final nameEnd = access.offset + access.member.length;
         if (nameEnd > span.end ||
@@ -1419,10 +1404,8 @@ Object? $_superIntrinsicName(
       final dollar = access.offset - 1;
       if (dollar >= span.start && source[dollar] == r'$') {
         // A `$$` escape is not an interpolation. Refuse rather than reason
-        // about
-        // it -- it cannot appear in a receiver access this analyzer reported,
-        // so
-        // reaching here means the two disagree.
+        // about it -- it cannot appear in a receiver access this analyzer
+        // reported, so reaching here means the two disagree.
         if (dollar - 1 >= span.start && source[dollar - 1] == r'$') {
           throw RouteBUnsupportedTarget(
             key,
@@ -1431,8 +1414,7 @@ Object? $_superIntrinsicName(
           );
         }
         // Replace `$NAME` with `${self.NAME}`: one edit, spanning the `$` and
-        // the
-        // identifier, so nothing after the identifier is touched.
+        // the identifier, so nothing after the identifier is touched.
         edits.add((
           dollar,
           1 + access.member.length,
