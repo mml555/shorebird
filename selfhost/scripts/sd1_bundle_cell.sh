@@ -48,6 +48,9 @@ bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; fail=$((fail+1)); }
 note(){ printf '\n\033[1m== %s\033[0m\n' "$1"; }
 
 [[ -f "$MAN" ]] || { echo "no descriptor for $CELL" >&2; exit 2; }
+# Before $OUT is cleared, so a mistyped overlay costs nothing.
+[[ -d "$OVERLAY" ]] || { echo "no overlay at $OVERLAY (set OVERLAY, or mint into the default)" >&2; exit 2; }
+echo "overlay: $OVERLAY"
 rm -rf "$OUT"; mkdir -p "$OUT"
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/sd1stage.XXXXXX")
 trap 'rm -rf "$STAGE"' EXIT
