@@ -3044,11 +3044,19 @@ class _ExternalUses extends RecursiveVisitor {
 
   @override
   void visitFunctionNode(FunctionNode node) {
+    // The twin of the collector's, minus a redirecting factory (a patch carries
+    // procedure bodies, never a factory header). A type parameter's bound and
+    // an async function's emitted value type are part of the signature the
+    // loader reads, exactly as a parameter's type is.
+    for (final t in node.typeParameters) {
+      t.accept(this);
+    }
     for (final v in [...node.positionalParameters, ...node.namedParameters]) {
       v.type.accept(this);
       v.initializer?.accept(this);
     }
     node.returnType.accept(this);
+    node.emittedValueType?.accept(this);
     node.body?.accept(this);
   }
 

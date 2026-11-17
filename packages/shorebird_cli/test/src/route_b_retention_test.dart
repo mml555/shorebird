@@ -72,6 +72,7 @@ RouteBCoverage _analysis(
   List<Map<String, Object?>> references, {
   Map<String, List<Map<String, Object?>>> helpers = const {},
   int version = 18,
+  Set<String> omit = const {},
 }) => RouteBCoverage.fromJson(
   jsonEncode({
     'analysisVersion': version,
@@ -88,7 +89,11 @@ RouteBCoverage _analysis(
     'patchable': [_target],
     'conditional': <String>[],
     'sources': <String, Object?>{},
-    if (version >= 18) 'externalReferences': {_target: references, ...helpers},
+    if (version >= 18)
+      'externalReferences': {
+        for (final e in {_target: references, ...helpers}.entries)
+          if (!omit.contains(e.key)) e.key: e.value,
+      },
     'rejections': <Object>[],
     'refusalSummary': null,
   }),
@@ -194,7 +199,7 @@ void main() {
       void expectKeptNothing(String? reason, String symbol) {
         expect(reason, isNotNull);
         expect(reason, contains(symbol));
-        expect(reason, contains('the release did not keep'));
+        expect(reason, contains('never used in its own code'));
         expect(reason, contains('new release'));
       }
 
@@ -221,7 +226,7 @@ void main() {
               member: 'parse',
             ),
           ]),
-          '`int.parse` (dart:core)',
+          '`int.parse`',
         );
       });
 
@@ -299,7 +304,7 @@ void main() {
               ],
             },
           ),
-          '`int.parse` (dart:core)',
+          '`int.parse`',
         );
       });
 
@@ -336,6 +341,135 @@ void main() {
         expect(reason, contains('`f0`'));
         expect(reason, contains('and 2 more'));
         expect(reason, isNot(contains('`f6`')));
+      });
+    });
+
+    group('the rules the loader sets', () {
+      test('an instance member needs only its class to be findable', () {
+        // `State.widget`-shaped: the member is not in the interface, the
+        // class is. The loader supplies a stand-in for an interface target
+        // (retention_loader.sh: THROWS at the call, never an abort).
+        expect(
+          refusal([
+            _ref(
+              'instance',
+              'package:crypto/src/hash.dart',
+              cls: 'Hash',
+              member: 'get:blockSize',
+            ),
+          ]),
+          isNull,
+        );
+      });
+
+      test('an instance member of a class the release never kept', () {
+        expect(
+          refusal([
+            _ref(
+              'instance',
+              'package:flutter/src/widgets/basic.dart',
+              cls: 'Padding',
+              member: 'get:child',
+            ),
+          ]),
+          allOf(contains('`Padding.child`'), contains('new release')),
+        );
+      });
+
+      test('a bare class item keeps its public members', () {
+        final bare = RouteBRetention.parse("""
+callable:
+  - library: 'package:dep/dep.dart'
+    class: 'Box'
+""");
+        expect(
+          refusal([
+            _ref('instance', 'package:dep/dep.dart', cls: 'Box', member: 'x'),
+            _ref('static', 'package:dep/dep.dart', cls: 'Box', member: 'y'),
+          ], with_: bare),
+          isNull,
+        );
+        expect(
+          refusal([
+            _ref('static', 'package:dep/dep.dart', cls: 'Other', member: 'y'),
+          ], with_: bare),
+          isNotNull,
+        );
+      });
+
+      test('a private class named as a type is kept by the interface', () {
+        final typed = RouteBRetention.parse(
+          """
+can-be-used-as-type:
+  - library: 'package:app/main.dart'
+    class: ['_Marker']
+""",
+          capabilities: RouteBCapabilities.fromJson(_grants),
+        );
+        expect(
+          refusal([
+            _ref(
+              'class',
+              'package:app/main.dart',
+              cls: '_Marker',
+              private: true,
+            ),
+          ], with_: typed),
+          isNull,
+        );
+      });
+
+      test('a private construction is left to the release evidence', () {
+        // The manifest withholds every private construction; analysis 12's
+        // per-method evidence decides, so this check must not refuse it.
+        expect(
+          refusal([
+            _ref(
+              'constructor',
+              'package:app/main.dart',
+              cls: '_Home',
+              member: '',
+              private: true,
+            ),
+          ]),
+          isNull,
+        );
+      });
+
+      test('a framework library is not spelled in the refusal', () {
+        final why = refusal([
+          _ref(
+            'constructor',
+            'package:flutter/src/widgets/basic.dart',
+            cls: 'Padding',
+            member: '',
+          ),
+        ]);
+        expect(why, contains('`Padding`'));
+        expect(why, isNot(contains('package:flutter')));
+      });
+    });
+
+    group('a target the analysis recorded nothing for', () {
+      test('is refused, not read as using nothing', () {
+        final coverage = _analysis(const [], omit: {_target});
+        expect(
+          retention.refusalForTarget(coverage, _target),
+          allOf(contains('`build`'), contains('recorded nothing')),
+        );
+      });
+
+      test('is refused when it is a helper the target needs', () {
+        const helper = 'package:app/main.dart#_extra';
+        final coverage = _analysis(
+          const [],
+          helpers: {helper: const []},
+          omit: {helper},
+        );
+        expect(
+          retention.refusalForTarget(coverage, _target),
+          contains('`_extra`'),
+        );
       });
     });
 
@@ -439,7 +573,7 @@ void main() {
         ..writeAsStringSync(declaration);
     });
 
-    test('refuses a target that names a symbol the release did not keep, '
+    test('refuses a target that names a symbol never used in its own code, '
         'before compiling', () {
       expect(
         () => produce(
@@ -455,7 +589,7 @@ void main() {
               .having(
                 (e) => e.reason,
                 'reason',
-                contains('the release did not keep'),
+                contains('never used in its own code'),
               ),
         ),
       );

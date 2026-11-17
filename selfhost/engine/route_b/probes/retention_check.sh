@@ -24,6 +24,7 @@
 #                         own body calls only retained code
 #   carried_helper_bad    the same, but the carried helper's body calls int.parse
 #   no_interface          no interface at all: refused, never waved through
+#   unchanged_release_sweep  the release's own members carried against themselves: all kept
 #
 #   OUT=$HOME/shorebird-engine/flutter/engine/src/out/host_release_arm64_ddm \
 #     retention_check.sh <route_b dir>
@@ -143,6 +144,27 @@ arm private_not_granted refused "_rtPriv" "_rtPriv()" "" "" di.yaml manifest_wit
 arm carried_helper ok "" "_rtNew()" "String _rtNew() => DateTime.now().toString();"
 arm carried_helper_bad refused "int.parse" "_rtNew()" "String _rtNew() => int.parse('1').toString();"
 arm no_interface refused "no readable dynamic interface" "rtApp()" "" "" -
+
+# unchanged_release_sweep -- an INVARIANT, not a shape. A body the release
+# already compiled can only name what the generator retained from it, so the
+# release's own members, analyzed as if carried (`--carry`) against themselves,
+# must ALL be kept. A collector or matcher drift (a private name spelled
+# differently, an export vs the declaring library, a node walked twice or not at
+# all) shows up here as a refusal of code that is, by construction, fine.
+if want unchanged_release_sweep; then
+  echo; echo "==> unchanged_release_sweep"
+  d=$WORK/unchanged_release_sweep; mkdir -p "$d"
+  carry=()
+  for k in main applyPatchContainer revertAll _parse jsonDecodeMap alpha beta _state rtTarget rtApp _rtPriv rtSha; do
+    carry+=(--carry "$URI#$k")
+  done
+  "$DART" $KERNEL_PKGS "$RB/coverage/analyze_coverage.dart" --base-dill base.dill --patched-dill base.dill "${carry[@]}" --out "$d/coverage.json"
+  "$DART" --packages="$CLI_PKGS" "$HERE/cli_retention.dart" "$d/coverage.json" di.yaml manifest.json > "$d/verdict.log" 2>&1 || true
+  sed 's/^/  /' "$d/verdict.log"
+  swept=$(grep -c '^OK' "$d/verdict.log" || true)
+  if ! grep -q '^REFUSED\|^NOT-MEASURED' "$d/verdict.log" && [ "$swept" -ge 8 ]; then record unchanged_release_sweep PASS
+  else record unchanged_release_sweep "FAIL ($swept kept, or a refusal above)"; fi
+fi
 
 echo; echo "== SUMMARY"
 for r in "${RESULTS[@]}"; do printf '  %-28s %s\n' "${r%%|*}" "${r#*|}"; done

@@ -663,7 +663,7 @@ A patch is only interpretable against one whole contract, so these cannot be mix
     if (reasons.isEmpty) return;
     final buffer = StringBuffer()
       ..writeln(
-        'This patch cannot be built: it uses code the release did not keep.',
+        'This patch cannot be built: it uses code the release never used in its own code.',
       )
       ..writeln();
     for (final entry in reasons.entries) {

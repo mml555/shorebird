@@ -352,23 +352,66 @@ whole patch before anything is uploaded when a symbol is not shown to be kept:
 | public, in a library the interface lists whole (`library:` alone) | always |
 | a member the interface names (`library:`, `class:`, `member:`): SDK members, framework and dependency members the release's own code named | the item is present |
 | a class | a `class:` or `can-be-used-as-type:` item names it |
-| private, and spelled by the patch | the capability manifest granted it (as for every private reference) |
+| a bare `class:` item (older generators) | the class and its public members |
+| an instance member of a non-`dart:` class | its class is findable (see below) |
+| private, and spelled by the patch | the capability manifest granted it (as for every private reference); a private class named as a type is also kept by an interface item for it |
+| private constructor | not decided here: analysis 12's per-method release evidence decides whether a patch may construct it (the manifest withholds every construction, so asking it would refuse `createState() => _HomeState()`; the sweep arm found this) |
 | private, and named only by a constant | the interface item for it is present |
 
-The reason names the symbol, says the release did not keep it, and says to cut a
-new release that uses it. Fail closed: no readable interface, or a body the
-analyzer could not walk, refuses.
+**A patch that uses a widget or framework API the release never used is refused.**
+That is the commonest consequence: after this lands, adding `Padding(...)`,
+`Icon(...)`, `Theme.of(context)`, `EdgeInsets.all(8)` or `Navigator.of(context)
+.push(...)` to a release whose own code never called them is refused, with the
+symbol named and "cut a new release whose own code uses it". Evidence, from the
+real loader (`probes/retention_loader.sh`, a dependency package standing in for
+Flutter, one arm per kind of reference; Flutter itself was not run here):
+
+| a body that names | loader | check |
+|---|---|---|
+| a class the release never used | aborts: `Unable to find class` | refused |
+| a constructor, static, static field or top-level the release never named | aborts: `Unable to find function` / `field` | refused |
+| a static or top-level the release reaches but never names (the AOT compiler inlined it) | aborts | refused |
+| an instance member of a class the release kept, never named | loads; throws `NoSuchMethodError` when called | accepted |
+| a local variable whose declared type is a class the release never used | loads | accepted |
+| the same with `never-inline` on it | aborts | refused |
+| a class the release allocates but never names, with a member it calls virtually (`(pick() as Circle).name()`) | binds | **refused anyway** |
+
+The last row is the check's one measured conservatism, stated rather than hidden:
+the snapshot has that class, but nothing at patch time says so (the interface is
+the only witness), so it is refused as "never used in the release's own code". A
+framework class that other framework code allocates (`Padding`, built inside
+Material widgets) may be one of them. No static, top-level, constructor or field
+arm bound without being named. Closing the class gap would take the release's AOT
+kernel at patch time, which the CLI does not have; it is not done here.
+
+The reason names the symbol, says the release never used it in its own code, and
+says to cut a new release that uses it. Fail closed: no readable interface, a
+body the analyzer could not walk, or a member the analysis recorded nothing for,
+refuses.
 
 What this does NOT check, so a pass is not read as more than it is:
 
 - an instance member of a `dart:` class (`s.substring(1)`): it binds by selector
   at run time, the release generator leaves it out of the interface on purpose,
-  and its failure is a `NoSuchMethodError`, not an abort;
+  and its failure is a `NoSuchMethodError`, not an abort. An instance member of
+  any other class is checked by its class only, for the same reason: the loader
+  gives an interface target a stand-in, so a missing one throws when called
+  (`inst_*` arms) rather than aborting;
 - a reference the compiler adds that no source token names (interpolation,
   `for`, `async`), and `dart:_` libraries;
-- the declared type of a local variable (not known to be emitted);
+- an extension member (`list.firstOrNull`, `Ext|get#x`): the generator skips
+  these too, so nothing checks that the release kept one;
+- the declared type of a local variable: measured to load without the class
+  (`local_type_only`); an assignment or cast to it is a type node and is checked;
 - that a kept symbol has code in the snapshot. Retention is not compilation (see
   `super0/s2b1e/`); this answers "can the loader find it", not "was it compiled".
+
+The walker also reads type-parameter bounds and an async function's emitted value
+type, as the release generator's collector does. It is the one piece of this that
+needs the engine's `package:kernel`, so no CI job can run it; the CI tests cover
+the matcher and the producer, and the host probes cover the walker, including an
+invariant arm (`unchanged_release_sweep`): the release's own members, analyzed as
+if carried against themselves, must all be kept.
 
 Where it lives: the analyzer states the facts, because only it can read a kernel;
 the CLI decides, because only it holds the release's interface and manifest
@@ -377,9 +420,11 @@ private constructions, analysis 12). The patcher asks before the coverage verdic
 so a dependency API is named for what it is, and the producer asks again for the
 members it carries (a carry can add members after the first analysis). A release
 whose compiler cell predates analysis 18 cannot be checked: the patch is built as
-before and the CLI warns, the same as for analysis 14. This takes effect for a
-release only once a cell with the version 18 analyzer is minted and that
-release is cut on it. Host evidence: `probes/retention_check.sh`.
+before and the CLI says so at detail level, not as a warning (every older release
+would print it on every patch, and nothing the developer can do changes it). This
+takes effect for a release only once a cell with the version 18 analyzer is
+minted and that release is cut on it. Host evidence: `probes/retention_check.sh`
+and `probes/retention_loader.sh`.
 
 Still refused, before anything is uploaded, with the reason named:
 

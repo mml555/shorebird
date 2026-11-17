@@ -4,45 +4,62 @@
 // bytecode names?
 //
 // WHY THIS EXISTS. A replacement body is compiled against the release's whole
-// import kernel, so it compiles whatever it names. It RUNS against the release's
-// AOT snapshot, which holds only what the release retained, and the bytecode
-// loader resolves every library, class, field and function by name and ABORTS THE
-// PROCESS when one is missing (`bytecode_reader.cc`: "Unable to find library",
-// "class", "field", "function"). Seam 6 attaches before `main`, so that is a boot
-// abort. Before this check the only things standing between such a patch and a
-// device were an accident (a dependency API the release never called shows up in
-// the analysis as a new class, and is refused for that) and nothing at all (a
+// import kernel, so it compiles whatever it names. It RUNS against the
+// release's AOT snapshot, which holds only what the release retained, and the
+// bytecode loader resolves every library, class, field and function by name
+// and ABORTS THE PROCESS when one is missing (`bytecode_reader.cc`: "Unable to
+// find library", "class", "field", "function"). Seam 6 attaches before `main`,
+// so that is a boot abort. Before this check the only things standing between
+// such a patch and a device were an accident (a dependency API the release
+// never called shows up in the analysis as a new class) and nothing at all (a
 // framework or SDK symbol, which the analysis does not diff).
 //
-// WHAT COUNTS AS RETAINED is what the release's dynamic interface says, and only
-// that: it is the artifact the release was built with, hash-verified in the
-// release's provenance. It keeps
+// MEASURED, not assumed (`probes/retention_loader.sh`, real snapshot and real
+// loader, a dependency package standing in for Flutter): a class, constructor,
+// static, static field or top-level the release never named ABORTS, even when
+// release code reaches it (the AOT compiler inlines it away). An INSTANCE
+// member does not: the loader reads it through an interface target and supplies
+// a stand-in, so it needs only its class to be findable, and a call to a member
+// that is not there throws `NoSuchMethodError` when made. That is why an
+// instance member is checked by its class here and every other kind by name.
+//
+// WHAT COUNTS AS RETAINED is what the release's dynamic interface says, and
+// only that: it is the artifact the release was built with, hash-verified in
+// the release's provenance. It keeps
 //
 //   * a `library:` item with no class or member: every PUBLIC class and member
 //     of that library (the app's own libraries, whole);
 //   * a `library:`/`class:`/`member:` item: that member (the SDK members, the
 //     framework and dependency members the release's own code named, the
 //     private members, the granted constructors);
-//   * a `class:` item or a `can-be-used-as-type:` class: that class, findable by
-//     name.
+//   * a `class:` item with no member: the class and its public members;
+//   * a `can-be-used-as-type` class: that class, findable by name.
 //
-// A private member additionally has the release's capability manifest to answer
-// it, as everywhere else in Route B.
+// A private member additionally has the release's capability manifest to
+// answer it, as everywhere else in Route B.
 //
 // FAIL CLOSED. A reference whose retention cannot be established is refused:
 // not in the interface, no interface at all, an interface this build cannot
-// read, or a body the analyzer could not walk. "Could not tell" is never "kept".
+// read, a body the analyzer could not walk, or a member the analysis recorded
+// nothing for. "Could not tell" is never "kept".
+//
+// The interface is a CONSERVATIVE witness: a static the release reaches but
+// never names (a widget constructor a Material widget builds, say) may well be
+// in the snapshot, and is refused anyway because nothing at patch time says so.
+// The refusal is worded for that: the release's own code never used it.
 //
 // WHAT IT DOES NOT COVER, said once so nobody reads more into a pass:
 //
-//   * an instance member of a `dart:` class (`s.substring(1)`). It binds by
-//     selector at run time, the release generator leaves it out of the interface
-//     on purpose, and its failure is a `NoSuchMethodError`, not a boot abort;
+//   * an instance member of a `dart:` class (`s.substring(1)`), and whether a
+//     non-`dart:` instance member exists at run time (see above);
 //   * a reference the compiler adds that no source token names (string
-//     interpolation, `for`, `async`), and `dart:_` libraries, which no interface
-//     can hold and no patch spells;
-//   * the declared type of a local variable, which the bytecode is not known to
-//     emit.
+//     interpolation, `for`, `async`), and `dart:_` libraries, which no
+//     interface can hold and no patch spells;
+//   * an extension member (`list.firstOrNull`, `Ext|get#x`): the generator
+//     skips these too, so nothing checks that the release kept one;
+//   * the declared type of a local variable. Measured: a never-used class as
+//     the type of an unassigned local loads (`local_type_only`); an
+//     assignment or cast to it is a type node and is collected.
 import 'dart:io';
 
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
@@ -56,6 +73,7 @@ class RouteBRetention {
     this.wholeLibraries = const {},
     this.members = const {},
     this.classes = const {},
+    this.wholeClasses = const {},
     this.capabilities,
   });
 
@@ -83,6 +101,7 @@ class RouteBRetention {
     final whole = <String>{};
     final members = <String>{};
     final classes = <String>{};
+    final wholeClasses = <String>{};
 
     List<YamlMap> items(String section) {
       final raw = document[section];
@@ -111,7 +130,10 @@ class RouteBRetention {
       if (cls == null && member == null) {
         whole.add(library);
       } else if (member == null) {
+        // A bare class item keeps the class AND its public members (the
+        // generator's own wording), as older generators wrote them.
         classes.add('$library#${cls as String}');
+        wholeClasses.add('$library#$cls');
       } else {
         // A member item keeps its class findable too, which is what the
         // generator relies on when it adds the class to the type list.
@@ -133,6 +155,7 @@ class RouteBRetention {
       wholeLibraries: whole,
       members: members,
       classes: classes,
+      wholeClasses: wholeClasses,
       capabilities: capabilities,
     );
   }
@@ -165,6 +188,9 @@ class RouteBRetention {
   /// `library#Class`, findable by name.
   final Set<String> classes;
 
+  /// `library#Class` kept by a bare `class:` item: every public member too.
+  final Set<String> wholeClasses;
+
   /// The release's capability manifest, if it published one.
   final RouteBCapabilities? capabilities;
 
@@ -181,6 +207,20 @@ class RouteBRetention {
         !r.viaConstant) {
       return null;
     }
+    // An instance member is read through an INTERFACE target: when the member
+    // is missing the loader supplies a stand-in carrying its name (see
+    // `InterfaceTargetStandIn`, bytecode_reader.cc), so only its CLASS has to
+    // be findable for the patch to load. The call then runs, or throws
+    // `NoSuchMethodError` when it is made, which is a failure of that call and
+    // not a boot abort. The probe `retention_loader.sh` measures both. (A
+    // private member still answers to the manifest, below.)
+    if (r.kind == 'instance' && !r.isPrivate && r.className != null) {
+      final cls = r.className!;
+      final found =
+          classes.contains('${r.library}#$cls') ||
+          wholeLibraries.contains(r.library);
+      return found ? null : _describe(r);
+    }
     return _retained(r) ? null : _describe(r);
   }
 
@@ -194,20 +234,29 @@ class RouteBRetention {
     if (r.isPrivate && !r.viaConstant) {
       final caps = capabilities;
       if (caps == null) return false;
-      if (member == null) return _manifestKeepsClass(r.library, cls!);
+      if (member == null) {
+        // A private class named as a type (`is _Marker`): the interface keeps
+        // it findable, or the manifest lists one of its members.
+        return classes.contains('${r.library}#$cls') ||
+            _manifestKeepsClass(r.library, cls!);
+      }
       return switch (r.kind) {
         'top-level' =>
           caps.refuseTopLevel(library: r.library, member: member) == null,
-        'constructor' => caps.classesConstructible.contains(
-          '${r.library}#$cls.${member.isEmpty ? 'new' : member}',
-        ),
+        // Not this check's to answer: whether a patch may CONSTRUCT a private
+        // class is analysis 12's evidence (the release's own version of the
+        // method constructed it), which is what puts the function in the
+        // snapshot. The manifest withholds every construction by design, so
+        // asking it here would refuse `createState() => _HomeState()`
+        // (`unchanged_release_sweep` found exactly that).
+        'constructor' => true,
         _ =>
           caps.refuseInstanceMember(
-                library: r.library,
-                className: cls!,
-                member: member,
-              ) ==
-              null ||
+                    library: r.library,
+                    className: cls!,
+                    member: member,
+                  ) ==
+                  null ||
               caps.classPublicMembers.contains(key),
       };
     }
@@ -217,6 +266,11 @@ class RouteBRetention {
           (!r.isPrivate && wholeLibraries.contains(r.library));
     }
     if (members.contains(key)) return !_manifestSkips(key);
+    if (!r.isPrivate &&
+        cls != null &&
+        wholeClasses.contains('${r.library}#$cls')) {
+      return true;
+    }
     return !r.isPrivate && wholeLibraries.contains(r.library);
   }
 
@@ -234,26 +288,45 @@ class RouteBRetention {
     ].any((k) => k.startsWith(prefix));
   }
 
-  /// "`DateTime.now` (dart:core)", the way a developer would name it.
+  /// "`Padding`", the way a developer would name it. The library is added only
+  /// where it helps: a framework path (`package:flutter/src/widgets/...`) is
+  /// not something the developer wrote.
   static String _describe(RouteBExternalReference r) {
     final what = switch (r.kind) {
       'class' => 'the ${r.isPrivate ? 'private ' : ''}class',
       'constructor' => 'the ${r.isPrivate ? 'private ' : ''}constructor',
       _ => r.isPrivate ? 'the private member' : 'the symbol',
     };
-    return '$what `${r.displayName}` (${r.library})';
+    final lib = r.library;
+    final where = lib.startsWith('dart:') || lib.startsWith('package:flutter/')
+        ? ''
+        : ' ($lib)';
+    return '$what `${r.displayName}`$where';
   }
 
   /// The symbols among [keys]' references that the release did not keep.
   List<String> unretained(RouteBCoverage coverage, Iterable<String> keys) {
     final all = coverage.externalReferences;
     if (all == null) return const [];
-    return {
-      for (final key in keys)
-        for (final r in all[key] ?? const <RouteBExternalReference>[])
-          if (refuse(r) case final why?) why,
-    }.toList();
+    final out = <String>{};
+    for (final key in keys) {
+      final references = all[key];
+      if (references == null) {
+        // No entry is "not measured", never "uses nothing".
+        out.add(
+          'what `${_selector(key)}` uses (the analysis recorded nothing for '
+          'it, and a symbol that cannot be shown to be kept is not kept)',
+        );
+        continue;
+      }
+      for (final r in references) {
+        if (refuse(r) case final why?) out.add(why);
+      }
+    }
+    return out.toList();
   }
+
+  static String _selector(String key) => key.substring(key.indexOf('#') + 1);
 
   /// [refusal] for [key] and the helpers its replacement library carries.
   String? refusalForTarget(RouteBCoverage coverage, String key) =>
@@ -281,10 +354,11 @@ String? describeRouteBUnretained(List<String> symbols) {
   final more = symbols.length > shown
       ? ', and ${symbols.length - shown} more'
       : '';
-  return 'it uses $named$more, which the release did not keep. A patch can '
-      'only use code the release was built to keep; anything else cannot be '
-      'found when the patch loads, and the app would stop at launch. Cut a '
-      'new release that uses it, then patch that';
+  return 'it uses $named$more, which the release never used in its own code. A '
+      'patch can only call what the release was built to keep, and the loader '
+      'stops the app at launch when a class, constructor, static or top-level '
+      'it names is not there. Cut a new release whose own code uses it (a '
+      'call is enough), then patch that';
 }
 
 /// The refusal for a release whose interface is missing or unreadable, when the
