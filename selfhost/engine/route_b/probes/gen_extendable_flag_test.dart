@@ -1,3 +1,4 @@
+// cspell:words nohash
 // Unit test for gen_dynamic_interface.dart's --extendable flag
 // (extendableSections). Plain asserts, no package:test, like the other probes.
 // Run with the Dart tree's package config so package:kernel resolves:
