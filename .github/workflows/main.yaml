@@ -39,6 +39,9 @@ jobs:
     # a pull request from a fork keeps the hosted runner, so outside
     # contributors' code never reaches the LAN.
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    # A stalled checkout or fetch fails here instead of holding a runner
+    # for GitHub's six-hour default; the job normally takes under two minutes.
+    timeout-minutes: 15
     if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     steps:
       - name: 📚 Git Checkout
@@ -86,6 +89,9 @@ jobs:
   cspell_full_tree:
     name: 🔤 Check Spelling (full tree)
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    # A stalled checkout or fetch fails here instead of holding a runner
+    # for GitHub's six-hour default; the job normally takes under two minutes.
+    timeout-minutes: 15
     if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     steps:
       - name: 📚 Git Checkout
@@ -136,6 +142,9 @@ jobs:
 
   changes:
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    # A stalled checkout or fetch fails here instead of holding a runner
+    # for GitHub's six-hour default; the job normally takes under two minutes.
+    timeout-minutes: 10
     if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     permissions:
       contents: read
