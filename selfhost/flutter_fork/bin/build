@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# build TREE CONFIG... [-j N] [--allow-frozen] [--dry-run] [--gn-only]
+#
+# CONFIG is one of: ios_release ios_release_rb host_release_arm64 host_release_arm64_ddm
+# Takes the heavy lock, runs gn then ninja (-j default 6, never above 8) under caffeinate,
+# logs to $W/logs/build-TREE-CONFIG-TIMESTAMP.log, writes $W/logs/build.pid while running.
+# Refuses the frozen tree unless --allow-frozen.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+tree_arg="" configs=() jobs=6 allow=0 dry=0 gn_only=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -j) jobs="$2"; shift 2 ;;
+    --allow-frozen) allow=1; shift ;;
+    --dry-run) dry=1; shift ;;
+    --gn-only) gn_only=1; shift ;;
+    -h|--help) sed -n 2,8p "$0"; exit 0 ;;
+    -*) die "unknown flag $1" ;;
+    *) if [[ -z "$tree_arg" ]]; then tree_arg="$1"; else configs+=("$1"); fi; shift ;;
+  esac
+done
+[[ -n "$tree_arg" && ${#configs[@]} -gt 0 ]] || die "usage: build TREE CONFIG... [-j N]"
+(( jobs > 8 )) && { warn "capping -j $jobs to 8 (shared Mac)"; jobs=8; }
+tree="$(tree_dir "$tree_arg")"; require_tree "$tree"
+if is_frozen "$tree" && [[ "$allow" != 1 ]]; then die "$tree is the frozen supported-cell tree; pass --allow-frozen if you mean it"; fi
+src="$tree/engine/src"
+
+# config -> "gn flags|ninja targets"
+spec() {
+  case "$1" in
+    ios_release)          echo "--ios --runtime-mode=release --no-prebuilt-dart-sdk|flutter/shell/platform/darwin/ios:flutter_framework flutter/lib/snapshot:generate_snapshot_bins" ;;
+    ios_release_rb)       echo "--ios --runtime-mode=release --no-prebuilt-dart-sdk --dart-dynamic-modules --target-dir ios_release_rb --gn-args=shorebird_route_b=true|flutter/shell/platform/darwin/ios:flutter_framework flutter/lib/snapshot:generate_snapshot_bins" ;;
+    host_release_arm64)   echo "--runtime-mode=release --mac-cpu arm64 --no-prebuilt-dart-sdk|gen_snapshot dartaotruntime dart dart_sdk vm_platform.dill" ;;
+    host_release_arm64_ddm) echo "--runtime-mode=release --mac-cpu arm64 --no-prebuilt-dart-sdk --dart-dynamic-modules --target-dir host_release_arm64_ddm|gen_snapshot dartaotruntime dart dart_sdk vm_platform.dill" ;;
+    *) die "unknown config $1" ;;
+  esac
+}
+outdir() { case "$1" in ios_release|host_release_arm64) echo "$1" ;; *) echo "$1" ;; esac; }
+
+dart_rev="$(dart_rev_effective "$tree")"
+[[ "$dart_rev" == *PLACEHOLDER* ]] && die "dart_sdk_revision is still the placeholder; run bin/sync with --dart-rev SHA first"
+say "tree $tree  dart $dart_rev  -j $jobs"
+for c in "${configs[@]}"; do
+  IFS='|' read -r flags targets <<<"$(spec "$c")"
+  say "plan $c: gn $flags ; ninja -C out/$(outdir "$c") -j$jobs $targets"
+done
+[[ "$dry" == 1 ]] && exit 0
+need_disk 20
+mkdir -p "$W/logs"
+heavy_acquire
+echo $$ > "$W/logs/build.pid"
+trap 'rm -f "$W/logs/build.pid"; heavy_release' EXIT
+for c in "${configs[@]}"; do
+  IFS='|' read -r flags targets <<<"$(spec "$c")"
+  log="$W/logs/build-$(basename "$tree")-$c-$(date +%Y%m%d-%H%M%S).log"
+  say "$c: logging to $log"
+  (
+    cd "$src"
+    # shellcheck disable=SC2086
+    flutter/tools/gn $flags
+    [[ "$gn_only" == 1 ]] && exit 0
+    # shellcheck disable=SC2086
+    caffeinate -i ninja -C "out/$(outdir "$c")" -j"$jobs" $targets
+  ) >"$log" 2>&1 || { tail -30 "$log"; die "$c failed; full log $log"; }
+  say "$c done"
+done

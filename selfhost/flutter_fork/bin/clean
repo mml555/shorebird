@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# cspell:words elif esac
+# clean [TREE] [--dry-run] [--configs a,b] [--include-supported] [--allow-frozen]
+#
+# Lists engine/src/out/* configs of TREE (default 350) by size and age. With --configs it
+# deletes ONLY those. Configs the supported cell needs (ios_release, ios_release_rb,
+# ios_release_rb_gen, host_release_arm64_ddm, host_release_arm64, engine_stamp.json) are
+# protected (in any tree) unless --include-supported. Without --configs nothing is deleted.
+# On the frozen tree (flutter, alias 347) it is LIST-ONLY: --configs is refused unless the
+# owner passes --allow-frozen. It also PRINTS (never runs) the stale-worktree prune.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+tree_arg=350 configs="" dry=0 incl=0 allow=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --configs) configs="$2"; shift 2 ;;
+    --dry-run) dry=1; shift ;;
+    --include-supported) incl=1; shift ;;
+    --allow-frozen) allow=1; shift ;;
+    -h|--help) sed -n 2,9p "$0"; exit 0 ;;
+    -*) die "unknown flag $1" ;;
+    *) tree_arg="$1"; shift ;;
+  esac
+done
+tree="$(tree_dir "$tree_arg")"; require_tree "$tree"
+if is_frozen "$tree" && [[ -n "$configs" && "$allow" != 1 ]]; then
+  die "$tree is the frozen supported-cell tree: clean is list-only there (--allow-frozen is owner-only)"
+fi
+out="$tree/engine/src/out"
+[[ -d "$out" ]] || { say "no out/ in $tree"; exit 0; }
+
+say "out/ in $tree (free disk $(free_gb) GB)"
+printf '%8s  %-12s  %s\n' SIZE MODIFIED CONFIG
+for d in "$out"/*; do
+  [[ -e "$d" ]] || continue
+  b="$(basename "$d")"
+  mark=""; [[ " $SUPPORTED_CONFIGS " == *" $b "* ]] && mark="  [supported-cell]"
+  printf '%8s  %-12s  %s%s\n' "$(du -sh "$d" | cut -f1)" "$(stat -f %Sm -t %Y-%m-%d "$d")" "$b" "$mark"
+done
+
+if [[ -n "$configs" ]]; then
+  IFS=',' read -ra want <<<"$configs"
+  for c in "${want[@]}"; do
+    [[ "$c" == */* || "$c" == .* || -z "$c" ]] && die "bad config name: $c"
+    if [[ " $SUPPORTED_CONFIGS " == *" $c "* && "$incl" != 1 ]]; then warn "skipping $c: the supported cell needs it (--include-supported to override)"; continue; fi
+    if [[ ! -e "$out/$c" ]]; then say "$c: already gone"; continue; fi
+    say "delete $out/$c ($(du -sh "$out/$c" | cut -f1))"
+    [[ "$dry" == 1 ]] || rm -rf "${out:?}/$c"
+  done
+  [[ "$dry" == 1 ]] || say "free disk now $(free_gb) GB"
+else
+  say "nothing deleted (name configs with --configs a,b)"
+fi
+
+if is_frozen "$tree"; then
+  echo
+  say "frozen tree: worktree prune is printed only. Candidates:"
+  git -C "$tree" worktree list
+  echo "  # review, then run by hand:  git -C $tree worktree prune -v   (only drops entries whose directory is gone)"
+fi
