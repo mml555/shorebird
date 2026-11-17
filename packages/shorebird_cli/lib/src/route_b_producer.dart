@@ -678,10 +678,12 @@ Object? $_superIntrinsicName(
           helperText.isNotEmpty) {
         final entryName = _helperName(key);
         // `$name` is an interpolation of it, so only a word character before
-        // or after ends a match. An operator has no such spelling.
+        // or after ends a match. A `$` inside the name is part of it, and a
+        // neighbouring one only over-refuses. An operator has no such
+        // spelling.
         final escaped = RegExp.escape(entryName);
         final hides = RegExp('(?<!\\w)$escaped(?!\\w)');
-        if (RegExp(r'^\w+$').hasMatch(entryName) &&
+        if (RegExp(r'^[\w$]+$').hasMatch(entryName) &&
             hides.hasMatch(helperText)) {
           throw RouteBUnsupportedTarget(
             key,
@@ -942,8 +944,7 @@ Object? $_superIntrinsicName(
   /// `.` splits the class from the member because a class name cannot contain
   /// one; the analysis proves the name is unique in its library, so a text
   /// match on it can only mean the helper.
-  static String _helperName(String key) =>
-      _memberNameOf(key);
+  static String _helperName(String key) => _memberNameOf(key);
 
   /// The names of the helpers [key] calls. They are declared in the
   /// replacement library itself, not the release's, so the private-name

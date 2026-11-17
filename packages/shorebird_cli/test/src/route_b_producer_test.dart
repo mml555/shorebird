@@ -3622,6 +3622,12 @@ callable:
             helper: 'Object helper(int x) => total;',
           );
           hidden(
+            r'is refused for a name containing $',
+            entryKey: r'package:app/main.dart#C.total$',
+            entry: r'static int total$(int a) => helper(a);',
+            helper: r'int helper(int x) => total$(x) + 1;',
+          );
+          hidden(
             'is not refused when no helper spells the name',
             entryKey: classKey,
             entry: entry,
