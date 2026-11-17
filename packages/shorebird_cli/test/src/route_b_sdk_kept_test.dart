@@ -1,4 +1,4 @@
-// cspell:words tearoff
+// cspell:words tearoff ifaces
 import 'dart:convert';
 import 'dart:io';
 
@@ -397,8 +397,9 @@ void main() {
       expect(refusal(r, sdk('tearoff:split')), isNull);
     });
 
-    test('does not ask the snapshot for an int operator the bytecode compiler '
-        'turns into an opcode, and still asks for one it does not', () {
+    test('asks the snapshot for an int operator like any other member', () {
+      // `T extends int` is not specialized by the bytecode compiler, so `&` is
+      // a call looked up by name on `_Smi`, which has no such member here.
       final r = RouteBRetention.parse(
         _interface,
         measuredAccepted: const {'dart:core#int#&', 'dart:core#num#+'},
@@ -409,10 +410,44 @@ void main() {
         },
         kept: kept,
       );
-      // `int & int` is `BitAndInt`: no member of `_Smi` is looked up.
-      expect(refusal(r, sdk('&', 'int')), isNull);
-      // `num + num` is an interface call, looked up by name on the receiver.
+      expect(refusal(r, sdk('&', 'int')), contains('no class `_Smi`'));
       expect(refusal(r, sdk('+', 'num')), contains('no class `_Smi`'));
+    });
+
+    test('refuses a declared type the snapshot has no class for', () {
+      // Zero roots would make the subtype walk visit nothing and pass.
+      final r = RouteBRetention.parse(
+        _interface,
+        measuredAccepted: const {'dart:core#Nope#split'},
+        measuredFailing: const {},
+        measuredVmClasses: const {
+          'dart:core#Nope#split': ['_OneByteString'],
+        },
+        kept: kept,
+      );
+      expect(
+        refusal(r, sdk('split', 'Nope')),
+        contains('this release has no class `Nope`'),
+      );
+    });
+
+    test('refuses a declared type that is only in another library', () {
+      final r = RouteBRetention.parse(
+        _interface,
+        measuredAccepted: const {'dart:collection#String#split'},
+        measuredFailing: const {},
+        measuredVmClasses: const {
+          'dart:collection#String#split': ['_OneByteString'],
+        },
+        kept: kept,
+      );
+      expect(
+        refusal(
+          r,
+          _ref('instance', 'dart:collection', cls: 'String', member: 'split'),
+        ),
+        contains('has no class `String` in `dart:collection`'),
+      );
     });
 
     test('refuses one the release dropped: String.substring is absent', () {

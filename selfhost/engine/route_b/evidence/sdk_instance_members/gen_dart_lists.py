@@ -2,9 +2,11 @@
 """gen_dart_lists.py <members.tsv> <results.tsv> <cell> <out.dart>
 
 Writes packages/shorebird_cli/lib/src/route_b_sdk_measurements.dart from the
-device matrix of PR #216 (selfhost/engine/route_b/device_run/sdk_members/result). A key is accepted only when its verdict is SAFE (every probe
-resolved) and `thin` is empty (more than one probe and more than one runtime
-class), and every runtime class it was measured on maps to a VM class below.
+device matrix of PR #216
+(selfhost/engine/route_b/device_run/sdk_members/result). A key is accepted
+only when its verdict is SAFE (every probe resolved) and `thin` is empty (more
+than one probe and more than one runtime class), and every runtime class it
+was measured on maps to a VM class below.
 Everything else is listed as failing, with why.
 """
 import csv, re, sys, collections
@@ -45,8 +47,8 @@ VM = {
 }
 # An `Iterator` key is called on the iterator of the probed Iterable.
 ITER = {
-    # `_GeneratorIterable extends ListIterable` (dart/sdk/lib/core/iterable.dart:914),
-    # whose `iterator` is a `ListIterator` (sdk/lib/internal/iterable.dart:44).
+    # `_GeneratorIterable extends ListIterable`
+    # (dart/sdk/lib/core/iterable.dart:914), whose `iterator` is a `ListIterator` (sdk/lib/internal/iterable.dart:44).
     'generate': ['ListIterator'],
     'list': ['ListIterator', '_ArrayIterator'],
     'set': ['_CompactIterator'],

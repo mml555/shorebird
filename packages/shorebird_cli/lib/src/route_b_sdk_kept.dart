@@ -1,3 +1,4 @@
+// cspell:words ifaces
 import 'dart:convert';
 import 'dart:io';
 
@@ -444,9 +445,11 @@ class RouteBSnapshotKept {
   ///
   /// It must resolve with real code on (a) every `dart:` class the member was
   /// measured on ([measured]), and (b) every class in this snapshot that is a
-  /// subtype of the declared type and can hold instances. A class that is not
-  /// in the snapshot cannot have instances, so the receiver is always one of
-  /// these.
+  /// subtype of the declared type and can hold instances. The receiver is
+  /// always one of these: the release's classes are fixed, and a patch cannot
+  /// add a class (the analyzer refuses one: `analyze_coverage.dart`,
+  /// `_instanceHelperReason` and the `declaration` category). A declared type
+  /// with no class in the snapshot is refused.
   String? problemFor({
     required String? declaredLibrary,
     required String? declaredClass,
@@ -465,9 +468,15 @@ class RouteBSnapshotKept {
     if (declaredClass == null) {
       candidates = _name.keys.where(_isInstanceClass);
     } else {
-      candidates = _instanceClasses(
-        _sdkClasses(declaredClass, declaredLibrary),
-      );
+      final roots = _sdkClasses(declaredClass, declaredLibrary);
+      // A declared type this snapshot has no class for (or only in another
+      // library) cannot be shown to resolve anything: there is nothing to
+      // check, which is not the same as nothing to fear. Refuse.
+      if (roots.isEmpty) {
+        return 'this release has no class `$declaredClass`'
+            '${declaredLibrary == null ? '' : ' in `$declaredLibrary`'}';
+      }
+      candidates = _instanceClasses(roots);
     }
     String? firstWhy;
     var more = 0;

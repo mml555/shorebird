@@ -71,20 +71,32 @@ metadata (`allow_unchecked_sdk_calls`).
   device probe creates the tear-off and never calls it, while a call of
   `String.endsWith` on the same release ABORTS (`_StringBase.endsWith` has only
   a `LazyCompile` stub), so the reader is right. `int` `&`, `<<` and unary `-`:
-  the patch's bytecode compiler emits `BitAndInt`, `ShlInt` and `NegateInt` for
-  them when both operands are statically `int`
-  (`pkg/dart2bytecode/lib/recognized_methods.dart`), and the interpreter runs
-  them without a lookup (`runtime/vm/interpreter.cc`), so the profile is not
-  asked for those three keys. The same is true of `int`/`double` `+ - * < > <=
-  >= ==` and `int` `~/ % | ^ >>` when BOTH operands are statically exactly `int`
-  (or both exactly `double`), but their keys are declared on `num` and the
-  analysis does not say which static types a call site had, so they stay
-  checked until it does.
-- On the 2fc41d3f counter release's own profile, 29 of the 118 accepted keys
-  are rejected: `Iterable` `first`/`toList`/`toSet`/`any` (including tear-offs)
-  and `List.reversed`/`sort` (a subtype in the snapshot lacks them: `_ConstSet`,
-  which has 11 constants in the image, and the typed-data lists, which the VM
-  allocates), `num.~/`, the `endsWith` tear-off and 19 dynamic tear-offs.
+  the device probes used plain `int` operands, which the patch's bytecode
+  compiler turns into `BitAndInt`, `ShlInt` and `NegateInt` opcodes with no
+  lookup (`pkg/dart2bytecode/lib/recognized_methods.dart`). It does so only
+  when both operands are statically exactly `int`: a `T extends int` operand
+  is a call looked up by name, and `_Smi`/`_Mint` have no such member on
+  2fc41d3f. The analysis does not yet say which static types a call site has,
+  so these keys are checked like any other and refused on this release. (The
+  same holds for every operator, `num` ones included: no key is skipped.) A
+  later analysis version is meant to mark a site the compiler certainly
+  specializes.
+- A dynamic call (`declaredClass == null`) is checked against every instance
+  class of the snapshot; a declared type with no class in the snapshot, or only
+  in another library, is refused.
+- A patch cannot add a class, so the receiver's class is always one of the
+  release's: `analyze_coverage.dart` refuses a class that is not in the release
+  (the `declaration` category, "a patch cannot add one") and a member of it
+  (`_instanceHelperReason`, 'a member of `X`, which the release does not
+  have'). A `class Ring extends ListBase<int>` calling `add` is refused on the
+  document alone (`route_b_coverage_test.dart`).
+- On the 2fc41d3f counter release's own profile, 32 of the 118 accepted keys
+  are rejected (86 pass; the calibration test pins the exact set and the
+  profile's sha256): `Iterable` `first`/`toList`/`toSet`/`any` (including
+  tear-offs) and `List.reversed`/`sort` (a subtype in the snapshot lacks them:
+  `_ConstSet`, which has 11 constants in the image, and the typed-data lists,
+  which the VM allocates), `num.~/`, `int` `&`/`<<`/unary `-`, the `endsWith`
+  tear-off and 19 dynamic tear-offs.
   The leaf heuristic is conservative: a class counts as an instance class when
   it is a leaf with real code, so a snapshot-only class a program never builds
   (for example `_ExternalFloat32x4Array`, whose only factory throws) can still cause a refusal.
