@@ -69,10 +69,10 @@ tree's absolute paths, and its GN config is the wrong one.
 - **`dart_patches.sh --verify` before any build**, on this tree like every
   other, and again after any `gclient sync` — `managed: False` protects the
   flutter checkout's git state, not the DEPS-managed subtrees, so a sync
-  silently discards `0004`/`0005`/`0006`.
-- **Verify patches by content, never by exit code.** A wrong `-p` level makes
-  `git apply` match no files, change nothing, and exit 0. Both scripts here
-  check sentinel strings in the files for that reason.
+  silently replaces the Dart tree with whatever DEPS pins.
+- **Verify by content, never by exit code.** The Dart changes are commits on
+  the fork, so `dart_patches.sh --verify` compares the checkout's HEAD with the
+  sha the tree's own DEPS pins. The Route B patch scripts here still check sentinel strings.
 
 ## Running the build
 

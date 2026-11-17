@@ -1,3 +1,4 @@
+# cspell:words elif
 name: self-host android e2e
 
 # Releases and patches an Android app with this checkout's CLI against a
@@ -31,6 +32,14 @@ on:
 
 permissions:
   contents: read
+
+env:
+  # A git fetch over a stalled connection never errors, so actions/checkout's
+  # own retry never runs and the job sits until its timeout (seen on ci-build:
+  # a 15-25s checkout hanging for 5 minutes). Abort a transfer that moves under
+  # 1 KB/s for 30s, so checkout fails fast and retries.
+  GIT_HTTP_LOW_SPEED_LIMIT: 1000
+  GIT_HTTP_LOW_SPEED_TIME: 30
 
 jobs:
   android_pool:
