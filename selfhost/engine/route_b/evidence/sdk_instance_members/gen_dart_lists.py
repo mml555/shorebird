@@ -2,8 +2,7 @@
 """gen_dart_lists.py <members.tsv> <results.tsv> <cell> <out.dart>
 
 Writes packages/shorebird_cli/lib/src/route_b_sdk_measurements.dart from the
-device matrix of PR #216 (selfhost/engine/route_b/device_run/sdk_members/result,
-copied to device/). A key is accepted only when its verdict is SAFE (every probe
+device matrix of PR #216 (selfhost/engine/route_b/device_run/sdk_members/result). A key is accepted only when its verdict is SAFE (every probe
 resolved) and `thin` is empty (more than one probe and more than one runtime
 class), and every runtime class it was measured on maps to a VM class below.
 Everything else is listed as failing, with why.
