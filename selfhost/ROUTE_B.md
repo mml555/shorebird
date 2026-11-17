@@ -1021,7 +1021,7 @@ start, and if you find yourself doing it, check whether it is already solved.
 Commands worth knowing before you touch a build:
 
 ```bash
-selfhost/engine/dart_patches.sh --dest <dart-checkout> --verify   # ALWAYS first
+selfhost/engine/dart_patches.sh --dest <dart-checkout> --verify   # ALWAYS first (add --allow-dirty on a Route B tree, which is patched on purpose)
 selfhost/cdn/audit_overlay.sh --hash <h> --cell <macos-ios|linux-android>
 selfhost/scripts/prepare_ios_endpoint.sh --mode lan
 selfhost/scripts/prepare_airgap_fixture.sh --leg ios --app-id <id>
@@ -1084,7 +1084,7 @@ selfhost/cdn/audit_overlay.sh --hash 70974f811d448da19a927c581678ef1dbd33605c --
 selfhost/cdn/audit_overlay.sh --hash 760e3fabffbf31b4e86919a0ef47d6ce5f182991 --cell linux-android
 selfhost/scripts/prepare_ios_endpoint.sh --mode lan
 selfhost/engine/dart_patches.sh \
-  --dest /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart --verify
+  --dest /Volumes/build/route-b/flutter/engine/src/flutter/third_party/dart --verify --allow-dirty
 ```
 
 **Baseline recorded 2026-08-09**, so you have something to compare against:

@@ -3,11 +3,16 @@
 // Shorebird_ReadLinkHeader), so the taxonomy is exercised directly here against
 // the REAL parser -- no copy of the logic.
 #include "flutter/shell/common/shorebird/route_b_patch.h"
+#include <sys/stat.h>
+#include <unistd.h>
 #include <cassert>
+#include <cstdlib>
 #include <cstdio>
 #include <string>
 #include <vector>
-namespace fml { bool IsFile(const std::string&) { return false; } }
+// A real IsFile (stat, regular files only), not a constant: a stub that always
+// answers false would make every SniffFile case report kUnreadable.
+namespace fml { bool IsFile(const std::string& p) { struct stat st; return stat(p.c_str(), &st) == 0 && S_ISREG(st.st_mode); } }
 using namespace flutter::route_b;
 static void U32(std::vector<uint8_t>* o, uint32_t v){for(int i=0;i<4;i++)o->push_back((v>>(8*i))&0xff);}
 static std::vector<uint8_t> Build(const std::string& h, const std::string& p, uint32_t ver=1){
@@ -25,6 +30,12 @@ static ContainerStatus P(const std::vector<uint8_t>& b, Container* c=nullptr){
   Container s; std::string e; return Parse(b.data(), b.size(), c?c:&s, &e);
 }
 static int fails=0;
+static std::string TempFile(const std::vector<uint8_t>& bytes){
+  char t[] = "/tmp/rb_reader_XXXXXX"; int fd = mkstemp(t);
+  if (fd < 0) { perror("mkstemp"); exit(2); }
+  if (!bytes.empty() && write(fd, bytes.data(), bytes.size()) != (ssize_t)bytes.size()) { perror("write"); exit(2); }
+  close(fd); return t;
+}
 #define CHECK(expr,label) do{ if(!(expr)){ printf("  FAIL %s\n",label); fails++; } else printf("  ok   %s\n",label);}while(0)
 int main(){
   printf("route_b_patch taxonomy\n");
@@ -46,6 +57,17 @@ int main(){
         && std::string((const char*)c.targets[0].bytecode,c.targets[0].length)=="hello",
         "parses targets and exposes release id before targets are used");
   CHECK(SniffFile("/definitely/not/here/dlc.vmcode")==ContainerStatus::kUnreadable, "missing file -> unreadable");
+  CHECK(SniffFile("/tmp")==ContainerStatus::kUnreadable, "a directory -> unreadable");
+  // The converse cases: the same function must tell real files apart.
+  std::string real=TempFile(Build(Hdr("abc123",kHello,5),"hello"));
+  CHECK(SniffFile(real)==ContainerStatus::kOk, "real container file -> ok");
+  std::string trunc8=TempFile(std::vector<uint8_t>{'S','B','R','B','P'});
+  CHECK(SniffFile(trunc8)==ContainerStatus::kNotAContainer, "truncated file (5 bytes) -> not-a-container");
+  std::string vmfile=TempFile(v);
+  CHECK(SniffFile(vmfile)==ContainerStatus::kNotAContainer, "ordinary vmcode file -> not-a-container");
+  std::string empty=TempFile({});
+  CHECK(SniffFile(empty)==ContainerStatus::kNotAContainer, "empty file -> not-a-container");
+  for (auto& f : {real, trunc8, vmfile, empty}) unlink(f.c_str());
   printf(fails? "TAXONOMY: %d FAILED\n" : "TAXONOMY: all passed\n", fails);
   return fails?1:0;
 }
