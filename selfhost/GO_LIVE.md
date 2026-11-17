@@ -55,7 +55,10 @@ you provision them yourself (Shape B/C):
   (Prometheus — request rate, status classes, latency histogram, in-flight) and
   set `LOG_FORMAT=json` so a log aggregator (Loki/ELK/CloudWatch) can parse the
   request/error stream. Alert when `/readyz` fails or the 5xx rate climbs.
-  Firewall `/metrics` to your monitoring network if you don't want it public.
+  The shipped Caddyfile answers 404 for `/metrics` and `/readyz` from outside,
+  so run those from the Docker network or the host (PRODUCTION.md §9, "Paths a
+  proxy or firewall must pass") and use the public `/healthz` for an external
+  uptime check.
   Failure mode is safe (devices keep running last-good code) but you still want
   to know.
 - **Secrets management** — for Shape B/C, source the `.env` secrets from a

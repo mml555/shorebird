@@ -1,4 +1,4 @@
-// cspell:words pkce queryability unactivated
+// cspell:words pkce queryability unactivated xact
 import 'dart:convert';
 import 'dart:math';
 
@@ -6,6 +6,7 @@ import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/db.dart';
 import 'package:code_push_server/src/domain.dart';
 import 'package:code_push_server/src/observability.dart';
+import 'package:meta/meta.dart';
 
 // ---------------------------------------------------------------------------
 // Row types
@@ -683,11 +684,35 @@ class Repository {
     'CREATE INDEX IF NOT EXISTS rate_limits_window ON rate_limits(window_start)',
   ];
 
+  /// Runs the boot migrations. Visible so a test can drive it against a
+  /// recording [Db]; production code reaches it through [open].
+  @visibleForTesting
+  Future<void> migrate() => _migrate();
+
+  /// Key of the Postgres advisory lock that serializes migrations.
+  static const migrationLockKey = 0x5348524d;
+
+  /// Takes the migration lock for the rest of transaction [s]. Postgres only:
+  /// SQLite is a single file, and [SqliteDb] already serializes transactions.
+  ///
+  /// Without it, replicas booting together (`--scale server=N`, or a restart
+  /// racing a rolling upgrade) each read the same `applied` set and then race
+  /// to run the same DDL; the losers crash on a duplicate object or on the
+  /// `schema_migrations` primary key. The lock is transaction-scoped, so it
+  /// cannot outlive a crashed replica or leak through the connection pool.
+  Future<void> _lockMigrations(DbSession s) async {
+    if (_db.dialect != Dialect.postgres) return;
+    await s.query('SELECT pg_advisory_xact_lock(@k)', {'k': migrationLockKey});
+  }
+
   Future<void> _migrate() async {
-    await _q(
-      'CREATE TABLE IF NOT EXISTS schema_migrations('
-      'version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())',
-    );
+    await _db.tx((s) async {
+      await _lockMigrations(s);
+      await s.query(
+        'CREATE TABLE IF NOT EXISTS schema_migrations('
+        'version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())',
+      );
+    });
     final applied = (await _q(
       'SELECT version FROM schema_migrations',
     )).map((m) => _int(m['version'])).toSet();
@@ -711,15 +736,23 @@ class Repository {
 
     for (final (version, statements) in _migrations) {
       if (applied.contains(version)) continue;
-      await _db.tx((s) async {
+      final ran = await _db.tx((s) async {
+        await _lockMigrations(s);
+        // Another replica may have applied it while this one waited.
+        final done = await s.query(
+          'SELECT 1 FROM schema_migrations WHERE version = @v',
+          {'v': version},
+        );
+        if (done.isNotEmpty) return false;
         for (final stmt in statements) {
           await s.query(stmt);
         }
         await s.query('INSERT INTO schema_migrations(version) VALUES (@v)', {
           'v': version,
         });
+        return true;
       });
-      logInfo('applied schema migration', {'version': version});
+      if (ran) logInfo('applied schema migration', {'version': version});
     }
   }
 

@@ -171,6 +171,23 @@ void main() {
       expect(_cfg(publicBaseUrl: 'http://localhost:8080').validate(), isEmpty);
     });
 
+    test('the https check reads the host, not a substring', () {
+      for (final url in [
+        'http://localhost.evil.example',
+        'http://evil.example/localhost',
+        'ftp://cps.example.com',
+      ]) {
+        expect(
+          _cfg(publicBaseUrl: url).validate(),
+          contains('PUBLIC_BASE_URL should be https in production'),
+          reason: url,
+        );
+      }
+      for (final url in ['http://127.0.0.1:8080', 'http://[::1]:8080']) {
+        expect(_cfg(publicBaseUrl: url).validate(), isEmpty, reason: url);
+      }
+    });
+
     test('an unrecognized DB_SSL_MODE is a problem in every mode', () {
       // WAS: `switch (env['DB_SSL_MODE']) { ..., _ => 'disable' }`. A typo like
       // `verify_full` or `required` silently downgraded to plaintext, so the
@@ -243,6 +260,87 @@ void main() {
       // NAT egress IP legitimately fronts many principals, so it has room.
       final c = _cfg();
       expect(c.ipRateLimitPerMinute, greaterThan(c.rateLimitPerMinute));
+    });
+  });
+
+  group('PRODUCTION flag parsing', () {
+    bool parse(Map<String, String> env) => Config.parseProduction(env);
+
+    test('accepts the documented spellings in any case', () {
+      for (final v in [
+        'true',
+        'TRUE',
+        'True',
+        ' true ',
+        '1',
+        'yes',
+        'production',
+      ]) {
+        expect(parse({'PRODUCTION': v}), isTrue, reason: v);
+      }
+      for (final v in ['false', 'False', '0', 'no']) {
+        expect(parse({'PRODUCTION': v}), isFalse, reason: v);
+      }
+    });
+
+    test('unset or empty is not production', () {
+      expect(parse({}), isFalse);
+      expect(parse({'PRODUCTION': ''}), isFalse);
+    });
+
+    test('a near miss is rejected instead of silently meaning false', () {
+      for (final v in ['prod', 'enabled', 'on', 'production=true']) {
+        expect(
+          () => parse({'PRODUCTION': v}),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              contains('PRODUCTION must be true or false'),
+            ),
+          ),
+          reason: v,
+        );
+      }
+    });
+
+    test('ENV only turns production on, and never fails boot', () {
+      expect(parse({'ENV': 'production'}), isTrue);
+      expect(parse({'ENV': 'prod'}), isTrue);
+      // `sh` reads a file path from ENV; that is not a mistake to report.
+      expect(parse({'ENV': '/etc/profile'}), isFalse);
+      expect(parse({'ENV': 'development'}), isFalse);
+      // An explicit PRODUCTION wins over ENV.
+      expect(parse({'PRODUCTION': 'false', 'ENV': 'production'}), isFalse);
+    });
+
+    test('fromEnv carries the parsed flag and the error', () {
+      expect(Config.fromEnv({'PRODUCTION': 'True'}).production, isTrue);
+      expect(
+        () => Config.fromEnv({'PRODUCTION': 'prod'}),
+        throwsFormatException,
+      );
+    });
+  });
+
+  group('productionWarnings', () {
+    test('warns on a non-local PUBLIC_BASE_URL outside production', () {
+      final w = _cfg(
+        production: false,
+        publicBaseUrl: 'https://cps.example.com',
+      ).productionWarnings;
+      expect(w.single, contains('PRODUCTION is not true'));
+    });
+
+    test('quiet in production and for a local URL', () {
+      expect(_cfg().productionWarnings, isEmpty);
+      expect(
+        _cfg(
+          production: false,
+          publicBaseUrl: 'http://localhost:8080',
+        ).productionWarnings,
+        isEmpty,
+      );
     });
   });
 }

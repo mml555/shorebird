@@ -192,13 +192,27 @@ it into a fresh stack requires you to supply, separately:
 #    records the image that produced it.
 ./ops/backup.sh
 
-# 2. Upgrade.
+# 2. Get the new image (the image pin in docker-compose.prod.yaml is the
+#    package version; CI fails if they differ).
 git pull                                  # get the new server source/image
 docker compose -f docker-compose.prod.yaml build server
+
+# 3. Preflight: the new image validates this .env before anything is replaced.
+#    A release can add a rule (2.0.0 made IDP_ISSUER mandatory in production
+#    with an IdP); without this, `up -d` swaps the working container for one
+#    that exits 78 on every start. Exit 78 means fix .env and re-run; the
+#    running container has not been touched.
+./ops/preflight.sh
+
+# 4. Upgrade.
 docker compose -f docker-compose.prod.yaml up -d server
 ```
 
-Migrations run at boot, each in its own transaction.
+Migrations run at boot, each in its own transaction, under a Postgres advisory
+lock (transaction-scoped). Replicas started together queue on it: one
+applies a migration, the others re-check and skip it. A schema-changing release
+is still best done stop-all-then-start, not rolling: an old replica that keeps
+running against the migrated schema is only caught at its next boot.
 
 ### Rolling back
 
@@ -500,7 +514,16 @@ curl -i -X POST "$PUBLIC_BASE_URL/api/v1/patches/events" \
 That request stores one event row with `client_id` `proxy-check`, and the
 server logs its body, so filter that `client_id` (or `type: proxy_check`) out of install counts.
 
-The shipped Caddyfile passes everything to the server and needs no change.
+The shipped Caddyfile passes everything to the server except two things.
+`/metrics` and `/readyz` are answered `404` from outside: they are
+unauthenticated and the second makes a DB and S3 round-trip per call. Use the
+public `/healthz` for an external uptime check; scrape `/metrics` and probe
+`/readyz` from inside the `cps` Docker network (`server:8080`), or on the
+host with `docker compose exec server curl -s localhost:8080/readyz`.
+`/download` is also kept out of Caddy's `encode`, since patch bodies are
+already compressed and are served with exact lengths and `Range`. The server
+sends `Cache-Control: private, no-store` on `/download` so no cache keeps bytes
+past the signed URL's expiry or a rollback.
 
 ### Upload method
 

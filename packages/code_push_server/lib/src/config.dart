@@ -177,11 +177,50 @@ class Config {
         env['IDP_ALLOW_UNVERIFIED_EMAIL'],
         false,
       ),
-      production:
-          (env['PRODUCTION'] ?? env['ENV']) == 'production' ||
-          env['PRODUCTION'] == 'true',
+      production: parseProduction(env),
     );
   }
+
+  /// Parses the production flag. `PRODUCTION` is strict: only `true`/`false`
+  /// (also `1`/`0`, `yes`/`no`, `production`) in any case are accepted, so a
+  /// near miss such as `PRODUCTION=prod` fails boot rather than silently
+  /// skipping every production-only check. `ENV` is a generic variable (`sh`
+  /// reads a file path from it), so it only ever turns production ON, and only
+  /// for `production` or `prod`; any other value is ignored.
+  static bool parseProduction(Map<String, String> env) {
+    final raw = env['PRODUCTION']?.trim().toLowerCase() ?? '';
+    switch (raw) {
+      case 'true' || '1' || 'yes' || 'production':
+        return true;
+      case 'false' || '0' || 'no':
+        return false;
+      case '':
+        final e = env['ENV']?.trim().toLowerCase();
+        return e == 'production' || e == 'prod';
+    }
+    throw FormatException(
+      'PRODUCTION must be true or false, got "${env['PRODUCTION']}"',
+    );
+  }
+
+  /// Whether [url]'s host is this machine (`localhost`, `127.0.0.1`, `::1`).
+  static bool isLocalUrl(String url) {
+    final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+    return host == 'localhost' || host == '127.0.0.1' || host == '::1';
+  }
+
+  /// Startup warnings about running a reachable server without the production
+  /// checks. The server binds every interface, so a non-local
+  /// [publicBaseUrl] with `PRODUCTION` off means published defaults and weak
+  /// settings are reachable from the network and nothing validated them.
+  List<String> get productionWarnings => [
+    if (!production && !isLocalUrl(publicBaseUrl))
+      'PUBLIC_BASE_URL ($publicBaseUrl) is not localhost but PRODUCTION is '
+          'not true: the server listens on all interfaces and skips the '
+          'production-only checks (PATCH_SIGNING_KEY_SECRET, IDP_ISSUER, '
+          'default credentials, https). Set PRODUCTION=true for a real '
+          'deployment',
+  ];
 
   /// The set of values [dbSslMode] may take. Anything else is a config error
   /// rather than a silent fallback — see [validate].
@@ -299,8 +338,9 @@ class Config {
     if (storageBackend == 's3' && s3SecretKey == 'cps-secret') {
       problems.add('S3_SECRET_KEY');
     }
-    if (publicBaseUrl.startsWith('http://') &&
-        !publicBaseUrl.contains('localhost')) {
+    final base = Uri.tryParse(publicBaseUrl);
+    if (base == null ||
+        (base.scheme != 'https' && !isLocalUrl(publicBaseUrl))) {
       problems.add('PUBLIC_BASE_URL should be https in production');
     }
     return problems;

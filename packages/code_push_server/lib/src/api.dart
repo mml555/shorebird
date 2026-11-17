@@ -3265,6 +3265,10 @@ class Api {
     }
   }
 
+  /// Each `patches/check` mints a fresh signed URL, and a cached copy would
+  /// outlive that URL's expiry (and a rollback), so no cache keeps the bytes.
+  static const _downloadCacheControl = 'private, no-store';
+
   Future<Response> _download(Request req, String token) async {
     final q = req.url.queryParameters;
     if (!_validSignedUrl(token, q['exp'], q['sig'])) {
@@ -3306,6 +3310,7 @@ class Api {
         headers: {
           HttpHeaders.contentTypeHeader: 'application/octet-stream',
           HttpHeaders.acceptRangesHeader: 'bytes',
+          HttpHeaders.cacheControlHeader: _downloadCacheControl,
           HttpHeaders.contentRangeHeader:
               'bytes ${range.start}-${range.end}/$total',
           HttpHeaders.contentLengthHeader: '${range.length}',
@@ -3319,6 +3324,7 @@ class Api {
       headers: {
         HttpHeaders.contentTypeHeader: 'application/octet-stream',
         HttpHeaders.acceptRangesHeader: 'bytes',
+        HttpHeaders.cacheControlHeader: _downloadCacheControl,
         HttpHeaders.contentLengthHeader: '$total',
       },
     );

@@ -1,4 +1,4 @@
-<!-- cspell:words ungated rsassa -->
+<!-- cspell:words ungated rsassa xact -->
 
 # Changelog
 
@@ -7,6 +7,29 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+
+### Security
+
+- **`PRODUCTION` is parsed strictly.** Only `true`/`false` (also `1`/`0`,
+  `yes`/`no`, `production`, any case) are accepted; `PRODUCTION=prod` or
+  `enabled` used to mean "not production" and skip every production-only check,
+  and now exits 78 with a named error. `ENV=prod` counts as `ENV=production`.
+  With production off and a non-localhost `PUBLIC_BASE_URL` the server logs a
+  WARNING at boot. The https check reads the URL's host, so
+  `http://localhost.evil.example` no longer passes as localhost.
+- **The shipped Caddyfile answers 404 for `/metrics` and `/readyz`**, and no
+  longer compresses `/download`. Monitoring must use `/healthz` externally and
+  reach the others on the internal network (PRODUCTION.md).
+- `/download` responses (200 and 206) carry `Cache-Control: private, no-store`.
+
+### Added
+
+- `server --check-config` and `ops/preflight.sh`: validate the new image against
+  `.env` before `up -d` replaces the running container.
+- Migrations take a Postgres advisory lock, so replicas started together
+  cannot race the same migration.
+- CI checks that the compose image pins equal the package version
+  (`tool/check_deploy_files.sh`).
 
 ### Added
 
