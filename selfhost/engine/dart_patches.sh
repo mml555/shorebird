@@ -1,129 +1,56 @@
 #!/usr/bin/env bash
-# cspell:words precompiler tearoff tearoffs selfhost
+# cspell:words selfhost
 #
-# dart_patches.sh — apply or verify the Dart-tree patch series.
+# dart_patches.sh — verify the engine's Dart checkout is our pinned Dart fork.
 #
-# WHY THIS EXISTS: the Dart checkout our engine builds against is NOT in git
-# (it lives on an external SSD under the engine's gclient tree), so the patches
-# it carries were previously only documented in prose. That makes recreating a
-# build host a manual recovery procedure. This script makes it reproducible:
-# one pinned base commit, one ordered series, and a verify mode that fails
-# loudly when a hunk is missing.
+# The Dart changes we carry live as commits on a branch of
+# mml555/dart-sdk-shorebird-lineage (selfhost/dart-3.14), on top of stock Dart
+# 3.14.0. The engine's DEPS pins that commit as `dart_sdk_revision`, so the fork
+# repo is the source of truth. The old patch-apply flow (a series of .patch
+# files applied onto a vanilla checkout) is retired: there is no --apply.
 #
 # Usage:
-#   dart_patches.sh --dest <dart-checkout> [--apply | --verify]
+#   dart_patches.sh --dest <dart-checkout> [--verify]
 #
-#   --apply    Apply every patch that is not already applied (idempotent).
-#   --verify   Check the base commit and that every patch is fully applied.
-#              Exits non-zero and names what is missing. This is the mode to
-#              run in CI or before trusting a rebuilt engine.
-#
-# The default is --verify, because checking is always safe and applying is not.
+# --verify (the default, and the only mode) checks that the checkout's HEAD is
+# the pinned fork commit and that its tracked files are unmodified. Exits
+# non-zero and says what is wrong. Run it before trusting a build, and after any
+# `gclient sync`, which can replace the tree.
 set -euo pipefail
 
-# The vanilla Dart commit the whole toolchain is pinned to. This is the commit
-# `refs/tags/3.12.2` points at — that tag is ANNOTATED, so `git ls-remote` shows
-# the tag object (704629bc…) and not this commit. Do not "correct" one to the
-# other; see UPSTREAM_INDEPENDENCE.md.
-PINNED_DART_COMMIT="d684a576a6aa954ae107a03b2b4e1d61c3bebe93"
-
-HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-
-# Order matters. Through 0006 the patches touched disjoint files, so the series
-# order was only a convention; 0008 is the first one that does NOT — it edits
-# runtime/vm/compiler/aot/precompiler.cc, which 0005 also edits (0005's hunks
-# sit near lines 79, 551 and 1830, clear of 0008's). 0008 must come after 0005.
-#
-# Deliberately NOT in this list:
-#   0002 — flutter tree (GN), not the Dart tree.
-#   0003 — diagnostic only; see the header of that file.
-PATCHES=(
-  "$HERE/dart-fork/0001-snapshot-size-accessors.patch"
-  "$HERE/0004-dart-tearoff-selector-guard.patch"
-  "$HERE/0005-dart-precompiler-link-info-and-tearoffs.patch"
-  "$HERE/0006-dart-no-dispatch-call-for-hash-slots.patch"
-  "$HERE/0008-dart-load-obfuscation-map.patch"
-)
+# Final commit of selfhost/dart-3.14 (Dart 3.14.0 fa8c1270 plus our commits).
+PINNED_DART_COMMIT="0cd04a7717f20d5f9ae64014cb2239a3f961f895"
+DART_STOCK_BASE="fa8c1270c374c1346931583a17c3b7f278d3822d"
+DART_FORK_REPO="mml555/dart-sdk-shorebird-lineage"
 
 DEST=""
-MODE="verify"
 
 die() { echo "error: $*" >&2; exit 1; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dest) DEST="${2:?--dest needs a value}"; shift 2 ;;
-    --apply) MODE="apply"; shift ;;
-    --verify) MODE="verify"; shift ;;
-    -h|--help) sed -n '2,20p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    --verify) shift ;;
+    --apply) die "--apply is retired: the Dart changes are commits on $DART_FORK_REPO; pin the commit in DEPS and sync" ;;
+    -h|--help) sed -n '2,19p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
 done
 
-[[ -n "$DEST" ]] || die "--dest is required (the Dart checkout to act on)"
-[[ -d "$DEST/.git" ]] || die "not a git checkout: $DEST"
-
-# `git apply` is run from the checkout root so the patches' a/ b/ prefixes line
-# up regardless of where this script was invoked from.
-applied() { git -C "$DEST" apply --reverse --check "$1" >/dev/null 2>&1; }
-can_apply() { git -C "$DEST" apply --check "$1" >/dev/null 2>&1; }
+[[ -n "$DEST" ]] || die "--dest is required (the Dart checkout to check)"
+[[ -d "$DEST/.git" || -f "$DEST/.git" ]] || die "not a git checkout: $DEST"
 
 echo "==> checkout: $DEST"
-
-# The base check catches "someone recreated this on the wrong revision", which
-# is the failure mode that costs a day rather than an hour.
-#
-# gclient syncs this tree with --no-history, so the pinned commit is usually NOT
-# present as an object even when the tree is correct. A shallow checkout
-# therefore downgrades this to a warning and relies on the per-patch checks
-# below, which compare actual file contents.
-if git -C "$DEST" cat-file -e "$PINNED_DART_COMMIT^{commit}" 2>/dev/null; then
-  echo "==> pinned base present: ${PINNED_DART_COMMIT:0:12}"
-elif [[ "$(git -C "$DEST" rev-parse --is-shallow-repository 2>/dev/null)" == "true" ]]; then
-  echo "==> shallow checkout; cannot confirm base ${PINNED_DART_COMMIT:0:12}"
-  echo "    (relying on the per-patch content checks below)"
-else
-  echo "!!! pinned base ${PINNED_DART_COMMIT:0:12} is NOT in this checkout and" >&2
-  echo "    it is not shallow, so this is the wrong Dart revision." >&2
-  [[ "$MODE" == "verify" ]] && exit 1
-  die "refusing to apply patches to an unknown base"
+head="$(git -C "$DEST" rev-parse HEAD)"
+if [[ "$head" != "$PINNED_DART_COMMIT" ]]; then
+  echo "!!! HEAD is ${head:0:12}, expected ${PINNED_DART_COMMIT:0:12} ($DART_FORK_REPO, stock base ${DART_STOCK_BASE:0:8})." >&2
+  echo "    Set dart_sdk_revision in the engine DEPS to the pinned commit and run gclient sync." >&2
+  exit 1
 fi
-
-missing=0
-for patch in "${PATCHES[@]}"; do
-  name="$(basename "$patch")"
-  [[ -f "$patch" ]] || die "patch not found: $patch"
-
-  if applied "$patch"; then
-    echo "    [applied]  $name"
-    continue
-  fi
-
-  if [[ "$MODE" == "verify" ]]; then
-    # Distinguish "not applied yet" from "cannot apply", because the second one
-    # means the patch has drifted from the tree and needs re-deriving.
-    if can_apply "$patch"; then
-      echo "    [MISSING]  $name" >&2
-    else
-      echo "    [CONFLICT] $name — does not apply cleanly; re-derive it" >&2
-    fi
-    missing=$((missing + 1))
-    continue
-  fi
-
-  can_apply "$patch" || die "$name does not apply cleanly; re-derive it"
-  git -C "$DEST" apply "$patch"
-  echo "    [applied]  $name  (just now)"
-done
-
-if [[ "$MODE" == "verify" ]]; then
-  if (( missing )); then
-    echo
-    echo "FAIL: $missing of ${#PATCHES[@]} patches are not applied." >&2
-    echo "Run with --apply, then rebuild. An engine built from this checkout" >&2
-    echo "as-is is NOT the engine our device proofs were made against." >&2
-    exit 1
-  fi
-  echo
-  echo "OK: all ${#PATCHES[@]} patches applied on the pinned base."
+if [[ -n "$(git -C "$DEST" status --porcelain --untracked-files=no)" ]]; then
+  echo "!!! tracked files in $DEST differ from the pinned commit:" >&2
+  git -C "$DEST" status --short --untracked-files=no >&2
+  exit 1
 fi
+echo
+echo "OK: Dart checkout is the pinned fork commit ${PINNED_DART_COMMIT:0:12}."

@@ -1,5 +1,14 @@
 <!-- cspell:words dartsdk vmcode prebuilts upstreamable intptr nullptr embedders googlesource -->
 
+> **Superseded (Dart 3.14 port).** The Dart tree is now
+> [`mml555/dart-sdk-shorebird-lineage`](https://github.com/mml555/dart-sdk-shorebird-lineage),
+> branch `selfhost/dart-3.14`, pinned at `0cd04a7717f20d5f9ae64014cb2239a3f961f895`
+> (stock Dart 3.14.0 `fa8c1270` plus our commits). The engine's `DEPS` pins that
+> sha as `dart_sdk_revision`. `dart_patches.sh` only verifies the checkout is that
+> commit, and the patch-apply flow is retired. What follows is the history of the
+> original 3.12/3.44 shim.
+
+
 # Our Dart VM fork — vanilla plus the minimum, on purpose
 
 ## Policy

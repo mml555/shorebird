@@ -1118,10 +1118,12 @@ These are not hypotheticals; each one cost real time.
    every out-dir built from that tree carry it. Reverted 2026-08-07. Keep the
    patch file, not the working-tree edit.
 
-3. **`gclient sync` silently discards `0004`/`0005`/`0006`.** `managed: False`
+3. **`gclient sync` replaces the Dart tree with what DEPS pins.** `managed: False`
    protects the flutter checkout's git state, not the DEPS-managed subtrees.
-   Recovery is `dart_patches.sh --apply`; the point is to run `--verify` after
-   *any* sync, before wasting a build.
+   Since the Dart 3.14 port, our Dart changes are commits on the fork
+   (`selfhost/dart-3.14`) and `dart_patches.sh --apply` is retired; recovery is
+   to pin the fork commit in DEPS and sync. Run `--verify` after *any* sync,
+   before wasting a build.
 
 4. **The engine hash is sha1 of the Flutter binary only.** A `gen_snapshot`-only
    change republishes under the *same* hash — delete `bin/cache/engine.stamp`,
