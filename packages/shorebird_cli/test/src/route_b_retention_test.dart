@@ -915,6 +915,20 @@ callable:
           }
         });
 
+        test('needs the class in the snapshot profile when there is one', () {
+          RouteBRetention with_(List<String> held) => RouteBRetention.parse(
+            _interface,
+            kept: RouteBSnapshotKept.fromProfileJson(
+              routeBProfile({
+                for (final n in held) n: RouteBProfileClass(n, 'dart:core'),
+              }),
+            ),
+          );
+          final ref = _ref('class', 'dart:core', cls: 'bool');
+          expect(refusal([ref], with_: with_(['bool', 'int'])), isNull);
+          expect(refusal([ref], with_: with_(['int'])), contains('bool'));
+        });
+
         test('does not make other dart:core classes kept', () {
           expect(
             refusal([_ref('class', 'dart:core', cls: 'Stopwatch')]),

@@ -512,27 +512,36 @@ class RouteBRetention {
   /// TYPE, they need no interface item.
   ///
   /// The loader finds a class a patch names by looking it up in its library
-  /// (`Unable to find class X in Library`). These are the classes the VM has
-  /// fixed class ids for and allocates literals of (`true`, `1`, `1.5`, `'s'`,
-  /// `null`), so the precompiler cannot drop them and the library always holds
-  /// them. The snapshot profile of release 1.0.0+34 shows all seven in the
-  /// `dart:core` dictionary though its interface lists none of `bool`, `num`
-  /// or `Null`, because the app never wrote them as types. A patch cannot name
-  /// one of their members this way (that is a member reference, answered by
-  /// the interface); only the bare class. `dynamic` and `Never` are not
-  /// classes and arrive as no reference.
-  bool _isVmPredefinedCore(RouteBExternalReference r) =>
-      r.library == 'dart:core' &&
-      r.kind == 'class' &&
-      const {
-        'Object',
-        'Null',
-        'bool',
-        'int',
-        'double',
-        'num',
-        'String',
-      }.contains(r.className);
+  /// (`Unable to find class X in Library`). The VM predefines these class ids
+  /// and the precompiler's class dropping starts above them, but the library
+  /// dictionary entry can still be nulled when nothing reaches the class
+  /// (`DropLibraryEntries`), so the rule is not structural: every Flutter app
+  /// reaches all seven (the snapshot profile of release 1.0.0+34 holds all of
+  /// them in `dart:core`, though its interface lists none of `bool`, `num` or
+  /// `Null`). So when the release's snapshot profile is available it must hold
+  /// the class node, and the predefined rule alone answers only when there is
+  /// no profile. A patch cannot name one of their members this way (that is a
+  /// member reference, answered by the interface); only the bare class.
+  /// `dynamic` and `Never` are not classes and arrive as no reference.
+  bool _isVmPredefinedCore(RouteBExternalReference r) {
+    final name = r.className;
+    if (r.library != 'dart:core' ||
+        r.kind != 'class' ||
+        name == null ||
+        !const {
+          'Object',
+          'Null',
+          'bool',
+          'int',
+          'double',
+          'num',
+          'String',
+        }.contains(name)) {
+      return false;
+    }
+    final snapshot = kept;
+    return snapshot == null || snapshot.hasClassIn('dart:core', name);
+  }
 
   bool _manifestSkips(String key) =>
       capabilities?.skipped.any((s) => s.startsWith(key)) ?? false;

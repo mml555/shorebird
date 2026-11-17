@@ -674,10 +674,103 @@ void main() {
       expect(reason, contains('without compiled code'));
     });
 
-    test('skips a measured class the release lacks, when others are there', () {
-      // `trim` was measured on _OneByteString and _TwoByteString; the release
-      // has no _TwoByteString, so no receiver can be one.
-      expect(refusal(retention(snapshot: kept), sdk('trim')), isNull);
+    group('a measured class the release lacks', () {
+      // A release with `Iterable.toList` on `Impl` (an ordinary class) and on
+      // `_GrowableList` (predefined), and a stub-only `StubImpl`.
+      final profile = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          'Object': const RouteBProfileClass(
+            'Object',
+            routeBCoreLibrary,
+            fns: {'==': '[Optimized] =='},
+          ),
+          'Iterable': const RouteBProfileClass(
+            'Iterable',
+            routeBCoreLibrary,
+            parent: 'Object',
+          ),
+          'Impl': const RouteBProfileClass(
+            'Impl',
+            routeBCoreLibrary,
+            parent: 'Iterable',
+            fns: {'toList': '[Optimized] toList'},
+          ),
+          'Stub': const RouteBProfileClass(
+            'StubImpl',
+            routeBCoreLibrary,
+            parent: 'Iterable',
+            fns: {'toList': '[Stub] LazyCompile'},
+          ),
+          'Growable': const RouteBProfileClass(
+            '_GrowableList',
+            routeBCoreLibrary,
+            parent: 'Iterable',
+            fns: {'toList': '[Optimized] toList'},
+          ),
+        }),
+      );
+      const key = 'dart:core#Iterable#toList';
+
+      String? check(List<String> measured, {String declared = 'Iterable'}) =>
+          RouteBRetention.parse(
+            _interface,
+            measuredAccepted: const {key},
+            measuredFailing: const {},
+            measuredVmClasses: {key: measured},
+            kept: profile,
+          ).refusalForTarget(
+            _analysis([
+              _ref('instance', 'dart:core', cls: declared, member: 'toList'),
+            ]),
+            _target,
+          );
+
+      test('is skipped when an ordinary measured class is present', () {
+        expect(check(['_Gen', 'Impl']), isNull);
+      });
+
+      test('is not skipped when every ordinary measured class is absent', () {
+        // The declared type is present, and so is a predefined class, which
+        // proves nothing about the profile being complete.
+        expect(check(['_Gen', '_Other']), contains('no class `_Gen`'));
+        expect(
+          check(['_GrowableList', '_Gen']),
+          contains('no class `_Gen`'),
+        );
+      });
+
+      test('still refuses when a present measured class fails', () {
+        expect(
+          check(['_Gen', 'Impl', 'StubImpl']),
+          contains('without compiled code'),
+        );
+      });
+
+      test('is never skipped for a class the compiler allocates', () {
+        for (final name in [
+          '_SyncStarIterable',
+          '_SyncStarIterator',
+          '_AsyncStarStreamController',
+          '_ImmutableList',
+          '_ConstMap',
+          '_ConstSet',
+          '_Record_2',
+          '_Closure',
+        ]) {
+          expect(
+            check(['Impl', name]),
+            contains('no class `$name`'),
+            reason: name,
+          );
+        }
+      });
+
+      test('is never skipped for a class the VM predefines', () {
+        expect(
+          check(['Impl', '_OneByteString']),
+          contains('no class `_OneByteString`'),
+        );
+      });
     });
 
     test('still checks the measured classes the release has', () {
@@ -695,6 +788,10 @@ void main() {
     });
 
     test('refuses a measured member on a class the release lacks', () {
+      expect(
+        refusal(retention(snapshot: kept), sdk('trim')),
+        contains('no class `_TwoByteString`'),
+      );
       expect(
         refusal(retention(snapshot: kept), sdk('containsKey', 'Map')),
         contains('no class `_Map`'),
