@@ -27,7 +27,9 @@ for f in docker-compose.yaml docker-compose.prod.yaml; do
   [[ -n "${pins}" ]] || { bad "${f}: no ghcr.io/mml555/code-push-server:<version> pin found"; continue; }
   while IFS= read -r pin; do
     [[ "${pin##*:}" == "${version}" ]] \
-      || bad "${f}: pins ${pin}, but pubspec.yaml is ${version}; bump the compose pin with the version"
+      || bad "${f}:$(grep -n -m1 -F "${pin}" "${f}" | cut -d: -f1): pins ${pin}, but pubspec.yaml is ${version}.
+       A release bumps THREE places together: pubspec.yaml, docker-compose.yaml (image: line)
+       and docker-compose.prod.yaml (CPS_IMAGE default). Set both pins to ${version}."
   done <<<"${pins}"
 done
 
@@ -43,12 +45,17 @@ if grep -Eq '^[[:space:]]*encode[[:space:]]+(gzip|zstd)' Caddyfile; then
   bad "Caddyfile: a bare 'encode gzip zstd' compresses /download"
 fi
 
+# setup.sh must not read /readyz through Caddy: it answers 404 there.
+if grep -Eq 'https://\$\{?DOMAIN\}?/(readyz|metrics)' setup.sh PRODUCTION.md; then
+  bad "setup.sh or PRODUCTION.md reads /readyz or /metrics through the public domain; Caddy answers 404 for them (use /healthz, or exec into the server container)"
+fi
+
 if command -v caddy >/dev/null 2>&1; then
   DOMAIN=localhost ACME_EMAIL=ci@example.com \
     caddy validate --config Caddyfile --adapter caddyfile >/dev/null 2>&1 \
     || bad "caddy validate failed (run it by hand for the error)"
 else
-  echo "note: caddy not installed; skipped 'caddy validate'"
+  echo "caddy validate skipped (caddy not installed)"
 fi
 
 if [[ ${fail} -ne 0 ]]; then exit 1; fi

@@ -700,6 +700,9 @@ class Repository {
   /// to run the same DDL; the losers crash on a duplicate object or on the
   /// `schema_migrations` primary key. The lock is transaction-scoped, so it
   /// cannot outlive a crashed replica or leak through the connection pool.
+  /// There is deliberately no lock_timeout: a replica queued behind a long
+  /// migration should wait for it, and an orchestrator healthcheck decides how
+  /// long is too long.
   Future<void> _lockMigrations(DbSession s) async {
     if (_db.dialect != Dialect.postgres) return;
     await s.query('SELECT pg_advisory_xact_lock(@k)', {'k': migrationLockKey});

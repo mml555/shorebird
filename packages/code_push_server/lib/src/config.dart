@@ -186,7 +186,7 @@ class Config {
   /// near miss such as `PRODUCTION=prod` fails boot rather than silently
   /// skipping every production-only check. `ENV` is a generic variable (`sh`
   /// reads a file path from it), so it only ever turns production ON, and only
-  /// for `production` or `prod`; any other value is ignored.
+  /// for `production`; any other value is ignored.
   static bool parseProduction(Map<String, String> env) {
     final raw = env['PRODUCTION']?.trim().toLowerCase() ?? '';
     switch (raw) {
@@ -196,7 +196,7 @@ class Config {
         return false;
       case '':
         final e = env['ENV']?.trim().toLowerCase();
-        return e == 'production' || e == 'prod';
+        return e == 'production';
     }
     throw FormatException(
       'PRODUCTION must be true or false, got "${env['PRODUCTION']}"',

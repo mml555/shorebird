@@ -82,7 +82,8 @@ Verify:
 ```bash
 docker compose -f docker-compose.prod.yaml ps
 curl -fsS https://$DOMAIN/healthz     # liveness
-curl -fsS https://$DOMAIN/readyz      # readiness (DB + S3 reachable)
+# readiness (DB + S3 reachable); /readyz is 404 through Caddy, so ask inside:
+docker compose -f docker-compose.prod.yaml exec -T server curl -fsS http://localhost:8080/readyz
 docker compose -f docker-compose.prod.yaml logs -f server caddy
 ```
 
@@ -213,6 +214,18 @@ lock (transaction-scoped). Replicas started together queue on it: one
 applies a migration, the others re-check and skip it. A schema-changing release
 is still best done stop-all-then-start, not rolling: an old replica that keeps
 running against the migrated schema is only caught at its next boot.
+
+### Cutting a release (maintainers)
+
+A `code_push_server` release changes three version strings together, or CI
+(`tool/check_deploy_files.sh`) fails the release PR:
+
+1. `pubspec.yaml` `version:` and the `CHANGELOG.md` heading.
+2. `docker-compose.yaml`, the `image: ghcr.io/mml555/code-push-server:X.Y.Z` line.
+3. `docker-compose.prod.yaml`, the `CPS_IMAGE` default on the `image:` line.
+
+The pinned image is built by the `code_push_server-vX.Y.Z` tag workflow, so the
+pin dangles between merge and tag; tag promptly.
 
 ### Rolling back
 
@@ -519,7 +532,7 @@ The shipped Caddyfile passes everything to the server except two things.
 unauthenticated and the second makes a DB and S3 round-trip per call. Use the
 public `/healthz` for an external uptime check; scrape `/metrics` and probe
 `/readyz` from inside the `cps` Docker network (`server:8080`), or on the
-host with `docker compose exec server curl -s localhost:8080/readyz`.
+host with `docker compose exec -T server curl -fsS localhost:8080/readyz`.
 `/download` is also kept out of Caddy's `encode`, since patch bodies are
 already compressed and are served with exact lengths and `Range`. The server
 sends `Cache-Control: private, no-store` on `/download` so no cache keeps bytes

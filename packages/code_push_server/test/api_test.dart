@@ -1891,6 +1891,15 @@ void main() {
       final part = await ranged('bytes=1-2');
       expect(part.statusCode, HttpStatus.partialContent);
       expect(part.headers[HttpHeaders.cacheControlHeader], 'private, no-store');
+      final bad = await ranged('bytes=9-');
+      expect(bad.statusCode, HttpStatus.requestedRangeNotSatisfiable);
+      expect(bad.headers[HttpHeaders.cacheControlHeader], 'private, no-store');
+      final forged = await send('GET', '/download/nope?exp=1&sig=bad');
+      expect(forged.statusCode, HttpStatus.forbidden);
+      expect(
+        forged.headers[HttpHeaders.cacheControlHeader],
+        'private, no-store',
+      );
     });
 
     test('a suffix range serves the last bytes', () async {

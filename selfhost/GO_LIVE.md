@@ -139,7 +139,7 @@ from you — the code is built and, where possible, stub-verified:
       leaves the earlier ones applied. Recovery is old image + pre-upgrade
       backup, not "put the old image back"
       ([`upgrade_rollback/`](upgrade_rollback)).
-- [ ] Uptime alert on `/readyz`; logs aggregated (§2).
+- [ ] Uptime alert on `/healthz` (external) and `/readyz` (inside the network; Caddy answers 404 for it publicly); logs aggregated (§2).
 - [ ] Device loop proven on your prod server (§3 step 4) before store submission.
 - [ ] `base_url` baked into the store build points at the **permanent** domain.
 - [ ] IdP / Apple / desktop prerequisites supplied for the platforms you ship

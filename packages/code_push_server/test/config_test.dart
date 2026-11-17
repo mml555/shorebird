@@ -306,7 +306,7 @@ void main() {
 
     test('ENV only turns production on, and never fails boot', () {
       expect(parse({'ENV': 'production'}), isTrue);
-      expect(parse({'ENV': 'prod'}), isTrue);
+      expect(parse({'ENV': 'prod'}), isFalse);
       // `sh` reads a file path from ENV; that is not a mistake to report.
       expect(parse({'ENV': '/etc/profile'}), isFalse);
       expect(parse({'ENV': 'development'}), isFalse);

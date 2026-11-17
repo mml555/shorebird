@@ -3272,7 +3272,13 @@ class Api {
   Future<Response> _download(Request req, String token) async {
     final q = req.url.queryParameters;
     if (!_validSignedUrl(token, q['exp'], q['sig'])) {
-      return _err(HttpStatus.forbidden, 'forbidden', 'Invalid or expired URL');
+      return _err(
+        HttpStatus.forbidden,
+        'forbidden',
+        'Invalid or expired URL',
+      ).change(
+        headers: {HttpHeaders.cacheControlHeader: _downloadCacheControl},
+      );
     }
     final art = await repo.artifactByToken(token);
     if (art == null || !await store.exists(art.storageKey)) {
@@ -3294,7 +3300,10 @@ class Api {
     if (parsed.outcome == RangeOutcome.unsatisfiable) {
       return Response(
         HttpStatus.requestedRangeNotSatisfiable,
-        headers: {HttpHeaders.contentRangeHeader: 'bytes */$total'},
+        headers: {
+          HttpHeaders.contentRangeHeader: 'bytes */$total',
+          HttpHeaders.cacheControlHeader: _downloadCacheControl,
+        },
       );
     }
     if (parsed.outcome == RangeOutcome.partial) {
