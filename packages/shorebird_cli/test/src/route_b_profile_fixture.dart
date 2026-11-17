@@ -13,6 +13,7 @@ class RouteBProfileClass {
     this.parent,
     this.ifaces = const [],
     this.decoys = const {},
+    this.moreFns = const [],
   });
   final String name;
   final String library;
@@ -20,6 +21,9 @@ class RouteBProfileClass {
   final String? parent;
   final List<String> ifaces;
   final Map<String, String?> decoys;
+
+  /// More entries of [fns], for a name that appears twice in one list.
+  final List<(String, String?)> moreFns;
 }
 
 /// A minimal v8 snapshot profile in the shape `gen_snapshot` writes. A class is
@@ -74,12 +78,19 @@ String routeBProfile(Map<String, RouteBProfileClass> classes) {
     ]);
   }
 
-  int functions(Map<String, String?> fns, int owner) {
+  int functions(
+    Map<String, String?> fns,
+    int owner, [
+    List<(String, String?)> more = const [],
+  ]) {
     final fnNodes = <int>[];
-    for (final fn in fns.entries) {
+    for (final fn in [
+      ...fns.entries.map((e) => (e.key, e.value)),
+      ...more,
+    ]) {
       final edges = <(int, String, int)>[prop('owner', owner)];
-      if (fn.value != null) edges.add(prop('code', add('Code', fn.value!)));
-      fnNodes.add(add('Function', fn.key, edges));
+      if (fn.$2 != null) edges.add(prop('code', add('Code', fn.$2!)));
+      fnNodes.add(add('Function', fn.$1, edges));
     }
     return add('Array', 'Unnamed [Array]', [
       for (var k = 0; k < fnNodes.length; k++) element(k, fnNodes[k]),
@@ -106,7 +117,7 @@ String routeBProfile(Map<String, RouteBProfileClass> classes) {
     if (c.parent != null) to.add(prop('super_type_', typeOf(c.parent!)));
     to
       ..add(prop('library_', library(c.library)))
-      ..add(prop('functions_', functions(c.fns, self)));
+      ..add(prop('functions_', functions(c.fns, self, c.moreFns)));
     if (c.decoys.isNotEmpty) {
       to.add(
         prop('invocation_dispatcher_cache_', functions(c.decoys, self)),

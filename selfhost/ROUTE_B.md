@@ -530,6 +530,7 @@ Flutter, one arm per kind of reference; Flutter itself was not run here):
 | a static or top-level the release reaches but never names (the AOT compiler inlined it) | aborts | refused |
 | an instance member of a class the release kept, never named (field, getter, method) | loads; throws `NoSuchMethodError` when called (runs wrongly) | refused |
 | a `dart:` instance member the release never called (`'abc'.toUpperCase()`) | loads; throws `NoSuchMethodError` when called | accepted: **known gap** |
+| an extension getter, setter or tear-off (`Ext|get#x`) | aborts when the release lacks it | accepted only when the release's snapshot profile holds it with code, else refused |
 | a local variable whose declared type is a class the release never used | loads | accepted |
 | the same with `never-inline` on it | aborts | refused |
 | a class the release allocates but never names, with a member it calls virtually (`(pick() as Circle).name()`) | binds | **refused anyway** |
@@ -557,8 +558,15 @@ What this does NOT check, so a pass is not read as more than it is:
   every release code size (see `fw_use_binding.sh`'s `sdk-instance` arm);
 - a reference the compiler adds that no source token names (interpolation,
   `for`, `async`), and `dart:_` libraries;
-- an extension member (`list.firstOrNull`, `Ext|get#x`): the generator skips
-  these too, so nothing checks that the release kept one;
+- an extension member (`list.firstOrNull`, `Ext|get#x`): no interface lists one
+  (the generator skips `#` names), so the check asks the release's snapshot
+  profile instead: it is kept when the profile holds a top-level function of
+  that name, in that library, with code. A release that never called it (or
+  marked it `vm:entry-point`, which also retains it) is the other case, and an
+  unreadable profile refuses. This covers SDK extensions as well. An unnamed
+  extension is named by its position in the library (`_extension#0|get#x`); a
+  patch cannot add an extension, and the analysis refuses carrying one, so
+  the position cannot shift under the name;
 - the declared type of a local variable: measured to load without the class
   (`local_type_only`); an assignment or cast to it is a type node and is checked;
 - that a kept symbol has code in the snapshot. Retention is not compilation (see

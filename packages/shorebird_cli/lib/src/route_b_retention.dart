@@ -452,7 +452,10 @@ class RouteBRetention {
       // The interface cannot list one, so the release's own snapshot answers:
       // a function in it with code is one the release itself calls, which is
       // what keeps it past the precompiler (a release that never called it
-      // lacks it, and that is the case that aborts at load).
+      // lacks it, and that is the case that aborts at load). A
+      // `vm:entry-point` pragma retains one too, and is as callable. An
+      // unnamed extension's `#N` name is its position in the library, which a
+      // patch cannot shift (it cannot add an extension).
       return !r.isPrivate &&
           member != null &&
           (kept?.hasTopLevelFunction(r.library, member) ?? false);
