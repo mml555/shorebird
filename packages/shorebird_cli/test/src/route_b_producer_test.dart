@@ -1880,6 +1880,7 @@ callable:
       /// A release manifest granting exactly [instance] and [classes].
       RouteBCapabilities grants({
         List<String> instance = const [],
+        List<String> statics = const [],
         List<String> classes = const [],
         // Passing this makes the manifest one the CURRENT generator emits: it
         // names each public member of a private class. Omitting it models a
@@ -1891,6 +1892,7 @@ callable:
         jsonEncode({
           'policy': 'p2',
           'privateInstanceCallable': instance,
+          'privateStaticsCallable': statics,
           'privateClassesConstructible': classes,
           'privateClassPublicMembers': ?classPublicMembers,
         }),
@@ -3499,6 +3501,209 @@ callable:
             scoped(decl: decl, scope: use(decl, r'$k', interpolated: true)),
           );
           expect(out, contains(r"'v=${RouteBThing.k}'"));
+        });
+
+        group('a private static const of the class', () {
+          const decl = r"String f() => 'v=$_k';";
+
+          Map<String, Object?> constUse({
+            String kind = 'constant',
+            String member = '_k',
+          }) => use(
+            decl,
+            r'$_k',
+            member: member,
+            kind: kind,
+            interpolated: true,
+          );
+
+          String? refusal(Map<String, Object?> scope, {String payload = ''}) {
+            try {
+              runWithOverrides(
+                () => const RouteBProducer().produce(
+                  compiler: compiler(),
+                  coverage: scoped(decl: decl, scope: scope),
+                  releaseImportKernel: File(
+                    p.join(cell.path, 'release_import.dill'),
+                  ),
+                  releaseBuildId: 'deadbeef',
+                  workingDirectory: work,
+                  projectRoot: project,
+                  run: (executable, arguments) {
+                    final result = compileOk(executable, arguments);
+                    File(
+                      arguments[arguments.indexOf('-o') + 1],
+                    ).writeAsStringSync('BYTECODE $payload');
+                    lastArguments = arguments;
+                    return result;
+                  },
+                ),
+              );
+              return null;
+            } on RouteBUnsupportedTarget catch (e) {
+              return e.reason;
+            }
+          }
+
+          group('granted by the manifest', () {
+            const call = r"String f() => _w('n$_k');";
+            const lib = 'package:app/main.dart';
+
+            Map<String, Object?> scopeOf(
+              String needle,
+              String member,
+              String kind, {
+              bool interpolated = false,
+            }) => use(
+              call,
+              needle,
+              member: member,
+              kind: kind,
+              interpolated: interpolated,
+            );
+
+            String? refuses(
+              Map<String, Object?> scope,
+              RouteBCapabilities? granting,
+            ) {
+              try {
+                runWithOverrides(
+                  () => const RouteBProducer().produce(
+                    compiler: compiler(),
+                    coverage: scoped(
+                      decl: call,
+                      scope: scope,
+                    ),
+                    releaseImportKernel: File(
+                      p.join(cell.path, 'release_import.dill'),
+                    ),
+                    releaseBuildId: 'deadbeef',
+                    workingDirectory: work,
+                    projectRoot: project,
+                    capabilities: granting,
+                    run: (executable, arguments) {
+                      lastArguments = arguments;
+                      return compileOk(executable, arguments);
+                    },
+                  ),
+                );
+                return null;
+              } on RouteBUnsupportedTarget catch (e) {
+                return e.reason;
+              }
+            }
+
+            Map<String, Object?> both() {
+              final w = scopeOf('_w(', '_w', 'invoke');
+              final k = scopeOf(r'$_k', '_k', 'constant', interpolated: true);
+              return {
+                ...w,
+                'staticReferences': [
+                  ...(w['staticReferences']! as List),
+                  ...(k['staticReferences']! as List),
+                ],
+              };
+            }
+
+            test('a static method and a static const are carried (s1b)', () {
+              expect(
+                refuses(
+                  both(),
+                  grants(
+                    statics: [
+                      '$lib#RouteBThing#_w',
+                      '$lib#RouteBThing#_k',
+                    ],
+                  ),
+                ),
+                isNull,
+              );
+              final text = File(
+                p.join(work.path, 'replacement_0.dart'),
+              ).readAsStringSync();
+              expect(text, contains('RouteBThing._w('));
+              expect(text, contains(r'${RouteBThing._k}'));
+              expect(
+                lastArguments,
+                contains('--resolve-private-names-in-library'),
+              );
+            });
+
+            test('an ungranted static method is refused', () {
+              expect(
+                refuses(
+                  scopeOf('_w(', '_w', 'invoke'),
+                  grants(statics: ['$lib#RouteBThing#_k']),
+                ),
+                contains('`_w`'),
+              );
+              expect(
+                refuses(scopeOf('_w(', '_w', 'invoke'), null),
+                contains('`_w`'),
+              );
+            });
+
+            test('a grant under another class does not count', () {
+              expect(
+                refuses(
+                  scopeOf('_w(', '_w', 'invoke'),
+                  grants(statics: ['$lib#Other#_w']),
+                ),
+                contains('`_w`'),
+              );
+            });
+
+            test('a name the analysis reported no use of is refused', () {
+              expect(
+                refuses(
+                  scopeOf('_w(', '_other', 'invoke'),
+                  grants(statics: ['$lib#RouteBThing#_w']),
+                ),
+                isNotNull,
+              );
+            });
+          });
+
+          test('is carried when the analysis saw it folded', () {
+            expect(refusal(constUse()), isNull);
+            expect(
+              File(p.join(work.path, 'replacement_0.dart')).readAsStringSync(),
+              contains(r'${RouteBThing._k}'),
+            );
+            expect(
+              lastArguments,
+              containsAllInOrder([
+                '--resolve-private-names-in-library',
+                'package:app/main.dart',
+              ]),
+            );
+          });
+
+          test('is refused when the compiled body still names it', () {
+            expect(
+              refusal(constUse(), payload: 'LoadStatic _k'),
+              contains('still refers to it by name'),
+            );
+          });
+
+          test('is refused when the analysis did not see a constant', () {
+            // A `static final`, or a static read: the existing grant path.
+            expect(
+              refusal(constUse(kind: 'get')),
+              contains('private identifier'),
+            );
+            expect(
+              refusal(constUse(kind: 'invoke')),
+              contains('private identifier'),
+            );
+          });
+
+          test('is refused for a name the analysis did not report', () {
+            expect(
+              refusal(constUse(member: '_other')),
+              anyOf(contains('private identifier'), contains('analyzer')),
+            );
+          });
         });
 
         test('refuses a use that is not where the analyzer said', () {

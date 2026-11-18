@@ -93,7 +93,12 @@ class _Lowered {
     this.declaration, {
     this.preamble = '',
     this.needsSuperVerification = false,
+    this.foldedConstants = const {},
   });
+
+  /// Private static consts of the member's own class that the body names and
+  /// the analysis saw folded; the compiled payload must hold no lookup of one.
+  final Set<String> foldedConstants;
 
   /// The replacement declaration itself.
   final String declaration;
@@ -641,6 +646,13 @@ Object? $_superIntrinsicName(
           // A static target of a private class that now names its class to
           // qualify a static (`_Cls.k`) spells a private name too.
           _qualifiesPrivateClass(_scopeOf(key, coverage)) ||
+          // A private static const of a public class, spelled `Cls._k`.
+          _constantStatics(_scopeOf(key, coverage)).isNotEmpty ||
+          // A granted private static of the class, spelled `Cls._k`.
+          (_scopeOf(key, coverage)?.staticReferences.any(
+                (r) => r.member.startsWith('_'),
+              ) ??
+              false) ||
           // G5. A PRIVATE TOP-LEVEL FUNCTION the release holds (`_fmt(x)`)
           // is a private name of the target's library, and the replacement
           // library cannot spell it without the flag:
@@ -856,6 +868,25 @@ Object? $_superIntrinsicName(
           'the bytecode compiler refused its replacement body '
           '(exit ${result.exitCode})${output.isEmpty ? '' : '\n$output'}',
         );
+      }
+
+      // A PRIVATE STATIC CONST named in the body was admitted on the analysis
+      // seeing Kernel fold it. Fold-or-refuse is decided on what was compiled:
+      // a payload that still holds the const's name is looking it up (a static
+      // field load binds by name at load, and aborts when the release lacks
+      // it), so the target is refused.
+      if (lowered.foldedConstants.isNotEmpty) {
+        final bytes = payload.readAsBytesSync();
+        for (final name in lowered.foldedConstants) {
+          if (_containsBytes(bytes, utf8.encode(name))) {
+            throw RouteBUnsupportedTarget(
+              key,
+              'its body names the private const `$name`, and the compiled '
+              'replacement still refers to it by name instead of holding its '
+              'value, so the release would have to retain it',
+            );
+          }
+        }
       }
 
       // FAIL-CLOSED CHECK OF THE `inlined` CLAIM, against what was compiled.
@@ -1925,8 +1956,23 @@ Object? $_superIntrinsicName(
         .split('.')
         .last
         .replaceFirst(RegExp('^[gs]et:'), '');
+    final folded = <String>{};
+    final constants = _constantStatics(scope);
     for (final name in _privateIdentifiers(text)) {
       if (granted.contains(name) || name == own || helperNames.contains(name)) {
+        continue;
+      }
+      // A private static of the member's own class (method, accessor, field or
+      // const), written unqualified: the class scope qualifies it, and the
+      // release's manifest grants it by the same `library#Class#name` key as
+      // an instance member.
+      if (_ownStaticGranted(name, key, scope, capabilities)) continue;
+      // A private static const of the member's own class. The analyzer saw
+      // Kernel fold this use into a constant (no member is read), so no
+      // release grant is needed; the compiled replacement is checked for a
+      // lookup of it after the compile (`foldedConstants`).
+      if (constants.contains(name)) {
+        folded.add(name);
         continue;
       }
       throw RouteBUnsupportedTarget(
@@ -1955,6 +2001,7 @@ Object? $_superIntrinsicName(
       text,
       preamble: superEdits.isEmpty ? '' : '$_superIntrinsicDeclaration\n',
       needsSuperVerification: superEdits.isNotEmpty,
+      foldedConstants: folded,
     );
   }
 
@@ -1994,6 +2041,67 @@ Object? $_superIntrinsicName(
     }
     return scope;
   }
+
+  /// Whether [name] is a private static of [scope]'s class that the analysis
+  /// reports a use of in this body and the manifest grants (the class is in the
+  /// target's library: the scope is the member's own).
+  static bool _ownStaticGranted(
+    String name,
+    String key,
+    RouteBEnclosingScope? scope,
+    RouteBCapabilities? capabilities,
+  ) {
+    if (scope == null || capabilities == null) return false;
+    final library = key.split('#').first;
+    for (final r in scope.staticReferences) {
+      if (r.member != name) continue;
+      final shapes = switch (r.kind) {
+        'get' => [name, 'get:$name'],
+        'set' => [name, 'set:$name'],
+        _ => [name],
+      };
+      if (shapes.any(
+        (m) =>
+            capabilities.refuseInstanceMember(
+                  library: library,
+                  className: scope.className,
+                  member: m,
+                ) ==
+                null &&
+            (capabilities.staticsCallable.contains(
+                  '$library#${scope.className}#$m',
+                ) ||
+                capabilities.instanceCallable.contains(
+                  '$library#${scope.className}#$m',
+                )),
+      )) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static bool _containsBytes(List<int> haystack, List<int> needle) {
+    if (needle.isEmpty) return false;
+    final last = haystack.length - needle.length;
+    for (var i = 0; i <= last; i++) {
+      var j = 0;
+      while (j < needle.length && haystack[i + j] == needle[j]) {
+        j++;
+      }
+      if (j == needle.length) return true;
+    }
+    return false;
+  }
+
+  /// The private static consts of the member's own class that the analysis
+  /// reports as folded uses (`constant`) in its body. Only the member's own
+  /// class (hence library): another library's private const is not reported
+  /// here, and stays refused.
+  static Set<String> _constantStatics(RouteBEnclosingScope? scope) => {
+    for (final r in scope?.staticReferences ?? const <RouteBStaticReference>[])
+      if (r.kind == 'constant' && r.member.startsWith('_')) r.member,
+  };
 
   static bool _qualifiesPrivateClass(RouteBEnclosingScope? scope) =>
       scope != null &&
