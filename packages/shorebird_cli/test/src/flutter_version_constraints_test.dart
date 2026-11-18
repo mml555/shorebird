@@ -1,5 +1,6 @@
 import 'package:pub_semver/pub_semver.dart';
 import 'package:shorebird_cli/src/flutter_version_constraints.dart';
+import 'package:shorebird_cli/src/release_type.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';
@@ -20,33 +21,27 @@ void main() {
 
     test('a side version below the floor stays below it', () {
       expect(
-        Version.parse('3.32.5-sb.1').satisfiesFloor(
-          minimumSupportedWindowsFlutterVersion,
-        ),
+        Version.parse('3.32.5-sb.1')
+            .satisfiesFloor(minimumSupportedWindowsFlutterVersion),
         isFalse,
       );
     });
 
     test("an upstream pre-release stays below its release's floor", () {
       expect(
-        Version.parse('3.32.6-0.1.pre').satisfiesFloor(
-          minimumSupportedWindowsFlutterVersion,
-        ),
+        Version.parse('3.32.6-0.1.pre')
+            .satisfiesFloor(minimumSupportedWindowsFlutterVersion),
         isFalse,
       );
     });
 
     test('a plain version compares as it always did', () {
       expect(
-        Version(3, 32, 6).satisfiesFloor(
-          minimumSupportedWindowsFlutterVersion,
-        ),
+        Version(3, 32, 6).satisfiesFloor(minimumSupportedWindowsFlutterVersion),
         isTrue,
       );
       expect(
-        Version(3, 32, 5).satisfiesFloor(
-          minimumSupportedWindowsFlutterVersion,
-        ),
+        Version(3, 32, 5).satisfiesFloor(minimumSupportedWindowsFlutterVersion),
         isFalse,
       );
     });
@@ -93,6 +88,46 @@ void main() {
         ),
         isTrue,
       );
+    });
+  });
+
+  group('Flutter 3.50', () {
+    // 3.50 is not the supported default yet; this pins that every version
+    // rule is a floor, so a 3.50 or 3.50-sb Flutter is never refused by one.
+    final versions = [Version(3, 50, 0), Version.parse('3.50.0-sb.1')];
+
+    for (final version in versions) {
+      test('$version clears every platform floor', () {
+        for (final type in ReleaseType.values) {
+          expect(
+            version.satisfiesFloor(minimumReleaseFlutterVersion(type)),
+            isTrue,
+            reason: '$type',
+          );
+        }
+        expect(
+          version.satisfiesFloor(minimumObfuscationFlutterVersion),
+          isTrue,
+        );
+      });
+
+      test('$version satisfies every support constraint', () {
+        for (final constraint in [
+          updaterPatchErrorFixConstraint,
+          arm64PatchSupportConstraint,
+          buildTraceSupportConstraint,
+          libappStrippedByAgpConstraint,
+        ]) {
+          expect(
+            constraint.isSatisfiedBy(version: version, revision: 'unlisted'),
+            isTrue,
+          );
+        }
+      });
+    }
+
+    test('sorts after 3.47.9', () {
+      expect(Version(3, 50, 0), greaterThan(Version(3, 47, 9)));
     });
   });
 }
