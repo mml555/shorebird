@@ -456,6 +456,78 @@ callable:
           throwsA(isA<RouteBUnsupportedTarget>()),
         );
       });
+
+      group('the scan of a target with no lowering, when the flag is on', () {
+        /// The refusal [body] gets as `routeBValue` with `_fmt` granted, or
+        /// null when it is carried.
+        String? refusal(String body) {
+          source.writeAsStringSync(body);
+          final capabilities = RouteBCapabilities.fromJson(
+            jsonEncode({
+              'policy': 'p2',
+              'privateTopLevelCallable': const [privateFmt],
+            }),
+          );
+          try {
+            runWithOverrides(
+              () => const RouteBProducer().produce(
+                compiler: compiler(),
+                coverage: coverage(
+                  sources: {
+                    target: {
+                      'fileUri': source.uri.toString(),
+                      'start': 0,
+                      'end': body.length,
+                    },
+                  },
+                  externalReferences: {
+                    target: [reference()],
+                  },
+                ),
+                releaseImportKernel: File(
+                  p.join(cell.path, 'release_import.dill'),
+                ),
+                releaseBuildId: 'deadbeef',
+                workingDirectory: work,
+                projectRoot: project,
+                capabilities: capabilities,
+                retention: RouteBRetention.parse('''
+callable:
+  - library: 'package:app/main.dart'
+  - library: 'package:app/main.dart'
+    member: '_fmt'
+''', capabilities: capabilities),
+                run: compileOk,
+              ),
+            );
+            return null;
+          } on RouteBUnsupportedTarget catch (e) {
+            return e.reason;
+          }
+        }
+
+        test('carries the granted private top-level function', () {
+          expect(refusal("String routeBValue() => _fmt('a') + '_x';"), isNull);
+        });
+
+        test('refuses another private name beside it', () {
+          expect(
+            refusal('String routeBValue(dynamic d) => _fmt(1) + d._secret;'),
+            contains('`_secret`'),
+          );
+        });
+
+        test('refuses the granted name written after a dot', () {
+          expect(
+            refusal('String routeBValue(dynamic d) => _fmt(1) + d._fmt(2);'),
+            contains('`_fmt`'),
+          );
+          expect(
+            refusal('String routeBValue(dynamic d) => _fmt(1) + d?._fmt(2);'),
+            contains('`_fmt`'),
+          );
+        });
+      });
     });
 
     group('the compiled replacement checks an `inlined` claim', () {
@@ -3754,14 +3826,66 @@ callable:
             });
           });
 
-          test(
-            'an instance helper using a granted static turns the flag on',
-            () {
+          group('one offset reported twice', () {
+            const decl = 'int f() => _n;';
+            Map<String, Object?> twice(Map<String, Object?> second) {
+              final scope = scopeFor(decl, [('_n', '_n', 'get')]);
+              final first = (scope['staticReferences']! as List).single as Map;
+              scope['staticReferences'] = [
+                first,
+                {...first, ...second},
+              ];
+              return scope;
+            }
+
+            test('two different statics are refused', () {
+              expect(
+                refuses(
+                  decl,
+                  twice({'member': '_m'}),
+                  grants(statics: ['$lib#RouteBThing#_n']),
+                ),
+                contains('reported at offset'),
+              );
+            });
+
+            test('an interpolated and a plain use are refused', () {
+              expect(
+                refuses(
+                  decl,
+                  twice({'interpolated': true}),
+                  grants(statics: ['$lib#RouteBThing#_n']),
+                ),
+                contains('reported at offset'),
+              );
+            });
+
+            test('a get-only grant does not cover `_n++`', () {
+              const inc = 'int f() { _n++; return 1; }';
+              final scope = scopeFor(inc, [
+                ('_n', '_n', 'get'),
+                ('_n', '_n', 'set'),
+              ]);
+              expect(
+                refuses(
+                  inc,
+                  scope,
+                  grants(statics: ['$lib#RouteBThing#get:_n']),
+                ),
+                contains('`_n`'),
+              );
+            });
+          });
+
+          for (final helper in [
+            'String _h(int l) => _k;',
+            'String _h(int l) => _k + _other;',
+          ]) {
+            test('an instance helper `$helper` and the flag', () {
               const targetKey = '$lib#RouteBThing.value';
               const helperKey = '$lib#RouteBThing._h';
               const decl = 'String value() => _h(1);';
-              const helper = 'String _h(int l) => _k;';
-              const body = 'class RouteBThing {\n  $decl\n  $helper\n}\n';
+              final body = 'class RouteBThing {\n  $decl\n  $helper\n}\n';
               source.writeAsStringSync(body);
               Map<String, Object?> at(String piece) => {
                 'fileUri': source.uri.toString(),
@@ -3856,11 +3980,18 @@ callable:
                 }
               }
 
-              expect(run(grants(statics: ['$lib#RouteBThing#_k'])), isNull);
-              expect(lastArguments, contains(flag));
+              final granting = grants(statics: ['$lib#RouteBThing#_k']);
+              if (helper.contains('_other')) {
+                // The flag is on for the granted `_k`, and the backstop still
+                // refuses the private name nothing granted.
+                expect(run(granting), contains('`_other`'));
+              } else {
+                expect(run(granting), isNull);
+                expect(lastArguments, contains(flag));
+              }
               expect(run(null), contains('`_k`'));
-            },
-          );
+            });
+          }
 
           group('a static target of a private class', () {
             const private = '_RouteBThing';
@@ -3904,6 +4035,59 @@ callable:
                 refuses(decl, scope, null, instance: false),
                 contains('`_k`'),
               );
+            });
+
+            test('an interpolated granted static is carried', () {
+              const decl = r"static String f() => 'v$_k';";
+              final scope = scopeFor(decl, [
+                (r'$_k', '_k', 'get'),
+              ], className: private);
+              expect(
+                refuses(
+                  decl,
+                  scope,
+                  grants(statics: ['$lib#$private#_k']),
+                  instance: false,
+                ),
+                isNull,
+              );
+              expect(emitted(), contains(r'${_RouteBThing._k}'));
+            });
+
+            test('a local shadowing a granted static is refused', () {
+              const decl = 'static int f() { var _k = 2; return _k; }';
+              final scope = scopeFor(decl, [
+                ('return _k', '_k', 'get'),
+              ], className: private);
+              expect(
+                refuses(
+                  decl,
+                  scope,
+                  grants(statics: ['$lib#$private#_k']),
+                  instance: false,
+                ),
+                contains('`_k`'),
+              );
+            });
+
+            test("the class's own name is refused", () {
+              const decl = 'static int f(int a) => a + k + _RouteBThing.g();';
+              final scope = scopeFor(decl, [
+                ('a + k', 'k', 'get'),
+              ], className: private);
+              expect(
+                refuses(decl, scope, null, instance: false),
+                contains('`_RouteBThing`'),
+              );
+            });
+
+            test('a comment or string naming a private name is carried', () {
+              const decl =
+                  r"static String f(int a) => '_fmt' + '${a + k}'; // _fmt";
+              final scope = scopeFor(decl, [
+                ('a + k', 'k', 'get'),
+              ], className: private);
+              expect(refuses(decl, scope, null, instance: false), isNull);
             });
 
             test('naming no private name is carried as before', () {
