@@ -1,5 +1,5 @@
 {
-  "sourceSha256": "28c1403ed67afba1a8087ed88396707f9e5e8694001e01dd52efec97f1ec385d",
+  "sourceSha256": "fecab633aff31850634f1dc80a47e8a4bde3d98cea0c0b82ef40c6557531eb71",
   "M.viaMixin": {
     "start": 697,
     "end": 718,
@@ -392,11 +392,35 @@
     "static": true,
     "scope": {
       "class": "X",
-      "staticReferences": [],
+      "staticReferences": [
+        {
+          "offset": 2003,
+          "member": "k",
+          "kind": "get"
+        }
+      ],
       "usedTypeParameters": [],
-      "problems": [
-        "it is an instance member of `X`, whose receiver a replacement does not pass"
-      ]
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 1986,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 1996,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
     }
   },
   "X|get#inst": {
@@ -408,7 +432,7 @@
       "staticReferences": [],
       "usedTypeParameters": [],
       "problems": [
-        "its extension member could not be identified"
+        "it is the tear-off of an extension method, which has no source of its own"
       ]
     }
   },
@@ -418,11 +442,29 @@
     "static": true,
     "scope": {
       "class": "X",
-      "staticReferences": [],
+      "staticReferences": [
+        {
+          "offset": 2022,
+          "member": "k",
+          "kind": "get"
+        }
+      ],
       "usedTypeParameters": [],
-      "problems": [
-        "it is an instance member of `X`, whose receiver a replacement does not pass"
-      ]
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2016,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
     }
   },
   "X|set#zs": {
@@ -431,48 +473,775 @@
     "static": true,
     "scope": {
       "class": "X",
+      "staticReferences": [
+        {
+          "offset": 2047,
+          "member": "k",
+          "kind": "set"
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2031,
+      "signatureTypes": {
+        "params": [
+          "int"
+        ],
+        "returnType": "void"
+      },
+      "accesses": [],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": [
+        "it is an extension setter, and only a getter or a method of an extension is carried"
+      ]
+    }
+  },
+  "X|interp": {
+    "start": 2061,
+    "end": 2092,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [
+        {
+          "offset": 2082,
+          "member": "k",
+          "kind": "get",
+          "interpolated": true
+        },
+        {
+          "offset": 2089,
+          "member": "k",
+          "kind": "get",
+          "interpolated": true
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2068,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "String"
+      },
+      "accesses": [
+        {
+          "offset": 2084,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "X|get#interp": {
+    "start": 2061,
+    "end": 2092,
+    "static": true,
+    "scope": {
+      "class": "X",
       "staticReferences": [],
       "usedTypeParameters": [],
       "problems": [
-        "it is an instance member of `X`, whose receiver a replacement does not pass"
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
+  "X|sibling": {
+    "start": 2095,
+    "end": 2138,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2099,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2112,
+          "member": "inst",
+          "kind": "extensionInvoke"
+        },
+        {
+          "offset": 2121,
+          "member": "zz",
+          "kind": "extensionGet"
+        },
+        {
+          "offset": 2131,
+          "member": "inst",
+          "kind": "extensionInvoke"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "X|get#sibling": {
+    "start": 2095,
+    "end": 2138,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
+  "X|cmp": {
+    "start": 2141,
+    "end": 2176,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2145,
+      "signatureTypes": {
+        "params": [
+          "int"
+        ],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2159,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "X|get#cmp": {
+    "start": 2141,
+    "end": 2176,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
+  "X|get#inClosure": {
+    "start": 2179,
+    "end": 2234,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2187,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2219,
+          "member": "inst",
+          "kind": "extensionInvoke"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "X|leak": {
+    "start": 2237,
+    "end": 2259,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2244,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "Object"
+      },
+      "accesses": [
+        {
+          "offset": 2254,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "X|get#leak": {
+    "start": 2237,
+    "end": 2259,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
+  "X|tear": {
+    "start": 2262,
+    "end": 2295,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2280,
+      "signatureTypes": {
+        "params": [],
+        "returnType": null
+      },
+      "accesses": [],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": [
+        "tears off the extension method of `X`"
+      ]
+    }
+  },
+  "X|get#tear": {
+    "start": 2262,
+    "end": 2295,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
+  "X|optional": {
+    "start": 2298,
+    "end": 2336,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2302,
+      "signatureTypes": {
+        "params": [
+          "int"
+        ],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2331,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": [
+        "the method takes optional positional parameters"
+      ]
+    }
+  },
+  "X|get#optional": {
+    "start": 2298,
+    "end": 2336,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
+  "X|get#implicit": {
+    "start": 2339,
+    "end": 2374,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2347,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2359,
+          "member": "isEven",
+          "kind": "get"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "X|casc": {
+    "start": 2377,
+    "end": 2407,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2384,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "Object"
+      },
+      "accesses": [
+        {
+          "offset": 2394,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": [
+        "calls the extension member `X|inst` on an expression built from the receiver (a cascade, a null-aware call or a parenthesised expression), which a replacement does not rewrite"
+      ]
+    }
+  },
+  "X|get#casc": {
+    "start": 2377,
+    "end": 2407,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
+  "X|nested": {
+    "start": 2410,
+    "end": 2469,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2414,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2440,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "X|get#nested": {
+    "start": 2410,
+    "end": 2469,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
+  "X|shadow": {
+    "start": 2473,
+    "end": 2503,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2477,
+      "signatureTypes": {
+        "params": [
+          "int"
+        ],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2498,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "X|get#shadow": {
+    "start": 2473,
+    "end": 2503,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
+  "NI|get#nz": {
+    "start": 2532,
+    "end": 2567,
+    "static": true,
+    "scope": {
+      "class": "NI",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int?",
+      "extension": "NI",
+      "nameOffset": 2540,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2546,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "NI|get#viaNull": {
+    "start": 2570,
+    "end": 2603,
+    "static": true,
+    "scope": {
+      "class": "NI",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int?",
+      "extension": "NI",
+      "nameOffset": 2578,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2589,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": [
+        "calls the extension member `NI|get#nz` on an expression built from the receiver (a cascade, a null-aware call or a parenthesised expression), which a replacement does not rewrite"
+      ]
+    }
+  },
+  "NI|get#plain": {
+    "start": 2606,
+    "end": 2630,
+    "static": true,
+    "scope": {
+      "class": "NI",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int?",
+      "extension": "NI",
+      "nameOffset": 2614,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2623,
+          "member": "nz",
+          "kind": "extensionGet"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "G|get#firstLen": {
+    "start": 2664,
+    "end": 2691,
+    "static": true,
+    "scope": {
+      "class": "G",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "dynamic",
+      "extension": "G",
+      "nameOffset": 2672,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2684,
+          "member": "length",
+          "kind": "get"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": [
+        "it is a member of the generic extension `G`, and a replacement does not declare the extension's type parameters",
+        "its receiver type `List` cannot be written in the replacement library: it must be a public class of dart:core or of this library"
+      ]
+    }
+  },
+  "_extension#3|get#unnamed": {
+    "start": 2719,
+    "end": 2745,
+    "static": true,
+    "scope": {
+      "class": "_extension#3",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is a member of an unnamed extension"
+      ],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "String",
+      "extension": "_extension#3",
+      "nameOffset": 2727,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2738,
+          "member": "length",
+          "kind": "get"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": [
+        "it is a member of an unnamed extension"
+      ]
+    }
+  },
+  "PE|get#pv": {
+    "start": 2785,
+    "end": 2801,
+    "static": true,
+    "scope": {
+      "class": "PE",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "dynamic",
+      "extension": "PE",
+      "nameOffset": 2793,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": [
+        "its receiver type `_P` cannot be written in the replacement library: it must be a public class of dart:core or of this library"
+      ]
+    }
+  },
+  "_PX|get#px": {
+    "start": 2830,
+    "end": 2846,
+    "static": true,
+    "scope": {
+      "class": "_PX",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "_PX",
+      "nameOffset": 2838,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": [
+        "it is a member of the private extension `_PX`, which a replacement library cannot name"
       ]
     }
   },
   "ET|constructor#": {
-    "start": 2078,
-    "end": 2085,
+    "start": 2867,
+    "end": 2874,
     "static": true,
     "scope": {
       "class": "ET",
       "staticReferences": [],
       "usedTypeParameters": [],
       "problems": [
-        "it is an instance member of `ET`, whose receiver a replacement does not pass"
+        "it is an instance member of the extension type `ET`, which a replacement does not carry"
       ]
     }
   },
   "ET|constructor#_#new#tearOff": {
-    "start": 2078,
-    "end": 2079,
+    "start": 2867,
+    "end": 2868,
     "static": true,
     "scope": {
       "class": "ET",
       "staticReferences": [],
       "usedTypeParameters": [],
       "problems": [
-        "its extension member could not be identified"
+        "it is the tear-off of an extension method, which has no source of its own"
       ]
     }
   },
   "ET|s": {
-    "start": 2110,
-    "end": 2130,
+    "start": 2899,
+    "end": 2919,
     "static": true,
     "scope": {
       "class": "ET",
       "staticReferences": [
         {
-          "offset": 2128,
+          "offset": 2917,
           "member": "k",
           "kind": "get"
         }
@@ -482,28 +1251,28 @@
     }
   },
   "ET|get#zz": {
-    "start": 2133,
-    "end": 2149,
+    "start": 2922,
+    "end": 2938,
     "static": true,
     "scope": {
       "class": "ET",
       "staticReferences": [],
       "usedTypeParameters": [],
       "problems": [
-        "it is an instance member of `ET`, whose receiver a replacement does not pass"
+        "it is an instance member of the extension type `ET`, which a replacement does not carry"
       ]
     }
   },
   "ET|set#zs": {
-    "start": 2152,
-    "end": 2182,
+    "start": 2941,
+    "end": 2971,
     "static": true,
     "scope": {
       "class": "ET",
       "staticReferences": [],
       "usedTypeParameters": [],
       "problems": [
-        "it is an instance member of `ET`, whose receiver a replacement does not pass"
+        "it is an instance member of the extension type `ET`, which a replacement does not carry"
       ]
     }
   }

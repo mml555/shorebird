@@ -486,9 +486,29 @@ end's token stream, and the producer writes `Class.` in front of it. What it
 cannot place it refuses: a class type parameter in an instance body, an own
 static spelled inside a folded `const` collection or constructor call, a
 parameter or local named like a static, an annotation naming one, a mixin
-application copy, an instance extension member, and an entry whose name a
-carried helper also spells. The refusals over `const` arguments are broader than
+application copy, an instance member of an extension type, and an entry whose
+name a carried helper also spells. The refusals over `const` arguments are broader than
 the hazard (they refuse even with no top-level twin); write `Class.name`.
+
+**Extension instance members (analysis 22).** Kernel compiles `String get stars
+=> glyph * this` in `extension Stars on int` to the static `Stars|get#stars(int
+#this)`, which is the key the release's snapshot and the replacement's selector
+use, so a replacement is the top-level `String stars(int self) => Stars.glyph *
+self` and needs no engine change. The analyzer reports `extension` and
+`receiverType`, and `this`, `$this` and `$a$this$b` become `self`/`${self}`. A
+call of a sibling made as `sibling()` or `this.sibling()` is written
+`Stars(self).sibling()`, so it cannot resolve to another extension in scope. A
+call on something built from the receiver (`this..m()`, `this?.m()`,
+`(this + 1).m()`) is not rewritten and is refused. Also refused, with the
+reason: a generic extension, an unnamed or private extension, an extension type,
+an on-type that is not a public class of dart:core or of the target's library, a
+setter or operator, optional or named parameters, member type parameters, a
+tear-off of a sibling, a member that spells the extension's own name as a
+parameter, local or value (it would capture `Stars(...)`/`Stars.`), a key with
+no `lowering` or whose lowering names no extension, and any document older than
+22. A refusal of an extension member on an older cell comes from that cell's own
+analyzer; the producer never sees an `extension` field below 22. Nothing here
+was run on a device.
 
 **Rollout.** The analyzer always writes `enclosingScope` (`{}` at minimum). A
 document without it comes from a cell built before this change, and a class or

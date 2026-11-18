@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:test/test.dart';
+
 import 'helpers.dart';
 
 void main() {
@@ -238,6 +239,54 @@ JSON
       });
     });
 
+    group('extension receivers (analysis version 22)', () {
+      String withExtension(int version) => jsonEncode({
+        'analysisVersion': version,
+        'verdict': 'accept',
+        'changed': ['a#Stars|get#stars'],
+        'added': <String>[],
+        'removed': <String>[],
+        'patchable': <String>[],
+        'conditional': ['a#Stars|get#stars'],
+        'carried': <String>[],
+        'callers': <String, Object>{},
+        'helpers': <String>[],
+        'unusedHelpers': <String>[],
+        'externalReferences': <String, Object>{},
+        'lowering': {
+          'a#Stars|get#stars': {
+            'receiverType': 'int',
+            'extension': 'Stars',
+            'nameOffset': 3,
+            'accesses': [
+              {'offset': 4, 'member': 'this', 'kind': 'receiver'},
+            ],
+            'unsupported': <String>[],
+            'privateConstructions': <Object>[],
+          },
+        },
+        'rejections': <Object>[],
+        'refusalSummary': null,
+      });
+
+      test('a version 22 document names the extension', () {
+        final lowering = RouteBCoverage.fromJson(
+          withExtension(22),
+        ).lowering['a#Stars|get#stars']!;
+        expect(lowering.extensionName, 'Stars');
+        expect(lowering.accesses.single.kind, 'receiver');
+        expect(knownRouteBAnalysisVersions, contains(22));
+        expect(routeBExtensionReceiverAnalysisVersion, 22);
+      });
+
+      test('an extension named by an older analysis is malformed', () {
+        expect(
+          () => RouteBCoverage.fromJson(withExtension(21)),
+          throwsFormatException,
+        );
+      });
+    });
+
     group('helpers (analysis version 16)', () {
       String v16({
         List<String> added = const ['a#h1', 'a#h2', 'a#nope'],
@@ -304,10 +353,7 @@ JSON
                 'reason': 'cannot introduce members',
               },
             ],
-          ).replaceFirst(
-            '"verdict"',
-            '"carried":[],"callers":{},"verdict"',
-          ),
+          ).replaceFirst('"verdict"', '"carried":[],"callers":{},"verdict"'),
         );
         expect(coverage.helpers, isEmpty);
         expect(coverage.unusedHelpers, isEmpty);
@@ -427,10 +473,7 @@ JSON
           ).lowering['package:app/main.dart#Thing.go']!;
 
       test('version 11 is still accepted', () {
-        expect(
-          () => RouteBCoverage.fromJson(doc(11, body)),
-          returnsNormally,
-        );
+        expect(() => RouteBCoverage.fromJson(doc(11, body)), returnsNormally);
       });
 
       test('a version-11 document leaves it UNMEASURED, not empty', () {
@@ -518,14 +561,14 @@ JSON
 
       test('an unknown version is refused, and names what is understood', () {
         expect(
-          () => RouteBCoverage.fromJson(doc(22, body)),
+          () => RouteBCoverage.fromJson(doc(23, body)),
           throwsA(
             isA<FormatException>().having(
               (e) => e.message,
               'message',
               allOf(
-                contains('version 22'),
-                contains('11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21'),
+                contains('version 23'),
+                contains('11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22'),
               ),
             ),
           ),

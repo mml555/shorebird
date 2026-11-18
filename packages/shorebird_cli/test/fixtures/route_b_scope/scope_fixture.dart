@@ -78,6 +78,46 @@ extension X on int {
   set zs(int v) {
     k = v;
   }
+
+  String interp() => '$k$this$k';
+  int sibling() => inst() + zz + this.inst();
+  int cmp(int a) => this > a ? 1 : 0;
+  int get inClosure => [1].map((e) => e + inst()).length;
+  Object leak() => this;
+  Object Function() tear() => inst;
+  int optional([int a = 1]) => a + this;
+  int get implicit => isEven ? 1 : 0;
+  Object casc() => this..inst();
+  int nested() {
+    int f() => this + 1;
+    return f();
+  }
+
+  int shadow(int X) => X + this;
+}
+
+extension NI on int? {
+  int get nz => this == null ? 0 : 1;
+  int get viaNull => this?.nz ?? 0;
+  int get plain => nz + 1;
+}
+
+extension G<T> on List<T> {
+  int get firstLen => length;
+}
+
+extension on String {
+  int get unnamed => length;
+}
+
+class _P {}
+
+extension PE on _P {
+  int get pv => 1;
+}
+
+extension _PX on int {
+  int get px => 1;
 }
 
 extension type ET(int v) {
