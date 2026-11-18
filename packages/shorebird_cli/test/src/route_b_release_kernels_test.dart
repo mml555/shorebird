@@ -915,8 +915,8 @@ void heavySdkMemberTests() {
 
     test('adds the heavy set with the opt-in', () {
       final members = routeBSdkMembersFor(keepCollectionMethods: true);
-      expect(members, hasLength(74));
-      expect(members.toSet(), hasLength(74));
+      expect(members, hasLength(78));
+      expect(members.toSet(), hasLength(78));
       expect(members, containsAll(routeBHeavySdkMembers));
       expect(members, containsAll(routeBRetainedSdkMembers));
     });
