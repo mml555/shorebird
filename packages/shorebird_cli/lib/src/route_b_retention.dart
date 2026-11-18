@@ -318,10 +318,7 @@ class RouteBRetention {
     final sel = r.member ?? '';
     final bare = sel.startsWith('get:') ? sel.substring(4) : null;
     // A dynamic `get` may be a tear-off of a method of that name.
-    final keys = [
-      'dynamic#$sel',
-      if (bare != null) 'dynamic#tearoff:$bare',
-    ];
+    final keys = ['dynamic#$sel', if (bare != null) 'dynamic#tearoff:$bare'];
     final failed = keys.where(measuredFailing.containsKey).toList();
     final shown = _bareSelector(sel);
     if (failed.isNotEmpty) {
@@ -451,7 +448,17 @@ class RouteBRetention {
     // library's PUBLIC members whole but skips these, so the library being
     // kept says nothing about them (e22, E13: both aborted at load).
     if (_isExtensionHashMember(r)) {
-      return members.contains(key) && !_manifestSkips(key);
+      if (members.contains(key)) return !_manifestSkips(key);
+      // The interface cannot list one, so the release's own snapshot answers:
+      // a function in it with code is one the release itself calls, which is
+      // what keeps it past the precompiler (a release that never called it
+      // lacks it, and that is the case that aborts at load). A
+      // `vm:entry-point` pragma retains one too, and is as callable. An
+      // unnamed extension's `#N` name is its position in the library, which a
+      // patch cannot shift (it cannot add an extension).
+      return !r.isPrivate &&
+          member != null &&
+          (kept?.hasTopLevelFunction(r.library, member) ?? false);
     }
     // A PRIVATE name the patch spells is its own library's, and what answers
     // for it is the capability manifest, as everywhere else in Route B. One
@@ -487,6 +494,7 @@ class RouteBRetention {
     }
     if (member == null) {
       // A class named as a type.
+      if (!r.isPrivate && _isVmPredefinedCore(r)) return true;
       return classes.contains('${r.library}#$cls') ||
           (!r.isPrivate && wholeLibraries.contains(r.library));
     }
@@ -497,6 +505,42 @@ class RouteBRetention {
       return true;
     }
     return !r.isPrivate && wholeLibraries.contains(r.library);
+  }
+
+  /// The `dart:core` classes the VM itself defines before any library loads
+  /// (`Object`, `Null`, `bool`, `int`, `double`, `num`, `String`): named as a
+  /// TYPE, they need no interface item.
+  ///
+  /// The loader finds a class a patch names by looking it up in its library
+  /// (`Unable to find class X in Library`). The VM predefines these class ids
+  /// and the precompiler's class dropping starts above them, but the library
+  /// dictionary entry can still be nulled when nothing reaches the class
+  /// (`DropLibraryEntries`), so the rule is not structural: every Flutter app
+  /// reaches all seven (the snapshot profile of release 1.0.0+34 holds all of
+  /// them in `dart:core`, though its interface lists none of `bool`, `num` or
+  /// `Null`). So when the release's snapshot profile is available it must hold
+  /// the class node, and the predefined rule alone answers only when there is
+  /// no profile. A patch cannot name one of their members this way (that is a
+  /// member reference, answered by the interface); only the bare class.
+  /// `dynamic` and `Never` are not classes and arrive as no reference.
+  bool _isVmPredefinedCore(RouteBExternalReference r) {
+    final name = r.className;
+    if (r.library != 'dart:core' ||
+        r.kind != 'class' ||
+        name == null ||
+        !const {
+          'Object',
+          'Null',
+          'bool',
+          'int',
+          'double',
+          'num',
+          'String',
+        }.contains(name)) {
+      return false;
+    }
+    final snapshot = kept;
+    return snapshot == null || snapshot.hasClassIn('dart:core', name);
   }
 
   bool _manifestSkips(String key) =>
@@ -578,11 +622,10 @@ class RouteBRetention {
     RouteBCoverage coverage,
     String key, {
     bool Function(RouteBExternalReference)? inlinedHolds,
-  }) => refusal(
-    coverage,
-    [key, ...coverage.helpersNeededBy(key)],
-    inlinedHolds: inlinedHolds,
-  );
+  }) => refusal(coverage, [
+    key,
+    ...coverage.helpersNeededBy(key),
+  ], inlinedHolds: inlinedHolds);
 
   /// Why the members [keys] cannot be built, or null when the release kept
   /// everything they use.

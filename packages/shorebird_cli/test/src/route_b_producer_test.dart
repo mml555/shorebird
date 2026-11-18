@@ -70,9 +70,7 @@ void main() {
       interfaceGenerator: File(
         p.join(cell.path, 'route_b_gen_dynamic_interface.aot'),
       ),
-      releaseProbe: File(
-        p.join(cell.path, 'route_b_release_probe.aot'),
-      ),
+      releaseProbe: File(p.join(cell.path, 'route_b_release_probe.aot')),
       flutterPlatformDill: File(
         p.join(cell.path, 'flutter_platform_strong.dill'),
       ),
@@ -128,10 +126,8 @@ void main() {
       }),
     );
 
-    R runWithOverrides<R>(R Function() body) => runScoped(
-      body,
-      values: {loggerRef.overrideWith(() => logger)},
-    );
+    R runWithOverrides<R>(R Function() body) =>
+        runScoped(body, values: {loggerRef.overrideWith(() => logger)});
 
     setUp(() {
       cell = Directory.systemTemp.createTempSync('cell');
@@ -395,10 +391,7 @@ void main() {
       }) {
         var arguments = <String>[];
         final capabilities = RouteBCapabilities.fromJson(
-          jsonEncode({
-            'policy': 'p2',
-            'privateTopLevelCallable': granted,
-          }),
+          jsonEncode({'policy': 'p2', 'privateTopLevelCallable': granted}),
         );
         runWithOverrides(
           () => const RouteBProducer().produce(
@@ -409,15 +402,12 @@ void main() {
             workingDirectory: work,
             projectRoot: project,
             capabilities: withManifest ? capabilities : null,
-            retention: RouteBRetention.parse(
-              '''
+            retention: RouteBRetention.parse('''
 callable:
   - library: 'package:app/main.dart'
   - library: 'package:app/main.dart'
     member: '_fmt'
-''',
-              capabilities: capabilities,
-            ),
+''', capabilities: capabilities),
             run: (executable, args) {
               arguments = args;
               return compileOk(executable, args);
@@ -522,28 +512,23 @@ callable:
 
       test('keeps the flag when the bytecode has no call by that name', () {
         expect(
-          produceWith(
-            [plus()],
-            scan: '{"functions":1,"unparsed":0,"calls":["-"]}',
-          ),
+          produceWith([
+            plus(),
+          ], scan: '{"functions":1,"unparsed":0,"calls":["-"]}'),
           1,
         );
       });
 
       test('drops the flag, and so refuses, for a call by that name', () {
         expect(
-          () => produceWith(
-            [plus()],
-            scan: '{"functions":1,"unparsed":0,"calls":["+"]}',
-          ),
+          () => produceWith([
+            plus(),
+          ], scan: '{"functions":1,"unparsed":0,"calls":["+"]}'),
           throwsA(
             isA<RouteBUnsupportedTarget>().having(
               (e) => e.reason,
               'reason',
-              allOf(
-                contains('int.+'),
-                contains('still looks it up by name'),
-              ),
+              allOf(contains('int.+'), contains('still looks it up by name')),
             ),
           ),
         );
@@ -778,13 +763,8 @@ callable:
       });
 
       test('a target needing no helper is unchanged by their presence', () {
-        final coverage = withHelpers(
-          targets: ['$lib#routeBOther'],
-        );
-        expect(
-          produceFor(coverage),
-          isNot(contains('String helperA')),
-        );
+        final coverage = withHelpers(targets: ['$lib#routeBOther']);
+        expect(produceFor(coverage), isNot(contains('String helperA')));
       });
 
       test('refuses a helper with no source span', () {
@@ -1039,11 +1019,7 @@ callable:
           ]) {
             expect(
               () => produceFor(
-                instance(
-                  helperName,
-                  text,
-                  receiver: '_RouteBThing',
-                ),
+                instance(helperName, text, receiver: '_RouteBThing'),
               ),
               throwsA(
                 isA<RouteBUnsupportedTarget>().having(
@@ -1161,9 +1137,7 @@ callable:
           final out = produceFor(v17());
           expect(
             out,
-            contains(
-              'String value(RouteBThing self) => _h(self, self.label);',
-            ),
+            contains('String value(RouteBThing self) => _h(self, self.label);'),
           );
           expect(
             out,
@@ -1206,9 +1180,7 @@ callable:
 
         test('a receiver use that opens the argument list does not collide '
             'with the receiver argument', () {
-          final out = produceFor(
-            v17(),
-          );
+          final out = produceFor(v17());
           expect(out, contains('_h(self, self.label)'));
         });
 
@@ -1239,11 +1211,7 @@ callable:
         test('a private instance helper naming an ungranted private member '
             'is refused', () {
           expect(
-            () => produceFor(
-              v17(
-                helper: 'String _h(String l) => _release();',
-              ),
-            ),
+            () => produceFor(v17(helper: 'String _h(String l) => _release();')),
             throwsA(
               isA<RouteBUnsupportedTarget>().having(
                 (e) => e.reason,
@@ -1362,9 +1330,7 @@ callable:
 
         test('a call on another receiver is refused, not rewritten', () {
           expect(
-            () => produceFor(
-              v17(decl: 'String value() => other._h(label);'),
-            ),
+            () => produceFor(v17(decl: 'String value() => other._h(label);')),
             throwsA(
               isA<RouteBUnsupportedTarget>().having(
                 (e) => e.reason,
@@ -1743,10 +1709,7 @@ callable:
         ),
       );
 
-      expect(
-        build(['a#one', 'a#two']),
-        build(['a#two', 'a#one']),
-      );
+      expect(build(['a#one', 'a#two']), build(['a#two', 'a#one']));
     });
 
     group('implicit-this lowering', () {
@@ -1880,6 +1843,7 @@ callable:
       /// A release manifest granting exactly [instance] and [classes].
       RouteBCapabilities grants({
         List<String> instance = const [],
+        List<String> statics = const [],
         List<String> classes = const [],
         // Passing this makes the manifest one the CURRENT generator emits: it
         // names each public member of a private class. Omitting it models a
@@ -1891,6 +1855,7 @@ callable:
         jsonEncode({
           'policy': 'p2',
           'privateInstanceCallable': instance,
+          'privateStaticsCallable': statics,
           'privateClassesConstructible': classes,
           'privateClassPublicMembers': ?classPublicMembers,
         }),
@@ -2511,9 +2476,7 @@ callable:
               kind: 'set',
             ),
           ),
-          contains(
-            "String value(RouteBThing self) => self.label = 'NEW-SET';",
-          ),
+          contains("String value(RouteBThing self) => self.label = 'NEW-SET';"),
         );
       });
 
@@ -2565,9 +2528,7 @@ callable:
               kind: 'set',
             ),
           ),
-          contains(
-            "String value(RouteBThing self) => self.label = 'NEW-SET';",
-          ),
+          contains("String value(RouteBThing self) => self.label = 'NEW-SET';"),
         );
       });
 
@@ -3501,6 +3462,268 @@ callable:
           expect(out, contains(r"'v=${RouteBThing.k}'"));
         });
 
+        group('a private static of the class', () {
+          const lib = 'package:app/main.dart';
+          const flag = '--resolve-private-names-in-library';
+
+          /// A scope for [decl] listing one use per `(needle, member, kind)`;
+          /// the offset is that of [member] inside [needle].
+          Map<String, Object?> scopeFor(
+            String decl,
+            List<(String, String, String)> uses,
+          ) => {
+            'class': 'RouteBThing',
+            'staticReferences': [
+              for (final (needle, member, kind) in uses)
+                ...(use(
+                      decl,
+                      needle,
+                      member: member,
+                      kind: kind,
+                      interpolated: needle.startsWith(r'$'),
+                    )['staticReferences']!
+                    as List),
+            ],
+            'usedTypeParameters': <String>[],
+            'problems': <String>[],
+          };
+
+          /// The refusal [decl] gets, or null when it is carried.
+          String? refuses(
+            String decl,
+            Map<String, Object?> scope,
+            RouteBCapabilities? granting, {
+            bool instance = true,
+          }) {
+            try {
+              runWithOverrides(
+                () => const RouteBProducer().produce(
+                  compiler: compiler(),
+                  coverage: scoped(
+                    decl: decl,
+                    scope: scope,
+                    instance: instance,
+                  ),
+                  releaseImportKernel: File(
+                    p.join(cell.path, 'release_import.dill'),
+                  ),
+                  releaseBuildId: 'deadbeef',
+                  workingDirectory: work,
+                  projectRoot: project,
+                  capabilities: granting,
+                  run: (executable, arguments) {
+                    lastArguments = arguments;
+                    return compileOk(executable, arguments);
+                  },
+                ),
+              );
+              return null;
+            } on RouteBUnsupportedTarget catch (e) {
+              return e.reason;
+            }
+          }
+
+          String emitted() =>
+              File(p.join(work.path, 'replacement_0.dart')).readAsStringSync();
+
+          const call = r"String f() => _w('n$_k');";
+          Map<String, Object?> callScope() => scopeFor(call, [
+            ('_w(', '_w', 'invoke'),
+            (r'$_k', '_k', 'constant'),
+          ]);
+
+          test('a granted static method and const are carried (s1b)', () {
+            expect(
+              refuses(
+                call,
+                callScope(),
+                grants(statics: ['$lib#RouteBThing#_w', '$lib#RouteBThing#_k']),
+              ),
+              isNull,
+            );
+            expect(emitted(), contains('RouteBThing._w('));
+            expect(emitted(), contains(r'${RouteBThing._k}'));
+            expect(lastArguments, contains(flag));
+          });
+
+          test('an ungranted static method or const is refused', () {
+            final granting = grants(statics: ['$lib#RouteBThing#_w']);
+            expect(refuses(call, callScope(), granting), contains('`_k`'));
+            expect(
+              refuses(
+                call,
+                callScope(),
+                grants(statics: ['$lib#RouteBThing#_k']),
+              ),
+              contains('`_w`'),
+            );
+            expect(refuses(call, callScope(), null), contains('`_w`'));
+          });
+
+          test('a grant under another class does not count', () {
+            expect(
+              refuses(
+                call,
+                callScope(),
+                grants(statics: ['$lib#Other#_w', '$lib#Other#_k']),
+              ),
+              contains('private identifier'),
+            );
+          });
+
+          test('an instance grant of the name does not count', () {
+            expect(
+              refuses(
+                call,
+                callScope(),
+                grants(
+                  instance: ['$lib#RouteBThing#_w', '$lib#RouteBThing#_k'],
+                ),
+              ),
+              contains('private identifier'),
+            );
+          });
+
+          test('a name the analysis reported no use of is refused', () {
+            const decl = 'String f() => _w(_k);';
+            expect(
+              refuses(
+                decl,
+                scopeFor(decl, [('_w(', '_w', 'invoke')]),
+                grants(statics: ['$lib#RouteBThing#_w', '$lib#RouteBThing#_k']),
+              ),
+              contains('`_k`'),
+            );
+          });
+
+          test('a granted name also spelled `Other._w` is refused', () {
+            const decl = 'String f() => _w(1) + Other._w(2);';
+            expect(
+              refuses(
+                decl,
+                scopeFor(decl, [('_w(', '_w', 'invoke')]),
+                grants(statics: ['$lib#RouteBThing#_w']),
+              ),
+              contains('`_w`'),
+            );
+          });
+
+          test('a granted name also spelled `d._w` is refused', () {
+            const decl = 'String f(dynamic d) => _w(1) + d._w;';
+            expect(
+              refuses(
+                decl,
+                scopeFor(decl, [('_w(', '_w', 'invoke')]),
+                grants(statics: ['$lib#RouteBThing#_w']),
+              ),
+              contains('`_w`'),
+            );
+          });
+
+          group('interpolation', () {
+            Map<String, Object?> none(String decl) => scopeFor(decl, []);
+
+            test(r'an ungranted `$_x` is refused', () {
+              const decl = r"String f() => 'n$_x';";
+              expect(refuses(decl, none(decl), null), contains('`_x`'));
+            });
+
+            test(r'an ungranted `${_x}` is refused', () {
+              const decl = r"String f() => 'n${_x}';";
+              expect(refuses(decl, none(decl), null), contains('`_x`'));
+            });
+
+            test('an ungranted name in a nested string is refused', () {
+              const decl = r'''String f() => 'a${g("b${_x.length}")}';''';
+              expect(refuses(decl, none(decl), null), contains('`_x`'));
+            });
+
+            test('private-looking string content is not refused', () {
+              for (final decl in [
+                "String f() => '_x';",
+                "String f() => 'a_b _x';",
+                r"String f() => '_x $y ${1 + 2} _z';",
+                r"String f() => r'$_x';",
+              ]) {
+                expect(refuses(decl, none(decl), null), isNull, reason: decl);
+              }
+            });
+          });
+
+          group('accessor shapes', () {
+            const decl = 'String f() { _s = 1; return _s; }';
+            Map<String, Object?> rw() => scopeFor(decl, [
+              ('_s = ', '_s', 'set'),
+              ('return _s', '_s', 'get'),
+            ]);
+
+            test('a bare grant (a field) covers a read and a write', () {
+              expect(
+                refuses(decl, rw(), grants(statics: ['$lib#RouteBThing#_s'])),
+                isNull,
+              );
+            });
+
+            test('get: and set: grants cover a read and a write', () {
+              expect(
+                refuses(
+                  decl,
+                  rw(),
+                  grants(
+                    statics: [
+                      '$lib#RouteBThing#get:_s',
+                      '$lib#RouteBThing#set:_s',
+                    ],
+                  ),
+                ),
+                isNull,
+              );
+            });
+
+            test('a get: grant does not cover a write', () {
+              expect(
+                refuses(
+                  decl,
+                  rw(),
+                  grants(statics: ['$lib#RouteBThing#get:_s']),
+                ),
+                contains('`_s`'),
+              );
+            });
+
+            test('a get: grant does not cover an invocation', () {
+              const inv = 'String f() => _s();';
+              expect(
+                refuses(
+                  inv,
+                  scopeFor(inv, [('_s(', '_s', 'invoke')]),
+                  grants(statics: ['$lib#RouteBThing#get:_s']),
+                ),
+                contains('`_s`'),
+              );
+            });
+          });
+
+          test('a static target does not widen the private-name flag', () {
+            // No private-name scan runs for a static target, so a granted or
+            // folded private static must not switch the flag on for it.
+            const decl = 'static String f() => _k;';
+            final scope = scopeFor(decl, [('_k', '_k', 'constant')]);
+            expect(
+              refuses(
+                decl,
+                scope,
+                grants(statics: ['$lib#RouteBThing#_k']),
+                instance: false,
+              ),
+              isNull,
+            );
+            expect(lastArguments, isNot(contains(flag)));
+            expect(refuses(decl, scope, null, instance: false), isNull);
+            expect(lastArguments, isNot(contains(flag)));
+          });
+        });
+
         test('refuses a use that is not where the analyzer said', () {
           const decl = 'int f(int a) => a + k;';
           final scope = use(decl, 'a + k');
@@ -3709,10 +3932,7 @@ callable:
           );
 
           test('a use after a spread is qualified', () {
-            expect(
-              fromFixture('C.spread'),
-              contains('[...C.ls].length'),
-            );
+            expect(fromFixture('C.spread'), contains('[...C.ls].length'));
             expect(fromFixture('C.setSpread'), contains('{...C.ls}'));
           });
 
@@ -3729,10 +3949,7 @@ callable:
 
           for (final name in ['C.constmap', 'C.constmapFirst', 'C.constlist']) {
             test('$name is refused', () {
-              expect(
-                () => fromFixture(name),
-                refusedWith(contains('spells')),
-              );
+              expect(() => fromFixture(name), refusedWith(contains('spells')));
             });
           }
 
@@ -4627,9 +4844,7 @@ callable:
                 },
               },
             ),
-            releaseImportKernel: File(
-              p.join(cell.path, 'release_import.dill'),
-            ),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
             patchedVerificationKernel: File(
               p.join(cell.path, 'patched_verification.dill'),
             ),
@@ -4661,9 +4876,7 @@ callable:
           () => const RouteBProducer().produce(
             compiler: compiler(),
             coverage: coverage(),
-            releaseImportKernel: File(
-              p.join(cell.path, 'release_import.dill'),
-            ),
+            releaseImportKernel: File(p.join(cell.path, 'release_import.dill')),
             patchedVerificationKernel: File(
               p.join(cell.path, 'patched_verification.dill'),
             ),

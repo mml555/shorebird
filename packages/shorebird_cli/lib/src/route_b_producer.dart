@@ -65,7 +65,10 @@ RouteBProducer get routeBProducer => read(routeBProducerRef);
 
 /// Runs the cell's bytecode compiler.
 typedef RouteBCompileRunner =
-    ProcessResult Function(String executable, List<String> arguments);
+    ProcessResult Function(
+      String executable,
+      List<String> arguments,
+    );
 
 /// A target the producer cannot turn into a payload, and why.
 class RouteBUnsupportedTarget implements Exception {
@@ -93,7 +96,12 @@ class _Lowered {
     this.declaration, {
     this.preamble = '',
     this.needsSuperVerification = false,
+    this.grantedStatics = const {},
   });
+
+  /// Private statics of the member's own class that the body spells and the
+  /// manifest grants; they are why the compile resolves private names.
+  final Set<String> grantedStatics;
 
   /// The replacement declaration itself.
   final String declaration;
@@ -629,10 +637,7 @@ Object? $_superIntrinsicName(
       // lowering), and `_FooState` is spelled in the replacement only if the
       // front end resolves it in the target library.
       final resolvesPrivateNames =
-          [
-            ?lowering,
-            ...helperLowerings,
-          ].any(
+          [?lowering, ...helperLowerings].any(
             (l) =>
                 l.accesses.any((a) => a.privateTarget != null) ||
                 (l.privateConstructions?.isNotEmpty ?? false) ||
@@ -641,20 +646,25 @@ Object? $_superIntrinsicName(
           // A static target of a private class that now names its class to
           // qualify a static (`_Cls.k`) spells a private name too.
           _qualifiesPrivateClass(_scopeOf(key, coverage)) ||
+          // A granted private static of the member's own class (lowered
+          // targets only; see `_ownStaticGranted`). Not widened for a static
+          // target, whose body has no private-name scan.
+          lowered.grantedStatics.isNotEmpty ||
           // G5. A PRIVATE TOP-LEVEL FUNCTION the release holds (`_fmt(x)`)
           // is a private name of the target's library, and the replacement
           // library cannot spell it without the flag:
           //
           //   Error: Method not found: '_fmt'.
           //
-          // Gated on the release's own manifest list, so only a name the
-          // release was built to keep switches the resolution on, and a target
-          // that names no private top-level compiles exactly as before.
-          _namesGrantedPrivateTopLevel(
-            coverage,
-            [key, ...neededHelpers],
-            capabilities,
-          );
+          // `_namesGrantedPrivateTopLevel` switches the resolution on only when
+          // the target names such a function and the release manifest lists
+          // it. The flag then lets every private name of the library
+          // resolve, not just that one; the private-name backstop in `_lower`
+          // is what refuses an ungranted private name in a lowered target.
+          _namesGrantedPrivateTopLevel(coverage, [
+            key,
+            ...neededHelpers,
+          ], capabilities);
       final helperText = _helperSources(
         key,
         neededHelpers,
@@ -1925,8 +1935,20 @@ Object? $_superIntrinsicName(
         .split('.')
         .last
         .replaceFirst(RegExp('^[gs]et:'), '');
-    for (final name in _privateIdentifiers(text)) {
+    final grantedStatics = <String>{};
+    for (final entry in _privateIdentifierCounts(text).entries) {
+      final name = entry.key;
       if (granted.contains(name) || name == own || helperNames.contains(name)) {
+        continue;
+      }
+      // A private static of the member's own class (method, accessor, field or
+      // const), written unqualified: the class scope qualifies it, and the
+      // release's manifest grants it by the same `library#Class#name` key as
+      // an instance member. Exempt by OCCURRENCE: every spelling of the name
+      // must be one the analysis reported, so `Other._k`, `d._k` and another
+      // library's member of that name are not covered by the grant.
+      if (_ownStaticGranted(name, entry.value, key, scope, capabilities)) {
+        grantedStatics.add(name);
         continue;
       }
       throw RouteBUnsupportedTarget(
@@ -1955,6 +1977,7 @@ Object? $_superIntrinsicName(
       text,
       preamble: superEdits.isEmpty ? '' : '$_superIntrinsicDeclaration\n',
       needsSuperVerification: superEdits.isNotEmpty,
+      grantedStatics: grantedStatics,
     );
   }
 
@@ -1993,6 +2016,49 @@ Object? $_superIntrinsicName(
       );
     }
     return scope;
+  }
+
+  /// Whether every spelling of the private [name] ([occurrences] of it in the
+  /// emitted code) is a use of a private static of [scope]'s class that the
+  /// analysis reported unqualified, and the manifest grants that static.
+  ///
+  /// The class is the member's own, hence in the target's library. The key is
+  /// the one instance members use, `library#Class#name`, looked up in the
+  /// statics the release kept (`get:`/`set:` for an accessor; a bare name is a
+  /// method or a field).
+  static bool _ownStaticGranted(
+    String name,
+    int occurrences,
+    String key,
+    RouteBEnclosingScope? scope,
+    RouteBCapabilities? capabilities,
+  ) {
+    if (scope == null || capabilities == null) return false;
+    final uses = [
+      for (final r in scope.staticReferences)
+        if (r.member == name) r,
+    ];
+    // The analysis lists only unqualified uses. Any other spelling of the name
+    // (`Other._k`, `d._k`) makes the counts differ.
+    if (uses.isEmpty || uses.length != occurrences) return false;
+    final library = key.split('#').first;
+    final prefix = '$library#${scope.className}#';
+    bool granted(String member) =>
+        capabilities.staticsCallable.contains('$prefix$member') &&
+        !capabilities.skipped.any(
+          (s) =>
+              s == '$prefix$member' ||
+              s.startsWith('$prefix$member ') ||
+              s == '$library#${scope.className}' ||
+              s.startsWith('$library#${scope.className} '),
+        );
+    return uses.every(
+      (r) => switch (r.kind) {
+        'get' => granted(name) || granted('get:$name'),
+        'set' => granted(name) || granted('set:$name'),
+        _ => granted(name),
+      },
+    );
   }
 
   static bool _qualifiesPrivateClass(RouteBEnclosingScope? scope) =>
@@ -2407,9 +2473,28 @@ Object? $_superIntrinsicName(
   /// targets lower to byte-identical source.
   static const _defaultReceiverName = 'self';
 
-  static Set<String> _privateIdentifiers(String text) {
+  static Set<String> _privateIdentifiers(String text) =>
+      _privateIdentifierCounts(text).keys.toSet();
+
+  /// [text] with comments and the literal parts of strings dropped. What is
+  /// left is the code, including every interpolation (`$_x`, `${...}`, nested
+  /// strings too), each interpolated identifier set apart by spaces.
+  static String _strippedCode(String text) {
     final code = StringBuffer();
-    var i = 0;
+    _stripInto(text, 0, code, inInterpolation: false);
+    return code.toString();
+  }
+
+  /// Strips from [start] into [code]; returns where it stopped. Inside an
+  /// interpolation it stops after the `}` that closes it.
+  static int _stripInto(
+    String text,
+    int start,
+    StringBuffer code, {
+    required bool inInterpolation,
+  }) {
+    var i = start;
+    var depth = 0;
     while (i < text.length) {
       if (text.startsWith('//', i)) {
         while (i < text.length && text[i] != '\n') {
@@ -2419,14 +2504,14 @@ Object? $_superIntrinsicName(
       }
       if (text.startsWith('/*', i)) {
         // Dart block comments nest, so a depth count is not paranoia.
-        var depth = 1;
+        var level = 1;
         i += 2;
-        while (i < text.length && depth > 0) {
+        while (i < text.length && level > 0) {
           if (text.startsWith('/*', i)) {
-            depth++;
+            level++;
             i += 2;
           } else if (text.startsWith('*/', i)) {
-            depth--;
+            level--;
             i += 2;
           } else {
             i++;
@@ -2436,30 +2521,63 @@ Object? $_superIntrinsicName(
       }
       final c = text[i];
       if (c == "'" || c == '"') {
+        // A raw string (`r'...'`) has no escapes and no interpolation.
+        final raw =
+            i > 0 &&
+            text[i - 1] == 'r' &&
+            (i < 2 || !RegExp(r'[A-Za-z0-9_$]').hasMatch(text[i - 2]));
         final delim = text.startsWith(c * 3, i) ? c * 3 : c;
         var j = i + delim.length;
-        final content = StringBuffer();
         while (j < text.length && !text.startsWith(delim, j)) {
-          if (text[j] == r'\') {
+          if (!raw && text[j] == r'\') {
             j += 2;
             continue;
           }
-          content.write(text[j]);
+          if (!raw && text[j] == r'$') {
+            if (text.startsWith(r'${', j)) {
+              code.write(' ');
+              j = _stripInto(text, j + 2, code, inInterpolation: true);
+              code.write(' ');
+              continue;
+            }
+            final id = RegExp(
+              '[A-Za-z_][A-Za-z0-9_]*',
+            ).matchAsPrefix(text, j + 1);
+            if (id != null) {
+              code.write(' ${id[0]} ');
+              j = id.end;
+              continue;
+            }
+          }
           j++;
         }
         i = j < text.length ? j + delim.length : text.length;
-        if (content.toString().contains(r'$')) code.write(content);
         continue;
+      }
+      if (inInterpolation) {
+        if (c == '{') {
+          depth++;
+        } else if (c == '}') {
+          if (depth == 0) return i + 1;
+          depth--;
+        }
       }
       code.write(c);
       i++;
     }
-    return _privateIdentifier
-        .allMatches(code.toString())
-        .map((m) => m[0]!)
-        // `_` and `__` are wildcard parameters, not names.
-        .where((n) => n.replaceAll('_', '').isNotEmpty)
-        .toSet();
+    return i;
+  }
+
+  /// How many times each private name is spelled in the code of [text].
+  static Map<String, int> _privateIdentifierCounts(String text) {
+    final counts = <String, int>{};
+    for (final m in _privateIdentifier.allMatches(_strippedCode(text))) {
+      final n = m[0]!;
+      // `_` and `__` are wildcard parameters, not names.
+      if (n.replaceAll('_', '').isEmpty) continue;
+      counts[n] = (counts[n] ?? 0) + 1;
+    }
+    return counts;
   }
 
   /// Stands in for the receiver parameter's type until the private-name scan

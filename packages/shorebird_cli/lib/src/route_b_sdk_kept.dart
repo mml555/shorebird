@@ -338,6 +338,26 @@ class RouteBSnapshotKept {
         e.key,
   ];
 
+  /// Whether this snapshot holds a top-level function [name] of [library] with
+  /// real code: the precompiler kept it, because something the release runs
+  /// calls it. An extension getter, setter or tear-off (`Stars|get#stars`) is a
+  /// top-level function of its library, and the only evidence a release has
+  /// kept one: no interface lists a `#` name.
+  bool hasTopLevelFunction(String library, String name) {
+    for (final e in _name.entries) {
+      if (e.value == '::' &&
+          _library[e.key] == library &&
+          (_functions[e.key]?[name] ?? false)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Whether the snapshot has a class named [name] in [library].
+  bool hasClassIn(String library, String name) =>
+      _sdkClasses(name, library).isNotEmpty;
+
   /// Whether the snapshot has a `dart:` class named [name].
   bool hasClass(String name) => _sdkClasses(name).isNotEmpty;
 
@@ -456,13 +476,47 @@ class RouteBSnapshotKept {
     required List<String> measured,
     required String selector,
   }) {
+    // A class the device measured the member on, and this release's snapshot
+    // does not hold at all, is skipped: the receiver cannot be one. The
+    // precompiler drops a class only when nothing allocates it (it asserts
+    // `!is_allocated()` and keeps the super classes of every allocated one),
+    // so a class with no node has no instance. A patch can make one only by
+    // allocating it, and two kinds of allocation reach it:
+    //   * a constructor, factory or static of the SDK (`Iterable.generate`,
+    //     `List.generate`): a reference `_retained` answers by name, and a
+    //     kept function with code that allocates the class would have kept it;
+    //   * a language construct with no constructor reference in the kernel
+    //     (`sync*`, `async*`, a const list, map or set literal, a record, a
+    //     closure): the analyzer reports no reference for it. Those classes
+    //     are [_neverSkipped], and so are the classes the VM predefines, which
+    //     any real profile holds, so one missing says the profile is wrong.
+    // At least one measured class that is neither must be present before any
+    // is skipped, so a profile that is wrong or lacks classes still refuses;
+    // every candidate receiver class is checked below.
+    String? firstNeverSkipped;
+    String? absent;
+    var presentOrdinary = 0;
     for (final name in measured) {
       final classes = _sdkClasses(name);
-      if (classes.isEmpty) return 'this release has no class `$name`';
+      if (classes.isEmpty) {
+        if (_neverSkipped(name)) {
+          firstNeverSkipped ??= name;
+        } else {
+          absent ??= name;
+        }
+        continue;
+      }
+      if (!_neverSkipped(name)) presentOrdinary++;
       for (final c in classes) {
         final why = _problemOn(c, selector);
         if (why != null) return why;
       }
+    }
+    if (firstNeverSkipped != null) {
+      return 'this release has no class `$firstNeverSkipped`';
+    }
+    if (absent != null && presentOrdinary == 0) {
+      return 'this release has no class `$absent`';
     }
     final Iterable<int> candidates;
     if (declaredClass == null) {
@@ -497,6 +551,28 @@ class RouteBSnapshotKept {
     return more == 0 ? firstWhy : '$firstWhy, and $more more';
   }
 
+  /// Classes whose absence from a profile is never read as "no instance".
+  ///
+  /// The VM predefines these class ids and allocates them from native code, so
+  /// every real profile holds them. The rest are allocated by the compiler for
+  /// a language construct, with no constructor reference a patch's analysis
+  /// reports (class names from the VM's `lib/` sources): `sync*`
+  /// (`_SyncStarIterable`, `_SyncStarIterator`), `async*`
+  /// (`_AsyncStarStreamController`), const literals (`_ImmutableList`,
+  /// `_ConstMap`, `_ConstSet`), records (`_Record`, and its per-shape
+  /// subclasses `_Record_N...`) and closures (`_Closure`).
+  static bool _neverSkipped(String name) =>
+      name.startsWith('_Record') || _neverSkippedNames.contains(name);
+
+  static const _neverSkippedNames = {
+    // Predefined by the VM.
+    'Object', 'Null', 'bool', '_Smi', '_Mint', '_Double', '_List', '_Array',
+    '_GrowableList', '_OneByteString', '_TwoByteString',
+    // Allocated by the compiler for a language construct.
+    '_SyncStarIterable', '_SyncStarIterator', '_AsyncStarStreamController',
+    '_ImmutableList', '_ConstMap', '_ConstSet', '_Closure',
+  };
+
   String? _problemOn(int cls, String selector, {String? subtypeOf}) {
     final r = _resolvesOn(cls, selector);
     if (r ?? false) return null;
@@ -514,8 +590,6 @@ class RouteBSnapshotKept {
   }
 
   /// `_OneByteString@0150898` -> `_OneByteString`.
-  static String _className(String raw) => raw.replaceFirst(
-    RegExp(r'@\d+$'),
-    '',
-  );
+  static String _className(String raw) =>
+      raw.replaceFirst(RegExp(r'@\d+$'), '');
 }

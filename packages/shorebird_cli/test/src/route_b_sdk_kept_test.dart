@@ -79,6 +79,35 @@ void main() {
       expect(kept.resolves('Object', 'split'), isNull);
     });
 
+    test('hasTopLevelFunction answers by library, class `::` and code', () {
+      final kept = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          'top': const RouteBProfileClass(
+            '::',
+            'package:a/a.dart',
+            fns: {
+              'E|get#x': '[Optimized] E|get#x',
+              'stub': '[Stub] CompileFunction',
+            },
+            decoys: {'cached': '[Optimized] cached'},
+            moreFns: [('twice', '[Optimized] twice'), ('twice', '[Stub] s')],
+          ),
+          'cls': const RouteBProfileClass(
+            'Box',
+            'package:a/a.dart',
+            fns: {'method': '[Optimized] method'},
+          ),
+        }),
+      );
+      expect(kept.hasTopLevelFunction('package:a/a.dart', 'E|get#x'), isTrue);
+      expect(kept.hasTopLevelFunction('package:b/b.dart', 'E|get#x'), isFalse);
+      expect(kept.hasTopLevelFunction('package:a/a.dart', 'stub'), isFalse);
+      expect(kept.hasTopLevelFunction('package:a/a.dart', 'cached'), isFalse);
+      expect(kept.hasTopLevelFunction('package:a/a.dart', 'twice'), isFalse);
+      expect(kept.hasTopLevelFunction('package:a/a.dart', 'method'), isFalse);
+      expect(kept.hasTopLevelFunction('package:a/a.dart', 'nope'), isFalse);
+    });
+
     test('keeps same-named classes of different libraries apart', () {
       // A user `_List` has `remove`; the SDK's does not. Neither the user's
       // class nor its functions may stand in for the SDK's.
@@ -643,6 +672,119 @@ void main() {
     test('refuses one that has only a lazy-compile stub', () {
       final reason = refusal(retention(snapshot: kept), sdk('endsWith'));
       expect(reason, contains('without compiled code'));
+    });
+
+    group('a measured class the release lacks', () {
+      // A release with `Iterable.toList` on `Impl` (an ordinary class) and on
+      // `_GrowableList` (predefined), and a stub-only `StubImpl`.
+      final profile = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          'Object': const RouteBProfileClass(
+            'Object',
+            routeBCoreLibrary,
+            fns: {'==': '[Optimized] =='},
+          ),
+          'Iterable': const RouteBProfileClass(
+            'Iterable',
+            routeBCoreLibrary,
+            parent: 'Object',
+          ),
+          'Impl': const RouteBProfileClass(
+            'Impl',
+            routeBCoreLibrary,
+            parent: 'Iterable',
+            fns: {'toList': '[Optimized] toList'},
+          ),
+          'Stub': const RouteBProfileClass(
+            'StubImpl',
+            routeBCoreLibrary,
+            parent: 'Iterable',
+            fns: {'toList': '[Stub] LazyCompile'},
+          ),
+          'Growable': const RouteBProfileClass(
+            '_GrowableList',
+            routeBCoreLibrary,
+            parent: 'Iterable',
+            fns: {'toList': '[Optimized] toList'},
+          ),
+        }),
+      );
+      const key = 'dart:core#Iterable#toList';
+
+      String? check(List<String> measured, {String declared = 'Iterable'}) =>
+          RouteBRetention.parse(
+            _interface,
+            measuredAccepted: const {key},
+            measuredFailing: const {},
+            measuredVmClasses: {key: measured},
+            kept: profile,
+          ).refusalForTarget(
+            _analysis([
+              _ref('instance', 'dart:core', cls: declared, member: 'toList'),
+            ]),
+            _target,
+          );
+
+      test('is skipped when an ordinary measured class is present', () {
+        expect(check(['_Gen', 'Impl']), isNull);
+      });
+
+      test('is not skipped when every ordinary measured class is absent', () {
+        // The declared type is present, and so is a predefined class, which
+        // proves nothing about the profile being complete.
+        expect(check(['_Gen', '_Other']), contains('no class `_Gen`'));
+        expect(
+          check(['_GrowableList', '_Gen']),
+          contains('no class `_Gen`'),
+        );
+      });
+
+      test('still refuses when a present measured class fails', () {
+        expect(
+          check(['_Gen', 'Impl', 'StubImpl']),
+          contains('without compiled code'),
+        );
+      });
+
+      test('is never skipped for a class the compiler allocates', () {
+        for (final name in [
+          '_SyncStarIterable',
+          '_SyncStarIterator',
+          '_AsyncStarStreamController',
+          '_ImmutableList',
+          '_ConstMap',
+          '_ConstSet',
+          '_Record_2',
+          '_Closure',
+        ]) {
+          expect(
+            check(['Impl', name]),
+            contains('no class `$name`'),
+            reason: name,
+          );
+        }
+      });
+
+      test('is never skipped for a class the VM predefines', () {
+        expect(
+          check(['Impl', '_OneByteString']),
+          contains('no class `_OneByteString`'),
+        );
+      });
+    });
+
+    test('still checks the measured classes the release has', () {
+      // `endsWith` was measured on _OneByteString only, where it is a stub.
+      final r = RouteBRetention.parse(
+        _interface,
+        measuredAccepted: const {'dart:core#String#endsWith'},
+        measuredFailing: const {},
+        measuredVmClasses: const {
+          'dart:core#String#endsWith': ['_TwoByteString', '_OneByteString'],
+        },
+        kept: kept,
+      );
+      expect(refusal(r, sdk('endsWith')), contains('without compiled code'));
     });
 
     test('refuses a measured member on a class the release lacks', () {
