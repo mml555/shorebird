@@ -20,6 +20,37 @@ base_url: https://example.com
       expect(shorebirdYaml.baseUrl, 'https://example.com');
     });
 
+    group('keep_sdk_collection_methods', () {
+      ShorebirdYaml parse(String yaml) =>
+          checkedYamlDecode(yaml, (m) => ShorebirdYaml.fromJson(m!));
+
+      test('is accepted', () {
+        expect(
+          parse(
+            'app_id: a\nkeep_sdk_collection_methods: true\n',
+          ).keepSdkCollectionMethods,
+          isTrue,
+        );
+        expect(
+          parse(
+            'app_id: a\nkeep_sdk_collection_methods: false\n',
+          ).keepSdkCollectionMethods,
+          isFalse,
+        );
+      });
+
+      test('is null when omitted', () {
+        expect(parse('app_id: a\n').keepSdkCollectionMethods, isNull);
+      });
+
+      test('rejects a non-boolean', () {
+        expect(
+          () => parse('app_id: a\nkeep_sdk_collection_methods: yes please\n'),
+          throwsA(isA<ParsedYamlException>()),
+        );
+      });
+    });
+
     group('channel', () {
       // The native updater has always read `channel:` from the bundled
       // shorebird.yaml; this model did not declare it and the generated parser

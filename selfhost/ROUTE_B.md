@@ -53,9 +53,20 @@ such a call only when both hold:
    against every instance class in the snapshot.
 
 A member named by the release's own interface still passes, as before. The
-interface names only the members `--sdk-members` lists (`print`, `DateTime.now`,
-`DateTime.millisecondsSinceEpoch`, `identical`), so a release that calls
-`Iterable.map` does not get it accepted that way.
+interface names only the members `--sdk-members` lists, which a release builds
+in two tiers:
+
+- **Always kept (default):** `print`, `DateTime.now`,
+  `DateTime.millisecondsSinceEpoch`, `identical`, plus 53 cheap members (`Map`,
+  `Set`, `String`, `num`/`int`/`double`, `Iterable.isEmpty`/`isNotEmpty`/`join`,
+  `List.clear`/`sublist`). Cost: +1.8 % of the AOT size (airgap app, baseline
+  6,560,960 B).
+- **Opt-in, 21 heavy members:** `Iterable.any`/`where`/`map`/`toList`/
+  `firstWhere`/... and `List.addAll`/`sort`/.... Each costs about +2 %, because
+  the typed-data list mixins each get their own copy. All 74 members together
+  are +10.7 %. A release keeps them only when the checked-in `shorebird.yaml`
+  sets `keep_sdk_collection_methods: true` at release time. Without it a patch
+  that calls one is refused, and the refusal names the key.
 
 `--allow-unchecked-sdk-calls` skips check 2 (the per-release snapshot check) and
 the analysis-19 gate. It never skips check 1: a member that is not on the device
