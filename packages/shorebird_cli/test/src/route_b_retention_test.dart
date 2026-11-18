@@ -896,6 +896,68 @@ callable:
         );
       });
 
+      group('a VM-predefined dart:core class named as a type', () {
+        test('is kept though the interface lists none of them', () {
+          for (final name in [
+            'Object',
+            'Null',
+            'bool',
+            'int',
+            'double',
+            'num',
+            'String',
+          ]) {
+            expect(
+              refusal([_ref('class', 'dart:core', cls: name)]),
+              isNull,
+              reason: name,
+            );
+          }
+        });
+
+        test('needs the class in the snapshot profile when there is one', () {
+          RouteBRetention with_(List<String> held) => RouteBRetention.parse(
+            _interface,
+            kept: RouteBSnapshotKept.fromProfileJson(
+              routeBProfile({
+                for (final n in held) n: RouteBProfileClass(n, 'dart:core'),
+              }),
+            ),
+          );
+          final ref = _ref('class', 'dart:core', cls: 'bool');
+          expect(refusal([ref], with_: with_(['bool', 'int'])), isNull);
+          expect(refusal([ref], with_: with_(['int'])), contains('bool'));
+        });
+
+        test('does not make other dart:core classes kept', () {
+          expect(
+            refusal([_ref('class', 'dart:core', cls: 'Stopwatch')]),
+            contains('Stopwatch'),
+          );
+        });
+
+        test('does not make a member or constructor of one kept', () {
+          expect(
+            refusal([
+              _ref(
+                'constructor',
+                'dart:core',
+                cls: 'bool',
+                member: 'fromEnvironment',
+              ),
+            ]),
+            contains('fromEnvironment'),
+          );
+        });
+
+        test('is not said of an app class of the same name', () {
+          expect(
+            refusal([_ref('class', 'package:other/other.dart', cls: 'bool')]),
+            contains('bool'),
+          );
+        });
+      });
+
       group('an extension getter the release called itself', () {
         const lib = 'package:app/main.dart';
         const fn = 'Stars|get#stars';
