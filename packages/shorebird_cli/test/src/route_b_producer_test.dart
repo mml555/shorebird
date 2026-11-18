@@ -3869,7 +3869,16 @@ callable:
             source.writeAsStringSync(fixtureSource);
             final doc = RouteBCoverage.fromJson(
               jsonEncode({
-                'analysisVersion': supportedRouteBAnalysisVersion,
+                'analysisVersion': entry['lowering'] != null
+                    ? routeBExtensionReceiverAnalysisVersion
+                    : supportedRouteBAnalysisVersion,
+                if (entry['lowering'] != null) ...{
+                  'externalReferences': {targetKey: <Object>[]},
+                  'carried': <String>[],
+                  'callers': <String, Object>{},
+                  'helpers': <String>[],
+                  'unusedHelpers': <String>[],
+                },
                 'verdict': 'accept',
                 'changed': [targetKey],
                 'added': <String>[],
@@ -3883,7 +3892,9 @@ callable:
                     'end': entry['end'],
                   },
                 },
-                if (!isStatic)
+                if (entry['lowering'] != null)
+                  'lowering': {targetKey: entry['lowering']}
+                else if (!isStatic)
                   'lowering': {
                     targetKey: {
                       'receiverType': className,
@@ -3910,6 +3921,13 @@ callable:
                   p.join(cell.path, 'release_import.dill'),
                 ),
                 releaseBuildId: 'deadbeef',
+                retention: entry['lowering'] == null
+                    ? null
+                    : RouteBRetention.parse('''
+callable:
+  - library: 'package:app/main.dart'
+'''),
+
                 workingDirectory: work,
                 projectRoot: project,
                 run: (executable, arguments) {
@@ -4015,11 +4033,10 @@ callable:
             expect(fromFixture('ET|s'), contains('=> ET.k;'));
           });
 
-          test('an extension getter, setter or tear-off key is refused', () {
+          test('an extension setter, tear-off or type member is refused', () {
             // Their keys are `lib#X|get#zz`: the selector has no `.`, which
             // once let them through as plain top-level members.
             for (final name in [
-              'X|get#zz',
               'X|set#zs',
               'ET|get#zz',
               'ET|set#zs',
@@ -4030,7 +4047,8 @@ callable:
                 refusedWith(
                   anyOf(
                     contains('instance member'),
-                    contains('could not be identified'),
+                    contains('tear-off'),
+                    contains('only a getter or a method'),
                   ),
                 ),
                 reason: name,
@@ -4048,11 +4066,87 @@ callable:
             );
           });
 
-          test('an instance extension member is refused', () {
-            expect(
-              () => fromFixture('X|inst'),
-              refusedWith(contains('instance member')),
+          group('an extension instance member', () {
+            test('a method takes the receiver and qualifies the static', () {
+              final out = fromFixture('X|inst');
+              expect(out, contains('int inst(int self) => self + X.k;'));
+            });
+
+            test('a getter becomes a function of the receiver', () {
+              expect(fromFixture('X|get#zz'), contains('int zz(int self) =>'));
+              expect(fromFixture('X|get#zz'), contains('=> X.k;'));
+            });
+
+            test(r'`$this` in an interpolation becomes `${self}`', () {
+              expect(
+                fromFixture('X|interp'),
+                contains(r"String interp(int self) => '${X.k}${self}${X.k}';"),
+              );
+            });
+
+            test('a sibling member is applied to the receiver explicitly', () {
+              final out = fromFixture('X|sibling');
+              expect(
+                out,
+                contains('X(self).inst() + X(self).zz + X(self).inst()'),
+              );
+            });
+
+            test(
+              'an implicit receiver member is qualified with the receiver',
+              () {
+                expect(
+                  fromFixture('X|get#implicit'),
+                  contains('self.isEven ? 1 : 0'),
+                );
+              },
             );
+
+            test('`this` passed along becomes the receiver', () {
+              expect(
+                fromFixture('X|leak'),
+                contains('Object leak(int self) => self;'),
+              );
+            });
+
+            test('a sibling called in a closure is rewritten there', () {
+              expect(
+                fromFixture('X|get#inClosure'),
+                contains('(e) => e + X(self).inst()'),
+              );
+            });
+
+            test('refuses what a replacement cannot express', () {
+              final refusals = {
+                'X|tear': 'tears off',
+                'X|optional': 'optional',
+                'X|set#zs': 'only a getter or a method',
+                'G|get#firstLen': 'generic extension `G`',
+                '_extension#2|get#unnamed': 'unnamed extension',
+                'PE|get#pv': 'receiver type `_P`',
+                '_PX|get#px': 'private extension',
+                'ET|get#zz': 'extension type `ET`',
+              };
+              for (final entry in refusals.entries) {
+                expect(
+                  () => fromFixture(entry.key),
+                  refusedWith(contains(entry.value)),
+                  reason: entry.key,
+                );
+              }
+            });
+
+            test('a lowering naming another extension is refused', () {
+              final entry = fixture['X|inst'] as Map<String, dynamic>;
+              final lowering = Map<String, dynamic>.from(
+                entry['lowering'] as Map,
+              )..['extension'] = 'Other';
+              fixture['X|inst'] = {...entry, 'lowering': lowering};
+              expect(
+                () => fromFixture('X|inst'),
+                refusedWith(contains('Other')),
+              );
+            });
           });
 
           test('without class scope the same members are refused', () {

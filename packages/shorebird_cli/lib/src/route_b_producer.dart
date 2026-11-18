@@ -1555,6 +1555,20 @@ Object? $_superIntrinsicName(
     // tear-off or a static on the class would pass ungated. The placeholder
     // cannot match a private identifier (`_TYPE` follows a letter).
     final receiverParameter = '$_receiverTypePlaceholder $receiverName';
+    // An INSTANCE MEMBER OF AN EXTENSION (analysis version 22) is lowered like
+    // a class member: Kernel already makes it a static procedure whose first
+    // parameter is the receiver, so the replacement is `Ret name(OnType self,
+    // ...)`. What differs is the key's shape, the spelling of a sibling call
+    // (an explicit `Ext(self).sibling`) and the bare receiver.
+    final extensionName = lowering.extensionName;
+    if (extensionName != null &&
+        !_selectorOf(key).startsWith('$extensionName|')) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'the analysis names the extension `$extensionName` for it, which is '
+        'not the extension of its key',
+      );
+    }
 
     // AN INSTANCE GETTER has no parameter list to put the receiver in, and
     // scanning for one would find the first `(` of its BODY: `get label =>
@@ -1566,6 +1580,8 @@ Object? $_superIntrinsicName(
     final selector = key.contains('#') ? _selectorOf(key) : key;
     final getterName = selector.contains('.get:')
         ? selector.substring(selector.indexOf('.get:') + '.get:'.length)
+        : extensionName != null && selector.contains('|get#')
+        ? selector.substring(selector.indexOf('|get#') + '|get#'.length)
         : null;
     if (getterName != null) {
       final nameEnd = lowering.nameOffset + getterName.length;
@@ -1678,13 +1694,60 @@ Object? $_superIntrinsicName(
       // kind added later may not work that way, so refuse rather than guess --
       // the analyzer and the producer are versioned together for this reason,
       // and this is the backstop when that pairing is somehow wrong.
-      if (!const {'get', 'set', 'invoke', 'helperCall'}.contains(access.kind)) {
+      if (!const {'get', 'set', 'invoke', 'helperCall'}.contains(access.kind) &&
+          !(extensionName != null &&
+              const {
+                'receiver',
+                'extensionGet',
+                'extensionInvoke',
+              }.contains(access.kind))) {
         throw RouteBUnsupportedTarget(
           key,
           'uses the receiver in a way this lowering does not know how to '
           'rewrite (`${access.kind}` on `${access.member}`)',
         );
       }
+      // THE BARE RECEIVER of an extension member: `this` as a value, an
+      // argument or `$this`. It is the `#this` parameter, which the lowered
+      // function names `self`. The token is checked rather than assumed: an
+      // implicit use has none, and rewriting at the wrong place would compile.
+      if (access.kind == 'receiver') {
+        final end = access.offset + 'this'.length;
+        // `$this` in a string: the `$` before the token is the interpolation,
+        // and a `$` after it ends the token (`'$a$this$b'`), where in code
+        // either would be part of one identifier.
+        final interpolated =
+            access.offset > span.start &&
+            source.codeUnitAt(access.offset - 1) == 0x24;
+        bool partOfToken(int unit) =>
+            _isIdentifierPart(unit) && !(interpolated && unit == 0x24);
+        if (access.offset < span.start ||
+            end > span.end ||
+            !source.startsWith('this', access.offset) ||
+            (end < source.length && partOfToken(source.codeUnitAt(end))) ||
+            (!interpolated &&
+                _isIdentifierPart(source.codeUnitAt(access.offset - 1)))) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'uses the receiver where its source has no `this` (offset '
+            '${access.offset}), so it cannot be rewritten',
+          );
+        }
+        final dollar = access.offset - 1;
+        if (dollar >= span.start && source[dollar] == r'$') {
+          // `$this` is an interpolation of the receiver: `${self}`.
+          edits.add((dollar, 1 + 'this'.length, '\${$receiverName}'));
+        } else {
+          edits.add((access.offset, 'this'.length, receiverName));
+        }
+        continue;
+      }
+      // A sibling of the same extension is applied explicitly, so it cannot
+      // resolve to another extension of the same member name that the
+      // replacement library has in scope.
+      final prefix = access.kind.startsWith('extension')
+          ? '$extensionName($receiverName).'
+          : '$receiverName.';
       // A CALL TO A NEW INSTANCE METHOD (analysis version 17). The helper is a
       // top-level function taking the receiver first, so `_m(a)` and
       // `this._m(a)` both become `_m(self, a)`: the `(` after the name gains
@@ -1752,7 +1815,7 @@ Object? $_superIntrinsicName(
       if (start >= span.start &&
           start < source.length &&
           source.substring(start, access.offset) == explicit) {
-        edits.add((start, explicit.length, '$receiverName.'));
+        edits.add((start, explicit.length, prefix));
         continue;
       }
       // `this` written with unusual spacing (`this . label`) would otherwise be
@@ -1808,11 +1871,11 @@ Object? $_superIntrinsicName(
         edits.add((
           dollar,
           1 + access.member.length,
-          '\${$receiverName.${access.member}}',
+          '\${$prefix${access.member}}',
         ));
         continue;
       }
-      edits.add((access.offset, 0, '$receiverName.'));
+      edits.add((access.offset, 0, prefix));
     }
 
     // THE CLASS SCOPE THE LOWERING DROPS. Written with a placeholder for the
@@ -1972,7 +2035,11 @@ Object? $_superIntrinsicName(
     }
     text = text
         .replaceFirst(_receiverTypePlaceholder, lowering.receiverType)
-        .replaceAll(_classQualifierPlaceholder, lowering.receiverType);
+        // The extension's own name for its statics; the class is the receiver.
+        .replaceAll(
+          _classQualifierPlaceholder,
+          extensionName ?? lowering.receiverType,
+        );
     return _Lowered(
       text,
       preamble: superEdits.isEmpty ? '' : '$_superIntrinsicDeclaration\n',
@@ -2133,7 +2200,10 @@ Object? $_superIntrinsicName(
       if (ref.offset < span.start ||
           end > span.end ||
           !source.startsWith(ref.member, ref.offset) ||
-          (end < source.length && _isIdentifierPart(source.codeUnitAt(end))) ||
+          (end < source.length &&
+              _isIdentifierPart(source.codeUnitAt(end)) &&
+              // A `$` after an interpolated name starts the next one.
+              !(ref.interpolated && source.codeUnitAt(end) == 0x24)) ||
           (ref.interpolated &&
               (dollar < span.start || source[dollar] != r'$'))) {
         throw RouteBUnsupportedTarget(

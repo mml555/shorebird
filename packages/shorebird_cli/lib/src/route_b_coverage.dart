@@ -70,7 +70,7 @@ const supportedRouteBAnalysisVersion = 11;
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
 const knownRouteBAnalysisVersions = {
-  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, //
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, //
 };
 
 /// The first analyzer version that compares fields, `const`s, constructors and
@@ -119,6 +119,12 @@ const routeBSelectorCallsAnalysisVersion = 19;
 /// lowers the member to a function that overrides nothing. Version 21 reports
 /// the inferred signature so the producer can write it in (`signatureTypes`).
 const routeBInlinedOpsAnalysisVersion = 21;
+
+/// The first analyzer version that reports a `lowering` for an INSTANCE member
+/// of a named, non-generic extension (a getter or a method), carrying
+/// `extension`. Below it the analyzer's scope report refuses every such member,
+/// so a release built with an older cell keeps refusing them.
+const routeBExtensionReceiverAnalysisVersion = 22;
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -414,6 +420,7 @@ class RouteBLowering {
     required this.accesses,
     required this.unsupported,
     this.origin,
+    this.extensionName,
     this.superInvocations = const [],
     this.signatureTypes,
     this.releaseSuperTargets,
@@ -421,8 +428,14 @@ class RouteBLowering {
     this.releasePrivateConstructions,
   });
 
-  /// The class the receiver belongs to, used as the parameter's type.
+  /// The type the receiver parameter is written with: the class, or for an
+  /// extension member its on-type (`int`, `List<String>?`).
   final String receiverType;
+
+  /// The extension this member is an instance member of (analysis version 22),
+  /// or null for a class member. The producer writes `Name(self).sibling` for a
+  /// call of a sibling member and qualifies the extension's statics with it.
+  final String? extensionName;
 
   /// Offset of the method's NAME. The producer scans forward from here for the
   /// parameter list, because an annotation like `@pragma('vm:never-inline')`
@@ -963,6 +976,17 @@ class RouteBCoverage {
             for (final u in (l['unsupported'] as List<Object?>? ?? const []))
               u! as String,
           ],
+          extensionName: switch (l['extension']) {
+            final String name
+                when analysisVersion >=
+                    routeBExtensionReceiverAnalysisVersion =>
+              name,
+            null => null,
+            _ => throw const FormatException(
+              'a lowering carries an "extension" that this analysis version '
+              'does not define',
+            ),
+          },
           origin: switch (l['origin']) {
             final Map<String, dynamic> o => RouteBOrigin(
               library: o['library']! as String,
@@ -1327,16 +1351,13 @@ class RouteBCoverageAnalyzer {
     ]);
 
     if (result.exitCode != 0) {
-      throw RouteBCompilerException(
-        RouteBCompilerProblem.invalid,
-        '''
+      throw RouteBCompilerException(RouteBCompilerProblem.invalid, '''
 The Route B coverage analyzer failed (exit ${result.exitCode}):
 
 ${result.stderr}
 
 Treat this as corruption or a bad cache, not as a problem with the release.
-Nothing was uploaded.''',
-      );
+Nothing was uploaded.''');
     }
 
     return RouteBCoverage.fromJson(result.stdout as String);
