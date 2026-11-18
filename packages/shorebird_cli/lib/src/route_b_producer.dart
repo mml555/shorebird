@@ -65,7 +65,10 @@ RouteBProducer get routeBProducer => read(routeBProducerRef);
 
 /// Runs the cell's bytecode compiler.
 typedef RouteBCompileRunner =
-    ProcessResult Function(String executable, List<String> arguments);
+    ProcessResult Function(
+      String executable,
+      List<String> arguments,
+    );
 
 /// A target the producer cannot turn into a payload, and why.
 class RouteBUnsupportedTarget implements Exception {
@@ -634,10 +637,7 @@ Object? $_superIntrinsicName(
       // lowering), and `_FooState` is spelled in the replacement only if the
       // front end resolves it in the target library.
       final resolvesPrivateNames =
-          [
-            ?lowering,
-            ...helperLowerings,
-          ].any(
+          [?lowering, ...helperLowerings].any(
             (l) =>
                 l.accesses.any((a) => a.privateTarget != null) ||
                 (l.privateConstructions?.isNotEmpty ?? false) ||
@@ -661,11 +661,10 @@ Object? $_superIntrinsicName(
           // it. The flag then lets every private name of the library
           // resolve, not just that one; the private-name backstop in `_lower`
           // is what refuses an ungranted private name in a lowered target.
-          _namesGrantedPrivateTopLevel(
-            coverage,
-            [key, ...neededHelpers],
-            capabilities,
-          );
+          _namesGrantedPrivateTopLevel(coverage, [
+            key,
+            ...neededHelpers,
+          ], capabilities);
       final helperText = _helperSources(
         key,
         neededHelpers,
@@ -2477,10 +2476,25 @@ Object? $_superIntrinsicName(
   static Set<String> _privateIdentifiers(String text) =>
       _privateIdentifierCounts(text).keys.toSet();
 
-  /// [text] with comments and non-interpolating strings dropped.
+  /// [text] with comments and the literal parts of strings dropped. What is
+  /// left is the code, including every interpolation (`$_x`, `${...}`, nested
+  /// strings too), each interpolated identifier set apart by spaces.
   static String _strippedCode(String text) {
     final code = StringBuffer();
-    var i = 0;
+    _stripInto(text, 0, code, inInterpolation: false);
+    return code.toString();
+  }
+
+  /// Strips from [start] into [code]; returns where it stopped. Inside an
+  /// interpolation it stops after the `}` that closes it.
+  static int _stripInto(
+    String text,
+    int start,
+    StringBuffer code, {
+    required bool inInterpolation,
+  }) {
+    var i = start;
+    var depth = 0;
     while (i < text.length) {
       if (text.startsWith('//', i)) {
         while (i < text.length && text[i] != '\n') {
@@ -2490,14 +2504,14 @@ Object? $_superIntrinsicName(
       }
       if (text.startsWith('/*', i)) {
         // Dart block comments nest, so a depth count is not paranoia.
-        var depth = 1;
+        var level = 1;
         i += 2;
-        while (i < text.length && depth > 0) {
+        while (i < text.length && level > 0) {
           if (text.startsWith('/*', i)) {
-            depth++;
+            level++;
             i += 2;
           } else if (text.startsWith('*/', i)) {
-            depth--;
+            level--;
             i += 2;
           } else {
             i++;
@@ -2507,25 +2521,51 @@ Object? $_superIntrinsicName(
       }
       final c = text[i];
       if (c == "'" || c == '"') {
+        // A raw string (`r'...'`) has no escapes and no interpolation.
+        final raw =
+            i > 0 &&
+            text[i - 1] == 'r' &&
+            (i < 2 || !RegExp(r'[A-Za-z0-9_$]').hasMatch(text[i - 2]));
         final delim = text.startsWith(c * 3, i) ? c * 3 : c;
         var j = i + delim.length;
-        final content = StringBuffer();
         while (j < text.length && !text.startsWith(delim, j)) {
-          if (text[j] == r'\') {
+          if (!raw && text[j] == r'\') {
             j += 2;
             continue;
           }
-          content.write(text[j]);
+          if (!raw && text[j] == r'$') {
+            if (text.startsWith(r'${', j)) {
+              code.write(' ');
+              j = _stripInto(text, j + 2, code, inInterpolation: true);
+              code.write(' ');
+              continue;
+            }
+            final id = RegExp(
+              '[A-Za-z_][A-Za-z0-9_]*',
+            ).matchAsPrefix(text, j + 1);
+            if (id != null) {
+              code.write(' ${id[0]} ');
+              j = id.end;
+              continue;
+            }
+          }
           j++;
         }
         i = j < text.length ? j + delim.length : text.length;
-        if (content.toString().contains(r'$')) code.write(content);
         continue;
+      }
+      if (inInterpolation) {
+        if (c == '{') {
+          depth++;
+        } else if (c == '}') {
+          if (depth == 0) return i + 1;
+          depth--;
+        }
       }
       code.write(c);
       i++;
     }
-    return code.toString();
+    return i;
   }
 
   /// How many times each private name is spelled in the code of [text].
