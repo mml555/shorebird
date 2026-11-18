@@ -5264,8 +5264,8 @@ callable:
           RouteBProducer.privateIdentifierCountsForTesting(text);
 
       test('code after a raw triple string is scanned', () {
-        expect(count("x = r'''\${_d} '' _lit ''' + _e;"), {'_e': 1});
-        expect(count('x = r"""\${_d} _lit""" + _e;'), {'_e': 1});
+        expect(count(r"x = r'''${_d} '' _lit ''' + _e;"), {'_e': 1});
+        expect(count(r'x = r"""${_d} _lit""" + _e;'), {'_e': 1});
       });
 
       test('an escaped and an unescaped dollar are told apart', () {
