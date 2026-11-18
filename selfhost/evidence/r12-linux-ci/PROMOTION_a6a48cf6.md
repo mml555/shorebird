@@ -6,6 +6,10 @@ archive changes: `route_b_analyze.aot`, AOT-built from main `825085505` (after P
 version 21. CLI commit under test: `af1e14a1e6e95730c528111fc118c1b64c6e3728` (PR #226's head; its merge
 `3f10d18ef97ea46b1f29f244ebecd1596792ccdf` has the same `packages/shorebird_cli` and `bin/internal` trees,
 checked with `git diff --quiet af1e14a1 3f10d18e -- packages/shorebird_cli bin/internal`).
+The record's `cli_revision` is now `1ab7f5d3e26d64db4fc04a29ea89cd61b862e8bf` (the merge of #233), the CLI the
+iPhone run uses. Since `af1e14a1` it changes only `route_b_producer.dart`, `route_b_retention.dart`,
+`route_b_sdk_kept.dart` and their tests (#230-#233, false Route B refusals found in the phone-free dry run). That is
+the iOS patch producer, which none of the chain's Linux steps runs; `bin/internal` is unchanged.
 
     cell address       a6a48cf673a291f607323e89b41839c4b8b74e5d   macos-ios-android, 30 members
     flutter_revision   cc4fc222c210836f89bde6e91f7580e8241432da   shorebird-flutter: 0987ce0a + engine.version = a6a48cf6 (one line)

@@ -123,7 +123,11 @@ lineage:
   # the archive are 2fc41d3f's, byte for byte; PROVENANCE.txt differs only in the
   # build time and the analyzer's digest. The CLI that reads v21 is on main at
   # the merge of PR #226. See PROMOTION_a6a48cf6.md.
-  cli_revision: 3f10d18ef97ea46b1f29f244ebecd1596792ccdf   # the merge of PR #226, which selects a6a48cf6; its packages/shorebird_cli and bin/internal trees equal those of #226's head af1e14a1, the CLI the chain used (the iPhone run: TODO)
+  cli_revision: 1ab7f5d3e26d64db4fc04a29ea89cd61b862e8bf   # the merge of PR #233, the CLI the iPhone run uses (TODO). The chain ran #226's head af1e14a1; since then only
+  # route_b_producer.dart, route_b_retention.dart and route_b_sdk_kept.dart (and their tests) changed (#230-#233: false Route B
+  # refusals), which are the iOS patch producer and are not run by the Linux chain. bin/internal is unchanged.
+  # a6a48cf6's first line, kept as written:
+  #  cli_revision: 3f10d18ef97ea46b1f29f244ebecd1596792ccdf   # the merge of PR #226, which selects a6a48cf6; its packages/shorebird_cli and bin/internal trees equal those of #226's head af1e14a1, the CLI the chain used
   # 2fc41d3f's line, kept as written:
   #  cli_revision: f9c566982a592a42039e0d1f6d74c4ce927e4125   # the merge of PR #195, which selects 2fc41d3f; its packages/shorebird_cli and bin/internal trees equal those of #195's head d7e5325e, the CLI the chain and the iPhone run used
   # aab9fd07's line, kept as written:
@@ -253,8 +257,8 @@ lineage:
   # is a change to what "qualified" was established against. Re-qualifying is a
   # matter of re-running the verifier and updating two lines here.
   cli_product_tree:
-    packages_shorebird_cli: 24de761d7faea3cb3ba5513e6e3b68eff9659013   # at 3f10d18e; was 01cf7cb6 at f9c56698, 2b6455b6 at dd93e875, d25369bc at 22f14441
-    bin_internal: 75d549a40810c5a25a0a24d505b845e1f9d04a77             # at 3f10d18e; was 4330e357 at f9c56698, ca202b07 at dd93e875, 2ffb6e8b
+    packages_shorebird_cli: 1c278a2cd76af9094aff0b62348459ef29dcc7d7   # at 1ab7f5d3; was 24de761d at 3f10d18e, was 01cf7cb6 at f9c56698, 2b6455b6 at dd93e875, d25369bc at 22f14441
+    bin_internal: 75d549a40810c5a25a0a24d505b845e1f9d04a77             # at 1ab7f5d3 and 3f10d18e; was 4330e357 at f9c56698, ca202b07 at dd93e875, 2ffb6e8b
   producer_engine_revision: d0714887dd95d2990e0185fe1893523f3d600cc5   # built in; NOT the address. Read from the archive's PROVENANCE.txt
   fallback_engine_revision: 38855c84ca367c58165b8e3844dd7d6a99dec844   # as d0714887's own experimental_hashes.map entry
   dart_revision: b4671ab7334caa33015d93a1501db974bdfb25f4   # mml555/dart-sdk-shorebird-lineage; DEPS dart_sdk_revision at the selector
