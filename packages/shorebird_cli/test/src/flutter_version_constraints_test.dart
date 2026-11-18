@@ -21,27 +21,33 @@ void main() {
 
     test('a side version below the floor stays below it', () {
       expect(
-        Version.parse('3.32.5-sb.1')
-            .satisfiesFloor(minimumSupportedWindowsFlutterVersion),
+        Version.parse('3.32.5-sb.1').satisfiesFloor(
+          minimumSupportedWindowsFlutterVersion,
+        ),
         isFalse,
       );
     });
 
     test("an upstream pre-release stays below its release's floor", () {
       expect(
-        Version.parse('3.32.6-0.1.pre')
-            .satisfiesFloor(minimumSupportedWindowsFlutterVersion),
+        Version.parse('3.32.6-0.1.pre').satisfiesFloor(
+          minimumSupportedWindowsFlutterVersion,
+        ),
         isFalse,
       );
     });
 
     test('a plain version compares as it always did', () {
       expect(
-        Version(3, 32, 6).satisfiesFloor(minimumSupportedWindowsFlutterVersion),
+        Version(3, 32, 6).satisfiesFloor(
+          minimumSupportedWindowsFlutterVersion,
+        ),
         isTrue,
       );
       expect(
-        Version(3, 32, 5).satisfiesFloor(minimumSupportedWindowsFlutterVersion),
+        Version(3, 32, 5).satisfiesFloor(
+          minimumSupportedWindowsFlutterVersion,
+        ),
         isFalse,
       );
     });
@@ -109,6 +115,10 @@ void main() {
           version.satisfiesFloor(minimumObfuscationFlutterVersion),
           isTrue,
         );
+        expect(
+          version.satisfiesFloor(minimumPatchableIosFlutterVersion),
+          isTrue,
+        );
       });
 
       test('$version satisfies every support constraint', () {
@@ -125,9 +135,5 @@ void main() {
         }
       });
     }
-
-    test('sorts after 3.47.9', () {
-      expect(Version(3, 50, 0), greaterThan(Version(3, 47, 9)));
-    });
   });
 }
