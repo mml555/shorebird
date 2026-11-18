@@ -338,6 +338,22 @@ class RouteBSnapshotKept {
         e.key,
   ];
 
+  /// Whether this snapshot holds a top-level function [name] of [library] with
+  /// real code: the precompiler kept it, because something the release runs
+  /// calls it. An extension getter, setter or tear-off (`Stars|get#stars`) is a
+  /// top-level function of its library, and the only evidence a release has
+  /// kept one: no interface lists a `#` name.
+  bool hasTopLevelFunction(String library, String name) {
+    for (final e in _name.entries) {
+      if (e.value == '::' &&
+          _library[e.key] == library &&
+          (_functions[e.key]?[name] ?? false)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Whether the snapshot has a `dart:` class named [name].
   bool hasClass(String name) => _sdkClasses(name).isNotEmpty;
 
@@ -514,8 +530,6 @@ class RouteBSnapshotKept {
   }
 
   /// `_OneByteString@0150898` -> `_OneByteString`.
-  static String _className(String raw) => raw.replaceFirst(
-    RegExp(r'@\d+$'),
-    '',
-  );
+  static String _className(String raw) =>
+      raw.replaceFirst(RegExp(r'@\d+$'), '');
 }

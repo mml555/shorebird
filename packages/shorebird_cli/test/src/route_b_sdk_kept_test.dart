@@ -79,6 +79,35 @@ void main() {
       expect(kept.resolves('Object', 'split'), isNull);
     });
 
+    test('hasTopLevelFunction answers by library, class `::` and code', () {
+      final kept = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          'top': const RouteBProfileClass(
+            '::',
+            'package:a/a.dart',
+            fns: {
+              'E|get#x': '[Optimized] E|get#x',
+              'stub': '[Stub] CompileFunction',
+            },
+            decoys: {'cached': '[Optimized] cached'},
+            moreFns: [('twice', '[Optimized] twice'), ('twice', '[Stub] s')],
+          ),
+          'cls': const RouteBProfileClass(
+            'Box',
+            'package:a/a.dart',
+            fns: {'method': '[Optimized] method'},
+          ),
+        }),
+      );
+      expect(kept.hasTopLevelFunction('package:a/a.dart', 'E|get#x'), isTrue);
+      expect(kept.hasTopLevelFunction('package:b/b.dart', 'E|get#x'), isFalse);
+      expect(kept.hasTopLevelFunction('package:a/a.dart', 'stub'), isFalse);
+      expect(kept.hasTopLevelFunction('package:a/a.dart', 'cached'), isFalse);
+      expect(kept.hasTopLevelFunction('package:a/a.dart', 'twice'), isFalse);
+      expect(kept.hasTopLevelFunction('package:a/a.dart', 'method'), isFalse);
+      expect(kept.hasTopLevelFunction('package:a/a.dart', 'nope'), isFalse);
+    });
+
     test('keeps same-named classes of different libraries apart', () {
       // A user `_List` has `remove`; the SDK's does not. Neither the user's
       // class nor its functions may stand in for the SDK's.
