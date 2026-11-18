@@ -3450,6 +3450,10 @@ Map<String, Object?>? enclosingScopeOf(Procedure p, {String? source}) {
     'staticReferences': references,
     'usedTypeParameters': uses.typeParameters.toList()..sort(),
     'problems': problems,
+    // An instance member of an extension takes its receiver first, so a
+    // consumer that finds no `lowering` for it must refuse, not carry it as a
+    // top-level function of the wrong arity.
+    if (_extensionInstanceMember(p) != null) 'extensionInstance': true,
   };
 }
 
@@ -4403,6 +4407,14 @@ class _ReceiverUses extends RecursiveVisitor {
     super.visitVariableGet(node);
   }
 
+  /// Whether [e] reads [receiver], directly or through a `let` variable
+  /// (a cascade or null-aware call binds the receiver to one first).
+  static bool _mentionsReceiver(Expression e, Variable receiver) {
+    final finder = _ReceiverFinder(receiver);
+    e.accept(finder);
+    return finder.found;
+  }
+
   /// A call that passes the extension receiver first: a sibling instance
   /// member of the same extension (reported), or another extension's member or
   /// a tear-off (refused). Returns whether it handled [node].
@@ -4410,10 +4422,25 @@ class _ReceiverUses extends RecursiveVisitor {
     final ext = extension;
     if (ext == null || node.arguments.positional.isEmpty) return false;
     final first = node.arguments.positional.first;
+    final target = node.target;
     if (first is! VariableGet || !identical(first.variable, ext.thisVariable)) {
+      // `this..m()`, `this?.m()` and `(this + 1).m()` apply an extension to
+      // something built from the receiver. The replacement would keep the
+      // call's own spelling and resolve it in another library, where a private
+      // extension is not visible and a same-named public one could be bound.
+      // Only the plain receiver is rewritten, so these are refused.
+      if (target.isExtensionMember &&
+          target.function.positionalParameters.isNotEmpty &&
+          target.function.positionalParameters.first.cosmeticName == '#this' &&
+          _mentionsReceiver(first, ext.thisVariable)) {
+        unsupported.add(
+          'calls the extension member `${target.name.text}` on an expression '
+          'built from the receiver (a cascade, a null-aware call or a '
+          'parenthesised expression), which a replacement does not rewrite',
+        );
+      }
       return false;
     }
-    final target = node.target;
     final own = ext.members[target];
     final isTearOff = ext.tearOffs.contains(target);
     if (own == null &&
@@ -4525,6 +4552,23 @@ class _ReceiverUses extends RecursiveVisitor {
     // argument, captured by a closure, stored. Each is its own question.
     if (!consumed.contains(node)) {
       unsupported.add('uses `this` other than to read a member');
+    }
+  }
+}
+
+/// Finds a read of [receiver], following `let` variables to what they hold.
+class _ReceiverFinder extends RecursiveVisitor {
+  _ReceiverFinder(this.receiver);
+
+  final Variable receiver;
+  bool found = false;
+
+  @override
+  void visitVariableGet(VariableGet node) {
+    if (identical(node.variable, receiver)) {
+      found = true;
+    } else if (node.variable.initializer case final Expression init) {
+      init.accept(this);
     }
   }
 }

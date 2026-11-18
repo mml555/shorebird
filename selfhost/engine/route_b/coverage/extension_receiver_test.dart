@@ -36,6 +36,7 @@ extension Stars on int {
   String other(String s) => s;
   bool get big => this > 10 && isEven;
   Object leak() => this;
+  Object casc() => this..other('');
   Object Function() tear() => other2;
   String other2() => '';
   int optional([int a = 1]) => a;

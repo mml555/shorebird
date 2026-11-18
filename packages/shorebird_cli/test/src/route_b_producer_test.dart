@@ -4122,10 +4122,16 @@ callable:
                 'X|optional': 'optional',
                 'X|set#zs': 'only a getter or a method',
                 'G|get#firstLen': 'generic extension `G`',
-                '_extension#2|get#unnamed': 'unnamed extension',
+                fixture.keys.firstWhere(
+                  (k) =>
+                      k.startsWith('_extension#') && k.endsWith('|get#unnamed'),
+                ): 'unnamed extension',
                 'PE|get#pv': 'receiver type `_P`',
                 '_PX|get#px': 'private extension',
                 'ET|get#zz': 'extension type `ET`',
+                'X|casc': 'built from the receiver',
+                'NI|get#viaNull': 'built from the receiver',
+                'X|shadow': 'name of its extension',
               };
               for (final entry in refusals.entries) {
                 expect(
@@ -4136,11 +4142,75 @@ callable:
               }
             });
 
+            test('a nested function and an `on int?` receiver are carried', () {
+              expect(
+                fromFixture('X|nested'),
+                contains('int f() => self + 1;'),
+              );
+              expect(
+                fromFixture('NI|get#nz'),
+                contains('int nz(int? self) => self == null ? 0 : 1;'),
+              );
+              expect(
+                fromFixture('NI|get#plain'),
+                contains('NI(self).nz + 1'),
+              );
+            });
+
+            test('an extension member with no lowering is refused, not '
+                'carried with the wrong arity', () {
+              final entry = Map<String, dynamic>.from(
+                fixture['X|inst'] as Map,
+              )..remove('lowering');
+              final original = fixture['X|inst'];
+              addTearDown(() => fixture['X|inst'] = original);
+              fixture['X|inst'] = entry;
+              expect(
+                () => fromFixture('X|inst'),
+                refusedWith(contains('reported no lowering')),
+              );
+            });
+
+            test('a lowering of an extension key that names no extension is '
+                'refused', () {
+              final entry = fixture['X|inst'] as Map<String, dynamic>;
+              final lowering = Map<String, dynamic>.from(
+                entry['lowering'] as Map,
+              )..remove('extension');
+              final original = fixture['X|inst'];
+              addTearDown(() => fixture['X|inst'] = original);
+              fixture['X|inst'] = {...entry, 'lowering': lowering};
+              expect(
+                () => fromFixture('X|inst'),
+                refusedWith(contains('does not name its extension')),
+              );
+            });
+
+            test(r'a `$` after a static that is not an interpolation is not '
+                'split off it', () {
+              final entry = fixture['X|interp'] as Map<String, dynamic>;
+              final scope =
+                  jsonDecode(jsonEncode(entry['scope']))
+                      as Map<String, dynamic>;
+              for (final r in scope['staticReferences'] as List) {
+                (r as Map<String, dynamic>)['interpolated'] = false;
+              }
+              final original = fixture['X|interp'];
+              addTearDown(() => fixture['X|interp'] = original);
+              fixture['X|interp'] = {...entry, 'scope': scope};
+              expect(
+                () => fromFixture('X|interp'),
+                refusedWith(contains('not where the analyzer reported')),
+              );
+            });
+
             test('a lowering naming another extension is refused', () {
               final entry = fixture['X|inst'] as Map<String, dynamic>;
               final lowering = Map<String, dynamic>.from(
                 entry['lowering'] as Map,
               )..['extension'] = 'Other';
+              final original = fixture['X|inst'];
+              addTearDown(() => fixture['X|inst'] = original);
               fixture['X|inst'] = {...entry, 'lowering': lowering};
               expect(
                 () => fromFixture('X|inst'),

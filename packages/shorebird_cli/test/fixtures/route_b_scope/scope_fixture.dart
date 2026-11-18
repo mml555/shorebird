@@ -87,6 +87,19 @@ extension X on int {
   Object Function() tear() => inst;
   int optional([int a = 1]) => a + this;
   int get implicit => isEven ? 1 : 0;
+  Object casc() => this..inst();
+  int nested() {
+    int f() => this + 1;
+    return f();
+  }
+
+  int shadow(int X) => X + this;
+}
+
+extension NI on int? {
+  int get nz => this == null ? 0 : 1;
+  int get viaNull => this?.nz ?? 0;
+  int get plain => nz + 1;
 }
 
 extension G<T> on List<T> {

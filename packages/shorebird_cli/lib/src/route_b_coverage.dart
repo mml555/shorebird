@@ -366,6 +366,7 @@ class RouteBEnclosingScope {
     required this.staticReferences,
     required this.usedTypeParameters,
     required this.problems,
+    this.extensionInstance = false,
   });
 
   /// Parses one entry of `enclosingScope`.
@@ -390,6 +391,7 @@ class RouteBEnclosingScope {
       ],
       usedTypeParameters: names('usedTypeParameters'),
       problems: names('problems'),
+      extensionInstance: json['extensionInstance'] == true,
     );
   }
 
@@ -404,6 +406,11 @@ class RouteBEnclosingScope {
 
   /// Reasons the member cannot be carried; non-empty means refuse.
   final List<String> problems;
+
+  /// Whether the member is an INSTANCE member of an extension (analysis 22),
+  /// which takes its receiver first and so cannot be carried without a
+  /// `lowering`.
+  final bool extensionInstance;
 }
 
 /// What Kernel knows about turning an instance method into a static

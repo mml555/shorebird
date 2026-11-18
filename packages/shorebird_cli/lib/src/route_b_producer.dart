@@ -601,6 +601,17 @@ Object? $_superIntrinsicName(
       // positionals and generics for those); a top-level or static target was
       // not, and reaches the compiler as written.
       if (lowering == null) {
+        // An extension instance member takes its receiver first. Carried as
+        // written it would be a top-level function of one parameter fewer than
+        // the `Ext|get#x(#this)` it replaces, so a missing lowering is a
+        // refusal, never a fall-through.
+        if (_scopeOf(key, coverage)?.extensionInstance ?? false) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'it is an instance member of an extension, and the analysis '
+            'reported no lowering for it',
+          );
+        }
         if (routeBEntryShapeProblem(key, _slice(key, source))
             case final problem?) {
           throw RouteBUnsupportedTarget(key, problem);
@@ -1561,6 +1572,20 @@ Object? $_superIntrinsicName(
     // ...)`. What differs is the key's shape, the spelling of a sibling call
     // (an explicit `Ext(self).sibling`) and the bare receiver.
     final extensionName = lowering.extensionName;
+    if (extensionName == null && _selectorOf(key).contains('|')) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'it is an extension member, and the analysis does not name its '
+        'extension',
+      );
+    }
+    if (extensionName != null) {
+      _refuseExtensionCapture(
+        key,
+        extensionName,
+        source.substring(span.start, span.end),
+      );
+    }
     if (extensionName != null &&
         !_selectorOf(key).startsWith('$extensionName|')) {
       throw RouteBUnsupportedTarget(
@@ -2524,6 +2549,65 @@ Object? $_superIntrinsicName(
   @visibleForTesting
   static String freshReceiverNameForTesting(String declaration) =>
       _freshReceiverName(declaration);
+
+  /// Refuses a member whose own names would capture `Ext(self)` or `Ext.k`,
+  /// which the lowering writes: a parameter, local or function named like the
+  /// extension, or an entry function named like it (a lowercase extension whose
+  /// member has its own name, `extension stars on int { int stars() }`, becomes
+  /// a top-level `stars` that hides the extension).
+  static void _refuseExtensionCapture(
+    String key,
+    String extensionName,
+    String declaration,
+  ) {
+    final selector = _selectorOf(key);
+    final bar = selector.indexOf('|');
+    var member = bar < 0 ? selector : selector.substring(bar + 1);
+    if (member.startsWith('get#')) member = member.substring('get#'.length);
+    if (member == extensionName) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'its replacement would be a top-level function named `$extensionName`, '
+        'which hides the extension of that name that its body is written '
+        'against',
+      );
+    }
+    final code = _strippedCode(declaration);
+    final pattern = RegExp(
+      '(?<![\\w\$])${RegExp.escape(extensionName)}(?![\\w\$])',
+    );
+    const usesOfAValue = {
+      'return', 'await', 'throw', 'in', 'is', 'as', 'else', 'case', 'yield', //
+      'new', 'const',
+    };
+    for (final m in pattern.allMatches(code)) {
+      var after = m.end;
+      while (after < code.length && code[after] == ' ') {
+        after++;
+      }
+      final next = after < code.length ? code[after] : '';
+      var before = m.start;
+      while (before > 0 && code[before - 1] == ' ') {
+        before--;
+      }
+      var wordStart = before;
+      while (wordStart > 0 &&
+          _isIdentifierPart(code.codeUnitAt(wordStart - 1))) {
+        wordStart--;
+      }
+      final prev = code.substring(wordStart, before);
+      final declares = prev.isNotEmpty && !usesOfAValue.contains(prev);
+      final bareName = next != '.' && next != '(' && next != '<';
+      if (declares || bareName) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'it spells `$extensionName`, the name of its extension, as a '
+          'parameter, a local or a value, which would capture the explicit '
+          '`$extensionName(...)` and `$extensionName.` the replacement writes',
+        );
+      }
+    }
+  }
 
   static String _freshReceiverName(String declaration) {
     if (!declaration.contains(_defaultReceiverName)) {

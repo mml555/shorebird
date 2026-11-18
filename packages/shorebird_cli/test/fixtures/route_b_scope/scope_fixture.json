@@ -1,5 +1,5 @@
 {
-  "sourceSha256": "d947b07ff801fd0959711cf61d45fe1ee4e261354fb7fef577ad7cb27c56662f",
+  "sourceSha256": "fecab633aff31850634f1dc80a47e8a4bde3d98cea0c0b82ef40c6557531eb71",
   "M.viaMixin": {
     "start": 697,
     "end": 718,
@@ -400,7 +400,8 @@
         }
       ],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "int",
@@ -449,7 +450,8 @@
         }
       ],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "int",
@@ -479,7 +481,8 @@
         }
       ],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "int",
@@ -520,7 +523,8 @@
         }
       ],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "int",
@@ -563,7 +567,8 @@
       "class": "X",
       "staticReferences": [],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "int",
@@ -616,7 +621,8 @@
       "class": "X",
       "staticReferences": [],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "int",
@@ -661,7 +667,8 @@
       "class": "X",
       "staticReferences": [],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "int",
@@ -691,7 +698,8 @@
       "class": "X",
       "staticReferences": [],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "int",
@@ -734,7 +742,8 @@
       "class": "X",
       "staticReferences": [],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "int",
@@ -773,7 +782,8 @@
       "class": "X",
       "staticReferences": [],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "int",
@@ -820,7 +830,8 @@
       "class": "X",
       "staticReferences": [],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "int",
@@ -842,27 +853,259 @@
       "unsupported": []
     }
   },
-  "G|get#firstLen": {
-    "start": 2408,
-    "end": 2435,
+  "X|casc": {
+    "start": 2377,
+    "end": 2407,
     "static": true,
     "scope": {
-      "class": "G",
+      "class": "X",
       "staticReferences": [],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
-      "receiverType": "dynamic",
-      "extension": "G",
-      "nameOffset": 2416,
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2384,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "Object"
+      },
+      "accesses": [
+        {
+          "offset": 2394,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": [
+        "calls the extension member `X|inst` on an expression built from the receiver (a cascade, a null-aware call or a parenthesised expression), which a replacement does not rewrite"
+      ]
+    }
+  },
+  "X|get#casc": {
+    "start": 2377,
+    "end": 2407,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
+  "X|nested": {
+    "start": 2410,
+    "end": 2469,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2414,
       "signatureTypes": {
         "params": [],
         "returnType": "int"
       },
       "accesses": [
         {
-          "offset": 2428,
+          "offset": 2440,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "X|get#nested": {
+    "start": 2410,
+    "end": 2469,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
+  "X|shadow": {
+    "start": 2473,
+    "end": 2503,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "X",
+      "nameOffset": 2477,
+      "signatureTypes": {
+        "params": [
+          "int"
+        ],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2498,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "X|get#shadow": {
+    "start": 2473,
+    "end": 2503,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
+  "NI|get#nz": {
+    "start": 2532,
+    "end": 2567,
+    "static": true,
+    "scope": {
+      "class": "NI",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int?",
+      "extension": "NI",
+      "nameOffset": 2540,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2546,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "NI|get#viaNull": {
+    "start": 2570,
+    "end": 2603,
+    "static": true,
+    "scope": {
+      "class": "NI",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int?",
+      "extension": "NI",
+      "nameOffset": 2578,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2589,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": [
+        "calls the extension member `NI|get#nz` on an expression built from the receiver (a cascade, a null-aware call or a parenthesised expression), which a replacement does not rewrite"
+      ]
+    }
+  },
+  "NI|get#plain": {
+    "start": 2606,
+    "end": 2630,
+    "static": true,
+    "scope": {
+      "class": "NI",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int?",
+      "extension": "NI",
+      "nameOffset": 2614,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2623,
+          "member": "nz",
+          "kind": "extensionGet"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "G|get#firstLen": {
+    "start": 2664,
+    "end": 2691,
+    "static": true,
+    "scope": {
+      "class": "G",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "dynamic",
+      "extension": "G",
+      "nameOffset": 2672,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "int"
+      },
+      "accesses": [
+        {
+          "offset": 2684,
           "member": "length",
           "kind": "get"
         }
@@ -875,29 +1118,30 @@
       ]
     }
   },
-  "_extension#2|get#unnamed": {
-    "start": 2463,
-    "end": 2489,
+  "_extension#3|get#unnamed": {
+    "start": 2719,
+    "end": 2745,
     "static": true,
     "scope": {
-      "class": "_extension#2",
+      "class": "_extension#3",
       "staticReferences": [],
       "usedTypeParameters": [],
       "problems": [
         "it is a member of an unnamed extension"
-      ]
+      ],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "String",
-      "extension": "_extension#2",
-      "nameOffset": 2471,
+      "extension": "_extension#3",
+      "nameOffset": 2727,
       "signatureTypes": {
         "params": [],
         "returnType": "int"
       },
       "accesses": [
         {
-          "offset": 2482,
+          "offset": 2738,
           "member": "length",
           "kind": "get"
         }
@@ -910,19 +1154,20 @@
     }
   },
   "PE|get#pv": {
-    "start": 2529,
-    "end": 2545,
+    "start": 2785,
+    "end": 2801,
     "static": true,
     "scope": {
       "class": "PE",
       "staticReferences": [],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "dynamic",
       "extension": "PE",
-      "nameOffset": 2537,
+      "nameOffset": 2793,
       "signatureTypes": {
         "params": [],
         "returnType": "int"
@@ -936,19 +1181,20 @@
     }
   },
   "_PX|get#px": {
-    "start": 2574,
-    "end": 2590,
+    "start": 2830,
+    "end": 2846,
     "static": true,
     "scope": {
       "class": "_PX",
       "staticReferences": [],
       "usedTypeParameters": [],
-      "problems": []
+      "problems": [],
+      "extensionInstance": true
     },
     "lowering": {
       "receiverType": "int",
       "extension": "_PX",
-      "nameOffset": 2582,
+      "nameOffset": 2838,
       "signatureTypes": {
         "params": [],
         "returnType": "int"
@@ -962,8 +1208,8 @@
     }
   },
   "ET|constructor#": {
-    "start": 2611,
-    "end": 2618,
+    "start": 2867,
+    "end": 2874,
     "static": true,
     "scope": {
       "class": "ET",
@@ -975,8 +1221,8 @@
     }
   },
   "ET|constructor#_#new#tearOff": {
-    "start": 2611,
-    "end": 2612,
+    "start": 2867,
+    "end": 2868,
     "static": true,
     "scope": {
       "class": "ET",
@@ -988,14 +1234,14 @@
     }
   },
   "ET|s": {
-    "start": 2643,
-    "end": 2663,
+    "start": 2899,
+    "end": 2919,
     "static": true,
     "scope": {
       "class": "ET",
       "staticReferences": [
         {
-          "offset": 2661,
+          "offset": 2917,
           "member": "k",
           "kind": "get"
         }
@@ -1005,8 +1251,8 @@
     }
   },
   "ET|get#zz": {
-    "start": 2666,
-    "end": 2682,
+    "start": 2922,
+    "end": 2938,
     "static": true,
     "scope": {
       "class": "ET",
@@ -1018,8 +1264,8 @@
     }
   },
   "ET|set#zs": {
-    "start": 2685,
-    "end": 2715,
+    "start": 2941,
+    "end": 2971,
     "static": true,
     "scope": {
       "class": "ET",
