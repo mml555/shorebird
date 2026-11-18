@@ -693,8 +693,8 @@ String? describeRouteBUnprovenSdkMembers(List<String> symbols) {
   return 'it calls $named$more. An SDK instance method is looked up by name '
       'when it runs, and the app throws NoSuchMethodError at that call if the '
       'release never called it. Members marked "measured" failed on a device, '
-      'and those on no list were never measured: no flag and no release '
-      'setting unlocks either, because the patcher only lets through members '
+      'and those on no list were never measured: no flag unlocks '
+      'either, because the patcher only lets through members '
       'measured on a device. Only a refusal because the snapshot of this '
       'release does not keep the member (or its snapshot profile could not be '
       'checked) is skipped by `--allow-unchecked-sdk-calls`. To use a refused '
@@ -716,14 +716,17 @@ String _heavyMemberAdvice(List<String> symbols) {
   final named = heavy
       .where(
         (name) => symbols.any(
-          (s) => s.contains('`$name`') || s.contains('`$name torn off`'),
+          // Only the call form: the opt-in keeps a member for calls, and a
+          // tear-off is still refused until its call form is measured.
+          (s) => s.contains('`$name`'),
         ),
       )
       .toList();
   if (named.isEmpty) return '';
-  return '. The one exception is a heavy collection method: '
-      '${named.join(', ')} ${named.length == 1 ? 'is' : 'are'} kept by a release only when shorebird.yaml sets '
-      '$routeBKeepCollectionMethodsKey: true, so set it and cut a new release';
+  final verb = named.length == 1 ? 'is' : 'are';
+  return '. ${named.join(', ')} $verb kept by a release only when '
+      'shorebird.yaml sets $routeBKeepCollectionMethodsKey: true, so if this '
+      'release did not keep it, set that and cut a new release';
 }
 
 /// The refusal for a patch that calls members by name on a `dynamic` value

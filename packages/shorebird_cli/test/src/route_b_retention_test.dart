@@ -530,7 +530,7 @@ callable:
             reason,
             allOf(
               contains('`$cls.$member`'),
-              contains('no flag and no release setting unlocks either'),
+              contains('no flag unlocks either'),
             ),
             reason: '$cls.$member',
           );

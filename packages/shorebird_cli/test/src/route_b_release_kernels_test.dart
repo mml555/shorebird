@@ -813,6 +813,15 @@ void main() {
         expect(interfaceArgs(), isNot(contains('--manifest')));
       });
 
+      test('passes the opted-in heavy members to the generator', () {
+        final members = routeBSdkMembersFor(keepCollectionMethods: true);
+        final args = interfaceArgs(sdkMembers: members);
+        final value = args[args.indexOf('--sdk-members') + 1].split(',');
+
+        expect(value, members);
+        expect(value, containsAll(routeBHeavySdkMembers));
+      });
+
       test('retains SDK symbols BY NAME, never by library', () {
         // A whole `dart:core` item was measured at +310% -- a four-fold
         // snapshot. `--sdk-libraries` stays reachable for debugging and must
