@@ -13,7 +13,7 @@
 # never discovered after.
 shorebird:
   cli_version: 1.6.138+selfhost.1                                # fork build of upstream 1.6.138 (was 1.6.115). The tree is at 1.6.140+selfhost.1, but this pair is only re-qualified by the promotion chain, so it stays with cli_revision below
-  cli_revision: 1ab7f5d3e26d64db4fc04a29ea89cd61b862e8bf          # the CLI cell a6a48cf6 was qualified with (SUPPORTED_STATE.yaml lineage.cli_revision); was 3f10d18e before #230-#233, f9c56698 (cell 2fc41d3f), dd93e875 (cell aab9fd07), 22f14441 (cell 5f6efd98), 357bc24f (cell 82fc78a8)
+  cli_revision: e7384444fad53cdd35317fe3dc0abc4d3c7b1c36          # the CLI cell a6a48cf6 was qualified with (SUPPORTED_STATE.yaml lineage.cli_revision); was 1ab7f5d3 before #234, 3f10d18e before #230-#233, f9c56698 (cell 2fc41d3f), dd93e875 (cell aab9fd07), 22f14441 (cell 5f6efd98), 357bc24f (cell 82fc78a8)
   flutter_revision: cc4fc222c210836f89bde6e91f7580e8241432da      # bin/internal/flutter.version. RE-CELLED 2026-11-17 (ROUTE-B-CELL-A6A48CF6) from 5c60356c: the same
                                                                   # parent 0987ce0a (engine d0714887, Dart b4671ab7) plus ONE line, bin/internal/engine.version =
                                                                   # a6a48cf673a291f607323e89b41839c4b8b74e5d, a cell over the same engine bytes whose compiler archive

@@ -9,7 +9,7 @@ when an item here changes; history of how things got here lives in the PRs and i
 Feature-by-feature comparison with upstream Shorebird: [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md).
 
 **Supported stack since 2026-11-17** (newer than the sections below, which still describe 2026-11-11): CLI
-`1ab7f5d3` (the merge of #233), shorebird-flutter `cc4fc222`, cell `a6a48cf6` over engine `d0714887` (Dart `b4671ab7`), with the
+`e7384444` (the merge of #234), shorebird-flutter `cc4fc222`, cell `a6a48cf6` over engine `d0714887` (Dart `b4671ab7`), with the
 v21 coverage analyzer (PRs #217 and #219: inlined operator references, inferred signature types, the enclosing scope
 of class and extension members). It replaces cell `2fc41d3f`; only the analyzer in the
 compiler archive changed. The values are in [`compatibility.yaml`](compatibility.yaml) and
