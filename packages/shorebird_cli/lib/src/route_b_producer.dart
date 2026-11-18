@@ -606,6 +606,18 @@ Object? $_superIntrinsicName(
           throw RouteBUnsupportedTarget(key, problem);
         }
       }
+      // A static target of a private class compiles with private names resolved
+      // (it names its class to qualify a static), and has no lowering, so
+      // nothing else scans it for a private name the release never granted.
+      if (lowering == null && _qualifiesPrivateClass(_scopeOf(key, coverage))) {
+        _refuseUngrantedPrivateNames(
+          key,
+          _slice(key, source),
+          _scopeOf(key, coverage),
+          _helperNamesCalledBy(key, coverage),
+          capabilities,
+        );
+      }
       final lowered = lowering != null
           ? _lower(
               key,
@@ -636,7 +648,7 @@ Object? $_superIntrinsicName(
       // receiver parameter is written with its class's own name (see the
       // lowering), and `_FooState` is spelled in the replacement only if the
       // front end resolves it in the target library.
-      final resolvesPrivateNames =
+      final resolvesBeforeHelpers =
           [?lowering, ...helperLowerings].any(
             (l) =>
                 l.accesses.any((a) => a.privateTarget != null) ||
@@ -665,6 +677,9 @@ Object? $_superIntrinsicName(
             key,
             ...neededHelpers,
           ], capabilities);
+      // The granted private statics of the instance helpers, which are
+      // compiled in this replacement and so need the flag like the entry's.
+      final helperGrantedStatics = <String>{};
       final helperText = _helperSources(
         key,
         neededHelpers,
@@ -672,8 +687,14 @@ Object? $_superIntrinsicName(
         capabilities,
         compiler,
         patchedVerificationKernel,
-        resolvesPrivateNames: resolvesPrivateNames,
+        resolvesPrivateNames: resolvesBeforeHelpers,
+        grantedStatics: helperGrantedStatics,
       );
+      // Instance helpers exist only from analysis version 17, which is also
+      // where `_helperSources` stops refusing on this flag, so deciding it
+      // after the helpers are lowered changes no refusal there.
+      final resolvesPrivateNames =
+          resolvesBeforeHelpers || helperGrantedStatics.isNotEmpty;
       // THE ENTRY HIDES WHATEVER OF ITS OWN NAME THE HELPERS MEAN. A class or
       // extension member becomes a top-level function of the same name in the
       // replacement, and a declaration there shadows a top-level of the
@@ -1035,6 +1056,7 @@ Object? $_superIntrinsicName(
     RouteBCompiler compiler,
     File? patchedVerificationKernel, {
     required bool resolvesPrivateNames,
+    required Set<String> grantedStatics,
   }) {
     final buffer = StringBuffer();
     for (final helper in needed.toList()..sort()) {
@@ -1058,18 +1080,18 @@ Object? $_superIntrinsicName(
         );
       }
       if (name.contains('.')) {
+        final lowered = _lowerInstanceHelper(
+          key,
+          helper,
+          coverage,
+          capabilities,
+          compiler,
+          patchedVerificationKernel,
+        );
+        grantedStatics.addAll(lowered.grantedStatics);
         buffer
           ..writeln()
-          ..writeln(
-            _lowerInstanceHelper(
-              key,
-              helper,
-              coverage,
-              capabilities,
-              compiler,
-              patchedVerificationKernel,
-            ),
-          );
+          ..writeln(lowered.declaration);
         continue;
       }
       // Before analysis version 17 nothing showed that a private name binds
@@ -1121,7 +1143,7 @@ Object? $_superIntrinsicName(
   }
 
   /// The top-level function an instance helper becomes; see `_helperSources`.
-  String _lowerInstanceHelper(
+  _Lowered _lowerInstanceHelper(
     String key,
     String helper,
     RouteBCoverage coverage,
@@ -1154,7 +1176,7 @@ Object? $_superIntrinsicName(
         patchedVerificationKernel,
         _helperNamesCalledBy(helper, coverage),
         _scopeOf(helper, coverage),
-      ).declaration;
+      );
     } on RouteBUnsupportedTarget catch (e) {
       // The reason is the lowering's own, with the helper named in front.
       refuse('cannot be lowered: ${e.reason}');
@@ -2040,7 +2062,12 @@ Object? $_superIntrinsicName(
     ];
     // The analysis lists only unqualified uses. Any other spelling of the name
     // (`Other._k`, `d._k`) makes the counts differ.
-    if (uses.isEmpty || uses.length != occurrences) return false;
+    // A compound use (`_n++`) may be reported as a get and a set at one
+    // offset; that is one spelling.
+    if (uses.isEmpty ||
+        uses.map((r) => r.offset).toSet().length != occurrences) {
+      return false;
+    }
     final library = key.split('#').first;
     final prefix = '$library#${scope.className}#';
     bool granted(String member) =>
@@ -2059,6 +2086,39 @@ Object? $_superIntrinsicName(
         _ => granted(name),
       },
     );
+  }
+
+  /// Refuses a private name in [text] (a static target of a private class,
+  /// as written) other than its own declaration, a new function the patch
+  /// carries, or a private static of its own class that the manifest grants.
+  static void _refuseUngrantedPrivateNames(
+    String key,
+    String text,
+    RouteBEnclosingScope? scope,
+    Set<String> helperNames,
+    RouteBCapabilities? capabilities,
+  ) {
+    final own = key
+        .split('#')
+        .last
+        .split('.')
+        .last
+        .replaceFirst(RegExp('^[gs]et:'), '');
+    for (final entry in _privateIdentifierCounts(text).entries) {
+      final name = entry.key;
+      if (name == own || helperNames.contains(name)) continue;
+      if (_ownStaticGranted(name, entry.value, key, scope, capabilities)) {
+        continue;
+      }
+      throw RouteBUnsupportedTarget(
+        key,
+        'its body names `$name`, a private identifier this analysis did not '
+        'resolve to a member the release granted, and a static of a private '
+        'class is compiled with private names resolved against the release '
+        'library. Private references are carried only when the release '
+        'manifest shows the exact member was retained.',
+      );
+    }
   }
 
   static bool _qualifiesPrivateClass(RouteBEnclosingScope? scope) =>
@@ -2127,7 +2187,22 @@ Object? $_superIntrinsicName(
       );
     }
     final edits = <(int, int, String)>[];
+    // `_n++` and `_n += 1` may be reported twice (a get and a set) at one
+    // offset; the qualifier goes in once.
+    final seen = <int, String>{};
     for (final ref in scope.staticReferences) {
+      final earlier = seen[ref.offset];
+      if (earlier != null) {
+        if (earlier != ref.member) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'two different statics (`$earlier`, `${ref.member}`) are reported '
+            'at offset ${ref.offset}, so they cannot be qualified',
+          );
+        }
+        continue;
+      }
+      seen[ref.offset] = ref.member;
       final end = ref.offset + ref.member.length;
       final dollar = ref.offset - 1;
       if (ref.offset < span.start ||
@@ -2472,6 +2547,12 @@ Object? $_superIntrinsicName(
   /// Kept when the declaration provably cannot capture it, so already-proven
   /// targets lower to byte-identical source.
   static const _defaultReceiverName = 'self';
+
+  /// How many times each private name is spelled in the code of [text]
+  /// (comments and literal text of strings excluded).
+  @visibleForTesting
+  static Map<String, int> privateIdentifierCountsForTesting(String text) =>
+      _privateIdentifierCounts(text);
 
   static Set<String> _privateIdentifiers(String text) =>
       _privateIdentifierCounts(text).keys.toSet();
