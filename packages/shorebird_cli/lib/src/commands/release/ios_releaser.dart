@@ -880,9 +880,15 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
     // it describes this release's emitted set rather than the policy's intent
     // -- the two diverge exactly when the fallback above happens.
     final manifest = File(p.join(work.path, routeBCapabilityManifestFileName));
+    final keepCollectionMethods =
+        shorebirdEnv.getShorebirdYaml()?.keepSdkCollectionMethods ?? false;
+    final sdkMembers = routeBSdkMembersFor(
+      keepCollectionMethods: keepCollectionMethods,
+    );
     final interface = builder.generateDynamicInterface(
       compiler: compiler,
       prepassKernel: prepass,
+      sdkMembers: sdkMembers,
       outputFile: File(p.join(work.path, 'dynamic_interface.yaml')),
       privateEnumerationKernel: privateEnumerationKernel,
       manifestFile: manifest,
@@ -934,7 +940,7 @@ Found an .ipa older than the .xcarchive this build just produced: ${ipa.path}. I
     // retention measured at +0.006-0.009 % on the A0 probe; a whole `dart:core`
     // library item measured at +310 %, which is why this list is names.
     logger.info(
-      '''Route B retention: ${routeBRetainedSdkMembers.length} named SDK members, interface ${interface.lengthSync()} bytes.''',
+      '''Route B retention: ${sdkMembers.length} named SDK members kept (${keepCollectionMethods ? 'default set plus the heavy collection methods, from $routeBKeepCollectionMethodsKey in shorebird.yaml' : 'default set only; set $routeBKeepCollectionMethodsKey: true in shorebird.yaml to also keep Iterable.where, map, toList, List.addAll, sort and the other heavy methods'}), interface ${interface.lengthSync()} bytes.''',
     );
   }
 

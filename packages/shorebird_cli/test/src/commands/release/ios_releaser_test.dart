@@ -1148,6 +1148,62 @@ $body
             ).called(1);
           });
 
+          test('says the default set was kept, and how to widen it', () async {
+            await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+            verify(
+              () => logger.info(
+                any(
+                  that: allOf(
+                    contains('default set only'),
+                    contains('keep_sdk_collection_methods: true'),
+                  ),
+                ),
+              ),
+            ).called(1);
+          });
+
+          group('when shorebird.yaml sets keep_sdk_collection_methods', () {
+            setUp(() {
+              when(() => shorebirdEnv.getShorebirdYaml()).thenReturn(
+                const ShorebirdYaml(
+                  appId: 'app',
+                  keepSdkCollectionMethods: true,
+                ),
+              );
+            });
+
+            test('keeps the heavy set as well and says so', () async {
+              await runWithOverrides(iosReleaser.buildReleaseArtifacts);
+
+              final members =
+                  verify(
+                        () =>
+                            routeBReleaseKernelBuilder.generateDynamicInterface(
+                              compiler: any(named: 'compiler'),
+                              prepassKernel: any(named: 'prepassKernel'),
+                              outputFile: any(named: 'outputFile'),
+                              sdkMembers: captureAny(named: 'sdkMembers'),
+                              appPackageName: any(named: 'appPackageName'),
+                              privateEnumerationKernel: any(
+                                named: 'privateEnumerationKernel',
+                              ),
+                              manifestFile: any(named: 'manifestFile'),
+                            ),
+                      ).captured.single
+                      as List<String>;
+
+              expect(members, hasLength(74));
+              expect(members, contains('dart:core#Iterable.where'));
+              expect(members, containsAll(routeBRetainedSdkMembers));
+              verify(
+                () => logger.info(
+                  any(that: contains('plus the heavy collection methods')),
+                ),
+              ).called(1);
+            });
+          });
+
           test('builds anyway when retention cannot be declared', () async {
             // The app is fine and installable; what is lost is the ability to
             // patch it with a body that names a symbol. Refusing to publish

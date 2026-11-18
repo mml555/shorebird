@@ -13,6 +13,7 @@ import 'helpers.dart';
 import 'mocks.dart';
 
 void main() {
+  heavySdkMemberTests();
   useTempWorkingDirectory();
   group(RouteBReleaseKernelBuilder, () {
     group('forwardedArgs', () {
@@ -828,12 +829,37 @@ void main() {
         expect(args, isNot(contains('--sdk-libraries')));
         // The budget is small on purpose; every release pays for every name in
         // it, forever. This pins the list so a widening cannot be silent.
-        expect(routeBRetainedSdkMembers, [
-          'dart:core#print',
-          'dart:core#DateTime.now',
-          'dart:core#DateTime.get:millisecondsSinceEpoch',
-          'dart:core#identical',
-        ]);
+        expect(
+          routeBRetainedSdkMembers.take(4),
+          [
+            'dart:core#print',
+            'dart:core#DateTime.now',
+            'dart:core#DateTime.get:millisecondsSinceEpoch',
+            'dart:core#identical',
+          ],
+        );
+        expect(routeBRetainedSdkMembers, hasLength(4 + 53));
+        expect(
+          routeBRetainedSdkMembers.toSet(),
+          hasLength(routeBRetainedSdkMembers.length),
+          reason: 'no duplicate keys',
+        );
+        expect(
+          routeBRetainedSdkMembers,
+          containsAll([
+            'dart:core#Map.addAll',
+            'dart:core#String.substring',
+            'dart:core#Iterable.get:isEmpty',
+            'dart:core#List.sublist',
+          ]),
+        );
+        // The heavy set is opt-in, so none of it may be in the default.
+        expect(
+          routeBRetainedSdkMembers.toSet().intersection(
+            routeBHeavySdkMembers.toSet(),
+          ),
+          isEmpty,
+        );
       });
 
       test('does not generate an interface without a package name', () {
@@ -856,6 +882,43 @@ void main() {
           () => logger.warn(any(that: contains('package name'))),
         ).called(1);
       });
+    });
+  });
+}
+
+void heavySdkMemberTests() {
+  group('routeBHeavySdkMembers', () {
+    test('holds the 21 opt-in keys', () {
+      expect(routeBHeavySdkMembers, hasLength(21));
+      expect(routeBHeavySdkMembers.toSet(), hasLength(21));
+      expect(
+        routeBHeavySdkMembers,
+        containsAll([
+          'dart:core#Iterable.where',
+          'dart:core#Iterable.map',
+          'dart:core#Iterable.toList',
+          'dart:core#Iterable.firstWhere',
+          'dart:core#List.addAll',
+          'dart:core#List.sort',
+        ]),
+      );
+    });
+  });
+
+  group('routeBSdkMembersFor', () {
+    test('is the default list without the opt-in', () {
+      expect(
+        routeBSdkMembersFor(keepCollectionMethods: false),
+        routeBRetainedSdkMembers,
+      );
+    });
+
+    test('adds the heavy set with the opt-in', () {
+      final members = routeBSdkMembersFor(keepCollectionMethods: true);
+      expect(members, hasLength(74));
+      expect(members.toSet(), hasLength(74));
+      expect(members, containsAll(routeBHeavySdkMembers));
+      expect(members, containsAll(routeBRetainedSdkMembers));
     });
   });
 }

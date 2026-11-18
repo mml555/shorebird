@@ -887,6 +887,22 @@ void main() {
       final summary = describeRouteBUnprovenSdkMembers(['x']);
       expect(summary, contains('--allow-unchecked-sdk-calls'));
       expect(summary, contains('no flag and no release setting'));
+      // No heavy member named, so no opt-in advice.
+      expect(summary, isNot(contains('keep_sdk_collection_methods')));
+    });
+
+    test('names the opt-in key when a heavy collection method is refused', () {
+      final summary = describeRouteBUnprovenSdkMembers([
+        'the dart: method `Iterable.where` (an SDK instance member)',
+        'the dart: method `Map.keys` (an SDK instance member)',
+      ]);
+      expect(
+        summary,
+        allOf(
+          contains('Iterable.where is kept by a release only when'),
+          contains('keep_sdk_collection_methods: true'),
+        ),
+      );
     });
 
     test('refuses with no profile and no reason given', () {

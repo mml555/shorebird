@@ -21,6 +21,7 @@ ShorebirdYaml _$ShorebirdYamlFromJson(Map json) => $checkedCreate(
         'auto_update',
         'patch_verification',
         'channel',
+        'keep_sdk_collection_methods',
       ],
     );
     final val = ShorebirdYaml(
@@ -36,6 +37,10 @@ ShorebirdYaml _$ShorebirdYamlFromJson(Map json) => $checkedCreate(
         (v) => $enumDecodeNullable(_$PatchVerificationEnumMap, v),
       ),
       channel: $checkedConvert('channel', (v) => v as String?),
+      keepSdkCollectionMethods: $checkedConvert(
+        'keep_sdk_collection_methods',
+        (v) => v as bool?,
+      ),
     );
     return val;
   },
@@ -44,6 +49,7 @@ ShorebirdYaml _$ShorebirdYamlFromJson(Map json) => $checkedCreate(
     'baseUrl': 'base_url',
     'autoUpdate': 'auto_update',
     'patchVerification': 'patch_verification',
+    'keepSdkCollectionMethods': 'keep_sdk_collection_methods',
   },
 );
 
@@ -56,6 +62,7 @@ Map<String, dynamic> _$ShorebirdYamlToJson(
   'auto_update': instance.autoUpdate,
   'patch_verification': _$PatchVerificationEnumMap[instance.patchVerification],
   'channel': instance.channel,
+  'keep_sdk_collection_methods': instance.keepSdkCollectionMethods,
 };
 
 const _$PatchVerificationEnumMap = {

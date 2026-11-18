@@ -99,6 +99,7 @@ import 'dart:io';
 
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/route_b_sdk_kept.dart';
 import 'package:shorebird_cli/src/route_b_sdk_measurements.dart';
 import 'package:yaml/yaml.dart';
@@ -698,7 +699,31 @@ String? describeRouteBUnprovenSdkMembers(List<String> symbols) {
       'release does not keep the member (or its snapshot profile could not be '
       'checked) is skipped by `--allow-unchecked-sdk-calls`. To use a refused '
       'member, call something else, or have it measured on a device and added '
-      'to the patcher list';
+      'to the patcher list${_heavyMemberAdvice(symbols)}';
+}
+
+/// The opt-in advice for the heavy SDK collection methods among [symbols], or
+/// an empty string when none of them is named.
+///
+/// A symbol reads "the dart: method `Iterable.where` (an SDK instance member
+/// ...)", so the heavy keys (`dart:core#Iterable.where`) are matched by their
+/// `Class.member` display name.
+String _heavyMemberAdvice(List<String> symbols) {
+  final heavy = <String>{
+    for (final key in routeBHeavySdkMembers)
+      key.substring(key.indexOf('#') + 1).replaceFirst('get:', ''),
+  };
+  final named = heavy
+      .where(
+        (name) => symbols.any(
+          (s) => s.contains('`$name`') || s.contains('`$name torn off`'),
+        ),
+      )
+      .toList();
+  if (named.isEmpty) return '';
+  return '. The one exception is a heavy collection method: '
+      '${named.join(', ')} ${named.length == 1 ? 'is' : 'are'} kept by a release only when shorebird.yaml sets '
+      '$routeBKeepCollectionMethodsKey: true, so set it and cut a new release';
 }
 
 /// The refusal for a patch that calls members by name on a `dynamic` value
