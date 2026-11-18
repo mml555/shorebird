@@ -26,6 +26,7 @@ class ShorebirdYaml {
     this.autoUpdate,
     this.patchVerification,
     this.channel,
+    this.keepSdkCollectionMethods,
   });
 
   /// Creates a [ShorebirdYaml] from a JSON map.
@@ -87,6 +88,16 @@ class ShorebirdYaml {
   /// speak `channel`; a second `track:` key would only add an alias with
   /// precedence questions. User-facing text may still call it a track.
   final String? channel;
+
+  /// Whether an iOS release keeps the heavy SDK collection methods
+  /// (`Iterable.where`, `map`, `toList`, `firstWhere`, `List.addAll`, `sort`,
+  /// ...) so a later patch can call them.
+  ///
+  /// `null` and `false` mean the release keeps only the cheap default set. Each
+  /// heavy method costs about 2 % of the AOT app size, because it is copied
+  /// into every typed-data list class, so it is opt-in per app. The value is
+  /// read at release time; set it before running `shorebird release ios`.
+  final bool? keepSdkCollectionMethods;
 }
 
 /// Extension on [ShorebirdYaml] to get the app id for a specific flavor.

@@ -75,6 +75,103 @@ const routeBRetainedSdkMembers = <String>[
   'dart:core#DateTime.now',
   'dart:core#DateTime.get:millisecondsSinceEpoch',
   'dart:core#identical',
+  // The cheap set: Map, Set, String, num/int/double members and a few
+  // Iterable/List ones. Together +1.8 % of the AOT snapshot on the airgap app
+  // (6,560,960 B baseline), so every release keeps them.
+  'dart:core#Map.addAll',
+  'dart:core#Map.clear',
+  'dart:core#Map.removeWhere',
+  'dart:core#Map.get:isNotEmpty',
+  'dart:core#Set.addAll',
+  'dart:core#Set.remove',
+  'dart:core#Set.removeWhere',
+  'dart:core#Set.clear',
+  'dart:core#Set.toSet',
+  'dart:core#String.endsWith',
+  'dart:core#String.indexOf',
+  'dart:core#String.substring',
+  'dart:core#String.padLeft',
+  'dart:core#String.compareTo',
+  'dart:core#String.*',
+  'dart:core#String.get:isNotEmpty',
+  'dart:core#String.get:length',
+  'dart:core#num./',
+  'dart:core#num.%',
+  'dart:core#num.abs',
+  'dart:core#num.round',
+  'dart:core#num.floor',
+  'dart:core#num.ceil',
+  'dart:core#num.truncate',
+  'dart:core#num.clamp',
+  'dart:core#num.toInt',
+  'dart:core#num.toStringAsFixed',
+  'dart:core#num.get:isNegative',
+  'dart:core#num.compareTo',
+  'dart:core#int.abs',
+  'dart:core#int.round',
+  'dart:core#int.floor',
+  'dart:core#int.ceil',
+  'dart:core#int.truncate',
+  'dart:core#int.get:isEven',
+  'dart:core#int.get:isOdd',
+  'dart:core#double.+',
+  'dart:core#double.-',
+  'dart:core#double.*',
+  'dart:core#double.%',
+  'dart:core#double./',
+  'dart:core#double.~/',
+  'dart:core#double.abs',
+  'dart:core#double.round',
+  'dart:core#double.floor',
+  'dart:core#double.ceil',
+  'dart:core#double.truncate',
+  'dart:core#double.unary-',
+  'dart:core#Iterable.get:isEmpty',
+  'dart:core#Iterable.get:isNotEmpty',
+  'dart:core#Iterable.join',
+  'dart:core#List.clear',
+  'dart:core#List.sublist',
+];
+
+/// The SDK members kept only when the app opts in with
+/// [routeBKeepCollectionMethodsKey] in its checked-in shorebird.yaml.
+///
+/// Each costs about +2 % of the AOT snapshot (all 21 together, +9 %), because
+/// the member is copied into every typed-data list class (the typed-data list
+/// mixins each get their own copy). Measured on the airgap app, whose baseline
+/// is 6,560,960 B; with the cheap set as well, all 74 keys are +10.7 %.
+const routeBHeavySdkMembers = <String>[
+  'dart:core#Iterable.map',
+  'dart:core#Iterable.any',
+  'dart:core#Iterable.every',
+  'dart:core#Iterable.contains',
+  'dart:core#Iterable.forEach',
+  'dart:core#Iterable.fold',
+  'dart:core#Iterable.reduce',
+  'dart:core#Iterable.take',
+  'dart:core#Iterable.skip',
+  'dart:core#Iterable.firstWhere',
+  'dart:core#Iterable.elementAt',
+  'dart:core#Iterable.get:last',
+  'dart:core#List.addAll',
+  'dart:core#List.sort',
+  'dart:core#List.indexOf',
+  'dart:core#List.insert',
+  'dart:core#List.removeWhere',
+  'dart:core#List.+',
+  'dart:core#Iterable.toList',
+  'dart:core#Iterable.where',
+  'dart:core#Iterable.toSet',
+];
+
+/// The checked-in shorebird.yaml key that keeps [routeBHeavySdkMembers].
+const routeBKeepCollectionMethodsKey = 'keep_sdk_collection_methods';
+
+/// The SDK members a release keeps, given whether the app opted in to the
+/// heavy set.
+List<String> routeBSdkMembersFor({required bool keepCollectionMethods}) => [
+  ...routeBRetainedSdkMembers,
+  if (keepCollectionMethods) ...routeBHeavySdkMembers,
 ];
 
 /// Build options that change kernel semantics and cannot be forwarded to

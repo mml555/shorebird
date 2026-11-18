@@ -886,7 +886,31 @@ void main() {
       // unlock.
       final summary = describeRouteBUnprovenSdkMembers(['x']);
       expect(summary, contains('--allow-unchecked-sdk-calls'));
-      expect(summary, contains('no flag and no release setting'));
+      expect(summary, contains('no flag unlocks either'));
+      // No heavy member named, so no opt-in advice.
+      expect(summary, isNot(contains('keep_sdk_collection_methods')));
+    });
+
+    test('names the opt-in key when a heavy collection method is refused', () {
+      final summary = describeRouteBUnprovenSdkMembers([
+        'the dart: method `Iterable.where` (an SDK instance member)',
+        'the dart: method `Map.keys` (an SDK instance member)',
+      ]);
+      expect(
+        summary,
+        allOf(
+          contains('Iterable.where is kept by a release only when'),
+          contains('keep_sdk_collection_methods: true'),
+        ),
+      );
+    });
+
+    test('gives no opt-in advice for a heavy method torn off', () {
+      // The opt-in keeps the call form only; a tear-off stays refused.
+      final summary = describeRouteBUnprovenSdkMembers([
+        'the dart: method `Iterable.where torn off` (an SDK instance member)',
+      ]);
+      expect(summary, isNot(contains('keep_sdk_collection_methods')));
     });
 
     test('refuses with no profile and no reason given', () {
