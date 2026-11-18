@@ -13,8 +13,8 @@ import 'helpers.dart';
 import 'mocks.dart';
 
 void main() {
-  heavySdkMemberTests();
   useTempWorkingDirectory();
+  heavySdkMemberTests();
   group(RouteBReleaseKernelBuilder, () {
     group('forwardedArgs', () {
       test('translates dart-defines into gen_kernel -D flags', () {
