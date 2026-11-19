@@ -2349,6 +2349,9 @@ class Api {
     return _json(_registerJson(art, releaseKey: true));
   }
 
+  /// The architectures `shorebird patch windows` builds a patch for.
+  static const _windowsCodeArches = ['x86_64', 'aarch64'];
+
   Future<Response> _createPatchArtifact(
     Request req,
     String appId,
@@ -2401,10 +2404,13 @@ class Api {
     if (await repo.existingArtifact('patch', patchId, arch, platform) != null) {
       throw conflict('Artifact already registered for $arch/$platform');
     }
-    if (promoted && platform != 'windows') {
+    if (promoted &&
+        (platform != 'windows' || !_windowsCodeArches.contains(arch))) {
       throw conflict(
-        'Patch $patchId is a Windows patch, so only a Windows build can be '
-        'added to it. Create a new patch instead.',
+        'Patch $patchId is live, so only the other Windows code architecture '
+        '(${_windowsCodeArches.join(', ')}) can be added to it; $arch/$platform '
+        'cannot, since devices would be served it mid-rollout. Create a new '
+        'patch instead.',
       );
     }
     final hashSignature = await _patchHashSignature(
@@ -2909,6 +2915,18 @@ class Api {
     );
   }
 
+  /// The rollout in force on [row], for a floor on a write. A timed row has no
+  /// SQL floor (its percentage is the clock's), so look a few seconds ahead: a
+  /// step boundary that passes between this read and the UPDATE then cannot
+  /// let a lower value un-offer devices the new step just reached.
+  static const _stepLookahead = Duration(seconds: 10);
+  Future<int> _rolloutFloor(ChannelPatchRow row) async {
+    final schedule = RolloutSchedule.tryParse(row.rolloutSchedule);
+    if (schedule == null) return row.rolloutBps;
+    final ahead = schedule.positionAt(rolloutClock().add(_stepLookahead)).bps;
+    return ahead > row.rolloutBps ? ahead : row.rolloutBps;
+  }
+
   /// The timed rollout schedule a request body asks for, or null when it has
   /// no `rollout_steps`. A body that sets the weekend pause or zone without
   /// steps, or steps beside any of [exclusiveWith], is refused: a rollout is
@@ -3002,10 +3020,11 @@ class Api {
       );
     }
     _audit(req)?.note(track: channel.name);
-    if (bps < current.rolloutBps) {
+    final rolling = await _rolloutFloor(current);
+    if (bps < rolling) {
       throw conflict(
         'Patch ${patch.number} is already rolling out to '
-        '${percentageOf(current.rolloutBps)}% of devices on ${channel.name}, '
+        '${percentageOf(rolling)}% of devices on ${channel.name}, '
         'and a rollout can only be raised.',
       );
     }
@@ -3225,6 +3244,35 @@ class Api {
     );
     if (patch.status != PatchStatus.ready) {
       throw conflict('Patch $patchId is ${patch.status.name}, not ready');
+    }
+    // Promoting a patch that is already live on the channel (the CLI's
+    // set-track does) must not drop it to a lower share or leave two active
+    // rows for it: it is refused with 409 below what is in force, and
+    // otherwise changes the one row in place.
+    final live = await repo.activeChannelPatchForPatch(channelId, patchId);
+    if (live != null) {
+      final floor = await _rolloutFloor(live);
+      if (rolloutBps < floor) {
+        throw conflict(
+          'Patch ${patch.number} is already live on ${channel.name} at '
+          '${percentageOf(floor)}% of devices, and a rollout can only be '
+          'raised.',
+        );
+      }
+      if (!await repo.setRollout(
+        channelId,
+        patchId,
+        rolloutBps,
+        onlyRaise: live.rolloutSchedule == null,
+        schedule: schedule,
+        expectSchedule: (stored: live.rolloutSchedule),
+      )) {
+        throw conflict(
+          'Patch ${patch.number} was changed on ${channel.name} by another '
+          'request. Check its rollout and retry.',
+        );
+      }
+      return Response(HttpStatus.noContent);
     }
     await repo.promote(
       channelId,

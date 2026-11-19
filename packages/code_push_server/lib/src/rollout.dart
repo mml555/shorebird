@@ -1,5 +1,6 @@
 // cspell:words tzdata
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -72,8 +73,23 @@ DateTime Function() rolloutClock = DateTime.now;
 /// database at this schema makes an older server refuse to boot
 /// (`SchemaTooNewException`).
 int effectiveRolloutBps(Map<String, Object?> row) {
-  final schedule = RolloutSchedule.tryParse(row['rollout_schedule']);
-  if (schedule != null) return schedule.positionAt(rolloutClock()).bps;
+  final raw = row['rollout_schedule'];
+  final schedule = RolloutSchedule.tryParse(raw);
+  if (schedule != null) {
+    // Never below what is stored: the first step's value is the floor.
+    final stored = row['rollout_bps'];
+    final bps = schedule.positionAt(rolloutClock()).bps;
+    return stored is num && stored.toInt() > bps ? stored.toInt() : bps;
+  }
+  if (raw is String && raw.isNotEmpty) {
+    // A schedule that cannot be read leaves the row on its stored
+    // `rollout_bps` (the first step), which keeps whoever was offered the
+    // patch at that step offered it. Say so: it is data corruption.
+    stderr.writeln(
+      'WARNING: channel_patches row ${row['id']} has an unreadable '
+      'rollout_schedule; serving its stored rollout instead',
+    );
+  }
   final whole = (row['rollout'] as num).toInt();
   final bps = row['rollout_bps'];
   if (bps is num && bps.toInt() ~/ 100 == whole) return bps.toInt();

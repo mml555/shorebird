@@ -2356,7 +2356,7 @@ class Repository {
     final rows = await s.query(
       'SELECT cp.id AS id, cp.patch_id AS patch_id, p.number AS number, '
       'cp.rollout AS rollout, cp.rollout_bps AS rollout_bps, '
-      'cp.rollout_schedule AS rollout_schedule, '
+      'cp.rollout_schedule AS rollout_schedule, cp.withdrawn_at AS withdrawn_at, '
       'cp.rolled_back AS rolled_back, '
       'cp.superseded AS superseded '
       'FROM channel_patches cp JOIN patches p ON p.id = cp.patch_id '
@@ -2399,11 +2399,40 @@ class Repository {
             e.key,
       };
       if (platforms.isEmpty) continue;
+      // A timed rollout resumes where it stood when it was superseded, with
+      // the clock restarted there: the step in force at `withdrawn_at`, held
+      // for its full duration from now. Keeping the old start would let the
+      // time spent superseded count, and a restored patch could jump to 100%.
+      var restoredBps = effectiveRolloutBps(m);
+      String? restoredSchedule;
+      final old = RolloutSchedule.tryParse(m['rollout_schedule']);
+      if (old != null) {
+        DateTime at;
+        try {
+          at = DateTime.parse(_ts(m['withdrawn_at']));
+        } on Object {
+          at = rolloutClock();
+        }
+        final pos = old.positionAt(at);
+        restoredBps = pos.bps;
+        if (pos.nextStepAt != null) {
+          restoredSchedule = RolloutSchedule(
+            steps: old.steps.skip(pos.index).toList(),
+            pauseWeekends: old.pauseWeekends,
+            timezone: old.timezone,
+            startedAt: rolloutClock().toUtc(),
+          ).toStored();
+        }
+      }
       final done = await s.query(
-        'UPDATE channel_patches SET status = @a, withdrawn_at = NULL, superseded = false '
+        'UPDATE channel_patches SET status = @a, withdrawn_at = NULL, superseded = false, '
+        'rollout = @r, rollout_bps = @b, rollout_schedule = @sch '
         'WHERE id = @id AND status = @w AND rolled_back = false '
         'AND superseded = true RETURNING id',
         {
+          'r': restoredBps ~/ 100,
+          'b': restoredBps,
+          'sch': restoredSchedule,
           'a': ChannelPatchStatus.active.name,
           'w': ChannelPatchStatus.withdrawn.name,
           'id': _int(m['id']),
@@ -2411,12 +2440,7 @@ class Repository {
       );
       if (done.isEmpty) continue;
       restored.add(
-        RestoredPatch(
-          channelId,
-          patchId,
-          _int(m['number']),
-          effectiveRolloutBps(m),
-        ),
+        RestoredPatch(channelId, patchId, _int(m['number']), restoredBps),
       );
       needed.removeAll(platforms);
       if (needed.isEmpty) break;

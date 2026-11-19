@@ -6778,6 +6778,98 @@ void main() {
         expect(j['rollout_percentage'], 50);
         expect(j.containsKey('rollout_steps'), isFalse);
       });
+
+      test(
+        'promoting a live patch again never lowers it or adds a row',
+        () async {
+          final p = await newPatch();
+          await promote(p, {'rollout_steps': steps});
+          now = now.add(const Duration(hours: 4)); // on 10%
+          expect(
+            (await promote(p, {'rollout_steps': steps})).statusCode,
+            HttpStatus.conflict,
+            reason: 'step 0 is 1%, below the 10% in force',
+          );
+          expect(
+            (await promote(p, {'rollout_percentage': 5})).statusCode,
+            HttpStatus.conflict,
+          );
+          expect((await patchJson(p))['rollout_percentage'], 10);
+          expect(
+            (await promote(p, {'rollout_percentage': 50})).statusCode,
+            HttpStatus.noContent,
+          );
+          expect((await patchJson(p))['rollout_percentage'], 50);
+          final rows = await repo.db.query(
+            'SELECT id FROM channel_patches WHERE patch_id = $p',
+          );
+          expect(rows.length, 1);
+        },
+      );
+
+      test(
+        'a PUT just before a step boundary cannot undercut the step',
+        () async {
+          final p = await newPatch();
+          await promote(p, {'rollout_steps': steps});
+          now = now.add(const Duration(hours: 4) - const Duration(seconds: 3));
+          // 1% now, but 10% in three seconds: 5 is refused.
+          expect(
+            (await putRollout(p, {'rollout_percentage': 5})).statusCode,
+            HttpStatus.conflict,
+          );
+        },
+      );
+
+      test('a restored timed patch resumes at the step it was superseded '
+          'on, with its clock restarted', () async {
+        final p1 = await newPatch();
+        await promote(p1, {'rollout_steps': steps});
+        now = now.add(const Duration(hours: 4)); // p1 on 10%
+        final p2 = await newPatch();
+        await promote(p2, {});
+        // The database stamps the supersede with its own clock; the test's is
+        // a fake one.
+        await repo.db.query(
+          'UPDATE channel_patches SET withdrawn_at = @t WHERE patch_id = $p1',
+          {'t': now.toIso8601String()},
+        );
+        // Days pass while p1 is superseded: it would be at 100% on the old clock.
+        now = now.add(const Duration(days: 5));
+        final body = await jsonOf(
+          await send(
+            'POST',
+            '/api/v1/apps/${s.appId}/releases/${s.releaseId}'
+                '/patches/$p2/rollback',
+            bearer: _bootstrapKey,
+          ),
+        );
+        expect(((body['restored'] as List).single as Map)['rollout'], 10);
+        var j = await patchJson(p1);
+        expect(j['rollout_percentage'], 10);
+        expect((j['rollout_steps'] as List).first, {
+          'percentage': 10,
+          'duration_minutes': 720,
+        });
+        now = now.add(const Duration(hours: 12));
+        j = await patchJson(p1);
+        expect(j['rollout_percentage'], 100);
+      });
+
+      test(
+        'an unreadable stored schedule keeps the stored percentage',
+        () async {
+          final p = await newPatch();
+          await promote(p, {'rollout_steps': steps});
+          await repo.db.query(
+            "UPDATE channel_patches SET rollout_schedule = 'garbage' "
+            'WHERE patch_id = $p',
+          );
+          now = now.add(const Duration(days: 2));
+          expect((await patchJson(p))['rollout_percentage'], 1);
+          expect(await offered(clientIn(p, 0, 100)), isTrue);
+        },
+      );
     });
 
     group('Windows x64 and arm64', () {
@@ -6925,6 +7017,33 @@ void main() {
           {'x86_64', 'aarch64'},
         );
         expect(j['status'], 'ready');
+      });
+
+      test('an assets or other non-code arch cannot be added to a live '
+          'Windows patch, and what is served does not change', () async {
+        final p = await newPatch(platform: 'windows', arch: 'x86_64');
+        await promote(p, {});
+        for (final arch in ['assets', 'symbols', 'x86_64', 'arm']) {
+          const bd2 = 'B2';
+          String f(String n, String v) =>
+              '--$bd2\r\ncontent-disposition: form-data; name="$n"\r\n\r\n$v\r\n';
+          final r = await send(
+            'POST',
+            '/api/v1/apps/${s.appId}/patches/$p/artifacts',
+            bearer: _bootstrapKey,
+            headers: {'content-type': 'multipart/form-data; boundary=$bd2'},
+            body:
+                '${f('arch', arch)}${f('platform', 'windows')}'
+                '${f('hash', 'h')}${f('size', '3')}--$bd2--\r\n',
+          );
+          expect(r.statusCode, HttpStatus.conflict, reason: arch);
+        }
+        expect(await offered('d', platform: 'windows', arch: 'x86_64'), isTrue);
+        expect(
+          await offered('d', platform: 'windows', arch: 'aarch64'),
+          isFalse,
+        );
+        expect((await patchJson(p))['artifacts'], hasLength(1));
       });
 
       test('adding to a promoted patch is refused off Windows, for an '
