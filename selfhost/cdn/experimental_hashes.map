@@ -534,6 +534,7 @@ aab9fd07857142c232e4b5a41e41814b8dbf640f 38855c84ca367c58165b8e3844dd7d6a99dec84
 # signatureTypes, --scan-bytecode) and #219 (enclosingScope).
 a6a48cf673a291f607323e89b41839c4b8b74e5d 38855c84ca367c58165b8e3844dd7d6a99dec844
 # The same cell with only its compiler archive changed again: the coverage
-# analyzer of mml555/shorebird #247 (analysis 23: the for-in `Iterable.get:iterator`
-# reference carries receiverLibrary and receiverClass), after #248, #251 and #252.
-3d24e504ede85df1b93371d2b78184f1435cfd7f 38855c84ca367c58165b8e3844dd7d6a99dec844
+# analyzer of mml555/shorebird #247 and #256 (analysis 23: the for-in
+# `Iterable.get:iterator` reference carries receiverLibrary and receiverClass,
+# on the lowered loop a real dill holds), after #248, #251 and #252.
+54117a2fe0510a8cb070faf3f5191542179fb4ce 38855c84ca367c58165b8e3844dd7d6a99dec844

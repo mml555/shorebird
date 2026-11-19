@@ -13,7 +13,7 @@ download.shorebird.dev/shorebird/%H/artifacts_manifest.yaml 18824d99cfcf06c38a26
 download.shorebird.dev/shorebird/%H/patch-darwin-arm64.zip 5ae6fac556587a9e836b685c1a531d016081ef82065acf8dd53010522d9a4655
 download.shorebird.dev/shorebird/%H/patch-darwin-x64.zip c373cafd0b33278cdcc557d1490ce0b2789812dc69fbf8a02ef38a29590db112
 download.shorebird.dev/shorebird/%H/patch-linux-x64.zip b9bdd84aeef64c86a2a58858fbe55e9a5a97aa90b971f1138b19a2cf27e8cff0
-download.shorebird.dev/shorebird/%H/route-b-compiler-darwin-arm64.zip f701ad3209c8a98a17f7428652543899e85343159e8ae2cfd33ff98cf0c16e87
+download.shorebird.dev/shorebird/%H/route-b-compiler-darwin-arm64.zip e44ac8e6aea44d50b7d7fe887ea6dfd18bc671d13898afc765d2b33afe8ed3b7
 flutter_infra_release/flutter/%H/android-arm-release/artifacts.zip 9656172dbbe000608eb0d49bd0bdef16312723935dc4db0a43d46362bc529b74
 flutter_infra_release/flutter/%H/android-arm-release/darwin-x64.zip eb5002d19a7abe6f4db279168af8ec784be6c1d31d0ecf4b81dc34e47a4eca44
 flutter_infra_release/flutter/%H/android-arm64-release/artifacts.zip cad7a940a5942e6a780417a161658e4e0665686a1153699702be15204bf165e2
