@@ -86,6 +86,9 @@ void main() {
       );
       await repo.db.query('DELETE FROM schema_migrations WHERE version >= 19');
       await repo.db.query('DROP TABLE build_runs');
+      await repo.db.query(
+        'ALTER TABLE channel_patches DROP COLUMN rollout_schedule',
+      );
       await repo.close();
 
       repo = await Repository.open(sqliteConfig(tmp.path));
@@ -101,5 +104,61 @@ void main() {
       expect(deployments.single['rollout_percentage'], 25);
       await repo.close();
     });
+  });
+
+  group('migration 22 (one live artifact per patch architecture)', () {
+    late Directory tmp;
+
+    setUp(() => tmp = Directory.systemTemp.createTempSync('cps_mig22'));
+    tearDown(() => tmp.deleteSync(recursive: true));
+
+    test(
+      'a duplicate pair keeps the lower id live and gets the index',
+      () async {
+        var repo = await Repository.open(sqliteConfig(tmp.path));
+        final org = (await repo.db.query('SELECT id FROM organizations')).first;
+        final app = await repo.createApp('a', (org['id']! as num).toInt());
+        final rel = await repo.createRelease(
+          appId: app.appId,
+          version: '1.0.0',
+        );
+        final p = await repo.createPatch(app.appId, rel.id);
+        // The database as version 21 left it: no index, migration unrecorded.
+        await repo.db.query('DROP INDEX artifacts_one_live');
+        await repo.db.query(
+          'DELETE FROM schema_migrations WHERE version >= 22',
+        );
+        Future<int> add(String arch) async => (await repo.createArtifact(
+          ownerKind: 'patch',
+          ownerId: p.id,
+          arch: arch,
+          platform: 'windows',
+          hash: 'h',
+          size: 1,
+        )).id;
+        final low = await add('aarch64');
+        final high = await add('aarch64');
+        final other = await add('x86_64');
+        await repo.close();
+
+        repo = await Repository.open(sqliteConfig(tmp.path));
+        final rows = await repo.db.query(
+          'SELECT id, status FROM artifacts ORDER BY id',
+        );
+        final status = {
+          for (final r in rows) (r['id']! as num).toInt(): r['status'],
+        };
+        expect(status[low], isNot('failed'));
+        expect(status[high], 'failed');
+        expect(status[other], isNot('failed'));
+        expect(
+          await repo.db.query(
+            "SELECT name FROM sqlite_master WHERE name = 'artifacts_one_live'",
+          ),
+          isNotEmpty,
+        );
+        await repo.close();
+      },
+    );
   });
 }

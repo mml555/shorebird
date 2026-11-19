@@ -8,7 +8,7 @@ import 'package:code_push_server/src/artifact_store.dart';
 import 'package:code_push_server/src/audit.dart';
 import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/content_range.dart';
-import 'package:code_push_server/src/db.dart' show asDbBool;
+import 'package:code_push_server/src/db.dart' show asDbBool, isUniqueViolation;
 import 'package:code_push_server/src/domain.dart';
 import 'package:code_push_server/src/oauth.dart';
 import 'package:code_push_server/src/observability.dart';
@@ -2263,6 +2263,29 @@ class Api {
     final hash = _requiredField(fields, 'hash');
     final signing = await _parseSigning(fields['signing'], appId);
     _audit(req)?.note(detail: {'arch': arch, 'platform': platform});
+    // Upstream 1.6.144 builds Windows x64 and arm64 on separate machines and
+    // adds the second to the release. Devices verify patches against the key
+    // the platform's build embeds, and a patch is signed once per platform,
+    // so an architecture signed differently from the live ones would leave
+    // its patches unverifiable. Refused before anything is stored.
+    if (signing != null && release.lifecycle == ReleaseLifecycle.ready) {
+      final other = await repo.releaseSigningOf(
+        releaseId,
+        platform: platform,
+        exceptArch: arch,
+      );
+      if (other != null &&
+          (other.mode != signing.mode || other.keyId != signing.keyId)) {
+        throw DomainException(
+          409,
+          'release_artifacts_create_conflicting_signing',
+          'Release $releaseId is already active on $platform, signed '
+              '${_signingLabel(other)}; the $arch build is signed '
+              '${_signingLabel(signing)}. Every architecture of a platform must be '
+              'signed the same way: build it with the same patch signing key.',
+        );
+      }
+    }
     final existing = await repo.existingArtifact(
       'release',
       releaseId,
@@ -2326,6 +2349,9 @@ class Api {
     return _json(_registerJson(art, releaseKey: true));
   }
 
+  /// The architectures `shorebird patch windows` builds a patch for.
+  static const _windowsCodeArches = ['x86_64', 'aarch64'];
+
   Future<Response> _createPatchArtifact(
     Request req,
     String appId,
@@ -2336,13 +2362,31 @@ class Api {
     // A promoted patch's artifact set is frozen. Re-opening it to `uploading`
     // would stop `patches/check` serving it (it requires `ready`), silently
     // unserving every device mid-rollout until the new arch finished.
-    if (await repo.patchIsPromoted(patchId)) {
-      throw conflict(
-        'Patch $patchId has already been promoted; artifacts can no longer be '
-        'added. Create a new patch instead.',
+    //
+    // The one exception is upstream 1.6.144's `shorebird patch windows
+    // --add-to-patch`: another architecture's build of a live Windows patch
+    // (x64 and arm64 are built on different machines, and share one patch
+    // number). That keeps the patch `ready`, so devices already served stay
+    // served, and the new arch is offered once its artifact verifies, at the
+    // patch's own rollout (see below, after the body is parsed).
+    final promoted = await repo.patchIsPromoted(patchId);
+    if (promoted) {
+      final onWindows = (await repo.patchArtifacts(patchId)).any(
+        (a) => a.platform == 'windows' && a.status != ArtifactStatus.failed,
       );
+      final live =
+          patch.status == PatchStatus.ready &&
+          _currentDeployment(await repo.patchDeployments(patchId)) != null;
+      if (!onWindows || !live) {
+        throw conflict(
+          'Patch $patchId has already been promoted; artifacts can no longer '
+          'be added. Create a new patch instead. (Only another architecture '
+          'of a live Windows patch can be added, which is what '
+          '`shorebird patch windows --add-to-patch` does.)',
+        );
+      }
     }
-    requirePatchTransition(patch.status, PatchStatus.uploading);
+    if (!promoted) requirePatchTransition(patch.status, PatchStatus.uploading);
     // Parse and validate BEFORE moving the patch to `uploading`: a body that
     // turns out to be unusable would otherwise leave the patch parked in a
     // state `patches/check` won't serve, with no request left to finish it.
@@ -2360,6 +2404,15 @@ class Api {
     if (await repo.existingArtifact('patch', patchId, arch, platform) != null) {
       throw conflict('Artifact already registered for $arch/$platform');
     }
+    if (promoted &&
+        (platform != 'windows' || !_windowsCodeArches.contains(arch))) {
+      throw conflict(
+        'Patch $patchId is live, so only the other Windows code architecture '
+        '(${_windowsCodeArches.join(', ')}) can be added to it; $arch/$platform '
+        'cannot, since devices would be served it mid-rollout. Create a new '
+        'patch instead.',
+      );
+    }
     final hashSignature = await _patchHashSignature(
       patch,
       arch: arch,
@@ -2367,17 +2420,25 @@ class Api {
       hash: hash,
       clientSignature: fields['hash_signature'],
     );
-    await repo.setPatchStatus(patchId, PatchStatus.uploading);
-    final art = await repo.createArtifact(
-      ownerKind: 'patch',
-      ownerId: patchId,
-      arch: arch,
-      platform: platform,
-      hash: hash,
-      size: int.tryParse(fields['size'] ?? '0') ?? 0,
-      hashSignature: hashSignature,
-      podfileLockHash: fields['podfile_lock_hash'],
-    );
+    if (!promoted) await repo.setPatchStatus(patchId, PatchStatus.uploading);
+    final ArtifactRow art;
+    try {
+      art = await repo.createArtifact(
+        ownerKind: 'patch',
+        ownerId: patchId,
+        arch: arch,
+        platform: platform,
+        hash: hash,
+        size: int.tryParse(fields['size'] ?? '0') ?? 0,
+        hashSignature: hashSignature,
+        podfileLockHash: fields['podfile_lock_hash'],
+      );
+    } catch (e) {
+      // A concurrent request registered the same architecture between the
+      // check above and this insert; the unique index let only one in.
+      if (!isUniqueViolation(e)) rethrow;
+      throw conflict('Artifact already registered for $arch/$platform');
+    }
     return _json(_registerJson(art, releaseKey: false));
   }
 
@@ -2469,6 +2530,9 @@ class Api {
       }
     }
   }
+
+  static String _signingLabel(({String mode, int? keyId}) s) =>
+      s.keyId == null ? s.mode : '${s.mode} (key ${s.keyId})';
 
   static const _signingModes = {'managed', 'customer', 'unsigned'};
 
@@ -2767,6 +2831,15 @@ class Api {
         'rollout_percentage': ?_currentDeployment(
           deployments,
         )?['rollout_percentage'],
+        // A timed rollout's remaining steps and when the next applies, and
+        // the schedule's weekend pause and zone. Absent off a channel.
+        for (final k in const [
+          'rollout_steps',
+          'rollout_next_step_at',
+          'rollout_pause_weekends',
+          'rollout_timezone',
+        ])
+          if (_currentDeployment(deployments)?[k] case final v?) k: v,
         'deployments': deployments,
         'artifacts': [
           for (final a in arts)
@@ -2850,13 +2923,60 @@ class Api {
     );
   }
 
-  /// Upstream 1.6.140 `PUT /apps/{app}/releases/{release}/patches/{patch}/
-  /// rollout`, behind `shorebird patches rollout`: raises the share of its
-  /// channel's devices the patch is offered to.
+  /// The rollout in force on [row], for a floor on a write. A timed row's
+  /// write is also guarded in SQL by [_nextStepOf] (see `setRollout`), so a
+  /// step boundary passing between this read and the UPDATE fails the write.
+  Future<int> _rolloutFloor(ChannelPatchRow row) async {
+    final schedule = RolloutSchedule.tryParse(row.rolloutSchedule);
+    if (schedule == null) return row.rolloutBps;
+    final now = schedule.positionAt(rolloutClock()).bps;
+    return now > row.rolloutBps ? now : row.rolloutBps;
+  }
+
+  /// When the timed rollout on [row] next steps up, or null for a fixed or
+  /// finished one: the instant a write that read the current step must beat.
+  DateTime? _nextStepOf(ChannelPatchRow row) => RolloutSchedule.tryParse(
+    row.rolloutSchedule,
+  )?.positionAt(rolloutClock()).nextStepAt;
+
+  /// The timed rollout schedule a request body asks for, or null when it has
+  /// no `rollout_steps`. A body that sets the weekend pause or zone without
+  /// steps, or steps beside any of [exclusiveWith], is refused: a rollout is
+  /// either a fixed percentage or a schedule. Throws [FormatException].
+  RolloutSchedule? _optSchedule(
+    Map<String, Object?> body, {
+    required List<String> exclusiveWith,
+  }) {
+    if (body['rollout_steps'] == null) {
+      for (final key in const ['rollout_pause_weekends', 'rollout_timezone']) {
+        if (body[key] != null) {
+          throw FormatException('$key only applies with rollout_steps');
+        }
+      }
+      return null;
+    }
+    for (final key in exclusiveWith) {
+      if (body[key] != null) {
+        throw FormatException(
+          '$key and rollout_steps are mutually exclusive: a rollout is '
+          'either a fixed percentage or a schedule',
+        );
+      }
+    }
+    return RolloutSchedule.fromRequest(body, now: rolloutClock());
+  }
+
+  /// Upstream `PUT /apps/{app}/releases/{release}/patches/{patch}/rollout`,
+  /// behind `shorebird patches rollout`: raises the share of its channel's
+  /// devices the patch is offered to, to a `rollout_percentage` (1.6.140) or
+  /// onto a timed schedule of `rollout_steps` (1.6.144).
   ///
-  /// Rollouts only go up. A lower percentage is a 409, and so is a patch that
-  /// is on no channel; the same percentage again succeeds and changes nothing.
-  /// Raising never removes a device (see [eligibleForRolloutBps]).
+  /// Rollouts only go up. A lower percentage, or a schedule that starts lower
+  /// than the rollout now in force, is a 409, and so is a patch that is on no
+  /// channel; the same percentage again succeeds and changes nothing, except
+  /// that on a timed rollout it holds the rollout at the step it has reached
+  /// and ends the schedule. Raising never removes a device (see
+  /// [eligibleForRolloutBps]).
   Future<Response> _setPatchRollout(
     Request req,
     String appId,
@@ -2865,11 +2985,24 @@ class Api {
   ) async {
     final body = await _jsonBody(req);
     final int bps;
+    final RolloutSchedule? schedule;
     try {
-      bps = parseRolloutPercentage(
-        body['rollout_percentage'],
-        field: 'rollout_percentage',
+      schedule = _optSchedule(
+        body,
+        exclusiveWith: const ['rollout_percentage'],
       );
+      if (schedule != null) {
+        bps = schedule.initialBps;
+      } else if (body['rollout_percentage'] == null) {
+        throw const FormatException(
+          'send rollout_percentage, or rollout_steps for a timed rollout',
+        );
+      } else {
+        bps = parseRolloutPercentage(
+          body['rollout_percentage'],
+          field: 'rollout_percentage',
+        );
+      }
     } on FormatException catch (e) {
       throw badRequest(e.message);
     }
@@ -2880,7 +3013,10 @@ class Api {
     _audit(req)?.note(
       releaseId: releaseId,
       patchNumber: patch.number,
-      detail: {'percent': percentageOf(bps)},
+      detail: {
+        'percent': percentageOf(bps),
+        if (schedule != null) 'schedule_steps': schedule.steps.length,
+      },
     );
     final deployment = _currentDeployment(await repo.patchDeployments(patchId));
     final channel = deployment == null
@@ -2896,21 +3032,34 @@ class Api {
       );
     }
     _audit(req)?.note(track: channel.name);
-    if (bps < current.rolloutBps) {
+    final rolling = await _rolloutFloor(current);
+    if (bps < rolling) {
       throw conflict(
         'Patch ${patch.number} is already rolling out to '
-        '${percentageOf(current.rolloutBps)}% of devices on ${channel.name}, '
+        '${percentageOf(rolling)}% of devices on ${channel.name}, '
         'and a rollout can only be raised.',
       );
     }
-    if (bps > current.rolloutBps) {
-      // The UPDATE refuses a value below what is stored now, so a concurrent
-      // raise that landed after the read above cannot be lowered by this one.
-      if (!await repo.setRollout(channel.id, patchId, bps, onlyRaise: true)) {
+    final timed = current.rolloutSchedule != null;
+    if (schedule != null || bps > current.rolloutBps || timed) {
+      // The UPDATE refuses to write if the row's schedule is no longer the one
+      // read above, and (for a fixed rollout) a value below what is stored
+      // now, so a concurrent change that landed after the read cannot be
+      // undone by this one.
+      if (!await repo.setRollout(
+        channel.id,
+        patchId,
+        bps,
+        onlyRaise: !timed,
+        schedule: schedule,
+        expectSchedule: (stored: current.rolloutSchedule),
+        ifBefore: _nextStepOf(current),
+      )) {
         throw conflict(
-          'Patch ${patch.number} was raised past ${percentageOf(bps)}% on '
-          '${channel.name} by another request, and a rollout can only be '
-          'raised.',
+          'Patch ${patch.number} was changed on ${channel.name} by another '
+          'request, or its next rollout step applied, while this one was '
+          'applied, and a rollout can only be raised. Check its rollout and '
+          'retry.',
         );
       }
     }
@@ -3059,9 +3208,21 @@ class Api {
     // Upstream 1.6.140 sends `rollout_percentage`, a multiple of 0.01 from
     // 0.01 to 100. `rollout`, a whole percent from 0 to 100, is this server's
     // own older spelling and is still accepted; the new one wins if both are
-    // sent. Neither means every device.
+    // sent. Neither means every device. Upstream 1.6.144 may instead send
+    // `rollout_steps` (a timed schedule), which excludes both.
+    final RolloutSchedule? schedule;
     final int rolloutBps;
-    if (body['rollout_percentage'] != null) {
+    try {
+      schedule = _optSchedule(
+        body,
+        exclusiveWith: const ['rollout_percentage', 'rollout'],
+      );
+    } on FormatException catch (e) {
+      throw badRequest(e.message);
+    }
+    if (schedule != null) {
+      rolloutBps = schedule.initialBps;
+    } else if (body['rollout_percentage'] != null) {
       try {
         rolloutBps = parseRolloutPercentage(
           body['rollout_percentage'],
@@ -3082,7 +3243,11 @@ class Api {
     // a refused promotion is attributable to the patch someone tried to ship.
     _audit(req)?.note(
       patchId: patchId,
-      detail: {'channel_id': channelId, 'rollout': percentageOf(rolloutBps)},
+      detail: {
+        'channel_id': channelId,
+        'rollout': percentageOf(rolloutBps),
+        if (schedule != null) 'schedule_steps': schedule.steps.length,
+      },
     );
     final patch = await _ownedPatch(appId, patchId);
     final channel = await _ownedChannel(appId, channelId);
@@ -3094,7 +3259,43 @@ class Api {
     if (patch.status != PatchStatus.ready) {
       throw conflict('Patch $patchId is ${patch.status.name}, not ready');
     }
-    await repo.promote(channelId, patchId, rolloutBps: rolloutBps);
+    // Promoting a patch that is already live on the channel (the CLI's
+    // set-track does) must not drop it to a lower share or leave two active
+    // rows for it: it is refused with 409 below what is in force, and
+    // otherwise changes the one row in place.
+    final live = await repo.activeChannelPatchForPatch(channelId, patchId);
+    if (live != null) {
+      final floor = await _rolloutFloor(live);
+      if (rolloutBps < floor) {
+        throw conflict(
+          'Patch ${patch.number} is already live on ${channel.name} at '
+          '${percentageOf(floor)}% of devices, and a rollout can only be '
+          'raised.',
+        );
+      }
+      if (!await repo.setRollout(
+        channelId,
+        patchId,
+        rolloutBps,
+        onlyRaise: live.rolloutSchedule == null,
+        schedule: schedule,
+        expectSchedule: (stored: live.rolloutSchedule),
+        ifBefore: _nextStepOf(live),
+      )) {
+        throw conflict(
+          'Patch ${patch.number} was changed on ${channel.name} by another '
+          'request, or its next rollout step applied, meanwhile. Check its '
+          'rollout and retry.',
+        );
+      }
+      return Response(HttpStatus.noContent);
+    }
+    await repo.promote(
+      channelId,
+      patchId,
+      rolloutBps: rolloutBps,
+      schedule: schedule,
+    );
     return Response(HttpStatus.noContent);
   }
 
