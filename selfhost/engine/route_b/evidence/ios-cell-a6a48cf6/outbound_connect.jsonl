@@ -1,0 +1,6 @@
+{"t": 1795104202.8011022, "kind": "CONNECT", "host": "github.com", "port": "443", "proc": "Python git-remote-http"}
+{"t": 1795104203.841515, "kind": "CONNECT", "host": "pub.dev", "port": "443", "proc": "Python dart"}
+{"t": 1795104204.072426, "kind": "CONNECT", "host": "pub.dev", "port": "443", "proc": "Python dart"}
+{"t": 1795104211.437077, "kind": "CONNECT", "host": "pub.dev", "port": "443", "proc": "Python dart"}
+{"t": 1795104211.6508439, "kind": "CONNECT", "host": "pub.dev", "port": "443", "proc": "Python dart"}
+{"t": 1795104211.875037, "kind": "CONNECT", "host": "pub.dev", "port": "443", "proc": "Python dart"}

@@ -1,0 +1,7 @@
+# Excerpt of the verbose release log (logs/release.log, 6802 lines). It dumps the build environment, including the API token, so only these lines are kept, with their original line numbers.
+1:[env] SHOREBIRD_TOKEN detected
+2:[env] SHOREBIRD_TOKEN parsed as API key
+3:[WARN] No patch public key was provided. Patches for this release will not be cryptographically verified on the device.
+916:Route B retention: 57 named SDK members kept (default set only; set keep_sdk_collection_methods: true in shorebird.yaml to also keep Iterable.where, map, toList, List.addAll, sort and the other heavy methods), interface 19629 bytes.
+4905:            [        ] Extra gen_snapshot options: [--patchable_static_calls, --route_b_untabled_overrides, --write-v8-snapshot-profile-to=/Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b_snapshot_profile.json]
+6781:✅ Published Release 1.0.0+70!

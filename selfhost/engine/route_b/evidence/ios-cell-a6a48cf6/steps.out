@@ -1,0 +1,520 @@
+--- boot_release: current_patch_number: None;no active patch;
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[INFO:flutter/shell/common/shorebird/shorebird.cc(633)] Shorebird updater: no active patch.
+[shorebird] Sending patch check request: app_id: f40fd369-cd9a-b8f0-59bb-c23cfa9f2812, channel: stable, release_version: 1.0.0+70, platform: ios, arch: aarch64, current_patch_number: None
+[shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- boot_release2: current_patch_number: None;no active patch;
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[INFO:flutter/shell/common/shorebird/shorebird.cc(633)] Shorebird updater: no active patch.
+[shorebird] Sending patch check request: app_id: f40fd369-cd9a-b8f0-59bb-c23cfa9f2812, channel: stable, release_version: 1.0.0+70, platform: ios, arch: aarch64, current_patch_number: None
+[shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+UNCHECKED RETRY combo: refused for Iterable.iterator (exit 70); retrying with --allow-unchecked-sdk-calls
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promotin
+98:                                                             This flag cannot be combined with "--analyze-size".
+138:                                                             This flag cannot be combined with "--split-debug-info".
+5068:            note: Run script build phase 'Run Script' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+5069:            note: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+5887:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+5891:[WARN] --allow-unchecked-sdk-calls: this patch was not checked against what this release's snapshot kept of the dart: instance members it calls (or against the dynamic-call check, on a cell below analysis 19). This is recorded in the patch's metadata.
+5947:✅ Published Patch 1!
+5953:refs/heads/devrun/a6a4-unchecked-fix
+patch combo exit=0
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promotin
+98:                                                             This flag cannot be combined with "--analyze-size".
+138:                                                             This flag cannot be combined with "--split-debug-info".
+5887:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+5891:This patch cannot be built: it uses code the release never used in its own code.
+5893:  package:untab/main.dart#_HomeState._start
+5894:      it calls the dart: method `Iterable.iterator` (an SDK instance member, this release has no `get:iterator` on `ObserverList` (in `package:flutter/src/foundation/observer_list.dart` that can be a `Iterable` here), and 2 more). An SDK instance method i
+5896:The whole patch is refused, not the part that failed. Nothing was uploaded.
+--- combo_download: current_patch_number: None;no active patch;
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[INFO:flutter/shell/common/shorebird/shorebird.cc(633)] Shorebird updater: no active patch.
+[shorebird] Sending patch check request: app_id: f40fd369-cd9a-b8f0-59bb-c23cfa9f2812, channel: stable, release_version: 1.0.0+70, platform: ios, arch: aarch64, current_patch_number: None
+[shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "fee24c60e9f073e45324da10148352e89aae8fb9e22bf72ff43ce1dd2661a2a7", download_url: "http://10.0.0.242:1829
+[shorebird] Downloading patch 1 for app f40fd369-cd9a-b8f0-59bb-c23cfa9f2812 (version 1.0.0+70)
+[shorebird] Downloading patch from: http://10.0.0.242:18290/download/ecbb26726b2098dbf1644806bb4eef7c?exp=1795104707&sig=de865b22fbe9048b15a6bf182231482e2252a454889bfdb3463e0433fead900a
+[shorebird] Downloaded patch to: "/private/var/mobile/Containers/Data/Application/25C9B291-A564-4705-B4A3-A3508DFC4A8D/Library/Application Support/shorebird/shorebird_updater/downloads/1" (9039 bytes)
+[shorebird] Inflating patch from "/private/var/mobile/Containers/Data/Application/25C9B291-A564-4705-B4A3-A3508DFC4A8D/Library/Application Support/shorebird/shorebird_updater/downloads/1" (9039 bytes)
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- combo_boot: applied 15/15 targets;current_patch_number: Some(1);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Prepared boot of patch 1.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/25C9B291-A564-4705-B4A3-A3508DFC4A8D/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=15, built-for=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=c1
+shape:count=c2
+shape:count=c3
+shape:decorate=[P1:3]
+shape:detail=D2
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB2 G2
+shape:future-builder=FB2 null
+shape:generic=F2
+shape:greeting=G2
+shape:half=1.5
+shape:home-build=H2 0
+shape:home-build=H2 1
+shape:home-build=H2 2
+shape:home-build=H2 3
+shape:init=I2
+shape:label=L2
+shape:level=hi2
+shape:mood=M2
+shape:poly=circle2
+shape:poly=square1
+shape:result=OK 7
+shape:route=R2 /detail
+shape:stamp=15 Nov 2026
+shape:stars=***
+shape:static=S2
+shape:tally=K1 3 |||
+--- combo_boot2: applied 15/15 targets;current_patch_number: Some(1);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Prepared boot of patch 1.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/25C9B291-A564-4705-B4A3-A3508DFC4A8D/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=15, built-for=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=c1
+shape:count=c2
+shape:count=c3
+shape:decorate=[P1:3]
+shape:detail=D2
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB2 G2
+shape:future-builder=FB2 null
+shape:generic=F2
+shape:greeting=G2
+shape:half=1.5
+shape:home-build=H2 0
+shape:home-build=H2 1
+shape:home-build=H2 2
+shape:home-build=H2 3
+shape:init=I2
+shape:label=L2
+shape:level=hi2
+shape:mood=M2
+shape:poly=circle2
+shape:poly=square1
+shape:result=OK 7
+shape:route=R2 /detail
+shape:stamp=15 Nov 2026
+shape:stars=***
+shape:static=S2
+shape:tally=K1 3 |||
+UNCHECKED RETRY trio: refused for Iterable.iterator (exit 70); retrying with --allow-unchecked-sdk-calls
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promotin
+98:                                                             This flag cannot be combined with "--analyze-size".
+138:                                                             This flag cannot be combined with "--split-debug-info".
+5068:            note: Run script build phase 'Run Script' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+5069:            note: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+5887:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+5891:[WARN] --allow-unchecked-sdk-calls: this patch was not checked against what this release's snapshot kept of the dart: instance members it calls (or against the dynamic-call check, on a cell below analysis 19). This is recorded in the patch's metadata.
+5932:✅ Published Patch 2!
+5938:refs/heads/devrun/a6a4-unchecked-fix
+patch trio exit=0
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promotin
+98:                                                             This flag cannot be combined with "--analyze-size".
+138:                                                             This flag cannot be combined with "--split-debug-info".
+5887:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+5891:This patch cannot be built: it uses code the release never used in its own code.
+5893:  package:untab/main.dart#_HomeState._start
+5894:      it calls the dart: method `Iterable.iterator` (an SDK instance member, this release has no `get:iterator` on `ObserverList` (in `package:flutter/src/foundation/observer_list.dart` that can be a `Iterable` here), and 2 more). An SDK instance method i
+5896:The whole patch is refused, not the part that failed. Nothing was uploaded.
+--- trio_download: applied 15/15 targets;current_patch_number: Some(1);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Prepared boot of patch 1.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/25C9B291-A564-4705-B4A3-A3508DFC4A8D/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=15, built-for=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=c1
+shape:count=c2
+shape:count=c3
+shape:decorate=[P1:3]
+shape:detail=D2
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB2 G2
+shape:future-builder=FB2 null
+shape:generic=F2
+shape:greeting=G2
+shape:half=1.5
+shape:home-build=H2 0
+shape:home-build=H2 1
+shape:home-build=H2 2
+shape:home-build=H2 3
+shape:init=I2
+shape:label=L2
+shape:level=hi2
+shape:mood=M2
+shape:poly=circle2
+shape:poly=square1
+shape:result=OK 7
+shape:route=R2 /detail
+shape:stamp=15 Nov 2026
+shape:stars=***
+shape:static=S2
+shape:tally=K1 3 |||
+--- trio_boot: applied 3/3 targets;current_patch_number: Some(2);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Prepared boot of patch 2.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/25C9B291-A564-4705-B4A3-A3508DFC4A8D/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=3, built-for=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=49:true
+shape:box=T1
+shape:const=KT1
+shape:count=10
+shape:count=20
+shape:count=30
+shape:count=40
+shape:count=50
+shape:decorate=[P1:50]
+shape:detail=D1
+shape:done=START-DONE
+shape:events-list=1
+shape:events-list=2
+shape:events-list=3
+shape:events-list=4
+shape:events-list=5
+shape:events=5
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=25.0
+shape:home-build=H1 0
+shape:home-build=H1 10
+shape:home-build=H1 20
+shape:home-build=H1 30
+shape:home-build=H1 40
+shape:home-build=H1 50
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 50 ||||||||||||||||||||||||||||||||||||||||||||||||||
+--- trio_boot2: applied 3/3 targets;current_patch_number: Some(2);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Prepared boot of patch 2.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/25C9B291-A564-4705-B4A3-A3508DFC4A8D/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=3, built-for=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=49:true
+shape:box=T1
+shape:const=KT1
+shape:count=10
+shape:count=20
+shape:count=30
+shape:count=40
+shape:count=50
+shape:decorate=[P1:50]
+shape:detail=D1
+shape:done=START-DONE
+shape:events-list=1
+shape:events-list=2
+shape:events-list=3
+shape:events-list=4
+shape:events-list=5
+shape:events=5
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=25.0
+shape:home-build=H1 0
+shape:home-build=H1 10
+shape:home-build=H1 20
+shape:home-build=H1 30
+shape:home-build=H1 40
+shape:home-build=H1 50
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 50 ||||||||||||||||||||||||||||||||||||||||||||||||||
+patch refuse_const exit=70
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promotin
+98:                                                             This flag cannot be combined with "--analyze-size".
+138:                                                             This flag cannot be combined with "--split-debug-info".
+5887:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+5891:This patch cannot be built: it uses code the release never used in its own code.
+5893:  package:untab/main.dart#_HomeState._start
+5894:      it calls the dart: method `Iterable.iterator` (an SDK instance member, this release has no `get:iterator` on `ObserverList` (in `package:flutter/src/foundation/observer_list.dart` that can be a `Iterable` here), and 2 more). An SDK instance method i
+5896:The whole patch is refused, not the part that failed. Nothing was uploaded.
+patch refuse_field exit=70
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promotin
+98:                                                             This flag cannot be combined with "--analyze-size".
+138:                                                             This flag cannot be combined with "--split-debug-info".
+5887:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+5891:This patch cannot be built: 1 of 1 changed members cannot be carried by a Route B patch.
+5893:  package:untab/main.dart#_HomeState.new
+5896:The whole patch is refused, not the part that failed. Shipping the rest would leave your app running some functions from the patch and some from the release. Nothing was uploaded.
+rollback exit=0
+Rolled back: yes
+Artifacts:
+  ios      aarch64      3.71 KB
+--- rb_learn: applied 3/3 targets;current_patch_number: Some(2);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Prepared boot of patch 2.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/25C9B291-A564-4705-B4A3-A3508DFC4A8D/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=3, built-for=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=49:true
+shape:box=T1
+shape:const=KT1
+shape:count=10
+shape:count=20
+shape:count=30
+shape:count=40
+shape:count=50
+shape:decorate=[P1:50]
+shape:detail=D1
+shape:done=START-DONE
+shape:events-list=1
+shape:events-list=2
+shape:events-list=3
+shape:events-list=4
+shape:events-list=5
+shape:events=5
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=25.0
+shape:home-build=H1 0
+shape:home-build=H1 10
+shape:home-build=H1 20
+shape:home-build=H1 30
+shape:home-build=H1 40
+shape:home-build=H1 50
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 50 ||||||||||||||||||||||||||||||||||||||||||||||||||
+--- rb_boot: applied 15/15 targets;current_patch_number: Some(1);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Prepared boot of patch 1.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/25C9B291-A564-4705-B4A3-A3508DFC4A8D/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=15, built-for=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=c1
+shape:count=c2
+shape:count=c3
+shape:decorate=[P1:3]
+shape:detail=D2
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB2 G2
+shape:future-builder=FB2 null
+shape:generic=F2
+shape:greeting=G2
+shape:half=1.5
+shape:home-build=H2 0
+shape:home-build=H2 1
+shape:home-build=H2 2
+shape:home-build=H2 3
+shape:init=I2
+shape:label=L2
+shape:level=hi2
+shape:mood=M2
+shape:poly=circle2
+shape:poly=square1
+shape:result=OK 7
+shape:route=R2 /detail
+shape:stamp=15 Nov 2026
+shape:stars=***
+shape:static=S2
+shape:tally=K1 3 |||
+--- rb_boot2: applied 15/15 targets;current_patch_number: Some(1);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Prepared boot of patch 1.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/25C9B291-A564-4705-B4A3-A3508DFC4A8D/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=15, built-for=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=36007ecd5c593059873d4c78be6dabb8
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=c1
+shape:count=c2
+shape:count=c3
+shape:decorate=[P1:3]
+shape:detail=D2
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB2 G2
+shape:future-builder=FB2 null
+shape:generic=F2
+shape:greeting=G2
+shape:half=1.5
+shape:home-build=H2 0
+shape:home-build=H2 1
+shape:home-build=H2 2
+shape:home-build=H2 3
+shape:init=I2
+shape:label=L2
+shape:level=hi2
+shape:mood=M2
+shape:poly=circle2
+shape:poly=square1
+shape:result=OK 7
+shape:route=R2 /detail
+shape:stamp=15 Nov 2026
+shape:stars=***
+shape:static=S2
+shape:tally=K1 3 |||
+STEPS_DONE
+steps exit=0

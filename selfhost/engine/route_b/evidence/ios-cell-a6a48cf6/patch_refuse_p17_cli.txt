@@ -1,0 +1,8 @@
+## patch_refuse_p17.log (5911 lines; excerpt)
+5891: This patch cannot be built: it uses code the release never used in its own code.
+5892: 
+5893:   package:untab/main.dart#_HomeState._start
+5894:       it calls the dart: method `Iterable.iterator` (an SDK instance member, this release has no `get:iterator` on `ObserverList` (in `package:flutter/src/foundation/observer_list.dart` that can be a `Iterable` here), and 2 more), the dart: method `Iterable.map` (an SDK instance member, measured: throws NoSuchMethodError on set (static)), the dart: method `Iterable.toList` (an SDK instance member, this release has no `toList` on `CodeUnits` (in `dart:_internal` that can be a `Iterable` here), and 43 more). An SDK instance method is looked up by name when it runs, and the app throws NoSuc
+5895: 
+5896: The whole patch is refused, not the part that failed. Nothing was uploaded.
+

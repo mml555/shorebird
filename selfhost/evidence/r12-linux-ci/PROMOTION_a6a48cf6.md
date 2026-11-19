@@ -109,17 +109,30 @@ release/patch rows from run 1.
 
 ## Device run
 
-TODO: not yet run. The iPhone sequence for this cell (the `2fc41d3f` sequence repeated through the cell address,
-plus the class and extension member edits that analysis 21 allows) is to be recorded in
-`selfhost/engine/route_b/evidence/ios-cell-a6a48cf6/RESULT.md`, and its outcome summarised here. Until it is filled in,
-the cell is promoted on the Linux chain but NOT device-qualified.
+Run on 2026-11-19, recorded in `selfhost/engine/route_b/evidence/ios-cell-a6a48cf6/RESULT.md`. **Partial, not a
+pass: the cell is promoted on the Linux chain but NOT device-qualified.** On a physical iPhone 7 (iOS 15.8.8), with
+the CLI at `e7384444` plus one cherry-pick (`05d5b08d`, which is #248's `72873c909`), every patch that published
+applied all its targets on every launch, the refusals that reached their own verdict were the right ones, and both
+rollbacks returned the device to the previous patch. Two things keep it from a pass:
+
+- Nine of the eleven published patches were published with `--allow-unchecked-sdk-calls`. Their checked builds were
+  refused only for a checker false positive: a for-in is recorded as `Iterable.iterator` with no receiver type, so
+  the snapshot check demands `get:iterator` on `ObserverList` (#247). The device ran them without a
+  NoSuchMethodError, but their SDK calls were not checked against what the release kept.
+- The combo patch silently left out p15, the edit to the `tally` path dependency: the device showed the release's
+  `K1 3` where `2fc41d3f`'s run showed `K2 3`, and the CLI printed nothing about it.
+
+Qualifying the cell needs a rerun with #247 merged and the p15 drop fixed.
 
 ## What a patch can change now
 
-TODO (to be confirmed by the device run): a class or extension member whose body names its own class's statics, and
-an operator reference the patch's bytecode compiler emits as an opcode, are accepted by the version-21 analyzer;
-`2fc41d3f`'s analyzer refuses the first for the CLI on main. Everything `2fc41d3f` adds (private top-level and
-instance helpers) is unchanged.
+Seen on the device run (with the caveats under Device run): a class member whose body names its own class's
+statics (s1 and s1b), and `int` and `double` operators the patch's bytecode compiler emits as opcodes (i1, i2b and i2),
+each published and showed its new value on two launches. s1 and s1b were the only edits published with the snapshot
+check on. An extension instance member that names the extension's statics (e1, e1b) is refused ("it is an instance
+member of `Stars`, whose receiver a replacement does not pass"), so the class form is what analysis 21 adds, not the
+extension form; an extension static member was not tried. Everything `2fc41d3f` adds (private top-level and instance
+helpers: h1, m1, m2) passed again.
 
 ## Published
 

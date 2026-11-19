@@ -1,0 +1,30 @@
+## patch_combo.log (5911 lines; excerpt)
+5891: This patch cannot be built: it uses code the release never used in its own code.
+5892: 
+5893:   package:untab/main.dart#_HomeState._start
+5894:       it calls the dart: method `Iterable.iterator` (an SDK instance member, this release has no `get:iterator` on `ObserverList` (in `package:flutter/src/foundation/observer_list.dart` that can be a `Iterable` here), and 2 more). An SDK instance method is looked up by name when it runs, and the app throws NoSuchMethodError at that call if the release never called it. Members marked "measured" failed on a device, and those on no list were never measured: no flag unlocks either, because the patcher only lets through members measured on a device. Only a refusal because the snapshot of this
+5895: 
+5896: The whole patch is refused, not the part that failed. Nothing was uploaded.
+
+# retried with --allow-unchecked-sdk-calls (lib.sh patch())
+## patch_combo.unchecked.log (5954 lines; excerpt)
+5891:[WARN] --allow-unchecked-sdk-calls: this patch was not checked against what this release's snapshot kept of the dart: instance members it calls (or against the dynamic-call check, on a cell below analysis 19). This is recorded in the patch's metadata.
+5892:[route-b] compiled Circle.describe -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_0.bytecode
+5893:[route-b] compiled DetailPage.build -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_1.bytecode
+5894:[route-b] compiled Label.build -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_2.bytecode
+5895:[route-b] compiled Util.tag -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_3.bytecode
+5896:[route-b] compiled _HomeState._increment -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_4.bytecode
+5897:[route-b] compiled _HomeState._start -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_5.bytecode
+5898:[route-b] compiled _HomeState.build -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_6.bytecode
+5899:[route-b] compiled _HomeState.get:mood -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_7.bytecode
+5900:[route-b] compiled _HomeState.initState -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_8.bytecode
+5901:[route-b] compiled describeResult -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_9.bytecode
+5902:[route-b] compiled formatStamp -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_10.bytecode
+5903:[route-b] compiled levelName -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_11.bytecode
+5904:[route-b] compiled loadGreeting -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_12.bytecode
+5905:[route-b] compiled routeFor -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_13.bytecode
+5906:[route-b] compiled ticker -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_14.bytecode
+5907:[route-b] packed 27533 bytes for release 36007ecd5c593059873d4c78be6dabb8 at /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/patch.sbrbptch
+5927:🕹️  Platform: iOS [arm64 (8.83 KB)]
+5947:✅ Published Patch 1!
+

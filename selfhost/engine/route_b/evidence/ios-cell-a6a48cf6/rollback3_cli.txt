@@ -1,0 +1,13 @@
+Starting Fetching releases...
+Done Fetching releases
+Starting Fetching patches...
+Done Fetching patches
+Starting Rolling back patch 11...
+Done Rolling back patch 11
+Patch 11 on release 1.0.0+70 has been rolled back.
+ID:          37
+Number:      11
+Track:       stable
+Rolled back: yes
+Artifacts:
+  ios      aarch64      3.19 KB

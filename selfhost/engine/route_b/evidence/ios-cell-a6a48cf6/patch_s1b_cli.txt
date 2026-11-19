@@ -1,0 +1,6 @@
+## patch_s1b.log (5936 lines; excerpt)
+5891:[route-b] compiled _HomeState._decorate -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_0.bytecode
+5892:[route-b] packed 1772 bytes for release 36007ecd5c593059873d4c78be6dabb8 at /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/patch.sbrbptch
+5912:🕹️  Platform: iOS [arm64 (1.06 KB)]
+5929:✅ Published Patch 6!
+
