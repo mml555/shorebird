@@ -1239,15 +1239,137 @@ callable:
       expect(problem(codelessLeaf(allocated: false)), isNull);
     });
 
-    test('a fixed-id class abstract in source is not asked', () {
-      for (final name in ['num', 'int', 'double', 'Function', 'Record']) {
-        expect(routeBVmFixedIdClasses, contains('dart:core#$name'));
+    test('every fixed-id class abstract in source is fixed-id, and listed '
+        'abstract', () {
+      expect(routeBVmFixedIdAbstractClasses, hasLength(16));
+      for (final key in routeBVmFixedIdAbstractClasses) {
+        expect(routeBVmFixedIdClasses, contains(key));
+        expect(routeBSdkAbstractBases, contains(key));
+        final [library, name] = key.split('#');
         expect(
-          RouteBSnapshotKept.isVmAllocatedSdkClass('dart:core', name),
+          RouteBSnapshotKept.isVmAllocatedSdkClass(library, name),
           isFalse,
-          reason: name,
+          reason: key,
         );
       }
+    });
+
+    test(
+      'a fixed-id base with code that is abstract in source is not asked',
+      () {
+        // The calibration release: `double.parse` gives `double` code, and
+        // `double` (fixed-id, abstract) has none of a double's members.
+        final kept = RouteBSnapshotKept.fromProfileJson(
+          routeBProfile({
+            'Object': const RouteBProfileClass(
+              'Object',
+              routeBCoreLibrary,
+              fns: {'==': '[Optimized] =='},
+            ),
+            'num': const RouteBProfileClass(
+              'num',
+              routeBCoreLibrary,
+              parent: 'Object',
+            ),
+            'double': const RouteBProfileClass(
+              'double',
+              routeBCoreLibrary,
+              parent: 'num',
+              fns: {'parse': '[Optimized] parse'},
+            ),
+            '_Double': const RouteBProfileClass(
+              '_Double',
+              routeBCoreLibrary,
+              parent: 'Object',
+              ifaces: ['double'],
+              fns: {'get:isNaN': '[Optimized] isNaN'},
+            ),
+          }),
+        );
+        for (final declared in ['double', 'num']) {
+          expect(
+            kept.problemFor(
+              declaredLibrary: 'dart:core',
+              declaredClass: declared,
+              measured: const [],
+              selector: 'get:isNaN',
+            ),
+            isNull,
+            reason: declared,
+          );
+        }
+      },
+    );
+
+    group('a Future member a TickerFuture lacks', () {
+      // Every Flutter app with an AnimationController allocates TickerFuture
+      // and keeps none of its Future members.
+      final kept = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          'Object': const RouteBProfileClass(
+            'Object',
+            routeBCoreLibrary,
+            fns: {'==': '[Optimized] =='},
+          ),
+          'Future': const RouteBProfileClass(
+            'Future',
+            'dart:async',
+            parent: 'Object',
+          ),
+          '_Future': const RouteBProfileClass(
+            '_Future',
+            'dart:async',
+            parent: 'Object',
+            ifaces: ['Future'],
+            fns: {
+              'then': '[Optimized] then',
+              'timeout': '[Optimized] timeout',
+            },
+          ),
+          'TickerFuture': const RouteBProfileClass(
+            'TickerFuture',
+            'package:flutter/src/scheduler/ticker.dart',
+            parent: 'Object',
+            ifaces: ['Future'],
+            allocated: true,
+          ),
+        }),
+      );
+      String? problem(String selector) => kept.problemFor(
+        declaredLibrary: 'dart:async',
+        declaredClass: 'Future',
+        measured: const [],
+        selector: selector,
+      );
+
+      test('says the value can be one, and that a new release keeps it', () {
+        expect(
+          problem('then'),
+          allOf(
+            contains('no `then` on `TickerFuture`'),
+            contains(
+              'A `Future` value can be a `TickerFuture` at runtime, and this '
+              'release compiled no `then` for `TickerFuture`',
+            ),
+            contains('a release built with the code that calls it keeps it'),
+          ),
+        );
+      });
+
+      test('offers `await` for then, and says when it does not help', () {
+        expect(
+          problem('then'),
+          contains(
+            'If the value is never a `TickerFuture`, `await` it instead: '
+            'awaiting a `Future` from `async` code or the SDK does not call '
+            '`then` (awaiting a `TickerFuture` does)',
+          ),
+        );
+      });
+
+      test('offers no `await` for timeout', () {
+        expect(problem('timeout'), isNot(contains('await')));
+      });
     });
 
     group('a profile it cannot read allocations from is unreadable', () {
@@ -1359,11 +1481,11 @@ callable:
         'dart:typed_data#_Uint8ClampedArrayView',
       });
       // Every listed abstract base is one of this release's, or one of the
-      // VM's fixed-id classes: none is stale.
+      // fixed-id classes listed whatever the release: none is stale.
       expect(
         routeBSdkAbstractBases
             .difference(entries.toSet())
-            .difference(routeBVmFixedIdClasses),
+            .difference(routeBVmFixedIdAbstractClasses),
         isEmpty,
       );
     });

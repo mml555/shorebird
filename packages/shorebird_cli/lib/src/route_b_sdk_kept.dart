@@ -543,7 +543,10 @@ class RouteBSnapshotKept {
   /// The `dart:` base classes with real code that reach `Object` and that
   /// this release is not seen to allocate, as `library<TAB>Class`, sorted: the
   /// classes `route_b_sdk_base_classes.dart` decides. Pinned for one release in
-  /// `test/fixtures/route_b_sdk_kept/stubless_sdk_bases.tsv`.
+  /// `test/fixtures/route_b_sdk_kept/stubless_sdk_bases.tsv`. Only classes
+  /// with code are listed: one seen allocated is asked with or without code
+  /// ([_isInstanceClass]), and one not seen allocated is asked only with code,
+  /// so a code-less one never needs deciding.
   List<String> get stublessSdkBases => [
     for (final c in _name.keys)
       if (_subtypeEdges.containsKey(c) &&
@@ -621,10 +624,11 @@ class RouteBSnapshotKept {
       return 'this release has no class `$absent`';
     }
     final Iterable<int> candidates;
+    var roots = const <int>[];
     if (declaredClass == null) {
       candidates = _name.keys.where(_isInstanceClass);
     } else {
-      final roots = _sdkClasses(declaredClass, declaredLibrary);
+      roots = _sdkClasses(declaredClass, declaredLibrary);
       // A declared type this snapshot has no class for (or only in another
       // library) cannot be shown to resolve anything: there is nothing to
       // check, which is not the same as nothing to fear. Refuse.
@@ -635,6 +639,7 @@ class RouteBSnapshotKept {
       candidates = _instanceClasses(roots);
     }
     String? firstWhy;
+    int? firstClass;
     var more = 0;
     for (final c in candidates) {
       final why = _problemOn(
@@ -645,12 +650,53 @@ class RouteBSnapshotKept {
       if (why == null) continue;
       if (firstWhy == null) {
         firstWhy = why;
+        firstClass = c;
       } else {
         more++;
       }
     }
     if (firstWhy == null) return null;
-    return more == 0 ? firstWhy : '$firstWhy, and $more more';
+    final refusal = more == 0 ? firstWhy : '$firstWhy, and $more more';
+    if (declaredClass == null || roots.contains(firstClass)) return refusal;
+    final advice = _subtypeAdvice(
+      declaredClass,
+      _name[firstClass]!,
+      selector,
+    );
+    return '$refusal. $advice';
+  }
+
+  /// Why a member the declared type has is refused for one of its subtypes,
+  /// and what the patch can do instead.
+  static String _subtypeAdvice(
+    String declared,
+    String subtype,
+    String selector,
+  ) {
+    final advice = StringBuffer(
+      'A `$declared` value can be a `$subtype` at runtime, and this release '
+      'compiled no `$selector` for `$subtype` because nothing in it calls '
+      '`$selector` on one; a release built with the code that calls it '
+      'keeps it',
+    );
+    // `await` of a `_Future` (what `async` code and the SDK return) goes
+    // through `_Future._thenAwait`, never `then`; `await` of any other Future
+    // calls its `then` (`_SuspendState._awaitUserDefinedFuture` in
+    // `sdk/lib/_internal/vm/lib/async_patch.dart`), so it is no way out when
+    // the value can be the subtype.
+    const awaitable = {
+      'then': '`await` it',
+      'catchError': '`await` it in a `try`/`catch`',
+      'whenComplete': '`await` it in a `try`/`finally`',
+    };
+    if (declared == 'Future' && awaitable.containsKey(selector)) {
+      advice.write(
+        '. If the value is never a `$subtype`, ${awaitable[selector]} '
+        'instead: awaiting a `Future` from `async` code or the SDK does not '
+        'call `$selector` (awaiting a `$subtype` does)',
+      );
+    }
+    return advice.toString();
   }
 
   /// Classes whose absence from a profile is never read as "no instance".

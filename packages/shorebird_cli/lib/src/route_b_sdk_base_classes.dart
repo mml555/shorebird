@@ -26,8 +26,9 @@ library;
 /// (`runtime/vm/class_id.h`), by the names `Object::Init` registers them
 /// under (`runtime/vm/object.cc`, `RegisterClass`/`RegisterPrivateClass`;
 /// names from `runtime/vm/symbol_list.h`). Some are abstract in source (`num`,
-/// `int`, `double`, `Function`); [routeBSdkAbstractBases] lists those, and
-/// takes precedence.
+/// `int`, `double`, `Function`): [routeBVmFixedIdAbstractClasses] lists them,
+/// and they are left out of the fixed-id rule. That is all the abstract lists
+/// override: a leaf with code is asked whatever its modifiers.
 const routeBVmFixedIdClasses = {
   'dart:_internal#FinalizerEntry',
   'dart:async#FutureOr',
@@ -239,10 +240,16 @@ const routeBSdkAbstractBases = {
   'dart:ui#OffsetBase',
   // lib/ui/geometry.dart: abstract class
   'dart:ui#_RRectLike',
-  // The [routeBVmFixedIdClasses] that are abstract in their declaration. A
-  // release with no code on them (1.0.0+70) does not list them among its
-  // stub-less bases, but one that has some (`double.parse`) would otherwise
-  // ask them as concrete, and they have no members of their own to resolve.
+  ...routeBVmFixedIdAbstractClasses,
+};
+
+/// The [routeBVmFixedIdClasses] that are abstract in their declaration, so
+/// the fixed-id rule never asks them as concrete. Listed whether or not a
+/// release has code on them: 1.0.0+70 has none, so none is among its
+/// stub-less bases, but the calibration release (2fc41d3f) has `double.parse`,
+/// which makes `double` a base class with code, and `double` has none of the
+/// members a `double` value takes (`_Double` has them).
+const routeBVmFixedIdAbstractClasses = {
   // sdk/lib/async/future.dart: abstract class
   'dart:async#FutureOr',
   // sdk/lib/_internal/vm_shared/lib/compact_hash.dart: abstract class
@@ -260,6 +267,7 @@ const routeBSdkAbstractBases = {
   // sdk/lib/core/num.dart: sealed class
   'dart:core#num',
   // sdk/lib/_internal/vm/lib/ffi_native_type_patch.dart: abstract final class
+  // (the VM patch redeclares the `final class Bool` of ffi/native_type.dart)
   'dart:ffi#Bool',
   // sdk/lib/ffi/native_type.dart: abstract final class
   'dart:ffi#Handle',
