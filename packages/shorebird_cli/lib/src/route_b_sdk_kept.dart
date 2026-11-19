@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:shorebird_cli/src/route_b_sdk_base_classes.dart';
 
 /// What a release's own snapshot kept, read from the v8 snapshot profile that
 /// `gen_snapshot --write-v8-snapshot-profile-to` wrote at release time
@@ -41,6 +42,7 @@ class RouteBSnapshotKept {
     this._hasCode,
     this._super,
     this._interfaces,
+    this._allocated,
   );
 
   /// Reads a snapshot profile. Throws a [FormatException] for anything that is
@@ -258,6 +260,47 @@ class RouteBSnapshotKept {
       }
       hasCode[c] = code;
     }
+    // Classes this release is SEEN to make instances of: the owner of an
+    // allocation stub (`[Stub] Allocate <class>`, what compiled code calls to
+    // allocate one; the generic stubs such as `AllocateObjectSlow` have no
+    // space after `Allocate` and no class owner), or the class of an object
+    // stored in the snapshot (any node with a `<class>` edge; in practice
+    // only `Instance` nodes have one, so a const `Array`, `Map`, `Set`,
+    // closure, double or typed-data object is not counted, and all of those
+    // classes are leaves). An abstract class has neither; the VM's fixed-id
+    // classes may have neither too (see [routeBVmFixedIdClasses]).
+    if (!nodeTypes.contains('Instance')) {
+      throw const FormatException(
+        'the snapshot profile has no Instance nodes, so the classes the '
+        'release allocates cannot be read',
+      );
+    }
+    final allocated = <int>{};
+    var stubs = 0;
+    for (var i = 0; i < count; i++) {
+      final stub =
+          typeOf(i) == codeType && nameOf(i).startsWith('[Stub] Allocate ');
+      for (var e = first[i]; e < first[i + 1]; e++) {
+        final t = target(e);
+        if (typeOf(t) != classType) continue;
+        final property = propertyOf(e);
+        if (stub && property == 'owner_') {
+          allocated.add(t);
+          stubs++;
+        } else if (property == '<class>') {
+          allocated.add(t);
+        }
+      }
+    }
+    // Without them every base class would read as never allocated, and the
+    // check would quietly skip concrete base classes (#249).
+    if (stubs == 0) {
+      throw const FormatException(
+        'the snapshot profile has no allocation stub owned by a class '
+        '(`[Stub] Allocate` with an `owner_` edge), so the classes the '
+        'release allocates cannot be read',
+      );
+    }
     return RouteBSnapshotKept._(
       names,
       libraries,
@@ -265,6 +308,7 @@ class RouteBSnapshotKept {
       hasCode,
       supers,
       interfaces,
+      allocated,
     );
   }
 
@@ -326,6 +370,11 @@ class RouteBSnapshotKept {
   final Map<int, bool> _hasCode;
   final Map<int, int> _super;
   final Map<int, List<int>> _interfaces;
+
+  /// The classes this release is seen to allocate (an allocation stub, or a
+  /// const instance in the snapshot). Never an abstract class; not every
+  /// concrete one.
+  final Set<int> _allocated;
   Map<int, List<int>>? _subs;
 
   /// The `dart:` classes named [name] (private-library suffix ignored).
@@ -428,16 +477,16 @@ class RouteBSnapshotKept {
 
   /// The classes that can hold an instance whose declared type is one of
   /// [roots] (the profile's class nodes for the declared type): every class
-  /// whose super or interface chain reaches a root, that is a LEAF of the
-  /// profile's hierarchy (no other class extends, implements or mixes it in),
-  /// has a function with real code, and reaches `Object`.
+  /// whose super or interface chain reaches a root, reaches `Object`, and is
+  /// either seen allocated or may be concrete ([_mayBeConcrete]) and has a
+  /// function with real code ([_isInstanceClass]).
   ///
-  /// Why leaves. The profile does not say which classes are abstract. An
-  /// interface (`List`) or an abstract base has no code for the members it
-  /// only declares, and would refuse every member; but it has no instances, and
-  /// every instance's class is a leaf or inherits from one that this check
-  /// reaches. The one thing missed: a concrete class that is also a base class
-  /// and itself lacks a member that all of its subclasses have.
+  /// The profile does not flag abstract classes. An interface (`List`) or an
+  /// abstract base has no code for the members it only declares, and would
+  /// refuse every member; but it has no instances. A concrete base class
+  /// (`MappedIterable`, under `EfficientLengthMappedIterable`) that lacks a
+  /// member its subclasses keep must be refused (#249).
+
   Set<int> _instanceClasses(Iterable<int> roots) {
     final subs = _subtypeEdges;
     final seen = <int>{...roots};
@@ -454,10 +503,66 @@ class RouteBSnapshotKept {
     };
   }
 
+  /// A class seen allocated ([_allocated]) is one whether or not it has
+  /// compiled code of its own: a class whose members are all inherited or
+  /// inlined (`CastIterable`, `EfficientLengthMappedIterable`, `Tween`) has
+  /// none, and its instances still take every call its declared types allow.
+  /// Any other class needs own code too, which skips one kept only as a type.
   bool _isInstanceClass(int c) =>
-      !_subtypeEdges.containsKey(c) &&
-      (_hasCode[c] ?? false) &&
-      _reachesObject(c);
+      _reachesObject(c) &&
+      (_allocated.contains(c) || (_mayBeConcrete(c) && (_hasCode[c] ?? false)));
+
+  /// A HEURISTIC (the profile does not flag abstract classes; #253 takes it
+  /// from the release kernel instead). A class may be concrete when it is:
+  ///   * a leaf (no other class extends, implements or mixes it in): the VM
+  ///     allocates some leaves (`_List`, `_OneByteString`) with no stub, so a
+  ///     leaf is asked even with no allocation seen;
+  ///   * a class the release is seen to allocate ([_allocated]);
+  ///   * a `dart:` base class the VM allocates with no per-class stub (one in
+  ///     [routeBVmFixedIdClasses]) that is not known abstract.
+  /// Any other base class with no allocation seen has no instance: compiled
+  /// code allocates an ordinary class only through its own stub (see
+  /// `route_b_sdk_base_classes.dart`).
+  bool _mayBeConcrete(int c) =>
+      !_subtypeEdges.containsKey(c) ||
+      _allocated.contains(c) ||
+      isVmAllocatedSdkClass(_library[c]!, _name[c]!);
+
+  /// Whether `dart:` class [name] of [library] is one the VM allocates with
+  /// no per-class stub ([routeBVmFixedIdClasses]) and is not known abstract.
+  static bool isVmAllocatedSdkClass(String library, String name) =>
+      routeBVmFixedIdClasses.contains('$library#$name') &&
+      !isKnownAbstractSdkClass(library, name);
+
+  /// Whether `dart:` class [name] of [library] is known to be abstract: an
+  /// anonymous mixin application (`A&B`, always abstract), or listed in
+  /// [routeBSdkAbstractBases].
+  static bool isKnownAbstractSdkClass(String library, String name) =>
+      name.contains('&') || routeBSdkAbstractBases.contains('$library#$name');
+
+  /// The `dart:` base classes with real code that reach `Object` and that
+  /// this release is not seen to allocate, as `library<TAB>Class`, sorted: the
+  /// classes `route_b_sdk_base_classes.dart` decides. Pinned for one release in
+  /// `test/fixtures/route_b_sdk_kept/stubless_sdk_bases.tsv`. Only classes
+  /// with code are listed: one seen allocated is asked with or without code
+  /// ([_isInstanceClass]), and one not seen allocated is asked only with code,
+  /// so a code-less one never needs deciding.
+  List<String> get stublessSdkBases => [
+    for (final c in _name.keys)
+      if (_subtypeEdges.containsKey(c) &&
+          !_allocated.contains(c) &&
+          (_hasCode[c] ?? false) &&
+          _library[c]!.startsWith('dart:') &&
+          _reachesObject(c))
+        '${_library[c]}\t${_name[c]}',
+  ]..sort();
+
+  /// How many base classes this release is seen to allocate that reach
+  /// `Object`: the base classes [problemFor] asks because they are allocated.
+  /// Zero would mean the allocation evidence was not read.
+  int get allocatedBaseClassCount => _allocated
+      .where((c) => _subtypeEdges.containsKey(c) && _reachesObject(c))
+      .length;
 
   /// Why this release's snapshot cannot be shown to resolve [selector] for a
   /// call on a value of declared type [declaredClass] in [declaredLibrary]
@@ -519,10 +624,11 @@ class RouteBSnapshotKept {
       return 'this release has no class `$absent`';
     }
     final Iterable<int> candidates;
+    var roots = const <int>[];
     if (declaredClass == null) {
       candidates = _name.keys.where(_isInstanceClass);
     } else {
-      final roots = _sdkClasses(declaredClass, declaredLibrary);
+      roots = _sdkClasses(declaredClass, declaredLibrary);
       // A declared type this snapshot has no class for (or only in another
       // library) cannot be shown to resolve anything: there is nothing to
       // check, which is not the same as nothing to fear. Refuse.
@@ -533,6 +639,7 @@ class RouteBSnapshotKept {
       candidates = _instanceClasses(roots);
     }
     String? firstWhy;
+    int? firstClass;
     var more = 0;
     for (final c in candidates) {
       final why = _problemOn(
@@ -543,12 +650,53 @@ class RouteBSnapshotKept {
       if (why == null) continue;
       if (firstWhy == null) {
         firstWhy = why;
+        firstClass = c;
       } else {
         more++;
       }
     }
     if (firstWhy == null) return null;
-    return more == 0 ? firstWhy : '$firstWhy, and $more more';
+    final refusal = more == 0 ? firstWhy : '$firstWhy, and $more more';
+    if (declaredClass == null || roots.contains(firstClass)) return refusal;
+    final advice = _subtypeAdvice(
+      declaredClass,
+      _name[firstClass]!,
+      selector,
+    );
+    return '$refusal. $advice';
+  }
+
+  /// Why a member the declared type has is refused for one of its subtypes,
+  /// and what the patch can do instead.
+  static String _subtypeAdvice(
+    String declared,
+    String subtype,
+    String selector,
+  ) {
+    final advice = StringBuffer(
+      'A `$declared` value can be a `$subtype` at runtime, and this release '
+      'compiled no `$selector` for `$subtype` because nothing in it calls '
+      '`$selector` on one; a release built with the code that calls it '
+      'keeps it',
+    );
+    // `await` of a `_Future` (what `async` code and the SDK return) goes
+    // through `_Future._thenAwait`, never `then`; `await` of any other Future
+    // calls its `then` (`_SuspendState._awaitUserDefinedFuture` in
+    // `sdk/lib/_internal/vm/lib/async_patch.dart`), so it is no way out when
+    // the value can be the subtype.
+    const awaitable = {
+      'then': '`await` it',
+      'catchError': '`await` it in a `try`/`catch`',
+      'whenComplete': '`await` it in a `try`/`finally`',
+    };
+    if (declared == 'Future' && awaitable.containsKey(selector)) {
+      advice.write(
+        '. If the value is never a `$subtype`, ${awaitable[selector]} '
+        'instead: awaiting a `Future` from `async` code or the SDK does not '
+        'call `$selector` (awaiting a `$subtype` does)',
+      );
+    }
+    return advice.toString();
   }
 
   /// Classes whose absence from a profile is never read as "no instance".

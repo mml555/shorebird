@@ -1037,6 +1037,7 @@ words:
   - storepass # From .github/workflows/e2e.yaml
   - storyboardc
   - strftime
+  - stubless # Route B: a class with no allocation stub in the snapshot profile
   - subpackages
   - Supabase
   - atos

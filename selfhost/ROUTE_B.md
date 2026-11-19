@@ -45,12 +45,34 @@ such a call only when both hold:
    classes of that name in `dart:` libraries (classes are keyed by library as
    well as name, so a user's own `_List` never stands in for the SDK's), walks
    the release's own `super_type_` and `interfaces_` edges to every subtype
-   present in the snapshot, keeps the instance classes (a leaf with real code
-   that reaches `Object`), and requires the member to resolve on each, on the
-   class or a super class. A missing, unreadable, malformed or digest-mismatched
+   present in the snapshot, keeps the instance classes, and requires the
+   member to resolve on each, on the class or a super class. An instance class
+   reaches `Object` and is either seen allocated (it owns a `[Stub] Allocate`
+   stub or the snapshot holds a const instance of it), with or without code
+   of its own, or has real code and may be concrete: a leaf, or a `dart:` base
+   class the VM allocates with no stub (`route_b_sdk_base_classes.dart`). The
+   profile does not mark abstract classes, so this is a heuristic that errs
+   toward refusing; #253 replaces it with abstractness from the release kernel. A missing, unreadable, malformed or digest-mismatched
    profile (the digest compare ignores case) refuses, as does a super chain that
    loops or is cut short. Dynamic tear-offs (`dynamic#tearoff:x`) are checked
    against every instance class in the snapshot.
+
+**Stricter since PR #252 (#249).** Base classes the release allocates, and
+classes allocated with no code of their own, are now checked too; before, only
+leaves with code were. Patches the CLI used to accept can now be refused. The
+largest group is `Future.then`, `catchError`, `timeout` and `whenComplete`
+(called or torn off) in any Flutter app with an `AnimationController`: such an
+app allocates `TickerFuture`, which keeps none of them, and a `Future` value
+can be one at runtime. The refusal names the class and says why. What to do:
+
+- If the value is never a `TickerFuture` (it comes from `async` code, `http`, a
+  plugin), `await` it instead, with `try`/`catch` for `catchError` and
+  `try`/`finally` for `whenComplete`. `await` of a `Future` made by `async` code
+  or the SDK goes through `_Future._thenAwait`, not `then`. `await` of a
+  `TickerFuture` calls its `then` (`_SuspendState._awaitUserDefinedFuture`), so
+  it is not a way out when the value can be one.
+- `timeout` has no `await` form. Ship the change in a new release: a release
+  built with the code that calls the member keeps it.
 
 A member named by the release's own interface still passes, as before. The
 interface names only the members `--sdk-members` lists, which a release builds

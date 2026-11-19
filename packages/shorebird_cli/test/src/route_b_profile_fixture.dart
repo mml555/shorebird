@@ -4,7 +4,9 @@ import 'dart:convert';
 /// One class of a synthetic profile. [fns] maps a function name to the name of
 /// its code (`[Stub] ...` is a lazy-compile stub; null is no code at all).
 /// [decoys] are functions in the invocation-dispatcher cache, which a lookup by
-/// name must not see.
+/// name must not see. [allocated] gives the class an allocation stub (compiled
+/// code allocates one); [constInstance] stores a const instance of it in the
+/// snapshot. An abstract class has neither.
 class RouteBProfileClass {
   const RouteBProfileClass(
     this.name,
@@ -14,6 +16,8 @@ class RouteBProfileClass {
     this.ifaces = const [],
     this.decoys = const {},
     this.moreFns = const [],
+    this.allocated = false,
+    this.constInstance = false,
   });
   final String name;
   final String library;
@@ -24,6 +28,9 @@ class RouteBProfileClass {
 
   /// More entries of [fns], for a name that appears twice in one list.
   final List<(String, String?)> moreFns;
+
+  final bool allocated;
+  final bool constInstance;
 }
 
 /// A minimal v8 snapshot profile in the shape `gen_snapshot` writes. A class is
@@ -31,8 +38,20 @@ class RouteBProfileClass {
 /// itself, FIRST on purpose), `interfaces_`, `super_type_`, `library_`,
 /// `functions_` and `invocation_dispatcher_cache_`. [classes] is keyed by a
 /// unique id; a class's `parent` and `ifaces` name ids.
-String routeBProfile(Map<String, RouteBProfileClass> classes) {
-  const types = [
+///
+/// A real profile always has allocation stubs, and the reader refuses one
+/// without, so by default an extra class `RouteBFixtureAllocated` (no code,
+/// no super: never asked) owns one. [allocationEvidence] false leaves it out;
+/// [instanceNodes] false leaves the `Instance` node type out. [genericStubs]
+/// adds the class-less allocation stubs a real profile has
+/// (`[Stub] AllocateObjectSlow`, and one whose `owner_` is null).
+String routeBProfile(
+  Map<String, RouteBProfileClass> classes, {
+  bool allocationEvidence = true,
+  bool instanceNodes = true,
+  bool genericStubs = false,
+}) {
+  final types = [
     'ArtificialRoot',
     'Array',
     'Code',
@@ -41,6 +60,8 @@ String routeBProfile(Map<String, RouteBProfileClass> classes) {
     'Type',
     'Library',
     'Other',
+    'Null',
+    if (instanceNodes) 'Instance',
   ];
   const edgeTypes = ['context', 'element', 'property', 'internal'];
   final strings = <String>[];
@@ -124,6 +145,23 @@ String routeBProfile(Map<String, RouteBProfileClass> classes) {
       );
     }
     nodes[self] = (type: nodes[self].type, name: nodes[self].name, to: to);
+    if (c.allocated) {
+      add('Code', '[Stub] Allocate ${c.name}', [prop('owner_', self)]);
+    }
+    if (c.constInstance) {
+      add('Instance', 'Unnamed [Instance] (nil)', [prop('<class>', self)]);
+    }
+  }
+  if (allocationEvidence) {
+    final owner = add('Class', 'RouteBFixtureAllocated');
+    add('Code', '[Stub] Allocate RouteBFixtureAllocated', [
+      prop('owner_', owner),
+    ]);
+  }
+  if (genericStubs) {
+    final none = add('Null', 'null');
+    add('Code', '[Stub] AllocateObjectSlow', [prop('owner_', none)]);
+    add('Code', '[Stub] Allocate Orphan', [prop('owner_', none)]);
   }
   final flatNodes = <int>[];
   final flatEdges = <int>[];
