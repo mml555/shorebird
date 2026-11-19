@@ -43,7 +43,7 @@ Pin a release: pick the newest `selfhost-v*` tag on the
 (older tags cannot install on Linux), and use it for both the script and `--ref`:
 
 ```bash
-TAG=selfhost-v1.2.1
+TAG=selfhost-v2.0.0
 curl -fsSL "https://raw.githubusercontent.com/mml555/shorebird/$TAG/selfhost/scripts/bootstrap_selfhost.sh" \
   -o bootstrap_selfhost.sh
 bash bootstrap_selfhost.sh --root ~/shorebird-selfhost --ref "$TAG" --start-mirror
