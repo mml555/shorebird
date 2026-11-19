@@ -477,8 +477,9 @@ class RouteBSnapshotKept {
 
   /// The classes that can hold an instance whose declared type is one of
   /// [roots] (the profile's class nodes for the declared type): every class
-  /// whose super or interface chain reaches a root, that has a function with
-  /// real code, reaches `Object`, and may be concrete ([_mayBeConcrete]).
+  /// whose super or interface chain reaches a root, reaches `Object`, and is
+  /// either seen allocated or may be concrete ([_mayBeConcrete]) and has a
+  /// function with real code ([_isInstanceClass]).
   ///
   /// The profile does not flag abstract classes. An interface (`List`) or an
   /// abstract base has no code for the members it only declares, and would
@@ -502,8 +503,14 @@ class RouteBSnapshotKept {
     };
   }
 
+  /// A class seen allocated ([_allocated]) is one whether or not it has
+  /// compiled code of its own: a class whose members are all inherited or
+  /// inlined (`CastIterable`, `EfficientLengthMappedIterable`, `Tween`) has
+  /// none, and its instances still take every call its declared types allow.
+  /// Any other class needs own code too, which skips one kept only as a type.
   bool _isInstanceClass(int c) =>
-      _mayBeConcrete(c) && (_hasCode[c] ?? false) && _reachesObject(c);
+      _reachesObject(c) &&
+      (_allocated.contains(c) || (_mayBeConcrete(c) && (_hasCode[c] ?? false)));
 
   /// A HEURISTIC (the profile does not flag abstract classes; #253 takes it
   /// from the release kernel instead). A class may be concrete when it is:
@@ -547,16 +554,11 @@ class RouteBSnapshotKept {
         '${_library[c]}\t${_name[c]}',
   ]..sort();
 
-  /// How many base classes this release is seen to allocate that have real
-  /// code and reach `Object`: the base classes [problemFor] asks because they
-  /// are allocated. Zero would mean the allocation evidence was not read.
+  /// How many base classes this release is seen to allocate that reach
+  /// `Object`: the base classes [problemFor] asks because they are allocated.
+  /// Zero would mean the allocation evidence was not read.
   int get allocatedBaseClassCount => _allocated
-      .where(
-        (c) =>
-            _subtypeEdges.containsKey(c) &&
-            (_hasCode[c] ?? false) &&
-            _reachesObject(c),
-      )
+      .where((c) => _subtypeEdges.containsKey(c) && _reachesObject(c))
       .length;
 
   /// Why this release's snapshot cannot be shown to resolve [selector] for a

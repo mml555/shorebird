@@ -25,8 +25,9 @@ library;
 /// The `dart:` classes the VM gives a fixed class id
 /// (`runtime/vm/class_id.h`), by the names `Object::Init` registers them
 /// under (`runtime/vm/object.cc`, `RegisterClass`/`RegisterPrivateClass`;
-/// names from `runtime/vm/symbol_list.h`). Some are abstract (`int`, `num`);
-/// [routeBSdkAbstractBases] takes precedence.
+/// names from `runtime/vm/symbol_list.h`). Some are abstract in source (`num`,
+/// `int`, `double`, `Function`); [routeBSdkAbstractBases] lists those, and
+/// takes precedence.
 const routeBVmFixedIdClasses = {
   'dart:_internal#FinalizerEntry',
   'dart:async#FutureOr',
@@ -238,4 +239,40 @@ const routeBSdkAbstractBases = {
   'dart:ui#OffsetBase',
   // lib/ui/geometry.dart: abstract class
   'dart:ui#_RRectLike',
+  // The [routeBVmFixedIdClasses] that are abstract in their declaration. A
+  // release with no code on them (1.0.0+70) does not list them among its
+  // stub-less bases, but one that has some (`double.parse`) would otherwise
+  // ask them as concrete, and they have no members of their own to resolve.
+  // sdk/lib/async/future.dart: abstract class
+  'dart:async#FutureOr',
+  // sdk/lib/_internal/vm_shared/lib/compact_hash.dart: abstract class
+  'dart:_compact_hash#_LinkedHashBase',
+  // sdk/lib/core/function.dart: abstract final class
+  'dart:core#Function',
+  // sdk/lib/core/record.dart: abstract final class
+  'dart:core#Record',
+  // sdk/lib/core/type.dart: abstract interface class
+  'dart:core#Type',
+  // sdk/lib/core/double.dart: abstract final class
+  'dart:core#double',
+  // sdk/lib/core/int.dart: abstract final class
+  'dart:core#int',
+  // sdk/lib/core/num.dart: sealed class
+  'dart:core#num',
+  // sdk/lib/_internal/vm/lib/ffi_native_type_patch.dart: abstract final class
+  'dart:ffi#Bool',
+  // sdk/lib/ffi/native_type.dart: abstract final class
+  'dart:ffi#Handle',
+  // sdk/lib/ffi/native_type.dart: abstract final class
+  'dart:ffi#NativeFunction',
+  // sdk/lib/ffi/native_type.dart: abstract final class
+  'dart:ffi#NativeType',
+  // sdk/lib/ffi/native_type.dart: abstract final class
+  'dart:ffi#Void',
+  // sdk/lib/typed_data/typed_data.dart: abstract final class
+  'dart:typed_data#Float32x4',
+  // sdk/lib/typed_data/typed_data.dart: abstract final class
+  'dart:typed_data#Float64x2',
+  // sdk/lib/typed_data/typed_data.dart: abstract final class
+  'dart:typed_data#Int32x4',
 };

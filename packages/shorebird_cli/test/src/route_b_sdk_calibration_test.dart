@@ -105,9 +105,22 @@ void main() {
       }
     }
     expect(routeBSdkMeasuredAccepted, hasLength(94));
-    expect(refused, hasLength(10), reason: why.toString());
+    // A class the release allocates is asked even with no compiled code of
+    // its own: `TickerFuture` (allocated by its stub; `then`, `catchError`,
+    // `timeout` and `whenComplete` tree-shaken) can be any `Future`, and
+    // `ObserverList` (no compiled `iterator`) any `Iterable`.
+    expect(refused, hasLength(19), reason: why.toString());
     expect(refused, {
+      'dart:async#Future#catchError',
+      'dart:async#Future#tearoff:catchError',
+      'dart:async#Future#tearoff:then',
+      'dart:async#Future#tearoff:timeout',
+      'dart:async#Future#tearoff:whenComplete',
+      'dart:async#Future#then',
+      'dart:async#Future#timeout',
+      'dart:async#Future#whenComplete',
       'dart:core#Iterable#get:first',
+      'dart:core#Iterable#get:iterator',
       'dart:core#Iterable#tearoff:toList',
       'dart:core#Iterable#tearoff:toSet',
       'dart:core#Iterable#toList',

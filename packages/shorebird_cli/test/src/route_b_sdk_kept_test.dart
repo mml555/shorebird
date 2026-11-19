@@ -1037,6 +1037,7 @@ callable:
       bool parentAllocated = false,
       bool parentConst = false,
       bool parentHasFirst = false,
+      bool parentHasCode = true,
       bool genericStubs = false,
     }) => RouteBSnapshotKept.fromProfileJson(
       routeBProfile(
@@ -1058,7 +1059,7 @@ callable:
             parent: 'Object',
             ifaces: const ['Iterable'],
             fns: {
-              'get:iterator': '[Optimized] iterator',
+              if (parentHasCode) 'get:iterator': '[Optimized] iterator',
               if (parentHasFirst) 'get:first': '[Optimized] first',
             },
             allocated: parentAllocated,
@@ -1093,6 +1094,21 @@ callable:
     test('is refused when the snapshot holds a const instance of it', () {
       expect(
         problem(profileWith(parentConst: true)),
+        contains('no `get:first` on `MappedIterable`'),
+      );
+    });
+
+    test('is refused when allocated with no compiled code of its own', () {
+      // All its members inherited or inlined (`CastIterable`, `Tween`):
+      // its instances still take the call.
+      final kept = profileWith(parentAllocated: true, parentHasCode: false);
+      expect(problem(kept), contains('no `get:first` on `MappedIterable`'));
+      expect(kept.allocatedBaseClassCount, 1);
+    });
+
+    test('is refused when its only instance is const and it has no code', () {
+      expect(
+        problem(profileWith(parentConst: true, parentHasCode: false)),
         contains('no `get:first` on `MappedIterable`'),
       );
     });
@@ -1185,6 +1201,53 @@ callable:
         }),
       );
       expect(problem(kept), contains('no `get:first` on `Leaf`'));
+    });
+
+    RouteBSnapshotKept codelessLeaf({required bool allocated}) =>
+        RouteBSnapshotKept.fromProfileJson(
+          routeBProfile({
+            'Object': const RouteBProfileClass(
+              'Object',
+              routeBCoreLibrary,
+              fns: {'==': '[Optimized] =='},
+            ),
+            'Iterable': const RouteBProfileClass(
+              'Iterable',
+              routeBCoreLibrary,
+              parent: 'Object',
+            ),
+            'Leaf': RouteBProfileClass(
+              'Leaf',
+              'package:app/a.dart',
+              parent: 'Object',
+              ifaces: const ['Iterable'],
+              allocated: allocated,
+            ),
+          }),
+        );
+
+    test('an allocated leaf with no code of its own is asked', () {
+      // `EfficientLengthMappedIterable`: every member inherited.
+      expect(
+        problem(codelessLeaf(allocated: true)),
+        contains('no `get:first` on `Leaf`'),
+      );
+    });
+
+    test('a leaf with no code and no allocation seen is not asked', () {
+      // Kept only as a type: no instance.
+      expect(problem(codelessLeaf(allocated: false)), isNull);
+    });
+
+    test('a fixed-id class abstract in source is not asked', () {
+      for (final name in ['num', 'int', 'double', 'Function', 'Record']) {
+        expect(routeBVmFixedIdClasses, contains('dart:core#$name'));
+        expect(
+          RouteBSnapshotKept.isVmAllocatedSdkClass('dart:core', name),
+          isFalse,
+          reason: name,
+        );
+      }
     });
 
     group('a profile it cannot read allocations from is unreadable', () {
@@ -1295,8 +1358,14 @@ callable:
         'dart:typed_data#_Uint64ArrayView',
         'dart:typed_data#_Uint8ClampedArrayView',
       });
-      // Every listed abstract base is one of this release's: none is stale.
-      expect(routeBSdkAbstractBases.difference(entries.toSet()), isEmpty);
+      // Every listed abstract base is one of this release's, or one of the
+      // VM's fixed-id classes: none is stale.
+      expect(
+        routeBSdkAbstractBases
+            .difference(entries.toSet())
+            .difference(routeBVmFixedIdClasses),
+        isEmpty,
+      );
     });
   });
 
