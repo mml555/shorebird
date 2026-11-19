@@ -2360,10 +2360,26 @@ callable:
               );
 
               test('--allow-unchecked-sdk-calls skips the SDK-member check '
-                  'against the profile', () async {
-                release(snapshotProfile: profile(hasSplit: false), flag: true);
+                  'against the profile, and does not unlock a member off the '
+                  'list', () async {
+                const offList = {
+                  'kind': 'instance',
+                  'library': 'dart:core',
+                  'class': 'String',
+                  'member': 'notAMeasuredMember',
+                  'private': false,
+                };
+                release(
+                  snapshotProfile: profile(hasSplit: false),
+                  flag: true,
+                  refs: [ref, offList],
+                );
                 await patchAndSwallow();
                 expect(sdkErrors(), isEmpty);
+                expect(
+                  errors.where((m) => m.contains('notAMeasuredMember')),
+                  isNotEmpty,
+                );
                 final metadata = await patcher.updatedPlatformMetadata(
                   CreatePatchPlatformMetadata.forTest(),
                 );
@@ -2415,14 +2431,128 @@ callable:
                 });
 
                 test('is still refused under --allow-unchecked-sdk-calls when '
-                    'the release uploaded no profile', () async {
+                    'the release uploaded no profile, and says why', () async {
                   release(flag: true, refs: [starsRef]);
+                  await patchAndSwallow();
+                  expect(
+                    starsErrors().single,
+                    allOf(
+                      contains('the extension member `$stars`'),
+                      contains('uploaded no route_b_snapshot_profile'),
+                      contains('cannot be checked'),
+                    ),
+                  );
+                });
+
+                test('a profile that is not the one the release recorded '
+                    "(another release's) is refused under "
+                    '--allow-unchecked-sdk-calls before anything is '
+                    'checked', () async {
+                  // The release's provenance check refuses the mismatched
+                  // artifact itself, so the profile never vouches for it.
+                  release(
+                    snapshotProfile: profileWithStars(),
+                    profileDigest: 'ab' * 32,
+                    flag: true,
+                    refs: [starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(
+                    errors.single,
+                    contains(
+                      'route_b_snapshot_profile.json does not match the hash',
+                    ),
+                  );
+                });
+
+                test('is still refused under --allow-unchecked-sdk-calls when '
+                    'the profile is unreadable', () async {
+                  release(
+                    snapshotProfile: 'not a profile',
+                    flag: true,
+                    refs: [starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(
+                    starsErrors().single,
+                    allOf(
+                      contains('the extension member `$stars`'),
+                      contains('is unreadable'),
+                    ),
+                  );
+                });
+
+                test('is still refused under --allow-unchecked-sdk-calls when '
+                    'the profile has only a lazy-compile stub', () async {
+                  release(
+                    snapshotProfile: profile(
+                      hasSplit: false,
+                      more: {
+                        'top': const RouteBProfileClass(
+                          '::',
+                          'package:app/main.dart',
+                          fns: {stars: '[Stub] CompileFunction'},
+                        ),
+                      },
+                    ),
+                    flag: true,
+                    refs: [starsRef],
+                  );
                   await patchAndSwallow();
                   expect(
                     starsErrors().single,
                     contains('the extension member `$stars`'),
                   );
                 });
+
+                test('a private one is still refused under '
+                    '--allow-unchecked-sdk-calls', () async {
+                  const private = '_Stars|get#stars';
+                  release(
+                    snapshotProfile: profile(
+                      hasSplit: false,
+                      more: {
+                        'top': const RouteBProfileClass(
+                          '::',
+                          'package:app/main.dart',
+                          fns: {private: '[Optimized] $private'},
+                        ),
+                      },
+                    ),
+                    flag: true,
+                    refs: [
+                      {...starsRef, 'member': private, 'private': true},
+                    ],
+                  );
+                  await patchAndSwallow();
+                  expect(
+                    errors.where((m) => m.contains(private)).single,
+                    contains('the extension member `$private`'),
+                  );
+                });
+              });
+
+              test('under --allow-unchecked-sdk-calls a readable profile '
+                  'that lacks a bare dart:core class still refuses it (the '
+                  'loader aborts on a missing class)', () async {
+                const numRef = {
+                  'kind': 'class',
+                  'library': 'dart:core',
+                  'class': 'num',
+                  'member': null,
+                  'private': false,
+                };
+                // `profile` holds Object and String in dart:core, not num.
+                release(
+                  snapshotProfile: profile(hasSplit: true),
+                  flag: true,
+                  refs: [numRef],
+                );
+                await patchAndSwallow();
+                expect(
+                  errors.where((m) => m.contains('`num`')),
+                  isNotEmpty,
+                );
               });
             });
 

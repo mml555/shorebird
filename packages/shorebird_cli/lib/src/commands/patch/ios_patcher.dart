@@ -671,11 +671,16 @@ A patch is only interpretable against one whole contract, so these cannot be mix
     RouteBReleaseProvenance provenance,
   ) {
     // The release's own snapshot profile says which `dart:` instance members
-    // it kept, and which extension getters and setters (`Ext|get#x`, which no
-    // interface lists) its own code called. It is read even under
-    // --allow-unchecked-sdk-calls: that flag skips the SDK-member check only
-    // (`skipKeptCheck`), and an extension member still needs the profile to be
-    // shown kept, so dropping it would refuse every one of them.
+    // it kept, which extension getters and setters (`Ext|get#x`, which no
+    // interface lists) its own code called, and whether it holds a bare
+    // `dart:core` class (`num`, `Null`) a patch names as a type. It is read
+    // even under --allow-unchecked-sdk-calls: that flag skips the SDK
+    // instance-member check only (`skipKeptCheck`). The other two still ask
+    // the profile, and fail closed: a missing or unreadable profile refuses
+    // an extension member (with the reason; one that does not match the
+    // release's recorded hash is refused before this, by the provenance
+    // check), and a readable one that lacks a predefined class refuses it,
+    // since the loader would abort on it ("Unable to find class").
     final kept = RouteBSnapshotKept.read(
       releaseArtifacts[routeBSnapshotProfileFileName],
       expectedSha256: provenance.artifacts[routeBSnapshotProfileFileName],
