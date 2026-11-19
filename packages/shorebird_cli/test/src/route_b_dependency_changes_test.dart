@@ -8,6 +8,8 @@ import 'package:shorebird_cli/src/route_b_dependency_changes.dart';
 import 'package:shorebird_cli/src/route_b_retention.dart';
 import 'package:test/test.dart';
 
+import 'helpers.dart';
+
 RouteBCoverage _coverage({
   List<String> changed = const [],
   List<String> removed = const [],
@@ -27,6 +29,8 @@ RouteBCoverage _coverage({
 );
 
 void main() {
+  useTempWorkingDirectory();
+
   group('readRouteBPackages', () {
     late Directory root;
     late Directory flutter;
@@ -287,6 +291,50 @@ void main() {
       expect(message, contains('package:tally/t#t1'));
       expect(message, isNot(contains('package:tally/t#t2')));
       expect(message, contains('  ... and 2 more'));
+    });
+  });
+
+  group('below declaration analysis', () {
+    test('names every dependency but the app and the Flutter SDK', () {
+      const packages = RouteBPackages(
+        packages: {
+          'untab': RouteBPackage(
+            name: 'untab',
+            source: RouteBPackageSource.path,
+          ),
+          'tally': RouteBPackage(
+            name: 'tally',
+            source: RouteBPackageSource.path,
+          ),
+          'collection': RouteBPackage(
+            name: 'collection',
+            source: RouteBPackageSource.hosted,
+          ),
+        },
+        flutterSdk: {'flutter'},
+      );
+      expect(routeBDependencyNames(packages, appPackageName: 'untab'), [
+        'collection',
+        'tally',
+      ]);
+    });
+
+    test('refuses naming at most the limit of them', () {
+      final message = describeRouteBUncheckedDependencies(
+        [for (var i = 0; i < 4; i++) 'p$i'],
+        analysisVersion: 13,
+        appPackageName: 'untab',
+        limit: 3,
+      );
+      expect(
+        message,
+        allOf(
+          contains('predates analysis version 14 (it has 13)'),
+          contains('Packages it cannot check: p0, p1, p2 and 1 more\n'),
+          contains('Ship this change in a new release'),
+          endsWith('Nothing was uploaded.'),
+        ),
+      );
     });
   });
 

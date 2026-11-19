@@ -2149,9 +2149,10 @@ This may indicate that the patch contains native changes, which cannot be applie
                 List<String> removed = const [],
                 List<Map<String, Object>> rejections = const [],
                 String? verdict,
+                int analysisVersion = routeBDeclarationsAnalysisVersion,
               }) => RouteBCoverage.fromJson(
                 jsonEncode({
-                  'analysisVersion': supportedRouteBAnalysisVersion,
+                  'analysisVersion': analysisVersion,
                   'verdict':
                       verdict ?? (rejections.isEmpty ? 'accept' : 'reject'),
                   'changed': changed,
@@ -2526,6 +2527,61 @@ This may indicate that the patch contains native changes, which cannot be applie
                   );
                 },
               );
+
+              test('refuses below analysis 14, which cannot see a changed '
+                  'dependency const, when there are dependencies', () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    analysisVersion: routeBDeclarationsAnalysisVersion - 1,
+                  ),
+                );
+                final message = await refusal();
+                expect(
+                  message,
+                  allOf(
+                    contains('cannot check its dependencies'),
+                    contains('predates analysis version 14 (it has 13)'),
+                    contains(
+                      'Packages it cannot check: collection, flutter_gen, '
+                      'forked, tally',
+                    ),
+                    contains('Nothing was uploaded.'),
+                  ),
+                );
+                verifyNever(
+                  () => routeBProducer.produce(
+                    compiler: any(named: 'compiler'),
+                    coverage: any(named: 'coverage'),
+                    releaseImportKernel: any(named: 'releaseImportKernel'),
+                    releaseBuildId: any(named: 'releaseBuildId'),
+                    workingDirectory: any(named: 'workingDirectory'),
+                    projectRoot: any(named: 'projectRoot'),
+                    capabilities: any(named: 'capabilities'),
+                    buildConfig: any(named: 'buildConfig'),
+                    survival: any(named: 'survival'),
+                    releaseEvidence: any(named: 'releaseEvidence'),
+                  ),
+                );
+              });
+
+              test('below analysis 14, an app with no dependencies outside '
+                  'the Flutter SDK still patches', () async {
+                writePackageConfig(projectRoot, {
+                  'app': '../',
+                  'flutter': p
+                      .toUri(p.join(flutterDir.path, 'packages', 'flutter'))
+                      .toString(),
+                });
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    analysisVersion: routeBDeclarationsAnalysisVersion - 1,
+                  ),
+                );
+                await patch();
+                verifyNever(
+                  () => logger.err(any(that: contains('cannot check'))),
+                );
+              });
 
               test('refuses, rather than skipping the check, without a '
                   'package config', () async {

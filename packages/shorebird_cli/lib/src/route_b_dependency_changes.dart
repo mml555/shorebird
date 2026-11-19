@@ -240,6 +240,39 @@ Map<String, List<RouteBDependencyChange>> routeBDependencyChanges(
   };
 }
 
+/// The packages a patch build could have edited: every package of [packages]
+/// but the app's own and the Flutter SDK's, sorted.
+List<String> routeBDependencyNames(
+  RouteBPackages packages, {
+  required String appPackageName,
+}) => [
+  for (final name in packages.packages.keys)
+    if (name != appPackageName) name,
+]..sort();
+
+/// The refusal for a release whose analyzer predates declaration checks
+/// ([routeBDeclarationsAnalysisVersion]), so it cannot tell that none of
+/// [dependencies] changed. Names at most [limit] of them.
+String describeRouteBUncheckedDependencies(
+  List<String> dependencies, {
+  required int analysisVersion,
+  required String appPackageName,
+  int limit = 20,
+}) {
+  final shown = dependencies.take(limit).join(', ');
+  final more = dependencies.length > limit
+      ? ' and ${dependencies.length - limit} more'
+      : '';
+  return '''
+This patch cannot check its dependencies: this release's compiler cell predates analysis version $routeBDeclarationsAnalysisVersion (it has $analysisVersion), so it cannot see an edited constant, field, constructor or class header outside the app's own package ($appPackageName).
+
+Packages it cannot check: $shown$more
+
+An iOS patch replaces functions of package:$appPackageName only, so such an edit would be left out of the patch without a word. Ship this change in a new release, which uses a newer cell.
+
+Nothing was uploaded.''';
+}
+
 /// The refusal for [changes], listing at most [limit] members.
 String describeRouteBDependencyChanges(
   Map<String, List<RouteBDependencyChange>> changes, {

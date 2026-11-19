@@ -896,15 +896,36 @@ Run `flutter pub get` and try again. Nothing was uploaded.''');
       appPackageName: packageName,
       flutterSdk: packages.flutterSdk,
     );
-    if (changes.isEmpty) return;
-    logger.err(
-      describeRouteBDependencyChanges(
-        changes,
-        packages: packages,
-        appPackageName: packageName,
-      ),
+    if (changes.isNotEmpty) {
+      logger.err(
+        describeRouteBDependencyChanges(
+          changes,
+          packages: packages,
+          appPackageName: packageName,
+        ),
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+    // BELOW ANALYSIS 14 AN EMPTY RESULT PROVES NOTHING. Such a cell compares
+    // method bodies only, so an edited `const`, field, constructor or class
+    // header in a dependency reads as no change. In the app that is a warning
+    // (below); here it would be the same silent drop this pass exists to
+    // prevent, so any package the patch could have edited refuses.
+    final dependencies = routeBDependencyNames(
+      packages,
+      appPackageName: packageName,
     );
-    throw ProcessExit(ExitCode.software.code);
+    if (coverage.analysisVersion < routeBDeclarationsAnalysisVersion &&
+        dependencies.isNotEmpty) {
+      logger.err(
+        describeRouteBUncheckedDependencies(
+          dependencies,
+          analysisVersion: coverage.analysisVersion,
+          appPackageName: packageName,
+        ),
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
   }
 
   /// Refuse the WHOLE patch, naming every target that cannot be carried.
