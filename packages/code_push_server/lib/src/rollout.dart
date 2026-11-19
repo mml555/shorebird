@@ -1,3 +1,4 @@
+// cspell:words tzdata
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
