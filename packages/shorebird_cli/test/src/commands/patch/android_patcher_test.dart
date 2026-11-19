@@ -1,3 +1,4 @@
+// cspell:words allprojects librust posthog
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
@@ -175,6 +176,15 @@ void main() {
       });
     });
 
+    group('supplementaryReleaseArtifactArch', () {
+      test('is "android_supplement"', () {
+        expect(
+          patcher.supplementaryReleaseArtifactArch,
+          equals('android_supplement'),
+        );
+      });
+    });
+
     group('assertPreconditions', () {
       setUp(() {
         when(
@@ -332,12 +342,90 @@ void main() {
             args: any(named: 'args'),
             base64PublicKey: any(named: 'base64PublicKey'),
             ddMaxBytes: any(named: 'ddMaxBytes'),
+            releaseSupplementDir: any(named: 'releaseSupplementDir'),
           ),
         ).thenAnswer((_) async => aabFile);
       });
 
-      // See https://github.com/shorebirdtech/updater/issues/211
-      group('when flutter version contains updater issue 211', () {
+      group('when the release has a supplement', () {
+        late Directory releaseSupplementDirectory;
+
+        setUp(() {
+          setUpProjectRootArtifacts();
+          releaseSupplementDirectory = Directory.systemTemp.createTempSync();
+          final abiDir = p.join(releaseSupplementDirectory.path, 'arm64-v8a');
+          File(p.join(abiDir, 'App.ref.link'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync('order');
+          File(
+            p.join(releaseSupplementDirectory.path, 'obfuscation_map.json'),
+          ).createSync();
+          patcher.releaseSupplementDirectory = releaseSupplementDirectory;
+        });
+
+        test('builds against a stable copy of its object order', () async {
+          await runWithOverrides(patcher.buildPatchArtifact);
+
+          final staged = p.join(
+            projectRoot.path,
+            'build',
+            'android',
+            'shorebird_release',
+          );
+          verify(
+            () => artifactBuilder.buildAppBundle(
+              flavor: any(named: 'flavor'),
+              target: any(named: 'target'),
+              targetPlatforms: any(named: 'targetPlatforms'),
+              args: any(named: 'args'),
+              base64PublicKey: any(named: 'base64PublicKey'),
+              releaseSupplementDir: staged,
+            ),
+          ).called(1);
+          expect(
+            File(
+              p.join(staged, 'arm64-v8a', 'App.ref.link'),
+            ).readAsStringSync(),
+            'order',
+          );
+          expect(Directory(staged).listSync(), hasLength(1));
+        });
+      });
+
+      group('when the release supplement has no App.ref.link', () {
+        setUp(() {
+          setUpProjectRootArtifacts();
+          final supplement = Directory.systemTemp.createTempSync();
+          File(
+            p.join(supplement.path, 'arm64-v8a', 'other.link'),
+          ).createSync(recursive: true);
+          patcher.releaseSupplementDirectory = supplement;
+        });
+
+        test('builds as before, with no supplement directory', () async {
+          await runWithOverrides(patcher.buildPatchArtifact);
+
+          verify(
+            () => artifactBuilder.buildAppBundle(
+              flavor: any(named: 'flavor'),
+              target: any(named: 'target'),
+              targetPlatforms: any(named: 'targetPlatforms'),
+              args: any(named: 'args'),
+              base64PublicKey: any(named: 'base64PublicKey'),
+              // releaseSupplementDir omitted: it must be null.
+            ),
+          ).called(1);
+          expect(
+            Directory(
+              p.join(projectRoot.path, 'build', 'android', 'shorebird_release'),
+            ).existsSync(),
+            isFalse,
+          );
+        });
+      });
+
+      // See https://docs.shorebird.dev/getting-started/flutter-version/#flutter-version-notes
+      group('when flutter version has the patch uninstall issue', () {
         setUp(() {
           setUpProjectRootArtifacts();
           when(
@@ -357,7 +445,7 @@ void main() {
         });
       });
 
-      group('when flutter version does not contain updater issue 211', () {
+      group('when flutter version does not have the patch uninstall issue', () {
         setUp(setUpProjectRootArtifacts);
 
         group('when on the fixed Flutter 3.24.1 revision', () {
@@ -626,7 +714,7 @@ void main() {
       group('when releaseVersion is provided', () {
         setUp(setUpProjectRootArtifacts);
 
-        test('forwards --build-name and --build-number to builder', () async {
+        test('passes only --build-name and --build-number', () async {
           await runWithOverrides(
             () => patcher.buildPatchArtifact(releaseVersion: '1.2.3+4'),
           );
@@ -634,10 +722,10 @@ void main() {
             () => artifactBuilder.buildAppBundle(
               flavor: any(named: 'flavor'),
               target: any(named: 'target'),
-              args: any(
-                named: 'args',
-                that: containsAll(['--build-name=1.2.3', '--build-number=4']),
-              ),
+              // Exactly these: every arg goes to `flutter build appbundle`,
+              // whose parser rejects anything it doesn't know (shorebird#4406
+              // added Gradle's --init-script here and broke every patch).
+              args: ['--build-name=1.2.3', '--build-number=4'],
             ),
           ).called(1);
         });

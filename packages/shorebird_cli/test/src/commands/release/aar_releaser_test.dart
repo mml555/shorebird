@@ -10,6 +10,7 @@ import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
+import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/commands/release/aar_releaser.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
@@ -19,6 +20,7 @@ import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/shorebird_android_artifacts.dart';
+import 'package:shorebird_cli/src/shorebird_command.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
@@ -102,6 +104,10 @@ void main() {
       shorebirdFlutter = MockShorebirdFlutter();
       shorebirdValidator = MockShorebirdValidator();
       shorebirdAndroidArtifacts = MockShorebirdAndroidArtifacts();
+
+      when(
+        () => shorebirdFlutter.getVersion(),
+      ).thenAnswer((_) async => minimumModuleReleaseVersionFlutterVersion);
 
       when(() => argResults['build-number']).thenReturn(buildNumber);
       when(
@@ -261,7 +267,8 @@ void main() {
               exitsWithError(
                 message:
                     'An aar release needs --release-version: the version of '
-                    'the Android app that embeds this module.',
+                    'this module build, a new one for each build you '
+                    'release.',
                 hint:
                     'Run: shorebird release aar '
                     '--release-version=$releaseVersionExample',
@@ -298,6 +305,82 @@ void main() {
       });
     });
 
+    group('assertReleaseVersionCanBeBuiltIn', () {
+      group('with a Flutter that builds the version in', () {
+        group('when release-version has a character the updater rejects', () {
+          setUp(() {
+            when(() => argResults['release-version']).thenReturn('1.0 beta');
+          });
+
+          test('exits naming the allowed characters', () async {
+            await expectLater(
+              () => runWithOverrides(
+                aarReleaser.assertReleaseVersionCanBeBuiltIn,
+              ),
+              exitsWithError(
+                message:
+                    '--release-version "1.0 beta" can only use letters, '
+                    'digits, ".", "_", "+" and "-", up to 128 characters.',
+                hint:
+                    'Run: shorebird release aar '
+                    '--release-version=$releaseVersionExample',
+              ),
+            );
+          });
+        });
+
+        group('when release-version is longer than 128 characters', () {
+          setUp(() {
+            when(() => argResults['release-version']).thenReturn('1' * 129);
+          });
+
+          test('exits', () async {
+            await expectLater(
+              () => runWithOverrides(
+                aarReleaser.assertReleaseVersionCanBeBuiltIn,
+              ),
+              throwsA(isA<CommandError>()),
+            );
+          });
+        });
+
+        group('when release-version is valid', () {
+          setUp(() {
+            when(() => argResults['release-version']).thenReturn(' 1.0.0+1 ');
+          });
+
+          test('completes', () async {
+            await expectLater(
+              runWithOverrides(aarReleaser.assertReleaseVersionCanBeBuiltIn),
+              completes,
+            );
+          });
+        });
+      });
+
+      for (final (description, version) in [
+        ('an earlier Flutter', Version(3, 47, 8)),
+        ('a Flutter version that cannot be read', null),
+      ]) {
+        group('with $description', () {
+          setUp(() {
+            when(
+              () => shorebirdFlutter.getVersion(),
+            ).thenAnswer((_) async => version);
+            // The host app's versionName, which can be free text.
+            when(() => argResults['release-version']).thenReturn('1.0 beta');
+          });
+
+          test('accepts any release-version', () async {
+            await expectLater(
+              runWithOverrides(aarReleaser.assertReleaseVersionCanBeBuiltIn),
+              completes,
+            );
+          });
+        });
+      }
+    });
+
     group('buildReleaseArtifacts', () {
       void setUpProjectRootArtifacts() {
         final aarDir = p.join(
@@ -328,8 +411,10 @@ void main() {
 
       setUp(() {
         when(() => argResults['artifact']).thenReturn('apk');
+        when(() => argResults['release-version']).thenReturn(' 1.0.0+1 ');
         when(
           () => artifactBuilder.buildAar(
+            releaseVersion: any(named: 'releaseVersion'),
             buildNumber: any(named: 'buildNumber'),
             targetPlatforms: any(named: 'targetPlatforms'),
             args: any(named: 'args'),
@@ -337,6 +422,27 @@ void main() {
         ).thenAnswer((_) async => File(''));
 
         setUpProjectRootArtifacts();
+      });
+
+      group('when release-version is not accepted by the updater', () {
+        setUp(() {
+          when(() => argResults['release-version']).thenReturn('1.0 beta');
+        });
+
+        test('exits before building', () async {
+          await expectLater(
+            () => runWithOverrides(aarReleaser.buildReleaseArtifacts),
+            throwsA(isA<CommandError>()),
+          );
+          verifyNever(
+            () => artifactBuilder.buildAar(
+              releaseVersion: any(named: 'releaseVersion'),
+              buildNumber: any(named: 'buildNumber'),
+              targetPlatforms: any(named: 'targetPlatforms'),
+              args: any(named: 'args'),
+            ),
+          );
+        });
       });
 
       group('when build succeeds', () {
@@ -353,6 +459,7 @@ void main() {
             expect(aar.path, p.join(projectRoot.path, 'release'));
             verify(
               () => artifactBuilder.buildAar(
+                releaseVersion: any(named: 'releaseVersion'),
                 buildNumber: buildNumber,
                 targetPlatforms: Arch.values.toSet(),
                 args: ['--verbose'],
@@ -369,6 +476,7 @@ void main() {
           expect(aar.path, p.join(projectRoot.path, 'release'));
           verify(
             () => artifactBuilder.buildAar(
+              releaseVersion: '1.0.0+1',
               buildNumber: buildNumber,
               targetPlatforms: Arch.values.toSet(),
               args: [],
@@ -395,6 +503,7 @@ void main() {
 
             when(
               () => artifactBuilder.buildAar(
+                releaseVersion: any(named: 'releaseVersion'),
                 buildNumber: any(named: 'buildNumber'),
                 targetPlatforms: any(named: 'targetPlatforms'),
                 args: any(named: 'args'),
@@ -415,6 +524,7 @@ void main() {
 
               verify(
                 () => artifactBuilder.buildAar(
+                  releaseVersion: any(named: 'releaseVersion'),
                   buildNumber: buildNumber,
                   targetPlatforms: any(named: 'targetPlatforms'),
                   args: any(named: 'args'),
@@ -445,6 +555,7 @@ void main() {
             // Simulate the build creating the obfuscation map.
             when(
               () => artifactBuilder.buildAar(
+                releaseVersion: any(named: 'releaseVersion'),
                 buildNumber: any(named: 'buildNumber'),
                 targetPlatforms: any(named: 'targetPlatforms'),
                 args: any(named: 'args'),
@@ -467,6 +578,7 @@ void main() {
 
             final captured = verify(
               () => artifactBuilder.buildAar(
+                releaseVersion: any(named: 'releaseVersion'),
                 buildNumber: any(named: 'buildNumber'),
                 targetPlatforms: any(named: 'targetPlatforms'),
                 args: captureAny(named: 'args'),
@@ -591,6 +703,23 @@ void main() {
             ),
             extractedAarDir: Directory('path').path,
             architectures: Arch.values,
+          ),
+        ).called(1);
+      });
+
+      test('extracts the aar checking each entry', () async {
+        await runWithOverrides(
+          () => aarReleaser.uploadReleaseArtifacts(
+            release: release,
+            appId: appId,
+          ),
+        );
+
+        verify(
+          () => shorebirdAndroidArtifacts.extractAar(
+            packageName: any(named: 'packageName'),
+            buildNumber: any(named: 'buildNumber'),
+            unzipFn: extractVerifiedZip,
           ),
         ).called(1);
       });

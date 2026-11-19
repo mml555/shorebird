@@ -45,6 +45,24 @@ note() { echo; echo "==> $*"; }
 [ -x "$DART" ] || die "no host dart at $DART"
 [ -f "$ANALYZER" ] || die "no analyzer at $ANALYZER — run build_route_b_analyzer.sh"
 [ -f "$CLI_PKGS" ] || die "no package config at $CLI_PKGS; run dart pub get at the repo root"
+# The CLI parser this harness checks the analysis against must be THIS tree's.
+# A CLI_PKGS from another checkout resolves shorebird_cli there, and an older
+# parser then fails every case with "speaks version N, and this build of
+# Shorebird understands ...", which reads like an analyzer bug.
+# rootUris are URIs, so a space in the path arrives as %20 and is unquoted.
+cli_root=$(python3 -c '
+import json, os, sys
+from urllib.parse import unquote, urlparse
+cfg = sys.argv[1]
+for p in json.load(open(cfg))["packages"]:
+    if p["name"] == "shorebird_cli":
+        u = p["rootUri"]
+        path = unquote(urlparse(u).path) if u.startswith("file:") else os.path.join(os.path.dirname(cfg), unquote(u))
+        print(os.path.realpath(path)); break
+' "$CLI_PKGS") || die "cannot read shorebird_cli from the package config at $CLI_PKGS"
+want_root=$(cd "$REPO/packages/shorebird_cli" && pwd -P)
+[ "$cli_root" = "$want_root" ] \
+  || die "CLI_PKGS resolves shorebird_cli to ${cli_root:-nothing}, not this tree's $want_root; copy the package config into $REPO/.dart_tool (its rootUris are relative) or run dart pub get there"
 
 CASES=("$@")
 if [ ${#CASES[@]} -eq 0 ]; then
@@ -96,6 +114,29 @@ JSON
   # ---- analyzer (the artifact that ships in the cell) ------------------
   "$AOT_RUNTIME" "$ANALYZER" --base-dill "$W/base.dill" \
     --patched-dill "$W/patched.dill" --out "$W/analysis.json"
+
+  # ---- the release check's shape ----------------------------------------
+  # At release time the CLI runs the analyzer with the release's IMPORT kernel
+  # as the base (route_b_release_kernels.dart, agreesWith), and that kernel is
+  # built --no-aot --no-link-platform: every SDK class in it is a reference
+  # with no class behind it. The --aot kernels above link the platform, so
+  # they never asked the analyzer to cope with that, and v14 shipped crashing on
+  # `dart:core::Object` there (an iPhone release, and 15 of these 19 cases).
+  # Completing is the whole check here.
+  cp "$CASE_SRC/base.dart" "$W/lib/main.dart"
+  ( cd "$W" && "$DART" "$GEN_KERNEL" --platform "$OUT/vm_platform.dill" \
+      --no-aot --no-link-platform --packages .dart_tool/package_config.json \
+      -o "$W/base_import.dill" package:corpus/main.dart >/dev/null 2>&1 ) \
+    || die "$case_name: base import kernel failed"
+  if ! "$AOT_RUNTIME" "$ANALYZER" --base-dill "$W/base_import.dill" \
+      --patched-dill "$W/base.dill" --out "$W/release_check.json" \
+      > "$W/release_check.log" 2>&1; then
+    echo "  FAIL  the analyzer failed on the release check's unlinked import kernel"
+    # One process, no pipe: `| head` would SIGPIPE sed on a long trace, and
+    # under set -e with pipefail that ends the whole run.
+    sed -n '1,8s/^/        /p' "$W/release_check.log"
+    fail=$((fail+1)); failed_cases+=("$case_name"); continue
+  fi
 
   # ---- cli parser ------------------------------------------------------
   set +e

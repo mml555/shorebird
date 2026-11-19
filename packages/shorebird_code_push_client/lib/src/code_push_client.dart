@@ -645,6 +645,33 @@ class CodePushClient {
     return CreatePatchResponse.fromJson(body);
   }
 
+  /// Records a `shorebird release` or `shorebird patch` run of the app with
+  /// the provided [appId] in its build history.
+  Future<CreateBuildRunResponse> createBuildRun({
+    required String appId,
+    required CreateBuildRunRequest request,
+  }) async {
+    final response = await _httpClient.post(
+      Uri.parse('$_v1/apps/$appId/runs'),
+      body: json.encode(request.toJson()),
+    );
+
+    if (!response.isSuccess) {
+      throw _parseErrorResponse(response.statusCode, response.body);
+    }
+
+    return CreateBuildRunResponse.fromJson(
+      json.decode(response.body) as Map<String, dynamic>,
+    );
+  }
+
+  /// Uploads the file at [path] to [upload], the session the server opened
+  /// for one of a run's artifacts in [CreateBuildRunResponse.artifactUploads].
+  Future<void> uploadRunArtifact({
+    required RunArtifactUpload upload,
+    required String path,
+  }) => _resumableUpload(sessionUri: upload.uploadUrl, artifactPath: path);
+
   /// Create a new release for the app with the provided [appId].
   Future<Release> createRelease({
     required String appId,
@@ -919,14 +946,68 @@ class CodePushClient {
   }
 
   /// Promote the [patchId] to the [channelId].
+  ///
+  /// Promoting starts a new rollout on the channel at [rolloutPercentage], a
+  /// multiple of 0.01 from 0.01 to 100. When it is omitted the server rolls
+  /// the patch out to every device on the channel.
+  ///
+  /// [rolloutSteps] instead starts a timed rollout schedule, which the server
+  /// advances through on its own. It holds each step for its duration, and
+  /// holds over weekends in [rolloutTimezone] when [rolloutPauseWeekends] is
+  /// set. Schedules and [rolloutPercentage] are mutually exclusive, and the
+  /// server answers 403 when the app's plan does not include schedules.
   Future<void> promotePatch({
     required String appId,
     required int patchId,
     required int channelId,
+    double? rolloutPercentage,
+    List<RolloutStep>? rolloutSteps,
+    bool? rolloutPauseWeekends,
+    String? rolloutTimezone,
   }) async {
     final response = await _httpClient.post(
       Uri.parse('$_v1/apps/$appId/patches/promote'),
-      body: json.encode({'patch_id': patchId, 'channel_id': channelId}),
+      body: json.encode(
+        PromotePatchRequest(
+          patchId: patchId,
+          channelId: channelId,
+          rolloutPercentage: rolloutPercentage,
+          rolloutSteps: rolloutSteps,
+          rolloutPauseWeekends: rolloutPauseWeekends,
+          rolloutTimezone: rolloutTimezone,
+        ).toJson(),
+      ),
+    );
+
+    if (!response.isSuccess) {
+      throw _parseErrorResponse(response.statusCode, response.body);
+    }
+  }
+
+  /// Raises the share of its channel's devices that the patch with [patchId]
+  /// under [releaseId] for [appId] is offered to, to a
+  /// [SetPatchRolloutPercentageRequest]'s percentage, or puts it on a
+  /// [SetPatchRolloutScheduleRequest]'s timed rollout schedule.
+  ///
+  /// Rollouts only go up: the server answers 409 when the new percentage, or
+  /// a schedule's first step, is lower than the current one, and when the
+  /// patch is on no channel. Setting the current percentage again succeeds
+  /// and changes nothing.
+  ///
+  /// A schedule holds each step for its duration, and holds over weekends in
+  /// its timezone when it pauses on weekends. The server answers
+  /// 403 when the app's plan does not include schedules.
+  Future<void> setPatchRollout({
+    required String appId,
+    required int releaseId,
+    required int patchId,
+    required SetPatchRolloutRequest request,
+  }) async {
+    final response = await _httpClient.put(
+      Uri.parse(
+        '$_v1/apps/$appId/releases/$releaseId/patches/$patchId/rollout',
+      ),
+      body: json.encode(request.toJson()),
     );
 
     if (!response.isSuccess) {

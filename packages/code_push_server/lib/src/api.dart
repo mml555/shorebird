@@ -8,7 +8,7 @@ import 'package:code_push_server/src/artifact_store.dart';
 import 'package:code_push_server/src/audit.dart';
 import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/content_range.dart';
-import 'package:code_push_server/src/db.dart' show asDbBool;
+import 'package:code_push_server/src/db.dart' show asDbBool, isUniqueViolation;
 import 'package:code_push_server/src/domain.dart';
 import 'package:code_push_server/src/oauth.dart';
 import 'package:code_push_server/src/observability.dart';
@@ -1009,6 +1009,25 @@ class Api {
           rest[2] == 'patches' &&
           m == 'GET') {
         return _getReleasePatches(appId, _pathId(rest[1], 'release id'));
+      }
+      // Upstream 1.6.140 `shorebird patches rollout`.
+      if (rest.length == 5 &&
+          rest[0] == 'releases' &&
+          rest[2] == 'patches' &&
+          rest[4] == 'rollout' &&
+          m == 'PUT') {
+        return _setPatchRollout(
+          req,
+          appId,
+          _pathId(rest[1], 'release id'),
+          _pathId(rest[3], 'patch id'),
+        );
+      }
+      // Upstream 1.6.140 build history: the CLI records each release and
+      // patch run here.
+      if (rest.length == 1 && rest[0] == 'runs') {
+        if (m == 'POST') return _createBuildRun(req, appId);
+        if (m == 'GET') return _getBuildRuns(req, appId);
       }
       // Upstream 1.6.123 `shorebird patches rollback` / `rollforward`.
       if (rest.length == 5 &&
@@ -2153,7 +2172,7 @@ class Api {
         'patch_id': r.patchId,
         'number': r.number,
         'channel': channel,
-        'rollout': r.rollout,
+        'rollout': percentageOf(r.rolloutBps),
       });
       await _auditDetail(
         req,
@@ -2162,7 +2181,7 @@ class Api {
         patchId: r.patchId,
         detail:
             'patch ${r.number} active again on $channel '
-            '(rollout ${r.rollout}) after patch ${patch.number} was rolled back',
+            '(rollout ${percentageOf(r.rolloutBps)}) after patch ${patch.number} was rolled back',
       );
     }
     return out;
@@ -2244,6 +2263,29 @@ class Api {
     final hash = _requiredField(fields, 'hash');
     final signing = await _parseSigning(fields['signing'], appId);
     _audit(req)?.note(detail: {'arch': arch, 'platform': platform});
+    // Upstream 1.6.144 builds Windows x64 and arm64 on separate machines and
+    // adds the second to the release. Devices verify patches against the key
+    // the platform's build embeds, and a patch is signed once per platform,
+    // so an architecture signed differently from the live ones would leave
+    // its patches unverifiable. Refused before anything is stored.
+    if (signing != null && release.lifecycle == ReleaseLifecycle.ready) {
+      final other = await repo.releaseSigningOf(
+        releaseId,
+        platform: platform,
+        exceptArch: arch,
+      );
+      if (other != null &&
+          (other.mode != signing.mode || other.keyId != signing.keyId)) {
+        throw DomainException(
+          409,
+          'release_artifacts_create_conflicting_signing',
+          'Release $releaseId is already active on $platform, signed '
+              '${_signingLabel(other)}; the $arch build is signed '
+              '${_signingLabel(signing)}. Every architecture of a platform must be '
+              'signed the same way: build it with the same patch signing key.',
+        );
+      }
+    }
     final existing = await repo.existingArtifact(
       'release',
       releaseId,
@@ -2307,6 +2349,9 @@ class Api {
     return _json(_registerJson(art, releaseKey: true));
   }
 
+  /// The architectures `shorebird patch windows` builds a patch for.
+  static const _windowsCodeArches = ['x86_64', 'aarch64'];
+
   Future<Response> _createPatchArtifact(
     Request req,
     String appId,
@@ -2317,13 +2362,31 @@ class Api {
     // A promoted patch's artifact set is frozen. Re-opening it to `uploading`
     // would stop `patches/check` serving it (it requires `ready`), silently
     // unserving every device mid-rollout until the new arch finished.
-    if (await repo.patchIsPromoted(patchId)) {
-      throw conflict(
-        'Patch $patchId has already been promoted; artifacts can no longer be '
-        'added. Create a new patch instead.',
+    //
+    // The one exception is upstream 1.6.144's `shorebird patch windows
+    // --add-to-patch`: another architecture's build of a live Windows patch
+    // (x64 and arm64 are built on different machines, and share one patch
+    // number). That keeps the patch `ready`, so devices already served stay
+    // served, and the new arch is offered once its artifact verifies, at the
+    // patch's own rollout (see below, after the body is parsed).
+    final promoted = await repo.patchIsPromoted(patchId);
+    if (promoted) {
+      final onWindows = (await repo.patchArtifacts(patchId)).any(
+        (a) => a.platform == 'windows' && a.status != ArtifactStatus.failed,
       );
+      final live =
+          patch.status == PatchStatus.ready &&
+          _currentDeployment(await repo.patchDeployments(patchId)) != null;
+      if (!onWindows || !live) {
+        throw conflict(
+          'Patch $patchId has already been promoted; artifacts can no longer '
+          'be added. Create a new patch instead. (Only another architecture '
+          'of a live Windows patch can be added, which is what '
+          '`shorebird patch windows --add-to-patch` does.)',
+        );
+      }
     }
-    requirePatchTransition(patch.status, PatchStatus.uploading);
+    if (!promoted) requirePatchTransition(patch.status, PatchStatus.uploading);
     // Parse and validate BEFORE moving the patch to `uploading`: a body that
     // turns out to be unusable would otherwise leave the patch parked in a
     // state `patches/check` won't serve, with no request left to finish it.
@@ -2341,6 +2404,15 @@ class Api {
     if (await repo.existingArtifact('patch', patchId, arch, platform) != null) {
       throw conflict('Artifact already registered for $arch/$platform');
     }
+    if (promoted &&
+        (platform != 'windows' || !_windowsCodeArches.contains(arch))) {
+      throw conflict(
+        'Patch $patchId is live, so only the other Windows code architecture '
+        '(${_windowsCodeArches.join(', ')}) can be added to it; $arch/$platform '
+        'cannot, since devices would be served it mid-rollout. Create a new '
+        'patch instead.',
+      );
+    }
     final hashSignature = await _patchHashSignature(
       patch,
       arch: arch,
@@ -2348,17 +2420,25 @@ class Api {
       hash: hash,
       clientSignature: fields['hash_signature'],
     );
-    await repo.setPatchStatus(patchId, PatchStatus.uploading);
-    final art = await repo.createArtifact(
-      ownerKind: 'patch',
-      ownerId: patchId,
-      arch: arch,
-      platform: platform,
-      hash: hash,
-      size: int.tryParse(fields['size'] ?? '0') ?? 0,
-      hashSignature: hashSignature,
-      podfileLockHash: fields['podfile_lock_hash'],
-    );
+    if (!promoted) await repo.setPatchStatus(patchId, PatchStatus.uploading);
+    final ArtifactRow art;
+    try {
+      art = await repo.createArtifact(
+        ownerKind: 'patch',
+        ownerId: patchId,
+        arch: arch,
+        platform: platform,
+        hash: hash,
+        size: int.tryParse(fields['size'] ?? '0') ?? 0,
+        hashSignature: hashSignature,
+        podfileLockHash: fields['podfile_lock_hash'],
+      );
+    } catch (e) {
+      // A concurrent request registered the same architecture between the
+      // check above and this insert; the unique index let only one in.
+      if (!isUniqueViolation(e)) rethrow;
+      throw conflict('Artifact already registered for $arch/$platform');
+    }
     return _json(_registerJson(art, releaseKey: false));
   }
 
@@ -2450,6 +2530,9 @@ class Api {
       }
     }
   }
+
+  static String _signingLabel(({String mode, int? keyId}) s) =>
+      s.keyId == null ? s.mode : '${s.mode} (key ${s.keyId})';
 
   static const _signingModes = {'managed', 'customer', 'unsigned'};
 
@@ -2705,12 +2788,18 @@ class Api {
   /// been withdrawn or reverted — in which case it genuinely has no track.
   ///
   /// [deployments] arrives newest-first from `Repository.patchDeployments`.
-  static String? _currentTrack(List<Map<String, Object?>> deployments) {
+  static String? _currentTrack(List<Map<String, Object?>> deployments) =>
+      _currentDeployment(deployments)?['channel'] as String?;
+
+  /// The deployment [_currentTrack] names: its channel and rollout.
+  static Map<String, Object?>? _currentDeployment(
+    List<Map<String, Object?>> deployments,
+  ) {
     for (final d in deployments) {
       if (d['status'] == ChannelPatchStatus.active.name &&
           d['rolled_back'] != true &&
           d['channel_deleted'] != true) {
-        return d['channel'] as String?;
+        return d;
       }
     }
     return null;
@@ -2737,6 +2826,20 @@ class Api {
         // for a patch promoted seconds earlier. It also made `set-track`'s
         // "already in that track" check dead code, so it always re-promoted.
         'channel': _currentTrack(deployments),
+        // The share of that channel's devices the patch is offered to. Absent
+        // when the patch is on no channel, as the protocol says.
+        'rollout_percentage': ?_currentDeployment(
+          deployments,
+        )?['rollout_percentage'],
+        // A timed rollout's remaining steps and when the next applies, and
+        // the schedule's weekend pause and zone. Absent off a channel.
+        for (final k in const [
+          'rollout_steps',
+          'rollout_next_step_at',
+          'rollout_pause_weekends',
+          'rollout_timezone',
+        ])
+          if (_currentDeployment(deployments)?[k] case final v?) k: v,
         'deployments': deployments,
         'artifacts': [
           for (final a in arts)
@@ -2820,20 +2923,331 @@ class Api {
     );
   }
 
+  /// The rollout in force on [row], for a floor on a write. A timed row's
+  /// write is also guarded in SQL by [_nextStepOf] (see `setRollout`), so a
+  /// step boundary passing between this read and the UPDATE fails the write.
+  Future<int> _rolloutFloor(ChannelPatchRow row) async {
+    final schedule = RolloutSchedule.tryParse(row.rolloutSchedule);
+    if (schedule == null) return row.rolloutBps;
+    final now = schedule.positionAt(rolloutClock()).bps;
+    return now > row.rolloutBps ? now : row.rolloutBps;
+  }
+
+  /// When the timed rollout on [row] next steps up, or null for a fixed or
+  /// finished one: the instant a write that read the current step must beat.
+  DateTime? _nextStepOf(ChannelPatchRow row) => RolloutSchedule.tryParse(
+    row.rolloutSchedule,
+  )?.positionAt(rolloutClock()).nextStepAt;
+
+  /// The timed rollout schedule a request body asks for, or null when it has
+  /// no `rollout_steps`. A body that sets the weekend pause or zone without
+  /// steps, or steps beside any of [exclusiveWith], is refused: a rollout is
+  /// either a fixed percentage or a schedule. Throws [FormatException].
+  RolloutSchedule? _optSchedule(
+    Map<String, Object?> body, {
+    required List<String> exclusiveWith,
+  }) {
+    if (body['rollout_steps'] == null) {
+      for (final key in const ['rollout_pause_weekends', 'rollout_timezone']) {
+        if (body[key] != null) {
+          throw FormatException('$key only applies with rollout_steps');
+        }
+      }
+      return null;
+    }
+    for (final key in exclusiveWith) {
+      if (body[key] != null) {
+        throw FormatException(
+          '$key and rollout_steps are mutually exclusive: a rollout is '
+          'either a fixed percentage or a schedule',
+        );
+      }
+    }
+    return RolloutSchedule.fromRequest(body, now: rolloutClock());
+  }
+
+  /// Upstream `PUT /apps/{app}/releases/{release}/patches/{patch}/rollout`,
+  /// behind `shorebird patches rollout`: raises the share of its channel's
+  /// devices the patch is offered to, to a `rollout_percentage` (1.6.140) or
+  /// onto a timed schedule of `rollout_steps` (1.6.144).
+  ///
+  /// Rollouts only go up. A lower percentage, or a schedule that starts lower
+  /// than the rollout now in force, is a 409, and so is a patch that is on no
+  /// channel; the same percentage again succeeds and changes nothing, except
+  /// that on a timed rollout it holds the rollout at the step it has reached
+  /// and ends the schedule. Raising never removes a device (see
+  /// [eligibleForRolloutBps]).
+  Future<Response> _setPatchRollout(
+    Request req,
+    String appId,
+    int releaseId,
+    int patchId,
+  ) async {
+    final body = await _jsonBody(req);
+    final int bps;
+    final RolloutSchedule? schedule;
+    try {
+      schedule = _optSchedule(
+        body,
+        exclusiveWith: const ['rollout_percentage'],
+      );
+      if (schedule != null) {
+        bps = schedule.initialBps;
+      } else if (body['rollout_percentage'] == null) {
+        throw const FormatException(
+          'send rollout_percentage, or rollout_steps for a timed rollout',
+        );
+      } else {
+        bps = parseRolloutPercentage(
+          body['rollout_percentage'],
+          field: 'rollout_percentage',
+        );
+      }
+    } on FormatException catch (e) {
+      throw badRequest(e.message);
+    }
+    final patch = await _ownedPatch(appId, patchId);
+    if (patch.releaseId != releaseId) {
+      throw notFound('No patch $patchId on release $releaseId');
+    }
+    _audit(req)?.note(
+      releaseId: releaseId,
+      patchNumber: patch.number,
+      detail: {
+        'percent': percentageOf(bps),
+        if (schedule != null) 'schedule_steps': schedule.steps.length,
+      },
+    );
+    final deployment = _currentDeployment(await repo.patchDeployments(patchId));
+    final channel = deployment == null
+        ? null
+        : await repo.channel(appId, deployment['channel']! as String);
+    final current = channel == null
+        ? null
+        : await repo.activeChannelPatchForPatch(channel.id, patchId);
+    if (channel == null || current == null) {
+      throw conflict(
+        'Patch ${patch.number} is on no channel, so it has no rollout to '
+        'raise. Promote it first.',
+      );
+    }
+    _audit(req)?.note(track: channel.name);
+    final rolling = await _rolloutFloor(current);
+    if (bps < rolling) {
+      throw conflict(
+        'Patch ${patch.number} is already rolling out to '
+        '${percentageOf(rolling)}% of devices on ${channel.name}, '
+        'and a rollout can only be raised.',
+      );
+    }
+    final timed = current.rolloutSchedule != null;
+    if (schedule != null || bps > current.rolloutBps || timed) {
+      // The UPDATE refuses to write if the row's schedule is no longer the one
+      // read above, and (for a fixed rollout) a value below what is stored
+      // now, so a concurrent change that landed after the read cannot be
+      // undone by this one.
+      if (!await repo.setRollout(
+        channel.id,
+        patchId,
+        bps,
+        onlyRaise: !timed,
+        schedule: schedule,
+        expectSchedule: (stored: current.rolloutSchedule),
+        ifBefore: _nextStepOf(current),
+      )) {
+        throw conflict(
+          'Patch ${patch.number} was changed on ${channel.name} by another '
+          'request, or its next rollout step applied, while this one was '
+          'applied, and a rollout can only be raised. Check its rollout and '
+          'retry.',
+        );
+      }
+    }
+    return Response(HttpStatus.noContent);
+  }
+
+  static const _runCommands = {'release', 'patch'};
+  static const _runPlatforms = {'android', 'ios', 'linux', 'macos', 'windows'};
+  static const _runOutcomes = {'succeeded', 'failed'};
+  static const _runReasons = {
+    'link_percentage',
+    'asset_diffs',
+    'native_diffs',
+    'build_flag_diffs',
+    'build_failed',
+    'release_incompatible',
+    'server_rejected',
+    'upload_failed',
+    'canceled',
+    'other',
+  };
+
+  /// Upstream 1.6.140 `POST /apps/{app}/runs`: the CLI's build history, one
+  /// record per platform when a `shorebird release` or `shorebird patch` run
+  /// ends. Upstream shows it in its console (Enterprise); here it is stored
+  /// and listed by `GET` on the same path, for every app.
+  ///
+  /// The CLI sends this best effort and ignores a failure, so strictness here
+  /// costs nothing at the CLI and keeps garbage out of the table.
+  ///
+  /// `artifacts` and `share_debug_info` are accepted and ignored: a debug
+  /// bundle is shared with Shorebird, the company, for its support to read,
+  /// and a self-hosted server has nobody to share it with. The response
+  /// carries no `artifact_uploads`, which the CLI reads as "nothing was
+  /// accepted" (it warns only when the person passed `--share-debug-info`).
+  Future<Response> _createBuildRun(Request req, String appId) async {
+    final body = await _jsonBody(req);
+    String oneOf(String key, Set<String> allowed) {
+      final v = _stringField(body, key);
+      if (!allowed.contains(v)) {
+        throw badRequest('$key must be one of ${allowed.join(', ')}');
+      }
+      return v;
+    }
+
+    final runId = _stringField(body, 'run_id');
+    if (runId.isEmpty || runId.length > 128) {
+      throw badRequest('run_id must be 1 to 128 characters');
+    }
+    final command = oneOf('command', _runCommands);
+    final platform = oneOf('platform', _runPlatforms);
+    final outcome = oneOf('outcome', _runOutcomes);
+    final reason = body['reason'] == null ? null : oneOf('reason', _runReasons);
+    final startedAt = DateTime.tryParse(_stringField(body, 'started_at'));
+    if (startedAt == null) {
+      throw badRequest('started_at must be an ISO 8601 date-time');
+    }
+    final durationMs = _intField(body, 'duration_ms');
+    if (durationMs < 0) throw badRequest('duration_ms must not be negative');
+    final dryRun = body['dry_run'];
+    if (dryRun is! bool) throw badRequest('dry_run must be a boolean');
+
+    // Ids must be this app's own: a record may not point at another app's
+    // release or patch.
+    final releaseId = _optIntField(body, 'release_id');
+    if (releaseId != null) {
+      final release = await repo.release(releaseId);
+      if (release == null || release.appId != appId) {
+        throw badRequest('release_id is not a release of this app');
+      }
+    }
+    final patchId = _optIntField(body, 'patch_id');
+    if (patchId != null) {
+      final patch = await repo.patch(patchId);
+      if (patch == null || patch.appId != appId) {
+        throw badRequest('patch_id is not a patch of this app');
+      }
+    }
+    final flags = _optBuildFlags(body['build_flags']);
+    final id = await repo.recordBuildRun(
+      appId,
+      runId: runId,
+      command: command,
+      platform: platform,
+      outcome: outcome,
+      reason: reason,
+      releaseId: releaseId,
+      patchId: patchId,
+      startedAt: startedAt.toUtc().toIso8601String(),
+      durationMs: durationMs,
+      dryRun: dryRun,
+      metadata: _optMetadataField(body),
+      buildFlags: flags,
+    );
+    return Response(
+      HttpStatus.created,
+      body: jsonEncode({'id': id}),
+      headers: {HttpHeaders.contentTypeHeader: 'application/json'},
+    );
+  }
+
+  /// `GET /apps/{app}/runs?limit=`: the build history, newest first. Not an
+  /// upstream route (upstream reads it in its console); it is how an operator
+  /// reads what [_createBuildRun] stored. Summaries only (see below).
+  Future<Response> _getBuildRuns(Request req, String appId) async {
+    final raw = req.url.queryParameters['limit'];
+    final limit = raw == null ? 50 : int.tryParse(raw);
+    if (limit == null || limit < 1 || limit > 200) {
+      throw badRequest('limit must be an integer from 1 to 200');
+    }
+    // Without `metadata` and `build_flags`, which can each hold tens of KB
+    // per row: the list is a summary, and the response stays small.
+    return _json({
+      'runs': await repo.buildRuns(appId, limit: limit, withBlobs: false),
+    });
+  }
+
+  /// The CLI's `BuildRunBuildFlags`: `{dart_define_count, dart_defines,
+  /// target?}`. Absent stays absent; anything of another shape, or oversized,
+  /// is dropped, as for `metadata`.
+  static Map<String, Object?>? _optBuildFlags(Object? v) {
+    if (v is! Map) return null;
+    final count = v['dart_define_count'];
+    final defines = v['dart_defines'];
+    final target = v['target'];
+    if (count is! int ||
+        count < 0 ||
+        defines is! Map ||
+        defines.values.any((e) => e is! String) ||
+        defines.keys.any((e) => e is! String) ||
+        (target != null && target is! String)) {
+      return null;
+    }
+    final out = <String, Object?>{
+      'dart_define_count': count,
+      'dart_defines': defines.cast<String, String>(),
+      'target': ?target,
+    };
+    return jsonEncode(out).length <= _maxMetadataChars ? out : null;
+  }
+
   Future<Response> _promotePatch(Request req, String appId) async {
     final body = await _jsonBody(req);
     final patchId = _intField(body, 'patch_id');
     final channelId = _intField(body, 'channel_id');
-    final rollout = _optIntField(body, 'rollout') ?? 100;
-    if (rollout < 0 || rollout > 100) {
-      throw badRequest('rollout must be between 0 and 100');
+    // Upstream 1.6.140 sends `rollout_percentage`, a multiple of 0.01 from
+    // 0.01 to 100. `rollout`, a whole percent from 0 to 100, is this server's
+    // own older spelling and is still accepted; the new one wins if both are
+    // sent. Neither means every device. Upstream 1.6.144 may instead send
+    // `rollout_steps` (a timed schedule), which excludes both.
+    final RolloutSchedule? schedule;
+    final int rolloutBps;
+    try {
+      schedule = _optSchedule(
+        body,
+        exclusiveWith: const ['rollout_percentage', 'rollout'],
+      );
+    } on FormatException catch (e) {
+      throw badRequest(e.message);
+    }
+    if (schedule != null) {
+      rolloutBps = schedule.initialBps;
+    } else if (body['rollout_percentage'] != null) {
+      try {
+        rolloutBps = parseRolloutPercentage(
+          body['rollout_percentage'],
+          field: 'rollout_percentage',
+        );
+      } on FormatException catch (e) {
+        throw badRequest(e.message);
+      }
+    } else {
+      final rollout = _optIntField(body, 'rollout') ?? 100;
+      if (rollout < 0 || rollout > 100) {
+        throw badRequest('rollout must be between 0 and 100');
+      }
+      rolloutBps = rollout * 100;
     }
     // Both ids come from the BODY on this route, so the path classification
     // could not supply them. Noted before the ownership and readiness gates so
     // a refused promotion is attributable to the patch someone tried to ship.
     _audit(req)?.note(
       patchId: patchId,
-      detail: {'channel_id': channelId, 'rollout': rollout},
+      detail: {
+        'channel_id': channelId,
+        'rollout': percentageOf(rolloutBps),
+        if (schedule != null) 'schedule_steps': schedule.steps.length,
+      },
     );
     final patch = await _ownedPatch(appId, patchId);
     final channel = await _ownedChannel(appId, channelId);
@@ -2845,7 +3259,43 @@ class Api {
     if (patch.status != PatchStatus.ready) {
       throw conflict('Patch $patchId is ${patch.status.name}, not ready');
     }
-    await repo.promote(channelId, patchId, rollout: rollout);
+    // Promoting a patch that is already live on the channel (the CLI's
+    // set-track does) must not drop it to a lower share or leave two active
+    // rows for it: it is refused with 409 below what is in force, and
+    // otherwise changes the one row in place.
+    final live = await repo.activeChannelPatchForPatch(channelId, patchId);
+    if (live != null) {
+      final floor = await _rolloutFloor(live);
+      if (rolloutBps < floor) {
+        throw conflict(
+          'Patch ${patch.number} is already live on ${channel.name} at '
+          '${percentageOf(floor)}% of devices, and a rollout can only be '
+          'raised.',
+        );
+      }
+      if (!await repo.setRollout(
+        channelId,
+        patchId,
+        rolloutBps,
+        onlyRaise: live.rolloutSchedule == null,
+        schedule: schedule,
+        expectSchedule: (stored: live.rolloutSchedule),
+        ifBefore: _nextStepOf(live),
+      )) {
+        throw conflict(
+          'Patch ${patch.number} was changed on ${channel.name} by another '
+          'request, or its next rollout step applied, meanwhile. Check its '
+          'rollout and retry.',
+        );
+      }
+      return Response(HttpStatus.noContent);
+    }
+    await repo.promote(
+      channelId,
+      patchId,
+      rolloutBps: rolloutBps,
+      schedule: schedule,
+    );
     return Response(HttpStatus.noContent);
   }
 
@@ -2896,6 +3346,10 @@ class Api {
     return await repo.artifactByToken(art.token) ?? art;
   }
 
+  /// Upper bound on the multipart framing around a file part (boundary, part
+  /// headers, other fields), for the cheap size check on a verified token.
+  static const _multipartFramingSlack = 4096;
+
   Future<Response> _upload(Request req, String token) async {
     var art = await repo.artifactByToken(token);
     if (art == null) throw notFound('Unknown upload token');
@@ -2911,6 +3365,30 @@ class Api {
       );
     }
     art = await _reclaimIfStale(art);
+    // A verified release artifact is re-registered idempotently (the same
+    // token comes back), and the client then re-sends the bytes. Answer 200
+    // when they are the bytes already stored, as `_resumableUpload` does for a
+    // verified token. Anything else stays a conflict. Only release artifacts
+    // carry a checked hash, so patch artifacts are not covered.
+    //
+    // The size is compared before anything is buffered or hashed: a body that
+    // cannot be the recorded size (multipart framing adds a few hundred bytes)
+    // is the 409 without being read. A body over `maxUploadBytes` is left to
+    // `_parseMultipart`, which answers 413 as it always has.
+    if (art.status == ArtifactStatus.verified && art.ownerKind == 'release') {
+      final declared = req.contentLength;
+      if (declared == null || declared > config.maxUploadBytes) {
+        // No usable length (chunked) or over the cap: parse as before.
+      } else if (declared > art.size + _multipartFramingSlack) {
+        throw conflict('Upload token not reusable (status verified)');
+      }
+      final (_, again) = await _parseMultipart(req);
+      if (again != null &&
+          again.bytes.length == art.size &&
+          sha256.convert(again.bytes).toString() == art.hash.toLowerCase()) {
+        return Response(HttpStatus.ok);
+      }
+    }
     if (art.status != ArtifactStatus.pending) {
       throw conflict('Upload token not reusable (status ${art.status.name})');
     }
@@ -3265,10 +3743,20 @@ class Api {
     }
   }
 
+  /// Each `patches/check` mints a fresh signed URL, and a cached copy would
+  /// outlive that URL's expiry (and a rollback), so no cache keeps the bytes.
+  static const _downloadCacheControl = 'private, no-store';
+
   Future<Response> _download(Request req, String token) async {
     final q = req.url.queryParameters;
     if (!_validSignedUrl(token, q['exp'], q['sig'])) {
-      return _err(HttpStatus.forbidden, 'forbidden', 'Invalid or expired URL');
+      return _err(
+        HttpStatus.forbidden,
+        'forbidden',
+        'Invalid or expired URL',
+      ).change(
+        headers: {HttpHeaders.cacheControlHeader: _downloadCacheControl},
+      );
     }
     final art = await repo.artifactByToken(token);
     if (art == null || !await store.exists(art.storageKey)) {
@@ -3290,7 +3778,10 @@ class Api {
     if (parsed.outcome == RangeOutcome.unsatisfiable) {
       return Response(
         HttpStatus.requestedRangeNotSatisfiable,
-        headers: {HttpHeaders.contentRangeHeader: 'bytes */$total'},
+        headers: {
+          HttpHeaders.contentRangeHeader: 'bytes */$total',
+          HttpHeaders.cacheControlHeader: _downloadCacheControl,
+        },
       );
     }
     if (parsed.outcome == RangeOutcome.partial) {
@@ -3306,6 +3797,7 @@ class Api {
         headers: {
           HttpHeaders.contentTypeHeader: 'application/octet-stream',
           HttpHeaders.acceptRangesHeader: 'bytes',
+          HttpHeaders.cacheControlHeader: _downloadCacheControl,
           HttpHeaders.contentRangeHeader:
               'bytes ${range.start}-${range.end}/$total',
           HttpHeaders.contentLengthHeader: '${range.length}',
@@ -3319,6 +3811,7 @@ class Api {
       headers: {
         HttpHeaders.contentTypeHeader: 'application/octet-stream',
         HttpHeaders.acceptRangesHeader: 'bytes',
+        HttpHeaders.cacheControlHeader: _downloadCacheControl,
         HttpHeaders.contentLengthHeader: '$total',
       },
     );
@@ -3429,11 +3922,11 @@ class Api {
 
     // Partial rollout: deterministic per-client bucketing. Fail closed when a
     // partial rollout has no stable client id.
-    if (!eligibleForRollout(
+    if (!eligibleForRolloutBps(
       appId: appId,
       channelId: channel.id,
       patchId: patch.id,
-      rollout: active.rollout,
+      rolloutBps: active.rolloutBps,
       clientId: clientId,
     )) {
       return _json(resp(rolledBack: rolledBack));
@@ -3541,11 +4034,11 @@ class Api {
           patch.number <= clientPatch) {
         continue;
       }
-      if (!eligibleForRollout(
+      if (!eligibleForRolloutBps(
         appId: appId,
         channelId: channelId,
         patchId: patch.id,
-        rollout: candidate.rollout,
+        rolloutBps: candidate.rolloutBps,
         clientId: clientId,
       )) {
         continue;
@@ -4020,19 +4513,26 @@ class Api {
         });
       }
       if (action == 'rollout') {
-        final percent = int.tryParse(
-          req.url.queryParameters['percent'] ?? '100',
-        );
-        if (percent == null || percent < 0 || percent > 100) {
-          throw badRequest('percent must be an integer between 0 and 100');
+        // A whole percent from 0 to 100, or a multiple of 0.01 such as 12.5.
+        final raw = req.url.queryParameters['percent'] ?? '100';
+        final percent = num.tryParse(raw);
+        // Range first: NaN, Infinity and 1e308 must be a 400, and `.round()`
+        // of an infinite product throws.
+        if (percent == null ||
+            !(percent >= 0 && percent <= 100) ||
+            (percent * 100 - (percent * 100).round()).abs() > 1e-6) {
+          throw badRequest(
+            'percent must be a number between 0 and 100, in steps of 0.01',
+          );
         }
+        final bps = (percent * 100).round();
         final cp = await repo.activeChannelPatchForPatch(channel.id, patchId);
         if (cp == null) {
           throw conflict('Patch $patchId is not active on $channelName');
         }
-        await repo.setRollout(channel.id, patchId, percent);
-        _audit(req)?.note(detail: {'percent': percent});
-        return _json({'patch_id': patchId, 'rollout': percent});
+        await repo.setRollout(channel.id, patchId, bps);
+        _audit(req)?.note(detail: {'percent': percentageOf(bps)});
+        return _json({'patch_id': patchId, 'rollout': percentageOf(bps)});
       }
     }
     // ---- team read / manage ----

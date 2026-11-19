@@ -1,0 +1,5 @@
+                                                             This flag cannot be combined with "--analyze-size".
+                                                             This flag cannot be combined with "--split-debug-info".
+This patch cannot be built: 1 of 2 changed members cannot be carried by a Route B patch.
+  package:untab/main.dart#kTitle
+The whole patch is refused, not the part that failed. Shipping the rest would leave your app running some functions from the patch and some from the release. Nothing was uploaded.

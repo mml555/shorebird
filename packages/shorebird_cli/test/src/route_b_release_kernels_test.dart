@@ -9,11 +9,12 @@ import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:test/test.dart';
 
-import 'mocks.dart';
 import 'helpers.dart';
+import 'mocks.dart';
 
 void main() {
   useTempWorkingDirectory();
+  heavySdkMemberTests();
   group(RouteBReleaseKernelBuilder, () {
     group('forwardedArgs', () {
       test('translates dart-defines into gen_kernel -D flags', () {
@@ -87,8 +88,8 @@ void main() {
       test('carries the defines FLUTTER injects, which no user typed', () {
         // G4.1c. Flutter appends these after parsing the command line
         // (`flutter_command.dart` _addFlutterVersionToDartDefines), so the
-        // shipped kernel has them and, until this landed, no Route B kernel did.
-        // Measured on a CLEAN `flutter create` app -- no flavor, no
+        // shipped kernel has them and, until this landed, no Route B kernel
+        // did. Measured on a CLEAN `flutter create` app -- no flavor, no
         // --dart-define -- where the release still receives six.
         expect(
           RouteBReleaseKernelBuilder.forwardedArgs(
@@ -141,7 +142,8 @@ void main() {
 
       test('still appends the resolved flavor LAST', () {
         // The injected map must not displace the flavor from the end of the
-        // list, where gen_kernel's last-wins handling is what makes it decisive.
+        // list, where gen_kernel's last-wins handling is what makes it
+        // decisive.
         expect(
           RouteBReleaseKernelBuilder.forwardedArgs(
             const ['--dart-define=API=https://x'],
@@ -283,7 +285,7 @@ void main() {
         );
       });
 
-      test('carries the release\'s defines through', () {
+      test("carries the release's defines through", () {
         expect(
           capturedArgs(buildArgs: ['--dart-define=FLAVOR=prod']),
           contains('-DFLAVOR=prod'),
@@ -362,7 +364,7 @@ void main() {
         ).called(1);
       });
 
-      test('carries the build\'s Dart plugin registrant', () {
+      test("carries the build's Dart plugin registrant", () {
         // Flutter adds these three whenever the build generated a registrant,
         // so the release kernel contains it and everything it pulls in.
         // Omitting them cost 59 non-accessor members on the reference app --
@@ -811,6 +813,15 @@ void main() {
         expect(interfaceArgs(), isNot(contains('--manifest')));
       });
 
+      test('passes the opted-in heavy members to the generator', () {
+        final members = routeBSdkMembersFor(keepCollectionMethods: true);
+        final args = interfaceArgs(sdkMembers: members);
+        final value = args[args.indexOf('--sdk-members') + 1].split(',');
+
+        expect(value, members);
+        expect(value, containsAll(routeBHeavySdkMembers));
+      });
+
       test('retains SDK symbols BY NAME, never by library', () {
         // A whole `dart:core` item was measured at +310% -- a four-fold
         // snapshot. `--sdk-libraries` stays reachable for debugging and must
@@ -827,12 +838,37 @@ void main() {
         expect(args, isNot(contains('--sdk-libraries')));
         // The budget is small on purpose; every release pays for every name in
         // it, forever. This pins the list so a widening cannot be silent.
-        expect(routeBRetainedSdkMembers, [
-          'dart:core#print',
-          'dart:core#DateTime.now',
-          'dart:core#DateTime.get:millisecondsSinceEpoch',
-          'dart:core#identical',
-        ]);
+        expect(
+          routeBRetainedSdkMembers.take(4),
+          [
+            'dart:core#print',
+            'dart:core#DateTime.now',
+            'dart:core#DateTime.get:millisecondsSinceEpoch',
+            'dart:core#identical',
+          ],
+        );
+        expect(routeBRetainedSdkMembers, hasLength(4 + 53));
+        expect(
+          routeBRetainedSdkMembers.toSet(),
+          hasLength(routeBRetainedSdkMembers.length),
+          reason: 'no duplicate keys',
+        );
+        expect(
+          routeBRetainedSdkMembers,
+          containsAll([
+            'dart:core#Map.addAll',
+            'dart:core#String.substring',
+            'dart:core#Iterable.get:isEmpty',
+            'dart:core#List.sublist',
+          ]),
+        );
+        // The heavy set is opt-in, so none of it may be in the default.
+        expect(
+          routeBRetainedSdkMembers.toSet().intersection(
+            routeBHeavySdkMembers.toSet(),
+          ),
+          isEmpty,
+        );
       });
 
       test('does not generate an interface without a package name', () {
@@ -855,6 +891,43 @@ void main() {
           () => logger.warn(any(that: contains('package name'))),
         ).called(1);
       });
+    });
+  });
+}
+
+void heavySdkMemberTests() {
+  group('routeBHeavySdkMembers', () {
+    test('holds the 21 opt-in keys', () {
+      expect(routeBHeavySdkMembers, hasLength(21));
+      expect(routeBHeavySdkMembers.toSet(), hasLength(21));
+      expect(
+        routeBHeavySdkMembers,
+        containsAll([
+          'dart:core#Iterable.where',
+          'dart:core#Iterable.map',
+          'dart:core#Iterable.toList',
+          'dart:core#Iterable.firstWhere',
+          'dart:core#List.addAll',
+          'dart:core#List.sort',
+        ]),
+      );
+    });
+  });
+
+  group('routeBSdkMembersFor', () {
+    test('is the default list without the opt-in', () {
+      expect(
+        routeBSdkMembersFor(keepCollectionMethods: false),
+        routeBRetainedSdkMembers,
+      );
+    });
+
+    test('adds the heavy set with the opt-in', () {
+      final members = routeBSdkMembersFor(keepCollectionMethods: true);
+      expect(members, hasLength(78));
+      expect(members.toSet(), hasLength(78));
+      expect(members, containsAll(routeBHeavySdkMembers));
+      expect(members, containsAll(routeBRetainedSdkMembers));
     });
   });
 }

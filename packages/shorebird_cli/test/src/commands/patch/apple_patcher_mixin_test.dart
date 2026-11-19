@@ -6,6 +6,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:shorebird_cli/src/archive_analysis/archive_analysis.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
@@ -34,9 +35,21 @@ import '../../mocks.dart';
 /// [AppleLinkerPatcherMixin], so the shared Apple link step can be tested
 /// without either real platform. Members the link step doesn't use throw.
 class _TestApplePatcher extends Patcher
-    with ApplePatcherMixin, AppleLinkerPatcherMixin {
-  _TestApplePatcher({required super.argParser, required super.argResults})
-    : super(flavor: null, target: null);
+    with
+        ApplePatcherMixin,
+        AppleLinkerPatcherMixin,
+        ApplePodfileLockPatcherMixin {
+  _TestApplePatcher({
+    required super.argParser,
+    required super.argResults,
+    this.localPodfileLockHash,
+  }) : super(flavor: null, target: null);
+
+  @override
+  final String? localPodfileLockHash;
+
+  @override
+  String get podfileLockRelativePath => 'ios/Podfile.lock';
 
   @override
   List<Validator> get applePlatformValidators => const [];
@@ -46,13 +59,6 @@ class _TestApplePatcher extends Patcher
 
   @override
   ReleaseType get releaseType => ReleaseType.ios;
-
-  @override
-  Future<DiffStatus> assertUnpatchableDiffs({
-    required ReleaseArtifact releaseArtifact,
-    required File releaseArchive,
-    required File patchArchive,
-  }) => throw UnimplementedError();
 
   @override
   Future<File> buildPatchArtifact({String? releaseVersion}) =>
@@ -140,6 +146,7 @@ void main() {
           aotOutputFile: any(named: 'aotOutputFile'),
           vmCodeFile: any(named: 'vmCodeFile'),
           ddMaxBytes: any(named: 'ddMaxBytes'),
+          obfuscationMapPath: any(named: 'obfuscationMapPath'),
         ),
       ).thenAnswer((_) async => result);
     }
@@ -267,7 +274,7 @@ void main() {
                 ),
               ),
               releaseArtifact: releaseArtifactFile,
-              splitDebugInfoArgs: [],
+              splitDebugInfoArgs: ['--strip'],
               aotOutputFile: any(
                 named: 'aotOutputFile',
                 that: isA<File>().having(
@@ -289,7 +296,7 @@ void main() {
         });
 
         test(
-          'passes the obfuscation gen_snapshot args to the linker',
+          'passes the obfuscation gen_snapshot args and map to the linker',
           () async {
             final obfuscationMapPath = p.join(
               buildDirectory.path,
@@ -311,6 +318,7 @@ void main() {
                         ),
                         aotOutputFile: any(named: 'aotOutputFile'),
                         vmCodeFile: any(named: 'vmCodeFile'),
+                        obfuscationMapPath: obfuscationMapPath,
                       ),
                     ).captured.single
                     as List<String>;
@@ -319,6 +327,9 @@ void main() {
               args,
               contains('--load-obfuscation-map=$obfuscationMapPath'),
             );
+            // Unstripped, an obfuscated patch would carry the unobfuscated
+            // names in its DWARF.
+            expect(args, contains('--strip'));
           },
         );
 
@@ -741,5 +752,139 @@ void main() {
         );
       });
     });
+  });
+
+  group(ApplePodfileLockPatcherMixin, () {
+    late ArgParser argParser;
+    late ArgResults argResults;
+    late ShorebirdLogger logger;
+    late PatchDiffChecker patchDiffChecker;
+
+    setUpAll(() {
+      registerFallbackValue(File(''));
+      registerFallbackValue(const AppleArchiveDiffer());
+    });
+
+    setUp(() {
+      argParser = MockArgParser();
+      argResults = MockArgResults();
+      logger = MockShorebirdLogger();
+      patchDiffChecker = MockPatchDiffChecker();
+
+      when(() => argResults['allow-asset-diffs']).thenReturn(false);
+      when(() => argResults['allow-native-diffs']).thenReturn(false);
+    });
+
+    R runWithOverrides<R>(R Function() body) {
+      return runScoped(
+        body,
+        values: {
+          loggerRef.overrideWith(() => logger),
+          patchDiffCheckerRef.overrideWith(() => patchDiffChecker),
+        },
+      );
+    }
+
+    ReleaseArtifact releaseArtifact({
+      String? podfileLockHash = 'release-lock',
+    }) {
+      return ReleaseArtifact(
+        id: 0,
+        releaseId: 0,
+        arch: 'xcarchive',
+        platform: ReleasePlatform.ios,
+        hash: '#',
+        size: 42,
+        url: 'https://example.com',
+        podfileLockHash: podfileLockHash,
+        canSideload: true,
+      );
+    }
+
+    test(
+      'logs info when Podfile.lock changed but native binaries match',
+      () async {
+        when(
+          () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+            localArchive: any(named: 'localArchive'),
+            releaseArchive: any(named: 'releaseArchive'),
+            archiveDiffer: any(named: 'archiveDiffer'),
+            allowAssetChanges: any(named: 'allowAssetChanges'),
+            allowNativeChanges: any(named: 'allowNativeChanges'),
+          ),
+        ).thenAnswer(
+          (_) async => const DiffStatus(
+            hasAssetChanges: false,
+            hasNativeChanges: false,
+          ),
+        );
+
+        final patcher = _TestApplePatcher(
+          argParser: argParser,
+          argResults: argResults,
+          localPodfileLockHash: 'patch-lock',
+        );
+
+        final status = await runWithOverrides(
+          () => patcher.assertUnpatchableDiffs(
+            releaseArtifact: releaseArtifact(),
+            releaseArchive: File('release.zip'),
+            patchArchive: File('patch.zip'),
+          ),
+        );
+
+        expect(status.hasNativeChanges, isFalse);
+        verify(
+          () => logger.info(
+            'Your ios/Podfile.lock changed from the release, but all '
+            'compiled native binaries are identical.',
+          ),
+        ).called(1);
+        verifyNever(() => logger.warn(any()));
+      },
+    );
+
+    test(
+      'logs warning when Podfile.lock and native binaries both changed',
+      () async {
+        when(
+          () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+            localArchive: any(named: 'localArchive'),
+            releaseArchive: any(named: 'releaseArchive'),
+            archiveDiffer: any(named: 'archiveDiffer'),
+            allowAssetChanges: any(named: 'allowAssetChanges'),
+            allowNativeChanges: any(named: 'allowNativeChanges'),
+          ),
+        ).thenAnswer(
+          (_) async => const DiffStatus(
+            hasAssetChanges: false,
+            hasNativeChanges: true,
+          ),
+        );
+
+        final patcher = _TestApplePatcher(
+          argParser: argParser,
+          argResults: argResults,
+          localPodfileLockHash: 'patch-lock',
+        );
+
+        final status = await runWithOverrides(
+          () => patcher.assertUnpatchableDiffs(
+            releaseArtifact: releaseArtifact(),
+            releaseArchive: File('release.zip'),
+            patchArchive: File('patch.zip'),
+          ),
+        );
+
+        expect(status.hasNativeChanges, isTrue);
+        verify(
+          () => logger.warn(
+            '''
+Your ios/Podfile.lock is different from the one used to build the release.
+This may indicate that the patch contains native changes, which cannot be applied with a patch. Proceeding may result in unexpected behavior or crashes.''',
+          ),
+        ).called(1);
+      },
+    );
   });
 }

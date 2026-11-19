@@ -1,0 +1,12 @@
+{
+  "note": "Class declarations reordered, nothing else. AOT renumbers its mixin copies in declaration order, and the two Box instantiations share a name, so keys and printed text drop the counter and carry the type arguments; the patch is inert. The frozen reference tooling prints the counter, so it reads main as changed and is not a witness here.",
+  "referenceBlind": "the reference prints AOT's mixin application counter",
+  "verdict": "inert",
+  "changed": [],
+  "patchable": [],
+  "conditional": [],
+  "unreachable": [],
+  "added": [],
+  "declarations": [],
+  "rejectionReasons": []
+}

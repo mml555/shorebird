@@ -21,12 +21,24 @@
 	# instead when there is no public DNS / you just want HTTPS locally.
 	# tls internal
 
+	# Operator-only routes. The server serves them without auth (its own
+	# healthcheck and a Prometheus scraper reach them on the internal `cps`
+	# network), but the internet must not read request counters or drive the
+	# DB and S3 round-trips /readyz makes. /healthz stays public for uptime
+	# checks.
+	@internal path /metrics /metrics/* /readyz /readyz/*
+	handle @internal {
+		respond 404
+	}
+
 	# Proxy to the server service defined in docker-compose.prod.yaml.
 	# Health checks keep Caddy from routing to an unready backend.
-	reverse_proxy server:8080 {
-		health_uri /healthz
-		health_interval 10s
-		health_timeout 5s
+	handle {
+		reverse_proxy server:8080 {
+			health_uri /healthz
+			health_interval 10s
+			health_timeout 5s
+		}
 	}
 
 	# Reasonable upload ceiling for patch/release artifacts (adjust as needed).
@@ -34,7 +46,10 @@
 		max_size 512MB
 	}
 
-	encode gzip zstd
+	# Patch downloads are already-compressed binaries, served with exact
+	# Content-Length and byte Ranges: never re-encode them.
+	@compressible not path /download/*
+	encode @compressible gzip zstd
 
 	log {
 		output stdout

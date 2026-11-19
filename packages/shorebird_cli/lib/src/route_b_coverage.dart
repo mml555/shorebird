@@ -69,7 +69,70 @@ const supportedRouteBAnalysisVersion = 11;
 ///
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
-const knownRouteBAnalysisVersions = {11, 12, 13};
+const knownRouteBAnalysisVersions = {
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, //
+};
+
+/// The first analyzer version that compares fields, `const`s, constructors and
+/// class headers. An older analyzer reads an edit to one as unchanged, so a
+/// patch carrying it alongside body edits ships without it.
+const routeBDeclarationsAnalysisVersion = 14;
+
+/// The first analyzer version that takes `--carry` and reports `callers`.
+const routeBCarryAnalysisVersion = 15;
+
+/// The first analyzer version that accepts an added top-level function as a
+/// helper and reports `helpers`. An older analyzer lists every new member as a
+/// rejection, and this build keeps refusing them for such a cell.
+const routeBHelpersAnalysisVersion = 16;
+
+/// The first analyzer version that also accepts a new INSTANCE METHOD of an
+/// existing class as a helper, with its own `lowering` and `helperCall`
+/// accesses. A version-16 document never lists one: its analyzer refuses them.
+const routeBInstanceHelpersAnalysisVersion = 17;
+
+/// The first analyzer version that reports the external symbols each carried
+/// body names (`externalReferences`), which is what the retention check reads.
+/// A version-17 document has no such list, so a patch analyzed by it cannot be
+/// checked and is accepted as it always was; see `RouteBRetention`.
+const routeBRetentionAnalysisVersion = 18;
+
+/// The first analyzer version that reports what a body asks for BY NAME with no
+/// declared target: a call, get or set on a `dynamic` receiver (kind
+/// `dynamic`, the selector as `member`), an instance tear-off (member
+/// `tearoff:<name>`), extension and extension-type members (`Ext|get#x`), the
+/// `iterator`/`moveNext`/`current` calls of a `for-in`, and a use that is both
+/// direct and through a constant as two entries. A document below it cannot
+/// show any of those, so the patcher refuses it unless the developer opts out
+/// (`--allow-unchecked-sdk-calls`).
+const routeBSelectorCallsAnalysisVersion = 19;
+
+/// The first analyzer version that marks an `instance` reference `inlined`:
+/// every site of that member in the body is an opcode the patch's bytecode
+/// compiler emits (`AddInt`, `CompareIntLt`, ...), decided by dart2bytecode's
+/// own `RecognizedMethods`, so the member is never looked up when it runs. A
+/// document below it never has the field, and one that carries it anyway is
+/// not believed.
+///
+/// 21, not 20: version 20 predicted the flag from the patched kernel, where an
+/// override's omitted parameter type is the inherited one, while the producer
+/// lowers the member to a function that overrides nothing. Version 21 reports
+/// the inferred signature so the producer can write it in (`signatureTypes`).
+const routeBInlinedOpsAnalysisVersion = 21;
+
+/// The first analyzer version that reports a `lowering` for an INSTANCE member
+/// of a named, non-generic extension (a getter or a method), carrying
+/// `extension`. Below it the analyzer's scope report refuses every such member,
+/// so a release built with an older cell keeps refusing them.
+const routeBExtensionReceiverAnalysisVersion = 22;
+
+/// The first analyzer version that names the receiver class of a `for-in`
+/// (`receiverLibrary`, `receiverClass` on its `Iterable.get:iterator`
+/// reference): the class of the loop iterable's static type. The per-release
+/// check then asks only the release's subtypes of that class for `iterator`,
+/// not every `Iterable` it holds. A document below it never has the fields,
+/// and one that carries them anyway is not believed.
+const routeBForInReceiverAnalysisVersion = 23;
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -121,8 +184,19 @@ enum RouteBRepresentability {
   /// Not in the release's manifest. Unknown reachability is not reachability.
   unknown,
 
-  /// New in the patch. A patch replaces bodies; it cannot introduce members.
+  /// New in the patch and not carried. A patch replaces bodies; from
+  /// analysis version 16 it may also add a top-level function that only the
+  /// patch calls (a helper), and every other new member lands here, with a
+  /// reason naming why.
   added,
+
+  /// A changed or new field, `const` or constructor (analysis version 14).
+  ///
+  /// A patch replaces method bodies. A field's initial value and a
+  /// constructor come from the release, and a patch is compiled against the
+  /// release's declarations, so it would read an edited `const`'s old value.
+  /// Shipping the rest of the patch would leave the edit out without a word.
+  declaration,
 }
 
 /// A changed member's signature, on both sides.
@@ -243,7 +317,9 @@ class RouteBReceiverAccess {
   final String member;
 
   /// `get` for `label`, `set` for `label = x`, `invoke` for `helper()` with or
-  /// without arguments. The
+  /// without arguments, `helperCall` for a call to a NEW instance method the
+  /// patch carries (version 17), which takes the receiver as its first
+  /// argument instead of being prefixed by it. The
   /// argument list is copied verbatim and never interpreted, so its shape is
   /// not part of what the lowering has to understand. The surface
   /// widens one form at a time, and the producer refuses a kind it does not
@@ -255,6 +331,94 @@ class RouteBReceiverAccess {
   /// the capability manifest is a per-release artifact and the analyzer ships
   /// in the compiler cell.
   final RouteBPrivateTarget? privateTarget;
+}
+
+/// One use of a static of the member's own class that is written without a
+/// qualifier, as the analyzer placed it.
+@immutable
+class RouteBStaticReference {
+  /// {@macro route_b_static_reference}
+  const RouteBStaticReference({
+    required this.offset,
+    required this.member,
+    required this.kind,
+    this.interpolated = false,
+  });
+
+  /// Where the identifier starts, in code units of the decoded source.
+  final int offset;
+
+  /// The static's name.
+  final String member;
+
+  /// `get`, `set`, `invoke`, `tearoff`, or `constant`.
+  final String kind;
+
+  /// Whether it is the `$name` form of a string interpolation.
+  final bool interpolated;
+}
+
+/// What a class or extension member's body takes from its enclosing scope (the
+/// document's `enclosingScope`), which a replacement library does not have.
+///
+/// A replacement is a top-level function. An unqualified `k` that meant the
+/// class's `static k` is looked up among top-level names there, so a same-named
+/// top-level wins silently. Kernel knows what each name resolved to and the
+/// front end's token stream knows whether a qualifier is written; the analyzer
+/// reports only the uses that need one.
+@immutable
+class RouteBEnclosingScope {
+  /// {@macro route_b_enclosing_scope}
+  const RouteBEnclosingScope({
+    required this.className,
+    required this.staticReferences,
+    required this.usedTypeParameters,
+    required this.problems,
+    this.extensionInstance = false,
+  });
+
+  /// Parses one entry of `enclosingScope`.
+  factory RouteBEnclosingScope.fromJson(Map<String, dynamic> json) {
+    final className = json['class'];
+    if (className is! String) {
+      throw const FormatException('an enclosing scope names no class');
+    }
+    List<String> names(String field) => [
+      for (final n in json[field] as List? ?? const []) n as String,
+    ];
+    return RouteBEnclosingScope(
+      className: className,
+      staticReferences: [
+        for (final r in json['staticReferences'] as List? ?? const [])
+          RouteBStaticReference(
+            offset: (r as Map<String, dynamic>)['offset'] as int,
+            member: r['member'] as String,
+            kind: r['kind'] as String,
+            interpolated: r['interpolated'] == true,
+          ),
+      ],
+      usedTypeParameters: names('usedTypeParameters'),
+      problems: names('problems'),
+      extensionInstance: json['extensionInstance'] == true,
+    );
+  }
+
+  /// The enclosing class or extension, which qualifies a static.
+  final String className;
+
+  /// Every use of one of its statics that needs a qualifier.
+  final List<RouteBStaticReference> staticReferences;
+
+  /// Class type parameters the body mentions.
+  final List<String> usedTypeParameters;
+
+  /// Reasons the member cannot be carried; non-empty means refuse.
+  final List<String> problems;
+
+  /// Whether the member is an INSTANCE member of an extension (analysis 22),
+  /// which takes its receiver first and so cannot be carried without a
+  /// `lowering`.
+  final bool extensionInstance;
 }
 
 /// What Kernel knows about turning an instance method into a static
@@ -271,14 +435,22 @@ class RouteBLowering {
     required this.accesses,
     required this.unsupported,
     this.origin,
+    this.extensionName,
     this.superInvocations = const [],
+    this.signatureTypes,
     this.releaseSuperTargets,
     this.privateConstructions,
     this.releasePrivateConstructions,
   });
 
-  /// The class the receiver belongs to, used as the parameter's type.
+  /// The type the receiver parameter is written with: the class, or for an
+  /// extension member its on-type (`int`, `List<String>?`).
   final String receiverType;
+
+  /// The extension this member is an instance member of (analysis version 22),
+  /// or null for a class member. The producer writes `Name(self).sibling` for a
+  /// call of a sibling member and qualifies the extension's statics with it.
+  final String? extensionName;
 
   /// Offset of the method's NAME. The producer scans forward from here for the
   /// parameter list, because an annotation like `@pragma('vm:never-inline')`
@@ -291,6 +463,17 @@ class RouteBLowering {
   /// Reasons this body is outside the supported surface. Non-empty means
   /// refuse by name rather than lower on a guess.
   final List<String> unsupported;
+
+  /// The INFERRED type of each positional parameter and of the return, as
+  /// source the replacement can write (analysis version 21), or null for a
+  /// document that predates it.
+  ///
+  /// The lowered form is a top-level function, which overrides nothing, so a
+  /// parameter or return type the source left out (Dart takes it from the
+  /// overridden member) would become `dynamic`. The producer writes these in
+  /// where the source omitted a type. A null ELEMENT is a type the replacement
+  /// library cannot name; the producer refuses a target that would need it.
+  final RouteBSignatureTypes? signatureTypes;
 
   /// Where this method lives, in SOURCE terms (analysis version 10).
   ///
@@ -357,6 +540,21 @@ class RouteBLowering {
   /// yet produce a direct-super replacement, so a non-empty list is refused;
   /// see `_lower` in `route_b_producer.dart`.
   final List<RouteBSuperInvocation> superInvocations;
+}
+
+/// The inferred signature of a lowered member; see
+/// [RouteBLowering.signatureTypes].
+@immutable
+class RouteBSignatureTypes {
+  /// {@macro route_b_signature_types}
+  const RouteBSignatureTypes({required this.params, required this.returnType});
+
+  /// One entry per positional parameter, in order: the type as source, or null
+  /// when it cannot be written in the replacement library.
+  final List<String?> params;
+
+  /// The return type as source, or null when it cannot be written.
+  final String? returnType;
 }
 
 /// A method's source-level identity (analysis version 10).
@@ -469,6 +667,198 @@ RouteBProvenance? _provenance(Object? value) => switch (value) {
   _ => null,
 };
 
+/// One symbol a carried body names that the release's loader must find by
+/// name (analysis version 18).
+///
+/// A FACT, not a verdict: whether the release kept it is decided against the
+/// release's own interface and manifest, in `RouteBRetention`.
+@immutable
+class RouteBExternalReference {
+  /// {@macro route_b_external_reference}
+  const RouteBExternalReference({
+    required this.kind,
+    this.library = '',
+    this.className,
+    this.member,
+    this.isPrivate = false,
+    this.viaConstant = false,
+    this.inlined,
+    this.receiverLibrary,
+    this.receiverClass,
+    this.reason,
+  });
+
+  /// Parses one entry of `externalReferences`.
+  ///
+  /// [readInlined] is true only for a document of analysis
+  /// [routeBInlinedOpsAnalysisVersion] or later: an `inlined` field on an
+  /// older one is ignored, so only an analyzer that computes it can say it.
+  /// [readReceiver] is the same for [receiverClass], from
+  /// [routeBForInReceiverAnalysisVersion].
+  factory RouteBExternalReference.fromJson(
+    Map<String, dynamic> json, {
+    bool readInlined = false,
+    bool readReceiver = false,
+  }) {
+    final kind = json['kind'];
+    if (kind is! String || !_kinds.contains(kind)) {
+      throw FormatException('an external reference has the unknown kind $kind');
+    }
+    if (kind == 'unanalyzed') {
+      return RouteBExternalReference(
+        kind: kind,
+        reason: json['reason'] as String? ?? 'the body could not be walked',
+      );
+    }
+    final library = json['library'];
+    if (library is! String) {
+      throw const FormatException('an external reference names no library');
+    }
+    final receiver = readReceiver ? _knownReceiver(json) : null;
+    return RouteBExternalReference(
+      kind: kind,
+      library: library,
+      className: json['class'] as String?,
+      member: json['member'] as String?,
+      isPrivate: json['private'] == true,
+      viaConstant: json['viaConstant'] == true,
+      inlined: readInlined
+          ? _knownInlined(
+              library: library,
+              className: json['class'],
+              member: json['member'],
+              inlined: json['inlined'],
+            )
+          : null,
+      receiverLibrary: receiver?.$1,
+      receiverClass: receiver?.$2,
+    );
+  }
+
+  /// The receiver class a document names for a `for-in`'s
+  /// `Iterable.get:iterator`, the only reference the analyzer gives one, or
+  /// null. A receiver on any other reference is not believed: it would narrow
+  /// the check for a member the analyzer never narrowed.
+  static (String, String)? _knownReceiver(Map<String, dynamic> json) {
+    final library = json['receiverLibrary'];
+    final cls = json['receiverClass'];
+    if (library is! String || cls is! String) return null;
+    if (library.isEmpty || cls.isEmpty) return null;
+    if (json['kind'] != 'instance' ||
+        json['library'] != 'dart:core' ||
+        json['class'] != 'Iterable' ||
+        json['member'] != 'get:iterator') {
+      return null;
+    }
+    return (library, cls);
+  }
+
+  /// The opcodes the bytecode compiler can emit for an operator, by selector
+  /// (`RecognizedMethods.binaryIntOps`, `binaryDoubleOps` and the unary
+  /// negations in dart2bytecode, `==` excluded: `a == b` is never a call the
+  /// compiler specializes). A document's `inlined` is believed only when it
+  /// names an operator of `int`, `double` or `num` with opcodes that operator
+  /// can have, so a buggy or edited document cannot waive the check for any
+  /// other member.
+  static const inlinedOpcodes = <String, Set<String>>{
+    '+': {'AddInt', 'AddDouble'},
+    '-': {'SubInt', 'SubDouble'},
+    '*': {'MulInt', 'MulDouble'},
+    '~/': {'TruncDivInt'},
+    '%': {'ModInt'},
+    '/': {'DivDouble'},
+    '&': {'BitAndInt'},
+    '|': {'BitOrInt'},
+    '^': {'BitXorInt'},
+    '<<': {'ShlInt'},
+    '>>': {'ShrInt'},
+    '>': {'CompareIntGt', 'CompareDoubleGt'},
+    '<': {'CompareIntLt', 'CompareDoubleLt'},
+    '>=': {'CompareIntGe', 'CompareDoubleGe'},
+    '<=': {'CompareIntLe', 'CompareDoubleLe'},
+    'unary-': {'NegateInt', 'NegateDouble'},
+  };
+
+  static String? _knownInlined({
+    required String library,
+    required Object? className,
+    required Object? member,
+    required Object? inlined,
+  }) {
+    if (inlined is! String || member is! String) return null;
+    if (library != 'dart:core' ||
+        !const {'int', 'double', 'num'}.contains(className)) {
+      return null;
+    }
+    final allowed = inlinedOpcodes[member];
+    if (allowed == null) return null;
+    final parts = inlined.split('|');
+    return parts.every(allowed.contains) ? inlined : null;
+  }
+
+  static const _kinds = {
+    'class',
+    'top-level',
+    'static',
+    'constructor',
+    'instance',
+    'dynamic',
+    'unanalyzed',
+  };
+
+  /// `class` (named as a type), `top-level`, `static`, `constructor`,
+  /// `instance`, `dynamic` (a call by name on a `dynamic` receiver; [member]
+  /// is the selector), or `unanalyzed` (the analyzer could not walk the body).
+  final String kind;
+
+  /// The library URI, as the release's kernel names it.
+  final String library;
+
+  /// The declaring class, or null for a top-level member.
+  final String? className;
+
+  /// The VM's name for the member (`get:`/`set:` for an accessor, empty for an
+  /// unnamed constructor), or null for a class.
+  final String? member;
+
+  /// Whether the member, or the class holding it, is private.
+  final bool isPrivate;
+
+  /// Whether a constant names it, which the release's interface retained even
+  /// for an instance member of `dart:`.
+  final bool viaConstant;
+
+  /// The opcode(s), joined by `|`, the bytecode compiler emits for EVERY site
+  /// of this member in the body (analysis 20 and later), so none is looked up
+  /// at run time; null when any site is a call, the analysis predates the
+  /// field, or the document names something that is not an operator opcode
+  /// (see [inlinedOpcodes]).
+  final String? inlined;
+
+  /// The library of [receiverClass] (analysis 23 and later).
+  final String? receiverLibrary;
+
+  /// For a `for-in`'s `Iterable.get:iterator`, the class of the loop
+  /// iterable's static type (analysis 23 and later): the runtime receiver is
+  /// an instance of one of its subtypes. Null when the analysis predates the
+  /// field or could not name one (a `dynamic` iterable, a type parameter), in
+  /// which case the receiver is any `Iterable`.
+  final String? receiverClass;
+
+  /// Why the body could not be walked, for `unanalyzed`.
+  final String? reason;
+
+  /// `Class.member` or `member` or `Class`, as a developer would write it.
+  String get displayName {
+    final c = className;
+    final m = member;
+    if (m == null) return c ?? library;
+    final bare = m.replaceFirst(RegExp('^(get|set):'), '');
+    final name = bare.isEmpty ? (c ?? library) : bare;
+    return c == null || bare.isEmpty ? name : '$c.$name';
+  }
+}
+
 /// The whole-patch outcome.
 enum RouteBVerdict {
   /// Every changed member can be carried.
@@ -485,6 +875,7 @@ enum RouteBVerdict {
 class RouteBCoverage {
   /// {@macro route_b_coverage}
   const RouteBCoverage({
+    required this.analysisVersion,
     required this.verdict,
     required this.changed,
     required this.added,
@@ -496,6 +887,13 @@ class RouteBCoverage {
     this.signatures = const {},
     this.sources = const {},
     this.lowering = const {},
+    this.carried = const [],
+    this.callers,
+    this.canCarry = false,
+    this.helpers = const [],
+    this.unusedHelpers = const [],
+    this.externalReferences,
+    this.enclosingScope,
   });
 
   /// Parses the analyzer's JSON document.
@@ -571,6 +969,7 @@ class RouteBCoverage {
             'unreachable' => RouteBRepresentability.unreachable,
             'unknown' => RouteBRepresentability.unknown,
             'added' => RouteBRepresentability.added,
+            'declaration' => RouteBRepresentability.declaration,
             final Object? other => throw FormatException(
               'the analysis carries an unknown rejection category "$other"',
             ),
@@ -628,6 +1027,17 @@ class RouteBCoverage {
             for (final u in (l['unsupported'] as List<Object?>? ?? const []))
               u! as String,
           ],
+          extensionName: switch (l['extension']) {
+            final String name
+                when analysisVersion >=
+                    routeBExtensionReceiverAnalysisVersion =>
+              name,
+            null => null,
+            _ => throw const FormatException(
+              'a lowering carries an "extension" that this analysis version '
+              'does not define',
+            ),
+          },
           origin: switch (l['origin']) {
             final Map<String, dynamic> o => RouteBOrigin(
               library: o['library']! as String,
@@ -635,6 +1045,16 @@ class RouteBCoverage {
               member: o['member']! as String,
               memberKind: o['memberKind']! as String,
             ),
+            _ => null,
+          },
+          signatureTypes: switch (l['signatureTypes']) {
+            final Map<String, dynamic> t when t['params'] is List<Object?> =>
+              RouteBSignatureTypes(
+                params: [
+                  for (final v in t['params']! as List<Object?>) v as String?,
+                ],
+                returnType: t['returnType'] as String?,
+              ),
             _ => null,
           },
           superInvocations: [
@@ -710,13 +1130,76 @@ class RouteBCoverage {
       }
     }
 
+    Map<String, List<String>>? callers;
+    if (analysisVersion >= routeBCarryAnalysisVersion) {
+      final raw = map['callers'];
+      if (raw is! Map<String, dynamic>) {
+        throw const FormatException('the analysis is missing "callers"');
+      }
+      callers = {
+        for (final entry in raw.entries)
+          entry.key: (entry.value as List).cast<String>(),
+      };
+    }
+
+    // VERSION 18. Absent on 17 and earlier, and absent means "not measured",
+    // never "references nothing": the two are kept apart by the null.
+    Map<String, List<RouteBExternalReference>>? externalReferences;
+    if (analysisVersion >= routeBRetentionAnalysisVersion) {
+      final raw = map['externalReferences'];
+      if (raw is! Map<String, dynamic>) {
+        throw const FormatException(
+          'the analysis is missing "externalReferences"',
+        );
+      }
+      externalReferences = {
+        for (final entry in raw.entries)
+          entry.key: [
+            for (final r in entry.value as List)
+              RouteBExternalReference.fromJson(
+                r as Map<String, dynamic>,
+                readInlined: analysisVersion >= routeBInlinedOpsAnalysisVersion,
+                readReceiver:
+                    analysisVersion >= routeBForInReceiverAnalysisVersion,
+              ),
+          ],
+      };
+    }
+
+    // Present when the analyzer reports class scope. Absent means "not
+    // measured", never "uses nothing".
+    Map<String, RouteBEnclosingScope>? enclosingScope;
+    final rawScope = map['enclosingScope'];
+    if (rawScope is Map<String, dynamic>) {
+      enclosingScope = {
+        for (final entry in rawScope.entries)
+          entry.key: RouteBEnclosingScope.fromJson(
+            entry.value as Map<String, dynamic>,
+          ),
+      };
+    }
+
     return RouteBCoverage(
+      analysisVersion: analysisVersion,
       verdict: verdict,
+      canCarry: analysisVersion >= routeBCarryAnalysisVersion,
+      carried: analysisVersion >= routeBCarryAnalysisVersion
+          ? strings('carried')
+          : const [],
+      callers: callers,
       sources: sources,
       lowering: lowering,
       signatures: signatures,
       changed: strings('changed'),
       added: strings('added'),
+      helpers: analysisVersion >= routeBHelpersAnalysisVersion
+          ? strings('helpers')
+          : const [],
+      unusedHelpers: analysisVersion >= routeBHelpersAnalysisVersion
+          ? strings('unusedHelpers')
+          : const [],
+      externalReferences: externalReferences,
+      enclosingScope: enclosingScope,
       removed: strings('removed'),
       representable: strings('patchable'),
       conditional: strings('conditional'),
@@ -725,14 +1208,77 @@ class RouteBCoverage {
     );
   }
 
+  /// The version of the analyzer that wrote this document, one of
+  /// [knownRouteBAnalysisVersions].
+  final int analysisVersion;
+
   /// The whole-patch outcome.
   final RouteBVerdict verdict;
 
   /// Members whose compiled form differs from the release's.
   final List<String> changed;
 
-  /// Members the patch introduces. Always a rejection.
+  /// UNCHANGED members analyzed as if they had changed, because the release
+  /// holds an inlined or folded copy of a changed member inside them. They
+  /// appear in [representable] or [conditional] like any changed member, and
+  /// never in [changed].
+  final List<String> carried;
+
+  /// For each analyzed member, the app members whose bodies name it in the
+  /// patched kernel. Null for an analysis from before version 15.
+  final Map<String, List<String>>? callers;
+
+  /// Whether the analyzer that wrote this takes `--carry`.
+  final bool canCarry;
+
+  /// Every member only the patched kernel has. Before version 16 each is a
+  /// rejection; from 16 the ones in [helpers] and [unusedHelpers] are not.
   final List<String> added;
+
+  /// New top-level functions and getters the patch carries as source, inside
+  /// every replacement library that needs them (version 16). A subset of
+  /// [added]. Each has a `sources` span and a `callers` entry.
+  final List<String> helpers;
+
+  /// New top-level functions nothing in the patch reaches (version 16). Not
+  /// shipped and not a rejection.
+  final List<String> unusedHelpers;
+
+  /// The helpers [key] reaches: named by its body, or by a helper that is, per
+  /// [callers]. They ship inside [key]'s replacement library, so what they name
+  /// is part of what that replacement asks the release to have kept.
+  Set<String> helpersNeededBy(String key) {
+    final needed = <String>{};
+    if (helpers.isEmpty) return needed;
+    var grew = true;
+    while (grew) {
+      grew = false;
+      for (final helper in helpers) {
+        if (needed.contains(helper)) continue;
+        final of = callers?[helper] ?? const <String>[];
+        if (of.contains(key) || of.any(needed.contains)) {
+          needed.add(helper);
+          grew = true;
+        }
+      }
+    }
+    return needed;
+  }
+
+  /// The [callers] of [key] that the RELEASE has, which leaves out [helpers]:
+  /// a helper is new, so the release never runs a copy of anything inside it.
+  List<String>? releaseCallersOf(String key) => callers?[key]
+      ?.where((c) => !helpers.contains(c) && !unusedHelpers.contains(c))
+      .toList();
+
+  /// The external symbols each carried member's body names, keyed by
+  /// `library#selector` (analysis version 18). Null for an earlier analysis,
+  /// which did not measure them.
+  final Map<String, List<RouteBExternalReference>>? externalReferences;
+
+  /// What each carried class member's body takes from its class scope, keyed by
+  /// `library#selector`. Null when the analyzer did not report it.
+  final Map<String, RouteBEnclosingScope>? enclosingScope;
 
   /// Members the patch drops. Reported, never fatal: the release keeps them and
   /// nothing calls them from the patch's own code.
@@ -759,7 +1305,8 @@ class RouteBCoverage {
   /// Where each changed member's new body lives, by `library#selector`.
   final Map<String, RouteBSourceSpan> sources;
 
-  /// Implicit-`this` lowering facts, for changed INSTANCE members only.
+  /// Implicit-`this` lowering facts, for changed INSTANCE members and, from
+  /// analysis version 17, for each instance helper (keyed `library#Class.m`).
   final Map<String, RouteBLowering> lowering;
 
   /// Signature identities for changed members, keyed by `library#selector`.
@@ -774,15 +1321,31 @@ class RouteBCoverage {
   /// useless here: "1 changed member is not reachable" tells you a patch failed
   /// and gives you nowhere to go.
   String get refusalMessage {
+    // A field or constructor is in neither `changed` nor `added`, which list
+    // procedures only, so it is counted from its rejection.
+    final declarations = rejections
+        .where((r) => r.category == RouteBRepresentability.declaration)
+        .length;
+    // Helpers are in `added` but are not rejections; count only the new
+    // members that are.
+    final refusedAdded = (added.length - helpers.length - unusedHelpers.length)
+        .clamp(0, added.length);
     final buffer = StringBuffer()
       ..writeln(
         'This patch cannot be built: ${rejections.length} of '
-        '${changed.length + added.length} changed members cannot be carried by '
+        '${changed.length + carried.length + refusedAdded + declarations} '
+        '${carried.isEmpty ? 'changed ' : ''}members cannot be carried by '
         'a Route B patch.',
       )
       ..writeln();
     for (final rejection in rejections) {
       buffer.writeln('  ${rejection.target}');
+      if (carried.contains(rejection.target)) {
+        buffer.writeln(
+          '      (unchanged, but the release holds a copy of a changed member '
+          'inside it, so the patch must replace it too)',
+        );
+      }
       buffer.writeln('      ${rejection.reason}');
     }
     buffer
@@ -796,20 +1359,39 @@ class RouteBCoverage {
   }
 }
 
+/// The `--include` prefixes the analyzer is run with for an app whose package
+/// is [packageName]: the app's own libraries, whole, and nothing else.
+///
+/// This is the breadth the release used for its census and its dynamic
+/// interface (`route_b_release_kernels.dart`), and a patch's analysis must use
+/// the same one, or the analyzer reads the release's own framework members as
+/// changed. Empty for a null or empty name, which is the analyzer's default
+/// (every non-`dart:` library is the app) and the only safe answer when the
+/// release's package cannot be named.
+List<String> routeBAppIncludePrefixes(String? packageName) =>
+    packageName == null || packageName.isEmpty
+    ? const []
+    : ['package:$packageName/'];
+
 /// Runs the coverage analyzer out of a resolved compiler cell.
 ///
-/// [compiler] is the cell belonging to the RELEASE's engine, so the analyzer
+/// `compiler` is the cell belonging to the RELEASE's engine, so the analyzer
 /// reading these dills is version-matched to the frontend that wrote them.
 class RouteBCoverageAnalyzer {
   /// {@macro route_b_coverage_analyzer}
   const RouteBCoverageAnalyzer();
 
   /// Analyze the change between [baseDill] and [patchedDill].
+  ///
+  /// [carry] names unchanged members to analyze as if they had changed. Only
+  /// an analyzer of [routeBCarryAnalysisVersion] or later takes it; pass it
+  /// only when an earlier analysis said [RouteBCoverage.canCarry].
   RouteBCoverage analyze({
     required RouteBCompiler compiler,
     required File baseDill,
     required File patchedDill,
     List<String> includePrefixes = const [],
+    Set<String> carry = const {},
   }) {
     final result = Process.runSync(compiler.runtime.path, [
       compiler.analyzer.path,
@@ -818,19 +1400,17 @@ class RouteBCoverageAnalyzer {
       '--patched-dill',
       patchedDill.path,
       for (final prefix in includePrefixes) ...['--include', prefix],
+      for (final key in carry.toList()..sort()) ...['--carry', key],
     ]);
 
     if (result.exitCode != 0) {
-      throw RouteBCompilerException(
-        RouteBCompilerProblem.invalid,
-        '''
+      throw RouteBCompilerException(RouteBCompilerProblem.invalid, '''
 The Route B coverage analyzer failed (exit ${result.exitCode}):
 
 ${result.stderr}
 
 Treat this as corruption or a bad cache, not as a problem with the release.
-Nothing was uploaded.''',
-      );
+Nothing was uploaded.''');
     }
 
     return RouteBCoverage.fromJson(result.stdout as String);

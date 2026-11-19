@@ -5,7 +5,9 @@ import 'package:collection/collection.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/archive_analysis/android_archive_differ.dart';
+import 'package:shorebird_cli/src/archive_analysis/apple_archive_differ.dart';
 import 'package:shorebird_cli/src/archive_analysis/archive_differ.dart';
+import 'package:shorebird_cli/src/archive_analysis/bundle_dependencies.dart';
 import 'package:shorebird_cli/src/archive_analysis/file_set_diff.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
@@ -18,13 +20,68 @@ const String allowNativeDiffsHint =
     "If you don't understand these native changes, don't ship this patch. "
     'Pass --allow-native-diffs to override this warning for this patch.';
 
-/// Advice shown after listing dependencies whose versions changed.
-const String _pinDependenciesHint =
-    'A changed dependency version is a common cause of DEX changes. '
-    'Pin dependency versions (or use Gradle dependency locking) so patch '
-    'builds resolve the same versions as the release.\n'
+/// Advice shown after listing dependencies whose versions changed: Gradle's
+/// standard fixes, with a constraint ready to paste for each library that
+/// resolved to a different version than the release's.
+String _pinDependenciesHint(List<DependencyVersionChange> changes) {
+  final pins = <String>{
+    for (final change in changes)
+      // A library added or removed since the release can't be pinned back.
+      if ((change.oldVersion, change.newVersion) case (final version?, _?))
+        // A constraint applies to a module, whatever its classifier.
+        _strictPin(change.name.split(':').take(2).join(':'), version),
+  };
+  const cause =
+      "A dependency that resolves to a different version than the release's "
+      "is a common cause of DEX changes you didn't make, often because a "
+      'plugin asks for a version range.';
+  const pinAdvice =
+      "To build this patch with the release's versions, add this to your app "
+      "module's build file (usually android/app/build.gradle or "
+      'build.gradle.kts):';
+  const removeBeforeRelease =
+      'Remove these lines before your next release: a strict version wins '
+      'even over a newer version a plugin requires, without any error.';
+  const lockingAdvice =
+      "To keep future patches on their release's versions, use Gradle "
+      'dependency locking '
+      '(https://docs.gradle.org/current/userguide/dependency_locking.html) '
+      'and commit the lockfile with each release.';
+  const generalAdvice =
+      'Pin dependency versions (or use Gradle dependency locking) so patch '
+      'builds resolve the same versions as the release.';
+  const safeToPass =
+      "Patches only contain Dart code, so devices keep running the release's "
+      'versions of these libraries. If these version changes explain all of '
+      "the differences above and your Dart code doesn't rely on them, it is "
+      'safe to pass --allow-native-diffs for this patch.';
+  return [
+    cause,
+    if (pins.isNotEmpty) ...[
+      pinAdvice,
+      '  dependencies {',
+      '    constraints {',
+      ...pins,
+      '    }',
+      '  }',
+      removeBeforeRelease,
+      lockingAdvice,
+    ] else
+      generalAdvice,
+    safeToPass,
+  ].join('\n');
+}
+
+String _strictPin(String module, String version) =>
+    '      implementation("$module") { version { strictly("$version") } }';
+
+/// Advice shown after listing embedded Apple frameworks whose versions changed.
+const String _pinFrameworksHint =
+    'A changed framework version is a common cause of native Mach-O changes. '
+    'Pin pod and Swift package versions in Podfile.lock / Package.resolved so '
+    'patch builds resolve the same versions as the release.\n'
     "Patches only contain Dart code, so devices keep running the release's "
-    'versions of these libraries. If these version changes explain all of '
+    'versions of these frameworks. If these version changes explain all of '
     "the differences above and your Dart code doesn't rely on them, it is "
     'safe to pass --allow-native-diffs for this patch.';
 
@@ -72,14 +129,26 @@ enum UnpatchableChange {
 /// user cannot be prompted to continue.
 class UnpatchableChangeException implements Exception {
   /// Creates an [UnpatchableChangeException] for [changes].
-  const UnpatchableChangeException(this.changes);
+  const UnpatchableChangeException(this.changes, {this.status});
 
   /// The changes that blocked the patch, in [UnpatchableChange] order.
   final Set<UnpatchableChange> changes;
+
+  /// Every change the check found, including any the patch was allowed.
+  final DiffStatus? status;
 }
 
 /// Thrown when the user cancels after being prompted to continue.
-class UserCancelledException implements Exception {}
+class UserCancelledException implements Exception {
+  /// Creates a [UserCancelledException] for the declined [change].
+  const UserCancelledException(this.change, {this.status});
+
+  /// The change the user was asked about.
+  final UnpatchableChange change;
+
+  /// Every change the check found, including any the user accepted.
+  final DiffStatus? status;
+}
 
 /// A reference to a [PatchDiffChecker] instance.
 ScopedRef<PatchDiffChecker> patchDiffCheckerRef = create(PatchDiffChecker.new);
@@ -106,10 +175,16 @@ class PatchDiffChecker {
       'Verifying patch can be applied to release',
     );
 
-    final contentDiffs = await archiveDiffer.changedFiles(
-      releaseArchive.path,
-      localArchive.path,
-    );
+    final FileSetDiff contentDiffs;
+    try {
+      contentDiffs = await archiveDiffer.changedFiles(
+        releaseArchive.path,
+        localArchive.path,
+      );
+    } on Exception {
+      progress.fail();
+      rethrow;
+    }
     progress.complete();
 
     final status = DiffStatus(
@@ -171,6 +246,23 @@ class PatchDiffChecker {
         }
       }
 
+      // Show detailed ELF (.so) diff information if available.
+      if (contentDiffs is AndroidFileSetDiff &&
+          contentDiffs.elfDiffResults.isNotEmpty) {
+        for (final elfPath
+            in archiveDiffer
+                .nativeFileSetDiff(contentDiffs)
+                .changedPaths
+                .where((p) => p.endsWith('.so'))) {
+          final elfResult = contentDiffs.elfDiffResults[elfPath];
+          if (elfResult != null) {
+            logger.info(
+              yellow.wrap(elfResult.describe(showFullCodeDiff: showDexDiff)),
+            );
+          }
+        }
+      }
+
       // Name the dependencies whose versions moved, which usually explains a
       // DEX change the developer didn't make.
       if (contentDiffs is AndroidFileSetDiff &&
@@ -181,7 +273,39 @@ class PatchDiffChecker {
               '\nDependency versions differ from the release:',
               for (final change in contentDiffs.dependencyVersionChanges)
                 '  ${change.describe()}',
-              _pinDependenciesHint,
+              _pinDependenciesHint(contentDiffs.dependencyVersionChanges),
+            ].join('\n'),
+          ),
+        );
+      }
+
+      // Show detailed Mach-O diff information if available.
+      if (contentDiffs is AppleFileSetDiff &&
+          contentDiffs.machODiffResults.isNotEmpty) {
+        for (final machOPath
+            in archiveDiffer.nativeFileSetDiff(contentDiffs).changedPaths) {
+          final machOResult = contentDiffs.machODiffResults[machOPath];
+          if (machOResult != null) {
+            logger.info(
+              yellow.wrap(
+                machOResult.describe(showFullCodeDiff: showDexDiff),
+              ),
+            );
+          }
+        }
+      }
+
+      // Name the embedded frameworks whose versions moved between the release
+      // and the patch.
+      if (contentDiffs is AppleFileSetDiff &&
+          contentDiffs.frameworkVersionChanges.isNotEmpty) {
+        logger.info(
+          yellow.wrap(
+            [
+              '\nFramework versions differ from the release:',
+              for (final change in contentDiffs.frameworkVersionChanges)
+                '  ${change.describe()}',
+              _pinFrameworksHint,
             ].join('\n'),
           ),
         );
@@ -202,7 +326,10 @@ If you don't know why you're seeing this, visit our troubleshooting page at ${na
           'Continue anyway?',
           hint: allowNativeDiffsHint,
         )) {
-          throw UserCancelledException();
+          throw UserCancelledException(
+            UnpatchableChange.native,
+            status: status,
+          );
         }
       }
     }
@@ -250,7 +377,10 @@ If you don't know why you're seeing this, visit our troubleshooting page at ${as
           'Continue anyway?',
           hint: allowAssetDiffsHint,
         )) {
-          throw UserCancelledException();
+          throw UserCancelledException(
+            UnpatchableChange.asset,
+            status: status,
+          );
         }
       }
     }
@@ -259,7 +389,9 @@ If you don't know why you're seeing this, visit our troubleshooting page at ${as
       archiveDiffer: archiveDiffer,
       contentDiffs: contentDiffs,
     );
-    if (blocked.isNotEmpty) throw UnpatchableChangeException(blocked);
+    if (blocked.isNotEmpty) {
+      throw UnpatchableChangeException(blocked, status: status);
+    }
 
     return status;
   }

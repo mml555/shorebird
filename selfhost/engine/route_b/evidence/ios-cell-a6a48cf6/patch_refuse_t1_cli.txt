@@ -1,0 +1,9 @@
+## patch_refuse_t1.log (5913 lines; excerpt)
+5891:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+5892: This patch changes a function this version of Shorebird cannot yet turn into a replacement body:
+5893: 
+5894:   package:untab/main.dart#Box.kind
+5895:       its body uses the class type parameter `T`, which is not in scope in the top-level function a replacement is, and a top-level type of that name would be bound instead
+5896: 
+5897: The whole patch is refused. This is not a problem with your release. Nothing was
+

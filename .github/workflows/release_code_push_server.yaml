@@ -67,6 +67,12 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  # A git fetch over a stalled connection never errors, so actions/checkout's
+  # own retry never runs and the job sits until its timeout (seen on ci-build:
+  # a 15-25s checkout hanging for 5 minutes). Abort a transfer that moves under
+  # 1 KB/s for 30s, so checkout fails fast and retries.
+  GIT_HTTP_LOW_SPEED_LIMIT: 1000
+  GIT_HTTP_LOW_SPEED_TIME: 30
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/code-push-server
 

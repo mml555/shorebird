@@ -8,11 +8,11 @@ import 'package:pub_semver/pub_semver.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/build_flags.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
-import 'package:shorebird_cli/src/dd_support.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
 import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
+import 'package:shorebird_cli/src/dd_support.dart';
 import 'package:shorebird_cli/src/extensions/arg_results.dart';
 import 'package:shorebird_cli/src/flutter_version_constraints.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
@@ -58,6 +58,12 @@ abstract class Releaser {
   /// The type of artifact we are creating a release for.
   ReleaseType get releaseType;
 
+  /// Whether this run may add its artifacts to [release], which is already
+  /// active on this platform. Most platforms build every architecture in one
+  /// run, so a second release of the same version is refused; Windows builds
+  /// one architecture per machine and adds the other to the same release.
+  Future<bool> addsToActiveRelease(Release release) async => false;
+
   /// The root directory of the current project.
   Directory get projectRoot => shorebirdEnv.getShorebirdProjectRoot()!;
 
@@ -73,20 +79,47 @@ abstract class Releaser {
 
   /// Requires `--release-version` with a concrete version, for add-to-app
   /// releases (aar, ios-framework), whose version cannot be read from the
-  /// built module: it is the version of the app that embeds the module.
+  /// built module: the developer names each module build.
   /// Rejects a missing, blank or `latest` value.
   void assertReleaseVersionProvided() {
     final value = (argResults['release-version'] as String?)?.trim();
-    if (value != null && value.isNotEmpty && value != 'latest') return;
-
-    final hostPlatform = releaseType.releasePlatform.displayName;
-    throw CommandError(
-      message:
-          'An ${releaseType.cliName} release needs --release-version: the '
-          'version of the $hostPlatform app that embeds this module.',
-      hint: 'Run: ${releaseType.releaseCommand()}',
-    );
+    if (value == null || value.isEmpty || value == 'latest') {
+      throw CommandError(
+        message:
+            'An ${releaseType.cliName} release needs --release-version: the '
+            'version of this module build, a new one for each build you '
+            'release.',
+        hint: 'Run: ${releaseType.releaseCommand()}',
+      );
+    }
   }
+
+  /// Rejects a `--release-version` the updater won't accept once it is built
+  /// into the module, which Flutter
+  /// [minimumModuleReleaseVersionFlutterVersion] and later do. Call before the
+  /// build, with the release's Flutter installed. With an earlier Flutter the
+  /// value is still the host app's version, which can be free text (Android's
+  /// `versionName`), so it isn't checked.
+  Future<void> assertReleaseVersionCanBeBuiltIn() async {
+    final flutterVersion = await shorebirdFlutter.getVersion();
+    if (flutterVersion == null ||
+        flutterVersion < minimumModuleReleaseVersionFlutterVersion) {
+      return;
+    }
+    final value = (argResults['release-version'] as String).trim();
+    if (!_moduleReleaseVersionPattern.hasMatch(value)) {
+      throw CommandError(
+        message:
+            '--release-version "$value" can only use letters, digits, '
+            '".", "_", "+" and "-", up to 128 characters.',
+        hint: 'Run: ${releaseType.releaseCommand()}',
+      );
+    }
+  }
+
+  static final _moduleReleaseVersionPattern = RegExp(
+    r'^[A-Za-z0-9._+-]{1,128}$',
+  );
 
   /// Rejects `--release-version`, which is only valid for releases whose
   /// version cannot be inferred from the built artifact (aar, ios-framework).
@@ -415,8 +448,8 @@ abstract class Releaser {
   /// Gradle as a `-Pdart-defines` argument and writes it nowhere — so the
   /// Android fingerprint uses the expansion unverified. Release and patch run
   /// the same expansion, so a mismatch between them is still detected; what is
-  /// not detected is a port error that maps two genuinely different files to the
-  /// same defines on both sides.
+  /// not detected is a port error that maps two genuinely different files to
+  /// the same defines on both sides.
   ///
   /// Recording the third state explicitly is the point: "absent" and "unknown"
   /// have different remediations, and collapsing them is how a patch silently

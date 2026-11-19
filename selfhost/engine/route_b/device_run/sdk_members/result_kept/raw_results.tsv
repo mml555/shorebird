@@ -1,0 +1,1452 @@
+future_then__async_fn__s	OK
+future_then__async_fn__ts	OK
+future_then__async_fn__d	ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'then' with matching arguments.
+future_then__async_fn__td	OK
+future_then__value__s	OK
+future_then__value__ts	OK
+future_then__value__d	ABORTS
+future_then__value__td	OK
+future_then__completer__s	OK
+future_then__completer__ts	OK
+future_then__completer__d	ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'then' with matching arguments.
+future_then__completer__td	OK
+future_then__delayed__s	OK
+future_then__delayed__ts	OK
+future_then__delayed__d	ABORTS
+future_then__delayed__td	OK
+future_catchError__async_fn__s	OK
+future_catchError__async_fn__ts	OK
+future_catchError__async_fn__d	ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'catchError' with matching arguments.
+future_catchError__async_fn__td	OK
+future_catchError__value__s	OK
+future_catchError__value__ts	OK
+future_catchError__value__d	ABORTS
+future_catchError__value__td	OK
+future_catchError__completer__s	OK
+future_catchError__completer__ts	OK
+future_catchError__completer__d	ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'catchError' with matching arguments.
+future_catchError__completer__td	OK
+future_catchError__delayed__s	OK
+future_catchError__delayed__ts	OK
+future_catchError__delayed__d	ABORTS
+future_catchError__delayed__td	OK
+future_whenComplete__async_fn__s	OK
+future_whenComplete__async_fn__ts	OK
+future_whenComplete__async_fn__d	ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'whenComplete' with matching arguments.
+future_whenComplete__async_fn__td	OK
+future_whenComplete__value__s	OK
+future_whenComplete__value__ts	OK
+future_whenComplete__value__d	ABORTS
+future_whenComplete__value__td	OK
+future_whenComplete__completer__s	OK
+future_whenComplete__completer__ts	OK
+future_whenComplete__completer__d	ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'whenComplete' with matching arguments.
+future_whenComplete__completer__td	OK
+future_whenComplete__delayed__s	OK
+future_whenComplete__delayed__ts	OK
+future_whenComplete__delayed__d	ABORTS
+future_whenComplete__delayed__td	OK
+future_timeout__async_fn__s	OK
+future_timeout__async_fn__ts	OK
+future_timeout__async_fn__d	ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'timeout' with matching arguments.
+future_timeout__async_fn__td	OK
+future_timeout__value__s	OK
+future_timeout__value__ts	OK
+future_timeout__value__d	ABORTS
+future_timeout__value__td	OK
+future_timeout__completer__s	OK
+future_timeout__completer__ts	OK
+future_timeout__completer__d	ERR NoSuchMethodError: Class 'Future<int>' has no instance method 'timeout' with matching arguments.
+future_timeout__completer__td	OK
+future_timeout__delayed__s	OK
+future_timeout__delayed__ts	OK
+future_timeout__delayed__d	ABORTS
+future_timeout__delayed__td	OK
+stream_listen__from_iterable__s	OK
+stream_listen__from_iterable__ts	OK
+stream_listen__from_iterable__d	ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance method 'listen' with matching arguments.
+stream_listen__from_iterable__td	OK
+stream_listen__value__s	OK
+stream_listen__value__ts	OK
+stream_listen__value__d	ERR NoSuchMethodError: Class '_ControllerStream<int>' has no instance method 'listen' with matching arguments.
+stream_listen__value__td	OK
+stream_listen__as_broadcast__s	OK
+stream_listen__as_broadcast__ts	OK
+stream_listen__as_broadcast__d	ERR NoSuchMethodError: Class '_AsBroadcastStream<int>' has no instance method 'listen' with matching arguments.
+stream_listen__as_broadcast__td	OK
+stream_where__from_iterable__s	OK
+stream_where__from_iterable__ts	OK
+stream_where__from_iterable__d	ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance method 'where' with matching arguments.
+stream_where__from_iterable__td	ABORTS
+stream_where__value__s	OK
+stream_where__value__ts	OK
+stream_where__value__d	ERR NoSuchMethodError: Class '_ControllerStream<int>' has no instance method 'where' with matching arguments.
+stream_where__value__td	ABORTS
+stream_where__as_broadcast__s	OK
+stream_where__as_broadcast__ts	OK
+stream_where__as_broadcast__d	ERR NoSuchMethodError: Class '_AsBroadcastStream<int>' has no instance method 'where' with matching arguments.
+stream_where__as_broadcast__td	ABORTS
+stream_map__from_iterable__s	OK
+stream_map__from_iterable__ts	OK
+stream_map__from_iterable__d	ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance method 'map' with matching arguments.
+stream_map__from_iterable__td	ABORTS
+stream_map__value__s	OK
+stream_map__value__ts	OK
+stream_map__value__d	ERR NoSuchMethodError: Class '_ControllerStream<int>' has no instance method 'map' with matching arguments.
+stream_map__value__td	ABORTS
+stream_map__as_broadcast__s	OK
+stream_map__as_broadcast__ts	OK
+stream_map__as_broadcast__d	ERR NoSuchMethodError: Class '_AsBroadcastStream<int>' has no instance method 'map' with matching arguments.
+stream_map__as_broadcast__td	ABORTS
+stream_toList__from_iterable__s	OK
+stream_toList__from_iterable__ts	OK
+stream_toList__from_iterable__d	ERR NoSuchMethodError: Class '_MultiStream<int>' has no instance method 'toList' with matching arguments.
+stream_toList__from_iterable__td	ABORTS
+stream_toList__value__s	OK
+stream_toList__value__ts	OK
+stream_toList__value__d	ERR NoSuchMethodError: Class '_ControllerStream<int>' has no instance method 'toList' with matching arguments.
+stream_toList__value__td	ABORTS
+stream_toList__as_broadcast__s	OK
+stream_toList__as_broadcast__ts	OK
+stream_toList__as_broadcast__d	ERR NoSuchMethodError: Class '_AsBroadcastStream<int>' has no instance method 'toList' with matching arguments.
+stream_toList__as_broadcast__td	ABORTS
+stream_first__from_iterable__s	OK
+stream_first__from_iterable__d	ABORTS
+stream_first__value__s	OK
+stream_first__value__d	ABORTS
+stream_first__as_broadcast__s	OK
+stream_first__as_broadcast__d	ABORTS
+stream_isBroadcast__from_iterable__s	OK
+stream_isBroadcast__from_iterable__d	ABORTS
+stream_isBroadcast__value__s	OK
+stream_isBroadcast__value__d	ABORTS
+stream_isBroadcast__as_broadcast__s	OK
+stream_isBroadcast__as_broadcast__d	ABORTS
+ctl_add__plain__s	OK
+ctl_add__plain__ts	OK
+ctl_add__plain__d	ERR NoSuchMethodError: Class '_AsyncStreamController<int>' has no instance method 'add' with matching arguments.
+ctl_add__plain__td	OK
+ctl_add__broadcast__s	OK
+ctl_add__broadcast__ts	OK
+ctl_add__broadcast__d	ERR NoSuchMethodError: Class '_AsyncBroadcastStreamController<int>' has no instance method 'add' with matching arguments.
+ctl_add__broadcast__td	OK
+ctl_stream__plain__s	OK
+ctl_stream__plain__d	ABORTS
+ctl_stream__broadcast__s	OK
+ctl_stream__broadcast__d	ABORTS
+ctl_sink__plain__s	OK
+ctl_sink__plain__d	ABORTS
+ctl_sink__broadcast__s	OK
+ctl_sink__broadcast__d	ABORTS
+ctl_isClosed__plain__s	OK
+ctl_isClosed__plain__d	ABORTS
+ctl_isClosed__broadcast__s	OK
+ctl_isClosed__broadcast__d	ABORTS
+ctl_close__plain__s	OK
+ctl_close__plain__ts	OK
+ctl_close__plain__d	ERR NoSuchMethodError: Class '_AsyncStreamController<int>' has no instance method 'close' with matching arguments.
+ctl_close__plain__td	OK
+ctl_close__broadcast__s	OK
+ctl_close__broadcast__ts	OK
+ctl_close__broadcast__d	ERR NoSuchMethodError: Class '_AsyncBroadcastStreamController<int>' has no instance method 'close' with matching arguments.
+ctl_close__broadcast__td	OK
+timer_cancel__periodic_or_oneshot__s	OK
+timer_cancel__periodic_or_oneshot__ts	OK
+timer_cancel__periodic_or_oneshot__d	ERR NoSuchMethodError: Class '_Timer' has no instance method 'cancel' with matching arguments.
+timer_cancel__periodic_or_oneshot__td	OK
+timer_isActive__periodic_or_oneshot__s	OK
+timer_isActive__periodic_or_oneshot__d	ABORTS
+timer_tick__periodic_or_oneshot__s	OK
+timer_tick__periodic_or_oneshot__d	ABORTS
+map_keys__literal__s	OK
+map_keys__literal__d	ABORTS
+map_keys__const__s	OK
+map_keys__const__d	ABORTS
+map_keys__unmodifiable__s	OK
+map_keys__unmodifiable__d	ABORTS
+map_keys__json__s	OK
+map_keys__json__d	ABORTS
+map_values__literal__s	OK
+map_values__literal__d	ABORTS
+map_values__const__s	OK
+map_values__const__d	ABORTS
+map_values__unmodifiable__s	OK
+map_values__unmodifiable__d	ABORTS
+map_values__json__s	OK
+map_values__json__d	ABORTS
+map_get__literal__s	OK
+map_get__literal__d	ERR NoSuchMethodError: Class '_Map<String, Object?>' has no instance method '[]' with matching arguments.
+map_get__const__s	OK
+map_get__const__d	ERR NoSuchMethodError: Class '_ConstMap<String, Object?>' has no instance method '[]' with matching arguments.
+map_get__unmodifiable__s	OK
+map_get__unmodifiable__d	ERR NoSuchMethodError: Class 'UnmodifiableMapView<String, Object?>' has no instance method '[]' with matching arguments.
+map_get__json__s	OK
+map_get__json__d	ABORTS
+map_set__literal__s	OK
+map_set__literal__d	ERR NoSuchMethodError: Class '_Map<String, Object?>' has no instance method '[]=' with matching arguments.
+map_set__const__s	ERR Unsupported operation: Cannot modify unmodifiable map
+map_set__const__d	ERR NoSuchMethodError: Class '_ConstMap<String, Object?>' has no instance method '[]=' with matching arguments.
+map_set__unmodifiable__s	ERR Unsupported operation: Cannot modify unmodifiable map
+map_set__unmodifiable__d	ERR NoSuchMethodError: Class 'UnmodifiableMapView<String, Object?>' has no instance method '[]=' with matching arguments.
+map_set__json__s	OK
+map_set__json__d	ABORTS
+map_containsKey__literal__s	OK
+map_containsKey__literal__ts	OK
+map_containsKey__literal__d	ERR NoSuchMethodError: Class '_Map<String, Object?>' has no instance method 'containsKey' with matching arguments.
+map_containsKey__literal__td	OK
+map_containsKey__const__s	OK
+map_containsKey__const__ts	OK
+map_containsKey__const__d	ERR NoSuchMethodError: Class '_ConstMap<String, Object?>' has no instance method 'containsKey' with matching arguments.
+map_containsKey__const__td	OK
+map_containsKey__unmodifiable__s	OK
+map_containsKey__unmodifiable__ts	OK
+map_containsKey__unmodifiable__d	ERR NoSuchMethodError: Class 'UnmodifiableMapView<String, Object?>' has no instance method 'containsKey' with matching arguments.
+map_containsKey__unmodifiable__td	OK
+map_containsKey__json__s	OK
+map_containsKey__json__ts	OK
+map_containsKey__json__d	ABORTS
+map_containsKey__json__td	OK
+map_containsValue__literal__s	OK
+map_containsValue__literal__ts	OK
+map_containsValue__literal__d	ERR NoSuchMethodError: Class '_Map<String, Object?>' has no instance method 'containsValue' with matching arguments.
+map_containsValue__literal__td	OK
+map_containsValue__const__s	OK
+map_containsValue__const__ts	OK
+map_containsValue__const__d	ERR NoSuchMethodError: Class '_ConstMap<String, Object?>' has no instance method 'containsValue' with matching arguments.
+map_containsValue__const__td	OK
+map_containsValue__unmodifiable__s	OK
+map_containsValue__unmodifiable__ts	OK
+map_containsValue__unmodifiable__d	ERR NoSuchMethodError: Class 'UnmodifiableMapView<String, Object?>' has no instance method 'containsValue' with matching arguments.
+map_containsValue__unmodifiable__td	OK
+map_containsValue__json__s	OK
+map_containsValue__json__ts	OK
+map_containsValue__json__d	ABORTS
+map_containsValue__json__td	OK
+map_remove__literal__s	OK
+map_remove__literal__ts	OK
+map_remove__literal__d	ERR NoSuchMethodError: Class '_Map<String, Object?>' has no instance method 'remove' with matching arguments.
+map_remove__literal__td	OK
+map_remove__const__s	ERR Unsupported operation: Cannot modify unmodifiable map
+map_remove__const__ts	OK
+map_remove__const__d	ERR NoSuchMethodError: Class '_ConstMap<String, Object?>' has no instance method 'remove' with matching arguments.
+map_remove__const__td	OK
+map_remove__unmodifiable__s	ERR Unsupported operation: Cannot modify unmodifiable map
+map_remove__unmodifiable__ts	OK
+map_remove__unmodifiable__d	ERR NoSuchMethodError: Class 'UnmodifiableMapView<String, Object?>' has no instance method 'remove' with matching arguments.
+map_remove__unmodifiable__td	OK
+map_remove__json__s	OK
+map_remove__json__ts	OK
+map_remove__json__d	ABORTS
+map_remove__json__td	OK
+map_entries__literal__s	OK
+map_entries__literal__d	ABORTS
+map_entries__const__s	OK
+map_entries__const__d	ABORTS
+map_entries__unmodifiable__s	OK
+map_entries__unmodifiable__d	ABORTS
+map_entries__json__s	OK
+map_entries__json__d	ABORTS
+map_length__literal__s	OK
+map_length__literal__d	ABORTS
+map_length__const__s	OK
+map_length__const__d	ABORTS
+map_length__unmodifiable__s	OK
+map_length__unmodifiable__d	ABORTS
+map_length__json__s	OK
+map_length__json__d	ABORTS
+map_isEmpty__literal__s	OK
+map_isEmpty__literal__d	ABORTS
+map_isEmpty__const__s	OK
+map_isEmpty__const__d	ABORTS
+map_isEmpty__unmodifiable__s	OK
+map_isEmpty__unmodifiable__d	ABORTS
+map_isEmpty__json__s	OK
+map_isEmpty__json__d	ABORTS
+map_isNotEmpty__literal__s	OK
+map_isNotEmpty__literal__d	ABORTS
+map_isNotEmpty__const__s	OK
+map_isNotEmpty__const__d	ABORTS
+map_isNotEmpty__unmodifiable__s	OK
+map_isNotEmpty__unmodifiable__d	ABORTS
+map_isNotEmpty__json__s	OK
+map_isNotEmpty__json__d	ABORTS
+map_forEach__literal__s	OK
+map_forEach__literal__ts	OK
+map_forEach__literal__d	ERR NoSuchMethodError: Class '_Map<String, Object?>' has no instance method 'forEach' with matching arguments.
+map_forEach__literal__td	OK
+map_forEach__const__s	OK
+map_forEach__const__ts	OK
+map_forEach__const__d	ERR NoSuchMethodError: Class '_ConstMap<String, Object?>' has no instance method 'forEach' with matching arguments.
+map_forEach__const__td	OK
+map_forEach__unmodifiable__s	OK
+map_forEach__unmodifiable__ts	OK
+map_forEach__unmodifiable__d	ERR NoSuchMethodError: Class 'UnmodifiableMapView<String, Object?>' has no instance method 'forEach' with matching arguments.
+map_forEach__unmodifiable__td	OK
+map_forEach__json__s	OK
+map_forEach__json__ts	OK
+map_forEach__json__d	ABORTS
+map_forEach__json__td	OK
+map_addAll__literal__ts	OK
+map_addAll__const__ts	OK
+map_addAll__unmodifiable__ts	OK
+map_addAll__json__ts	OK
+map_putIfAbsent__literal__s	OK
+map_putIfAbsent__literal__ts	OK
+map_putIfAbsent__const__s	ERR Unsupported operation: Cannot modify unmodifiable map
+map_putIfAbsent__const__ts	OK
+map_putIfAbsent__unmodifiable__s	ERR Unsupported operation: Cannot modify unmodifiable map
+map_putIfAbsent__unmodifiable__ts	OK
+map_putIfAbsent__json__s	OK
+map_putIfAbsent__json__ts	OK
+list_contains__growable__s	OK
+list_contains__growable__ts	OK
+list_contains__growable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'contains' with matching arguments.
+list_contains__growable__td	OK
+list_contains__filled_fixed__s	OK
+list_contains__filled_fixed__ts	OK
+list_contains__filled_fixed__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'contains' with matching arguments.
+list_contains__filled_fixed__td	OK
+list_contains__const__s	OK
+list_contains__const__ts	OK
+list_contains__const__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'contains' with matching arguments.
+list_contains__const__td	OK
+list_contains__unmodifiable__s	OK
+list_contains__unmodifiable__ts	OK
+list_contains__unmodifiable__d	ABORTS
+list_contains__unmodifiable__td	OK
+list_contains__generate__s	OK
+list_contains__generate__ts	OK
+list_contains__generate__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'contains' with matching arguments.
+list_contains__generate__td	OK
+list_contains__json__s	OK
+list_contains__json__ts	OK
+list_contains__json__d	ABORTS
+list_contains__json__td	OK
+list_remove__growable__s	OK
+list_remove__growable__ts	OK
+list_remove__growable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'remove' with matching arguments.
+list_remove__growable__td	OK
+list_remove__filled_fixed__s	ERR Unsupported operation: Cannot remove from a fixed-length list
+list_remove__filled_fixed__ts	OK
+list_remove__filled_fixed__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'remove' with matching arguments.
+list_remove__filled_fixed__td	OK
+list_remove__const__s	ERR Unsupported operation: Cannot remove from an unmodifiable list
+list_remove__const__ts	OK
+list_remove__const__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'remove' with matching arguments.
+list_remove__const__td	OK
+list_remove__unmodifiable__s	ERR Unsupported operation: Cannot remove from an unmodifiable list
+list_remove__unmodifiable__ts	OK
+list_remove__unmodifiable__d	ABORTS
+list_remove__unmodifiable__td	OK
+list_remove__generate__s	OK
+list_remove__generate__ts	OK
+list_remove__generate__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'remove' with matching arguments.
+list_remove__generate__td	OK
+list_remove__json__s	OK
+list_remove__json__ts	OK
+list_remove__json__d	ABORTS
+list_remove__json__td	OK
+list_insert__growable__s	OK
+list_insert__growable__ts	OK
+list_insert__growable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'insert' with matching arguments.
+list_insert__growable__td	OK
+list_insert__filled_fixed__s	ERR Unsupported operation: Cannot add to a fixed-length list
+list_insert__filled_fixed__ts	OK
+list_insert__filled_fixed__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'insert' with matching arguments.
+list_insert__filled_fixed__td	OK
+list_insert__const__s	ERR Unsupported operation: Cannot add to an unmodifiable list
+list_insert__const__ts	OK
+list_insert__const__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'insert' with matching arguments.
+list_insert__const__td	OK
+list_insert__unmodifiable__s	ERR Unsupported operation: Cannot add to an unmodifiable list
+list_insert__unmodifiable__ts	OK
+list_insert__unmodifiable__d	ABORTS
+list_insert__unmodifiable__td	OK
+list_insert__generate__s	OK
+list_insert__generate__ts	OK
+list_insert__generate__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'insert' with matching arguments.
+list_insert__generate__td	OK
+list_insert__json__s	OK
+list_insert__json__ts	OK
+list_insert__json__d	ABORTS
+list_insert__json__td	OK
+list_length__growable__s	OK
+list_length__growable__d	ABORTS
+list_length__filled_fixed__s	OK
+list_length__filled_fixed__d	ABORTS
+list_length__const__s	OK
+list_length__const__d	ABORTS
+list_length__unmodifiable__s	OK
+list_length__unmodifiable__d	ABORTS
+list_length__generate__s	OK
+list_length__generate__d	ABORTS
+list_length__json__s	OK
+list_length__json__d	ABORTS
+list_get__growable__s	OK
+list_get__growable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]' with matching arguments.
+list_get__filled_fixed__s	OK
+list_get__filled_fixed__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]' with matching arguments.
+list_get__const__s	OK
+list_get__const__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]' with matching arguments.
+list_get__unmodifiable__s	OK
+list_get__unmodifiable__d	ABORTS
+list_get__generate__s	OK
+list_get__generate__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]' with matching arguments.
+list_get__json__s	OK
+list_get__json__d	ABORTS
+list_set__growable__s	OK
+list_set__growable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]=' with matching arguments.
+list_set__filled_fixed__s	OK
+list_set__filled_fixed__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]=' with matching arguments.
+list_set__const__s	ERR Unsupported operation: Cannot modify an unmodifiable list
+list_set__const__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]=' with matching arguments.
+list_set__unmodifiable__s	ERR Unsupported operation: Cannot modify an unmodifiable list
+list_set__unmodifiable__d	ABORTS
+list_set__generate__s	OK
+list_set__generate__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method '[]=' with matching arguments.
+list_set__json__s	OK
+list_set__json__d	ABORTS
+list_isEmpty__growable__s	OK
+list_isEmpty__growable__d	ABORTS
+list_isEmpty__filled_fixed__s	OK
+list_isEmpty__filled_fixed__d	ABORTS
+list_isEmpty__const__s	OK
+list_isEmpty__const__d	ABORTS
+list_isEmpty__unmodifiable__s	OK
+list_isEmpty__unmodifiable__d	ABORTS
+list_isEmpty__generate__s	OK
+list_isEmpty__generate__d	ABORTS
+list_isEmpty__json__s	OK
+list_isEmpty__json__d	ABORTS
+list_isNotEmpty__growable__s	OK
+list_isNotEmpty__growable__d	ABORTS
+list_isNotEmpty__filled_fixed__s	OK
+list_isNotEmpty__filled_fixed__d	ABORTS
+list_isNotEmpty__const__s	OK
+list_isNotEmpty__const__d	ABORTS
+list_isNotEmpty__unmodifiable__s	OK
+list_isNotEmpty__unmodifiable__d	ABORTS
+list_isNotEmpty__generate__s	OK
+list_isNotEmpty__generate__d	ABORTS
+list_isNotEmpty__json__s	OK
+list_isNotEmpty__json__d	ABORTS
+list_first__growable__s	OK
+list_first__growable__d	ABORTS
+list_first__filled_fixed__s	OK
+list_first__filled_fixed__d	ABORTS
+list_first__const__s	OK
+list_first__const__d	ABORTS
+list_first__unmodifiable__s	OK
+list_first__unmodifiable__d	ABORTS
+list_first__generate__s	OK
+list_first__generate__d	ABORTS
+list_first__json__s	OK
+list_first__json__d	ABORTS
+list_last__growable__s	OK
+list_last__growable__d	ABORTS
+list_last__filled_fixed__s	OK
+list_last__filled_fixed__d	ABORTS
+list_last__const__s	OK
+list_last__const__d	ABORTS
+list_last__unmodifiable__s	OK
+list_last__unmodifiable__d	ABORTS
+list_last__generate__s	OK
+list_last__generate__d	ABORTS
+list_last__json__s	OK
+list_last__json__d	ABORTS
+list_indexOf__growable__s	OK
+list_indexOf__growable__ts	OK
+list_indexOf__growable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'indexOf' with matching arguments.
+list_indexOf__growable__td	ABORTS
+list_indexOf__filled_fixed__s	OK
+list_indexOf__filled_fixed__ts	OK
+list_indexOf__filled_fixed__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'indexOf' with matching arguments.
+list_indexOf__filled_fixed__td	ABORTS
+list_indexOf__const__s	OK
+list_indexOf__const__ts	OK
+list_indexOf__const__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'indexOf' with matching arguments.
+list_indexOf__const__td	ABORTS
+list_indexOf__unmodifiable__s	OK
+list_indexOf__unmodifiable__ts	OK
+list_indexOf__unmodifiable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'indexOf' with matching arguments.
+list_indexOf__unmodifiable__td	ABORTS
+list_indexOf__generate__s	OK
+list_indexOf__generate__ts	OK
+list_indexOf__generate__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'indexOf' with matching arguments.
+list_indexOf__generate__td	ABORTS
+list_indexOf__json__s	OK
+list_indexOf__json__ts	OK
+list_indexOf__json__d	ERR NoSuchMethodError: Class 'List<dynamic>' has no instance method 'indexOf' with matching arguments.
+list_indexOf__json__td	ABORTS
+list_sort__growable__s	OK
+list_sort__growable__ts	OK
+list_sort__growable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sort' with matching arguments.
+list_sort__growable__td	OK
+list_sort__filled_fixed__s	OK
+list_sort__filled_fixed__ts	OK
+list_sort__filled_fixed__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sort' with matching arguments.
+list_sort__filled_fixed__td	OK
+list_sort__const__s	ERR Unsupported operation: Cannot modify an unmodifiable list
+list_sort__const__ts	OK
+list_sort__const__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sort' with matching arguments.
+list_sort__const__td	OK
+list_sort__unmodifiable__s	ERR Unsupported operation: Cannot modify an unmodifiable list
+list_sort__unmodifiable__ts	OK
+list_sort__unmodifiable__d	ABORTS
+list_sort__unmodifiable__td	OK
+list_sort__generate__s	OK
+list_sort__generate__ts	OK
+list_sort__generate__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sort' with matching arguments.
+list_sort__generate__td	OK
+list_sort__json__s	OK
+list_sort__json__ts	OK
+list_sort__json__d	ABORTS
+list_sort__json__td	OK
+list_sublist__growable__s	OK
+list_sublist__growable__ts	OK
+list_sublist__growable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sublist' with matching arguments.
+list_sublist__growable__td	OK
+list_sublist__filled_fixed__s	OK
+list_sublist__filled_fixed__ts	OK
+list_sublist__filled_fixed__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sublist' with matching arguments.
+list_sublist__filled_fixed__td	OK
+list_sublist__const__s	OK
+list_sublist__const__ts	OK
+list_sublist__const__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sublist' with matching arguments.
+list_sublist__const__td	OK
+list_sublist__unmodifiable__s	OK
+list_sublist__unmodifiable__ts	OK
+list_sublist__unmodifiable__d	ABORTS
+list_sublist__unmodifiable__td	OK
+list_sublist__generate__s	OK
+list_sublist__generate__ts	OK
+list_sublist__generate__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'sublist' with matching arguments.
+list_sublist__generate__td	OK
+list_sublist__json__s	OK
+list_sublist__json__ts	OK
+list_sublist__json__d	ABORTS
+list_sublist__json__td	OK
+list_addAll__growable__s	OK
+list_addAll__growable__ts	OK
+list_addAll__filled_fixed__s	ERR Unsupported operation: Cannot add to a fixed-length list
+list_addAll__filled_fixed__ts	OK
+list_addAll__const__s	ERR Unsupported operation: Cannot add to an unmodifiable list
+list_addAll__const__ts	OK
+list_addAll__unmodifiable__s	ERR Unsupported operation: Cannot add to an unmodifiable list
+list_addAll__unmodifiable__ts	OK
+list_addAll__generate__s	OK
+list_addAll__generate__ts	OK
+list_addAll__json__s	OK
+list_addAll__json__ts	OK
+list_removeLast__growable__s	OK
+list_removeLast__growable__ts	OK
+list_removeLast__growable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeLast' with matching arguments.
+list_removeLast__growable__td	OK
+list_removeLast__filled_fixed__s	ERR Unsupported operation: Cannot remove from a fixed-length list
+list_removeLast__filled_fixed__ts	OK
+list_removeLast__filled_fixed__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeLast' with matching arguments.
+list_removeLast__filled_fixed__td	OK
+list_removeLast__const__s	ERR Unsupported operation: Cannot remove from an unmodifiable list
+list_removeLast__const__ts	OK
+list_removeLast__const__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeLast' with matching arguments.
+list_removeLast__const__td	OK
+list_removeLast__unmodifiable__s	ERR Unsupported operation: Cannot remove from an unmodifiable list
+list_removeLast__unmodifiable__ts	OK
+list_removeLast__unmodifiable__d	ABORTS
+list_removeLast__unmodifiable__td	OK
+list_removeLast__generate__s	OK
+list_removeLast__generate__ts	OK
+list_removeLast__generate__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeLast' with matching arguments.
+list_removeLast__generate__td	OK
+list_removeLast__json__s	OK
+list_removeLast__json__ts	OK
+list_removeLast__json__d	ABORTS
+list_removeLast__json__td	OK
+list_removeAt__growable__s	OK
+list_removeAt__growable__ts	OK
+list_removeAt__growable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeAt' with matching arguments.
+list_removeAt__growable__td	OK
+list_removeAt__filled_fixed__s	ERR Unsupported operation: Cannot remove from a fixed-length list
+list_removeAt__filled_fixed__ts	OK
+list_removeAt__filled_fixed__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeAt' with matching arguments.
+list_removeAt__filled_fixed__td	OK
+list_removeAt__const__s	ERR Unsupported operation: Cannot remove from an unmodifiable list
+list_removeAt__const__ts	OK
+list_removeAt__const__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeAt' with matching arguments.
+list_removeAt__const__td	OK
+list_removeAt__unmodifiable__s	ERR Unsupported operation: Cannot remove from an unmodifiable list
+list_removeAt__unmodifiable__ts	OK
+list_removeAt__unmodifiable__d	ABORTS
+list_removeAt__unmodifiable__td	OK
+list_removeAt__generate__s	OK
+list_removeAt__generate__ts	OK
+list_removeAt__generate__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'removeAt' with matching arguments.
+list_removeAt__generate__td	OK
+list_removeAt__json__s	OK
+list_removeAt__json__ts	OK
+list_removeAt__json__d	ABORTS
+list_removeAt__json__td	OK
+list_reversed__growable__s	OK
+list_reversed__growable__d	ABORTS
+list_reversed__filled_fixed__s	OK
+list_reversed__filled_fixed__d	ABORTS
+list_reversed__const__s	OK
+list_reversed__const__d	ABORTS
+list_reversed__unmodifiable__s	OK
+list_reversed__unmodifiable__d	ABORTS
+list_reversed__generate__s	OK
+list_reversed__generate__d	ABORTS
+list_reversed__json__s	OK
+list_reversed__json__d	ABORTS
+list_clear__growable__s	OK
+list_clear__growable__ts	OK
+list_clear__growable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'clear' with matching arguments.
+list_clear__growable__td	OK
+list_clear__filled_fixed__s	ERR Unsupported operation: Cannot clear a fixed-length list
+list_clear__filled_fixed__ts	OK
+list_clear__filled_fixed__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'clear' with matching arguments.
+list_clear__filled_fixed__td	OK
+list_clear__const__s	ERR Unsupported operation: Cannot clear an unmodifiable list
+list_clear__const__ts	OK
+list_clear__const__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'clear' with matching arguments.
+list_clear__const__td	OK
+list_clear__unmodifiable__s	ERR Unsupported operation: Cannot clear an unmodifiable list
+list_clear__unmodifiable__ts	OK
+list_clear__unmodifiable__d	ABORTS
+list_clear__unmodifiable__td	OK
+list_clear__generate__s	OK
+list_clear__generate__ts	OK
+list_clear__generate__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'clear' with matching arguments.
+list_clear__generate__td	OK
+list_clear__json__s	OK
+list_clear__json__ts	OK
+list_clear__json__d	ABORTS
+list_clear__json__td	OK
+iter_any__list__s	OK
+iter_any__list__ts	OK
+iter_any__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'any' with matching arguments.
+iter_any__list__td	OK
+iter_any__set__s	OK
+iter_any__set__ts	OK
+iter_any__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'any' with matching arguments.
+iter_any__set__td	OK
+iter_any__generate__s	OK
+iter_any__generate__ts	OK
+iter_any__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'any' with matching arguments.
+iter_any__generate__td	OK
+iter_every__list__s	OK
+iter_every__list__ts	OK
+iter_every__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'every' with matching arguments.
+iter_every__list__td	OK
+iter_every__set__s	OK
+iter_every__set__ts	OK
+iter_every__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'every' with matching arguments.
+iter_every__set__td	OK
+iter_every__generate__s	OK
+iter_every__generate__ts	OK
+iter_every__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'every' with matching arguments.
+iter_every__generate__td	OK
+iter_firstWhere__list__s	OK
+iter_firstWhere__list__ts	OK
+iter_firstWhere__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'firstWhere' with matching arguments.
+iter_firstWhere__list__td	OK
+iter_firstWhere__set__s	OK
+iter_firstWhere__set__ts	OK
+iter_firstWhere__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'firstWhere' with matching arguments.
+iter_firstWhere__set__td	OK
+iter_firstWhere__generate__s	OK
+iter_firstWhere__generate__ts	OK
+iter_firstWhere__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'firstWhere' with matching arguments.
+iter_firstWhere__generate__td	OK
+iter_fold__list__s	OK
+iter_fold__list__ts	OK
+iter_fold__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'fold' with matching arguments.
+iter_fold__list__td	OK
+iter_fold__set__s	OK
+iter_fold__set__ts	OK
+iter_fold__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'fold' with matching arguments.
+iter_fold__set__td	OK
+iter_fold__generate__s	OK
+iter_fold__generate__ts	OK
+iter_fold__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'fold' with matching arguments.
+iter_fold__generate__td	OK
+iter_reduce__list__s	OK
+iter_reduce__list__ts	OK
+iter_reduce__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'reduce' with matching arguments.
+iter_reduce__list__td	OK
+iter_reduce__set__s	OK
+iter_reduce__set__ts	OK
+iter_reduce__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'reduce' with matching arguments.
+iter_reduce__set__td	OK
+iter_reduce__generate__s	OK
+iter_reduce__generate__ts	OK
+iter_reduce__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'reduce' with matching arguments.
+iter_reduce__generate__td	OK
+iter_length__list__s	OK
+iter_length__list__d	ABORTS
+iter_length__set__s	OK
+iter_length__set__d	ABORTS
+iter_length__generate__s	OK
+iter_length__generate__d	ABORTS
+iter_isEmpty__list__s	OK
+iter_isEmpty__list__d	ABORTS
+iter_isEmpty__set__s	OK
+iter_isEmpty__set__d	ABORTS
+iter_isEmpty__generate__s	OK
+iter_isEmpty__generate__d	ABORTS
+iter_isNotEmpty__list__s	OK
+iter_isNotEmpty__list__d	ABORTS
+iter_isNotEmpty__set__s	OK
+iter_isNotEmpty__set__d	ABORTS
+iter_isNotEmpty__generate__s	OK
+iter_isNotEmpty__generate__d	ABORTS
+iter_first__list__s	OK
+iter_first__list__d	ABORTS
+iter_first__set__s	OK
+iter_first__set__d	ABORTS
+iter_first__generate__s	OK
+iter_first__generate__d	ABORTS
+iter_last__list__s	OK
+iter_last__list__d	ABORTS
+iter_last__set__s	OK
+iter_last__set__d	ABORTS
+iter_last__generate__s	OK
+iter_last__generate__d	ABORTS
+iter_contains__list__s	OK
+iter_contains__list__ts	OK
+iter_contains__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'contains' with matching arguments.
+iter_contains__list__td	OK
+iter_contains__set__s	OK
+iter_contains__set__ts	OK
+iter_contains__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'contains' with matching arguments.
+iter_contains__set__td	OK
+iter_contains__generate__s	OK
+iter_contains__generate__ts	OK
+iter_contains__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'contains' with matching arguments.
+iter_contains__generate__td	OK
+iter_toSet__list__s	OK
+iter_toSet__list__ts	OK
+iter_toSet__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'toSet' with matching arguments.
+iter_toSet__list__td	OK
+iter_toSet__set__s	OK
+iter_toSet__set__ts	OK
+iter_toSet__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'toSet' with matching arguments.
+iter_toSet__set__td	OK
+iter_toSet__generate__s	OK
+iter_toSet__generate__ts	OK
+iter_toSet__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'toSet' with matching arguments.
+iter_toSet__generate__td	OK
+iter_take__list__s	OK
+iter_take__list__ts	OK
+iter_take__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'take' with matching arguments.
+iter_take__list__td	OK
+iter_take__set__s	OK
+iter_take__set__ts	OK
+iter_take__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'take' with matching arguments.
+iter_take__set__td	OK
+iter_take__generate__s	OK
+iter_take__generate__ts	OK
+iter_take__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'take' with matching arguments.
+iter_take__generate__td	OK
+iter_skip__list__s	OK
+iter_skip__list__ts	OK
+iter_skip__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'skip' with matching arguments.
+iter_skip__list__td	OK
+iter_skip__set__s	OK
+iter_skip__set__ts	OK
+iter_skip__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'skip' with matching arguments.
+iter_skip__set__td	OK
+iter_skip__generate__s	OK
+iter_skip__generate__ts	OK
+iter_skip__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'skip' with matching arguments.
+iter_skip__generate__td	OK
+iter_elementAt__list__s	OK
+iter_elementAt__list__ts	OK
+iter_elementAt__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'elementAt' with matching arguments.
+iter_elementAt__list__td	OK
+iter_elementAt__set__s	OK
+iter_elementAt__set__ts	OK
+iter_elementAt__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'elementAt' with matching arguments.
+iter_elementAt__set__td	OK
+iter_elementAt__generate__s	OK
+iter_elementAt__generate__ts	OK
+iter_elementAt__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'elementAt' with matching arguments.
+iter_elementAt__generate__td	OK
+set_contains__literal__s	OK
+set_contains__literal__ts	OK
+set_contains__literal__d	ABORTS
+set_contains__literal__td	OK
+set_contains__const__s	OK
+set_contains__const__ts	OK
+set_contains__const__d	ERR NoSuchMethodError: Class '_ConstSet<Object?>' has no instance method 'contains' with matching arguments.
+set_contains__const__td	OK
+set_add__literal__s	OK
+set_add__literal__ts	OK
+set_add__literal__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'add' with matching arguments.
+set_add__literal__td	OK
+set_add__const__s	ERR Unsupported operation: Cannot change an unmodifiable set
+set_add__const__ts	OK
+set_add__const__d	ERR NoSuchMethodError: Class '_ConstSet<Object?>' has no instance method 'add' with matching arguments.
+set_add__const__td	OK
+set_remove__literal__ts	OK
+set_remove__literal__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'remove' with matching arguments.
+set_remove__literal__td	OK
+set_remove__const__s	ERR Unsupported operation: Cannot change an unmodifiable set
+set_remove__const__ts	OK
+set_remove__const__d	ERR NoSuchMethodError: Class '_ConstSet<Object?>' has no instance method 'remove' with matching arguments.
+set_remove__const__td	OK
+set_length__literal__s	OK
+set_length__literal__d	ABORTS
+set_length__const__s	OK
+set_length__const__d	ABORTS
+str_length__one_byte__s	OK
+str_length__one_byte__d	ABORTS
+str_length__two_byte__s	OK
+str_length__two_byte__d	ABORTS
+str_isEmpty__one_byte__s	OK
+str_isEmpty__one_byte__d	ABORTS
+str_isEmpty__two_byte__s	OK
+str_isEmpty__two_byte__d	ABORTS
+str_isNotEmpty__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance getter 'isNotEmpty'.
+str_isNotEmpty__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance getter 'isNotEmpty'.
+str_contains__one_byte__s	OK
+str_contains__one_byte__ts	OK
+str_contains__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'contains' with matching arguments.
+str_contains__one_byte__td	OK
+str_contains__two_byte__s	OK
+str_contains__two_byte__ts	OK
+str_contains__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'contains' with matching arguments.
+str_contains__two_byte__td	OK
+str_startsWith__one_byte__s	OK
+str_startsWith__one_byte__ts	OK
+str_startsWith__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'startsWith' with matching arguments.
+str_startsWith__one_byte__td	OK
+str_startsWith__two_byte__s	OK
+str_startsWith__two_byte__ts	OK
+str_startsWith__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'startsWith' with matching arguments.
+str_startsWith__two_byte__td	OK
+str_endsWith__one_byte__s	ABORTS
+str_endsWith__one_byte__ts	OK
+str_endsWith__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'endsWith' with matching arguments.
+str_endsWith__one_byte__td	OK
+str_endsWith__two_byte__s	ABORTS
+str_endsWith__two_byte__ts	OK
+str_endsWith__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'endsWith' with matching arguments.
+str_endsWith__two_byte__td	OK
+str_substring__one_byte__s	OK
+str_substring__one_byte__ts	OK
+str_substring__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'substring' with matching arguments.
+str_substring__one_byte__td	OK
+str_substring__two_byte__s	OK
+str_substring__two_byte__ts	OK
+str_substring__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'substring' with matching arguments.
+str_substring__two_byte__td	OK
+str_trim__one_byte__s	OK
+str_trim__one_byte__ts	OK
+str_trim__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'trim' with matching arguments.
+str_trim__one_byte__td	OK
+str_trim__two_byte__s	OK
+str_trim__two_byte__ts	OK
+str_trim__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'trim' with matching arguments.
+str_trim__two_byte__td	OK
+str_toUpperCase__one_byte__s	OK
+str_toUpperCase__one_byte__ts	OK
+str_toUpperCase__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'toUpperCase' with matching arguments.
+str_toUpperCase__one_byte__td	OK
+str_toUpperCase__two_byte__s	OK
+str_toUpperCase__two_byte__ts	OK
+str_toUpperCase__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'toUpperCase' with matching arguments.
+str_toUpperCase__two_byte__td	OK
+str_toLowerCase__one_byte__s	OK
+str_toLowerCase__one_byte__ts	OK
+str_toLowerCase__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'toLowerCase' with matching arguments.
+str_toLowerCase__one_byte__td	OK
+str_toLowerCase__two_byte__s	OK
+str_toLowerCase__two_byte__ts	OK
+str_toLowerCase__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'toLowerCase' with matching arguments.
+str_toLowerCase__two_byte__td	OK
+str_replaceAll__one_byte__s	OK
+str_replaceAll__one_byte__ts	OK
+str_replaceAll__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'replaceAll' with matching arguments.
+str_replaceAll__one_byte__td	OK
+str_replaceAll__two_byte__s	OK
+str_replaceAll__two_byte__ts	OK
+str_replaceAll__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'replaceAll' with matching arguments.
+str_replaceAll__two_byte__td	OK
+str_padLeft__one_byte__s	OK
+str_padLeft__one_byte__ts	OK
+str_padLeft__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'padLeft' with matching arguments.
+str_padLeft__one_byte__td	OK
+str_padLeft__two_byte__s	OK
+str_padLeft__two_byte__ts	OK
+str_padLeft__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'padLeft' with matching arguments.
+str_padLeft__two_byte__td	OK
+str_codeUnitAt__one_byte__s	OK
+str_codeUnitAt__one_byte__ts	OK
+str_codeUnitAt__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'codeUnitAt' with matching arguments.
+str_codeUnitAt__one_byte__td	ABORTS
+str_codeUnitAt__two_byte__s	OK
+str_codeUnitAt__two_byte__ts	OK
+str_codeUnitAt__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'codeUnitAt' with matching arguments.
+str_codeUnitAt__two_byte__td	ABORTS
+str_indexOf__one_byte__s	OK
+str_indexOf__one_byte__ts	OK
+str_indexOf__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'indexOf' with matching arguments.
+str_indexOf__one_byte__td	ABORTS
+str_indexOf__two_byte__s	OK
+str_indexOf__two_byte__ts	OK
+str_indexOf__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'indexOf' with matching arguments.
+str_indexOf__two_byte__td	ABORTS
+str_index__one_byte__s	OK
+str_index__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method '[]' with matching arguments.
+str_index__two_byte__s	OK
+str_index__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method '[]' with matching arguments.
+str_plus__one_byte__s	OK
+str_plus__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method '+' with matching arguments.
+str_plus__two_byte__s	OK
+str_plus__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method '+' with matching arguments.
+str_times__one_byte__s	OK
+str_times__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method '*' with matching arguments.
+str_times__two_byte__s	OK
+str_times__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method '*' with matching arguments.
+str_compareTo__one_byte__s	OK
+str_compareTo__one_byte__ts	OK
+str_compareTo__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'compareTo' with matching arguments.
+str_compareTo__one_byte__td	ABORTS
+str_compareTo__two_byte__s	OK
+str_compareTo__two_byte__ts	OK
+str_compareTo__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'compareTo' with matching arguments.
+str_compareTo__two_byte__td	ABORTS
+str_eq__one_byte__s	OK
+str_eq__one_byte__d	OK
+str_eq__two_byte__s	OK
+str_eq__two_byte__d	OK
+int_toStringAsFixed__smi__s	OK
+int_toStringAsFixed__smi__ts	OK
+int_toStringAsFixed__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'toStringAsFixed' with matching arguments.
+int_toStringAsFixed__smi__td	OK
+int_toStringAsFixed__mint__s	OK
+int_toStringAsFixed__mint__ts	OK
+int_toStringAsFixed__mint__d	ABORTS
+int_toStringAsFixed__mint__td	OK
+int_abs__smi__s	OK
+int_abs__smi__ts	OK
+int_abs__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'abs' with matching arguments.
+int_abs__smi__td	ABORTS
+int_abs__mint__s	OK
+int_abs__mint__ts	OK
+int_abs__mint__d	ERR NoSuchMethodError: Class 'int' has no instance method 'abs' with matching arguments.
+int_abs__mint__td	ABORTS
+int_clamp__smi__s	OK
+int_clamp__smi__ts	OK
+int_clamp__mint__s	OK
+int_clamp__mint__ts	OK
+int_compareTo__smi__s	OK
+int_compareTo__smi__ts	OK
+int_compareTo__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'compareTo' with matching arguments.
+int_compareTo__smi__td	ABORTS
+int_compareTo__mint__s	OK
+int_compareTo__mint__ts	OK
+int_compareTo__mint__d	ERR NoSuchMethodError: Class 'int' has no instance method 'compareTo' with matching arguments.
+int_compareTo__mint__td	ABORTS
+int_isEven__smi__d	ERR NoSuchMethodError: Class 'int' has no instance getter 'isEven'.
+int_isEven__mint__d	ABORTS
+int_remainder__smi__s	OK
+int_remainder__smi__ts	OK
+int_remainder__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'remainder' with matching arguments.
+int_remainder__smi__td	OK
+int_remainder__mint__s	OK
+int_remainder__mint__ts	OK
+int_remainder__mint__d	ABORTS
+int_remainder__mint__td	OK
+int_toDouble__smi__s	OK
+int_toDouble__smi__ts	OK
+int_toDouble__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'toDouble' with matching arguments.
+int_toDouble__smi__td	OK
+int_toDouble__mint__s	OK
+int_toDouble__mint__ts	OK
+int_toDouble__mint__d	ABORTS
+int_toDouble__mint__td	OK
+int_and__smi__s	OK
+int_and__mint__s	OK
+int_shl__smi__s	OK
+int_shl__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '<<'.
+int_shl__mint__s	OK
+int_shl__mint__d	ERR NoSuchMethodError: Class 'int' has no instance method '<<'.
+int_floorDiv__smi__s	OK
+int_floorDiv__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '~/' with matching arguments.
+int_floorDiv__mint__s	OK
+int_floorDiv__mint__d	ABORTS
+dbl_toStringAsFixed__double__s	OK
+dbl_toStringAsFixed__double__ts	OK
+dbl_toStringAsFixed__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'toStringAsFixed' with matching arguments.
+dbl_toStringAsFixed__double__td	OK
+dbl_round__double__s	OK
+dbl_round__double__ts	OK
+dbl_round__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'round' with matching arguments.
+dbl_round__double__td	ABORTS
+dbl_floor__double__s	OK
+dbl_floor__double__ts	OK
+dbl_floor__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'floor' with matching arguments.
+dbl_floor__double__td	ABORTS
+dbl_ceil__double__s	OK
+dbl_ceil__double__ts	OK
+dbl_ceil__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'ceil' with matching arguments.
+dbl_ceil__double__td	OK
+dbl_abs__double__s	OK
+dbl_abs__double__ts	OK
+dbl_abs__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'abs' with matching arguments.
+dbl_abs__double__td	ABORTS
+dbl_clamp__double__s	OK
+dbl_clamp__double__ts	OK
+dbl_compareTo__double__s	OK
+dbl_compareTo__double__ts	OK
+dbl_compareTo__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'compareTo' with matching arguments.
+dbl_compareTo__double__td	ABORTS
+dbl_truncate__double__s	OK
+dbl_truncate__double__ts	OK
+dbl_truncate__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'truncate' with matching arguments.
+dbl_truncate__double__td	OK
+dbl_isNaN__double__s	OK
+dbl_isNaN__double__d	ABORTS
+dbl_toInt__double__s	OK
+dbl_toInt__double__ts	OK
+dbl_toInt__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'toInt' with matching arguments.
+dbl_toInt__double__td	ABORTS
+num_toStringAsFixed__smi__s	OK
+num_toStringAsFixed__smi__ts	OK
+num_toStringAsFixed__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'toStringAsFixed' with matching arguments.
+num_toStringAsFixed__smi__td	OK
+num_toStringAsFixed__mint__s	OK
+num_toStringAsFixed__mint__ts	OK
+num_toStringAsFixed__mint__d	ABORTS
+num_toStringAsFixed__mint__td	OK
+num_toStringAsFixed__double__s	OK
+num_toStringAsFixed__double__ts	OK
+num_toStringAsFixed__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'toStringAsFixed' with matching arguments.
+num_toStringAsFixed__double__td	OK
+num_round__smi__s	OK
+num_round__smi__ts	OK
+num_round__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'round' with matching arguments.
+num_round__smi__td	ABORTS
+num_round__mint__s	OK
+num_round__mint__ts	OK
+num_round__mint__d	ERR NoSuchMethodError: Class 'int' has no instance method 'round' with matching arguments.
+num_round__mint__td	ABORTS
+num_round__double__s	OK
+num_round__double__ts	OK
+num_round__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'round' with matching arguments.
+num_round__double__td	ABORTS
+num_floor__smi__s	OK
+num_floor__smi__ts	OK
+num_floor__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'floor' with matching arguments.
+num_floor__smi__td	ABORTS
+num_floor__mint__s	OK
+num_floor__mint__ts	OK
+num_floor__mint__d	ERR NoSuchMethodError: Class 'int' has no instance method 'floor' with matching arguments.
+num_floor__mint__td	ABORTS
+num_floor__double__s	OK
+num_floor__double__ts	OK
+num_floor__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'floor' with matching arguments.
+num_floor__double__td	ABORTS
+num_abs__smi__s	OK
+num_abs__smi__ts	OK
+num_abs__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'abs' with matching arguments.
+num_abs__smi__td	ABORTS
+num_abs__mint__s	OK
+num_abs__mint__ts	OK
+num_abs__mint__d	ERR NoSuchMethodError: Class 'int' has no instance method 'abs' with matching arguments.
+num_abs__mint__td	ABORTS
+num_abs__double__s	OK
+num_abs__double__ts	OK
+num_abs__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'abs' with matching arguments.
+num_abs__double__td	ABORTS
+num_clamp__smi__s	OK
+num_clamp__smi__ts	OK
+num_clamp__mint__s	OK
+num_clamp__mint__ts	OK
+num_clamp__double__s	OK
+num_clamp__double__ts	OK
+num_compareTo__smi__s	OK
+num_compareTo__smi__ts	OK
+num_compareTo__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'compareTo' with matching arguments.
+num_compareTo__smi__td	ABORTS
+num_compareTo__mint__s	OK
+num_compareTo__mint__ts	OK
+num_compareTo__mint__d	ERR NoSuchMethodError: Class 'int' has no instance method 'compareTo' with matching arguments.
+num_compareTo__mint__td	ABORTS
+num_compareTo__double__s	OK
+num_compareTo__double__ts	OK
+num_compareTo__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'compareTo' with matching arguments.
+num_compareTo__double__td	ABORTS
+num_toInt__smi__s	OK
+num_toInt__smi__ts	OK
+num_toInt__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'toInt' with matching arguments.
+num_toInt__smi__td	ABORTS
+num_toInt__mint__s	OK
+num_toInt__mint__ts	OK
+num_toInt__mint__d	ERR NoSuchMethodError: Class 'int' has no instance method 'toInt' with matching arguments.
+num_toInt__mint__td	ABORTS
+num_toInt__double__s	OK
+num_toInt__double__ts	OK
+num_toInt__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'toInt' with matching arguments.
+num_toInt__double__td	ABORTS
+num_toDouble__smi__s	OK
+num_toDouble__smi__ts	OK
+num_toDouble__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'toDouble' with matching arguments.
+num_toDouble__smi__td	OK
+num_toDouble__mint__s	OK
+num_toDouble__mint__ts	OK
+num_toDouble__mint__d	ABORTS
+num_toDouble__mint__td	OK
+num_toDouble__double__s	OK
+num_toDouble__double__ts	OK
+num_toDouble__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'toDouble' with matching arguments.
+num_toDouble__double__td	OK
+date_difference__utc__s	OK
+date_difference__utc__ts	OK
+date_difference__utc__d	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'difference' with matching arguments.
+date_difference__utc__td	ABORTS
+date_add__utc__s	OK
+date_add__utc__ts	OK
+date_add__utc__d	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'add' with matching arguments.
+date_add__utc__td	ABORTS
+date_subtract__utc__s	OK
+date_subtract__utc__ts	OK
+date_subtract__utc__d	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'subtract' with matching arguments.
+date_subtract__utc__td	ABORTS
+date_isBefore__utc__s	OK
+date_isBefore__utc__ts	OK
+date_isBefore__utc__d	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'isBefore' with matching arguments.
+date_isBefore__utc__td	ABORTS
+date_isAfter__utc__s	OK
+date_isAfter__utc__ts	OK
+date_isAfter__utc__d	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'isAfter' with matching arguments.
+date_isAfter__utc__td	ABORTS
+date_year__utc__s	OK
+date_year__utc__d	ABORTS
+date_month__utc__s	OK
+date_month__utc__d	ABORTS
+date_weekday__utc__s	OK
+date_weekday__utc__d	ABORTS
+date_toIso8601String__utc__s	OK
+date_toIso8601String__utc__ts	OK
+date_toIso8601String__utc__d	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'toIso8601String' with matching arguments.
+date_toIso8601String__utc__td	ABORTS
+date_toUtc__utc__s	OK
+date_toUtc__utc__ts	OK
+date_toUtc__utc__d	ERR NoSuchMethodError: Class 'DateTime' has no instance method 'toUtc' with matching arguments.
+date_toUtc__utc__td	ABORTS
+date_microsecondsSinceEpoch__utc__s	OK
+date_microsecondsSinceEpoch__utc__d	ABORTS
+dur_inMilliseconds__duration__s	OK
+dur_inMilliseconds__duration__d	ABORTS
+dur_inSeconds__duration__s	OK
+dur_inSeconds__duration__d	ABORTS
+dur_inMinutes__duration__s	OK
+dur_inMinutes__duration__d	ABORTS
+dur_inMicroseconds__duration__s	OK
+dur_inMicroseconds__duration__d	ABORTS
+dur_plus__duration__s	OK
+dur_plus__duration__d	ERR NoSuchMethodError: Class 'Duration' has no instance method '+' with matching arguments.
+dur_gt__duration__s	OK
+dur_gt__duration__d	ERR NoSuchMethodError: Class 'Duration' has no instance method '>' with matching arguments.
+dur_isNegative__duration__s	OK
+dur_isNegative__duration__d	ABORTS
+state_error_message__state_error__s	OK
+state_error_message__state_error__d	ABORTS
+format_exception_message__format_exception__s	OK
+format_exception_message__format_exception__d	ABORTS
+error_stackTrace__state_error__s	OK
+error_stackTrace__state_error__d	ABORTS
+object_runtimeType__state_error__s	OK
+object_runtimeType__state_error__d	OK
+int_plus__smi__s	OK
+int_plus__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '+' with matching arguments.
+int_plus__mint__s	OK
+int_plus__mint__d	ABORTS
+int_minus__smi__s	OK
+int_minus__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '-' with matching arguments.
+int_minus__mint__s	OK
+int_minus__mint__d	ABORTS
+int_times__smi__s	OK
+int_times__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '*' with matching arguments.
+int_times__mint__s	OK
+int_times__mint__d	ABORTS
+int_div__smi__s	OK
+int_div__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '/' with matching arguments.
+int_div__mint__s	OK
+int_div__mint__d	ABORTS
+int_mod__smi__s	OK
+int_mod__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '%' with matching arguments.
+int_mod__mint__s	OK
+int_mod__mint__d	ABORTS
+int_lt__smi__s	OK
+int_lt__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '<' with matching arguments.
+int_lt__mint__s	OK
+int_lt__mint__d	ABORTS
+int_gt__smi__s	OK
+int_gt__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '>' with matching arguments.
+int_gt__mint__s	OK
+int_gt__mint__d	ABORTS
+int_le__smi__s	OK
+int_le__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '<=' with matching arguments.
+int_le__mint__s	OK
+int_le__mint__d	ABORTS
+int_ge__smi__s	OK
+int_ge__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '>=' with matching arguments.
+int_ge__mint__s	OK
+int_ge__mint__d	ABORTS
+int_neg__smi__s	OK
+int_neg__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'unary-' with matching arguments.
+int_neg__mint__s	OK
+int_neg__mint__d	ABORTS
+int_eqop__smi__s	OK
+int_eqop__smi__d	OK
+int_eqop__mint__s	OK
+int_eqop__mint__d	OK
+int_toString__smi__s	OK
+int_toString__smi__ts	OK
+int_toString__smi__d	OK
+int_toString__smi__td	OK
+int_toString__mint__s	OK
+int_toString__mint__ts	OK
+int_toString__mint__d	OK
+int_toString__mint__td	OK
+dbl_plus__double__s	OK
+dbl_plus__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '+' with matching arguments.
+dbl_minus__double__s	OK
+dbl_minus__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '-' with matching arguments.
+dbl_times__double__s	OK
+dbl_times__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '*' with matching arguments.
+dbl_div__double__s	OK
+dbl_div__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '/' with matching arguments.
+dbl_floorDiv__double__s	OK
+dbl_floorDiv__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '~/' with matching arguments.
+dbl_mod__double__s	OK
+dbl_mod__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '%' with matching arguments.
+dbl_lt__double__s	OK
+dbl_lt__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '<' with matching arguments.
+dbl_gt__double__s	OK
+dbl_gt__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '>' with matching arguments.
+dbl_le__double__s	OK
+dbl_le__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '<=' with matching arguments.
+dbl_ge__double__s	OK
+dbl_ge__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '>=' with matching arguments.
+dbl_neg__double__s	OK
+dbl_neg__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'unary-' with matching arguments.
+dbl_eqop__double__s	OK
+dbl_eqop__double__d	OK
+dbl_toString__double__s	OK
+dbl_toString__double__ts	OK
+dbl_toString__double__d	OK
+dbl_toString__double__td	OK
+num_plus__smi__s	OK
+num_plus__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '+' with matching arguments.
+num_plus__mint__s	OK
+num_plus__mint__d	ABORTS
+num_plus__double__s	OK
+num_plus__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '+' with matching arguments.
+num_minus__smi__s	OK
+num_minus__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '-' with matching arguments.
+num_minus__mint__s	OK
+num_minus__mint__d	ABORTS
+num_minus__double__s	OK
+num_minus__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '-' with matching arguments.
+num_times__smi__s	OK
+num_times__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '*' with matching arguments.
+num_times__mint__s	OK
+num_times__mint__d	ABORTS
+num_times__double__s	OK
+num_times__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '*' with matching arguments.
+num_div__smi__s	OK
+num_div__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '/' with matching arguments.
+num_div__mint__s	OK
+num_div__mint__d	ABORTS
+num_div__double__s	OK
+num_div__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '/' with matching arguments.
+num_mod__smi__s	OK
+num_mod__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '%' with matching arguments.
+num_mod__mint__s	OK
+num_mod__mint__d	ABORTS
+num_mod__double__s	OK
+num_mod__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '%' with matching arguments.
+num_lt__smi__s	OK
+num_lt__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '<' with matching arguments.
+num_lt__mint__s	OK
+num_lt__mint__d	ABORTS
+num_lt__double__s	OK
+num_lt__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '<' with matching arguments.
+num_gt__smi__s	OK
+num_gt__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '>' with matching arguments.
+num_gt__mint__s	OK
+num_gt__mint__d	ABORTS
+num_gt__double__s	OK
+num_gt__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '>' with matching arguments.
+num_le__smi__s	OK
+num_le__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '<=' with matching arguments.
+num_le__mint__s	OK
+num_le__mint__d	ABORTS
+num_le__double__s	OK
+num_le__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '<=' with matching arguments.
+num_ge__smi__s	OK
+num_ge__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method '>=' with matching arguments.
+num_ge__mint__s	OK
+num_ge__mint__d	ABORTS
+num_ge__double__s	OK
+num_ge__double__d	ERR NoSuchMethodError: Class 'double' has no instance method '>=' with matching arguments.
+num_neg__smi__s	OK
+num_neg__smi__d	ERR NoSuchMethodError: Class 'int' has no instance method 'unary-' with matching arguments.
+num_neg__mint__s	OK
+num_neg__mint__d	ABORTS
+num_neg__double__s	OK
+num_neg__double__d	ERR NoSuchMethodError: Class 'double' has no instance method 'unary-' with matching arguments.
+num_eqop__smi__s	OK
+num_eqop__smi__d	OK
+num_eqop__mint__s	OK
+num_eqop__mint__d	OK
+num_eqop__double__s	OK
+num_eqop__double__d	OK
+bool_toString__bool__s	OK
+bool_toString__bool__ts	OK
+bool_toString__bool__d	OK
+bool_toString__bool__td	OK
+str_toString__one_byte__s	OK
+str_toString__one_byte__ts	OK
+str_toString__one_byte__d	OK
+str_toString__one_byte__td	OK
+str_toString__two_byte__s	OK
+str_toString__two_byte__ts	OK
+str_toString__two_byte__d	OK
+str_toString__two_byte__td	OK
+str_split__one_byte__s	OK
+str_split__one_byte__ts	OK
+str_split__one_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'split' with matching arguments.
+str_split__one_byte__td	OK
+str_split__two_byte__s	OK
+str_split__two_byte__ts	OK
+str_split__two_byte__d	ERR NoSuchMethodError: Class 'String' has no instance method 'split' with matching arguments.
+str_split__two_byte__td	OK
+list_add__growable__s	OK
+list_add__growable__ts	OK
+list_add__growable__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'add' with matching arguments.
+list_add__growable__td	OK
+list_add__filled_fixed__s	ERR Unsupported operation: Cannot add to a fixed-length list
+list_add__filled_fixed__ts	OK
+list_add__filled_fixed__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'add' with matching arguments.
+list_add__filled_fixed__td	OK
+list_add__const__s	ERR Unsupported operation: Cannot add to an unmodifiable list
+list_add__const__ts	OK
+list_add__const__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'add' with matching arguments.
+list_add__const__td	OK
+list_add__unmodifiable__s	ERR Unsupported operation: Cannot add to an unmodifiable list
+list_add__unmodifiable__ts	OK
+list_add__unmodifiable__d	ABORTS
+list_add__unmodifiable__td	OK
+list_add__generate__s	OK
+list_add__generate__ts	OK
+list_add__generate__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'add' with matching arguments.
+list_add__generate__td	OK
+list_add__json__s	OK
+list_add__json__ts	OK
+list_add__json__d	ABORTS
+list_add__json__td	OK
+iter_join__list__s	OK
+iter_join__list__ts	OK
+iter_join__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'join' with matching arguments.
+iter_join__list__td	OK
+iter_join__set__s	OK
+iter_join__set__ts	OK
+iter_join__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'join' with matching arguments.
+iter_join__set__td	OK
+iter_join__generate__s	OK
+iter_join__generate__ts	OK
+iter_join__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'join' with matching arguments.
+iter_join__generate__td	OK
+iter_where__list__s	OK
+iter_where__list__ts	OK
+iter_where__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'where' with matching arguments.
+iter_where__list__td	OK
+iter_where__set__s	OK
+iter_where__set__ts	OK
+iter_where__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'where' with matching arguments.
+iter_where__set__td	OK
+iter_where__generate__s	OK
+iter_where__generate__ts	OK
+iter_where__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'where' with matching arguments.
+iter_where__generate__td	OK
+iter_map__list__s	OK
+iter_map__list__ts	OK
+iter_map__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'map' with matching arguments.
+iter_map__list__td	OK
+iter_map__set__s	OK
+iter_map__set__ts	OK
+iter_map__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'map' with matching arguments.
+iter_map__set__td	OK
+iter_map__generate__s	OK
+iter_map__generate__ts	OK
+iter_map__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'map' with matching arguments.
+iter_map__generate__td	OK
+iter_toList__list__s	OK
+iter_toList__list__ts	OK
+iter_toList__list__d	ERR NoSuchMethodError: Class 'List<Object?>' has no instance method 'toList' with matching arguments.
+iter_toList__list__td	OK
+iter_toList__set__s	OK
+iter_toList__set__ts	OK
+iter_toList__set__d	ERR NoSuchMethodError: Class '_Set<Object?>' has no instance method 'toList' with matching arguments.
+iter_toList__set__td	OK
+iter_toList__generate__s	OK
+iter_toList__generate__ts	OK
+iter_toList__generate__d	ERR NoSuchMethodError: Class '_GeneratorIterable<Object?>' has no instance method 'toList' with matching arguments.
+iter_toList__generate__td	OK
+iter_iterator__list__s	OK
+iter_iterator__list__d	ABORTS
+iter_iterator__set__s	OK
+iter_iterator__set__d	ABORTS
+iter_iterator__generate__s	OK
+iter_iterator__generate__d	ABORTS
+iter_moveNext__list__s	OK
+iter_moveNext__set__s	OK
+iter_moveNext__generate__s	OK
+iter_current__list__s	OK
+iter_current__list__d	ABORTS
+iter_current__set__s	OK
+iter_current__set__d	ABORTS
+iter_current__generate__s	OK
+iter_current__generate__d	ABORTS
+obj_eq__string__s	OK
+obj_eq__string__d	OK
+obj_eq__int__s	OK
+obj_eq__int__d	OK
+obj_eq__list__s	OK
+obj_eq__list__d	OK
+obj_toString__string__s	OK
+obj_toString__string__ts	OK
+obj_toString__string__d	OK
+obj_toString__string__td	OK
+obj_toString__int__s	OK
+obj_toString__int__ts	OK
+obj_toString__int__d	OK
+obj_toString__int__td	OK
+obj_toString__list__s	OK
+obj_toString__list__ts	OK
+obj_toString__list__d	OK
+obj_toString__list__td	OK
+obj_hashCode__string__s	OK
+obj_hashCode__string__d	OK
+obj_hashCode__int__s	OK
+obj_hashCode__int__d	OK
+obj_hashCode__list__s	OK
+obj_hashCode__list__d	OK
+size_width__size__s	OK
+size_width__size__d	ABORTS
+size_height__size__s	OK
+size_height__size__d	ABORTS
+offset_dx__offset__s	OK
+offset_dx__offset__d	ABORTS
+offset_dy__offset__s	OK
+offset_dy__offset__d	ABORTS
+sub_cancel__from_iterable__s	OK
+sub_cancel__from_iterable__ts	OK
+sub_cancel__from_iterable__d	ERR NoSuchMethodError: Class '_ControllerSubscription<int>' has no instance method 'cancel' with matching arguments.
+sub_cancel__from_iterable__td	OK

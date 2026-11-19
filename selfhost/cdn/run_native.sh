@@ -49,8 +49,12 @@ REPO="$(cd -- "$HERE/../.." && pwd)"
 # expect the plugin versions to differ from a fresh image build.
 CADDY_VERSION=v2.11.7
 XCADDY_VERSION=v0.4.7
-# Oldest Go that can build CADDY_VERSION (its go.mod `go` line). See build_caddy.
-CADDY_GO_MIN=1.26.0
+# Oldest Go that can build Caddy with these plugins: the highest `go` line among
+# their go.mod files and what they pull in. Caddy v2.11.7 says 1.26.0,
+# cache-handler v0.17.0 1.25.1; storages/nuts/caddy v0.0.23, storages/nuts and
+# storages/core v0.0.23 and souin v1.7.10 say 1.27.1. Recheck it whenever a
+# version here moves. See build_caddy.
+CADDY_GO_MIN=1.27.1
 CACHE_HANDLER_VERSION=v0.17.0
 NUTS_STORAGE_VERSION=v0.0.23
 # NutsDB, which both storages/nuts versions require at v1.0.4, built with
@@ -139,12 +143,12 @@ build_caddy() {
     # whatever toolchain a module's go.mod names at build time, so the compiler
     # behind the CDN binary would depend on the network and on the day. Local
     # plus a floor is reproducible and fails with a message instead. The floor is
-    # Caddy's own go.mod ("go 1.26.0" at v2.11.7); raise CADDY_GO_MIN with
-    # CADDY_VERSION. Set CADDY=<binary> to skip the build entirely.
+    # CADDY_GO_MIN, the highest go.mod `go` line among Caddy and its plugins.
+    # Set CADDY=<binary> to skip the build entirely.
     export GOTOOLCHAIN=local
     local have; have="$(go env GOVERSION 2>/dev/null)"; have="${have#go}"
     if [[ -z "$have" || "$(printf '%s\n%s\n' "$CADDY_GO_MIN" "${have%%[^0-9.]*}" | sort -V | head -1)" != "$CADDY_GO_MIN" ]]; then
-      die "go ${have:-?} is older than the $CADDY_GO_MIN that Caddy $CADDY_VERSION needs. Install a newer Go (GOTOOLCHAIN is pinned to local on purpose), or set CADDY=<a built caddy binary>"
+      die "go ${have:-?} is older than the $CADDY_GO_MIN that Caddy $CADDY_VERSION with nuts $NUTS_STORAGE_VERSION needs. Install a newer Go (GOTOOLCHAIN is pinned to local on purpose), or set CADDY=<a built caddy binary>"
     fi
     GOBIN="$STATE/bin" go install "github.com/caddyserver/xcaddy/cmd/xcaddy@$XCADDY_VERSION"
     local nutsdb="$STATE/src/nutsdb"
@@ -163,14 +167,16 @@ build_caddy() {
   fi
   # The patched NutsDB shows as a replace of github.com/nutsdb/nutsdb by our checkout.
   if ! "$STATE/bin/caddy" build-info | grep -A1 'github.com/nutsdb/nutsdb' \
-      | grep -Eq "^=>[[:space:]]+$STATE/src/nutsdb[[:space:]]"; then
+      | grep -E "^=>[[:space:]]+$STATE/src/nutsdb[[:space:]]" >/dev/null; then   # not -q: see the list-modules check
     if [[ -n "${CADDY:-}" ]]; then
       echo "run_native.sh: WARNING: CADDY=$CADDY does not show this script's patched NutsDB; it will hold the whole cache in memory after every start" >&2
     else
       die "$STATE/bin/caddy is not linked against the patched NutsDB; remove it and re-run"
     fi
   fi
-  "$STATE/bin/caddy" list-modules | grep -qx 'http.handlers.cache' \
+  # grep -x >/dev/null, not grep -q: -q exits at the first match, caddy then dies
+  # of SIGPIPE writing the rest of the list, and pipefail fails the check (1 in 40).
+  "$STATE/bin/caddy" list-modules | grep -x 'http.handlers.cache' >/dev/null \
     || die "$STATE/bin/caddy has no http.handlers.cache module"
 }
 

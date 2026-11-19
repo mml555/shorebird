@@ -1,0 +1,22 @@
+{
+  "note": "Compound assignments spelled with an explicit `this.`, prefix and postfix `++`, `??=`, and `+=` inside a closure. Each reports one get and one set at the member name, so all five come out CONDITIONAL and the patch is accepted.",
+  "verdict": "accept",
+  "changed": [
+    "package:corpus/main.dart#Counter.ta",
+    "package:corpus/main.dart#Counter.tb",
+    "package:corpus/main.dart#Counter.tc",
+    "package:corpus/main.dart#Counter.td",
+    "package:corpus/main.dart#Counter.te"
+  ],
+  "patchable": [],
+  "conditional": [
+    "package:corpus/main.dart#Counter.ta",
+    "package:corpus/main.dart#Counter.tb",
+    "package:corpus/main.dart#Counter.tc",
+    "package:corpus/main.dart#Counter.td",
+    "package:corpus/main.dart#Counter.te"
+  ],
+  "unreachable": [],
+  "added": [],
+  "rejectionReasons": []
+}

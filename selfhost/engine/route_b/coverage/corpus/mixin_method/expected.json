@@ -1,0 +1,13 @@
+{
+  "note": "A mixin getter's body changes. AOT copies it into dart:mixin_deduplication's &Base&Labelled and calls reach that copy, which a patch cannot replace, so the patch is refused and names the copied member. The frozen reference tooling calls this inert, so it is not a witness here.",
+  "referenceBlind": "the reference compares procedures only",
+  "verdict": "reject",
+  "changed": [],
+  "added": [],
+  "declarations": [
+    "dart:mixin_deduplication#&Base&Labelled.get:label"
+  ],
+  "rejectionReasons": [
+    "this member of a mixin changed; AOT copies a mixin's members into each class that applies it, and a patch cannot replace those copies"
+  ]
+}

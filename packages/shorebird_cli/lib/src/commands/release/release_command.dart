@@ -6,6 +6,7 @@ import 'package:meta/meta.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
+import 'package:shorebird_cli/src/build_history.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/command_error.dart';
@@ -23,9 +24,9 @@ import 'package:shorebird_cli/src/patch_verification.dart';
 import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
+import 'package:shorebird_cli/src/runtime_endpoint.dart';
 import 'package:shorebird_cli/src/shorebird_command.dart';
 import 'package:shorebird_cli/src/shorebird_documentation.dart';
-import 'package:shorebird_cli/src/runtime_endpoint.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
@@ -149,9 +150,13 @@ Also accepts the following special values:
       )
       ..addOption(
         'release-version',
-        help: '''
-The version of the Android or iOS app that embeds this module
-(e.g. "$releaseVersionExample"). Required for aar and ios-framework only.''',
+        help:
+            '''
+The version of this module build (e.g. "$releaseVersionExample"), a new one
+for each build you release. Required for aar and ios-framework only.
+Flutter $minimumModuleReleaseVersionFlutterVersion and later build it into the module, so its patches
+reach every app that embeds it, whatever that app's version. With an earlier
+Flutter, it must equal the version of the app that embeds the module.''',
       )
       ..addMultiOption(
         'target-platform',
@@ -214,7 +219,7 @@ The version of the Android or iOS app that embeds this module
     // the one whose platform statuses are complete.
     final releases = <int, Release>{};
     for (final releaseType in releaseTypes) {
-      final release = await createRelease(_resolveReleaser(releaseType));
+      final release = await _recordReleaseRun(_resolveReleaser(releaseType));
       releases[release.id] = release;
     }
 
@@ -229,6 +234,37 @@ The version of the Android or iOS app that embeds this module
     }
 
     return ExitCode.success.code;
+  }
+
+  /// The build history record of the platform being released, if [run] is
+  /// releasing.
+  BuildRun? _buildRun;
+
+  /// [shorebirdEnv] with the Flutter the release is built with, once it is
+  /// known.
+  ShorebirdEnv? _releaseShorebirdEnv;
+
+  /// Creates the release for [releaser] with [createRelease], recording the
+  /// run in the app's build history.
+  Future<Release> _recordReleaseRun(Releaser releaser) {
+    _releaseShorebirdEnv = null;
+    final run = _buildRun = buildHistory.start(
+      command: BuildRunCommand.release,
+      platform: releaser.releaseType.releasePlatform,
+      dryRun: results['dry-run'] == true,
+    );
+    return buildHistory.record(
+      run,
+      () => createRelease(releaser),
+      // Described with the release's Flutter, as the published release is.
+      metadata: () => runScoped(
+        () async => (await _releaseMetadata(releaser)).toJson(),
+        values: {
+          if (_releaseShorebirdEnv case final env?)
+            shorebirdEnvRef.overrideWith(() => env),
+        },
+      ),
+    );
   }
 
   /// Returns a [Releaser] for the given [ReleaseType].
@@ -397,15 +433,17 @@ The version of the Android or iOS app that embeds this module
     // This command handles logging, we don't need to provide our own
     // progress, error logs, etc.
     final app = await codePushClientWrapper.getApp(appId: appId);
+    _buildRun
+      ?..appId = appId
+      ..buildFlags = buildHistory.buildFlags(results, target: target);
     _assertSigningAllowedByPolicy(app);
     final targetFlutterRevision = await _installTargetFlutter(releaser);
 
     // Captured BEFORE entering any scope. Building it inside the override
     // closure resolves `shorebirdEnv` from the scope being defined, so
     // copyWith recurses into itself -- that overflowed the stack.
-    final releaseFlutterShorebirdEnv = shorebirdEnv.copyWith(
-      flutterRevisionOverride: targetFlutterRevision,
-    );
+    final releaseFlutterShorebirdEnv = _releaseShorebirdEnv = shorebirdEnv
+        .copyWith(flutterRevisionOverride: targetFlutterRevision);
 
     // COHERENCE COMES AFTER SELECTION AND HYDRATION, and the order is the whole
     // point. It used to run first, against whatever revision happened to be
@@ -503,7 +541,7 @@ The version of the Android or iOS app that embeds this module
     await ensureVersionIsReleasable(
       version: buildNumber != null ? '$version+$buildNumber' : version,
       flutterRevision: flutterRevision,
-      releasePlatform: releaser.releaseType.releasePlatform,
+      releaser: releaser,
     );
   }
 
@@ -540,12 +578,13 @@ The version of the Android or iOS app that embeds this module
     final releaseVersion = await releaser.getReleaseVersion(
       releaseArtifactRoot: releaseArtifact,
     );
+    _warnIfVersionNameIsEmpty(releaseVersion);
 
     // Ensure we can create a release from what we've built.
     await ensureVersionIsReleasable(
       version: releaseVersion,
       flutterRevision: flutterRevision,
-      releasePlatform: releaser.releaseType.releasePlatform,
+      releaser: releaser,
     );
 
     if (results['dry-run'] == true) {
@@ -601,6 +640,24 @@ The version of the Android or iOS app that embeds this module
     throw PreconditionFailedExit(failure);
   }
 
+  /// Warns when [releaseVersion] has a build number but no version name
+  /// (e.g. `+4280`), which happens when the app is built with an empty
+  /// versionName or CFBundleShortVersionString. Such a release works and can
+  /// be patched, but it has no readable version and won't line up with the
+  /// same build on other platforms.
+  void _warnIfVersionNameIsEmpty(String releaseVersion) {
+    if (!releaseVersion.trim().startsWith('+')) return;
+    logger.warn(
+      'The release version "$releaseVersion" has a build number but no '
+      "version name, so it has no readable version and won't match the same "
+      'build on other platforms. It still works and can be patched.\n'
+      'Check that --build-name, if passed, is not empty (e.g. an unset CI '
+      'variable), and that versionName in android/app/build.gradle (or '
+      'build.gradle.kts) or CFBundleShortVersionString in Info.plist is not '
+      'set from something empty.',
+    );
+  }
+
   /// Builds the release artifacts, exiting with [ExitCode.software] if the
   /// build fails.
   Future<FileSystemEntity> _buildReleaseArtifacts(Releaser releaser) async {
@@ -611,6 +668,7 @@ The version of the Android or iOS app that embeds this module
     try {
       return await releaser.buildReleaseArtifacts();
     } on ArtifactBuildException catch (e) {
+      _buildRun?.failWith(BuildRunFailureReason.buildFailed);
       throw CommandError(
         message: e.message,
         hint: e.fixRecommendation.isNullOrEmpty ? null : e.fixRecommendation,
@@ -622,6 +680,7 @@ The version of the Android or iOS app that embeds this module
       // server's error for --json.
       rethrow;
     } on Exception catch (e) {
+      _buildRun?.failWith(BuildRunFailureReason.buildFailed);
       throw CommandError(
         message: 'Failed to build release artifacts: $e',
         exitCode: ExitCode.software,
@@ -661,11 +720,18 @@ The version of the Android or iOS app that embeds this module
       version: releaseVersion,
       releasePlatform: releaser.releaseType.releasePlatform,
     );
+    _buildRun?.releaseId = release.id;
     await prepareRelease(release: release, releaser: releaser);
-    await releaser.uploadReleaseArtifacts(release: release, appId: appId);
-    await releaser.uploadSupplementArtifact(
-      appId: appId,
-      releaseId: release.id,
+    await blameFailureOn(
+      _buildRun,
+      BuildRunFailureReason.uploadFailed,
+      () async {
+        await releaser.uploadReleaseArtifacts(release: release, appId: appId);
+        await releaser.uploadSupplementArtifact(
+          appId: appId,
+          releaseId: release.id,
+        );
+      },
     );
     await finalizeRelease(release: release, releaser: releaser);
 
@@ -858,24 +924,29 @@ Use patch_verification: strict.''',
 
   /// Asserts that a release with version [version] can be released using
   /// flutter revision [flutterRevision]. If a release has already been
-  /// published with the given [version] for the platform [releasePlatform], or
-  /// if a release already exists with [version] but was compiled with a
-  /// different Flutter revision, an error will be thrown.
+  /// published with the given [version] for [releaser]'s platform (unless
+  /// [Releaser.addsToActiveRelease] allows adding to it), or if a release
+  /// already exists with [version] but was compiled with a different Flutter
+  /// revision, an error will be thrown.
   Future<void> ensureVersionIsReleasable({
     required String version,
     required String flutterRevision,
-    required ReleasePlatform releasePlatform,
+    required Releaser releaser,
   }) async {
+    final releasePlatform = releaser.releaseType.releasePlatform;
     final existingRelease = await codePushClientWrapper.maybeGetRelease(
       appId: appId,
       releaseVersion: version,
     );
 
     if (existingRelease != null) {
-      codePushClientWrapper.ensureReleaseIsNotActive(
-        release: existingRelease,
-        platform: releasePlatform,
-      );
+      if (!existingRelease.isActiveOn(releasePlatform) ||
+          !await releaser.addsToActiveRelease(existingRelease)) {
+        codePushClientWrapper.ensureReleaseIsNotActive(
+          release: existingRelease,
+          platform: releasePlatform,
+        );
+      }
 
       // All artifacts associated with a given release must be built
       // with the same Flutter revision.
@@ -894,6 +965,7 @@ Use patch_verification: strict.''',
           version: existingRelease.flutterVersion,
         );
 
+        _buildRun?.failWith(BuildRunFailureReason.releaseIncompatible);
         throw CommandError(
           message:
               'Release $version was built with Flutter '
@@ -981,10 +1053,15 @@ ${summary.join('\n')}
   }
 
   /// Prepares the release by updating the release status to draft.
+  ///
+  /// A release already active on this platform (one this run adds another
+  /// architecture to, see [Releaser.addsToActiveRelease]) stays active, so
+  /// its devices keep getting patches while this run uploads.
   Future<void> prepareRelease({
     required Release release,
     required Releaser releaser,
   }) async {
+    if (release.isActiveOn(releaser.releaseType.releasePlatform)) return;
     await codePushClientWrapper.updateReleaseStatus(
       appId: appId,
       releaseId: release.id,
@@ -1003,6 +1080,20 @@ ${summary.join('\n')}
     // tracing wasn't set up (older Flutter pin).
     artifactBuilder.writeBuildTraceSummary();
 
+    final updatedMetadata = await _releaseMetadata(releaser);
+    _buildRun?.metadata = updatedMetadata.toJson();
+    await codePushClientWrapper.updateReleaseStatus(
+      appId: appId,
+      releaseId: release.id,
+      platform: releaser.releaseType.releasePlatform,
+      status: ReleaseStatus.active,
+      metadata: updatedMetadata.toJson(),
+    );
+  }
+
+  /// The metadata sent with the release, describing how [releaser] built
+  /// it. Must run with [shorebirdEnv] scoped to the release's Flutter.
+  Future<UpdateReleaseMetadata> _releaseMetadata(Releaser releaser) {
     final hasPublicKey =
         results.wasParsed(CommonArguments.publicKeyArg.name) ||
         results.wasParsed(CommonArguments.publicKeyCmd.name);
@@ -1027,14 +1118,7 @@ ${summary.join('\n')}
       // or when trace parsing failed; uploader sends null-as-omitted.
       buildTraceSummary: buildTraceSession.summary?.toJson(),
     );
-    final updatedMetadata = await releaser.updatedReleaseMetadata(baseMetadata);
-    await codePushClientWrapper.updateReleaseStatus(
-      appId: appId,
-      releaseId: release.id,
-      platform: releaser.releaseType.releasePlatform,
-      status: ReleaseStatus.active,
-      metadata: updatedMetadata.toJson(),
-    );
+    return releaser.updatedReleaseMetadata(baseMetadata);
   }
 
   /// Instructions explaining how to patch the release that was just created.

@@ -1,4 +1,4 @@
-// cspell:words pkce queryability unactivated
+// cspell:words pkce queryability unactivated xact
 import 'dart:convert';
 import 'dart:math';
 
@@ -6,6 +6,8 @@ import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/db.dart';
 import 'package:code_push_server/src/domain.dart';
 import 'package:code_push_server/src/observability.dart';
+import 'package:code_push_server/src/rollout.dart';
+import 'package:meta/meta.dart';
 
 // ---------------------------------------------------------------------------
 // Row types
@@ -109,24 +111,35 @@ class ChannelPatchRow {
     required this.channelId,
     required this.patchId,
     required this.status,
-    required this.rollout,
+    required this.rolloutBps,
     required this.rolledBack,
+    this.rolloutSchedule,
   });
   final int id;
   final int channelId;
   final int patchId;
   final ChannelPatchStatus status;
-  final int rollout;
+
+  /// The share of the channel's devices the patch is offered to, in basis
+  /// points (hundredths of a percent): 0 to 10000.
+  final int rolloutBps;
   final bool rolledBack;
+
+  /// The stored timed schedule (JSON), or null for a fixed rollout. Pass it
+  /// back to [Repository.setRollout] as `expectSchedule` to change the row
+  /// only if no one else did.
+  final String? rolloutSchedule;
 }
 
 /// A patch a rollback made active again on [channelId].
 class RestoredPatch {
-  RestoredPatch(this.channelId, this.patchId, this.number, this.rollout);
+  RestoredPatch(this.channelId, this.patchId, this.number, this.rolloutBps);
   final int channelId;
   final int patchId;
   final int number;
-  final int rollout;
+
+  /// The rollout it was promoted with, in basis points.
+  final int rolloutBps;
 }
 
 /// What [Repository.rollbackAndRestore] changed.
@@ -660,6 +673,71 @@ class Repository {
         'ALTER TABLE channel_patches ADD COLUMN superseded BOOLEAN NOT NULL DEFAULT false',
       ],
     ),
+    (
+      19,
+      [
+        // A rollout in basis points (hundredths of a percent), so that
+        // `--rollout 12.5` and the other multiples of 0.01 the CLI accepts
+        // are expressible. `rollout` (whole percent) is still written beside
+        // it, for pods of an older release still running during a rolling
+        // upgrade; see `effectiveRolloutBps`. Backfilled from `rollout`, which
+        // gives every existing row the same bucket threshold it had.
+        'ALTER TABLE channel_patches ADD COLUMN rollout_bps INTEGER',
+        'UPDATE channel_patches SET rollout_bps = rollout * 100',
+      ],
+    ),
+    (
+      20,
+      [
+        // The build history: one row per platform of each `shorebird release`
+        // or `shorebird patch` run, as the CLI reports it (POST
+        // /apps/{app}/runs). Never holds logs, paths or dart-define values;
+        // the CLI sends hashes.
+        '''CREATE TABLE IF NOT EXISTS build_runs(
+              id SERIAL PRIMARY KEY, app_id TEXT NOT NULL,
+              run_id TEXT NOT NULL, command TEXT NOT NULL,
+              platform TEXT NOT NULL, outcome TEXT NOT NULL, reason TEXT,
+              release_id INTEGER, patch_id INTEGER,
+              started_at TEXT NOT NULL, duration_ms BIGINT NOT NULL,
+              dry_run BOOLEAN NOT NULL DEFAULT false,
+              metadata TEXT, build_flags TEXT,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+              UNIQUE(app_id, run_id, platform))''',
+        'CREATE INDEX IF NOT EXISTS build_runs_app ON build_runs(app_id, id)',
+      ],
+    ),
+    (
+      21,
+      [
+        // A timed rollout (upstream 1.6.144 `--rollout-steps`): the schedule
+        // as JSON (steps, weekend pause, time zone, start). The rollout is
+        // computed from it whenever it is read (see `effectiveRolloutBps`),
+        // so nothing has to advance it. `rollout_bps` keeps the first step's
+        // value, which is what an older reader of the row sees. NULL is a
+        // fixed rollout.
+        'ALTER TABLE channel_patches ADD COLUMN rollout_schedule TEXT',
+      ],
+    ),
+    (
+      22,
+      [
+        // One live artifact per patch, architecture and platform (a release may
+        // hold several of one kind): two
+        // concurrent `--add-to-patch` of the same architecture cannot both
+        // land. Failed uploads are left out, since a retry registers a new
+        // artifact beside the failed one.
+        // A database the old check-then-insert raced on may already hold two:
+        // keep the lowest id live (what an unordered lookup most likely
+        // served) and mark the rest failed, so the index can be built.
+        "UPDATE artifacts SET status = 'failed' WHERE owner_kind = 'patch' "
+            "AND status <> 'failed' AND id > (SELECT MIN(a2.id) FROM artifacts a2 "
+            'WHERE a2.owner_kind = artifacts.owner_kind '
+            'AND a2.owner_id = artifacts.owner_id AND a2.arch = artifacts.arch '
+            "AND a2.platform = artifacts.platform AND a2.status <> 'failed')",
+        'CREATE UNIQUE INDEX IF NOT EXISTS artifacts_one_live '
+            "ON artifacts(owner_kind, owner_id, arch, platform) WHERE owner_kind = 'patch' AND status <> 'failed'",
+      ],
+    ),
   ];
 
   /// Indexes for the access paths that would otherwise scan. `events` is the
@@ -683,11 +761,38 @@ class Repository {
     'CREATE INDEX IF NOT EXISTS rate_limits_window ON rate_limits(window_start)',
   ];
 
+  /// Runs the boot migrations. Visible so a test can drive it against a
+  /// recording [Db]; production code reaches it through [open].
+  @visibleForTesting
+  Future<void> migrate() => _migrate();
+
+  /// Key of the Postgres advisory lock that serializes migrations.
+  static const migrationLockKey = 0x5348524d;
+
+  /// Takes the migration lock for the rest of transaction [s]. Postgres only:
+  /// SQLite is a single file, and [SqliteDb] already serializes transactions.
+  ///
+  /// Without it, replicas booting together (`--scale server=N`, or a restart
+  /// racing a rolling upgrade) each read the same `applied` set and then race
+  /// to run the same DDL; the losers crash on a duplicate object or on the
+  /// `schema_migrations` primary key. The lock is transaction-scoped, so it
+  /// cannot outlive a crashed replica or leak through the connection pool.
+  /// There is deliberately no lock_timeout: a replica queued behind a long
+  /// migration should wait for it, and an orchestrator healthcheck decides how
+  /// long is too long.
+  Future<void> _lockMigrations(DbSession s) async {
+    if (_db.dialect != Dialect.postgres) return;
+    await s.query('SELECT pg_advisory_xact_lock(@k)', {'k': migrationLockKey});
+  }
+
   Future<void> _migrate() async {
-    await _q(
-      'CREATE TABLE IF NOT EXISTS schema_migrations('
-      'version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())',
-    );
+    await _db.tx((s) async {
+      await _lockMigrations(s);
+      await s.query(
+        'CREATE TABLE IF NOT EXISTS schema_migrations('
+        'version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())',
+      );
+    });
     final applied = (await _q(
       'SELECT version FROM schema_migrations',
     )).map((m) => _int(m['version'])).toSet();
@@ -711,15 +816,23 @@ class Repository {
 
     for (final (version, statements) in _migrations) {
       if (applied.contains(version)) continue;
-      await _db.tx((s) async {
+      final ran = await _db.tx((s) async {
+        await _lockMigrations(s);
+        // Another replica may have applied it while this one waited.
+        final done = await s.query(
+          'SELECT 1 FROM schema_migrations WHERE version = @v',
+          {'v': version},
+        );
+        if (done.isNotEmpty) return false;
         for (final stmt in statements) {
           await s.query(stmt);
         }
         await s.query('INSERT INTO schema_migrations(version) VALUES (@v)', {
           'v': version,
         });
+        return true;
       });
-      logInfo('applied schema migration', {'version': version});
+      if (ran) logInfo('applied schema migration', {'version': version});
     }
   }
 
@@ -1545,7 +1658,7 @@ class Repository {
   /// Empty = not promoted.
   Future<List<Map<String, Object?>>> patchDeployments(int patchId) async {
     final r = await _q(
-      'SELECT c.name AS channel, c.deleted_at, cp.status, cp.rollout, '
+      'SELECT c.name AS channel, c.deleted_at, cp.status, cp.rollout, cp.rollout_bps, cp.rollout_schedule, '
       'cp.rolled_back '
       'FROM channel_patches cp JOIN channels c ON c.id = cp.channel_id '
       'WHERE cp.patch_id = @p ORDER BY cp.promoted_at DESC',
@@ -1556,12 +1669,39 @@ class Repository {
           (m) => {
             'channel': m['channel'],
             'status': m['status'],
-            'rollout': _int(m['rollout']),
+            // A number: whole percentages stay integers, as they always were.
+            'rollout': percentageOf(effectiveRolloutBps(m)),
+            'rollout_percentage': effectiveRolloutBps(m) / 100,
+            ..._scheduleJson(m),
             'rolled_back': asDbBool(m['rolled_back']),
             'channel_deleted': m['deleted_at'] != null,
           },
         )
         .toList();
+  }
+
+  /// The timed-rollout keys of a deployment row. `rollout_steps` (the steps
+  /// still ahead, from the one in force) and `rollout_next_step_at` appear
+  /// only while a schedule is in progress; the weekend pause and zone are
+  /// always reported.
+  Map<String, Object?> _scheduleJson(Map<String, Object?> m) {
+    final schedule = RolloutSchedule.tryParse(m['rollout_schedule']);
+    if (schedule == null) {
+      return {'rollout_pause_weekends': false, 'rollout_timezone': 'UTC'};
+    }
+    final pos = schedule.positionAt(rolloutClock());
+    final next = pos.nextStepAt;
+    return {
+      if (next != null) ...{
+        'rollout_steps': [
+          for (final s in schedule.steps.skip(pos.index))
+            {'percentage': percentageOf(s.bps), 'duration_minutes': ?s.minutes},
+        ],
+        'rollout_next_step_at': next.toUtc().toIso8601String(),
+      },
+      'rollout_pause_weekends': schedule.pauseWeekends,
+      'rollout_timezone': schedule.timezone,
+    };
   }
 
   /// True if [patchId] has ever been promoted to a channel (active or since
@@ -1738,7 +1878,8 @@ class Repository {
   Future<void> promote(
     int channelId,
     int patchId, {
-    int rollout = 100,
+    int rolloutBps = 10000,
+    RolloutSchedule? schedule,
   }) => _db.tx((s) async {
     await s.query(
       'UPDATE channel_patches SET status = @w, withdrawn_at = now(), '
@@ -1779,13 +1920,18 @@ class Repository {
       },
     );
     await s.query(
-      'INSERT INTO channel_patches(channel_id, patch_id, status, rollout, rolled_back) '
-      'VALUES (@c,@p,@s,@r,false)',
+      'INSERT INTO channel_patches(channel_id, patch_id, status, rollout, '
+      'rollout_bps, rollout_schedule, rolled_back) '
+      'VALUES (@c,@p,@s,@r,@b,@sch,false)',
       {
+        'sch': schedule?.toStored(),
         'c': channelId,
         'p': patchId,
         's': ChannelPatchStatus.active.name,
-        'r': rollout,
+        // `rollout` stays the whole percentage, rounded down, for a server
+        // that predates `rollout_bps` and for anything reading the column.
+        'r': rolloutBps ~/ 100,
+        'b': rolloutBps,
       },
     );
   });
@@ -1876,19 +2022,162 @@ class Repository {
     channelId: _int(m['channel_id']),
     patchId: _int(m['patch_id']),
     status: ChannelPatchStatus.parse(m['status'] as String),
-    rollout: _int(m['rollout']),
+    rolloutBps: effectiveRolloutBps(m),
     rolledBack: asDbBool(m['rolled_back']),
+    rolloutSchedule: m['rollout_schedule'] as String?,
   );
 
-  Future<void> setRollout(int channelId, int patchId, int rollout) => _q(
-    'UPDATE channel_patches SET rollout = @r WHERE channel_id = @c AND patch_id = @p AND status = @s',
-    {
-      'r': rollout,
-      'c': channelId,
-      'p': patchId,
-      's': ChannelPatchStatus.active.name,
-    },
-  );
+  /// Records one platform of a CLI run in [appId]'s build history. A record
+  /// the CLI sent twice (same run and platform) is kept once: the id of the
+  /// first is returned.
+  Future<int> recordBuildRun(
+    String appId, {
+    required String runId,
+    required String command,
+    required String platform,
+    required String outcome,
+    String? reason,
+    int? releaseId,
+    int? patchId,
+    required String startedAt,
+    required int durationMs,
+    required bool dryRun,
+    Map<String, Object?>? metadata,
+    Map<String, Object?>? buildFlags,
+  }) async {
+    Future<int?> existing() async {
+      final r = await _q(
+        'SELECT id FROM build_runs WHERE app_id = @a AND run_id = @r '
+        'AND platform = @p',
+        {'a': appId, 'r': runId, 'p': platform},
+      );
+      return r.isEmpty ? null : _int(r.first['id']);
+    }
+
+    final seen = await existing();
+    if (seen != null) return seen;
+    try {
+      final r = await _q(
+        'INSERT INTO build_runs(app_id, run_id, command, platform, outcome, '
+        'reason, release_id, patch_id, started_at, duration_ms, dry_run, '
+        'metadata, build_flags) VALUES (@a,@r,@c,@p,@o,@re,@rel,@pa,@st,@d,'
+        '@dr,@md,@bf) RETURNING id',
+        {
+          'a': appId,
+          'r': runId,
+          'c': command,
+          'p': platform,
+          'o': outcome,
+          're': reason,
+          'rel': releaseId,
+          'pa': patchId,
+          'st': startedAt,
+          'd': durationMs,
+          'dr': dryRun,
+          'md': metadata == null ? null : jsonEncode(metadata),
+          'bf': buildFlags == null ? null : jsonEncode(buildFlags),
+        },
+      );
+      return _int(r.first['id']);
+    } on Object catch (e) {
+      // Two sends of one record racing: the loser reads the winner's row.
+      if (!isUniqueViolation(e)) rethrow;
+      return (await existing())!;
+    }
+  }
+
+  /// [appId]'s build history, newest first.
+  Future<List<Map<String, Object?>>> buildRuns(
+    String appId, {
+    int limit = 50,
+    bool withBlobs = true,
+  }) async {
+    final r = await _q(
+      'SELECT * FROM build_runs WHERE app_id = @a ORDER BY id DESC LIMIT @l',
+      {'a': appId, 'l': limit},
+    );
+    return [
+      for (final m in r)
+        {
+          'id': _int(m['id']),
+          'run_id': m['run_id'],
+          'command': m['command'],
+          'platform': m['platform'],
+          'outcome': m['outcome'],
+          'reason': ?m['reason'],
+          'release_id': ?m['release_id'],
+          'patch_id': ?m['patch_id'],
+          'started_at': m['started_at'],
+          'duration_ms': _int(m['duration_ms']),
+          'dry_run': asDbBool(m['dry_run']),
+          if (withBlobs) 'metadata': ?_decodeMetadata(m['metadata']),
+          if (withBlobs) 'build_flags': ?_decodeMetadata(m['build_flags']),
+          'created_at': _ts(m['created_at']),
+        },
+    ];
+  }
+
+  /// Sets the rollout of the active row of [patchId] on [channelId] to
+  /// [rolloutBps], on the timed [schedule] when given and as a fixed rollout
+  /// otherwise (which ends any schedule the row was on).
+  ///
+  /// With [onlyRaise] the UPDATE itself refuses a value below the current one
+  /// (read through the same rule as [effectiveRolloutBps], so a row an old pod
+  /// wrote is judged by its `rollout`), and the result says whether it wrote:
+  /// two concurrent raises cannot lower each other. With [expectSchedule] it
+  /// writes only while the row still has that stored schedule (null: none), so
+  /// a read of a timed rollout's current step cannot be applied after another
+  /// request replaced it. With [ifBefore] (the instant the caller read the
+  /// next step of a timed rollout to start at) it also writes only while the
+  /// database clock is before it, so a slow UPDATE or a pod whose clock runs
+  /// behind cannot lower the rollout under devices a step just reached.
+  /// False means nothing was written.
+  Future<bool> setRollout(
+    int channelId,
+    int patchId,
+    int rolloutBps, {
+    bool onlyRaise = false,
+    RolloutSchedule? schedule,
+    ({String? stored})? expectSchedule,
+    DateTime? ifBefore,
+  }) async {
+    final expected = expectSchedule?.stored;
+    final r = await _q(
+      'UPDATE channel_patches SET rollout = @r, rollout_bps = @b, '
+      'rollout_schedule = @sch '
+      'WHERE channel_id = @c AND patch_id = @p AND status = @s '
+      '${expectSchedule == null
+          ? ''
+          : expected == null
+          ? 'AND rollout_schedule IS NULL '
+          : 'AND rollout_schedule = @exp '}'
+      '${ifBefore == null ? '' : 'AND now() < @before '}'
+      '${onlyRaise ? 'AND (CASE WHEN rollout_bps IS NOT NULL '
+                'AND rollout_bps / 100 = rollout THEN rollout_bps '
+                'ELSE rollout * 100 END) <= @b ' : ''}'
+      'RETURNING id',
+      {
+        'r': rolloutBps ~/ 100,
+        'b': rolloutBps,
+        'sch': schedule?.toStored(),
+        'c': channelId,
+        'p': patchId,
+        's': ChannelPatchStatus.active.name,
+        if (expected != null) 'exp': expected,
+        if (ifBefore != null) 'before': ifBefore.toUtc(),
+      },
+    );
+    return r.isNotEmpty;
+  }
+
+  /// Drops build history older than [days], on the same terms as
+  /// [purgeOldEvents] (`days <= 0` keeps everything, the default).
+  Future<void> purgeOldBuildRuns(int days) async {
+    if (days <= 0) return;
+    await _q(
+      "DELETE FROM build_runs WHERE created_at < now() - interval '$days days'",
+    );
+  }
 
   Future<void> withdraw(int channelId, int patchId, {required bool rollback}) =>
       _q(
@@ -2093,7 +2382,9 @@ class Repository {
     // superseded), hence the newest row first and the `seen` set below.
     final rows = await s.query(
       'SELECT cp.id AS id, cp.patch_id AS patch_id, p.number AS number, '
-      'cp.rollout AS rollout, cp.rolled_back AS rolled_back, '
+      'cp.rollout AS rollout, cp.rollout_bps AS rollout_bps, '
+      'cp.rollout_schedule AS rollout_schedule, cp.withdrawn_at AS withdrawn_at, '
+      'cp.rolled_back AS rolled_back, '
       'cp.superseded AS superseded '
       'FROM channel_patches cp JOIN patches p ON p.id = cp.patch_id '
       'WHERE cp.channel_id = @c AND cp.status = @w AND p.release_id = @r '
@@ -2135,11 +2426,40 @@ class Repository {
             e.key,
       };
       if (platforms.isEmpty) continue;
+      // A timed rollout resumes where it stood when it was superseded, with
+      // the clock restarted there: the step in force at `withdrawn_at`, held
+      // for its full duration from now. Keeping the old start would let the
+      // time spent superseded count, and a restored patch could jump to 100%.
+      var restoredBps = effectiveRolloutBps(m);
+      String? restoredSchedule;
+      final old = RolloutSchedule.tryParse(m['rollout_schedule']);
+      if (old != null) {
+        DateTime at;
+        try {
+          at = DateTime.parse(_ts(m['withdrawn_at']));
+        } on Object {
+          at = rolloutClock();
+        }
+        final pos = old.positionAt(at);
+        restoredBps = pos.bps;
+        if (pos.nextStepAt != null) {
+          restoredSchedule = RolloutSchedule(
+            steps: old.steps.skip(pos.index).toList(),
+            pauseWeekends: old.pauseWeekends,
+            timezone: old.timezone,
+            startedAt: rolloutClock().toUtc(),
+          ).toStored();
+        }
+      }
       final done = await s.query(
-        'UPDATE channel_patches SET status = @a, withdrawn_at = NULL, superseded = false '
+        'UPDATE channel_patches SET status = @a, withdrawn_at = NULL, superseded = false, '
+        'rollout = @r, rollout_bps = @b, rollout_schedule = @sch '
         'WHERE id = @id AND status = @w AND rolled_back = false '
         'AND superseded = true RETURNING id',
         {
+          'r': restoredBps ~/ 100,
+          'b': restoredBps,
+          'sch': restoredSchedule,
           'a': ChannelPatchStatus.active.name,
           'w': ChannelPatchStatus.withdrawn.name,
           'id': _int(m['id']),
@@ -2147,12 +2467,7 @@ class Repository {
       );
       if (done.isEmpty) continue;
       restored.add(
-        RestoredPatch(
-          channelId,
-          patchId,
-          _int(m['number']),
-          _int(m['rollout']),
-        ),
+        RestoredPatch(channelId, patchId, _int(m['number']), restoredBps),
       );
       needed.removeAll(platforms);
       if (needed.isEmpty) break;
@@ -2413,6 +2728,29 @@ class Repository {
     return out;
   }
 
+  /// How [platform] of [releaseId] was signed by its live artifacts of an
+  /// architecture other than [exceptArch], or null when none reported any.
+  Future<({String mode, int? keyId})?> releaseSigningOf(
+    int releaseId, {
+    required String platform,
+    required String exceptArch,
+  }) async {
+    final r = await _q(
+      "SELECT signing_mode, signing_key_id FROM artifacts "
+      "WHERE owner_kind = 'release' AND owner_id = @o AND platform = @p "
+      "AND arch <> @a AND status <> 'failed' AND signing_mode IS NOT NULL "
+      "ORDER BY id LIMIT 1",
+      {'o': releaseId, 'p': platform, 'a': exceptArch},
+    );
+    if (r.isEmpty) return null;
+    return (
+      mode: r.first['signing_mode'] as String,
+      keyId: r.first['signing_key_id'] == null
+          ? null
+          : _int(r.first['signing_key_id']),
+    );
+  }
+
   // ---- Managed patch-signing keys ----
 
   Future<SigningKeyRow?> signingKeyById(int id) async {
@@ -2476,8 +2814,12 @@ class Repository {
     String arch,
     String platform,
   ) async {
+    // A failed upload stays as a row when the client registers the arch
+    // again (artifacts_one_live allows any number of failed rows beside the
+    // one live row), so prefer the live row, then the newest.
     final r = await _q(
-      "SELECT * FROM artifacts WHERE owner_kind = 'patch' AND owner_id = @o AND arch = @ar AND platform = @pl",
+      "SELECT * FROM artifacts WHERE owner_kind = 'patch' AND owner_id = @o AND arch = @ar AND platform = @pl "
+      "ORDER BY CASE WHEN status = 'failed' THEN 1 ELSE 0 END, id DESC LIMIT 1",
       {'o': patchId, 'ar': arch, 'pl': platform},
     );
     if (r.isEmpty) return null;

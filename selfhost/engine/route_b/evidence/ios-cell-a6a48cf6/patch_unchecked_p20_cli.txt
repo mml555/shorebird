@@ -1,0 +1,18 @@
+## patch_unchecked_p20.log (5911 lines; excerpt)
+5891: This patch cannot be built: it uses code the release never used in its own code.
+5892: 
+5893:   package:untab/main.dart#_HomeState._start
+5894:       it calls the dart: method `Iterable.iterator` (an SDK instance member, this release has no `get:iterator` on `ObserverList` (in `package:flutter/src/foundation/observer_list.dart` that can be a `Iterable` here), and 2 more). An SDK instance method is looked up by name when it runs, and the app throws NoSuchMethodError at that call if the release never called it. Members marked "measured" failed on a device, and those on no list were never measured: no flag unlocks either, because the patcher only lets through members measured on a device. Only a refusal because the snapshot of this
+5895: 
+5896: The whole patch is refused, not the part that failed. Nothing was uploaded.
+
+# retried with --allow-unchecked-sdk-calls (lib.sh patch())
+## patch_unchecked_p20.unchecked.log (5912 lines; excerpt)
+5891:[WARN] --allow-unchecked-sdk-calls: this patch was not checked against what this release's snapshot kept of the dart: instance members it calls (or against the dynamic-call check, on a cell below analysis 19). This is recorded in the patch's metadata.
+5892: This patch cannot be built: 1 of 2 changed members cannot be carried by a Route B patch.
+5893: 
+5894:   package:untab/main.dart#kTitle
+5895:       this constant changed; a patch is compiled against the release's declarations, so code naming it would still read the old value
+5896: 
+5897: The whole patch is refused, not the part that failed. Shipping the rest would leave your app running some functions from the patch and some from the release. Nothing was uploaded.
+

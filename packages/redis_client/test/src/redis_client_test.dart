@@ -150,8 +150,10 @@ void main() {
           addTearDown(server.close);
 
           var connections = 0;
+          final accepted = Completer<void>();
           server.listen((socket) {
             connections++;
+            if (!accepted.isCompleted) accepted.complete();
             addTearDown(socket.destroy);
           });
 
@@ -165,6 +167,8 @@ void main() {
           addTearDown(reconnectingClient.close);
 
           await reconnectingClient.connect();
+          // The client can finish connecting before the server's accept runs.
+          await accepted.future;
           expect(connections, equals(1));
 
           await reconnectingClient.disconnect();

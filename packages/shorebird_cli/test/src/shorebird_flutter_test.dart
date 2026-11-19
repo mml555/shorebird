@@ -1106,6 +1106,28 @@ origin/flutter_release/3.10.6''';
         ).called(1);
       });
 
+      test('lists only full releases, sorted by version number', () async {
+        const output = '''
+origin/flutter_release/3.47.10
+origin/flutter_release/3.19.0-0.4.pre
+origin/flutter_release/3.47.9-sb.1
+origin/flutter_release/3.9.0
+origin/flutter_release/3.38.10-rc
+origin/flutter_release/3.47.9''';
+        when(
+          () => git.forEachRef(
+            directory: any(named: 'directory'),
+            format: any(named: 'format'),
+            pattern: any(named: 'pattern'),
+          ),
+        ).thenAnswer((_) async => output);
+
+        await expectLater(
+          runWithOverrides(shorebirdFlutter.getVersions),
+          completion(equals(['3.9.0', '3.47.9', '3.47.10'])),
+        );
+      });
+
       test(
         'throws ProcessException when git command exits non-zero code',
         () async {
@@ -1221,8 +1243,8 @@ origin/flutter_release/3.10.6''';
       );
 
       // An iOS release must not demand Android engine artifacts. A cell that
-      // owns only the iOS toolchain cannot serve them, and the overlay answers a
-      // loud 404 rather than falling through.
+      // owns only the iOS toolchain cannot serve them, and the overlay answers
+      // a loud 404 rather than falling through.
       test('precaches ONLY the target platform', () async {
         Directory(
           p.join(flutterDirectory.parent.path, revision),

@@ -5,14 +5,13 @@ import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
-import 'package:pub_semver/pub_semver.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
-import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
 import 'package:shorebird_cli/src/commands/release/android_releaser.dart';
+import 'package:shorebird_cli/src/commands/release/releaser.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
 import 'package:shorebird_cli/src/doctor.dart';
@@ -828,6 +827,23 @@ void main() {
         });
 
         test('explains nothing when the app has no iOS project', () async {
+          await runWithOverrides(
+            () => androidReleaser.getReleaseVersion(
+              releaseArtifactRoot: Directory(''),
+            ),
+          );
+          verifyNever(() => logger.info(any(that: contains('version name'))));
+        });
+      });
+
+      group('when the version name is empty', () {
+        test('explains nothing', () async {
+          when(
+            () => shorebirdAndroidArtifacts.extractReleaseVersionFromAppBundle(
+              any(),
+            ),
+          ).thenAnswer((_) async => '+4280');
+          Directory(p.join(projectRoot.path, 'ios')).createSync();
           await runWithOverrides(
             () => androidReleaser.getReleaseVersion(
               releaseArtifactRoot: Directory(''),

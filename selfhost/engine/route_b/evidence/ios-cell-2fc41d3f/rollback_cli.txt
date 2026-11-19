@@ -1,0 +1,5 @@
+Number:      2
+Track:       stable
+Rolled back: yes
+Artifacts:
+  ios      aarch64      3.57 KB

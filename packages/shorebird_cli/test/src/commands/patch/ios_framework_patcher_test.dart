@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:archive/archive.dart' show ArchiveException;
 import 'package:args/args.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
@@ -11,10 +12,10 @@ import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
+import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
 import 'package:shorebird_cli/src/config/config.dart';
-import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/doctor.dart';
 import 'package:shorebird_cli/src/engine_config.dart';
 import 'package:shorebird_cli/src/executables/aot_tools.dart';
@@ -198,14 +199,14 @@ void main() {
 
       tearDown(() => flutterDir.deleteSync(recursive: true));
 
-      File(
+      File writeEngineBinary(
         String contents,
       ) => iosReleaseEngineBinary(flutterDirectory: flutterDir)
         ..createSync(recursive: true)
         ..writeAsStringSync(contents);
 
       test('refuses an engine that declines iOS patches', () {
-        File('InterpretCall $iosPatchesDeclinedMarker');
+        writeEngineBinary('InterpretCall $iosPatchesDeclinedMarker');
         expect(
           () => runWithOverrides(patcher.assertEngineCanPatch),
           throwsA(
@@ -219,7 +220,7 @@ void main() {
       });
 
       test('proceeds on an engine that can run iOS patches', () async {
-        File('InterpretCall');
+        writeEngineBinary('InterpretCall');
         await expectLater(
           runWithOverrides(patcher.assertEngineCanPatch),
           completes,
@@ -356,7 +357,10 @@ void main() {
         final exception = ArtifactBuildException('Build failed');
         setUp(() {
           when(
-            () => artifactBuilder.buildIosFramework(args: any(named: 'args')),
+            () => artifactBuilder.buildIosFramework(
+              releaseVersion: any(named: 'releaseVersion'),
+              args: any(named: 'args'),
+            ),
           ).thenThrow(exception);
         });
 
@@ -372,7 +376,10 @@ void main() {
         const exception = FileSystemException('error');
         setUp(() {
           when(
-            () => artifactBuilder.buildIosFramework(args: any(named: 'args')),
+            () => artifactBuilder.buildIosFramework(
+              releaseVersion: any(named: 'releaseVersion'),
+              args: any(named: 'args'),
+            ),
           ).thenAnswer(
             (_) async => AppleBuildResult(kernelFile: File('app.dill')),
           );
@@ -401,7 +408,10 @@ void main() {
             p.join(Directory.systemTemp.createTempSync().path, 'app.dill'),
           )..createSync(recursive: true);
           when(
-            () => artifactBuilder.buildIosFramework(args: any(named: 'args')),
+            () => artifactBuilder.buildIosFramework(
+              releaseVersion: any(named: 'releaseVersion'),
+              args: any(named: 'args'),
+            ),
           ).thenAnswer((_) async => AppleBuildResult(kernelFile: kernelFile));
           when(
             () => artifactBuilder.buildElfAotSnapshot(
@@ -455,10 +465,27 @@ void main() {
                   '--dwarf-stack-traces',
                   '--resolve-dwarf-paths',
                   '--save-debugging-info=${splitDebugInfoFile.path}',
+                  '--strip',
                 ],
               ),
             ).called(1);
           });
+        });
+
+        test('bakes the release version into the build', () async {
+          try {
+            await runWithOverrides(
+              () => patcher.buildPatchArtifact(releaseVersion: '1.0.0+1'),
+            );
+          } on Exception {
+            // ignore
+          }
+          verify(
+            () => artifactBuilder.buildIosFramework(
+              releaseVersion: '1.0.0+1',
+              args: any(named: 'args'),
+            ),
+          ).called(1);
         });
 
         group('when obfuscationMapPath is set', () {
@@ -513,7 +540,10 @@ void main() {
           test('forwards --no-codesign to flutter', () async {
             await runWithOverrides(patcher.buildPatchArtifact);
             verify(
-              () => artifactBuilder.buildIosFramework(args: ['--no-codesign']),
+              () => artifactBuilder.buildIosFramework(
+                releaseVersion: any(named: 'releaseVersion'),
+                args: ['--no-codesign'],
+              ),
             ).called(1);
           });
         });
@@ -527,7 +557,10 @@ void main() {
             final artifact = await runWithOverrides(patcher.buildPatchArtifact);
             expect(p.basename(artifact.path), equals('App.xcframework.zip'));
             verify(
-              () => artifactBuilder.buildIosFramework(args: ['--verbose']),
+              () => artifactBuilder.buildIosFramework(
+                releaseVersion: any(named: 'releaseVersion'),
+                args: ['--verbose'],
+              ),
             ).called(1);
           });
         });
@@ -536,6 +569,7 @@ void main() {
           setUp(() {
             when(
               () => artifactBuilder.buildIosFramework(
+                releaseVersion: any(named: 'releaseVersion'),
                 target: any(named: 'target'),
                 args: any(named: 'args'),
               ),
@@ -552,6 +586,7 @@ void main() {
             await runWithOverrides(patcher.buildPatchArtifact);
             verify(
               () => artifactBuilder.buildIosFramework(
+                releaseVersion: any(named: 'releaseVersion'),
                 target: 'lib/main_prod.dart',
                 args: any(named: 'args'),
               ),
@@ -566,6 +601,7 @@ void main() {
             ).thenReturn('public_key_encoded');
             when(
               () => artifactBuilder.buildIosFramework(
+                releaseVersion: any(named: 'releaseVersion'),
                 args: any(named: 'args'),
                 base64PublicKey: any(named: 'base64PublicKey'),
                 ddMaxBytes: any(named: 'ddMaxBytes'),
@@ -591,6 +627,7 @@ void main() {
 
             verify(
               () => artifactBuilder.buildIosFramework(
+                releaseVersion: any(named: 'releaseVersion'),
                 args: any(named: 'args'),
                 base64PublicKey: 'public_key_encoded',
               ),
@@ -617,6 +654,7 @@ void main() {
 
               verify(
                 () => artifactBuilder.buildIosFramework(
+                  releaseVersion: any(named: 'releaseVersion'),
                   args: any(named: 'args'),
                   base64PublicKey: 'public_key_encoded',
                 ),
@@ -888,6 +926,45 @@ void main() {
           );
 
           expect(supplementDirectory.existsSync(), isTrue);
+        });
+      });
+
+      group('when the release artifact is damaged', () {
+        setUp(() {
+          when(
+            () => artifactManager.extractZip(
+              zipFile: any(named: 'zipFile'),
+              outputDirectory: any(named: 'outputDirectory'),
+            ),
+          ).thenThrow(
+            ArchiveException('zip: end of central directory not found'),
+          );
+        });
+
+        test('fails progress and exits naming the fix', () async {
+          await expectLater(
+            () => runWithOverrides(
+              () => patcher.createPatchArtifacts(
+                appId: appId,
+                releaseId: releaseId,
+                releaseArtifact: releaseArtifactFile,
+              ),
+            ),
+            exitsWithError(
+              message:
+                  'The release artifact downloaded from Shorebird is '
+                  'damaged: zip: end of central directory not found',
+              hint: allOf(
+                startsWith('Re-run to download it again.'),
+                endsWith(
+                  'Run: shorebird release ios-framework '
+                  '--release-version=<new version>',
+                ),
+              ),
+              exitCode: ExitCode.software,
+            ),
+          );
+          verify(() => progress.fail()).called(1);
         });
       });
     });

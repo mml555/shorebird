@@ -42,7 +42,7 @@ cp -Rc "$SRC_TREE" "$DEST_TREE"
 say "dropping cloned out/ (stale paths + wrong GN config)"
 rm -rf "$DEST_TREE/engine/src/out"
 
-say "verifying the four Dart patches survived the clone"
+say "verifying the cloned Dart tree is the fork commit its DEPS pins"
 "$REPO/selfhost/engine/dart_patches.sh" --dest "$DART" --verify
 
 say "applying the killgate SDK/native patch (this is what forces a dedicated tree)"
@@ -71,8 +71,8 @@ attachBytecodeToFunction:sdk/lib/_internal/vm/lib/internal_patch.dart
 PROBES
 [[ "$fail" -eq 0 ]] || die "killgate patch reported success but its changes are not in the tree"
 
-say "re-verifying the four Dart patches after the killgate patch"
-"$REPO/selfhost/engine/dart_patches.sh" --dest "$DART" --verify
+say "re-verifying the Dart fork commit after the killgate patch (the tree is patched on purpose)"
+"$REPO/selfhost/engine/dart_patches.sh" --dest "$DART" --verify --allow-dirty
 
 # Step 1 itself. Kept as a patch rather than living only in the working tree,
 # because that is exactly the ambient-state trap the Spike A instrumentation set

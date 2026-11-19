@@ -41,7 +41,7 @@ REC=$(sed -nE 's/^[[:space:]]*bundle_sha256:[[:space:]]*([0-9a-f]+).*/\1/p' \
                        || bad "bundle does not match the committed digest $REC"
 
 note "2 - hydrate, verify 30/30, recompute the address"
-bash "$HERE/sd1_hydrate_cell.sh" --dist "$D" --overlay "$W/overlay" > "$W/hydrate.log" 2>&1
+bash "$HERE/sd1_hydrate_cell.sh" --cell "$CELL" --dist "$D" --overlay "$W/overlay" > "$W/hydrate.log" 2>&1
 if grep -q "CELL HYDRATED FROM THE DURABLE DISTRIBUTION" "$W/hydrate.log"; then
   grep -E "PASS|CELL MEMBERS VERIFIED" "$W/hydrate.log" | sed 's/\x1b\[[0-9;]*m//g;s/^/    /'
   ok "hydrated and verified from the download alone"
@@ -135,7 +135,7 @@ fi
 
 note "4 - NEGATIVE: a missing distribution part must fail"
 cp -R "$D" "$W/d_missing"; rm -f "$W/d_missing/LAYOUT.txt"
-if bash "$HERE/sd1_hydrate_cell.sh" --dist "$W/d_missing" --overlay "$W/o_missing" >"$W/n1.log" 2>&1; then
+if bash "$HERE/sd1_hydrate_cell.sh" --cell "$CELL" --dist "$W/d_missing" --overlay "$W/o_missing" >"$W/n1.log" 2>&1; then
   bad "hydration SUCCEEDED with LAYOUT.txt missing"
 else
   grep -m1 "missing" "$W/n1.log" | sed 's/\x1b\[[0-9;]*m//g;s/^/      /'
@@ -149,7 +149,7 @@ import sys
 with open(sys.argv[1], 'r+b') as f:
     f.seek(4096); b = f.read(1); f.seek(4096); f.write(bytes([b[0] ^ 0x01]))
 PY
-if bash "$HERE/sd1_hydrate_cell.sh" --dist "$W/d_mutated" --overlay "$W/o_mutated" >"$W/n2.log" 2>&1; then
+if bash "$HERE/sd1_hydrate_cell.sh" --cell "$CELL" --dist "$W/d_mutated" --overlay "$W/o_mutated" >"$W/n2.log" 2>&1; then
   bad "hydration SUCCEEDED with a mutated bundle byte"
 else
   grep -mE1 "MANIFEST|BYTES DIFFER|does not match" "$W/n2.log" 2>/dev/null | head -1 | sed 's/\x1b\[[0-9;]*m//g;s/^/      /'
@@ -161,7 +161,7 @@ note "6 - NEGATIVE: the WRONG cell's descriptor must fail"
 cp -R "$D" "$W/d_wrong"
 cp "$REPO/selfhost/engine/route_b/cell_manifests/$OTHER.v2" "$W/d_wrong/cell_manifest.v2"
 ( cd "$W/d_wrong" && shasum -a 256 "cell-$CELL.tar" cell_manifest.v2 LAYOUT.txt > MANIFEST.sha256 )
-if bash "$HERE/sd1_hydrate_cell.sh" --dist "$W/d_wrong" --overlay "$W/o_wrong" >"$W/n3.log" 2>&1; then
+if bash "$HERE/sd1_hydrate_cell.sh" --cell "$CELL" --dist "$W/d_wrong" --overlay "$W/o_wrong" >"$W/n3.log" 2>&1; then
   bad "hydration SUCCEEDED with another cell's descriptor"
 else
   grep -m1 "recomputes to" "$W/n3.log" | sed 's/\x1b\[[0-9;]*m//g;s/^/      /'
@@ -187,7 +187,7 @@ else
   ok "the repository overlay is provably unreadable inside the sandbox"
 fi
 if sandbox-exec -f "$PROF" /bin/bash "$HERE/sd1_hydrate_cell.sh" \
-     --dist "$D" --overlay "$W/o_sandboxed" > "$W/n4.log" 2>&1; then
+     --cell "$CELL" --dist "$D" --overlay "$W/o_sandboxed" > "$W/n4.log" 2>&1; then
   grep -m1 "CELL MEMBERS VERIFIED" "$W/n4.log" | sed 's/^/      /'
   ok "hydration SUCCEEDS with the local overlay denied — the distribution is self-sufficient"
 else

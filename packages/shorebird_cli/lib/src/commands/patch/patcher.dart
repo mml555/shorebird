@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:archive/archive.dart' show ArchiveException;
 import 'package:args/args.dart';
 import 'package:crypto/crypto.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -22,6 +23,43 @@ import 'package:shorebird_cli/src/split_debug_info.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:shorebird_code_push_protocol/shorebird_code_push_protocol.dart';
 
+/// The hint for a [releaseType] release artifact downloaded from Shorebird
+/// that can't be read: download it again, and if that keeps failing, replace
+/// the release.
+String damagedReleaseArtifactHint(ReleaseType releaseType) =>
+    'Re-run to download it again. If this persists, the release artifact '
+    'is damaged: create a new release and patch that one. '
+    'Run: ${releaseType.releaseCommand(releaseVersion: '<new version>')}';
+
+/// Extracts [zipFile], a [releaseType] release artifact downloaded from
+/// Shorebird, to [outputDirectory].
+///
+/// If [zipFile] is not a readable zip (cut short, or damaged in storage),
+/// fails [progress] and throws a [CommandError] with
+/// [damagedReleaseArtifactHint], exiting with [ExitCode.software].
+Future<void> extractReleaseArtifact({
+  required File zipFile,
+  required Directory outputDirectory,
+  required ReleaseType releaseType,
+  Progress? progress,
+}) async {
+  try {
+    await artifactManager.extractZip(
+      zipFile: zipFile,
+      outputDirectory: outputDirectory,
+    );
+  } on ArchiveException catch (error) {
+    progress?.fail();
+    throw CommandError(
+      message:
+          'The release artifact downloaded from Shorebird is damaged: '
+          '${error.message}',
+      hint: damagedReleaseArtifactHint(releaseType),
+      exitCode: ExitCode.software,
+    );
+  }
+}
+
 /// {@template patcher}
 /// Platform-specific functionality to create a patch.
 /// {@endtemplate}
@@ -37,13 +75,20 @@ abstract class Patcher {
   /// Link percentage below which a warning is issued.
   static const double linkPercentageWarningThreshold = 90;
 
+  /// Formats [linkPercentage] to one decimal place for display.
+  ///
+  /// Truncates rather than rounds, so a value just under an integer threshold
+  /// (19.97) never reads as the threshold itself (20.0).
+  static String formatLinkPercentage(double linkPercentage) =>
+      ((linkPercentage * 10).floorToDouble() / 10).toStringAsFixed(1);
+
   /// The standard link percentage warning.
   static String lowLinkPercentageWarning(double linkPercentage) {
     return '''
-${lightCyan.wrap('shorebird patch')} was only able to share ${linkPercentage.toStringAsFixed(1)}% of Dart code with the released app.
+${lightCyan.wrap('shorebird patch')} was only able to share ${formatLinkPercentage(linkPercentage)}% of Dart code with the released app.
 This is unexpected, and means the application may execute slower than expected after patching.
 Please reach out to us over Discord or Email for help.
-More info: ${troubleshootingUrl.toLink()}.
+More info: ${linkPercentageUrl.toLink()}.
 ''';
   }
 
@@ -84,6 +129,11 @@ More info: ${troubleshootingUrl.toLink()}.
   /// obfuscation flags when the release was built with obfuscation.
   List<String> extraBuildArgs = const [];
 
+  /// The release's extracted supplement, if it has one. Set by the patch
+  /// command before building; Android patch builds read the release's object
+  /// order (`<abi>/App.ref.link`) from it.
+  Directory? releaseSupplementDirectory;
+
   /// Additional gen_snapshot arguments needed to match the release's
   /// obfuscation flags. Used by Apple patchers for
   /// `ArtifactBuilder.buildElfAotSnapshot`
@@ -98,9 +148,6 @@ More info: ${troubleshootingUrl.toLink()}.
       // --split-debug-info already implies --dwarf-stack-traces, so we only
       // need to pass it as a standalone flag when split debug info isn't used.
       if (splitDebugInfoPath == null) '--dwarf-stack-traces',
-      // Strip DWARF debug info so obfuscated snapshots don't leak the
-      // identifiers that obfuscation was meant to hide.
-      '--strip',
     ],
   ];
 
@@ -114,6 +161,11 @@ More info: ${troubleshootingUrl.toLink()}.
   /// The identifier used for the "primary" release artifact, usually a bundle.
   /// For example, 'aab' for Android, 'xcarchive' for iOS.
   String get primaryReleaseArtifactArch;
+
+  /// The architecture of the patch this machine builds, for a platform that
+  /// builds one architecture per machine (desktop); null where one build
+  /// covers every architecture the release has.
+  Arch? get patchArch => null;
 
   /// The identifier used for any supplementary release artifacts.
   String? get supplementaryReleaseArtifactArch => null;
@@ -208,6 +260,13 @@ More info: ${troubleshootingUrl.toLink()}.
 
   /// Whether to allow changes in native code (--allow-native-diffs).
   bool get allowNativeDiffs => argResults['allow-native-diffs'] == true;
+
+  /// Whether the developer chose to publish a Route B patch without the
+  /// per-release SDK-member checks, and on a compiler cell that cannot check
+  /// dynamic calls, extension getters and tear-offs
+  /// (`--allow-unchecked-sdk-calls`).
+  bool get allowUncheckedSdkCalls =>
+      argResults['allow-unchecked-sdk-calls'] == true;
 
   /// Whether to print every differing instruction (--show-dex-diff).
   bool get showDexDiff => argResults['show-dex-diff'] == true;

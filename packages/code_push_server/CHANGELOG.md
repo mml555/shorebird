@@ -1,4 +1,4 @@
-<!-- cspell:words ungated rsassa -->
+<!-- cspell:words ungated rsassa xact -->
 
 # Changelog
 
@@ -8,15 +8,93 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
-## 2.0.0 — 2026-11-15
+## 2.0.0 — 2026-11-19
 
-A major version because of two configuration changes for servers that sign
-users in through an IdP (see Security): in production the server refuses to
-start without `IDP_ISSUER`, and an IdP whose id_tokens omit `email_verified`
-needs `IDP_ALLOW_UNVERIFIED_EMAIL=true` for logins to keep working. A server
-without an IdP upgrades from 1.4.0 with no change.
+A major version because of configuration changes that can stop an upgraded
+server from booting or signing users in (see Changed and Security): `PRODUCTION`
+accepts only `true`, `false`, `1`, `0`, `yes`, `no` or `production`; in
+production `PUBLIC_BASE_URL` must be `https://` (except localhost); the shipped
+Caddyfile answers 404 for `/metrics` and `/readyz`; and for servers that sign
+users in through an IdP, production refuses to start without `IDP_ISSUER`, and
+an IdP whose id_tokens omit `email_verified` needs
+`IDP_ALLOW_UNVERIFIED_EMAIL=true`. A server without an IdP and with a `.env`
+written by `setup.sh` or `.env.example` upgrades from 1.4.0 with no change.
 
 ### Added
+
+- **Schema migrations 21 and 22.** Migration 21 adds
+  `channel_patches.rollout_schedule`. Migration 22 adds a unique index
+  `artifacts_one_live` (one non-failed artifact per patch, architecture and
+  platform), so two concurrent `--add-to-patch` of one architecture cannot both
+  land (the loser gets 409). Where an older server's race left two, migration
+  22 first marks all but the lowest id `failed`, so the upgrade still boots and
+  serving is unchanged.
+- **Upstream CLI 1.6.144 works against this server.** The calls it added or
+  changed:
+  - Timed rollouts (`--rollout-steps`, `--pause-weekends`, `--timezone`):
+    `POST /apps/{app}/patches/promote` and `PUT .../patches/{patch}/rollout`
+    take `rollout_steps` (2 to 10 strictly increasing percentages ending at
+    100, each but the last with `duration_minutes`), `rollout_pause_weekends`
+    and `rollout_timezone` (an IANA name, default `UTC`). The schedule is
+    stored (`channel_patches.rollout_schedule`, migration 21) and the current
+    step is computed from it and the clock whenever a device checks or the
+    rollout is read, so nothing runs in the background and every replica
+    agrees. With a weekend pause the clock of a step stops on Saturday and
+    Sunday in the zone and no step applies then. The percentage in force
+    holds a schedule where it is; a higher one replaces it. The patch list
+    reports `rollout_steps` (those still ahead), `rollout_next_step_at`,
+    `rollout_pause_weekends` and `rollout_timezone`. Upstream limits schedules
+    to Enterprise; here every app may use them. New dependency: `timezone`.
+  - `shorebird patch windows --add-to-patch`: another architecture's build can
+    be added to a live Windows patch. It stays `ready`, so devices already
+    served keep it, and the new arch is offered when its artifact verifies, at
+    the patch's rollout. Other platforms still refuse artifacts on a promoted
+    patch.
+  - Windows arm64 releases (`win_archive_arm64`, `windows_supplement_arm64`)
+    and patches (`aarch64`) need nothing new. An architecture signed
+    differently from the active ones is refused with 409
+    `release_artifacts_create_conflicting_signing`.
+  - Not implemented, by choice: the 410s upstream added for per-app
+    collaborators (this server keeps them working), and the protocol's other
+    changes, which are client-side. `--release-version` for add-to-app modules
+    is CLI only.
+- `server --check-config` and `ops/preflight.sh`: validate the new image against
+  `.env` before `up -d` replaces the running container.
+- Migrations take a Postgres advisory lock, so replicas started together
+  cannot race the same migration.
+- CI checks that the compose image pins equal the package version
+  (`tool/check_deploy_files.sh`).
+- **Upstream CLI 1.6.140 works against this server.** The calls it added or
+  changed:
+  - `shorebird patch --rollout`, `patches promote --rollout`: `POST
+    /apps/{app}/patches/promote` takes `rollout_percentage`, a multiple of 0.01
+    from 0.01 to 100 (`rollout`, whole percent, still works). A rollout is now
+    stored in hundredths of a percent (`channel_patches.rollout_bps`, migration
+    19, backfilled from `rollout`), so existing rollouts keep the devices they
+    had. The admin rollout route accepts decimals too.
+  - `shorebird patches rollout`: `PUT /apps/{app}/releases/{release}/patches/
+    {patch}/rollout` raises the percentage. Lower is a 409, so is a patch on
+    no channel; the same percentage is a no-op. Audited as `patch.rollout`.
+  - `GET /apps/{app}/releases/{release}/patches` carries `rollout_percentage`
+    per patch, which `patches list`, `info` and `set-track` print.
+  - Build history: `POST /apps/{app}/runs` stores each release and patch run
+    (new `build_runs` table, migration 20) and answers 201 with its id;
+    `GET /apps/{app}/runs` lists them. Upstream shows it in its Enterprise
+    console; here it is on for every app.
+  - Build history grows with CLI traffic. `BUILD_RUN_RETENTION_DAYS` (default
+    `0`, keep forever) drops older rows; `GET /runs` lists summaries only
+    (no `metadata` or `build_flags`), at most 200 rows. `POST /runs` is audited
+    as `build_run.record`.
+  - Downgrading is not possible after this release: a database at migration 19
+    or 20 makes an older server refuse to boot (`SchemaTooNewException`).
+    Restore a backup, or delete the `schema_migrations` rows 19 and 20 (and
+    drop `channel_patches.rollout_bps` and `build_runs`) first. During a rolling
+    upgrade an old pod's rollout changes are still honoured (it writes
+    `rollout`, which is read when `rollout_bps` disagrees).
+  - `patch --share-debug-info`: accepted and ignored. A debug bundle goes to
+    Shorebird the company, and a self-hosted server has no one to send it to,
+    so the response offers no upload and the CLI warns that nothing was
+    shared. The run is unaffected.
 
 - **Rolling back a patch puts devices back on the previous one.** When the
   active patch of a channel is rolled back (`shorebird patches rollback`, or
@@ -48,13 +126,29 @@ without an IdP upgrades from 1.4.0 with no change.
     defaults to now and `start` to 28 days before `end`, the CLI's documented
     span. A window that is not positive, or a span or `window_days` over 366
     days, is a 400. patch-adoption's `start`/`end` on `analytics/` are as before.
-
 - **`CRASH_RETENTION_DAYS`** (default `0` = keep forever, like
   `EVENT_RETENTION_DAYS`) sweeps `crash_reports` hourly. In production the
   server warns at startup while event or crash retention is unlimited.
 
 ### Changed
 
+- **`PRODUCTION` accepts only these values:** `true`, `false`, `1`, `0`, `yes`,
+  `no` and `production`, in any case, or unset/empty. Any other value (`prod`,
+  `on`, `y`, `enabled`, a quoted `"true"` passed by a plain `docker run
+  --env-file`) used to boot as non-production with every production-only check
+  skipped; it now exits 78 with `PRODUCTION must be true or false`. Check the
+  value in your `.env` before upgrading (`.env.example` and `setup.sh` write
+  `true`, so deploys made with them are unaffected). `ENV=production` still
+  turns production on when `PRODUCTION` is unset.
+- **Stricter `PUBLIC_BASE_URL` in production.** It must be `https://` unless the
+  host is `localhost`, `127.0.0.1` or `::1`, judged on the parsed host rather
+  than a substring (`http://localhost.evil.example` no longer passes). A value
+  with no scheme or a leading space now also refuses to boot, where only
+  `http://` was refused before.
+- **The shipped Caddyfile answers 404 for `/metrics` and `/readyz`**, and no
+  longer compresses `/download`. Monitoring must use `/healthz` externally and
+  reach the others on the internal network (PRODUCTION.md). `setup.sh` probes
+  `/healthz` through Caddy and readiness inside the container.
 - **The image is published for linux/arm64 as well as linux/amd64.** The
   release workflow builds arm64 natively on GitHub's `ubuntu-24.04-arm` runner
   and publishes both architectures or nothing. 1.4.0 and earlier are amd64
@@ -149,6 +243,10 @@ without an IdP upgrades from 1.4.0 with no change.
 
 ### Security
 
+- With production off and a non-localhost `PUBLIC_BASE_URL` the server logs a
+  WARNING at boot.
+- `/download` responses (200, 206, 403 and 416) carry
+  `Cache-Control: private, no-store`.
 - **IdP id_tokens are now validated.** Broker login checks `aud` (must contain
   `IDP_CLIENT_ID`, plus `azp` if several), `exp`, `iss` (against the new
   `IDP_ISSUER`) and `email_verified`, and logs the reason for each rejection.

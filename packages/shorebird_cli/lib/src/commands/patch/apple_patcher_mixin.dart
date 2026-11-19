@@ -108,8 +108,8 @@ mixin ApplePatcherMixin on Patcher {
   String get appDillCopyPath =>
       p.join(shorebirdEnv.buildDirectory.path, 'app.dill');
 
-  /// The gen_snapshot arguments for `--split-debug-info` and obfuscation,
-  /// shared by the ELF snapshot build and the linker.
+  /// The gen_snapshot arguments for `--split-debug-info`, obfuscation and
+  /// stripping, shared by the ELF snapshot build and the linker.
   List<String> get appleGenSnapshotArgs => _appleGenSnapshotArgs();
 
   List<String> _appleGenSnapshotArgs({
@@ -117,6 +117,14 @@ mixin ApplePatcherMixin on Patcher {
   }) => [
     ...splitDebugInfoArgs(splitDebugInfoPath, fileName: splitDebugInfoFileName),
     ...obfuscationGenSnapshotArgs,
+    // Strip the ELF symbol table and DWARF from the patch snapshot, as
+    // Flutter's own builds do. Nothing on the device reads them (the engine
+    // loads the snapshot through .dynsym), the release's diff base has none,
+    // so without this every patch carries them: about 12% of the app's Dart
+    // binary (3.7 MB for Flutter Gallery) even for a one-line change.
+    // Symbols for --split-debug-info are saved by --save-debugging-info
+    // above, and obfuscated patches don't leak the names they hide.
+    '--strip',
   ];
 
   /// Builds an ELF AOT snapshot of [appDillPath] at [outFilePath] with
@@ -226,6 +234,7 @@ mixin AppleLinkerPatcherMixin on Patcher, ApplePatcherMixin {
         aotOutputFile: File(aotOutputPath),
         vmCodeFile: File(vmcodeOutputPath),
         ddMaxBytes: ddMaxBytes,
+        obfuscationMapPath: obfuscationMapPath,
       );
       final linkPercentage = result.linkPercentage;
       final exitCode = result.exitCode;
@@ -314,10 +323,6 @@ mixin ApplePodfileLockPatcherMixin on Patcher, ApplePatcherMixin {
     required File releaseArchive,
     required File patchArchive,
   }) async {
-    // Check for diffs without warning about native changes, as Xcode builds
-    // can be nondeterministic. So we still have some hope of alerting users of
-    // unpatchable native changes, we compare the Podfile.lock hash between the
-    // patch and the release.
     final diffStatus = await patchDiffChecker
         .confirmUnpatchableDiffsIfNecessary(
           localArchive: patchArchive,
@@ -325,30 +330,28 @@ mixin ApplePodfileLockPatcherMixin on Patcher, ApplePatcherMixin {
           archiveDiffer: const AppleArchiveDiffer(),
           allowAssetChanges: allowAssetDiffs,
           allowNativeChanges: allowNativeDiffs,
-          confirmNativeChanges: false,
         );
 
-    if (!diffStatus.hasNativeChanges) return diffStatus;
+    final podfileLockChanged =
+        releaseArtifact.podfileLockHash != null &&
+        localPodfileLockHash != releaseArtifact.podfileLockHash;
 
-    if (releaseArtifact.podfileLockHash != null &&
-        localPodfileLockHash != releaseArtifact.podfileLockHash) {
-      final podfileLockMessage =
-          '''
+    if (!diffStatus.hasNativeChanges) {
+      if (podfileLockChanged) {
+        logger.info(
+          'Your $podfileLockRelativePath changed from the release, but all '
+          'compiled native binaries are identical.',
+        );
+      }
+      return diffStatus;
+    }
+
+    if (podfileLockChanged) {
+      logger.warn(
+        '''
 Your $podfileLockRelativePath is different from the one used to build the release.
-This may indicate that the patch contains native changes, which cannot be applied with a patch. Proceeding may result in unexpected behavior or crashes.''';
-      // Where the CLI can't prompt, this fails the patch: an error, not a
-      // warning.
-      if (!allowNativeDiffs && !shorebirdEnv.canAcceptUserInput) {
-        logger.err(podfileLockMessage);
-        throw const UnpatchableChangeException({UnpatchableChange.native});
-      }
-      logger.warn(podfileLockMessage);
-
-      if (!allowNativeDiffs) {
-        if (!logger.confirm('Continue anyway?', hint: allowNativeDiffsHint)) {
-          throw UserCancelledException();
-        }
-      }
+This may indicate that the patch contains native changes, which cannot be applied with a patch. Proceeding may result in unexpected behavior or crashes.''',
+      );
     }
 
     return diffStatus;

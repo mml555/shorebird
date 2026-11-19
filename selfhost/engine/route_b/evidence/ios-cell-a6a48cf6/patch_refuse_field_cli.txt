@@ -1,0 +1,8 @@
+## patch_refuse_field.log (5911 lines; excerpt)
+5891: This patch cannot be built: 1 of 1 changed members cannot be carried by a Route B patch.
+5892: 
+5893:   package:untab/main.dart#_HomeState.new
+5894:       this constructor, an instance field initializer it runs, or a constant argument that every caller passes it changed; a patch replaces method bodies only, so the release keeps running its own
+5895: 
+5896: The whole patch is refused, not the part that failed. Shipping the rest would leave your app running some functions from the patch and some from the release. Nothing was uploaded.
+

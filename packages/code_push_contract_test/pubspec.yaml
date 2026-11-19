@@ -1,0 +1,21 @@
+name: code_push_contract_test
+description: >-
+  Contract test: the real shorebird_code_push_client driven against the real
+  code_push_server handler, in process.
+publish_to: none
+# Standalone (own lockfile), NOT a workspace member, like code_push_server. It
+# is its own package so the server's pubspec (which its Docker build resolves
+# alone, with --enforce-lockfile) never names a path outside its own directory.
+environment:
+  sdk: ^3.9.0
+
+dev_dependencies:
+  code_push_server:
+    path: ../code_push_server
+  crypto: ^3.0.6
+  http: ^1.5.0
+  lints: ^5.0.0
+  shelf: ^1.4.2
+  shorebird_code_push_client:
+    path: ../shorebird_code_push_client
+  test: ^1.31.2

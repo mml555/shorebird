@@ -1,5 +1,6 @@
 import 'package:pub_semver/pub_semver.dart';
 import 'package:shorebird_cli/src/flutter_version_constraints.dart';
+import 'package:shorebird_cli/src/release_type.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';
@@ -94,5 +95,45 @@ void main() {
         isTrue,
       );
     });
+  });
+
+  group('Flutter 3.50', () {
+    // 3.50 is not the supported default yet; this pins that every version
+    // rule is a floor, so a 3.50 or 3.50-sb Flutter is never refused by one.
+    final versions = [Version(3, 50, 0), Version.parse('3.50.0-sb.1')];
+
+    for (final version in versions) {
+      test('$version clears every platform floor', () {
+        for (final type in ReleaseType.values) {
+          expect(
+            version.satisfiesFloor(minimumReleaseFlutterVersion(type)),
+            isTrue,
+            reason: '$type',
+          );
+        }
+        expect(
+          version.satisfiesFloor(minimumObfuscationFlutterVersion),
+          isTrue,
+        );
+        expect(
+          version.satisfiesFloor(minimumPatchableIosFlutterVersion),
+          isTrue,
+        );
+      });
+
+      test('$version satisfies every support constraint', () {
+        for (final constraint in [
+          updaterPatchErrorFixConstraint,
+          arm64PatchSupportConstraint,
+          buildTraceSupportConstraint,
+          libappStrippedByAgpConstraint,
+        ]) {
+          expect(
+            constraint.isSatisfiedBy(version: version, revision: 'unlisted'),
+            isTrue,
+          );
+        }
+      });
+    }
   });
 }

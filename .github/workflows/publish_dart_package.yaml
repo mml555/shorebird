@@ -22,6 +22,14 @@ on:
           Start a redis/redis-stack-server container before running tests.
           Required for packages whose test suite connects to Redis.
 
+env:
+  # A git fetch over a stalled connection never errors, so actions/checkout's
+  # own retry never runs and the job sits until its timeout (seen on ci-build:
+  # a 15-25s checkout hanging for 5 minutes). Abort a transfer that moves under
+  # 1 KB/s for 30s, so checkout fails fast and retries.
+  GIT_HTTP_LOW_SPEED_LIMIT: 1000
+  GIT_HTTP_LOW_SPEED_TIME: 30
+
 jobs:
   publish:
     name: 📦 Publish ${{ inputs.working_directory }}
@@ -72,7 +80,7 @@ jobs:
 
       - name: 🔍 Analyze
         working-directory: ${{ inputs.working_directory }}
-        run: dart analyze --fatal-warnings lib test
+        run: dart analyze --fatal-infos lib test
 
       - name: 🧪 Test
         working-directory: ${{ inputs.working_directory }}

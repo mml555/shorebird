@@ -100,8 +100,15 @@ mismatch fails the artifact (`400` on upload) and the release cannot finalize.
 | Method | Path | Body | Response |
 |---|---|---|---|
 | POST | `/apps/{appId}/patches` | `{"release_id":1,"metadata":{},"notes"?}` | `{"id","number","notes"}` |
-| POST | `/apps/{appId}/patches/{patchId}/artifacts` | multipart: `arch,platform,hash,size,hash_signature?,podfile_lock_hash?` | `{…,"url","upload_method"}` · **400** if the release's build on `platform` is `managed` and the request carries `hash_signature`, or is `customer` and it does not (see **Managed patch signing**) |
-| POST | `/apps/{appId}/patches/promote` | `{"patch_id":1,"channel_id":1,"rollout"?:0-100}` | 204 · **400** if `rollout` is outside 0-100 · **409** if the patch isn't `ready` |
+| POST | `/apps/{appId}/patches/{patchId}/artifacts` (1.6.144: on a live `windows` patch it adds another architecture, `--add-to-patch`, and keeps the patch `ready`; any other promoted patch is a 409) | multipart: `arch,platform,hash,size,hash_signature?,podfile_lock_hash?` | `{…,"url","upload_method"}` · **400** if the release's build on `platform` is `managed` and the request carries `hash_signature`, or is `customer` and it does not (see **Managed patch signing**) |
+| POST | `/apps/{appId}/patches/promote` | `{"patch_id":1,"channel_id":1,"rollout_percentage"?:0.01-100}` | 204 · **400** if `rollout_percentage` is not a multiple of 0.01 from 0.01 to 100 · **409** if the patch isn't `ready`. Omitted: every device. Upstream 1.6.140's `--rollout` and `patches promote --rollout`. 1.6.144's `--rollout-steps` sends `rollout_steps`, `rollout_pause_weekends?`, `rollout_timezone?` instead of a percentage (**400** if both; at least 2 steps, at most 10, strictly increasing, last 100 without `duration_minutes`; see the PUT row) `rollout` (a whole percent, 0-100) is this server's older spelling and is still accepted; `rollout_percentage` wins if both are sent |
+| PUT | `/apps/{appId}/releases/{releaseId}/patches/{patchId}/rollout` | `{"rollout_percentage":0.01-100}` | 204 · **400** bad percentage · **404** patch not on that release and app · **409** if the patch is on no channel or the percentage is lower than the current one, including one raised past it by a concurrent request (the write is conditional). The same percentage again is a 204 and changes nothing. Upstream 1.6.140's `shorebird patches rollout`. Instead of `rollout_percentage` it takes `rollout_steps` (1.6.144, a timed rollout from the first step now; the current step is computed from the clock on every read, nothing runs in the background), **409** if the first step is lower than the rollout in force. The current percentage on a timed rollout holds it there and ends the schedule Audited as `patch.rollout` |
+| POST | `/apps/{appId}/runs` | `{"run_id","command":"release\|patch","platform","outcome":"succeeded\|failed","reason"?,"release_id"?,"patch_id"?,"started_at","duration_ms","dry_run","metadata"?,"build_flags"?,"artifacts"?,"share_debug_info"?}` | **201** `{"id"}` · **400** on a malformed record or an id of another app. Upstream 1.6.140's build history: the CLI sends one record per platform when a run ends. A record repeated (same `run_id` and platform) is kept once and answers the first id. `artifacts` and `share_debug_info` are accepted and ignored; see below |
+| GET | `/apps/{appId}/runs?limit=` | — | `{"runs":[…]}`, newest first (default 50, `limit` 1 to 200 else 400), without `metadata` and `build_flags`. `BUILD_RUN_RETENTION_DAYS` (default 0, keep forever) drops rows older than that. `POST` is audited as `build_run.record`. Not an upstream route: it is how an operator reads the history, which upstream shows in its Enterprise console |
+
+> **Rollout resolution and bucketing.** A rollout is stored in hundredths of a percent (`channel_patches.rollout_bps`, migration 19; `rollout` keeps the whole percent beside it). A device with `client_id` has a bucket from 0 to 9999, `sha256("app:channel_id:patch_id:client_id")` read as a number mod 10000, and is offered the patch when its bucket is below the rollout in hundredths of a percent. Raising a rollout therefore never takes the patch from a device that had it; a patch promoted again gets a new bucket space, as before. `patches/check` fails closed for a partial rollout when the request has no `client_id` (engines before Flutter 3.35.7), as the CLI's note says. Upstream's own bucketing is not public; this one is the server's own.
+
+> **Build history and `--share-debug-info`.** The history is stored for every app (upstream gates it to Enterprise). A patch run's debug bundle is shared with Shorebird the company, so its support can read it; a self-hosted server has no one to share it with. `POST /runs` therefore never answers `artifact_uploads`, which the CLI reads as "nothing accepted": the run is unaffected, and a person who passed `--share-debug-info` sees "No debugging information was shared". The bundle stays in `build/patch-debug.zip` locally.
 
 > Promote supersedes only active patches of the **same release** on the channel (and only those whose platforms the new patch covers). A channel can carry several live releases; each keeps its own active patch, and `/patches/check` answers from the device's release. Before this fix a promote also withdrew other releases' patches; those rows (withdrawn, not rolled back) are indistinguishable from deliberate withdrawals and were not migrated. To serve such a patch again, promote it, but only if it was not rolled back (`is_rolled_back` in the release's patch list): promoting a rolled-back patch leaves it active and also in `rolled_back_patch_numbers`.
 
@@ -131,12 +138,13 @@ CLI's own `UpdateReleaseRequest` documents:
 
 `GET /apps/{appId}/releases/{releaseId}/patches` returns both:
 
+- **`rollout_percentage`** — the share of `channel`'s devices the patch is offered to, as a number (`12.5`); absent when `channel` is `null`.
 - **`channel`** — the single track the CLI displays (`patches list` prints it,
   `patches info` shows it as `Track:`). It is the newest deployment that is
   still `active` and not rolled back, or `null` once every promotion has been
   withdrawn or reverted.
 - **`deployments`** — the full per-channel picture (`channel`, `status`,
-  `rollout`, `rolled_back`), newest first. Authoritative; a patch can be live on
+  `rollout`, `rollout_percentage`, `rolled_back`), newest first. `rollout` is a whole number for a whole percentage and a decimal otherwise. Authoritative; a patch can be live on
   several tracks at once, which `channel` cannot express.
 
 Each entry in `artifacts` carries `id`, `patch_id`, `arch`, `platform`, `hash`,
@@ -459,7 +467,7 @@ added to a company org or onto one of its apps. With a policy set, both
 
 | Method | Path | Response |
 |---|---|---|
-| POST | `/admin/apps/{appId}/patches/{patchId}/rollout?channel=&percent=` | `{patch_id,rollout}` — set a partial rollout (0–100) |
+| POST | `/admin/apps/{appId}/patches/{patchId}/rollout?channel=&percent=` | `{patch_id,rollout}` — set a partial rollout (0–100, a decimal in steps of 0.01 such as `12.5` is accepted). Unlike `PUT …/rollout` it may also lower it |
 | POST | `/admin/apps/{appId}/patches/{patchId}/withdraw?channel=&rollback=true\|false` | `{withdrawn:true,rolled_back,restored}` — stop serving (`rollback=true` also reverts installed devices and restores the prior patch, below; with it the response and the audit detail also carry `channels`: the named channel, then any other channel the patch was marked rolled back on) |
 | POST | `/apps/{appId}/releases/{releaseId}/patches/{patchId}/rollback` | `{withdrawn,patch_id,rolled_back,channels,restored}` — upstream's `shorebird patches rollback`: the same rollback on every channel where the patch is active. **304** if already rolled back and active nowhere, **409** if never promoted |
 

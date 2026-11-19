@@ -1,0 +1,8 @@
+## patch_refuse_e1b.log (5912 lines; excerpt)
+5891: This patch changes a function this version of Shorebird cannot yet turn into a replacement body:
+5892: 
+5893:   package:untab/main.dart#Stars|get#stars
+5894:       its class scope cannot be carried: it is an instance member of `Stars`, whose receiver a replacement does not pass
+5895: 
+5896: The whole patch is refused. This is not a problem with your release. Nothing was
+

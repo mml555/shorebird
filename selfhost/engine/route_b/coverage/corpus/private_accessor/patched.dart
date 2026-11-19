@@ -4,7 +4,7 @@
 // found". Private, because a `library:` retention item covers public members
 // only.
 class Holder {
-  String _slot = 'NEW';
+  String _slot = 'OLD';
 
   @pragma('vm:never-inline')
   String get _value => '$_slot-NEW';

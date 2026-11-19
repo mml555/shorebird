@@ -62,18 +62,24 @@ else
   echo "  JDK: $JH"
   if [[ ! -f "$STORE" ]]; then
     echo "  !! no cacerts at $STORE"
-  elif listed=$("$JH/bin/keytool" -list -cacerts -alias "$ALIAS" -storepass changeit 2>/dev/null) \
-    && [[ $listed == *"$(openssl x509 -in "$CA" -noout -fingerprint -sha256 | sed 's/.*=//')"* ]]; then
-    echo "  already trusted (alias $ALIAS)"
   else
-    # An older CA under the same alias (generate.sh was re-run) is replaced,
-    # or Gradle would keep trusting only the old one.
-    if [[ -n ${listed:-} ]]; then
-      run "$JH/bin/keytool" -delete -cacerts -storepass changeit -alias "$ALIAS"
+    # keytool prints its errors ("Alias <...> does not exist") on STDOUT, so its
+    # output means the alias exists only when keytool also exited 0.
+    present=false
+    listed=$("$JH/bin/keytool" -list -cacerts -alias "$ALIAS" -storepass changeit 2>/dev/null) && present=true
+    fingerprint=$(openssl x509 -in "$CA" -noout -fingerprint -sha256 | sed 's/.*=//')
+    if $present && [[ $listed == *"$fingerprint"* ]]; then
+      echo "  already trusted (alias $ALIAS)"
+    else
+      # An older CA under the same alias (generate.sh was re-run) is replaced,
+      # or Gradle would keep trusting only the old one.
+      if $present; then
+        run "$JH/bin/keytool" -delete -cacerts -storepass changeit -alias "$ALIAS"
+      fi
+      # -cacerts targets the JDK's own store without naming the path.
+      run "$JH/bin/keytool" -importcert -noprompt -cacerts -storepass changeit \
+        -alias "$ALIAS" -file "$CA"
     fi
-    # -cacerts targets the JDK's own store without naming the path.
-    run "$JH/bin/keytool" -importcert -noprompt -cacerts -storepass changeit \
-      -alias "$ALIAS" -file "$CA"
   fi
 fi
 

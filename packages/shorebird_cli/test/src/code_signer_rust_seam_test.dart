@@ -33,8 +33,8 @@ import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:test/test.dart';
 
-import 'mocks.dart';
 import 'helpers.dart';
+import 'mocks.dart';
 
 // Both named for readability at the lookup and call sites; the lint would
 // rather they were inlined, but a bare three-pointer function type reads as
@@ -107,8 +107,8 @@ void main() {
       late String message;
 
       setUpAll(() async {
-        // Refuse rather than skip when OpenSSL is unavailable: a silently skipped
-        // crypto seam test is indistinguishable from a passing one.
+        // Refuse rather than skip when OpenSSL is unavailable: a silently
+        // skipped crypto seam test is indistinguishable from a passing one.
         final openssl = await Process.run('openssl', ['version']);
         expect(
           openssl.exitCode,
@@ -228,11 +228,11 @@ void main() {
               'path- and command-sourced public keys must yield the same DER',
         );
 
-        // ---- RSA PKCS#1 v1.5 SHA-256 is deterministic for a fixed key/message,
-        // so an independent OpenSSL signer must produce the identical signature.
-        // If this ever fails while both still verify, that is a real finding
-        // about the padding or digest path and must be explained, not asserted
-        // away.
+        // ---- RSA PKCS#1 v1.5 SHA-256 is deterministic for a fixed
+        // key/message, so an independent OpenSSL signer must produce the
+        // identical signature. If this ever fails while both still verify, that
+        // is a real finding about the padding or digest path and must be
+        // explained, not asserted away.
         expect(
           sigFile,
           sigCmd,

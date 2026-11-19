@@ -15,13 +15,21 @@
 #   LAYOUT.txt                where each member goes, and its digest
 #   MANIFEST.sha256           digests of every file in the distribution
 #
-#   sd1_bundle_cell.sh [--cell ADDR] [--out DIR]
+#   [OVERLAY=DIR] sd1_bundle_cell.sh [--cell ADDR] [--out DIR]
+#   OVERLAY names the overlay the members are read from (default: selfhost/cdn/overlay),
+#   so a cell minted in a scratch overlay can be bundled without touching the tracked tree.
 set -uo pipefail
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO="$(cd "$HERE/../.." >/dev/null 2>&1 && pwd)"
-CELL=${CELL:-f85251f344600ae08196925a174e9cff8f0ff18e}
+# The default is the distributed cell SUPPORTED_STATE.yaml records
+# (cell_distribution.cell_address), so it moves when a promotion does.
+supported_cell() {
+  awk '/^cell_distribution:/ {d=1; next} d && /^[^ #]/ {exit} d && $1 == "cell_address:" {print $2; exit}' \
+    "$REPO/selfhost/engine/route_b/SUPPORTED_STATE.yaml"
+}
+CELL=${CELL:-}
 OUT=${OUT:-/Volumes/build/route-b/sd1/dist}
-OVERLAY="$REPO/selfhost/cdn/overlay"
+OVERLAY=${OVERLAY:-$REPO/selfhost/cdn/overlay}
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cell) CELL="${2:?}"; shift 2 ;;
@@ -29,7 +37,10 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
-# After the arguments, so --cell picks the descriptor too.
+# After the arguments, so --cell picks the descriptor too, and a bad record
+# cannot block an explicit --cell.
+CELL=${CELL:-$(supported_cell)}
+[[ "$CELL" =~ ^[0-9a-f]{40}$ ]] || { echo "no cell: pass --cell, or record cell_distribution.cell_address in $REPO/selfhost/engine/route_b/SUPPORTED_STATE.yaml" >&2; exit 2; }
 MAN="$REPO/selfhost/engine/route_b/cell_manifests/$CELL.v2"
 fail=0
 ok()  { printf '  \033[32mPASS\033[0m  %s\n' "$1"; }
@@ -37,6 +48,9 @@ bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; fail=$((fail+1)); }
 note(){ printf '\n\033[1m== %s\033[0m\n' "$1"; }
 
 [[ -f "$MAN" ]] || { echo "no descriptor for $CELL" >&2; exit 2; }
+# Before $OUT is cleared, so a mistyped overlay costs nothing.
+[[ -d "$OVERLAY" ]] || { echo "no overlay at $OVERLAY (set OVERLAY, or mint into the default)" >&2; exit 2; }
+echo "overlay: $OVERLAY"
 rm -rf "$OUT"; mkdir -p "$OUT"
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/sd1stage.XXXXXX")
 trap 'rm -rf "$STAGE"' EXIT

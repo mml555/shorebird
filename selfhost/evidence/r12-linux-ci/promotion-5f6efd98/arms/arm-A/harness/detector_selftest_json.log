@@ -1,0 +1,1 @@
+{"status":"error","error":{"code":"interactive_prompt_required","message":"Which app flavor?","hint":"Pass --flavor=<flavor> to preview a specific flavor without prompting."},"meta":{"version":"1.6.138+selfhost.1","command":"preview"}}

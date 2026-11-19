@@ -7,7 +7,7 @@ version: "0.2"
 # cspell:words cand elig ents envx fals getsize logf stdev trav
 # The selfhost/ci-host vocabulary listed in the override below:
 # cspell:words nftables slirp oifname iifname dport daddr skuid ROOTLESSKIT rootlesskit subuid subgid subuids setpriv jobpath tokfile reuid regid productionresultssa pipelinesghubeus eastus npmjs localnet journalctl esac dstdomain dstdom cgroupv cgroupfs cgroupdriver xdev userns usermod uploadpurging smhd shopt setuid rootdirectory remoteurl oneshot nullglob nsenter newuidmap newgidmap gpasswd getent drunner disableupdate crontabs coredump cmdline clippy alpinelinux NOFILE LOGNAME EUID pgrep
-# cspell:ignore delibrate mispelt Shoul shutil stdlib gskinner hlcl hlclpqwxzq hlclxeca hlclqjttgm hlclx hldxg wfyg VVFRF WRVJTSU UNRE Volemes Ünïcödé
+# cspell:ignore delibrate mispelt Shoul shutil stdlib gskinner hlcl hlclpqwxzq hlclxeca hlclqjttgm hlclx hldxg wfyg VVFRF WRVJTSU UNRE Volemes Ünïcödé Iterab
 # The tokens this file lists as ignoreWords or inline-scoped vocabulary, which
 # would otherwise be reported here, in the one place that names them.
 # cspell:ignore Adev ARMC awdd backouts backportcheck baselined Closurization closurized coolify corevideo crashreports cstring ctypes dontneed flavoredprobe frontboard gsprobe HEISENBUG hlfr idevicebackup inspectable jarsigner jwtfix kinded libpostal LINKEDIT Metaspace metriclog NCPU nehelper nogncheck nutsdb operationalization parsecd productionized readback rearchive Refena refetched refspec relauncher reminted remoteserver Rssi screentime shidduchcard signprobe simarm Siri staticness subsys systemappservices SYSV twolib unbisected undeployed UNDOTTED unexcluded unflushed unphotographed Unscorable unshallowed usagetracking WWDR XCUI ZEROFILL
@@ -104,6 +104,10 @@ ignorePaths:
     "selfhost/evidence/p6-signing/*syslog*.txt",
     "selfhost/evidence/p6-signing/crash_reports/**",
     "selfhost/evidence/p6-tracks/*syslog*.txt",
+    # Caddy JSON access logs the R12 promotion chain copies out of the reverse
+    # proxy. Request ids, hashes and the runtime's own log text are
+    # captured verbatim; the PROMOTION_*.md beside them are authored and stay checked.
+    "selfhost/evidence/r12-linux-ci/promotion-*/*_access.txt",
   ]
 overrides:
   # The CI runner host (selfhost/ci-host): nftables, squid, systemd and rootless-Docker
@@ -260,6 +264,11 @@ overrides:
   # fixed and this note is its only surviving trace.
   - filename: "selfhost/plans/H4-gen-snapshot-obfuscation-map.md"
     ignoreWords: [Volemes]
+
+  # A CLI refusal captured verbatim; the CLI cuts the quoted member name at a
+  # fixed width, so `Iterab` is `Iterable` truncated by the tool, not a typo.
+  - filename: "selfhost/engine/route_b/evidence/ios-cell-a6a48cf6/steps3.out"
+    ignoreWords: [Iterab]
 
   # Deliberate non-ASCII test input for the lowering matrix.
   - filename: "selfhost/engine/route_b/probes/lowering_matrix.sh"
@@ -472,6 +481,20 @@ words:
   - untabled # --route_b_untabled_overrides: a selector kept out of the dispatch table
   - untable # to keep a selector out of the dispatch table (see untabled)
   - untables
+  - untab # the Route B device test app's project name (dev.selfhost.untab), in its evidence and scripts
+  - oneshot # Route B SDK-member device probes: a one-shot (non-periodic) Timer receiver
+  - eqop # Route B SDK-member device probes: probes of the == operator
+  - callform # Route B SDK-member device results: the verdict of a tear-off's call form
+  - SDKPROBE # Route B SDK-member device probes: the log tag every probe line carries
+  - devrun # the iPhone run's working directory name, in its evidence scripts
+  - connproxy # the iPhone run's CONNECT-logging proxy (connproxy.py), in its evidence
+  - pubget # `dart pub get`, spelled as a log file name in the iPhone run's up.sh
+  - tojson # the public method the iPhone run's refusal case adds (toJson), spelled lowercase in a variant name
+  - setstate # a variant name in the iPhone run's evidence (p03_setstate_closure)
+  - rdwr # socket.SHUT_RDWR in connproxy.py
+  - dhttp # JAVA_TOOL_OPTIONS -Dhttp.proxyHost, in the iPhone run's env.sh
+  - dhttps # JAVA_TOOL_OPTIONS -Dhttps.proxyHost, in the iPhone run's env.sh
+  - promotin # the CLI's track warning cut off at a column limit in steps.out
   - noentry # the call-form inventory's case without vm:entry-point on the method
   - swunowned # release probe gate mutation: count a switchable call in an unowned pool
   - swtearoff # release probe gate mutation: count a switchable call in a tear-off's pool
@@ -737,6 +760,7 @@ words:
   - Dalvik # Android Dalvik VM / DEX file format
   - darkweak
   - dartaotruntime
+  - dartbug
   # The Dart VM executable, as process names in captured proxy logs.
   - dartvm
   - DBPW
@@ -775,11 +799,13 @@ words:
   - dylib
   - dylibs
   - dynmod
+  - dynsym
   - eaec
   - elems
   - embedders
   - endtemplate
   - Entra
+  - esac # bash case terminator
   - eseidel
   - exifinterface
   - exitcode
@@ -900,6 +926,8 @@ words:
   - nonobvious # From analysis_options.yaml
   - nopasswd
   - notafile
+  - noprofile # bash --noprofile
+  - norc # bash --norc
   - nserror
   - nullptr
   - nutsdb
@@ -920,6 +948,7 @@ words:
   - pbxproj
   - pfctl
   - pinact # Third-party action-pinning tool referenced in shorebird_ci
+  - pipefail
   - Perfetto # Chrome trace viewer at ui.perfetto.dev
   - PITR
   - PKCE # OAuth Proof Key for Code Exchange (RFC 7636)
@@ -986,6 +1015,7 @@ words:
   - souin
   - resends # "server resends the same patch on rollforward"
   - rollforward # POST /.../patches/<id>/rollforward — un-rolls-back a patch
+  - rollouts # percentage rollouts of a patch on its track
   - spawnee
   - Retryable
   - RSAPKCS
@@ -1007,6 +1037,7 @@ words:
   - storepass # From .github/workflows/e2e.yaml
   - storyboardc
   - strftime
+  - stubless # Route B: a class with no allocation stub in the snapshot profile
   - subpackages
   - Supabase
   - atos

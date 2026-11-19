@@ -94,7 +94,22 @@ class Evidence {
   int unownedPools = 0;
   int otherReferrers = 0;
   int switchableSites = 0;
+
+  /// Tear-offs of the target that something actually holds: the tear-off's
+  /// code calls the target through its patchable entry, and its closure is in
+  /// a pool owned by other code. A tear-off whose closure nothing holds stays
+  /// in [tearoffPools] and counts for nothing, as before.
+  int liveTearoffs = 0;
   final callers = <String>[];
+
+  /// The members whose compiled code holds an INLINED copy of the target,
+  /// read from each Code's `inlined_id_to_function_` (kept for stack traces).
+  /// A patch that replaces the target and not these leaves them running the
+  /// release's body, whatever the call-site count says, so the producer must
+  /// carry them too. Named in the producer's `library#Class.member` form; a
+  /// closure is named by the member that declares it, since replacing that
+  /// member is what replaces the closure. Sorted, without duplicates.
+  final inlinedInto = <String>{};
 
   Map<String, Object?> toJson() => {
     'target_function_nodes': targetFunctionNodes,
@@ -104,11 +119,16 @@ class Evidence {
     // Since revision 2: switchable call sites naming the target's selector,
     // in a caller's pool.
     'switchable_sites': switchableSites,
+    // Since 2026-11-15: held tear-offs, e.g. `onGenerateRoute: routeFor`.
+    'live_tearoffs': liveTearoffs,
     'tearoff_pools': tearoffPools,
     'self_owned_pools': selfOwnedPools,
     'unowned_pools': unownedPools,
     'other_referrers': otherReferrers,
     'callers': callers,
+    // Since 2026-11-15. A probe that predates it omits the key; the producer
+    // reads that as "not established", never as "none".
+    'inlined_into': (inlinedInto.toList()..sort()),
   };
 }
 
@@ -387,6 +407,25 @@ Verdict classify(Profile p, TargetId id, {required bool countSwitchable}) {
     }
   }
 
+  // Inlined copies. The edge from a Code to the Array of functions inlined into
+  // it is the only place the profile records inlining, and it is exact: the
+  // array is what symbolizes inlined frames in a stack trace.
+  for (final e in p.referrersOf(fn)) {
+    if (p.typeOf(e.src) != 'Array') continue;
+    for (final ae in p.referrersOf(e.src)) {
+      if (p.typeOf(ae.src) != 'Code' || ae.label != 'inlined_id_to_function_') {
+        continue;
+      }
+      final owner = p.property(ae.src, 'owner_');
+      if (owner == null || owner == fn) continue;
+      final member = _memberIdOf(p, owner);
+      // The target's own tear-off, inlining the target: not a member a patch
+      // could carry, and not a live call path either (see below).
+      if (member == '$id') continue;
+      ev.inlinedInto.add(member ?? '<unresolved ${p.nameOf(ae.src)}>');
+    }
+  }
+
   final selector = p.nameOf(fn);
   final switchableCalls = countSwitchable
       ? p.nodesOfType('UnlinkedCall')
@@ -412,13 +451,80 @@ Verdict classify(Profile p, TargetId id, {required bool countSwitchable}) {
     }
   }
 
+  // Held tear-offs. `onGenerateRoute: routeFor` calls routeFor only through
+  // `[tear-off] routeFor`, whose code reaches it through the pool entry the
+  // patch redirects. Counted when (1) that code's pool holds the target and
+  // its inlined functions do not, and (2) the tear-off's Closure is in a pool
+  // another Code owns, so something can call it. Tear-off machinery alone,
+  // which exists for functions nothing tears off, satisfies neither.
+  for (final tf in p.nodesOfType('Function')) {
+    if (!p.nameOf(tf).startsWith('[tear-off] ')) continue;
+    final data = p.property(tf, 'data_');
+    if (data == null || p.property(data, 'parent_function_') != fn) continue;
+    final code = p.property(tf, 'code_');
+    if (code == null) continue;
+    final pool = p.property(code, 'object_pool_');
+    final callsTarget =
+        pool != null && p.referrersOf(fn).any((e) => e.src == pool);
+    final inlined = p.property(code, 'inlined_id_to_function_');
+    final inlinesTarget =
+        inlined != null && p.referrersOf(fn).any((e) => e.src == inlined);
+    if (!callsTarget || inlinesTarget) continue;
+    final holders = <int>{};
+    for (final ce in p.referrersOf(tf)) {
+      if (p.typeOf(ce.src) != 'Closure') continue;
+      for (final pe in p.referrersOf(ce.src)) {
+        if (p.typeOf(pe.src) != 'ObjectPool') continue;
+        for (final oe in p.referrersOf(pe.src)) {
+          if (p.typeOf(oe.src) != 'Code') continue;
+          if (oe.src == code || _isOwnCode(p, oe.src, fn)) continue;
+          holders.add(oe.src);
+        }
+      }
+    }
+    if (holders.isEmpty) continue;
+    ev.liveTearoffs++;
+    ev.callers.addAll(holders.map(p.nameOf));
+  }
+
   return Verdict(
     '$id',
-    ev.callerOwnedPools + ev.switchableSites >= 1
+    ev.callerOwnedPools + ev.switchableSites + ev.liveTearoffs >= 1
         ? ProbeResult.oneOrMoreQualifyingCallsites
         : ProbeResult.zeroQualifyingCallsites,
     ev,
   );
+}
+
+/// The `library#Class.member` identity of the member that declares [function]:
+/// a closure climbs `ClosureData.parent_function_` to the member it is written
+/// in. Null when the profile does not establish one, which the caller reports
+/// rather than drops.
+String? _memberIdOf(Profile p, int function) {
+  var f = function;
+  for (var depth = 0; depth < 64; depth++) {
+    final data = p.property(f, 'data_');
+    final parent = data == null || p.typeOf(data) != 'ClosureData'
+        ? null
+        : p.property(data, 'parent_function_');
+    if (parent == null || p.typeOf(parent) != 'Function') break;
+    f = parent;
+  }
+  final owner = p.property(f, 'owner_');
+  if (owner == null) return null;
+  final lib = _libraryOf(p, owner);
+  if (lib == null) return null;
+  final className = _baseName(p.nameOf(owner));
+  final member = _baseName(p.nameOf(f));
+  return className == '::'
+      ? '${p.nameOf(lib)}#$member'
+      : '${p.nameOf(lib)}#$className.$member';
+}
+
+/// `_foo@12345` -> `_foo`; a public name is returned as is.
+String _baseName(String profileName) {
+  final at = profileName.indexOf('@');
+  return at > 0 ? profileName.substring(0, at) : profileName;
 }
 
 /// A library-private NAME is mangled `_foo@12345` in the profile -- members and

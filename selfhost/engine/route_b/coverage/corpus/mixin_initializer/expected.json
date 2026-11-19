@@ -1,0 +1,13 @@
+{
+  "note": "A mixin's field initializer changes. AOT copies the mixin's members into each class that applies it, here dart:mixin_deduplication's &Base&Counter, and a patch cannot replace that copy, so the patch is refused and names the copy's constructor. The frozen reference tooling compares procedures only and calls this inert, so it is not a witness here.",
+  "referenceBlind": "the reference compares procedures only",
+  "verdict": "reject",
+  "changed": [],
+  "added": [],
+  "declarations": [
+    "dart:mixin_deduplication#&Base&Counter.new"
+  ],
+  "rejectionReasons": [
+    "this constructor, an instance field initializer it runs, or a constant argument that every caller passes it changed; a patch replaces method bodies only, so the release keeps running its own"
+  ]
+}

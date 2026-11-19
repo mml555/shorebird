@@ -81,12 +81,18 @@ say "control-plane loopback forwarder"
 # dialling localhost reaches itself, so the upload is refused with errno 111.
 # Forwarding our own loopback to the host means the arm talks to EXACTLY the
 # historical endpoint, and no shared configuration is repointed.
-socat TCP-LISTEN:18081,fork,reuseaddr TCP:host.docker.internal:18081 &
-sleep 2
-fwd="$(curl -sS -o /dev/null -m 15 -w '%{http_code}' http://localhost:18081/ || echo FAIL)"
-[[ "$fwd" == "200" ]] || die "loopback forwarder is not working (localhost:18081 -> $fwd).
+# A bootstrap-only arm uploads nothing and exits before any control-plane call,
+# so it neither needs the control plane running nor checks it.
+if [[ "$BOOTSTRAP_ONLY" == "1" ]]; then
+  note "localhost:18081          : not checked (bootstrap-only)"
+else
+  socat TCP-LISTEN:18081,fork,reuseaddr TCP:host.docker.internal:18081 &
+  sleep 2
+  fwd="$(curl -sS -o /dev/null -m 15 -w '%{http_code}' http://localhost:18081/ || echo FAIL)"
+  [[ "$fwd" == "200" ]] || die "loopback forwarder is not working (localhost:18081 -> $fwd).
      Every artifact upload would fail with connection refused."
-note "localhost:18081          : $fwd (forwarded to the host control plane)"
+  note "localhost:18081          : $fwd (forwarded to the host control plane)"
+fi
 
 say "gradle configuration"
 # LOCATION ONLY -- NO PROPERTIES ARE SET HERE. An earlier revision wrote
@@ -126,10 +132,24 @@ fi
 say "bootstrap the OWNED toolchain"
 note "repo                     : $R12_REPO_URL"
 note "sha                      : $R12_REPO_SHA"
-git clone --quiet --filter=blob:none "$R12_REPO_URL" /r12src \
-  || die "could not clone the owned repository"
-git -C /r12src checkout --quiet --detach "$R12_REPO_SHA" \
-  || die "owned repository does not contain $R12_REPO_SHA"
+# A GitHub fetch from ci-build can stall with the connection silently gone (seen on
+# 2026-11-17: a clone sat 15 minutes at 0 bytes while the host cloned in 13 s). Each
+# attempt is bounded by wall clock and by transfer speed, and is tried three times.
+clone_owned() {
+  local a
+  for a in 1 2 3; do
+    rm -rf /r12src
+    # The checkout is in the attempt too: after a blob:none clone it fetches the blobs.
+    GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
+      timeout -k 10 300 git clone --quiet --filter=blob:none "$R12_REPO_URL" /r12src \
+      && GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
+      timeout -k 10 300 git -C /r12src checkout --quiet --detach "$R12_REPO_SHA" && return 0
+    note "clone/checkout attempt $a failed or stalled"
+    sleep 5
+  done
+  return 1
+}
+clone_owned || die "could not clone the owned repository at $R12_REPO_SHA (3 attempts)"
 got="$(git -C /r12src rev-parse HEAD)"
 [[ "$got" == "$R12_REPO_SHA" ]] || die "checked out $got, expected $R12_REPO_SHA"
 note "checked out              : $got"

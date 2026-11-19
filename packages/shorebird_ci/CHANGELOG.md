@@ -1,5 +1,14 @@
 <!-- cspell:words toplevel -->
 
+# 0.3.1
+
+- `generate` reads repository-wide `shorebird_ci:` configuration from the repository root's `pubspec.yaml` (`required`, `fatal_infos`, `codecov_token_secret`), each mirroring the flag of the same name, with the flag winning where both are set. (#4446)
+- `verify` rebuilds every workflow carrying the `--style static` marker from the repository and fails when the checked-in copy differs, naming the line and the file, including where a dynamic workflow covers the repository's packages alongside it. Only the `uses:` refs are exempt, since `generate`'s own update step and then Dependabot move every action pin past the ones built into shorebird_ci. The coverage checks only ask whether each filter covers its package's dep graph, so a hand-added input, a job generation no longer writes, or a declaration nobody made all passed them and then vanished at the next `generate` run. (#4446)
+- The filter `verify` suggests for a package missing from CI coverage now names the orchestrator and the reusable workflow it calls, matching what `generate --style static` writes. Pasting the old suggestion gave back a filter the next `generate` run rewrote. (#4446)
+- `generate` (`--style static` and `--filters-only`) now includes the orchestrator workflow's own path in every package's `dorny/paths-filter` block, so a commit editing only the orchestrator still triggers each package's job. (#4444)
+- Generated `Run Tests` steps (static reusable workflows and dynamic jobs with coverage) now wrap `dart test` and `flutter test` in a `retry_test` helper that retries a batch once when a suite fails to load because its VM service connection closed before the full header was received. (#4420)
+- Bump `test` dev dependency constraint to `^1.33.0` (#4360), declare `shorebird_ci` runners and coverage floor in `pubspec.yaml` (#4439), and align repository CI workflows onto `_shorebird_ci_dart.yaml` (#4331) with fatal lint infos (#4430).
+
 # 0.3.0
 
 - `DependencyResolver` now parses `.gitmodules` and collapses any dependency inside a submodule to the submodule's mount point, since `git diff` reports submodule updates at the mount point rather than paths beneath it.

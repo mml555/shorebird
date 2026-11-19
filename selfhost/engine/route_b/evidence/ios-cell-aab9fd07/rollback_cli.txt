@@ -1,0 +1,1 @@
+Patch 2 on release 1.0.0+32 has been rolled back.

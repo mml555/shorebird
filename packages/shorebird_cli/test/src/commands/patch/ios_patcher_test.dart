@@ -1,9 +1,12 @@
+// cspell:words chkstk ifaces movz posthog
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:args/args.dart';
 import 'package:crypto/crypto.dart';
+import 'package:macho/macho.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
@@ -14,6 +17,7 @@ import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_manager.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
 import 'package:shorebird_cli/src/code_signer.dart';
+import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/commands/apple_build_helpers.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/common_arguments.dart';
@@ -28,18 +32,17 @@ import 'package:shorebird_cli/src/os/operating_system_interface.dart';
 import 'package:shorebird_cli/src/patch_diff_checker.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_type.dart';
-import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/route_b.dart';
+import 'package:shorebird_cli/src/route_b_binding.dart';
+import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_capabilities.dart';
 import 'package:shorebird_cli/src/route_b_compiler.dart';
-import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_dependency_changes.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
-import 'package:shorebird_cli/src/route_b_release_kernels.dart';
-import 'package:shorebird_cli/src/route_b_binding.dart';
-import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
+import 'package:shorebird_cli/src/route_b_release_kernels.dart';
 import 'package:shorebird_cli/src/route_b_survival.dart';
 import 'package:shorebird_cli/src/shorebird_artifacts.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
@@ -47,6 +50,7 @@ import 'package:shorebird_cli/src/shorebird_flutter.dart';
 import 'package:shorebird_cli/src/shorebird_process.dart';
 import 'package:shorebird_cli/src/shorebird_validator.dart';
 import 'package:shorebird_cli/src/split_debug_info.dart';
+import 'package:shorebird_cli/src/third_party/flutter_tools/lib/src/base/process.dart';
 import 'package:shorebird_cli/src/validators/validators.dart';
 import 'package:shorebird_cli/src/version.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
@@ -56,6 +60,7 @@ import '../../fakes.dart';
 import '../../helpers.dart';
 import '../../matchers.dart';
 import '../../mocks.dart';
+import '../../route_b_profile_fixture.dart';
 
 /// A stand-in path for fallback values mocktail only needs to type-check.
 const _nowhere = _NowhereFile();
@@ -332,7 +337,7 @@ void main() {
       late Directory flutterDir;
       late Directory localEngineSrc;
 
-      final declining =
+      const declining =
           'InterpretCall ... This $iosPatchesDeclinedMarker, not starting '
           'the Shorebird updater.';
 
@@ -502,6 +507,14 @@ $body
     });
 
     group('assertUnpatchableDiffs', () {
+      const podfileLockHash = 'podfile-lock-hash';
+
+      setUp(() {
+        when(
+          () => shorebirdEnv.iosPodfileLockHash,
+        ).thenReturn(podfileLockHash);
+      });
+
       group('when no native changes are detected', () {
         const noChangeDiffStatus = DiffStatus(
           hasAssetChanges: false,
@@ -516,51 +529,13 @@ $body
               archiveDiffer: any(named: 'archiveDiffer'),
               allowAssetChanges: any(named: 'allowAssetChanges'),
               allowNativeChanges: any(named: 'allowNativeChanges'),
-              confirmNativeChanges: false,
             ),
           ).thenAnswer((_) async => noChangeDiffStatus);
         });
 
-        test('returns diff status from patchDiffChecker', () async {
-          final diffStatus = await runWithOverrides(
-            () => patcher.assertUnpatchableDiffs(
-              releaseArtifact: FakeReleaseArtifact(),
-              releaseArchive: File(''),
-              patchArchive: File(''),
-            ),
-          );
-          expect(diffStatus, equals(noChangeDiffStatus));
-          verifyNever(() => logger.warn(any()));
-        });
-      });
-
-      group('when native changes are detected', () {
-        const nativeChangeDiffStatus = DiffStatus(
-          hasAssetChanges: false,
-          hasNativeChanges: true,
-        );
-
-        const podfileLockHash = 'podfile-lock-hash';
-
-        setUp(() {
-          when(
-            () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
-              localArchive: any(named: 'localArchive'),
-              releaseArchive: any(named: 'releaseArchive'),
-              archiveDiffer: any(named: 'archiveDiffer'),
-              allowAssetChanges: any(named: 'allowAssetChanges'),
-              allowNativeChanges: any(named: 'allowNativeChanges'),
-              confirmNativeChanges: false,
-            ),
-          ).thenAnswer((_) async => nativeChangeDiffStatus);
-
-          when(
-            () => shorebirdEnv.iosPodfileLockHash,
-          ).thenReturn(podfileLockHash);
-        });
-
-        group('when release has podspec lock hash', () {
-          group('when release podspec lock hash matches patch', () {
+        test(
+          'returns diff status without warning when Podfile.lock matches',
+          () async {
             const releaseArtifact = ReleaseArtifact(
               id: 0,
               releaseId: 0,
@@ -573,27 +548,23 @@ $body
               canSideload: true,
             );
 
-            setUp(() {
-              when(() => shorebirdEnv.canAcceptUserInput).thenReturn(true);
-              when(
-                () => logger.confirm(any(), hint: any(named: 'hint')),
-              ).thenReturn(true);
-            });
+            final diffStatus = await runWithOverrides(
+              () => patcher.assertUnpatchableDiffs(
+                releaseArtifact: releaseArtifact,
+                releaseArchive: File(''),
+                patchArchive: File(''),
+              ),
+            );
+            expect(diffStatus, equals(noChangeDiffStatus));
+            verifyNever(() => logger.warn(any()));
+            verifyNever(() => logger.info(any()));
+          },
+        );
 
-            test('does not warn of native changes', () async {
-              final diffStatus = await runWithOverrides(
-                () => patcher.assertUnpatchableDiffs(
-                  releaseArtifact: releaseArtifact,
-                  releaseArchive: File(''),
-                  patchArchive: File(''),
-                ),
-              );
-              expect(diffStatus, equals(nativeChangeDiffStatus));
-              verifyNever(() => logger.warn(any()));
-            });
-          });
-
-          group('when release podspec lock hash does not match patch', () {
+        test(
+          'logs informational note and does not fail when Podfile.lock changed '
+          'but compiled native binaries are identical',
+          () async {
             const releaseArtifact = ReleaseArtifact(
               id: 0,
               releaseId: 0,
@@ -606,166 +577,391 @@ $body
               canSideload: true,
             );
 
-            group('when native diffs are allowed', () {
-              setUp(() {
-                when(() => argResults['allow-native-diffs']).thenReturn(true);
-              });
+            final diffStatus = await runWithOverrides(
+              () => patcher.assertUnpatchableDiffs(
+                releaseArtifact: releaseArtifact,
+                releaseArchive: File(''),
+                patchArchive: File(''),
+              ),
+            );
+            expect(diffStatus, equals(noChangeDiffStatus));
+            verify(
+              () => logger.info(
+                'Your ios/Podfile.lock changed from the release, but all '
+                'compiled native binaries are identical.',
+              ),
+            ).called(1);
+            verifyNever(() => logger.warn(any()));
+          },
+        );
+      });
 
-              test(
-                'logs warning, does not prompt for confirmation to proceed',
-                () async {
-                  final diffStatus = await runWithOverrides(
-                    () => patcher.assertUnpatchableDiffs(
-                      releaseArtifact: releaseArtifact,
-                      releaseArchive: File(''),
-                      patchArchive: File(''),
-                    ),
-                  );
-                  expect(diffStatus, equals(nativeChangeDiffStatus));
-                  verify(
-                    () => logger.warn(
-                      '''
+      group('when native changes are detected', () {
+        const nativeChangeDiffStatus = DiffStatus(
+          hasAssetChanges: false,
+          hasNativeChanges: true,
+        );
+
+        setUp(() {
+          when(
+            () => patchDiffChecker.confirmUnpatchableDiffsIfNecessary(
+              localArchive: any(named: 'localArchive'),
+              releaseArchive: any(named: 'releaseArchive'),
+              archiveDiffer: any(named: 'archiveDiffer'),
+              allowAssetChanges: any(named: 'allowAssetChanges'),
+              allowNativeChanges: any(named: 'allowNativeChanges'),
+            ),
+          ).thenAnswer((_) async => nativeChangeDiffStatus);
+        });
+
+        test(
+          'does not log extra Podfile.lock warning when Podfile.lock matches',
+          () async {
+            const releaseArtifact = ReleaseArtifact(
+              id: 0,
+              releaseId: 0,
+              arch: 'aarch64',
+              platform: ReleasePlatform.ios,
+              hash: '#',
+              size: 42,
+              url: 'https://example.com',
+              podfileLockHash: podfileLockHash,
+              canSideload: true,
+            );
+
+            final diffStatus = await runWithOverrides(
+              () => patcher.assertUnpatchableDiffs(
+                releaseArtifact: releaseArtifact,
+                releaseArchive: File(''),
+                patchArchive: File(''),
+              ),
+            );
+            expect(diffStatus, equals(nativeChangeDiffStatus));
+            verifyNever(() => logger.warn(any()));
+          },
+        );
+
+        test(
+          'logs Podfile.lock warning when Podfile.lock also differs',
+          () async {
+            const releaseArtifact = ReleaseArtifact(
+              id: 0,
+              releaseId: 0,
+              arch: 'aarch64',
+              platform: ReleasePlatform.ios,
+              hash: '#',
+              size: 42,
+              url: 'https://example.com',
+              podfileLockHash: 'non-matching podfile-lock-hash',
+              canSideload: true,
+            );
+
+            final diffStatus = await runWithOverrides(
+              () => patcher.assertUnpatchableDiffs(
+                releaseArtifact: releaseArtifact,
+                releaseArchive: File(''),
+                patchArchive: File(''),
+              ),
+            );
+            expect(diffStatus, equals(nativeChangeDiffStatus));
+            verify(
+              () => logger.warn(
+                '''
 Your ios/Podfile.lock is different from the one used to build the release.
 This may indicate that the patch contains native changes, which cannot be applied with a patch. Proceeding may result in unexpected behavior or crashes.''',
-                    ),
-                  ).called(1);
-                  verifyNever(
-                    () => logger.confirm(any(), hint: any(named: 'hint')),
-                  );
-                },
-              );
-            });
+              ),
+            ).called(1);
+          },
+        );
 
-            group('when native diffs are not allowed', () {
-              group('when in an environment that accepts user input', () {
-                setUp(() {
-                  when(() => shorebirdEnv.canAcceptUserInput).thenReturn(true);
-                });
+        test(
+          'does not log Podfile.lock warning when release has no '
+          'podfileLockHash',
+          () async {
+            const releaseArtifact = ReleaseArtifact(
+              id: 0,
+              releaseId: 0,
+              arch: 'aarch64',
+              platform: ReleasePlatform.ios,
+              hash: '#',
+              size: 42,
+              url: 'https://example.com',
+              canSideload: true,
+            );
 
-                group('when user opts to continue at prompt', () {
-                  setUp(() {
-                    when(
-                      () => logger.confirm(any(), hint: any(named: 'hint')),
-                    ).thenReturn(true);
-                  });
+            final diffStatus = await runWithOverrides(
+              () => patcher.assertUnpatchableDiffs(
+                releaseArtifact: releaseArtifact,
+                releaseArchive: File(''),
+                patchArchive: File(''),
+              ),
+            );
+            expect(diffStatus, equals(nativeChangeDiffStatus));
+            verifyNever(() => logger.warn(any()));
+          },
+        );
+      });
 
-                  test('returns diff status from patchDiffChecker', () async {
-                    final diffStatus = await runWithOverrides(
-                      () => patcher.assertUnpatchableDiffs(
-                        releaseArtifact: releaseArtifact,
-                        releaseArchive: File(''),
-                        patchArchive: File(''),
-                      ),
-                    );
-                    expect(diffStatus, equals(nativeChangeDiffStatus));
-                  });
-                });
+      group('end-to-end with real PatchDiffChecker and synthetic archives', () {
+        late Directory tempDir;
 
-                group('when user aborts at prompt', () {
-                  setUp(() {
-                    when(
-                      () => logger.confirm(any(), hint: any(named: 'hint')),
-                    ).thenReturn(false);
-                  });
-
-                  test('throws UserCancelledException', () async {
-                    await expectLater(
-                      () => runWithOverrides(
-                        () => patcher.assertUnpatchableDiffs(
-                          releaseArtifact: releaseArtifact,
-                          releaseArchive: File(''),
-                          patchArchive: File(''),
-                        ),
-                      ),
-                      throwsA(isA<UserCancelledException>()),
-                    );
-                  });
-                });
-              });
-
-              group(
-                'when in an environment that does not accept user input',
-                () {
-                  setUp(() {
-                    when(
-                      () => shorebirdEnv.canAcceptUserInput,
-                    ).thenReturn(false);
-                  });
-
-                  test('throws UnpatchableChangeException', () async {
-                    await expectLater(
-                      () => runWithOverrides(
-                        () => patcher.assertUnpatchableDiffs(
-                          releaseArtifact: releaseArtifact,
-                          releaseArchive: File(''),
-                          patchArchive: File(''),
-                        ),
-                      ),
-                      throwsA(
-                        isA<UnpatchableChangeException>().having(
-                          (e) => e.changes,
-                          'changes',
-                          {UnpatchableChange.native},
-                        ),
-                      ),
-                    );
-                    verify(
-                      () => logger.err(
-                        any(
-                          that: startsWith(
-                            'Your ios/Podfile.lock is different',
-                          ),
-                        ),
-                      ),
-                    ).called(1);
-                    verifyNever(() => logger.warn(any()));
-                  });
-                },
-              );
-            });
-          });
+        setUp(() {
+          tempDir = Directory.systemTemp.createTempSync('ios_patch_diff_e2e_');
+          when(() => shorebirdEnv.canAcceptUserInput).thenReturn(false);
         });
 
-        group('when release has no podspec lock hash', () {
-          // Releases made before Podfile.lock hashes were recorded have
-          // nothing to compare against, so the native diff passes through
-          // without a warning or prompt.
-          const releaseArtifact = ReleaseArtifact(
-            id: 0,
-            releaseId: 0,
-            arch: 'aarch64',
-            platform: ReleasePlatform.ios,
-            hash: '#',
-            size: 42,
-            url: 'https://example.com',
-            canSideload: true,
+        tearDown(() {
+          tempDir.deleteSync(recursive: true);
+        });
+
+        File writeSyntheticArchive(
+          String fileName,
+          Map<String, List<int>> files,
+        ) {
+          final archive = Archive();
+          for (final entry in files.entries) {
+            archive.addFile(
+              ArchiveFile(entry.key, entry.value.length, entry.value),
+            );
+          }
+          final file = File(p.join(tempDir.path, fileName))
+            ..writeAsBytesSync(ZipEncoder().encode(archive));
+          return file;
+        }
+
+        Uint8List xmlPlist(String version) => Uint8List.fromList(
+          utf8.encode('''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleShortVersionString</key><string>$version</string>
+  <key>CFBundleVersion</key><string>1</string>
+</dict>
+</plist>
+'''),
+        );
+
+        R runWithRealPatchDiffChecker<R>(R Function() body) {
+          return runWithOverrides(
+            () => runScoped(
+              body,
+              values: {
+                patchDiffCheckerRef.overrideWith(PatchDiffChecker.new),
+              },
+            ),
           );
+        }
 
-          setUp(() {
-            when(() => shorebirdEnv.canAcceptUserInput).thenReturn(true);
-            when(
-              () => logger.confirm(any(), hint: any(named: 'hint')),
-            ).thenReturn(true);
-          });
+        test(
+          'safe mock: Podfile.lock header bump with LC_UUID and unused '
+          '___chkstk_darwin on Runner logs informational note and succeeds',
+          () async {
+            const runnerPath = 'Products/Applications/Runner.app/Runner';
+            const posthogBinPath =
+                'Products/Applications/Runner.app/Frameworks/PostHog.framework/PostHog';
+            const posthogPlistPath =
+                'Products/Applications/Runner.app/Frameworks/PostHog.framework/Info.plist';
 
-          test(
-            'returns diff status without warning or prompting',
-            () async {
-              final diffStatus = await runWithOverrides(
+            final releaseRunner = MachOBuilder.buildThin(
+              uuid: MachOBuilder.defaultUuid,
+              textInstructions: [Arm64Encoder.movz(0, 1), Arm64Encoder.ret()],
+              symbols: const [MachOSymbolSpec(name: '_main')],
+            );
+            final patchRunner = MachOBuilder.buildThin(
+              uuid: MachOBuilder.alternateUuid,
+              textInstructions: [Arm64Encoder.movz(0, 1), Arm64Encoder.ret()],
+              symbols: const [
+                MachOSymbolSpec(name: '_main'),
+                MachOSymbolSpec.undefined('___chkstk_darwin'),
+              ],
+            );
+            final posthogBin = MachOBuilder.buildThin(
+              fileType: MachOFileType.dylib,
+              textInstructions: [Arm64Encoder.movz(0, 7), Arm64Encoder.ret()],
+            );
+
+            final releaseZip = writeSyntheticArchive('release.zip', {
+              runnerPath: releaseRunner,
+              posthogBinPath: posthogBin,
+              posthogPlistPath: xmlPlist('3.71.6'),
+            });
+            final patchZip = writeSyntheticArchive('patch.zip', {
+              runnerPath: patchRunner,
+              posthogBinPath: posthogBin,
+              posthogPlistPath: xmlPlist('3.71.6'),
+            });
+
+            const releaseArtifact = ReleaseArtifact(
+              id: 0,
+              releaseId: 0,
+              arch: 'aarch64',
+              platform: ReleasePlatform.ios,
+              hash: '#',
+              size: 42,
+              url: 'https://example.com',
+              podfileLockHash: 'cocoapods-1.15.2-hash',
+              canSideload: true,
+            );
+
+            final status = await runWithRealPatchDiffChecker(
+              () => patcher.assertUnpatchableDiffs(
+                releaseArtifact: releaseArtifact,
+                releaseArchive: releaseZip,
+                patchArchive: patchZip,
+              ),
+            );
+
+            expect(status.hasNativeChanges, isFalse);
+            verify(
+              () => logger.info(
+                'Your ios/Podfile.lock changed from the release, but all '
+                'compiled native binaries are identical.',
+              ),
+            ).called(1);
+          },
+        );
+
+        test(
+          'adversarial mock: unchanged Podfile.lock with local Swift/SPM '
+          'instruction change blocks patch and prints symbol diff',
+          () async {
+            const runnerPath = 'Products/Applications/Runner.app/Runner';
+
+            final releaseRunner = MachOBuilder.buildThin(
+              textInstructions: [Arm64Encoder.movz(0, 1), Arm64Encoder.ret()],
+              symbols: const [MachOSymbolSpec(name: '_AppDelegate_init')],
+              functionStartOffsets: const [0],
+            );
+            final patchRunner = MachOBuilder.buildThin(
+              textInstructions: [Arm64Encoder.movz(0, 2), Arm64Encoder.ret()],
+              symbols: const [MachOSymbolSpec(name: '_AppDelegate_init')],
+              functionStartOffsets: const [0],
+            );
+
+            final releaseZip = writeSyntheticArchive('release_local.zip', {
+              runnerPath: releaseRunner,
+            });
+            final patchZip = writeSyntheticArchive('patch_local.zip', {
+              runnerPath: patchRunner,
+            });
+
+            const releaseArtifact = ReleaseArtifact(
+              id: 0,
+              releaseId: 0,
+              arch: 'aarch64',
+              platform: ReleasePlatform.ios,
+              hash: '#',
+              size: 42,
+              url: 'https://example.com',
+              podfileLockHash: podfileLockHash,
+              canSideload: true,
+            );
+
+            await expectLater(
+              () => runWithRealPatchDiffChecker(
                 () => patcher.assertUnpatchableDiffs(
                   releaseArtifact: releaseArtifact,
-                  releaseArchive: File(''),
-                  patchArchive: File(''),
+                  releaseArchive: releaseZip,
+                  patchArchive: patchZip,
                 ),
-              );
-              expect(diffStatus, equals(nativeChangeDiffStatus));
-              verifyNever(() => logger.warn(any()));
-              verifyNever(
-                () => logger.confirm(any(), hint: any(named: 'hint')),
-              );
-            },
-          );
-        });
+              ),
+              throwsA(
+                isA<UnpatchableChangeException>().having(
+                  (e) => e.changes,
+                  'changes',
+                  {UnpatchableChange.native},
+                ),
+              ),
+            );
+
+            verify(
+              () => logger.info(any(that: contains('_AppDelegate_init'))),
+            ).called(1);
+          },
+        );
+
+        test(
+          'adversarial mock: Podfile.lock and embedded PostHog.framework '
+          'selector + Info.plist version change blocks patch and prints '
+          'framework version and selector diff',
+          () async {
+            const posthogBinPath =
+                'Products/Applications/Runner.app/Frameworks/PostHog.framework/PostHog';
+            const posthogPlistPath =
+                'Products/Applications/Runner.app/Frameworks/PostHog.framework/Info.plist';
+
+            final releasePosthog = MachOBuilder.buildThin(
+              fileType: MachOFileType.dylib,
+              objcSelectors: const ['setupWithConfig:'],
+            );
+            final patchPosthog = MachOBuilder.buildThin(
+              fileType: MachOFileType.dylib,
+              objcSelectors: const [
+                'setupWithConfig:',
+                'captureEvent:properties:',
+              ],
+            );
+
+            final releaseZip = writeSyntheticArchive('release_pod.zip', {
+              posthogBinPath: releasePosthog,
+              posthogPlistPath: xmlPlist('3.71.6'),
+            });
+            final patchZip = writeSyntheticArchive('patch_pod.zip', {
+              posthogBinPath: patchPosthog,
+              posthogPlistPath: xmlPlist('3.71.7'),
+            });
+
+            const releaseArtifact = ReleaseArtifact(
+              id: 0,
+              releaseId: 0,
+              arch: 'aarch64',
+              platform: ReleasePlatform.ios,
+              hash: '#',
+              size: 42,
+              url: 'https://example.com',
+              podfileLockHash: 'old-podfile-lock-hash',
+              canSideload: true,
+            );
+
+            await expectLater(
+              () => runWithRealPatchDiffChecker(
+                () => patcher.assertUnpatchableDiffs(
+                  releaseArtifact: releaseArtifact,
+                  releaseArchive: releaseZip,
+                  patchArchive: patchZip,
+                ),
+              ),
+              throwsA(
+                isA<UnpatchableChangeException>().having(
+                  (e) => e.changes,
+                  'changes',
+                  {UnpatchableChange.native},
+                ),
+              ),
+            );
+
+            verify(
+              () => logger.info(
+                any(
+                  that: contains(
+                    'Objective-C selector added: captureEvent:properties:',
+                  ),
+                ),
+              ),
+            ).called(1);
+            verify(
+              () => logger.info(
+                any(
+                  that: allOf(
+                    contains('Framework versions differ from the release:'),
+                    contains('  PostHog.framework 3.71.6+1 -> 3.71.7+1'),
+                  ),
+                ),
+              ),
+            ).called(1);
+          },
+        );
       });
     });
 
@@ -835,6 +1031,7 @@ This may indicate that the patch contains native changes, which cannot be applie
               appDillPath: any(named: 'appDillPath'),
               outFilePath: any(named: 'outFilePath'),
               genSnapshotArtifact: any(named: 'genSnapshotArtifact'),
+              additionalArgs: any(named: 'additionalArgs'),
             ),
           ).thenThrow(exception);
         });
@@ -920,6 +1117,7 @@ This may indicate that the patch contains native changes, which cannot be applie
                   '--dwarf-stack-traces',
                   '--resolve-dwarf-paths',
                   '--save-debugging-info=${splitDebugInfoFile.path}',
+                  '--strip',
                 ],
               ),
             ).called(1);
@@ -949,6 +1147,7 @@ This may indicate that the patch contains native changes, which cannot be applie
                   '--dwarf-stack-traces',
                   '--resolve-dwarf-paths',
                   '--save-debugging-info=$symbolsPath',
+                  '--strip',
                 ],
               ),
             ).called(1);
@@ -1319,8 +1518,34 @@ This may indicate that the patch contains native changes, which cannot be applie
           // Explicitly nullable, and defaulted to the current revision, so a
           // test can express "recorded none" as well as "recorded another".
           int? compatibilityRevision = routeBCompatibilityRevision,
+          String? appPackageName = 'app',
+          // The release's dynamic interface and snapshot profile. The profile's
+          // recorded digest is its real one unless [profileDigest] says
+          // otherwise; [omitProfileDigest] records none.
+          String? interfaceYaml,
+          String? snapshotProfile,
+          String? profileDigest,
+          bool omitProfileDigest = false,
         }) {
           final artifacts = <String, String>{};
+          if (interfaceYaml != null) {
+            final file = File(
+              p.join(supplementDirectory.path, routeBInterfaceFileName),
+            )..writeAsStringSync(interfaceYaml);
+            artifacts[routeBInterfaceFileName] = sha256
+                .convert(file.readAsBytesSync())
+                .toString();
+          }
+          if (snapshotProfile != null) {
+            final file = File(
+              p.join(supplementDirectory.path, routeBSnapshotProfileFileName),
+            )..writeAsStringSync(snapshotProfile);
+            if (!omitProfileDigest) {
+              artifacts[routeBSnapshotProfileFileName] =
+                  profileDigest ??
+                  sha256.convert(file.readAsBytesSync()).toString();
+            }
+          }
           if (capabilityManifest != null) {
             final manifest = File(
               p.join(
@@ -1370,6 +1595,7 @@ This may indicate that the patch contains native changes, which cannot be applie
               // anything else, so every fixture that expects to get FURTHER
               // than that has to record one.
               compatibilityRevision: compatibilityRevision,
+              appPackageName: appPackageName,
             ),
           );
         }
@@ -1420,6 +1646,17 @@ This may indicate that the patch contains native changes, which cannot be applie
             ..createSync(recursive: true)
             ..writeAsStringSync('...InterpretCall...');
           when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDir);
+          // The app and the Flutter SDK's own packages only, so the
+          // dependency check has nothing to analyze unless a test adds one.
+          writePackageConfig(projectRoot, {
+            'app': '../',
+            'flutter': p
+                .toUri(p.join(flutterDir.path, 'packages', 'flutter'))
+                .toString(),
+            'sky_engine': p
+                .toUri(p.join(flutterDir.path, 'bin', 'cache', 'pkg'))
+                .toString(),
+          });
 
           supplementDirectory = Directory.systemTemp.createTempSync(
             'supplement',
@@ -1609,7 +1846,7 @@ This may indicate that the patch contains native changes, which cannot be applie
             RouteBBuildConfig flavored(String? flavor) => RouteBBuildConfig(
               rawArgs: [if (flavor != null) '--flavor=$flavor'],
               effectiveDefines: {
-                if (flavor != null) 'FLUTTER_APP_FLAVOR': flavor,
+                'FLUTTER_APP_FLAVOR': ?flavor,
               },
             );
 
@@ -1728,8 +1965,8 @@ This may indicate that the patch contains native changes, which cannot be applie
               'accepts a patch flavored ONLY by pubspec default-flavor',
               () async {
                 // The path with no command-line token to notice: a release can
-                // be flavored entirely by `default-flavor`, and reading the flag
-                // alone would record "no flavor" for it.
+                // be flavored entirely by `default-flavor`, and reading the
+                // flag alone would record "no flavor" for it.
                 final pubspec = MockPubspec();
                 when(
                   () => pubspec.flutter,
@@ -1761,6 +1998,1107 @@ This may indicate that the patch contains native changes, which cannot be applie
           group('when the release records its engine', () {
             setUp(() {
               writeReleaseProvenance(engineRevision: releaseEngineRevision);
+              // Most fixtures use an old analysis version; the gate itself is
+              // tested below with the flag off.
+              when(
+                () => argResults['allow-unchecked-sdk-calls'],
+              ).thenReturn(true);
+            });
+
+            Future<void> patchAnalyzedWithPackage(String? name) async {
+              final pubspec = MockPubspec();
+              when(() => pubspec.name).thenReturn(name ?? '');
+              when(() => pubspec.flutter).thenReturn(null);
+              when(
+                () => shorebirdEnv.getPubspecYaml(),
+              ).thenReturn(name == null ? null : pubspec);
+              await runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              );
+            }
+
+            test('runs the analyzer with the release time --include '
+                'prefix, from the name the release recorded', () async {
+              // w16: without it the analyzer reads every non-dart: library as
+              // the app and refuses a patch that touches no framework member.
+              // The pubspec has since been renamed; the release's name wins.
+              await patchAnalyzedWithPackage('renamed');
+              verify(
+                () => routeBCoverageAnalyzer.analyze(
+                  compiler: any(named: 'compiler'),
+                  baseDill: any(named: 'baseDill'),
+                  patchedDill: any(named: 'patchedDill'),
+                  includePrefixes: ['package:app/'],
+                ),
+              ).called(1);
+            });
+
+            test(
+              'a release that recorded no name uses the pubspec name',
+              () async {
+                writeReleaseProvenance(
+                  engineRevision: releaseEngineRevision,
+                  appPackageName: null,
+                );
+                writePackageConfig(projectRoot, {'fromPubspec': '../'});
+                // The shared fixture's member is in package:app, which this
+                // app is not; its dependency pass sees no change.
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: routeBDependencyIncludePrefixes,
+                  ),
+                ).thenReturn(
+                  RouteBCoverage.fromJson(
+                    jsonEncode({
+                      'analysisVersion': supportedRouteBAnalysisVersion,
+                      'verdict': 'inert',
+                      'changed': <String>[],
+                      'added': <String>[],
+                      'removed': <String>[],
+                      'patchable': <String>[],
+                      'conditional': <String>[],
+                      'rejections': <Object>[],
+                      'refusalSummary': null,
+                    }),
+                  ),
+                );
+                await patchAnalyzedWithPackage('fromPubspec');
+                verify(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: ['package:fromPubspec/'],
+                  ),
+                ).called(1);
+              },
+            );
+
+            test('refuses, rather than treating every library as the app, '
+                'when no package name is known', () async {
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                appPackageName: null,
+              );
+              await expectLater(
+                patchAnalyzedWithPackage(null),
+                throwsA(isA<ProcessExit>()),
+              );
+              verify(
+                () => logger.err(any(that: contains('package name'))),
+              ).called(1);
+              verifyNever(
+                () => routeBCoverageAnalyzer.analyze(
+                  compiler: any(named: 'compiler'),
+                  baseDill: any(named: 'baseDill'),
+                  patchedDill: any(named: 'patchedDill'),
+                  includePrefixes: any(named: 'includePrefixes'),
+                ),
+              );
+            });
+
+            test('refuses an empty pubspec name the same way', () async {
+              writeReleaseProvenance(
+                engineRevision: releaseEngineRevision,
+                appPackageName: null,
+              );
+              final pubspec = MockPubspec();
+              when(() => pubspec.name).thenReturn('');
+              when(() => pubspec.flutter).thenReturn(null);
+              when(() => shorebirdEnv.getPubspecYaml()).thenReturn(pubspec);
+              await expectLater(
+                runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                ),
+                throwsA(isA<ProcessExit>()),
+              );
+              verify(
+                () => logger.err(any(that: contains('package name'))),
+              ).called(1);
+              verifyNever(
+                () => routeBCoverageAnalyzer.analyze(
+                  compiler: any(named: 'compiler'),
+                  baseDill: any(named: 'baseDill'),
+                  patchedDill: any(named: 'patchedDill'),
+                  includePrefixes: any(named: 'includePrefixes'),
+                ),
+              );
+            });
+
+            group('a change outside the app package', () {
+              // The a6a48cf6 device run: an edit to `tally`, a path package
+              // next to the app, was left out of a published patch without a
+              // word, because the analysis saw `package:<app>/` only.
+              const depPrefixes = routeBDependencyIncludePrefixes;
+
+              RouteBCoverage dependencyCoverage({
+                List<String> changed = const [],
+                List<String> removed = const [],
+                List<Map<String, Object>> rejections = const [],
+                String? verdict,
+                int analysisVersion = routeBDeclarationsAnalysisVersion,
+              }) => RouteBCoverage.fromJson(
+                jsonEncode({
+                  'analysisVersion': analysisVersion,
+                  'verdict':
+                      verdict ?? (rejections.isEmpty ? 'accept' : 'reject'),
+                  'changed': changed,
+                  'added': <String>[],
+                  'removed': removed,
+                  'patchable': changed,
+                  'conditional': <String>[],
+                  'rejections': rejections,
+                  'refusalSummary': null,
+                }),
+              );
+
+              void stubDependencyAnalysis(RouteBCoverage coverage) {
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: depPrefixes,
+                  ),
+                ).thenReturn(coverage);
+              }
+
+              void stubAppAnalysis(RouteBCoverage coverage) {
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: ['package:app/'],
+                  ),
+                ).thenReturn(coverage);
+              }
+
+              String pubCache(String path) => p
+                  .toUri(p.join(projectRoot.parent.path, '.pub-cache', path))
+                  .toString();
+
+              setUp(() {
+                writePackageConfig(projectRoot, {
+                  'app': '../',
+                  'tally': '../../packages/tally',
+                  'collection': pubCache('hosted/pub.dev/collection-1.19.1'),
+                  'forked': pubCache('git/forked-0123abcd'),
+                  'flutter_gen': 'flutter_gen',
+                  'flutter': p
+                      .toUri(p.join(flutterDir.path, 'packages', 'flutter'))
+                      .toString(),
+                });
+              });
+
+              Future<void> patch() => runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              );
+
+              Future<String> refusal() async {
+                await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                return verify(
+                      () => logger.err(captureAny()),
+                    ).captured.single
+                    as String;
+              }
+
+              test('refuses a changed dependency member, naming it', () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    changed: ['package:tally/tally.dart#tallyLabel'],
+                  ),
+                );
+                await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                verify(
+                  () => logger.err(
+                    any(
+                      that: allOf(
+                        contains('package:tally/tally.dart#tallyLabel'),
+                        contains('outside the app'),
+                        contains('Nothing was uploaded.'),
+                      ),
+                    ),
+                  ),
+                ).called(1);
+                verifyNever(
+                  () => routeBProducer.produce(
+                    compiler: any(named: 'compiler'),
+                    coverage: any(named: 'coverage'),
+                    releaseImportKernel: any(named: 'releaseImportKernel'),
+                    releaseBuildId: any(named: 'releaseBuildId'),
+                    workingDirectory: any(named: 'workingDirectory'),
+                    projectRoot: any(named: 'projectRoot'),
+                    capabilities: any(named: 'capabilities'),
+                    buildConfig: any(named: 'buildConfig'),
+                    survival: any(named: 'survival'),
+                    releaseEvidence: any(named: 'releaseEvidence'),
+                  ),
+                );
+              });
+
+              test('refuses a changed dependency declaration', () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    rejections: [
+                      {
+                        'target': 'package:tally/tally.dart#kPrefix',
+                        'category': 'declaration',
+                        'reason': 'a const changed',
+                      },
+                    ],
+                  ),
+                );
+                await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                verify(
+                  () => logger.err(
+                    any(that: contains('package:tally/tally.dart#kPrefix')),
+                  ),
+                ).called(1);
+              });
+
+              test('analyzes every other package, and not the app or the '
+                  'Flutter SDK, and passes when none changed', () async {
+                stubDependencyAnalysis(dependencyCoverage());
+                await patch();
+                verify(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: depPrefixes,
+                  ),
+                ).called(1);
+                verify(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: ['package:app/'],
+                  ),
+                ).called(1);
+              });
+
+              test('refuses a removed dependency member: a deleted override '
+                  "would leave the release's running", () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    removed: ['package:tally/tally.dart#Counter.toString'],
+                  ),
+                );
+                final message = await refusal();
+                expect(
+                  message,
+                  allOf(
+                    contains('tally (path package at '),
+                    contains('packages/tally'),
+                    contains('removed'),
+                    contains('package:tally/tally.dart#Counter.toString'),
+                    contains('ship them in a new release'),
+                  ),
+                );
+              });
+
+              test('refuses a rejected new dependency member', () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    rejections: [
+                      {
+                        'target': 'package:tally/tally.dart#Counter.==',
+                        'category': 'added',
+                        'reason': 'a new override',
+                      },
+                    ],
+                  ),
+                );
+                expect(
+                  await refusal(),
+                  contains('added       package:tally/tally.dart#Counter.=='),
+                );
+              });
+
+              test('refuses a package the release had and this build does '
+                  'not', () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    removed: ['package:old_name/old_name.dart#greet'],
+                  ),
+                );
+                expect(
+                  await refusal(),
+                  allOf(
+                    contains(
+                      "old_name (in the release, not in this build's "
+                      'dependencies)',
+                    ),
+                    contains('(removed, or renamed) needs a new release'),
+                  ),
+                );
+              });
+
+              test('names a hosted package with its version, and '
+                  'pubspec.lock', () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    changed: ['package:collection/src/functions.dart#groupBy'],
+                  ),
+                );
+                expect(
+                  await refusal(),
+                  allOf(
+                    contains('collection (hosted, 1.19.1 in this build)'),
+                    contains("restore the release's pubspec.lock"),
+                  ),
+                );
+              });
+
+              test('names a git dependency', () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(changed: ['package:forked/a.dart#f']),
+                );
+                expect(
+                  await refusal(),
+                  allOf(
+                    contains('forked (git dependency at '),
+                    contains('git'),
+                  ),
+                );
+              });
+
+              test(
+                'names flutter_gen as localizations from .arb files',
+                () async {
+                  stubDependencyAnalysis(
+                    dependencyCoverage(
+                      changed: [
+                        'package:flutter_gen/gen_l10n/l10n_en.dart#L.get:title',
+                      ],
+                    ),
+                  );
+                  expect(
+                    await refusal(),
+                    allOf(
+                      contains(
+                        'flutter_gen (localizations generated from your .arb '
+                        'files)',
+                      ),
+                      contains('an .arb change needs a new release'),
+                    ),
+                  );
+                },
+              );
+
+              test('lists the first 20, then how many more', () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    changed: [
+                      for (var i = 0; i < 25; i++)
+                        'package:tally/tally.dart#f${i.toString().padLeft(2, '0')}',
+                    ],
+                  ),
+                );
+                final message = await refusal();
+                expect(message, contains('package:tally/tally.dart#f19'));
+                expect(
+                  message,
+                  isNot(contains('package:tally/tally.dart#f20')),
+                );
+                expect(message, contains('... and 5 more'));
+              });
+
+              test('ignores the app and the Flutter SDK', () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    changed: [
+                      'package:app/main.dart#routeBValue',
+                      'package:flutter/src/painting/box.dart#Box.get:hashCode',
+                      'dart:core#print',
+                    ],
+                  ),
+                );
+                await patch();
+                verifyNever(
+                  () => logger.err(any(that: contains('outside the app'))),
+                );
+              });
+
+              test(
+                'a dependency-only edit is named, not called inert',
+                () async {
+                  stubAppAnalysis(dependencyCoverage(verdict: 'inert'));
+                  stubDependencyAnalysis(
+                    dependencyCoverage(
+                      changed: ['package:tally/tally.dart#tallyLabel'],
+                    ),
+                  );
+                  expect(
+                    await refusal(),
+                    contains('package:tally/tally.dart#tallyLabel'),
+                  );
+                },
+              );
+
+              test('runs after a rejected app verdict, not before', () async {
+                stubAppAnalysis(
+                  dependencyCoverage(
+                    changed: ['package:app/main.dart#routeBValue'],
+                    rejections: [
+                      {
+                        'target': 'package:app/main.dart#kValue',
+                        'category': 'declaration',
+                        'reason': 'a const changed',
+                      },
+                    ],
+                  ),
+                );
+                await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                verifyNever(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: depPrefixes,
+                  ),
+                );
+              });
+
+              test(
+                'runs after the analysis-version gate, not before',
+                () async {
+                  when(
+                    () => argResults['allow-unchecked-sdk-calls'],
+                  ).thenReturn(false);
+                  stubAppAnalysis(
+                    RouteBCoverage.fromJson(
+                      jsonEncode({
+                        'analysisVersion': 18,
+                        'verdict': 'accept',
+                        'changed': ['package:app/main.dart#routeBValue'],
+                        'carried': <String>[],
+                        'callers': <String, Object>{},
+                        'added': <String>[],
+                        'helpers': <String>[],
+                        'unusedHelpers': <String>[],
+                        'removed': <String>[],
+                        'patchable': ['package:app/main.dart#routeBValue'],
+                        'conditional': <String>[],
+                        'sources': <String, Object?>{},
+                        'externalReferences': {
+                          'package:app/main.dart#routeBValue': <Object>[],
+                        },
+                        'rejections': <Object>[],
+                        'refusalSummary': null,
+                      }),
+                    ),
+                  );
+                  await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                  verify(
+                    () => logger.err(
+                      any(
+                        that: contains('predates the extension/dynamic-call'),
+                      ),
+                    ),
+                  ).called(1);
+                  verifyNever(
+                    () => routeBCoverageAnalyzer.analyze(
+                      compiler: any(named: 'compiler'),
+                      baseDill: any(named: 'baseDill'),
+                      patchedDill: any(named: 'patchedDill'),
+                      includePrefixes: depPrefixes,
+                    ),
+                  );
+                },
+              );
+
+              test('refuses below analysis 14, which cannot see a changed '
+                  'dependency const, when there are dependencies', () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    analysisVersion: routeBDeclarationsAnalysisVersion - 1,
+                  ),
+                );
+                final message = await refusal();
+                expect(
+                  message,
+                  allOf(
+                    contains('cannot check its dependencies'),
+                    contains('predates analysis version 14 (it has 13)'),
+                    contains(
+                      'Packages it cannot check: collection, flutter_gen, '
+                      'forked, tally',
+                    ),
+                    contains('Nothing was uploaded.'),
+                  ),
+                );
+                verifyNever(
+                  () => routeBProducer.produce(
+                    compiler: any(named: 'compiler'),
+                    coverage: any(named: 'coverage'),
+                    releaseImportKernel: any(named: 'releaseImportKernel'),
+                    releaseBuildId: any(named: 'releaseBuildId'),
+                    workingDirectory: any(named: 'workingDirectory'),
+                    projectRoot: any(named: 'projectRoot'),
+                    capabilities: any(named: 'capabilities'),
+                    buildConfig: any(named: 'buildConfig'),
+                    survival: any(named: 'survival'),
+                    releaseEvidence: any(named: 'releaseEvidence'),
+                  ),
+                );
+              });
+
+              test('below analysis 14, an app with no dependencies outside '
+                  'the Flutter SDK still patches', () async {
+                writePackageConfig(projectRoot, {
+                  'app': '../',
+                  'flutter': p
+                      .toUri(p.join(flutterDir.path, 'packages', 'flutter'))
+                      .toString(),
+                });
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    analysisVersion: routeBDeclarationsAnalysisVersion - 1,
+                  ),
+                );
+                await patch();
+                verifyNever(
+                  () => logger.err(any(that: contains('cannot check'))),
+                );
+              });
+
+              test('refuses, rather than skipping the check, without a '
+                  'package config', () async {
+                File(
+                  p.join(projectRoot.path, '.dart_tool', 'package_config.json'),
+                ).deleteSync();
+                await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                verify(
+                  () => logger.err(any(that: contains('flutter pub get'))),
+                ).called(1);
+              });
+
+              test('refuses when the dependency analysis fails', () async {
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: depPrefixes,
+                  ),
+                ).thenThrow(
+                  RouteBCompilerException(
+                    RouteBCompilerProblem.invalid,
+                    'analyzer died',
+                  ),
+                );
+                await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                verify(() => logger.err('analyzer died')).called(1);
+              });
+            });
+
+            group('the extension/dynamic-call gate (analysis 19)', () {
+              void coverageAt(int version) {
+                final coverage = RouteBCoverage.fromJson(
+                  jsonEncode({
+                    'analysisVersion': version,
+                    'verdict': 'accept',
+                    'changed': ['package:app/main.dart#routeBValue'],
+                    'carried': <String>[],
+                    'callers': <String, Object>{},
+                    'added': <String>[],
+                    'helpers': <String>[],
+                    'unusedHelpers': <String>[],
+                    'removed': <String>[],
+                    'patchable': ['package:app/main.dart#routeBValue'],
+                    'conditional': <String>[],
+                    'sources': <String, Object?>{},
+                    'externalReferences': {
+                      'package:app/main.dart#routeBValue': <Object>[],
+                    },
+                    'rejections': <Object>[],
+                    'refusalSummary': null,
+                  }),
+                );
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: any(named: 'includePrefixes'),
+                  ),
+                ).thenReturn(coverage);
+              }
+
+              Future<void> patch() => runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              );
+
+              test('analysis 18 is refused without the flag', () async {
+                when(
+                  () => argResults['allow-unchecked-sdk-calls'],
+                ).thenReturn(false);
+                coverageAt(18);
+                await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                verify(
+                  () => logger.err(
+                    any(
+                      that: allOf(
+                        contains('predates the extension/dynamic-call check'),
+                        contains('Update to a cell with analysis 19+'),
+                        contains('--allow-unchecked-sdk-calls'),
+                      ),
+                    ),
+                  ),
+                ).called(1);
+                expect(
+                  patcher.usedUncheckedSdkCalls,
+                  isFalse,
+                );
+              });
+
+              test('analysis 18 with the flag warns and records it', () async {
+                coverageAt(18);
+                // The retention check after the gate has no interface to read
+                // here and refuses; only the gate's own effects are under test.
+                await patch().then<void>((_) {}, onError: (Object _) {});
+                verify(
+                  () => logger.warn(
+                    any(that: contains('--allow-unchecked-sdk-calls')),
+                  ),
+                ).called(1);
+                final metadata = await patcher.updatedPlatformMetadata(
+                  CreatePatchPlatformMetadata.forTest(),
+                );
+                expect(metadata.allowUncheckedSdkCalls, isTrue);
+                expect(
+                  metadata.toJson()['allow_unchecked_sdk_calls'],
+                  isTrue,
+                );
+              });
+
+              test('analysis 19 needs no flag and records nothing', () async {
+                when(
+                  () => argResults['allow-unchecked-sdk-calls'],
+                ).thenReturn(false);
+                coverageAt(routeBSelectorCallsAnalysisVersion);
+                await patch().then<void>((_) {}, onError: (Object _) {});
+                verifyNever(
+                  () => logger.err(any(that: contains('cannot be checked'))),
+                );
+                final metadata = await patcher.updatedPlatformMetadata(
+                  CreatePatchPlatformMetadata.forTest(),
+                );
+                expect(metadata.allowUncheckedSdkCalls, isNull);
+                expect(
+                  metadata.toJson().containsKey('allow_unchecked_sdk_calls'),
+                  isFalse,
+                );
+              });
+            });
+
+            group('the per-release SDK-member check', () {
+              // `String.split` is on the device list; whether THIS release
+              // kept it is the snapshot profile's say.
+              const ref = {
+                'kind': 'instance',
+                'library': 'dart:core',
+                'class': 'String',
+                'member': 'split',
+                'private': false,
+              };
+              const interfaceYaml = """
+callable:
+  - library: 'package:app/main.dart'
+""";
+
+              void coverageCalling(List<Map<String, Object?>> refs) {
+                final coverage = RouteBCoverage.fromJson(
+                  jsonEncode({
+                    'analysisVersion': routeBSelectorCallsAnalysisVersion,
+                    'verdict': 'accept',
+                    'changed': ['package:app/main.dart#routeBValue'],
+                    'carried': <String>[],
+                    'callers': <String, Object>{},
+                    'added': <String>[],
+                    'helpers': <String>[],
+                    'unusedHelpers': <String>[],
+                    'removed': <String>[],
+                    'patchable': ['package:app/main.dart#routeBValue'],
+                    'conditional': <String>[],
+                    'sources': <String, Object?>{},
+                    'externalReferences': {
+                      'package:app/main.dart#routeBValue': refs,
+                    },
+                    'rejections': <Object>[],
+                    'refusalSummary': null,
+                  }),
+                );
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: any(named: 'includePrefixes'),
+                  ),
+                ).thenReturn(coverage);
+              }
+
+              // A profile whose String classes have `split` (or not).
+              String profile({
+                required bool hasSplit,
+                Map<String, RouteBProfileClass> more = const {},
+              }) => routeBProfile({
+                ...more,
+                'Object': const RouteBProfileClass(
+                  'Object',
+                  routeBCoreLibrary,
+                  fns: {'==': '[Optimized] =='},
+                ),
+                'String': const RouteBProfileClass(
+                  'String',
+                  routeBCoreLibrary,
+                  parent: 'Object',
+                ),
+                '_StringBase': RouteBProfileClass(
+                  '_StringBase@0150898',
+                  routeBCoreLibrary,
+                  parent: 'Object',
+                  ifaces: const ['String'],
+                  fns: {
+                    '_a': '[Optimized] _a',
+                    if (hasSplit) 'split': '[Optimized] split',
+                  },
+                ),
+                '_OneByteString': const RouteBProfileClass(
+                  '_OneByteString@0150898',
+                  routeBCoreLibrary,
+                  parent: '_StringBase',
+                  fns: {'_b': '[Optimized] _b'},
+                ),
+                '_TwoByteString': const RouteBProfileClass(
+                  '_TwoByteString@0150898',
+                  routeBCoreLibrary,
+                  parent: '_StringBase',
+                  fns: {'_c': '[Optimized] _c'},
+                ),
+              });
+
+              void release({
+                String? snapshotProfile,
+                String? profileDigest,
+                bool omitProfileDigest = false,
+                bool flag = false,
+                List<Map<String, Object?>> refs = const [ref],
+              }) {
+                when(
+                  () => argResults['allow-unchecked-sdk-calls'],
+                ).thenReturn(flag);
+                writeReleaseProvenance(
+                  engineRevision: releaseEngineRevision,
+                  interfaceYaml: interfaceYaml,
+                  snapshotProfile: snapshotProfile,
+                  profileDigest: profileDigest,
+                  omitProfileDigest: omitProfileDigest,
+                );
+                coverageCalling(refs);
+              }
+
+              Future<void> patchAndSwallow() => runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              ).then<void>((_) {}, onError: (Object _) {});
+
+              /// What the patcher told the developer about SDK members.
+              final errors = <String>[];
+              List<String> sdkErrors() =>
+                  errors.where((m) => m.contains('split')).toList();
+              setUp(() {
+                errors.clear();
+                when(() => logger.err(any())).thenAnswer((invocation) {
+                  errors.add(invocation.positionalArguments.first as String);
+                });
+              });
+
+              test('a profile that hashes to its recorded digest and has the '
+                  'member lets the patch through', () async {
+                release(snapshotProfile: profile(hasSplit: true));
+                await patchAndSwallow();
+                expect(sdkErrors(), isEmpty);
+              });
+
+              test('refuses when the profile lacks the member, so the '
+                  'profile reached the check', () async {
+                release(snapshotProfile: profile(hasSplit: false));
+                await patchAndSwallow();
+                expect(
+                  sdkErrors().single,
+                  allOf(
+                    contains('has no `split` on `_OneByteString`'),
+                    contains('--allow-unchecked-sdk-calls'),
+                  ),
+                );
+              });
+
+              test('refuses when the release uploaded no profile', () async {
+                release();
+                await patchAndSwallow();
+                expect(
+                  sdkErrors().single,
+                  allOf(
+                    contains('route_b_snapshot_profile.json'),
+                    contains('cannot be checked'),
+                  ),
+                );
+              });
+
+              test('refuses a profile that is not the one the release '
+                  'recorded', () async {
+                release(
+                  snapshotProfile: profile(hasSplit: true),
+                  profileDigest: 'ab' * 32,
+                );
+                await patchAndSwallow();
+                expect(
+                  errors.single,
+                  contains(
+                    'route_b_snapshot_profile.json does not match the hash',
+                  ),
+                );
+              });
+
+              test(
+                'refuses when the release recorded no digest for it',
+                () async {
+                  release(
+                    snapshotProfile: profile(hasSplit: true),
+                    omitProfileDigest: true,
+                  );
+                  await patchAndSwallow();
+                  expect(sdkErrors().single, contains('cannot be checked'));
+                },
+              );
+
+              test('--allow-unchecked-sdk-calls skips the SDK-member check '
+                  'against the profile, and does not unlock a member off the '
+                  'list', () async {
+                const offList = {
+                  'kind': 'instance',
+                  'library': 'dart:core',
+                  'class': 'String',
+                  'member': 'notAMeasuredMember',
+                  'private': false,
+                };
+                release(
+                  snapshotProfile: profile(hasSplit: false),
+                  flag: true,
+                  refs: [ref, offList],
+                );
+                await patchAndSwallow();
+                expect(sdkErrors(), isEmpty);
+                expect(
+                  errors.where((m) => m.contains('notAMeasuredMember')),
+                  isNotEmpty,
+                );
+                final metadata = await patcher.updatedPlatformMetadata(
+                  CreatePatchPlatformMetadata.forTest(),
+                );
+                expect(metadata.allowUncheckedSdkCalls, isTrue);
+              });
+
+              group('an extension getter the release called itself', () {
+                // No interface lists an `Ext|get#x`; only the profile can show
+                // the release kept it, so the flag must not drop the profile.
+                const stars = 'Stars|get#stars';
+                const starsRef = {
+                  'kind': 'top-level',
+                  'library': 'package:app/main.dart',
+                  'class': null,
+                  'member': stars,
+                  'private': false,
+                };
+                List<String> starsErrors() =>
+                    errors.where((m) => m.contains(stars)).toList();
+                String profileWithStars() => profile(
+                  hasSplit: false,
+                  more: {
+                    'top': const RouteBProfileClass(
+                      '::',
+                      'package:app/main.dart',
+                      fns: {stars: '[Optimized] $stars'},
+                    ),
+                  },
+                );
+
+                test('is kept under --allow-unchecked-sdk-calls', () async {
+                  release(
+                    snapshotProfile: profileWithStars(),
+                    flag: true,
+                    refs: [ref, starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(starsErrors(), isEmpty);
+                  expect(sdkErrors(), isEmpty);
+                });
+
+                test('is kept without the flag', () async {
+                  release(
+                    snapshotProfile: profileWithStars(),
+                    refs: [starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(starsErrors(), isEmpty);
+                });
+
+                test('is still refused under --allow-unchecked-sdk-calls when '
+                    'the release uploaded no profile, and says why', () async {
+                  release(flag: true, refs: [starsRef]);
+                  await patchAndSwallow();
+                  expect(
+                    starsErrors().single,
+                    allOf(
+                      contains('the extension member `$stars`'),
+                      contains('uploaded no route_b_snapshot_profile'),
+                      contains('cannot be checked'),
+                    ),
+                  );
+                });
+
+                test('a profile that is not the one the release recorded '
+                    "(another release's) is refused under "
+                    '--allow-unchecked-sdk-calls before anything is '
+                    'checked', () async {
+                  // The release's provenance check refuses the mismatched
+                  // artifact itself, so the profile never vouches for it.
+                  release(
+                    snapshotProfile: profileWithStars(),
+                    profileDigest: 'ab' * 32,
+                    flag: true,
+                    refs: [starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(
+                    errors.single,
+                    contains(
+                      'route_b_snapshot_profile.json does not match the hash',
+                    ),
+                  );
+                });
+
+                test('is still refused under --allow-unchecked-sdk-calls when '
+                    'the profile is unreadable', () async {
+                  release(
+                    snapshotProfile: 'not a profile',
+                    flag: true,
+                    refs: [starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(
+                    starsErrors().single,
+                    allOf(
+                      contains('the extension member `$stars`'),
+                      contains('is unreadable'),
+                    ),
+                  );
+                });
+
+                test('is still refused under --allow-unchecked-sdk-calls when '
+                    'the profile has only a lazy-compile stub', () async {
+                  release(
+                    snapshotProfile: profile(
+                      hasSplit: false,
+                      more: {
+                        'top': const RouteBProfileClass(
+                          '::',
+                          'package:app/main.dart',
+                          fns: {stars: '[Stub] CompileFunction'},
+                        ),
+                      },
+                    ),
+                    flag: true,
+                    refs: [starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(
+                    starsErrors().single,
+                    contains('the extension member `$stars`'),
+                  );
+                });
+
+                test('a private one is still refused under '
+                    '--allow-unchecked-sdk-calls', () async {
+                  const private = '_Stars|get#stars';
+                  release(
+                    snapshotProfile: profile(
+                      hasSplit: false,
+                      more: {
+                        'top': const RouteBProfileClass(
+                          '::',
+                          'package:app/main.dart',
+                          fns: {private: '[Optimized] $private'},
+                        ),
+                      },
+                    ),
+                    flag: true,
+                    refs: [
+                      {...starsRef, 'member': private, 'private': true},
+                    ],
+                  );
+                  await patchAndSwallow();
+                  expect(
+                    errors.where((m) => m.contains(private)).single,
+                    contains('the extension member `$private`'),
+                  );
+                });
+              });
+
+              test('under --allow-unchecked-sdk-calls a readable profile '
+                  'that lacks a bare dart:core class still refuses it (the '
+                  'loader aborts on a missing class)', () async {
+                const numRef = {
+                  'kind': 'class',
+                  'library': 'dart:core',
+                  'class': 'num',
+                  'member': null,
+                  'private': false,
+                };
+                // `profile` holds Object and String in dart:core, not num.
+                release(
+                  snapshotProfile: profile(hasSplit: true),
+                  flag: true,
+                  refs: [numRef],
+                );
+                await patchAndSwallow();
+                expect(
+                  errors.where((m) => m.contains('`num`')),
+                  isNotEmpty,
+                );
+              });
             });
 
             test(
@@ -2053,6 +3391,69 @@ This may indicate that the patch contains native changes, which cannot be applie
               ).called(1);
             });
 
+            test(
+              'warns when the analyzer cannot see declaration edits',
+              () async {
+                await runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                );
+
+                verify(
+                  () => logger.warn(
+                    any(that: contains('predates analysis version 14')),
+                  ),
+                ).called(1);
+              },
+            );
+
+            test(
+              'does not warn when the analyzer sees declaration edits',
+              () async {
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: any(named: 'includePrefixes'),
+                  ),
+                ).thenReturn(
+                  RouteBCoverage.fromJson(
+                    jsonEncode({
+                      'analysisVersion': routeBDeclarationsAnalysisVersion,
+                      'verdict': 'accept',
+                      'changed': ['package:app/main.dart#routeBValue'],
+                      'added': <String>[],
+                      'removed': <String>[],
+                      'patchable': ['package:app/main.dart#routeBValue'],
+                      'conditional': <String>[],
+                      'rejections': <Object>[],
+                      'refusalSummary': null,
+                    }),
+                  ),
+                );
+
+                await runWithOverrides(
+                  () => patcher.createPatchArtifacts(
+                    appId: appId,
+                    releaseId: releaseId,
+                    releaseArtifact: releaseArtifactFile,
+                    supplementDirectory: supplementDirectory,
+                  ),
+                );
+
+                verifyNever(
+                  () => logger.warn(
+                    any(that: contains('predates analysis version')),
+                  ),
+                );
+              },
+            );
+
             test('analyzes coverage against the RELEASE kernel', () async {
               await runWithOverrides(
                 () => patcher.createPatchArtifacts(
@@ -2200,9 +3601,9 @@ This may indicate that the patch contains native changes, which cannot be applie
                   ),
                 );
 
-                // The LC_UUID written into the fixture App binary (bytes 1..16),
-                // which is what OS::GetAppBuildId reports on device. Read from
-                // the shipped bytes, so re-signing cannot change it.
+                // The LC_UUID written into the fixture App binary (bytes
+                // 1..16), which is what OS::GetAppBuildId reports on device.
+                // Read from the shipped bytes, so re-signing cannot change it.
                 final buildId =
                     verify(
                           () => routeBProducer.produce(
@@ -2225,12 +3626,12 @@ This may indicate that the patch contains native changes, which cannot be applie
               },
             );
 
-            test('hands the producer the release\'s own capability set', () {
+            test("hands the producer the release's own capability set", () {
               // The producer decides a private reference against THIS, so the
               // manifest has to arrive from the release's hash-verified
               // artifact. Reading it anywhere else -- regenerating it, or
-              // trusting the policy name -- would let a patch reference a member
-              // this release never retained.
+              // trusting the policy name -- would let a patch reference a
+              // member this release never retained.
               writeReleaseProvenance(
                 engineRevision: releaseEngineRevision,
                 capabilityManifest: jsonEncode({
@@ -2279,72 +3680,75 @@ This may indicate that the patch contains native changes, which cannot be applie
               });
             });
 
-            test('P5.1: refuses a release with no build configuration', () async {
-              // This used to WARN AND CONTINUE, which made absent evidence read
-              // as agreement. It is also what the RELEASE side already intends:
-              // ios_releaser records buildConfig: null only when a build's
-              // define expansion disagreed with Flutter's own, and marks that
-              // release unpatchable when it is cut.
-              //
-              // Distinct from the legacy case on purpose: an old release also
-              // predates the contract revision and is refused EARLIER, by P4.4,
-              // with a message about the epoch. Reaching here means a
-              // revision-capable release whose evidence is incomplete.
-              writeReleaseProvenance(
-                engineRevision: releaseEngineRevision,
-                omitBuildConfig: true,
-              );
-              await expectLater(
-                runWithOverrides(
-                  () => patcher.createPatchArtifacts(
-                    appId: appId,
-                    releaseId: releaseId,
-                    releaseArtifact: releaseArtifactFile,
-                    supplementDirectory: supplementDirectory,
-                  ),
-                ),
-                throwsA(isA<ProcessExit>()),
-              );
-              verify(
-                () => logger.err(
-                  any(
-                    that: allOf(
-                      contains(
-                        RouteBBuildSemanticsProblem.evidenceAbsent.wire,
-                      ),
-                      // It must NOT read as an old release: that would send an
-                      // operator to cut a new release when the real cause is a
-                      // define expansion that disagreed with Flutter's.
-                      contains('this is not an old release'),
+            test(
+              'P5.1: refuses a release with no build configuration',
+              () async {
+                // This used to WARN AND CONTINUE, which made absent evidence
+                // read as agreement. It is also what the RELEASE side already
+                // intends: ios_releaser records buildConfig: null only when a
+                // build's define expansion disagreed with Flutter's own, and
+                // marks that release unpatchable when it is cut.
+                //
+                // Distinct from the legacy case on purpose: an old release also
+                // predates the contract revision and is refused EARLIER, by
+                // P4.4, with a message about the epoch. Reaching here means a
+                // revision-capable release whose evidence is incomplete.
+                writeReleaseProvenance(
+                  engineRevision: releaseEngineRevision,
+                  omitBuildConfig: true,
+                );
+                await expectLater(
+                  runWithOverrides(
+                    () => patcher.createPatchArtifacts(
+                      appId: appId,
+                      releaseId: releaseId,
+                      releaseArtifact: releaseArtifactFile,
+                      supplementDirectory: supplementDirectory,
                     ),
                   ),
-                ),
-              ).called(1);
-              // And nothing was produced.
-              verifyNever(
-                () => routeBProducer.produce(
-                  compiler: any(named: 'compiler'),
-                  coverage: any(named: 'coverage'),
-                  releaseImportKernel: any(named: 'releaseImportKernel'),
-                  releaseBuildId: any(named: 'releaseBuildId'),
-                  workingDirectory: any(named: 'workingDirectory'),
-                  projectRoot: any(named: 'projectRoot'),
-                  capabilities: any(named: 'capabilities'),
-                  buildConfig: any(named: 'buildConfig'),
-                  survival: any(named: 'survival'),
-                  releaseEvidence: any(named: 'releaseEvidence'),
-                ),
-              );
-            });
+                  throwsA(isA<ProcessExit>()),
+                );
+                verify(
+                  () => logger.err(
+                    any(
+                      that: allOf(
+                        contains(
+                          RouteBBuildSemanticsProblem.evidenceAbsent.wire,
+                        ),
+                        // It must NOT read as an old release: that would send
+                        // an operator to cut a new release when the real cause
+                        // is a define expansion that disagreed with Flutter's.
+                        contains('this is not an old release'),
+                      ),
+                    ),
+                  ),
+                ).called(1);
+                // And nothing was produced.
+                verifyNever(
+                  () => routeBProducer.produce(
+                    compiler: any(named: 'compiler'),
+                    coverage: any(named: 'coverage'),
+                    releaseImportKernel: any(named: 'releaseImportKernel'),
+                    releaseBuildId: any(named: 'releaseBuildId'),
+                    workingDirectory: any(named: 'workingDirectory'),
+                    projectRoot: any(named: 'projectRoot'),
+                    capabilities: any(named: 'capabilities'),
+                    buildConfig: any(named: 'buildConfig'),
+                    survival: any(named: 'survival'),
+                    releaseEvidence: any(named: 'releaseEvidence'),
+                  ),
+                );
+              },
+            );
 
             test(
               'P5.1 MUTATION: with the check gone, the same patch proceeds',
               () async {
                 // The mutation is the release recording a COMPARABLE empty
-                // configuration instead of none, with everything else identical.
-                // The same patch then reaches the producer -- which is what makes
-                // the row above a demonstration that this check is what refused,
-                // rather than something else along the way.
+                // configuration instead of none, with everything else
+                // identical. The same patch then reaches the producer -- which
+                // is what makes the row above a demonstration that this check
+                // is what refused, rather than something else along the way.
                 writeReleaseProvenance(engineRevision: releaseEngineRevision);
                 await runWithOverrides(
                   () => patcher.createPatchArtifacts(
@@ -2428,8 +3832,8 @@ This may indicate that the patch contains native changes, which cannot be applie
                 ),
                 throwsA(isA<ProcessExit>()),
               );
-              // Both revisions named: "these cannot be mixed" is only actionable
-              // if you can see which two.
+              // Both revisions named: "these cannot be mixed" is only
+              // actionable if you can see which two.
               verify(
                 () => logger.err(
                   any(
@@ -2529,7 +3933,8 @@ This may indicate that the patch contains native changes, which cannot be applie
               });
             });
 
-            test('ships the container through the normal artifact path', () async {
+            test('ships the container through the normal '
+                'artifact path', () async {
               // A Route B release must never reach the private-linker path.
               // That fallback cannot work here and would quietly leave the old
               // architecture as the default for exactly the releases that
@@ -2904,6 +4309,42 @@ This may indicate that the patch contains native changes, which cannot be applie
             );
           });
         });
+
+        group('when the release artifact is damaged', () {
+          setUp(() {
+            when(
+              () => artifactManager.extractZip(
+                zipFile: any(named: 'zipFile'),
+                outputDirectory: any(named: 'outputDirectory'),
+              ),
+            ).thenThrow(
+              ArchiveException('zip: end of central directory not found'),
+            );
+          });
+
+          test('fails progress and exits naming the fix', () async {
+            await expectLater(
+              () => runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                ),
+              ),
+              exitsWithError(
+                message:
+                    'The release artifact downloaded from Shorebird is '
+                    'damaged: zip: end of central directory not found',
+                hint: allOf(
+                  startsWith('Re-run to download it again.'),
+                  endsWith('Run: shorebird release ios'),
+                ),
+                exitCode: ExitCode.software,
+              ),
+            );
+            verify(() => progress.fail()).called(1);
+          });
+        });
       });
     });
 
@@ -3179,4 +4620,20 @@ This may indicate that the patch contains native changes, which cannot be applie
       });
     });
   }, testOn: 'mac-os');
+}
+
+/// Writes `.dart_tool/package_config.json` under [projectRoot], one entry per
+/// package name and root URI (relative to `.dart_tool/`, as pub writes them).
+void writePackageConfig(Directory projectRoot, Map<String, String> roots) {
+  File(p.join(projectRoot.path, '.dart_tool', 'package_config.json'))
+    ..createSync(recursive: true)
+    ..writeAsStringSync(
+      jsonEncode({
+        'configVersion': 2,
+        'packages': [
+          for (final MapEntry(:key, :value) in roots.entries)
+            {'name': key, 'rootUri': value, 'packageUri': 'lib/'},
+        ],
+      }),
+    );
 }

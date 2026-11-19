@@ -1,0 +1,10 @@
+## patch_refuse_i2.log (5914 lines; excerpt)
+5891:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+5892:[route-b] compiled _HomeState._half -> /Users/mendel/Developer/shorebird-wt/devrun/work/untab/build/route_b/replacement_0.bytecode
+5893: This patch changes a function this version of Shorebird cannot yet turn into a replacement body:
+5894: 
+5895:   package:untab/main.dart#_HomeState._start
+5896:       it calls the dart: method `Iterable.iterator` (an SDK instance member, this release has no `get:iterator` on `ObserverList` (in `package:flutter/src/foundation/observer_list.dart` that can be a `Iterable` here), and 2 more). An SDK instance method is looked up by name when it runs, and the app throws NoSuchMethodError at that call if the release never called it. Members marked "measured" failed on a device, and those on no list were never measured: no flag unlocks either, because the patcher only lets through members measured on a device. Only a refusal because the snapshot of this
+5897: 
+5898: The whole patch is refused. This is not a problem with your release. Nothing was
+

@@ -91,13 +91,16 @@ docker ps --format '{{.Names}}' | grep -qx r12-flutter-git \
   || die "r12-flutter-git is not running (the owned Flutter mirror service)"
 got="$(docker run --rm --platform linux/amd64 --add-host host.docker.internal:host-gateway --entrypoint git alpine/git:latest \
         ls-remote git://host.docker.internal:9418/flutter.git \
-        "$FLUTTER_REF" 2>/dev/null | awk '{print $1}')"
+        "$FLUTTER_REF" 2>/dev/null | awk '{print $1}')" || true   # fall through to the die below, which names the cause
 [[ -n "$got" && "$got" == "$PINNED" ]] \
   || die "owned Flutter mirror serves '$got', expected the pinned $PINNED"
 echo "   owned flutter mirror     : serves $PINNED"
 
-for svc in "CDN $CDN/flutter_infra_release/flutter/$PRODUCER/android-arm64-release/linux-x64.zip" \
-           "control-plane http://host.docker.internal:18081/"; do
+# A bootstrap-only arm never talks to the control plane (it stops after
+# `shorebird --version`), so it does not need one running.
+services=("CDN $CDN/flutter_infra_release/flutter/$PRODUCER/android-arm64-release/linux-x64.zip")
+[[ "${R12_BOOTSTRAP_ONLY:-0}" == "1" ]] || services+=("control-plane http://host.docker.internal:18081/")
+for svc in "${services[@]}"; do
   name="${svc%% *}"; url="${svc#* }"
   # The probe must trust our CA too. A stock curl image does not, so an https
   # mirror came back 000 and read as "unreachable" when it was serving fine. The
