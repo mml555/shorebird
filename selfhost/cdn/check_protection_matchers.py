@@ -38,6 +38,7 @@ PROTECTED_CELLS = [
     'aab9fd07857142c232e4b5a41e41814b8dbf640f',   # minted cell over d0714887's bytes, analyzer v15 (Flutter 3.47, Route B iOS)
     '2fc41d3fbd9966958ba3ccf2be9761e064e92bcc',   # minted cell over d0714887's bytes, analyzer v17 (Flutter 3.47, Route B iOS)
     'a6a48cf673a291f607323e89b41839c4b8b74e5d',   # minted cell over d0714887's bytes, analyzer v21 + enclosingScope (Flutter 3.47, Route B iOS)
+    '54117a2fe0510a8cb070faf3f5191542179fb4ce',   # minted cell over d0714887's bytes, analyzer v23 (for-in receiver class on the lowered loop, #256) (Flutter 3.47, Route B iOS)
 ]
 # Hashes that publish OUR linux-x64 host toolchain, so linux-x64/font-subset.zip
 # (it carries our const_finder) is owned for them and for no other hash.
@@ -53,6 +54,7 @@ LINUX_FONT_CELLS = [
     'aab9fd07857142c232e4b5a41e41814b8dbf640f',   # minted cell over d0714887's bytes, analyzer v15 (Flutter 3.47, Route B iOS)
     '2fc41d3fbd9966958ba3ccf2be9761e064e92bcc',   # minted cell over d0714887's bytes, analyzer v17 (Flutter 3.47, Route B iOS)
     'a6a48cf673a291f607323e89b41839c4b8b74e5d',   # minted cell over d0714887's bytes, analyzer v21 + enclosingScope (Flutter 3.47, Route B iOS)
+    '54117a2fe0510a8cb070faf3f5191542179fb4ce',   # minted cell over d0714887's bytes, analyzer v23 (for-in receiver class on the lowered loop, #256) (Flutter 3.47, Route B iOS)
 ]
 # Hashes that publish OUR darwin-x64 host toolchain.
 DARWIN_X64_FONT_CELLS = [
@@ -66,6 +68,7 @@ DARWIN_X64_FONT_CELLS = [
     'aab9fd07857142c232e4b5a41e41814b8dbf640f',   # minted cell over d0714887's bytes, analyzer v15 (Flutter 3.47, Route B iOS)
     '2fc41d3fbd9966958ba3ccf2be9761e064e92bcc',   # minted cell over d0714887's bytes, analyzer v17 (Flutter 3.47, Route B iOS)
     'a6a48cf673a291f607323e89b41839c4b8b74e5d',   # minted cell over d0714887's bytes, analyzer v21 + enclosingScope (Flutter 3.47, Route B iOS)
+    '54117a2fe0510a8cb070faf3f5191542179fb4ce',   # minted cell over d0714887's bytes, analyzer v23 (for-in receiver class on the lowered loop, #256) (Flutter 3.47, Route B iOS)
 ]
 # Cells whose sky/gpu packages are protected but whose iOS modes are not.
 SKY_ONLY_CELLS = [
