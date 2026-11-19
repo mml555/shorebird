@@ -18,7 +18,9 @@ Caddyfile answers 404 for `/metrics` and `/readyz`; and for servers that sign
 users in through an IdP, production refuses to start without `IDP_ISSUER`, and
 an IdP whose id_tokens omit `email_verified` needs
 `IDP_ALLOW_UNVERIFIED_EMAIL=true`. A server without an IdP and with a `.env`
-written by `setup.sh` or `.env.example` upgrades from 1.4.0 with no change.
+written by `setup.sh` or `.env.example` needs no `.env` change, but external
+monitoring of `/metrics` or `/readyz` must move (the Caddyfile answers 404), and
+the schema migrations cannot be undone (see Added).
 
 ### Added
 
@@ -85,10 +87,11 @@ written by `setup.sh` or `.env.example` upgrades from 1.4.0 with no change.
     `0`, keep forever) drops older rows; `GET /runs` lists summaries only
     (no `metadata` or `build_flags`), at most 200 rows. `POST /runs` is audited
     as `build_run.record`.
-  - Downgrading is not possible after this release: a database at migration 19
-    or 20 makes an older server refuse to boot (`SchemaTooNewException`).
-    Restore a backup, or delete the `schema_migrations` rows 19 and 20 (and
-    drop `channel_patches.rollout_bps` and `build_runs`) first. During a rolling
+  - Downgrading is not possible after this release: a database past migration
+    16 (17 to 22) makes an older server refuse to boot (`SchemaTooNewException`).
+    Restore a backup taken before the upgrade; deleting `schema_migrations` rows
+    is not enough (the columns, tables and indexes of migrations 17 to 22 stay,
+    and 1.4.0 would not know the schema). During a rolling
     upgrade an old pod's rollout changes are still honoured (it writes
     `rollout`, which is read when `rollout_bps` disagrees).
   - `patch --share-debug-info`: accepted and ignored. A debug bundle goes to
@@ -190,6 +193,8 @@ written by `setup.sh` or `.env.example` upgrades from 1.4.0 with no change.
     leaves it active and also listed in `rolled_back_patch_numbers`, and devices
     keep dropping and re-fetching it.
 
+- **Re-uploading a verified release artifact with the same bytes answers 200**
+  (multipart), not 409, so a CLI retry after a lost response succeeds.
 - **A failed object-store write no longer strands a patch upload.** When
   `store.put` threw (store down, disk full, timeout) the artifact stayed
   `uploading` for good: the retry got a 409 and re-registering hit the duplicate

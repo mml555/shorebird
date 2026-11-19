@@ -1,17 +1,25 @@
 # selfhost-v2.0.0
 
 The annotated tag message and the GitHub release text for `selfhost-v2.0.0`.
-Cut it from the merge commit of the release PR:
+Order matters, and it is the owner's to run after the release PR merges:
+
+1. Push `code_push_server-v2.0.0` on the merge commit. It builds and publishes
+   `:2.0.0` (both architectures), which both compose files pin. Wait for
+   `release_code_push_server` to go green.
+2. Then create `selfhost-v2.0.0` on the same commit, one step later (both tags
+   on one commit at once race on `:source-<sha>`):
 
 ```sh
 git tag -a selfhost-v2.0.0 -F selfhost/release_notes/selfhost-v2.0.0.md <merge sha>
 ```
 
 The version is 2.0.0 because the server this checkout pins, `code_push_server`
-2.0.0, needs `.env` changes on some existing deployments (see its CHANGELOG:
-`PRODUCTION` values, `PUBLIC_BASE_URL`, the Caddyfile, `IDP_ISSUER`). The tag is
-a distribution tag: it publishes no image (the `code_push_server-v2.0.0` tag
-does) and it is the ref `bootstrap_selfhost.sh` picks as the newest.
+2.0.0, needs operator attention on some existing deployments (see its
+CHANGELOG: `PRODUCTION` values, `PUBLIC_BASE_URL`, the Caddyfile, `IDP_ISSUER`,
+irreversible migrations). A `selfhost-v*` tag does not create `:2.0.0` or move
+`:latest`; the workflow only gives it a traceability image tag
+(`:selfhost-v2.0.0`) and `:source-<sha>`. It is the ref `bootstrap_selfhost.sh`
+picks as the newest.
 
 ## Pins
 
@@ -35,6 +43,11 @@ the pair is only re-qualified by the promotion chain.
 - iOS: the iPhone 7 run on this cell (2026-11-19) was PARTIAL. This cell is NOT
   device-qualified. The last device-qualified cell is 2fc41d3f. Details:
   `selfhost/engine/route_b/evidence/ios-cell-a6a48cf6/RESULT.md`.
+- Within that run the combo patch silently dropped the `tally` path-dependency
+  edit, nine of eleven patches were published with the snapshot check skipped
+  (checker false positive, #247), and the patches were unsigned.
+- No `selfhost-v*` tag offers the device-qualified cell 2fc41d3f; this tag is the
+  first with a newer cell.
 - The CLI revision was not itself qualified on this cell (see
   `selfhost/engine/route_b/SUPPORTED_STATE.yaml`, `lineage.cli_revision`).
 
