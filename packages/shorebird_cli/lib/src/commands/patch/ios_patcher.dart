@@ -268,10 +268,6 @@ class IosPatcher extends Patcher
         // compiler failure and a container failure are three different problems
         // and must never be reachable through one another.
         var coverage = _analyzeCoverage(compiler, releaseArtifacts);
-        // A CHANGED DEPENDENCY, BEFORE ANY VERDICT. The analysis above sees the
-        // app's own package only, so an edit in a path dependency would
-        // otherwise publish a patch without it, and say nothing.
-        _refuseDependencyChanges(compiler, releaseArtifacts);
         if (coverage.analysisVersion < routeBSelectorCallsAnalysisVersion) {
           // The analyzer ships in the release's compiler cell, and a cell below
           // 19 cannot see a call by name on a `dynamic` value, an instance
@@ -299,6 +295,16 @@ Nothing was uploaded.''',
         // asks again, for the members it carries.
         final retention = _readRouteBRetention(releaseArtifacts, provenance);
         _refuseUnretained(coverage, retention);
+        if (coverage.verdict == RouteBVerdict.reject) {
+          _refuseCoverage(coverage);
+        }
+        // A CHANGED DEPENDENCY, after the cheap refusals above and before the
+        // inert verdict. The analysis above sees the app's own package only, so
+        // an edit in a path dependency would otherwise publish a patch without
+        // it, and say nothing; and a patch whose only edit is in a dependency
+        // is inert to the app pass, so it is named here rather than as "no
+        // change".
+        _refuseDependencyChanges(compiler, releaseArtifacts);
         if (coverage.verdict != RouteBVerdict.accept) {
           _refuseCoverage(coverage);
         }
@@ -780,18 +786,7 @@ A patch is only interpretable against one whole contract, so these cannot be mix
       // pubspec renamed since the release matches no library, and every
       // member would read as a changed framework member. An empty name is
       // refused rather than falling back to "every library is the app".
-      final packageName =
-          _releaseAppPackageName ?? shorebirdEnv.getPubspecYaml()?.name;
-      if (packageName == null || packageName.isEmpty) {
-        logger.err(
-          '''
-Could not determine this app's package name (the release recorded none and pubspec.yaml has no name), so the patch cannot tell the app's code from the framework's.
-
-Nothing was uploaded.''',
-        );
-        throw ProcessExit(ExitCode.software.code);
-      }
-      final prefixes = routeBAppIncludePrefixes(packageName);
+      final prefixes = routeBAppIncludePrefixes(_routeBAppPackageName());
       return carry.isEmpty
           ? routeBCoverageAnalyzer.analyze(
               compiler: compiler,
@@ -817,15 +812,41 @@ Nothing was uploaded.''',
     }
   }
 
+  /// The app's package name: THE RELEASE'S when it recorded one, not the
+  /// working tree's, since a pubspec renamed since the release matches no
+  /// library and every member would read as a changed framework member.
+  ///
+  /// A missing or empty name is refused rather than falling back to "every
+  /// library is the app".
+  String _routeBAppPackageName() {
+    final packageName =
+        _releaseAppPackageName ?? shorebirdEnv.getPubspecYaml()?.name;
+    if (packageName == null || packageName.isEmpty) {
+      logger.err(
+        '''
+Could not determine this app's package name (the release recorded none and pubspec.yaml has no name), so the patch cannot tell the app's code from the framework's.
+
+Nothing was uploaded.''',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+    return packageName;
+  }
+
   /// Refuse a patch whose build changed code outside the app's own package.
   ///
   /// A Route B patch carries the app's own libraries only: the release's
   /// census, interface and target manifest stop at `package:<app>/`. A changed
   /// dependency library (a path package next to the app, a git ref, another
-  /// hosted version) is never compared by [_analyzeCoverage], so it would be
-  /// left out of the patch with nothing said, and the device would keep
-  /// running the release's copy. One more analysis, over every other package
-  /// the build compiled, finds those edits, and any one refuses the patch.
+  /// hosted version, localizations generated from .arb files) is never
+  /// compared by [_analyzeCoverage], so it would be left out of the patch with
+  /// nothing said, and the device would keep running the release's copy. One
+  /// more analysis, over every package library on both sides, finds those
+  /// edits; a package only one side has reads as removed (release only) or is
+  /// refused by retention when the app calls it (patch only).
+  ///
+  /// Always run: the release records no lock file or dependency source hashes
+  /// to prove nothing changed, and the pass costs well under a second.
   ///
   /// Fails closed: a package config that cannot be read, or an analysis that
   /// fails, refuses rather than skipping the check.
@@ -833,20 +854,16 @@ Nothing was uploaded.''',
     RouteBCompiler compiler,
     Map<String, File> releaseArtifacts,
   ) {
-    final packageName =
-        _releaseAppPackageName ?? shorebirdEnv.getPubspecYaml()!.name;
+    final packageName = _routeBAppPackageName();
+    final projectRoot = shorebirdEnv.getShorebirdProjectRoot()!;
     final packageConfig = File(
-      p.join(
-        shorebirdEnv.getShorebirdProjectRoot()!.path,
-        '.dart_tool',
-        'package_config.json',
-      ),
+      p.join(projectRoot.path, '.dart_tool', 'package_config.json'),
     );
-    final List<String> prefixes;
+    final RouteBPackages packages;
     try {
-      prefixes = routeBDependencyIncludePrefixes(
+      packages = readRouteBPackages(
         packageConfig: packageConfig,
-        appPackageName: packageName,
+        projectRoot: projectRoot,
         flutterRoot: shorebirdEnv.flutterDirectory,
       );
     } on FormatException catch (error) {
@@ -856,7 +873,6 @@ Could not list this app's dependencies, so the patch cannot check that none of t
 Run `flutter pub get` and try again. Nothing was uploaded.''');
       throw ProcessExit(ExitCode.software.code);
     }
-    if (prefixes.isEmpty) return;
 
     final RouteBCoverage coverage;
     try {
@@ -864,7 +880,7 @@ Run `flutter pub get` and try again. Nothing was uploaded.''');
         compiler: compiler,
         baseDill: releaseArtifacts[routeBReleaseKernelFileName]!,
         patchedDill: File(appDillCopyPath),
-        includePrefixes: prefixes,
+        includePrefixes: routeBDependencyIncludePrefixes,
       );
     } on RouteBCompilerException catch (error) {
       logger.err(error.message);
@@ -877,16 +893,17 @@ Run `flutter pub get` and try again. Nothing was uploaded.''');
     }
     final changes = routeBDependencyChanges(
       coverage,
-      appPrefixes: routeBAppIncludePrefixes(packageName),
+      appPackageName: packageName,
+      flutterSdk: packages.flutterSdk,
     );
     if (changes.isEmpty) return;
-    logger.err('''
-This patch changes code outside the app's own package ($packageName), which an iOS patch cannot carry:
-${changes.map((target) => '  - $target').join('\n')}
-
-An iOS patch replaces functions of package:$packageName only, so these changes would not reach the device. Revert them, or ship them in a new release.
-
-Nothing was uploaded.''');
+    logger.err(
+      describeRouteBDependencyChanges(
+        changes,
+        packages: packages,
+        appPackageName: packageName,
+      ),
+    );
     throw ProcessExit(ExitCode.software.code);
   }
 
