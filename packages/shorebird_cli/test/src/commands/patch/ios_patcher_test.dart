@@ -2188,7 +2188,7 @@ callable:
   - library: 'package:app/main.dart'
 """;
 
-              void coverageCalling() {
+              void coverageCalling(List<Map<String, Object?>> refs) {
                 final coverage = RouteBCoverage.fromJson(
                   jsonEncode({
                     'analysisVersion': routeBSelectorCallsAnalysisVersion,
@@ -2204,7 +2204,7 @@ callable:
                     'conditional': <String>[],
                     'sources': <String, Object?>{},
                     'externalReferences': {
-                      'package:app/main.dart#routeBValue': [ref],
+                      'package:app/main.dart#routeBValue': refs,
                     },
                     'rejections': <Object>[],
                     'refusalSummary': null,
@@ -2221,7 +2221,11 @@ callable:
               }
 
               // A profile whose String classes have `split` (or not).
-              String profile({required bool hasSplit}) => routeBProfile({
+              String profile({
+                required bool hasSplit,
+                Map<String, RouteBProfileClass> more = const {},
+              }) => routeBProfile({
+                ...more,
                 'Object': const RouteBProfileClass(
                   'Object',
                   routeBCoreLibrary,
@@ -2261,6 +2265,7 @@ callable:
                 String? profileDigest,
                 bool omitProfileDigest = false,
                 bool flag = false,
+                List<Map<String, Object?>> refs = const [ref],
               }) {
                 when(
                   () => argResults['allow-unchecked-sdk-calls'],
@@ -2272,7 +2277,7 @@ callable:
                   profileDigest: profileDigest,
                   omitProfileDigest: omitProfileDigest,
                 );
-                coverageCalling();
+                coverageCalling(refs);
               }
 
               Future<void> patchAndSwallow() => runWithOverrides(
@@ -2354,8 +2359,8 @@ callable:
                 },
               );
 
-              test('--allow-unchecked-sdk-calls does not read the profile, '
-                  'and does not unlock a member off the list', () async {
+              test('--allow-unchecked-sdk-calls skips the SDK-member check '
+                  'against the profile', () async {
                 release(snapshotProfile: profile(hasSplit: false), flag: true);
                 await patchAndSwallow();
                 expect(sdkErrors(), isEmpty);
@@ -2363,6 +2368,61 @@ callable:
                   CreatePatchPlatformMetadata.forTest(),
                 );
                 expect(metadata.allowUncheckedSdkCalls, isTrue);
+              });
+
+              group('an extension getter the release called itself', () {
+                // No interface lists an `Ext|get#x`; only the profile can show
+                // the release kept it, so the flag must not drop the profile.
+                const stars = 'Stars|get#stars';
+                const starsRef = {
+                  'kind': 'top-level',
+                  'library': 'package:app/main.dart',
+                  'class': null,
+                  'member': stars,
+                  'private': false,
+                };
+                List<String> starsErrors() =>
+                    errors.where((m) => m.contains(stars)).toList();
+                String profileWithStars() => profile(
+                  hasSplit: false,
+                  more: {
+                    'top': const RouteBProfileClass(
+                      '::',
+                      'package:app/main.dart',
+                      fns: {stars: '[Optimized] $stars'},
+                    ),
+                  },
+                );
+
+                test('is kept under --allow-unchecked-sdk-calls', () async {
+                  release(
+                    snapshotProfile: profileWithStars(),
+                    flag: true,
+                    refs: [ref, starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(starsErrors(), isEmpty);
+                  expect(sdkErrors(), isEmpty);
+                });
+
+                test('is kept without the flag', () async {
+                  release(
+                    snapshotProfile: profileWithStars(),
+                    refs: [starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(starsErrors(), isEmpty);
+                });
+
+                test('is still refused under --allow-unchecked-sdk-calls when '
+                    'the release uploaded no profile', () async {
+                  release(flag: true, refs: [starsRef]);
+                  await patchAndSwallow();
+                  expect(
+                    starsErrors().single,
+                    contains('the extension member `$stars`'),
+                  );
+                });
               });
             });
 

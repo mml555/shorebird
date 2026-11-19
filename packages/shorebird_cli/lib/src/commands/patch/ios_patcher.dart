@@ -671,13 +671,15 @@ A patch is only interpretable against one whole contract, so these cannot be mix
     RouteBReleaseProvenance provenance,
   ) {
     // The release's own snapshot profile says which `dart:` instance members
-    // it kept. Skipped (not even decoded) under --allow-unchecked-sdk-calls.
-    final kept = allowUncheckedSdkCalls
-        ? null
-        : RouteBSnapshotKept.read(
-            releaseArtifacts[routeBSnapshotProfileFileName],
-            expectedSha256: provenance.artifacts[routeBSnapshotProfileFileName],
-          );
+    // it kept, and which extension getters and setters (`Ext|get#x`, which no
+    // interface lists) its own code called. It is read even under
+    // --allow-unchecked-sdk-calls: that flag skips the SDK-member check only
+    // (`skipKeptCheck`), and an extension member still needs the profile to be
+    // shown kept, so dropping it would refuse every one of them.
+    final kept = RouteBSnapshotKept.read(
+      releaseArtifacts[routeBSnapshotProfileFileName],
+      expectedSha256: provenance.artifacts[routeBSnapshotProfileFileName],
+    );
     if (allowUncheckedSdkCalls) {
       usedUncheckedSdkCalls = true;
       logger.warn(
@@ -687,14 +689,13 @@ A patch is only interpretable against one whole contract, so these cannot be mix
         '$routeBSelectorCallsAnalysisVersion). This is recorded in the '
         "patch's metadata.",
       );
-    } else if (kept?.problem != null) {
-      logger.detail('[route-b] ${kept!.problem}');
     }
+    if (kept.problem != null) logger.detail('[route-b] ${kept.problem}');
     final retention = RouteBRetention.read(
       releaseArtifacts[routeBInterfaceFileName],
       capabilities: _readReleaseCapabilities(releaseArtifacts),
-      kept: kept?.kept,
-      keptProblem: kept?.problem,
+      kept: kept.kept,
+      keptProblem: kept.problem,
       skipKeptCheck: allowUncheckedSdkCalls,
     );
     if (retention == null) {
