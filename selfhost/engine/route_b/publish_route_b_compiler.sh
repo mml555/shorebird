@@ -33,7 +33,9 @@ OUT=${OUT:-$SRC/out/host_release_arm64}
 # The checkout's own overlay, as every other script here defaults to. This was an
 # absolute path on a machine that no longer exists, so a publish anywhere else
 # wrote the archive into a directory nothing reads.
-OVERLAY=${OVERLAY:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../cdn/overlay" && pwd)}
+# Resolved through selfhost/, which always exists: the overlay itself may not yet,
+# and this runs before --overlay is parsed.
+OVERLAY=${OVERLAY:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/cdn/overlay}
 BUCKET=${BUCKET:-download.shorebird.dev}
 REV=""
 PLAT=${PLAT:-darwin-arm64}
