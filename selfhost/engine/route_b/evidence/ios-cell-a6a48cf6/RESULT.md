@@ -3,7 +3,8 @@
 **Result: PARTIAL. Not a clean pass; this cell is not device-qualified by this run.** The `2fc41d3f` sequence was
 repeated on a physical iPhone 7 (iOS 15.8.8) through the cell `a6a48cf673a291f607323e89b41839c4b8b74e5d`, plus the
 edits analysis 21 allows. Every patch that published applied all its targets on every launch, the refusals that
-reached their own verdict were the right ones, and both rollbacks worked. Three things keep it from a pass:
+reached their own verdict were the right ones, and all three rollbacks worked. Two things keep it from a pass, and
+a third narrows what the cell was meant to add:
 
 1. **Most patches skipped the snapshot check.** Nine of the eleven published patches were published with
    `--allow-unchecked-sdk-calls`, because the checked build was refused only for a known checker false positive (see
@@ -12,12 +13,20 @@ reached their own verdict were the right ones, and both rollbacks worked. Three 
    applied to the source, the patch published, and the device ran the release's `tallyLabel` (`tally=K1 3`). The
    2fc41d3f run applied the same edit (16/16, `K2 3`). Nothing in the CLI's output says the edit was dropped.
 3. The extension form of "a member naming its own class's statics" was refused (e1, e1b); only the class form passed.
+   The refusal itself is correct (before upload, with the reason: a replacement does not pass the extension's
+   receiver), so it is a coverage gap against what the cell was promoted for, not a wrong verdict.
+
+Where the fixes stand: #247 (the for-in false positive) and #248 (the flag's side effect) are merged; #247 ships as
+analysis version 23, which this cell's v21 analyzer does not have, so a checked run needs a new cell. #251 (refuse a
+patch that changes a dependency instead of dropping it; its root cause is `c9c6270d8`, the app-only `--include`
+prefix reaching the patch path) and #252 (the SDK kept check asks concrete base classes too) are open. Qualifying
+needs a new analysis-23 cell, a CLI with #248, #251 and #252, and this sequence rerun with the check on.
 
 ## What ran
 
 | | |
 |---|---|
-| CLI | mml555/shorebird `e7384444fad53cdd35317fe3dc0abc4d3c7b1c36` (the merge of PR #234) plus ONE cherry-pick: `05d5b08db34a3ec4a2b2a0db51766abc328cda2a`, which is `72873c909` from PR #248 ("read the snapshot profile under --allow-unchecked-sdk-calls"). Local scratch branch `devrun/a6a4-unchecked-fix`; the CLI snapshot was rebuilt from it before any patch. The release was built by `e7384444` alone (the cherry-pick touches only the patch path). |
+| CLI | mml555/shorebird `e7384444fad53cdd35317fe3dc0abc4d3c7b1c36` (the merge of PR #234, pubspec `1.6.140+selfhost.1`) plus ONE cherry-pick: `05d5b08db34a3ec4a2b2a0db51766abc328cda2a`, which is `72873c909` from PR #248 ("read the snapshot profile under --allow-unchecked-sdk-calls"). Local scratch branch `devrun/a6a4-unchecked-fix`; the CLI snapshot was rebuilt from it before any patch. The release was built by `e7384444` alone (the cherry-pick touches only the patch path). So the patches were built by `e7384444` plus `05d5b08d`, not by the pinned CLI alone. |
 | Flutter | shorebird-flutter `cc4fc222c210836f89bde6e91f7580e8241432da`; bootstrap printed `Flutter 3.46.0-1.0.pre-866` and `Shorebird Engine • revision a6a48cf673a291f607323e89b41839c4b8b74e5d` (`bootstrap.log`) |
 | Engine | resolved from ci-build's production cdn-cache (`10.0.0.41:8085`) through `origin.py`. Release phase (`artifact_origin_release.jsonl`): 7 requests, 3 descriptor fetches returned 200 with `X-Overlay: hit`, 4 `aot-tools.dill` probes 404 (the engine artifacts were already in the CLI's cache). Patch phase (`artifact_origin.jsonl`): 87 requests, all naming `a6a48cf6`; the 29 that returned 200 are the descriptor, all `X-Overlay: hit`; the 58 404s are all `aot-tools.dill` probes |
 | Descriptor | `GET download.shorebird.dev/shorebird/cell-manifests/a6a48cf6….v2`, 200, 4141 bytes, once per CLI command |
@@ -69,7 +78,7 @@ was refused for `package:untab/main.dart#kTitle` ("this constant changed …"), 
 
 | # | what | size | outcome |
 |---|---|---|---|
-| 1 | combo, 17 edits | 8.83 KB | 15/15 on two launches; **p15 not in it** (below) |
+| 1 | combo, 17 edits (p15 among them, p17 left out) | 8.83 KB | 15 compiled targets (the edits touch 16 functions; p15's `tallyLabel` was dropped), 15/15 on two launches (below) |
 | 2 | trio (p03+p16b+p29+p07) | 3.71 KB | 3/3 on two launches; later rolled back |
 | 3 | h1 | 3.18 KB | 2/2, 2/2 |
 | 4 | m1 | 3.18 KB | 2/2, 2/2 |
@@ -98,7 +107,8 @@ and the variant are identical to 2fc41d3f's). The patch log lists 15 `[route-b] 
 `package:untab/main.dart`; `tallyLabel` (`package:tally/tally.dart`) is not among them and no line mentions the
 package, so the CLI neither carried nor refused the change. The device then booted 15/15 and printed the release's
 `K1 3`. The 2fc41d3f run (CLI `d7e5325e`) compiled 16, `tallyLabel` included. The Nov 17 dry run of this cell's
-sequence (CLI `b7a0c335`) also compiled 15, so the change is between `d7e5325e` and `b7a0c335`; not bisected here.
+sequence (CLI `b7a0c335`) also compiled 15. #251 traces it to `c9c6270d8` (in `d7e5325e..b7a0c335`): the coverage
+analysis on the patch path compares only `package:<app>/` libraries, so a change in another package is never seen.
 A patch that silently drops an edit to a path dependency is a correctness bug, not a coverage gap.
 
 Patch 2 (3/3 on two launches): `count=10..50`, `events=5`, `events-list=1..5`, `home-build=H1 10..50`; others at
@@ -157,11 +167,13 @@ descriptor and artifacts came through `origin.py` from ci-build.
 
 ## What this does not show
 
-- A checked patch of anything that touches `_HomeState._start`: until #247 lands, every such patch here was published
-  with the snapshot check skipped. The patches' SDK calls were not checked against what this release kept; the device
+- A checked patch of anything that touches `_HomeState._start`: every such patch here was published with the
+  snapshot check skipped. #247 is merged, but as analysis version 23, so it needs a new cell. The patches' SDK calls were not checked against what this release kept; the device
   ran each one without a NoSuchMethodError, which covers these edits on this release only.
 - The p15 path-dependency edit (FAIL above).
 - The extension form of a member that names its own statics, and an extension static method (not tried).
+- Signed patches. The release had no patch public key (`No patch public key was provided`), so nothing here covers
+  the signed path, which customers must use (signing is mandatory since 2026-11-16).
 - A tap-driven increment, an obfuscated release, frame times, a second device.
 
 ## About this record

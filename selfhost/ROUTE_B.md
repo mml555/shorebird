@@ -478,10 +478,14 @@ members the release does not have, as helpers of the replaced code:
 The cell that replaced `2fc41d3f`, `a6a48cf6` (2026-11-17), has the analysis
 version 21 analyzer (PRs #217 and #219: `inlined` operator references,
 `signatureTypes` and `enclosingScope`, described below). What a patch may add
-is unchanged from `2fc41d3f`. TODO: the iPhone run through `a6a48cf6`
-([`ios-cell-a6a48cf6`](engine/route_b/evidence/ios-cell-a6a48cf6/RESULT.md))
-has not run yet, so nothing in this document is device-proven through that cell
-beyond what `2fc41d3f` showed; the promotion chain is in
+is unchanged from `2fc41d3f`. The iPhone run through `a6a48cf6` (2026-11-19,
+[`ios-cell-a6a48cf6`](engine/route_b/evidence/ios-cell-a6a48cf6/RESULT.md)) was
+partial, so the cell is not device-qualified: a class member naming its own
+class's statics and the inlined operators showed their new values, but the
+extension form was refused (a replacement does not pass the extension's
+receiver), the combo patch silently dropped an edit to a path dependency (#251),
+and nine of eleven patches were published with the snapshot check skipped for a
+for-in false positive (#247). The promotion chain is in
 [`PROMOTION_a6a48cf6.md`](evidence/r12-linux-ci/PROMOTION_a6a48cf6.md).
 
 ### A class or extension member's own statics (class scope)

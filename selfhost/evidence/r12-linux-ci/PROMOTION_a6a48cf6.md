@@ -122,7 +122,9 @@ rollbacks returned the device to the previous patch. Two things keep it from a p
 - The combo patch silently left out p15, the edit to the `tally` path dependency: the device showed the release's
   `K1 3` where `2fc41d3f`'s run showed `K2 3`, and the CLI printed nothing about it.
 
-Qualifying the cell needs a rerun with #247 merged and the p15 drop fixed.
+Qualifying the cell needs a rerun on a new cell: #247 (merged) fixes the false positive as analysis version 23,
+which this cell's v21 analyzer does not have; #248 (merged) is the cherry-picked fix; #251 (open) refuses a patch
+that changes a dependency instead of dropping it; #252 (open) makes the kept check ask concrete base classes too.
 
 ## What a patch can change now
 
@@ -168,5 +170,5 @@ ran (`tail -F` from byte 0), before the wrapper's last lines overwrote part of t
 
 ## Not done
 
-- The iPhone run (above).
-- `verify_supported_state.sh` is run against this branch before merge; its result is in the PR.
+- Device qualification: the iPhone run (above) ran on 2026-11-19 and was partial.
+- `verify_supported_state.sh` against this branch: not run, and no result is recorded here.
