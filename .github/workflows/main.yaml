@@ -32,6 +32,14 @@ env:
   GIT_HTTP_LOW_SPEED_LIMIT: 1000
   GIT_HTTP_LOW_SPEED_TIME: 30
 
+# The runners are ephemeral, so every checkout downloads the whole tree: about
+# 220 MB packed, most of it binary test fixtures and evidence (.aab, .ipa,
+# .zip, .bin). On a slow day for the home link that moves too fast for the
+# guard above and too slow to finish, and checkout hung for 5 and 15 minutes
+# (#239, #240, #243). The jobs marked "Sparse checkout" read only a few named
+# files, so they fetch no blobs up front (filter) and check out only those
+# paths: 1-11 MB instead of the whole tree.
+
 jobs:
   license_check:
     name: 📄 License Check
@@ -45,8 +53,17 @@ jobs:
     timeout-minutes: 15
     if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     steps:
+      # Sparse checkout: the action, and the pubspec files a workspace pub get reads.
       - name: 📚 Git Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /.github/
+            /pubspec.yaml
+            /pubspec.lock
+            /packages/*/pubspec.yaml
 
       - name: 👀 Check Licenses
         uses: ./.github/actions/license_check
@@ -61,10 +78,15 @@ jobs:
     # Docker Hub stall fails fast instead of holding the required check.
     timeout-minutes: 5
     steps:
+      # Sparse checkout: actionlint reads .github only.
       - name: 📚 Git Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /.github/
 
       # Catches a workflow GitHub would refuse to start (it fails such a
       # workflow's runs with no jobs and no error on the PR), plus shellcheck
@@ -102,6 +124,27 @@ jobs:
           # npx pulls cspell's dependency tree unpinned on the home runner;
           # leave it no token to find.
           persist-credentials: false
+          # Sparse checkout: the scope below, less the binaries in it, which
+          # cspell skips anyway (it checks the same 2451 files either way).
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /cspell.config.yaml
+            /selfhost/
+            /packages/code_push_server/lib/
+            !*.aab
+            !*.aar
+            !*.apk
+            !*.bin
+            !*.DWARF
+            !*.dylib
+            !*.gz
+            !*.ipa
+            !*.jar
+            !*.png
+            !*.so
+            !*.zip
+            !/selfhost/evidence/releases/*/App
 
       - name: 🪄 Spell Check (declared full-tree scope)
         run: npx --yes cspell@10.4.0 --dot --no-progress --no-summary selfhost packages/code_push_server/lib
@@ -116,10 +159,17 @@ jobs:
     if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     timeout-minutes: 5
     steps:
+      # Sparse checkout: every YAML file, and the script.
       - name: 📚 Git Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /tool/
+            *.yaml
+            *.yml
 
       - name: 🧾 Every tracked YAML file loads
         run: python3 tool/check_yaml_parses.py
@@ -134,10 +184,18 @@ jobs:
     if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
     timeout-minutes: 5
     steps:
+      # Sparse checkout: the files tool/check_updater_pin.sh names.
       - name: 📚 Git Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /tool/
+            /vendor/updater/
+            /selfhost/*.md
+            /selfhost/compatibility.yaml
 
       - name: 📌 Vendored updater matches the docs and the manifest
         run: tool/check_updater_pin.sh
