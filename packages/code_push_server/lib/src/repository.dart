@@ -2814,8 +2814,12 @@ class Repository {
     String arch,
     String platform,
   ) async {
+    // A failed upload stays as a row when the client registers the arch
+    // again (artifacts_one_live allows any number of failed rows beside the
+    // one live row), so prefer the live row, then the newest.
     final r = await _q(
-      "SELECT * FROM artifacts WHERE owner_kind = 'patch' AND owner_id = @o AND arch = @ar AND platform = @pl",
+      "SELECT * FROM artifacts WHERE owner_kind = 'patch' AND owner_id = @o AND arch = @ar AND platform = @pl "
+      "ORDER BY CASE WHEN status = 'failed' THEN 1 ELSE 0 END, id DESC LIMIT 1",
       {'o': patchId, 'ar': arch, 'pl': platform},
     );
     if (r.isEmpty) return null;

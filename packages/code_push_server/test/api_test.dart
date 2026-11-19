@@ -7116,6 +7116,27 @@ void main() {
         throwsA(predicate(isUniqueViolation)),
       );
     });
+
+    test('an architecture added again after a failed upload is served from '
+        'the retry, not the failed row', () async {
+      final p = await newPatch(platform: 'windows', arch: 'x86_64');
+      await promote(p, {'rollout_percentage': 100});
+      Future<ArtifactRow> add() => repo.createArtifact(
+        ownerKind: 'patch',
+        ownerId: p,
+        arch: 'aarch64',
+        platform: 'windows',
+        hash: 'h',
+        size: 3,
+      );
+      final failed = await add();
+      await repo.setArtifactStatus(failed.id, ArtifactStatus.failed);
+      final retry = await add();
+      await repo.setArtifactStatus(retry.id, ArtifactStatus.verified);
+
+      expect((await repo.patchArtifact(p, 'aarch64', 'windows'))?.id, retry.id);
+      expect(await offered('d', platform: 'windows', arch: 'aarch64'), isTrue);
+    });
   });
 }
 
