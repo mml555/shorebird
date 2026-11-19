@@ -150,9 +150,13 @@ Also accepts the following special values:
       )
       ..addOption(
         'release-version',
-        help: '''
-The version of the Android or iOS app that embeds this module
-(e.g. "$releaseVersionExample"). Required for aar and ios-framework only.''',
+        help:
+            '''
+The version of this module build (e.g. "$releaseVersionExample"), a new one
+for each build you release. Required for aar and ios-framework only.
+Flutter $minimumModuleReleaseVersionFlutterVersion and later build it into the module, so its patches
+reach every app that embeds it, whatever that app's version. With an earlier
+Flutter, it must equal the version of the app that embeds the module.''',
       )
       ..addMultiOption(
         'target-platform',
@@ -537,7 +541,7 @@ The version of the Android or iOS app that embeds this module
     await ensureVersionIsReleasable(
       version: buildNumber != null ? '$version+$buildNumber' : version,
       flutterRevision: flutterRevision,
-      releasePlatform: releaser.releaseType.releasePlatform,
+      releaser: releaser,
     );
   }
 
@@ -574,12 +578,13 @@ The version of the Android or iOS app that embeds this module
     final releaseVersion = await releaser.getReleaseVersion(
       releaseArtifactRoot: releaseArtifact,
     );
+    _warnIfVersionNameIsEmpty(releaseVersion);
 
     // Ensure we can create a release from what we've built.
     await ensureVersionIsReleasable(
       version: releaseVersion,
       flutterRevision: flutterRevision,
-      releasePlatform: releaser.releaseType.releasePlatform,
+      releaser: releaser,
     );
 
     if (results['dry-run'] == true) {
@@ -633,6 +638,24 @@ The version of the Android or iOS app that embeds this module
       ..err(failure.message)
       ..info(failure.hint);
     throw PreconditionFailedExit(failure);
+  }
+
+  /// Warns when [releaseVersion] has a build number but no version name
+  /// (e.g. `+4280`), which happens when the app is built with an empty
+  /// versionName or CFBundleShortVersionString. Such a release works and can
+  /// be patched, but it has no readable version and won't line up with the
+  /// same build on other platforms.
+  void _warnIfVersionNameIsEmpty(String releaseVersion) {
+    if (!releaseVersion.trim().startsWith('+')) return;
+    logger.warn(
+      'The release version "$releaseVersion" has a build number but no '
+      "version name, so it has no readable version and won't match the same "
+      'build on other platforms. It still works and can be patched.\n'
+      'Check that --build-name, if passed, is not empty (e.g. an unset CI '
+      'variable), and that versionName in android/app/build.gradle (or '
+      'build.gradle.kts) or CFBundleShortVersionString in Info.plist is not '
+      'set from something empty.',
+    );
   }
 
   /// Builds the release artifacts, exiting with [ExitCode.software] if the
@@ -901,24 +924,29 @@ Use patch_verification: strict.''',
 
   /// Asserts that a release with version [version] can be released using
   /// flutter revision [flutterRevision]. If a release has already been
-  /// published with the given [version] for the platform [releasePlatform], or
-  /// if a release already exists with [version] but was compiled with a
-  /// different Flutter revision, an error will be thrown.
+  /// published with the given [version] for [releaser]'s platform (unless
+  /// [Releaser.addsToActiveRelease] allows adding to it), or if a release
+  /// already exists with [version] but was compiled with a different Flutter
+  /// revision, an error will be thrown.
   Future<void> ensureVersionIsReleasable({
     required String version,
     required String flutterRevision,
-    required ReleasePlatform releasePlatform,
+    required Releaser releaser,
   }) async {
+    final releasePlatform = releaser.releaseType.releasePlatform;
     final existingRelease = await codePushClientWrapper.maybeGetRelease(
       appId: appId,
       releaseVersion: version,
     );
 
     if (existingRelease != null) {
-      codePushClientWrapper.ensureReleaseIsNotActive(
-        release: existingRelease,
-        platform: releasePlatform,
-      );
+      if (!existingRelease.isActiveOn(releasePlatform) ||
+          !await releaser.addsToActiveRelease(existingRelease)) {
+        codePushClientWrapper.ensureReleaseIsNotActive(
+          release: existingRelease,
+          platform: releasePlatform,
+        );
+      }
 
       // All artifacts associated with a given release must be built
       // with the same Flutter revision.
@@ -1025,10 +1053,15 @@ ${summary.join('\n')}
   }
 
   /// Prepares the release by updating the release status to draft.
+  ///
+  /// A release already active on this platform (one this run adds another
+  /// architecture to, see [Releaser.addsToActiveRelease]) stays active, so
+  /// its devices keep getting patches while this run uploads.
   Future<void> prepareRelease({
     required Release release,
     required Releaser releaser,
   }) async {
+    if (release.isActiveOn(releaser.releaseType.releasePlatform)) return;
     await codePushClientWrapper.updateReleaseStatus(
       appId: appId,
       releaseId: release.id,

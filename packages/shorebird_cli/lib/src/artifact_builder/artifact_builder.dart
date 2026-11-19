@@ -64,16 +64,34 @@ ArtifactBuilder get artifactBuilder => read(artifactBuilderRef);
 /// backwards compatibility: older Flutter builds that don't recognize a
 /// variable will silently ignore it, whereas an unknown flag would cause
 /// a build failure.
+///
+/// [releaseVersion] is an add-to-app module's release version (aar and
+/// ios-framework only). Flutter bakes it into the module's compiled
+/// shorebird.yaml, and the updater reports it as the release version instead
+/// of the host app's version.
+///
+/// [releaseSupplementDir] is the downloaded supplement of the release a patch
+/// is built against (Android only). Flutter's Android build reads the
+/// release's object order from it, so the patch's snapshot objects keep their
+/// release ids and the patch diffs smaller.
 Map<String, String>? buildEnvironment({
   String? base64PublicKey,
   int? ddMaxBytes,
+  String? releaseVersion,
+  String? releaseSupplementDir,
 }) {
   final env = <String, String>{};
   if (base64PublicKey != null) {
     env['SHOREBIRD_PUBLIC_KEY'] = base64PublicKey;
   }
+  if (releaseVersion != null) {
+    env['SHOREBIRD_RELEASE_VERSION'] = releaseVersion;
+  }
   if (ddMaxBytes != null) {
     env['SHOREBIRD_DD_MAX_BYTES'] = ddMaxBytes.toString();
+  }
+  if (releaseSupplementDir != null) {
+    env['SHOREBIRD_RELEASE_SUPPLEMENT_DIR'] = releaseSupplementDir;
   }
   return env.isEmpty ? null : env;
 }
@@ -179,6 +197,7 @@ ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/new'))}
     List<String> args = const [],
     String? base64PublicKey,
     int? ddMaxBytes,
+    String? releaseSupplementDir,
   }) async {
     final targetPlatformArgs = targetPlatforms?.targetPlatformArg;
     await _runFlutterBuild(
@@ -193,6 +212,7 @@ ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/new'))}
       args: args,
       base64PublicKey: base64PublicKey,
       ddMaxBytes: ddMaxBytes,
+      releaseSupplementDir: releaseSupplementDir,
       fixRecommendation: _androidBuildFixRecommendation,
     );
 
@@ -248,12 +268,16 @@ ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/new'))}
   }
 
   /// Builds an AAR using `flutter build aar`.
+  ///
+  /// [releaseVersion] is baked into the module (see [buildEnvironment]).
   Future<void> buildAar({
     required String buildNumber,
+    String? releaseVersion,
     Iterable<Arch>? targetPlatforms,
     List<String> args = const [],
     String? base64PublicKey,
     int? ddMaxBytes,
+    String? releaseSupplementDir,
   }) async {
     final targetPlatformArgs = targetPlatforms?.targetPlatformArg;
     await _runFlutterBuild(
@@ -268,6 +292,8 @@ ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/new'))}
       args: args,
       base64PublicKey: base64PublicKey,
       ddMaxBytes: ddMaxBytes,
+      releaseVersion: releaseVersion,
+      releaseSupplementDir: releaseSupplementDir,
       fixRecommendation: _androidBuildFixRecommendation,
     );
   }
@@ -344,7 +370,10 @@ ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/new'))}
   }
 
   /// Builds a release iOS framework (.xcframework) for the current project.
+  ///
+  /// [releaseVersion] is baked into the module (see [buildEnvironment]).
   Future<AppleBuildResult> buildIosFramework({
+    String? releaseVersion,
     String? target,
     List<String> args = const [],
     String? base64PublicKey,
@@ -366,6 +395,7 @@ ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/new'))}
       args: args,
       base64PublicKey: base64PublicKey,
       ddMaxBytes: ddMaxBytes,
+      releaseVersion: releaseVersion,
     );
   }
 
@@ -383,6 +413,8 @@ ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/new'))}
     required List<String> args,
     required String? base64PublicKey,
     required int? ddMaxBytes,
+    String? releaseVersion,
+    String? releaseSupplementDir,
     String Function(String buildCommand) fixRecommendation =
         runVanillaFlutterBuildRecommendation,
   }) async {
@@ -402,6 +434,8 @@ ${link(uri: Uri.parse('https://github.com/shorebirdtech/shorebird/issues/new'))}
       environment: buildEnvironment(
         base64PublicKey: base64PublicKey,
         ddMaxBytes: ddMaxBytes,
+        releaseVersion: releaseVersion,
+        releaseSupplementDir: releaseSupplementDir,
       ),
       // Never run in shell because we always have a fully resolved
       // executable path.
@@ -444,15 +478,17 @@ Reason: Exited with code $exitCode.''',
     required List<String> args,
     required String? base64PublicKey,
     required int? ddMaxBytes,
+    String? releaseVersion,
   }) async {
     final projectRoot = shorebirdEnv.getShorebirdProjectRoot()!;
     // Make every target of this platform's builds re-run. On a Flutter that
     // doesn't copy its kernel (see [_shorebirdKernelFile]) we find the kernel
     // by the AOT target's stamp, which a skipped target would not rewrite. A
     // cached build would also be stale on older Flutters: there the
-    // SHOREBIRD_PUBLIC_KEY and (on iOS only; the macOS DD pass is skipped)
-    // SHOREBIRD_DD_MAX_BYTES environment variables change the build's output
-    // but are not inputs Flutter's build system tracks.
+    // SHOREBIRD_PUBLIC_KEY, SHOREBIRD_RELEASE_VERSION and (on iOS only; the
+    // macOS DD pass is skipped) SHOREBIRD_DD_MAX_BYTES environment variables
+    // change the build's output but are not inputs Flutter's build system
+    // tracks.
     _deleteBuildStamps(projectRoot: projectRoot, platform: platformSubdir);
     // Delete the kernel copy a previous build left, so that a build with a
     // Flutter that doesn't write one can't be handed an old kernel.
@@ -484,6 +520,7 @@ Reason: Exited with code $exitCode.''',
       args: args,
       base64PublicKey: base64PublicKey,
       ddMaxBytes: ddMaxBytes,
+      releaseVersion: releaseVersion,
     );
     if (shorebirdKernelFile.existsSync()) {
       appDillPath = shorebirdKernelFile.path;
@@ -568,7 +605,45 @@ Reason: Exited with code $exitCode.''',
       ),
     );
     traceFile.parent.createSync(recursive: true);
+    _deleteStaleTraces(traceFile: traceFile, platform: platform);
     buildTraceSession.traceFile = traceFile;
+  }
+
+  /// Deletes trace files a previous command left in the build directory.
+  ///
+  /// Every trace writer merges into the file it finds (flutter_tools,
+  /// [ShorebirdTracer.mergeInto]), and Flutter's assemble step writes an
+  /// intermediate that flutter_tools merges back in on each build, so
+  /// without this each summary sums every run since the last
+  /// `flutter clean` (shorebirdtech/_shorebird#5890).
+  ///
+  /// The intermediates are where the Flutter fork writes them:
+  /// - Android: `build/intermediates/shorebird/`
+  ///   `shorebird_assemble_trace_<task>.json` (the project's top-level
+  ///   build directory, which is also Android's)
+  /// - iOS/macOS: `build/<ios|macos>/shorebird_assemble_trace.json`
+  void _deleteStaleTraces({
+    required File traceFile,
+    required String platform,
+  }) {
+    final buildDir = shorebirdEnv.buildDirectory.path;
+    final stale = <File>[
+      traceFile,
+      File(p.join(traceFile.parent.path, 'build-trace-$platform-summary.json')),
+      File(p.join(buildDir, 'ios', 'shorebird_assemble_trace.json')),
+      File(p.join(buildDir, 'macos', 'shorebird_assemble_trace.json')),
+    ];
+    final android = Directory(p.join(buildDir, 'intermediates', 'shorebird'));
+    if (android.existsSync()) {
+      stale.addAll(
+        android.listSync().whereType<File>().where(
+          (f) => p.basename(f.path).startsWith('shorebird_assemble_trace_'),
+        ),
+      );
+    }
+    for (final file in stale) {
+      if (file.existsSync()) file.deleteSync();
+    }
   }
 
   /// Emits a flow-start event (`ph: "s"`) on the shorebird_cli tracer
@@ -598,7 +673,7 @@ Reason: Exited with code $exitCode.''',
   /// `release_command` / `patch_command` can attach it to the outgoing
   /// metadata blob without re-parsing the trace file.
   ///
-  /// Uses [BuildTraceSession.commandStartedAt] to derive the wall-clock time
+  /// Uses [BuildTraceSession.windowStartedAt] to derive the wall-clock time
   /// Shorebird itself spent around the Flutter build, subtracting Flutter's
   /// reported total (the "flutter build X" umbrella event).
   ///
@@ -632,8 +707,8 @@ Reason: Exited with code $exitCode.''',
       events,
       platform: buildPlatform,
     ).flutterBuild;
-    final totalElapsed = DateTime.now().difference(
-      buildTraceSession.commandStartedAt,
+    final totalElapsed = clock.now().difference(
+      buildTraceSession.windowStartedAt,
     );
     final shorebirdOverhead = totalElapsed - flutterBuild;
     // Snapshot the build environment (caching config, CI provider, ...).
@@ -690,10 +765,10 @@ Reason: Exited with code $exitCode.''',
     // in Perfetto and rolls into the trace summary's subprocess bucket.
     // gen_snapshot itself doesn't emit a trace; this is the best signal we
     // have for how long native codegen took during patching.
-    final exitCode = await shorebirdTracer.span<int>(
+    final result = await shorebirdTracer.span<ShorebirdProcessResult>(
       name: 'gen_snapshot',
       category: 'subprocess',
-      body: () => process.stream(
+      body: () => process.run(
         shorebirdArtifacts.getArtifactPath(artifact: genSnapshotArtifact),
         arguments,
         // Never run in shell because we always have a fully resolved
@@ -702,14 +777,21 @@ Reason: Exited with code $exitCode.''',
       ),
     );
 
-    if (exitCode != ExitCode.success.code) {
+    // gen_snapshot isn't interactive, so its output is captured and shown
+    // here, less the warnings flutter_tools also hides
+    // (packages/flutter_tools/lib/src/base/build.dart, kIgnoredWarnings).
+    _genSnapshotOutputLines(result.stdout).forEach(logger.info);
+    _genSnapshotOutputLines(result.stderr).forEach(logger.err);
+
+    if (result.exitCode != ExitCode.success.code) {
       throw ArtifactBuildException('Failed to create snapshot');
     }
 
     return File(outFilePath);
   }
 
-  /// Builds a windows app and returns the x64 Release directory
+  /// Builds a windows app and returns its Release directory
+  /// ([ArtifactManager.getWindowsReleaseDirectory]).
   Future<Directory> buildWindowsApp({
     String? target,
     List<String> args = const [],
@@ -875,3 +957,25 @@ Reason: Exited with code $exitCode.''',
     return appDill.existsSync() ? appDill.path : null;
   }
 }
+
+/// gen_snapshot warnings that say nothing actionable, the same set
+/// flutter_tools' `GenSnapshot.kIgnoredWarnings` drops.
+const _ignoredGenSnapshotWarnings = <String>{
+  // --strip on an ELF snapshot.
+  'Warning: Generating ELF library without DWARF debugging information.',
+  // --obfuscate, in two lines.
+  _obfuscationWarning,
+  '         See dartbug.com/30524 for more information.',
+};
+
+const _obfuscationWarning =
+    'Warning: This VM has been configured to obfuscate symbol information '
+    'which violates the Dart standard.';
+
+/// The non-empty lines of gen_snapshot's [output], less
+/// [_ignoredGenSnapshotWarnings].
+Iterable<String> _genSnapshotOutputLines(Object? output) => const LineSplitter()
+    .convert(output as String? ?? '')
+    .where(
+      (line) => line.isNotEmpty && !_ignoredGenSnapshotWarnings.contains(line),
+    );

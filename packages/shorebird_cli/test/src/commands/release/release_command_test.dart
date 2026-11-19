@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:shorebird_cli/src/artifact_builder/artifact_builder.dart';
 import 'package:shorebird_cli/src/artifact_builder/build_trace_session.dart';
+import 'package:shorebird_cli/src/artifact_builder/shorebird_tracer.dart';
 import 'package:shorebird_cli/src/build_history.dart';
 import 'package:shorebird_cli/src/cache.dart';
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
@@ -104,6 +105,7 @@ void main() {
           codePushClientWrapperRef.overrideWith(() => codePushClientWrapper),
           loggerRef.overrideWith(() => logger),
           shorebirdEnvRef.overrideWith(() => shorebirdEnv),
+          shorebirdTracerRef.overrideWith(ShorebirdTracer.new),
           shorebirdFlutterRef.overrideWith(() => shorebirdFlutter),
           shorebirdValidatorRef.overrideWith(() => shorebirdValidator),
           runtimeEndpointRef.overrideWith(() => runtimeEndpoint),
@@ -150,6 +152,9 @@ void main() {
       progress = MockProgress();
       releaser = MockReleaser();
       when(() => releaser.minimumFlutterVersion).thenReturn(Version(0, 0, 0));
+      when(
+        () => releaser.addsToActiveRelease(any()),
+      ).thenAnswer((_) async => false);
       shorebirdRoot = Directory.systemTemp.createTempSync();
       projectRoot = Directory.systemTemp.createTempSync();
       shorebirdEnv = MockShorebirdEnv();
@@ -408,6 +413,49 @@ void main() {
         ).called(1);
         verifyNever(() => releaser.buildReleaseArtifacts());
       });
+
+      group('when the releaser adds to the active release', () {
+        setUp(() {
+          when(
+            () => releaser.addsToActiveRelease(existingRelease),
+          ).thenAnswer((_) async => true);
+        });
+
+        test('uploads to it without making it a draft', () async {
+          final exitCode = await runWithOverrides(command.run);
+
+          expect(exitCode, equals(ExitCode.success.code));
+          verifyNever(
+            () => codePushClientWrapper.ensureReleaseIsNotActive(
+              release: any(named: 'release'),
+              platform: any(named: 'platform'),
+            ),
+          );
+          verifyNever(
+            () => codePushClientWrapper.updateReleaseStatus(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              platform: any(named: 'platform'),
+              status: ReleaseStatus.draft,
+            ),
+          );
+          verify(
+            () => releaser.uploadReleaseArtifacts(
+              release: existingRelease,
+              appId: appId,
+            ),
+          ).called(1);
+          verify(
+            () => codePushClientWrapper.updateReleaseStatus(
+              appId: appId,
+              releaseId: existingRelease.id,
+              platform: ReleasePlatform.android,
+              status: ReleaseStatus.active,
+              metadata: any(named: 'metadata'),
+            ),
+          ).called(1);
+        });
+      });
     });
 
     group('when the Dart SDK does not match the engine', () {
@@ -513,6 +561,31 @@ void main() {
           '''To create a patch for this release, run ${lightCyan.wrap('shorebird patch --platforms=android --release-version=${release.version}')}''',
         ),
       ]);
+    });
+
+    group('when the release version has no version name', () {
+      setUp(() {
+        when(
+          () => releaser.getReleaseVersion(
+            releaseArtifactRoot: any(named: 'releaseArtifactRoot'),
+          ),
+        ).thenAnswer((_) async => ' +4280');
+      });
+
+      test('warns and still releases', () async {
+        final exitCode = await runWithOverrides(command.run);
+        expect(exitCode, equals(ExitCode.success.code));
+        verify(
+          () => logger.warn(
+            any(that: contains('" +4280" has a build number but no version')),
+          ),
+        ).called(1);
+      });
+    });
+
+    test('does not warn about the version name when it has one', () async {
+      await runWithOverrides(command.run);
+      verifyNever(() => logger.warn(any(that: contains('no version name'))));
     });
 
     group("when the app's enterprise requires patch signing", () {

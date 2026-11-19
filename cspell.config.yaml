@@ -756,6 +756,7 @@ words:
   - DBPW
   - Dedup
   - dedupe
+  - dartbug
   - deflavored
   - DFLUTTER
   - DPROBE
@@ -792,6 +793,7 @@ words:
   - eaec
   - elems
   - embedders
+  - dynsym
   - endtemplate
   - Entra
   - esac # bash case terminator

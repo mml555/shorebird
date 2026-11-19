@@ -4,10 +4,10 @@
 cspell:words pubspec erickzanardo xcframeworks cupertino codesign codecov rkishan appbundle proto tlsv kingdomseed Peetee Aditya serde bipatch GLES lipo impellerc cmdline symbolicate VoiceOver OverlayPortal Reorderable XCUITest rustls webpki xcconfig boringssl NSURLSession HttpURLConnection DWARF dSYM notarization ContextMenuButtonKind monorepos symlinked GHSA
  -->
 
-## 1.6.140+selfhost.1 (unreleased)
+## 1.6.144+selfhost.1 (unreleased)
 
-Fork build of upstream 1.6.140. Everything in the upstream 1.6.139 and 1.6.140
-notes below applies, and the fork's own behavior is kept on top of it:
+Fork build of upstream 1.6.144. Everything in the upstream 1.6.139 through
+1.6.144 notes below applies, and the fork's own behavior is kept on top of it:
 
 - iOS and macOS native-change detection moved from `Podfile.lock` to a
   comparison of the compiled native binaries (Mach-O), as upstream did. A patch
@@ -64,10 +64,76 @@ notes below applies, and the fork's own behavior is kept on top of it:
   server without the runs endpoint just means no record, as recording is best
   effort. A multi-platform `shorebird patch` records one run per platform, all
   sharing the one patch's outcome.
+- `shorebird patch --rollout-steps` (with `--pause-weekends` and `--timezone`),
+  `shorebird patches set-track` and `shorebird patches rollout` ramp a rollout
+  on a schedule. The schedule travels in the same promote call as
+  `--rollout`, so it needs a server that accepts it; the CLI never sends one
+  unless you ask.
+- `shorebird patch windows --add-to-patch=<n>` adds this machine's build to an
+  existing patch. It works for `windows` alone; the patch keeps its own track
+  and rollout.
+- Patch linking changes from 1.6.141 to 1.6.144: a patch that links against its
+  release now also carries the release's `App.sm.link` and `App.ref.link`
+  next to the snapshots, and an Apple patch's snapshot is always stripped. An
+  Android patch is built against the release's `App.ref.link` when the
+  release's supplement has one. When a release's supplement has none, as with
+  releases cut by this fork's engine, all of these are skipped and the patch
+  is built as before; none of them can fail a patch. iOS Route B patches
+  return before the linker, so they do not use any of the link files.
 - The Flutter pin (`bin/internal/flutter.version`) stays on the fork's own
-  engine cell, not upstream 1.6.140's revision `6f0092351b`. The obfuscation fix
-  in the 1.6.140 notes below is part of that engine, so it does not reach this
-  fork until a cell is built over it.
+  engine cell, not upstream's `c0d1d0e3`. The engine-side fixes in the notes
+  below (1.6.143's `--obfuscate` patch fix, 1.6.141's rollback of patches that
+  crash while their code loads, and the engine halves of the 1.6.144 patch-link
+  work and Windows arm64) do not reach this fork until a cell is built over
+  upstream's engine.
+
+## 1.6.144 (November 18, 2026)
+
+- 🐦 Flutter 3.50.0 / Dart 3.14.0
+- 🐛 Improved Apple patch linking by copying `App.sm.link` next to the patch
+  snapshots
+
+## 1.6.143 (November 18, 2026)
+
+- 🐦 Flutter 3.47.9 / Dart 3.13.7, with an updated Shorebird engine that fixes
+  patches of `--obfuscate` releases: a patch could reuse an obfuscated name the
+  release already used, so it could call the wrong method or read the wrong
+  field. A patch builds with its release's Flutter, so make a new release with
+  this version to get the fix
+- ✨ Ramp a patch's rollout on a schedule with `--rollout-steps` on `shorebird
+  patch`, `shorebird patches set-track` and `shorebird patches rollout`,
+  optionally pausing on weekends with `--pause-weekends` and `--timezone`
+- ✨ `shorebird release windows` and `shorebird patch windows` handle Windows
+  arm64 builds on Flutter 3.47.9 or later. Run them on an arm64 machine to add
+  an arm64 build to a release, and `shorebird preview` on arm64 runs it
+- ✨ `shorebird patch windows --add-to-patch=<n>` adds this machine's
+  architecture to an existing patch, so one fix for x64 and arm64 shares one
+  patch number, track and rollout
+
+## 1.6.142 (November 17, 2026)
+
+- ✨ `shorebird release` warns when the release version has a build number but no
+  version name (such as `+4280`), which usually means an empty `--build-name` or
+  `versionName`
+- 🔧 `shorebird release aar` and `shorebird release ios-framework` treat
+  `--release-version` as the module build's own version and build it into the
+  module on Flutter 3.47.9 or later, where it may only use letters, digits, `.`,
+  `_`, `+` and `-`, up to 128 characters. With an earlier Flutter it must still
+  equal the host app's version
+
+Flutter 3.47.9 and Dart 3.13.7 are unchanged from 1.6.141.
+
+## 1.6.141 (November 17, 2026)
+
+- 🐛 Patches that crash while their code loads at launch are now rolled back,
+  in addition to patches that crash during startup
+- 🐛 Improved linking of obfuscated iOS patches
+- 🐛 Creating a release or patch no longer fails with "already exists" after a
+  dropped connection
+- 🐛 `shorebird patch` reports a damaged zip instead of using it
+
+The fixes outside the CLI also reach anyone building with
+`--flutter-version=3.47.9`.
 
 ## 1.6.140 (November 13, 2026)
 
