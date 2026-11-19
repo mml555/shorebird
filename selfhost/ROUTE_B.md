@@ -510,6 +510,16 @@ no `lowering` or whose lowering names no extension, and any document older than
 analyzer; the producer never sees an `extension` field below 22. Nothing here
 was run on a device.
 
+**For-in receivers (analysis 23).** `for (final s in shapes)` asks the runtime
+receiver for `iterator` by selector, so the per-release check asks every class
+that can be that receiver whether its snapshot has compiled code for it. Up to
+22 that was every `Iterable` of the release, so a loop over a `List` was refused
+whenever some other `Iterable` (Flutter's `ObserverList`) had no compiled
+`iterator`. From 23 the analyzer names the class of the iterable's static type
+(`receiverLibrary`, `receiverClass`) and the CLI asks only its subtypes. A
+`dynamic` iterable, a type parameter or an extension type names none and is
+checked as before, and so is a class the release's snapshot does not hold.
+
 **Rollout.** The analyzer always writes `enclosingScope` (`{}` at minimum). A
 document without it comes from a cell built before this change, and a class or
 extension member cannot be shown safe without it, so such a target is refused

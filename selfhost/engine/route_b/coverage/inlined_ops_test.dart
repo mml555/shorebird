@@ -285,7 +285,8 @@ void main() {
   );
 
   // The bytecode scan fails closed when the text format changes.
-  const pool = "  [1] = InterfaceCall 'dart:core::num::+', ArgDesc num-args 2\n"
+  const pool =
+      "  [1] = InterfaceCall 'dart:core::num::+', ArgDesc num-args 2\n"
       "  [2] = DynamicCall '-', ArgDesc num-args 2\n"
       '  [3] = DirectCall \'a::b\', ArgDesc num-args 0\n';
   const body = '  InterfaceCall        CP#1, 2\n';
@@ -294,7 +295,9 @@ void main() {
     good['unparsed'] == 0 && '${good['calls']}' == '[+, -]',
     'a well-formed pool reads completely: $good',
   );
-  final moved = scanBytecodeText("Function 'f'\n$body${pool.replaceAll('] = ', ']: ')}");
+  final moved = scanBytecodeText(
+    "Function 'f'\n$body${pool.replaceAll('] = ', ']: ')}",
+  );
   check(
     (moved['unparsed'] as int) > 0 && (moved['calls'] as List).isEmpty,
     'a changed pool-line prefix leaves call lines unread: $moved',
@@ -318,11 +321,17 @@ void main() {
   final quoted = scanBytecodeText(
     "Function 'f'\n$body$pool  [4] = ConstantX 'a::makeCall', ArgDesc\n",
   );
-  check(quoted['unparsed'] == 0, 'a quoted name containing Call is not counted');
+  check(
+    quoted['unparsed'] == 0,
+    'a quoted name containing Call is not counted',
+  );
 
   // _writableType and the import check (S4).
   Library mk(String uri, {String? source}) {
-    final l = Library(Uri.parse(uri), fileUri: Uri.parse('file:///${uri.hashCode}.dart'));
+    final l = Library(
+      Uri.parse(uri),
+      fileUri: Uri.parse('file:///${uri.hashCode}.dart'),
+    );
     return l;
   }
 
@@ -406,6 +415,89 @@ void main() {
     'the CLI inlinedOpcodes table equals the compiler\'s RecognizedMethods '
     'tables (expected $expected, CLI $actual)',
   );
+
+  // For-in receivers (analysis version 23): the `Iterable.get:iterator`
+  // reference names the class of the iterable's static type.
+  final listC = core('List'), setC = core('Set'), iterableC = core('Iterable');
+  List<Map<String, Object?>> iteratorRefs(
+    List<DartType> iterables, {
+    bool typed = true,
+  }) {
+    final params = <PositionalParameter>[];
+    final body = <Statement>[];
+    for (final type in iterables) {
+      final xs = PositionalParameter(cosmeticName: 'xs${n++}', type: type);
+      params.add(xs);
+      body.add(
+        ForInStatement(
+          LocalVariable(name: 'x${n++}'),
+          VariableGet(xs),
+          Block([]),
+        ),
+      );
+    }
+    final p = Procedure(
+      Name('loop${n++}'),
+      ProcedureKind.Method,
+      FunctionNode(Block(body), positionalParameters: params),
+      fileUri: lib.fileUri,
+    );
+    lib.addProcedure(p);
+    return externalReferencesOf(
+      p,
+      {},
+      types: typed ? env : null,
+    ).where((r) => r['member'] == 'get:iterator').toList();
+  }
+
+  final overList = iteratorRefs([t(listC)]);
+  check(
+    overList.length == 1 &&
+        overList.single['class'] == 'Iterable' &&
+        overList.single['library'] == 'dart:core' &&
+        overList.single['receiverLibrary'] == 'dart:core' &&
+        overList.single['receiverClass'] == 'List',
+    'a for-in over a List names List as the receiver ($overList)',
+  );
+  final both = iteratorRefs([t(listC), t(setC), t(listC)]);
+  check(
+    both.length == 2 &&
+        both.map((r) => r['receiverClass']).toSet().containsAll({
+          'List',
+          'Set',
+        }),
+    'loops over a List and a Set report one entry per receiver ($both)',
+  );
+  for (final (what, refs) in [
+    ('an Iterable', iteratorRefs([t(iterableC)])),
+    ('a dynamic value', iteratorRefs([const DynamicType()])),
+    (
+      'a List without a type environment',
+      iteratorRefs([t(listC)], typed: false),
+    ),
+  ]) {
+    check(
+      refs.length == 1 &&
+          refs.single['class'] == 'Iterable' &&
+          !refs.single.containsKey('receiverClass') &&
+          !refs.single.containsKey('receiverLibrary'),
+      'a for-in over $what names no receiver ($refs)',
+    );
+  }
+  final appIterable = Class(
+    name: 'Shapes',
+    fileUri: lib.fileUri,
+    supertype: Supertype(iterableC, [const DynamicType()]),
+  );
+  lib.addClass(appIterable);
+  final overApp = iteratorRefs([t(appIterable)]);
+  check(
+    overApp.length == 1 &&
+        overApp.single['receiverLibrary'] == 'package:app/a.dart' &&
+        overApp.single['receiverClass'] == 'Shapes',
+    'a for-in over an app class names it and its library ($overApp)',
+  );
+  check(analysisVersion == 23, 'analysis version is 23');
 
   if (_failures > 0) exit(1);
   stdout.writeln('all passed');

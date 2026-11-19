@@ -329,7 +329,20 @@ import 'package:kernel/type_environment.dart';
 /// extension, which Kernel resolves statically, offset at its identifier).
 /// A document below 22 never has an `extension` entry, and its scope report
 /// still refuses every instance extension member.
-const analysisVersion = 22;
+///
+/// Version 23 adds `receiverLibrary` and `receiverClass` to the
+/// `Iterable.get:iterator` reference of a `for-in`: the class of the loop
+/// iterable's static type, when it is an interface type other than `Iterable`
+/// (`for (final s in shapes)` over a `List<Shape>` names `dart:core` `List`).
+/// The loop asks the RUNTIME receiver for `iterator` by selector, and that
+/// receiver is an instance of a subtype of the static type, so the per-release
+/// check need only look at those classes, not at every `Iterable` of the
+/// release (Flutter's `ObserverList` has no compiled `iterator` in a release
+/// that never iterates one). One entry per receiver class, so two loops over a
+/// `List` and a `Set` report both; a loop whose iterable is `dynamic`, a type
+/// parameter or an extension type reports the entry without them, which the
+/// CLI reads as before. A document below 23 never has them.
+const analysisVersion = 23;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -3361,14 +3374,14 @@ List<Map<String, Object?>> _externalReferences(
   Map<String, List<Member>> appMembersByName = const {},
   TypeEnvironment? types,
 }) {
+  final context = types == null ? null : StaticTypeContext(p, types);
   final uses = _ExternalUses(
     carried,
     p.enclosingClass,
     p.enclosingLibrary,
     appMembersByName,
-    recognized: types == null
-        ? null
-        : RecognizedMethods(StaticTypeContext(p, types)),
+    recognized: context == null ? null : RecognizedMethods(context),
+    staticTypes: context,
   );
   try {
     p.function.accept(uses);
@@ -3777,7 +3790,12 @@ class _ExternalUses extends RecursiveVisitor {
     this.ownerLibrary,
     this.appMembersByName, {
     this.recognized,
+    this.staticTypes,
   });
+
+  /// The body's static types (analysis version 23): the receiver class of a
+  /// `for-in`. Null when the caller has no type environment.
+  final StaticTypeContext? staticTypes;
 
   /// dart2bytecode's own rule for which calls become opcodes (analysis version
   /// 20); null when the caller has no type environment.
@@ -4085,15 +4103,41 @@ class _ExternalUses extends RecursiveVisitor {
   }
 
   // `for (x in xs)` asks the receiver's class for `iterator`, `moveNext` and
-  // `current` by selector, and no source token names them.
-  void _sdk(String library, String cls, String member) {
-    found['instance|$library|$cls|$member|d'] = {
+  // `current` by selector, and no source token names them. [receiver] is the
+  // class of the iterable's static type (analysis version 23), one entry each.
+  void _sdk(String library, String cls, String member, {Class? receiver}) {
+    final receiverLibrary = receiver?.enclosingLibrary.importUri.toString();
+    final suffix = receiver == null ? '' : '|$receiverLibrary#${receiver.name}';
+    found['instance|$library|$cls|$member|d$suffix'] = {
       'kind': 'instance',
       'library': library,
       'class': cls,
       'member': member,
       'private': false,
+      if (receiver != null) 'receiverLibrary': receiverLibrary,
+      if (receiver != null) 'receiverClass': receiver.name,
     };
+  }
+
+  /// The class of [iterable]'s static type when it is an interface type other
+  /// than `Iterable` itself, else null (no narrowing: every `Iterable`).
+  Class? _iterableReceiver(Expression iterable) {
+    final context = staticTypes;
+    if (context == null) return null;
+    final DartType type;
+    try {
+      type = iterable.getStaticType(context);
+    } on Object {
+      // Not knowing the type narrows nothing; it is not a walk failure.
+      return null;
+    }
+    if (type is! InterfaceType) return null;
+    final cls = type.classNode;
+    if (cls.name == 'Iterable' &&
+        cls.enclosingLibrary.importUri.toString() == 'dart:core') {
+      return null;
+    }
+    return cls;
   }
 
   @override
@@ -4101,7 +4145,12 @@ class _ExternalUses extends RecursiveVisitor {
     if (node.isAsync) {
       _sdk('dart:async', 'Stream', 'listen');
     } else {
-      _sdk('dart:core', 'Iterable', 'get:iterator');
+      _sdk(
+        'dart:core',
+        'Iterable',
+        'get:iterator',
+        receiver: _iterableReceiver(node.iterable),
+      );
       _sdk('dart:core', 'Iterator', 'moveNext');
       _sdk('dart:core', 'Iterator', 'get:current');
     }

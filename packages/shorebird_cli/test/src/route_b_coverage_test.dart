@@ -561,14 +561,14 @@ JSON
 
       test('an unknown version is refused, and names what is understood', () {
         expect(
-          () => RouteBCoverage.fromJson(doc(23, body)),
+          () => RouteBCoverage.fromJson(doc(24, body)),
           throwsA(
             isA<FormatException>().having(
               (e) => e.message,
               'message',
               allOf(
-                contains('version 23'),
-                contains('11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22'),
+                contains('version 24'),
+                contains('11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23'),
               ),
             ),
           ),

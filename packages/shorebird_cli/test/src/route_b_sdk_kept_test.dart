@@ -1024,4 +1024,108 @@ callable:
       expect(refusal(retention(profileWith(typedHasReversed: true))), isNull);
     });
   });
+
+  group('a for-in receiver (analysis 23)', () {
+    // A for-in asks its receiver for `iterator` by selector. Flutter's
+    // ObserverList is an Iterable with no compiled `iterator` in a release
+    // that never iterates one; a loop over a List can never receive one.
+    const key = 'dart:core#Iterable#get:iterator';
+    const observerLibrary = 'package:flutter/src/foundation/observer_list.dart';
+    final snapshot = RouteBSnapshotKept.fromProfileJson(
+      routeBProfile({
+        'Object': const RouteBProfileClass('Object', routeBCoreLibrary),
+        'Iterable': const RouteBProfileClass(
+          'Iterable',
+          routeBCoreLibrary,
+          parent: 'Object',
+        ),
+        'List': const RouteBProfileClass(
+          'List',
+          routeBCoreLibrary,
+          parent: 'Object',
+          ifaces: ['Iterable'],
+        ),
+        '_GrowableList': const RouteBProfileClass(
+          '_GrowableList@0150898',
+          routeBCoreLibrary,
+          parent: 'Object',
+          ifaces: ['List'],
+          fns: {'get:iterator': '[Optimized] iterator'},
+        ),
+        'ObserverList': const RouteBProfileClass(
+          'ObserverList',
+          observerLibrary,
+          parent: 'Object',
+          ifaces: ['Iterable'],
+          fns: {'add': '[Optimized] add'},
+        ),
+      }),
+    );
+    final retention = RouteBRetention.parse(
+      _interface,
+      measuredAccepted: {key},
+      measuredFailing: const {},
+      measuredVmClasses: {
+        key: ['_GrowableList'],
+      },
+      kept: snapshot,
+    );
+
+    Map<String, Object?> iterator({String? library, String? cls}) => {
+      ..._ref('instance', 'dart:core', cls: 'Iterable', member: 'get:iterator'),
+      'receiverLibrary': ?library,
+      'receiverClass': ?cls,
+    };
+
+    String? refusal(Map<String, Object?> ref, {int version = 23}) =>
+        retention.refusalForTarget(_analysis([ref], version: version), _target);
+
+    test('over a List asks only the List classes', () {
+      expect(
+        refusal(iterator(library: 'dart:core', cls: 'List')),
+        isNull,
+      );
+    });
+
+    test('with no receiver still asks every Iterable', () {
+      expect(
+        refusal(iterator()),
+        allOf(
+          contains('no `get:iterator` on `ObserverList`'),
+          contains(observerLibrary),
+        ),
+      );
+    });
+
+    test('over an ObserverList is refused', () {
+      expect(
+        refusal(iterator(library: observerLibrary, cls: 'ObserverList')),
+        contains('no `get:iterator` on `ObserverList`'),
+      );
+    });
+
+    test('is not believed below analysis 23', () {
+      expect(
+        refusal(iterator(library: 'dart:core', cls: 'List'), version: 22),
+        contains('no `get:iterator` on `ObserverList`'),
+      );
+    });
+
+    test('naming a class this release lacks narrows nothing', () {
+      expect(
+        refusal(iterator(library: 'dart:core', cls: 'Set')),
+        contains('no `get:iterator` on `ObserverList`'),
+      );
+    });
+
+    test('is not believed on any other reference', () {
+      final reference = RouteBExternalReference.fromJson({
+        ..._ref('instance', 'dart:core', cls: 'List', member: 'get:reversed'),
+        'receiverLibrary': 'dart:core',
+        'receiverClass': 'List',
+      }, readReceiver: true);
+      expect(reference.receiverClass, isNull);
+      expect(reference.receiverLibrary, isNull);
+    });
+  });
 }
