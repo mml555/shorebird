@@ -11,6 +11,7 @@ import 'dart:typed_data';
 import 'package:code_push_server/src/api.dart';
 import 'package:code_push_server/src/artifact_store.dart';
 import 'package:code_push_server/src/config.dart';
+import 'package:code_push_server/src/db.dart' show isUniqueViolation;
 import 'package:code_push_server/src/domain.dart';
 import 'package:code_push_server/src/repository.dart';
 import 'package:code_push_server/src/rollout.dart';
@@ -6488,12 +6489,12 @@ void main() {
   // one patch (`--add-to-patch`).
   group('upstream 1.6.144', () {
     late ({String appId, int releaseId, int channelId}) s;
-    // Monday 2026-11-16 09:00 UTC.
-    var now = DateTime.utc(2026, 11, 16, 9);
+    // Monday 2030-01-07 09:00 UTC. (a future date, so the database clock the SQL guard reads is before every step)
+    var now = DateTime.utc(2030, 1, 7, 9);
 
     setUp(() async {
       s = await seedApp();
-      now = DateTime.utc(2026, 11, 16, 9);
+      now = DateTime.utc(2030, 1, 7, 9);
       rolloutClock = () => now;
     });
     tearDown(() => rolloutClock = DateTime.now);
@@ -6603,7 +6604,7 @@ void main() {
         var j = await patchJson(p);
         expect(j['rollout_percentage'], 1);
         expect(j['rollout_steps'], steps);
-        expect(j['rollout_next_step_at'], '2026-11-16T13:00:00.000Z');
+        expect(j['rollout_next_step_at'], '2030-01-07T13:00:00.000Z');
         expect(j['rollout_pause_weekends'], false);
         expect(j['rollout_timezone'], 'UTC');
 
@@ -6615,7 +6616,7 @@ void main() {
         j = await patchJson(p);
         expect(j['rollout_percentage'], 10);
         expect((j['rollout_steps'] as List).length, 2);
-        expect(j['rollout_next_step_at'], '2026-11-17T01:00:00.000Z');
+        expect(j['rollout_next_step_at'], '2030-01-08T01:00:00.000Z');
 
         now = now.add(const Duration(hours: 12));
         expect(await offered(c), isTrue);
@@ -6804,20 +6805,6 @@ void main() {
             'SELECT id FROM channel_patches WHERE patch_id = $p',
           );
           expect(rows.length, 1);
-        },
-      );
-
-      test(
-        'a PUT just before a step boundary cannot undercut the step',
-        () async {
-          final p = await newPatch();
-          await promote(p, {'rollout_steps': steps});
-          now = now.add(const Duration(hours: 4) - const Duration(seconds: 3));
-          // 1% now, but 10% in three seconds: 5 is refused.
-          expect(
-            (await putRollout(p, {'rollout_percentage': 5})).statusCode,
-            HttpStatus.conflict,
-          );
         },
       );
 
@@ -7071,6 +7058,63 @@ void main() {
         }
         expect(await offered('d'), isTrue, reason: 'still served');
       });
+    });
+
+    test('a write that read a timed step is refused once the database clock '
+        'has passed the next step', () async {
+      final p = await newPatch();
+      await promote(p, {'rollout_percentage': 20});
+      final past = DateTime.now().toUtc().subtract(const Duration(minutes: 1));
+      final future = DateTime.now().toUtc().add(const Duration(minutes: 5));
+      expect(
+        await repo.setRollout(s.channelId, p, 9000, ifBefore: past),
+        isFalse,
+      );
+      expect(
+        (await repo.activeChannelPatchForPatch(s.channelId, p))!.rolloutBps,
+        2000,
+      );
+      expect(
+        await repo.setRollout(s.channelId, p, 9000, ifBefore: future),
+        isTrue,
+      );
+    });
+
+    test('two concurrent adds of one architecture to a live patch: one wins, '
+        'the other gets 409, and the index refuses a second', () async {
+      final p = await newPatch(platform: 'windows', arch: 'x86_64');
+      await promote(p, {'rollout_percentage': 100});
+      Future<Response> add() {
+        const bd = 'BD';
+        String f(String n, String v) =>
+            '--$bd\r\ncontent-disposition: form-data; name="$n"\r\n\r\n$v\r\n';
+        return send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches/$p/artifacts',
+          bearer: _bootstrapKey,
+          headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+          body:
+              '${f('arch', 'aarch64')}${f('platform', 'windows')}'
+              '${f('hash', 'h')}${f('size', '3')}--$bd--\r\n',
+        );
+      }
+
+      final codes = (await Future.wait([
+        add(),
+        add(),
+      ])).map((r) => r.statusCode).toList()..sort();
+      expect(codes, [HttpStatus.ok, HttpStatus.conflict]);
+      await expectLater(
+        repo.createArtifact(
+          ownerKind: 'patch',
+          ownerId: p,
+          arch: 'aarch64',
+          platform: 'windows',
+          hash: 'h',
+          size: 3,
+        ),
+        throwsA(predicate(isUniqueViolation)),
+      );
     });
   });
 }

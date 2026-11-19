@@ -57,6 +57,9 @@ bool eligibleForRolloutBps({
 /// The clock rollout schedules are read against. Tests replace it.
 DateTime Function() rolloutClock = DateTime.now;
 
+/// Rows already warned about, so a corrupt schedule logs once, not per poll.
+final _warnedUnreadable = <Object?>{};
+
 /// The rollout of a `channel_patches` row, in basis points, as of now.
 ///
 /// A row with a `rollout_schedule` (a timed rollout) is on the step the
@@ -85,10 +88,13 @@ int effectiveRolloutBps(Map<String, Object?> row) {
     // A schedule that cannot be read leaves the row on its stored
     // `rollout_bps` (the first step), which keeps whoever was offered the
     // patch at that step offered it. Say so: it is data corruption.
-    stderr.writeln(
-      'WARNING: channel_patches row ${row['id']} has an unreadable '
-      'rollout_schedule; serving its stored rollout instead',
-    );
+    // Once per row per process: this runs on every update check.
+    if (_warnedUnreadable.add(row['id'])) {
+      stderr.writeln(
+        'WARNING: channel_patches row ${row['id']} has an unreadable '
+        'rollout_schedule; serving its stored rollout instead',
+      );
+    }
   }
   final whole = (row['rollout'] as num).toInt();
   final bps = row['rollout_bps'];

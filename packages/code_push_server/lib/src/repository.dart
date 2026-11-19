@@ -718,6 +718,18 @@ class Repository {
         'ALTER TABLE channel_patches ADD COLUMN rollout_schedule TEXT',
       ],
     ),
+    (
+      22,
+      [
+        // One live artifact per patch, architecture and platform (a release may
+        // hold several of one kind): two
+        // concurrent `--add-to-patch` of the same architecture cannot both
+        // land. Failed uploads are left out, since a retry registers a new
+        // artifact beside the failed one.
+        'CREATE UNIQUE INDEX IF NOT EXISTS artifacts_one_live '
+            "ON artifacts(owner_kind, owner_id, arch, platform) WHERE owner_kind = 'patch' AND status <> 'failed'",
+      ],
+    ),
   ];
 
   /// Indexes for the access paths that would otherwise scan. `events` is the
@@ -2107,7 +2119,11 @@ class Repository {
   /// two concurrent raises cannot lower each other. With [expectSchedule] it
   /// writes only while the row still has that stored schedule (null: none), so
   /// a read of a timed rollout's current step cannot be applied after another
-  /// request replaced it. False means nothing was written.
+  /// request replaced it. With [ifBefore] (the instant the caller read the
+  /// next step of a timed rollout to start at) it also writes only while the
+  /// database clock is before it, so a slow UPDATE or a pod whose clock runs
+  /// behind cannot lower the rollout under devices a step just reached.
+  /// False means nothing was written.
   Future<bool> setRollout(
     int channelId,
     int patchId,
@@ -2115,6 +2131,7 @@ class Repository {
     bool onlyRaise = false,
     RolloutSchedule? schedule,
     ({String? stored})? expectSchedule,
+    DateTime? ifBefore,
   }) async {
     final expected = expectSchedule?.stored;
     final r = await _q(
@@ -2126,6 +2143,7 @@ class Repository {
           : expected == null
           ? 'AND rollout_schedule IS NULL '
           : 'AND rollout_schedule = @exp '}'
+      '${ifBefore == null ? '' : 'AND now() < @before '}'
       '${onlyRaise ? 'AND (CASE WHEN rollout_bps IS NOT NULL '
                 'AND rollout_bps / 100 = rollout THEN rollout_bps '
                 'ELSE rollout * 100 END) <= @b ' : ''}'
@@ -2138,6 +2156,7 @@ class Repository {
         'p': patchId,
         's': ChannelPatchStatus.active.name,
         if (expected != null) 'exp': expected,
+        if (ifBefore != null) 'before': ifBefore.toUtc(),
       },
     );
     return r.isNotEmpty;

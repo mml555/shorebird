@@ -8,7 +8,7 @@ import 'package:code_push_server/src/artifact_store.dart';
 import 'package:code_push_server/src/audit.dart';
 import 'package:code_push_server/src/config.dart';
 import 'package:code_push_server/src/content_range.dart';
-import 'package:code_push_server/src/db.dart' show asDbBool;
+import 'package:code_push_server/src/db.dart' show asDbBool, isUniqueViolation;
 import 'package:code_push_server/src/domain.dart';
 import 'package:code_push_server/src/oauth.dart';
 import 'package:code_push_server/src/observability.dart';
@@ -2421,16 +2421,24 @@ class Api {
       clientSignature: fields['hash_signature'],
     );
     if (!promoted) await repo.setPatchStatus(patchId, PatchStatus.uploading);
-    final art = await repo.createArtifact(
-      ownerKind: 'patch',
-      ownerId: patchId,
-      arch: arch,
-      platform: platform,
-      hash: hash,
-      size: int.tryParse(fields['size'] ?? '0') ?? 0,
-      hashSignature: hashSignature,
-      podfileLockHash: fields['podfile_lock_hash'],
-    );
+    final ArtifactRow art;
+    try {
+      art = await repo.createArtifact(
+        ownerKind: 'patch',
+        ownerId: patchId,
+        arch: arch,
+        platform: platform,
+        hash: hash,
+        size: int.tryParse(fields['size'] ?? '0') ?? 0,
+        hashSignature: hashSignature,
+        podfileLockHash: fields['podfile_lock_hash'],
+      );
+    } catch (e) {
+      // A concurrent request registered the same architecture between the
+      // check above and this insert; the unique index let only one in.
+      if (!isUniqueViolation(e)) rethrow;
+      throw conflict('Artifact already registered for $arch/$platform');
+    }
     return _json(_registerJson(art, releaseKey: false));
   }
 
@@ -2915,17 +2923,21 @@ class Api {
     );
   }
 
-  /// The rollout in force on [row], for a floor on a write. A timed row has no
-  /// SQL floor (its percentage is the clock's), so look a few seconds ahead: a
-  /// step boundary that passes between this read and the UPDATE then cannot
-  /// let a lower value un-offer devices the new step just reached.
-  static const _stepLookahead = Duration(seconds: 10);
+  /// The rollout in force on [row], for a floor on a write. A timed row's
+  /// write is also guarded in SQL by [_nextStepOf] (see `setRollout`), so a
+  /// step boundary passing between this read and the UPDATE fails the write.
   Future<int> _rolloutFloor(ChannelPatchRow row) async {
     final schedule = RolloutSchedule.tryParse(row.rolloutSchedule);
     if (schedule == null) return row.rolloutBps;
-    final ahead = schedule.positionAt(rolloutClock().add(_stepLookahead)).bps;
-    return ahead > row.rolloutBps ? ahead : row.rolloutBps;
+    final now = schedule.positionAt(rolloutClock()).bps;
+    return now > row.rolloutBps ? now : row.rolloutBps;
   }
+
+  /// When the timed rollout on [row] next steps up, or null for a fixed or
+  /// finished one: the instant a write that read the current step must beat.
+  DateTime? _nextStepOf(ChannelPatchRow row) => RolloutSchedule.tryParse(
+    row.rolloutSchedule,
+  )?.positionAt(rolloutClock()).nextStepAt;
 
   /// The timed rollout schedule a request body asks for, or null when it has
   /// no `rollout_steps`. A body that sets the weekend pause or zone without
@@ -3041,11 +3053,13 @@ class Api {
         onlyRaise: !timed,
         schedule: schedule,
         expectSchedule: (stored: current.rolloutSchedule),
+        ifBefore: _nextStepOf(current),
       )) {
         throw conflict(
           'Patch ${patch.number} was changed on ${channel.name} by another '
-          'request while this one was applied, and a rollout can only be '
-          'raised. Check its rollout and retry.',
+          'request, or its next rollout step applied, while this one was '
+          'applied, and a rollout can only be raised. Check its rollout and '
+          'retry.',
         );
       }
     }
@@ -3266,10 +3280,12 @@ class Api {
         onlyRaise: live.rolloutSchedule == null,
         schedule: schedule,
         expectSchedule: (stored: live.rolloutSchedule),
+        ifBefore: _nextStepOf(live),
       )) {
         throw conflict(
           'Patch ${patch.number} was changed on ${channel.name} by another '
-          'request. Check its rollout and retry.',
+          'request, or its next rollout step applied, meanwhile. Check its '
+          'rollout and retry.',
         );
       }
       return Response(HttpStatus.noContent);
