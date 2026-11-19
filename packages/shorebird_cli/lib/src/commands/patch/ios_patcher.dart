@@ -32,6 +32,7 @@ import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_dependency_changes.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
@@ -294,6 +295,16 @@ Nothing was uploaded.''',
         // asks again, for the members it carries.
         final retention = _readRouteBRetention(releaseArtifacts, provenance);
         _refuseUnretained(coverage, retention);
+        if (coverage.verdict == RouteBVerdict.reject) {
+          _refuseCoverage(coverage);
+        }
+        // A CHANGED DEPENDENCY, after the cheap refusals above and before the
+        // inert verdict. The analysis above sees the app's own package only, so
+        // an edit in a path dependency would otherwise publish a patch without
+        // it, and say nothing; and a patch whose only edit is in a dependency
+        // is inert to the app pass, so it is named here rather than as "no
+        // change".
+        _refuseDependencyChanges(compiler, releaseArtifacts);
         if (coverage.verdict != RouteBVerdict.accept) {
           _refuseCoverage(coverage);
         }
@@ -775,18 +786,7 @@ A patch is only interpretable against one whole contract, so these cannot be mix
       // pubspec renamed since the release matches no library, and every
       // member would read as a changed framework member. An empty name is
       // refused rather than falling back to "every library is the app".
-      final packageName =
-          _releaseAppPackageName ?? shorebirdEnv.getPubspecYaml()?.name;
-      if (packageName == null || packageName.isEmpty) {
-        logger.err(
-          '''
-Could not determine this app's package name (the release recorded none and pubspec.yaml has no name), so the patch cannot tell the app's code from the framework's.
-
-Nothing was uploaded.''',
-        );
-        throw ProcessExit(ExitCode.software.code);
-      }
-      final prefixes = routeBAppIncludePrefixes(packageName);
+      final prefixes = routeBAppIncludePrefixes(_routeBAppPackageName());
       return carry.isEmpty
           ? routeBCoverageAnalyzer.analyze(
               compiler: compiler,
@@ -807,6 +807,122 @@ Nothing was uploaded.''',
     } on FormatException catch (error) {
       logger.err(
         'The Route B coverage analysis could not be read: ${error.message}',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+  }
+
+  /// The app's package name: THE RELEASE'S when it recorded one, not the
+  /// working tree's, since a pubspec renamed since the release matches no
+  /// library and every member would read as a changed framework member.
+  ///
+  /// A missing or empty name is refused rather than falling back to "every
+  /// library is the app".
+  String _routeBAppPackageName() {
+    final packageName =
+        _releaseAppPackageName ?? shorebirdEnv.getPubspecYaml()?.name;
+    if (packageName == null || packageName.isEmpty) {
+      logger.err(
+        '''
+Could not determine this app's package name (the release recorded none and pubspec.yaml has no name), so the patch cannot tell the app's code from the framework's.
+
+Nothing was uploaded.''',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+    return packageName;
+  }
+
+  /// Refuse a patch whose build changed code outside the app's own package.
+  ///
+  /// A Route B patch carries the app's own libraries only: the release's
+  /// census, interface and target manifest stop at `package:<app>/`. A changed
+  /// dependency library (a path package next to the app, a git ref, another
+  /// hosted version, localizations generated from .arb files) is never
+  /// compared by [_analyzeCoverage], so it would be left out of the patch with
+  /// nothing said, and the device would keep running the release's copy. One
+  /// more analysis, over every package library on both sides, finds those
+  /// edits; a package only one side has reads as removed (release only) or is
+  /// refused by retention when the app calls it (patch only).
+  ///
+  /// Always run: the release records no lock file or dependency source hashes
+  /// to prove nothing changed, and the pass costs well under a second.
+  ///
+  /// Fails closed: a package config that cannot be read, or an analysis that
+  /// fails, refuses rather than skipping the check.
+  void _refuseDependencyChanges(
+    RouteBCompiler compiler,
+    Map<String, File> releaseArtifacts,
+  ) {
+    final packageName = _routeBAppPackageName();
+    final projectRoot = shorebirdEnv.getShorebirdProjectRoot()!;
+    final packageConfig = File(
+      p.join(projectRoot.path, '.dart_tool', 'package_config.json'),
+    );
+    final RouteBPackages packages;
+    try {
+      packages = readRouteBPackages(
+        packageConfig: packageConfig,
+        projectRoot: projectRoot,
+        flutterRoot: shorebirdEnv.flutterDirectory,
+      );
+    } on FormatException catch (error) {
+      logger.err('''
+Could not list this app's dependencies, so the patch cannot check that none of them changed: ${error.message}
+
+Run `flutter pub get` and try again. Nothing was uploaded.''');
+      throw ProcessExit(ExitCode.software.code);
+    }
+
+    final RouteBCoverage coverage;
+    try {
+      coverage = routeBCoverageAnalyzer.analyze(
+        compiler: compiler,
+        baseDill: releaseArtifacts[routeBReleaseKernelFileName]!,
+        patchedDill: File(appDillCopyPath),
+        includePrefixes: routeBDependencyIncludePrefixes,
+      );
+    } on RouteBCompilerException catch (error) {
+      logger.err(error.message);
+      throw ProcessExit(ExitCode.software.code);
+    } on FormatException catch (error) {
+      logger.err(
+        'The Route B dependency analysis could not be read: ${error.message}',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+    final changes = routeBDependencyChanges(
+      coverage,
+      appPackageName: packageName,
+      flutterSdk: packages.flutterSdk,
+    );
+    if (changes.isNotEmpty) {
+      logger.err(
+        describeRouteBDependencyChanges(
+          changes,
+          packages: packages,
+          appPackageName: packageName,
+        ),
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+    // BELOW ANALYSIS 14 AN EMPTY RESULT PROVES NOTHING. Such a cell compares
+    // method bodies only, so an edited `const`, field, constructor or class
+    // header in a dependency reads as no change. In the app that is a warning
+    // (below); here it would be the same silent drop this pass exists to
+    // prevent, so any package the patch could have edited refuses.
+    final dependencies = routeBDependencyNames(
+      packages,
+      appPackageName: packageName,
+    );
+    if (coverage.analysisVersion < routeBDeclarationsAnalysisVersion &&
+        dependencies.isNotEmpty) {
+      logger.err(
+        describeRouteBUncheckedDependencies(
+          dependencies,
+          analysisVersion: coverage.analysisVersion,
+          appPackageName: packageName,
+        ),
       );
       throw ProcessExit(ExitCode.software.code);
     }
