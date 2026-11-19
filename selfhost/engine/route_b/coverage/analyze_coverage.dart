@@ -315,7 +315,21 @@ import 'package:kernel/type_environment.dart';
 /// omitted (inherited from the overridden member) would become `dynamic` in the
 /// lowered form; the producer writes these types in, or refuses. A document
 /// below 21 never has them, and `inlined` is not believed below 21.
-const analysisVersion = 21;
+///
+/// Version 22 reports a `lowering` for an INSTANCE member of a named,
+/// non-generic extension (a getter or a method; never a setter, operator or
+/// tear-off). Kernel already compiles one to a static procedure whose first
+/// parameter is the receiver (`#this`), so the lowered form is the same
+/// top-level function a class member becomes. The entry gains `extension` (the
+/// extension's name, which the producer needs to write `Ext(self).sibling` and
+/// to qualify the extension's statics), `receiverType` is the written on-type,
+/// and `signatureTypes` leaves the receiver out. Three access kinds are new:
+/// `receiver` (a bare `this`, offset at the token), `extensionGet` and
+/// `extensionInvoke` (a call of a sibling instance member of the same
+/// extension, which Kernel resolves statically, offset at its identifier).
+/// A document below 22 never has an `extension` entry, and its scope report
+/// still refuses every instance extension member.
+const analysisVersion = 22;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -648,6 +662,39 @@ coverage/census_report.py, for what the numbers may and may not be read as.
               ? const <Map<String, Object?>>[]
               : _privateConstructions(releaseClass!, releaseMember);
         }
+      }
+    }
+  }
+
+  // INSTANCE MEMBERS OF EXTENSIONS (version 22). Kernel makes each a static
+  // procedure of the library taking the receiver first, so the replacement is
+  // the same top-level function a class member lowers to.
+  for (final lib in patched.libraries.where(isApp)) {
+    final uri = lib.importUri.toString();
+    for (final p in lib.procedures) {
+      if (!p.isExtensionMember) continue;
+      final key = '$uri#${_selector(null, p)}';
+      if (!subjects.contains(key)) continue;
+      final found = _extensionInstanceMember(p);
+      if (found == null) continue;
+      lowering[key] = _extensionLowering(p, found.$1, found.$2);
+      if (baseIsLinked) {
+        // The same-method construction evidence of version 13, for the
+        // release's own version of this member. A release without it has
+        // constructed nothing here.
+        Procedure? releaseMember;
+        for (final rl in base.libraries) {
+          if (rl.importUri.toString() != uri) continue;
+          for (final rp in rl.procedures) {
+            if (rp.name.text == p.name.text && rp.kind == p.kind) {
+              releaseMember = rp;
+            }
+          }
+        }
+        lowering[key]!['releaseSuperTargets'] = const <Map<String, Object?>>[];
+        lowering[key]!['releasePrivateConstructions'] = releaseMember == null
+            ? const <Map<String, Object?>>[]
+            : _privateConstructionsIn(lib, releaseMember);
       }
     }
   }
@@ -1252,9 +1299,7 @@ _HelperPlan _helperPlan(
       final helperName = instanceNames[key];
       if (bad == null && helperName != null) {
         final shadowing = callers[key]!
-            .where(
-              (c) => uses.localNames[helperName]?.contains(c) ?? false,
-            )
+            .where((c) => uses.localNames[helperName]?.contains(c) ?? false)
             .firstOrNull;
         if (shadowing != null) {
           bad =
@@ -1304,12 +1349,9 @@ _HelperPlan _helperPlan(
       }
     }
   }
-  return _HelperPlan(
-    reached,
-    accepted.difference(reached),
-    rejected,
-    {for (final key in accepted) key: callers[key]!},
-  );
+  return _HelperPlan(reached, accepted.difference(reached), rejected, {
+    for (final key in accepted) key: callers[key]!,
+  });
 }
 
 /// Why [p], a member of [cls] that only the patched kernel has, cannot be an
@@ -2807,6 +2849,200 @@ bool _importedNameClashes(Library target, String name) {
   );
 }
 
+/// Accesses sharing one source offset that are not one read and one write of
+/// one member; see the comment in `_lowering` on why that pair is one edit.
+List<String> _offsetCollisions(List<_Access> accesses) {
+  final unsupported = <String>[];
+  final byOffset = <int, List<_Access>>{};
+  for (final a in accesses) {
+    byOffset.putIfAbsent(a.offset, () => []).add(a);
+  }
+  for (final entry in byOffset.entries) {
+    // Exactly one read and one write: a third access, or two of one kind, is
+    // not something a compound assignment produces.
+    final readWriteOfOne =
+        entry.value.length == 2 &&
+        entry.value.map((a) => a.member).toSet().length == 1 &&
+        entry.value.map((a) => a.kind).toSet().containsAll(const {
+          'get',
+          'set',
+        });
+    if (entry.value.length > 1 && !readWriteOfOne) {
+      final kinds = entry.value.map((a) => a.kind).join('+');
+      unsupported.add(
+        'reads and writes `${entry.value.first.member}` in one expression '
+        '($kinds), which this lowering cannot rewrite as a single edit',
+      );
+    }
+  }
+  return unsupported;
+}
+
+/// The extension and descriptor [p] is an INSTANCE member of, or null: a static
+/// member, a tear-off (`Ext|get#m` of a method `m`, whose descriptor names it
+/// as `tearOffReference`), an extension type member, or a procedure no
+/// descriptor claims.
+(Extension, ExtensionMemberDescriptor)? _extensionInstanceMember(Procedure p) {
+  final bar = p.name.text.indexOf('|');
+  if (bar < 0 || !p.isExtensionMember) return null;
+  final name = p.name.text.substring(0, bar);
+  for (final e in p.enclosingLibrary.extensions) {
+    if (e.name != name) continue;
+    for (final d in e.memberDescriptors) {
+      if (!d.isStatic && d.memberReference == p.reference) return (e, d);
+    }
+  }
+  return null;
+}
+
+/// The version 22 lowering of [p] when it is an instance member of an
+/// extension, else null. The same document `main` writes, for tests and for
+/// `gen_scope_fixture.dart`.
+Map<String, Object?>? extensionLoweringOf(Procedure p) {
+  final found = _extensionInstanceMember(p);
+  return found == null ? null : _extensionLowering(p, found.$1, found.$2);
+}
+
+/// The receiver of an extension member's body, as [_ReceiverUses] needs it.
+class _ExtensionReceiver {
+  _ExtensionReceiver(this.thisVariable, this.name, this.members, this.tearOffs);
+
+  /// The `#this` parameter every instance member of an extension takes first.
+  final Variable thisVariable;
+  final String name;
+
+  /// The extension's own instance members by procedure.
+  final Map<TreeNode, ExtensionMemberDescriptor> members;
+
+  /// The procedures that are tear-offs of those methods.
+  final Set<TreeNode> tearOffs;
+}
+
+/// Version 22: [_lowering] for an instance member of a named extension.
+///
+/// Kernel compiles `String get stars => ...` in `extension Stars on int` to the
+/// static procedure `Stars|get#stars(int #this)`, so the replacement is the
+/// top-level function a class member lowers to, `String stars(int self)`, and
+/// every use of `#this` becomes `self`. A call of a SIBLING instance member is
+/// already a static call with `#this` first; it is reported so the producer
+/// writes `Stars(self).sibling(...)`, an explicit application, which cannot
+/// resolve to another extension that happens to be in scope.
+Map<String, Object?> _extensionLowering(
+  Procedure p,
+  Extension ext,
+  ExtensionMemberDescriptor descriptor,
+) {
+  final unsupported = <String>[];
+  final library = p.enclosingLibrary;
+  final name = ext.name;
+  final function = p.function;
+  if (name.contains('#')) {
+    unsupported.add('it is a member of an unnamed extension');
+  } else if (name.startsWith('_')) {
+    unsupported.add(
+      'it is a member of the private extension `$name`, which a replacement '
+      'library cannot name',
+    );
+  }
+  if (ext.typeParameters.isNotEmpty) {
+    unsupported.add(
+      'it is a member of the generic extension `$name`, and a replacement '
+      'does not declare the extension\'s type parameters',
+    );
+  }
+  switch (descriptor.kind) {
+    case ExtensionMemberKind.Getter || ExtensionMemberKind.Method:
+      break;
+    default:
+      unsupported.add(
+        'it is an extension ${descriptor.kind.name.toLowerCase()}, and only '
+        'a getter or a method of an extension is carried',
+      );
+  }
+  final positional = function.positionalParameters;
+  if (positional.isEmpty || positional.first.cosmeticName != '#this') {
+    unsupported.add('its receiver parameter could not be identified');
+    return {
+      'receiverType': 'dynamic',
+      'extension': name,
+      'nameOffset': p.fileOffset,
+      'accesses': const <Object>[],
+      'privateConstructions': const <Object>[],
+      'superInvocations': const <Object>[],
+      'unsupported': unsupported,
+    };
+  }
+  final receiver = positional.first;
+  if (function.namedParameters.isNotEmpty) {
+    unsupported.add('the method takes named parameters');
+  }
+  if (function.requiredParameterCount != positional.length) {
+    unsupported.add('the method takes optional positional parameters');
+  }
+  if (ext.typeParameters.isEmpty && function.typeParameters.isNotEmpty) {
+    unsupported.add('the method is generic');
+  }
+  final receiverType = _writableType(receiver.type, library);
+  if (receiverType == null) {
+    unsupported.add(
+      'its receiver type `${_typeLabel(receiver.type)}` cannot be written in '
+      'the replacement library: it must be a public class of dart:core or of '
+      'this library',
+    );
+  }
+
+  final members = <TreeNode, ExtensionMemberDescriptor>{};
+  final tearOffs = <TreeNode>{};
+  for (final d in ext.memberDescriptors) {
+    if (d.isStatic) continue;
+    final m = d.memberReference?.node;
+    if (m != null) members[m] = d;
+    final t = d.tearOffReference?.node;
+    if (t != null) tearOffs.add(t);
+  }
+  final visitor = _ReceiverUses(
+    const {},
+    _ExtensionReceiver(receiver, name, members, tearOffs),
+  );
+  function.accept(visitor);
+  unsupported
+    ..addAll(visitor.unsupported)
+    ..addAll(_offsetCollisions(visitor.accesses));
+
+  return {
+    'receiverType': receiverType ?? 'dynamic',
+    'extension': name,
+    'nameOffset': p.fileOffset,
+    'signatureTypes': {
+      'params': [
+        for (final v in positional.skip(1)) _writableType(v.type, library),
+      ],
+      'returnType': _writableType(function.returnType, library),
+    },
+    'accesses': [
+      for (final a in visitor.accesses)
+        {
+          'offset': a.offset,
+          'member': a.member,
+          'kind': a.kind,
+          if (a.private != null) 'private': a.private,
+        },
+    ],
+    'privateConstructions': _privateConstructionsIn(library, p),
+    'superInvocations': const <Object>[],
+    'unsupported': unsupported,
+  };
+}
+
+String _typeLabel(DartType type) => type is InterfaceType
+    ? type.classNode.name
+    : switch (type) {
+        FunctionType() => 'a function type',
+        TypeParameterType() => 'a type parameter',
+        RecordType() => 'a record type',
+        _ => 'a type of this kind',
+      };
+
 /// What a producer needs to turn an instance method into a static replacement
 /// taking its receiver as argument 0.
 ///
@@ -2863,28 +3099,7 @@ Map<String, Object?> _lowering(
   // still one edit (the producer replaces `this.` with the receiver).
   // `label = label + 'Y'` is untouched by this -- measured at two distinct
   // offsets, because it really is two tokens.
-  final byOffset = <int, List<_Access>>{};
-  for (final a in visitor.accesses) {
-    byOffset.putIfAbsent(a.offset, () => []).add(a);
-  }
-  for (final entry in byOffset.entries) {
-    // Exactly one read and one write: a third access, or two of one kind, is
-    // not something a compound assignment produces.
-    final readWriteOfOne =
-        entry.value.length == 2 &&
-        entry.value.map((a) => a.member).toSet().length == 1 &&
-        entry.value.map((a) => a.kind).toSet().containsAll(const {
-          'get',
-          'set',
-        });
-    if (entry.value.length > 1 && !readWriteOfOne) {
-      final kinds = entry.value.map((a) => a.kind).join('+');
-      unsupported.add(
-        'reads and writes `${entry.value.first.member}` in one expression '
-        '($kinds), which this lowering cannot rewrite as a single edit',
-      );
-    }
-  }
+  unsupported.addAll(_offsetCollisions(visitor.accesses));
 
   return {
     'receiverType': cls.name,
@@ -3027,10 +3242,17 @@ List<Map<String, Object?>> _superTargets(
 /// ONE definition, used for the candidate body and for the RELEASE's version of
 /// the same method. Measuring the two sides with different code is how an
 /// evidence rule quietly stops comparing like with like.
-List<Map<String, Object?>> _privateConstructions(Class cls, Procedure p) {
+List<Map<String, Object?>> _privateConstructions(Class cls, Procedure p) =>
+    _privateConstructionsIn(cls.enclosingLibrary, p);
+
+/// [_privateConstructions] for a member that has no class (an extension's).
+List<Map<String, Object?>> _privateConstructionsIn(
+  Library library,
+  Procedure p,
+) {
   final visitor = _ReceiverUses();
   p.function.accept(visitor);
-  final own = cls.enclosingLibrary.importUri.toString();
+  final own = library.importUri.toString();
   return [
     for (final c in visitor.privateConstructions)
       if (c.library == own)
@@ -3157,10 +3379,7 @@ List<Map<String, Object?>> _externalReferences(
     }
   } catch (error) {
     return [
-      {
-        'kind': 'unanalyzed',
-        'reason': 'the body could not be walked: $error',
-      },
+      {'kind': 'unanalyzed', 'reason': 'the body could not be walked: $error'},
     ];
   }
   return [for (final k in uses.found.keys.toList()..sort()) uses.found[k]!];
@@ -3190,7 +3409,8 @@ List<Map<String, Object?>> _externalReferences(
 /// `problems`: reasons this member cannot be carried safely. A spelling of an
 /// own static that no reported use accounts for (inside a folded constant
 /// collection, a map key, a local named like it), a use that is not at its
-/// identifier, a mixin application copy, an instance extension member, an
+/// identifier, a mixin application copy, an instance member of an extension
+/// type, a tear-off, an
 /// unnamed extension. Non-empty means refuse.
 ///
 /// `usedTypeParameters`: class type parameters the body mentions. They are not
@@ -3230,6 +3450,10 @@ Map<String, Object?>? enclosingScopeOf(Procedure p, {String? source}) {
     'staticReferences': references,
     'usedTypeParameters': uses.typeParameters.toList()..sort(),
     'problems': problems,
+    // An instance member of an extension takes its receiver first, so a
+    // consumer that finds no `lowering` for it must refuse, not carry it as a
+    // top-level function of the wrong arity.
+    if (_extensionInstanceMember(p) != null) 'extensionInstance': true,
   };
 }
 
@@ -3381,9 +3605,7 @@ class _ScopeOwner {
             : null,
         [
           for (final f in cls.fields)
-            if (f.isStatic &&
-                f.isConst &&
-                f.initializer is ConstantExpression)
+            if (f.isStatic && f.isConst && f.initializer is ConstantExpression)
               (f.name.text, (f.initializer! as ConstantExpression).constant),
         ],
         cls,
@@ -3404,17 +3626,24 @@ class _ScopeOwner {
     final library = p.enclosingLibrary;
     // (name, isStatic, member reference) of the declaration's members.
     final descriptors = <(String, bool, Reference?)>[];
+    // Tear-offs (`Ext|get#m` of a method `m`), which no descriptor claims as
+    // its member.
+    final tearOffs = <Reference>{};
+    var isExtensionType = false;
     for (final e in library.extensions) {
       if (e.name == extName) {
         for (final d in e.memberDescriptors) {
           descriptors.add((d.name.text, d.isStatic, d.memberReference));
+          if (d.tearOffReference != null) tearOffs.add(d.tearOffReference!);
         }
       }
     }
     for (final e in library.extensionTypeDeclarations) {
       if (e.name == extName) {
+        isExtensionType = true;
         for (final d in e.memberDescriptors) {
           descriptors.add((d.name.text, d.isStatic, d.memberReference));
+          if (d.tearOffReference != null) tearOffs.add(d.tearOffReference!);
         }
       }
     }
@@ -3450,11 +3679,20 @@ class _ScopeOwner {
     }
     final self = descriptors.where((d) => d.$3 == p.reference).toList();
     if (self.isEmpty) {
-      owner.problems.add('its extension member could not be identified');
-    } else if (!self.first.$2) {
       owner.problems.add(
-        'it is an instance member of `$extName`, whose receiver a replacement '
-        'does not pass',
+        tearOffs.contains(p.reference)
+            ? 'it is the tear-off of an extension method, which has no source '
+                  'of its own'
+            : 'its extension member could not be identified',
+      );
+    } else if (!self.first.$2 && isExtensionType) {
+      // An instance member of an extension TYPE: its receiver is the
+      // representation value, which a replacement does not rebuild. An
+      // instance member of an extension is carried from analysis 22
+      // (`_extensionLowering`).
+      owner.problems.add(
+        'it is an instance member of the extension type `$extName`, which a '
+        'replacement does not carry',
       );
     }
     return owner;
@@ -3623,8 +3861,7 @@ class _ExternalUses extends RecursiveVisitor {
     // aborts the process when the release lacks it. It is reported like any
     // top-level member so the CLI can refuse it (no interface lists one).
     if (m.name.text.contains('#') &&
-        !(m is Procedure &&
-            (m.isExtensionMember || m.isExtensionTypeMember))) {
+        !(m is Procedure && (m.isExtensionMember || m.isExtensionTypeMember))) {
       return;
     }
     final isPrivate = m.name.isPrivate || (cls?.name.startsWith('_') ?? false);
@@ -3666,9 +3903,10 @@ class _ExternalUses extends RecursiveVisitor {
       } else {
         // Sites of one key can be different opcodes (`num::<` for an int pair
         // and for a double pair): every one is named, sorted.
-        seen['inlined'] = ({...had.split('|'), ...inlined.split('|')}.toList()
-              ..sort())
-            .join('|');
+        seen['inlined'] = ({
+          ...had.split('|'),
+          ...inlined.split('|'),
+        }.toList()..sort()).join('|');
       }
       return;
     }
@@ -3968,7 +4206,28 @@ class _ThisExpressions extends RecursiveVisitor {
 
 /// Every use of the receiver, and a reason for each one that is not supported.
 class _ReceiverUses extends RecursiveVisitor {
-  _ReceiverUses([this.helperMembers = const {}]);
+  _ReceiverUses([this.helperMembers = const {}, this.extension]);
+
+  /// Set when the body is an instance member of an extension (analysis version
+  /// 22): its receiver is the `#this` parameter rather than a `this`.
+  final _ExtensionReceiver? extension;
+
+  /// `VariableGet`s of the extension receiver already accounted for.
+  final consumedVariables = <VariableGet>{};
+
+  bool _isReceiver(Expression e) =>
+      e is ThisExpression ||
+      (extension != null &&
+          e is VariableGet &&
+          identical(e.variable, extension!.thisVariable));
+
+  void _consume(Expression e) {
+    if (e is ThisExpression) {
+      consumed.add(e);
+    } else if (e is VariableGet) {
+      consumedVariables.add(e);
+    }
+  }
 
   /// Version 17: instance helpers the patch carries. A call to one is a
   /// `helperCall` access: it is rewritten to pass the receiver, not prefixed
@@ -4046,8 +4305,8 @@ class _ReceiverUses extends RecursiveVisitor {
   @override
   void visitInstanceGet(InstanceGet node) {
     final receiver = node.receiver;
-    if (receiver is ThisExpression) {
-      consumed.add(receiver);
+    if (_isReceiver(receiver)) {
+      _consume(receiver);
       _record(node.fileOffset, node.name.text, 'get', node.interfaceTarget);
     }
     node.visitChildren(this);
@@ -4056,8 +4315,8 @@ class _ReceiverUses extends RecursiveVisitor {
   @override
   void visitInstanceSet(InstanceSet node) {
     final receiver = node.receiver;
-    if (receiver is ThisExpression) {
-      consumed.add(receiver);
+    if (_isReceiver(receiver)) {
+      _consume(receiver);
       // A write is the same lexical shape as a read: the offset is on the
       // identifier and everything after it -- `= <whatever>` -- is the
       // source's own text. The right-hand side is carried across untouched,
@@ -4078,11 +4337,21 @@ class _ReceiverUses extends RecursiveVisitor {
     node.visitChildren(this);
   }
 
+  /// An operator is not written `this.op(...)`: its offset is on the operator
+  /// token, so a member-prefix edit there would be wrong. In an extension the
+  /// receiver of `this + 1` is reported as the bare `this` it is.
+  static bool _isOperator(String name) =>
+      name == 'unary-' || !RegExp(r'^[A-Za-z_$]').hasMatch(name);
+
   @override
   void visitInstanceInvocation(InstanceInvocation node) {
     final receiver = node.receiver;
-    if (receiver is ThisExpression) {
-      consumed.add(receiver);
+    if (extension != null && _isOperator(node.name.text)) {
+      node.visitChildren(this);
+      return;
+    }
+    if (_isReceiver(receiver)) {
+      _consume(receiver);
       // ARGUMENTS NEED NO PERMISSION. The producer's edit inserts a receiver
       // prefix immediately before this identifier and copies everything after
       // it verbatim, so the argument list -- positional, named, generic,
@@ -4098,20 +4367,15 @@ class _ReceiverUses extends RecursiveVisitor {
         node.visitChildren(this);
         return;
       }
-      _record(
-        node.fileOffset,
-        node.name.text,
-        'invoke',
-        node.interfaceTarget,
-      );
+      _record(node.fileOffset, node.name.text, 'invoke', node.interfaceTarget);
     }
     node.visitChildren(this);
   }
 
   @override
   void visitInstanceGetterInvocation(InstanceGetterInvocation node) {
-    if (node.receiver is ThisExpression) {
-      consumed.add(node.receiver as ThisExpression);
+    if (_isReceiver(node.receiver)) {
+      _consume(node.receiver);
       unsupported.add('invokes the getter `${node.name.text}` on the receiver');
     }
     node.visitChildren(this);
@@ -4130,7 +4394,97 @@ class _ReceiverUses extends RecursiveVisitor {
   }
 
   @override
+  void visitVariableGet(VariableGet node) {
+    // A bare use of the extension receiver: `this` as a value, `$this`, or an
+    // argument. The producer replaces the token with `self` and checks that
+    // the source has `this` there; an implicit one has no such token.
+    final ext = extension;
+    if (ext != null &&
+        identical(node.variable, ext.thisVariable) &&
+        !consumedVariables.contains(node)) {
+      accesses.add(_Access(node.fileOffset, 'this', 'receiver'));
+    }
+    super.visitVariableGet(node);
+  }
+
+  /// Whether [e] reads [receiver], directly or through a `let` variable
+  /// (a cascade or null-aware call binds the receiver to one first).
+  static bool _mentionsReceiver(Expression e, Variable receiver) {
+    final finder = _ReceiverFinder(receiver);
+    e.accept(finder);
+    return finder.found;
+  }
+
+  /// A call that passes the extension receiver first: a sibling instance
+  /// member of the same extension (reported), or another extension's member or
+  /// a tear-off (refused). Returns whether it handled [node].
+  bool _extensionCall(StaticInvocation node) {
+    final ext = extension;
+    if (ext == null || node.arguments.positional.isEmpty) return false;
+    final first = node.arguments.positional.first;
+    final target = node.target;
+    if (first is! VariableGet || !identical(first.variable, ext.thisVariable)) {
+      // `this..m()`, `this?.m()` and `(this + 1).m()` apply an extension to
+      // something built from the receiver. The replacement would keep the
+      // call's own spelling and resolve it in another library, where a private
+      // extension is not visible and a same-named public one could be bound.
+      // Only the plain receiver is rewritten, so these are refused.
+      if (target.isExtensionMember &&
+          target.function.positionalParameters.isNotEmpty &&
+          target.function.positionalParameters.first.cosmeticName == '#this' &&
+          _mentionsReceiver(first, ext.thisVariable)) {
+        unsupported.add(
+          'calls the extension member `${target.name.text}` on an expression '
+          'built from the receiver (a cascade, a null-aware call or a '
+          'parenthesised expression), which a replacement does not rewrite',
+        );
+      }
+      return false;
+    }
+    final own = ext.members[target];
+    final isTearOff = ext.tearOffs.contains(target);
+    if (own == null &&
+        !isTearOff &&
+        !target.isExtensionMember &&
+        !target.isExtensionTypeMember) {
+      return false;
+    }
+    consumedVariables.add(first);
+    final name = own?.name.text ?? target.name.text;
+    if (isTearOff) {
+      unsupported.add('tears off the extension method of `${ext.name}`');
+    } else if (own == null) {
+      unsupported.add(
+        'applies the extension `${target.name.text.split('|').first}` to the '
+        'receiver, which the replacement library cannot be shown to resolve '
+        'the same way',
+      );
+    } else if (name.startsWith('_')) {
+      unsupported.add(
+        'calls the private member `$name` of the extension `${ext.name}`',
+      );
+    } else if (own.kind == ExtensionMemberKind.Getter) {
+      accesses.add(_Access(node.fileOffset, name, 'extensionGet'));
+    } else if (own.kind == ExtensionMemberKind.Method) {
+      accesses.add(_Access(node.fileOffset, name, 'extensionInvoke'));
+    } else {
+      unsupported.add(
+        'uses the extension ${own.kind.name.toLowerCase()} `$name` on the '
+        'receiver',
+      );
+    }
+    for (final a in node.arguments.positional.skip(1)) {
+      a.accept(this);
+    }
+    for (final a in node.arguments.named) {
+      a.accept(this);
+    }
+    return true;
+  }
+
+  @override
   void visitStaticInvocation(StaticInvocation node) {
+    if (_extensionCall(node)) return;
     // Factory constructors are StaticInvocations whose target is a factory
     // Procedure; they construct just as surely as a generative constructor.
     final target = node.target;
@@ -4172,9 +4526,7 @@ class _ReceiverUses extends RecursiveVisitor {
     // The offset is the site's own, measured to be identical in the AOT and
     // import kernels (`super0/s2b0/`), which is what makes it usable as the key
     // the other two stages read from.
-    superInvocations.add(
-      _SuperSite(node.fileOffset, node.name.text, 'method'),
-    );
+    superInvocations.add(_SuperSite(node.fileOffset, node.name.text, 'method'));
     node.visitChildren(this);
   }
 
@@ -4200,6 +4552,23 @@ class _ReceiverUses extends RecursiveVisitor {
     // argument, captured by a closure, stored. Each is its own question.
     if (!consumed.contains(node)) {
       unsupported.add('uses `this` other than to read a member');
+    }
+  }
+}
+
+/// Finds a read of [receiver], following `let` variables to what they hold.
+class _ReceiverFinder extends RecursiveVisitor {
+  _ReceiverFinder(this.receiver);
+
+  final Variable receiver;
+  bool found = false;
+
+  @override
+  void visitVariableGet(VariableGet node) {
+    if (identical(node.variable, receiver)) {
+      found = true;
+    } else if (node.variable.initializer case final Expression init) {
+      init.accept(this);
     }
   }
 }

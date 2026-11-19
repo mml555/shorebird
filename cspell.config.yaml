@@ -751,6 +751,7 @@ words:
   - Dalvik # Android Dalvik VM / DEX file format
   - darkweak
   - dartaotruntime
+  - dartbug
   # The Dart VM executable, as process names in captured proxy logs.
   - dartvm
   - DBPW
@@ -789,6 +790,7 @@ words:
   - dylib
   - dylibs
   - dynmod
+  - dynsym
   - eaec
   - elems
   - embedders

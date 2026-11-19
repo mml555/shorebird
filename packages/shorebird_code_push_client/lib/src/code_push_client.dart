@@ -950,11 +950,20 @@ class CodePushClient {
   /// Promoting starts a new rollout on the channel at [rolloutPercentage], a
   /// multiple of 0.01 from 0.01 to 100. When it is omitted the server rolls
   /// the patch out to every device on the channel.
+  ///
+  /// [rolloutSteps] instead starts a timed rollout schedule, which the server
+  /// advances through on its own. It holds each step for its duration, and
+  /// holds over weekends in [rolloutTimezone] when [rolloutPauseWeekends] is
+  /// set. Schedules and [rolloutPercentage] are mutually exclusive, and the
+  /// server answers 403 when the app's plan does not include schedules.
   Future<void> promotePatch({
     required String appId,
     required int patchId,
     required int channelId,
     double? rolloutPercentage,
+    List<RolloutStep>? rolloutSteps,
+    bool? rolloutPauseWeekends,
+    String? rolloutTimezone,
   }) async {
     final response = await _httpClient.post(
       Uri.parse('$_v1/apps/$appId/patches/promote'),
@@ -963,6 +972,9 @@ class CodePushClient {
           patchId: patchId,
           channelId: channelId,
           rolloutPercentage: rolloutPercentage,
+          rolloutSteps: rolloutSteps,
+          rolloutPauseWeekends: rolloutPauseWeekends,
+          rolloutTimezone: rolloutTimezone,
         ).toJson(),
       ),
     );
@@ -973,24 +985,29 @@ class CodePushClient {
   }
 
   /// Raises the share of its channel's devices that the patch with [patchId]
-  /// under [releaseId] for [appId] is offered to, to [rolloutPercentage].
+  /// under [releaseId] for [appId] is offered to, to a
+  /// [SetPatchRolloutPercentageRequest]'s percentage, or puts it on a
+  /// [SetPatchRolloutScheduleRequest]'s timed rollout schedule.
   ///
-  /// Rollouts only go up: the server answers 409 when [rolloutPercentage] is
-  /// lower than the current one, and when the patch is on no channel.
-  /// Setting the current percentage again succeeds and changes nothing.
+  /// Rollouts only go up: the server answers 409 when the new percentage, or
+  /// a schedule's first step, is lower than the current one, and when the
+  /// patch is on no channel. Setting the current percentage again succeeds
+  /// and changes nothing.
+  ///
+  /// A schedule holds each step for its duration, and holds over weekends in
+  /// its timezone when it pauses on weekends. The server answers
+  /// 403 when the app's plan does not include schedules.
   Future<void> setPatchRollout({
     required String appId,
     required int releaseId,
     required int patchId,
-    required double rolloutPercentage,
+    required SetPatchRolloutRequest request,
   }) async {
     final response = await _httpClient.put(
       Uri.parse(
         '$_v1/apps/$appId/releases/$releaseId/patches/$patchId/rollout',
       ),
-      body: json.encode(
-        SetPatchRolloutRequest(rolloutPercentage: rolloutPercentage).toJson(),
-      ),
+      body: json.encode(request.toJson()),
     );
 
     if (!response.isSuccess) {

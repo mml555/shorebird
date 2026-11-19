@@ -30,7 +30,12 @@ set -euo pipefail
 
 SRC=${SRC:-/Volumes/build/route-b/flutter/engine/src}
 OUT=${OUT:-$SRC/out/host_release_arm64}
-OVERLAY=${OVERLAY:-/Users/mendell/shorebird/selfhost/cdn/overlay}
+# The checkout's own overlay, as every other script here defaults to. This was an
+# absolute path on a machine that no longer exists, so a publish anywhere else
+# wrote the archive into a directory nothing reads.
+# Resolved through selfhost/, which always exists: the overlay itself may not yet,
+# and this runs before --overlay is parsed.
+OVERLAY=${OVERLAY:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/cdn/overlay}
 BUCKET=${BUCKET:-download.shorebird.dev}
 REV=""
 PLAT=${PLAT:-darwin-arm64}

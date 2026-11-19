@@ -1,4 +1,4 @@
-// cspell:words lineafter constmap constlist
+// cspell:words lineafter constmap constlist casc
 import 'dart:convert' as convert;
 import 'dart:convert' hide jsonEncode;
 import 'dart:io';
@@ -455,6 +455,78 @@ callable:
           ),
           throwsA(isA<RouteBUnsupportedTarget>()),
         );
+      });
+
+      group('the scan of a target with no lowering, when the flag is on', () {
+        /// The refusal [body] gets as `routeBValue` with `_fmt` granted, or
+        /// null when it is carried.
+        String? refusal(String body) {
+          source.writeAsStringSync(body);
+          final capabilities = RouteBCapabilities.fromJson(
+            jsonEncode({
+              'policy': 'p2',
+              'privateTopLevelCallable': const [privateFmt],
+            }),
+          );
+          try {
+            runWithOverrides(
+              () => const RouteBProducer().produce(
+                compiler: compiler(),
+                coverage: coverage(
+                  sources: {
+                    target: {
+                      'fileUri': source.uri.toString(),
+                      'start': 0,
+                      'end': body.length,
+                    },
+                  },
+                  externalReferences: {
+                    target: [reference()],
+                  },
+                ),
+                releaseImportKernel: File(
+                  p.join(cell.path, 'release_import.dill'),
+                ),
+                releaseBuildId: 'deadbeef',
+                workingDirectory: work,
+                projectRoot: project,
+                capabilities: capabilities,
+                retention: RouteBRetention.parse('''
+callable:
+  - library: 'package:app/main.dart'
+  - library: 'package:app/main.dart'
+    member: '_fmt'
+''', capabilities: capabilities),
+                run: compileOk,
+              ),
+            );
+            return null;
+          } on RouteBUnsupportedTarget catch (e) {
+            return e.reason;
+          }
+        }
+
+        test('carries the granted private top-level function', () {
+          expect(refusal("String routeBValue() => _fmt('a') + '_x';"), isNull);
+        });
+
+        test('refuses another private name beside it', () {
+          expect(
+            refusal('String routeBValue(dynamic d) => _fmt(1) + d._secret;'),
+            contains('`_secret`'),
+          );
+        });
+
+        test('refuses the granted name written after a dot', () {
+          expect(
+            refusal('String routeBValue(dynamic d) => _fmt(1) + d._fmt(2);'),
+            contains('`_fmt`'),
+          );
+          expect(
+            refusal('String routeBValue(dynamic d) => _fmt(1) + d?._fmt(2);'),
+            contains('`_fmt`'),
+          );
+        });
       });
     });
 
@@ -3470,9 +3542,10 @@ callable:
           /// the offset is that of [member] inside [needle].
           Map<String, Object?> scopeFor(
             String decl,
-            List<(String, String, String)> uses,
-          ) => {
-            'class': 'RouteBThing',
+            List<(String, String, String)> uses, {
+            String className = 'RouteBThing',
+          }) => {
+            'class': className,
             'staticReferences': [
               for (final (needle, member, kind) in uses)
                 ...(use(
@@ -3481,6 +3554,7 @@ callable:
                       member: member,
                       kind: kind,
                       interpolated: needle.startsWith(r'$'),
+                      className: className,
                     )['staticReferences']!
                     as List),
             ],
@@ -3704,6 +3778,328 @@ callable:
             });
           });
 
+          group('compound assignment and increment', () {
+            // The analysis may report `_n++` and `_n += 1` as a get and a set
+            // at one offset; the qualifier goes in once.
+            for (final decl in [
+              'int f() { _n++; return 1; }',
+              'int f() { _n += 1; return 1; }',
+            ]) {
+              test('qualifies `$decl` once', () {
+                final scope = scopeFor(decl, [
+                  ('_n', '_n', 'get'),
+                  ('_n', '_n', 'set'),
+                ]);
+                expect(
+                  refuses(
+                    decl,
+                    scope,
+                    grants(statics: ['$lib#RouteBThing#_n']),
+                  ),
+                  isNull,
+                );
+                expect(emitted(), contains('RouteBThing._n'));
+                expect(emitted(), isNot(contains('RouteBThing.RouteBThing')));
+                expect(lastArguments, contains(flag));
+              });
+            }
+
+            test('is refused without a grant', () {
+              const decl = 'int f() { _n++; return 1; }';
+              final scope = scopeFor(decl, [
+                ('_n', '_n', 'get'),
+                ('_n', '_n', 'set'),
+              ]);
+              expect(refuses(decl, scope, null), contains('`_n`'));
+            });
+
+            test('a second spelling `Other._n` is still refused', () {
+              const decl = 'int f() { _n++; return Other._n; }';
+              final scope = scopeFor(decl, [
+                ('_n', '_n', 'get'),
+                ('_n', '_n', 'set'),
+              ]);
+              expect(
+                refuses(decl, scope, grants(statics: ['$lib#RouteBThing#_n'])),
+                contains('`_n`'),
+              );
+            });
+          });
+
+          group('one offset reported twice', () {
+            const decl = 'int f() => _n;';
+            Map<String, Object?> twice(Map<String, Object?> second) {
+              final scope = scopeFor(decl, [('_n', '_n', 'get')]);
+              final first = (scope['staticReferences']! as List).single as Map;
+              scope['staticReferences'] = [
+                first,
+                {...first, ...second},
+              ];
+              return scope;
+            }
+
+            test('two different statics are refused', () {
+              expect(
+                refuses(
+                  decl,
+                  twice({'member': '_m'}),
+                  grants(statics: ['$lib#RouteBThing#_n']),
+                ),
+                contains('reported at offset'),
+              );
+            });
+
+            test('an interpolated and a plain use are refused', () {
+              expect(
+                refuses(
+                  decl,
+                  twice({'interpolated': true}),
+                  grants(statics: ['$lib#RouteBThing#_n']),
+                ),
+                contains('reported at offset'),
+              );
+            });
+
+            test('a get-only grant does not cover `_n++`', () {
+              const inc = 'int f() { _n++; return 1; }';
+              final scope = scopeFor(inc, [
+                ('_n', '_n', 'get'),
+                ('_n', '_n', 'set'),
+              ]);
+              expect(
+                refuses(
+                  inc,
+                  scope,
+                  grants(statics: ['$lib#RouteBThing#get:_n']),
+                ),
+                contains('`_n`'),
+              );
+            });
+          });
+
+          for (final helper in [
+            'String _h(int l) => _k;',
+            'String _h(int l) => _k + _other;',
+          ]) {
+            test('an instance helper `$helper` and the flag', () {
+              const targetKey = '$lib#RouteBThing.value';
+              const helperKey = '$lib#RouteBThing._h';
+              const decl = 'String value() => _h(1);';
+              final body = 'class RouteBThing {\n  $decl\n  $helper\n}\n';
+              source.writeAsStringSync(body);
+              Map<String, Object?> at(String piece) => {
+                'fileUri': source.uri.toString(),
+                'start': body.indexOf(piece),
+                'end': body.indexOf(piece) + piece.length,
+              };
+              RouteBCoverage coverage() => RouteBCoverage.fromJson(
+                jsonEncode({
+                  'analysisVersion': routeBInstanceHelpersAnalysisVersion,
+                  'verdict': 'accept',
+                  'changed': [targetKey],
+                  'carried': <String>[],
+                  'callers': {
+                    helperKey: [targetKey],
+                  },
+                  'added': [helperKey],
+                  'helpers': [helperKey],
+                  'unusedHelpers': <String>[],
+                  'removed': <String>[],
+                  'patchable': <String>[],
+                  'conditional': [targetKey],
+                  'sources': {targetKey: at(decl), helperKey: at(helper)},
+                  'lowering': {
+                    targetKey: {
+                      'receiverType': 'RouteBThing',
+                      'nameOffset': body.indexOf('value'),
+                      'accesses': [
+                        {
+                          'offset': body.indexOf('_h(1)'),
+                          'member': '_h',
+                          'kind': 'helperCall',
+                        },
+                      ],
+                      'unsupported': <String>[],
+                      'privateConstructions': <Object>[],
+                    },
+                    helperKey: {
+                      'receiverType': 'RouteBThing',
+                      'nameOffset': body.indexOf('_h(int'),
+                      'accesses': <Object>[],
+                      'unsupported': <String>[],
+                      'superInvocations': <Object>[],
+                      'privateConstructions': <Object>[],
+                    },
+                  },
+                  'enclosingScope': {
+                    targetKey: {
+                      'class': 'RouteBThing',
+                      'staticReferences': <Object>[],
+                      'usedTypeParameters': <String>[],
+                      'problems': <String>[],
+                    },
+                    helperKey: {
+                      'class': 'RouteBThing',
+                      'staticReferences': [
+                        {
+                          'offset': body.indexOf('_k'),
+                          'member': '_k',
+                          'kind': 'constant',
+                        },
+                      ],
+                      'usedTypeParameters': <String>[],
+                      'problems': <String>[],
+                    },
+                  },
+                  'rejections': <Object>[],
+                  'refusalSummary': null,
+                }),
+              );
+              String? run(RouteBCapabilities? granting) {
+                try {
+                  runWithOverrides(
+                    () => const RouteBProducer().produce(
+                      compiler: compiler(),
+                      coverage: coverage(),
+                      releaseImportKernel: File(
+                        p.join(cell.path, 'release_import.dill'),
+                      ),
+                      releaseBuildId: 'deadbeef',
+                      workingDirectory: work,
+                      projectRoot: project,
+                      capabilities: granting,
+                      run: (executable, arguments) {
+                        lastArguments = arguments;
+                        return compileOk(executable, arguments);
+                      },
+                    ),
+                  );
+                  return null;
+                } on RouteBUnsupportedTarget catch (e) {
+                  return e.reason;
+                }
+              }
+
+              final granting = grants(statics: ['$lib#RouteBThing#_k']);
+              if (helper.contains('_other')) {
+                // The flag is on for the granted `_k`, and the backstop still
+                // refuses the private name nothing granted.
+                expect(run(granting), contains('`_other`'));
+              } else {
+                expect(run(granting), isNull);
+                expect(lastArguments, contains(flag));
+              }
+              expect(run(null), contains('`_k`'));
+            });
+          }
+
+          group('a static target of a private class', () {
+            const private = '_RouteBThing';
+
+            test('naming an ungranted private name is refused', () {
+              const decl = 'static int f(int a) => a + k + _fmt(a);';
+              final scope = scopeFor(decl, [
+                ('a + k', 'k', 'get'),
+              ], className: private);
+              expect(
+                refuses(decl, scope, null, instance: false),
+                contains('`_fmt`'),
+              );
+              expect(
+                refuses(
+                  decl,
+                  scope,
+                  grants(statics: ['$lib#$private#k']),
+                  instance: false,
+                ),
+                contains('`_fmt`'),
+              );
+            });
+
+            test('naming a granted private static of its class is carried', () {
+              const decl = 'static int f(int a) => a + _k;';
+              final scope = scopeFor(decl, [
+                ('a + _k', '_k', 'get'),
+              ], className: private);
+              expect(
+                refuses(
+                  decl,
+                  scope,
+                  grants(statics: ['$lib#$private#_k']),
+                  instance: false,
+                ),
+                isNull,
+              );
+              expect(lastArguments, contains(flag));
+              expect(
+                refuses(decl, scope, null, instance: false),
+                contains('`_k`'),
+              );
+            });
+
+            test('an interpolated granted static is carried', () {
+              const decl = r"static String f() => 'v$_k';";
+              final scope = scopeFor(decl, [
+                (r'$_k', '_k', 'get'),
+              ], className: private);
+              expect(
+                refuses(
+                  decl,
+                  scope,
+                  grants(statics: ['$lib#$private#_k']),
+                  instance: false,
+                ),
+                isNull,
+              );
+              expect(emitted(), contains(r'${_RouteBThing._k}'));
+            });
+
+            test('a local shadowing a granted static is refused', () {
+              const decl = 'static int f() { var _k = 2; return _k; }';
+              final scope = scopeFor(decl, [
+                ('return _k', '_k', 'get'),
+              ], className: private);
+              expect(
+                refuses(
+                  decl,
+                  scope,
+                  grants(statics: ['$lib#$private#_k']),
+                  instance: false,
+                ),
+                contains('`_k`'),
+              );
+            });
+
+            test("the class's own name is refused", () {
+              const decl = 'static int f(int a) => a + k + _RouteBThing.g();';
+              final scope = scopeFor(decl, [
+                ('a + k', 'k', 'get'),
+              ], className: private);
+              expect(
+                refuses(decl, scope, null, instance: false),
+                contains('`_RouteBThing`'),
+              );
+            });
+
+            test('a comment or string naming a private name is carried', () {
+              const decl =
+                  r"static String f(int a) => '_fmt' + '${a + k}'; // _fmt";
+              final scope = scopeFor(decl, [
+                ('a + k', 'k', 'get'),
+              ], className: private);
+              expect(refuses(decl, scope, null, instance: false), isNull);
+            });
+
+            test('naming no private name is carried as before', () {
+              const decl = 'static int f(int a) => a + k;';
+              final scope = scopeFor(decl, [
+                ('a + k', 'k', 'get'),
+              ], className: private);
+              expect(refuses(decl, scope, null, instance: false), isNull);
+              expect(lastArguments, contains(flag));
+            });
+          });
+
           test('a static target does not widen the private-name flag', () {
             // No private-name scan runs for a static target, so a granted or
             // folded private static must not switch the flag on for it.
@@ -3869,7 +4265,16 @@ callable:
             source.writeAsStringSync(fixtureSource);
             final doc = RouteBCoverage.fromJson(
               jsonEncode({
-                'analysisVersion': supportedRouteBAnalysisVersion,
+                'analysisVersion': entry['lowering'] != null
+                    ? routeBExtensionReceiverAnalysisVersion
+                    : supportedRouteBAnalysisVersion,
+                if (entry['lowering'] != null) ...{
+                  'externalReferences': {targetKey: <Object>[]},
+                  'carried': <String>[],
+                  'callers': <String, Object>{},
+                  'helpers': <String>[],
+                  'unusedHelpers': <String>[],
+                },
                 'verdict': 'accept',
                 'changed': [targetKey],
                 'added': <String>[],
@@ -3883,7 +4288,9 @@ callable:
                     'end': entry['end'],
                   },
                 },
-                if (!isStatic)
+                if (entry['lowering'] != null)
+                  'lowering': {targetKey: entry['lowering']}
+                else if (!isStatic)
                   'lowering': {
                     targetKey: {
                       'receiverType': className,
@@ -3910,6 +4317,13 @@ callable:
                   p.join(cell.path, 'release_import.dill'),
                 ),
                 releaseBuildId: 'deadbeef',
+                retention: entry['lowering'] == null
+                    ? null
+                    : RouteBRetention.parse('''
+callable:
+  - library: 'package:app/main.dart'
+'''),
+
                 workingDirectory: work,
                 projectRoot: project,
                 run: (executable, arguments) {
@@ -4015,11 +4429,10 @@ callable:
             expect(fromFixture('ET|s'), contains('=> ET.k;'));
           });
 
-          test('an extension getter, setter or tear-off key is refused', () {
+          test('an extension setter, tear-off or type member is refused', () {
             // Their keys are `lib#X|get#zz`: the selector has no `.`, which
             // once let them through as plain top-level members.
             for (final name in [
-              'X|get#zz',
               'X|set#zs',
               'ET|get#zz',
               'ET|set#zs',
@@ -4030,7 +4443,8 @@ callable:
                 refusedWith(
                   anyOf(
                     contains('instance member'),
-                    contains('could not be identified'),
+                    contains('tear-off'),
+                    contains('only a getter or a method'),
                   ),
                 ),
                 reason: name,
@@ -4048,11 +4462,157 @@ callable:
             );
           });
 
-          test('an instance extension member is refused', () {
-            expect(
-              () => fromFixture('X|inst'),
-              refusedWith(contains('instance member')),
+          group('an extension instance member', () {
+            test('a method takes the receiver and qualifies the static', () {
+              final out = fromFixture('X|inst');
+              expect(out, contains('int inst(int self) => self + X.k;'));
+            });
+
+            test('a getter becomes a function of the receiver', () {
+              expect(fromFixture('X|get#zz'), contains('int zz(int self) =>'));
+              expect(fromFixture('X|get#zz'), contains('=> X.k;'));
+            });
+
+            test(r'`$this` in an interpolation becomes `${self}`', () {
+              expect(
+                fromFixture('X|interp'),
+                contains(r"String interp(int self) => '${X.k}${self}${X.k}';"),
+              );
+            });
+
+            test('a sibling member is applied to the receiver explicitly', () {
+              final out = fromFixture('X|sibling');
+              expect(
+                out,
+                contains('X(self).inst() + X(self).zz + X(self).inst()'),
+              );
+            });
+
+            test(
+              'an implicit receiver member is qualified with the receiver',
+              () {
+                expect(
+                  fromFixture('X|get#implicit'),
+                  contains('self.isEven ? 1 : 0'),
+                );
+              },
             );
+
+            test('`this` passed along becomes the receiver', () {
+              expect(
+                fromFixture('X|leak'),
+                contains('Object leak(int self) => self;'),
+              );
+            });
+
+            test('a sibling called in a closure is rewritten there', () {
+              expect(
+                fromFixture('X|get#inClosure'),
+                contains('(e) => e + X(self).inst()'),
+              );
+            });
+
+            test('refuses what a replacement cannot express', () {
+              final refusals = {
+                'X|tear': 'tears off',
+                'X|optional': 'optional',
+                'X|set#zs': 'only a getter or a method',
+                'G|get#firstLen': 'generic extension `G`',
+                fixture.keys.firstWhere(
+                  (k) =>
+                      k.startsWith('_extension#') && k.endsWith('|get#unnamed'),
+                ): 'unnamed extension',
+                'PE|get#pv': 'receiver type `_P`',
+                '_PX|get#px': 'private extension',
+                'ET|get#zz': 'extension type `ET`',
+                'X|casc': 'built from the receiver',
+                'NI|get#viaNull': 'built from the receiver',
+                'X|shadow': 'name of its extension',
+              };
+              for (final entry in refusals.entries) {
+                expect(
+                  () => fromFixture(entry.key),
+                  refusedWith(contains(entry.value)),
+                  reason: entry.key,
+                );
+              }
+            });
+
+            test('a nested function and an `on int?` receiver are carried', () {
+              expect(
+                fromFixture('X|nested'),
+                contains('int f() => self + 1;'),
+              );
+              expect(
+                fromFixture('NI|get#nz'),
+                contains('int nz(int? self) => self == null ? 0 : 1;'),
+              );
+              expect(
+                fromFixture('NI|get#plain'),
+                contains('NI(self).nz + 1'),
+              );
+            });
+
+            test('an extension member with no lowering is refused, not '
+                'carried with the wrong arity', () {
+              final entry = Map<String, dynamic>.from(
+                fixture['X|inst'] as Map,
+              )..remove('lowering');
+              final original = fixture['X|inst'];
+              addTearDown(() => fixture['X|inst'] = original);
+              fixture['X|inst'] = entry;
+              expect(
+                () => fromFixture('X|inst'),
+                refusedWith(contains('reported no lowering')),
+              );
+            });
+
+            test('a lowering of an extension key that names no extension is '
+                'refused', () {
+              final entry = fixture['X|inst'] as Map<String, dynamic>;
+              final lowering = Map<String, dynamic>.from(
+                entry['lowering'] as Map,
+              )..remove('extension');
+              final original = fixture['X|inst'];
+              addTearDown(() => fixture['X|inst'] = original);
+              fixture['X|inst'] = {...entry, 'lowering': lowering};
+              expect(
+                () => fromFixture('X|inst'),
+                refusedWith(contains('does not name its extension')),
+              );
+            });
+
+            test(r'a `$` after a static that is not an interpolation is not '
+                'split off it', () {
+              final entry = fixture['X|interp'] as Map<String, dynamic>;
+              final scope =
+                  jsonDecode(jsonEncode(entry['scope']))
+                      as Map<String, dynamic>;
+              for (final r in scope['staticReferences'] as List) {
+                (r as Map<String, dynamic>)['interpolated'] = false;
+              }
+              final original = fixture['X|interp'];
+              addTearDown(() => fixture['X|interp'] = original);
+              fixture['X|interp'] = {...entry, 'scope': scope};
+              expect(
+                () => fromFixture('X|interp'),
+                refusedWith(contains('not where the analyzer reported')),
+              );
+            });
+
+            test('a lowering naming another extension is refused', () {
+              final entry = fixture['X|inst'] as Map<String, dynamic>;
+              final lowering = Map<String, dynamic>.from(
+                entry['lowering'] as Map,
+              )..['extension'] = 'Other';
+              final original = fixture['X|inst'];
+              addTearDown(() => fixture['X|inst'] = original);
+              fixture['X|inst'] = {...entry, 'lowering': lowering};
+              expect(
+                () => fromFixture('X|inst'),
+                refusedWith(contains('Other')),
+              );
+            });
           });
 
           test('without class scope the same members are refused', () {
@@ -5045,6 +5605,59 @@ callable:
           ),
         ),
       );
+    });
+
+    group('the private-name scan of the emitted code', () {
+      Map<String, int> count(String text) =>
+          RouteBProducer.privateIdentifierCountsForTesting(text);
+
+      test('code after a raw triple string is scanned', () {
+        expect(count(r"x = r'''${_d} '' _lit ''' + _e;"), {'_e': 1});
+        expect(count(r'x = r"""${_d} _lit""" + _e;'), {'_e': 1});
+      });
+
+      test('an escaped and an unescaped dollar are told apart', () {
+        expect(count(r"'\$_x'"), isEmpty);
+        expect(count(r"'\\$_x'"), {'_x': 1});
+        expect(count(r"'\$_x' + '\\$_x'"), {'_x': 1});
+        expect(count(r"'\'${_o}'"), {'_o': 1});
+      });
+
+      test('an unterminated interpolation keeps what it read', () {
+        expect(count(r"'${_g"), {'_g': 1});
+        expect(count(r"'a ${_g + _h"), {'_g': 1, '_h': 1});
+        expect(count("'unterminated _lit"), isEmpty);
+      });
+
+      test('a raw string is not an identifier ending in r', () {
+        expect(count(r"return'${_h}'"), {'_h': 1});
+        expect(count(r"r'${_lit}' + _e"), {'_e': 1});
+      });
+
+      test('interpolations nest and balance', () {
+        expect(count(r"'${'${_i}'}'"), {'_i': 1});
+        expect(count('\'\${m["}"]} _lit\''), isEmpty);
+        expect(count(r"'${{1: _a}[1]}'"), {'_a': 1});
+        expect(count(r"'${(){return _b;}()}'"), {'_b': 1});
+        expect(count(r"'${/* } */ _c}'"), {'_c': 1});
+      });
+
+      test('adjacent and triple strings', () {
+        expect(count(r"'a' '${_f}'"), {'_f': 1});
+        expect(count("'''l1 _lit\n \${_x} '''"), {'_x': 1});
+      });
+
+      test('a name in code and in an interpolation is counted by spelling', () {
+        expect(count(r"'_k: ${_k}'"), {'_k': 1});
+        expect(count(r"_k + '$_k'"), {'_k': 2});
+        expect(count(r"'$_j.k _lit'"), {'_j': 1});
+      });
+
+      test('comments and wildcards are not names', () {
+        expect(count('// _a\n/* _b /* _c */ _d */ x'), isEmpty);
+        expect(count('(_, __) => 1'), isEmpty);
+        expect(count('my_var + a_b'), isEmpty);
+      });
     });
 
     group('D-HYGIENE: capture-avoiding receiver name', () {

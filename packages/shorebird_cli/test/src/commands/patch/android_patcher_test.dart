@@ -342,8 +342,86 @@ void main() {
             args: any(named: 'args'),
             base64PublicKey: any(named: 'base64PublicKey'),
             ddMaxBytes: any(named: 'ddMaxBytes'),
+            releaseSupplementDir: any(named: 'releaseSupplementDir'),
           ),
         ).thenAnswer((_) async => aabFile);
+      });
+
+      group('when the release has a supplement', () {
+        late Directory releaseSupplementDirectory;
+
+        setUp(() {
+          setUpProjectRootArtifacts();
+          releaseSupplementDirectory = Directory.systemTemp.createTempSync();
+          final abiDir = p.join(releaseSupplementDirectory.path, 'arm64-v8a');
+          File(p.join(abiDir, 'App.ref.link'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync('order');
+          File(
+            p.join(releaseSupplementDirectory.path, 'obfuscation_map.json'),
+          ).createSync();
+          patcher.releaseSupplementDirectory = releaseSupplementDirectory;
+        });
+
+        test('builds against a stable copy of its object order', () async {
+          await runWithOverrides(patcher.buildPatchArtifact);
+
+          final staged = p.join(
+            projectRoot.path,
+            'build',
+            'android',
+            'shorebird_release',
+          );
+          verify(
+            () => artifactBuilder.buildAppBundle(
+              flavor: any(named: 'flavor'),
+              target: any(named: 'target'),
+              targetPlatforms: any(named: 'targetPlatforms'),
+              args: any(named: 'args'),
+              base64PublicKey: any(named: 'base64PublicKey'),
+              releaseSupplementDir: staged,
+            ),
+          ).called(1);
+          expect(
+            File(
+              p.join(staged, 'arm64-v8a', 'App.ref.link'),
+            ).readAsStringSync(),
+            'order',
+          );
+          expect(Directory(staged).listSync(), hasLength(1));
+        });
+      });
+
+      group('when the release supplement has no App.ref.link', () {
+        setUp(() {
+          setUpProjectRootArtifacts();
+          final supplement = Directory.systemTemp.createTempSync();
+          File(
+            p.join(supplement.path, 'arm64-v8a', 'other.link'),
+          ).createSync(recursive: true);
+          patcher.releaseSupplementDirectory = supplement;
+        });
+
+        test('builds as before, with no supplement directory', () async {
+          await runWithOverrides(patcher.buildPatchArtifact);
+
+          verify(
+            () => artifactBuilder.buildAppBundle(
+              flavor: any(named: 'flavor'),
+              target: any(named: 'target'),
+              targetPlatforms: any(named: 'targetPlatforms'),
+              args: any(named: 'args'),
+              base64PublicKey: any(named: 'base64PublicKey'),
+              // releaseSupplementDir omitted: it must be null.
+            ),
+          ).called(1);
+          expect(
+            Directory(
+              p.join(projectRoot.path, 'build', 'android', 'shorebird_release'),
+            ).existsSync(),
+            isFalse,
+          );
+        });
       });
 
       // See https://docs.shorebird.dev/getting-started/flutter-version/#flutter-version-notes

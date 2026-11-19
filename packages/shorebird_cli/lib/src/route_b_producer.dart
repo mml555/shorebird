@@ -601,6 +601,17 @@ Object? $_superIntrinsicName(
       // positionals and generics for those); a top-level or static target was
       // not, and reaches the compiler as written.
       if (lowering == null) {
+        // An extension instance member takes its receiver first. Carried as
+        // written it would be a top-level function of one parameter fewer than
+        // the `Ext|get#x(#this)` it replaces, so a missing lowering is a
+        // refusal, never a fall-through.
+        if (_scopeOf(key, coverage)?.extensionInstance ?? false) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'it is an instance member of an extension, and the analysis '
+            'reported no lowering for it',
+          );
+        }
         if (routeBEntryShapeProblem(key, _slice(key, source))
             case final problem?) {
           throw RouteBUnsupportedTarget(key, problem);
@@ -636,7 +647,7 @@ Object? $_superIntrinsicName(
       // receiver parameter is written with its class's own name (see the
       // lowering), and `_FooState` is spelled in the replacement only if the
       // front end resolves it in the target library.
-      final resolvesPrivateNames =
+      final resolvesBeforeHelpers =
           [?lowering, ...helperLowerings].any(
             (l) =>
                 l.accesses.any((a) => a.privateTarget != null) ||
@@ -665,6 +676,9 @@ Object? $_superIntrinsicName(
             key,
             ...neededHelpers,
           ], capabilities);
+      // The granted private statics of the instance helpers, which are
+      // compiled in this replacement and so need the flag like the entry's.
+      final helperGrantedStatics = <String>{};
       final helperText = _helperSources(
         key,
         neededHelpers,
@@ -672,8 +686,33 @@ Object? $_superIntrinsicName(
         capabilities,
         compiler,
         patchedVerificationKernel,
-        resolvesPrivateNames: resolvesPrivateNames,
+        resolvesPrivateNames: resolvesBeforeHelpers,
+        grantedStatics: helperGrantedStatics,
       );
+      // Instance helpers exist only from analysis version 17, which is also
+      // where `_helperSources` stops refusing on this flag, so deciding it
+      // after the helpers are lowered changes no refusal there.
+      final resolvesPrivateNames =
+          resolvesBeforeHelpers || helperGrantedStatics.isNotEmpty;
+      // A target with no lowering (a static or top-level one) has no private-
+      // name backstop of its own, and with private names resolved against the
+      // release library every private name in its body would resolve. Scan it
+      // whenever the final flag is on, whatever turned it on.
+      if (lowering == null && resolvesPrivateNames) {
+        _refuseUngrantedPrivateNames(
+          key,
+          _slice(key, source),
+          _scopeOf(key, coverage),
+          {
+            ..._helperNamesCalledBy(key, coverage),
+            ..._grantedPrivateTopLevelNames(coverage, [
+              key,
+              ...neededHelpers,
+            ], capabilities),
+          },
+          capabilities,
+        );
+      }
       // THE ENTRY HIDES WHATEVER OF ITS OWN NAME THE HELPERS MEAN. A class or
       // extension member becomes a top-level function of the same name in the
       // replacement, and a declaration there shadows a top-level of the
@@ -964,20 +1003,29 @@ Object? $_superIntrinsicName(
     RouteBCoverage coverage,
     Iterable<String> keys,
     RouteBCapabilities? capabilities,
+  ) => _grantedPrivateTopLevelNames(coverage, keys, capabilities).isNotEmpty;
+
+  /// The private top-level names [keys] reach that the manifest grants.
+  static Set<String> _grantedPrivateTopLevelNames(
+    RouteBCoverage coverage,
+    Iterable<String> keys,
+    RouteBCapabilities? capabilities,
   ) {
-    if (capabilities == null) return false;
+    if (capabilities == null) return const {};
     final references = coverage.externalReferences;
-    if (references == null) return false;
-    return keys.any(
-      (k) => (references[k] ?? const []).any(
-        (r) =>
-            r.kind == 'top-level' &&
-            r.isPrivate &&
-            !r.viaConstant &&
-            r.member != null &&
-            capabilities.topLevelCallable.contains('${r.library}#${r.member}'),
-      ),
-    );
+    if (references == null) return const {};
+    return {
+      for (final k in keys)
+        for (final r in references[k] ?? const <RouteBExternalReference>[])
+          if (r.kind == 'top-level' &&
+              r.isPrivate &&
+              !r.viaConstant &&
+              r.member != null &&
+              capabilities.topLevelCallable.contains(
+                '${r.library}#${r.member}',
+              ))
+            r.member!,
+    };
   }
 
   Set<String> _neededHelpers(String key, RouteBCoverage coverage) =>
@@ -1035,6 +1083,7 @@ Object? $_superIntrinsicName(
     RouteBCompiler compiler,
     File? patchedVerificationKernel, {
     required bool resolvesPrivateNames,
+    required Set<String> grantedStatics,
   }) {
     final buffer = StringBuffer();
     for (final helper in needed.toList()..sort()) {
@@ -1058,18 +1107,18 @@ Object? $_superIntrinsicName(
         );
       }
       if (name.contains('.')) {
+        final lowered = _lowerInstanceHelper(
+          key,
+          helper,
+          coverage,
+          capabilities,
+          compiler,
+          patchedVerificationKernel,
+        );
+        grantedStatics.addAll(lowered.grantedStatics);
         buffer
           ..writeln()
-          ..writeln(
-            _lowerInstanceHelper(
-              key,
-              helper,
-              coverage,
-              capabilities,
-              compiler,
-              patchedVerificationKernel,
-            ),
-          );
+          ..writeln(lowered.declaration);
         continue;
       }
       // Before analysis version 17 nothing showed that a private name binds
@@ -1121,7 +1170,7 @@ Object? $_superIntrinsicName(
   }
 
   /// The top-level function an instance helper becomes; see `_helperSources`.
-  String _lowerInstanceHelper(
+  _Lowered _lowerInstanceHelper(
     String key,
     String helper,
     RouteBCoverage coverage,
@@ -1154,7 +1203,7 @@ Object? $_superIntrinsicName(
         patchedVerificationKernel,
         _helperNamesCalledBy(helper, coverage),
         _scopeOf(helper, coverage),
-      ).declaration;
+      );
     } on RouteBUnsupportedTarget catch (e) {
       // The reason is the lowering's own, with the helper named in front.
       refuse('cannot be lowered: ${e.reason}');
@@ -1555,6 +1604,34 @@ Object? $_superIntrinsicName(
     // tear-off or a static on the class would pass ungated. The placeholder
     // cannot match a private identifier (`_TYPE` follows a letter).
     final receiverParameter = '$_receiverTypePlaceholder $receiverName';
+    // An INSTANCE MEMBER OF AN EXTENSION (analysis version 22) is lowered like
+    // a class member: Kernel already makes it a static procedure whose first
+    // parameter is the receiver, so the replacement is `Ret name(OnType self,
+    // ...)`. What differs is the key's shape, the spelling of a sibling call
+    // (an explicit `Ext(self).sibling`) and the bare receiver.
+    final extensionName = lowering.extensionName;
+    if (extensionName == null && _selectorOf(key).contains('|')) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'it is an extension member, and the analysis does not name its '
+        'extension',
+      );
+    }
+    if (extensionName != null) {
+      _refuseExtensionCapture(
+        key,
+        extensionName,
+        source.substring(span.start, span.end),
+      );
+    }
+    if (extensionName != null &&
+        !_selectorOf(key).startsWith('$extensionName|')) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'the analysis names the extension `$extensionName` for it, which is '
+        'not the extension of its key',
+      );
+    }
 
     // AN INSTANCE GETTER has no parameter list to put the receiver in, and
     // scanning for one would find the first `(` of its BODY: `get label =>
@@ -1566,6 +1643,8 @@ Object? $_superIntrinsicName(
     final selector = key.contains('#') ? _selectorOf(key) : key;
     final getterName = selector.contains('.get:')
         ? selector.substring(selector.indexOf('.get:') + '.get:'.length)
+        : extensionName != null && selector.contains('|get#')
+        ? selector.substring(selector.indexOf('|get#') + '|get#'.length)
         : null;
     if (getterName != null) {
       final nameEnd = lowering.nameOffset + getterName.length;
@@ -1678,13 +1757,60 @@ Object? $_superIntrinsicName(
       // kind added later may not work that way, so refuse rather than guess --
       // the analyzer and the producer are versioned together for this reason,
       // and this is the backstop when that pairing is somehow wrong.
-      if (!const {'get', 'set', 'invoke', 'helperCall'}.contains(access.kind)) {
+      if (!const {'get', 'set', 'invoke', 'helperCall'}.contains(access.kind) &&
+          !(extensionName != null &&
+              const {
+                'receiver',
+                'extensionGet',
+                'extensionInvoke',
+              }.contains(access.kind))) {
         throw RouteBUnsupportedTarget(
           key,
           'uses the receiver in a way this lowering does not know how to '
           'rewrite (`${access.kind}` on `${access.member}`)',
         );
       }
+      // THE BARE RECEIVER of an extension member: `this` as a value, an
+      // argument or `$this`. It is the `#this` parameter, which the lowered
+      // function names `self`. The token is checked rather than assumed: an
+      // implicit use has none, and rewriting at the wrong place would compile.
+      if (access.kind == 'receiver') {
+        final end = access.offset + 'this'.length;
+        // `$this` in a string: the `$` before the token is the interpolation,
+        // and a `$` after it ends the token (`'$a$this$b'`), where in code
+        // either would be part of one identifier.
+        final interpolated =
+            access.offset > span.start &&
+            source.codeUnitAt(access.offset - 1) == 0x24;
+        bool partOfToken(int unit) =>
+            _isIdentifierPart(unit) && !(interpolated && unit == 0x24);
+        if (access.offset < span.start ||
+            end > span.end ||
+            !source.startsWith('this', access.offset) ||
+            (end < source.length && partOfToken(source.codeUnitAt(end))) ||
+            (!interpolated &&
+                _isIdentifierPart(source.codeUnitAt(access.offset - 1)))) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'uses the receiver where its source has no `this` (offset '
+            '${access.offset}), so it cannot be rewritten',
+          );
+        }
+        final dollar = access.offset - 1;
+        if (dollar >= span.start && source[dollar] == r'$') {
+          // `$this` is an interpolation of the receiver: `${self}`.
+          edits.add((dollar, 1 + 'this'.length, '\${$receiverName}'));
+        } else {
+          edits.add((access.offset, 'this'.length, receiverName));
+        }
+        continue;
+      }
+      // A sibling of the same extension is applied explicitly, so it cannot
+      // resolve to another extension of the same member name that the
+      // replacement library has in scope.
+      final prefix = access.kind.startsWith('extension')
+          ? '$extensionName($receiverName).'
+          : '$receiverName.';
       // A CALL TO A NEW INSTANCE METHOD (analysis version 17). The helper is a
       // top-level function taking the receiver first, so `_m(a)` and
       // `this._m(a)` both become `_m(self, a)`: the `(` after the name gains
@@ -1752,7 +1878,7 @@ Object? $_superIntrinsicName(
       if (start >= span.start &&
           start < source.length &&
           source.substring(start, access.offset) == explicit) {
-        edits.add((start, explicit.length, '$receiverName.'));
+        edits.add((start, explicit.length, prefix));
         continue;
       }
       // `this` written with unusual spacing (`this . label`) would otherwise be
@@ -1808,11 +1934,11 @@ Object? $_superIntrinsicName(
         edits.add((
           dollar,
           1 + access.member.length,
-          '\${$receiverName.${access.member}}',
+          '\${$prefix${access.member}}',
         ));
         continue;
       }
-      edits.add((access.offset, 0, '$receiverName.'));
+      edits.add((access.offset, 0, prefix));
     }
 
     // THE CLASS SCOPE THE LOWERING DROPS. Written with a placeholder for the
@@ -1972,7 +2098,11 @@ Object? $_superIntrinsicName(
     }
     text = text
         .replaceFirst(_receiverTypePlaceholder, lowering.receiverType)
-        .replaceAll(_classQualifierPlaceholder, lowering.receiverType);
+        // The extension's own name for its statics; the class is the receiver.
+        .replaceAll(
+          _classQualifierPlaceholder,
+          extensionName ?? lowering.receiverType,
+        );
     return _Lowered(
       text,
       preamble: superEdits.isEmpty ? '' : '$_superIntrinsicDeclaration\n',
@@ -2040,7 +2170,12 @@ Object? $_superIntrinsicName(
     ];
     // The analysis lists only unqualified uses. Any other spelling of the name
     // (`Other._k`, `d._k`) makes the counts differ.
-    if (uses.isEmpty || uses.length != occurrences) return false;
+    // A compound use (`_n++`) may be reported as a get and a set at one
+    // offset; that is one spelling.
+    if (uses.isEmpty ||
+        uses.map((r) => r.offset).toSet().length != occurrences) {
+      return false;
+    }
     final library = key.split('#').first;
     final prefix = '$library#${scope.className}#';
     bool granted(String member) =>
@@ -2059,6 +2194,60 @@ Object? $_superIntrinsicName(
         _ => granted(name),
       },
     );
+  }
+
+  /// Refuses a private name in [text] (a target with no lowering, as written)
+  /// other than: its own declaration, a name in [exempt] (a new function the
+  /// patch carries, a private top-level function the manifest grants), each
+  /// only where written UNQUALIFIED, or a private static of its own class that
+  /// the manifest grants and the analysis reported at every spelling. A name
+  /// after a `.` (`other._f()`) is never covered by an exemption.
+  static void _refuseUngrantedPrivateNames(
+    String key,
+    String text,
+    RouteBEnclosingScope? scope,
+    Set<String> exempt,
+    RouteBCapabilities? capabilities,
+  ) {
+    final own = key
+        .split('#')
+        .last
+        .split('.')
+        .last
+        .replaceFirst(RegExp('^[gs]et:'), '');
+    for (final entry in _privateIdentifierCounts(text).entries) {
+      final name = entry.key;
+      if ((name == own || exempt.contains(name)) &&
+          !_spelledQualified(text, name)) {
+        continue;
+      }
+      if (_ownStaticGranted(name, entry.value, key, scope, capabilities)) {
+        continue;
+      }
+      throw RouteBUnsupportedTarget(
+        key,
+        'its body names `$name`, a private identifier this analysis did not '
+        'resolve to a member the release granted, and the target is compiled '
+        'with private names resolved against the release library. Private '
+        'references are carried only when the release manifest shows the '
+        'exact member was retained.',
+      );
+    }
+  }
+
+  /// Whether [name] is spelled after a `.` (`o._f`, `o?._f`, `o.._f`) in the
+  /// code of [text].
+  static bool _spelledQualified(String text, String name) {
+    final code = _strippedCode(text);
+    for (final m in _privateIdentifier.allMatches(code)) {
+      if (m[0] != name) continue;
+      var i = m.start - 1;
+      while (i >= 0 && code[i].trim().isEmpty) {
+        i--;
+      }
+      if (i >= 0 && code[i] == '.') return true;
+    }
+    return false;
   }
 
   static bool _qualifiesPrivateClass(RouteBEnclosingScope? scope) =>
@@ -2127,13 +2316,31 @@ Object? $_superIntrinsicName(
       );
     }
     final edits = <(int, int, String)>[];
+    // `_n++` and `_n += 1` may be reported twice (a get and a set) at one
+    // offset; the qualifier goes in once.
+    final seen = <int, (String, bool)>{};
     for (final ref in scope.staticReferences) {
+      final earlier = seen[ref.offset];
+      if (earlier != null) {
+        if (earlier != (ref.member, ref.interpolated)) {
+          throw RouteBUnsupportedTarget(
+            key,
+            'two different uses (`${earlier.$1}`, `${ref.member}`) are '
+            'reported at offset ${ref.offset}, so they cannot be qualified',
+          );
+        }
+        continue;
+      }
+      seen[ref.offset] = (ref.member, ref.interpolated);
       final end = ref.offset + ref.member.length;
       final dollar = ref.offset - 1;
       if (ref.offset < span.start ||
           end > span.end ||
           !source.startsWith(ref.member, ref.offset) ||
-          (end < source.length && _isIdentifierPart(source.codeUnitAt(end))) ||
+          (end < source.length &&
+              _isIdentifierPart(source.codeUnitAt(end)) &&
+              // A `$` after an interpolated name starts the next one.
+              !(ref.interpolated && source.codeUnitAt(end) == 0x24)) ||
           (ref.interpolated &&
               (dollar < span.start || source[dollar] != r'$'))) {
         throw RouteBUnsupportedTarget(
@@ -2455,6 +2662,65 @@ Object? $_superIntrinsicName(
   static String freshReceiverNameForTesting(String declaration) =>
       _freshReceiverName(declaration);
 
+  /// Refuses a member whose own names would capture `Ext(self)` or `Ext.k`,
+  /// which the lowering writes: a parameter, local or function named like the
+  /// extension, or an entry function named like it (a lowercase extension whose
+  /// member has its own name, `extension stars on int { int stars() }`, becomes
+  /// a top-level `stars` that hides the extension).
+  static void _refuseExtensionCapture(
+    String key,
+    String extensionName,
+    String declaration,
+  ) {
+    final selector = _selectorOf(key);
+    final bar = selector.indexOf('|');
+    var member = bar < 0 ? selector : selector.substring(bar + 1);
+    if (member.startsWith('get#')) member = member.substring('get#'.length);
+    if (member == extensionName) {
+      throw RouteBUnsupportedTarget(
+        key,
+        'its replacement would be a top-level function named `$extensionName`, '
+        'which hides the extension of that name that its body is written '
+        'against',
+      );
+    }
+    final code = _strippedCode(declaration);
+    final pattern = RegExp(
+      '(?<![\\w\$])${RegExp.escape(extensionName)}(?![\\w\$])',
+    );
+    const usesOfAValue = {
+      'return', 'await', 'throw', 'in', 'is', 'as', 'else', 'case', 'yield', //
+      'new', 'const',
+    };
+    for (final m in pattern.allMatches(code)) {
+      var after = m.end;
+      while (after < code.length && code[after] == ' ') {
+        after++;
+      }
+      final next = after < code.length ? code[after] : '';
+      var before = m.start;
+      while (before > 0 && code[before - 1] == ' ') {
+        before--;
+      }
+      var wordStart = before;
+      while (wordStart > 0 &&
+          _isIdentifierPart(code.codeUnitAt(wordStart - 1))) {
+        wordStart--;
+      }
+      final prev = code.substring(wordStart, before);
+      final declares = prev.isNotEmpty && !usesOfAValue.contains(prev);
+      final bareName = next != '.' && next != '(' && next != '<';
+      if (declares || bareName) {
+        throw RouteBUnsupportedTarget(
+          key,
+          'it spells `$extensionName`, the name of its extension, as a '
+          'parameter, a local or a value, which would capture the explicit '
+          '`$extensionName(...)` and `$extensionName.` the replacement writes',
+        );
+      }
+    }
+  }
+
   static String _freshReceiverName(String declaration) {
     if (!declaration.contains(_defaultReceiverName)) {
       return _defaultReceiverName;
@@ -2472,6 +2738,12 @@ Object? $_superIntrinsicName(
   /// Kept when the declaration provably cannot capture it, so already-proven
   /// targets lower to byte-identical source.
   static const _defaultReceiverName = 'self';
+
+  /// How many times each private name is spelled in the code of [text]
+  /// (comments and literal text of strings excluded).
+  @visibleForTesting
+  static Map<String, int> privateIdentifierCountsForTesting(String text) =>
+      _privateIdentifierCounts(text);
 
   static Set<String> _privateIdentifiers(String text) =>
       _privateIdentifierCounts(text).keys.toSet();

@@ -39,6 +39,8 @@ void main(List<String> args) {
         'end': p.fileEndOffset + 1,
         'static': p.isStatic,
         'scope': scope,
+        if (p.isExtensionMember && extensionLoweringOf(p) != null)
+          'lowering': extensionLoweringOf(p),
       };
     }
 
@@ -53,7 +55,7 @@ void main(List<String> args) {
       }
     }
   }
-  File(args[2]).writeAsStringSync(
-    '${const JsonEncoder.withIndent('  ').convert(out)}\n',
-  );
+  File(
+    args[2],
+  ).writeAsStringSync('${const JsonEncoder.withIndent('  ').convert(out)}\n');
 }

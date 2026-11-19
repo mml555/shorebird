@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart' show ArchiveException;
+import 'package:collection/collection.dart';
 import 'package:crypto/crypto.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
@@ -41,6 +42,7 @@ import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/release_chooser.dart';
 import 'package:shorebird_cli/src/release_type.dart';
 import 'package:shorebird_cli/src/rollout_percentage.dart';
+import 'package:shorebird_cli/src/rollout_schedule.dart';
 import 'package:shorebird_cli/src/route_b_build_config.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/shorebird_command.dart';
@@ -139,11 +141,7 @@ To target the latest release (e.g. the release that was most recently updated) u
         help: allowBuildFlagDiffsHelpText,
         negatable: false,
       )
-      ..addFlag(
-        'show-dex-diff',
-        help: showDexDiffHelpText,
-        negatable: false,
-      )
+      ..addFlag('show-dex-diff', help: showDexDiffHelpText, negatable: false)
       ..addFlag('assets', help: assetsHelpText, negatable: false)
       ..addFlag('assets-only', help: assetsOnlyHelpText, negatable: false)
       ..addOption(
@@ -154,10 +152,31 @@ To target the latest release (e.g. the release that was most recently updated) u
             'custom track). Asked for when not given.',
       )
       ..addOption(
+        addToPatchArgName,
+        valueHelp: 'number',
+        help:
+            "Add this machine's Windows build to an existing patch instead "
+            'of creating a new one. Flutter builds Windows apps for the '
+            'machine it runs on, so an app shipped for x64 and arm64 is '
+            'patched on each kind of machine: patch on one, then add to that '
+            'patch on the other, and the fix is one patch number on both. '
+            'Build from the same code as the patch. The patch keeps its '
+            'track and rollout. A patch on a protected track, or waiting for '
+            'approval, cannot be added to: add to it on staging, then '
+            'promote it.',
+      )
+      ..addOption(
         rolloutArgName,
         help: rolloutHelp('the patch'),
         valueHelp: 'percentage',
       )
+      ..addOption(
+        rolloutStepsArgName,
+        help: rolloutStepsHelp('the patch'),
+        valueHelp: 'steps',
+      )
+      ..addFlag(pauseWeekendsArgName, help: pauseWeekendsHelp, negatable: false)
+      ..addOption(timezoneArgName, help: timezoneHelp, valueHelp: 'name')
       ..addFlag(
         'staging',
         negatable: false,
@@ -278,7 +297,31 @@ ${styleBold.wrap('Experimental')}, and opt-in because it makes the patch larger.
 Publish a patch containing only this patch's assets, with no Dart code.
 ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interpreted, which is what lets an asset change ship where a code change cannot. Requires an updater that advertises support; older updaters are never offered such a patch.''';
 
+  /// The option naming an existing patch to add this build to.
+  static const addToPatchArgName = 'add-to-patch';
+
+  /// The options that set where and to whom a new patch is published, which
+  /// a patch being added to already has.
+  static const _publishArgNames = [
+    'track',
+    rolloutArgName,
+    rolloutStepsArgName,
+    pauseWeekendsArgName,
+    timezoneArgName,
+  ];
+
   late final ResolvePatcher _resolvePatcher;
+
+  /// The number of the existing patch to add this build to (--add-to-patch),
+  /// or null to create a new patch. [run] rejects a value that isn't a
+  /// positive integer.
+  int? get addToPatchNumber => switch (results[addToPatchArgName]) {
+    final String value => int.tryParse(value),
+    _ => null,
+  };
+
+  /// The patch this build is added to, once [createPatch] has found it.
+  ReleasePatch? _patchToAddTo;
 
   @override
   String get description =>
@@ -373,13 +416,38 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
 
   /// The share of [track]'s devices to publish the patch to (`--rollout`), or
   /// null for all of them. [run] rejects a value that does not parse.
-  double? get rolloutPercentage => switch (results[rolloutArgName]) {
-    final String value => parseRolloutPercentage(
-      value,
-      argName: rolloutArgName,
-    ).percentage,
-    _ => null,
-  };
+  /// When adding to a patch, its current share instead.
+  double? get rolloutPercentage {
+    if (_patchToAddTo case final patch?) return patch.rolloutPercentage;
+    return switch (results[rolloutArgName]) {
+      final String value => parseRolloutPercentage(
+        value,
+        argName: rolloutArgName,
+      ).percentage,
+      _ => null,
+    };
+  }
+
+  /// The timed schedule to raise the patch's rollout through
+  /// (`--rollout-steps`), or null when the patch is published at a fixed
+  /// percentage. [run] rejects a schedule that does not parse.
+  /// When adding to a patch, its schedule instead, if it has one.
+  RolloutSchedule? get rolloutSchedule {
+    if (_patchToAddTo case final patch?) {
+      return switch (patch.rolloutSteps) {
+        final steps? when steps.isNotEmpty => RolloutSchedule(
+          steps: steps,
+          pauseWeekends: patch.rolloutPauseWeekends ?? false,
+          timezone: patch.rolloutTimezone,
+        ),
+        _ => null,
+      };
+    }
+    return readRolloutSchedule(
+      results,
+      percentageArgName: rolloutArgName,
+    ).schedule;
+  }
 
   @override
   Future<int> run() async {
@@ -401,6 +469,15 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
       ).error;
       if (error != null) usageException(error);
     }
+    final scheduleError = readRolloutSchedule(
+      results,
+      percentageArgName: rolloutArgName,
+    ).error;
+    if (scheduleError != null) usageException(scheduleError);
+
+    if (results[addToPatchArgName] case final String value) {
+      _assertCanAddToPatch(value: value, releaseTypes: releaseTypes);
+    }
 
     if (results.wasParsed('staging')) {
       return reportError(
@@ -415,13 +492,25 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
     // One invocation publishes one patch spanning every platform.
     final published = await _recordPatchRun(patchers);
 
+    final schedule = rolloutSchedule;
     if (isJsonMode) {
       emitJsonSuccess({
         'app_id': appId,
         'track': track.channel,
-        'rollout_percentage': rolloutPercentage ?? 100.0,
+        'rollout_percentage':
+            _patchToAddTo?.rolloutPercentage ??
+            schedule?.initialPercentage ??
+            rolloutPercentage ??
+            100.0,
+        if (schedule != null) ...{
+          'rollout_steps': [for (final step in schedule.steps) step.toJson()],
+          'rollout_pause_weekends': schedule.pauseWeekends,
+          'rollout_timezone': ?schedule.timezone,
+        },
         'patches': [for (final p in published) p.toJson()],
       });
+    } else if (schedule != null) {
+      _logScheduledRollout(published: published, schedule: schedule);
     } else if (rolloutPercentage case final percentage? when percentage < 100) {
       _logPartialRollout(published: published, percentage: percentage);
     }
@@ -447,6 +536,30 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
       logger.info(
         'Patch $patchNumber on release $releaseVersion is rolling out to '
         '$share of devices on ${track.channel}. To raise it, run:\n'
+        '  ${lightCyan.wrap(raiseCommand)}',
+      );
+    }
+    logger.info(rolloutOlderDevicesNote);
+  }
+
+  /// Says what schedule each of [published] is rolling out on and how to
+  /// raise it sooner.
+  void _logScheduledRollout({
+    required List<PublishedPatch> published,
+    required RolloutSchedule schedule,
+  }) {
+    for (final p in published) {
+      final releaseVersion = p.release.version;
+      final patchNumber = p.patch.number;
+      final raiseCommand = raiseRolloutCommand(
+        releaseVersion: releaseVersion,
+        patchNumber: patchNumber,
+        flavor: flavor,
+      );
+      logger.info(
+        'Patch $patchNumber on release $releaseVersion is rolling out to '
+        '${track.channel} on a schedule: ${formatRolloutSchedule(schedule)}. '
+        'To raise it sooner, run:\n'
         '  ${lightCyan.wrap(raiseCommand)}',
       );
     }
@@ -555,12 +668,16 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
     _inferredReleaseVersion = false;
     _diffStatuses.clear();
     _releaseShorebirdEnv = null;
+    // Every record is started here, before any platform builds, and each
+    // covers the whole invocation, so the later ones share the first one's
+    // trace window rather than resetting it.
     final runs = _buildRuns = [
-      for (final patcher in patchers)
+      for (final (i, patcher) in patchers.indexed)
         buildHistory.start(
           command: BuildRunCommand.patch,
           platform: patcher.releaseType.releasePlatform,
           dryRun: results['dry-run'] == true,
+          sharesWindow: i > 0,
         )..shareDebugInfo = results['share-debug-info'] == true,
     ];
     // Only the Apple patchers write the debug bundle, and they all write the
@@ -711,6 +828,16 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
       );
       _warnIfFlutterRevisionHasKnownIssue(release: release, patcher: patcher);
     }
+    // --add-to-patch is accepted for a lone Windows patcher only
+    // (_assertCanAddToPatch), so there is exactly one patcher here.
+    if (addToPatchNumber case final patchNumber?) {
+      final patch = _patchToAddTo = await _findPatchToAddTo(
+        patcher: patchers.single,
+        release: release,
+        patchNumber: patchNumber,
+      );
+      _track = DeploymentTrack(patch.channel!);
+    }
 
     try {
       // Once per DISTINCT target platform: a patch may span several, and
@@ -821,7 +948,9 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
     // Resolve the track now so a bad --track, or the prompt for a missing
     // one, comes before the build rather than after it. A dry run publishes
     // nothing, so it only checks a --track that was given.
-    if (results['dry-run'] != true || results['track'] != null) {
+    // A patch being added to keeps the track it is on.
+    if (addToPatchNumber == null &&
+        (results['dry-run'] != true || results['track'] != null)) {
       _track ??= _resolveTrack();
     }
 
@@ -834,6 +963,116 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
       throw PreconditionFailedExit(e);
     }
     _checkedPatchers.add(patcher);
+  }
+
+  /// Rejects --add-to-patch=[value] unless it names a patch number and the
+  /// run patches Windows alone with no track or rollout of its own.
+  void _assertCanAddToPatch({
+    required String value,
+    required Iterable<ReleaseType> releaseTypes,
+  }) {
+    final number = int.tryParse(value);
+    if (number == null || number < 1) {
+      usageException(
+        '--$addToPatchArgName must be a patch number (got "$value").',
+      );
+    }
+    if (releaseTypes.length != 1 ||
+        releaseTypes.single != ReleaseType.windows) {
+      usageException(
+        '--$addToPatchArgName only works with `shorebird patch windows`. '
+        'Other platforms build every architecture into one patch.',
+      );
+    }
+    final publishArgs = _publishArgNames.where(results.wasParsed);
+    if (publishArgs.isNotEmpty) {
+      usageException(
+        'Patch $number keeps its own track and rollout. Remove '
+        '${publishArgs.map((arg) => '--$arg').join(', ')}.',
+      );
+    }
+  }
+
+  /// Finds patch [patchNumber] of [release] and checks that [patcher]'s build
+  /// can be added to it: it is live, on a track, and has a build for this
+  /// platform but not for this machine's architecture.
+  Future<ReleasePatch> _findPatchToAddTo({
+    required Patcher patcher,
+    required Release release,
+    required int patchNumber,
+  }) async {
+    final patches = await codePushClientWrapper.getReleasePatches(
+      appId: appId,
+      releaseId: release.id,
+    );
+    final platform = patcher.releaseType.releasePlatform;
+    const createPatchHint =
+        'To ship this build as a new patch, run without '
+        '--$addToPatchArgName.';
+    Never fail(String message, {String? hint}) {
+      _failRuns(BuildRunFailureReason.releaseIncompatible);
+      throw CommandError(message: message, hint: hint ?? createPatchHint);
+    }
+
+    final patch = patches.firstWhereOrNull((p) => p.number == patchNumber);
+    final name = 'Patch $patchNumber of release ${release.version}';
+    if (patch == null) {
+      fail(
+        'Release ${release.version} has no patch $patchNumber.',
+        hint: patches.isEmpty
+            ? createPatchHint
+            : 'Its patches: ${patches.map((p) => p.number).join(', ')}.',
+      );
+    }
+    if (patch.isRolledBack) fail('$name is rolled back.');
+    final channel = patch.channel;
+    if (channel == null) {
+      fail(
+        '$name is not on a track.',
+        hint:
+            'A patch waiting for approval cannot be added to. '
+            '$createPatchHint',
+      );
+    }
+    final platformArches = [
+      for (final artifact in patch.artifacts)
+        if (artifact.platform == platform) artifact.arch,
+    ];
+    if (platformArches.isEmpty) {
+      fail('$name has no ${platform.displayName} build to add to.');
+    }
+    if (patcher.patchArch case final arch?
+        when platformArches.contains(arch.arch)) {
+      fail(
+        '$name already has a ${platform.displayName} ${arch.name} build.',
+        hint:
+            'Add to it from a machine of another architecture, or run '
+            'without --$addToPatchArgName to ship this build as a new patch.',
+      );
+    }
+    // Devices take the newest live patch on their track with a build for
+    // their architecture, so a newer one would leave this build unused.
+    if (patcher.patchArch case final arch?) {
+      final newer = patches.where(
+        (p) =>
+            p.number > patchNumber &&
+            !p.isRolledBack &&
+            p.channel == channel &&
+            p.artifacts.any(
+              (a) => a.platform == platform && a.arch == arch.arch,
+            ),
+      );
+      if (newer.isNotEmpty) {
+        final newest = newer.map((p) => p.number).max;
+        fail(
+          '${platform.displayName} ${arch.name} devices on $channel take '
+          'patch $newest of release ${release.version}, which is newer than '
+          'patch $patchNumber, so they would never get this build.',
+          hint: 'Patch $newest already has their build. $createPatchHint',
+        );
+      }
+    }
+    return patch;
   }
 
   /// Determines which release to patch.
@@ -885,10 +1124,7 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
       release = await promptForRelease(releaseTypes);
     }
 
-    return (
-      release: release,
-      inferredReleaseVersion: inferredReleaseVersion,
-    );
+    return (release: release, inferredReleaseVersion: inferredReleaseVersion);
   }
 
   /// Downloads [release]'s primary artifact and, if the platform has one, its
@@ -1228,10 +1464,7 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
     try {
       dartSdkCompatibility.validate();
     } on DartSdkMismatchException catch (error) {
-      throw CommandError(
-        message: '$error',
-        exitCode: ExitCode.config,
-      );
+      throw CommandError(message: '$error', exitCode: ExitCode.config);
     }
 
     final bundles = <ReleasePlatform, Map<Arch, PatchArtifactBundle>>{};
@@ -1274,10 +1507,7 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
     );
 
     for (final patcher in patchers) {
-      await assertMinLinkPercentage(
-        patcher,
-        namePlatform: patchers.length > 1,
-      );
+      await assertMinLinkPercentage(patcher, namePlatform: patchers.length > 1);
     }
 
     _exitIfDryRun(patchers: patchers, release: release);
@@ -1319,20 +1549,40 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
       }
     }
 
-    // One patch, every platform's artifacts, one promotion at the end.
+    // One patch, every platform's artifacts, one promotion at the end. Adding
+    // to an existing patch (Windows only) uploads this machine's build into it
+    // instead, and leaves its track and rollout alone.
+    final patchToAddTo = _patchToAddTo;
     final patch = await _blameRuns(
       BuildRunFailureReason.uploadFailed,
-      () => codePushClientWrapper.publishPatch(
-        appId: appId,
-        releaseId: release.id,
-        metadata: metadata.toJson(),
-        track: track,
-        patchArtifactBundles: assetsOnly
-            ? {for (final platform in bundles.keys) platform: const {}}
-            : bundles,
-        sidecars: sidecars,
-        rolloutPercentage: rolloutPercentage,
-      ),
+      () async {
+        if (patchToAddTo != null) {
+          final platform = patchers.single.releaseType.releasePlatform;
+          final response = CreatePatchResponse(
+            id: patchToAddTo.id,
+            number: patchToAddTo.number,
+          );
+          await codePushClientWrapper.addPatchArtifacts(
+            appId: appId,
+            patch: response,
+            platform: platform,
+            patchArtifactBundles: bundles[platform] ?? const {},
+          );
+          return response;
+        }
+        return codePushClientWrapper.publishPatch(
+          appId: appId,
+          releaseId: release.id,
+          metadata: metadata.toJson(),
+          track: track,
+          patchArtifactBundles: assetsOnly
+              ? {for (final platform in bundles.keys) platform: const {}}
+              : bundles,
+          sidecars: sidecars,
+          rolloutPercentage: rolloutPercentage,
+          rolloutSchedule: rolloutSchedule,
+        );
+      },
     );
     for (final run in _buildRuns) {
       run.patchId = patch.id;
@@ -1410,10 +1660,10 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
     // Placed after `extraBuildArgs` is complete because the patch's effective
     // configuration includes what this command injects (e.g. `--obfuscate`
     // mirrored from the release), not merely what the user typed.
-    _assertBuildConfigAgrees(
-      supplementDirectory,
-      [...results.forwardedArgs, ...extraBuildArgs],
-    );
+    _assertBuildConfigAgrees(supplementDirectory, [
+      ...results.forwardedArgs,
+      ...extraBuildArgs,
+    ]);
 
     // Only when this step added something: the arguments were already set when
     // the obfuscation settings were configured.
@@ -1434,6 +1684,7 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
     logger.info('''
 Building ${releasePlatform.displayName} patch with Flutter $flutterVersionString
 ''');
+    patcher.releaseSupplementDirectory = supplementDirectory;
     final patchArtifactFile = await _tryBuildingArtifact<File>(
       () => patcher.buildPatchArtifact(releaseVersion: release.version),
       onBuildFailed: () => _failRuns(BuildRunFailureReason.buildFailed),
@@ -1677,6 +1928,7 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
             for (final patcher in patchers)
               patcher.releaseType.releasePlatform.name: patcher.linkPercentage,
           },
+        'add_to_patch': ?addToPatchNumber,
       });
     } else {
       logger
@@ -1703,10 +1955,7 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
       throw _noReleasesToPatch(releaseTypes);
     }
 
-    return chooseRelease(
-      releases: candidates,
-      action: 'patch',
-    );
+    return chooseRelease(releases: candidates, action: 'patch');
   }
 
   /// The error to throw when there is nothing to patch for [releaseTypes].
@@ -1919,12 +2168,10 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
         ..err(
           '''This patch cannot be shown to match the release's build configuration.''',
         )
-        ..info(
-          '''
+        ..info('''
 The release's configuration IS known (fingerprint ${releaseConfig.fingerprint}), but this patch was invoked with ${routeBUnfingerprintableOptions.join(', ')}, whose effective configuration cannot be determined from the command line.
 
-This is not the same as a release that cannot be fingerprinted -- that case is permanent and is allowed through. This one is yours to resolve: pass the same defines the release used, in a form that can be compared.''',
-        )
+This is not the same as a release that cannot be fingerprinted -- that case is permanent and is allowed through. This one is yours to resolve: pass the same defines the release used, in a form that can be compared.''')
         ..info(
           '''
 Refusing before building: a patch built with a different configuration compiles a different program than the release it would replace.''',
@@ -2132,11 +2379,16 @@ this is refused rather than attempted. Nothing was uploaded.''');
     required Map<ReleasePlatform, Map<Arch, PatchArtifactBundle>>
     patchArtifactBundles,
   }) async {
-    final rollout = switch (rolloutPercentage) {
-      final percentage? when percentage < 100 =>
-        ' ${lightCyan.wrap('(${formatRolloutPercentage(percentage)})')}',
-      _ => '',
+    final rolloutSummary = switch ((rolloutSchedule, rolloutPercentage)) {
+      (final RolloutSchedule schedule, _) =>
+        '(${formatRolloutSchedule(schedule)})',
+      (_, final double percentage) when percentage < 100 =>
+        '(${formatRolloutPercentage(percentage)})',
+      _ => null,
     };
+    final rollout = rolloutSummary == null
+        ? ''
+        : ' ${lightCyan.wrap(rolloutSummary)}';
     final trackSummary = (() {
       return switch (track) {
         DeploymentTrack.staging => '🟠 Track: ${lightCyan.wrap('Staging')}',
@@ -2173,7 +2425,7 @@ this is refused rather than attempted. Nothing was uploaded.''');
 
     logger.info('''
 
-${styleBold.wrap(lightGreen.wrap('🚀 Ready to publish a new patch!'))}
+${styleBold.wrap(lightGreen.wrap(_patchToAddTo == null ? '🚀 Ready to publish a new patch!' : '🚀 Ready to add to patch ${_patchToAddTo!.number}!'))}
 
 ${summary.join('\n')}
 ''');

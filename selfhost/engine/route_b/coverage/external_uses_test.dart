@@ -27,8 +27,12 @@ void check(bool ok, String what) {
 Library _lib(String uri) =>
     Library(Uri.parse(uri), fileUri: Uri.parse('file:///x.dart'));
 
-Procedure _proc(Library l, String name, List<Statement> body,
-    {ProcedureKind kind = ProcedureKind.Method}) {
+Procedure _proc(
+  Library l,
+  String name,
+  List<Statement> body, {
+  ProcedureKind kind = ProcedureKind.Method,
+}) {
   final p = Procedure(
     Name(name, l),
     kind,
@@ -45,8 +49,11 @@ Class _cls(Library l, String name) {
   return c;
 }
 
-Procedure _method(Class c, String name,
-    {ProcedureKind kind = ProcedureKind.Method}) {
+Procedure _method(
+  Class c,
+  String name, {
+  ProcedureKind kind = ProcedureKind.Method,
+}) {
   final p = Procedure(
     Name(name, c.enclosingLibrary),
     kind,
@@ -76,7 +83,7 @@ Map<String, Object?>? _find(
 Arguments get _noArgs => Arguments([]);
 
 void main() {
-  check(analysisVersion == 21, 'analysis version is 21');
+  check(analysisVersion == 22, 'analysis version is 22');
 
   final app = _lib('package:app/a.dart');
   final core = _lib('dart:core');
@@ -199,10 +206,14 @@ void main() {
   for (final m in ['get:iterator']) {
     check(_find(f, 'instance', m, cls: 'Iterable') != null, 'for-in $m');
   }
-  check(_find(f, 'instance', 'moveNext', cls: 'Iterator') != null,
-      'for-in moveNext');
-  check(_find(f, 'instance', 'get:current', cls: 'Iterator') != null,
-      'for-in current');
+  check(
+    _find(f, 'instance', 'moveNext', cls: 'Iterator') != null,
+    'for-in moveNext',
+  );
+  check(
+    _find(f, 'instance', 'get:current', cls: 'Iterator') != null,
+    'for-in current',
+  );
 
   // viaConstant does not collapse into a direct use.
   final fw = _lib('package:fw/x.dart');

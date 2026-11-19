@@ -192,4 +192,117 @@ void main() {
     expect(percentageOf(5000), isA<int>());
     expect(percentageOf(1250), 12.5);
   });
+
+  group('RolloutSchedule', () {
+    RolloutSchedule make({
+      bool pause = false,
+      String zone = 'UTC',
+      required DateTime start,
+      List<(int, int?)> steps = const [
+        (100, 60 * 24),
+        (1000, 60 * 24),
+        (10000, null),
+      ],
+    }) => RolloutSchedule(
+      steps: [for (final (b, m) in steps) RolloutStepSpec(b, m)],
+      pauseWeekends: pause,
+      timezone: zone,
+      startedAt: start,
+    );
+
+    test('advances by wall time without a pause', () {
+      final start = DateTime.utc(2026, 11, 13, 12); // a Friday
+      final s = make(start: start);
+      expect(s.positionAt(start).bps, 100);
+      expect(s.positionAt(start.add(const Duration(hours: 23))).bps, 100);
+      // Over the weekend, as no pause was asked for.
+      expect(s.positionAt(DateTime.utc(2026, 11, 14, 12)).bps, 1000);
+      final end = s.positionAt(DateTime.utc(2026, 11, 15, 12));
+      expect(end.bps, 10000);
+      expect(end.nextStepAt, isNull);
+    });
+
+    test('a weekend pause stops the clock on Saturday and Sunday', () {
+      final start = DateTime.utc(2026, 11, 13, 12); // Friday noon UTC
+      final s = make(pause: true, start: start);
+      // Step 0 is due Saturday noon, which is paused: the 12 hours left run
+      // from Monday 00:00.
+      expect(s.positionAt(DateTime.utc(2026, 11, 16, 11, 59)).bps, 100);
+      expect(s.positionAt(DateTime.utc(2026, 11, 16, 12)).bps, 1000);
+      final next = s.positionAt(DateTime.utc(2026, 11, 16, 0)).nextStepAt;
+      expect(next, DateTime.utc(2026, 11, 16, 12));
+      // Step 1 is a full day from Monday noon.
+      expect(s.positionAt(DateTime.utc(2026, 11, 17, 11, 59)).bps, 1000);
+      expect(s.positionAt(DateTime.utc(2026, 11, 17, 12)).bps, 10000);
+    });
+
+    test('no step lands inside a weekend', () {
+      // Due exactly at Saturday 00:00: applied Monday.
+      final start = DateTime.utc(2026, 11, 13);
+      final s = make(
+        pause: true,
+        start: start,
+        steps: [(100, 60 * 24), (10000, null)],
+      );
+      expect(s.positionAt(DateTime.utc(2026, 11, 14, 5)).bps, 100);
+      expect(s.positionAt(DateTime.utc(2026, 11, 15, 23)).bps, 100);
+      expect(s.positionAt(DateTime.utc(2026, 11, 16)).bps, 10000);
+    });
+
+    test('weekends are the time zone\'s, not UTC\'s', () {
+      // Friday 20:00 in New York (UTC-5) is already Saturday 01:00 UTC.
+      final start = DateTime.utc(2026, 11, 14, 1);
+      final s = make(
+        pause: true,
+        zone: 'America/New_York',
+        start: start,
+        steps: [(100, 300), (10000, null)],
+      );
+      // Four of the five hours run on Friday evening there, and the last one
+      // after Monday 00:00 New York (05:00 UTC). Judged in UTC the start would
+      // be a Saturday, and the step would be due at Monday 05:00 UTC.
+      expect(s.positionAt(DateTime.utc(2026, 11, 16, 5, 59)).bps, 100);
+      expect(s.positionAt(DateTime.utc(2026, 11, 16, 6)).bps, 10000);
+    });
+
+    test('a step that spans a weekend resumes on Monday', () {
+      final start = DateTime.utc(2026, 11, 13, 23); // Friday 23:00 UTC
+      final s = make(
+        pause: true,
+        start: start,
+        steps: [(100, 120), (10000, null)],
+      );
+      // One hour before Saturday, one after Monday 00:00.
+      expect(s.positionAt(DateTime.utc(2026, 11, 16, 0, 59)).bps, 100);
+      expect(s.positionAt(DateTime.utc(2026, 11, 16, 1)).bps, 10000);
+    });
+
+    test('round-trips through its stored form', () {
+      final s = make(
+        pause: true,
+        zone: 'Europe/Berlin',
+        start: DateTime.utc(2026, 1, 2, 3),
+      );
+      final back = RolloutSchedule.tryParse(s.toStored())!;
+      expect(back.toStored(), s.toStored());
+      expect(RolloutSchedule.tryParse(null), isNull);
+      expect(RolloutSchedule.tryParse('not json'), isNull);
+    });
+
+    test('effectiveRolloutBps reads a stored schedule at the clock', () {
+      final start = DateTime.utc(2026, 11, 16);
+      final stored = make(start: start).toStored();
+      addTearDown(() => rolloutClock = DateTime.now);
+      final row = {
+        'rollout': 1,
+        'rollout_bps': 100,
+        'rollout_schedule': stored,
+      };
+      rolloutClock = () => start;
+      expect(effectiveRolloutBps(row), 100);
+      rolloutClock = () => start.add(const Duration(days: 1));
+      expect(effectiveRolloutBps(row), 1000);
+      expect(effectiveRolloutBps({'rollout': 7, 'rollout_bps': 700}), 700);
+    });
+  });
 }

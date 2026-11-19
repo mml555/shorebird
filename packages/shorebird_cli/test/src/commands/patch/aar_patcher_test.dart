@@ -334,6 +334,7 @@ void main() {
         setUp(() {
           when(
             () => artifactBuilder.buildAar(
+              releaseVersion: any(named: 'releaseVersion'),
               buildNumber: any(named: 'buildNumber'),
               args: any(named: 'args'),
             ),
@@ -352,12 +353,40 @@ void main() {
         setUp(() {
           when(
             () => artifactBuilder.buildAar(
+              releaseVersion: any(named: 'releaseVersion'),
               buildNumber: any(named: 'buildNumber'),
               args: any(named: 'args'),
               base64PublicKey: any(named: 'base64PublicKey'),
               ddMaxBytes: any(named: 'ddMaxBytes'),
+              releaseSupplementDir: any(named: 'releaseSupplementDir'),
             ),
           ).thenAnswer((_) async => {});
+        });
+
+        test('builds against the release supplement', () async {
+          final releaseSupplementDirectory = Directory.systemTemp
+              .createTempSync();
+          final abiDir = p.join(releaseSupplementDirectory.path, 'arm64-v8a');
+          File(p.join(abiDir, 'App.ref.link')).createSync(recursive: true);
+          patcher.releaseSupplementDirectory = releaseSupplementDirectory;
+
+          await runWithOverrides(patcher.buildPatchArtifact);
+
+          verify(
+            () => artifactBuilder.buildAar(
+              releaseVersion: any(named: 'releaseVersion'),
+              buildNumber: any(named: 'buildNumber'),
+              targetPlatforms: any(named: 'targetPlatforms'),
+              args: any(named: 'args'),
+              base64PublicKey: any(named: 'base64PublicKey'),
+              releaseSupplementDir: p.join(
+                projectRoot.path,
+                'build',
+                'android',
+                'shorebird_release',
+              ),
+            ),
+          ).called(1);
         });
 
         group('when platform was specified via arg results rest', () {
@@ -389,6 +418,7 @@ void main() {
 
             verify(
               () => artifactBuilder.buildAar(
+                releaseVersion: any(named: 'releaseVersion'),
                 buildNumber: buildNumber,
                 args: ['--verbose'],
               ),
@@ -409,6 +439,7 @@ void main() {
           ).thenAnswer((_) async => {Arch.arm64: FakeReleaseArtifact()});
           when(
             () => artifactBuilder.buildAar(
+              releaseVersion: any(named: 'releaseVersion'),
               buildNumber: any(named: 'buildNumber'),
               targetPlatforms: any(named: 'targetPlatforms'),
               args: any(named: 'args'),
@@ -419,11 +450,12 @@ void main() {
 
           await runWithOverrides(() async {
             await patcher.prepareForRelease(appId: 'app-id', release: release);
-            await patcher.buildPatchArtifact();
+            await patcher.buildPatchArtifact(releaseVersion: '1.0.0+1');
           });
 
           verify(
             () => artifactBuilder.buildAar(
+              releaseVersion: '1.0.0+1',
               buildNumber: buildNumber,
               targetPlatforms: [Arch.arm64],
               args: any(named: 'args'),
@@ -458,6 +490,7 @@ void main() {
 
             verify(
               () => artifactBuilder.buildAar(
+                releaseVersion: any(named: 'releaseVersion'),
                 buildNumber: buildNumber,
                 args: any(named: 'args'),
                 base64PublicKey: 'public_key_encoded',
@@ -483,6 +516,7 @@ void main() {
 
             verify(
               () => artifactBuilder.buildAar(
+                releaseVersion: any(named: 'releaseVersion'),
                 buildNumber: buildNumber,
                 args: any(named: 'args'),
                 base64PublicKey: 'public_key_encoded',
@@ -515,6 +549,7 @@ void main() {
 
           verify(
             () => artifactBuilder.buildAar(
+              releaseVersion: any(named: 'releaseVersion'),
               buildNumber: buildNumber,
               args: any(named: 'args'),
             ),
