@@ -86,6 +86,9 @@ void main() {
       );
       await repo.db.query('DELETE FROM schema_migrations WHERE version >= 19');
       await repo.db.query('DROP TABLE build_runs');
+      await repo.db.query(
+        'ALTER TABLE channel_patches DROP COLUMN rollout_schedule',
+      );
       await repo.close();
 
       repo = await Repository.open(sqliteConfig(tmp.path));

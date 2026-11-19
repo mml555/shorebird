@@ -6483,6 +6483,477 @@ void main() {
       );
     });
   });
+
+  // Upstream CLI 1.6.144: timed rollout schedules, and Windows x64 + arm64 as
+  // one patch (`--add-to-patch`).
+  group('upstream 1.6.144', () {
+    late ({String appId, int releaseId, int channelId}) s;
+    // Monday 2026-11-16 09:00 UTC.
+    var now = DateTime.utc(2026, 11, 16, 9);
+
+    setUp(() async {
+      s = await seedApp();
+      now = DateTime.utc(2026, 11, 16, 9);
+      rolloutClock = () => now;
+    });
+    tearDown(() => rolloutClock = DateTime.now);
+
+    Future<int> newPatch({
+      String platform = 'android',
+      String arch = 'aarch64',
+    }) async {
+      final p = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches',
+          bearer: _bootstrapKey,
+          json: {'release_id': s.releaseId},
+        ),
+      );
+      await uploadPatchArtifact(
+        s.appId,
+        p['id'] as int,
+        arch: arch,
+        platform: platform,
+      );
+      return p['id'] as int;
+    }
+
+    Future<Response> promote(int patchId, Map<String, Object?> extra) => send(
+      'POST',
+      '/api/v1/apps/${s.appId}/patches/promote',
+      bearer: _bootstrapKey,
+      json: {'patch_id': patchId, 'channel_id': s.channelId, ...extra},
+    );
+
+    Future<Response> putRollout(int patchId, Map<String, Object?> body) => send(
+      'PUT',
+      '/api/v1/apps/${s.appId}/releases/${s.releaseId}'
+          '/patches/$patchId/rollout',
+      bearer: _bootstrapKey,
+      json: body,
+    );
+
+    Future<Map<String, dynamic>> patchJson(int patchId) async {
+      final r = await jsonOf(
+        await send(
+          'GET',
+          '/api/v1/apps/${s.appId}/releases/${s.releaseId}/patches',
+          bearer: _bootstrapKey,
+        ),
+      );
+      return (r['patches'] as List).cast<Map<String, dynamic>>().singleWhere(
+        (p) => p['id'] == patchId,
+      );
+    }
+
+    Future<bool> offered(
+      String clientId, {
+      String platform = 'android',
+      String arch = 'aarch64',
+      int current = 0,
+    }) async {
+      final c = await jsonOf(
+        await send(
+          'POST',
+          '/api/v1/patches/check',
+          json: {
+            'app_id': s.appId,
+            'release_version': '1.0.0',
+            'platform': platform,
+            'arch': arch,
+            'channel': 'stable',
+            'client_id': clientId,
+            'current_patch_number': current,
+          },
+        ),
+      );
+      return c['patch_available'] as bool;
+    }
+
+    String clientIn(int patchId, int lo, int hi) {
+      for (var i = 0; ; i++) {
+        final id = 'device-$i';
+        final b = rolloutBucket(s.appId, s.channelId, patchId, id);
+        if (b >= lo && b < hi) return id;
+      }
+    }
+
+    final steps = [
+      {'percentage': 1, 'duration_minutes': 240},
+      {'percentage': 10, 'duration_minutes': 720},
+      {'percentage': 100},
+    ];
+
+    group('timed rollout', () {
+      test('promote starts at the first step and the check follows the clock '
+          'with nothing running in between', () async {
+        final p = await newPatch();
+        expect(
+          (await promote(p, {'rollout_steps': steps})).statusCode,
+          HttpStatus.noContent,
+        );
+        final a = clientIn(p, 0, 100); // in 1%
+        final b = clientIn(p, 100, 1000); // in 10% not 1%
+        final c = clientIn(p, 1000, 10000);
+        expect(
+          [await offered(a), await offered(b), await offered(c)],
+          [true, false, false],
+        );
+        var j = await patchJson(p);
+        expect(j['rollout_percentage'], 1);
+        expect(j['rollout_steps'], steps);
+        expect(j['rollout_next_step_at'], '2026-11-16T13:00:00.000Z');
+        expect(j['rollout_pause_weekends'], false);
+        expect(j['rollout_timezone'], 'UTC');
+
+        now = now.add(const Duration(hours: 4));
+        expect(
+          [await offered(a), await offered(b), await offered(c)],
+          [true, true, false],
+        );
+        j = await patchJson(p);
+        expect(j['rollout_percentage'], 10);
+        expect((j['rollout_steps'] as List).length, 2);
+        expect(j['rollout_next_step_at'], '2026-11-17T01:00:00.000Z');
+
+        now = now.add(const Duration(hours: 12));
+        expect(await offered(c), isTrue);
+        j = await patchJson(p);
+        expect(j['rollout_percentage'], 100);
+        expect(j.containsKey('rollout_steps'), isFalse);
+        expect(j.containsKey('rollout_next_step_at'), isFalse);
+      });
+
+      test(
+        'refuses a malformed schedule with a 400 and promotes nothing',
+        () async {
+          final p = await newPatch();
+          Map<String, Object?> with_(
+            List<Map<String, Object?>> st, [
+            Map<String, Object?>? more,
+          ]) => {'rollout_steps': st, ...?more};
+          final bad = <Map<String, Object?>>[
+            with_([
+              {'percentage': 100},
+            ]), // one step
+            with_([
+              {'percentage': 50, 'duration_minutes': 60},
+              {'percentage': 40},
+            ]),
+            with_([
+              {'percentage': 10, 'duration_minutes': 60},
+              {'percentage': 50}, // not ending at 100
+            ]),
+            with_([
+              {'percentage': 10}, // no duration
+              {'percentage': 100},
+            ]),
+            with_([
+              {'percentage': 10, 'duration_minutes': 0},
+              {'percentage': 100},
+            ]),
+            with_([
+              {'percentage': 10, 'duration_minutes': 5},
+              {'percentage': 100, 'duration_minutes': 5},
+            ]),
+            with_([
+              {'percentage': 10.001, 'duration_minutes': 5},
+              {'percentage': 100},
+            ]),
+            with_([
+              for (var i = 1; i <= 11; i++)
+                {'percentage': i, 'duration_minutes': 5},
+              {'percentage': 100},
+            ]),
+            with_(steps.cast(), {'rollout_timezone': 'Mars/Olympus'}),
+            with_(steps.cast(), {'rollout_pause_weekends': 'yes'}),
+            with_(steps.cast(), {'rollout_percentage': 50}),
+            with_(steps.cast(), {'rollout': 50}),
+            {'rollout_steps': 'soon'},
+            {'rollout_pause_weekends': true},
+            {'rollout_timezone': 'UTC'},
+          ];
+          for (final b in bad) {
+            final r = await promote(p, b);
+            expect(r.statusCode, HttpStatus.badRequest, reason: '$b');
+          }
+          expect((await patchJson(p))['channel'], isNull);
+        },
+      );
+
+      test('PUT puts a fixed rollout on a schedule, from no lower than it '
+          'is', () async {
+        final p = await newPatch();
+        await promote(p, {'rollout_percentage': 5});
+        expect(
+          (await putRollout(p, {'rollout_steps': steps})).statusCode,
+          HttpStatus.conflict,
+          reason: 'first step 1 is below 5',
+        );
+        final ok = await putRollout(p, {
+          'rollout_steps': [
+            {'percentage': 5, 'duration_minutes': 60},
+            {'percentage': 100},
+          ],
+          'rollout_pause_weekends': true,
+          'rollout_timezone': 'America/New_York',
+        });
+        expect(ok.statusCode, HttpStatus.noContent);
+        final j = await patchJson(p);
+        expect(j['rollout_percentage'], 5);
+        expect(j['rollout_pause_weekends'], true);
+        expect(j['rollout_timezone'], 'America/New_York');
+        now = now.add(const Duration(hours: 1));
+        expect((await patchJson(p))['rollout_percentage'], 100);
+      });
+
+      test('PUT with both, or neither, is a 400', () async {
+        final p = await newPatch();
+        await promote(p, {'rollout_percentage': 5});
+        expect(
+          (await putRollout(p, {
+            'rollout_steps': steps,
+            'rollout_percentage': 50,
+          })).statusCode,
+          HttpStatus.badRequest,
+        );
+        expect((await putRollout(p, {})).statusCode, HttpStatus.badRequest);
+      });
+
+      test('the current percentage holds a schedule where it is, and a '
+          'higher one replaces it', () async {
+        final p = await newPatch();
+        await promote(p, {'rollout_steps': steps});
+        now = now.add(const Duration(hours: 4)); // on 10%
+        expect(
+          (await putRollout(p, {'rollout_percentage': 10})).statusCode,
+          HttpStatus.noContent,
+        );
+        now = now.add(const Duration(days: 3));
+        var j = await patchJson(p);
+        expect(j['rollout_percentage'], 10, reason: 'held, not advanced');
+        expect(j.containsKey('rollout_steps'), isFalse);
+        expect(
+          (await putRollout(p, {'rollout_percentage': 5})).statusCode,
+          HttpStatus.conflict,
+        );
+
+        // A new schedule, then a higher fixed percentage drops it too.
+        await putRollout(p, {
+          'rollout_steps': [
+            {'percentage': 10, 'duration_minutes': 60},
+            {'percentage': 100},
+          ],
+        });
+        await putRollout(p, {'rollout_percentage': 20});
+        now = now.add(const Duration(days: 3));
+        j = await patchJson(p);
+        expect(j['rollout_percentage'], 20);
+        expect(j.containsKey('rollout_steps'), isFalse);
+      });
+
+      test('a lower percentage than the step in force is a 409', () async {
+        final p = await newPatch();
+        await promote(p, {'rollout_steps': steps});
+        now = now.add(const Duration(hours: 4));
+        expect(
+          (await putRollout(p, {'rollout_percentage': 5})).statusCode,
+          HttpStatus.conflict,
+        );
+      });
+
+      test('the admin rollout sets a fixed percentage and ends the '
+          'schedule', () async {
+        final p = await newPatch();
+        await promote(p, {'rollout_steps': steps});
+        final r = await send(
+          'POST',
+          '/admin/apps/${s.appId}/patches/$p/rollout?percent=50',
+          bearer: _bootstrapKey,
+        );
+        expect(r.statusCode, HttpStatus.ok);
+        now = now.add(const Duration(days: 30));
+        final j = await patchJson(p);
+        expect(j['rollout_percentage'], 50);
+        expect(j.containsKey('rollout_steps'), isFalse);
+      });
+    });
+
+    group('Windows x64 and arm64', () {
+      const bd = 'BOUNDARY';
+      const abcSha =
+          'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
+      String field(String n, String v) =>
+          '--$bd\r\ncontent-disposition: form-data; name="$n"\r\n\r\n$v\r\n';
+
+      Future<Response> registerRelease(
+        String arch, {
+        Map<String, Object?>? signing,
+      }) => send(
+        'POST',
+        '/api/v1/apps/${s.appId}/releases/${s.releaseId}/artifacts',
+        bearer: _bootstrapKey,
+        headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+        body:
+            '${field('arch', arch)}${field('platform', 'windows')}'
+            '${field('hash', abcSha)}${field('size', '3')}'
+            '${signing == null ? '' : field('signing', jsonEncode(signing))}'
+            '--$bd--\r\n',
+      );
+
+      Future<Response> uploadRelease(
+        String arch, {
+        Map<String, Object?>? signing,
+      }) async {
+        final reg = await registerRelease(arch, signing: signing);
+        if (reg.statusCode != HttpStatus.ok) return reg;
+        final token = ((await jsonOf(reg))['url'] as String).split('/').last;
+        return send(
+          'POST',
+          '/api/v1/uploads/$token',
+          bearer: _bootstrapKey,
+          headers: {'content-type': 'multipart/form-data; boundary=$bd'},
+          body:
+              '--$bd\r\ncontent-disposition: form-data; name="file"; '
+              'filename="a"\r\n\r\nabc\r\n--$bd--\r\n',
+        );
+      }
+
+      Future<Response> activate() => send(
+        'PATCH',
+        '/api/v1/apps/${s.appId}/releases/${s.releaseId}',
+        bearer: _bootstrapKey,
+        json: {'status': 'active', 'platform': 'windows'},
+      );
+
+      test('an arm64 build joins an active x64 release', () async {
+        expect((await uploadRelease('win_archive')).statusCode, 204);
+        expect((await uploadRelease('windows_supplement')).statusCode, 204);
+        expect((await activate()).statusCode, HttpStatus.noContent);
+        expect((await uploadRelease('win_archive_arm64')).statusCode, 204);
+        expect(
+          (await uploadRelease('windows_supplement_arm64')).statusCode,
+          204,
+        );
+        expect((await activate()).statusCode, HttpStatus.noContent);
+      });
+
+      test('an architecture signed differently from the active ones is '
+          'refused with the code the CLI reads', () async {
+        const mine = {'mode': 'customer'};
+        expect(
+          (await uploadRelease('win_archive', signing: mine)).statusCode,
+          204,
+        );
+        await activate();
+        expect(
+          (await uploadRelease(
+            'win_archive_arm64',
+            signing: {'mode': 'unsigned'},
+          )).statusCode,
+          HttpStatus.conflict,
+        );
+        final r = await registerRelease(
+          'win_archive_arm64',
+          signing: {'mode': 'unsigned'},
+        );
+        expect(r.statusCode, HttpStatus.conflict);
+        expect(
+          (await jsonOf(r))['code'],
+          'release_artifacts_create_conflicting_signing',
+        );
+        // The same signing is fine, and nothing was stored by the refusals.
+        expect(
+          (await uploadRelease('win_archive_arm64', signing: mine)).statusCode,
+          204,
+        );
+      });
+
+      test('arm64 is added to a live Windows patch under its number, and '
+          'x64 devices stay served throughout', () async {
+        final p = await newPatch(platform: 'windows', arch: 'x86_64');
+        await promote(p, {'rollout_percentage': 100});
+        const x64 = {'platform': 'windows', 'arch': 'x86_64'};
+        expect(await offered('d', platform: 'windows', arch: 'x86_64'), isTrue);
+        expect(
+          await offered('d', platform: 'windows', arch: 'aarch64'),
+          isFalse,
+        );
+
+        // Registered but not yet uploaded: still ready, x64 still served.
+        const bd2 = 'B2';
+        String f(String n, String v) =>
+            '--$bd2\r\ncontent-disposition: form-data; name="$n"\r\n\r\n$v\r\n';
+        final reg = await send(
+          'POST',
+          '/api/v1/apps/${s.appId}/patches/$p/artifacts',
+          bearer: _bootstrapKey,
+          headers: {'content-type': 'multipart/form-data; boundary=$bd2'},
+          body:
+              '${f('arch', 'aarch64')}${f('platform', 'windows')}'
+              '${f('hash', 'h')}${f('size', '3')}--$bd2--\r\n',
+        );
+        expect(reg.statusCode, HttpStatus.ok);
+        expect(
+          await offered('d', platform: x64['platform']!, arch: 'x86_64'),
+          isTrue,
+        );
+        expect(
+          await offered('d', platform: 'windows', arch: 'aarch64'),
+          isFalse,
+        );
+        final token = ((await jsonOf(reg))['url'] as String).split('/').last;
+        final up = await send(
+          'POST',
+          '/api/v1/uploads/$token',
+          bearer: _bootstrapKey,
+          headers: {'content-type': 'multipart/form-data; boundary=$bd2'},
+          body:
+              '--$bd2\r\ncontent-disposition: form-data; name="file"; '
+              'filename="p"\r\n\r\nabc\r\n--$bd2--\r\n',
+        );
+        expect(up.statusCode, HttpStatus.noContent);
+        expect(
+          await offered('d', platform: 'windows', arch: 'aarch64'),
+          isTrue,
+        );
+        expect(await offered('d', platform: 'windows', arch: 'x86_64'), isTrue);
+        final j = await patchJson(p);
+        expect(
+          (j['artifacts'] as List).map((a) => (a as Map)['arch']).toSet(),
+          {'x86_64', 'aarch64'},
+        );
+        expect(j['status'], 'ready');
+      });
+
+      test('adding to a promoted patch is refused off Windows, for an '
+          'arch it has, or for a platform it lacks', () async {
+        final android = await newPatch();
+        await promote(android, {});
+        for (final (arch, platform) in [
+          ('arm', 'android'), // another arch of a non-Windows platform
+          ('aarch64', 'android'), // already there
+          ('x86_64', 'windows'), // a platform the patch does not have
+        ]) {
+          const bd2 = 'B2';
+          String f(String n, String v) =>
+              '--$bd2\r\ncontent-disposition: form-data; name="$n"\r\n\r\n$v\r\n';
+          final r = await send(
+            'POST',
+            '/api/v1/apps/${s.appId}/patches/$android/artifacts',
+            bearer: _bootstrapKey,
+            headers: {'content-type': 'multipart/form-data; boundary=$bd2'},
+            body:
+                '${f('arch', arch)}${f('platform', platform)}'
+                '${f('hash', 'h')}${f('size', '3')}--$bd2--\r\n',
+          );
+          expect(r.statusCode, HttpStatus.conflict, reason: '$arch/$platform');
+        }
+        expect(await offered('d'), isTrue, reason: 'still served');
+      });
+    });
+  });
 }
 
 /// Stands in for the socket peer that `shelf_io` would supply.

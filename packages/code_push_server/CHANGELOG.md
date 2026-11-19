@@ -47,6 +47,35 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Upstream CLI 1.6.144 works against this server.** The calls it added or
+  changed:
+  - Timed rollouts (`--rollout-steps`, `--pause-weekends`, `--timezone`):
+    `POST /apps/{app}/patches/promote` and `PUT .../patches/{patch}/rollout`
+    take `rollout_steps` (2 to 10 strictly increasing percentages ending at
+    100, each but the last with `duration_minutes`), `rollout_pause_weekends`
+    and `rollout_timezone` (an IANA name, default `UTC`). The schedule is
+    stored (`channel_patches.rollout_schedule`, migration 21) and the current
+    step is computed from it and the clock whenever a device checks or the
+    rollout is read, so nothing runs in the background and every replica
+    agrees. With a weekend pause the clock of a step stops on Saturday and
+    Sunday in the zone and no step applies then. The percentage in force
+    holds a schedule where it is; a higher one replaces it. The patch list
+    reports `rollout_steps` (those still ahead), `rollout_next_step_at`,
+    `rollout_pause_weekends` and `rollout_timezone`. Upstream limits schedules
+    to Enterprise; here every app may use them. New dependency: `timezone`.
+  - `shorebird patch windows --add-to-patch`: another architecture's build can
+    be added to a live Windows patch. It stays `ready`, so devices already
+    served keep it, and the new arch is offered when its artifact verifies, at
+    the patch's rollout. Other platforms still refuse artifacts on a promoted
+    patch.
+  - Windows arm64 releases (`win_archive_arm64`, `windows_supplement_arm64`)
+    and patches (`aarch64`) need nothing new. An architecture signed
+    differently from the active ones is refused with 409
+    `release_artifacts_create_conflicting_signing`.
+  - Not implemented, by choice: the 410s upstream added for per-app
+    collaborators (this server keeps them working), and the protocol's other
+    changes, which are client-side. `--release-version` for add-to-app modules
+    is CLI only.
 - `server --check-config` and `ops/preflight.sh`: validate the new image against
   `.env` before `up -d` replaces the running container.
 - Migrations take a Postgres advisory lock, so replicas started together
