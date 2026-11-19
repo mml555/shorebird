@@ -671,13 +671,20 @@ A patch is only interpretable against one whole contract, so these cannot be mix
     RouteBReleaseProvenance provenance,
   ) {
     // The release's own snapshot profile says which `dart:` instance members
-    // it kept. Skipped (not even decoded) under --allow-unchecked-sdk-calls.
-    final kept = allowUncheckedSdkCalls
-        ? null
-        : RouteBSnapshotKept.read(
-            releaseArtifacts[routeBSnapshotProfileFileName],
-            expectedSha256: provenance.artifacts[routeBSnapshotProfileFileName],
-          );
+    // it kept, which extension getters and setters (`Ext|get#x`, which no
+    // interface lists) its own code called, and whether it holds a bare
+    // `dart:core` class (`num`, `Null`) a patch names as a type. It is read
+    // even under --allow-unchecked-sdk-calls: that flag skips the SDK
+    // instance-member check only (`skipKeptCheck`). The other two still ask
+    // the profile, and fail closed: a missing or unreadable profile refuses
+    // an extension member (with the reason; one that does not match the
+    // release's recorded hash is refused before this, by the provenance
+    // check), and a readable one that lacks a predefined class refuses it,
+    // since the loader would abort on it ("Unable to find class").
+    final kept = RouteBSnapshotKept.read(
+      releaseArtifacts[routeBSnapshotProfileFileName],
+      expectedSha256: provenance.artifacts[routeBSnapshotProfileFileName],
+    );
     if (allowUncheckedSdkCalls) {
       usedUncheckedSdkCalls = true;
       logger.warn(
@@ -687,14 +694,13 @@ A patch is only interpretable against one whole contract, so these cannot be mix
         '$routeBSelectorCallsAnalysisVersion). This is recorded in the '
         "patch's metadata.",
       );
-    } else if (kept?.problem != null) {
-      logger.detail('[route-b] ${kept!.problem}');
     }
+    if (kept.problem != null) logger.detail('[route-b] ${kept.problem}');
     final retention = RouteBRetention.read(
       releaseArtifacts[routeBInterfaceFileName],
       capabilities: _readReleaseCapabilities(releaseArtifacts),
-      kept: kept?.kept,
-      keptProblem: kept?.problem,
+      kept: kept.kept,
+      keptProblem: kept.problem,
       skipKeptCheck: allowUncheckedSdkCalls,
     );
     if (retention == null) {

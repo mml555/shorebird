@@ -2188,7 +2188,7 @@ callable:
   - library: 'package:app/main.dart'
 """;
 
-              void coverageCalling() {
+              void coverageCalling(List<Map<String, Object?>> refs) {
                 final coverage = RouteBCoverage.fromJson(
                   jsonEncode({
                     'analysisVersion': routeBSelectorCallsAnalysisVersion,
@@ -2204,7 +2204,7 @@ callable:
                     'conditional': <String>[],
                     'sources': <String, Object?>{},
                     'externalReferences': {
-                      'package:app/main.dart#routeBValue': [ref],
+                      'package:app/main.dart#routeBValue': refs,
                     },
                     'rejections': <Object>[],
                     'refusalSummary': null,
@@ -2221,7 +2221,11 @@ callable:
               }
 
               // A profile whose String classes have `split` (or not).
-              String profile({required bool hasSplit}) => routeBProfile({
+              String profile({
+                required bool hasSplit,
+                Map<String, RouteBProfileClass> more = const {},
+              }) => routeBProfile({
+                ...more,
                 'Object': const RouteBProfileClass(
                   'Object',
                   routeBCoreLibrary,
@@ -2261,6 +2265,7 @@ callable:
                 String? profileDigest,
                 bool omitProfileDigest = false,
                 bool flag = false,
+                List<Map<String, Object?>> refs = const [ref],
               }) {
                 when(
                   () => argResults['allow-unchecked-sdk-calls'],
@@ -2272,7 +2277,7 @@ callable:
                   profileDigest: profileDigest,
                   omitProfileDigest: omitProfileDigest,
                 );
-                coverageCalling();
+                coverageCalling(refs);
               }
 
               Future<void> patchAndSwallow() => runWithOverrides(
@@ -2354,15 +2359,200 @@ callable:
                 },
               );
 
-              test('--allow-unchecked-sdk-calls does not read the profile, '
-                  'and does not unlock a member off the list', () async {
-                release(snapshotProfile: profile(hasSplit: false), flag: true);
+              test('--allow-unchecked-sdk-calls skips the SDK-member check '
+                  'against the profile, and does not unlock a member off the '
+                  'list', () async {
+                const offList = {
+                  'kind': 'instance',
+                  'library': 'dart:core',
+                  'class': 'String',
+                  'member': 'notAMeasuredMember',
+                  'private': false,
+                };
+                release(
+                  snapshotProfile: profile(hasSplit: false),
+                  flag: true,
+                  refs: [ref, offList],
+                );
                 await patchAndSwallow();
                 expect(sdkErrors(), isEmpty);
+                expect(
+                  errors.where((m) => m.contains('notAMeasuredMember')),
+                  isNotEmpty,
+                );
                 final metadata = await patcher.updatedPlatformMetadata(
                   CreatePatchPlatformMetadata.forTest(),
                 );
                 expect(metadata.allowUncheckedSdkCalls, isTrue);
+              });
+
+              group('an extension getter the release called itself', () {
+                // No interface lists an `Ext|get#x`; only the profile can show
+                // the release kept it, so the flag must not drop the profile.
+                const stars = 'Stars|get#stars';
+                const starsRef = {
+                  'kind': 'top-level',
+                  'library': 'package:app/main.dart',
+                  'class': null,
+                  'member': stars,
+                  'private': false,
+                };
+                List<String> starsErrors() =>
+                    errors.where((m) => m.contains(stars)).toList();
+                String profileWithStars() => profile(
+                  hasSplit: false,
+                  more: {
+                    'top': const RouteBProfileClass(
+                      '::',
+                      'package:app/main.dart',
+                      fns: {stars: '[Optimized] $stars'},
+                    ),
+                  },
+                );
+
+                test('is kept under --allow-unchecked-sdk-calls', () async {
+                  release(
+                    snapshotProfile: profileWithStars(),
+                    flag: true,
+                    refs: [ref, starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(starsErrors(), isEmpty);
+                  expect(sdkErrors(), isEmpty);
+                });
+
+                test('is kept without the flag', () async {
+                  release(
+                    snapshotProfile: profileWithStars(),
+                    refs: [starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(starsErrors(), isEmpty);
+                });
+
+                test('is still refused under --allow-unchecked-sdk-calls when '
+                    'the release uploaded no profile, and says why', () async {
+                  release(flag: true, refs: [starsRef]);
+                  await patchAndSwallow();
+                  expect(
+                    starsErrors().single,
+                    allOf(
+                      contains('the extension member `$stars`'),
+                      contains('uploaded no route_b_snapshot_profile'),
+                      contains('cannot be checked'),
+                    ),
+                  );
+                });
+
+                test('a profile that is not the one the release recorded '
+                    "(another release's) is refused under "
+                    '--allow-unchecked-sdk-calls before anything is '
+                    'checked', () async {
+                  // The release's provenance check refuses the mismatched
+                  // artifact itself, so the profile never vouches for it.
+                  release(
+                    snapshotProfile: profileWithStars(),
+                    profileDigest: 'ab' * 32,
+                    flag: true,
+                    refs: [starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(
+                    errors.single,
+                    contains(
+                      'route_b_snapshot_profile.json does not match the hash',
+                    ),
+                  );
+                });
+
+                test('is still refused under --allow-unchecked-sdk-calls when '
+                    'the profile is unreadable', () async {
+                  release(
+                    snapshotProfile: 'not a profile',
+                    flag: true,
+                    refs: [starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(
+                    starsErrors().single,
+                    allOf(
+                      contains('the extension member `$stars`'),
+                      contains('is unreadable'),
+                    ),
+                  );
+                });
+
+                test('is still refused under --allow-unchecked-sdk-calls when '
+                    'the profile has only a lazy-compile stub', () async {
+                  release(
+                    snapshotProfile: profile(
+                      hasSplit: false,
+                      more: {
+                        'top': const RouteBProfileClass(
+                          '::',
+                          'package:app/main.dart',
+                          fns: {stars: '[Stub] CompileFunction'},
+                        ),
+                      },
+                    ),
+                    flag: true,
+                    refs: [starsRef],
+                  );
+                  await patchAndSwallow();
+                  expect(
+                    starsErrors().single,
+                    contains('the extension member `$stars`'),
+                  );
+                });
+
+                test('a private one is still refused under '
+                    '--allow-unchecked-sdk-calls', () async {
+                  const private = '_Stars|get#stars';
+                  release(
+                    snapshotProfile: profile(
+                      hasSplit: false,
+                      more: {
+                        'top': const RouteBProfileClass(
+                          '::',
+                          'package:app/main.dart',
+                          fns: {private: '[Optimized] $private'},
+                        ),
+                      },
+                    ),
+                    flag: true,
+                    refs: [
+                      {...starsRef, 'member': private, 'private': true},
+                    ],
+                  );
+                  await patchAndSwallow();
+                  expect(
+                    errors.where((m) => m.contains(private)).single,
+                    contains('the extension member `$private`'),
+                  );
+                });
+              });
+
+              test('under --allow-unchecked-sdk-calls a readable profile '
+                  'that lacks a bare dart:core class still refuses it (the '
+                  'loader aborts on a missing class)', () async {
+                const numRef = {
+                  'kind': 'class',
+                  'library': 'dart:core',
+                  'class': 'num',
+                  'member': null,
+                  'private': false,
+                };
+                // `profile` holds Object and String in dart:core, not num.
+                release(
+                  snapshotProfile: profile(hasSplit: true),
+                  flag: true,
+                  refs: [numRef],
+                );
+                await patchAndSwallow();
+                expect(
+                  errors.where((m) => m.contains('`num`')),
+                  isNotEmpty,
+                );
               });
             });
 

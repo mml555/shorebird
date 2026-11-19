@@ -308,7 +308,16 @@ class RouteBRetention {
       final why = _sdkRefusal(_sdkKey(r));
       return why == null ? null : _describeSdkInstance(r, why);
     }
-    return _retained(r) ? null : _describe(r);
+    if (_retained(r)) return null;
+    // An extension `#` member is answered by the snapshot profile alone, so
+    // when there is none to read (missing, another release's, unreadable)
+    // say why: under --allow-unchecked-sdk-calls the profile is still read
+    // for these, and a bare refusal would read as the flag not working.
+    if (_isExtensionHashMember(r) && !r.isPrivate && kept == null) {
+      return '${_describe(r)} (${keptProblem ?? 'its snapshot profile is not '
+              'available'}, so whether this release kept it cannot be checked)';
+    }
+    return _describe(r);
   }
 
   /// A dynamic call is accepted only when the measurement resolved its
