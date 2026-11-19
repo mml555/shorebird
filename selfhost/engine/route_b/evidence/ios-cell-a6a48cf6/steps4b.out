@@ -1,0 +1,62 @@
+UNCHECKED RETRY unchecked_i2: refused for Iterable.iterator (exit 70); retrying with --allow-unchecked-sdk-calls
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promotin
+98:                                                             This flag cannot be combined with "--analyze-size".
+138:                                                             This flag cannot be combined with "--split-debug-info".
+5068:            note: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+5069:            note: Run script build phase 'Run Script' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+5887:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+5891:[WARN] --allow-unchecked-sdk-calls: this patch was not checked against what this release's snapshot kept of the dart: instance members it calls (or against the dynamic-call check, on a cell below analysis 19). This is recorded in the patch's metadata.
+5892:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+5932:✅ Published Patch 10!
+5938:refs/heads/devrun/a6a4-unchecked-fix
+patch unchecked_i2 exit=0
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promotin
+98:                                                             This flag cannot be combined with "--analyze-size".
+138:                                                             This flag cannot be combined with "--split-debug-info".
+5887:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+5891:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+5893:This patch changes a function this version of Shorebird cannot yet turn into a replacement body:
+5895:  package:untab/main.dart#_HomeState._start
+5896:      it calls the dart: method `Iterable.iterator` (an SDK instance member, this release has no `get:iterator` on `ObserverList` (in `package:flutter/src/foundation/observer_list.dart` that can be a `Iterable` here), and 2 more). An SDK instance method i
+5898:The whole patch is refused. This is not a problem with your release. Nothing was
+i2 PUBLISHED (not launched)
+UNCHECKED RETRY unchecked_p16: refused for Iterable.iterator (exit 70); retrying with --allow-unchecked-sdk-calls
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promotin
+98:                                                             This flag cannot be combined with "--analyze-size".
+138:                                                             This flag cannot be combined with "--split-debug-info".
+5068:            note: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+5069:            note: Run script build phase 'Run Script' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+5887:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+5891:[WARN] --allow-unchecked-sdk-calls: this patch was not checked against what this release's snapshot kept of the dart: instance members it calls (or against the dynamic-call check, on a cell below analysis 19). This is recorded in the patch's metadata.
+5892:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+5932:✅ Published Patch 11!
+5938:refs/heads/devrun/a6a4-unchecked-fix
+patch unchecked_p16 exit=0
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promotin
+98:                                                             This flag cannot be combined with "--analyze-size".
+138:                                                             This flag cannot be combined with "--split-debug-info".
+5887:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+5891:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+5893:This patch changes a function this version of Shorebird cannot yet turn into a replacement body:
+5895:  package:untab/main.dart#_HomeState._start
+5896:      it calls the dart: method `Iterable.iterator` (an SDK instance member, this release has no `get:iterator` on `ObserverList` (in `package:flutter/src/foundation/observer_list.dart` that can be a `Iterable` here), and 2 more). An SDK instance method i
+5898:The whole patch is refused. This is not a problem with your release. Nothing was
+p16 PUBLISHED (not launched)
+--- patches on server:
+Starting Fetching releases...
+Done Fetching releases
+Starting Fetching patches...
+Done Fetching patches
+27  #1  [no track]
+28  #2  [no track]  [rolled back]
+29  #3  [no track]
+30  #4  [no track]
+31  #5  [no track]  [rolled back]
+32  #6  [no track]
+33  #7  [no track]
+34  #8  [no track]
+35  #9  [no track]
+36  #10  [no track]
+37  #11  track: stable
+STEPS4B_DONE
+exit=0
