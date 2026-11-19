@@ -668,12 +668,16 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
     _inferredReleaseVersion = false;
     _diffStatuses.clear();
     _releaseShorebirdEnv = null;
+    // Every record is started here, before any platform builds, and each
+    // covers the whole invocation, so the later ones share the first one's
+    // trace window rather than resetting it.
     final runs = _buildRuns = [
-      for (final patcher in patchers)
+      for (final (i, patcher) in patchers.indexed)
         buildHistory.start(
           command: BuildRunCommand.patch,
           platform: patcher.releaseType.releasePlatform,
           dryRun: results['dry-run'] == true,
+          sharesWindow: i > 0,
         )..shareDebugInfo = results['share-debug-info'] == true,
     ];
     // Only the Apple patchers write the debug bundle, and they all write the

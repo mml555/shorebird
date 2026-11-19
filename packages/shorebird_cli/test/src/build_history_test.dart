@@ -51,11 +51,12 @@ void main() {
       },
     );
 
-    BuildRun startRun() => runWithOverrides(
+    BuildRun startRun({bool sharesWindow = false}) => runWithOverrides(
       () => buildHistory.start(
         command: BuildRunCommand.patch,
         platform: ReleasePlatform.ios,
         dryRun: false,
+        sharesWindow: sharesWindow,
       ),
     )..appId = appId;
 
@@ -156,6 +157,23 @@ void main() {
         expect(buildTraceSession.windowStartedAt, equals(now));
         expect(second.startedAt, equals(now));
         expect(buildTraceSession.commandStartedAt, equals(startedAt));
+      });
+
+      test('keeps the trace window for a record that shares it', () async {
+        await runWithOverrides(
+          () => shorebirdTracer.span(
+            name: 'setup',
+            category: 'shorebird',
+            body: () async {},
+          ),
+        );
+        startRun();
+        now = startedAt.add(const Duration(seconds: 1));
+        final second = startRun(sharesWindow: true);
+
+        expect(shorebirdTracer.events, hasLength(1));
+        expect(buildTraceSession.windowStartedAt, equals(startedAt));
+        expect(second.startedAt, equals(now));
       });
     });
 

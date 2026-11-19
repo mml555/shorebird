@@ -189,13 +189,19 @@ class BuildHistory {
   /// Shorebird overhead counts only its own work. The first platform keeps
   /// the spans recorded since the command started, and its window starts
   /// with the command.
+  ///
+  /// [sharesWindow] is for a record that covers the same work as the one
+  /// started just before it, as each platform's record of a patch published
+  /// across platforms does: its records are all started before any platform
+  /// builds, so it keeps the spans and the window instead.
   BuildRun start({
     required BuildRunCommand command,
     required ReleasePlatform platform,
     required bool dryRun,
+    bool sharesWindow = false,
   }) {
     final startedAt = clock.now();
-    if (_startedPlatform) {
+    if (_startedPlatform && !sharesWindow) {
       shorebirdTracer.reset();
       buildTraceSession.windowStartedAt = startedAt;
     }

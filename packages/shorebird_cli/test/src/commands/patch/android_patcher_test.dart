@@ -412,7 +412,7 @@ void main() {
               targetPlatforms: any(named: 'targetPlatforms'),
               args: any(named: 'args'),
               base64PublicKey: any(named: 'base64PublicKey'),
-              releaseSupplementDir: null,
+              // releaseSupplementDir omitted: it must be null.
             ),
           ).called(1);
           expect(
