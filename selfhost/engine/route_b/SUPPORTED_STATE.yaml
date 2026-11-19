@@ -123,7 +123,7 @@ lineage:
   # the archive are 2fc41d3f's, byte for byte; PROVENANCE.txt differs only in the
   # build time and the analyzer's digest. The CLI that reads v21 is on main at
   # the merge of PR #226. See PROMOTION_a6a48cf6.md.
-  cli_revision: e7384444fad53cdd35317fe3dc0abc4d3c7b1c36   # the merge of PR #234; the iPhone run (2026-11-19) built the release with it and the patches with it plus #248's fix cherry-picked (05d5b08d, then unmerged), so the patches were not built by this pin alone; a qualifying rerun moves this pin to a CLI with #248, #251 and #252. The chain ran #226's head af1e14a1; since then only
+  cli_revision: e7384444fad53cdd35317fe3dc0abc4d3c7b1c36   # the merge of PR #234. NOT QUALIFIED ON THIS CELL, by either check: the chain ran af1e14a1 (before #230-#234), and the iPhone run below is partial. It stays the pin because it is the CLI with #230-#234, which the iPhone run needed to publish its patches; the chain's af1e14a1 was never run on a device. The iPhone run (2026-11-19) built the release with it and the patches with it plus #248's fix cherry-picked (05d5b08d, then unmerged), so the patches were not built by this pin alone; a qualifying rerun moves this pin to a CLI with #248, #251 and #252. The chain ran #226's head af1e14a1; since then only
   # route_b_producer.dart, route_b_retention.dart and route_b_sdk_kept.dart (#230-#233: false Route B refusals) and
   # route_b_release_kernels.dart, ios_releaser.dart and shorebird_yaml.dart (#234: the SDK members an iOS release keeps)
   # changed, with their tests. That is the iOS release and patch path, not run by the Linux chain. bin/internal is unchanged.
@@ -336,7 +336,7 @@ cells:
       05d5b08d (#248's 72873c909), flutter cc4fc222, engine resolved to a6a48cf6 via
       cell-manifests/a6a48cf6....v2 from the production cdn-cache on ci-build. Eleven patches
       published and each applied all its targets on every launch; the refusals that reached their
-      own verdict were right; two rollbacks worked; s1/s1b (class member naming its own statics)
+      own verdict were right; all three rollbacks worked; s1/s1b (class member naming its own statics)
       and i1, i2b and i2 (inlined operators) showed their values. Against it: nine of the eleven were
       published with --allow-unchecked-sdk-calls because the checked build was refused only for
       the for-in false positive (#247), and the combo silently dropped p15 (the tally path
