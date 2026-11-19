@@ -83,7 +83,7 @@ Map<String, Object?>? _find(
 Arguments get _noArgs => Arguments([]);
 
 void main() {
-  check(analysisVersion == 22, 'analysis version is 22');
+  check(analysisVersion == 23, 'analysis version is 23');
 
   final app = _lib('package:app/a.dart');
   final core = _lib('dart:core');

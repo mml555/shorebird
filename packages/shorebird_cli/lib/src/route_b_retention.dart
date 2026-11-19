@@ -1,4 +1,4 @@
-// cspell:words prepass
+// cspell:words prepass aeiou
 //
 // Route B (selfhost): did the RELEASE keep every external symbol the patch's
 // bytecode names?
@@ -305,7 +305,7 @@ class RouteBRetention {
       // member is looked up, so neither the device list nor the snapshot is
       // asked. Only the analyzer's own per-site answer lifts the check.
       if (r.inlined != null && (inlinedHolds?.call(r) ?? true)) return null;
-      final why = _sdkRefusal(_sdkKey(r));
+      final why = _sdkRefusal(_sdkKey(r), receiver: _receiverOf(r));
       return why == null ? null : _describeSdkInstance(r, why);
     }
     if (_retained(r)) return null;
@@ -369,7 +369,10 @@ class RouteBRetention {
   /// list AND this release's snapshot resolves it on every VM class it was
   /// measured on and on every class of the release that can be the declared
   /// type. An empty string is "on no list".
-  String? _sdkRefusal(String key) {
+  ///
+  /// [receiver] narrows the classes asked to the release's subtypes of that
+  /// class (`library`, `class`); see [_keptProblem].
+  String? _sdkRefusal(String key, {(String, String)? receiver}) {
     // First: a tear-off named by the interface is still only as safe as its
     // call, which the interface's own list does not vouch for.
     final torn = _tearoffRefusal(key);
@@ -378,7 +381,13 @@ class RouteBRetention {
     final failed = measuredFailing[key];
     if (failed != null) return 'measured: $failed';
     if (!measuredAccepted.contains(key)) return '';
-    return _keptProblem(key);
+    return _keptProblem(key, receiver: receiver);
+  }
+
+  static (String, String)? _receiverOf(RouteBExternalReference r) {
+    final library = r.receiverLibrary;
+    final cls = r.receiverClass;
+    return library == null || cls == null ? null : (library, cls);
   }
 
   /// Why a measured tear-off [key] (`...#tearoff:name`) is refused because its
@@ -410,7 +419,13 @@ class RouteBRetention {
 
   /// Whether this release's snapshot resolves [key] on every VM class the
   /// measurement ran it on, or why not.
-  String? _keptProblem(String key) {
+  ///
+  /// The classes that can be the receiver are the release's subtypes of the
+  /// key's own class, or of [receiver] (`library`, `class`) when the analysis
+  /// named a narrower static type for it (a `for-in` over a `List` is never an
+  /// `ObserverList`). A [receiver] this snapshot holds no class for narrows
+  /// nothing: the key's class is asked, as before.
+  String? _keptProblem(String key, {(String, String)? receiver}) {
     if (skipKeptCheck) return null;
     final snapshot = kept;
     if (snapshot == null) {
@@ -424,9 +439,21 @@ class RouteBRetention {
     // `library#Class#member`, or `dynamic#selector` (any class).
     final parts = key.split('#');
     final dynamicKey = parts.length == 2 && parts.first == 'dynamic';
+    final narrowed =
+        !dynamicKey &&
+        receiver != null &&
+        snapshot.hasClassIn(receiver.$1, receiver.$2);
     return snapshot.problemFor(
-      declaredLibrary: dynamicKey ? null : parts.first,
-      declaredClass: dynamicKey ? null : parts[1],
+      declaredLibrary: dynamicKey
+          ? null
+          : narrowed
+          ? receiver.$1
+          : parts.first,
+      declaredClass: dynamicKey
+          ? null
+          : narrowed
+          ? receiver.$2
+          : parts[1],
       measured: classes,
       selector: _selectorOf(key),
     );
@@ -574,9 +601,18 @@ class RouteBRetention {
     final name = torn
         ? '${r.className}.${_bareSelector(r.member!)} torn off'
         : r.displayName;
+    // "`Iterable.iterator` over a `List`": the loop's receiver (analysis 23).
+    final receiver = _receiverOf(r)?.$2;
+    final over = receiver == null
+        ? ''
+        : ' over ${_article(receiver)} `$receiver`';
     return 'the ${r.library.substring(0, r.library.indexOf(':'))}: method '
-        '`$name` (an SDK instance member$how)';
+        '`$name`$over (an SDK instance member$how)';
   }
+
+  /// "an" before `Iterable` or `_Array`, "a" before `List`.
+  static String _article(String name) =>
+      RegExp('^_*[aeiou]', caseSensitive: false).hasMatch(name) ? 'an' : 'a';
 
   /// "`Padding`", the way a developer would name it. The library is added only
   /// where it helps: a framework path (`package:flutter/src/widgets/...`) is

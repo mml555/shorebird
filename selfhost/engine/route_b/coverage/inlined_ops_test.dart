@@ -407,6 +407,118 @@ void main() {
     'tables (expected $expected, CLI $actual)',
   );
 
+  // For-in receivers (analysis version 23): the `Iterable.get:iterator`
+  // reference names the class of the iterable's static type.
+  final listC = core('List'), setC = core('Set'), iterableC = core('Iterable');
+  List<Map<String, Object?>> iteratorRefs(
+    List<DartType> iterables, {
+    bool typed = true,
+  }) {
+    final params = <PositionalParameter>[];
+    final body = <Statement>[];
+    for (final type in iterables) {
+      final xs = PositionalParameter(cosmeticName: 'xs${n++}', type: type);
+      params.add(xs);
+      body.add(
+        ForInStatement(
+          LocalVariable(name: 'x${n++}'),
+          VariableGet(xs),
+          Block([]),
+        ),
+      );
+    }
+    final p = Procedure(
+      Name('loop${n++}'),
+      ProcedureKind.Method,
+      FunctionNode(Block(body), positionalParameters: params),
+      fileUri: lib.fileUri,
+    );
+    lib.addProcedure(p);
+    return externalReferencesOf(
+      p,
+      {},
+      types: typed ? env : null,
+    ).where((r) => r['member'] == 'get:iterator').toList();
+  }
+
+  final overList = iteratorRefs([t(listC)]);
+  check(
+    overList.length == 1 &&
+        overList.single['class'] == 'Iterable' &&
+        overList.single['library'] == 'dart:core' &&
+        overList.single['receiverLibrary'] == 'dart:core' &&
+        overList.single['receiverClass'] == 'List',
+    'a for-in over a List names List as the receiver ($overList)',
+  );
+  final both = iteratorRefs([t(listC), t(setC), t(listC)]);
+  check(
+    both.length == 2 &&
+        both.map((r) => r['receiverClass']).toSet().containsAll({
+          'List',
+          'Set',
+        }),
+    'loops over a List and a Set report one entry per receiver ($both)',
+  );
+  for (final (what, refs) in [
+    ('an Iterable', iteratorRefs([t(iterableC)])),
+    ('a dynamic value', iteratorRefs([const DynamicType()])),
+    (
+      'a List without a type environment',
+      iteratorRefs([t(listC)], typed: false),
+    ),
+  ]) {
+    check(
+      refs.length == 1 &&
+          refs.single['class'] == 'Iterable' &&
+          !refs.single.containsKey('receiverClass') &&
+          !refs.single.containsKey('receiverLibrary'),
+      'a for-in over $what names no receiver ($refs)',
+    );
+  }
+  final appIterable = Class(
+    name: 'Shapes',
+    fileUri: lib.fileUri,
+    supertype: Supertype(iterableC, [const DynamicType()]),
+  );
+  lib.addClass(appIterable);
+  final overApp = iteratorRefs([t(appIterable)]);
+  check(
+    overApp.length == 1 &&
+        overApp.single['receiverLibrary'] == 'package:app/a.dart' &&
+        overApp.single['receiverClass'] == 'Shapes',
+    'a for-in over an app class names it and its library ($overApp)',
+  );
+  // A nullable, type-parameter, extension-type or FutureOr iterable names no
+  // receiver: none of them is a class the CLI can narrow to.
+  final elem = TypeParameter('E', t(listC), t(listC));
+  final shapesType = ExtensionTypeDeclaration(
+    name: 'ShapeList',
+    fileUri: lib.fileUri,
+  )..declaredRepresentationType = t(listC);
+  lib.addExtensionTypeDeclaration(shapesType);
+  for (final (what, type) in <(String, DartType)>[
+    ('a nullable List', t(listC, true)),
+    (
+      'a type parameter bounded by List',
+      TypeParameterType(elem, Nullability.nonNullable),
+    ),
+    (
+      'an extension type over List',
+      ExtensionType(shapesType, Nullability.nonNullable),
+    ),
+    ('a FutureOr<List>', FutureOrType(t(listC), Nullability.nonNullable)),
+  ]) {
+    final refs = iteratorRefs([type]);
+    check(
+      refs.length == 1 &&
+          refs.single['class'] == 'Iterable' &&
+          !refs.single.containsKey('receiverClass') &&
+          !refs.single.containsKey('receiverLibrary'),
+      'a for-in over $what names no receiver ($refs)',
+    );
+  }
+  check(analysisVersion == 23, 'analysis version is 23');
+
   if (_failures > 0) exit(1);
   stdout.writeln('all passed');
 }

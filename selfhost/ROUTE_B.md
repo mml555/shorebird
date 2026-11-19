@@ -510,6 +510,28 @@ no `lowering` or whose lowering names no extension, and any document older than
 analyzer; the producer never sees an `extension` field below 22. Nothing here
 was run on a device.
 
+**For-in receivers (analysis 23).** `for (final s in shapes)` asks the runtime
+receiver for `iterator` by selector, so the per-release check asks every class
+that can be that receiver whether its snapshot has compiled code for it. Up to
+22 that was every `Iterable` of the release, so a loop over a `List` was refused
+whenever some other `Iterable` (Flutter's `ObserverList`) had no compiled
+`iterator`. From 23 the analyzer names the class of the iterable's static type
+(`receiverLibrary`, `receiverClass`) on the `Iterable.get:iterator` reference
+only, and the CLI asks only that class's subtypes for `iterator`, which still
+include every `List` the app wrote, mixin applications included. Only that one
+question narrows: the loop's `Iterator.moveNext` and `Iterator.get:current`
+references, and the VM classes measured on the device for `iterator`, are
+checked as before, so a loop over a `List` can still be refused by them. An
+iterable typed `Iterable` itself, `dynamic`, nullable, `FutureOr`, a type
+parameter or an extension type names no receiver and is checked as before, and
+so is a class the release's snapshot does not hold. A refusal names the
+receiver ("`Iterable.iterator` over a `List`").
+
+A cell whose analyzer writes version 23 needs a CLI that knows 23: an older CLI
+refuses an analysis version it does not know, so with such a cell it refuses
+every Route B patch until the CLI is upgraded. Ship the CLI first, then the
+cell.
+
 **Rollout.** The analyzer always writes `enclosingScope` (`{}` at minimum). A
 document without it comes from a cell built before this change, and a class or
 extension member cannot be shown safe without it, so such a target is refused

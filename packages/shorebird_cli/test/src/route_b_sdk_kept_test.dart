@@ -1024,4 +1024,239 @@ callable:
       expect(refusal(retention(profileWith(typedHasReversed: true))), isNull);
     });
   });
+
+  group('a for-in receiver (analysis 23)', () {
+    // A for-in asks its receiver for `iterator` by selector. Flutter's
+    // ObserverList is an Iterable with no compiled `iterator` in a release
+    // that never iterates one; a loop over a List can never receive one.
+    const key = 'dart:core#Iterable#get:iterator';
+    const observerLibrary = 'package:flutter/src/foundation/observer_list.dart';
+    final snapshot = RouteBSnapshotKept.fromProfileJson(
+      routeBProfile({
+        'Object': const RouteBProfileClass('Object', routeBCoreLibrary),
+        'Iterable': const RouteBProfileClass(
+          'Iterable',
+          routeBCoreLibrary,
+          parent: 'Object',
+        ),
+        'List': const RouteBProfileClass(
+          'List',
+          routeBCoreLibrary,
+          parent: 'Object',
+          ifaces: ['Iterable'],
+        ),
+        '_GrowableList': const RouteBProfileClass(
+          '_GrowableList@0150898',
+          routeBCoreLibrary,
+          parent: 'Object',
+          ifaces: ['List'],
+          fns: {'get:iterator': '[Optimized] iterator'},
+        ),
+        'ObserverList': const RouteBProfileClass(
+          'ObserverList',
+          observerLibrary,
+          parent: 'Object',
+          ifaces: ['Iterable'],
+          fns: {'add': '[Optimized] add'},
+        ),
+      }),
+    );
+    final retention = RouteBRetention.parse(
+      _interface,
+      measuredAccepted: {key},
+      measuredFailing: const {},
+      measuredVmClasses: {
+        key: ['_GrowableList'],
+      },
+      kept: snapshot,
+    );
+
+    Map<String, Object?> iterator({String? library, String? cls}) => {
+      ..._ref('instance', 'dart:core', cls: 'Iterable', member: 'get:iterator'),
+      'receiverLibrary': ?library,
+      'receiverClass': ?cls,
+    };
+
+    String? refusal(Map<String, Object?> ref, {int version = 23}) =>
+        retention.refusalForTarget(_analysis([ref], version: version), _target);
+
+    test('over a List asks only the List classes', () {
+      expect(
+        refusal(iterator(library: 'dart:core', cls: 'List')),
+        isNull,
+      );
+    });
+
+    test('with no receiver still asks every Iterable', () {
+      expect(
+        refusal(iterator()),
+        allOf(
+          contains('no `get:iterator` on `ObserverList`'),
+          contains(observerLibrary),
+        ),
+      );
+    });
+
+    test('over an ObserverList is refused', () {
+      expect(
+        refusal(iterator(library: observerLibrary, cls: 'ObserverList')),
+        contains('no `get:iterator` on `ObserverList`'),
+      );
+    });
+
+    test('is not believed below analysis 23', () {
+      expect(
+        refusal(iterator(library: 'dart:core', cls: 'List'), version: 22),
+        contains('no `get:iterator` on `ObserverList`'),
+      );
+    });
+
+    test('naming a class this release lacks narrows nothing', () {
+      expect(
+        refusal(iterator(library: 'dart:core', cls: 'Set')),
+        contains('no `get:iterator` on `ObserverList`'),
+      );
+    });
+
+    test('names the receiver in the refusal', () {
+      expect(
+        refusal(iterator(library: observerLibrary, cls: 'ObserverList')),
+        contains('`Iterable.iterator` over an `ObserverList`'),
+      );
+    });
+
+    test('is read from the for-in reference', () {
+      final json = iterator(library: 'dart:core', cls: 'List');
+      final read = RouteBExternalReference.fromJson(json, readReceiver: true);
+      expect(read.receiverLibrary, 'dart:core');
+      expect(read.receiverClass, 'List');
+      final unread = RouteBExternalReference.fromJson(json);
+      expect(unread.receiverClass, isNull);
+    });
+
+    group('over a List still asks every List the app wrote', () {
+      // A List the app wrote without compiled `iterator` is as much a List as
+      // `_GrowableList`: narrowing to List keeps it, whether it implements
+      // List, extends ListBase or mixes in ListMixin.
+      const appLibrary = 'package:app/main.dart';
+      const collection = 'dart:collection';
+      String? refusalWith(Map<String, RouteBProfileClass> app) {
+        final narrowed = RouteBRetention.parse(
+          _interface,
+          measuredAccepted: {key},
+          measuredFailing: const {},
+          measuredVmClasses: {
+            key: ['_GrowableList'],
+          },
+          kept: RouteBSnapshotKept.fromProfileJson(
+            routeBProfile({
+              'Object': const RouteBProfileClass('Object', routeBCoreLibrary),
+              'Iterable': const RouteBProfileClass(
+                'Iterable',
+                routeBCoreLibrary,
+                parent: 'Object',
+              ),
+              'List': const RouteBProfileClass(
+                'List',
+                routeBCoreLibrary,
+                parent: 'Object',
+                ifaces: ['Iterable'],
+              ),
+              '_GrowableList': const RouteBProfileClass(
+                '_GrowableList@0150898',
+                routeBCoreLibrary,
+                parent: 'Object',
+                ifaces: ['List'],
+                fns: {'get:iterator': '[Optimized] iterator'},
+              ),
+              'ListBase': const RouteBProfileClass(
+                'ListBase',
+                collection,
+                parent: 'Object',
+                ifaces: ['List'],
+              ),
+              'ListMixin': const RouteBProfileClass(
+                'ListMixin',
+                collection,
+                parent: 'Object',
+                ifaces: ['List'],
+              ),
+              ...app,
+            }),
+          ),
+        );
+        return narrowed.refusalForTarget(
+          _analysis([
+            iterator(library: 'dart:core', cls: 'List'),
+          ], version: 23),
+          _target,
+        );
+      }
+
+      test('a class that implements List', () {
+        expect(
+          refusalWith({
+            'MyList': const RouteBProfileClass(
+              'MyList',
+              appLibrary,
+              parent: 'Object',
+              ifaces: ['List'],
+              fns: {'add': '[Optimized] add'},
+            ),
+          }),
+          allOf(
+            contains('no `get:iterator` on `MyList`'),
+            contains('over a `List`'),
+          ),
+        );
+      });
+
+      test('a class that extends ListBase', () {
+        expect(
+          refusalWith({
+            'MyBaseList': const RouteBProfileClass(
+              'MyBaseList',
+              appLibrary,
+              parent: 'ListBase',
+              fns: {'add': '[Optimized] add'},
+            ),
+          }),
+          contains('no `get:iterator` on `MyBaseList`'),
+        );
+      });
+
+      test('a class built on a ListMixin application', () {
+        // `class ShapeList with ListMixin` compiles to the mixin
+        // application `_ShapeList&Object&ListMixin`, which implements
+        // ListMixin; the profile has no `mixin_` edge.
+        expect(
+          refusalWith({
+            'mixinApplication': const RouteBProfileClass(
+              '_ShapeList&Object&ListMixin',
+              appLibrary,
+              parent: 'Object',
+              ifaces: ['ListMixin'],
+            ),
+            'ShapeList': const RouteBProfileClass(
+              'ShapeList',
+              appLibrary,
+              parent: 'mixinApplication',
+              fns: {'add': '[Optimized] add'},
+            ),
+          }),
+          contains('no `get:iterator` on `ShapeList`'),
+        );
+      });
+    });
+
+    test('is not believed on any other reference', () {
+      final reference = RouteBExternalReference.fromJson({
+        ..._ref('instance', 'dart:core', cls: 'List', member: 'get:reversed'),
+        'receiverLibrary': 'dart:core',
+        'receiverClass': 'List',
+      }, readReceiver: true);
+      expect(reference.receiverClass, isNull);
+      expect(reference.receiverLibrary, isNull);
+    });
+  });
 }

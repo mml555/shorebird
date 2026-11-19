@@ -111,7 +111,7 @@ void main() {
       File('${dir.path}/app.dill').readAsBytesSync(),
     ).readComponent(c);
 
-    check(analysisVersion == 22, 'analysis version is 22');
+    check(analysisVersion == 23, 'analysis version is 23');
 
     final getter = _lowering(c, 'Stars|get#stars');
     check(getter != null, 'a getter lowers');

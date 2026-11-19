@@ -70,7 +70,7 @@ const supportedRouteBAnalysisVersion = 11;
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
 const knownRouteBAnalysisVersions = {
-  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, //
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, //
 };
 
 /// The first analyzer version that compares fields, `const`s, constructors and
@@ -125,6 +125,14 @@ const routeBInlinedOpsAnalysisVersion = 21;
 /// `extension`. Below it the analyzer's scope report refuses every such member,
 /// so a release built with an older cell keeps refusing them.
 const routeBExtensionReceiverAnalysisVersion = 22;
+
+/// The first analyzer version that names the receiver class of a `for-in`
+/// (`receiverLibrary`, `receiverClass` on its `Iterable.get:iterator`
+/// reference): the class of the loop iterable's static type. The per-release
+/// check then asks only the release's subtypes of that class for `iterator`,
+/// not every `Iterable` it holds. A document below it never has the fields,
+/// and one that carries them anyway is not believed.
+const routeBForInReceiverAnalysisVersion = 23;
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -675,6 +683,8 @@ class RouteBExternalReference {
     this.isPrivate = false,
     this.viaConstant = false,
     this.inlined,
+    this.receiverLibrary,
+    this.receiverClass,
     this.reason,
   });
 
@@ -683,9 +693,12 @@ class RouteBExternalReference {
   /// [readInlined] is true only for a document of analysis
   /// [routeBInlinedOpsAnalysisVersion] or later: an `inlined` field on an
   /// older one is ignored, so only an analyzer that computes it can say it.
+  /// [readReceiver] is the same for [receiverClass], from
+  /// [routeBForInReceiverAnalysisVersion].
   factory RouteBExternalReference.fromJson(
     Map<String, dynamic> json, {
     bool readInlined = false,
+    bool readReceiver = false,
   }) {
     final kind = json['kind'];
     if (kind is! String || !_kinds.contains(kind)) {
@@ -701,6 +714,7 @@ class RouteBExternalReference {
     if (library is! String) {
       throw const FormatException('an external reference names no library');
     }
+    final receiver = readReceiver ? _knownReceiver(json) : null;
     return RouteBExternalReference(
       kind: kind,
       library: library,
@@ -716,7 +730,27 @@ class RouteBExternalReference {
               inlined: json['inlined'],
             )
           : null,
+      receiverLibrary: receiver?.$1,
+      receiverClass: receiver?.$2,
     );
+  }
+
+  /// The receiver class a document names for a `for-in`'s
+  /// `Iterable.get:iterator`, the only reference the analyzer gives one, or
+  /// null. A receiver on any other reference is not believed: it would narrow
+  /// the check for a member the analyzer never narrowed.
+  static (String, String)? _knownReceiver(Map<String, dynamic> json) {
+    final library = json['receiverLibrary'];
+    final cls = json['receiverClass'];
+    if (library is! String || cls is! String) return null;
+    if (library.isEmpty || cls.isEmpty) return null;
+    if (json['kind'] != 'instance' ||
+        json['library'] != 'dart:core' ||
+        json['class'] != 'Iterable' ||
+        json['member'] != 'get:iterator') {
+      return null;
+    }
+    return (library, cls);
   }
 
   /// The opcodes the bytecode compiler can emit for an operator, by selector
@@ -800,6 +834,16 @@ class RouteBExternalReference {
   /// field, or the document names something that is not an operator opcode
   /// (see [inlinedOpcodes]).
   final String? inlined;
+
+  /// The library of [receiverClass] (analysis 23 and later).
+  final String? receiverLibrary;
+
+  /// For a `for-in`'s `Iterable.get:iterator`, the class of the loop
+  /// iterable's static type (analysis 23 and later): the runtime receiver is
+  /// an instance of one of its subtypes. Null when the analysis predates the
+  /// field or could not name one (a `dynamic` iterable, a type parameter), in
+  /// which case the receiver is any `Iterable`.
+  final String? receiverClass;
 
   /// Why the body could not be walked, for `unanalyzed`.
   final String? reason;
@@ -1115,6 +1159,8 @@ class RouteBCoverage {
               RouteBExternalReference.fromJson(
                 r as Map<String, dynamic>,
                 readInlined: analysisVersion >= routeBInlinedOpsAnalysisVersion,
+                readReceiver:
+                    analysisVersion >= routeBForInReceiverAnalysisVersion,
               ),
           ],
       };
