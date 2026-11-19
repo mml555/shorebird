@@ -517,6 +517,139 @@ void main() {
       'a for-in over $what names no receiver ($refs)',
     );
   }
+  // The same, in the lowered form a real dill holds: no ForInStatement, a
+  // synthetic `:sync-for-iterator` variable initialized with `xs.iterator`.
+  final iterableIterator = this_member(iterableC, 'iterator', getter: true);
+  List<Map<String, Object?>> loweredRefs(
+    DartType type, {
+    String variableName = ':sync-for-iterator',
+    Member? target,
+    bool typed = true,
+    DartType? promotedTo,
+  }) {
+    final xs = PositionalParameter(cosmeticName: 'xs${n++}', type: type);
+    final p = Procedure(
+      Name('lowered${n++}'),
+      ProcedureKind.Method,
+      FunctionNode(
+        Block([
+          VariableStatement(
+            VariableDeclaration(
+              SyntheticVariable(
+                cosmeticName: variableName,
+                initializer: InstanceGet(
+                  InstanceAccessKind.Instance,
+                  VariableGet(xs, promotedTo),
+                  Name('iterator'),
+                  interfaceTarget: target ?? iterableIterator,
+                  // The real lowered type, `Iterator<int>`, as the VM's
+                  // for-in lowering writes it.
+                  resultType: InterfaceType(
+                    core('Iterator'),
+                    Nullability.nonNullable,
+                    [t(core('int'))],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ]),
+        positionalParameters: [xs],
+      ),
+      fileUri: lib.fileUri,
+    );
+    lib.addProcedure(p);
+    return externalReferencesOf(
+      p,
+      {},
+      types: typed ? env : null,
+    ).where((r) => r['member'] == 'get:iterator').toList();
+  }
+
+  final loweredList = loweredRefs(t(listC));
+  check(
+    loweredList.length == 1 &&
+        loweredList.single['class'] == 'Iterable' &&
+        loweredList.single['receiverLibrary'] == 'dart:core' &&
+        loweredList.single['receiverClass'] == 'List',
+    'a lowered for-in over a List names List as the receiver ($loweredList)',
+  );
+  final loweredSet = loweredRefs(t(setC));
+  check(
+    loweredSet.length == 1 && loweredSet.single['receiverClass'] == 'Set',
+    'a lowered for-in over a Set names Set as the receiver ($loweredSet)',
+  );
+  final loweredApp = loweredRefs(t(appIterable));
+  check(
+    loweredApp.length == 1 &&
+        loweredApp.single['receiverLibrary'] == 'package:app/a.dart' &&
+        loweredApp.single['receiverClass'] == 'Shapes',
+    'a lowered for-in over an app class names it and its library '
+    '($loweredApp)',
+  );
+  // A promoted variable (`if (xs is List)` over an Iterable) has the promoted
+  // type, a sound narrowing: the value is a List.
+  final loweredPromoted = loweredRefs(t(iterableC), promotedTo: t(listC));
+  check(
+    loweredPromoted.length == 1 &&
+        loweredPromoted.single['receiverClass'] == 'List',
+    'a lowered for-in over a variable promoted to List names List '
+    '($loweredPromoted)',
+  );
+  // A subclass static type names that subclass (the CLI then asks it and its
+  // subtypes), not the List it extends.
+  final collectionLib = env.coreTypes.index.getLibrary('dart:collection');
+  final listBase = collectionLib.classes.firstWhere(
+    (c) => c.name == 'ListBase',
+  );
+  final loweredBase = loweredRefs(t(listBase));
+  check(
+    loweredBase.length == 1 &&
+        loweredBase.single['receiverLibrary'] == 'dart:collection' &&
+        loweredBase.single['receiverClass'] == 'ListBase',
+    'a lowered for-in over a ListBase names ListBase ($loweredBase)',
+  );
+  final listBound = TypeParameter('L', t(listC), t(listC));
+  final loweredShapes = Class(
+    name: 'ShapeBase',
+    fileUri: lib.fileUri,
+    supertype: Supertype(listBase, [t(core('int'))]),
+  );
+  lib.addClass(loweredShapes);
+  final loweredSub = loweredRefs(t(loweredShapes));
+  check(
+    loweredSub.length == 1 &&
+        loweredSub.single['receiverLibrary'] == 'package:app/a.dart' &&
+        loweredSub.single['receiverClass'] == 'ShapeBase',
+    'a lowered for-in over a class extending ListBase names that class '
+    '($loweredSub)',
+  );
+  for (final (what, refs) in [
+    (
+      'a type parameter bounded by List',
+      loweredRefs(TypeParameterType(listBound, Nullability.nonNullable)),
+    ),
+    (
+      'a FutureOr<List>',
+      loweredRefs(FutureOrType(t(listC), Nullability.nonNullable)),
+    ),
+    ('an Iterable', loweredRefs(t(iterableC))),
+    ('a dynamic value', loweredRefs(const DynamicType())),
+    ('a nullable List', loweredRefs(t(listC, true))),
+    ('a List without a type environment', loweredRefs(t(listC), typed: false)),
+    (
+      'a variable that is not the for-in iterator',
+      loweredRefs(t(listC), variableName: 'it'),
+    ),
+  ]) {
+    check(
+      refs.length == 1 &&
+          refs.single['class'] == 'Iterable' &&
+          !refs.single.containsKey('receiverClass') &&
+          !refs.single.containsKey('receiverLibrary'),
+      'a lowered for-in over $what names no receiver ($refs)',
+    );
+  }
   check(analysisVersion == 23, 'analysis version is 23');
 
   if (_failures > 0) exit(1);
