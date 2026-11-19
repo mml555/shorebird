@@ -4,7 +4,9 @@ import 'dart:convert';
 /// One class of a synthetic profile. [fns] maps a function name to the name of
 /// its code (`[Stub] ...` is a lazy-compile stub; null is no code at all).
 /// [decoys] are functions in the invocation-dispatcher cache, which a lookup by
-/// name must not see.
+/// name must not see. [allocated] gives the class an allocation stub (compiled
+/// code allocates one); [constInstance] stores a const instance of it in the
+/// snapshot. An abstract class has neither.
 class RouteBProfileClass {
   const RouteBProfileClass(
     this.name,
@@ -14,6 +16,8 @@ class RouteBProfileClass {
     this.ifaces = const [],
     this.decoys = const {},
     this.moreFns = const [],
+    this.allocated = false,
+    this.constInstance = false,
   });
   final String name;
   final String library;
@@ -24,6 +28,9 @@ class RouteBProfileClass {
 
   /// More entries of [fns], for a name that appears twice in one list.
   final List<(String, String?)> moreFns;
+
+  final bool allocated;
+  final bool constInstance;
 }
 
 /// A minimal v8 snapshot profile in the shape `gen_snapshot` writes. A class is
@@ -41,6 +48,7 @@ String routeBProfile(Map<String, RouteBProfileClass> classes) {
     'Type',
     'Library',
     'Other',
+    'Instance',
   ];
   const edgeTypes = ['context', 'element', 'property', 'internal'];
   final strings = <String>[];
@@ -124,6 +132,12 @@ String routeBProfile(Map<String, RouteBProfileClass> classes) {
       );
     }
     nodes[self] = (type: nodes[self].type, name: nodes[self].name, to: to);
+    if (c.allocated) {
+      add('Code', '[Stub] Allocate ${c.name}', [prop('owner_', self)]);
+    }
+    if (c.constInstance) {
+      add('Instance', 'Unnamed [Instance] (nil)', [prop('<class>', self)]);
+    }
   }
   final flatNodes = <int>[];
   final flatEdges = <int>[];

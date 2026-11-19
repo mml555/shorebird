@@ -41,6 +41,7 @@ class RouteBSnapshotKept {
     this._hasCode,
     this._super,
     this._interfaces,
+    this._allocated,
   );
 
   /// Reads a snapshot profile. Throws a [FormatException] for anything that is
@@ -258,6 +259,27 @@ class RouteBSnapshotKept {
       }
       hasCode[c] = code;
     }
+    // The classes this release makes instances of: the owner of an
+    // allocation stub (`[Stub] Allocate <class>`, what compiled code calls to
+    // allocate one), or the class of an object stored in the snapshot (a
+    // const). An abstract class has neither.
+    final allocated = <int>{};
+    final instanceType = nodeTypes.indexOf('Instance');
+    for (var i = 0; i < count; i++) {
+      final type = typeOf(i);
+      final String edge;
+      if (type == codeType && nameOf(i).startsWith('[Stub] Allocate ')) {
+        edge = 'owner_';
+      } else if (instanceType >= 0 && type == instanceType) {
+        edge = '<class>';
+      } else {
+        continue;
+      }
+      for (var e = first[i]; e < first[i + 1]; e++) {
+        final t = target(e);
+        if (propertyOf(e) == edge && typeOf(t) == classType) allocated.add(t);
+      }
+    }
     return RouteBSnapshotKept._(
       names,
       libraries,
@@ -265,6 +287,7 @@ class RouteBSnapshotKept {
       hasCode,
       supers,
       interfaces,
+      allocated,
     );
   }
 
@@ -326,6 +349,10 @@ class RouteBSnapshotKept {
   final Map<int, bool> _hasCode;
   final Map<int, int> _super;
   final Map<int, List<int>> _interfaces;
+
+  /// The classes this release allocates (an allocation stub, or a const
+  /// instance in the snapshot). Never an abstract class.
+  final Set<int> _allocated;
   Map<int, List<int>>? _subs;
 
   /// The `dart:` classes named [name] (private-library suffix ignored).
@@ -428,16 +455,19 @@ class RouteBSnapshotKept {
 
   /// The classes that can hold an instance whose declared type is one of
   /// [roots] (the profile's class nodes for the declared type): every class
-  /// whose super or interface chain reaches a root, that is a LEAF of the
-  /// profile's hierarchy (no other class extends, implements or mixes it in),
-  /// has a function with real code, and reaches `Object`.
+  /// whose super or interface chain reaches a root, that has a function with
+  /// real code, reaches `Object`, and is either a LEAF of the profile's
+  /// hierarchy (no other class extends, implements or mixes it in) or a class
+  /// this release allocates ([_allocated]).
   ///
-  /// Why leaves. The profile does not say which classes are abstract. An
-  /// interface (`List`) or an abstract base has no code for the members it
-  /// only declares, and would refuse every member; but it has no instances, and
-  /// every instance's class is a leaf or inherits from one that this check
-  /// reaches. The one thing missed: a concrete class that is also a base class
-  /// and itself lacks a member that all of its subclasses have.
+  /// The profile does not flag abstract classes. An interface (`List`) or an
+  /// abstract base has no code for the members it only declares, and would
+  /// refuse every member; but it has no instances. A base class counts only
+  /// when the release allocates it, which an abstract class never is: a
+  /// concrete base class (`MappedIterable`, under
+  /// `EfficientLengthMappedIterable`) that lacks a member its subclasses keep
+  /// is refused. A leaf counts even with no allocation seen, since the VM
+  /// allocates some classes (`_List`, `_OneByteString`) without a stub.
   Set<int> _instanceClasses(Iterable<int> roots) {
     final subs = _subtypeEdges;
     final seen = <int>{...roots};
@@ -455,7 +485,7 @@ class RouteBSnapshotKept {
   }
 
   bool _isInstanceClass(int c) =>
-      !_subtypeEdges.containsKey(c) &&
+      (!_subtypeEdges.containsKey(c) || _allocated.contains(c)) &&
       (_hasCode[c] ?? false) &&
       _reachesObject(c);
 

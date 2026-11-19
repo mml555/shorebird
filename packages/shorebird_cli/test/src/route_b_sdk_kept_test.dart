@@ -1025,6 +1025,110 @@ callable:
     });
   });
 
+  group('a concrete class that is also a base class (#249)', () {
+    // MappedIterable is allocated and is the base of
+    // EfficientLengthMappedIterable. A value declared `Iterable` can be
+    // either, so a member must resolve on both; an abstract base has no
+    // instances and is not asked.
+    RouteBSnapshotKept profileWith({
+      bool parentAllocated = false,
+      bool parentConst = false,
+      bool parentHasFirst = false,
+    }) => RouteBSnapshotKept.fromProfileJson(
+      routeBProfile({
+        'Object': const RouteBProfileClass(
+          'Object',
+          routeBCoreLibrary,
+          fns: {'==': '[Optimized] =='},
+        ),
+        // The interface: no code, no instances.
+        'Iterable': const RouteBProfileClass(
+          'Iterable',
+          routeBCoreLibrary,
+          parent: 'Object',
+        ),
+        'MappedIterable': RouteBProfileClass(
+          'MappedIterable',
+          'dart:_internal',
+          parent: 'Object',
+          ifaces: const ['Iterable'],
+          fns: {
+            'get:iterator': '[Optimized] iterator',
+            if (parentHasFirst) 'get:first': '[Optimized] first',
+          },
+          allocated: parentAllocated,
+          constInstance: parentConst,
+        ),
+        'EfficientLengthMappedIterable': const RouteBProfileClass(
+          'EfficientLengthMappedIterable',
+          'dart:_internal',
+          parent: 'MappedIterable',
+          fns: {'get:first': '[Optimized] first'},
+          allocated: true,
+        ),
+      }),
+    );
+
+    String? problem(RouteBSnapshotKept kept) => kept.problemFor(
+      declaredLibrary: 'dart:core',
+      declaredClass: 'Iterable',
+      measured: const [],
+      selector: 'get:first',
+    );
+
+    test('is refused when the release allocates it and it lacks the '
+        'member its subclass keeps', () {
+      expect(
+        problem(profileWith(parentAllocated: true)),
+        contains('no `get:first` on `MappedIterable`'),
+      );
+    });
+
+    test('is refused when the snapshot holds a const instance of it', () {
+      expect(
+        problem(profileWith(parentConst: true)),
+        contains('no `get:first` on `MappedIterable`'),
+      );
+    });
+
+    test('is accepted when it keeps the member too', () {
+      expect(
+        problem(profileWith(parentAllocated: true, parentHasFirst: true)),
+        isNull,
+      );
+    });
+
+    test('an abstract base (never allocated) lacking it is not asked', () {
+      expect(problem(profileWith()), isNull);
+    });
+
+    test('a leaf is asked even when no allocation is seen', () {
+      // The VM allocates some classes (`_List`) without a stub.
+      final kept = RouteBSnapshotKept.fromProfileJson(
+        routeBProfile({
+          'Object': const RouteBProfileClass(
+            'Object',
+            routeBCoreLibrary,
+            fns: {'==': '[Optimized] =='},
+          ),
+          'Iterable': const RouteBProfileClass(
+            'Iterable',
+            routeBCoreLibrary,
+            parent: 'Object',
+          ),
+          'Leaf': const RouteBProfileClass(
+            'Leaf',
+            'dart:_internal',
+            parent: 'Object',
+            ifaces: ['Iterable'],
+            fns: {'get:iterator': '[Optimized] iterator'},
+          ),
+        }),
+      );
+      expect(problem(kept), contains('no `get:first` on `Leaf`'));
+    });
+  });
+
   group('a for-in receiver (analysis 23)', () {
     // A for-in asks its receiver for `iterator` by selector. Flutter's
     // ObserverList is an Iterable with no compiled `iterator` in a release
