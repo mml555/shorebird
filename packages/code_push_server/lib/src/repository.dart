@@ -726,6 +726,14 @@ class Repository {
         // concurrent `--add-to-patch` of the same architecture cannot both
         // land. Failed uploads are left out, since a retry registers a new
         // artifact beside the failed one.
+        // A database the old check-then-insert raced on may already hold two:
+        // keep the lowest id live (what an unordered lookup most likely
+        // served) and mark the rest failed, so the index can be built.
+        "UPDATE artifacts SET status = 'failed' WHERE owner_kind = 'patch' "
+            "AND status <> 'failed' AND id > (SELECT MIN(a2.id) FROM artifacts a2 "
+            'WHERE a2.owner_kind = artifacts.owner_kind '
+            'AND a2.owner_id = artifacts.owner_id AND a2.arch = artifacts.arch '
+            "AND a2.platform = artifacts.platform AND a2.status <> 'failed')",
         'CREATE UNIQUE INDEX IF NOT EXISTS artifacts_one_live '
             "ON artifacts(owner_kind, owner_id, arch, platform) WHERE owner_kind = 'patch' AND status <> 'failed'",
       ],

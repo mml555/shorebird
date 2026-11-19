@@ -47,6 +47,13 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Schema migrations 21 and 22.** Migration 21 adds
+  `channel_patches.rollout_schedule`. Migration 22 adds a unique index
+  `artifacts_one_live` (one non-failed artifact per patch, architecture and
+  platform), so two concurrent `--add-to-patch` of one architecture cannot both
+  land (the loser gets 409). Where an older server's race left two, migration
+  22 first marks all but the lowest id `failed`, so the upgrade still boots and
+  serving is unchanged.
 - **Upstream CLI 1.6.144 works against this server.** The calls it added or
   changed:
   - Timed rollouts (`--rollout-steps`, `--pause-weekends`, `--timezone`):
