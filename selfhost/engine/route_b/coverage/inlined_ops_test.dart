@@ -285,8 +285,7 @@ void main() {
   );
 
   // The bytecode scan fails closed when the text format changes.
-  const pool =
-      "  [1] = InterfaceCall 'dart:core::num::+', ArgDesc num-args 2\n"
+  const pool = "  [1] = InterfaceCall 'dart:core::num::+', ArgDesc num-args 2\n"
       "  [2] = DynamicCall '-', ArgDesc num-args 2\n"
       '  [3] = DirectCall \'a::b\', ArgDesc num-args 0\n';
   const body = '  InterfaceCall        CP#1, 2\n';
@@ -295,9 +294,7 @@ void main() {
     good['unparsed'] == 0 && '${good['calls']}' == '[+, -]',
     'a well-formed pool reads completely: $good',
   );
-  final moved = scanBytecodeText(
-    "Function 'f'\n$body${pool.replaceAll('] = ', ']: ')}",
-  );
+  final moved = scanBytecodeText("Function 'f'\n$body${pool.replaceAll('] = ', ']: ')}");
   check(
     (moved['unparsed'] as int) > 0 && (moved['calls'] as List).isEmpty,
     'a changed pool-line prefix leaves call lines unread: $moved',
@@ -321,17 +318,11 @@ void main() {
   final quoted = scanBytecodeText(
     "Function 'f'\n$body$pool  [4] = ConstantX 'a::makeCall', ArgDesc\n",
   );
-  check(
-    quoted['unparsed'] == 0,
-    'a quoted name containing Call is not counted',
-  );
+  check(quoted['unparsed'] == 0, 'a quoted name containing Call is not counted');
 
   // _writableType and the import check (S4).
   Library mk(String uri, {String? source}) {
-    final l = Library(
-      Uri.parse(uri),
-      fileUri: Uri.parse('file:///${uri.hashCode}.dart'),
-    );
+    final l = Library(Uri.parse(uri), fileUri: Uri.parse('file:///${uri.hashCode}.dart'));
     return l;
   }
 
@@ -497,6 +488,35 @@ void main() {
         overApp.single['receiverClass'] == 'Shapes',
     'a for-in over an app class names it and its library ($overApp)',
   );
+  // A nullable, type-parameter, extension-type or FutureOr iterable names no
+  // receiver: none of them is a class the CLI can narrow to.
+  final elem = TypeParameter('E', t(listC), t(listC));
+  final shapesType = ExtensionTypeDeclaration(
+    name: 'ShapeList',
+    fileUri: lib.fileUri,
+  )..declaredRepresentationType = t(listC);
+  lib.addExtensionTypeDeclaration(shapesType);
+  for (final (what, type) in <(String, DartType)>[
+    ('a nullable List', t(listC, true)),
+    (
+      'a type parameter bounded by List',
+      TypeParameterType(elem, Nullability.nonNullable),
+    ),
+    (
+      'an extension type over List',
+      ExtensionType(shapesType, Nullability.nonNullable),
+    ),
+    ('a FutureOr<List>', FutureOrType(t(listC), Nullability.nonNullable)),
+  ]) {
+    final refs = iteratorRefs([type]);
+    check(
+      refs.length == 1 &&
+          refs.single['class'] == 'Iterable' &&
+          !refs.single.containsKey('receiverClass') &&
+          !refs.single.containsKey('receiverLibrary'),
+      'a for-in over $what names no receiver ($refs)',
+    );
+  }
   check(analysisVersion == 23, 'analysis version is 23');
 
   if (_failures > 0) exit(1);

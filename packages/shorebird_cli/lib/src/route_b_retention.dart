@@ -1,4 +1,4 @@
-// cspell:words prepass
+// cspell:words prepass aeiou
 //
 // Route B (selfhost): did the RELEASE keep every external symbol the patch's
 // bytecode names?
@@ -592,9 +592,18 @@ class RouteBRetention {
     final name = torn
         ? '${r.className}.${_bareSelector(r.member!)} torn off'
         : r.displayName;
+    // "`Iterable.iterator` over a `List`": the loop's receiver (analysis 23).
+    final receiver = _receiverOf(r)?.$2;
+    final over = receiver == null
+        ? ''
+        : ' over ${_article(receiver)} `$receiver`';
     return 'the ${r.library.substring(0, r.library.indexOf(':'))}: method '
-        '`$name` (an SDK instance member$how)';
+        '`$name`$over (an SDK instance member$how)';
   }
+
+  /// "an" before `Iterable` or `_Array`, "a" before `List`.
+  static String _article(String name) =>
+      RegExp('^_*[aeiou]', caseSensitive: false).hasMatch(name) ? 'an' : 'a';
 
   /// "`Padding`", the way a developer would name it. The library is added only
   /// where it helps: a framework path (`package:flutter/src/widgets/...`) is

@@ -4131,7 +4131,11 @@ class _ExternalUses extends RecursiveVisitor {
       // Not knowing the type narrows nothing; it is not a walk failure.
       return null;
     }
-    if (type is! InterfaceType) return null;
+    // A nullable static type is not a class the CLI can narrow to.
+    if (type is! InterfaceType ||
+        type.declaredNullability != Nullability.nonNullable) {
+      return null;
+    }
     final cls = type.classNode;
     if (cls.name == 'Iterable' &&
         cls.enclosingLibrary.importUri.toString() == 'dart:core') {
