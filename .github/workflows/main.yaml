@@ -31,10 +31,11 @@ env:
   # 1 KB/s for 30s, so checkout fails fast and retries.
   GIT_HTTP_LOW_SPEED_LIMIT: 1000
   GIT_HTTP_LOW_SPEED_TIME: 30
-  # That guard does not cover a connect that never completes: curl gives up
-  # only at its 300s default connect timeout, and checkout retries after that.
-  # So no job that checks out may have a timeout-minutes under 10, or it dies
-  # at the moment the retry would start (Updater Pin did, on #239 and #240).
+  # That guard does not bound a connect that hangs: git sets no connect
+  # timeout, so curl's 300s default applies, and checkout retries only after
+  # that. A job that checks out needs a timeout-minutes with room for a stalled
+  # attempt plus a retry (15 here), or it can die just as the retry would start
+  # (Updater Pin did, at 5, on #239 and #240).
 
 jobs:
   license_check:
