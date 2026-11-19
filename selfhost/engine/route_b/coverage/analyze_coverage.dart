@@ -32,7 +32,7 @@
 // dispatch-table call" and "target unreachable" send you to opposite places --
 // one to compiler coverage, the other to retention.
 //
-// cspell:words devirtualize devirtualizes dartaotruntime
+// cspell:words devirtualize devirtualizes dartaotruntime unlowered
 // ignore_for_file: avoid_print
 import 'dart:convert';
 import 'dart:io';
@@ -4070,7 +4070,9 @@ class _ExternalUses extends RecursiveVisitor {
   }
 
   /// Whether [node] is the `iterator` read the for-in lowering initializes
-  /// its synthetic `:sync-for-iterator` variable with.
+  /// its synthetic `:sync-for-iterator` variable with. A miss falls back to
+  /// [_member], the entry with no receiver, which the CLI reads as every
+  /// `Iterable`: never a narrower answer than the truth.
   bool _isLoweredForInIterator(InstanceGet node) {
     final parent = node.parent;
     if (parent is! Variable || parent.cosmeticName != ':sync-for-iterator') {

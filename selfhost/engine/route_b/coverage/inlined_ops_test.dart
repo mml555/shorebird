@@ -285,8 +285,7 @@ void main() {
   );
 
   // The bytecode scan fails closed when the text format changes.
-  const pool =
-      "  [1] = InterfaceCall 'dart:core::num::+', ArgDesc num-args 2\n"
+  const pool = "  [1] = InterfaceCall 'dart:core::num::+', ArgDesc num-args 2\n"
       "  [2] = DynamicCall '-', ArgDesc num-args 2\n"
       '  [3] = DirectCall \'a::b\', ArgDesc num-args 0\n';
   const body = '  InterfaceCall        CP#1, 2\n';
@@ -295,9 +294,7 @@ void main() {
     good['unparsed'] == 0 && '${good['calls']}' == '[+, -]',
     'a well-formed pool reads completely: $good',
   );
-  final moved = scanBytecodeText(
-    "Function 'f'\n$body${pool.replaceAll('] = ', ']: ')}",
-  );
+  final moved = scanBytecodeText("Function 'f'\n$body${pool.replaceAll('] = ', ']: ')}");
   check(
     (moved['unparsed'] as int) > 0 && (moved['calls'] as List).isEmpty,
     'a changed pool-line prefix leaves call lines unread: $moved',
@@ -321,17 +318,11 @@ void main() {
   final quoted = scanBytecodeText(
     "Function 'f'\n$body$pool  [4] = ConstantX 'a::makeCall', ArgDesc\n",
   );
-  check(
-    quoted['unparsed'] == 0,
-    'a quoted name containing Call is not counted',
-  );
+  check(quoted['unparsed'] == 0, 'a quoted name containing Call is not counted');
 
   // _writableType and the import check (S4).
   Library mk(String uri, {String? source}) {
-    final l = Library(
-      Uri.parse(uri),
-      fileUri: Uri.parse('file:///${uri.hashCode}.dart'),
-    );
+    final l = Library(Uri.parse(uri), fileUri: Uri.parse('file:///${uri.hashCode}.dart'));
     return l;
   }
 
@@ -534,6 +525,7 @@ void main() {
     String variableName = ':sync-for-iterator',
     Member? target,
     bool typed = true,
+    DartType? promotedTo,
   }) {
     final xs = PositionalParameter(cosmeticName: 'xs${n++}', type: type);
     final p = Procedure(
@@ -547,10 +539,16 @@ void main() {
                 cosmeticName: variableName,
                 initializer: InstanceGet(
                   InstanceAccessKind.Instance,
-                  VariableGet(xs),
+                  VariableGet(xs, promotedTo),
                   Name('iterator'),
                   interfaceTarget: target ?? iterableIterator,
-                  resultType: const DynamicType(),
+                  // The real lowered type, `Iterator<int>`, as the VM's
+                  // for-in lowering writes it.
+                  resultType: InterfaceType(
+                    core('Iterator'),
+                    Nullability.nonNullable,
+                    [t(core('int'))],
+                  ),
                 ),
               ),
             ),
@@ -589,7 +587,52 @@ void main() {
     'a lowered for-in over an app class names it and its library '
     '($loweredApp)',
   );
+  // A promoted variable (`if (xs is List)` over an Iterable) has the promoted
+  // type, a sound narrowing: the value is a List.
+  final loweredPromoted = loweredRefs(t(iterableC), promotedTo: t(listC));
+  check(
+    loweredPromoted.length == 1 &&
+        loweredPromoted.single['receiverClass'] == 'List',
+    'a lowered for-in over a variable promoted to List names List '
+    '($loweredPromoted)',
+  );
+  // A subclass static type names that subclass (the CLI then asks it and its
+  // subtypes), not the List it extends.
+  final collectionLib = env.coreTypes.index.getLibrary('dart:collection');
+  final listBase = collectionLib.classes.firstWhere(
+    (c) => c.name == 'ListBase',
+  );
+  final loweredBase = loweredRefs(t(listBase));
+  check(
+    loweredBase.length == 1 &&
+        loweredBase.single['receiverLibrary'] == 'dart:collection' &&
+        loweredBase.single['receiverClass'] == 'ListBase',
+    'a lowered for-in over a ListBase names ListBase ($loweredBase)',
+  );
+  final listBound = TypeParameter('L', t(listC), t(listC));
+  final loweredShapes = Class(
+    name: 'ShapeBase',
+    fileUri: lib.fileUri,
+    supertype: Supertype(listBase, [t(core('int'))]),
+  );
+  lib.addClass(loweredShapes);
+  final loweredSub = loweredRefs(t(loweredShapes));
+  check(
+    loweredSub.length == 1 &&
+        loweredSub.single['receiverLibrary'] == 'package:app/a.dart' &&
+        loweredSub.single['receiverClass'] == 'ShapeBase',
+    'a lowered for-in over a class extending ListBase names that class '
+    '($loweredSub)',
+  );
   for (final (what, refs) in [
+    (
+      'a type parameter bounded by List',
+      loweredRefs(TypeParameterType(listBound, Nullability.nonNullable)),
+    ),
+    (
+      'a FutureOr<List>',
+      loweredRefs(FutureOrType(t(listC), Nullability.nonNullable)),
+    ),
     ('an Iterable', loweredRefs(t(iterableC))),
     ('a dynamic value', loweredRefs(const DynamicType())),
     ('a nullable List', loweredRefs(t(listC, true))),
