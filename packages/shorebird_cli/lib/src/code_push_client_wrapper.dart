@@ -23,6 +23,7 @@ import 'package:shorebird_cli/src/extensions/directory.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
 import 'package:shorebird_cli/src/rollout_percentage.dart';
+import 'package:shorebird_cli/src/rollout_schedule.dart';
 import 'package:shorebird_cli/src/server_notices.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
@@ -271,9 +272,8 @@ class CodePushClientWrapper {
   }) {
     return _withProgress(
       'Fetching organizations',
-      () => codePushClient.getEnterpriseOrganizations(
-        enterpriseId: enterpriseId,
-      ),
+      () =>
+          codePushClient.getEnterpriseOrganizations(enterpriseId: enterpriseId),
     );
   }
 
@@ -504,9 +504,7 @@ class CodePushClientWrapper {
 
   /// Fetches patch-install usage for the account that owns organization
   /// [organizationId].
-  Future<GetUsageResponse> getOrganizationUsage({
-    required int organizationId,
-  }) {
+  Future<GetUsageResponse> getOrganizationUsage({required int organizationId}) {
     return _withProgress(
       'Fetching usage',
       () => codePushClient.getOrganizationUsage(organizationId: organizationId),
@@ -792,10 +790,7 @@ class CodePushClientWrapper {
   }
 
   /// Creates a channel for the provided [appId] with the given [name].
-  Future<Channel> createChannel({
-    required String appId,
-    required String name,
-  }) {
+  Future<Channel> createChannel({required String appId, required String name}) {
     return _withProgress(
       'Creating channel',
       () => codePushClient.createChannel(appId: appId, channel: name),
@@ -803,10 +798,7 @@ class CodePushClientWrapper {
   }
 
   /// Deletes the channel with the provided [channelId] from [appId].
-  Future<void> deleteChannel({
-    required String appId,
-    required int channelId,
-  }) {
+  Future<void> deleteChannel({required String appId, required int channelId}) {
     return _withProgress(
       'Deleting channel',
       () => codePushClient.deleteChannel(appId: appId, channelId: channelId),
@@ -814,10 +806,7 @@ class CodePushClientWrapper {
   }
 
   /// Renames the app with the provided [appId] to [displayName].
-  Future<void> updateApp({
-    required String appId,
-    required String displayName,
-  }) {
+  Future<void> updateApp({required String appId, required String displayName}) {
     return _withProgress(
       'Renaming app',
       () => codePushClient.updateApp(appId: appId, displayName: displayName),
@@ -1190,6 +1179,7 @@ Looked in:
     required String appId,
     required int releaseId,
     required Directory releaseDirectory,
+    String arch = primaryWindowsReleaseArtifactArch,
     ArtifactSigningRequest? signing,
   }) async {
     final createArtifactProgress = logger.progress('Uploading artifacts');
@@ -1201,7 +1191,7 @@ Looked in:
         releaseId: releaseId,
         file: zippedRelease,
         name: 'Windows release (exe)',
-        arch: primaryWindowsReleaseArtifactArch,
+        arch: arch,
         platform: ReleasePlatform.windows,
         canSideload: true,
         progress: createArtifactProgress,
@@ -1272,11 +1262,7 @@ Looked in:
     final missingArchs = <Arch>[];
     var uploadedArchCount = 0;
     for (final arch in architectures) {
-      final artifactPath = p.join(
-        archsDir,
-        arch.androidBuildPath,
-        'libapp.so',
-      );
+      final artifactPath = p.join(archsDir, arch.androidBuildPath, 'libapp.so');
       final artifact = File(artifactPath);
       if (!artifact.existsSync()) {
         logger.detail(
@@ -1353,7 +1339,10 @@ to the architectures your project actually builds.''',
         podfileLockHash: podfileLockHash,
         signing: signing,
       );
-    } on CodePushConflictException catch (_) {
+    } on CodePushConflictException catch (error) {
+      if (error.code == conflictingSigningErrorCode) {
+        _handleErrorAndExit(error, progress: progress, message: error.message);
+      }
       // Newlines are due to how logger.info interacts with logger.progress.
       logger.info('''
 
@@ -1366,6 +1355,14 @@ $name artifact already exists, continuing...''');
       );
     }
   }
+
+  /// The server's error code for an artifact whose signing differs from what
+  /// the release, already active on its platform, was signed with (such as
+  /// a second Windows architecture built with another key). Unlike other
+  /// conflicts nothing was stored, so the upload fails.
+  @visibleForTesting
+  static const conflictingSigningErrorCode =
+      'release_artifacts_create_conflicting_signing';
 
   /// Removes all .dylib files from the given .xcarchive to reduce the size of
   /// the uploaded artifact.
@@ -1707,16 +1704,23 @@ $name artifact already exists, continuing...''');
   }
 
   /// Promotes a patch to a specific [channel], starting a rollout there at
-  /// [rolloutPercentage], or to every device on it when that is null.
+  /// [rolloutPercentage], on the timed schedule [rolloutSchedule], or to
+  /// every device on it when both are null.
   Future<void> promotePatch({
     required String appId,
     required int patchId,
     required Channel channel,
     double? rolloutPercentage,
+    RolloutSchedule? rolloutSchedule,
   }) {
-    final share = rolloutPercentage == null
-        ? ''
-        : ' (${formatRolloutPercentage(rolloutPercentage)})';
+    final share = switch ((rolloutPercentage, rolloutSchedule)) {
+      (final double percentage, _) =>
+        ' (${formatRolloutPercentage(percentage)})',
+      (_, final RolloutSchedule schedule) =>
+        ' (${formatRolloutPercentage(schedule.initialPercentage)}, '
+            'rising on a schedule)',
+      _ => '',
+    };
     return _withProgress(
       'Promoting patch to ${channel.name}$share',
       () => codePushClient.promotePatch(
@@ -1724,12 +1728,17 @@ $name artifact already exists, continuing...''');
         patchId: patchId,
         channelId: channel.id,
         rolloutPercentage: rolloutPercentage,
+        rolloutSteps: rolloutSchedule?.steps,
+        rolloutPauseWeekends: rolloutSchedule?.pauseWeekends,
+        rolloutTimezone: rolloutSchedule?.timezone,
       ),
     );
   }
 
   /// Raises the rollout of the patch identified by [patchId] under
-  /// [releaseId] to [rolloutPercentage] of the devices on its track.
+  /// [releaseId] to [rolloutPercentage] of the devices on its track, or puts
+  /// it on the timed schedule [rolloutSchedule]. Exactly one of the two says
+  /// what the rollout becomes.
   ///
   /// [patchNumber] is used purely for the human-readable progress message.
   Future<void> setPatchRollout({
@@ -1737,16 +1746,34 @@ $name artifact already exists, continuing...''');
     required int releaseId,
     required int patchId,
     required int patchNumber,
-    required double rolloutPercentage,
+    double? rolloutPercentage,
+    RolloutSchedule? rolloutSchedule,
   }) {
+    final (target, request) = switch ((rolloutPercentage, rolloutSchedule)) {
+      (final double percentage, null) => (
+        'to ${formatRolloutPercentage(percentage)}',
+        SetPatchRolloutPercentageRequest(rolloutPercentage: percentage),
+      ),
+      (null, final RolloutSchedule schedule) => (
+        'on a schedule from '
+            '${formatRolloutPercentage(schedule.initialPercentage)}',
+        SetPatchRolloutScheduleRequest(
+          rolloutSteps: schedule.steps,
+          rolloutPauseWeekends: schedule.pauseWeekends,
+          rolloutTimezone: schedule.timezone,
+        ),
+      ),
+      _ => throw ArgumentError(
+        'Pass exactly one of rolloutPercentage and rolloutSchedule.',
+      ),
+    };
     return _withProgress(
-      'Rolling out patch $patchNumber to '
-      '${formatRolloutPercentage(rolloutPercentage)}',
+      'Rolling out patch $patchNumber $target',
       () => codePushClient.setPatchRollout(
         appId: appId,
         releaseId: releaseId,
         patchId: patchId,
-        rolloutPercentage: rolloutPercentage,
+        request: request,
       ),
     );
   }
@@ -1818,8 +1845,8 @@ $name artifact already exists, continuing...''');
   /// Publishes a patch to the Shorebird server. This consists of creating a
   /// patch, uploading patch artifacts for every platform in
   /// [patchArtifactBundles], and promoting the patch to a specific channel
-  /// based on the provided [track], at [rolloutPercentage] of its devices
-  /// when given.
+  /// based on the provided [track], at [rolloutPercentage] of its devices or
+  /// on the timed schedule [rolloutSchedule] when given.
   ///
   /// One patch spans every requested platform: patches are not platform-scoped
   /// server-side (`POST /apps/:id/patches` takes no platform), and each
@@ -1845,6 +1872,7 @@ $name artifact already exists, continuing...''');
     patchArtifactBundles,
     Map<ReleasePlatform, PatchSidecars> sidecars = const {},
     double? rolloutPercentage,
+    RolloutSchedule? rolloutSchedule,
   }) async {
     final patch = await createPatch(
       appId: appId,
@@ -1890,9 +1918,30 @@ $name artifact already exists, continuing...''');
       patchId: patch.id,
       channel: channel,
       rolloutPercentage: rolloutPercentage,
+      rolloutSchedule: rolloutSchedule,
     );
 
     logger.success('\n✅ Published Patch ${patch.number}!');
+    return patch;
+  }
+
+  /// Adds [patchArtifactBundles] to [patch], which already exists and is on
+  /// its track: devices of the added architectures get it on their next
+  /// patch check, at the patch's rollout.
+  Future<CreatePatchResponse> addPatchArtifacts({
+    required String appId,
+    required CreatePatchResponse patch,
+    required ReleasePlatform platform,
+    required Map<Arch, PatchArtifactBundle> patchArtifactBundles,
+  }) async {
+    await createPatchArtifacts(
+      appId: appId,
+      patch: patch,
+      platform: platform,
+      patchArtifactBundles: patchArtifactBundles,
+    );
+    final arches = patchArtifactBundles.keys.map((arch) => arch.name);
+    logger.success('\n✅ Added ${arches.join(', ')} to Patch ${patch.number}!');
     return patch;
   }
 

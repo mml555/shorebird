@@ -129,6 +129,11 @@ More info: ${linkPercentageUrl.toLink()}.
   /// obfuscation flags when the release was built with obfuscation.
   List<String> extraBuildArgs = const [];
 
+  /// The release's extracted supplement, if it has one. Set by the patch
+  /// command before building; Android patch builds read the release's object
+  /// order (`<abi>/App.ref.link`) from it.
+  Directory? releaseSupplementDirectory;
+
   /// Additional gen_snapshot arguments needed to match the release's
   /// obfuscation flags. Used by Apple patchers for
   /// `ArtifactBuilder.buildElfAotSnapshot`
@@ -143,9 +148,6 @@ More info: ${linkPercentageUrl.toLink()}.
       // --split-debug-info already implies --dwarf-stack-traces, so we only
       // need to pass it as a standalone flag when split debug info isn't used.
       if (splitDebugInfoPath == null) '--dwarf-stack-traces',
-      // Strip DWARF debug info so obfuscated snapshots don't leak the
-      // identifiers that obfuscation was meant to hide.
-      '--strip',
     ],
   ];
 
@@ -159,6 +161,11 @@ More info: ${linkPercentageUrl.toLink()}.
   /// The identifier used for the "primary" release artifact, usually a bundle.
   /// For example, 'aab' for Android, 'xcarchive' for iOS.
   String get primaryReleaseArtifactArch;
+
+  /// The architecture of the patch this machine builds, for a platform that
+  /// builds one architecture per machine (desktop); null where one build
+  /// covers every architecture the release has.
+  Arch? get patchArch => null;
 
   /// The identifier used for any supplementary release artifacts.
   String? get supplementaryReleaseArtifactArch => null;

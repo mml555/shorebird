@@ -15,6 +15,41 @@ import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 /// Shared logic for patchers whose release artifacts are per-architecture
 /// libapp.so files (Android app bundles and Android archives).
 mixin AndroidPatcherMixin on Patcher {
+  /// Copies the release's per-ABI object order (`<abi>/App.ref.link`) from
+  /// [releaseSupplementDirectory] to `build/android/shorebird_release/` and
+  /// returns that directory for the patch build, or null when the release has
+  /// no supplement or its supplement has no `App.ref.link` (a release built
+  /// with an engine that does not produce one, such as this fork's pinned
+  /// engine). Null leaves the patch build as it was before the object order
+  /// existed; a missing file never fails a patch.
+  ///
+  /// The path Flutter gets is part of its build cache key, so it must be the
+  /// same on every patch build: the supplement itself is extracted to a new
+  /// temp directory each run, which would start a new cache each time.
+  String? stageReleaseSupplement() {
+    final supplement = releaseSupplementDirectory;
+    if (supplement == null || !supplement.existsSync()) return null;
+    final staged = Directory(
+      p.join(projectRoot.path, 'build', 'android', 'shorebird_release'),
+    );
+    try {
+      if (staged.existsSync()) staged.deleteSync(recursive: true);
+      var copied = false;
+      for (final abiDir in supplement.listSync().whereType<Directory>()) {
+        final order = File(p.join(abiDir.path, 'App.ref.link'));
+        if (!order.existsSync()) continue;
+        final dest = Directory(p.join(staged.path, p.basename(abiDir.path)))
+          ..createSync(recursive: true);
+        order.copySync(p.join(dest.path, 'App.ref.link'));
+        copied = true;
+      }
+      return copied ? staged.path : null;
+    } on FileSystemException catch (error) {
+      logger.detail('Not building against the release supplement: $error');
+      return null;
+    }
+  }
+
   /// The release's per-architecture artifacts, fetched by
   /// [prepareForRelease], with the id of the release they belong to.
   ({int releaseId, Map<Arch, ReleaseArtifact> artifacts})? _releaseArtifacts;

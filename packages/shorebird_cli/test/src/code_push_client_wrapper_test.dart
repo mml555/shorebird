@@ -17,6 +17,7 @@ import 'package:shorebird_cli/src/executables/executables.dart';
 import 'package:shorebird_cli/src/logging/logging.dart';
 import 'package:shorebird_cli/src/platform.dart';
 import 'package:shorebird_cli/src/platform/platform.dart';
+import 'package:shorebird_cli/src/rollout_schedule.dart';
 import 'package:shorebird_cli/src/server_notices.dart';
 import 'package:shorebird_cli/src/shorebird_env.dart';
 import 'package:shorebird_cli/src/shorebird_flutter.dart';
@@ -215,6 +216,9 @@ void main() {
 
     setUpAll(() {
       registerFallbackValue(ReleasePlatform.android);
+      registerFallbackValue(
+        const SetPatchRolloutPercentageRequest(rolloutPercentage: 100),
+      );
       registerFallbackValue(ReleaseStatus.draft);
       registerFallbackValue(
         const ArtifactSigningRequest(mode: ReleaseSigningMode.unsigned),
@@ -2703,6 +2707,51 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
         );
 
         test(
+          'exits when the release is signed differently on its platform',
+          () async {
+            when(
+              () => codePushClient.createReleaseArtifact(
+                appId: any(named: 'appId'),
+                artifactPath: any(named: 'artifactPath'),
+                releaseId: any(named: 'releaseId'),
+                arch: any(named: 'arch'),
+                platform: any(named: 'platform'),
+                hash: any(named: 'hash'),
+                canSideload: any(named: 'canSideload'),
+                podfileLockHash: any(named: 'podfileLockHash'),
+              ),
+            ).thenThrow(
+              const CodePushConflictException(
+                message: 'signed differently',
+                response: ErrorResponse(
+                  code: CodePushClientWrapper.conflictingSigningErrorCode,
+                  message: 'signed differently',
+                ),
+              ),
+            );
+            setUpProjectRoot();
+
+            await expectLater(
+              () => runWithOverrides(
+                () => codePushClientWrapper.createAndroidReleaseArtifacts(
+                  appId: app.appId,
+                  releaseId: releaseId,
+                  platform: releasePlatform,
+                  projectRoot: projectRoot.path,
+                  aabPath: p.join(projectRoot.path, aabPath),
+                  architectures: Arch.values,
+                ),
+              ),
+              exitsWithCode(ExitCode.software),
+            );
+            verify(() => progress.fail('signed differently')).called(1);
+            verifyNever(
+              () => logger.info(any(that: contains('already exists'))),
+            );
+          },
+        );
+
+        test(
           'exits with code 70 when storage rejects an upload with a 409',
           () async {
             when(
@@ -4131,6 +4180,54 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
             ),
           ).called(1);
         });
+        test('promotes on the rollout schedule given', () async {
+          when(
+            () => codePushClient.promotePatch(
+              appId: any(named: 'appId'),
+              patchId: any(named: 'patchId'),
+              channelId: any(named: 'channelId'),
+              rolloutPercentage: any(named: 'rolloutPercentage'),
+              rolloutSteps: any(named: 'rolloutSteps'),
+              rolloutPauseWeekends: any(named: 'rolloutPauseWeekends'),
+              rolloutTimezone: any(named: 'rolloutTimezone'),
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.promotePatch(
+              appId: appId,
+              patchId: patchId,
+              channel: channel,
+              rolloutSchedule: const RolloutSchedule(
+                steps: [
+                  RolloutStep(percentage: 1, durationMinutes: 240),
+                  RolloutStep(percentage: 100),
+                ],
+                pauseWeekends: true,
+                timezone: 'America/New_York',
+              ),
+            ),
+          );
+
+          verify(
+            () => logger.progress(
+              'Promoting patch to ${channel.name} (1%, rising on a schedule)',
+            ),
+          ).called(1);
+          verify(
+            () => codePushClient.promotePatch(
+              appId: appId,
+              patchId: patchId,
+              channelId: channel.id,
+              rolloutSteps: const [
+                RolloutStep(percentage: 1, durationMinutes: 240),
+                RolloutStep(percentage: 100),
+              ],
+              rolloutPauseWeekends: true,
+              rolloutTimezone: 'America/New_York',
+            ),
+          ).called(1);
+        });
       });
 
       group('setPatchRollout', () {
@@ -4156,7 +4253,7 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               appId: any(named: 'appId'),
               releaseId: any(named: 'releaseId'),
               patchId: any(named: 'patchId'),
-              rolloutPercentage: any(named: 'rolloutPercentage'),
+              request: any(named: 'request'),
             ),
           ).thenThrow(error);
 
@@ -4170,7 +4267,7 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               appId: any(named: 'appId'),
               releaseId: any(named: 'releaseId'),
               patchId: any(named: 'patchId'),
-              rolloutPercentage: any(named: 'rolloutPercentage'),
+              request: any(named: 'request'),
             ),
           ).thenAnswer((_) async {});
 
@@ -4185,7 +4282,90 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
               appId: appId,
               releaseId: releaseId,
               patchId: patchId,
-              rolloutPercentage: 50,
+              request: const SetPatchRolloutPercentageRequest(
+                rolloutPercentage: 50,
+              ),
+            ),
+          ).called(1);
+        });
+        test('throws without a percentage or a schedule', () {
+          expect(
+            () => runWithOverrides(
+              () => codePushClientWrapper.setPatchRollout(
+                appId: appId,
+                releaseId: releaseId,
+                patchId: patchId,
+                patchNumber: patchNumber,
+              ),
+            ),
+            throwsArgumentError,
+          );
+        });
+
+        test('throws given both a percentage and a schedule', () {
+          expect(
+            () => runWithOverrides(
+              () => codePushClientWrapper.setPatchRollout(
+                appId: appId,
+                releaseId: releaseId,
+                patchId: patchId,
+                patchNumber: patchNumber,
+                rolloutPercentage: 50,
+                rolloutSchedule: const RolloutSchedule(
+                  steps: [
+                    RolloutStep(percentage: 10, durationMinutes: 720),
+                    RolloutStep(percentage: 100),
+                  ],
+                ),
+              ),
+            ),
+            throwsArgumentError,
+          );
+        });
+
+        test('sets the rollout schedule given', () async {
+          when(
+            () => codePushClient.setPatchRollout(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              patchId: any(named: 'patchId'),
+              request: any(named: 'request'),
+            ),
+          ).thenAnswer((_) async {});
+
+          await runWithOverrides(
+            () => codePushClientWrapper.setPatchRollout(
+              appId: appId,
+              releaseId: releaseId,
+              patchId: patchId,
+              patchNumber: patchNumber,
+              rolloutSchedule: const RolloutSchedule(
+                steps: [
+                  RolloutStep(percentage: 10, durationMinutes: 720),
+                  RolloutStep(percentage: 100),
+                ],
+              ),
+            ),
+          );
+
+          verify(
+            () => logger.progress(
+              'Rolling out patch $patchNumber on a schedule from 10%',
+            ),
+          ).called(1);
+          verify(() => progress.complete()).called(1);
+          verify(
+            () => codePushClient.setPatchRollout(
+              appId: appId,
+              releaseId: releaseId,
+              patchId: patchId,
+              request: const SetPatchRolloutScheduleRequest(
+                rolloutSteps: [
+                  RolloutStep(percentage: 10, durationMinutes: 720),
+                  RolloutStep(percentage: 100),
+                ],
+                rolloutPauseWeekends: false,
+              ),
             ),
           ).called(1);
         });
@@ -4389,6 +4569,61 @@ You can manage this release in the ${link(uri: uri, message: 'Shorebird Console'
             verify(() => logger.progress('Rolling forward patch')).called(1);
           },
         );
+      });
+
+      group('addPatchArtifacts', () {
+        test('uploads the artifacts to the patch without promoting', () async {
+          when(
+            () => codePushClient.createPatchArtifact(
+              appId: any(named: 'appId'),
+              patchId: any(named: 'patchId'),
+              artifactPath: any(named: 'artifactPath'),
+              arch: any(named: 'arch'),
+              platform: any(named: 'platform'),
+              hash: any(named: 'hash'),
+            ),
+          ).thenAnswer((_) async {});
+
+          final result = await runWithOverrides(
+            () => codePushClientWrapper.addPatchArtifacts(
+              appId: appId,
+              patch: patch,
+              platform: releasePlatform,
+              patchArtifactBundles: patchArtifactBundles,
+            ),
+          );
+
+          expect(result, equals(patch));
+          verify(
+            () => codePushClient.createPatchArtifact(
+              appId: appId,
+              artifactPath: patchArtifactBundle.path,
+              patchId: patchId,
+              arch: arch.arch,
+              platform: releasePlatform,
+              hash: patchArtifactBundle.hash,
+            ),
+          ).called(1);
+          verifyNever(
+            () => codePushClient.createPatch(
+              appId: any(named: 'appId'),
+              releaseId: any(named: 'releaseId'),
+              metadata: any(named: 'metadata'),
+            ),
+          );
+          verifyNever(
+            () => codePushClient.promotePatch(
+              appId: any(named: 'appId'),
+              patchId: any(named: 'patchId'),
+              channelId: any(named: 'channelId'),
+            ),
+          );
+          verify(
+            () => logger.success(
+              '\n✅ Added ${arch.name} to Patch ${patch.number}!',
+            ),
+          ).called(1);
+        });
       });
 
       group('createPatchArtifacts', () {

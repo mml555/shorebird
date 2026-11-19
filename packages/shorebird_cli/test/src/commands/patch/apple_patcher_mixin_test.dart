@@ -274,7 +274,7 @@ void main() {
                 ),
               ),
               releaseArtifact: releaseArtifactFile,
-              splitDebugInfoArgs: [],
+              splitDebugInfoArgs: ['--strip'],
               aotOutputFile: any(
                 named: 'aotOutputFile',
                 that: isA<File>().having(
@@ -327,6 +327,9 @@ void main() {
               args,
               contains('--load-obfuscation-map=$obfuscationMapPath'),
             );
+            // Unstripped, an obfuscated patch would carry the unobfuscated
+            // names in its DWARF.
+            expect(args, contains('--strip'));
           },
         );
 

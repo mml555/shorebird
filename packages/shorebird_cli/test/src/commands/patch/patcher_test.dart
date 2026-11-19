@@ -248,20 +248,13 @@ void main() {
           ..obfuscationMapPath = 'map.json';
         expect(
           patcher.obfuscationGenSnapshotArgs,
-          equals([
-            '--obfuscate',
-            '--load-obfuscation-map=map.json',
-            '--strip',
-          ]),
+          equals(['--obfuscate', '--load-obfuscation-map=map.json']),
         );
       });
 
       test('obfuscates without a map when none is set', () {
         patcher.obfuscate = true;
-        expect(
-          patcher.obfuscationGenSnapshotArgs,
-          equals(['--obfuscate', '--strip']),
-        );
+        expect(patcher.obfuscationGenSnapshotArgs, equals(['--obfuscate']));
       });
     });
 
@@ -732,17 +725,12 @@ void main() {
           ..addOption(CommonArguments.publicKeyCmd.name)
           ..addOption(CommonArguments.signCmd.name);
         codeSigner = MockCodeSigner();
-        when(
-          () => codeSigner.canonicalPublicKeyPem(any()),
-        ).thenAnswer(
+        when(() => codeSigner.canonicalPublicKeyPem(any())).thenAnswer(
           (invocation) => invocation.positionalArguments.single as String,
         );
         logger = MockShorebirdLogger();
         publicKeyTempFile = File(
-          p.join(
-            Directory.systemTemp.createTempSync().path,
-            'public.pem',
-          ),
+          p.join(Directory.systemTemp.createTempSync().path, 'public.pem'),
         )..writeAsStringSync('fake-public-key-pem');
       });
 
@@ -756,13 +744,10 @@ void main() {
           target: null,
         );
 
-        await runScoped(
-          () async {
-            final result = await patcher.signHash('test-hash');
-            expect(result, isNull);
-          },
-          values: {codeSignerRef.overrideWith(() => codeSigner)},
-        );
+        await runScoped(() async {
+          final result = await patcher.signHash('test-hash');
+          expect(result, isNull);
+        }, values: {codeSignerRef.overrideWith(() => codeSigner)});
       });
 
       test('returns signature from file-based signing', () async {
@@ -792,13 +777,10 @@ void main() {
           target: null,
         );
 
-        await runScoped(
-          () async {
-            final result = await patcher.signHash('test-hash');
-            expect(result, equals('file-signature'));
-          },
-          values: {codeSignerRef.overrideWith(() => codeSigner)},
-        );
+        await runScoped(() async {
+          final result = await patcher.signHash('test-hash');
+          expect(result, equals('file-signature'));
+        }, values: {codeSignerRef.overrideWith(() => codeSigner)});
       });
 
       test(
@@ -870,27 +852,22 @@ void main() {
           target: null,
         );
 
-        await runScoped(
-          () async {
-            final result = await patcher.signHash('test-hash');
-            expect(result, equals('cmd-signature'));
-            verify(
-              () => codeSigner.signWithCmd(
-                data: 'test-hash',
-                command: 'sign-cmd',
-              ),
-            ).called(1);
-            verify(() => codeSigner.runPublicKeyCmd('get-key-cmd')).called(1);
-            verify(
-              () => codeSigner.verify(
-                message: 'test-hash',
-                signature: 'cmd-signature',
-                publicKeyPem: 'pem-public-key',
-              ),
-            ).called(1);
-          },
-          values: {codeSignerRef.overrideWith(() => codeSigner)},
-        );
+        await runScoped(() async {
+          final result = await patcher.signHash('test-hash');
+          expect(result, equals('cmd-signature'));
+          verify(
+            () =>
+                codeSigner.signWithCmd(data: 'test-hash', command: 'sign-cmd'),
+          ).called(1);
+          verify(() => codeSigner.runPublicKeyCmd('get-key-cmd')).called(1);
+          verify(
+            () => codeSigner.verify(
+              message: 'test-hash',
+              signature: 'cmd-signature',
+              publicKeyPem: 'pem-public-key',
+            ),
+          ).called(1);
+        }, values: {codeSignerRef.overrideWith(() => codeSigner)});
       });
 
       test(
@@ -932,28 +909,25 @@ void main() {
             target: null,
           );
 
-          await runScoped(
-            () async {
-              // One build, then a signature per architecture.
-              await patcher.getEncodedPublicKey();
-              await patcher.signHash('arm64-hash');
-              await patcher.signHash('arm32-hash');
-              await patcher.signHash('x86_64-hash');
+          await runScoped(() async {
+            // One build, then a signature per architecture.
+            await patcher.getEncodedPublicKey();
+            await patcher.signHash('arm64-hash');
+            await patcher.signHash('arm32-hash');
+            await patcher.signHash('x86_64-hash');
 
-              verify(() => codeSigner.runPublicKeyCmd('get-key-cmd')).called(1);
-              verify(
-                () => codeSigner.base64PublicKeyFromPem('pem-public-key-1'),
-              ).called(1);
-              verify(
-                () => codeSigner.verify(
-                  message: any(named: 'message'),
-                  signature: 'cmd-signature',
-                  publicKeyPem: 'pem-public-key-1',
-                ),
-              ).called(3);
-            },
-            values: {codeSignerRef.overrideWith(() => codeSigner)},
-          );
+            verify(() => codeSigner.runPublicKeyCmd('get-key-cmd')).called(1);
+            verify(
+              () => codeSigner.base64PublicKeyFromPem('pem-public-key-1'),
+            ).called(1);
+            verify(
+              () => codeSigner.verify(
+                message: any(named: 'message'),
+                signature: 'cmd-signature',
+                publicKeyPem: 'pem-public-key-1',
+              ),
+            ).called(3);
+          }, values: {codeSignerRef.overrideWith(() => codeSigner)});
         },
       );
 
@@ -1008,15 +982,8 @@ void main() {
             command: any(named: 'command'),
           ),
         ).thenAnswer((_) async => 'signature');
-        when(
-          () => codeSigner.runPublicKeyCmd(any()),
-        ).thenThrow(
-          const ProcessException(
-            'bad-key-cmd',
-            [],
-            'command not found',
-            127,
-          ),
+        when(() => codeSigner.runPublicKeyCmd(any())).thenThrow(
+          const ProcessException('bad-key-cmd', [], 'command not found', 127),
         );
 
         final patcher = _TestPatcher(
@@ -1070,21 +1037,18 @@ void main() {
           target: null,
         );
 
-        await runScoped(
-          () async {
-            final result = await patcher.signHash('test-hash');
-            expect(result, equals('cmd-signature'));
-            verifyNever(() => codeSigner.runPublicKeyCmd(any()));
-            verify(
-              () => codeSigner.verify(
-                message: 'test-hash',
-                signature: 'cmd-signature',
-                publicKeyPem: any(named: 'publicKeyPem'),
-              ),
-            ).called(1);
-          },
-          values: {codeSignerRef.overrideWith(() => codeSigner)},
-        );
+        await runScoped(() async {
+          final result = await patcher.signHash('test-hash');
+          expect(result, equals('cmd-signature'));
+          verifyNever(() => codeSigner.runPublicKeyCmd(any()));
+          verify(
+            () => codeSigner.verify(
+              message: 'test-hash',
+              signature: 'cmd-signature',
+              publicKeyPem: any(named: 'publicKeyPem'),
+            ),
+          ).called(1);
+        }, values: {codeSignerRef.overrideWith(() => codeSigner)});
       });
 
       test('exits with an error when signature verification fails', () async {
