@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:shorebird_cli/src/route_b_coverage.dart';
 import 'package:shorebird_cli/src/route_b_retention.dart';
+import 'package:shorebird_cli/src/route_b_sdk_base_classes.dart';
 import 'package:shorebird_cli/src/route_b_sdk_kept.dart';
 import 'package:test/test.dart';
 
@@ -1031,42 +1032,48 @@ callable:
     // either, so a member must resolve on both; an abstract base has no
     // instances and is not asked.
     RouteBSnapshotKept profileWith({
+      String parent = 'MappedIterable',
+      String parentLibrary = 'dart:_internal',
       bool parentAllocated = false,
       bool parentConst = false,
       bool parentHasFirst = false,
+      bool genericStubs = false,
     }) => RouteBSnapshotKept.fromProfileJson(
-      routeBProfile({
-        'Object': const RouteBProfileClass(
-          'Object',
-          routeBCoreLibrary,
-          fns: {'==': '[Optimized] =='},
-        ),
-        // The interface: no code, no instances.
-        'Iterable': const RouteBProfileClass(
-          'Iterable',
-          routeBCoreLibrary,
-          parent: 'Object',
-        ),
-        'MappedIterable': RouteBProfileClass(
-          'MappedIterable',
-          'dart:_internal',
-          parent: 'Object',
-          ifaces: const ['Iterable'],
-          fns: {
-            'get:iterator': '[Optimized] iterator',
-            if (parentHasFirst) 'get:first': '[Optimized] first',
-          },
-          allocated: parentAllocated,
-          constInstance: parentConst,
-        ),
-        'EfficientLengthMappedIterable': const RouteBProfileClass(
-          'EfficientLengthMappedIterable',
-          'dart:_internal',
-          parent: 'MappedIterable',
-          fns: {'get:first': '[Optimized] first'},
-          allocated: true,
-        ),
-      }),
+      routeBProfile(
+        {
+          'Object': const RouteBProfileClass(
+            'Object',
+            routeBCoreLibrary,
+            fns: {'==': '[Optimized] =='},
+          ),
+          // The interface: no code, no instances.
+          'Iterable': const RouteBProfileClass(
+            'Iterable',
+            routeBCoreLibrary,
+            parent: 'Object',
+          ),
+          'Parent': RouteBProfileClass(
+            parent,
+            parentLibrary,
+            parent: 'Object',
+            ifaces: const ['Iterable'],
+            fns: {
+              'get:iterator': '[Optimized] iterator',
+              if (parentHasFirst) 'get:first': '[Optimized] first',
+            },
+            allocated: parentAllocated,
+            constInstance: parentConst,
+          ),
+          'Child': const RouteBProfileClass(
+            'Child',
+            'dart:_internal',
+            parent: 'Parent',
+            fns: {'get:first': '[Optimized] first'},
+            allocated: true,
+          ),
+        },
+        genericStubs: genericStubs,
+      ),
     );
 
     String? problem(RouteBSnapshotKept kept) => kept.problemFor(
@@ -1078,10 +1085,9 @@ callable:
 
     test('is refused when the release allocates it and it lacks the '
         'member its subclass keeps', () {
-      expect(
-        problem(profileWith(parentAllocated: true)),
-        contains('no `get:first` on `MappedIterable`'),
-      );
+      final kept = profileWith(parentAllocated: true);
+      expect(problem(kept), contains('no `get:first` on `MappedIterable`'));
+      expect(kept.allocatedBaseClassCount, 1);
     });
 
     test('is refused when the snapshot holds a const instance of it', () {
@@ -1098,8 +1104,61 @@ callable:
       );
     });
 
-    test('an abstract base (never allocated) lacking it is not asked', () {
+    test('a dart: base with no allocation seen is asked only when the VM '
+        'allocates it without a stub', () {
+      // A fixed-id class: inline, VM and runtime allocation leave no stub.
+      expect(
+        problem(
+          profileWith(
+            parent: '_Int16ArrayView',
+            parentLibrary: 'dart:typed_data',
+          ),
+        ),
+        contains('no `get:first` on `_Int16ArrayView`'),
+      );
+      // An ordinary class is allocated only through its own stub: none, so
+      // no instance.
       expect(problem(profileWith()), isNull);
+      // Fixed-id but abstract.
+      expect(
+        problem(
+          profileWith(
+            parent: '_IntegerImplementation',
+            parentLibrary: 'dart:core',
+          ),
+        ),
+        isNull,
+      );
+    });
+
+    test('an app base with no allocation seen is not asked', () {
+      // Compiled code allocates an app class through its stub.
+      expect(
+        problem(
+          profileWith(parent: 'Base', parentLibrary: 'package:app/a.dart'),
+        ),
+        isNull,
+      );
+      expect(
+        problem(
+          profileWith(
+            parent: 'Base',
+            parentLibrary: 'package:app/a.dart',
+            parentAllocated: true,
+          ),
+        ),
+        contains('no `get:first` on `Base`'),
+      );
+    });
+
+    test('a class-less allocation stub is ignored', () {
+      final kept = profileWith(
+        parent: 'Base',
+        parentLibrary: 'package:app/a.dart',
+        genericStubs: true,
+      );
+      expect(problem(kept), isNull);
+      expect(kept.allocatedBaseClassCount, 0);
     });
 
     test('a leaf is asked even when no allocation is seen', () {
@@ -1118,7 +1177,7 @@ callable:
           ),
           'Leaf': const RouteBProfileClass(
             'Leaf',
-            'dart:_internal',
+            'package:app/a.dart',
             parent: 'Object',
             ifaces: ['Iterable'],
             fns: {'get:iterator': '[Optimized] iterator'},
@@ -1126,6 +1185,118 @@ callable:
         }),
       );
       expect(problem(kept), contains('no `get:first` on `Leaf`'));
+    });
+
+    group('a profile it cannot read allocations from is unreadable', () {
+      const classes = {
+        'Object': RouteBProfileClass('Object', routeBCoreLibrary),
+      };
+      test('no allocation stub owned by a class', () {
+        for (final text in [
+          routeBProfile(classes, allocationEvidence: false),
+          routeBProfile(
+            classes,
+            allocationEvidence: false,
+            genericStubs: true,
+          ),
+        ]) {
+          expect(
+            () => RouteBSnapshotKept.fromProfileJson(text),
+            throwsA(
+              isA<FormatException>().having(
+                (e) => e.message,
+                'message',
+                contains('no allocation stub owned by a class'),
+              ),
+            ),
+          );
+        }
+      });
+
+      test('no Instance node type', () {
+        expect(
+          () => RouteBSnapshotKept.fromProfileJson(
+            routeBProfile(classes, instanceNodes: false),
+          ),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              contains('no Instance nodes'),
+            ),
+          ),
+        );
+      });
+
+      test('and read refuses it', () {
+        final file = File(
+          'route_b_snapshot_profile.json',
+        )..writeAsStringSync(routeBProfile(classes, allocationEvidence: false));
+        final digest = sha256.convert(file.readAsBytesSync()).toString();
+        final read = RouteBSnapshotKept.read(file, expectedSha256: digest);
+        expect(read.kept, isNull);
+        expect(read.problem, contains('is unreadable'));
+        expect(read.problem, contains('no allocation stub owned by a class'));
+      });
+    });
+
+    test("release 1.0.0+70's stub-less SDK base classes are all decided", () {
+      // An SDK bump regenerates this excerpt (see its header). A base class it
+      // adds that no list decides fails here, for a human to place it.
+      final rows = File(
+        p.join(fixturesDirectory, 'route_b_sdk_kept', 'stubless_sdk_bases.tsv'),
+      ).readAsLinesSync().where((l) => l.isNotEmpty && !l.startsWith('#'));
+      final entries = [
+        for (final row in rows)
+          if (row.split('\t') case [final library, final name])
+            '$library#$name',
+      ];
+      expect(entries, hasLength(198));
+      // Concrete, allocated only through their own stub, so with no stub in
+      // this release they have no instance (reviewed against the SDK
+      // source: no kept constructor, or only one subclasses call).
+      const reviewedOrdinary = {
+        'dart:async#_AddStreamState',
+        'dart:async#_BufferingStreamSubscription',
+        'dart:collection#MapView',
+        'dart:core#Error',
+        'dart:ffi#_Compound',
+        'dart:io#TlsException',
+        'dart:io#_FilterImpl',
+        'dart:io#_FilterSink',
+        'dart:ui#Shader',
+      };
+      final askedAsConcrete = <String>{};
+      final undecided = <String>[];
+      for (final key in entries) {
+        final [library, name] = key.split('#');
+        if (RouteBSnapshotKept.isKnownAbstractSdkClass(library, name)) continue;
+        if (RouteBSnapshotKept.isVmAllocatedSdkClass(library, name)) {
+          askedAsConcrete.add(key);
+        } else if (!reviewedOrdinary.contains(key)) {
+          undecided.add(key);
+        }
+      }
+      expect(
+        undecided,
+        isEmpty,
+        reason:
+            'list each in routeBSdkAbstractBases (abstract in the SDK '
+            'source), or in reviewedOrdinary above after checking that it is '
+            'allocated only through its own stub',
+      );
+      expect(askedAsConcrete, {
+        'dart:typed_data#_Float32x4ArrayView',
+        'dart:typed_data#_Float64x2ArrayView',
+        'dart:typed_data#_Int16ArrayView',
+        'dart:typed_data#_Int32x4ArrayView',
+        'dart:typed_data#_Uint16ArrayView',
+        'dart:typed_data#_Uint32ArrayView',
+        'dart:typed_data#_Uint64ArrayView',
+        'dart:typed_data#_Uint8ClampedArrayView',
+      });
+      // Every listed abstract base is one of this release's: none is stale.
+      expect(routeBSdkAbstractBases.difference(entries.toSet()), isEmpty);
     });
   });
 

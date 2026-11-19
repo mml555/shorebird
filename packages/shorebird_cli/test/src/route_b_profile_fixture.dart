@@ -38,8 +38,20 @@ class RouteBProfileClass {
 /// itself, FIRST on purpose), `interfaces_`, `super_type_`, `library_`,
 /// `functions_` and `invocation_dispatcher_cache_`. [classes] is keyed by a
 /// unique id; a class's `parent` and `ifaces` name ids.
-String routeBProfile(Map<String, RouteBProfileClass> classes) {
-  const types = [
+///
+/// A real profile always has allocation stubs, and the reader refuses one
+/// without, so by default an extra class `RouteBFixtureAllocated` (no code,
+/// no super: never asked) owns one. [allocationEvidence] false leaves it out;
+/// [instanceNodes] false leaves the `Instance` node type out. [genericStubs]
+/// adds the class-less allocation stubs a real profile has
+/// (`[Stub] AllocateObjectSlow`, and one whose `owner_` is null).
+String routeBProfile(
+  Map<String, RouteBProfileClass> classes, {
+  bool allocationEvidence = true,
+  bool instanceNodes = true,
+  bool genericStubs = false,
+}) {
+  final types = [
     'ArtificialRoot',
     'Array',
     'Code',
@@ -48,7 +60,8 @@ String routeBProfile(Map<String, RouteBProfileClass> classes) {
     'Type',
     'Library',
     'Other',
-    'Instance',
+    'Null',
+    if (instanceNodes) 'Instance',
   ];
   const edgeTypes = ['context', 'element', 'property', 'internal'];
   final strings = <String>[];
@@ -138,6 +151,17 @@ String routeBProfile(Map<String, RouteBProfileClass> classes) {
     if (c.constInstance) {
       add('Instance', 'Unnamed [Instance] (nil)', [prop('<class>', self)]);
     }
+  }
+  if (allocationEvidence) {
+    final owner = add('Class', 'RouteBFixtureAllocated');
+    add('Code', '[Stub] Allocate RouteBFixtureAllocated', [
+      prop('owner_', owner),
+    ]);
+  }
+  if (genericStubs) {
+    final none = add('Null', 'null');
+    add('Code', '[Stub] AllocateObjectSlow', [prop('owner_', none)]);
+    add('Code', '[Stub] Allocate Orphan', [prop('owner_', none)]);
   }
   final flatNodes = <int>[];
   final flatEdges = <int>[];
