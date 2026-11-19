@@ -1645,6 +1645,17 @@ This may indicate that the patch contains native changes, which cannot be applie
             ..createSync(recursive: true)
             ..writeAsStringSync('...InterpretCall...');
           when(() => shorebirdEnv.flutterDirectory).thenReturn(flutterDir);
+          // The app and the Flutter SDK's own packages only, so the
+          // dependency check has nothing to analyze unless a test adds one.
+          writePackageConfig(projectRoot, {
+            'app': '../',
+            'flutter': p
+                .toUri(p.join(flutterDir.path, 'packages', 'flutter'))
+                .toString(),
+            'sky_engine': p
+                .toUri(p.join(flutterDir.path, 'bin', 'cache', 'pkg'))
+                .toString(),
+          });
 
           supplementDirectory = Directory.systemTemp.createTempSync(
             'supplement',
@@ -2033,6 +2044,7 @@ This may indicate that the patch contains native changes, which cannot be applie
                   engineRevision: releaseEngineRevision,
                   appPackageName: null,
                 );
+                writePackageConfig(projectRoot, {'fromPubspec': '../'});
                 await patchAnalyzedWithPackage('fromPubspec');
                 verify(
                   () => routeBCoverageAnalyzer.analyze(
@@ -2066,6 +2078,165 @@ This may indicate that the patch contains native changes, which cannot be applie
                   includePrefixes: any(named: 'includePrefixes'),
                 ),
               );
+            });
+
+            group('a change outside the app package', () {
+              // The a6a48cf6 device run: an edit to `tally`, a path package
+              // next to the app, was left out of a published patch without a
+              // word, because the analysis saw `package:<app>/` only.
+              const depPrefixes = ['package:tally/'];
+
+              RouteBCoverage dependencyCoverage({
+                List<String> changed = const [],
+                List<Map<String, Object>> rejections = const [],
+              }) => RouteBCoverage.fromJson(
+                jsonEncode({
+                  'analysisVersion': supportedRouteBAnalysisVersion,
+                  'verdict': rejections.isEmpty ? 'accept' : 'reject',
+                  'changed': changed,
+                  'added': <String>[],
+                  'removed': <String>[],
+                  'patchable': changed,
+                  'conditional': <String>[],
+                  'rejections': rejections,
+                  'refusalSummary': null,
+                }),
+              );
+
+              void stubDependencyAnalysis(RouteBCoverage coverage) {
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: depPrefixes,
+                  ),
+                ).thenReturn(coverage);
+              }
+
+              setUp(() {
+                writePackageConfig(projectRoot, {
+                  'app': '../',
+                  'tally': '../../packages/tally',
+                  'flutter': p
+                      .toUri(p.join(flutterDir.path, 'packages', 'flutter'))
+                      .toString(),
+                });
+              });
+
+              Future<void> patch() => runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              );
+
+              test('refuses a changed dependency member, naming it', () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    changed: ['package:tally/tally.dart#tallyLabel'],
+                  ),
+                );
+                await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                verify(
+                  () => logger.err(
+                    any(
+                      that: allOf(
+                        contains('package:tally/tally.dart#tallyLabel'),
+                        contains('outside the app'),
+                        contains('Nothing was uploaded.'),
+                      ),
+                    ),
+                  ),
+                ).called(1);
+                verifyNever(
+                  () => routeBProducer.produce(
+                    compiler: any(named: 'compiler'),
+                    coverage: any(named: 'coverage'),
+                    releaseImportKernel: any(named: 'releaseImportKernel'),
+                    releaseBuildId: any(named: 'releaseBuildId'),
+                    workingDirectory: any(named: 'workingDirectory'),
+                    projectRoot: any(named: 'projectRoot'),
+                    capabilities: any(named: 'capabilities'),
+                    buildConfig: any(named: 'buildConfig'),
+                    survival: any(named: 'survival'),
+                    releaseEvidence: any(named: 'releaseEvidence'),
+                  ),
+                );
+              });
+
+              test('refuses a changed dependency declaration', () async {
+                stubDependencyAnalysis(
+                  dependencyCoverage(
+                    rejections: [
+                      {
+                        'target': 'package:tally/tally.dart#kPrefix',
+                        'category': 'declaration',
+                        'reason': 'a const changed',
+                      },
+                    ],
+                  ),
+                );
+                await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                verify(
+                  () => logger.err(
+                    any(that: contains('package:tally/tally.dart#kPrefix')),
+                  ),
+                ).called(1);
+              });
+
+              test('analyzes every other package, and not the app or the '
+                  'Flutter SDK, and passes when none changed', () async {
+                stubDependencyAnalysis(dependencyCoverage());
+                await patch();
+                verify(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: depPrefixes,
+                  ),
+                ).called(1);
+                verify(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: ['package:app/'],
+                  ),
+                ).called(1);
+              });
+
+              test('refuses, rather than skipping the check, without a '
+                  'package config', () async {
+                File(
+                  p.join(projectRoot.path, '.dart_tool', 'package_config.json'),
+                ).deleteSync();
+                await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                verify(
+                  () => logger.err(any(that: contains('flutter pub get'))),
+                ).called(1);
+              });
+
+              test('refuses when the dependency analysis fails', () async {
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: depPrefixes,
+                  ),
+                ).thenThrow(
+                  RouteBCompilerException(
+                    RouteBCompilerProblem.invalid,
+                    'analyzer died',
+                  ),
+                );
+                await expectLater(patch(), throwsA(isA<ProcessExit>()));
+                verify(() => logger.err('analyzer died')).called(1);
+              });
             });
 
             group('the extension/dynamic-call gate (analysis 19)', () {
@@ -4075,4 +4246,20 @@ callable:
       });
     });
   }, testOn: 'mac-os');
+}
+
+/// Writes `.dart_tool/package_config.json` under [projectRoot], one entry per
+/// package name and root URI (relative to `.dart_tool/`, as pub writes them).
+void writePackageConfig(Directory projectRoot, Map<String, String> roots) {
+  File(p.join(projectRoot.path, '.dart_tool', 'package_config.json'))
+    ..createSync(recursive: true)
+    ..writeAsStringSync(
+      jsonEncode({
+        'configVersion': 2,
+        'packages': [
+          for (final MapEntry(:key, :value) in roots.entries)
+            {'name': key, 'rootUri': value, 'packageUri': 'lib/'},
+        ],
+      }),
+    );
 }

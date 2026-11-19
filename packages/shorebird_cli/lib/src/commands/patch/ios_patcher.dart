@@ -32,6 +32,7 @@ import 'package:shorebird_cli/src/route_b_compiler.dart';
 import 'package:shorebird_cli/src/route_b_compiler_cache.dart';
 import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:shorebird_cli/src/route_b_coverage.dart';
+import 'package:shorebird_cli/src/route_b_dependency_changes.dart';
 import 'package:shorebird_cli/src/route_b_producer.dart';
 import 'package:shorebird_cli/src/route_b_provenance.dart';
 import 'package:shorebird_cli/src/route_b_release_kernels.dart';
@@ -267,6 +268,10 @@ class IosPatcher extends Patcher
         // compiler failure and a container failure are three different problems
         // and must never be reachable through one another.
         var coverage = _analyzeCoverage(compiler, releaseArtifacts);
+        // A CHANGED DEPENDENCY, BEFORE ANY VERDICT. The analysis above sees the
+        // app's own package only, so an edit in a path dependency would
+        // otherwise publish a patch without it, and say nothing.
+        _refuseDependencyChanges(compiler, releaseArtifacts);
         if (coverage.analysisVersion < routeBSelectorCallsAnalysisVersion) {
           // The analyzer ships in the release's compiler cell, and a cell below
           // 19 cannot see a call by name on a `dynamic` value, an instance
@@ -810,6 +815,79 @@ Nothing was uploaded.''',
       );
       throw ProcessExit(ExitCode.software.code);
     }
+  }
+
+  /// Refuse a patch whose build changed code outside the app's own package.
+  ///
+  /// A Route B patch carries the app's own libraries only: the release's
+  /// census, interface and target manifest stop at `package:<app>/`. A changed
+  /// dependency library (a path package next to the app, a git ref, another
+  /// hosted version) is never compared by [_analyzeCoverage], so it would be
+  /// left out of the patch with nothing said, and the device would keep
+  /// running the release's copy. One more analysis, over every other package
+  /// the build compiled, finds those edits, and any one refuses the patch.
+  ///
+  /// Fails closed: a package config that cannot be read, or an analysis that
+  /// fails, refuses rather than skipping the check.
+  void _refuseDependencyChanges(
+    RouteBCompiler compiler,
+    Map<String, File> releaseArtifacts,
+  ) {
+    final packageName =
+        _releaseAppPackageName ?? shorebirdEnv.getPubspecYaml()!.name;
+    final packageConfig = File(
+      p.join(
+        shorebirdEnv.getShorebirdProjectRoot()!.path,
+        '.dart_tool',
+        'package_config.json',
+      ),
+    );
+    final List<String> prefixes;
+    try {
+      prefixes = routeBDependencyIncludePrefixes(
+        packageConfig: packageConfig,
+        appPackageName: packageName,
+        flutterRoot: shorebirdEnv.flutterDirectory,
+      );
+    } on FormatException catch (error) {
+      logger.err('''
+Could not list this app's dependencies, so the patch cannot check that none of them changed: ${error.message}
+
+Run `flutter pub get` and try again. Nothing was uploaded.''');
+      throw ProcessExit(ExitCode.software.code);
+    }
+    if (prefixes.isEmpty) return;
+
+    final RouteBCoverage coverage;
+    try {
+      coverage = routeBCoverageAnalyzer.analyze(
+        compiler: compiler,
+        baseDill: releaseArtifacts[routeBReleaseKernelFileName]!,
+        patchedDill: File(appDillCopyPath),
+        includePrefixes: prefixes,
+      );
+    } on RouteBCompilerException catch (error) {
+      logger.err(error.message);
+      throw ProcessExit(ExitCode.software.code);
+    } on FormatException catch (error) {
+      logger.err(
+        'The Route B dependency analysis could not be read: ${error.message}',
+      );
+      throw ProcessExit(ExitCode.software.code);
+    }
+    final changes = routeBDependencyChanges(
+      coverage,
+      appPrefixes: routeBAppIncludePrefixes(packageName),
+    );
+    if (changes.isEmpty) return;
+    logger.err('''
+This patch changes code outside the app's own package ($packageName), which an iOS patch cannot carry:
+${changes.map((target) => '  - $target').join('\n')}
+
+An iOS patch replaces functions of package:$packageName only, so these changes would not reach the device. Revert them, or ship them in a new release.
+
+Nothing was uploaded.''');
+    throw ProcessExit(ExitCode.software.code);
   }
 
   /// Refuse the WHOLE patch, naming every target that cannot be carried.
