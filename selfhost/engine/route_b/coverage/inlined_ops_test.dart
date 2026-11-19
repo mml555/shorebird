@@ -285,7 +285,8 @@ void main() {
   );
 
   // The bytecode scan fails closed when the text format changes.
-  const pool = "  [1] = InterfaceCall 'dart:core::num::+', ArgDesc num-args 2\n"
+  const pool =
+      "  [1] = InterfaceCall 'dart:core::num::+', ArgDesc num-args 2\n"
       "  [2] = DynamicCall '-', ArgDesc num-args 2\n"
       '  [3] = DirectCall \'a::b\', ArgDesc num-args 0\n';
   const body = '  InterfaceCall        CP#1, 2\n';
@@ -294,7 +295,9 @@ void main() {
     good['unparsed'] == 0 && '${good['calls']}' == '[+, -]',
     'a well-formed pool reads completely: $good',
   );
-  final moved = scanBytecodeText("Function 'f'\n$body${pool.replaceAll('] = ', ']: ')}");
+  final moved = scanBytecodeText(
+    "Function 'f'\n$body${pool.replaceAll('] = ', ']: ')}",
+  );
   check(
     (moved['unparsed'] as int) > 0 && (moved['calls'] as List).isEmpty,
     'a changed pool-line prefix leaves call lines unread: $moved',
@@ -318,11 +321,17 @@ void main() {
   final quoted = scanBytecodeText(
     "Function 'f'\n$body$pool  [4] = ConstantX 'a::makeCall', ArgDesc\n",
   );
-  check(quoted['unparsed'] == 0, 'a quoted name containing Call is not counted');
+  check(
+    quoted['unparsed'] == 0,
+    'a quoted name containing Call is not counted',
+  );
 
   // _writableType and the import check (S4).
   Library mk(String uri, {String? source}) {
-    final l = Library(Uri.parse(uri), fileUri: Uri.parse('file:///${uri.hashCode}.dart'));
+    final l = Library(
+      Uri.parse(uri),
+      fileUri: Uri.parse('file:///${uri.hashCode}.dart'),
+    );
     return l;
   }
 
@@ -515,6 +524,87 @@ void main() {
           !refs.single.containsKey('receiverClass') &&
           !refs.single.containsKey('receiverLibrary'),
       'a for-in over $what names no receiver ($refs)',
+    );
+  }
+  // The same, in the lowered form a real dill holds: no ForInStatement, a
+  // synthetic `:sync-for-iterator` variable initialized with `xs.iterator`.
+  final iterableIterator = this_member(iterableC, 'iterator', getter: true);
+  List<Map<String, Object?>> loweredRefs(
+    DartType type, {
+    String variableName = ':sync-for-iterator',
+    Member? target,
+    bool typed = true,
+  }) {
+    final xs = PositionalParameter(cosmeticName: 'xs${n++}', type: type);
+    final p = Procedure(
+      Name('lowered${n++}'),
+      ProcedureKind.Method,
+      FunctionNode(
+        Block([
+          VariableStatement(
+            VariableDeclaration(
+              SyntheticVariable(
+                cosmeticName: variableName,
+                initializer: InstanceGet(
+                  InstanceAccessKind.Instance,
+                  VariableGet(xs),
+                  Name('iterator'),
+                  interfaceTarget: target ?? iterableIterator,
+                  resultType: const DynamicType(),
+                ),
+              ),
+            ),
+          ),
+        ]),
+        positionalParameters: [xs],
+      ),
+      fileUri: lib.fileUri,
+    );
+    lib.addProcedure(p);
+    return externalReferencesOf(
+      p,
+      {},
+      types: typed ? env : null,
+    ).where((r) => r['member'] == 'get:iterator').toList();
+  }
+
+  final loweredList = loweredRefs(t(listC));
+  check(
+    loweredList.length == 1 &&
+        loweredList.single['class'] == 'Iterable' &&
+        loweredList.single['receiverLibrary'] == 'dart:core' &&
+        loweredList.single['receiverClass'] == 'List',
+    'a lowered for-in over a List names List as the receiver ($loweredList)',
+  );
+  final loweredSet = loweredRefs(t(setC));
+  check(
+    loweredSet.length == 1 && loweredSet.single['receiverClass'] == 'Set',
+    'a lowered for-in over a Set names Set as the receiver ($loweredSet)',
+  );
+  final loweredApp = loweredRefs(t(appIterable));
+  check(
+    loweredApp.length == 1 &&
+        loweredApp.single['receiverLibrary'] == 'package:app/a.dart' &&
+        loweredApp.single['receiverClass'] == 'Shapes',
+    'a lowered for-in over an app class names it and its library '
+    '($loweredApp)',
+  );
+  for (final (what, refs) in [
+    ('an Iterable', loweredRefs(t(iterableC))),
+    ('a dynamic value', loweredRefs(const DynamicType())),
+    ('a nullable List', loweredRefs(t(listC, true))),
+    ('a List without a type environment', loweredRefs(t(listC), typed: false)),
+    (
+      'a variable that is not the for-in iterator',
+      loweredRefs(t(listC), variableName: 'it'),
+    ),
+  ]) {
+    check(
+      refs.length == 1 &&
+          refs.single['class'] == 'Iterable' &&
+          !refs.single.containsKey('receiverClass') &&
+          !refs.single.containsKey('receiverLibrary'),
+      'a lowered for-in over $what names no receiver ($refs)',
     );
   }
   check(analysisVersion == 23, 'analysis version is 23');

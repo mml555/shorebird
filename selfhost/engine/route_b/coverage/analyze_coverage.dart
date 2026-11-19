@@ -342,6 +342,11 @@ import 'package:kernel/type_environment.dart';
 /// `List` and a `Set` report both; a loop whose iterable is `dynamic`, a type
 /// parameter or an extension type reports the entry without them, which the
 /// CLI reads as before. A document below 23 never has them.
+///
+/// The fields are read from the lowered loop a real dill holds (the VM's
+/// for-in lowering leaves a synthetic `:sync-for-iterator` variable initialized
+/// with the iterable's `iterator`), so no version bump was needed to fill them:
+/// the CLI reads a version-23 document's fields the same way, whoever wrote it.
 const analysisVersion = 23;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
@@ -4047,8 +4052,34 @@ class _ExternalUses extends RecursiveVisitor {
 
   @override
   void visitInstanceGet(InstanceGet node) {
-    _member(node.interfaceTargetReference);
+    if (_isLoweredForInIterator(node)) {
+      // The VM's for-in lowering (pkg/vm, before the dill is written) leaves
+      // no ForInStatement: the loop is `synthesized Iterator
+      // :sync-for-iterator = <iterable>.iterator` and a `moveNext` loop.
+      // This is the one place a dill names the iterable's static type.
+      _sdk(
+        'dart:core',
+        'Iterable',
+        'get:iterator',
+        receiver: _iterableReceiver(node.receiver),
+      );
+    } else {
+      _member(node.interfaceTargetReference);
+    }
     node.receiver.accept(this);
+  }
+
+  /// Whether [node] is the `iterator` read the for-in lowering initializes
+  /// its synthetic `:sync-for-iterator` variable with.
+  bool _isLoweredForInIterator(InstanceGet node) {
+    final parent = node.parent;
+    if (parent is! Variable || parent.cosmeticName != ':sync-for-iterator') {
+      return false;
+    }
+    final target = node.interfaceTarget;
+    return target.name.text == 'iterator' &&
+        target.enclosingClass?.name == 'Iterable' &&
+        target.enclosingLibrary.importUri.toString() == 'dart:core';
   }
 
   @override
@@ -4105,6 +4136,8 @@ class _ExternalUses extends RecursiveVisitor {
   // `for (x in xs)` asks the receiver's class for `iterator`, `moveNext` and
   // `current` by selector, and no source token names them. [receiver] is the
   // class of the iterable's static type (analysis version 23), one entry each.
+  // A real dill carries the lowered form (see [visitInstanceGet]); the
+  // ForInStatement below is the unlowered form.
   void _sdk(String library, String cls, String member, {Class? receiver}) {
     final receiverLibrary = receiver?.enclosingLibrary.importUri.toString();
     final suffix = receiver == null ? '' : '|$receiverLibrary#${receiver.name}';
