@@ -25,8 +25,9 @@ are not supported yet.
 - `git`, `curl`, `unzip`, `python3`, `bash`.
 - **Docker with the Compose plugin** (`docker compose version` must work). On Ubuntu
   that is the `docker.io` and `docker-compose-v2` packages; Docker Desktop has both. The
-  server image (1.4.0) is published for x86_64 only: on Apple silicon `setup.sh` runs it
-  under Docker Desktop's emulation, which works, more slowly.
+  server image (2.0.0) is published for x86_64 and arm64. Older images (1.4.0 and before)
+  are x86_64 only: on Apple silicon `setup.sh` runs those under Docker Desktop's
+  emulation, which works, more slowly.
 - Several GB of disk: the engine download alone is 1.6 GB, kept beside its unpacked copy,
   plus the CLI's Flutter, the mirror's Docker images and its cache.
 - For Android: a JDK 17 and the Android SDK (command-line tools, `platform-tools`, a
@@ -43,7 +44,7 @@ Pin a release: pick the newest `selfhost-v*` tag on the
 (older tags cannot install on Linux), and use it for both the script and `--ref`:
 
 ```bash
-TAG=selfhost-v1.2.1
+TAG=selfhost-v2.0.0
 curl -fsSL "https://raw.githubusercontent.com/mml555/shorebird/$TAG/selfhost/scripts/bootstrap_selfhost.sh" \
   -o bootstrap_selfhost.sh
 bash bootstrap_selfhost.sh --root ~/shorebird-selfhost --ref "$TAG" --start-mirror

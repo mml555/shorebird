@@ -8,42 +8,19 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 2.0.0 — 2026-11-19
 
-### Changed (breaking)
-
-- **`PRODUCTION` accepts only these values:** `true`, `false`, `1`, `0`, `yes`,
-  `no` and `production`, in any case, or unset/empty. Any other value (`prod`,
-  `on`, `y`, `enabled`, a quoted `"true"` passed by a plain `docker run
-  --env-file`) used to boot as non-production with every production-only check
-  skipped; it now exits 78 with `PRODUCTION must be true or false`. Check the
-  value in your `.env` before upgrading (`.env.example` and `setup.sh` write
-  `true`, so deploys made with them are unaffected). `ENV=production` still
-  turns production on when `PRODUCTION` is unset.
-- **Stricter `PUBLIC_BASE_URL` in production.** It must be `https://` unless the
-  host is `localhost`, `127.0.0.1` or `::1`, judged on the parsed host rather
-  than a substring (`http://localhost.evil.example` no longer passes). A value
-  with no scheme or a leading space now also refuses to boot, where only
-  `http://` was refused before.
-- **The shipped Caddyfile answers 404 for `/metrics` and `/readyz`**, and no
-  longer compresses `/download`. Monitoring must use `/healthz` externally and
-  reach the others on the internal network (PRODUCTION.md). `setup.sh` probes
-  `/healthz` through Caddy and readiness inside the container.
-
-### Security
-
-- With production off and a non-localhost `PUBLIC_BASE_URL` the server logs a
-  WARNING at boot.
-- `/download` responses (200, 206, 403 and 416) carry
-  `Cache-Control: private, no-store`.
-- **IdP id_tokens are now validated.** Broker login checks `aud` (must contain
-  `IDP_CLIENT_ID`, plus `azp` if several), `exp`, `iss` (against the new
-  `IDP_ISSUER`) and `email_verified`, and logs the reason for each rejection.
-  A top-level `email` in the token response is no longer accepted.
-  - **Action required if your IdP omits `email_verified`** (Microsoft Entra
-    does): logins fail with `invalid_id_token` until you set
-    `IDP_ALLOW_UNVERIFIED_EMAIL=true`.
-  - **Action required in production with an IdP:** `IDP_ISSUER` is now
-    mandatory and the server refuses to boot without it.
+A major version because of configuration changes that can stop an upgraded
+server from booting or signing users in (see Changed and Security): `PRODUCTION`
+accepts only `true`, `false`, `1`, `0`, `yes`, `no` or `production`; in
+production `PUBLIC_BASE_URL` must be `https://` (except localhost); the shipped
+Caddyfile answers 404 for `/metrics` and `/readyz`; and for servers that sign
+users in through an IdP, production refuses to start without `IDP_ISSUER`, and
+an IdP whose id_tokens omit `email_verified` needs
+`IDP_ALLOW_UNVERIFIED_EMAIL=true`. A server without an IdP and with a `.env`
+written by `setup.sh` or `.env.example` needs no `.env` change, but external
+monitoring of `/metrics` or `/readyz` must move (the Caddyfile answers 404), and
+the schema migrations cannot be undone (see Added).
 
 ### Added
 
@@ -110,10 +87,11 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     `0`, keep forever) drops older rows; `GET /runs` lists summaries only
     (no `metadata` or `build_flags`), at most 200 rows. `POST /runs` is audited
     as `build_run.record`.
-  - Downgrading is not possible after this release: a database at migration 19
-    or 20 makes an older server refuse to boot (`SchemaTooNewException`).
-    Restore a backup, or delete the `schema_migrations` rows 19 and 20 (and
-    drop `channel_patches.rollout_bps` and `build_runs`) first. During a rolling
+  - Downgrading is not possible after this release: a database past migration
+    16 (17 to 22) makes an older server refuse to boot (`SchemaTooNewException`).
+    Restore a backup taken before the upgrade; deleting `schema_migrations` rows
+    is not enough (the columns, tables and indexes of migrations 17 to 22 stay,
+    and 1.4.0 would not know the schema). During a rolling
     upgrade an old pod's rollout changes are still honoured (it writes
     `rollout`, which is read when `rollout_bps` disagrees).
   - `patch --share-debug-info`: accepted and ignored. A debug bundle goes to
@@ -157,6 +135,27 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **`PRODUCTION` accepts only these values:** `true`, `false`, `1`, `0`, `yes`,
+  `no` and `production`, in any case, or unset/empty. Any other value (`prod`,
+  `on`, `y`, `enabled`, a quoted `"true"` passed by a plain `docker run
+  --env-file`) used to boot as non-production with every production-only check
+  skipped; it now exits 78 with `PRODUCTION must be true or false`. Check the
+  value in your `.env` before upgrading (`.env.example` and `setup.sh` write
+  `true`, so deploys made with them are unaffected). `ENV=production` still
+  turns production on when `PRODUCTION` is unset.
+- **Stricter `PUBLIC_BASE_URL` in production.** It must be `https://` unless the
+  host is `localhost`, `127.0.0.1` or `::1`, judged on the parsed host rather
+  than a substring (`http://localhost.evil.example` no longer passes). A value
+  with no scheme or a leading space now also refuses to boot, where only
+  `http://` was refused before.
+- **The shipped Caddyfile answers 404 for `/metrics` and `/readyz`**, and no
+  longer compresses `/download`. Monitoring must use `/healthz` externally and
+  reach the others on the internal network (PRODUCTION.md). `setup.sh` probes
+  `/healthz` through Caddy and readiness inside the container.
+- **The image is published for linux/arm64 as well as linux/amd64.** The
+  release workflow builds arm64 natively on GitHub's `ubuntu-24.04-arm` runner
+  and publishes both architectures or nothing. 1.4.0 and earlier are amd64
+  only; `setup.sh` runs those under emulation on Apple silicon.
 - **Rolling back a superseded patch is a 200, not a 409.** A patch that is
   active nowhere but was promoted is marked rolled back (so it can never be
   restored) and reported in `rolled_back_patch_numbers`. A rollback also marks
@@ -193,6 +192,9 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     (`GET .../patches` shows `is_rolled_back`): promoting a rolled-back patch
     leaves it active and also listed in `rolled_back_patch_numbers`, and devices
     keep dropping and re-fetching it.
+
+- **Re-uploading a verified release artifact with the same bytes answers 200**
+  (multipart), not 409, so a CLI retry after a lost response succeeds.
 - **A failed object-store write no longer strands a patch upload.** When
   `store.put` threw (store down, disk full, timeout) the artifact stayed
   `uploading` for good: the retry got a 409 and re-registering hit the duplicate
@@ -237,6 +239,28 @@ package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **The filesystem store's temp files** use a random suffix and are swept in
   the background at startup when older than a day (matched on the file name). A 500 names its request id and the log line
   carries it with the method and path.
+
+- **`setup.sh` on Apple silicon** runs an amd64-only server image under
+  emulation instead of failing with `no matching manifest for linux/arm64/v8`,
+  and reads the platforms of a single-manifest image as well as a list.
+- **`tool/ios_resign.sh`** sets `CFBundleIdentifier` to the bundle id it signs
+  for, so a re-signed build keeps one identity on the device.
+
+### Security
+
+- With production off and a non-localhost `PUBLIC_BASE_URL` the server logs a
+  WARNING at boot.
+- `/download` responses (200, 206, 403 and 416) carry
+  `Cache-Control: private, no-store`.
+- **IdP id_tokens are now validated.** Broker login checks `aud` (must contain
+  `IDP_CLIENT_ID`, plus `azp` if several), `exp`, `iss` (against the new
+  `IDP_ISSUER`) and `email_verified`, and logs the reason for each rejection.
+  A top-level `email` in the token response is no longer accepted.
+  - **Action required if your IdP omits `email_verified`** (Microsoft Entra
+    does): logins fail with `invalid_id_token` until you set
+    `IDP_ALLOW_UNVERIFIED_EMAIL=true`.
+  - **Action required in production with an IdP:** `IDP_ISSUER` is now
+    mandatory and the server refuses to boot without it.
 
 ## 1.4.0 — 2026-11-08
 

@@ -27,13 +27,13 @@ services:
     # Prebuilt image, pinned to the release this checkout describes, so
     # `docker compose up` gets the same server the
     # selfhost tag was cut from, not whatever the local toolchain compiles.
-    # 1.4.0 is amd64 only: on Apple silicon, setup.sh runs it under emulation
+    # 1.4.0 and earlier are amd64 only: on Apple silicon, setup.sh runs it under emulation
     # (or set DOCKER_DEFAULT_PLATFORM=linux/amd64 yourself).
     # To build from source instead, comment the image line and uncomment build:
     #   build:
     #     context: .
     #     dockerfile: Dockerfile
-    image: ghcr.io/mml555/code-push-server:1.4.0
+    image: ghcr.io/mml555/code-push-server:2.0.0
     restart: unless-stopped
     ports:
       - "${HOST_BIND:-127.0.0.1}:${PORT:-8080}:8080"

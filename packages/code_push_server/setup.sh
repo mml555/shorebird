@@ -403,7 +403,7 @@ fi
 
 # --- start ------------------------------------------------------------------
 # An arm64 host (Apple silicon) with a server image published for amd64 only:
-# 1.4.0 is, because the release workflow's arm64 leg needs a hosted runner.
+# 1.4.0 and earlier are, because their release workflow had no arm64 leg.
 # Docker refuses that pull with "no matching manifest for linux/arm64/v8", so
 # ask for the amd64 image and let Docker Desktop emulate it, which works, more
 # slowly. Only on a first pull: an image already here is run as it is. It is
