@@ -25,6 +25,7 @@
 # because the published archive it mirrors is checked unconditionally first.
 #
 #   SHOREBIRD_ROOT=<a shorebird checkout with a populated bin/cache> \
+#     [OVERLAY=<the published overlay; default selfhost/cdn/overlay>] \
 #     selfhost/engine/route_b/verify_supported_state.sh
 #
 # Exit: 0 all checks pass · 1 one or more failed · 2 environment error
@@ -34,6 +35,11 @@ set -uo pipefail
 command -v shasum >/dev/null 2>&1 || shasum() { [[ "${1:-}" == -a ]] && shift 2; sha256sum "$@"; }
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO=$(cd "$HERE/../../.." && pwd)
+# The published overlay. One value for every check: verify_cell_members.sh reads
+# OVERLAY too, so the archive and the members are always read from the same tree.
+# The archive check used to hardcode the in-repo path, so a run pointed at an
+# overlay elsewhere checked the members there and failed on a missing archive.
+export OVERLAY="${OVERLAY:-$REPO/selfhost/cdn/overlay}"
 # Overridable so the record's own format checks can be falsified against a
 # deliberately malformed copy without touching the real one.
 STATE="${STATE:-$HERE/SUPPORTED_STATE.yaml}"
@@ -238,7 +244,7 @@ else
 fi
 
 # 2. THE CELL'S BYTES.
-ZIP="$REPO/selfhost/cdn/overlay/download.shorebird.dev/shorebird/$CELL/route-b-compiler-darwin-arm64.zip"
+ZIP="$OVERLAY/download.shorebird.dev/shorebird/$CELL/route-b-compiler-darwin-arm64.zip"
 if [[ -f "$ZIP" ]]; then
   cmp_v "compiler archive digest" "$ARCHIVE" "$(shasum -a 256 "$ZIP" | cut -d' ' -f1)"
   cmp_v "compiler archive size"   "$ARCHBYTES" "$(wc -c < "$ZIP" | tr -d ' ')"
