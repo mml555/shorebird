@@ -1,0 +1,10 @@
+## patch_e1.log (5923 lines; excerpt with original line numbers)
+5867:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+5872:[route-b] resolved compiler for engine 54117a2fe0510a8cb070faf3f5191542179fb4ce
+5898: This patch changes a function this version of Shorebird cannot yet turn into a replacement body:
+5899: 
+5900:   package:untab/main.dart#Stars|get#stars
+5901:       its class scope cannot be carried: its body spells `glyph`, which is also a static of `Stars`, where no use of that static is reported to qualify (offset 982): in the replacement library a top-level `glyph` would be bound instead. Write `Stars.glyph`
+5902: 
+5903: The whole patch is refused. This is not a problem with your release. Nothing was
+

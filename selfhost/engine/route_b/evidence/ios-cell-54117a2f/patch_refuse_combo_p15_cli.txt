@@ -1,0 +1,12 @@
+## patch_refuse_combo_p15.log (5929 lines; excerpt with original line numbers)
+5872:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+5877:[route-b] resolved compiler for engine 54117a2fe0510a8cb070faf3f5191542179fb4ce
+5903: This patch changes code outside the app's own package (untab), which an iOS patch cannot carry:
+5904: 
+5905:   tally (path package at packages/tally)
+5906:     changed     package:tally/tally.dart#tallyLabel
+5907: 
+5908: An iOS patch replaces functions of package:untab only, so the device would keep running the release's copy of these. Revert them, or ship them in a new release.
+5909: 
+5910: Nothing was uploaded.
+

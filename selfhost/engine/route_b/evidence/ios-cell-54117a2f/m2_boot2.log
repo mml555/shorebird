@@ -1,0 +1,66 @@
+Nov 19 19:30:48.788634 Runner(Flutter)[4349] <Notice>: SANITY CHECK: Running precompiled code.
+Nov 19 19:30:48.788689 Runner(Flutter)[4349] <Notice>: Using App.framework from /private/var/containers/Bundle/Application/7B0C562C-0BEB-4FB3-B879-16BA18960C15/Runner.app/Frameworks/App.framework
+Nov 19 19:30:48.788867 Runner(Flutter)[4349] <Notice>: ASSET PATH /var/containers/Bundle/Application/7B0C562C-0BEB-4FB3-B879-16BA18960C15/Runner.app/Frameworks/App.framework/flutter_assets
+Nov 19 19:30:48.788981 Runner(Flutter)[4349] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+Nov 19 19:30:48.789009 Runner(Flutter)[4349] <Notice>: [shorebird] Preparing next boot.
+Nov 19 19:30:48.789027 Runner(Flutter)[4349] <Notice>: [shorebird] Prepared boot of patch 5.
+Nov 19 19:30:48.789045 Runner(Flutter)[4349] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/5993F230-45D0-4E51-A567-2B87A0438393/Library/Application Support/shorebird/shorebird_updater/patches/5/dlc.vmcode
+Nov 19 19:30:48.789500 Runner(Flutter)[4349] <Notice>: [INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+Nov 19 19:30:48.813544 Runner(Flutter)[4349] <Notice>: [IMPORTANT:flutter/shell/platform/darwin/graphics/FlutterDarwinContextMetalImpeller.mm(45)] Using the Impeller rendering backend (Metal).
+Nov 19 19:30:48.826096 Runner(Flutter)[4349] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+Nov 19 19:30:48.834123 Runner(Flutter)[4349] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=1, built-for=b304c5293f7830e1b6c4c25e35cd9869
+Nov 19 19:30:48.874797 Runner(Flutter)[4349] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b304c5293f7830e1b6c4c25e35cd9869
+Nov 19 19:30:48.875023 Runner(Flutter)[4349] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+Nov 19 19:30:48.876489 Runner(Flutter)[4349] <Notice>: ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+Nov 19 19:30:48.876614 Runner(Flutter)[4349] <Notice>: [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: applied 1/1 targets, entering main
+Nov 19 19:30:48.962464 Runner(Flutter)[4349] <Notice>: [shorebird] Reporting successful launch.
+Nov 19 19:30:48.971841 Runner(Flutter)[4349] <Notice>: [shorebird] Launch success for patch 5: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+Nov 19 19:30:48.974488 Runner(Flutter)[4349] <Notice>: flutter: shape:init=I1
+Nov 19 19:30:48.974966 Runner(Flutter)[4349] <Notice>: flutter: shape:home-build=H1 0
+Nov 19 19:30:48.975003 Runner(Flutter)[4349] <Notice>: flutter: shape:future-builder=FB1 null
+Nov 19 19:30:48.975023 Runner(Flutter)[4349] <Notice>: flutter: shape:label=L1
+Nov 19 19:30:48.983380 Runner(Flutter)[4349] <Notice>: [shorebird] Sending patch check request: app_id: 475e8639-2f3e-9615-47f6-60b71540ef7e, channel: stable, release_version: 1.0.0+71, platform: ios, arch: aarch64, current_patch_number: Some(5)
+Nov 19 19:30:48.988136 Runner(Flutter)[4349] <Notice>: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([2]) }
+Nov 19 19:30:48.988546 Runner(Flutter)[4349] <Notice>: [shorebird] Update thread finished with status: No update
+Nov 19 19:30:49.103853 Runner(Flutter)[4349] <Notice>: flutter: shape:future-builder=FB1 G1
+Nov 19 19:30:49.192045 Runner(Flutter)[4349] <Notice>: flutter: shape:count=1
+Nov 19 19:30:49.202234 Runner(Flutter)[4349] <Notice>: flutter: shape:home-build=H1 1
+Nov 19 19:30:49.202543 Runner(Flutter)[4349] <Notice>: flutter: shape:future-builder=FB1 G1
+Nov 19 19:30:49.418919 Runner(Flutter)[4349] <Notice>: flutter: shape:future-builder=FB1 G1
+Nov 19 19:30:49.494454 Runner(Flutter)[4349] <Notice>: flutter: shape:count=2
+Nov 19 19:30:49.502852 Runner(Flutter)[4349] <Notice>: flutter: shape:home-build=H1 2
+Nov 19 19:30:49.503765 Runner(Flutter)[4349] <Notice>: flutter: shape:future-builder=FB1 G1
+Nov 19 19:30:49.719266 Runner(Flutter)[4349] <Notice>: flutter: shape:future-builder=FB1 G1
+Nov 19 19:30:49.797554 Runner(Flutter)[4349] <Notice>: flutter: shape:count=3
+Nov 19 19:30:49.802992 Runner(Flutter)[4349] <Notice>: flutter: shape:home-build=H1 3
+Nov 19 19:30:49.803364 Runner(Flutter)[4349] <Notice>: flutter: shape:future-builder=FB1 G1
+Nov 19 19:30:50.001363 Runner(Flutter)[4349] <Notice>: flutter: shape:greeting=G1
+Nov 19 19:30:50.003476 Runner(Flutter)[4349] <Notice>: flutter: shape:home-build=H1 3
+Nov 19 19:30:50.004953 Runner(Flutter)[4349] <Notice>: flutter: shape:future-builder=FB1 G1
+Nov 19 19:30:50.055031 Runner(Flutter)[4349] <Notice>: flutter: shape:stream=T0
+Nov 19 19:30:50.108904 Runner(Flutter)[4349] <Notice>: flutter: shape:stream=T1
+Nov 19 19:30:50.162185 Runner(Flutter)[4349] <Notice>: flutter: shape:stream=T2
+Nov 19 19:30:50.163404 Runner(Flutter)[4349] <Notice>: flutter: shape:poly=circle1
+Nov 19 19:30:50.164506 Runner(Flutter)[4349] <Notice>: flutter: shape:poly=square1
+Nov 19 19:30:50.165769 Runner(Flutter)[4349] <Notice>: flutter: shape:mood=M1
+Nov 19 19:30:50.166723 Runner(Flutter)[4349] <Notice>: flutter: shape:const=KT1
+Nov 19 19:30:50.167918 Runner(Flutter)[4349] <Notice>: flutter: shape:level=hi1
+Nov 19 19:30:50.168680 Runner(Flutter)[4349] <Notice>: flutter: shape:result=ok 7
+Nov 19 19:30:50.169375 Runner(Flutter)[4349] <Notice>: flutter: shape:stars=***
+Nov 19 19:30:50.170095 Runner(Flutter)[4349] <Notice>: flutter: shape:static=S1
+Nov 19 19:30:50.171159 Runner(Flutter)[4349] <Notice>: flutter: shape:decorate=[P1:3]
+Nov 19 19:30:50.172288 Runner(Flutter)[4349] <Notice>: flutter: shape:arith=2:false
+Nov 19 19:30:50.173200 Runner(Flutter)[4349] <Notice>: flutter: shape:half=1.5
+Nov 19 19:30:50.173480 Runner(Flutter)[4349] <Notice>: flutter: shape:box=T1
+Nov 19 19:30:50.173747 Runner(Flutter)[4349] <Notice>: flutter: shape:generic=F1
+Nov 19 19:30:50.174015 Runner(Flutter)[4349] <Notice>: flutter: shape:stamp=2026-11-15
+Nov 19 19:30:50.174255 Runner(Flutter)[4349] <Notice>: flutter: shape:tally=K1 3 |||
+Nov 19 19:30:50.174426 Runner(Flutter)[4349] <Notice>: flutter: shape:count=4
+Nov 19 19:30:50.174728 Runner(Flutter)[4349] <Notice>: flutter: shape:bump=104
+Nov 19 19:30:50.174887 Runner(Flutter)[4349] <Notice>: flutter: shape:events=0
+Nov 19 19:30:50.175106 Runner(Flutter)[4349] <Notice>: flutter: shape:done=START-DONE
+Nov 19 19:30:50.186795 Runner(Flutter)[4349] <Notice>: flutter: shape:home-build=H1 104
+Nov 19 19:30:50.188199 Runner(Flutter)[4349] <Notice>: flutter: shape:future-builder=FB1 G1
+Nov 19 19:30:50.192979 Runner(Flutter)[4349] <Notice>: flutter: shape:route=R1 /detail
+Nov 19 19:30:50.208282 Runner(Flutter)[4349] <Notice>: flutter: shape:detail=D1
+Nov 19 19:30:50.408834 Runner(Flutter)[4349] <Notice>: flutter: shape:future-builder=FB1 G1
