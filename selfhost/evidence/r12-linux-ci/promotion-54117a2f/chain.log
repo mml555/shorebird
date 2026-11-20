@@ -1,0 +1,103 @@
+== precondition 2026-11-19T23:26:10Z
+== 1-2 mirror serves the candidate 2026-11-19T23:26:10Z
+r12-flutter-git: serving refs/heads/selfhost/3.47-cell-54117a2f -> f4024608592183cbfc27ff404e9fb23e84096f95
+r12-flutter-git: serving refs/heads/selfhost/3.47-cell-54117a2f -> f4024608592183cbfc27ff404e9fb23e84096f95
+== 3 sealed cold bootstrap discovery 2026-11-19T23:26:17Z
+ Container r12-cdn-sealed Created 
+ Container r12cold-artifact-proxy-1 Starting 
+ Container r12cold-artifact-proxy-1 Started 
+ Container r12-cdn-sealed Starting 
+ Container r12-cdn-sealed Started 
+local     r12cold_cold-cache
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Content-Length: 239
+Content-Type: application/json
+Etag: "dmzhah64iiv4-6n"
+Last-Modified: Thu, 19 Nov 2026 20:43:34 GMT
+Server: Caddy
+Vary: Accept-Encoding
+X-Engine-Hash: 54117a2fe0510a8cb070faf3f5191542179fb4ce
+X-Overlay: hit
+Date: Thu, 19 Nov 2026 23:26:21 GMT
+
+
+== BOOTSTRAP COMPLETED under seal after 0 additions ==
+EXIT=0
+== 4 bank the bootstrap manifest 2026-11-19T23:28:59Z
+grep: /srv/ci-cache/shorebird-engine/promo-54117a2f/evidence/bootstrap_closure.tsv: No such file or directory
+/srv/ci-cache/shorebird-engine/promo-54117a2f/evidence/bootstrap_closure.tsv:54117a2fe0510a8cb070faf3f5191542179fb4ce	dart-sdk-linux-x64.zip	214945654	91dfc837f10ccd2dc34d869ad0ad228e5076007e270dd0eeb851090d16773aed	https://github.com/mml555/shorebird/releases/download/cell-54117a2f/host-extras-54117a2fe0510a8cb070faf3f5191542179fb4ce.tar#flutter_infra_release/flutter/54117a2fe0510a8cb070faf3f5191542179fb4ce/dart-sdk-linux-x64.zip
+/srv/ci-cache/shorebird-engine/promo-54117a2f/evidence/bootstrap_closure.tsv:54117a2fe0510a8cb070faf3f5191542179fb4ce	engine_stamp.json	239	eb795a4086eebd4e2d6483d2d02100c82c2973342899688e2a960217cf45b2d3	https://github.com/mml555/shorebird/releases/download/cell-54117a2f/cell-54117a2fe0510a8cb070faf3f5191542179fb4ce.tar#flutter_infra_release/flutter/54117a2fe0510a8cb070faf3f5191542179fb4ce/engine_stamp.json
+/srv/ci-cache/shorebird-engine/promo-54117a2f/evidence/proxy_mapping.tsv:54117a2fe0510a8cb070faf3f5191542179fb4ce	60b64aa397cc4464945f8c01eacc31e1fbe2f75a1b7933d7c5c5af4fc64ac950	89c39edfdfae2949f6806e4a315c0c08522238b7
+== 5 bootstrap_closure_guard 2026-11-19T23:29:00Z
+  ok      proxy mapping pinned: manifest 60b64aa397cc4464… -> flutter_engine_revision 89c39edfdfae2949…
+
+  CLOSURE OK  f4024608592183cbfc27ff404e9fb23e84096f95 -> 54117a2fe0510a8cb070faf3f5191542179fb4ce  (1 artifacts, size + sha256 verified)
+== 6 fresh sealed cold bootstrap 2026-11-19T23:29:00Z
+ Container r12-cdn-sealed Created 
+ Container r12cold-artifact-proxy-1 Starting 
+ Container r12cold-artifact-proxy-1 Started 
+ Container r12-cdn-sealed Starting 
+ Container r12-cdn-sealed Started 
+local     r12cold_cold-cache
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Content-Length: 239
+Content-Type: application/json
+Etag: "dmzhah64iiv4-6n"
+Last-Modified: Thu, 19 Nov 2026 20:43:34 GMT
+Server: Caddy
+Vary: Accept-Encoding
+X-Engine-Hash: 54117a2fe0510a8cb070faf3f5191542179fb4ce
+X-Overlay: hit
+Date: Thu, 19 Nov 2026 23:29:16 GMT
+
+== arm BOOT1 exit 0 ==
+EXIT=0
+== 7 sealed release/patch discovery 2026-11-19T23:32:04Z
+ Container r12-cdn-sealed Created 
+ Container r12cold-artifact-proxy-1 Starting 
+ Container r12cold-artifact-proxy-1 Started 
+ Container r12-cdn-sealed Starting 
+ Container r12-cdn-sealed Started 
+local     r12cold_cold-cache
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Content-Length: 239
+Content-Type: application/json
+Etag: "dmzhah64iiv4-6n"
+Last-Modified: Thu, 19 Nov 2026 20:43:34 GMT
+Server: Caddy
+Vary: Accept-Encoding
+X-Engine-Hash: 54117a2fe0510a8cb070faf3f5191542179fb4ce
+X-Overlay: hit
+Date: Thu, 19 Nov 2026 23:32:27 GMT
+
+     | 
+     | == verdict ==
+     |    FAIL — 1 check(s) failed. Logs in /r12out/disc
+EXIT=1
+== 8 R12 arm A 2026-11-19T23:46:45Z
+ Container r12-cdn-sealed Created 
+ Container r12cold-artifact-proxy-1 Starting 
+ Container r12cold-artifact-proxy-1 Started 
+ Container r12-cdn-sealed Starting 
+ Container r12-cdn-sealed Started 
+local     r12cold_cold-cache
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Content-Length: 239
+Content-Type: application/json
+Etag: "dmzhah64iiv4-6n"
+Last-Modified: Thu, 19 Nov 2026 20:43:34 GMT
+Server: Caddy
+Vary: Accept-Encoding
+X-Engine-Hash: 54117a2fe0510a8cb070faf3f5191542179fb4ce
+X-Overlay: hit
+Date: Thu, 19 Nov 2026 23:47:01 GMT
+
+   evidence                 : /srv/ci-cache/shorebird-engine/promo-54117a2f/evidence/arms/arm-A
+
+== arm A exit 0 ==
+EXIT=0
+== CHAIN_DONE 2026-11-19T23:57:06Z

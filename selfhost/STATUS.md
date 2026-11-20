@@ -8,20 +8,21 @@ when an item here changes; history of how things got here lives in the PRs and i
 
 Feature-by-feature comparison with upstream Shorebird: [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md).
 
-**Supported stack since 2026-11-17** (newer than the sections below, which still describe 2026-11-11): CLI
-`e7384444` (the merge of #234), shorebird-flutter `cc4fc222`, cell `a6a48cf6` over engine `d0714887` (Dart `b4671ab7`), with the
-v21 coverage analyzer (PRs #217 and #219: inlined operator references, inferred signature types, the enclosing scope
-of class and extension members). It replaces cell `2fc41d3f`; only the analyzer in the
-compiler archive changed. The values are in [`compatibility.yaml`](compatibility.yaml) and
-[`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml). The Linux promotion chain is in
-[`PROMOTION_a6a48cf6.md`](evidence/r12-linux-ci/PROMOTION_a6a48cf6.md): it passed on the fourth run (the first three
-stopped for harness reasons: a watchdog that watched the wrong log, a ledger already banked, and a hung `git clone`,
-fixed by #228). R12 arm B was re-run and passed, because the CLI's prompt code changed since the last arm B. The iPhone run through the cell's address
-([`ios-cell-a6a48cf6`](engine/route_b/evidence/ios-cell-a6a48cf6/RESULT.md), 2026-11-19) was partial: every published
-patch applied, but nine of eleven were published with the snapshot check skipped for a checker false positive (#247),
-and the combo patch silently dropped an edit to a path dependency. So this cell is not device-qualified; the last device-qualified cell is `2fc41d3f` (see
-[`PROMOTION_2fc41d3f.md`](evidence/r12-linux-ci/PROMOTION_2fc41d3f.md)). The tag `selfhost-flutter-cell-a6a48cf6`
-and the release `cell-a6a48cf6` were created on 2026-11-17.
+**Supported stack since 2026-11-19** (newer than the sections below, which still describe 2026-11-11): CLI
+`37a0434b` (the merge of #257), shorebird-flutter `f4024608`, cell `54117a2f` over engine `d0714887` (Dart `b4671ab7`), with the
+v23 coverage analyzer (PRs #247 and #256: a for-in names its receiver class, so a List loop is not refused over
+`ObserverList`). It replaces cell `a6a48cf6`; only the analyzer in the compiler archive changed. The values are in
+[`compatibility.yaml`](compatibility.yaml) and [`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml). The Linux
+promotion chain is in [`PROMOTION_54117a2f.md`](evidence/r12-linux-ci/PROMOTION_54117a2f.md): it passed on its first complete
+run (an earlier attempt was aborted), and R12 arm B passed too. The chain ran CLI `f66e3c21`, not the pin: `37a0434b` adds #257,
+which fixes a producer bug the device run found. The iPhone run through the cell's address
+([`ios-cell-54117a2f`](engine/route_b/evidence/ios-cell-54117a2f/RESULT.md), 2026-11-19) applied every published patch with the SDK
+check on and passed three rollbacks. One check failed on the first pass (e1b, an extension getter published with a truncated target name);
+#257 fixes it, and the re-run on CLI `37a0434b` passed (patch 13, 1 of 1 applied, `stars=*3*` on both boot launches; the evidence is in
+PR #259). So the device verdict is: every expected pass and refusal held. Limits: the patches were unsigned (the CLI's P7 patch signing has
+not landed) and #254 was not exercised. The last device-qualified cell is `2fc41d3f` (see
+[`PROMOTION_2fc41d3f.md`](evidence/r12-linux-ci/PROMOTION_2fc41d3f.md)). The tag `selfhost-flutter-cell-54117a2f` and the release
+`cell-54117a2f` were created on 2026-11-19. Cell `a6a48cf6` (2026-11-17, partial iPhone run) is superseded.
 
 ## The four repositories
 

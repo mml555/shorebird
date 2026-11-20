@@ -510,6 +510,19 @@ and nine of eleven patches were published with the snapshot check skipped for a
 for-in false positive (#247). The promotion chain is in
 [`PROMOTION_a6a48cf6.md`](evidence/r12-linux-ci/PROMOTION_a6a48cf6.md).
 
+The cell that replaced `a6a48cf6`, `54117a2f` (2026-11-19), has the analysis version 23
+analyzer (PRs #247 and #256): a for-in names its receiver class, read from the loop the
+VM lowers it to, so a List loop is no longer refused over `ObserverList.get:iterator` and a
+patch can be published with the SDK kept check on. What a patch may add is unchanged from
+`a6a48cf6`. The iPhone run through `54117a2f` (2026-11-19,
+[`ios-cell-54117a2f`](engine/route_b/evidence/ios-cell-54117a2f/RESULT.md)) kept the check on
+with no override, applied every published patch, refused what it should and passed three
+rollbacks. One check failed on the first pass, e1b (an extension getter published with a truncated target name);
+#257 fixes it, and the re-run on CLI `37a0434b` passed (patch 13, 1 of 1 applied, `stars=*3*` on both boot
+launches; evidence in PR #259). Every expected pass and refusal held. Limits: the patches were unsigned and #254 was
+not exercised. The promotion chain is in
+[`PROMOTION_54117a2f.md`](evidence/r12-linux-ci/PROMOTION_54117a2f.md).
+
 ### A class or extension member's own statics (class scope)
 
 A class or extension member is carried as a top-level function, so an unqualified
