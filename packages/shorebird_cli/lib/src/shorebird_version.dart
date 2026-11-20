@@ -95,8 +95,16 @@ To get the latest Shorebird, run:
   /// Whether the current version of shorebird is tracking the stable branch. If
   /// we are not tracking stable, we should not check for newer versions of
   /// shorebird or try to auto-update.
+  ///
+  /// A detached HEAD (such as a checkout of a pinned commit) is on no branch,
+  /// so it is not tracking stable either.
   Future<bool> isTrackingStable() async {
-    return (await git.currentBranch(directory: Directory(_workingDirectory))) ==
-        'stable';
+    final String branch;
+    try {
+      branch = await git.currentBranch(directory: Directory(_workingDirectory));
+    } on ProcessException {
+      return false;
+    }
+    return branch == 'stable';
   }
 }

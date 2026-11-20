@@ -300,6 +300,28 @@ To get the latest Shorebird, run:
         });
       });
 
+      group('when HEAD is detached', () {
+        setUp(() {
+          when(
+            () => git.currentBranch(directory: any(named: 'directory')),
+          ).thenThrow(
+            const ProcessException(
+              'git',
+              ['symbolic-ref', 'HEAD'],
+              'fatal: ref HEAD is not a symbolic ref',
+              128,
+            ),
+          );
+        });
+
+        test('returns false', () async {
+          expect(
+            await runWithOverrides(shorebirdVersionManager.isTrackingStable),
+            isFalse,
+          );
+        });
+      });
+
       group('when on a branch other than stable', () {
         setUp(() {
           when(
