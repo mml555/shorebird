@@ -977,7 +977,9 @@ Object? $_superIntrinsicName(
           ),
         );
       }
-      logger.detail('[route-b] compiled ${_selectorOf(key)} -> ${payload.path}');
+      logger.detail(
+        '[route-b] compiled ${_selectorOf(key)} -> ${payload.path}',
+      );
     }
 
     return writeRouteBContainer(
@@ -1093,12 +1095,12 @@ Object? $_superIntrinsicName(
       if (span == null) {
         throw RouteBUnsupportedTarget(
           key,
-          'it needs the new function `${helper.split('#').last}`, and the '
+          'it needs the new function `${_helperName(helper)}`, and the '
           'analysis reports no source span for it',
         );
       }
       final text = _slice(key, span);
-      final name = helper.split('#').last;
+      final name = _helperName(helper);
       // Its own annotations are copied with it, and exactly one declaration in
       // the library may be the entry point.
       if (text.contains('dyn-module:entry-point')) {
@@ -1108,7 +1110,7 @@ Object? $_superIntrinsicName(
           "module entry point; only the patch's replacement may be one",
         );
       }
-      if (name.contains('.')) {
+      if (_selectorOf(helper).contains('.')) {
         final lowered = _lowerInstanceHelper(
           key,
           helper,
@@ -1180,7 +1182,7 @@ Object? $_superIntrinsicName(
     RouteBCompiler compiler,
     File? patchedVerificationKernel,
   ) {
-    final name = helper.split('#').last;
+    final name = _selectorOf(helper);
     Never refuse(String why) => throw RouteBUnsupportedTarget(
       key,
       'it needs the new method `$name`, which $why',
@@ -2057,12 +2059,7 @@ Object? $_superIntrinsicName(
     // The declaration's own name may be private -- patching `_helper` is
     // ordinary -- and it is a declaration here, not a reference. A getter's or
     // setter's selector is `get:_name`, and the text says `_name`.
-    final own = key
-        .split('#')
-        .last
-        .split('.')
-        .last
-        .replaceFirst(RegExp('^[gs]et:'), '');
+    final own = _memberNameOf(key);
     final grantedStatics = <String>{};
     for (final entry in _privateIdentifierCounts(text).entries) {
       final name = entry.key;
@@ -2211,12 +2208,7 @@ Object? $_superIntrinsicName(
     Set<String> exempt,
     RouteBCapabilities? capabilities,
   ) {
-    final own = key
-        .split('#')
-        .last
-        .split('.')
-        .last
-        .replaceFirst(RegExp('^[gs]et:'), '');
+    final own = _memberNameOf(key);
     for (final entry in _privateIdentifierCounts(text).entries) {
       final name = entry.key;
       if ((name == own || exempt.contains(name)) &&

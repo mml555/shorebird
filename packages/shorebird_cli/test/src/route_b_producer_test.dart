@@ -4261,12 +4261,34 @@ callable:
           });
 
           /// Lowers the fixture member [name] as the analyzer described it.
-          String fromFixture(String name, {bool withScope = true}) {
+          ///
+          /// [renameTo] gives the member a same-length name of its own inside
+          /// its span, as if the developer had written that name.
+          String fromFixture(
+            String name, {
+            bool withScope = true,
+            String? renameTo,
+          }) {
             final entry = fixture[name] as Map<String, dynamic>;
             final isStatic = entry['static'] as bool;
             final className = name.split('.').first.split('|').first;
-            final targetKey = 'package:app/main.dart#$name';
-            source.writeAsStringSync(fixtureSource);
+            final memberName = name.split('.').last.split('|').last;
+            var text = fixtureSource;
+            var keyName = name;
+            if (renameTo != null) {
+              expect(renameTo.length, memberName.length);
+              final start = entry['start'] as int;
+              final end = entry['end'] as int;
+              text =
+                  fixtureSource.substring(0, start) +
+                  fixtureSource
+                      .substring(start, end)
+                      .replaceAll(memberName, renameTo) +
+                  fixtureSource.substring(end);
+              keyName = name.replaceFirst(memberName, renameTo);
+            }
+            final targetKey = 'package:app/main.dart#$keyName';
+            source.writeAsStringSync(text);
             final doc = RouteBCoverage.fromJson(
               jsonEncode({
                 'analysisVersion': entry['lowering'] != null
@@ -4478,6 +4500,15 @@ callable:
             test('a getter becomes a function of the receiver', () {
               expect(fromFixture('X|get#zz'), contains('int zz(int self) =>'));
               expect(fromFixture('X|get#zz'), contains('=> X.k;'));
+            });
+
+            test('a private method keeps its own private name', () {
+              // The method's own `_ins` is a declaration, not a reference to a
+              // release-private name, so the scan must not refuse it. The
+              // scan used to compare against `X|_ins`.
+              final out = fromFixture('X|inst', renameTo: '_ins');
+              expect(out, contains('int _ins(int self) =>'));
+              expect(packedSelector, 'X|_ins');
             });
 
             test('the packed target is the VM name of the member', () {
