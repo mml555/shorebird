@@ -91,6 +91,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # Both legs check out the same ref, so either leg's value is the commit.
+    outputs:
+      commit: ${{ steps.src.outputs.commit }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -100,7 +103,10 @@ jobs:
       # The commit actually built. github.sha is the commit the workflow ran
       # from, which on a workflow_dispatch with another ref is not this one.
       - name: Record the source commit
-        run: echo "SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+        id: src
+        run: |
+          echo "SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       # linux/amd64 -> linux-amd64, for use in artifact names (which can't
       # contain a slash).
@@ -181,6 +187,17 @@ jobs:
 
   merge:
     needs: build
+    # Publishes of one commit run one at a time, whatever ref started them.
+    # The workflow-level group is per ref, so two tags on one commit raced
+    # (2026-11-20, PR #262): both found no :source-<commit>, both created it,
+    # and the later write won. The registry has no compare-and-set for tags,
+    # so publish_release.sh's "already released" check needs this. Keyed by
+    # commit rather than global, because GitHub keeps one pending job per
+    # group and a newer one cancels it: a global group would let a
+    # traceability tag cancel an unrelated pending release.
+    concurrency:
+      group: release_code_push_server-publish-${{ needs.build.outputs.commit }}
+      cancel-in-progress: false
     runs-on: [self-hosted, linux, x64, shorebird]
     permissions:
       contents: read

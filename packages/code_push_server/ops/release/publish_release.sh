@@ -35,11 +35,13 @@ done
 existing_retain="$(resolve_digest "$RETAIN")"
 existing_semantic=""; [[ -n "$SEMANTIC" ]] && existing_semantic="$(resolve_digest "$SEMANTIC")"
 
+REUSED=0
 if [[ -n "$existing_retain" ]]; then
   # This commit has already been released. Never rebuild over its retention
   # reference: those are the bytes some backup's recorded digest points at.
   echo "==> $COMMIT is already released as $existing_retain"
   DIGEST="$existing_retain"
+  REUSED=1
   if [[ -n "$SEMANTIC" && -n "$existing_semantic" && "$existing_semantic" != "$DIGEST" ]]; then
     die "$SEMANTIC already resolves to $existing_semantic, which is not this release ($DIGEST).
    A semantic version is write-once. It is not moved to point at a different
@@ -97,14 +99,29 @@ if [[ -z "$served_children" ]]; then
   served_children="$DIGEST $(docker buildx imagetools inspect "${IMAGE}@${DIGEST}" \
     | awk '/^Platform:/{print $2; exit}')"
 fi
+# On the already-released path this run's own build is not what is served:
+# the commit's earlier publish is. Two builds of one commit do not produce the
+# same digests (code_push_server-v2.0.0 and selfhost-v2.0.0 on c3764a0c did
+# not), so a child that is not served by digest must at least be served by
+# architecture, and the record then names the children actually served.
+served_platform() { printf '%s\n' "$served_children" | awk -v x="$1" '$1==x{print $2}'; }
 for d in $CHILD_DIGESTS; do
   if printf '%s\n' "$served_children" | grep -q "^$d "; then
-    echo "    ok   child $d ($(printf '%s\n' "$served_children" | awk -v x="$d" '$1==x{print $2}'))"
+    echo "    ok   child $d ($(served_platform "$d"))"
+  elif (( REUSED )); then
+    plat="$(docker buildx imagetools inspect --format '{{json .Image}}' "${IMAGE}@${d}" 2>/dev/null \
+      | python3 -c 'import json,sys; i=json.load(sys.stdin); print("{}/{}".format(i["os"], i["architecture"]))' 2>/dev/null || true)"
+    if [[ -n "$plat" ]] && printf '%s\n' "$served_children" | awk '{print $2}' | grep -qx "$plat"; then
+      echo "    ok   child $d ($plat) is this run's build; the release serves its own $plat child"
+    else
+      echo "    FAIL child $d (${plat:-unknown platform}) is not an architecture the published manifest serves"; fail=1
+    fi
   else
     echo "    FAIL child $d is not in the published manifest"; fail=1
   fi
 done
 (( fail == 0 )) || die "the registry does not serve what was just published"
+(( REUSED )) && CHILD_DIGESTS="$(printf '%s\n' "$served_children" | awk '{printf "%s ", $1}')"
 
 python3 - "$OUT" <<PY
 import json, sys

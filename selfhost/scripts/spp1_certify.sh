@@ -141,6 +141,19 @@ printf '%s' "$out" | grep -q "already released" && ok "re-running the SAME relea
   || no "a rerun was not recognised as idempotent"
 chk "  and still :1.3.0" "$(dig "${REG}:1.3.0")" "$DA"
 
+step "4b. a second build of a released commit aliases the first, and passes"
+# code_push_server-v2.0.0 and selfhost-v2.0.0 on one commit each built their
+# own image, and two builds of one commit do not share digests. B's children
+# stand in for that second build of COMMIT_A.
+out=$(publish traceability "" "$COMMIT_A" selfhost-v1.3.0-race "$B_AMD $B_ARM" "$WORK/relR.json")
+printf '%s\n' "$out" | sed 's/^/  /'
+printf '%s' "$out" | grep -q "^==> released $DA" && ok "  the second build publishes" \
+  || no "  the second build was refused"
+chk "  its git tag names release A" "$(dig "${REG}:selfhost-v1.3.0-race")" "$DA"
+chk "  and :source-COMMIT_A is unmoved" "$(dig "${REG}:source-${COMMIT_A}")" "$DA"
+bash "$PKG/ops/release/verify_release.sh" "$WORK/relR.json" >/dev/null 2>&1 \
+  && ok "  and its record verifies against what is served" || no "  its record does not verify"
+
 step "5. a manual build cannot mutate a semantic tag or latest"
 publish dispatch "" "$COMMIT_B" "" "$B_AMD $B_ARM" "$WORK/relD.json" | sed 's/^/  /'
 chk "  :1.3.0 unmoved by a dispatch build" "$(dig "${REG}:1.3.0")" "$DA"
