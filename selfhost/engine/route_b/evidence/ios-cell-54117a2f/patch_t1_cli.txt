@@ -1,0 +1,11 @@
+## patch_t1.log (5924 lines; excerpt with original line numbers)
+5867:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+5872:[route-b] resolved compiler for engine 54117a2fe0510a8cb070faf3f5191542179fb4ce
+5898:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+5899: This patch changes a function this version of Shorebird cannot yet turn into a replacement body:
+5900: 
+5901:   package:untab/main.dart#Box.kind
+5902:       its body uses the class type parameter `T`, which is not in scope in the top-level function a replacement is, and a top-level type of that name would be bound instead
+5903: 
+5904: The whole patch is refused. This is not a problem with your release. Nothing was
+

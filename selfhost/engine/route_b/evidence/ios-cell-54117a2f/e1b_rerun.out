@@ -1,0 +1,165 @@
+patch e1b_rerun exit=0
+4853:                export SDK_STAT_CACHE_ENABLE\=YES
+4854:                export SDK_STAT_CACHE_PATH\=/Users/mendel/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos27.2-24B8118-9aa026f88bf9ed31cff8761912ac5bd16890c9e4970e00494a266ff652f095d9.sdkstatcache
+4855:                export SDK_VERSION\=27.2
+4856:                export SDK_VERSION_ACTUAL\=270200
+4857:                export SDK_VERSION_MAJOR\=270000
+4858:                export SDK_VERSION_MINOR\=270200
+4896:                export SWIFTC_PASS_SDKROOT\=YES
+4910:                export SYSROOT\=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk
+4952:                export TEST_FRAMEWORK_SEARCH_PATHS\=\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.s
+5010:                export __ORIGINAL_SDK_DEFINED_LLVM_TARGET_TRIPLE_SYS\=ios
+5028:                /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.2.47.0.nBh5Hz/Metal.xctool
+5067:            PruneExplicitPrecompiledModules /Users/mendel/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+5249:           	<key>DTSDKBuild</key>
+5251:           	<key>DTSDKName</key>
+5379:           	<key>DTSDKBuild</key>
+5381:           	<key>DTSDKName</key>
+5509:           	<key>DTSDKBuild</key>
+5511:           	<key>DTSDKName</key>
+5639:           	<key>DTSDKBuild</key>
+5641:           	<key>DTSDKName</key>
+5769:           	<key>DTSDKBuild</key>
+5771:           	<key>DTSDKName</key>
+5894:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+5936:✅ Published Patch 13!
+--- e1b_rerun_download: current_patch_number: None;no active patch;
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[INFO:flutter/shell/common/shorebird/shorebird.cc(633)] Shorebird updater: no active patch.
+[shorebird] Sending patch check request: app_id: 475e8639-2f3e-9615-47f6-60b71540ef7e, channel: stable, release_version: 1.0.0+71, platform: ios, arch: aarch64, current_patch_number: None
+[shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 13, hash: "6e0cdee28d5fd51fa35c1c36f0738a9e025f4b6b079f1cf77bbe4047a4c74773", download_url: "http://10.0.0.242:182
+[shorebird] Downloading patch 13 for app 475e8639-2f3e-9615-47f6-60b71540ef7e (version 1.0.0+71)
+[shorebird] Downloading patch from: http://10.0.0.242:18290/download/6298485f6a3ee71eab41f1f60eba0f54?exp=1795138866&sig=7d3f70aae4cace115e43f353401afe21a12c97a5460081f61ab742e8dff7d56f
+[shorebird] Downloaded patch to: "/private/var/mobile/Containers/Data/Application/5993F230-45D0-4E51-A567-2B87A0438393/Library/Application Support/shorebird/shorebird_updater/downloads/13" (1002 bytes)
+[shorebird] Inflating patch from "/private/var/mobile/Containers/Data/Application/5993F230-45D0-4E51-A567-2B87A0438393/Library/Application Support/shorebird/shorebird_updater/downloads/13" (1002 bytes)
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- e1b_rerun_boot: applied 1/1 targets;current_patch_number: Some(13);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Prepared boot of patch 13.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/5993F230-45D0-4E51-A567-2B87A0438393/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=1, built-for=b304c5293f7830e1b6c4c25e35cd9869
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b304c5293f7830e1b6c4c25e35cd9869
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=*3*
+shape:static=S1
+shape:tally=K1 3 |||
+--- e1b_rerun_boot2: applied 1/1 targets;current_patch_number: Some(13);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Prepared boot of patch 13.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/5993F230-45D0-4E51-A567-2B87A0438393/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=1, built-for=b304c5293f7830e1b6c4c25e35cd9869
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b304c5293f7830e1b6c4c25e35cd9869
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=*3*
+shape:static=S1
+shape:tally=K1 3 |||
+[route-b] compiled Stars|get#stars -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/
+--- patches on server:
+Done Fetching releases
+Starting Fetching patches...
+Done Fetching patches
+1  #1  [no track]
+2  #2  [no track]  [rolled back]
+3  #3  [no track]
+4  #4  [no track]
+5  #5  [no track]  [rolled back]
+6  #6  [no track]
+7  #7  [no track]
+8  #8  [no track]
+9  #9  [no track]
+10  #10  [no track]
+11  #11  [no track]
+12  #12  [no track]  [rolled back]
+13  #13  track: stable
+E1B_RERUN_DONE
+e1b_rerun exit=0

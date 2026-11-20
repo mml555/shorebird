@@ -1,0 +1,126 @@
+newest: p16 12
+rollback3 (patch 12) exit=0
+Rolled back: yes
+Artifacts:
+  ios      aarch64      3.19 KB
+--- rb3_learn: applied 2/2 targets;current_patch_number: Some(12);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[shorebird] Prepared boot of patch 12.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(631)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/5993F230-45D0-4E51-A567-2B87A0438393/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(705)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=2, built-for=b304c5293f7830e1b6c4c25e35cd9869
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b304c5293f7830e1b6c4c25e35cd9869
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events-list=e1
+shape:events-list=e1,e2
+shape:events-list=e1,e2,e3
+shape:events=3
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- rb3_boot: current_patch_number: None;no active patch;
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[INFO:flutter/shell/common/shorebird/shorebird.cc(633)] Shorebird updater: no active patch.
+[shorebird] Sending patch check request: app_id: 475e8639-2f3e-9615-47f6-60b71540ef7e, channel: stable, release_version: 1.0.0+71, platform: ios, arch: aarch64, current_patch_number: None
+[shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 11, hash: "388919243f826a976be083d959632d51be378dce6c63b1307bfefd40be5a6a67", download_url: "http://10.0.0.242:182
+[shorebird] Patch 11 is known bad, skipping.
+[shorebird] Update thread finished with status: Update available but previously failed to install. Not installing.
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- rb3_boot2: current_patch_number: None;no active patch;
+[INFO:flutter/shell/common/shorebird/shorebird.cc(615)] Checking for active patch
+[INFO:flutter/shell/common/shorebird/shorebird.cc(633)] Shorebird updater: no active patch.
+[shorebird] Sending patch check request: app_id: 475e8639-2f3e-9615-47f6-60b71540ef7e, channel: stable, release_version: 1.0.0+71, platform: ios, arch: aarch64, current_patch_number: None
+[shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 11, hash: "388919243f826a976be083d959632d51be378dce6c63b1307bfefd40be5a6a67", download_url: "http://10.0.0.242:182
+[shorebird] Patch 11 is known bad, skipping.
+[shorebird] Update thread finished with status: Update available but previously failed to install. Not installing.
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+STEPS4_DONE
+steps4 exit=0

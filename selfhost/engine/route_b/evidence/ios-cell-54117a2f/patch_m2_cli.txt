@@ -1,0 +1,8 @@
+## patch_m2.log (5947 lines; excerpt with original line numbers)
+5867:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+5872:[route-b] resolved compiler for engine 54117a2fe0510a8cb070faf3f5191542179fb4ce
+5898:[route-b] compiled _HomeState._start -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_0.bytecode
+5899:[route-b] packed 4962 bytes for release b304c5293f7830e1b6c4c25e35cd9869 at /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/patch.sbrbptch
+5919:🕹️  Platform: iOS [arm64 (2.79 KB)]
+5936:✅ Published Patch 5!
+

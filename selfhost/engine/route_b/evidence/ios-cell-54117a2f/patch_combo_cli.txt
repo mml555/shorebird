@@ -1,0 +1,22 @@
+## patch_combo.log (5964 lines; excerpt with original line numbers)
+5867:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+5872:[route-b] resolved compiler for engine 54117a2fe0510a8cb070faf3f5191542179fb4ce
+5898:[route-b] compiled Circle.describe -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_0.bytecode
+5899:[route-b] compiled DetailPage.build -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_1.bytecode
+5900:[route-b] compiled Label.build -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_2.bytecode
+5901:[route-b] compiled Util.tag -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_3.bytecode
+5902:[route-b] compiled _HomeState._increment -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_4.bytecode
+5903:[route-b] compiled _HomeState._start -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_5.bytecode
+5904:[route-b] compiled _HomeState.build -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_6.bytecode
+5905:[route-b] compiled _HomeState.get:mood -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_7.bytecode
+5906:[route-b] compiled _HomeState.initState -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_8.bytecode
+5907:[route-b] compiled describeResult -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_9.bytecode
+5908:[route-b] compiled formatStamp -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_10.bytecode
+5909:[route-b] compiled levelName -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_11.bytecode
+5910:[route-b] compiled loadGreeting -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_12.bytecode
+5911:[route-b] compiled routeFor -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_13.bytecode
+5912:[route-b] compiled ticker -> /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/replacement_14.bytecode
+5913:[route-b] packed 27728 bytes for release b304c5293f7830e1b6c4c25e35cd9869 at /Users/mendel/Developer/shorebird-wt/devrun/run-54117a2f/work/untab/build/route_b/patch.sbrbptch
+5933:🕹️  Platform: iOS [arm64 (8.83 KB)]
+5953:✅ Published Patch 1!
+
