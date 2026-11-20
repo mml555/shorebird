@@ -181,6 +181,23 @@ jobs:
 
   merge:
     needs: build
+    # Publishes run one at a time across every ref. The workflow-level group
+    # above is per ref, so two tags on one commit (code_push_server-v2.0.0 and
+    # selfhost-v2.0.0, both runs started 2026-11-20T14:42:37Z) both found no
+    # :source-<commit>, both created it from their own build, and the later
+    # write won: the traceability run then failed its read-back, leaving
+    # :selfhost-v2.0.0 on a build that no :source- reference names. The
+    # registry has no compare-and-set for tags, so publish_release.sh's
+    # "already released" check holds only if no other publish runs between
+    # its read and its write. Serialized, the second run finds the first
+    # one's :source-<commit> and aliases that digest instead of its own.
+    #
+    # GitHub keeps one pending run per group: a third publish queued behind
+    # two cancels the middle one. Re-running that run's failed jobs is safe,
+    # since it then reuses the commit's existing :source- reference.
+    concurrency:
+      group: release_code_push_server-publish
+      cancel-in-progress: false
     runs-on: [self-hosted, linux, x64, shorebird]
     permissions:
       contents: read
