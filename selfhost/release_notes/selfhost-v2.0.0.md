@@ -25,38 +25,46 @@ picks as the newest.
 
 ```
 server image        ghcr.io/mml555/code-push-server:2.0.0 (both compose files)
-supported cell      a6a48cf673a291f607323e89b41839c4b8b74e5d  (30 members, macos-ios-android)
+supported cell      54117a2fe0510a8cb070faf3f5191542179fb4ce  (30 members, macos-ios-android)
 engine              d0714887dd95d2990e0185fe1893523f3d600cc5  (Dart b4671ab7)
-cli_revision        e7384444fad53cdd35317fe3dc0abc4d3c7b1c36  (1.6.140+selfhost.1)
-flutter_selector    cc4fc222c210836f89bde6e91f7580e8241432da
-cell distribution   release cell-a6a48cf6, bundle sha256 cdeb3922..., host extras fb9f6fc5...
+cli_revision        37a0434bcf986bf2e36549591671f9fa181b5a52  (1.6.144+selfhost.1)
+flutter_selector    f4024608592183cbfc27ff404e9fb23e84096f95
+cell distribution   release cell-54117a2f, bundle sha256 178b90d2..., host extras 7b81ca82...
 ```
 
-The tree at this tag is the CLI 1.6.144+selfhost.1 and the server serves it,
-but the bootstrap installs the CLI at `cli_revision` above (1.6.140+selfhost.1):
-the pair is only re-qualified by the promotion chain.
+The bootstrap installs the CLI at `cli_revision` above. It is the same version
+(1.6.144+selfhost.1) as the tree at this tag, but an earlier commit.
 
 ## Qualification: read this before pinning
 
-- Android: proven on the Linux chain (R12 arms A and B on cell a6a48cf6), not on
-  a device.
-- iOS: the iPhone 7 run on this cell (2026-11-19) was PARTIAL. This cell is NOT
-  device-qualified. The last device-qualified cell is 2fc41d3f. Details:
-  `selfhost/engine/route_b/evidence/ios-cell-a6a48cf6/RESULT.md`.
-- Within that run the combo patch silently dropped the `tally` path-dependency
-  edit, nine of eleven patches were published with the snapshot check skipped
-  (checker false positive, #247), and the patches were unsigned.
-- No `selfhost-v*` tag offers the device-qualified cell 2fc41d3f; this tag is the
-  first with a newer cell.
-- The CLI revision was not itself qualified on this cell (see
+- Android: proven on the Linux chain (R12 arms A and B on cell 54117a2f, with
+  CLI `f66e3c21`), not on a device.
+- iOS: the iPhone 7 run on this cell (2026-11-19) qualifies it, with the limits
+  below. The release and all patches were built on CLI `f66e3c21`; every step
+  passed or was refused as expected except e1b (an extension getter), whose
+  patch the device refused (target missing, no crash, marked bad). #257 fixed
+  it, and e1b alone was re-run on `cli_revision` (`37a0434b`) and passed. The
+  other patches were not rebuilt on `37a0434b`. Details:
+  `selfhost/engine/route_b/evidence/ios-cell-54117a2f/RESULT.md`.
+- Limits:
+  - Patches in the run were unsigned. This CLI still builds unsigned releases
+    on a self-hosted server when no signing key is given; it does not yet
+    refuse them. Pass a key (`--private-key-path`/`--public-key-path`) on
+    every release and patch.
+  - The cell's #254 fix (AnimationController) was not exercised on the device.
+- The CLI revision was not itself run through the Linux chain; it differs from
+  `f66e3c21` only in the iOS producer path (see
   `selfhost/engine/route_b/SUPPORTED_STATE.yaml`, `lineage.cli_revision`).
 
 ## Since selfhost-v1.2.1
 
 - Server 2.0.0 (was 1.4.0): see `packages/code_push_server/CHANGELOG.md`,
   including the breaking configuration changes and the arm64 image.
-- Cell a6a48cf6 (was 82fc78a8): v21 coverage analyzer, on engine d0714887.
-- CLI revision e7384444 (was 357bc24f); upstream 1.6.140 and its fork changes.
+- Cell 54117a2f (was 82fc78a8): v23 coverage analyzer, on engine d0714887.
+  It supersedes a6a48cf6 (v21), which no `selfhost-v*` tag pinned.
+- CLI revision 37a0434b (was 357bc24f); upstream 1.6.144 and its fork changes,
+  including the Route B fixes #247, #248, #251 (a patch that changes a
+  dependency is refused, not silently dropped), #252 and #257.
 
 Start at `selfhost/GETTING_STARTED.md`:
 
