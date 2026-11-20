@@ -940,11 +940,13 @@ Object? $_superIntrinsicName(
         }
       }
 
-      final parts = key.split('#');
+      // The selector is everything after the FIRST `#`: an extension getter's
+      // VM name is `Ext|get#name`, and its last `#`-part, `name`, is not a
+      // function of the library (the device refused it as target-missing).
       targets.add(
         RouteBPatchTarget(
-          library: parts.first,
-          selector: parts.last,
+          library: targetLibrary,
+          selector: _selectorOf(key),
           bytecode: payload.readAsBytesSync(),
         ),
       );
@@ -975,7 +977,7 @@ Object? $_superIntrinsicName(
           ),
         );
       }
-      logger.detail('[route-b] compiled ${parts.last} -> ${payload.path}');
+      logger.detail('[route-b] compiled ${_selectorOf(key)} -> ${payload.path}');
     }
 
     return writeRouteBContainer(

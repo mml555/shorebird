@@ -4243,6 +4243,10 @@ callable:
           late String fixtureSource;
           late Map<String, dynamic> fixture;
 
+          /// The selector the last [fromFixture] packed, which the device
+          /// resolves in the target library by exactly this name.
+          String? packedSelector;
+
           setUpAll(() {
             fixtureSource = File(
               p.join(dir, 'scope_fixture.dart'),
@@ -4310,7 +4314,7 @@ callable:
               }),
             );
             return runWithOverrides(() {
-              const RouteBProducer().produce(
+              final packed = const RouteBProducer().produce(
                 compiler: compiler(),
                 coverage: doc,
                 releaseImportKernel: File(
@@ -4331,6 +4335,9 @@ callable:
                   return compileOk(executable, arguments);
                 },
               );
+              packedSelector = RouteBContainer.parse(
+                packed,
+              ).targets.single.selector;
               return File(
                 p.join(work.path, 'replacement_0.dart'),
               ).readAsStringSync();
@@ -4471,6 +4478,16 @@ callable:
             test('a getter becomes a function of the receiver', () {
               expect(fromFixture('X|get#zz'), contains('int zz(int self) =>'));
               expect(fromFixture('X|get#zz'), contains('=> X.k;'));
+            });
+
+            test('the packed target is the VM name of the member', () {
+              // The device looks the target up in its library by the name the
+              // VM gave the procedure: `X|get#zz` for a getter (not the bare
+              // `zz`, which names nothing there) and `X|inst` for a method.
+              fromFixture('X|get#zz');
+              expect(packedSelector, 'X|get#zz');
+              fromFixture('X|inst');
+              expect(packedSelector, 'X|inst');
             });
 
             test(r'`$this` in an interpolation becomes `${self}`', () {
