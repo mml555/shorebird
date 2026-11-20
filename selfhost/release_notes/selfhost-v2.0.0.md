@@ -49,9 +49,13 @@ The bootstrap installs the CLI at `cli_revision` above. It is the same version
 - Limits:
   - Patches in the run were unsigned. This CLI still builds unsigned releases
     on a self-hosted server when no signing key is given; it does not yet
-    refuse them. Pass a key (`--private-key-path`/`--public-key-path`) on
-    every release and patch.
-  - The cell's #254 fix (AnimationController) was not exercised on the device.
+    refuse them. Pass `--public-key-path` to `shorebird release` and
+    `--private-key-path` with `--public-key-path` to `shorebird patch`.
+  - The run's app has no `AnimationController`, so it is not evidence for or
+    against the open issue #254 (an await on a `TickerFuture`).
+  - An extension member whose body names one of the extension's statics
+    unqualified (`glyph` for `Stars.glyph`) is refused; write the qualified
+    name. Inside a string interpolation the check may miss it.
 - The CLI revision was not itself run through the Linux chain; it differs from
   `f66e3c21` only in the iOS producer path (see
   `selfhost/engine/route_b/SUPPORTED_STATE.yaml`, `lineage.cli_revision`).
