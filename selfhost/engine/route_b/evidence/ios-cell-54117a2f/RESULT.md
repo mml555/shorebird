@@ -1,6 +1,8 @@
 # iOS device run through cell 54117a2f (2026-11-19)
 
-**Result: every step passed with the per-release SDK kept check on, after one re-run.** The a6a48cf6 sequence was
+**Result: on CLI `f66e3c21` every step passed or was refused as expected except e1b, which published a patch the device
+refused (target-missing, no crash). e1b alone was re-run on CLI `37a0434b` (#257's fix) and passed; the other patches
+were not rebuilt on `37a0434b`.** The a6a48cf6 sequence was
 rerun on a physical iPhone 7 (iOS 15.8.8) through the cell `54117a2fe0510a8cb070faf3f5191542179fb4ce` (coverage
 analyzer 23), with main's CLI at `f66e3c21`. No patch was built with `--allow-unchecked-sdk-calls`; `lib.sh` no longer
 has the retry. One step failed on that CLI, and passed when re-run on `37a0434b`, which has #257's fix:
@@ -99,7 +101,7 @@ Every published patch in the table was built with the check on.
 | p16 (`List.add` + `Iterable.join`) | 12 (6403 B) | PASS (a6a48cf6: only under the flag) | 2/2, 2/2: `events=3`, `events-list=e1`, `e1,e2`, `e1,e2,e3` | `patch_p16_cli.txt`, `p16_boot*.log` |
 | p17 (`Iterable.map`/`toList`) | – | REFUSED by the SDK kept check, exit 70: "it calls the dart: method `Iterable.map` … `Iterable.toList` … and 57 more" | – | `patch_p17_cli.txt` |
 | t1 (class type parameter) | – | REFUSED, exit 70: `Box.kind` "uses the class type parameter `T`, which is not in scope" | – | `patch_t1_cli.txt` |
-| rollback 12 | – | PASS, exit 0 (see below) | `rb3_learn` booted 12 (2/2) and learned it; `rb3_boot`, `rb3_boot2` booted the base release | `rollback3_cli.txt`, `rb3_*.log` |
+| rollback 12 | – | PASS, exit 0; the device ends on the base release, as patch 11 is known bad (see below) | `rb3_learn` booted 12 (2/2) and learned it; `rb3_boot`, `rb3_boot2` booted the base release | `rollback3_cli.txt`, `rb3_*.log` |
 | e1b re-run on 37a0434b | 13 (1630 B) | PASS | `e1b_rerun_download`: base release (`stars=***`), patch 13 downloaded; `e1b_rerun_boot`, `e1b_rerun_boot2`: 1/1, 1/1, `stars=*3*`, successful launches reported | `patch_e1b_rerun_cli.txt`, `e1b_rerun_*.log`, `up_rerun.out`, `e1b_rerun.out`, `down_rerun.out` |
 
 **The e1b re-run** brought the servers and proxies back up on the same data (`up_rerun.out`: descriptor 200, 4141
