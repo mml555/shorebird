@@ -711,6 +711,8 @@ ${result.stderr}''',
     }
 
     final missing = coverage.added.where((key) {
+      // `.last` is right: an extension getter is a real procedure in both
+      // kernels, so it is checked like any other name.
       final selector = key.split('#').last;
       return !selector.contains('get:') && !selector.contains('set:');
     }).toList();

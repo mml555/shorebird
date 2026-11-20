@@ -4243,6 +4243,10 @@ callable:
           late String fixtureSource;
           late Map<String, dynamic> fixture;
 
+          /// The selector the last [fromFixture] packed, which the device
+          /// resolves in the target library by exactly this name.
+          String? packedSelector;
+
           setUpAll(() {
             fixtureSource = File(
               p.join(dir, 'scope_fixture.dart'),
@@ -4257,12 +4261,34 @@ callable:
           });
 
           /// Lowers the fixture member [name] as the analyzer described it.
-          String fromFixture(String name, {bool withScope = true}) {
+          ///
+          /// [renameTo] gives the member a same-length name of its own inside
+          /// its span, as if the developer had written that name.
+          String fromFixture(
+            String name, {
+            bool withScope = true,
+            String? renameTo,
+          }) {
             final entry = fixture[name] as Map<String, dynamic>;
             final isStatic = entry['static'] as bool;
             final className = name.split('.').first.split('|').first;
-            final targetKey = 'package:app/main.dart#$name';
-            source.writeAsStringSync(fixtureSource);
+            final memberName = name.split('.').last.split('|').last;
+            var text = fixtureSource;
+            var keyName = name;
+            if (renameTo != null) {
+              expect(renameTo.length, memberName.length);
+              final start = entry['start'] as int;
+              final end = entry['end'] as int;
+              text =
+                  fixtureSource.substring(0, start) +
+                  fixtureSource
+                      .substring(start, end)
+                      .replaceAll(memberName, renameTo) +
+                  fixtureSource.substring(end);
+              keyName = name.replaceFirst(memberName, renameTo);
+            }
+            final targetKey = 'package:app/main.dart#$keyName';
+            source.writeAsStringSync(text);
             final doc = RouteBCoverage.fromJson(
               jsonEncode({
                 'analysisVersion': entry['lowering'] != null
@@ -4310,7 +4336,7 @@ callable:
               }),
             );
             return runWithOverrides(() {
-              const RouteBProducer().produce(
+              final packed = const RouteBProducer().produce(
                 compiler: compiler(),
                 coverage: doc,
                 releaseImportKernel: File(
@@ -4331,6 +4357,9 @@ callable:
                   return compileOk(executable, arguments);
                 },
               );
+              packedSelector = RouteBContainer.parse(
+                packed,
+              ).targets.single.selector;
               return File(
                 p.join(work.path, 'replacement_0.dart'),
               ).readAsStringSync();
@@ -4471,6 +4500,48 @@ callable:
             test('a getter becomes a function of the receiver', () {
               expect(fromFixture('X|get#zz'), contains('int zz(int self) =>'));
               expect(fromFixture('X|get#zz'), contains('=> X.k;'));
+            });
+
+            test('a static the extension hides at top level is qualified in '
+                'an interpolation', () {
+              // The fixture also has a top-level `const glyph = '#'`. Inside
+              // `Stars` the bare name is its static `'*'`; in the top-level
+              // replacement the bare name would bind the wrong one.
+              final out = fromFixture('Stars|get#stars');
+              expect(
+                out,
+                contains(r"'${Stars.glyph}${self}${Stars.glyph}'"),
+              );
+              expect(out, isNot(contains(r"'$glyph")));
+            });
+
+            test('a constant-folded use of a hidden static is refused', () {
+              // `'$glyph$glyph'` is folded to one constant by the front end,
+              // so no use is reported to qualify and the bare names would bind
+              // the top-level `glyph`.
+              expect(
+                () => fromFixture('Stars|get#fold'),
+                refusedWith(contains('Write `Stars.glyph`')),
+              );
+            });
+
+            test('a private method keeps its own private name', () {
+              // The method's own `_ins` is a declaration, not a reference to a
+              // release-private name, so the scan must not refuse it. The
+              // scan used to compare against `X|_ins`.
+              final out = fromFixture('X|inst', renameTo: '_ins');
+              expect(out, contains('int _ins(int self) =>'));
+              expect(packedSelector, 'X|_ins');
+            });
+
+            test('the packed target is the VM name of the member', () {
+              // The device looks the target up in its library by the name the
+              // VM gave the procedure: `X|get#zz` for a getter (not the bare
+              // `zz`, which names nothing there) and `X|inst` for a method.
+              fromFixture('X|get#zz');
+              expect(packedSelector, 'X|get#zz');
+              fromFixture('X|inst');
+              expect(packedSelector, 'X|inst');
             });
 
             test(r'`$this` in an interpolation becomes `${self}`', () {

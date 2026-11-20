@@ -1,5 +1,5 @@
 {
-  "sourceSha256": "fecab633aff31850634f1dc80a47e8a4bde3d98cea0c0b82ef40c6557531eb71",
+  "sourceSha256": "2dd8608addd3c5915195e16a733a0a8f2d0d325d708bb067fc03794dc1d73ba3",
   "M.viaMixin": {
     "start": 697,
     "end": 718,
@@ -690,6 +690,19 @@
       "unsupported": []
     }
   },
+  "X|get#leak": {
+    "start": 2237,
+    "end": 2259,
+    "static": true,
+    "scope": {
+      "class": "X",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "it is the tear-off of an extension method, which has no source of its own"
+      ]
+    }
+  },
   "X|leak": {
     "start": 2237,
     "end": 2259,
@@ -719,19 +732,6 @@
       "privateConstructions": [],
       "superInvocations": [],
       "unsupported": []
-    }
-  },
-  "X|get#leak": {
-    "start": 2237,
-    "end": 2259,
-    "static": true,
-    "scope": {
-      "class": "X",
-      "staticReferences": [],
-      "usedTypeParameters": [],
-      "problems": [
-        "it is the tear-off of an extension method, which has no source of its own"
-      ]
     }
   },
   "X|tear": {
@@ -1274,6 +1274,83 @@
       "problems": [
         "it is an instance member of the extension type `ET`, which a replacement does not carry"
       ]
+    }
+  },
+  "Stars|get#fold": {
+    "start": 3151,
+    "end": 3192,
+    "static": true,
+    "scope": {
+      "class": "Stars",
+      "staticReferences": [],
+      "usedTypeParameters": [],
+      "problems": [
+        "its body spells `glyph`, which is also a static of `Stars`, where no use of that static is reported to qualify (offset 3172): in the replacement library a top-level `glyph` would be bound instead. Write `Stars.glyph`"
+      ],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "Stars",
+      "nameOffset": 3162,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "String"
+      },
+      "accesses": [
+        {
+          "offset": 3187,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
+    }
+  },
+  "Stars|get#stars": {
+    "start": 3195,
+    "end": 3235,
+    "static": true,
+    "scope": {
+      "class": "Stars",
+      "staticReferences": [
+        {
+          "offset": 3217,
+          "member": "glyph",
+          "kind": "constant",
+          "interpolated": true
+        },
+        {
+          "offset": 3228,
+          "member": "glyph",
+          "kind": "constant",
+          "interpolated": true
+        }
+      ],
+      "usedTypeParameters": [],
+      "problems": [],
+      "extensionInstance": true
+    },
+    "lowering": {
+      "receiverType": "int",
+      "extension": "Stars",
+      "nameOffset": 3206,
+      "signatureTypes": {
+        "params": [],
+        "returnType": "String"
+      },
+      "accesses": [
+        {
+          "offset": 3223,
+          "member": "this",
+          "kind": "receiver"
+        }
+      ],
+      "privateConstructions": [],
+      "superInvocations": [],
+      "unsupported": []
     }
   }
 }
