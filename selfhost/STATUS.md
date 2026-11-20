@@ -16,12 +16,8 @@ v23 coverage analyzer (PRs #247 and #256: a for-in names its receiver class, so 
 promotion chain is in [`PROMOTION_54117a2f.md`](evidence/r12-linux-ci/PROMOTION_54117a2f.md): it passed on its first complete
 run (an earlier attempt was aborted), and R12 arm B passed too. The chain ran CLI `f66e3c21`, not the pin: `37a0434b` adds #257,
 which fixes a producer bug the device run found. The iPhone run through the cell's address
-([`ios-cell-54117a2f`](engine/route_b/evidence/ios-cell-54117a2f/RESULT.md), 2026-11-19) applied every published patch with the SDK
-check on and passed three rollbacks. One check failed on the first pass (e1b, an extension getter published with a truncated target name);
-#257 fixes it, and the re-run on CLI `37a0434b` passed (patch 13, 1 of 1 applied, `stars=*3*` on both boot launches; the evidence is in
-PR #259). So the device verdict is: every expected pass and refusal held. Limits: the patches were unsigned (the CLI's P7 patch signing has
-not landed) and #254 was not exercised. The last device-qualified cell is `2fc41d3f` (see
-[`PROMOTION_2fc41d3f.md`](evidence/r12-linux-ci/PROMOTION_2fc41d3f.md)). The tag `selfhost-flutter-cell-54117a2f` and the release
+([`ios-cell-54117a2f`](engine/route_b/evidence/ios-cell-54117a2f/RESULT.md), 2026-11-19, evidence in PR #259): the release `1.0.0+71` and all the patches were built and run on CLI `f66e3c21`, and every step passed except e1b (an extension getter published with a truncated target name), whose patch the device refused (target missing, no crash, marked bad). #257 fixes it, and e1b alone was re-run on `37a0434b` and passed (patch 13, 1 of 1 applied, `stars=*3*` on both boot launches). The other patches were not rebuilt on `37a0434b`, so the device evidence on the pinned CLI is that one patch; #257 touches only the extension-member selector path. Limits: the patches were unsigned (the CLI's P7 patch signing has not landed) and #254 was not exercised. With those limits this cell is device-qualified, and it is the last device-qualified cell; `2fc41d3f` (see
+[`PROMOTION_2fc41d3f.md`](evidence/r12-linux-ci/PROMOTION_2fc41d3f.md)) is the one before it. The tag `selfhost-flutter-cell-54117a2f` and the release
 `cell-54117a2f` were created on 2026-11-19. Cell `a6a48cf6` (2026-11-17, partial iPhone run) is superseded.
 
 ## The four repositories

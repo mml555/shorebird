@@ -344,8 +344,9 @@ cells:
     minted: 2026-11-19 (ROUTE-B-CELL-54117A2F)
     status: >-
       SELECTED, promoted on the frozen chain -- this is lineage.cell_address (moved here 2026-11-19).
-      The iPhone run through the cell address (2026-11-19) held every expected pass and refusal; its
-      one failure (e1b) was fixed by #257 and passed on re-run (see physically_qualified). Limits: unsigned patches, #254 not exercised.
+      The iPhone run through the cell address (2026-11-19) device-qualifies it with limits: it ran on
+      CLI f66e3c21, e1b's first patch was refused by the device, #257 fixed that and e1b alone passed
+      on re-run with 37a0434b (see physically_qualified). Limits: unsigned patches, #254 not exercised.
     # a6a48cf6 with ONE archive member replaced. Every cell member is the file
     # engine d0714887 published, byte for byte, except the seven rendered to the
     # new address (engine_stamp.json, four POMs, artifacts_manifest.yaml and the
@@ -371,15 +372,17 @@ cells:
       arm B finished 2026-11-20T00:13:52Z). First run of the chain on this cell that finished; one
       earlier attempt was aborted and is not evidence. See evidence/r12-linux-ci/PROMOTION_54117a2f.md.
     physically_qualified: >-
-      PASSED with limits (2026-11-19): a physical iPhone 7 run through the cell address
-      (evidence/ios-cell-54117a2f/RESULT.md, PR #259). All published patches applied, the
-      refusals were correct, the SDK kept check stayed on with no override (the for-in false
-      positive of a6a48cf6 is gone), and three rollbacks passed. One check failed on the first
-      pass: e1b, an extension getter published with a truncated target name. #257 (merge
-      37a0434b) fixes it, and the re-run on CLI 37a0434b passed (patch 13, 1 of 1 applied,
-      stars=*3* on both boot launches). Limits: the patches were unsigned (the CLI's P7 patch
-      signing has not landed) and #254 was not exercised. Android is proven on the Linux chain
-      (R12 arm A), not on a device.
+      DEVICE-QUALIFIED with limits (2026-11-19): a physical iPhone 7 run through the cell address
+      (evidence/ios-cell-54117a2f/RESULT.md, PR #259). The release 1.0.0+71 and all patches were
+      built and run on CLI f66e3c21. Every step passed except e1b (an extension getter published
+      with a truncated target name): its patch was refused by the device (target missing, no
+      crash, marked bad). #257 (merge 37a0434b) fixes it, and e1b alone was re-run on 37a0434b and
+      passed (patch 13, 1 of 1 applied, stars=*3* on both boot launches). The other patches were
+      not rebuilt on 37a0434b, so the device evidence on the pinned CLI is that one patch (#257
+      touches only the extension-member selector path). The SDK kept check stayed on with no
+      override (the for-in false positive of a6a48cf6 is gone) and three rollbacks passed. Limits:
+      the patches were unsigned (the CLI's P7 patch signing has not landed) and #254 was not
+      exercised. Android is proven on the Linux chain (R12 arm A), not on a device.
     producer_lineage: d0714887dd95d2990e0185fe1893523f3d600cc5
     fallback_engine_revision: 38855c84ca367c58165b8e3844dd7d6a99dec844
     evidence: evidence/r12-linux-ci/PROMOTION_54117a2f.md

@@ -515,12 +515,7 @@ analyzer (PRs #247 and #256): a for-in names its receiver class, read from the l
 VM lowers it to, so a List loop is no longer refused over `ObserverList.get:iterator` and a
 patch can be published with the SDK kept check on. What a patch may add is unchanged from
 `a6a48cf6`. The iPhone run through `54117a2f` (2026-11-19,
-[`ios-cell-54117a2f`](engine/route_b/evidence/ios-cell-54117a2f/RESULT.md)) kept the check on
-with no override, applied every published patch, refused what it should and passed three
-rollbacks. One check failed on the first pass, e1b (an extension getter published with a truncated target name);
-#257 fixes it, and the re-run on CLI `37a0434b` passed (patch 13, 1 of 1 applied, `stars=*3*` on both boot
-launches; evidence in PR #259). Every expected pass and refusal held. Limits: the patches were unsigned and #254 was
-not exercised. The promotion chain is in
+[`ios-cell-54117a2f`](engine/route_b/evidence/ios-cell-54117a2f/RESULT.md), evidence in PR #259): the SDK kept check stayed on with no override and three rollbacks passed; the release `1.0.0+71` and all the patches were built and run on CLI `f66e3c21`, and every step passed except e1b (an extension getter published with a truncated target name), whose patch the device refused (target missing, no crash, marked bad). #257 fixes it, and e1b alone was re-run on `37a0434b` and passed (patch 13, 1 of 1 applied, `stars=*3*` on both boot launches). The other patches were not rebuilt on `37a0434b`, so the device evidence on the pinned CLI is that one patch; #257 touches only the extension-member selector path. Limits: the patches were unsigned (the CLI's P7 patch signing has not landed) and #254 was not exercised. With those limits the cell is device-qualified. The promotion chain is in
 [`PROMOTION_54117a2f.md`](evidence/r12-linux-ci/PROMOTION_54117a2f.md).
 
 ### A class or extension member's own statics (class scope)

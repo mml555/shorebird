@@ -89,12 +89,14 @@ of this directory is the workspace's `evidence/` as it stood after arm B.
 ## Device run
 
 Run on 2026-11-19 through the cell's address; its record is
-`selfhost/engine/route_b/evidence/ios-cell-54117a2f/RESULT.md` (PR #259). **Verdict: every expected pass and refusal
-held.** Every published patch applied, the refusals were correct, the SDK kept check stayed on with no override (so the
-for-in false positive of `a6a48cf6` did not recur), and three rollbacks passed. One check FAILED on the first pass: e1b,
-an extension getter published with a truncated target name. #257 (merge `37a0434b`) fixes it, and the re-run on CLI
-`37a0434b` PASSED (patch 13, 1 of 1 applied, `stars=*3*` on both boot launches). Limits: the patches were unsigned,
-because the CLI's P7 patch signing has not landed, and #254 was not exercised.
+`selfhost/engine/route_b/evidence/ios-cell-54117a2f/RESULT.md` (PR #259). The release `1.0.0+71` and all the patches
+were built and run on CLI `f66e3c21`. Every step passed except e1b (an extension getter published with a truncated
+target name): its patch was refused by the device (target missing, no crash, marked bad). The SDK kept check stayed on
+with no override (so the for-in false positive of `a6a48cf6` did not recur) and three rollbacks passed. #257 (merge
+`37a0434b`) fixes e1b, and e1b alone was re-run on `37a0434b` and PASSED (patch 13, 1 of 1 applied, `stars=*3*` on both
+boot launches). The other patches were not rebuilt on `37a0434b`, so the device evidence on the pinned CLI is that one
+patch; #257 touches only the extension-member selector path. Limits: the patches were unsigned, because the CLI's P7
+patch signing has not landed, and #254 was not exercised. With those limits the cell is device-qualified.
 
 ## Not done
 
