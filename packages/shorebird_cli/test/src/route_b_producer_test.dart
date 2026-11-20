@@ -4502,6 +4502,29 @@ callable:
               expect(fromFixture('X|get#zz'), contains('=> X.k;'));
             });
 
+            test('a static the extension hides at top level is qualified in '
+                'an interpolation', () {
+              // The fixture also has a top-level `const glyph = '#'`. Inside
+              // `Stars` the bare name is its static `'*'`; in the top-level
+              // replacement the bare name would bind the wrong one.
+              final out = fromFixture('Stars|get#stars');
+              expect(
+                out,
+                contains(r"'${Stars.glyph}${self}${Stars.glyph}'"),
+              );
+              expect(out, isNot(contains(r"'$glyph")));
+            });
+
+            test('a constant-folded use of a hidden static is refused', () {
+              // `'$glyph$glyph'` is folded to one constant by the front end,
+              // so no use is reported to qualify and the bare names would bind
+              // the top-level `glyph`.
+              expect(
+                () => fromFixture('Stars|get#fold'),
+                refusedWith(contains('Write `Stars.glyph`')),
+              );
+            });
+
             test('a private method keeps its own private name', () {
               // The method's own `_ins` is a declaration, not a reference to a
               // release-private name, so the scan must not refuse it. The

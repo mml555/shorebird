@@ -130,3 +130,12 @@ extension type ET(int v) {
 }
 
 void main() {}
+
+// A top-level `glyph` that the extension's own static hides inside its body.
+const glyph = '#';
+
+extension Stars on int {
+  static const String glyph = '*';
+  String get fold => '$glyph$glyph' * this;
+  String get stars => '$glyph$this$glyph';
+}
