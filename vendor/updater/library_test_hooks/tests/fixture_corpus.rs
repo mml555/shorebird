@@ -700,6 +700,7 @@ fn call_init(env: &CaseEnv, step: &Value, case: &Value) -> Value {
         .or(case["yaml"].as_str())
         .unwrap_or(DEFAULT_YAML);
     let release_version = c_string(release_version);
+    let host_bundle_id = step["host_bundle_id"].as_str().map(c_string);
     let yaml = c_string(&yaml.replace("{{server}}", &env.server_url));
     let storage = c_string(env.root.join("storage").to_str().unwrap());
     let cache = c_string(env.root.join("cache").to_str().unwrap());
@@ -711,6 +712,9 @@ fn call_init(env: &CaseEnv, step: &Value, case: &Value) -> Value {
         original_libapp_paths_size: 1,
         app_storage_dir: storage.as_ptr(),
         code_cache_dir: cache.as_ptr(),
+        host_bundle_id: host_bundle_id
+            .as_ref()
+            .map_or(std::ptr::null(), |id| id.as_ptr()),
     };
     let callbacks = engine::FileCallbacks {
         open: base_open,
@@ -723,6 +727,11 @@ fn call_init(env: &CaseEnv, step: &Value, case: &Value) -> Value {
     let engine_callbacks = updater::testing_engine_callbacks();
     unsafe { engine::shorebird_set_engine_callbacks(&engine_callbacks) };
     Value::Bool(engine::shorebird_init(&params, callbacks, yaml.as_ptr()))
+}
+
+/// The `patch` a `*_for_patch` step names (0: the base release).
+fn step_patch(step: &Value) -> usize {
+    step["patch"].as_u64().expect("checked by check_case") as usize
 }
 
 /// Runs one step's call and returns what it produced, or `None` for calls
@@ -745,6 +754,34 @@ fn run_call(env: &CaseEnv, step: &Value, case: &Value) -> Result<Option<Value>, 
         }
         "report_launch_failure" => {
             engine::shorebird_report_launch_failure();
+            None
+        }
+        "report_launch_paused" => {
+            engine::shorebird_report_launch_paused();
+            None
+        }
+        "report_launch_resumed" => {
+            engine::shorebird_report_launch_resumed();
+            None
+        }
+        "report_launch_start_for_patch" => {
+            engine::shorebird_report_launch_start_for_patch(step_patch(step));
+            None
+        }
+        "report_launch_paused_for_patch" => {
+            engine::shorebird_report_launch_paused_for_patch(step_patch(step));
+            None
+        }
+        "report_launch_resumed_for_patch" => {
+            engine::shorebird_report_launch_resumed_for_patch(step_patch(step));
+            None
+        }
+        "report_launch_success_for_patch" => {
+            engine::shorebird_report_launch_success_for_patch(step_patch(step));
+            None
+        }
+        "report_launch_failure_for_patch" => {
+            engine::shorebird_report_launch_failure_for_patch(step_patch(step));
             None
         }
         "validate_next_boot_patch" => {
@@ -821,6 +858,13 @@ const CALLS_WITHOUT_RESULT: &[&str] = &[
     "report_launch_start",
     "report_launch_success",
     "report_launch_failure",
+    "report_launch_paused",
+    "report_launch_resumed",
+    "report_launch_start_for_patch",
+    "report_launch_paused_for_patch",
+    "report_launch_resumed_for_patch",
+    "report_launch_success_for_patch",
+    "report_launch_failure_for_patch",
     "validate_next_boot_patch",
 ];
 
@@ -875,7 +919,9 @@ fn validate_case(case: &Value) -> Vec<String> {
                 "call",
                 "channel",
                 "release_version",
+                "host_bundle_id",
                 "yaml",
+                "patch",
                 "write_files",
                 "http",
                 "expect",
@@ -887,6 +933,11 @@ fn validate_case(case: &Value) -> Vec<String> {
             p,
         );
         let call = step["call"].as_str().unwrap_or_default();
+        if call.ends_with("_for_patch") != step["patch"].is_u64() {
+            p.push(format!(
+                "{at}: `patch` (a number, 0 for the base release) goes with, and only with, a *_for_patch call"
+            ));
+        }
         if call == "await" {
             check_keys(
                 step,

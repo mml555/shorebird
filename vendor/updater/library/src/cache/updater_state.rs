@@ -405,8 +405,9 @@ impl UpdaterState {
         self.lifecycle.detect_boot_crash_on_init()
     }
 
-    /// Records that the in-flight boot succeeded.
-    pub fn record_boot_success(&mut self) -> Result<BootSuccess> {
+    /// Records that the in-flight boot succeeded. Returns the boot recorded:
+    /// `None` when the breadcrumb named a patch no longer installed.
+    pub fn record_boot_success(&mut self) -> Result<Option<BootSuccess>> {
         self.lifecycle.record_boot_success()
     }
 
@@ -499,11 +500,11 @@ impl UpdaterState {
         Ok((selected, rejected))
     }
 
-    /// Removes the artifacts for `patch_number` and recomputes pointers.
-    /// Used today for server-driven rollbacks.
+    /// Removes the artifacts for `patch_number`, clears the boot breadcrumb
+    /// if it names it, and recomputes pointers. Used for server-driven
+    /// rollbacks and downloads the server cut short.
     pub fn uninstall_patch(&mut self, patch_number: usize) -> Result<()> {
-        self.lifecycle.cleanup(patch_number)?;
-        self.lifecycle.recompute_next_boot()
+        self.lifecycle.uninstall(patch_number)
     }
 
     /// True if `patch_number` is currently in `Bad` state — we tried it
@@ -795,7 +796,7 @@ mod tests {
 
         let mut strict = reopen_strict(&tmp);
         strict.prepare_next_boot().unwrap();
-        let success = strict.lifecycle.record_boot_success().unwrap();
+        let success = strict.lifecycle.record_boot_success().unwrap().unwrap();
 
         assert_eq!(success.patch, 1);
         assert_eq!(strict.lifecycle.pointers().last_booted_patch, Some(1));
@@ -860,7 +861,7 @@ mod tests {
             Some(1),
             "the patch being booted must not follow a later pointer change"
         );
-        let success = state.lifecycle.record_boot_success().unwrap();
+        let success = state.lifecycle.record_boot_success().unwrap().unwrap();
         assert_eq!(
             success.patch, 1,
             "launch success must credit the patch that ran, not the newest one"
@@ -946,6 +947,8 @@ mod tests {
             patch_number,
             platform: "android".to_string(),
             release_version: "1.0.0+1".to_string(),
+            host_bundle_id: None,
+            host_version: None,
             timestamp: 1,
             message: None,
             failure_category: None,
