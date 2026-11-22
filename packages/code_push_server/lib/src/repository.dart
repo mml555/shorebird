@@ -295,10 +295,11 @@ enum PolicyEpoch {
   /// extended" rule above. `87c198d30f87` (updater route-b-ca91f4b3 head,
   /// pinned by the Flutter 3.47.9 fork's DEPS) also counts toward B, although
   /// it changes retry, flush and delivery behaviour and defaults
-  /// `patch_verification` to `install_only`. B therefore pools two client
+  /// `patch_verification` to `install_only`. From then B pooled two client
   /// behaviours. Read its numbers with that in mind, and split by
   /// `updater_revision` when comparing them. `cell` still names B's original
-  /// cell, because the 3.47.9 cell that ships `87c198d30f87` is not built yet.
+  /// cell; `87c198d30f87` later shipped in the Flutter 3.47 cells through
+  /// `54117a2f` (`selfhost/compatibility.yaml`).
   ///
   /// EXTENDED AGAIN 2026-11-22, BY THE OWNER'S DECISION. `a58774ab8a88`
   /// (updater mirror route-b with upstream `91dbbddb958a` merged, pinned by the
@@ -306,6 +307,9 @@ enum PolicyEpoch {
   /// counts toward B. It is 13 commits ahead of `87c198d30f87`, among them
   /// upstream #453-#455, which change launch reporting and retention, so B now
   /// pools three client behaviours. Split by `updater_revision` when comparing.
+  /// It was counted before its engine-side evidence checks (4-6 of
+  /// `selfhost/ci/engine_updater_evidence_guard.sh`) were run against it;
+  /// `selfhost/compatibility.yaml` tracks that as open.
   b(
     updaterRevisions: {'af6e842ccf87', '87c198d30f87', 'a58774ab8a88'},
     cell: '4792f0eca461f3761001a1adbe131b4b115e3684',
