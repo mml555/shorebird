@@ -86,8 +86,11 @@ ok "owned cell exists for the supported engine"
 
 # A manifest with no rows for the resolved engine is the same failure as a
 # missing cell, dressed up as a pass. Refuse it explicitly.
+# Every line is read: the banked ledger chain.sh appends has no header, and a
+# committed one's header row (engine artifact ...) never matches a 40-hex engine.
+# A last line without a newline is read too.
 rows=0
-while IFS=$'\t' read -r m_eng m_art m_bytes m_sha _m_src; do
+while IFS=$'\t' read -r m_eng m_art m_bytes m_sha _m_src || [[ -n "$m_eng" ]]; do
   [[ "$m_eng" == "$eng" ]] || continue
   rows=$((rows + 1))
   f="$OVERLAY/$eng/$m_art"
@@ -108,7 +111,7 @@ while IFS=$'\t' read -r m_eng m_art m_bytes m_sha _m_src; do
     continue
   fi
   ok "$m_art  $a_bytes bytes  sha256 ${a_sha:0:16}…"
-done < <(tail -n +2 "$LEDGER")
+done < "$LEDGER"
 
 if [[ "$rows" -eq 0 ]]; then
   bad "closure manifest names NO artifacts for engine $eng"
