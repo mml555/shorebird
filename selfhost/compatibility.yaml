@@ -169,8 +169,8 @@ shorebird:
                                                                   # boot is using) and #455 (launch reports naming the loaded patch). patch_verification still DEFAULTS to install_only at a58774ab (library/src/yaml.rs:8-14).
                                                                   # OPEN: selfhost/ci/engine_updater_evidence_guard.sh passes its vendor-side checks 1-3 against a58774ab (check 3 follows upstream #455's record_launch_failure helper); its engine-side checks 4-6 have NOT been run for a58774ab,
        # and the a58774ab launch and retention behaviour (#453, #454, #455) has not been re-read, beyond check 3 following #455's record_launch_failure split.
-       # OPEN, the owner's call (MEASUREMENT_MODE.md): a58774ab8a88 is NOT in PolicyEpoch.b's updaterRevisions (packages/code_push_server/lib/src/repository.dart: {'af6e842ccf87',
-                                                                  # '87c198d30f87'}), so measurement mode does not count 3.50 clients until it is added. This record does not change repository.dart.
+       # DONE 2026-11-22, the owner's call (MEASUREMENT_MODE.md): a58774ab8a88 is in PolicyEpoch.b's updaterRevisions (packages/code_push_server/lib/src/repository.dart),
+                                                                  # so measurement mode counts 3.50 clients toward epoch B, which now pools three updater behaviours.
                                                                   # DONE: vendor/updater moved to a58774ab plus mirror#11 in #265 (landed with #264); tool/check_updater_pin.sh agrees.
   superseded_updater_revision_2026_11_22: 87c198d30f87            # was updater_revision until the 3.50 promotion (Flutter 3.47 engines through cell 54117a2f); its comment block follows, verbatim
        # --- the comment block below describes the superseded 87c198d30f87 (it says it is the current value; that was true then) ---

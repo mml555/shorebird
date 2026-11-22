@@ -17,9 +17,10 @@ set -uo pipefail
 
 THRESHOLD=${THRESHOLD:-100}
 CONTAINER=${CONTAINER:-cps-ios}
-# Comma-separated. B pools two updater behaviours since the owner extended it
-# on 2026-11-07 (see PolicyEpoch.b in repository.dart); this list must match it.
-EPOCH_B_REV=${EPOCH_B_REV:-af6e842ccf87,87c198d30f87}
+# Comma-separated. B pools three updater behaviours since the owner extended it
+# on 2026-11-07 and 2026-11-22 (see PolicyEpoch.b in repository.dart); this list
+# must match it.
+EPOCH_B_REV=${EPOCH_B_REV:-af6e842ccf87,87c198d30f87,a58774ab8a88}
 EPOCH_A_REV=${EPOCH_A_REV:-f729f958e9be}
 SNAP=$(mktemp -d); trap 'rm -rf "$SNAP"' EXIT
 
