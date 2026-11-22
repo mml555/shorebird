@@ -1,0 +1,60 @@
+# trio_download: pid=17050 (alive after wait: yes)
+11-22 17:48:31.404 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+11-22 17:48:31.404 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.android/files/shorebird_updater/patches/1/dlc.vmcode
+11-22 17:48:31.409 I flutter : updater::updater: [shorebird] Reporting launch start.
+11-22 17:48:31.412 I flutter : updater::updater: [shorebird] Reporting launch paused.
+11-22 17:48:31.414 I flutter : updater::updater: [shorebird] Reporting launch resumed.
+11-22 17:48:31.419 I flutter : updater::updater: [shorebird] Reporting successful launch.
+11-22 17:48:31.420 I flutter : updater::updater: [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+11-22 17:48:31.421 I flutter : updater::network: [shorebird] Sending patch check request: app_id: cdfacedc-f9ab-a45c-e54f-2af76b3c6d2d, channel: stable, release_version: 1.0.0+1, host_bundle_id: dev.selfhost.untab.android, platform: android, arch: aarch64, current_patch_number: Some(1)
+11-22 17:48:31.427 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 2, hash: "7039231bbd6e1fe3abcf917456659b1b37bdd992a8966dfc547faed6fdbcf86f", download_url: "http://localhost:18290/download/65a357b2b7450244d645947b7916aed2?exp=1795388011&sig=REDACTED", hash_signature: None, kind: Code }), rolled_back_patch_numbers: Some([]) }
+11-22 17:48:31.427 I flutter : updater::updater: [shorebird] Downloading patch 2 for app cdfacedc-f9ab-a45c-e54f-2af76b3c6d2d (version 1.0.0+1)
+11-22 17:48:31.433 I flutter : updater::network: [shorebird] Downloading patch from: http://localhost:18290/download/65a357b2b7450244d645947b7916aed2?exp=1795388011&sig=REDACTED
+11-22 17:48:31.434 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(74)] Using the Impeller rendering backend (Vulkan).
+11-22 17:48:31.442 I flutter : updater::network: [shorebird] Downloaded patch to: "/data/user/0/dev.selfhost.untab.android/code_cache/shorebird_updater/downloads/2" (114627 bytes)
+11-22 17:48:31.444 I flutter : updater::updater: [shorebird] Inflating patch from "/data/user/0/dev.selfhost.untab.android/code_cache/shorebird_updater/downloads/2" (114627 bytes)
+11-22 17:48:31.446 I flutter : shape:init=I2
+11-22 17:48:31.446 I flutter : shape:home-build=H2 0
+11-22 17:48:31.446 I flutter : shape:future-builder=FB2 null
+11-22 17:48:31.446 I flutter : shape:label=L2
+11-22 17:48:31.454 I flutter : updater::updater: [shorebird] Patch successfully applied to "/data/user/0/dev.selfhost.untab.android/files/shorebird_updater/patches/2/dlc.vmcode". patch_file=114627b base_size=3015640b decompressed=3019318b base_read=2946266b base_last_seek_pos=3015640 base_seeks=910 output_written=3015640b
+11-22 17:48:31.463 I flutter : updater::updater: [shorebird] Patch 2 successfully downloaded. It will be launched when the app next restarts.
+11-22 17:48:31.464 I flutter : updater::updater: [shorebird] Update thread finished with status: Update installed
+11-22 17:48:31.650 I flutter : shape:future-builder=FB2 G2
+11-22 17:48:31.747 I flutter : shape:count=c1
+11-22 17:48:31.749 I flutter : shape:home-build=H2 1
+11-22 17:48:31.749 I flutter : shape:future-builder=FB2 G2
+11-22 17:48:31.963 I flutter : shape:future-builder=FB2 G2
+11-22 17:48:32.048 I flutter : shape:count=c2
+11-22 17:48:32.064 I flutter : shape:home-build=H2 2
+11-22 17:48:32.064 I flutter : shape:future-builder=FB2 G2
+11-22 17:48:32.281 I flutter : shape:future-builder=FB2 G2
+11-22 17:48:32.350 I flutter : shape:count=c3
+11-22 17:48:32.363 I flutter : shape:home-build=H2 3
+11-22 17:48:32.363 I flutter : shape:future-builder=FB2 G2
+11-22 17:48:32.551 I flutter : shape:greeting=G2
+11-22 17:48:32.562 I flutter : shape:home-build=H2 3
+11-22 17:48:32.563 I flutter : shape:future-builder=FB2 G2
+11-22 17:48:32.602 I flutter : shape:stream=U0
+11-22 17:48:32.653 I flutter : shape:stream=U1
+11-22 17:48:32.706 I flutter : shape:stream=U2
+11-22 17:48:32.706 I flutter : shape:poly=circle2
+11-22 17:48:32.706 I flutter : shape:poly=square1
+11-22 17:48:32.706 I flutter : shape:mood=M2
+11-22 17:48:32.706 I flutter : shape:const=KT1
+11-22 17:48:32.706 I flutter : shape:level=hi2
+11-22 17:48:32.706 I flutter : shape:result=OK 7
+11-22 17:48:32.706 I flutter : shape:stars=***
+11-22 17:48:32.706 I flutter : shape:static=S2
+11-22 17:48:32.706 I flutter : shape:decorate=[P1:3]
+11-22 17:48:32.706 I flutter : shape:arith=2:false
+11-22 17:48:32.706 I flutter : shape:half=1.5
+11-22 17:48:32.706 I flutter : shape:box=T1
+11-22 17:48:32.706 I flutter : shape:generic=F2
+11-22 17:48:32.707 I flutter : shape:stamp=15 Nov 2026
+11-22 17:48:32.707 I flutter : shape:tally=K2 3 |||
+11-22 17:48:32.707 I flutter : shape:events=0
+11-22 17:48:32.707 I flutter : shape:done=START-DONE
+11-22 17:48:32.778 I flutter : shape:future-builder=FB2 G2
+11-22 17:48:32.779 I flutter : shape:route=R2 /detail
+11-22 17:48:32.795 I flutter : shape:detail=D2

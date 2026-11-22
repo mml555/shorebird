@@ -1,0 +1,5 @@
+# final release.apk (sha256 915ad5fb0dc9b81b171660abcacde4133c8a134eec607def3918b6a94eb3f4e1); libflutter.so revision-string counts (stripped by AGP, so the discriminator is the engine revision string)
+arm64-v8a 12345064 bytes  producer(09c6f422)x1  fallback(f0a7d291)x0
+armeabi-v7a 9143464 bytes  producer(09c6f422)x1  fallback(f0a7d291)x0
+x86_64 13602336 bytes  producer(09c6f422)x1  fallback(f0a7d291)x0
+# the fallback engine's string is absent; the cell address f2458551 is not embedded in libflutter (it names the artifact set on the mirror, X-Engine-Hash on the 34 answered responses)

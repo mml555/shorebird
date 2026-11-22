@@ -82,8 +82,9 @@ The `a58774ab` launch and retention behaviour (#453, #454, #455) was not re-read
 
 Run on 2026-11-22 (later than this record's chain): an iPhone 7 release and Route B patch run through this cell, unsigned patches only, with limits ([`ios-cell-f2458551`](../../engine/route_b/evidence/ios-cell-f2458551/RESULT.md): iPhone 7, iOS 15.8.8, 12 published, 9 refused, 3 rollbacks, no launch failed). The earlier device-qualified cell is `a377ecb7`
 ([`ios-cell-a377ecb7`](../../engine/route_b/evidence/ios-cell-a377ecb7/RESULT.md)). This cell is over a different engine commit
-(the updater differs), and no device evidence of `a377ecb7` is claimed for it (the run above is this cell's own). No Android device applied a patch on this cell: the chain shows an Android release and patch built and published under seal
-with the CLI arms passing; the harness itself frames that as "NOT self-certifying" (`armA.log:147-151`).
+(the updater differs), and no device evidence of `a377ecb7` is claimed for it (the run above is this cell's own). The chain's Android release and patch were built and published under seal with the CLI arms passing; the harness itself frames that as "NOT self-certifying"
+(`armA.log:147-151`). A physical Android run (OnePlus CPH2551, Android 16) applied 9 patches and 2 rollbacks on this cell on 2026-11-22, unsigned patches only
+([`android-cell-f2458551`](../../engine/route_b/evidence/android-cell-f2458551/RESULT.md)).
 
 ## Not done
 
