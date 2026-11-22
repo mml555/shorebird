@@ -55,6 +55,11 @@ class DartSdkCompatibility {
     '70974f81': '6b58bb3a',
     // Android arm64, Linux host. selfhost/compatibility.yaml.
     '760e3fab': '4bd36869',
+    // Flutter 3.50 engine and the cell minted over it (Dart 0cd04a77, the
+    // revision every dart-sdk-<host>.zip they publish records).
+    // selfhost/cdn/experimental_hashes.map.
+    'e737ede3': '0cd04a77',
+    'a377ecb7': '0cd04a77',
   };
 
   /// Throws [DartSdkMismatchException] when the cached Dart SDK does not match
