@@ -320,7 +320,7 @@ lineage:
   compiler_archive_sha256: 8eb8438e41d26791ca4220293e817e3f1d6d3a6e48ffc278436163e37857de3c   # a new engine's archive (was e44ac8e6… (19976827 B) in 54117a2f, 1ca11779… in a6a48cf6; the older ones follow) (20028870 B) in a6a48cf6, 768ad4b8… in 2fc41d3f, 70f72462… in aab9fd07, 3adce5e4… in 5f6efd98, c79e606d… in 82fc78a8
   compiler_archive_bytes: 19938443
   analyzer_sha256: 05ef9ae874cb3adf7a3ab9c5233db4cebdee6a73f9c16f6bcd9b09c313d2128a   # route_b_analyze.aot in the archive (built for Dart 0cd04a77); was cd4d2663… (v23) in 54117a2f, 768c0109… (v21) in a6a48cf6, c3898f45… (v17) in 2fc41d3f, a7c2663c… (v15) in aab9fd07, 0ad7cd52… (v14)
-  updater_revision: a58774ab8a88   # full SHA a58774ab8a88a04ae5f96ce4e5a9825561a2f2f3, DEPS updater_rev at the selector 52347b61 (shorebird-flutter e0e5c75f; mml555/shorebird-updater-mirror, upstream 91dbbddb958a merged). RESTAMPED 2026-11-22; was 87c198d30f87 (full SHA 87c198d30f875a3da317d70935e1025dc13064dd) through cell 54117a2f. Not yet in PolicyEpoch.b's updaterRevisions: the owner's call (MEASUREMENT_MODE.md)
+  updater_revision: a58774ab8a88   # full SHA a58774ab8a88a04ae5f96ce4e5a9825561a2f2f3, DEPS updater_rev at the selector 52347b61 (shorebird-flutter e0e5c75f; mml555/shorebird-updater-mirror, upstream 91dbbddb958a merged). RESTAMPED 2026-11-22; was 87c198d30f87 (full SHA 87c198d30f875a3da317d70935e1025dc13064dd) through cell 54117a2f. In PolicyEpoch.b's updaterRevisions since 2026-11-22 (owner's decision, MEASUREMENT_MODE.md)
 
   # THE QUALIFIED CLI PRODUCT TREE, as git tree objects at cli_revision.
   #
