@@ -13,7 +13,7 @@ Dart `b4671ab7`, selector `f4024608`, CLI pin `37a0434b`).
     fallback           f0a7d29193ea6e077e02080a3511b405a4401b6f
     dart               0cd04a7717f20d5f9ae64014cb2239a3f961f895
     compiler archive   8eb8438e41d26791ca4220293e817e3f1d6d3a6e48ffc278436163e37857de3c   19938443 B; route_b_analyze.aot 05ef9ae8...
-    updater_revision   87c198d30f87 in compatibility.yaml, NOT re-stamped (see Not done)
+    updater_revision   a58774ab8a88a04ae5f96ce4e5a9825561a2f2f3   DEPS updater_rev at the selector (was 87c198d30f87); restamped in compatibility.yaml and the record
 
 The selector `52347b61` (branch `selfhost/3.50-cell-a377ecb7`, tag `selfhost-flutter-cell-a377ecb7`, annotated tag object
 `88f0463c`, tree `e1b89f7e`) is selected by PR #263 (merge `64a64473`). #263 also adds `'e737ede3'` and `'a377ecb7'` to
@@ -63,10 +63,15 @@ Run in `/srv/ci-cache/shorebird-engine/promo-a377ecb7` on ci-build. Run 1 starte
 ## How the run went
 
 Run 1 (`chain.run1.log`, 04:30Z to `CHAIN_DONE` 04:51Z) passed steps 1 to 6 and failed at 7 and 8. The cause, read by the operator from the
-build output: the fixture `selfhost/fixtures/android_signing_app` used Gradle 9.1.0, and Flutter 3.50 refuses a project whose Gradle is below
-9.3.1 (`Your project's Gradle version (9.1.0) is lower than Flutter's minimum supported version of 9.3.1`); the release exited 70. That
-message is not in the copied logs (a search of the workspace on ci-build found it nowhere; the exit codes are all that was kept), so the logs here
-show the symptom, release and patch exit 70, and not the sentence. Flutter 3.50 requires Android Gradle 9.3.1 or newer, AGP 9.1.1 or newer
+build output (read by the operator at 2026-11-22T04:52Z from `/r12out/disc/ci_run_notty.log` inside run 1's discovery container `r12-discovery-rp`, since removed; the resume's discovery overwrote `/r12out/disc`; lines 39 to 43): the fixture `selfhost/fixtures/android_signing_app` used Gradle 9.1.0, and Flutter 3.50 refuses a project whose Gradle is below
+9.3.1 (`Your project's Gradle version (9.1.0) is lower than Flutter's minimum supported version of 9.3.1`); the release exited 70. The text:
+
+    * What went wrong:
+    An exception occurred applying plugin request [id: 'dev.flutter.flutter-gradle-plugin']
+    > Failed to apply plugin 'dev.flutter.flutter-gradle-plugin'.
+       > Error: Your project's Gradle version (9.1.0) is lower than Flutter's minimum supported version of 9.3.1. Please upgrade your Gradle version.
+
+The copied run-1 logs show only the exit 70; the full text was not preserved. Flutter 3.50 requires Android Gradle 9.3.1 or newer, AGP 9.1.1 or newer
 and KGP 2.4.10 or newer (the 3.50 template uses Gradle 9.5.0, AGP 9.3.1, KGP 2.4.20). #263 bumped the fixture's
 `gradle-wrapper.properties` and `settings.gradle.kts`.
 
@@ -92,7 +97,8 @@ PENDING. The iPhone 7 (iOS 15.8) release and Route B patch run through the cell 
 - Port the post-step-7 failure check (`arm 1 release FAILED|arm 2 FAILED`) from the resume script into `selfhost/ci`.
 - shorebird-flutter's `selfhost-engine-mirror` action downloads a single `overlay-<engine>.tar`, but engine `e737ede3`'s overlay is released in parts. It affects
   shorebird-flutter commits whose `engine.version` is `e737ede3`. The fix is a push to shorebird-flutter and is pending.
-- `updater_revision` is not re-stamped: DEPS `updater_rev` at `52347b61` is `a58774ab8a88a04ae5f96ce4e5a9825561a2f2f3`, while `compatibility.yaml` and the record
-  still say `87c198d3`. Whether the 3.50 updater is an eligible revision is not decided here.
+- `a58774ab8a88` is not in `PolicyEpoch.b`'s `updaterRevisions` (`packages/code_push_server/lib/src/repository.dart`), so measurement mode does not count 3.50
+  clients; adding it is the owner's call (`MEASUREMENT_MODE.md`), and this record does not change `repository.dart`.
+- `vendor/updater` is still `87c198d3`, so `tool/check_updater_pin.sh` (which compares `compatibility.yaml`'s `updater_revision` with `vendor/updater/VENDOR.md`) disagrees until the vendored copy moves.
 - The analyzer's analysis version for this archive was not read out; the record names the archive and `route_b_analyze.aot` by digest.
 - `verify_supported_state.sh` against the overlay and a populated Shorebird checkout: not run here (see the PR for what was run).

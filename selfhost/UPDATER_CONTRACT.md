@@ -106,7 +106,7 @@ Citations are `library/src/<file>.rs` plus the function or type, against the ven
   check that. It was checked by hand on 2026-11-16 against an engine checkout at
   `d0714887`: `updater_rev` is `87c198d30f875a3da317d70935e1025dc13064dd`, and
   `selfhost/ci/engine_updater_evidence_guard.sh` (#206) is the check meant to run
-  on a host that has the engine tree. The 2026-07 text below named engine
+  on a host that has the engine tree. **Flutter 3.50 (engine `e737ede3`, cell `a377ecb7`, 2026-11-22):** the supported pin now consumes `a58774ab8a88a04ae5f96ce4e5a9825561a2f2f3` (`DEPS` `updater_rev` at shorebird-flutter `52347b61`; `mml555/shorebird-updater-mirror`, upstream `91dbbddb958a` merged, 13 commits ahead of `87c198d3`), and `compatibility.yaml` says so. The vendored tree and the `87c198d3` readings in this file are not updated for it, and `tool/check_updater_pin.sh` compares `compatibility.yaml` with the vendored copy. The 2026-07 text below named engine
   `69f9831c360d9152862ec3897c67fb09ae843f3b`, which is no longer the pin. `BEHAVIORAL_FINDINGS.md` was captured on CLI 1.6.114 / Flutter
   `309dd6573a9fe716410489284cd325a34b950375` (engine `e1eaecbc…`), the pin
   before this one. Those findings carry forward: `updater_rev` in the Flutter
