@@ -41,6 +41,8 @@ PROTECTED_CELLS = [
     '54117a2fe0510a8cb070faf3f5191542179fb4ce',   # minted cell over d0714887's bytes, analyzer v23 (for-in receiver class on the lowered loop, #256) (Flutter 3.47, Route B iOS)
     'e737ede3bcf9b18c495498ada78a841e38b4a388',   # engine e737ede3 (Flutter 3.50: Dart 0cd04a77, built on Shorebird flutter_release/3.50.0)
     'a377ecb7ae1c26172d6e9d517c42321726eec427',   # minted cell over e737ede3's bytes (Flutter 3.50, Route B iOS)
+    '09c6f4225d3ddf276fe4f3473beca79e038360b6',   # engine 09c6f422 (e737ede3 with the updater from mirror #14, 64a458f0)
+    'f2458551039ceb1a48a2ffb4a41dff35950fec5b',   # minted cell over 09c6f422's bytes (Flutter 3.50, Route B iOS)
 ]
 # Hashes that publish OUR linux-x64 host toolchain, so linux-x64/font-subset.zip
 # (it carries our const_finder) is owned for them and for no other hash.
@@ -59,6 +61,8 @@ LINUX_FONT_CELLS = [
     '54117a2fe0510a8cb070faf3f5191542179fb4ce',   # minted cell over d0714887's bytes, analyzer v23 (for-in receiver class on the lowered loop, #256) (Flutter 3.47, Route B iOS)
     'e737ede3bcf9b18c495498ada78a841e38b4a388',   # engine e737ede3 (Flutter 3.50: Dart 0cd04a77, built on Shorebird flutter_release/3.50.0)
     'a377ecb7ae1c26172d6e9d517c42321726eec427',   # minted cell over e737ede3's bytes (Flutter 3.50, Route B iOS)
+    '09c6f4225d3ddf276fe4f3473beca79e038360b6',   # engine 09c6f422 (e737ede3 with the updater from mirror #14, 64a458f0)
+    'f2458551039ceb1a48a2ffb4a41dff35950fec5b',   # minted cell over 09c6f422's bytes (Flutter 3.50, Route B iOS)
 ]
 # Hashes that publish OUR darwin-x64 host toolchain.
 DARWIN_X64_FONT_CELLS = [
@@ -75,6 +79,8 @@ DARWIN_X64_FONT_CELLS = [
     '54117a2fe0510a8cb070faf3f5191542179fb4ce',   # minted cell over d0714887's bytes, analyzer v23 (for-in receiver class on the lowered loop, #256) (Flutter 3.47, Route B iOS)
     'e737ede3bcf9b18c495498ada78a841e38b4a388',   # engine e737ede3 (Flutter 3.50: Dart 0cd04a77, built on Shorebird flutter_release/3.50.0)
     'a377ecb7ae1c26172d6e9d517c42321726eec427',   # minted cell over e737ede3's bytes (Flutter 3.50, Route B iOS)
+    '09c6f4225d3ddf276fe4f3473beca79e038360b6',   # engine 09c6f422 (e737ede3 with the updater from mirror #14, 64a458f0)
+    'f2458551039ceb1a48a2ffb4a41dff35950fec5b',   # minted cell over 09c6f422's bytes (Flutter 3.50, Route B iOS)
 ]
 # Cells whose sky/gpu packages are protected but whose iOS modes are not.
 SKY_ONLY_CELLS = [
