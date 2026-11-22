@@ -1,0 +1,2 @@
+Patch 8 on release 1.0.0+1 has been rolled back.
+Rolled back: yes

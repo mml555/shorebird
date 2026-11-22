@@ -1,0 +1,40 @@
+[WARN] No patch public key was provided. Patches for this release will not be cryptographically verified on the device.
+COHERENT platform=android engine=f2458551039ceb1a48a2ffb4a41dff35950fec5b | iOS Route B capability: NOT EVALUATED | iOS engine identity: NOT EVALUATED
+    --prefixed-errors           Causes lines sent to stderr to be prefixed with "ERROR:".
+    --local-engine-src-path     Path to your engine src directory, if you are building Flutter locally.
+                                Defaults to $FLUTTER_ENGINE if set, otherwise defaults to the path given in your pubspec.yaml dependency_overrides for sky_engine, if any.
+    --local-engine              Name of a build output within the engine out directory, if you are building Flutter locally.
+                                Use this to select a specific version of the engine if you have built multiple engine targets.
+                                This path is relative to "--local-engine-src-path" (see above).
+    --local-engine-host         The host operating system for which engine artifacts should be selected, if you are building Flutter locally.
+                                This is only used when "--local-engine" is also specified.
+    --local-web-sdk             Name of a build output within the engine out directory, if you are building Flutter locally.
+                                Use this to select a specific version of the web sdk if you have built multiple engine targets.
+                                This path is relative to "--local-engine-src-path" (see above).
+[        ] Running Gradle task 'bundleRelease'...
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-f2458551-android/work/untab/android/] ~/Developer/shorebird-wt/devrun/run-f2458551-android/work/untab/android/gradlew --full-stacktrace --info -Pverbose=true -Ptarget-platform=android-arm,android-arm64,android-x64 -Pt
+[        ] WARNING: The option setting 'android.builtInKotlin=false' is deprecated.
+[   +3 ms] WARNING: The option setting 'android.newDsl=false' is deprecated.
+[        ] WARNING: API 'applicationVariants' is obsolete and has been replaced with 'AndroidComponentsExtension'.
+[        ] WARNING: API 'testVariants' is obsolete and has been replaced with 'AndroidComponentsExtension'.
+[        ] WARNING: API 'unitTestVariants' is obsolete and has been replaced with 'AndroidComponentsExtension'.
+[        ] Task name matched 'bundleRelease'
+[        ] Selected primary task 'bundleRelease' from project :
+[  +92 ms] Tasks to be executed: [task ':app:validateCompileSdkVersion', task ':app:preBuild', task ':app:preReleaseBuild', task ':app:extractReleaseVersionControlInfo', task ':app:compileFlutterBuildRelease', task ':app:copyFlutterAssetsRelease', task ':app:generateReleaseAssets', task ':app:mergeR
+[        ] Resolve mutations for :app:preReleaseBuild (Thread[#367,Execution worker Thread 6,5,main]) started.
+[        ] :app:preReleaseBuild (Thread[#367,Execution worker Thread 6,5,main]) started.
+[        ] > Task :app:preReleaseBuild
+[        ] Skipping task ':app:preReleaseBuild' as it has no actions.
+[        ] Resolve mutations for :app:extractReleaseVersionControlInfo (Thread[#367,Execution worker Thread 6,5,main]) started.
+[        ] :app:extractReleaseVersionControlInfo (Thread[#367,Execution worker Thread 6,5,main]) started.
+[        ] > Task :app:extractReleaseVersionControlInfo
+[        ] Caching disabled for task ':app:extractReleaseVersionControlInfo' because:
+[        ] Task ':app:extractReleaseVersionControlInfo' is not up-to-date because:
+[        ] Resolve mutations for :app:compileFlutterBuildRelease (Thread[#367,Execution worker Thread 6,5,main]) started.
+[        ] :app:compileFlutterBuildRelease (Thread[#367,Execution worker Thread 6,5,main]) started.
+[+1998 ms] > Task :app:compileFlutterBuildRelease
+[        ] Caching disabled for task ':app:compileFlutterBuildRelease' because:
+[        ] Task ':app:compileFlutterBuildRelease' is not up-to-date because:
+[        ] Starting process 'command '~/Developer/shorebird-wt/devrun/run-f2458551-android/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d7b8b88fbd2d4974/bin/flutter''. Working directory: ~/Developer/shorebird-wt/devrun/run-f2458551-android/work/untab Command: ~/D
+[        ] [   +6 ms] ~/Developer/shorebird-wt/devrun/run-f2458551-android/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d7b8b88fbd2d4974/bin/cache/dart-sdk/bin/dartaotruntime ~/Developer/shorebird-wt/devrun/run-f2458551-android/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d
+[        ] [   +3 ms] targetingApplePlatform = false

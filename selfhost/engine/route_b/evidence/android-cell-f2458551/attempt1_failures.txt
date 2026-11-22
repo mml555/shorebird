@@ -1,0 +1,11 @@
+# Attempt 1 (superseded). Release built WITHOUT usesCleartextTraffic; patch invoked with a flag the CLI does not have.
+## first launch, release app id 5b99ce6e (logcat, filtered)
+11-22 17:42:22.708 I flutter : updater::network: [shorebird] Sending patch check request: app_id: 5b99ce6e-f01a-e95b-8f81-c7741dc72026, channel: stable, release_version: 1.0.0+1, host_bundle_id: dev.selfhost.untab.android, platform: android, arch: aarch64, cur
+11-22 17:42:22.710 E flutter : updater::updater: [shorebird] Update failed: Network request failed; the server could not be reached.
+11-22 17:42:22.710 E flutter :     java.io.IOException: Cleartext HTTP traffic to localhost not permitted
+## attempt 1 patch call (exit 64 for every variant)
+Could not find an option named "--artifact".
+To pass --artifact to flutter build, put it after --:
+
+  shorebird patch android apk --release-version 1.0.0+1 --no-confirm -v -- --artifact
+

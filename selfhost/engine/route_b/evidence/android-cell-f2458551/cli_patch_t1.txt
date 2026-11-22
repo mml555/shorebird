@@ -1,0 +1,10 @@
+[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+                                                            This flag cannot be combined with "--analyze-size".
+                                                            This flag cannot be combined with "--split-debug-info".
+Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsDvgXEB/armeabi-v7a/libapp.so
+Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsDvgXEB/arm64-v8a/libapp.so
+Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsDvgXEB/x86_64/libapp.so
+🕹️  Platform: Android [arm32 (315 B), arm64 (536 B), x86_64 (300 B)]
+Starting Uploading Android artifacts...
+Done Uploading Android artifacts
+✅ Published Patch 9!

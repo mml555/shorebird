@@ -1,0 +1,9 @@
+    versionCode=1 minSdk=24 targetSdk=36
+    versionName=1.0.0
+    lastUpdateTime=2026-11-22 17:45:18
+      firstInstallTime=2026-11-22 17:45:18
+ro.product.model=CPH2551
+ro.build.version.release=16
+ro.build.fingerprint=OnePlus/CPH2551/OP5973L1:16/BP2A.250605.015/T.R4T3.39d0968-17b17ea-17b17e8:user/release-keys
+apk sha256 915ad5fb0dc9b81b171660abcacde4133c8a134eec607def3918b6a94eb3f4e1
+apk bytes 45072543
