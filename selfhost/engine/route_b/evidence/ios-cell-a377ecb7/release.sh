@@ -8,8 +8,8 @@ export PATH="$CLI/bin:$PATH"
 trap unlock EXIT
 die(){ echo "RELEASE STOP: $*"; exit 1; }
 SH=$R/shapes; APP=$R/work/untab; rm -rf $R/work; mkdir -p $R/work; cd $R/work
-PROFILE="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/94dbee59-269c-42f3-a232-bdbced744580.mobileprovision"
-IDENTITY=3965E9C59636AD0C304CFDE5ECFC788EDEF855CD
+PROFILE="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/<profile-uuid>.mobileprovision"
+IDENTITY=<signing-identity-sha1>
 $FLUTTER create --org dev.selfhost --project-name untab --platforms=ios untab > $R/logs/create.log 2>&1 || die "flutter create"
 rm -rf $APP/test
 mkdir -p $APP/packages/tally/lib
@@ -32,7 +32,7 @@ unlock; echo "release exit=$rc"; tail -4 $R/logs/release.log; grep -aE "Route B 
 grep -o -- '--extra-gen-snapshot-options=--route_b_untabled_overrides' $R/logs/release.log | head -1
 APPB=$(find build/ios/archive -name Runner.app -path '*Products/Applications*' | head -1)
 rm -rf $R/signed && mkdir -p $R/signed && cp -R "$APPB" $R/signed/ && APPB=$R/signed/Runner.app
-IOS_DEVICE_UDID=$UDID $CLI/packages/code_push_server/tool/ios_resign.sh "$APPB" "$IDENTITY" "$PROFILE" SK85S6YZP9 $BUNDLE > $R/logs/resign.log 2>&1 || die "resign"
+IOS_DEVICE_UDID=$UDID $CLI/packages/code_push_server/tool/ios_resign.sh "$APPB" "$IDENTITY" "$PROFILE" <team-id> $BUNDLE > $R/logs/resign.log 2>&1 || die "resign"
 codesign --verify --deep --strict "$APPB" && echo SIGN_OK
 echo "CFBundleIdentifier=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APPB/Info.plist") version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APPB/Info.plist")+$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$APPB/Info.plist")"
 # Upgrade install over the same bundle id. Never uninstall.

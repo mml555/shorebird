@@ -8,20 +8,20 @@
 618:[        ] fatal: ref HEAD is not a symbolic ref
 620:[        ] fatal: ref HEAD is not a symbolic ref
 1593:Route B retention: 57 named SDK members kept (default set only; set keep_sdk_collection_methods: true in shorebird.yaml to also keep Iterable.where, map, toList, List.addAll, sort and the other heavy methods), interface 19735 bytes.
-1696:[Process.start] /Users/mendel/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/flutter/52347b6108fa0e8b84b718e76c920e890da4c0a5/bin/flutter build ipa --release --no-codesign --shorebird-trace=/Users/mendel/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/shorebird/debug/build-trace-ios.json --extra-gen-snapshot-options=--patchable_static_calls --extra-gen-snapshot-options=--rout
+1696:[Process.start] ~/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/flutter/52347b6108fa0e8b84b718e76c920e890da4c0a5/bin/flutter build ipa --release --no-codesign --shorebird-trace=~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/shorebird/debug/build-trace-ios.json --extra-gen-snapshot-options=--patchable_static_calls --extra-gen-snapshot-options=--rout
 1717:[        ] fatal: ref HEAD is not a symbolic ref
 1719:[        ] fatal: ref HEAD is not a symbolic ref
 2697:[        ] executing: xattr -r -d com.apple.FinderInfo build/ios/framework_public_headers.fingerprint
 2709:[        ] executing: xattr -r -d com.apple.provenance build/ios/framework_public_headers.fingerprint
-4539:            ♦ /Users/mendel/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/flutter/52347b6108fa0e8b84b718e76c920e890da4c0a5/bin/flutter --verbose assemble --no-version-check --output=/Users/mendel/Library/Developer/Xcode/DerivedData/Runner-cdsdjeqqrxklqbhflafznjfwvgwp/Build/Intermediates.noindex/ArchiveIntermediates/Runner/BuildProductsPath/Release-iphoneos/ -dTargetPlatform=ios -dTarget
+4539:            ♦ ~/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/flutter/52347b6108fa0e8b84b718e76c920e890da4c0a5/bin/flutter --verbose assemble --no-version-check --output=~/Library/Developer/Xcode/DerivedData/Runner-cdsdjeqqrxklqbhflafznjfwvgwp/Build/Intermediates.noindex/ArchiveIntermediates/Runner/BuildProductsPath/Release-iphoneos/ -dTargetPlatform=ios -dTarget
 4574:                       fatal: ref HEAD is not a symbolic ref
 4578:                       fatal: ref HEAD is not a symbolic ref
-5698:            ♦ /Users/mendel/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/flutter/52347b6108fa0e8b84b718e76c920e890da4c0a5/bin/flutter --verbose assemble --no-version-check --output=/Users/mendel/Library/Developer/Xcode/DerivedData/Runner-cdsdjeqqrxklqbhflafznjfwvgwp/Build/Intermediates.noindex/ArchiveIntermediates/Runner/BuildProductsPath/Release-iphoneos/ -dTargetPlatform=ios -dTarget
+5698:            ♦ ~/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/flutter/52347b6108fa0e8b84b718e76c920e890da4c0a5/bin/flutter --verbose assemble --no-version-check --output=~/Library/Developer/Xcode/DerivedData/Runner-cdsdjeqqrxklqbhflafznjfwvgwp/Build/Intermediates.noindex/ArchiveIntermediates/Runner/BuildProductsPath/Release-iphoneos/ -dTargetPlatform=ios -dTarget
 5719:            [        ] fatal: ref HEAD is not a symbolic ref
 5721:            [        ] fatal: ref HEAD is not a symbolic ref
-5929:            [        ] Extra gen_snapshot options: [--patchable_static_calls, --route_b_untabled_overrides, --write-v8-snapshot-profile-to=/Users/mendel/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b_snapshot_profile.json]
-5931:            [        ] executing: /Users/mendel/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/flutter/52347b6108fa0e8b84b718e76c920e890da4c0a5/bin/cache/artifacts/engine/ios-release/gen_snapshot_arm64 --deterministic --print_class_table_link_debug_info_to=/Users/mendel/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/.dart_tool/flutter_build/74b7c35d6e82fce455ffbd38b004bb74/App.cla
-7749:[route-b] recorded engine a377ecb7ae1c26172d6e9d517c42321726eec427 and 7 artifact(s) in /Users/mendel/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/ios/shorebird/route_b.json
+5929:            [        ] Extra gen_snapshot options: [--patchable_static_calls, --route_b_untabled_overrides, --write-v8-snapshot-profile-to=~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b_snapshot_profile.json]
+5931:            [        ] executing: ~/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/flutter/52347b6108fa0e8b84b718e76c920e890da4c0a5/bin/cache/artifacts/engine/ios-release/gen_snapshot_arm64 --deterministic --print_class_table_link_debug_info_to=~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/.dart_tool/flutter_build/74b7c35d6e82fce455ffbd38b004bb74/App.cla
+7749:[route-b] recorded engine a377ecb7ae1c26172d6e9d517c42321726eec427 and 7 artifact(s) in ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/ios/shorebird/route_b.json
 7802:✅ Published Release 1.0.0+72!
 7818:fatal: ref HEAD is not a symbolic ref
 7820:Unable to check for updates.

@@ -1,6 +1,6 @@
 # iOS device run through cell a377ecb7 (2026-11-22)
 
-**Result: every step behaved as its script and the 54117a2f run say it should, on one CLI (`64a64473`). 12 patches were
+**Result, for UNSIGNED patches (the release had no patch public key; the supported configuration signs, and signing was not exercised here): every step behaved as its script and the 54117a2f run say it should, on one CLI (`64a64473`). 12 patches were
 published and each showed its values on the device; 9 patch attempts were refused before upload, each for the reason the
 54117a2f run gave (the combo with p15, p15 alone, p20, p30, r1, r2, e1, p17, t1; the table has each); three rollbacks
 fell back as expected. No launch failed, no patch was refused by the device, and no patch was built with
@@ -19,6 +19,7 @@ needed), and the last rollback ended on patch 11 instead of the base release (be
   is built against the release, not on top of the previous patch.
 - **`stream` and the values that follow `_count`.** `lib.sh` filters the `shape:stream=` lines out of the printed output; they are
   in the `.log` excerpts. `combo_boot.log` shows `U0 U1 U2` for the async\* edit (p08); the release shows `T0 T1 T2`.
+- **p29 in the trio changes nothing the `shape:` lines print.** Only the `3/3` applied-target count shows it was applied.
 - **i2 and i2b are not told apart by their values.** Both give `half=1.25` at `_count` 3. What separates them is the patch
   number the updater booted (9 and 10), which `i2b_boot.log` and `i2_boot.log` show.
 - **Not an Android run.** No Android device applied a patch on this cell.
@@ -89,7 +90,7 @@ change in the updater.
 
 ## The server and the updater
 
-- **No rejected reports.** `server_requests.log` has every request line of `server.log` (bodies and signed URLs dropped): 288
+- **No rejected reports.** `server_requests.log` has every request line of `server.log` (bodies and signed URLs dropped; elsewhere in this directory each signed URL's `sig` value is replaced with `<redacted>`, home paths with `~`, and `release.sh`'s signing identity, team and profile with placeholders): 288
   requests, no 4xx and no 5xx. `POST /api/v1/patches/check` 47 times, all 200 (the launch checks, sent by `a58774ab` with
   `host_bundle_id: dev.selfhost.untab`, #451); `POST /api/v1/patches/events` 30 times, all 204, 15 `__patch_download__` and 15
   `__patch_install__` (the 12 patches once each, plus patches 4, 1 and 11 again after the three rollbacks); 12 patch creates and 12
@@ -131,3 +132,6 @@ come from). `<step>_{download,boot,boot2}.log`, `rb*_{learn,boot,boot2}.log` and
 `Runner(Flutter)` syslog excerpts (the full syslog was 318 MB and is not kept). `patch_*_cli.txt` and `release_cli.txt` are excerpts of
 the verbose build logs (the release log dumps the build environment, including the API token). `patch_numbers.txt`: combo 1, trio 2, h1 3, m1 4, m2 5, s1b 6, s1 7, i1 8,
 i2b 9, i2 10, e1b 11, p16 12. The device's UDID is in `install.txt` and `env.sh`, as in the 54117a2f evidence; the device's name is removed.
+
+The server log has 17 `/download` GETs (14 distinct patch files, three fetched twice) against 15 `Downloading patch` lines on the
+device; the two extra fetches are not attributed in this record.

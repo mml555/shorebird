@@ -2,7 +2,7 @@
 6213:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
 6214:[route-b] P5-TARGET OPEN: release target lib/main.dart, this patch invoked with <default>. Recorded, not gated: no measurement has shown a target difference can admit a semantic mismatch that the release bindings accept.
 6216:[route-b] fetched cell descriptor from http://127.0.0.1:18185/download.shorebird.dev/shorebird/cell-manifests/a377ecb7ae1c26172d6e9d517c42321726eec427.v2
-6217:[route-b] using cached compiler bundle /Users/mendel/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/artifacts/route-b-compiler/bundles/a377ecb7ae1c26172d6e9d517c42321726eec427-route-b-compiler-darwin-arm64.zip
+6217:[route-b] using cached compiler bundle ~/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/artifacts/route-b-compiler/bundles/a377ecb7ae1c26172d6e9d517c42321726eec427-route-b-compiler-darwin-arm64.zip
 6218:[route-b] resolved compiler for engine a377ecb7ae1c26172d6e9d517c42321726eec427
 6243:This patch changes code outside the app's own package (untab), which an iOS patch cannot carry:
 6244:

@@ -404,10 +404,10 @@ cells:
       step 7 and arm A because the fixture's Gradle was below Flutter 3.50's minimum (9.3.1); the resume
       after the fixture bump (3001a355, #263) passed. See evidence/r12-linux-ci/PROMOTION_a377ecb7.md.
     physically_qualified: >-
-      PASSED WITH LIMITS 2026-11-22: a physical iPhone 7 (iOS 15.8.8, 19H422), cell a377ecb7, CLI 64a64473, release 1.0.0+72.
+      PASSED WITH LIMITS, UNSIGNED PATCHES ONLY, 2026-11-22: a physical iPhone 7 (iOS 15.8.8, 19H422), cell a377ecb7, CLI 64a64473, release 1.0.0+72.
       12 patches were published and each showed its values on the device (combo, trio, h1, m1, m2, s1b, s1, i1, i2b, i2, e1b, p16); 9 attempts were refused before upload
       for the expected reasons (combo with p15, p15, p20, p30, r1, r2, e1, p17, t1); three rollbacks (2, 5, 12) fell back as expected, the last to patch 11; no launch failed,
-      no patch was refused by the device, the server returned no 4xx or 5xx, and every engine artifact came from the overlay (77 requests, all naming a377ecb7).
+      no patch was refused by the device, the server returned no 4xx or 5xx, and every artifact the mirror served came from the overlay (77 requests, all naming a377ecb7).
       Limits: the patches were unsigned (the release printed 'No patch public key was provided'), #254 (await on a TickerFuture) was not exercised, and it is one CLI, one device
       and one app version. No Android device applied a patch on this cell: the chain shows an Android release and patch built and published under seal with the CLI arms passing, and the harness
       itself calls that "NOT self-certifying" (armA.log:147-151). Evidence: evidence/ios-cell-a377ecb7/RESULT.md.

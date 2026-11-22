@@ -1,9 +1,9 @@
-[Process.run] git for-each-ref --contains 52347b6108fa0e8b84b718e76c920e890da4c0a5 --format %(refname:short) refs/remotes/origin/flutter_release/* (in /Users/mendel/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/flutter/52347b6108fa0e8b84b718e76c920e890da4c0a5)
+[Process.run] git for-each-ref --contains 52347b6108fa0e8b84b718e76c920e890da4c0a5 --format %(refname:short) refs/remotes/origin/flutter_release/* (in ~/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/flutter/52347b6108fa0e8b84b718e76c920e890da4c0a5)
 Exited with code 0
 Shorebird 1.6.144+selfhost.1 • git@github.com:shorebirdtech/shorebird.git
 Flutter • revision 52347b6108fa0e8b84b718e76c920e890da4c0a5
 Engine • revision a377ecb7ae1c26172d6e9d517c42321726eec427
-[Process.run] git symbolic-ref HEAD (in /Users/mendel/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache)
+[Process.run] git symbolic-ref HEAD (in ~/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache)
 Exited with code 128
 
 stderr:

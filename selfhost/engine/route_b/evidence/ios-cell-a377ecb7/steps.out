@@ -72,7 +72,7 @@ shape:static=S1
 shape:tally=K1 3 |||
 patch refuse_combo_p15 exit=70
 5199:                export SDK_STAT_CACHE_ENABLE\=YES
-5200:                export SDK_STAT_CACHE_PATH\=/Users/mendel/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos27.2-24B8118-9aa026f88bf9ed31cff8761912ac5bd16890c9e4970e00494a266ff652f095d9.sdkstatcache
+5200:                export SDK_STAT_CACHE_PATH\=~/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos27.2-24B8118-9aa026f88bf9ed31cff8761912ac5bd16890c9e4970e00494a266ff652f095d9.sdkstatcache
 5201:                export SDK_VERSION\=27.2
 5202:                export SDK_VERSION_ACTUAL\=270200
 5203:                export SDK_VERSION_MAJOR\=270000
@@ -82,7 +82,7 @@ patch refuse_combo_p15 exit=70
 5298:                export TEST_FRAMEWORK_SEARCH_PATHS\=\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.s
 5356:                export __ORIGINAL_SDK_DEFINED_LLVM_TARGET_TRIPLE_SYS\=ios
 5374:                /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.2.47.0.nBh5Hz/Metal.xctool
-5411:            PruneExplicitPrecompiledModules /Users/mendel/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+5411:            PruneExplicitPrecompiledModules ~/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
 5595:           	<key>DTSDKBuild</key>
 5597:           	<key>DTSDKName</key>
 5725:           	<key>DTSDKBuild</key>
@@ -98,7 +98,7 @@ patch refuse_combo_p15 exit=70
 combo_p15 REFUSED
 patch combo exit=0
 5194:                export SDK_STAT_CACHE_ENABLE\=YES
-5195:                export SDK_STAT_CACHE_PATH\=/Users/mendel/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos27.2-24B8118-9aa026f88bf9ed31cff8761912ac5bd16890c9e4970e00494a266ff652f095d9.sdkstatcache
+5195:                export SDK_STAT_CACHE_PATH\=~/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos27.2-24B8118-9aa026f88bf9ed31cff8761912ac5bd16890c9e4970e00494a266ff652f095d9.sdkstatcache
 5196:                export SDK_VERSION\=27.2
 5197:                export SDK_VERSION_ACTUAL\=270200
 5198:                export SDK_VERSION_MAJOR\=270000
@@ -108,7 +108,7 @@ patch combo exit=0
 5293:                export TEST_FRAMEWORK_SEARCH_PATHS\=\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.s
 5351:                export __ORIGINAL_SDK_DEFINED_LLVM_TARGET_TRIPLE_SYS\=ios
 5369:                /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.2.47.0.nBh5Hz/Metal.xctool
-5408:            PruneExplicitPrecompiledModules /Users/mendel/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+5408:            PruneExplicitPrecompiledModules ~/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
 5590:           	<key>DTSDKBuild</key>
 5592:           	<key>DTSDKName</key>
 5720:           	<key>DTSDKBuild</key>
@@ -127,7 +127,7 @@ patch combo exit=0
 [shorebird] Sending patch check request: app_id: 6bb3b1e7-7d48-6053-178d-148ab7dc4a0b, channel: stable, release_version: 1.0.0+72, host_bundle_id: dev.selfhost.untab, platform: ios, arch: aarch64, current_patch_number: N
 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "adb5a1b76f0652527226e5b88d5649ef920f8106b056dc79bd97ad97ab060d79", download_url: "http://10.0.0.242:1829
 [shorebird] Downloading patch 1 for app 6bb3b1e7-7d48-6053-178d-148ab7dc4a0b (version 1.0.0+72)
-[shorebird] Downloading patch from: http://10.0.0.242:18290/download/b87da98f31695194ef6b053a30d72aa7?exp=1795329132&sig=9bb041ad2dfbb9abf0d53d6e44876d05524b40fd8a612bba474c95244a839796
+[shorebird] Downloading patch from: http://10.0.0.242:18290/download/b87da98f31695194ef6b053a30d72aa7?exp=1795329132&sig=<redacted>
 [shorebird] Downloaded patch to: "/private/var/mobile/Containers/Data/Application/AB738CA5-BED1-4ACD-9E6E-E209153032B0/Library/Application Support/shorebird/shorebird_updater/downloads/1" (9056 bytes)
 [shorebird] Inflating patch from "/private/var/mobile/Containers/Data/Application/AB738CA5-BED1-4ACD-9E6E-E209153032B0/Library/Application Support/shorebird/shorebird_updater/downloads/1" (9056 bytes)
 shape:arith=2:false
@@ -243,7 +243,7 @@ shape:static=S2
 shape:tally=K1 3 |||
 patch trio exit=0
 5194:                export SDK_STAT_CACHE_ENABLE\=YES
-5195:                export SDK_STAT_CACHE_PATH\=/Users/mendel/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos27.2-24B8118-9aa026f88bf9ed31cff8761912ac5bd16890c9e4970e00494a266ff652f095d9.sdkstatcache
+5195:                export SDK_STAT_CACHE_PATH\=~/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos27.2-24B8118-9aa026f88bf9ed31cff8761912ac5bd16890c9e4970e00494a266ff652f095d9.sdkstatcache
 5196:                export SDK_VERSION\=27.2
 5197:                export SDK_VERSION_ACTUAL\=270200
 5198:                export SDK_VERSION_MAJOR\=270000
@@ -253,7 +253,7 @@ patch trio exit=0
 5293:                export TEST_FRAMEWORK_SEARCH_PATHS\=\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.s
 5351:                export __ORIGINAL_SDK_DEFINED_LLVM_TARGET_TRIPLE_SYS\=ios
 5369:                /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.2.47.0.nBh5Hz/Metal.xctool
-5406:            PruneExplicitPrecompiledModules /Users/mendel/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+5406:            PruneExplicitPrecompiledModules ~/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
 5590:           	<key>DTSDKBuild</key>
 5592:           	<key>DTSDKName</key>
 5720:           	<key>DTSDKBuild</key>
@@ -414,7 +414,7 @@ patch refuse_const exit=70
 5293:                export TEST_FRAMEWORK_SEARCH_PATHS\=\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.s
 5351:                export __ORIGINAL_SDK_DEFINED_LLVM_TARGET_TRIPLE_SYS\=ios
 5369:                /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.2.47.0.nBh5Hz/Metal.xctool
-5408:            PruneExplicitPrecompiledModules /Users/mendel/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+5408:            PruneExplicitPrecompiledModules ~/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
 5590:           	<key>DTSDKBuild</key>
 5592:           	<key>DTSDKName</key>
 5720:           	<key>DTSDKBuild</key>
@@ -440,7 +440,7 @@ patch refuse_field exit=70
 5293:                export TEST_FRAMEWORK_SEARCH_PATHS\=\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.s
 5351:                export __ORIGINAL_SDK_DEFINED_LLVM_TARGET_TRIPLE_SYS\=ios
 5369:                /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.2.47.0.nBh5Hz/Metal.xctool
-5404:            PruneExplicitPrecompiledModules /Users/mendel/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+5404:            PruneExplicitPrecompiledModules ~/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
 5590:           	<key>DTSDKBuild</key>
 5592:           	<key>DTSDKName</key>
 5720:           	<key>DTSDKBuild</key>
@@ -458,7 +458,7 @@ patch refuse_field exit=70
 field REFUSED
 patch refuse_p15 exit=70
 5194:                export SDK_STAT_CACHE_ENABLE\=YES
-5195:                export SDK_STAT_CACHE_PATH\=/Users/mendel/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos27.2-24B8118-9aa026f88bf9ed31cff8761912ac5bd16890c9e4970e00494a266ff652f095d9.sdkstatcache
+5195:                export SDK_STAT_CACHE_PATH\=~/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos27.2-24B8118-9aa026f88bf9ed31cff8761912ac5bd16890c9e4970e00494a266ff652f095d9.sdkstatcache
 5196:                export SDK_VERSION\=27.2
 5197:                export SDK_VERSION_ACTUAL\=270200
 5198:                export SDK_VERSION_MAJOR\=270000
@@ -468,7 +468,7 @@ patch refuse_p15 exit=70
 5293:                export TEST_FRAMEWORK_SEARCH_PATHS\=\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.s
 5351:                export __ORIGINAL_SDK_DEFINED_LLVM_TARGET_TRIPLE_SYS\=ios
 5369:                /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.2.47.0.nBh5Hz/Metal.xctool
-5408:            PruneExplicitPrecompiledModules /Users/mendel/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+5408:            PruneExplicitPrecompiledModules ~/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
 5590:           	<key>DTSDKBuild</key>
 5592:           	<key>DTSDKName</key>
 5720:           	<key>DTSDKBuild</key>
