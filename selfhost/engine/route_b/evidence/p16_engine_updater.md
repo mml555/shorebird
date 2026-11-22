@@ -190,7 +190,7 @@ and cannot run on hosted CI, which has none; they print a `SKIPPED` summary and
 engine `e737ede3` (Flutter 3.50) and updater `a58774ab`, after checks 5-6 learned
 the 3.50 code shape: `ApplyPatchToSettings` is an overload pair, and check 6 now
 reads `shell.cc` as a Route B build compiles it, requiring a null-VM failure
-report in the Shell constructor and no `ReportLaunchSuccess` anywhere in that
-view. Nothing in `.github/` invokes the
+report in the Shell constructor and no `ReportLaunchSuccess` in `shell.cc` as
+read that way. It reads no other file. Nothing in `.github/` invokes the
 script: it is a local check, run on a machine with the engine tree. It does not
 cover the latch in `updater.cc` or `hooks.dart`.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Host check for selfhost/engine/route_b/evidence/p16_engine_updater.md.
-# cspell:words lstrip finditer
+# cspell:words lstrip finditer fullmatch ifdef ifndef
 #
 # Usage: engine_updater_evidence_guard.sh [--require-engine]
 #
@@ -17,8 +17,9 @@
 #   5. (engine) the Route B wrong-release branch reports launch failure through
 #      a ReportRefusal that really calls ReportLaunchFailure, returns without
 #      activating, and the hook is still armed from ApplyPatchToSettings.
-#   6. (engine) a Route B build of shell.cc never banks success, and its Shell
-#      constructor reports failure for a null VM.
+#   6. (engine) a Route B build of shell.cc never calls ReportLaunchSuccess, and
+#      its Shell constructor reports failure for a null VM. Other files are not
+#      read, so a success report moved into a helper elsewhere is not caught.
 # Checks 4-6 need an engine checkout (ENGINE_SRC, default ~/shorebird-engine/
 # flutter-350/engine/src, the Flutter 3.50 tree) at the supported
 # engine_revision. Hosted CI has none, so there they are SKIPPED; the final line
@@ -72,24 +73,29 @@ def cfn_all(text, name):
         if b >= 0 and (c < 0 or b < c): out.append(block(text, m.start()))
     if not out: raise ValueError("function %s not found" % name)
     return out
+RB = r"(?:SHOREBIRD_ROUTE_B|defined\s*\(?\s*SHOREBIRD_ROUTE_B\s*\)?)(?:\s*==\s*1)?"
 def route_b_view(text):
-    """The text a SHOREBIRD_ROUTE_B=1 build compiles: drops the #if !ROUTE_B
-    arms and the #else arms of #if ROUTE_B. Other conditionals keep every arm."""
+    """The text a SHOREBIRD_ROUTE_B=1 build compiles: drops the arms that test
+    ROUTE_B false and the #else arms of those that test it true. Any other
+    conditional keeps every arm. Directives are read whatever their spacing."""
     keep, stack, out = True, [], []
     for line in text.split("\n"):
-        d = line.split("//")[0].strip()
+        d = re.sub(r"\s+", " ", re.sub(r"^#\s*", "#", line.split("//")[0].strip())).strip()
         if d.startswith("#if"):
-            arm = {"#if SHOREBIRD_ROUTE_B": True, "#if !SHOREBIRD_ROUTE_B": False}.get(d)
+            if re.fullmatch(r"#if " + RB + r"|#ifdef SHOREBIRD_ROUTE_B", d): arm = True
+            elif re.fullmatch(r"#if ?! ?" + RB + r"|#ifndef SHOREBIRD_ROUTE_B", d): arm = False
+            else: arm = None
             stack.append([keep, arm]); keep = keep and arm is not False; continue
         if d.startswith("#el") and stack:
             outer, arm = stack[-1]
             if arm is not None:
-                if not d.startswith("#else"): raise ValueError("#elif after a ROUTE_B #if")
+                need(d == "#else", "an #elif follows an #if on SHOREBIRD_ROUTE_B; this check cannot read it")
                 stack[-1][1] = arm = not arm
             keep = outer and arm is not False; continue
         if d.startswith("#endif") and stack:
             keep = stack.pop()[0]; continue
         if keep: out.append(line)
+    need(not stack, "unbalanced #if/#endif")
     return "\n".join(out)
 def need(cond, msg):
     if not cond: print(msg); sys.exit(1)
@@ -130,7 +136,7 @@ elif mode == "failure":
     _, tb = fn(raw, "prod_c2_explicit_failure_retires_immediately")
     need("report_launch_failure()" in tb and "patch_is_bad(1)" in tb, "C2 control test body no longer asserts the failure retires the patch")
 elif mode == "wrong_release":
-    t = code(sys.argv[2])
+    t = route_b_view(code(sys.argv[2]))
     m = re.search(r"auto ReportRefusal = \[\] ", t)
     need(m is not None, "ReportRefusal lambda not found")
     need("ReportLaunchFailure()" in block(t, m.start()), "ReportRefusal no longer calls ReportLaunchFailure()")
@@ -156,8 +162,10 @@ elif mode == "shell":
     m = re.search(r"\bShell::Shell\(DartVMRef vm,", t)
     need(m is not None, "Shell constructor taking DartVMRef not found")
     ctor = block(t, m.start())
-    i = ctor.find("if (!vm_)")
-    need(i >= 0 and "ReportLaunchFailure()" in block(ctor, i),
+    # The brace must open the null-VM branch itself: block() would otherwise take
+    # the next "{" anywhere after a brace-less `if (!vm_) return;`.
+    v = re.search(r"if\s*\(\s*!vm_\s*\)\s*\{", ctor)
+    need(v is not None and "ReportLaunchFailure()" in block(ctor, v.end() - 1),
          "Route B Shell constructor no longer reports failure for a null VM")
     need("ReportLaunchSuccess" not in ctor, "Route B Shell constructor banks launch success")
     need("ReportLaunchSuccess" not in t, "a Route B build of shell.cc banks launch success (it must come from Dart)")
@@ -195,7 +203,7 @@ else
 fi
 
 if [ "$engine_ran" = 0 ]; then
-  echo "SKIPPED: engine checks (4-6 and the engine-side 2-3) did NOT run: no checkout of $want_engine under $ENGINE_SRC. Only vendor/updater was checked." >&2
+  echo "SKIPPED: engine checks (4-6 and the engine-side 2-3) did NOT run: no checkout of $want_engine under $ENGINE_SRC (the default moved from the 3.47 tree to flutter-350 on 2026-11-22; set ENGINE_SRC). Only vendor/updater was checked." >&2
   [ "$require_engine" = 1 ] && { echo "--require-engine: refusing to pass without the engine tree" >&2; exit 2; }
 fi
 [ "$fail" = 0 ] || exit 1
