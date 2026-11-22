@@ -1,0 +1,14 @@
+## patch_refuse_p15.log (6262 lines; excerpt with original line numbers)
+6206:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+6207:[route-b] P5-TARGET OPEN: release target lib/main.dart, this patch invoked with <default>. Recorded, not gated: no measurement has shown a target difference can admit a semantic mismatch that the release bindings accept.
+6209:[route-b] fetched cell descriptor from http://127.0.0.1:18185/download.shorebird.dev/shorebird/cell-manifests/f2458551039ceb1a48a2ffb4a41dff35950fec5b.v2
+6210:[route-b] using cached compiler bundle ~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/artifacts/route-b-compiler/bundles/f2458551039ceb1a48a2ffb4a41dff35950fec5b-route-b-compiler-darwin-arm64.zip
+6211:[route-b] resolved compiler for engine f2458551039ceb1a48a2ffb4a41dff35950fec5b
+6236:This patch changes code outside the app's own package (untab), which an iOS patch cannot carry:
+6237:
+6238:  tally (path package at packages/tally)
+6239:    changed     package:tally/tally.dart#tallyLabel
+6240:
+6241:An iOS patch replaces functions of package:untab only, so the device would keep running the release's copy of these. Revert them, or ship them in a new release.
+6242:
+6243:Nothing was uploaded.

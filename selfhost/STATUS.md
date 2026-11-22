@@ -13,8 +13,8 @@ Feature-by-feature comparison with upstream Shorebird: [`UPSTREAM_PARITY.md`](UP
 Engine `09c6f422` is `e737ede3`'s source with one change, the updater in `DEPS` (mirror #10 and #11: bounded diag logs, and a proxy refusing CONNECT is a transport error in the ureq builds).
 The values are in [`compatibility.yaml`](compatibility.yaml) and [`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml). The Linux
 promotion chain is in [`PROMOTION_f2458551.md`](evidence/r12-linux-ci/PROMOTION_f2458551.md): one run, no resume; the closure guard verified 2 of 2 ledger rows, R12 arm A and arm B passed.
-**The supported cell `f2458551` has no device run yet: the iPhone 7 (iOS 15.8) release and patch run through it is PENDING, not run, and iOS is not device-qualified on this cell.**
-The last device-qualified cell is `a377ecb7` (iPhone 7, unsigned patches only, with limits). The tag `selfhost-flutter-cell-f2458551` and the release `cell-f2458551` were created on 2026-11-22 (UTC).
+**The supported cell `f2458551` is device-qualified on iOS for unsigned patches only (signing was not exercised), with limits:** an iPhone 7 (iOS 15.8.8) run on 2026-11-22 through CLI `c212f715` and updater `64a458f0`: release `1.0.0+73` upgrade-installed over `+72`, 12 patches published and shown, 9 refused as expected, 3 rollbacks, no launch failed, no device refusal, no `--allow-unchecked-sdk-calls`; per-step values identical to the a377ecb7 run ([`ios-cell-f2458551`](engine/route_b/evidence/ios-cell-f2458551/RESULT.md)). No syslog line separates updater `64a458f0` from `a58774ab`; the installed binary does (`updater_identity.txt`). No Android device applied a patch on this cell.
+The previous device-qualified cell is `a377ecb7` (iPhone 7, unsigned patches only, with limits). The tag `selfhost-flutter-cell-f2458551` and the release `cell-f2458551` were created on 2026-11-22 (UTC).
 Cell `a377ecb7` is superseded; its text follows, as written when it was the supported cell.
 
 **Previous supported stack, 2026-11-22 (cell `a377ecb7`, superseded)** (newer than the sections below, which still describe 2026-11-11): CLI

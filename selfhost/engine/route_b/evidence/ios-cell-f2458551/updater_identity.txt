@@ -1,0 +1,19 @@
+# Which updater is in the installed app. The device's syslog has no line that tells a58774ab from 64a458f0; the binary does.
+# Source of the difference: updater-mirror PR #11 (in 64a458f0, not in a58774ab) changed the success_diag.log format string in
+# library/src/updater.rs (record_launch_success; line 2040 at a58774ab, 2039 at 64a458f0): the trailing \n was dropped, because
+# the line now goes through diag_log::append, which adds the newline itself. (#11 also routes state_diag.log, written from
+# library/src/cache/updater_state.rs, through diag_log::append; that format string has no recovery_event_decision field.)
+# Below: the bytes around that format string in Runner.app/Frameworks/Flutter.framework/Flutter, from signed/Runner.app of each run
+# (the app that run installed). In the compiled format pieces, the byte after the last placeholder marker (0xc0 n) is n, the length of the
+# trailing literal piece. The a377ecb7 run is the reference (updater a58774ab8a88).
+
+cell a377ecb7, updater a58774ab8a88 (reference)
+  Flutter.framework/Flutter sha256 fb92834546e730bb7c1da62fce18b4ed2cfedaf1b920939611ef01d883cbd4e1 (10458880 bytes)
+  bytes from 'recovery_event_decision=' on: b'recovery_event_decision=\xc0\x01\n\x00%[sh'
+  trailing literal piece after the last placeholder: 1 byte(s): b'\n'
+
+cell f2458551, updater 64a458f034c8
+  Flutter.framework/Flutter sha256 35e3fe03188e950b11c780f0fd0350f60b7c910b6303aabea925e0e75fc47f3a (10458880 bytes)
+  bytes from 'recovery_event_decision=' on: b'recovery_event_decision=\xc0\x00%[shor'
+  trailing literal piece after the last placeholder: 0 byte(s) (none)
+

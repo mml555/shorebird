@@ -1,0 +1,12 @@
+## patch_p17.log (6260 lines; excerpt with original line numbers)
+6206:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+6207:[route-b] P5-TARGET OPEN: release target lib/main.dart, this patch invoked with <default>. Recorded, not gated: no measurement has shown a target difference can admit a semantic mismatch that the release bindings accept.
+6209:[route-b] fetched cell descriptor from http://127.0.0.1:18185/download.shorebird.dev/shorebird/cell-manifests/f2458551039ceb1a48a2ffb4a41dff35950fec5b.v2
+6210:[route-b] using cached compiler bundle ~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/artifacts/route-b-compiler/bundles/f2458551039ceb1a48a2ffb4a41dff35950fec5b-route-b-compiler-darwin-arm64.zip
+6211:[route-b] resolved compiler for engine f2458551039ceb1a48a2ffb4a41dff35950fec5b
+6236:This patch cannot be built: it uses code the release never used in its own code.
+6237:
+6238:  package:untab/main.dart#_HomeState._start
+6239:      it calls the dart: method `Iterable.map` (an SDK instance member, measured: throws NoSuchMethodError on set (static)), the dart: method `Iterable.toList` (an SDK instance member, this release has no `toList` on `_ConstSet` (in `dart:_compact_hash` that can be a `Iterable` here), and 56 more. A `Iterable` value can be a `_ConstSet` at runtime, and this release compiled no `toList` for `_ConstSet` because nothing in it calls `toList` on one; a release built with the code that calls it keeps it). An SDK instance method is looked up by name when it runs, and the app throws NoSuchMethodError at that call if the release never called it. Members marked "measured" failed on a device, and those on no list were never measured: no flag unlocks either, because the patcher only lets through members measured on a device. Only a refusal because the snapshot of this release does not keep the member (or its snapshot profile could not be checked) is skipped by `--allow-unchecked-sdk-calls`. To use a refused member, call something else, or have it measured on a device and added to the patcher list. Iterable.map, Iterable.toList are kept by a release only when shorebird.yaml sets keep_sdk_collection_methods: true, so if this release did not keep it, set that and cut a new release
+6240:
+6241:The whole patch is refused, not the part that failed. Nothing was uploaded.
