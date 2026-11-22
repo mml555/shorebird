@@ -520,8 +520,8 @@ patch can be published with the SDK kept check on. What a patch may add is uncha
 
 The cell that replaced `54117a2f`, `a377ecb7` (2026-11-22), is over a new engine, `e737ede3` (Flutter 3.50, Dart
 `0cd04a77`), and carries that engine's compiler archive. It is not a re-cell of `d0714887`: the engine, the Dart SDK and the
-selector all moved. TODO: the iPhone run through `a377ecb7` has not run yet, so nothing in this document is device-proven on
-Flutter 3.50 beyond what `54117a2f` showed on 3.47; the promotion chain (Linux, Android) is in
+selector all moved. Nothing in Route B is device-proven on Flutter 3.50 yet: the iPhone run on this cell is in progress, and the device
+evidence of `54117a2f` on Flutter 3.47 does not carry to a new engine. The promotion chain is in
 [`PROMOTION_a377ecb7.md`](evidence/r12-linux-ci/PROMOTION_a377ecb7.md).
 
 ### A class or extension member's own statics (class scope)

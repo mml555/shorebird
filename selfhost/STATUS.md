@@ -12,13 +12,13 @@ Feature-by-feature comparison with upstream Shorebird: [`UPSTREAM_PARITY.md`](UP
 `64a64473` (the merge of #263), shorebird-flutter `52347b61`, cell `a377ecb7` over engine `e737ede3` (Flutter 3.50, Dart
 `0cd04a77`). This is a new engine, not a re-cell: it replaces cell `54117a2f` (engine `d0714887`, Flutter 3.47, Dart `b4671ab7`). The values are in
 [`compatibility.yaml`](compatibility.yaml) and [`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml). The Linux
-promotion chain is in [`PROMOTION_a377ecb7.md`](evidence/r12-linux-ci/PROMOTION_a377ecb7.md): R12 arm A and arm B passed, on the resumed run. The
+promotion chain is in [`PROMOTION_a377ecb7.md`](evidence/r12-linux-ci/PROMOTION_a377ecb7.md): R12 arm A and arm B passed, on the resumed run (the chain ran in two parts; see the record). No Android device applied a patch on this cell. The
 first run stopped at the discovery and arm A steps because the fixture's Gradle (9.1.0) was below Flutter 3.50's minimum; #263 bumped the fixture and the resume passed.
-**Not device-qualified: the iPhone 7 (iOS 15.8) release and patch run through this cell is pending.** Nothing a device showed through `54117a2f` carries over to a new engine;
+**The supported cell `a377ecb7` has no device run yet: the iPhone 7 (iOS 15.8) release and patch run through it is in progress, and iOS is not device-qualified on this cell.** Nothing a device showed through `54117a2f` carries over to a new engine;
 the last device-qualified cell is `54117a2f` ([`PROMOTION_54117a2f.md`](evidence/r12-linux-ci/PROMOTION_54117a2f.md), with limits). The tag
-`selfhost-flutter-cell-a377ecb7` and the release `cell-a377ecb7` were created on 2026-11-21. Cell `54117a2f` (2026-11-19) is superseded.
+`selfhost-flutter-cell-a377ecb7` and the release `cell-a377ecb7` were created on 2026-11-22 (UTC). Cell `54117a2f` (2026-11-19) is superseded.
 **Upgrading an app to this stack:** Flutter 3.50 requires Android Gradle 9.3.1 or newer, the Android Gradle Plugin 9.1.1 or newer and the Kotlin Gradle
-plugin 2.4.10 or newer (the 3.50 template uses Gradle 9.5.0, AGP 9.3.1 and KGP 2.4.20); a project on older versions fails to build a release. Known gap:
+plugin 2.4.10 or newer (the 3.50 template uses Gradle 9.5.0, AGP 9.3.1 and KGP 2.4.20; AGP 9.3.x needs Gradle 9.5.0 and AGP 9.2.x needs 9.4.1, `GradleForAgp` in `gradle_utils.dart` at `52347b61`); a project on older versions fails to build a release. Known gap:
 the `selfhost-engine-mirror` action in shorebird-flutter downloads a single `overlay-<engine>.tar`, but engine `e737ede3`'s overlay is released in parts, so
 shorebird-flutter CI on a commit whose `engine.version` is `e737ede3` cannot fetch it until that action is fixed (a push to shorebird-flutter, not done here).
 

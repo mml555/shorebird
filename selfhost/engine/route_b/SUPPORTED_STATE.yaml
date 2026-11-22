@@ -210,7 +210,7 @@ lineage:
     remote: https://github.com/mml555/shorebird-flutter.git
     refs:
       - refs/heads/selfhost/3.50-cell-a377ecb7
-      - refs/tags/selfhost-flutter-cell-a377ecb7   # annotated; immutable intent; created 2026-11-21, annotated tag object 88f0463c at 52347b61
+      - refs/tags/selfhost-flutter-cell-a377ecb7   # annotated; immutable intent; created 2026-11-22T03:37:50Z, annotated tag object 88f0463c at 52347b61
     parent: e737ede3bcf9b18c495498ada78a841e38b4a388   # the engine commit itself (selfhost/3.50-up): engine.version names the engine, there is no pin commit in between
     tree: e1b89f7e42cbcb9d1a2d3e7a85d529874b1d0318
     delta_from_parent: >-
@@ -251,8 +251,8 @@ lineage:
     # notice, because precache needs no version solving. Found by
     # CI-NONINTERACTIVE-1, fixed by pushing the tags, and now asserted by
     # bootstrap_selfhost.sh so it cannot regress silently.
-    version_tags_on_remote: 1101
-    version_resolves_to: 3.46.0-1.0.pre-2390   # `flutter --version` at the selector 52347b61 (engine a377ecb7), measured in the cold bootstrap (Dart 3.14.0), evidence/r12-linux-ci/promotion-a377ecb7/arms/arm-BOOT1/bootstrap.log. The string says 3.46 for a Flutter 3.50 tree; it is the tool's own output, recorded as read, and the git tags the describe counts from were not re-counted for this selector
+    version_tags_on_remote: 1115   # `git ls-remote --tags https://github.com/mml555/shorebird-flutter.git`, peeled ^{} refs excluded, counted 2026-11-22 (1133 lines with them); 1101 was the earlier count
+    version_resolves_to: 3.46.0-1.0.pre-2390   # what `flutter --version` prints for this tree (the fork's tag naming) at the selector 52347b61 (engine a377ecb7), measured in the cold bootstrap (Dart 3.14.0), evidence/r12-linux-ci/promotion-a377ecb7/arms/arm-BOOT1/bootstrap.log. The string says 3.46 for a Flutter 3.50 tree; it is the tool's own output, recorded as read, and the git tags the describe counts from were not re-counted for this selector
     # (3.46.0-1.0.pre-866 at the SUPERSEDED selector f4024608; the same at the SUPERSEDED selectors cc4fc222, 5c60356c, 7def8a99 and ef0eec1b; 3.46.0-1.0.pre-863 at the SUPERSEDED selector f6bbc8a0; 3.46.0-1.0.pre-167 at 5b180d22.) Read from the tool's own output, not derived.
     clone_url_default: >-
       third_party/flutter/bin/internal/shared.sh defaults to this fork.
@@ -378,7 +378,7 @@ cells:
     members: 30
     minted: 2026-11-21 (ROUTE-B-CELL-A377ECB7)
     status: >-
-      SELECTED, promoted on the frozen chain -- this is lineage.cell_address (moved here 2026-11-22).
+      SELECTED -- this is lineage.cell_address (moved here 2026-11-22). The promotion chain ran in two parts (run 1, then a resume that re-ran steps 1-2 and 7-8 and added an arm 1/2 failure check); step 7's harness verdict was FAIL on one check in both runs, by design on arm 3.
       NOT device-qualified: the iPhone 7 (iOS 15.8) release and patch run through the cell address is
       PENDING (see physically_qualified). This is a new engine, so nothing a device showed through
       54117a2f carries over to it.
@@ -393,7 +393,7 @@ cells:
     qualified: >-
       The mint's own checks are recorded in the mint, not here: the cell hydrates 30 of 30 from the
       durable distribution on the Mac (sd1_hydrate_cell.sh: CELL HYDRATED FROM THE DURABLE DISTRIBUTION).
-      verify_supported_state.sh was run against this record (see the PR).
+      verify_supported_state.sh was run once against this record with a hydrated overlay and a bootstrapped checkout at 64a64473: SUPPORTED STATE VERIFIED (evidence/r12-linux-ci/VERIFY_a377ecb7.txt).
     proven: >-
       sealed cold bootstrap, bootstrap_closure_guard and the sealed release/patch chain, run for this
       cell with the CLI that selects it (R12 arm A, exit 0, CHAIN_DONE 2026-11-22T05:16:49Z), then R12 arm B
@@ -404,7 +404,8 @@ cells:
       NOT RUN. PENDING: a physical iPhone 7 (iOS 15.8) iOS release and Route B patch run through the
       cell address on this engine. Until it runs this cell is not device-qualified; the last
       device-qualified cell is 54117a2f (on the Flutter 3.47 engine d0714887, with limits).
-      Android is proven on the Linux chain (R12 arm A and B), not on a device.
+      No Android device applied a patch on this cell: the chain shows an Android release and patch built and published under seal with the CLI arms passing, and the harness
+      itself calls that "NOT self-certifying" (armA.log:147-151).
     producer_lineage: e737ede3bcf9b18c495498ada78a841e38b4a388
     fallback_engine_revision: f0a7d29193ea6e077e02080a3511b405a4401b6f
     evidence: evidence/r12-linux-ci/PROMOTION_a377ecb7.md
@@ -852,7 +853,8 @@ cell_distribution:
   host_extras_sha256: 6187a5b8a63854362e58f7473d3d48e6323fe669291eac53b0d33dd4b2644bf1   # host-extras-<address>.tar, 848963584 B; additive, not addressed
   # The release also carries the full 100-file overlay in two parts (GitHub's 2 GiB asset limit):
   # cell-a377ecb7....tar.part-aa (1992294400 B) and .part-ab (1258656768 B), PARTS.sha256 and files.sha256;
-  # `cat` of the parts has sha256 acc47fdb1483b1935270e043683a023ecc13fb752271fd0baa193ec68fb6e0db.
+  # `cat` of the parts has sha256 acc47fdb1483b1935270e043683a023ecc13fb752271fd0baa193ec68fb6e0db: the first line of the release's original MANIFEST.sha256 asset
+  # (replaced in the repack on 2026-11-22), the digest of the mint's 100-file tar; publish_cell350.sh checked the rejoined parts equal it before upload. NOT recomputed from the downloaded parts.
   # PREVIOUS DISTRIBUTION (still published, tag cell-54117a2f): bundle
   # cell-54117a2fe0510a8cb070faf3f5191542179fb4ce.tar, 741005824 B, sha256
   # 178b90d2bef8716737d7a10dcc376b776b816cc2e589306bb3be924fc28e317d.
@@ -884,7 +886,7 @@ cell_distribution:
   location:
     kind: github-release-asset
     repo: https://github.com/mml555/shorebird
-    tag: cell-a377ecb7   # created 2026-11-21T23:38:50Z, targets bbe90d39 (a commit of this repository), not a prerelease
+    tag: cell-a377ecb7   # GitHub createdAt 2026-11-21T23:38:50Z (the targeted commit's time; the tag was made 2026-11-22T03:37:50Z and the release published 2026-11-22T03:44:05Z, UTC), targets bbe90d39 (a commit of this repository), not a prerelease
     assets:
       - cell-a377ecb7ae1c26172d6e9d517c42321726eec427.tar
       - cell_manifest.v2
@@ -1118,7 +1120,7 @@ product_surfaces:
   # constructs. Recorded because "unsupported construct" and "unsupported
   # surface" have different remediations and collapsing them hides the second.
   standalone_flutter_app:
-    ios: SUPPORTED — physically qualified, see physical_device_qualification
+    ios: SUPPORTED — the supported cell a377ecb7 has NO device run yet (pending); earlier cells were physically qualified, see physical_device_qualification
     android:
       status: SUPPORTED — physically qualified 2026-09-04 against cell f85251f3…
       qualified: 2026-09-04 (ANDROID-FINAL-STACK-2)

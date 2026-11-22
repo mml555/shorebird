@@ -266,5 +266,4 @@ How the statements above were established, for whoever maintains this file.
   `code_signer_rust_seam_test.dart` (commit `0b80cdb73`).
 - Not established from this repository: the key sizes the engine's verifier
   accepts, and on-device behaviour.
-
-- On the Flutter 3.50 engine (`e737ede3`, 2026-11-22) the updater is `a58774ab8a88a04ae5f96ce4e5a9825561a2f2f3` (`DEPS` `updater_rev` at `52347b61`); its `yaml.rs` still defaults `patch_verification` to `install_only` (`library/src/yaml.rs:8-13`). Not re-read here beyond that default; the 2026-11-16 reading above is about `d0714887`.
+- On the Flutter 3.50 engine (`e737ede3`, 2026-11-22) the updater is `a58774ab8a88a04ae5f96ce4e5a9825561a2f2f3` (`DEPS` `updater_rev` at `52347b61`); its `yaml.rs` still defaults `patch_verification` to `install_only` (`library/src/yaml.rs:8-14`). Not re-read here beyond that default; the 2026-11-16 reading above is about `d0714887`.

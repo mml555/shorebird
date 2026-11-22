@@ -92,7 +92,7 @@ Citations are `library/src/<file>.rs` plus the function or type, against the ven
   (branch `route-b-ca91f4b3` of `mml555/shorebird-updater-mirror`, on upstream
   base `ca91f4b3`), vendored at `vendor/updater` plus one later mirror change
   (#11). `vendor/updater/VENDOR.md` is the record, and
-  `selfhost/compatibility.yaml` `updater_revision: 87c198d30f12` must equal its
+  `selfhost/compatibility.yaml` `updater_revision: 87c198d30f87` must equal its
   first 12 characters; `tool/check_updater_pin.sh` fails CI when they differ.
   The pin before the previous one was upstream
   `1f85c4ab1ee5b540269b9859c75e1bffbb9050c7` (2026-07-02), which most of this
