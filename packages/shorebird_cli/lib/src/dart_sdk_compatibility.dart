@@ -60,7 +60,8 @@ class DartSdkCompatibility {
     // selfhost/cdn/experimental_hashes.map.
     'e737ede3': '0cd04a77',
     'a377ecb7': '0cd04a77',
-    // The same, rebuilt with the updater from mirror #14 (#10 and #11 on 91dbbdd).
+    // The same, rebuilt with the updater from shorebird-updater-mirror PR #14
+    // (its #10 and #11 on branch route-b-91dbbdd).
     '09c6f422': '0cd04a77',
     'f2458551': '0cd04a77',
   };
