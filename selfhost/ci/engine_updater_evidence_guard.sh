@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Host check for selfhost/engine/route_b/evidence/p16_engine_updater.md.
-# cspell:words lstrip
+# cspell:words lstrip finditer fullmatch ifdef ifndef nargs isspace
 #
 # Usage: engine_updater_evidence_guard.sh [--require-engine]
 #
@@ -17,11 +17,14 @@
 #   5. (engine) the Route B wrong-release branch reports launch failure through
 #      a ReportRefusal that really calls ReportLaunchFailure, returns without
 #      activating, and the hook is still armed from ApplyPatchToSettings.
-#   6. (engine) the Route B arm of the Shell constructor never banks success.
+#   6. (engine) a Route B build of shell.cc never calls ReportLaunchSuccess, and
+#      its Shell constructor reports failure for a null VM. Other files are not
+#      read, so a success report moved into a helper elsewhere is not caught.
 # Checks 4-6 need an engine checkout (ENGINE_SRC, default ~/shorebird-engine/
-# flutter/engine/src) at the supported engine_revision. Hosted CI has none, so
-# there they are SKIPPED; the final line says so and --require-engine turns the
-# skip into exit 2. Exit 1 is a failed check.
+# flutter-350/engine/src, the Flutter 3.50 tree) at the supported
+# engine_revision. Hosted CI has none, so there they are SKIPPED; the final line
+# says so and --require-engine turns the skip into exit 2. Exit 1 is a failed
+# check.
 set -uo pipefail
 
 require_engine=0
@@ -30,7 +33,7 @@ require_engine=0
 ROOT="${GUARD_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 COMPAT="$ROOT/selfhost/compatibility.yaml"
 VENDOR="$ROOT/vendor/updater"
-ENGINE_SRC="${ENGINE_SRC:-$HOME/shorebird-engine/flutter/engine/src}"
+ENGINE_SRC="${ENGINE_SRC:-$HOME/shorebird-engine/flutter-350/engine/src}"
 fail=0
 bad() { echo "FAIL: $*" >&2; fail=1; }
 ok() { echo "ok:   $*"; }
@@ -61,6 +64,50 @@ def cfn(text, name):
     m = re.search(r"\bvoid " + re.escape(name) + r"\(", text)
     if not m: raise ValueError("function %s not found" % name)
     return m.start(), block(text, m.start())
+def cfn_all(text, name):
+    """(parameter count, body) of every definition of an overloaded C++ function
+    (declarations, which reach a ";" before a "{", are skipped)."""
+    out = []
+    for m in re.finditer(r"\bvoid " + re.escape(name) + r"\(", text):
+        b, c = text.find("{", m.start()), text.find(";", m.start())
+        if b >= 0 and (c < 0 or b < c): out.append((nargs(text, m.end()), block(text, m.start())))
+    if not out: raise ValueError("function %s not found" % name)
+    return out
+def nargs(text, i):
+    """Count of the comma-separated items from i (just past a "(") to its ")"."""
+    d, n, seen = 0, 1, False
+    for ch in text[i:]:
+        if ch in "(<[{": d += 1
+        elif ch in ")>]}":
+            if d == 0: return n if seen else 0
+            d -= 1
+        elif ch == "," and d == 0: n += 1
+        if not ch.isspace(): seen = True
+    raise ValueError("unbalanced")
+RB = r"(?:SHOREBIRD_ROUTE_B|defined\s*\(?\s*SHOREBIRD_ROUTE_B\s*\)?)(?:\s*==\s*1)?"
+def route_b_view(text):
+    """The text a SHOREBIRD_ROUTE_B=1 build compiles: drops the arms that test
+    ROUTE_B false and the #else arms of those that test it true. Any other
+    conditional keeps every arm. Directives are read whatever their spacing."""
+    keep, stack, out = True, [], []
+    for line in text.split("\n"):
+        d = re.sub(r"\s+", " ", re.sub(r"^#\s*", "#", line.split("//")[0].strip())).strip()
+        if d.startswith("#if"):
+            if re.fullmatch(r"#if " + RB + r"|#ifdef SHOREBIRD_ROUTE_B", d): arm = True
+            elif re.fullmatch(r"#if ?! ?" + RB + r"|#ifndef SHOREBIRD_ROUTE_B", d): arm = False
+            else: arm = None
+            stack.append([keep, arm]); keep = keep and arm is not False; continue
+        if d.startswith("#el") and stack:
+            outer, arm = stack[-1]
+            if arm is not None:
+                need(d == "#else", "an #elif follows an #if on SHOREBIRD_ROUTE_B; this check cannot read it")
+                stack[-1][1] = arm = not arm
+            keep = outer and arm is not False; continue
+        if d.startswith("#endif") and stack:
+            keep = stack.pop()[0]; continue
+        if keep: out.append(line)
+    need(not stack, "unbalanced #if/#endif")
+    return "\n".join(out)
 def need(cond, msg):
     if not cond: print(msg); sys.exit(1)
 
@@ -100,7 +147,7 @@ elif mode == "failure":
     _, tb = fn(raw, "prod_c2_explicit_failure_retires_immediately")
     need("report_launch_failure()" in tb and "patch_is_bad(1)" in tb, "C2 control test body no longer asserts the failure retires the patch")
 elif mode == "wrong_release":
-    t = code(sys.argv[2])
+    t = route_b_view(code(sys.argv[2]))
     m = re.search(r"auto ReportRefusal = \[\] ", t)
     need(m is not None, "ReportRefusal lambda not found")
     need("ReportLaunchFailure()" in block(t, m.start()), "ReportRefusal no longer calls ReportLaunchFailure()")
@@ -112,17 +159,36 @@ elif mode == "wrong_release":
     need(re.match(r"ReportRefusal\(\);\s*return;", b[k:]) is not None, "wrong-release branch does not return right after ReportRefusal()")
     need("Dart_RouteBActivatePatchTraced" not in b, "wrong-release branch activates a patch")
     need(t.find("Dart_RouteBActivatePatchTraced") > i + len(b), "activation no longer comes after the wrong-release branch")
-    _, a = cfn(t, "ApplyPatchToSettings")
-    need("InstallRouteBActivationHook(settings, patch_path);" in a, "ApplyPatchToSettings no longer arms the Route B hook")
+    # 3.50 split it into a two-argument wrapper and the overload that does the
+    # work. Some definition must hold the call, and every one that does not must
+    # forward to one that does, first thing, so no entry point skips the hook.
+    defs = cfn_all(t, "ApplyPatchToSettings")
+    HOOK = "InstallRouteBActivationHook(settings, patch_path);"
+    hooked = {n for n, b in defs if HOOK in b}
+    need(hooked, "ApplyPatchToSettings no longer arms the Route B hook")
+    for n, b in defs:
+        if HOOK in b: continue
+        c = re.search(r"\bApplyPatchToSettings\s*\(", b)
+        need(c is not None and nargs(b, c.end()) in hooked
+             and not re.search(r"\b(?:return|if|else|switch|for|while|goto)\b|\?", b[:c.start()]),
+             "the %d-argument ApplyPatchToSettings does not forward, unconditionally, to the overload that arms the Route B hook" % n)
     _, hk = cfn(t, "InstallRouteBActivationHook")
     need("settings.root_isolate_create_callback =" in hk, "the hook no longer registers root_isolate_create_callback")
 elif mode == "shell":
-    t = code(sys.argv[2])
-    s = t.index("#if SHOREBIRD_ROUTE_B")
-    e = min(x for x in (t.find("\n#else", s), t.find("\n#endif", s)) if x >= 0)
-    seg = t[s:e]
-    need("ReportLaunchFailure()" in seg, "Route B Shell constructor arm no longer reports failure for a null VM")
-    need("ReportLaunchSuccess" not in seg, "Route B Shell constructor banks launch success")
+    # Read as a Route B build compiles it. 3.47 had a Route B arm in the Shell
+    # constructor; 3.50 (upstream #453-#455) reports failure or "paused" there in
+    # every build and keeps success out of Route B with #if !SHOREBIRD_ROUTE_B.
+    t = route_b_view(code(sys.argv[2]))
+    m = re.search(r"\bShell::Shell\(DartVMRef vm,", t)
+    need(m is not None, "Shell constructor taking DartVMRef not found")
+    ctor = block(t, m.start())
+    # The brace must open the null-VM branch itself: block() would otherwise take
+    # the next "{" anywhere after a brace-less `if (!vm_) return;`.
+    v = re.search(r"if\s*\(\s*!vm_\s*\)\s*\{", ctor)
+    need(v is not None and "ReportLaunchFailure()" in block(ctor, v.end() - 1),
+         "Route B Shell constructor no longer reports failure for a null VM")
+    need("ReportLaunchSuccess" not in ctor, "Route B Shell constructor banks launch success")
+    need("ReportLaunchSuccess" not in t, "a Route B build of shell.cc banks launch success (it must come from Dart)")
 '
 py() { python3 -I -c "$PY" "$@"; }
 chk() { # chk <label> <py args...>
@@ -150,14 +216,14 @@ if [ -d "$ENGINE_SRC/flutter" ] && [ "$(git -C "$ENGINE_SRC/flutter" rev-parse H
   [ "${deps_rev:0:12}" = "$want_updater" ] && ok "engine DEPS updater_rev is $deps_rev" ||
     bad "engine DEPS updater_rev '${deps_rev}' != $want_updater"
   chk "engine: wrong-release branch reports failure, returns, hook armed" wrong_release "$ENGINE_SRC/flutter/shell/common/shorebird/shorebird.cc"
-  chk "engine: Route B Shell constructor reports failure only" shell "$ENGINE_SRC/flutter/shell/common/shell.cc"
+  chk "engine: Route B shell.cc never banks success; null VM reports failure" shell "$ENGINE_SRC/flutter/shell/common/shell.cc"
   engine_ran=1
 else
   engine_ran=0
 fi
 
 if [ "$engine_ran" = 0 ]; then
-  echo "SKIPPED: engine checks (4-6 and the engine-side 2-3) did NOT run: no checkout of $want_engine under $ENGINE_SRC. Only vendor/updater was checked." >&2
+  echo "SKIPPED: engine checks (4-6 and the engine-side 2-3) did NOT run: no checkout of $want_engine under $ENGINE_SRC (the default moved from the 3.47 tree to flutter-350 on 2026-11-22; set ENGINE_SRC). Only vendor/updater was checked." >&2
   [ "$require_engine" = 1 ] && { echo "--require-engine: refusing to pass without the engine tree" >&2; exit 2; }
 fi
 [ "$fail" = 0 ] || exit 1
