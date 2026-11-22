@@ -186,6 +186,12 @@ typedef struct AppParameters {
    * artifacts and data that can be deleted when a new release is detected.
    */
   const char *code_cache_dir;
+  /**
+   * The host app's bundle identifier (Android package name, iOS bundle
+   * ID), optional (null when not known). Sent with patch checks and
+   * events so a module embedded in several host apps can tell them apart.
+   */
+  const char *host_bundle_id;
 } AppParameters;
 
 typedef struct FileCallbacks {
@@ -328,11 +334,66 @@ SHOREBIRD_EXPORT void shorebird_report_launch_failure(void);
 SHOREBIRD_EXPORT void shorebird_protected_data_available(void);
 
 /**
- * Report that the app launched successfully. The Shell constructor calls
- * this once per process when the VM has finished booting; it pairs with
+ * Report that the engine built its Shell but hasn't launched Dart. Clears
+ * the boot breadcrumb without promoting the patch, so an engine that is
+ * created and never run doesn't mark the patch Bad. Call once per process,
+ * after `shorebird_report_launch_start`.
+ */
+SHOREBIRD_EXPORT void shorebird_report_launch_paused(void);
+
+/**
+ * Report that the engine is launching the root isolate. Arms the boot
+ * breadcrumb again for the patch this process loaded. Call once per
+ * process, from the first engine to launch, before
+ * `shorebird_report_launch_success` or `shorebird_report_launch_failure`.
+ */
+SHOREBIRD_EXPORT void shorebird_report_launch_resumed(void);
+
+/**
+ * Report that the app launched successfully: the engine launched its root
+ * isolate from the patch's snapshot. Pairs with
  * `shorebird_report_launch_start` to mark a patch as having booted cleanly.
  */
 SHOREBIRD_EXPORT void shorebird_report_launch_success(void);
+
+/**
+ * `shorebird_report_launch_start` for the patch the engine loaded (0: the
+ * base release). Records it as this process's running patch and arms the
+ * boot breadcrumb for it if it's installed, even if the next boot patch has
+ * changed since the engine read its path.
+ */
+SHOREBIRD_EXPORT
+void shorebird_report_launch_start_for_patch(uintptr_t patch_number);
+
+/**
+ * `shorebird_report_launch_paused` for the patch the engine loaded (0: the
+ * base release). Ignored unless it's the patch reported at start.
+ */
+SHOREBIRD_EXPORT
+void shorebird_report_launch_paused_for_patch(uintptr_t patch_number);
+
+/**
+ * `shorebird_report_launch_resumed` for the patch the engine loaded (0: the
+ * base release). Ignored unless it's the patch reported at start.
+ */
+SHOREBIRD_EXPORT
+void shorebird_report_launch_resumed_for_patch(uintptr_t patch_number);
+
+/**
+ * `shorebird_report_launch_success` for the patch the engine loaded (0: the
+ * base release). Records the boot only when it's the patch reported at start
+ * and the boot breadcrumb names it; sends queued events either way.
+ */
+SHOREBIRD_EXPORT
+void shorebird_report_launch_success_for_patch(uintptr_t patch_number);
+
+/**
+ * `shorebird_report_launch_failure` for the patch the engine loaded (0: the
+ * base release, which has nothing to roll back). Marks the patch bad only
+ * when it's the patch reported at start and the boot breadcrumb names it.
+ */
+SHOREBIRD_EXPORT
+void shorebird_report_launch_failure_for_patch(uintptr_t patch_number);
 
 #ifdef __cplusplus
 }  // extern "C"

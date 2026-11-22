@@ -270,7 +270,12 @@ pub fn classify_failure(err: &anyhow::Error) -> FailureCategory {
 pub struct AppConfig {
     pub app_storage_dir: String,
     pub code_cache_dir: String,
+    /// The host app's version, read from the platform (versionName+versionCode
+    /// on Android, CFBundleShortVersionString+CFBundleVersion on iOS).
+    /// The release version, unless shorebird.yaml carries one.
     pub release_version: String,
+    /// The host app's bundle identifier, when the engine knows it.
+    pub host_bundle_id: Option<String>,
     pub original_libapp_paths: Vec<String>,
 }
 
@@ -1356,7 +1361,12 @@ fn install_downloaded_patch(
         state
             .lifecycle_mut()
             .record_install_complete(patch.number, installed_size)?;
-        state.lifecycle_mut().promote_to_next_boot(patch.number)?;
+        // The patch this process loaded stays installed even while no boot
+        // breadcrumb names it (an engine built and not yet run).
+        let running_patch = crate::config::running_patch_number();
+        state
+            .lifecycle_mut()
+            .promote_to_next_boot(patch.number, running_patch)?;
         shorebird_info!(
             "Patch {} successfully downloaded. It will be launched when the app next restarts.",
             patch.number
@@ -1475,20 +1485,27 @@ impl<R: Read> Read for CountingReader<R> {
     }
 }
 
-/// Read+Seek wrapper that counts bytes read, seek calls, and tracks the last
-/// seek-target position. Used to wrap the base reader inside `inflate` so we
+/// Read+Seek wrapper that counts bytes read, seek calls, tracks the last
+/// seek-target position, and records whether a `read` ever returned `0` (EOF)
+/// for a non-empty buffer. Used to wrap the base reader inside `inflate` so we
 /// can report exactly where bipatch's interaction with the base reader was
-/// when an error occurred.
+/// when an error occurred and distinguish a base-reader EOF from a truncated
+/// patch stream.
 struct CountingReadSeek<RS> {
     inner: RS,
     bytes_read: std::sync::Arc<std::sync::atomic::AtomicU64>,
     seek_count: std::sync::Arc<std::sync::atomic::AtomicU64>,
     last_seek_pos: std::sync::Arc<std::sync::atomic::AtomicU64>,
+    hit_eof: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl<RS: Read> Read for CountingReadSeek<RS> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let n = self.inner.read(buf)?;
+        if n == 0 && !buf.is_empty() {
+            self.hit_eof
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+        }
         self.bytes_read
             .fetch_add(n as u64, std::sync::atomic::Ordering::Relaxed);
         Ok(n)
@@ -1573,8 +1590,8 @@ fn inflate<RS>(patch_path: &Path, base_r: RS, output_path: &Path) -> anyhow::Res
 where
     RS: Read + Seek,
 {
-    use std::io::{BufReader, BufWriter, SeekFrom, Write};
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::io::{BufReader, BufWriter, SeekFrom};
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
     use std::sync::Arc;
 
     // Validate the compressed patch before attempting decompression.
@@ -1620,6 +1637,7 @@ where
     let base_bytes_read = Arc::new(AtomicU64::new(0));
     let base_seek_count = Arc::new(AtomicU64::new(0));
     let base_last_seek_pos = Arc::new(AtomicU64::new(0));
+    let base_hit_eof = Arc::new(AtomicBool::new(false));
     let output_bytes_written = Arc::new(AtomicU64::new(0));
 
     let snapshot = || InflateDiagnostics {
@@ -1633,6 +1651,7 @@ where
     };
 
     let patch_r = zstd::Decoder::with_buffer(compressed_patch_r)
+        .context(UpdateError::CorruptPatch)
         .with_context(|| format!("Failed to start zstd decoder. {}", snapshot()))?;
     let patch_r_counted = CountingReader {
         inner: patch_r,
@@ -1643,12 +1662,14 @@ where
         bytes_read: Arc::clone(&base_bytes_read),
         seek_count: Arc::clone(&base_seek_count),
         last_seek_pos: Arc::clone(&base_last_seek_pos),
+        hit_eof: Arc::clone(&base_hit_eof),
     };
 
     // bipatch::Reader::new reads the bipatch header (4-byte magic + 4-byte
     // version) and seeks the base reader to learn its length, so this is the
     // first place a malformed patch or a bad base reader can surface.
     let mut fresh_r = bipatch::Reader::new(patch_r_counted, base_r_counted)
+        .context(UpdateError::CorruptPatch)
         .with_context(|| format!("Failed to initialize bipatch reader. {}", snapshot()))?;
 
     // Write out the resulting patched file to the new location, counting
@@ -1659,9 +1680,12 @@ where
         inner: BufWriter::new(output_file_w),
         bytes_written: Arc::clone(&output_bytes_written),
     };
-    let patch_result = std::io::copy(&mut fresh_r, &mut output_w_counted)
-        .and_then(|_| output_w_counted.flush())
-        .with_file_context(FileOperation::WriteFile, output_path);
+    let patch_result = apply_patch_stream(
+        &mut fresh_r,
+        &mut output_w_counted,
+        output_path,
+        &base_hit_eof,
+    );
 
     let diag = snapshot();
     match patch_result {
@@ -1678,6 +1702,55 @@ where
             Err(patch_err).with_context(|| format!("Patch application failed. {}", diag))
         }
     }
+}
+
+/// Streams patched bytes from `fresh_r` into `output_w`, attributing read
+/// errors to `UpdateError::CorruptPatch` and write/flush errors to
+/// `FileOperation::WriteFile` on `output_path`.
+///
+/// `std::io::copy` would conflate reads and writes into a single `io::Error`,
+/// causing `with_file_context(FileOperation::WriteFile, output_path)` to
+/// mislabel a truncated patch or a short base snapshot (`UnexpectedEof` on
+/// `fresh_r`) as `"Failed to write to file '.../dlc.vmcode': failed to fill
+/// whole buffer"` and classify it as `FailureCategory::Filesystem` instead of
+/// `FailureCategory::CorruptPatch`.
+fn apply_patch_stream<R: Read, W: std::io::Write>(
+    fresh_r: &mut R,
+    output_w: &mut W,
+    output_path: &Path,
+    base_hit_eof: &std::sync::atomic::AtomicBool,
+) -> anyhow::Result<()> {
+    let mut buf = [0u8; 8192];
+    loop {
+        let n = match fresh_r.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => {
+                let err = if e.kind() == std::io::ErrorKind::UnexpectedEof
+                    && base_hit_eof.load(std::sync::atomic::Ordering::Relaxed)
+                {
+                    std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        format!(
+                            "{e}: Patch read past the end of the base snapshot. This is most often \
+                             caused by using the same version number with a different app binary \
+                             than the release that was submitted to Shorebird."
+                        ),
+                    )
+                } else {
+                    e
+                };
+                return Err(anyhow::Error::new(err).context(UpdateError::CorruptPatch));
+            }
+        };
+        output_w
+            .write_all(&buf[..n])
+            .with_file_context(FileOperation::WriteFile, output_path)?;
+    }
+    output_w
+        .flush()
+        .with_file_context(FileOperation::WriteFile, output_path)
 }
 
 /// Performs integrity checks on the next boot patch. If the patch fails these checks, the patch
@@ -1820,17 +1893,62 @@ pub fn prepare_next_boot() -> anyhow::Result<Option<PatchInfo>> {
     Ok(selected)
 }
 
+/// The engine has built its Shell but hasn't launched Dart: clears the boot
+/// breadcrumb without promoting the patch, so a process that ends before
+/// [`report_launch_resumed`] (an engine created and never run) doesn't mark
+/// the patch Bad. The patch stays the running patch. Clears only a
+/// breadcrumb naming the running patch, so another process's boot stays
+/// armed. Skips the state when this process runs the base release.
+pub fn report_launch_paused() -> anyhow::Result<()> {
+    let Some(patch_number) = crate::config::running_patch_number() else {
+        return Ok(());
+    };
+    shorebird_info!("Reporting launch paused.");
+    with_mut_state(|state| state.lifecycle_mut().record_boot_pause(patch_number))
+}
+
+/// The engine is launching the root isolate: arms the boot breadcrumb again
+/// for the running patch, the one this process loaded, whatever
+/// `next_boot_patch` says by now. A death from here until
+/// [`report_launch_success`] or [`report_launch_failure`] is a death booting
+/// the patch. A no-op once this process reported its outcome (nothing would
+/// clear the breadcrumb again) and when it runs the base release.
+pub fn report_launch_resumed() -> anyhow::Result<()> {
+    if crate::config::launch_outcome_reported() {
+        return Ok(());
+    }
+    let Some(patch_number) = crate::config::running_patch_number() else {
+        return Ok(());
+    };
+    shorebird_info!("Reporting launch resumed.");
+    with_mut_state(|state| state.lifecycle_mut().record_boot_resume(patch_number))
+}
+
 /// Report that the current active path failed to launch.
 /// This will mark the patch as bad and activate the next best patch.
 pub fn report_launch_failure() -> anyhow::Result<()> {
     shorebird_info!("Reporting failed launch.");
+    crate::config::set_launch_outcome_reported();
+    record_launch_failure(None)
+}
 
+/// Marks the booting patch bad and queues its failure event. With
+/// `only_patch`, acts only when the breadcrumb names that patch.
+fn record_launch_failure(only_patch: Option<usize>) -> anyhow::Result<()> {
     with_config(|config| {
         let (_lock, mut state) = load_state(config)?;
 
         let patch = state.currently_booting_patch().ok_or(anyhow::Error::from(
             UpdateError::InvalidState("currently_booting_patch is None".to_string()),
         ))?;
+        if only_patch.is_some_and(|n| n != patch.number) {
+            shorebird_info!(
+                "Launch failure is for patch {:?}, but patch {} is booting; ignoring it.",
+                only_patch,
+                patch.number
+            );
+            return Ok(());
+        }
         // Ignore the error here, we'll try to activate the next best patch
         // even if we fail to mark this one as bad (because it was already bad).
         let mark_result = state.record_boot_failure_for_patch(patch.number);
@@ -1857,94 +1975,131 @@ pub fn report_launch_failure() -> anyhow::Result<()> {
 
 pub fn report_launch_success() -> anyhow::Result<()> {
     shorebird_info!("Reporting successful launch.");
+    crate::config::set_launch_outcome_reported();
+    record_launch_success(BootToRecord::Breadcrumb)
+}
 
+/// Which boot a success report records.
+enum BootToRecord {
+    /// Whatever patch the breadcrumb names.
+    Breadcrumb,
+    /// This patch, if the breadcrumb names it.
+    Patch(usize),
+    /// None: the base release launched, or the report was for another patch.
+    Nothing,
+}
+
+/// Records the booting patch as booted (as `record` says), reports its first
+/// install, and sends queued events, whether or not anything was recorded.
+fn record_launch_success(record: BootToRecord) -> anyhow::Result<()> {
     let has_events = with_config(|config| {
         // We can tell the UpdaterState that we have successfully booted from the "next" patch
         // and make that the "current" patch.
         let (_lock, mut state) = load_state(config)?;
 
         // None means we didn't boot from a patch, so there's nothing to record.
-        if let Some(booting_patch) = state.currently_booting_patch() {
+        let booting = state.currently_booting_patch().map(|p| p.number);
+        let matches = match record {
+            BootToRecord::Breadcrumb => booting.is_some(),
+            BootToRecord::Patch(n) => {
+                if booting.is_some_and(|b| b != n) {
+                    shorebird_info!(
+                        "Launch success is for patch {}, but patch {:?} is booting; not recording it.",
+                        n,
+                        booting
+                    );
+                }
+                booting == Some(n)
+            }
+            BootToRecord::Nothing => false,
+        };
+        if matches {
             // Get the last successfully booted patch before we record the boot success.
             let previous_boot_patch = state.last_successfully_booted_patch();
 
+            // None: the patch was rolled back or marked Bad during the boot,
+            // so nothing is recorded and no install is reported.
             let success = state.record_boot_success()?;
-
-            // DURABLE WITNESS, for the observation build.
-            //
-            // The syslog line below is not sufficient on its own: the 2026-08-20 device
-            // run produced a 191MB live capture in which row 5's success report is
-            // absent, and line loss cannot be excluded. Absence from syslog must not be
-            // confusable with absence of execution, so the same facts are appended to a
-            // file inside the updater's own state dir, which `afcclient` can read after
-            // the fact.
-            //
-            // Best-effort and deliberately unwrapped: a diagnostic must never be able
-            // to fail a launch. Appended, so a rerun does not erase the previous run's
-            // record; `diag_log` rotates it at a size cap so it cannot grow forever.
-            {
-                let path = config.storage_dir.join("success_diag.log");
-                let line = format!(
-                    "pid={} patch={} raw_boot_attempt={} prior_ambiguous_attempts={} recovery_event_decision={}",
-                    std::process::id(),
-                    success.patch,
-                    success.raw_boot_attempt_count,
-                    success.prior_ambiguous_attempts,
-                    if success.prior_ambiguous_attempts > 0 { "WILL_EMIT" } else { "SUPPRESSED" },
-                );
-                crate::diag_log::append(&path, &line);
-            }
-
-            // MEASUREMENT FIDELITY. The recovery event is the numerator of
-            // P(recovery | first ambiguity), so when it is NOT emitted we must be
-            // able to tell "there was no ambiguity" from "the tally was wrong".
-            // Logging the decisive number makes the next device run decisive
-            // instead of inferential.
-            shorebird_info!(
-                "Launch success for patch {}: prior_ambiguous_attempts={} (recovery event {})",
-                success.patch,
-                success.prior_ambiguous_attempts,
-                if success.prior_ambiguous_attempts > 0 {
-                    "WILL be emitted"
-                } else {
-                    "suppressed: no prior ambiguity"
+            if let Some(success) = &success {
+                // DURABLE WITNESS, for the observation build.
+                //
+                // The syslog line below is not sufficient on its own: the 2026-08-20 device
+                // run produced a 191MB live capture in which row 5's success report is
+                // absent, and line loss cannot be excluded. Absence from syslog must not be
+                // confusable with absence of execution, so the same facts are appended to a
+                // file inside the updater's own state dir, which `afcclient` can read after
+                // the fact.
+                //
+                // Best-effort and deliberately unwrapped: a diagnostic must never be able
+                // to fail a launch. Appended, so a rerun does not erase the previous run's
+                // record; `diag_log` rotates it at a size cap so it cannot grow forever.
+                {
+                    let path = config.storage_dir.join("success_diag.log");
+                    let line = format!(
+                        "pid={} patch={} raw_boot_attempt={} prior_ambiguous_attempts={} recovery_event_decision={}",
+                        std::process::id(),
+                        success.patch,
+                        success.raw_boot_attempt_count,
+                        success.prior_ambiguous_attempts,
+                        if success.prior_ambiguous_attempts > 0 { "WILL_EMIT" } else { "SUPPRESSED" },
+                    );
+                    crate::diag_log::append(&path, &line);
                 }
-            );
 
-            // RECOVERY, emitted only when there was ACTUAL preceding ambiguity.
-            //
-            // `prior_ambiguous_attempts` is captured inside `record_boot_success`
-            // from the live counter BEFORE the success clears it. It is
-            // deliberately NOT inferred from "a success happened and the counter
-            // is now zero": that is true of every ordinary healthy boot, and
-            // would drop clean boots into the recovery population and destroy the
-            // meaning of P(recovery | first ambiguity).
-            if success.prior_ambiguous_attempts > 0 {
-                let client_id = state.client_id();
-                let event = PatchEvent::boot_lifecycle(
-                    config,
+                // MEASUREMENT FIDELITY. The recovery event is the numerator of
+                // P(recovery | first ambiguity), so when it is NOT emitted we must be
+                // able to tell "there was no ambiguity" from "the tally was wrong".
+                // Logging the decisive number makes the next device run decisive
+                // instead of inferential.
+                shorebird_info!(
+                    "Launch success for patch {}: prior_ambiguous_attempts={} (recovery event {})",
                     success.patch,
-                    client_id,
-                    BootOutcome::RecoveredAfterAmbiguity,
                     success.prior_ambiguous_attempts,
-                    lifecycle::BOOT_FAILURE_THRESHOLD,
-                    None,
+                    if success.prior_ambiguous_attempts > 0 {
+                        "WILL be emitted"
+                    } else {
+                        "suppressed: no prior ambiguity"
+                    }
                 );
-                queue_or_send_event(&mut state, config, event);
+
+                // RECOVERY, emitted only when there was ACTUAL preceding ambiguity.
+                //
+                // `prior_ambiguous_attempts` is captured inside `record_boot_success`
+                // from the live counter BEFORE the success clears it. It is
+                // deliberately NOT inferred from "a success happened and the counter
+                // is now zero": that is true of every ordinary healthy boot, and
+                // would drop clean boots into the recovery population and destroy the
+                // meaning of P(recovery | first ambiguity).
+                if success.prior_ambiguous_attempts > 0 {
+                    let client_id = state.client_id();
+                    let event = PatchEvent::boot_lifecycle(
+                        config,
+                        success.patch,
+                        client_id,
+                        BootOutcome::RecoveredAfterAmbiguity,
+                        success.prior_ambiguous_attempts,
+                        lifecycle::BOOT_FAILURE_THRESHOLD,
+                        None,
+                    );
+                    queue_or_send_event(&mut state, config, event);
+                }
             }
+            let booted = success.as_ref().map(|s| s.patch);
 
             // A patch counts as installed the first time it boots, so a boot
             // of the patch that last booted (including after a newer patch
             // failed and we fell back to it) reports nothing.
-            if previous_boot_patch.map(|p| p.number) != Some(booting_patch.number) {
-                let event = PatchEvent::new(
-                    config,
-                    EventType::PatchInstallSuccess,
-                    booting_patch.number,
-                    state.client_id(),
-                    None,
-                );
-                queue_or_send_event(&mut state, config, event);
+            if let Some(booted) = booted {
+                if previous_boot_patch.map(|p| p.number) != Some(booted) {
+                    let event = PatchEvent::new(
+                        config,
+                        EventType::PatchInstallSuccess,
+                        booted,
+                        state.client_id(),
+                        None,
+                    );
+                    queue_or_send_event(&mut state, config, event);
+                }
             }
         }
         Ok(!state.copy_events(1).is_empty())
@@ -1956,6 +2111,101 @@ pub fn report_launch_success() -> anyhow::Result<()> {
         spawn_event_flush();
     }
     Ok(())
+}
+
+// Launch reports that name the patch the engine loaded (`None`: the base
+// release). The engine knows which file it loaded; `next_boot_patch` may have
+// moved since it asked (an install in another process, say). Each acts only
+// on that patch: a report for a patch other than the one this process
+// started is logged and ignored, and success and failure act only when the
+// breadcrumb names it.
+
+/// Whether `loaded` is the patch this process started (`running_patch`).
+/// Logs and returns false when it isn't.
+fn is_running_patch(report: &str, loaded: Option<usize>) -> bool {
+    let running = crate::config::running_patch_number();
+    if running != loaded {
+        shorebird_info!(
+            "Launch {} is for patch {:?}, but this process runs {:?}; ignoring it.",
+            report,
+            loaded,
+            running
+        );
+        return false;
+    }
+    true
+}
+
+/// [`report_launch_start`] for the patch the engine loaded. Records `loaded`
+/// as the running patch and arms the breadcrumb for it if it's installed,
+/// whatever `next_boot_patch` says by now.
+pub fn report_launch_start_for_patch(loaded: Option<usize>) -> anyhow::Result<()> {
+    shorebird_info!("Reporting launch start for patch {:?}.", loaded);
+    with_mut_state(|state| {
+        state.set_running_patch(loaded);
+        let Some(n) = loaded else {
+            return Ok(());
+        };
+        let next_boot = state.lifecycle().pointers().next_boot_patch;
+        if next_boot != Some(n) {
+            shorebird_info!(
+                "Engine loaded patch {}, next boot is now {:?}.",
+                n,
+                next_boot
+            );
+        }
+        // Arms the patch that is running, like a resume: it must be
+        // installed, not necessarily next boot.
+        state.lifecycle_mut().record_boot_resume(n)
+    })
+}
+
+/// [`report_launch_paused`] for the patch the engine loaded.
+pub fn report_launch_paused_for_patch(loaded: Option<usize>) -> anyhow::Result<()> {
+    if !is_running_patch("paused", loaded) {
+        return Ok(());
+    }
+    report_launch_paused()
+}
+
+/// [`report_launch_resumed`] for the patch the engine loaded.
+pub fn report_launch_resumed_for_patch(loaded: Option<usize>) -> anyhow::Result<()> {
+    if !is_running_patch("resumed", loaded) {
+        return Ok(());
+    }
+    report_launch_resumed()
+}
+
+/// [`report_launch_success`] for the patch the engine loaded. Queued events
+/// are sent even when the report is ignored.
+pub fn report_launch_success_for_patch(loaded: Option<usize>) -> anyhow::Result<()> {
+    shorebird_info!("Reporting successful launch of patch {:?}.", loaded);
+    // An ignored report (another patch) is no outcome for this launch.
+    let running = is_running_patch("success", loaded);
+    if running {
+        crate::config::set_launch_outcome_reported();
+    }
+    let record = match loaded {
+        Some(n) if running => BootToRecord::Patch(n),
+        // The base release, or a report for another patch: nothing to
+        // record, but send what's queued.
+        _ => BootToRecord::Nothing,
+    };
+    record_launch_success(record)
+}
+
+/// [`report_launch_failure`] for the patch the engine loaded. A base release
+/// that fails to launch has no patch to roll back: nothing is recorded.
+pub fn report_launch_failure_for_patch(loaded: Option<usize>) -> anyhow::Result<()> {
+    shorebird_info!("Reporting failed launch of patch {:?}.", loaded);
+    if !is_running_patch("failure", loaded) {
+        return Ok(());
+    }
+    crate::config::set_launch_outcome_reported();
+    let Some(n) = loaded else {
+        return Ok(());
+    };
+    record_launch_failure(Some(n))
 }
 
 /// This does not return status.  The only output is the change to the saved
@@ -2167,6 +2417,7 @@ mod tests {
                 app_storage_dir: cache_dir.clone(),
                 code_cache_dir: cache_dir.clone(),
                 release_version: "1.0.0+1".to_string(),
+                host_bundle_id: None,
                 original_libapp_paths: vec![libapp_path],
             },
             Box::new(FakeExternalFileProvider {}),
@@ -2190,6 +2441,7 @@ mod tests {
                     app_storage_dir: cache_dir.clone(),
                     code_cache_dir: cache_dir.clone(),
                     release_version: "1.0.0+1".to_string(),
+                    host_bundle_id: None,
                     original_libapp_paths: vec!["/dir/lib/arch/libapp.so".to_string()],
                 },
                 Box::new(FakeExternalFileProvider {}),
@@ -2212,6 +2464,7 @@ mod tests {
                     app_storage_dir: cache_dir.clone(),
                     code_cache_dir: cache_dir.clone(),
                     release_version: "1.0.0+1".to_string(),
+                    host_bundle_id: None,
                     original_libapp_paths: vec!["/dir/lib/arch/libapp.so".to_string()],
                 },
                 Box::new(FakeExternalFileProvider {}),
@@ -3156,6 +3409,7 @@ mod tests {
                     app_storage_dir: cache_dir.clone(),
                     code_cache_dir: cache_dir.clone(),
                     release_version: "1.0.0+1".to_string(),
+                    host_bundle_id: None,
                     original_libapp_paths: vec!["original_libapp_path".to_string()],
                 },
                 Box::new(FakeExternalFileProvider {}),
@@ -3183,6 +3437,7 @@ patch_verification: bogus_mode
                 app_storage_dir: cache_dir.clone(),
                 code_cache_dir: cache_dir.clone(),
                 release_version: "1.0.0+1".to_string(),
+                host_bundle_id: None,
                 original_libapp_paths: vec!["original_libapp_path".to_string()],
             },
             Box::new(FakeExternalFileProvider {}),
@@ -3605,6 +3860,169 @@ patch_verification: bogus_mode
             err.contains("valid zstd magic bytes"),
             "Expected validation error, got: {}",
             err
+        );
+    }
+
+    #[test]
+    fn inflate_with_shorter_base_reports_base_eof_not_output_write_error() {
+        // Regression test for shorebird#3876: when the device's base
+        // snapshot is shorter than the release snapshot the patch was diffed
+        // against, bipatch seeks to/past the end of the base and hits
+        // UnexpectedEof ("failed to fill whole buffer"). Previously,
+        // `std::io::copy(...).with_file_context(FileOperation::WriteFile, output_path)`
+        // blamed the read EOF on writing `dlc.vmcode` and classified the
+        // failure as `FailureCategory::Filesystem` instead of `CorruptPatch`.
+        let tmp_dir = TempDir::new().unwrap();
+        let patch_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../fixtures/bipatch/text_edit/patch.bin");
+        let full_base = fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../fixtures/bipatch/text_edit/base.bin"),
+        )
+        .unwrap();
+        // Truncate the base so bipatch seeks to the end of the shorter base
+        // and hits EOF when reading.
+        let shorter_base = std::io::Cursor::new(full_base[..full_base.len() / 2].to_vec());
+        let output_path = tmp_dir.path().join("dlc.vmcode");
+
+        let err = super::inflate(&patch_path, shorter_base, &output_path).unwrap_err();
+        let err_chain = format!("{:#}", err);
+        let root_first = super::root_cause_first(&err);
+
+        assert!(
+            root_first.starts_with(
+                "failed to fill whole buffer: Patch read past the end of the base snapshot."
+            ),
+            "Expected root_cause_first to lead with base-EOF explanation so 256b truncation preserves it, got: {root_first}"
+        );
+        assert!(
+            !err_chain.contains("Failed to write to file"),
+            "Read EOF on base must not be mislabeled as an output write error, got: {err_chain}"
+        );
+        assert_eq!(
+            super::classify_failure(&err),
+            super::FailureCategory::CorruptPatch,
+            "Base EOF during inflate should classify as CorruptPatch, not Filesystem"
+        );
+    }
+
+    #[test]
+    fn inflate_with_truncated_patch_does_not_blame_base_or_output_file() {
+        // When the patch stream itself is truncated (either a truncated zstd
+        // frame or a valid zstd frame wrapping a truncated bipatch stream that
+        // hits `UnexpectedEof` / "failed to fill whole buffer" mid-apply) while
+        // the base snapshot is complete, `base_r` never hits EOF. Both must
+        // classify as `CorruptPatch` without falsely blaming the base snapshot
+        // or the output file write.
+        let tmp_dir = TempDir::new().unwrap();
+        let full_patch = fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../fixtures/bipatch/text_edit/patch.bin"),
+        )
+        .unwrap();
+        let full_base = fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../fixtures/bipatch/text_edit/base.bin"),
+        )
+        .unwrap();
+        let output_path = tmp_dir.path().join("dlc.vmcode");
+
+        // Case 1: truncated zstd frame (fails in `bipatch::Reader::new`).
+        let truncated_zstd_path = tmp_dir.path().join("truncated_zstd.patch");
+        fs::write(&truncated_zstd_path, &full_patch[..30]).unwrap();
+        let err = super::inflate(
+            &truncated_zstd_path,
+            std::io::Cursor::new(full_base.clone()),
+            &output_path,
+        )
+        .unwrap_err();
+        let err_chain = format!("{:#}", err);
+        assert!(
+            !err_chain.contains("Patch read past the end of the base snapshot"),
+            "Truncated zstd stream must not blame the base snapshot, got: {err_chain}"
+        );
+        assert!(
+            !err_chain.contains("Failed to write to file"),
+            "Truncated zstd stream must not blame output file write, got: {err_chain}"
+        );
+        assert_eq!(
+            super::classify_failure(&err),
+            super::FailureCategory::CorruptPatch,
+        );
+
+        // Case 2: valid zstd frame whose inner bipatch instruction stream is
+        // truncated after the header, so `fresh_r.read` fails mid-stream with
+        // `UnexpectedEof` ("failed to fill whole buffer") while `base_hit_eof`
+        // is still false.
+        let decompressed_bipatch = zstd::decode_all(&full_patch[..]).unwrap();
+        let truncated_bipatch =
+            zstd::encode_all(&decompressed_bipatch[..decompressed_bipatch.len() / 2], 3).unwrap();
+        let truncated_bipatch_path = tmp_dir.path().join("truncated_bipatch.patch");
+        fs::write(&truncated_bipatch_path, &truncated_bipatch).unwrap();
+
+        let err = super::inflate(
+            &truncated_bipatch_path,
+            std::io::Cursor::new(full_base),
+            &output_path,
+        )
+        .unwrap_err();
+        let err_chain = format!("{:#}", err);
+
+        assert!(
+            err_chain.contains("Patch application failed")
+                && err_chain.contains("failed to fill whole buffer"),
+            "Expected mid-stream UnexpectedEof during patch application, got: {err_chain}"
+        );
+        assert!(
+            !err_chain.contains("Patch read past the end of the base snapshot"),
+            "Truncated bipatch stream must not blame the base snapshot, got: {err_chain}"
+        );
+        assert!(
+            !err_chain.contains("Failed to write to file"),
+            "Truncated bipatch stream must not be mislabeled as an output write error, got: {err_chain}"
+        );
+        assert_eq!(
+            super::classify_failure(&err),
+            super::FailureCategory::CorruptPatch,
+        );
+    }
+
+    #[test]
+    fn apply_patch_stream_preserves_output_write_error_and_category() {
+        // Real write failures on the output file (e.g. disk full) must still
+        // report `Failed to write to file` and classify by their OS error kind,
+        // not be papered over as `CorruptPatch`.
+        struct FailingWriter;
+        impl std::io::Write for FailingWriter {
+            fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+                Err(std::io::Error::from(std::io::ErrorKind::StorageFull))
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+
+        let mut fresh_r = std::io::Cursor::new(b"patched bytes".to_vec());
+        let mut output_w = FailingWriter;
+        let output_path = std::path::Path::new("/tmp/dlc.vmcode");
+        let base_hit_eof = std::sync::atomic::AtomicBool::new(false);
+
+        let err =
+            super::apply_patch_stream(&mut fresh_r, &mut output_w, output_path, &base_hit_eof)
+                .unwrap_err();
+        let err_chain = format!("{:#}", err);
+
+        assert!(
+            err_chain.contains("Failed to write to file"),
+            "Expected output write context in error chain, got: {err_chain}"
+        );
+        assert!(
+            !err_chain.contains("Patch read past the end of the base snapshot"),
+            "Write error must not blame base snapshot, got: {err_chain}"
+        );
+        assert_eq!(
+            super::classify_failure(&err),
+            super::FailureCategory::OutOfSpace,
         );
     }
 
@@ -5456,6 +5874,204 @@ mod state_recovery_tests {
         Ok(())
     }
 
+    /// An engine built and never run: the process ends after paused, and
+    /// the patch is not blamed.
+    #[serial]
+    #[test]
+    fn death_after_paused_keeps_patch() -> Result<()> {
+        let tmp_dir = TempDir::new().unwrap();
+        init_for_testing(&tmp_dir, None);
+        install_fake_patch(1)?;
+        report_launch_start()?;
+        crate::report_launch_paused()?;
+
+        init_for_testing(&tmp_dir, None);
+
+        with_mut_state(|state| {
+            assert!(!state.is_known_bad_patch(1));
+            assert_eq!(state.next_boot_patch().map(|p| p.number), Some(1));
+            assert!(state.copy_events(10).is_empty());
+            Ok(())
+        })
+    }
+
+    /// Without a patch, paused and resumed arm nothing.
+    #[serial]
+    #[test]
+    fn paused_and_resumed_without_patch_arm_nothing() -> Result<()> {
+        let tmp_dir = TempDir::new().unwrap();
+        init_for_testing(&tmp_dir, None);
+        report_launch_start()?;
+        // Taking the state lock would recreate this: without a running
+        // patch, paused and resumed don't even load the state.
+        let lock = tmp_dir.path().join("state.lock");
+        std::fs::remove_file(&lock)?;
+        crate::report_launch_paused()?;
+        crate::report_launch_resumed()?;
+        assert!(!lock.exists());
+
+        with_mut_state(|state| {
+            assert!(state.currently_booting_patch().is_none());
+            Ok(())
+        })
+    }
+
+    /// Once success is reported, a late resumed arms nothing: no later
+    /// report would clear it, and the next death of any kind would mark a
+    /// good patch Bad.
+    #[serial]
+    #[test]
+    fn resumed_after_success_arms_nothing() -> Result<()> {
+        let tmp_dir = TempDir::new().unwrap();
+        init_for_testing(&tmp_dir, None);
+        install_fake_patch(1)?;
+        report_launch_start()?;
+        crate::report_launch_paused()?;
+        crate::report_launch_resumed()?;
+        report_launch_success()?;
+        crate::updater::testing_wait_for_event_flushes();
+
+        crate::report_launch_resumed()?;
+
+        with_mut_state(|state| {
+            assert!(state.currently_booting_patch().is_none());
+            Ok(())
+        })?;
+        init_for_testing(&tmp_dir, None);
+        with_mut_state(|state| {
+            assert!(!state.is_known_bad_patch(1));
+            Ok(())
+        })
+    }
+
+    /// Between paused and resumed nothing is armed, so a failure reported
+    /// there errs and blames no patch. The engine reports a failed root
+    /// isolate launch only after resumed.
+    #[serial]
+    #[test]
+    fn failure_while_paused_errs_and_keeps_patch() -> Result<()> {
+        let tmp_dir = TempDir::new().unwrap();
+        init_for_testing(&tmp_dir, None);
+        install_fake_patch(1)?;
+        report_launch_start()?;
+        crate::report_launch_paused()?;
+
+        assert!(crate::report_launch_failure().is_err());
+
+        with_mut_state(|state| {
+            assert!(!state.is_known_bad_patch(1));
+            assert_eq!(state.next_boot_patch().map(|p| p.number), Some(1));
+            Ok(())
+        })
+    }
+
+    /// A root isolate that fails to launch after resumed marks the patch
+    /// Bad and falls back to the release.
+    #[serial]
+    #[test]
+    fn failure_after_resumed_marks_patch_bad() -> Result<()> {
+        let tmp_dir = TempDir::new().unwrap();
+        init_for_testing(&tmp_dir, None);
+        install_fake_patch(1)?;
+        report_launch_start()?;
+        crate::report_launch_paused()?;
+        crate::report_launch_resumed()?;
+
+        crate::report_launch_failure()?;
+
+        with_mut_state(|state| {
+            assert!(state.is_known_bad_patch(1));
+            assert!(state.currently_booting_patch().is_none());
+            assert!(state.next_boot_patch().is_none());
+            Ok(())
+        })
+    }
+
+    /// A death after resumed, before success is an ambiguous boot, as a death
+    /// before success is on the fork: the first retries the patch, and the
+    /// second (the threshold) marks it Bad on the next init. The pause that
+    /// preceded each resume must not have counted as an attempt.
+    #[serial]
+    #[test]
+    fn death_after_resumed_marks_patch_bad_at_the_threshold() -> Result<()> {
+        let tmp_dir = TempDir::new().unwrap();
+        init_for_testing(&tmp_dir, None);
+        install_fake_patch(1)?;
+        report_launch_start()?;
+        crate::report_launch_paused()?;
+        crate::report_launch_resumed()?;
+
+        init_for_testing(&tmp_dir, None);
+        with_mut_state(|state| {
+            assert!(!state.is_known_bad_patch(1), "first death retries");
+            assert_eq!(state.next_boot_patch().map(|p| p.number), Some(1));
+            Ok(())
+        })?;
+        report_launch_start()?;
+        crate::report_launch_paused()?;
+        crate::report_launch_resumed()?;
+
+        init_for_testing(&tmp_dir, None);
+
+        with_mut_state(|state| {
+            assert!(state.is_known_bad_patch(1));
+            assert!(state.next_boot_patch().is_none());
+            Ok(())
+        })
+    }
+
+    /// The full sequence promotes the patch and reports one install.
+    #[serial]
+    #[test]
+    fn start_paused_resumed_success_promotes_patch() -> Result<()> {
+        let tmp_dir = TempDir::new().unwrap();
+        init_for_testing(&tmp_dir, None);
+        install_fake_patch(1)?;
+        report_launch_start()?;
+        crate::report_launch_paused()?;
+        crate::report_launch_resumed()?;
+        report_launch_success()?;
+        crate::updater::testing_wait_for_event_flushes();
+
+        with_mut_state(|state| {
+            assert_eq!(
+                state.last_successfully_booted_patch().map(|p| p.number),
+                Some(1)
+            );
+            assert!(state.currently_booting_patch().is_none());
+            Ok(())
+        })
+    }
+
+    /// After a reported failure the process runs the release: paused and
+    /// resumed from a later engine arm nothing.
+    #[serial]
+    #[test]
+    fn paused_and_resumed_after_failure_arm_nothing() -> Result<()> {
+        let tmp_dir = TempDir::new().unwrap();
+        init_for_testing(&tmp_dir, None);
+        install_fake_patch(1)?;
+        report_launch_start()?;
+        crate::report_launch_failure()?;
+        crate::report_launch_paused()?;
+        crate::report_launch_resumed()?;
+
+        with_mut_state(|state| {
+            assert!(state.currently_booting_patch().is_none());
+            Ok(())
+        })
+    }
+
+    /// Before init nothing is running: paused and resumed are no-ops rather
+    /// than errors or panics.
+    #[serial]
+    #[test]
+    fn paused_and_resumed_before_init_are_no_ops() {
+        crate::updater::testing_reset_config();
+        assert!(crate::report_launch_paused().is_ok());
+        assert!(crate::report_launch_resumed().is_ok());
+    }
+
     /// When a newer patch crashes during boot, it should be marked bad.
     /// The previously-good patch (patch 1) was booted successfully before
     /// patch 2 was installed, so crash recovery should mark only patch 2 bad.
@@ -6823,4 +7439,51 @@ fn terminal_failure(events: &[crate::events::PatchEvent]) -> &crate::events::Pat
         .iter()
         .find(|e| e.identifier == crate::events::EventType::PatchInstallFailure)
         .expect("expected a PatchInstallFailure event")
+}
+
+#[cfg(test)]
+mod host_field_tests {
+    use super::tests::init_for_testing_with_yaml;
+    use crate::config::with_config;
+    use crate::events::{EventType, PatchEvent};
+    use crate::network::PatchCheckRequest;
+    use serial_test::serial;
+    use tempfile::TempDir;
+
+    #[serial]
+    #[test]
+    fn module_events_and_checks_carry_host_fields() {
+        let tmp_dir = TempDir::new().unwrap();
+        init_for_testing_with_yaml(&tmp_dir, None, "\nrelease_version: \"module-7\"");
+        let mut config = with_config(|config| Ok(config.clone())).unwrap();
+        config.host_bundle_id = Some("com.example.host".to_string());
+
+        let event = PatchEvent::new(&config, EventType::PatchInstallSuccess, 1, "c".into(), None);
+        assert_eq!(event.release_version, "module-7");
+        assert_eq!(event.host_bundle_id.as_deref(), Some("com.example.host"));
+        assert_eq!(event.host_version.as_deref(), Some("1.0.0+1"));
+
+        let request = PatchCheckRequest::new(&config, "c", None);
+        assert_eq!(request.release_version, "module-7");
+        assert_eq!(request.host_bundle_id.as_deref(), Some("com.example.host"));
+        assert_eq!(request.host_version.as_deref(), Some("1.0.0+1"));
+    }
+
+    #[serial]
+    #[test]
+    fn full_app_sends_bundle_id_but_no_host_version() {
+        let tmp_dir = TempDir::new().unwrap();
+        init_for_testing_with_yaml(&tmp_dir, None, "");
+        let mut config = with_config(|config| Ok(config.clone())).unwrap();
+        config.host_bundle_id = Some("com.example.app".to_string());
+
+        let event = PatchEvent::new(&config, EventType::PatchInstallSuccess, 1, "c".into(), None);
+        assert_eq!(event.release_version, "1.0.0+1");
+        assert_eq!(event.host_bundle_id.as_deref(), Some("com.example.app"));
+        assert_eq!(event.host_version, None);
+
+        let request = PatchCheckRequest::new(&config, "c", None);
+        assert_eq!(request.host_bundle_id.as_deref(), Some("com.example.app"));
+        assert_eq!(request.host_version, None);
+    }
 }
