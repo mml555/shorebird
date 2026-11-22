@@ -316,7 +316,9 @@ enum PolicyEpoch {
   /// DEPS at `09c6f422`, shipped in cell `f2458551`) also counts toward B. It is
   /// the same 3.50 line as `a58774ab8a88`; the only change is mirror #10 and
   /// #11 (bounded diagnostic logs; a proxy refusing CONNECT is a transport
-  /// error in the ureq builds), so B still pools three client behaviours.
+  /// error in the ureq builds, Linux and Windows, not Android or iOS). B now
+  /// holds four revisions; on Android and iOS the last two differ only in
+  /// diagnostic logging.
   /// Split by `updater_revision` when comparing. The engine-side evidence
   /// checks passed against it (`selfhost/compatibility.yaml`).
   b(
