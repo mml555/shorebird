@@ -164,8 +164,7 @@ void main() {
       // carry the event-loss fixes, so it under-counts rather than fabricating.
       await repo.insertEvent(
         raw: '{}',
-        dedupeKey:
-            'norev|app|1.7.0+1|1|__patch_boot_lifecycle__|5|ambiguous_boot_retry',
+        dedupeKey: 'norev|app|1.7.0+1|1|__patch_boot_lifecycle__|5|ambiguous_boot_retry',
         appId: 'app',
         clientId: 'norev',
         type: '__patch_boot_lifecycle__',
@@ -253,13 +252,15 @@ void main() {
 
     test(
       'the ACTIVE epoch is B: af6e842ccf87, plus 87c198d30f87 and '
-      "a58774ab8a88 by the owner's 2026-11-07 and 2026-11-22 decisions",
+      "a58774ab8a88 by the owner's 2026-11-07 and 2026-11-22 decisions, "
+      'and 64a458f034c8 (the same 3.50 line plus mirror #10 and #11)',
       () async {
         expect(Repository.activePolicyEpoch, PolicyEpoch.b);
         expect(PolicyEpoch.b.updaterRevisions, {
           'af6e842ccf87',
           '87c198d30f87',
           'a58774ab8a88',
+          '64a458f034c8',
         });
         // Activation did NOT widen the predicate: an Epoch A row is still
         // invisible to the active epoch.
@@ -309,7 +310,19 @@ void main() {
       );
     });
 
-    test('B is exactly its three revisions and shares none with A', () async {
+    test('a 64a458f034c8 lifecycle row is visible to B, not to A', () async {
+      await put('ambiguous_boot_retry', attempt: 1, rev: '64a458f034c8');
+      final b = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.b);
+      expect(b, hasLength(1));
+      final a = await repo.bootLifecycleMetrics('app', epoch: PolicyEpoch.a);
+      expect(
+        a,
+        isEmpty,
+        reason: 'a closed epoch must not absorb later clients',
+      );
+    });
+
+    test('B is exactly its four revisions and shares none with A', () async {
       // Guards the extension itself: a B widened past its list would still
       // pass the two visibility tests above.
       expect(

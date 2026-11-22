@@ -310,8 +310,22 @@ enum PolicyEpoch {
   /// It was counted before its engine-side evidence checks (4-6 of
   /// `selfhost/ci/engine_updater_evidence_guard.sh`) were run against it; they
   /// passed the same day (`selfhost/compatibility.yaml`).
+  ///
+  /// EXTENDED AGAIN 2026-11-22. `64a458f034c8` (updater mirror
+  /// `route-b-91dbbdd` after mirror PR #14, pinned by the Flutter 3.50 fork's
+  /// DEPS at `09c6f422`, shipped in cell `f2458551`) also counts toward B. It is
+  /// the same 3.50 line as `a58774ab8a88`; the only change is mirror #10 and
+  /// #11 (bounded diagnostic logs; a proxy refusing CONNECT is a transport
+  /// error in the ureq builds), so B still pools three client behaviours.
+  /// Split by `updater_revision` when comparing. The engine-side evidence
+  /// checks passed against it (`selfhost/compatibility.yaml`).
   b(
-    updaterRevisions: {'af6e842ccf87', '87c198d30f87', 'a58774ab8a88'},
+    updaterRevisions: {
+      'af6e842ccf87',
+      '87c198d30f87',
+      'a58774ab8a88',
+      '64a458f034c8',
+    },
     cell: '4792f0eca461f3761001a1adbe131b4b115e3684',
     closed: false,
   );
@@ -805,9 +819,9 @@ class Repository {
         'version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())',
       );
     });
-    final applied = (await _q(
-      'SELECT version FROM schema_migrations',
-    )).map((m) => _int(m['version'])).toSet();
+    final applied = (await _q('SELECT version FROM schema_migrations'))
+        .map((m) => _int(m['version']))
+        .toSet();
 
     // A database migrated by a NEWER server than this one. The migration loop
     // below simply skips versions it does not know, so without this the old
@@ -1566,26 +1580,25 @@ class Repository {
   /// Removes [platform] from [releaseId]: its release artifacts and its status
   /// row. The release and its other platforms stay. Returns the storage keys
   /// of the removed artifacts.
-  Future<List<String>> deleteReleasePlatform(
-    int releaseId,
-    String platform,
-  ) => _db.tx((s) async {
-    final p = {'r': releaseId, 'p': platform};
-    const where = "owner_kind = 'release' AND owner_id = @r AND platform = @p";
-    final keys = (await s.query(
-      'SELECT storage_key FROM artifacts WHERE $where',
-      p,
-    )).map((m) => m['storage_key'] as String).toList();
-    await s.query('DELETE FROM artifacts WHERE $where', p);
-    await s.query(
-      'DELETE FROM release_platform_status WHERE release_id = @r AND platform = @p',
-      p,
-    );
-    await s.query('UPDATE releases SET updated_at = now() WHERE id = @r', {
-      'r': releaseId,
-    });
-    return keys;
-  });
+  Future<List<String>> deleteReleasePlatform(int releaseId, String platform) =>
+      _db.tx((s) async {
+        final p = {'r': releaseId, 'p': platform};
+        const where =
+            "owner_kind = 'release' AND owner_id = @r AND platform = @p";
+        final keys = (await s.query(
+          'SELECT storage_key FROM artifacts WHERE $where',
+          p,
+        )).map((m) => m['storage_key'] as String).toList();
+        await s.query('DELETE FROM artifacts WHERE $where', p);
+        await s.query(
+          'DELETE FROM release_platform_status WHERE release_id = @r AND platform = @p',
+          p,
+        );
+        await s.query('UPDATE releases SET updated_at = now() WHERE id = @r', {
+          'r': releaseId,
+        });
+        return keys;
+      });
 
   // ---- Patches ----
 
