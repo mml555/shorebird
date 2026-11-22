@@ -1,0 +1,56 @@
+# verify_supported_state.sh against the f2458551 record
+
+Run 2026-11-22 on the Mac, twice, under heavy.lock.
+
+1. Against the record as merged in PR #271 (main at 069fda42): FAILED one check,
+   `CLI flutter.version (committed blob at cli_revision) selects the recorded Flutter: record says 8f54cc7b…, artifact is 52347b61…`.
+   #271 recorded the f2458551 selector but left `cli_revision` at 64a64473 (the merge of #263, which selects a377ecb7).
+   That was the record's error, not the stack's: the CLI that selects f2458551 is c212f715 (the merge of #270).
+2. Against the record with `cli_revision: c212f715711d00c4b82261bc093f927d82b7cba9` (PR #273): VERIFIED, output below.
+
+Setup:
+- `SHOREBIRD_ROOT`: the iPhone run's detached CLI worktree at `c212f715` (the pinned CLI), bootstrapped with the shorebird-flutter
+  `8f54cc7b` Flutter cache, used read-only.
+- `OVERLAY`: a scratch overlay hydrated with `selfhost/scripts/sd1_hydrate_cell.sh --dist <durable distribution> --overlay <scratch> --cell f2458551039ceb1a48a2ffb4a41dff35950fec5b --host-extras <host-extras tar>`
+  (CELL HYDRATED FROM THE DURABLE DISTRIBUTION), deleted afterwards.
+- Local paths below are replaced with `<checkout>` and `<SHOREBIRD_ROOT>`.
+
+Output:
+
+verify_supported_state -- record <checkout>/selfhost/engine/route_b/SUPPORTED_STATE.yaml
+  ok      record format is clean (no duplicate keys, coherent indentation)
+  --      PyYAML absent; the stricter load was skipped (not required)
+  shorebird root : <SHOREBIRD_ROOT>
+  ok      recorded cli_revision exists in this repository
+  ok      cli_revision is in this branch's history
+  ok      cli_revision contains 6b4f6c42 (private-name resolution)
+  ok      CLI flutter.version (committed blob at cli_revision) selects the recorded Flutter
+  ok      repo HEAD product tree packages/shorebird_cli
+  ok      runtime checkout product tree packages/shorebird_cli
+  ok      repo HEAD product tree bin/internal
+  ok      runtime checkout product tree bin/internal
+  ok      runtime checkout has no uncommitted changes at all
+  ok      runtime checkout's flutter.version matches the committed selector
+  ok      runtime checkout's bin/internal is clean
+  ok      Flutter engine.version at the RECORDED selector selects the recorded cell
+  ok      the Flutter checkout's HEAD IS the recorded selector
+  ok      Flutter checkout is clean
+  ok      compiler archive digest
+  ok      compiler archive size
+  ok      analyzer digest (extracted from the published archive)
+  ok      producer engine revision
+  ok      dart revision
+  ok      analyzer digest (as resolved into the runtime cache)
+  ok      v2 manifest recomputes to the cell address
+  ok      all addressed cell members match the bytes served
+  ok      fallback engine revision
+  ok      updater revision agrees with selfhost/compatibility.yaml
+  ok      engine producer f1a59b8a1609 durable AND matches the banked patch, parent dfa2b24ac384
+  ok      engine producer 09c6f4225d3d is reachable on the remote
+  ok      engine producer 2c4b071817c5 is reachable on the remote
+  ok      engine producer d0714887dd95 is reachable on the remote
+  ok      engine producer dfa2b24ac384 is reachable on the remote
+  ok      engine producer e737ede3bcf9 is reachable on the remote
+  ok      audit_route_b_compiler: AUDIT CLEAN
+
+SUPPORTED STATE VERIFIED

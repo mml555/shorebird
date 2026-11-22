@@ -198,7 +198,9 @@ lineage:
   # files (route_b_producer.dart, route_b_release_kernels.dart, the route_b_scope
   # fixture pair and route_b_producer_test.dart), the iOS release and patch path,
   # which the Linux chain's steps do not run.
-  cli_revision: 64a64473db6fd735cf348262e0d00ec80758a552   # the merge of PR #263, which selects a377ecb7. Its packages/shorebird_cli and bin/internal trees equal those of #263's head 3001a355, the CLI the chain's resumed run used (the first run ran 3c93f596, before the fixture bump)
+  cli_revision: c212f715711d00c4b82261bc093f927d82b7cba9   # the merge of PR #270, which selects f2458551. Its packages/shorebird_cli and bin/internal trees equal those of #270's head dfdc86cc, the CLI the chain ran; the iPhone run (ios-cell-f2458551) used c212f715 itself. This line was left at 64a64473 when #271 recorded f2458551; verify_supported_state.sh caught it (VERIFY_f2458551.txt)
+  # a377ecb7's line, kept as written:
+  #  cli_revision: 64a64473db6fd735cf348262e0d00ec80758a552   # the merge of PR #263, which selects a377ecb7. Its packages/shorebird_cli and bin/internal trees equal those of #263's head 3001a355, the CLI the chain's resumed run used (the first run ran 3c93f596, before the fixture bump)
   # a6a48cf6's line, kept as written:
   #  cli_revision: e7384444fad53cdd35317fe3dc0abc4d3c7b1c36   # the merge of PR #234. NOT QUALIFIED ON THIS CELL, by either check: the chain ran af1e14a1 (before #230-#234), and the iPhone run below is partial. It stays the pin because it is the CLI with #230-#234, which the iPhone run needed to publish its patches; the chain's af1e14a1 was never run on a device. The iPhone run (2026-11-19) built the release with it and the patches with it plus #248's fix cherry-picked (05d5b08d, then unmerged), so the patches were not built by this pin alone; a qualifying rerun moves this pin to a CLI with #248, #251 and #252. The chain ran #226's head af1e14a1; since then only
   # route_b_producer.dart, route_b_retention.dart and route_b_sdk_kept.dart (#230-#233: false Route B refusals) and

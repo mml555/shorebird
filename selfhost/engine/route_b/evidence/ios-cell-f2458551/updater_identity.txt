@@ -1,6 +1,8 @@
 # Which updater is in the installed app. The device's syslog has no line that tells a58774ab from 64a458f0; the binary does.
-# Source of the difference: updater-mirror PR #11 (in 64a458f0, not in a58774ab) changed the state_diag.log format string in
-# library/src/cache/updater_state.rs: the trailing \n was dropped, because diag_log::append now adds the newline itself.
+# Source of the difference: updater-mirror PR #11 (in 64a458f0, not in a58774ab) changed the success_diag.log format string in
+# library/src/updater.rs (record_launch_success; line 2040 at a58774ab, 2039 at 64a458f0): the trailing \n was dropped, because
+# the line now goes through diag_log::append, which adds the newline itself. (#11 also routes state_diag.log, written from
+# library/src/cache/updater_state.rs, through diag_log::append; that format string has no recovery_event_decision field.)
 # Below: the bytes around that format string in Runner.app/Frameworks/Flutter.framework/Flutter, from signed/Runner.app of each run
 # (the app that run installed). In the compiled format pieces, the byte after the last placeholder marker (0xc0 n) is n, the length of the
 # trailing literal piece. The a377ecb7 run is the reference (updater a58774ab8a88).

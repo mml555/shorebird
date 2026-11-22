@@ -88,7 +88,7 @@ with the CLI arms passing; the harness itself frames that as "NOT self-certifyin
 ## Not done
 
 - Signed-patch device run, and the on-device `state_diag.log` of the iPhone run (not read).
-- `selfhost/engine/route_b/verify_supported_state.sh` was NOT run for this record; it is the next step, after the iPhone run's inputs are in. Its last run is `VERIFY_a377ecb7.txt`, for `a377ecb7`.
+- `selfhost/engine/route_b/verify_supported_state.sh` ran after the iPhone run (`VERIFY_f2458551.txt`): it failed one check on the record as #271 merged it (`cli_revision` still named 64a64473, which selects a377ecb7), and passed once #273 set it to `c212f715`.
 - Port the post-step-7 failure check (`arm 1 release FAILED|arm 2 FAILED`) from the `a377ecb7` resume script into `selfhost/ci`. In this run arms 1 and 2 exited 0, read from the log, not enforced by the chain.
 - shorebird-flutter's `selfhost-engine-mirror` action downloads a single `overlay-<engine>.tar`, but this engine's overlay is released in parts, so shorebird-flutter CI on a commit whose `engine.version` is `09c6f422` (or `e737ede3`)
   cannot fetch it (read on `selfhost/3.50-up` on 2026-11-22). The fix is a push to shorebird-flutter and is pending.
