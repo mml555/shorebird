@@ -1,0 +1,24 @@
+## patch_combo.log (6305 lines; excerpt with original line numbers)
+6208:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+6209:[route-b] P5-TARGET OPEN: release target lib/main.dart, this patch invoked with <default>. Recorded, not gated: no measurement has shown a target difference can admit a semantic mismatch that the release bindings accept.
+6211:[route-b] fetched cell descriptor from http://127.0.0.1:18185/download.shorebird.dev/shorebird/cell-manifests/a377ecb7ae1c26172d6e9d517c42321726eec427.v2
+6212:[route-b] using cached compiler bundle ~/Developer/shorebird-wt/devrun/run-a377ecb7/cli/bin/cache/artifacts/route-b-compiler/bundles/a377ecb7ae1c26172d6e9d517c42321726eec427-route-b-compiler-darwin-arm64.zip
+6213:[route-b] resolved compiler for engine a377ecb7ae1c26172d6e9d517c42321726eec427
+6238:[route-b] compiled Circle.describe -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_0.bytecode
+6239:[route-b] compiled DetailPage.build -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_1.bytecode
+6240:[route-b] compiled Label.build -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_2.bytecode
+6241:[route-b] compiled Util.tag -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_3.bytecode
+6242:[route-b] compiled _HomeState._increment -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_4.bytecode
+6243:[route-b] compiled _HomeState._start -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_5.bytecode
+6244:[route-b] compiled _HomeState.build -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_6.bytecode
+6245:[route-b] compiled _HomeState.get:mood -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_7.bytecode
+6246:[route-b] compiled _HomeState.initState -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_8.bytecode
+6247:[route-b] compiled describeResult -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_9.bytecode
+6248:[route-b] compiled formatStamp -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_10.bytecode
+6249:[route-b] compiled levelName -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_11.bytecode
+6250:[route-b] compiled loadGreeting -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_12.bytecode
+6251:[route-b] compiled routeFor -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_13.bytecode
+6252:[route-b] compiled ticker -> ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/replacement_14.bytecode
+6253:[route-b] packed 27761 bytes for release b207a26f7fca990da4b4044161398baf at ~/Developer/shorebird-wt/devrun/run-a377ecb7/work/untab/build/route_b/patch.sbrbptch
+6273:🕹️  Platform: iOS [arm64 (8.84 KB)]
+6293:✅ Published Patch 1!

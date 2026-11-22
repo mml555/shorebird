@@ -157,7 +157,7 @@ lineage:
   # (8eb8438e..., 19938443 B; its route_b_analyze.aot is 05ef9ae8...). The selector's parent is the engine commit
   # directly (no pin commit, unlike 3.47's 0987ce0a); the delta is bin/internal/engine.version alone.
   # Selected by PR #263 (merge 64a64473), which also added 'e737ede3' and 'a377ecb7' -> '0cd04a77' to
-  # DartSdkCompatibility.expectedDartSdkRevisions. NOT device-qualified: the iPhone run is PENDING
+  # DartSdkCompatibility.expectedDartSdkRevisions. Device-qualified with limits by the iPhone 7 run of 2026-11-22
   # (see cells.a377ecb7....physically_qualified). See PROMOTION_a377ecb7.md.
   # The CLI pin: the merge of PR #263, the head of main when this record was written. The chain ran
   # #263's head 3001a355; its packages/shorebird_cli and bin/internal trees equal the merge's (checked with
@@ -254,6 +254,9 @@ lineage:
     version_tags_on_remote: 1115   # `git ls-remote --tags https://github.com/mml555/shorebird-flutter.git`, peeled ^{} refs excluded, counted 2026-11-22 (1133 lines with them); 1101 was the earlier count
     version_resolves_to: 3.46.0-1.0.pre-2390   # what `flutter --version` prints for this tree (the fork's tag naming) at the selector 52347b61 (engine a377ecb7), measured in the cold bootstrap (Dart 3.14.0), evidence/r12-linux-ci/promotion-a377ecb7/arms/arm-BOOT1/bootstrap.log. The string says 3.46 for a Flutter 3.50 tree; it is the tool's own output, recorded as read, and the git tags the describe counts from were not re-counted for this selector
     # (3.46.0-1.0.pre-866 at the SUPERSEDED selector f4024608; the same at the SUPERSEDED selectors cc4fc222, 5c60356c, 7def8a99 and ef0eec1b; 3.46.0-1.0.pre-863 at the SUPERSEDED selector f6bbc8a0; 3.46.0-1.0.pre-167 at 5b180d22.) Read from the tool's own output, not derived.
+    # OPEN (2026-11-22): mml555/shorebird-flutter has no version tag after 3.46.0-0.3.pre (`git ls-remote --tags https://github.com/mml555/shorebird-flutter.git 3.50.0` printed nothing),
+    # so the 3.50 selector reports Flutter 3.46.0-1.0.pre-2390 and pub evaluates environment.flutter constraints against 3.46. Upstream's 3.50.0 tag (ab2912035e) is an ancestor of e737ede3
+    # (251 commits before it); pushing it to the fork is an owner step, and the tree would then report 3.50.1-0.0.pre-252 (expected, not measured). The 3.47 stack had the same gap.
     clone_url_default: >-
       third_party/flutter/bin/internal/shared.sh defaults to this fork.
       shorebirdtech/flutter does NOT carry the selector, and a clean bootstrap
@@ -379,9 +382,9 @@ cells:
     minted: 2026-11-21 (ROUTE-B-CELL-A377ECB7)
     status: >-
       SELECTED -- this is lineage.cell_address (moved here 2026-11-22). The promotion chain ran in two parts (run 1, then a resume that re-ran steps 1-2 and 7-8 and added an arm 1/2 failure check); step 7's harness verdict was FAIL on one check in both runs, by design on arm 3.
-      NOT device-qualified: the iPhone 7 (iOS 15.8) release and patch run through the cell address is
-      PENDING (see physically_qualified). This is a new engine, so nothing a device showed through
-      54117a2f carries over to it.
+      DEVICE-QUALIFIED on iOS with limits: the iPhone 7 (iOS 15.8.8) release and patch run through the cell address passed on
+      2026-11-22 (see physically_qualified). This is a new engine, so nothing a device showed through
+      54117a2f carries over to it; the run is the evidence for it.
     # Minted over the PUBLISHED bytes of engine e737ede3 (Flutter 3.50, shorebird-flutter
     # selfhost/3.50-up, release engine-e737ede3... on mml555/shorebird-flutter): 30 addressed
     # members, the seven rendered to the new address being engine_stamp.json, the four POMs,
@@ -401,11 +404,13 @@ cells:
       step 7 and arm A because the fixture's Gradle was below Flutter 3.50's minimum (9.3.1); the resume
       after the fixture bump (3001a355, #263) passed. See evidence/r12-linux-ci/PROMOTION_a377ecb7.md.
     physically_qualified: >-
-      NOT RUN. PENDING: a physical iPhone 7 (iOS 15.8) iOS release and Route B patch run through the
-      cell address on this engine. Until it runs this cell is not device-qualified; the last
-      device-qualified cell is 54117a2f (on the Flutter 3.47 engine d0714887, with limits).
-      No Android device applied a patch on this cell: the chain shows an Android release and patch built and published under seal with the CLI arms passing, and the harness
-      itself calls that "NOT self-certifying" (armA.log:147-151).
+      PASSED WITH LIMITS, UNSIGNED PATCHES ONLY, 2026-11-22: a physical iPhone 7 (iOS 15.8.8, 19H422), cell a377ecb7, CLI 64a64473, release 1.0.0+72.
+      12 patches were published and each showed its values on the device (combo, trio, h1, m1, m2, s1b, s1, i1, i2b, i2, e1b, p16); 9 attempts were refused before upload
+      for the expected reasons (combo with p15, p15, p20, p30, r1, r2, e1, p17, t1); three rollbacks (2, 5, 12) fell back as expected, the last to patch 11; no launch failed,
+      no patch was refused by the device, the server returned no 4xx or 5xx, and every artifact the mirror served came from the overlay (77 requests, all naming a377ecb7).
+      Limits: the patches were unsigned (the release printed 'No patch public key was provided'), #254 (await on a TickerFuture) was not exercised, and it is one CLI, one device
+      and one app version. No Android device applied a patch on this cell: the chain shows an Android release and patch built and published under seal with the CLI arms passing, and the harness
+      itself calls that "NOT self-certifying" (armA.log:147-151). Evidence: evidence/ios-cell-a377ecb7/RESULT.md.
     producer_lineage: e737ede3bcf9b18c495498ada78a841e38b4a388
     fallback_engine_revision: f0a7d29193ea6e077e02080a3511b405a4401b6f
     evidence: evidence/r12-linux-ci/PROMOTION_a377ecb7.md
@@ -1120,7 +1125,7 @@ product_surfaces:
   # constructs. Recorded because "unsupported construct" and "unsupported
   # surface" have different remediations and collapsing them hides the second.
   standalone_flutter_app:
-    ios: SUPPORTED — the supported cell a377ecb7 has NO device run yet (pending); earlier cells were physically qualified, see physical_device_qualification
+    ios: SUPPORTED — the supported cell a377ecb7 passed an iPhone 7 run with limits (2026-11-22, cells.a377ecb7….physically_qualified); earlier cells were physically qualified too, see physical_device_qualification
     android:
       status: SUPPORTED — physically qualified 2026-09-04 against cell f85251f3…
       qualified: 2026-09-04 (ANDROID-FINAL-STACK-2)

@@ -11,7 +11,7 @@
 #      failure, before any download state or network call. Runs on
 #      vendor/updater, and on the engine's own updater.rs when the engine
 #      checkout is present.
-#   3. report_launch_failure -> record_boot_failure_for_patch -> record_boot_failure
+#   3. report_launch_failure [-> record_launch_failure] -> record_boot_failure_for_patch -> record_boot_failure
 #      -> mark_bad(BootCrash) is intact, and its C2 control test is live.
 #   4. (engine) DEPS pins the same updater revision.
 #   5. (engine) the Route B wrong-release branch reports launch failure through
@@ -83,7 +83,13 @@ elif mode == "failure":
     upd, state, life = (code(p) for p in sys.argv[2:5])
     raw = open(sys.argv[2], encoding="utf-8").read()
     _, f = fn(upd, "report_launch_failure")
-    need("record_boot_failure_for_patch(" in f, "report_launch_failure no longer calls record_boot_failure_for_patch")
+    # Upstream #455 (in a58774ab) moved the body into record_launch_failure, shared
+    # with report_launch_failure_for_patch; follow that one hop, and no further.
+    # Only the unfiltered call counts: record_launch_failure(Some(n)) marks nothing
+    # unless patch n is the one booting.
+    if "record_boot_failure_for_patch(" not in f and "record_launch_failure(None)" in f:
+        _, f = fn(upd, "record_launch_failure")
+    need("record_boot_failure_for_patch(" in f, "report_launch_failure (or the record_launch_failure it calls) no longer calls record_boot_failure_for_patch")
     _, g = fn(state, "record_boot_failure_for_patch")
     need("self.lifecycle.record_boot_failure(" in g, "record_boot_failure_for_patch no longer calls lifecycle.record_boot_failure")
     _, h = fn(life, "record_boot_failure")

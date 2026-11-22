@@ -70,7 +70,7 @@ chain's existing shape and not new in this cell. It is still a gap: the guard di
 Cause, read in `selfhost/ci/bootstrap_closure_guard.sh`: its loop reads the ledger with `tail -n +2 "$LEDGER"`, which skips the first line as a header, but the ledger
 `chain.sh` writes has no header (`bootstrap_closure.tsv` here starts with the `dart-sdk-linux-x64.zip` row). So the guard never size- or sha-checks the first row, which is the
 227 MB Dart SDK zip; only `engine_stamp.json` was verified. The banked row's sha256 is the one recorded in gate 4, and the bytes were served to the sealed cold bootstrap that passed
-(step 6), but the guard's PASS does not prove that row. A real gap in the chain, present in `54117a2f`'s run too. Recorded as an open item below; not fixed here.
+(step 6), but the guard's PASS does not prove that row. A real gap in the chain, present in `54117a2f`'s run too. #266 (`a8d036d0`) fixed it afterwards; this chain's run predates the fix, so gate 5 above stands as run (1 of 2 rows).
 
 ## How the run went
 
@@ -99,20 +99,19 @@ no token, key or address of a person is in the copied files (searched for privat
 
 ## Device run
 
-PENDING. The iPhone 7 (iOS 15.8) release and Route B patch run through the cell address on this engine has not run, so
-`engine/route_b/evidence/ios-cell-a377ecb7/` does not exist. This cell is not device-qualified, and the last device-qualified cell is `54117a2f`
-(on the Flutter 3.47 engine, with limits). No Android device applied a patch on this cell. The chain shows an Android release and patch built and published under seal, with the CLI arms passing; the harness itself frames that as "NOT self-certifying" (`armA.log:147-151`). Android device evidence is that of earlier cells.
+PASSED WITH LIMITS, run after this chain (2026-11-22, [`ios-cell-a377ecb7`](../../engine/route_b/evidence/ios-cell-a377ecb7/RESULT.md)): an iPhone 7 (iOS 15.8.8) run on 2026-11-22 through CLI `64a64473`: release `1.0.0+72` and 12 published patches each showed their values (combo, trio, h1, m1, m2, s1b, s1, i1, i2b, i2, e1b, p16), 9 patch attempts were refused before upload for the expected reasons, and three rollbacks fell back as expected (the last one ended on patch 11, e1b, which published and passed on the first try); no launch failed and no patch was refused by the device. Limits: the patches were unsigned, #254 (await on a `TickerFuture`) was not exercised, and it is one CLI, one device and one app version. No Android device applied a patch on this cell. The chain shows an Android release and patch built and published under seal, with the CLI arms passing; the harness itself frames that as "NOT self-certifying" (`armA.log:147-151`). Android device evidence is that of earlier cells.
 
 ## Not done
 
-- Fix the closure guard: `bootstrap_closure_guard.sh` skips the first ledger row (`tail -n +2`) although `chain.sh`'s ledger has no header, so the Dart SDK row is never verified (gates 4 and 5, here and in `54117a2f`'s run).
-- The iPhone run (above).
+- The closure guard skipped the first ledger row (`tail -n +2`) although `chain.sh`'s ledger has no header, so the Dart SDK row was never verified (gates 4 and 5, here and in `54117a2f`'s run). Fixed by #266 (`a8d036d0`, "bootstrap_closure_guard checks every ledger row"). This chain ran before the fix, so its gate 5 still verified only 1 of the 2 banked rows, and a re-run of the guard on this ledger is not recorded here.
+- The iPhone run (done: see Device run above).
 - Port the post-step-7 failure check (`arm 1 release FAILED|arm 2 FAILED`) from the resume script into `selfhost/ci`.
+- mml555/shorebird-flutter has no version tags after `3.46.0-0.3.pre` (`git ls-remote --tags https://github.com/mml555/shorebird-flutter.git 3.50.0` printed nothing on 2026-11-22), so the 3.50 selector reports Flutter `3.46.0-1.0.pre-2390` and pub evaluates `environment.flutter` constraints against 3.46. Upstream's `3.50.0` tag (`ab2912035e`) is an ancestor of `e737ede3`; pushing it (an owner step) makes the tree report `3.50.1-0.0.pre-252` (expected, not measured). The 3.47 stack had the same gap.
 - shorebird-flutter's `selfhost-engine-mirror` action downloads a single `overlay-<engine>.tar`, but engine `e737ede3`'s overlay is released in parts. It affects
   shorebird-flutter commits whose `engine.version` is `e737ede3`. The fix is a push to shorebird-flutter and is pending.
 - `a58774ab8a88` is not in `PolicyEpoch.b`'s `updaterRevisions` (`packages/code_push_server/lib/src/repository.dart`), so measurement mode does not count 3.50
   clients; adding it is the owner's call (`MEASUREMENT_MODE.md`), and this record does not change `repository.dart`.
-- `vendor/updater` is still `87c198d3`, so `tool/check_updater_pin.sh` (which compares `compatibility.yaml`'s `updater_revision` with `vendor/updater/VENDOR.md`) disagrees until the vendored copy moves.
+- `vendor/updater` moved to `a58774ab` plus mirror#11 in #265 (landed with #264), and `tool/check_updater_pin.sh` now agrees.
 - The analyzer's analysis version for this archive was not read out; the record names the archive and `route_b_analyze.aot` by digest.
 - `verify_supported_state.sh` was run once against a hydrated overlay and a bootstrapped checkout at `64a64473`: SUPPORTED STATE VERIFIED, output in [`VERIFY_a377ecb7.txt`](VERIFY_a377ecb7.txt).
-- `selfhost/ci/engine_updater_evidence_guard.sh` fails check 1 for the same reason as `tool/check_updater_pin.sh` (`vendor/updater` is `87c198d3`, the record says `a58774ab8a88`). Its engine-side checks 4 to 6 (DEPS pin, the wrong-release branch, the Shell constructor) have not been run for `a58774ab`: the only 3.50 tree on the Mac, `~/shorebird-engine/flutter-350`, holds `DEPS` but not the engine sources the guard reads, and nothing was built. The `a58774ab` launch and retention behaviour (#453, #454, #455) has not been re-read.
+- `selfhost/ci/engine_updater_evidence_guard.sh` passes its vendor-side checks 1 to 3 against `a58774ab`. Check 3 now follows the `record_launch_failure` helper that upstream #455 split out of `report_launch_failure`; the behaviour is unchanged, and a copy with the `record_boot_failure_for_patch` call removed still fails it. Its engine-side checks 4 to 6 (DEPS pin, the wrong-release branch, the Shell constructor) have not been run for `a58774ab`: the only 3.50 tree on the Mac, `~/shorebird-engine/flutter-350`, holds `DEPS` but not the engine sources the guard reads, and nothing was built. The `a58774ab` launch and retention behaviour (#453, #454, #455) has not been re-read, beyond check 3 following #455's `record_launch_failure` split.
