@@ -17,7 +17,7 @@
 use std::os::raw::c_char;
 use std::path::PathBuf;
 
-use super::{allocate_c_string, free_c_string, log_on_error, to_rust};
+use super::{allocate_c_string, free_c_string, log_on_error, to_rust, to_rust_option};
 use crate::c_api::c_file::CFileProvider;
 use crate::updater;
 
@@ -45,6 +45,11 @@ pub struct AppParameters {
     /// Path to cache directory where the updater will store downloaded
     /// artifacts and data that can be deleted when a new release is detected.
     pub code_cache_dir: *const libc::c_char,
+
+    /// The host app's bundle identifier (Android package name, iOS bundle
+    /// ID), optional (null when not known). Sent with patch checks and
+    /// events so a module embedded in several host apps can tell them apart.
+    pub host_bundle_id: *const libc::c_char,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -201,6 +206,7 @@ fn app_config_from_c(c_params: *const AppParameters) -> anyhow::Result<updater::
         app_storage_dir: to_rust(c_params_ref.app_storage_dir)?,
         code_cache_dir: to_rust(c_params_ref.code_cache_dir)?,
         release_version: to_rust(c_params_ref.release_version)?,
+        host_bundle_id: to_rust_option(c_params_ref.host_bundle_id)?,
         original_libapp_paths: to_rust_vector(
             c_params_ref.original_libapp_paths,
             c_params_ref.original_libapp_paths_size,
@@ -382,14 +388,107 @@ pub extern "C" fn shorebird_protected_data_available() {
     updater::protected_data_available();
 }
 
-/// Report that the app launched successfully. The Shell constructor calls
-/// this once per process when the VM has finished booting; it pairs with
+/// Report that the engine built its Shell but hasn't launched Dart. Clears
+/// the boot breadcrumb without promoting the patch, so an engine that is
+/// created and never run doesn't mark the patch Bad. Call once per process,
+/// after `shorebird_report_launch_start`.
+#[no_mangle]
+pub extern "C" fn shorebird_report_launch_paused() {
+    log_on_error(updater::report_launch_paused, "reporting launch paused", ());
+}
+
+/// Report that the engine is launching the root isolate. Arms the boot
+/// breadcrumb again for the patch this process loaded. Call once per
+/// process, from the first engine to launch, before
+/// `shorebird_report_launch_success` or `shorebird_report_launch_failure`.
+#[no_mangle]
+pub extern "C" fn shorebird_report_launch_resumed() {
+    log_on_error(
+        updater::report_launch_resumed,
+        "reporting launch resumed",
+        (),
+    );
+}
+
+/// Report that the app launched successfully: the engine launched its root
+/// isolate from the patch's snapshot. Pairs with
 /// `shorebird_report_launch_start` to mark a patch as having booted cleanly.
 #[no_mangle]
 pub extern "C" fn shorebird_report_launch_success() {
     log_on_error(
         updater::report_launch_success,
         "reporting launch success",
+        (),
+    );
+}
+
+// Launch reports that name the patch the engine loaded, or tried to load, from
+// the number the updater gave with its path; 0 only when the engine was given
+// no patch (the base release). A patch that fails to load is reported under
+// its own number, so it's marked bad. Each acts only on that
+// patch: a report for a patch other than the one this process started is
+// logged and ignored. Engines that pass the number call these in place of the
+// unnumbered calls above, which older engines keep using.
+
+fn loaded_patch(patch_number: usize) -> Option<usize> {
+    (patch_number != 0).then_some(patch_number)
+}
+
+/// `shorebird_report_launch_start` for the patch the engine loaded (0: the
+/// base release). Records it as this process's running patch and arms the
+/// boot breadcrumb for it if it's installed, even if the next boot patch has
+/// changed since the engine read its path.
+#[no_mangle]
+pub extern "C" fn shorebird_report_launch_start_for_patch(patch_number: usize) {
+    log_on_error(
+        || updater::report_launch_start_for_patch(loaded_patch(patch_number)),
+        "reporting launch start",
+        (),
+    );
+}
+
+/// `shorebird_report_launch_paused` for the patch the engine loaded (0: the
+/// base release). Ignored unless it's the patch reported at start.
+#[no_mangle]
+pub extern "C" fn shorebird_report_launch_paused_for_patch(patch_number: usize) {
+    log_on_error(
+        || updater::report_launch_paused_for_patch(loaded_patch(patch_number)),
+        "reporting launch paused",
+        (),
+    );
+}
+
+/// `shorebird_report_launch_resumed` for the patch the engine loaded (0: the
+/// base release). Ignored unless it's the patch reported at start.
+#[no_mangle]
+pub extern "C" fn shorebird_report_launch_resumed_for_patch(patch_number: usize) {
+    log_on_error(
+        || updater::report_launch_resumed_for_patch(loaded_patch(patch_number)),
+        "reporting launch resumed",
+        (),
+    );
+}
+
+/// `shorebird_report_launch_success` for the patch the engine loaded (0: the
+/// base release). Records the boot only when it's the patch reported at start
+/// and the boot breadcrumb names it; sends queued events either way.
+#[no_mangle]
+pub extern "C" fn shorebird_report_launch_success_for_patch(patch_number: usize) {
+    log_on_error(
+        || updater::report_launch_success_for_patch(loaded_patch(patch_number)),
+        "reporting launch success",
+        (),
+    );
+}
+
+/// `shorebird_report_launch_failure` for the patch the engine loaded (0: the
+/// base release, which has nothing to roll back). Marks the patch bad only
+/// when it's the patch reported at start and the boot breadcrumb names it.
+#[no_mangle]
+pub extern "C" fn shorebird_report_launch_failure_for_patch(patch_number: usize) {
+    log_on_error(
+        || updater::report_launch_failure_for_patch(loaded_patch(patch_number)),
+        "reporting launch failure",
         (),
     );
 }

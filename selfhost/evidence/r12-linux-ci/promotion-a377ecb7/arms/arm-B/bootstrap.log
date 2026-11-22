@@ -1,0 +1,21 @@
+Updating Flutter...
+Cloning into '/r12src/bin/cache/flutter/52347b6108fa0e8b84b718e76c920e890da4c0a5'...
+warning: filtering not recognized by server, ignoring
+HEAD is now at 52347b6108f chore: select the cell a377ecb7 over engine e737ede3 (Flutter 3.50, Route B iOS)
+Shorebird Engine • revision a377ecb7ae1c26172d6e9d517c42321726eec427
+Downloading Linux x64 Dart SDK from Flutter engine a377ecb7ae1c26172d6e9d517c42321726eec427...
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  2  216M    2 5408k    0     0  12.8M      0  0:00:16 --:--:--  0:00:16 12.8M 11  216M   11 23.9M    0     0  16.9M      0  0:00:12  0:00:01  0:00:11 16.9M 35  216M   35 77.3M    0     0  32.0M      0  0:00:06  0:00:02  0:00:04 32.0M 57  216M   57  125M    0     0  36.8M      0  0:00:05  0:00:03  0:00:02 36.8M 84  216M   84  182M    0     0  41.3M      0  0:00:05  0:00:04  0:00:01 41.3M100  216M  100  216M    0     0  43.5M      0  0:00:04  0:00:04 --:--:-- 46.2M
+Building flutter tool...
+Got dependencies.
+Flutter assets will be downloaded from https://host.docker.internal:8087. Make sure you trust this source!
+Flutter 3.46.0-1.0.pre-2390 • channel [user-branch] • git://host.docker.internal:9418/flutter.git
+Framework • revision 52347b6108 (6 hours ago) • 2026-11-21 18:38:40 -0500
+Engine • hash 8fc939afe8d29f74ec01eeaac7d6b2b08e3afcbb (revision a377ecb7ae) (34 hours ago) • 2026-11-19 10:50:47.000Z
+Tools • Dart 3.14.0 • DevTools 2.61.0
+Building Shorebird...
+Got dependencies in `/r12src`.
+Shorebird 1.6.144+selfhost.1 • git@github.com:shorebirdtech/shorebird.git
+Flutter • revision 52347b6108fa0e8b84b718e76c920e890da4c0a5
+Engine • revision a377ecb7ae1c26172d6e9d517c42321726eec427

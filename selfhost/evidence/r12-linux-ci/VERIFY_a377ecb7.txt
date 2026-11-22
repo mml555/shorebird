@@ -1,0 +1,51 @@
+# verify_supported_state.sh against the a377ecb7 record
+
+Run 2026-11-22 on the Mac, once, against the record as committed in PR #264 at 8ac43f0e (before the review fixes that touch only prose
+and comments; the fields the verifier parses were not changed afterwards).
+
+Setup:
+- `SHOREBIRD_ROOT`: a bootstrapped runtime checkout of this repository at `64a64473` (the pinned CLI) with the shorebird-flutter `52347b61` Flutter
+  cache, used read-only.
+- `OVERLAY`: a scratch overlay hydrated with `selfhost/scripts/sd1_hydrate_cell.sh --dist <durable distribution> --overlay <scratch> --cell a377ecb7ae1c26172d6e9d517c42321726eec427 --host-extras <host-extras tar>`
+  (30 of 30 members, CELL HYDRATED FROM THE DURABLE DISTRIBUTION), deleted afterwards.
+- The first attempt, with no runtime checkout, overlay or cache, failed 8 checks; those were environmental, and are not the record's.
+- Local paths below are replaced with `<checkout>` and `<SHOREBIRD_ROOT>`.
+
+Output:
+
+verify_supported_state -- record <checkout>/selfhost/engine/route_b/SUPPORTED_STATE.yaml
+  ok      record format is clean (no duplicate keys, coherent indentation)
+  --      PyYAML absent; the stricter load was skipped (not required)
+  shorebird root : <SHOREBIRD_ROOT>
+  ok      recorded cli_revision exists in this repository
+  ok      cli_revision is in this branch's history
+  ok      cli_revision contains 6b4f6c42 (private-name resolution)
+  ok      CLI flutter.version (committed blob at cli_revision) selects the recorded Flutter
+  ok      repo HEAD product tree packages/shorebird_cli
+  ok      runtime checkout product tree packages/shorebird_cli
+  ok      repo HEAD product tree bin/internal
+  ok      runtime checkout product tree bin/internal
+  ok      runtime checkout has no uncommitted changes at all
+  ok      runtime checkout's flutter.version matches the committed selector
+  ok      runtime checkout's bin/internal is clean
+  ok      Flutter engine.version at the RECORDED selector selects the recorded cell
+  ok      the Flutter checkout's HEAD IS the recorded selector
+  ok      Flutter checkout is clean
+  ok      compiler archive digest
+  ok      compiler archive size
+  ok      analyzer digest (extracted from the published archive)
+  ok      producer engine revision
+  ok      dart revision
+  ok      analyzer digest (as resolved into the runtime cache)
+  ok      v2 manifest recomputes to the cell address
+  ok      all addressed cell members match the bytes served
+  ok      fallback engine revision
+  ok      updater revision agrees with selfhost/compatibility.yaml
+  ok      engine producer f1a59b8a1609 durable AND matches the banked patch, parent dfa2b24ac384
+  ok      engine producer 2c4b071817c5 is reachable on the remote
+  ok      engine producer d0714887dd95 is reachable on the remote
+  ok      engine producer dfa2b24ac384 is reachable on the remote
+  ok      engine producer e737ede3bcf9 is reachable on the remote
+  ok      audit_route_b_compiler: AUDIT CLEAN
+
+SUPPORTED STATE VERIFIED

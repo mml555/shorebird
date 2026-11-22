@@ -1,0 +1,10 @@
+bootstrap closure guard
+  ok      candidate flutter_revision (R12_FLUTTER_REVISION): 52347b6108fa0e8b84b718e76c920e890da4c0a5
+  ok      owned mirror contains the pinned revision
+  ok      engine.version resolves: a377ecb7ae1c26172d6e9d517c42321726eec427
+  ok      owned cell exists for the supported engine
+  ok      engine_stamp.json  246 bytes  sha256 1624dcf853d93e06…
+  ok      closure manifest rows for this engine: 1
+  ok      proxy mapping pinned: manifest 4382d059896c1f12… -> flutter_engine_revision 371f77202a73e8df…
+
+  CLOSURE OK  52347b6108fa0e8b84b718e76c920e890da4c0a5 -> a377ecb7ae1c26172d6e9d517c42321726eec427  (1 artifacts, size + sha256 verified)

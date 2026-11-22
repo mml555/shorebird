@@ -518,6 +518,12 @@ patch can be published with the SDK kept check on. What a patch may add is uncha
 [`ios-cell-54117a2f`](engine/route_b/evidence/ios-cell-54117a2f/RESULT.md), evidence in PR #259): the SDK kept check stayed on with no override and three rollbacks passed; the release `1.0.0+71` and all the patches were built and run on CLI `f66e3c21`, and every step passed except e1b (an extension getter published with a truncated target name), whose patch the device refused (target missing, no crash, marked bad). #257 fixes it, and e1b alone was re-run on `37a0434b` and passed (patch 13, 1 of 1 applied, `stars=*3*` on both boot launches). The other patches were not rebuilt on `37a0434b`, so the device evidence on the pinned CLI is that one patch; #257 touches only the extension-member selector path. Limits: the patches were unsigned (the CLI's P7 patch signing has not landed) and #254 was not exercised. With those limits the cell is device-qualified. The promotion chain is in
 [`PROMOTION_54117a2f.md`](evidence/r12-linux-ci/PROMOTION_54117a2f.md).
 
+The cell that replaced `54117a2f`, `a377ecb7` (2026-11-22), is over a new engine, `e737ede3` (Flutter 3.50, Dart
+`0cd04a77`), and carries that engine's compiler archive. It is not a re-cell of `d0714887`: the engine, the Dart SDK and the
+selector all moved. Nothing in Route B is device-proven on Flutter 3.50 yet: the iPhone run on this cell is in progress, and the device
+evidence of `54117a2f` on Flutter 3.47 does not carry to a new engine. The promotion chain is in
+[`PROMOTION_a377ecb7.md`](evidence/r12-linux-ci/PROMOTION_a377ecb7.md).
+
 ### A class or extension member's own statics (class scope)
 
 A class or extension member is carried as a top-level function, so an unqualified

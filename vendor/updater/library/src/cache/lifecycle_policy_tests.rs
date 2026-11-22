@@ -73,7 +73,7 @@ impl Device {
     fn install(&self, n: usize) {
         let mut l = reload_at(self.tmp.path());
         install_state(&l, n, 100);
-        l.promote_to_next_boot(n).unwrap();
+        l.promote_to_next_boot(n, None).unwrap();
     }
 
     /// Boots and reaches the success boundary.
@@ -544,7 +544,7 @@ fn a_clean_first_boot_reports_no_prior_ambiguity() {
     d.install(1);
     let (mut l, _) = d.new_process();
     l.record_boot_start(1).unwrap();
-    let s = l.record_boot_success().unwrap();
+    let s = l.record_boot_success().unwrap().expect("installed");
     assert_eq!(s.patch, 1);
     assert_eq!(
         s.prior_ambiguous_attempts, 0,
@@ -563,7 +563,7 @@ fn a_success_after_ambiguity_reports_the_ambiguity_that_preceded_it() {
 
     let (mut l, _) = d.new_process();
     l.record_boot_start(1).unwrap();
-    let s = l.record_boot_success().unwrap();
+    let s = l.record_boot_success().unwrap().expect("installed");
     assert_eq!(
         s.prior_ambiguous_attempts, 2,
         "two ambiguous deaths preceded this success"

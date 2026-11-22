@@ -1,0 +1,51 @@
+== precondition 2026-11-22T04:55:50Z
+== 1-2 mirror serves the candidate 2026-11-22T04:55:50Z
+r12-flutter-git: serving refs/heads/selfhost/3.50-cell-a377ecb7 -> 52347b6108fa0e8b84b718e76c920e890da4c0a5
+r12-flutter-git: serving refs/heads/selfhost/3.50-cell-a377ecb7 -> 52347b6108fa0e8b84b718e76c920e890da4c0a5
+== 7 sealed release/patch discovery 2026-11-22T04:55:58Z
+ Container r12-cdn-sealed Created 
+ Container r12cold-artifact-proxy-1 Starting 
+ Container r12cold-artifact-proxy-1 Started 
+ Container r12-cdn-sealed Starting 
+ Container r12-cdn-sealed Started 
+local     r12cold_cold-cache
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Content-Length: 246
+Content-Type: application/json
+Etag: "dn1a79snvc3k-6u"
+Last-Modified: Sat, 21 Nov 2026 23:35:35 GMT
+Server: Caddy
+Vary: Accept-Encoding
+X-Engine-Hash: a377ecb7ae1c26172d6e9d517c42321726eec427
+X-Overlay: hit
+Date: Sun, 22 Nov 2026 04:56:09 GMT
+
+     | 
+     | == verdict ==
+     |    FAIL — 1 check(s) failed. Logs in /r12out/disc
+EXIT=1
+== 8 R12 arm A 2026-11-22T05:06:55Z
+ Container r12-cdn-sealed Created 
+ Container r12cold-artifact-proxy-1 Starting 
+ Container r12cold-artifact-proxy-1 Started 
+ Container r12-cdn-sealed Starting 
+ Container r12-cdn-sealed Started 
+local     r12cold_cold-cache
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Content-Length: 246
+Content-Type: application/json
+Etag: "dn1a79snvc3k-6u"
+Last-Modified: Sat, 21 Nov 2026 23:35:35 GMT
+Server: Caddy
+Vary: Accept-Encoding
+X-Engine-Hash: a377ecb7ae1c26172d6e9d517c42321726eec427
+X-Overlay: hit
+Date: Sun, 22 Nov 2026 05:07:10 GMT
+
+   evidence                 : /srv/ci-cache/shorebird-engine/promo-a377ecb7/evidence/arms/arm-A
+
+== arm A exit 0 ==
+EXIT=0
+== CHAIN_DONE 2026-11-22T05:16:49Z
