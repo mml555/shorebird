@@ -138,7 +138,9 @@ controlled is what makes the answer trustworthy — which is the whole point of 
     Epoch B — CURRENT
       updater   af6e842ccf87, 87c198d30f87 since 2026-11-07 and
                 a58774ab8a88 (Flutter 3.50) since 2026-11-22 (owner's
-                decisions; B now pools three behaviours, split by revision)
+                decisions) and 64a458f034c8 (the same 3.50 line plus mirror
+                #10 and #11); B holds four revisions, split by revision (on
+                Android and iOS the last two differ only in diagnostic logging)
       cell      4792f0eca461f3761001a1adbe131b4b115e3684
       sample    starts from ZERO
       threshold unchanged: 100 distinct clients with a first ambiguity

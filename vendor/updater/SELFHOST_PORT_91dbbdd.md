@@ -78,3 +78,12 @@ version baked into the generated shorebird.yaml. Already sent by the fork:
 `supported_patch_kinds` (array of string, patch check) and `updater_revision`,
 `event_id`, `failure_category`, boot-lifecycle fields (events).
 The launch paused/resumed/success reports send nothing new on the wire.
+
+## Mirror #10 and #11 (merged from route-b-ca91f4b3, 2026-11-22)
+
+`route-b-ca91f4b3` was merged into this line after `a58774ab`. It brings the
+bounded diag logs (`diag_log.rs`; the success witness in `record_launch_success`
+now writes through `diag_log::append`, inside 91dbbdd's `if let Some(success)`),
+the refused proxy CONNECT classified as a transport error (`http.rs`), and the
+fork-PR and proxy CI changes. `SELFHOST_PORT_ca91f4b3.md` comes with it and
+describes that line, not this one.

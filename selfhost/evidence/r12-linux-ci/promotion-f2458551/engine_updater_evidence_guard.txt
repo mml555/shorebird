@@ -1,0 +1,9 @@
+ok:   vendor/updater source revision is 64a458f034c8
+ok:   vendor: signature verified first, failure returns, before any download
+ok:   vendor: report_launch_failure -> record_boot_failure -> Bad{BootCrash}; C2 test live
+ok:   engine: signature verified first, failure returns, before any download
+ok:   engine: report_launch_failure -> record_boot_failure -> Bad{BootCrash}; C2 test live
+ok:   engine DEPS updater_rev is 64a458f034c86bca2eff6541a19d73781728b18f
+ok:   engine: wrong-release branch reports failure, returns, hook armed
+ok:   engine: Route B shell.cc never banks success; null VM reports failure
+EXIT=0
