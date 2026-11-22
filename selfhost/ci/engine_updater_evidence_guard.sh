@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Host check for selfhost/engine/route_b/evidence/p16_engine_updater.md.
-# cspell:words lstrip finditer fullmatch ifdef ifndef
+# cspell:words lstrip finditer fullmatch ifdef ifndef nargs isspace
 #
 # Usage: engine_updater_evidence_guard.sh [--require-engine]
 #
@@ -65,14 +65,25 @@ def cfn(text, name):
     if not m: raise ValueError("function %s not found" % name)
     return m.start(), block(text, m.start())
 def cfn_all(text, name):
-    """Bodies of every definition of an overloaded C++ function (declarations,
-    which reach a ";" before a "{", are skipped)."""
+    """(parameter count, body) of every definition of an overloaded C++ function
+    (declarations, which reach a ";" before a "{", are skipped)."""
     out = []
     for m in re.finditer(r"\bvoid " + re.escape(name) + r"\(", text):
         b, c = text.find("{", m.start()), text.find(";", m.start())
-        if b >= 0 and (c < 0 or b < c): out.append(block(text, m.start()))
+        if b >= 0 and (c < 0 or b < c): out.append((nargs(text, m.end()), block(text, m.start())))
     if not out: raise ValueError("function %s not found" % name)
     return out
+def nargs(text, i):
+    """Count of the comma-separated items from i (just past a "(") to its ")"."""
+    d, n, seen = 0, 1, False
+    for ch in text[i:]:
+        if ch in "(<[{": d += 1
+        elif ch in ")>]}":
+            if d == 0: return n if seen else 0
+            d -= 1
+        elif ch == "," and d == 0: n += 1
+        if not ch.isspace(): seen = True
+    raise ValueError("unbalanced")
 RB = r"(?:SHOREBIRD_ROUTE_B|defined\s*\(?\s*SHOREBIRD_ROUTE_B\s*\)?)(?:\s*==\s*1)?"
 def route_b_view(text):
     """The text a SHOREBIRD_ROUTE_B=1 build compiles: drops the arms that test
@@ -149,9 +160,18 @@ elif mode == "wrong_release":
     need("Dart_RouteBActivatePatchTraced" not in b, "wrong-release branch activates a patch")
     need(t.find("Dart_RouteBActivatePatchTraced") > i + len(b), "activation no longer comes after the wrong-release branch")
     # 3.50 split it into a two-argument wrapper and the overload that does the
-    # work, so any definition may hold the call.
-    need(any("InstallRouteBActivationHook(settings, patch_path);" in a for a in cfn_all(t, "ApplyPatchToSettings")),
-         "ApplyPatchToSettings no longer arms the Route B hook")
+    # work. Some definition must hold the call, and every one that does not must
+    # forward to one that does, first thing, so no entry point skips the hook.
+    defs = cfn_all(t, "ApplyPatchToSettings")
+    HOOK = "InstallRouteBActivationHook(settings, patch_path);"
+    hooked = {n for n, b in defs if HOOK in b}
+    need(hooked, "ApplyPatchToSettings no longer arms the Route B hook")
+    for n, b in defs:
+        if HOOK in b: continue
+        c = re.search(r"\bApplyPatchToSettings\s*\(", b)
+        need(c is not None and nargs(b, c.end()) in hooked
+             and not re.search(r"\b(?:return|if|else|switch|for|while|goto)\b|\?", b[:c.start()]),
+             "the %d-argument ApplyPatchToSettings does not forward, unconditionally, to the overload that arms the Route B hook" % n)
     _, hk = cfn(t, "InstallRouteBActivationHook")
     need("settings.root_isolate_create_callback =" in hk, "the hook no longer registers root_isolate_create_callback")
 elif mode == "shell":
