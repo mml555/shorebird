@@ -12,9 +12,21 @@
 # missing for the whole programme and warm caches hid it. Closure BEFORE promotion,
 # never discovered after.
 shorebird:
-  cli_version: 1.6.144+selfhost.1                                # the pubspec version at cli_revision 37a0434b (was 1.6.140+selfhost.1 at e7384444). It is also the version at f66e3c21, which the chain ran
-  cli_revision: 37a0434bcf986bf2e36549591671f9fa181b5a52          # the supported CLI for cell 54117a2f, the merge of #257. the chain ran f66e3c21 (the merge of #255; same bin/internal, five packages/shorebird_cli files fewer than this pin, all the iOS producer path), which lacks the #257 fix; the iPhone e1b re-run PASSED on this pin (PR #259; SUPPORTED_STATE.yaml lineage.cli_revision); was e7384444 (cell a6a48cf6), 1ab7f5d3 before #234, 3f10d18e before #230-#233, f9c56698 (cell 2fc41d3f), dd93e875 (cell aab9fd07), 22f14441 (cell 5f6efd98), 357bc24f (cell 82fc78a8)
-  flutter_revision: f4024608592183cbfc27ff404e9fb23e84096f95      # bin/internal/flutter.version. RE-CELLED 2026-11-19 (ROUTE-B-CELL-54117A2F) from cc4fc222: the same
+  cli_version: 1.6.144+selfhost.1                                # the pubspec version at cli_revision 64a64473 (unchanged from 37a0434b; was 1.6.140+selfhost.1 at e7384444). It is also the version at 3001a355, which the chain ran
+  cli_revision: 64a64473db6fd735cf348262e0d00ec80758a552          # the supported CLI for cell a377ecb7, the merge of #263. The chain's resumed run (arm A, arm B) ran #263's head 3001a355, whose packages/shorebird_cli and bin/internal trees equal this merge's; the first run ran 3c93f596, before the fixture bump. Was 37a0434b for cell 54117a2f (kept: the merge of #257. the chain ran f66e3c21 (the merge of #255; same bin/internal, five packages/shorebird_cli files fewer than this pin, all the iOS producer path), which lacks the #257 fix; the iPhone e1b re-run PASSED on this pin (PR #259; SUPPORTED_STATE.yaml lineage.cli_revision); was e7384444 (cell a6a48cf6), 1ab7f5d3 before #234, 3f10d18e before #230-#233, f9c56698 (cell 2fc41d3f), dd93e875 (cell aab9fd07), 22f14441 (cell 5f6efd98), 357bc24f (cell 82fc78a8))
+  flutter_revision: 52347b6108fa0e8b84b718e76c920e890da4c0a5      # bin/internal/flutter.version. RE-ENGINED 2026-11-22 (ROUTE-B-CELL-A377ECB7) from f4024608: Flutter 3.50.
+                                                                  # shorebird-flutter 52347b61 is the engine commit e737ede3bcf9b18c495498ada78a841e38b4a388 (branch selfhost/3.50-up; Dart 0cd04a77; upstream flutter_engine_revision 371f7720)
+                                                                  # plus ONE line, bin/internal/engine.version = a377ecb7ae1c26172d6e9d517c42321726eec427, the route-b-cell-v2 cell (macos-ios-android, 30 members) minted over that engine's
+                                                                  # published bytes (compiler archive 8eb8438e..., 19938443 B). Fallback engine f0a7d29193ea6e077e02080a3511b405a4401b6f (Shorebird flutter_release/3.50.0).
+                                                                  # shorebird-flutter branch selfhost/3.50-cell-a377ecb7, tag selfhost-flutter-cell-a377ecb7, selected by PR #263 (which also adds 'e737ede3' and 'a377ecb7' -> '0cd04a77' to
+                                                                  # DartSdkCompatibility.expectedDartSdkRevisions). The chain was RUN for this pin: evidence/r12-linux-ci/PROMOTION_a377ecb7.md (sealed cold bootstrap 0 additions, CLOSURE OK,
+                                                                  # fresh cold bootstrap PASS, release/patch discovery arms 1 and 2 exit 0, R12 arm A PASS, R12 arm B PASS; the first run stopped at the fixture's Gradle version).
+                                                                  # iPhone run: PENDING, not run. This cell is NOT device-qualified; the last device-qualified cell is 54117a2f on the 3.47 engine.
+                                                                  # FLUTTER 3.50 REQUIRES Android Gradle >= 9.3.1, AGP >= 9.1.1 and KGP >= 2.4.10 (the 3.50 template uses Gradle 9.5.0, AGP 9.3.1, KGP 2.4.20). An app that moves to this pin must
+                                                                  # upgrade them first; selfhost/fixtures/android_signing_app was bumped in #263 for exactly this (the chain's first run failed on its Gradle 9.1.0).
+                                                                  # updater_revision below is NOT re-stamped by this record: DEPS updater_rev at 52347b61 is a58774ab8a88a04ae5f96ce4e5a9825561a2f2f3, not 87c198d3. Open.
+                                                                  # --- the 2026-11-19 pin this replaces, kept as written: f4024608592183cbfc27ff404e9fb23e84096f95 ---
+                                                                  # RE-CELLED 2026-11-19 (ROUTE-B-CELL-54117A2F) from cc4fc222: the same
                                                                   # parent 0987ce0a (engine d0714887, Dart b4671ab7) plus ONE line, bin/internal/engine.version =
                                                                   # 54117a2fe0510a8cb070faf3f5191542179fb4ce, a cell over the same engine bytes whose compiler archive
                                                                   # (e44ac8e6..., 19976827 B) carries the v23 coverage analyzer (a for-in names its receiver class, read from the loop the VM lowers it to;
@@ -131,11 +143,12 @@ shorebird:
                                                                   # updater_revision below is now the updater in this pin's DEPS (87c198d3); the engine
                                                                   # consumes it. 87c198d30f87 is already in eligibleUpdaterRevisions (epoch B, since
                                                                   # 2026-11-07); nothing changes there. It defaults patch_verification to install_only.
-  engine_revision: d0714887dd95d2990e0185fe1893523f3d600cc5       # the engine the cell at the pin above is minted over (its producer). OUR OWN
+  engine_revision: e737ede3bcf9b18c495498ada78a841e38b4a388       # the engine the cell at the pin above is minted over (its producer): Flutter 3.50, release engine-e737ede3... on mml555/shorebird-flutter. Was d0714887dd95d2990e0185fe1893523f3d600cc5 (cells aab9fd07 to 54117a2f, Flutter 3.47), whose comment follows. OUR OWN
                                                                   # BUILD (ci-build Linux + arm64 Mac), published as the GitHub release
                                                                   # engine-d0714887... on mml555/shorebird-flutter, served from the overlay.
                                                                   # Was 2c4b071817c52c27142b35ff789749951e5b4d22 (cell 82fc78a8). Unchanged by
                                                                   # cells aab9fd07, 2fc41d3f (2026-11-16), a6a48cf6 (2026-11-17) and 54117a2f (2026-11-19), which are minted over the same engine.
+                                                                  # (Flutter 3.50's e737ede3 falls back to f0a7d29193ea6e077e02080a3511b405a4401b6f.)
                                                                   # Falls back to 38855c84ca367c58165b8e3844dd7d6a99dec844 for what was not built
                                                                   # (experimental_hashes.map).
                                                                     # general toolchain's engine, and it is also the

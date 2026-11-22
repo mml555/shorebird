@@ -1,0 +1,94 @@
+
+== preflight (host side) ==
+  ok      shape: 40 lowercase hex
+  ok      resolves to a published cell in the overlay
+  ok      publishes android-arm64-release/linux-x64.zip (2.1M)
+  ok      CDN serves it: HTTP 200
+  REVISION ACCEPTED  a377ecb7ae1c26172d6e9d517c42321726eec427
+bootstrap closure guard
+  ok      candidate flutter_revision (R12_FLUTTER_REVISION): 52347b6108fa0e8b84b718e76c920e890da4c0a5
+  ok      owned mirror contains the pinned revision
+  ok      engine.version resolves: a377ecb7ae1c26172d6e9d517c42321726eec427
+  ok      owned cell exists for the supported engine
+  ok      engine_stamp.json  246 bytes  sha256 1624dcf853d93e06…
+  ok      closure manifest rows for this engine: 1
+  ok      proxy mapping pinned: manifest 4382d059896c1f12… -> flutter_engine_revision 371f77202a73e8df…
+
+  CLOSURE OK  52347b6108fa0e8b84b718e76c920e890da4c0a5 -> a377ecb7ae1c26172d6e9d517c42321726eec427  (1 artifacts, size + sha256 verified)
+   owned flutter mirror     : serves 52347b6108fa0e8b84b718e76c920e890da4c0a5
+   CDN                      : https://host.docker.internal:8087/flutter_infra_release/flutter/ -> 200
+
+== builder memory headroom ==
+   docker VM MemTotal      : 54449766400 bytes
+   co-tenant containers    :
+r12-cdn-sealed 24.83MiB / 54.45GiB
+r12cold-artifact-proxy-1 3.551MiB / 54.45GiB
+r12-flutter-git 19.75MiB / 54.45GiB
+shorebird-cdn-cdn-cache-1 27.1MiB / 8GiB
+shorebird-cdn-artifact-proxy-1 3.328MiB / 54.45GiB
+signed-in-chrome-chrome-1 262.2MiB / 6GiB
+browser-pool-chrome-1 230.5MiB / 6GiB
+browser-pool-edge-1 188MiB / 3GiB
+browser-pool-firefox-1 206.1MiB / 3GiB
+browser-pool-hub-1 366.9MiB / 54.45GiB
+browser-pool-playwright-1 271.1MiB / 6GiB
+
+== arm BOOT1 — fresh container, no host mounts ==
+
+== container cleanliness ==
+   arm label                : BOOT1
+   uname                    : Linux/x86_64
+   HOME                     : /r12home
+   flutter/dart/shorebird   : absent from PATH (as required)
+   caches                   : none present
+   CI detection vars        : none set
+
+== control-plane loopback forwarder ==
+   localhost:18081          : not checked (bootstrap-only)
+
+== gradle configuration ==
+   GRADLE_USER_HOME         : /r12home/.gradle (location only)
+   gradle properties        : NONE — the fixture's android/gradle.properties
+                              governs, including its -Xmx8G
+
+== trusting the mirror CA ==
+   CA installed             : system bundle + JDK cacerts
+   mirror over TLS          : https://host.docker.internal:8087 -> 502 (CA validation enforced)
+
+== bootstrap the OWNED toolchain ==
+   repo                     : https://github.com/mml555/shorebird.git
+   sha                      : 3c93f5969241439a4d0bce9f593f25760984af5c
+   checked out              : 3c93f5969241439a4d0bce9f593f25760984af5c
+   flutter.version (pinned) : 52347b6108fa0e8b84b718e76c920e890da4c0a5
+   flutter git url          : git://host.docker.internal:9418/flutter.git
+   artifact CDN (flutter)   : https://host.docker.internal:8087
+   artifact CDN (shorebird) : https://host.docker.internal:8087 / download.shorebird.dev
+
+== first shorebird invocation (this is what performs the bootstrap) ==
+   bootstrap OK
+     | Framework • revision 52347b6108 (5 hours ago) • 2026-11-21 18:38:40 -0500
+     | Engine • hash 8fc939afe8d29f74ec01eeaac7d6b2b08e3afcbb (revision a377ecb7ae) (33 hours ago) • 2026-11-19 10:50:47.000Z
+     | Tools • Dart 3.14.0 • DevTools 2.61.0
+     | Building Shorebird...
+     | Got dependencies in `/r12src`.
+     | Shorebird 1.6.144+selfhost.1 • git@github.com:shorebirdtech/shorebird.git
+     | Flutter • revision 52347b6108fa0e8b84b718e76c920e890da4c0a5
+     | Engine • revision a377ecb7ae1c26172d6e9d517c42321726eec427
+   shorebird                : /r12src/bin/shorebird
+     | Shorebird 1.6.144+selfhost.1 • git@github.com:shorebirdtech/shorebird.git
+     | Flutter • revision 52347b6108fa0e8b84b718e76c920e890da4c0a5
+     | Engine • revision a377ecb7ae1c26172d6e9d517c42321726eec427
+   bootstrapped flutter sha : 52347b6108fa0e8b84b718e76c920e890da4c0a5
+
+== BOOTSTRAP-ONLY — THIS IS NOT A DECISIVE ARM ==
+   The owned toolchain bootstrapped on clean Linux/x64. NO release and NO
+   patch ran, no credential was used, and nothing here bears on R12's
+   release/patch rows. It discharges exactly one checkpoint: that the
+   supported environment is CONSTRUCTIBLE from owned bytes.
+
+== collecting evidence ==
+   container state          : exit=0 oomkilled=false error= started=2026-11-22T04:34:16.029271183Z finished=2026-11-22T04:37:11.727178116Z
+   evidence                 : /srv/ci-cache/shorebird-engine/promo-a377ecb7/evidence/arms/arm-BOOT1
+
+== arm BOOT1 exit 0 ==
+EXIT=0
