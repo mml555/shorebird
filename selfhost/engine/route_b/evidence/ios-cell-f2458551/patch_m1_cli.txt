@@ -1,0 +1,12 @@
+## patch_m1.log (6287 lines; excerpt with original line numbers)
+6206:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+6207:[route-b] P5-TARGET OPEN: release target lib/main.dart, this patch invoked with <default>. Recorded, not gated: no measurement has shown a target difference can admit a semantic mismatch that the release bindings accept.
+6209:[route-b] fetched cell descriptor from http://127.0.0.1:18185/download.shorebird.dev/shorebird/cell-manifests/f2458551039ceb1a48a2ffb4a41dff35950fec5b.v2
+6210:[route-b] using cached compiler bundle ~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/artifacts/route-b-compiler/bundles/f2458551039ceb1a48a2ffb4a41dff35950fec5b-route-b-compiler-darwin-arm64.zip
+6211:[route-b] resolved compiler for engine f2458551039ceb1a48a2ffb4a41dff35950fec5b
+6236:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+6237:[route-b] compiled _HomeState._increment -> ~/Developer/shorebird-wt/devrun/run-f2458551/work/untab/build/route_b/replacement_0.bytecode
+6238:[route-b] compiled _HomeState._start -> ~/Developer/shorebird-wt/devrun/run-f2458551/work/untab/build/route_b/replacement_1.bytecode
+6239:[route-b] packed 6305 bytes for release b207a26f7fca990da4b4044161398baf at ~/Developer/shorebird-wt/devrun/run-f2458551/work/untab/build/route_b/patch.sbrbptch
+6259:🕹️  Platform: iOS [arm64 (3.18 KB)]
+6276:✅ Published Patch 4!

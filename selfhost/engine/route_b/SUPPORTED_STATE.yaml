@@ -154,7 +154,7 @@ lineage:
   # mirror PR #14: mirror #10 and #11); the parent b5333482 is a CI-only commit whose parent is e737ede3. Dart (0cd04a77) and the fallback engine
   # (f0a7d291) did not move. The compiler archive is E2's own (1edabab1..., 19938491 B; route_b_analyze.aot 7fde93ed...). The selector's parent is
   # the engine commit directly; the delta is bin/internal/engine.version alone. Selected by PR #270 (merge c212f715), which also added
-  # '09c6f422' and 'f2458551' -> '0cd04a77' to DartSdkCompatibility. NOT device-qualified: the iPhone run is PENDING, not run (see
+  # '09c6f422' and 'f2458551' -> '0cd04a77' to DartSdkCompatibility. Device-qualified on iOS for unsigned patches only, with limits (iPhone run 2026-11-22; see
   # cells.f2458551....physically_qualified). See PROMOTION_f2458551.md.
   # The CLI pin: the merge of PR #270, the head of main when this record was written. The chain ran #270's head dfdc86cc; its packages/shorebird_cli
   # (368f4a2e) and bin/internal (b891c868) trees equal the merge's (git rev-parse on both), so the pin is the CLI the chain ran.
@@ -415,8 +415,8 @@ cells:
     status: >-
       SELECTED -- this is lineage.cell_address (moved here 2026-11-22). The promotion chain ran once, with no resume (CHAIN_DONE 2026-11-22T20:20:45Z), then R12 arm B;
       step 7's harness verdict was FAIL on one check by design (arm 3 exited 0 where 64 was expected: the discovery control plane has one release).
-      NOT device-qualified: the iPhone 7 (iOS 15.8) release and patch run through the cell address is PENDING, not run (see physically_qualified).
-      Nothing a device showed through a377ecb7 is claimed for it: E2 differs from a377ecb7's engine in the updater alone (mirror #10 and #11), but no run was made on it.
+      Device-qualified on iOS for unsigned patches only, with limits: the iPhone 7 (iOS 15.8) run through the cell address passed on 2026-11-22 (see physically_qualified).
+      E2 differs from a377ecb7's engine in the updater alone (mirror #10 and #11); the run was made on E2 itself, not inherited from a377ecb7.
     # Minted over the PUBLISHED bytes of engine 09c6f422 (Flutter 3.50, shorebird-flutter selfhost/3.50-up, release engine-09c6f422... on
     # mml555/shorebird-flutter, in parts): e737ede3's source with DEPS updater_rev 64a458f0 (parent b5333482, a CI-only commit, whose parent is e737ede3).
     # 30 addressed members, the seven rendered to the new address being engine_stamp.json, the four POMs, artifacts_manifest.yaml and the descriptor
@@ -433,9 +433,12 @@ cells:
       2026-11-22T20:20:45Z), then R12 arm B (exit 0, ARMB_DONE 2026-11-22T20:41:44Z). One run, no resume. The closure guard verified 2 of 2 ledger rows
       (size and sha256), including the Dart SDK zip that #266's fix added. See evidence/r12-linux-ci/PROMOTION_f2458551.md.
     physically_qualified: >-
-      PENDING, NOT RUN: a physical iPhone 7 (iOS 15.8) iOS release and Route B patch run through the cell address on this engine. Until it runs this cell is not device-qualified;
-      the last device-qualified cell is a377ecb7 (iPhone 7, unsigned patches only, with limits). No Android device applied a patch on this cell: the chain shows an Android release and
-      patch built and published under seal with the CLI arms passing, and the harness itself calls that "NOT self-certifying" (armA.log:147-151).
+      PASSED WITH LIMITS, UNSIGNED PATCHES ONLY, 2026-11-22: a physical iPhone 7 (iOS 15.8.8), release 1.0.0+73 upgrade-installed over +72, CLI c212f715, shorebird-flutter 8f54cc7b (Flutter 3.50.1-0.0.pre-254), updater 64a458f0.
+      12 patches published and each showed its values, 9 refused before upload for the reasons a377ecb7 gave, 3 rollbacks (2, 5, 12) fell back as expected and the last ended on patch 11, no launch failed,
+      no device refusal, no --allow-unchecked-sdk-calls; 93 artifact requests all served by the ci-build cdn-cache with 0 redirects (85 name f2458551, 8 are Flutter dependency downloads); server 288 requests, no 4xx or 5xx.
+      Limits: patches were unsigned (signing not exercised); #254 not exercised; one CLI, one device, one app version; no syslog line separates updater 64a458f0 from a58774ab (the installed
+      Flutter.framework does: updater_identity.txt; the on-device state_diag.log was not read); two syslog excerpts lack a line. No Android device applied a patch on this cell: the chain shows an Android release and
+      patch built and published under seal with the CLI arms passing, and the harness itself calls that "NOT self-certifying" (armA.log:147-151). Evidence: evidence/ios-cell-f2458551/RESULT.md.
     producer_lineage: 09c6f4225d3ddf276fe4f3473beca79e038360b6
     fallback_engine_revision: f0a7d29193ea6e077e02080a3511b405a4401b6f
     evidence: evidence/r12-linux-ci/PROMOTION_f2458551.md
@@ -1203,7 +1206,7 @@ product_surfaces:
   # constructs. Recorded because "unsupported construct" and "unsupported
   # surface" have different remediations and collapsing them hides the second.
   standalone_flutter_app:
-    ios: SUPPORTED — the supported cell f2458551 has NO device run yet (PENDING, not run); the last device-qualified cell is a377ecb7 (iPhone 7, 2026-11-22, with limits, cells.a377ecb7….physically_qualified); earlier cells were physically qualified too, see physical_device_qualification
+    ios: SUPPORTED — the supported cell f2458551 is device-qualified (iPhone 7, 2026-11-22, unsigned patches only, with limits, cells.f2458551….physically_qualified); the previous device-qualified cell is a377ecb7 (cells.a377ecb7….physically_qualified); earlier cells were physically qualified too, see physical_device_qualification
     android:
       status: SUPPORTED — physically qualified 2026-09-04 against cell f85251f3…
       qualified: 2026-09-04 (ANDROID-FINAL-STACK-2)

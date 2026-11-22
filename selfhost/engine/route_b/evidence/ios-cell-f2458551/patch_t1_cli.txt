@@ -1,0 +1,13 @@
+## patch_t1.log (6262 lines; excerpt with original line numbers)
+6206:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+6207:[route-b] P5-TARGET OPEN: release target lib/main.dart, this patch invoked with <default>. Recorded, not gated: no measurement has shown a target difference can admit a semantic mismatch that the release bindings accept.
+6209:[route-b] fetched cell descriptor from http://127.0.0.1:18185/download.shorebird.dev/shorebird/cell-manifests/f2458551039ceb1a48a2ffb4a41dff35950fec5b.v2
+6210:[route-b] using cached compiler bundle ~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/artifacts/route-b-compiler/bundles/f2458551039ceb1a48a2ffb4a41dff35950fec5b-route-b-compiler-darwin-arm64.zip
+6211:[route-b] resolved compiler for engine f2458551039ceb1a48a2ffb4a41dff35950fec5b
+6236:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+6237:This patch changes a function this version of Shorebird cannot yet turn into a replacement body:
+6238:
+6239:  package:untab/main.dart#Box.kind
+6240:      its body uses the class type parameter `T`, which is not in scope in the top-level function a replacement is, and a top-level type of that name would be bound instead
+6241:
+6242:The whole patch is refused. This is not a problem with your release. Nothing was

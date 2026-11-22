@@ -1,0 +1,8 @@
+descriptor 200 4141
+bootstrap exit=0
+HEAD is now at 8f54cc7bc chore: select the cell f2458551 over engine 09c6f422 (Flutter 3.50, Route B iOS)
+Shorebird Engine • revision f2458551039ceb1a48a2ffb4a41dff35950fec5b
+Flutter 3.50.1-0.0.pre-254 • channel [user-branch] • https://github.com/mml555/shorebird-flutter.git
+Engine • hash c4e647cd01c49d20fe1b5aab5ed80a5f27859d60 (revision f245855103) (3 hours ago) • 2026-11-22 17:21:42.000Z
+UP_DONE
+up exit=0

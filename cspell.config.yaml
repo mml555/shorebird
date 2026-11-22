@@ -283,6 +283,11 @@ overrides:
     ignoreWords: [appintentsmetadataprocessor, cryptexd, DTSDK, noindex, sdkstatcache, SDKROOT, xctool, xctoolchain]
   - filename: "selfhost/engine/route_b/evidence/ios-cell-a377ecb7/release_cli.txt"
     ignoreWords: [cdsdjeqqrxklqbhflafznjfwvgwp, noindex, xattr]
+  # The same, for the cell f2458551 run.
+  - filename: "selfhost/engine/route_b/evidence/ios-cell-f2458551/*.out"
+    ignoreWords: [appintentsmetadataprocessor, cryptexd, DTSDK, noindex, sdkstatcache, SDKROOT, xctool, xctoolchain, xctoo]
+  - filename: "selfhost/engine/route_b/evidence/ios-cell-f2458551/release_cli.txt"
+    ignoreWords: [CRVI, DSEFO, eiabzakrxhogaaephtfvaxuyavts, EQVJUX, noindex, VVFRF, xattr]
 
   # Deliberate non-ASCII test input for the lowering matrix.
   - filename: "selfhost/engine/route_b/probes/lowering_matrix.sh"

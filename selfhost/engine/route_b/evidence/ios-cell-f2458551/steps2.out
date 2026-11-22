@@ -1,0 +1,655 @@
+patch h1 exit=0
+5193:                export SDK_STAT_CACHE_PATH\=~/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos27.2-24B8118-9aa026f88bf9ed31cff8761912ac5bd16890c9e4970e00494a266ff652f095d9.sdkstatcache
+5194:                export SDK_VERSION\=27.2
+5195:                export SDK_VERSION_ACTUAL\=270200
+5196:                export SDK_VERSION_MAJOR\=270000
+5197:                export SDK_VERSION_MINOR\=270200
+5235:                export SWIFTC_PASS_SDKROOT\=YES
+5249:                export SYSROOT\=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk
+5291:                export TEST_FRAMEWORK_SEARCH_PATHS\=\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.s
+5349:                export __ORIGINAL_SDK_DEFINED_LLVM_TARGET_TRIPLE_SYS\=ios
+5367:                /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.2.47.0.nBh5Hz/Metal.xctool
+5406:            PruneExplicitPrecompiledModules ~/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+5588:           	<key>DTSDKBuild</key>
+5590:           	<key>DTSDKName</key>
+5718:           	<key>DTSDKBuild</key>
+5720:           	<key>DTSDKName</key>
+5848:           	<key>DTSDKBuild</key>
+5850:           	<key>DTSDKName</key>
+5978:           	<key>DTSDKBuild</key>
+5980:           	<key>DTSDKName</key>
+6108:           	<key>DTSDKBuild</key>
+6110:           	<key>DTSDKName</key>
+6232:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+6236:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+6276:✅ Published Patch 3!
+--- h1_download: applied 15/15 targets;current_patch_number: Some(1);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+[shorebird] Prepared boot of patch 1.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/72DCF11D-9CD1-4997-BAFC-D2202C847A74/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(732)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=15, built-for=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=c1
+shape:count=c2
+shape:count=c3
+shape:decorate=[P1:3]
+shape:detail=D2
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB2 G2
+shape:future-builder=FB2 null
+shape:generic=F2
+shape:greeting=G2
+shape:half=1.5
+shape:home-build=H2 0
+shape:home-build=H2 1
+shape:home-build=H2 2
+shape:home-build=H2 3
+shape:init=I2
+shape:label=L2
+shape:level=hi2
+shape:mood=M2
+shape:poly=circle2
+shape:poly=square1
+shape:result=OK 7
+shape:route=R2 /detail
+shape:stamp=15 Nov 2026
+shape:stars=***
+shape:static=S2
+shape:tally=K1 3 |||
+--- h1_boot: applied 2/2 targets;current_patch_number: Some(3);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+[shorebird] Prepared boot of patch 3.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/72DCF11D-9CD1-4997-BAFC-D2202C847A74/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(732)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=2, built-for=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:h1=N1
+shape:h1=N2
+shape:h1=N3
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- h1_boot2: applied 2/2 targets;current_patch_number: Some(3);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+[shorebird] Prepared boot of patch 3.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/72DCF11D-9CD1-4997-BAFC-D2202C847A74/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(732)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=2, built-for=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:h1=N1
+shape:h1=N2
+shape:h1=N3
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+patch m1 exit=0
+5193:                export SDK_STAT_CACHE_PATH\=~/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos27.2-24B8118-9aa026f88bf9ed31cff8761912ac5bd16890c9e4970e00494a266ff652f095d9.sdkstatcache
+5194:                export SDK_VERSION\=27.2
+5195:                export SDK_VERSION_ACTUAL\=270200
+5196:                export SDK_VERSION_MAJOR\=270000
+5197:                export SDK_VERSION_MINOR\=270200
+5235:                export SWIFTC_PASS_SDKROOT\=YES
+5249:                export SYSROOT\=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk
+5291:                export TEST_FRAMEWORK_SEARCH_PATHS\=\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.s
+5349:                export __ORIGINAL_SDK_DEFINED_LLVM_TARGET_TRIPLE_SYS\=ios
+5367:                /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.2.47.0.nBh5Hz/Metal.xctool
+5404:            PruneExplicitPrecompiledModules ~/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+5588:           	<key>DTSDKBuild</key>
+5590:           	<key>DTSDKName</key>
+5718:           	<key>DTSDKBuild</key>
+5720:           	<key>DTSDKName</key>
+5848:           	<key>DTSDKBuild</key>
+5850:           	<key>DTSDKName</key>
+5978:           	<key>DTSDKBuild</key>
+5980:           	<key>DTSDKName</key>
+6108:           	<key>DTSDKBuild</key>
+6110:           	<key>DTSDKName</key>
+6232:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+6236:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+6276:✅ Published Patch 4!
+--- m1_download: applied 2/2 targets;current_patch_number: Some(3);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+[shorebird] Prepared boot of patch 3.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/72DCF11D-9CD1-4997-BAFC-D2202C847A74/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(732)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=2, built-for=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:h1=N1
+shape:h1=N2
+shape:h1=N3
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- m1_boot: applied 2/2 targets;current_patch_number: Some(4);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+[shorebird] Prepared boot of patch 4.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/72DCF11D-9CD1-4997-BAFC-D2202C847A74/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(732)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=2, built-for=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:m1=LBL1
+shape:m1=LBL2
+shape:m1=LBL3
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- m1_boot2: applied 2/2 targets;current_patch_number: Some(4);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+[shorebird] Prepared boot of patch 4.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/72DCF11D-9CD1-4997-BAFC-D2202C847A74/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(732)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=2, built-for=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:m1=LBL1
+shape:m1=LBL2
+shape:m1=LBL3
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+patch m2 exit=0
+5192:                export SDK_STAT_CACHE_ENABLE\=YES
+5193:                export SDK_STAT_CACHE_PATH\=~/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos27.2-24B8118-9aa026f88bf9ed31cff8761912ac5bd16890c9e4970e00494a266ff652f095d9.sdkstatcache
+5194:                export SDK_VERSION\=27.2
+5195:                export SDK_VERSION_ACTUAL\=270200
+5196:                export SDK_VERSION_MAJOR\=270000
+5197:                export SDK_VERSION_MINOR\=270200
+5235:                export SWIFTC_PASS_SDKROOT\=YES
+5249:                export SYSROOT\=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk
+5291:                export TEST_FRAMEWORK_SEARCH_PATHS\=\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.s
+5349:                export __ORIGINAL_SDK_DEFINED_LLVM_TARGET_TRIPLE_SYS\=ios
+5367:                /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.2.47.0.nBh5Hz/Metal.xctool
+5404:            PruneExplicitPrecompiledModules ~/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+5588:           	<key>DTSDKBuild</key>
+5590:           	<key>DTSDKName</key>
+5718:           	<key>DTSDKBuild</key>
+5720:           	<key>DTSDKName</key>
+5848:           	<key>DTSDKBuild</key>
+5850:           	<key>DTSDKName</key>
+5978:           	<key>DTSDKBuild</key>
+5980:           	<key>DTSDKName</key>
+6108:           	<key>DTSDKBuild</key>
+6110:           	<key>DTSDKName</key>
+6232:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+6274:✅ Published Patch 5!
+--- m2_download: applied 2/2 targets;current_patch_number: Some(4);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+[shorebird] Prepared boot of patch 4.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/72DCF11D-9CD1-4997-BAFC-D2202C847A74/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(732)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=2, built-for=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:m1=LBL1
+shape:m1=LBL2
+shape:m1=LBL3
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- m2_boot: applied 1/1 targets;current_patch_number: Some(5);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+[shorebird] Prepared boot of patch 5.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/72DCF11D-9CD1-4997-BAFC-D2202C847A74/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(732)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=1, built-for=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:bump=104
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:count=4
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 104
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- m2_boot2: applied 1/1 targets;current_patch_number: Some(5);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+[shorebird] Prepared boot of patch 5.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/72DCF11D-9CD1-4997-BAFC-D2202C847A74/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(732)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=1, built-for=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:bump=104
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:count=4
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 104
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+patch refuse_r1 exit=70
+5194:                export SDK_VERSION\=27.2
+5195:                export SDK_VERSION_ACTUAL\=270200
+5196:                export SDK_VERSION_MAJOR\=270000
+5197:                export SDK_VERSION_MINOR\=270200
+5235:                export SWIFTC_PASS_SDKROOT\=YES
+5249:                export SYSROOT\=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk
+5291:                export TEST_FRAMEWORK_SEARCH_PATHS\=\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.s
+5349:                export __ORIGINAL_SDK_DEFINED_LLVM_TARGET_TRIPLE_SYS\=ios
+5367:                /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.2.47.0.nBh5Hz/Metal.xctool
+5402:            PruneExplicitPrecompiledModules ~/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+5588:           	<key>DTSDKBuild</key>
+5590:           	<key>DTSDKName</key>
+5718:           	<key>DTSDKBuild</key>
+5720:           	<key>DTSDKName</key>
+5848:           	<key>DTSDKBuild</key>
+5850:           	<key>DTSDKName</key>
+5978:           	<key>DTSDKBuild</key>
+5980:           	<key>DTSDKName</key>
+6108:           	<key>DTSDKBuild</key>
+6110:           	<key>DTSDKName</key>
+6232:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+6236:This patch cannot be built: it uses code the release never used in its own code.
+6238:  package:untab/main.dart#_HomeState._start
+6241:The whole patch is refused, not the part that failed. Nothing was uploaded.
+patch refuse_r2 exit=70
+5194:                export SDK_VERSION\=27.2
+5195:                export SDK_VERSION_ACTUAL\=270200
+5196:                export SDK_VERSION_MAJOR\=270000
+5197:                export SDK_VERSION_MINOR\=270200
+5235:                export SWIFTC_PASS_SDKROOT\=YES
+5249:                export SYSROOT\=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk
+5291:                export TEST_FRAMEWORK_SEARCH_PATHS\=\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks\ /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.s
+5349:                export __ORIGINAL_SDK_DEFINED_LLVM_TARGET_TRIPLE_SYS\=ios
+5367:                /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.2.47.0.nBh5Hz/Metal.xctool
+5406:            PruneExplicitPrecompiledModules ~/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+5588:           	<key>DTSDKBuild</key>
+5590:           	<key>DTSDKName</key>
+5718:           	<key>DTSDKBuild</key>
+5720:           	<key>DTSDKName</key>
+5848:           	<key>DTSDKBuild</key>
+5850:           	<key>DTSDKName</key>
+5978:           	<key>DTSDKBuild</key>
+5980:           	<key>DTSDKName</key>
+6108:           	<key>DTSDKBuild</key>
+6110:           	<key>DTSDKName</key>
+6232:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+6236:This patch cannot be built: it uses code the release never used in its own code.
+6238:  package:untab/main.dart#Label.build
+6241:The whole patch is refused, not the part that failed. Nothing was uploaded.
+--- patches on server:
+Starting Fetching releases...
+Done Fetching releases
+Starting Fetching patches...
+Done Fetching patches
+1  #1  [no track]
+2  #2  [no track]  [rolled back]
+3  #3  [no track]
+4  #4  [no track]
+5  #5  track: stable
+--- rollback m2
+rollback2 (patch 5) exit=0
+Rolled back: yes
+Artifacts:
+  ios      aarch64      2.79 KB
+--- rb2_learn: applied 1/1 targets;current_patch_number: Some(5);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+[shorebird] Prepared boot of patch 5.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/72DCF11D-9CD1-4997-BAFC-D2202C847A74/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(732)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=1, built-for=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:bump=104
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:count=4
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 104
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- rb2_boot: applied 2/2 targets;current_patch_number: Some(4);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+[shorebird] Prepared boot of patch 4.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/72DCF11D-9CD1-4997-BAFC-D2202C847A74/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(732)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=2, built-for=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:m1=LBL1
+shape:m1=LBL2
+shape:m1=LBL3
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- rb2_boot2: applied 2/2 targets;current_patch_number: Some(4);
+[INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+[shorebird] Prepared boot of patch 4.
+[INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /private/var/mobile/Containers/Data/Application/72DCF11D-9CD1-4997-BAFC-D2202C847A74/Library/Application Support/shorebird/shorebird_
+[INFO:flutter/shell/common/shorebird/shorebird.cc(732)] Shorebird updater: active patch is a Route B container
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=2, built-for=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=b207a26f7fca990da4b4044161398baf
+[ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:m1=LBL1
+shape:m1=LBL2
+shape:m1=LBL3
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+STEPS2_DONE
+steps2 exit=0

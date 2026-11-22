@@ -1,0 +1,13 @@
+Starting Fetching releases...
+Done Fetching releases
+Starting Fetching patches...
+Done Fetching patches
+Starting Rolling back patch 2...
+Done Rolling back patch 2
+Patch 2 on release 1.0.0+73 has been rolled back.
+ID:          2
+Number:      2
+Track:       stable
+Rolled back: yes
+Artifacts:
+  ios      aarch64      3.73 KB
