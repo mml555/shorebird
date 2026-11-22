@@ -520,8 +520,8 @@ patch can be published with the SDK kept check on. What a patch may add is uncha
 
 The cell that replaced `54117a2f`, `a377ecb7` (2026-11-22), is over a new engine, `e737ede3` (Flutter 3.50, Dart
 `0cd04a77`), and carries that engine's compiler archive. It is not a re-cell of `d0714887`: the engine, the Dart SDK and the
-selector all moved. Nothing in Route B is device-proven on Flutter 3.50 yet: the iPhone run on this cell is in progress, and the device
-evidence of `54117a2f` on Flutter 3.47 does not carry to a new engine. The promotion chain is in
+selector all moved. The device evidence of `54117a2f` on Flutter 3.47 does not carry to a new engine, so the cell was run on a device: an iPhone 7 (iOS 15.8.8) run on 2026-11-22 through CLI `64a64473`: release `1.0.0+72` and 12 published patches each showed their values (combo, trio, h1, m1, m2, s1b, s1, i1, i2b, i2, e1b, p16), 9 patch attempts were refused before upload for the expected reasons, and three rollbacks fell back as expected (the last one ended on patch 11, e1b, which published and passed on the first try); no launch failed and no patch was refused by the device. Limits: the patches were unsigned, #254 (await on a `TickerFuture`) was not exercised, and it is one CLI, one device and one app version. The record is
+[`ios-cell-a377ecb7`](engine/route_b/evidence/ios-cell-a377ecb7/RESULT.md). The promotion chain is in
 [`PROMOTION_a377ecb7.md`](evidence/r12-linux-ci/PROMOTION_a377ecb7.md).
 
 ### A class or extension member's own statics (class scope)

@@ -1,0 +1,4 @@
+# Excerpt of ios-deploy's install log (logs/install.txt, 135 lines); the device's name is removed.
+2:[....] Using 8cb4bc982ddf6437b1952520edee80f898196c74 (D10AP, iPhone 7, iphoneos, arm64, 15.8.8, 19H422).
+3:------ Install phase ------
+135:[100%] Installed package /Users/mendel/Developer/shorebird-wt/devrun/run-a377ecb7/signed/Runner.app

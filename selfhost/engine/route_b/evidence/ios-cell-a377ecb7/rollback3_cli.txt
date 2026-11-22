@@ -1,0 +1,13 @@
+Starting Fetching releases...
+Done Fetching releases
+Starting Fetching patches...
+Done Fetching patches
+Starting Rolling back patch 12...
+Done Rolling back patch 12
+Patch 12 on release 1.0.0+72 has been rolled back.
+ID:          12
+Number:      12
+Track:       stable
+Rolled back: yes
+Artifacts:
+  ios      aarch64      3.20 KB
