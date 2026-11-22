@@ -267,3 +267,4 @@ How the statements above were established, for whoever maintains this file.
 - Not established from this repository: the key sizes the engine's verifier
   accepts, and on-device behaviour.
 - On the Flutter 3.50 engine (`e737ede3`, 2026-11-22) the updater is `a58774ab8a88a04ae5f96ce4e5a9825561a2f2f3` (`DEPS` `updater_rev` at `52347b61`); its `yaml.rs` still defaults `patch_verification` to `install_only` (`library/src/yaml.rs:8-14`). Not re-read here beyond that default; the 2026-11-16 reading above is about `d0714887`.
+- On engine `09c6f422` (cell `f2458551`, 2026-11-22) the updater is `64a458f034c86bca2eff6541a19d73781728b18f` (`DEPS` `updater_rev`, mirror #10 and #11 on top of `a58774ab8a88`); `tool/check_updater_pin.sh` reads `patch_verification`'s default (`install_only`) and the download-time signature check from the vendored copy of that tree. Not re-read here beyond that.

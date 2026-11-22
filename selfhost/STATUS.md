@@ -8,7 +8,16 @@ when an item here changes; history of how things got here lives in the PRs and i
 
 Feature-by-feature comparison with upstream Shorebird: [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md).
 
-**Supported stack since 2026-11-22** (newer than the sections below, which still describe 2026-11-11): CLI
+**Supported stack since 2026-11-22 (second move that day)** (newer than the sections below, which still describe 2026-11-11): CLI
+`c212f715` (the merge of #270), shorebird-flutter `8f54cc7b`, cell `f2458551` over engine `09c6f422` (Flutter 3.50, Dart `0cd04a77`, updater `64a458f0`).
+Engine `09c6f422` is `e737ede3`'s source with one change, the updater in `DEPS` (mirror #10 and #11: bounded diag logs, and a proxy refusing CONNECT is a transport error in the ureq builds).
+The values are in [`compatibility.yaml`](compatibility.yaml) and [`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml). The Linux
+promotion chain is in [`PROMOTION_f2458551.md`](evidence/r12-linux-ci/PROMOTION_f2458551.md): one run, no resume; the closure guard verified 2 of 2 ledger rows, R12 arm A and arm B passed.
+**The supported cell `f2458551` has no device run yet: the iPhone 7 (iOS 15.8) release and patch run through it is PENDING, not run, and iOS is not device-qualified on this cell.**
+The last device-qualified cell is `a377ecb7` (iPhone 7, unsigned patches only, with limits). The tag `selfhost-flutter-cell-f2458551` and the release `cell-f2458551` were created on 2026-11-22 (UTC).
+Cell `a377ecb7` is superseded; its text follows, as written when it was the supported cell.
+
+**Previous supported stack, 2026-11-22 (cell `a377ecb7`, superseded)** (newer than the sections below, which still describe 2026-11-11): CLI
 `64a64473` (the merge of #263), shorebird-flutter `52347b61`, cell `a377ecb7` over engine `e737ede3` (Flutter 3.50, Dart
 `0cd04a77`). This is a new engine, not a re-cell: it replaces cell `54117a2f` (engine `d0714887`, Flutter 3.47, Dart `b4671ab7`). The values are in
 [`compatibility.yaml`](compatibility.yaml) and [`engine/route_b/SUPPORTED_STATE.yaml`](engine/route_b/SUPPORTED_STATE.yaml). The Linux

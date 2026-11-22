@@ -92,7 +92,7 @@ Citations are `library/src/<file>.rs` plus the function or type, against the ven
   (branch `route-b-ca91f4b3` of `mml555/shorebird-updater-mirror`, on upstream
   base `ca91f4b3`), vendored at `vendor/updater` plus one later mirror change
   (#11). `vendor/updater/VENDOR.md` is the record, and
-  `selfhost/compatibility.yaml` `updater_revision: 87c198d30f87` must equal its
+  `selfhost/compatibility.yaml` `updater_revision: 64a458f034c8` must equal its
   first 12 characters; `tool/check_updater_pin.sh` fails CI when they differ.
   The pin before the previous one was upstream
   `1f85c4ab1ee5b540269b9859c75e1bffbb9050c7` (2026-07-02), which most of this
@@ -106,7 +106,7 @@ Citations are `library/src/<file>.rs` plus the function or type, against the ven
   check that. It was checked by hand on 2026-11-16 against an engine checkout at
   `d0714887`: `updater_rev` is `87c198d30f875a3da317d70935e1025dc13064dd`, and
   `selfhost/ci/engine_updater_evidence_guard.sh` (#206) is the check meant to run
-  on a host that has the engine tree. **Flutter 3.50 (engine `e737ede3`, cell `a377ecb7`, 2026-11-22):** the supported pin now consumes `a58774ab8a88a04ae5f96ce4e5a9825561a2f2f3` (`DEPS` `updater_rev` at shorebird-flutter `52347b61`; `mml555/shorebird-updater-mirror`, upstream `91dbbddb958a` merged, 13 commits ahead of `87c198d3`), and `compatibility.yaml` says so. The vendored tree and the `87c198d3` readings in this file are not updated for it, and `tool/check_updater_pin.sh` compares `compatibility.yaml` with the vendored copy. The 2026-07 text below named engine
+  on a host that has the engine tree. **Flutter 3.50 (engine `e737ede3`, cell `a377ecb7`, 2026-11-22):** the supported pin now consumes `a58774ab8a88a04ae5f96ce4e5a9825561a2f2f3` (`DEPS` `updater_rev` at shorebird-flutter `52347b61`; `mml555/shorebird-updater-mirror`, upstream `91dbbddb958a` merged, 13 commits ahead of `87c198d3`), and `compatibility.yaml` says so. The vendored tree and the `87c198d3` readings in this file are not updated for it, and `tool/check_updater_pin.sh` compares `compatibility.yaml` with the vendored copy. **Engine `09c6f422` (cell `f2458551`, 2026-11-22):** the supported pin now consumes `64a458f034c86bca2eff6541a19d73781728b18f` (`DEPS` `updater_rev` at shorebird-flutter `09c6f422`; mirror `route-b-91dbbdd` after mirror PR #14, a merge whose tree equals `32676dc0`'s). Against `a58774ab8a88` the only change is mirror #10 and #11 (bounded diag logs; a proxy refusing CONNECT is a transport error in the ureq builds). `vendor/updater` is that tree (`VENDOR.md`), and `selfhost/ci/engine_updater_evidence_guard.sh --require-engine` passed all six checks against the engine tree at `09c6f422`. The readings of the launch and retention code in this file were not repeated for it. The 2026-07 text below named engine
   `69f9831c360d9152862ec3897c67fb09ae843f3b`, which is no longer the pin. `BEHAVIORAL_FINDINGS.md` was captured on CLI 1.6.114 / Flutter
   `309dd6573a9fe716410489284cd325a34b950375` (engine `e1eaecbc…`), the pin
   before this one. Those findings carry forward: `updater_rev` in the Flutter

@@ -524,6 +524,11 @@ selector all moved. The device evidence of `54117a2f` on Flutter 3.47 does not c
 [`ios-cell-a377ecb7`](engine/route_b/evidence/ios-cell-a377ecb7/RESULT.md). The promotion chain is in
 [`PROMOTION_a377ecb7.md`](evidence/r12-linux-ci/PROMOTION_a377ecb7.md).
 
+The cell that replaced `a377ecb7`, `f2458551` (2026-11-22), is over engine `09c6f422`: the same Flutter 3.50 source and Dart `0cd04a77` as `e737ede3`, with
+the updater in `DEPS` moved to `64a458f0` (mirror #10 and #11). Its compiler archive is that engine's own (`1edabab1`). Nothing in Route B is device-proven on this cell:
+the iPhone run is PENDING, not run, and the device evidence of `a377ecb7` is not claimed for it. The promotion chain is in
+[`PROMOTION_f2458551.md`](evidence/r12-linux-ci/PROMOTION_f2458551.md).
+
 ### A class or extension member's own statics (class scope)
 
 A class or extension member is carried as a top-level function, so an unqualified

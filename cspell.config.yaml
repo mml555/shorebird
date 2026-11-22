@@ -404,6 +404,8 @@ overrides:
     words: [stdev]
 
 words:
+  # The ureq HTTP client crate, named in the updater and selfhost records (mirror #11).
+  - ureq
   # --- BACKUP-RESTORE-1. Vocabulary shared by the backup/restore scripts, the
   # certification harness and the ops docs: the quiesce family (the property
   # the backup now enforces), Postgres catalog column names, and the python
