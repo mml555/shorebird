@@ -86,8 +86,9 @@ ok "owned cell exists for the supported engine"
 
 # A manifest with no rows for the resolved engine is the same failure as a
 # missing cell, dressed up as a pass. Refuse it explicitly.
-# Every line is read: the banked ledger chain.sh appends has no header, and a
-# committed one's header row (engine artifact ...) never matches a 40-hex engine.
+# Every line is read. mirror_bootstrap_artifact.sh writes a header row, but a
+# ledger banked by a promotion chain script outside this repo may have none, and
+# a header row (engine artifact ...) never matches a 40-hex engine anyway.
 # A last line without a newline is read too.
 rows=0
 while IFS=$'\t' read -r m_eng m_art m_bytes m_sha _m_src || [[ -n "$m_eng" ]]; do
