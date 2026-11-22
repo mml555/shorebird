@@ -18,7 +18,7 @@ scripts and [`ios-cell-a377ecb7`](../ios-cell-a377ecb7/RESULT.md)). Every `shape
   is built against the release, not on top of the previous patch.
 - **The updater is identified by the installed binary, not by a syslog line.** See "Updater identity" below. The bounded `success_diag.log` and `state_diag.log` and their `.1` rotations (mirror #11) live in the app container on the device and were not read; nothing touched the device beyond the run.
 - **`stream` and the values that follow `_count`, p29 in the trio, i2 and i2b not told apart by their values**: as in the a377ecb7 record (same files, same behaviour).
-- **Not an Android run.** No Android device applied a patch on this cell.
+- **Not an Android run.** At the time of this run no Android device had applied a patch on this cell; the Android run that followed is `../android-cell-f2458551/RESULT.md`.
 - **Two syslog excerpts have a line missing** (below, "Differences"). Neither changes a verdict.
 
 ## What ran

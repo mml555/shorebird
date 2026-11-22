@@ -12,6 +12,7 @@
 - **The first run attempt failed for two environmental reasons and was redone** (below). `artifact_origin.jsonl`, `connproxy.jsonl` and `server_requests.txt` cover both attempts, because the origin proxy and the server stayed up between them; the attempt-1 app (id `5b99ce6e`, release 1) is in the same server database but no patch was ever published for it.
 - **`stream` is logged as `shape:stream=` per tick and is excluded from the per-launch value diff** (as in the iOS run); the combo's `U0 U1 U2` was read from the raw excerpt.
 - **Android's own pre-existing log noise** (`Oplus*`, `avc: granted`, `NoSuchMethodException` from OPlus heap code) is in the raw logcat and was filtered out of the excerpts; none of it comes from the app or the updater.
+- **Noise that the excerpts keep.** `steps.out` is the harness's own output and keeps the OPlus `NoSuchMethodException` lines (system code, not the app or the updater). `release.out` and `bootstrap.log` keep `fatal: ref HEAD is not a symbolic ref` / `Unable to check for updates`: the CLI's own update check failing in a detached worktree, as in the iOS records. A plain grep over this folder finds both; neither is a failure of the run.
 
 ## What ran
 
@@ -33,7 +34,7 @@ Scripts (`harness/`): `bin/up.sh`, `release.sh`, `lib.sh`, `steps.sh`, `down.sh`
 
 1. **Nothing was refused.** 9 patch builds, 9 publishes (iOS: 12 published, 9 refused). The variants iOS refused all published here and all showed their values: the combo including `p15` (tally body), `p15` alone, `p20` (`kTitle`), `p30` (field initializer), `r1` (public `toJson` + `jsonEncode`), `p17` (`Iterable.map`/`toList`), `t1` (class type parameter).
 2. **A changed constant and a changed dependency body take effect** (`const=KT2`, `tally=K2 3 |||`). On iOS Route B these were the refusals.
-3. **Patch sizes are ordinary bidiff sizes**, 0.3 KB to 333 KB for arm64 (`patch_artifacts.txt`), several far larger than iOS's Route B containers (the `r1` and `p17` edits shift the snapshot layout: 341 KB and 295 KB against 3.0 MB). The updater applied each with `output_written` equal to the release's arm64 size (3,015,640 B).
+3. **Patch sizes are ordinary bidiff sizes**, 536 B (patch 9) to 341,374 B (patch 7) for arm64 (`patch_artifacts.txt`), several far larger than iOS's Route B containers (the `r1` and `p17` edits shift the snapshot layout: about 341 KB and 295 KB against the 3.0 MB release `libapp.so`). The updater applied each with `output_written` equal to the release's arm64 size (3,015,640 B).
 4. **`aot-tools.dill` is requested and 404s** (28 times across both attempts), the CLI prints `optional artifact: "aot-tools.dill" was not found, skipping...` and carries on, as in android-final-stack-2.
 5. **Only the first launch of a patch downloads; there is no `ROUTEB: parsed` or `applied x/y targets` line on Android.** The proof a patch ran is `Launch success for patch N` plus the changed `shape:` values.
 6. **`shorebird doctor --fix` talks to upstream** (see "Where artifacts came from").
