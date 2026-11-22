@@ -545,3 +545,9 @@ e737ede3bcf9b18c495498ada78a841e38b4a388 f0a7d29193ea6e077e02080a3511b405a4401b6
 # The Flutter 3.50 cell over engine e737ede3 (Route B iOS), route-b-cell-v2,
 # macos-ios-android, 30 members, minted the way 54117a2f was over d0714887.
 a377ecb7ae1c26172d6e9d517c42321726eec427 f0a7d29193ea6e077e02080a3511b405a4401b6f
+# Engine 09c6f422: e737ede3 with DEPS updater_rev 64a458f0 (mirror #14: #10 and
+# #11 on route-b-91dbbdd), on the same fallback.
+09c6f4225d3ddf276fe4f3473beca79e038360b6 f0a7d29193ea6e077e02080a3511b405a4401b6f
+# The Flutter 3.50 cell over engine 09c6f422 (Route B iOS), route-b-cell-v2,
+# macos-ios-android, 30 members, minted the way a377ecb7 was over e737ede3.
+f2458551039ceb1a48a2ffb4a41dff35950fec5b f0a7d29193ea6e077e02080a3511b405a4401b6f
