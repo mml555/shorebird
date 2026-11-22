@@ -164,7 +164,8 @@ void main() {
       // carry the event-loss fixes, so it under-counts rather than fabricating.
       await repo.insertEvent(
         raw: '{}',
-        dedupeKey: 'norev|app|1.7.0+1|1|__patch_boot_lifecycle__|5|ambiguous_boot_retry',
+        dedupeKey:
+            'norev|app|1.7.0+1|1|__patch_boot_lifecycle__|5|ambiguous_boot_retry',
         appId: 'app',
         clientId: 'norev',
         type: '__patch_boot_lifecycle__',

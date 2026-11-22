@@ -819,9 +819,9 @@ class Repository {
         'version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())',
       );
     });
-    final applied = (await _q('SELECT version FROM schema_migrations'))
-        .map((m) => _int(m['version']))
-        .toSet();
+    final applied = (await _q(
+      'SELECT version FROM schema_migrations',
+    )).map((m) => _int(m['version'])).toSet();
 
     // A database migrated by a NEWER server than this one. The migration loop
     // below simply skips versions it does not know, so without this the old
@@ -1580,25 +1580,26 @@ class Repository {
   /// Removes [platform] from [releaseId]: its release artifacts and its status
   /// row. The release and its other platforms stay. Returns the storage keys
   /// of the removed artifacts.
-  Future<List<String>> deleteReleasePlatform(int releaseId, String platform) =>
-      _db.tx((s) async {
-        final p = {'r': releaseId, 'p': platform};
-        const where =
-            "owner_kind = 'release' AND owner_id = @r AND platform = @p";
-        final keys = (await s.query(
-          'SELECT storage_key FROM artifacts WHERE $where',
-          p,
-        )).map((m) => m['storage_key'] as String).toList();
-        await s.query('DELETE FROM artifacts WHERE $where', p);
-        await s.query(
-          'DELETE FROM release_platform_status WHERE release_id = @r AND platform = @p',
-          p,
-        );
-        await s.query('UPDATE releases SET updated_at = now() WHERE id = @r', {
-          'r': releaseId,
-        });
-        return keys;
-      });
+  Future<List<String>> deleteReleasePlatform(
+    int releaseId,
+    String platform,
+  ) => _db.tx((s) async {
+    final p = {'r': releaseId, 'p': platform};
+    const where = "owner_kind = 'release' AND owner_id = @r AND platform = @p";
+    final keys = (await s.query(
+      'SELECT storage_key FROM artifacts WHERE $where',
+      p,
+    )).map((m) => m['storage_key'] as String).toList();
+    await s.query('DELETE FROM artifacts WHERE $where', p);
+    await s.query(
+      'DELETE FROM release_platform_status WHERE release_id = @r AND platform = @p',
+      p,
+    );
+    await s.query('UPDATE releases SET updated_at = now() WHERE id = @r', {
+      'r': releaseId,
+    });
+    return keys;
+  });
 
   // ---- Patches ----
 
