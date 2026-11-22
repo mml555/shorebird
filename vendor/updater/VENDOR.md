@@ -4,7 +4,7 @@ Pinned snapshot of the Shorebird native updater (Rust), vendored so we build it
 ourselves and are insulated from upstream changes.
 
 - Upstream: https://github.com/shorebirdtech/updater
-- Upstream base commit: 91dbbddb958a397868c9d8db4742a10e0f2c3832 (upstream #456, the commit "Merge upstream updater 91dbbddb958a into route-b" merged)
+- Upstream base commit: 91dbbddb958a397868c9d8db4742a10e0f2c3832 (upstream #456, "ci: drop taiki-e actions"; the mirror merged it into route-b as a58774ab, "Merge upstream updater 91dbbddb958a into route-b")
 - Source revision: a58774ab8a88a04ae5f96ce4e5a9825561a2f2f3, branch `route-b-91dbbdd` of mml555/shorebird-updater-mirror
   (the fork's route-b changes ported onto the upstream base; see SELFHOST_PORT_91dbbdd.md in this directory,
   and SELFHOST_PORT_ca91f4b3.md for the port it builds on).
