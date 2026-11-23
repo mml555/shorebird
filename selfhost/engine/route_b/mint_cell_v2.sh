@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime repack repacked mintcellv infolist getinfo outf
+# cspell:words dartaotruntime repack repacked mintcellv infolist getinfo outf cffaedfe notelf
 #
 # mint_cell_v2.sh -- mint a successor v2 cell (macos-ios-android) whose only
 # difference from a DONOR v2 cell is some Route B compiler-cell files, such as a
@@ -18,15 +18,18 @@
 #                  dartaotruntime, vm_platform.dill, route_b_analyze.aot,
 #                  route_b_gen_kernel.aot, route_b_gen_dynamic_interface.aot,
 #                  route_b_release_probe.aot, flutter_platform_strong.dill).
-#                  Nothing else can be replaced.
+#                  This script accepts only route_b_analyze.aot, route_b_gen_kernel.aot
+#                  and dartaotruntime (each has a capability check below); the other
+#                  files are refused until one exists.
 # --note           REQUIRED with a real mint: one line, no control characters, what
 #                  the replacement is and where it came from. It goes into the
 #                  archive's PROVENANCE.txt, with the source sha256 and, for the
 #                  analyzer, the analysisVersion the carried runtime reports.
 # --out            an overlay dir to write the new cell into. It must not hold the
 #                  new cell already. This script refuses any path at or under the
-#                  selfhost/cdn/overlay of THIS checkout or of any other worktree
-#                  of the same repository, after resolving symlinks and for
+#                  selfhost/cdn/overlay of THIS checkout or of any other registered
+#                  worktree of the same repository (a separate clone of it is NOT
+#                  covered), after resolving symlinks and for
 #                  directories that do not exist yet. It must be on the same
 #                  volume as --evidence.
 # --evidence       where the descriptor (<address>.v2), the address provenance,
@@ -38,9 +41,14 @@
 #      every donor member, in canonical form, matches the descriptor.
 #   2. Stages the 30 members as templates (the seven that carry the address are
 #      canonicalized to %H by lib/v2_canonicalize.py, as stage_android_cell.sh does).
-#   3. Gates a replaced analyzer: non-empty, ELF, and, run with the dartaotruntime
-#      the archive carries, --help names the "Route B coverage analyzer" and
-#      --patched-dill, and it reports an analysisVersion on a tiny AOT dill.
+#   3. Gates the replacements: non-empty, the right executable format, and the
+#      combination that would ship (runtime + gen_kernel + analyzer) is RUN, 60 s
+#      each, output kept in <evidence>/gate.log: gen_kernel --help is gen_kernel,
+#      the analyzer --help names the "Route B coverage analyzer" and
+#      --patched-dill, and it reports an analysisVersion on a tiny AOT dill. This
+#      is an IDENTITY check, not a trust boundary: it EXECUTES the files with your
+#      privileges, anything that prints those strings passes, and the version in
+#      PROVENANCE is the file's self-report. The inputs are your own build.
 #   4. Rebuilds the compiler archive with the replacements (lib/v2_repack_compiler.py),
 #      and refuses unless the ONLY archive entries that change are the replaced
 #      ones plus PROVENANCE.txt, and the ONLY member that changes is the archive.
@@ -73,7 +81,10 @@
 #      its entry, and two repacks byte-identical;
 #   c. mints with a fixed changed analyzer (the gate that runs the analyzer is
 #      bypassed here: the bytes are not a real analyzer) and requires the address
-#      to move, and to be the same on every run.
+#      to move, and to be the same on every run;
+#   d. the gate refuses an empty file, a non-ELF file, an ELF that is not the
+#      analyzer (the donor's gen_kernel) and the runtime named as the analyzer, and
+#      accepts the donor's own analyzer.
 #
 # What this does NOT do: publish. It writes to --out only. Registering the
 # descriptor in cell_manifests/, the CDN map, the Caddyfile, the selector commit
@@ -182,38 +193,51 @@ stage_donor() {
   done < <(v2_members "$POLICY" "$cell")
 }
 
-# gate_replacements <note-out-file> <name=file>...: what a replaced file must be.
-# Writes the extra PROVENANCE note text (analyzer version) to <note-out-file>.
+# gate_replacements <note-out-file> <log-file> <name=file>...: what a replaced
+# file must be. It is an IDENTITY check, not a trust boundary: it EXECUTES the
+# replacement (an AOT snapshot is arbitrary code with the operator's privileges,
+# bounded to 60 s each) and passes anything that prints the right strings. The
+# inputs are the operator's own build. stderr and stdout of every run go to
+# <log-file>. Writes the PROVENANCE note text (the self-reported analysisVersion)
+# to <note-out-file>.
+MC_REPLACEABLE="route_b_analyze.aot route_b_gen_kernel.aot dartaotruntime"
+mc_run() { perl -e 'alarm shift; exec @ARGV or exit 127' 60 "$@"; }
 gate_replacements() {
-  local outf=$1; shift
-  local pair name file g="$MC_TMP/gate.$RANDOM"
+  local outf=$1 log=$2; shift 2
+  local pair name file g="$MC_TMP/gate.$RANDOM" magic help ver
+  : > "$outf"; : > "$log"
   mkdir -p "$g" || die "cannot create $g"
   unzip -q -o "$MC_DONOR_OVERLAY/${MC_ZIP//%H/$MC_DONOR}" -d "$g" || die "cannot unzip the donor archive"
-  : > "$outf"
   for pair in "$@"; do
     name=${pair%%=*}; file=${pair#*=}
+    [[ " $MC_REPLACEABLE " == *" $name "* ]] \
+      || die "$name cannot be replaced by this script: no capability check exists for it (replaceable: $MC_REPLACEABLE)"
     [[ -s "$file" ]] || die "replacement $name is empty: $file"
+    magic=$(head -c 4 "$file" | od -An -tx1 | tr -d ' \n')
+    if [[ "$name" == dartaotruntime ]]; then
+      [[ "$magic" == cffaedfe ]] || die "$name is not a 64-bit little-endian Mach-O executable: $file"
+    else
+      [[ "$magic" == 7f454c46 ]] || die "$name is not an ELF AOT snapshot: $file"
+    fi
     cp "$file" "$g/$name" || die "cannot copy $file"
   done
-  for pair in "$@"; do
-    name=${pair%%=*}; file=${pair#*=}
-    if [[ "$name" == route_b_analyze.aot ]]; then
-      [[ "$(head -c 4 "$file" | od -An -tx1 | tr -d ' \n')" == "7f454c46" ]] || die "$name is not an ELF AOT snapshot: $file"
-      chmod +x "$g/dartaotruntime"
-      local help ver
-      help=$("$g/dartaotruntime" "$g/$name" --help 2>&1) || true
-      [[ "$help" == *"Route B coverage analyzer"* && "$help" == *"--patched-dill"* ]] \
-        || die "$name run with the archive's dartaotruntime is not the Route B coverage analyzer (--help lacks its name or --patched-dill)"
-      printf 'void main() {}\n' > "$g/tiny.dart"
-      "$g/dartaotruntime" "$g/route_b_gen_kernel.aot" --aot --platform "$g/vm_platform.dill" -o "$g/tiny.dill" "$g/tiny.dart" >/dev/null 2>&1 \
-        || die "the archive's route_b_gen_kernel.aot could not compile a tiny AOT dill"
-      ver=$("$g/dartaotruntime" "$g/$name" --base-dill "$g/tiny.dill" --patched-dill "$g/tiny.dill" 2>/dev/null \
-        | python3 -I -c 'import json,sys; print(int(json.load(sys.stdin)["analysisVersion"]))') \
-        || die "$name did not report an analysisVersion on a tiny dill"
-      printf '; analysisVersion %s (run with the carried dartaotruntime)' "$ver" >> "$outf"
-      echo "gate: $name is an ELF Route B coverage analyzer, analysisVersion $ver" >&2
-    fi
-  done
+  chmod +x "$g/dartaotruntime"
+  # The combination that will ship must work: the (possibly new) runtime has to
+  # run the (possibly new) gen_kernel and analyzer, which are version-locked.
+  help=$(mc_run "$g/dartaotruntime" "$g/route_b_gen_kernel.aot" --help 2>>"$log") || true
+  [[ "$help" == *"Compiles Dart sources to a kernel binary"* && "$help" == *"--platform"* ]] \
+    || die "route_b_gen_kernel.aot run with the archive's dartaotruntime is not gen_kernel (see $log)"
+  help=$(mc_run "$g/dartaotruntime" "$g/route_b_analyze.aot" --help 2>>"$log") || true
+  [[ "$help" == *"Route B coverage analyzer"* && "$help" == *"--patched-dill"* ]] \
+    || die "route_b_analyze.aot run with the archive's dartaotruntime is not the Route B coverage analyzer (--help lacks its name or --patched-dill; see $log)"
+  printf 'void main() {}\n' > "$g/tiny.dart"
+  mc_run "$g/dartaotruntime" "$g/route_b_gen_kernel.aot" --aot --platform "$g/vm_platform.dill" -o "$g/tiny.dill" "$g/tiny.dart" >>"$log" 2>&1 \
+    || die "route_b_gen_kernel.aot could not compile a tiny AOT dill (see $log)"
+  ver=$(mc_run "$g/dartaotruntime" "$g/route_b_analyze.aot" --base-dill "$g/tiny.dill" --patched-dill "$g/tiny.dill" 2>>"$log" \
+    | python3 -I -c 'import json,sys; print(int(json.load(sys.stdin)["analysisVersion"]))') \
+    || die "route_b_analyze.aot did not report an analysisVersion on a tiny dill (see $log)"
+  printf '; analysisVersion %s as reported by the file when run with the carried dartaotruntime (self-report, not verified)' "$ver" >> "$outf"
+  echo "gate: runtime, gen_kernel and analyzer run together; analyzer reports analysisVersion $ver (self-report)" >&2
   rm -rf "$g"
 }
 
@@ -235,10 +259,12 @@ mint() {
     done
     [[ -n "$MC_NOTE" ]] || die "--note is required with a replacement"
     local extra="$MC_TMP/gate.note"
-    if [[ "${MC_GATE:-1}" == 1 ]]; then
-      gate_replacements "$extra" "${args[@]}" || exit 1
-    else
+    mkdir -p "$ev" || die "cannot create $ev"
+    # Gate bypass exists for --check's address-sensitivity probe only.
+    if [[ "$MC_CHECK" == 1 && "${MC_GATE:-1}" == 0 ]]; then
       : > "$extra"
+    else
+      gate_replacements "$extra" "$ev/gate.log" "${args[@]}" || exit 1
     fi
     python3 -I "$HERE/lib/v2_repack_compiler.py" "$MC_DONOR_OVERLAY/${MC_ZIP//%H/$MC_DONOR}" \
       "$stage/$MC_ZIP.new" "${args[@]}" --note "$MC_NOTE$(cat "$extra")" || die "repack refused"
@@ -263,7 +289,6 @@ PY
     [[ "${changed[*]}" == "$MC_ZIP" ]] || die "members changed other than the compiler archive: ${changed[*]}"
   fi
   mkdir -p "$ev" || die "cannot create $ev"
-  MC_FINAL_DIR="$ev/final"
   v2_transaction "$stage" "$POLICY" "$MC_CELL" "$MC_FB" "$out" "$ev" || die "transaction failed"
 }
 
@@ -332,6 +357,17 @@ PY
   C2=$(MC_GATE=0 MC_NOTE="check c (not a real analyzer; gate bypassed)" mint "$MC_TMP/out-c" "$MC_TMP/ev-c" "route_b_analyze.aot=$MC_TMP/an2") || { bad "mint with a replacement failed"; C2=""; }
   C3=$(MC_GATE=0 MC_NOTE="check c (not a real analyzer; gate bypassed)" mint "$MC_TMP/out-c2" "$MC_TMP/ev-c2" "route_b_analyze.aot=$MC_TMP/an2") || C3=""
   if [[ -n "$C2" && "$C2" != "$MC_DONOR" && "$C2" == "$C3" ]]; then ok "replacement mint gives $C2 (twice), not the donor"; else bad "replacement mint: '$C2' '$C3'"; fi
+  note "check d: the gate refuses what is not the analyzer"
+  : > "$MC_TMP/empty"; printf 'x' > "$MC_TMP/notelf"
+  for neg in "empty=$MC_TMP/empty" "non-ELF=$MC_TMP/notelf" "gen_kernel-as-analyzer=$MC_TMP/zx/route_b_gen_kernel.aot" "runtime-as-analyzer=$MC_TMP/zx/dartaotruntime"; do
+    if ( gate_replacements "$MC_TMP/d.note" "$MC_TMP/d.log" "route_b_analyze.aot=${neg#*=}" ) >/dev/null 2>"$MC_TMP/d.err"; then
+      bad "gate accepted ${neg%%=*}"
+    else ok "gate refused ${neg%%=*}: $(tail -1 "$MC_TMP/d.err" | cut -c1-110)"; fi
+  done
+  if ( gate_replacements "$MC_TMP/d.note" "$MC_TMP/d.log" "route_b_analyze.aot=$MC_TMP/zx/route_b_analyze.aot" ) >/dev/null 2>&1; then
+    ok "gate accepted the donor's own analyzer ($(cat "$MC_TMP/d.note" | cut -c3-30))"; else bad "gate refused the donor's own analyzer"; fi
+  if ( gate_replacements "$MC_TMP/d.note" "$MC_TMP/d.log" "route_b_release_probe.aot=$MC_TMP/zx/route_b_release_probe.aot" ) >/dev/null 2>&1; then
+    bad "gate accepted a file without a capability check"; else ok "gate refused a file without a capability check"; fi
   [[ "$fails" == 0 ]] && { echo "CHECK PASSED"; exit 0; }
   echo "CHECK FAILED ($fails)"; exit 1
 fi
@@ -339,7 +375,8 @@ fi
 [[ -n "$MC_OUT" ]] || die "--out <overlay dir> is required"
 [[ ${#MC_REPL[@]} -gt 0 ]] || die "no --replace given: nothing to mint (use --check to re-mint the donor)"
 [[ -n "$MC_NOTE" ]] || die "--note is required: say what the replacement is and where it came from"
-[[ "$MC_NOTE" != *[[:cntrl:]]* ]] || die "--note must be one line without control characters"
+python3 -I -c 'import sys; sys.exit(any(ord(c) < 32 or 0x7f <= ord(c) <= 0x9f or ord(c) in (0x2028, 0x2029) for c in sys.argv[1]))' "$MC_NOTE" \
+  || die "--note must be one line without control or line-separator characters"
 MC_EV=${MC_EV:-$MC_OUT.evidence}
 MC_OUT=$(not_live_overlay --out "$MC_OUT") || exit 1
 MC_EV=$(not_live_overlay --evidence "$MC_EV") || exit 1
@@ -347,14 +384,24 @@ MC_EV=$(not_live_overlay --evidence "$MC_EV") || exit 1
 MC_DO=$(resolve_path "$MC_DONOR_OVERLAY") || exit 1
 [[ "$MC_OUT" != "$MC_DO" && "$MC_OUT" != "$MC_DO"/* && "$MC_DO" != "$MC_OUT"/* ]] || die "--out and --donor-overlay must be separate directories"
 # The rendered working copy is moved into --out: same volume, or it would be a copy.
+MC_OUT_NEW=0; [[ -e "$MC_OUT" ]] || MC_OUT_NEW=1
 mkdir -p "$MC_OUT" "$MC_EV" || die "cannot create --out / --evidence"
+MC_FINAL_DIR="$MC_EV/final"   # set here, in the parent, so the EXIT trap (also on SIGINT/SIGTERM) removes it
+trap 'rm -rf "$MC_TMP" "$MC_FINAL_DIR"; exit 130' INT TERM
+# Remove what this run put in --out (the address-named roots), and the directories it created.
+cleanup_out() {
+  [[ -z "${NEW:-}" ]] || find "$MC_OUT" -depth -type d -name "*$NEW*" -prune -exec rm -rf {} + 2>/dev/null
+  [[ "$MC_OUT_NEW" == 0 ]] || find "$MC_OUT" -depth -type d -empty -delete 2>/dev/null
+  return 0
+}
 [[ "$(stat -f %d "$MC_OUT")" == "$(stat -f %d "$MC_EV")" ]] || die "--out and --evidence are on different volumes; the move into --out would not be atomic"
-NEW=$(mint "$MC_OUT" "$MC_EV" "${MC_REPL[@]}") || { rm -rf "$MC_EV/final"; die "mint failed (see above)"; }
+NEW=$(mint "$MC_OUT" "$MC_EV" "${MC_REPL[@]}") || { rm -rf "$MC_EV/final"; NEW=""; cleanup_out; die "mint failed (see above)"; }
 rm -rf "$MC_EV/final"
 [[ "$NEW" =~ ^[0-9a-f]{40}$ ]] || die "mint returned no address"
 cp "$MC_EV/cell_manifest.v2" "$MC_EV/$NEW.v2" || die "cannot write the descriptor"
 [[ "$(shasum -a 256 "$MC_EV/$NEW.v2" | cut -c1-40)" == "$NEW" ]] || die "descriptor does not authenticate its own name"
 
+verify_out() (
 # Verify what is IN --out, not what was rendered: rebuild the manifest from it.
 VS="$MC_TMP/verify"; mkdir -p "$VS" || die "cannot create $VS"
 while IFS= read -r m; do
@@ -367,7 +414,9 @@ while IFS= read -r m; do
   esac
 done < <(v2_members "$POLICY" "$MC_CELL")
 v2_manifest "$VS" "$POLICY" "$MC_CELL" "$MC_FB" > "$MC_TMP/out.manifest" || die "manifest from --out refused"
-cmp -s "$MC_TMP/out.manifest" "$MC_EV/cell_manifest.v2" || die "--out does not hold the cell that was addressed (manifest rebuilt from --out differs); DO NOT USE $MC_OUT"
+cmp -s "$MC_TMP/out.manifest" "$MC_EV/cell_manifest.v2" || die "--out does not hold the cell that was addressed (manifest rebuilt from --out differs); the cell was removed from --out"
+)
+verify_out || { cleanup_out; die "verification of --out failed; the new cell was removed from --out so a re-run is not blocked"; }
 ZIPOUT="$MC_OUT/${MC_ZIP//%H/$NEW}"
 {
   echo "repacked archive sha256  $(shasum -a 256 "$ZIPOUT" | cut -d' ' -f1)"

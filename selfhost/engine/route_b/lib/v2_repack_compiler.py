@@ -49,8 +49,8 @@ def main(argv):
     if len(args) < 2:
         sys.stderr.write(__doc__)
         return 2
-    if any(ord(c) < 32 or ord(c) == 127 for c in note):
-        sys.stderr.write('--note must be one line without control characters\n')
+    if any(ord(c) < 32 or 0x7f <= ord(c) <= 0x9f or ord(c) in (0x2028, 0x2029) for c in note):
+        sys.stderr.write('--note must be one line without control or line-separator characters\n')
         return 2
     donor, out, pairs = args[0], args[1], args[2:]
     repl = {}
