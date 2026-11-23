@@ -307,7 +307,7 @@ v2_members() { # <policy> <cell>
 # relaxed in the verifier and not here reports a drifted cell as intact).
 V2_CANON="$HERE/lib/v2_canonicalize.py"
 v2_canonicalize() { # <file> <hash>  -> canonical bytes on stdout
-  python3 "$V2_CANON" "${1:?}" "${2:?}"
+  python3 -I "$V2_CANON" "${1:?}" "${2:?}"
 }
 
 # The canonical manifest. Staged tree mirrors the overlay with a LITERAL `%H`
@@ -569,7 +569,7 @@ while [[ $# -gt 0 ]]; do
     # cannot express host-toolchain changes (measured 2026-09-01).
     --address-schema) ADDRESS_SCHEMA="${2:?}"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
-    -h|--help) sed -n '3,31p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help) awk 'NR>=3 { if ($0 ~ /^#/) print; else exit }' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
 done

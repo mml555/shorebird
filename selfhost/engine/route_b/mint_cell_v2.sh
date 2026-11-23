@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime repack repacked mintcellv infolist getinfo
+# cspell:words dartaotruntime repack repacked mintcellv infolist getinfo outf
 #
 # mint_cell_v2.sh -- mint a successor v2 cell (macos-ios-android) whose only
 # difference from a DONOR v2 cell is some Route B compiler-cell files, such as a
@@ -7,7 +7,7 @@
 # (8 files plus a few digests) and cannot produce or reproduce a v2 address.
 #
 #   mint_cell_v2.sh --donor <address> --donor-overlay <dir> --out <overlay> \
-#       [--replace route_b_analyze.aot=<file>]... [--note <text>] [--evidence <dir>]
+#       [--replace route_b_analyze.aot=<file>]... --note <text> [--evidence <dir>]
 #   mint_cell_v2.sh --check --donor <address> --donor-overlay <dir>
 #
 # --donor          the donor cell's address. Its descriptor is read from
@@ -19,36 +19,61 @@
 #                  route_b_gen_kernel.aot, route_b_gen_dynamic_interface.aot,
 #                  route_b_release_probe.aot, flutter_platform_strong.dill).
 #                  Nothing else can be replaced.
+# --note           REQUIRED with a real mint: one line, no control characters, what
+#                  the replacement is and where it came from. It goes into the
+#                  archive's PROVENANCE.txt, with the source sha256 and, for the
+#                  analyzer, the analysisVersion the carried runtime reports.
 # --out            an overlay dir to write the new cell into. It must not hold the
-#                  new cell already. Never point it at selfhost/cdn/overlay by
-#                  accident: this script refuses that path.
-# --evidence       where the descriptor (<address>.v2), the address provenance and
-#                  the delta report go (default: <out>.evidence).
+#                  new cell already. This script refuses any path at or under the
+#                  selfhost/cdn/overlay of THIS checkout or of any other worktree
+#                  of the same repository, after resolving symlinks and for
+#                  directories that do not exist yet. It must be on the same
+#                  volume as --evidence.
+# --evidence       where the descriptor (<address>.v2), the address provenance,
+#                  the toolchain record and the delta report go (default:
+#                  <out>.evidence). The same overlay refusal applies.
 #
 # WHAT IT DOES
 #   1. Authenticates the donor: the descriptor hashes to the donor address, and
 #      every donor member, in canonical form, matches the descriptor.
 #   2. Stages the 30 members as templates (the seven that carry the address are
 #      canonicalized to %H by lib/v2_canonicalize.py, as stage_android_cell.sh does).
-#   3. Rebuilds the compiler archive with the replacements (lib/v2_repack_compiler.py),
+#   3. Gates a replaced analyzer: non-empty, ELF, and, run with the dartaotruntime
+#      the archive carries, --help names the "Route B coverage analyzer" and
+#      --patched-dill, and it reports an analysisVersion on a tiny AOT dill.
+#   4. Rebuilds the compiler archive with the replacements (lib/v2_repack_compiler.py),
 #      and refuses unless the ONLY archive entries that change are the replaced
 #      ones plus PROVENANCE.txt, and the ONLY member that changes is the archive.
-#   4. Runs the repo's own v2_transaction (address, render, verify, publish) into
-#      --out. The PROVENANCE of the archive keeps naming the producer engine; the
-#      address does not enter it.
+#      PROVENANCE.txt then SAYS the replaced file is not from the build its header
+#      names (its "one logical artifact" and "never substitute" wording described
+#      the original build; the repacked lines say what was substituted).
+#   5. Runs the repo's own v2_transaction (address, render, verify, publish) into
+#      --out, then rebuilds the manifest from what is in --out and requires it to
+#      equal the one that was addressed.
 #
-# DETERMINISM. Same donor, same replacement bytes, same --note give the same
-# archive and so the same address. The archive is repacked with fixed entry
-# order, timestamps and modes carried over from the donor. With NO replacement the
-# donor's archive bytes are reused as they are: Info-ZIP's output is not
-# reproducible from Python, so the mint never re-zips what it does not change.
+# DETERMINISM, AND ITS LIMIT. Same donor, same replacement bytes, same --note and
+# the same Python/zlib give the same archive and so the same address. The archive
+# is repacked with fixed entry order, timestamps and modes carried over from the
+# donor, but zlib's deflate output is allowed to differ between zlib versions, so
+# a different machine may mint a different archive and a different address. The
+# address is therefore not meant to be re-derived elsewhere: mint ONCE, verify,
+# and publish that output. The evidence records the Python and zlib versions and
+# the sha256 of the repacked archive. With NO replacement the donor's archive
+# bytes are reused as they are: Info-ZIP's output is not reproducible from
+# Python, so the mint never re-zips what it does not change.
 #
 # --check (the acceptance test; writes only to a temp dir)
 #   a. mints the donor from itself with no replacement and requires the donor's
-#      own address, and every output member byte-identical to the donor overlay;
-#   b. repacks the donor archive with its own members and requires every entry's
-#      content identical (the bytes of the archive differ, by design: see above);
-#   c. repacks twice with a changed analyzer and requires identical bytes.
+#      own address, and every output member byte-identical to the donor overlay.
+#      This does NOT exercise the repack (nothing is replaced);
+#   b. repacks the donor archive with a changed analyzer and requires: unzip -t
+#      clean, every entry's content identical except the replaced one and
+#      PROVENANCE.txt, Info-ZIP extracted modes identical to the donor's
+#      (dartaotruntime still executable), every PROVENANCE digest line equal to
+#      its entry, and two repacks byte-identical;
+#   c. mints with a fixed changed analyzer (the gate that runs the analyzer is
+#      bypassed here: the bytes are not a real analyzer) and requires the address
+#      to move, and to be the same on every run.
 #
 # What this does NOT do: publish. It writes to --out only. Registering the
 # descriptor in cell_manifests/, the CDN map, the Caddyfile, the selector commit
@@ -79,7 +104,7 @@ while [[ $# -gt 0 ]]; do
     --replace) MC_REPL+=("${2:?}"); shift 2 ;;
     --note) MC_NOTE="${2:?}"; shift 2 ;;
     --check) MC_CHECK=1; shift ;;
-    -h|--help) sed -n '3,50p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help) awk 'NR>=3 { if ($0 ~ /^#/) print; else exit }' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
 done
@@ -98,7 +123,42 @@ MC_FILES="dart2bytecode.aot dartaotruntime vm_platform.dill route_b_analyze.aot 
 MC_ZIP='download.shorebird.dev/shorebird/%H/route-b-compiler-darwin-arm64.zip'
 
 MC_TMP=$(mktemp -d "${TMPDIR:-/tmp}/mintcellv2.XXXXXX")
-trap 'rm -rf "$MC_TMP"' EXIT
+MC_FINAL_DIR=""
+trap 'rm -rf "$MC_TMP"; [[ -z "$MC_FINAL_DIR" ]] || rm -rf "$MC_FINAL_DIR"' EXIT
+
+# resolve_path <p>: absolute, with every symlink resolved as far as the path
+# exists, then the not-yet-existing tail appended. A tail with . or .. is refused.
+resolve_path() {
+  local p=$1 tail="" b real
+  [[ "$p" == /* ]] || p="$PWD/$p"
+  while [[ ! -e "$p" ]]; do
+    [[ ! -L "$p" ]] || die "dangling symlink in path: $p"
+    b=$(basename "$p")
+    [[ "$b" != "." && "$b" != ".." ]] || die "path with . or .. in a part that does not exist yet: $1"
+    tail="/$b$tail"; p=$(dirname "$p")
+  done
+  [[ -d "$p" ]] || die "not a directory: $p"
+  real=$(cd -P "$p" && pwd -P) || die "cannot resolve $p"
+  [[ "$real" != "/" ]] || real=""
+  printf '%s%s\n' "$real" "$tail"
+}
+
+# not_live_overlay <flag> <path>: refuse at or under the selfhost/cdn/overlay of
+# this checkout or of any worktree of this repository (the shared checkout too).
+not_live_overlay() {
+  local flag=$1 r root ov lr
+  r=$(resolve_path "$2") || exit 1
+  lr=$(printf '%s' "$r" | tr '[:upper:]' '[:lower:]')
+  while IFS= read -r root; do
+    [[ -n "$root" ]] || continue
+    ov=$(resolve_path "$root/selfhost/cdn/overlay") || exit 1
+    ov=$(printf '%s' "$ov" | tr '[:upper:]' '[:lower:]')
+    if [[ "$lr" == "$ov" || "$lr" == "$ov"/* ]]; then
+      die "$flag $2 is (under) a live overlay, $root/selfhost/cdn/overlay; mint into a scratch dir"
+    fi
+  done < <({ git -C "$SELFHOST" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p'; echo "$SELFHOST/.."; })
+  printf '%s\n' "$r"
+}
 
 # stage_donor <stageDir>: the donor's members as templates, authenticated.
 stage_donor() {
@@ -110,16 +170,51 @@ stage_donor() {
   while IFS= read -r m; do
     src="$MC_DONOR_OVERLAY/${m//%H/$MC_DONOR}"
     [[ -f "$src" ]] || die "donor member missing: $src"
-    mkdir -p "$stage/$(dirname "$m")"
+    mkdir -p "$stage/$(dirname "$m")" || die "cannot create $stage/$(dirname "$m")"
     case "$(basename "$m")" in
       engine_stamp.json|artifacts_manifest.yaml|*.pom)
         v2_canonicalize "$src" "$MC_DONOR" > "$stage/$m" || die "canonicalization refused $m" ;;
-      *) cp "$src" "$stage/$m" ;;
+      *) cp "$src" "$stage/$m" || die "cannot copy $src" ;;
     esac
     want=$(awk -v k="$m" '$1==k{print $2}' "$MC_DESC")
     got=$(shasum -a 256 "$stage/$m" | cut -d' ' -f1)
     [[ "$want" == "$got" ]] || die "donor member does not match its descriptor digest: $m"
   done < <(v2_members "$POLICY" "$cell")
+}
+
+# gate_replacements <note-out-file> <name=file>...: what a replaced file must be.
+# Writes the extra PROVENANCE note text (analyzer version) to <note-out-file>.
+gate_replacements() {
+  local outf=$1; shift
+  local pair name file g="$MC_TMP/gate.$RANDOM"
+  mkdir -p "$g" || die "cannot create $g"
+  unzip -q -o "$MC_DONOR_OVERLAY/${MC_ZIP//%H/$MC_DONOR}" -d "$g" || die "cannot unzip the donor archive"
+  : > "$outf"
+  for pair in "$@"; do
+    name=${pair%%=*}; file=${pair#*=}
+    [[ -s "$file" ]] || die "replacement $name is empty: $file"
+    cp "$file" "$g/$name" || die "cannot copy $file"
+  done
+  for pair in "$@"; do
+    name=${pair%%=*}; file=${pair#*=}
+    if [[ "$name" == route_b_analyze.aot ]]; then
+      [[ "$(head -c 4 "$file" | od -An -tx1 | tr -d ' \n')" == "7f454c46" ]] || die "$name is not an ELF AOT snapshot: $file"
+      chmod +x "$g/dartaotruntime"
+      local help ver
+      help=$("$g/dartaotruntime" "$g/$name" --help 2>&1) || true
+      [[ "$help" == *"Route B coverage analyzer"* && "$help" == *"--patched-dill"* ]] \
+        || die "$name run with the archive's dartaotruntime is not the Route B coverage analyzer (--help lacks its name or --patched-dill)"
+      printf 'void main() {}\n' > "$g/tiny.dart"
+      "$g/dartaotruntime" "$g/route_b_gen_kernel.aot" --aot --platform "$g/vm_platform.dill" -o "$g/tiny.dill" "$g/tiny.dart" >/dev/null 2>&1 \
+        || die "the archive's route_b_gen_kernel.aot could not compile a tiny AOT dill"
+      ver=$("$g/dartaotruntime" "$g/$name" --base-dill "$g/tiny.dill" --patched-dill "$g/tiny.dill" 2>/dev/null \
+        | python3 -I -c 'import json,sys; print(int(json.load(sys.stdin)["analysisVersion"]))') \
+        || die "$name did not report an analysisVersion on a tiny dill"
+      printf '; analysisVersion %s (run with the carried dartaotruntime)' "$ver" >> "$outf"
+      echo "gate: $name is an ELF Route B coverage analyzer, analysisVersion $ver" >&2
+    fi
+  done
+  rm -rf "$g"
 }
 
 # mint <outOverlay> <evidenceDir> <replacement>...: returns the address on stdout.
@@ -138,9 +233,16 @@ mint() {
       [[ -f "$file" ]] || die "no such replacement file: $file"
       args+=("$name=$file")
     done
-    python3 "$HERE/lib/v2_repack_compiler.py" "$MC_DONOR_OVERLAY/${MC_ZIP//%H/$MC_DONOR}" \
-      "$stage/$MC_ZIP.new" "${args[@]}" ${MC_NOTE:+--note "$MC_NOTE"} || die "repack refused"
-    mv "$stage/$MC_ZIP.new" "$stage/$MC_ZIP"
+    [[ -n "$MC_NOTE" ]] || die "--note is required with a replacement"
+    local extra="$MC_TMP/gate.note"
+    if [[ "${MC_GATE:-1}" == 1 ]]; then
+      gate_replacements "$extra" "${args[@]}" || exit 1
+    else
+      : > "$extra"
+    fi
+    python3 -I "$HERE/lib/v2_repack_compiler.py" "$MC_DONOR_OVERLAY/${MC_ZIP//%H/$MC_DONOR}" \
+      "$stage/$MC_ZIP.new" "${args[@]}" --note "$MC_NOTE$(cat "$extra")" || die "repack refused"
+    mv "$stage/$MC_ZIP.new" "$stage/$MC_ZIP" || die "cannot move the repacked archive into the stage"
     # Only the named entries and PROVENANCE.txt may differ inside the archive.
     python3 -I - "$MC_DONOR_OVERLAY/${MC_ZIP//%H/$MC_DONOR}" "$stage/$MC_ZIP" "${args[@]%%=*}" <<'PY' || die "the archive delta is not exactly the named files"
 import sys, zipfile
@@ -160,8 +262,9 @@ PY
   else
     [[ "${changed[*]}" == "$MC_ZIP" ]] || die "members changed other than the compiler archive: ${changed[*]}"
   fi
-  mkdir -p "$ev"
-  v2_transaction "$stage" "$POLICY" "$MC_CELL" "$MC_FB" "$out" "$ev"
+  mkdir -p "$ev" || die "cannot create $ev"
+  MC_FINAL_DIR="$ev/final"
+  v2_transaction "$stage" "$POLICY" "$MC_CELL" "$MC_FB" "$out" "$ev" || die "transaction failed"
 }
 
 # v2_donor_template <rel>: the donor's member in template form, for the delta check.
@@ -178,7 +281,7 @@ if [[ "$MC_CHECK" == 1 ]]; then
   ok()  { printf '  PASS  %s\n' "$1"; }
   bad() { printf '  FAIL  %s\n' "$1"; fails=$((fails+1)); }
   note "check a: re-mint the donor from itself, no replacement"
-  A=$(mint "$MC_TMP/out-a" "$MC_TMP/ev-a") || { bad "mint failed"; A=""; }
+  A=$(mint "$MC_TMP/out-a" "$MC_TMP/ev-a") || { bad "mint failed"; A=""; rm -rf "$MC_TMP/ev-a/final"; }
   if [[ "$A" == "$MC_DONOR" ]]; then ok "address $A equals the donor"; else bad "address '$A' != donor $MC_DONOR"; fi
   n=0; diffs=0
   while IFS= read -r m; do
@@ -186,52 +289,100 @@ if [[ "$MC_CHECK" == 1 ]]; then
     cmp -s "$MC_TMP/out-a/$rel" "$MC_DONOR_OVERLAY/$rel" || { diffs=$((diffs+1)); echo "    DIFFERS $rel"; }
   done < <(v2_members "$POLICY" "$MC_CELL")
   if [[ "$n" -gt 0 && "$diffs" == 0 ]]; then ok "$n of $n members byte-identical to the donor overlay"; else bad "$diffs of $n members differ"; fi
-  note "check b: repack keeps every other entry, and is deterministic"
+  note "check b: a repack is sound, keeps every other entry, and is deterministic"
   Z="$MC_DONOR_OVERLAY/${MC_ZIP//%H/$MC_DONOR}"
-  mkdir -p "$MC_TMP/zx"
+  mkdir -p "$MC_TMP/zx" "$MC_TMP/zb"
   unzip -q -o "$Z" -d "$MC_TMP/zx" || bad "cannot unzip the donor archive"
-  if python3 -I - "$Z" "$MC_TMP/zx/route_b_analyze.aot" "$HERE/lib/v2_repack_compiler.py" "$MC_TMP/b1.zip" "$MC_TMP/b2.zip" "$MC_TMP/b3.zip" <<'PY'
-import subprocess, sys, zipfile
-donor, an, tool, b1, b2, b3 = sys.argv[1:7]
+  if python3 -I - "$Z" "$MC_TMP/zx/route_b_analyze.aot" "$HERE/lib/v2_repack_compiler.py" "$MC_TMP/b1.zip" "$MC_TMP/b2.zip" <<'PY'
+import hashlib, subprocess, sys, zipfile
+donor, an, tool, b1, b2 = sys.argv[1:6]
+sha = lambda b: hashlib.sha256(b).hexdigest()
 d = zipfile.ZipFile(donor)
-# Same bytes in, PROVENANCE unchanged: the repack refuses an identical replacement,
-# so exercise the copy path with a changed copy of an unrelated-length analyzer.
 open(b1 + '.an', 'wb').write(d.read('route_b_analyze.aot') + b'\0')
 for out in (b1, b2):
-    subprocess.run([sys.executable, '-I', tool, donor, out, f'route_b_analyze.aot={b1}.an'], check=True)
-x, y = zipfile.ZipFile(b1), zipfile.ZipFile(b2)
+    subprocess.run([sys.executable, '-I', tool, donor, out, f'route_b_analyze.aot={b1}.an', '--note', 'check b'], check=True)
+x = zipfile.ZipFile(b1)
 assert open(b1, 'rb').read() == open(b2, 'rb').read(), 'repack is not deterministic'
+assert [i.filename for i in d.infolist()] == [i.filename for i in x.infolist()], 'entry list changed'
 for i in d.infolist():
     if i.filename in ('route_b_analyze.aot', 'PROVENANCE.txt'):
         continue
     assert d.read(i) == x.read(i.filename), i.filename
     j = x.getinfo(i.filename)
-    assert (i.date_time, i.external_attr, i.compress_type) == (j.date_time, j.external_attr, j.compress_type)
-assert [i.filename for i in d.infolist()] == [i.filename for i in x.infolist()]
+    assert (i.date_time, i.external_attr, i.compress_type, i.internal_attr) == (j.date_time, j.external_attr, j.compress_type, j.internal_attr), i.filename
+# Every PROVENANCE digest line equals its entry, in the donor and in the repack.
+for z in (d, x):
+    lines = z.read('PROVENANCE.txt').decode().split('\n')
+    for i in z.infolist():
+        if i.filename == 'PROVENANCE.txt':
+            continue
+        hits = [l for l in lines if l.split(':')[0].strip() == i.filename]
+        assert len(hits) == 1 and hits[0].split(':', 1)[1].strip() == sha(z.read(i)), 'PROVENANCE digest line: ' + i.filename
 PY
-  then ok "entry contents survive a repack; two repacks of a changed analyzer are byte-identical"; else bad "repack check"; fi
-  note "check c: the donor is not an accident; a changed analyzer must change the address"
-  head -c 100 /dev/urandom > "$MC_TMP/fake.an"; cat "$MC_TMP/zx/route_b_analyze.aot" "$MC_TMP/fake.an" > "$MC_TMP/an2"
-  C2=$(mint "$MC_TMP/out-c" "$MC_TMP/ev-c" "route_b_analyze.aot=$MC_TMP/an2") || { bad "mint with a replacement failed"; C2=""; }
-  if [[ -n "$C2" && "$C2" != "$MC_DONOR" ]]; then ok "replacement mint gives $C2, not the donor"; else bad "replacement mint did not move the address"; fi
+  then ok "contents, attributes, PROVENANCE digests (all entries) and determinism"; else bad "repack check (python)"; fi
+  if unzip -tq "$MC_TMP/b1.zip" >/dev/null && unzip -q -o "$MC_TMP/b1.zip" -d "$MC_TMP/zb"; then
+    modes=0
+    for f in $(cd "$MC_TMP/zx" && ls); do
+      [[ "$(stat -f %Lp "$MC_TMP/zx/$f")" == "$(stat -f %Lp "$MC_TMP/zb/$f")" ]] || { modes=1; echo "    MODE DIFFERS $f"; }
+    done
+    if [[ "$modes" == 0 && -x "$MC_TMP/zb/dartaotruntime" ]]; then ok "unzip -t clean; Info-ZIP extracted modes equal the donor's; dartaotruntime executable"; else bad "extracted modes"; fi
+  else bad "unzip -t / extraction of the repacked archive"; fi
+  note "check c: a changed analyzer must change the address, the same way every time"
+  { cat "$MC_TMP/zx/route_b_analyze.aot"; printf 'mint_cell_v2 check c\n'; } > "$MC_TMP/an2"
+  C2=$(MC_GATE=0 MC_NOTE="check c (not a real analyzer; gate bypassed)" mint "$MC_TMP/out-c" "$MC_TMP/ev-c" "route_b_analyze.aot=$MC_TMP/an2") || { bad "mint with a replacement failed"; C2=""; }
+  C3=$(MC_GATE=0 MC_NOTE="check c (not a real analyzer; gate bypassed)" mint "$MC_TMP/out-c2" "$MC_TMP/ev-c2" "route_b_analyze.aot=$MC_TMP/an2") || C3=""
+  if [[ -n "$C2" && "$C2" != "$MC_DONOR" && "$C2" == "$C3" ]]; then ok "replacement mint gives $C2 (twice), not the donor"; else bad "replacement mint: '$C2' '$C3'"; fi
   [[ "$fails" == 0 ]] && { echo "CHECK PASSED"; exit 0; }
   echo "CHECK FAILED ($fails)"; exit 1
 fi
 
 [[ -n "$MC_OUT" ]] || die "--out <overlay dir> is required"
-case "$(cd "$(dirname "$MC_OUT")" 2>/dev/null && pwd)/$(basename "$MC_OUT")" in
-  "$SELFHOST/cdn/overlay"|"$SELFHOST/cdn/overlay/"*) die "--out is the repo's live overlay; mint into a scratch dir" ;;
-esac
 [[ ${#MC_REPL[@]} -gt 0 ]] || die "no --replace given: nothing to mint (use --check to re-mint the donor)"
+[[ -n "$MC_NOTE" ]] || die "--note is required: say what the replacement is and where it came from"
+[[ "$MC_NOTE" != *[[:cntrl:]]* ]] || die "--note must be one line without control characters"
 MC_EV=${MC_EV:-$MC_OUT.evidence}
-NEW=$(mint "$MC_OUT" "$MC_EV" "${MC_REPL[@]}") || die "mint failed (see above)"
+MC_OUT=$(not_live_overlay --out "$MC_OUT") || exit 1
+MC_EV=$(not_live_overlay --evidence "$MC_EV") || exit 1
+[[ "$MC_OUT" != "$MC_EV" && "$MC_OUT" != "$MC_EV"/* && "$MC_EV" != "$MC_OUT"/* ]] || die "--out and --evidence must be separate directories"
+MC_DO=$(resolve_path "$MC_DONOR_OVERLAY") || exit 1
+[[ "$MC_OUT" != "$MC_DO" && "$MC_OUT" != "$MC_DO"/* && "$MC_DO" != "$MC_OUT"/* ]] || die "--out and --donor-overlay must be separate directories"
+# The rendered working copy is moved into --out: same volume, or it would be a copy.
+mkdir -p "$MC_OUT" "$MC_EV" || die "cannot create --out / --evidence"
+[[ "$(stat -f %d "$MC_OUT")" == "$(stat -f %d "$MC_EV")" ]] || die "--out and --evidence are on different volumes; the move into --out would not be atomic"
+NEW=$(mint "$MC_OUT" "$MC_EV" "${MC_REPL[@]}") || { rm -rf "$MC_EV/final"; die "mint failed (see above)"; }
+rm -rf "$MC_EV/final"
 [[ "$NEW" =~ ^[0-9a-f]{40}$ ]] || die "mint returned no address"
-cp "$MC_EV/cell_manifest.v2" "$MC_EV/$NEW.v2"
+cp "$MC_EV/cell_manifest.v2" "$MC_EV/$NEW.v2" || die "cannot write the descriptor"
 [[ "$(shasum -a 256 "$MC_EV/$NEW.v2" | cut -c1-40)" == "$NEW" ]] || die "descriptor does not authenticate its own name"
+
+# Verify what is IN --out, not what was rendered: rebuild the manifest from it.
+VS="$MC_TMP/verify"; mkdir -p "$VS" || die "cannot create $VS"
+while IFS= read -r m; do
+  f="$MC_OUT/${m//%H/$NEW}"
+  [[ -f "$f" ]] || die "after the move, --out lacks $m"
+  mkdir -p "$VS/$(dirname "$m")" || die "mkdir"
+  case "$(basename "$m")" in
+    engine_stamp.json|artifacts_manifest.yaml|*.pom) v2_canonicalize "$f" "$NEW" > "$VS/$m" || die "canonicalization refused $m in --out" ;;
+    *) ln -s "$f" "$VS/$m" || die "ln" ;;
+  esac
+done < <(v2_members "$POLICY" "$MC_CELL")
+v2_manifest "$VS" "$POLICY" "$MC_CELL" "$MC_FB" > "$MC_TMP/out.manifest" || die "manifest from --out refused"
+cmp -s "$MC_TMP/out.manifest" "$MC_EV/cell_manifest.v2" || die "--out does not hold the cell that was addressed (manifest rebuilt from --out differs); DO NOT USE $MC_OUT"
+ZIPOUT="$MC_OUT/${MC_ZIP//%H/$NEW}"
+{
+  echo "repacked archive sha256  $(shasum -a 256 "$ZIPOUT" | cut -d' ' -f1)"
+  echo "python                   $(python3 -I -c 'import sys; print(sys.version.split()[0])')"
+  echo "zlib                     $(python3 -I -c 'import zlib; print(zlib.ZLIB_RUNTIME_VERSION)')"
+  echo "note                     $MC_NOTE"
+  echo "donor                    $MC_DONOR"
+  echo "address                  $NEW"
+  echo "Archive bytes depend on this python/zlib: publish THIS output, do not re-mint elsewhere."
+} > "$MC_EV/repack_toolchain.txt"
 echo
 echo "donor     $MC_DONOR"
-echo "address   $NEW"
+echo "address   $NEW   (verified: the manifest rebuilt from --out equals the addressed one)"
 echo "overlay   $MC_OUT"
 echo "descriptor $MC_EV/$NEW.v2"
+echo "toolchain  $MC_EV/repack_toolchain.txt"
 echo "delta vs donor descriptor:"
 diff <(sed "s/^/  /" "$MC_DESC") <(sed "s/^/  /" "$MC_EV/$NEW.v2") | grep '^[<>]' | sed 's/^/  /' || true
