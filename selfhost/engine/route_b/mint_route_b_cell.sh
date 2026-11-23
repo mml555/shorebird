@@ -569,7 +569,7 @@ while [[ $# -gt 0 ]]; do
     # cannot express host-toolchain changes (measured 2026-09-01).
     --address-schema) ADDRESS_SCHEMA="${2:?}"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
-    -h|--help) sed -n '3,24p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help) sed -n '3,31p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
 done
