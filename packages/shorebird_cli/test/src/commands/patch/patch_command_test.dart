@@ -2029,8 +2029,8 @@ A patch cannot change the Flutter version a release was built with. To fix this,
       });
 
       group("when the patch's public key is checked against the release's", () {
-        const releaseKey = 'AAECAwQF';
-        const otherKey = 'BgcICQoL';
+        const releaseKey = 'cmVsZWFzZQ==';
+        const otherKey = 'cGF0Y2g=';
 
         final signedRelease = Release(
           id: release.id,
