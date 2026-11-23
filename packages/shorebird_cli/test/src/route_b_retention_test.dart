@@ -1,3 +1,4 @@
+// cspell:words ifaces
 import 'dart:convert';
 import 'dart:io';
 
@@ -1441,6 +1442,160 @@ can-be-used-as-type:
     test('is unchanged for an analysis of version 17, interface or not', () {
       produce(coverage(const [], version: 17));
       expect(compiled, 1);
+    });
+  });
+
+  group('an await (analysis 24)', () {
+    // A Flutter app that allocates TickerFuture compiles none of its Future
+    // members; `_Future.then` is what the measurement ran on.
+    Map<String, RouteBProfileClass> classes({required bool tickerThen}) => {
+      'Object': const RouteBProfileClass(
+        'Object',
+        routeBCoreLibrary,
+        fns: {'==': '[Optimized] =='},
+      ),
+      'Future': const RouteBProfileClass(
+        'Future',
+        'dart:async',
+        parent: 'Object',
+      ),
+      '_Future': const RouteBProfileClass(
+        '_Future',
+        'dart:async',
+        parent: 'Object',
+        ifaces: ['Future'],
+        fns: {'then': '[Optimized] then'},
+      ),
+      'TickerFuture': RouteBProfileClass(
+        'TickerFuture',
+        'package:flutter/src/scheduler/ticker.dart',
+        parent: 'Object',
+        ifaces: ['Future'],
+        allocated: true,
+        fns: {if (tickerThen) 'then': '[Optimized] then'},
+      ),
+    };
+
+    RouteBRetention release({
+      required bool tickerThen,
+      bool skip = false,
+      bool withProfile = true,
+    }) => RouteBRetention.parse(
+      _interface,
+      kept: withProfile
+          ? RouteBSnapshotKept.fromProfileJson(
+              routeBProfile(classes(tickerThen: tickerThen)),
+            )
+          : null,
+      skipKeptCheck: skip,
+    );
+
+    Map<String, Object?> awaitRef({String? receiver}) => {
+      ..._ref('instance', 'dart:async', cls: 'Future', member: 'then'),
+      if (receiver != null) ...{
+        'receiverLibrary': 'package:flutter/src/scheduler/ticker.dart',
+        'receiverClass': receiver,
+      },
+    };
+
+    String? refusalOf(RouteBRetention r, Map<String, Object?> ref) =>
+        r.refusalForTarget(_analysis([ref], version: 24), _target);
+
+    test('on a TickerFuture needs the release to have compiled its then', () {
+      expect(
+        refusalOf(
+          release(tickerThen: false),
+          awaitRef(receiver: 'TickerFuture'),
+        ),
+        allOf(contains('Future.then'), contains('TickerFuture')),
+      );
+      expect(
+        refusalOf(
+          release(tickerThen: true),
+          awaitRef(receiver: 'TickerFuture'),
+        ),
+        isNull,
+      );
+    });
+
+    test('on a Future is asked of every Future the release allocates', () {
+      expect(
+        refusalOf(release(tickerThen: false), awaitRef()),
+        contains('TickerFuture'),
+      );
+      expect(refusalOf(release(tickerThen: true), awaitRef()), isNull);
+    });
+
+    test('the refusal for a Future names the await advice', () {
+      expect(
+        refusalOf(release(tickerThen: false), awaitRef()),
+        contains(
+          'An `await` on a `Future` is checked the same way, since awaiting '
+          'a `TickerFuture` calls its `then`',
+        ),
+      );
+    });
+
+    test('the measurement the old-cell gate relies on is still there', () {
+      expect(routeBSdkMeasuredAccepted, contains('dart:async#Future#then'));
+      expect(
+        routeBSdkMeasuredVmClasses['dart:async#Future#then'],
+        isNotEmpty,
+      );
+    });
+
+    group('awaitUnchecked, for an analyzer that cannot report awaits', () {
+      test('refuses when the release has a Future with no compiled then', () {
+        expect(
+          release(tickerThen: false).awaitUnchecked(),
+          contains('TickerFuture'),
+        );
+      });
+
+      test('passes when every Future the release allocates has a then', () {
+        expect(release(tickerThen: true).awaitUnchecked(), isNull);
+      });
+
+      test('fails closed when the release profile cannot be read', () {
+        expect(
+          release(tickerThen: true, withProfile: false).awaitUnchecked(),
+          isNotNull,
+        );
+      });
+
+      test('does not count _Future, which an await never calls then on', () {
+        final noThen = RouteBRetention.parse(
+          _interface,
+          kept: RouteBSnapshotKept.fromProfileJson(
+            routeBProfile({
+              'Object': const RouteBProfileClass(
+                'Object',
+                routeBCoreLibrary,
+                fns: {'==': '[Optimized] =='},
+              ),
+              'Future': const RouteBProfileClass(
+                'Future',
+                'dart:async',
+                parent: 'Object',
+              ),
+              '_Future': const RouteBProfileClass(
+                '_Future',
+                'dart:async',
+                parent: 'Object',
+                ifaces: ['Future'],
+              ),
+            }),
+          ),
+        );
+        expect(noThen.awaitUnchecked(), isNull);
+      });
+
+      test('is skipped by --allow-unchecked-sdk-calls', () {
+        expect(
+          release(tickerThen: false, skip: true).awaitUnchecked(),
+          isNull,
+        );
+      });
     });
   });
 }

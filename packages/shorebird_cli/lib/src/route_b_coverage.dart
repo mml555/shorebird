@@ -70,7 +70,7 @@ const supportedRouteBAnalysisVersion = 11;
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
 const knownRouteBAnalysisVersions = {
-  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, //
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, //
 };
 
 /// The first analyzer version that compares fields, `const`s, constructors and
@@ -133,6 +133,17 @@ const routeBExtensionReceiverAnalysisVersion = 22;
 /// not every `Iterable` it holds. A document below it never has the fields,
 /// and one that carries them anyway is not believed.
 const routeBForInReceiverAnalysisVersion = 23;
+
+/// The first analyzer version that reports an `await` as a call of
+/// `Future.then` (on `dart:async` `Future`, with `receiverClass` when the
+/// operand's static type is a `Future` subtype). The VM awaits a `_Future`
+/// without `then`, but calls the `then` of any other `Future` by selector, so
+/// `await controller.forward()` needs the release to have compiled
+/// `TickerFuture.then`. A document below it cannot show any `await`, so a
+/// release whose snapshot allocates a `Future` subtype with no compiled `then`
+/// refuses its patches unless the developer opts out; see
+/// `RouteBRetention.awaitUnchecked`.
+const routeBAwaitAnalysisVersion = 24;
 
 /// A construction of a private class inside a replaced body.
 ///

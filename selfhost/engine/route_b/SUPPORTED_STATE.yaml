@@ -870,7 +870,7 @@ selector_chain:
   engine_version_committed: true
 
 analysis_versions:
-  known: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+  known: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
   # A document declaring anything else is REFUSED. A missing v11 field is never
   # read as an empty list -- absent, empty and populated are three states.
   unknown_version_behaviour: refuse

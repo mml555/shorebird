@@ -347,7 +347,37 @@ import 'package:kernel/type_environment.dart';
 /// for-in lowering leaves a synthetic `:sync-for-iterator` variable initialized
 /// with the iterable's `iterator`), so no version bump was needed to fill them:
 /// the CLI reads a version-23 document's fields the same way, whoever wrote it.
-const analysisVersion = 23;
+///
+/// Version 24 reports an `await` as a call of `Future.then`: the VM awaits a
+/// `_Future` without calling `then`, but any other `Future` (a Flutter
+/// `TickerFuture`, a user class) has its `then` called by selector
+/// (`_SuspendState._awaitUserDefinedFuture`), and no source token names it.
+/// The entry is `dart:async` `Future` `then`, with `receiverLibrary` and
+/// `receiverClass` when the operand's static type is a class other than
+/// `Future` (`await controller.forward()` names `TickerFuture`). An operand
+/// that cannot be a `Future` (`await 1`, a record, a function, or a class no
+/// `Future` subtype shares a subtype with, such as a `Model`) reports
+/// nothing. `dynamic`, `FutureOr`, `Object?`, a type parameter or an extension
+/// type reports the entry with no receiver. A class or interface reports one
+/// entry per class that is a subtype of both it and `Future`, taken from the
+/// patched component and from the release's (`Pingable` with `class Slow
+/// implements Pingable, Future` names `Slow`, even when the patch deletes
+/// `Slow`), and nothing when there is none. When the release's kernel cannot
+/// be asked (it carries no platform) the entry is not narrowed. A document
+/// below 24 never has them.
+///
+/// The same entry is reported
+/// for the other places the VM calls `then` on a foreign future that the body
+/// spells: a `return e` in an `async` body, `Completer.complete(e)`,
+/// `Future.value(e)`, `Stream.fromFuture(e)`, `e.asStream()`, `Future.wait`,
+/// `Future.any`, `Stream.fromFutures`, the `.wait` extensions of iterables and
+/// records, and `Future.ignore()` and `Future.onError(...)`, called or torn
+/// off. NOT reported: a `Future` returned by a callback (`then`,
+/// `whenComplete`, `catchError`, `Future.delayed`, `Future.doWhile`,
+/// `Future.forEach`, `Future.microtask`, `timeout(onTimeout:)`,
+/// `Stream.asyncMap`), `StreamController.addStream`, and any other SDK or
+/// package code that calls `then` on a future it was given.
+const analysisVersion = 24;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -465,9 +495,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   // Whether the BASE component carries its platform. A `--no-link-platform`
   // kernel names dart:core but binds no AST for it, so any hierarchy over it
   // throws. Measured, not assumed: the class list is what ClassHierarchy walks.
-  final baseIsLinked = base.libraries.any(
-    (l) => l.importUri.toString() == 'dart:core' && l.classes.isNotEmpty,
-  );
+  final baseIsLinked = componentIsLinked(base);
   late final baseHierarchy = ClassHierarchy(base, CoreTypes(base));
   late final patchedHierarchy = ClassHierarchy(patched, CoreTypes(patched));
 
@@ -758,6 +786,11 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     }
   }
   final patchedTypes = TypeEnvironment(CoreTypes(patched), patchedHierarchy);
+  final futureWorld = futureWorldFor(
+    patchedTypes,
+    base,
+    baseHierarchy: () => baseHierarchy,
+  );
   final externalReferences = <String, List<Map<String, Object?>>>{
     for (final key in carriedBodies.keys.toList()..sort())
       key: _externalReferences(
@@ -765,6 +798,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
         carriedMembers,
         appMembersByName: appMembersByName,
         types: patchedTypes,
+        world: futureWorld,
       ),
   };
 
@@ -3353,6 +3387,108 @@ Map<String, Object?>? _privateKey(Member? target) {
   };
 }
 
+/// Whether [c] carries its platform. A `--no-link-platform` kernel names
+/// `dart:core` but binds no AST for it, so no hierarchy can be built over it.
+bool componentIsLinked(Component c) => c.libraries.any(
+  (l) => l.importUri.toString() == 'dart:core' && l.classes.isNotEmpty,
+);
+
+/// The world the patch is analyzed against: the patched component and the
+/// release's [base]. The one construction, called by the analyzer's `main` and
+/// by its tests. [baseHierarchy] reuses an already (lazily) built hierarchy.
+FutureWorld futureWorldFor(
+  TypeEnvironment patchedTypes,
+  Component base, {
+  ClassHierarchy Function()? baseHierarchy,
+}) => FutureWorld(
+  patchedTypes,
+  base: base,
+  baseIsLinked: componentIsLinked(base),
+  baseHierarchy: baseHierarchy,
+);
+
+/// The classes that can be a `Future` at run time, for the closed-world check
+/// of `await` and its kin (analysis version 24): the patched component's, and
+/// the release's when its kernel can be asked. A class the patch deletes or
+/// renames still runs in the release, so the patched component alone is not
+/// the world.
+class FutureWorld {
+  /// [base] is the release's component, or null when there is none to ask.
+  /// With a [base] that [baseIsLinked] does not hold for (it carries no
+  /// platform, so no hierarchy can be built over it), nothing is narrowed.
+  /// [baseHierarchy] builds the release's hierarchy on first use.
+  FutureWorld(
+    this.patched, {
+    this.base,
+    this.baseIsLinked = true,
+    ClassHierarchy Function()? baseHierarchy,
+  }) : _baseHierarchy = baseHierarchy;
+
+  final TypeEnvironment patched;
+  final Component? base;
+  final bool baseIsLinked;
+  final ClassHierarchy Function()? _baseHierarchy;
+
+  late final ClassHierarchySubtypes? _patchedSubtypes = _subtypesOf(
+    patched.hierarchy,
+  );
+  late final ClassHierarchy _baseWorld =
+      _baseHierarchy?.call() ?? ClassHierarchy(base!, CoreTypes(base!));
+  late final CoreTypes _baseCore = CoreTypes(base!);
+  late final ClassHierarchySubtypes? _baseSubtypes = _subtypesOf(_baseWorld);
+  late final Map<String, Class> _baseClasses = {
+    for (final lib in base!.libraries)
+      for (final c in lib.classes) _key(c): c,
+  };
+
+  late final Set<String> _baseClassNames = {
+    for (final c in _baseClasses.values) c.name,
+  };
+
+  static String _key(Class c) => '${c.enclosingLibrary.importUri}#${c.name}';
+
+  static ClassHierarchySubtypes? _subtypesOf(ClassHierarchy h) =>
+      h is ClosedWorldClassHierarchy ? h.computeSubtypesInformation() : null;
+
+  /// The subtypes of [cls] (a class of the patched component) that are
+  /// `Future`s, from the patched component and the release, or null when the
+  /// world cannot say.
+  List<Class>? futureSubtypes(Class cls) {
+    final subtypes = _patchedSubtypes;
+    if (subtypes == null) return null;
+    final found = <String, Class>{};
+    final future = patched.coreTypes.futureClass;
+    for (final sub in subtypes.getSubtypesOf(cls)) {
+      if (patched.hierarchy.isSubInterfaceOf(sub, future)) {
+        found[_key(sub)] = sub;
+      }
+    }
+    if (base != null) {
+      if (!baseIsLinked) return null;
+      final baseSubtypes = _baseSubtypes;
+      if (baseSubtypes == null) return null;
+      final baseCls = _baseClasses[_key(cls)];
+      // No class of that library and name in the release. A class the patch
+      // adds has no release subtype, so the patched ones are the answer; but
+      // a release class of the same name under another library URI is the
+      // same class seen under a moved URI, whose release subtypes cannot be
+      // found, so the world cannot say. Matching by name alone is deliberately
+      // coarse: a new class that shares a name with an unrelated release class
+      // is refused too, which over-refuses but never drops a report.
+      if (baseCls == null && _baseClassNames.contains(cls.name)) return null;
+      if (baseCls != null) {
+        final baseFuture = _baseCore.futureClass;
+        for (final sub in baseSubtypes.getSubtypesOf(baseCls)) {
+          if (_baseWorld.isSubInterfaceOf(sub, baseFuture)) {
+            found.putIfAbsent(_key(sub), () => sub);
+          }
+        }
+      }
+    }
+    return found.values.toList();
+  }
+}
+
 /// The external symbols [p]'s body names, as data (analysis version 18).
 ///
 /// A walk failure yields ONE `unanalyzed` entry and nothing else: a partial list
@@ -3361,16 +3497,22 @@ Map<String, Object?>? _privateKey(Member? target) {
 /// [types] is the type environment of the component [p] lives in. With it, an
 /// operator site the bytecode compiler turns into an opcode is marked
 /// `inlined` (analysis version 20); without it nothing is.
+///
+/// [world] answers which classes can be a `Future` (analysis version 24). With
+/// none, an `await` of a class or interface is not narrowed: the unnarrowed
+/// entry is reported.
 List<Map<String, Object?>> externalReferencesOf(
   Procedure p,
   Set<Member> carried, {
   Map<String, List<Member>> appMembersByName = const {},
   TypeEnvironment? types,
+  FutureWorld? world,
 }) => _externalReferences(
   p,
   carried,
   appMembersByName: appMembersByName,
   types: types,
+  world: world,
 );
 
 List<Map<String, Object?>> _externalReferences(
@@ -3378,6 +3520,7 @@ List<Map<String, Object?>> _externalReferences(
   Set<Member> carried, {
   Map<String, List<Member>> appMembersByName = const {},
   TypeEnvironment? types,
+  FutureWorld? world,
 }) {
   final context = types == null ? null : StaticTypeContext(p, types);
   final uses = _ExternalUses(
@@ -3387,6 +3530,7 @@ List<Map<String, Object?>> _externalReferences(
     appMembersByName,
     recognized: context == null ? null : RecognizedMethods(context),
     staticTypes: context,
+    futureWorld: world,
   );
   try {
     p.function.accept(uses);
@@ -3796,7 +3940,11 @@ class _ExternalUses extends RecursiveVisitor {
     this.appMembersByName, {
     this.recognized,
     this.staticTypes,
+    this.futureWorld,
   });
+
+  /// The classes that can be a `Future`, for [_thenOf]; null asks nothing.
+  final FutureWorld? futureWorld;
 
   /// The body's static types (analysis version 23): the receiver class of a
   /// `for-in`. Null when the caller has no type environment.
@@ -3995,12 +4143,18 @@ class _ExternalUses extends RecursiveVisitor {
     }
     node.returnType.accept(this);
     node.emittedValueType?.accept(this);
-    node.body?.accept(this);
+    _asyncMarkers.add(node.asyncMarker);
+    try {
+      node.body?.accept(this);
+    } finally {
+      _asyncMarkers.removeLast();
+    }
   }
 
   @override
   void visitStaticInvocation(StaticInvocation node) {
     _member(node.targetReference);
+    _thenChains(node.target, node.arguments, null);
     node.arguments.accept(this);
   }
 
@@ -4039,6 +4193,7 @@ class _ExternalUses extends RecursiveVisitor {
       node.interfaceTargetReference,
       inlined: opcode == null ? null : opcode.name.substring(1),
     );
+    _thenChains(node.interfaceTarget, node.arguments, node.receiver);
     node.receiver.accept(this);
     node.arguments.accept(this);
   }
@@ -4177,6 +4332,146 @@ class _ExternalUses extends RecursiveVisitor {
       return null;
     }
     return cls;
+  }
+
+  /// The async markers of the function bodies being walked, innermost last:
+  /// only a `return e` in an `async` body hands `e` to the completer.
+  final _asyncMarkers = <AsyncMarker>[];
+
+  /// Reports a call of `Future.then` the VM makes on the value of [operand]
+  /// (analysis version 24): an `await` of it, a `return` of it from an
+  /// `async` body, or an SDK API that chains it (`Completer.complete`,
+  /// `Future.value`, `Stream.fromFuture`, `asStream`). The VM does this by
+  /// selector for any `Future` that is not a `_Future`, and no source token
+  /// names it.
+  ///
+  /// A static type that is a `Future` subtype names that class as the
+  /// receiver. A type that cannot be a `Future` (a record, a function, `Null`,
+  /// `int`, `String`, ...) reports nothing; every other type reports the entry
+  /// with no receiver, which the CLI reads as every `Future` the release holds.
+  void _thenOf(Expression operand) {
+    // `await for` is lowered to `await it.moveNext()` and `await it.cancel()`
+    // on a `_StreamIterator`, whose futures are always `_Future`s.
+    if (operand is InstanceInvocation &&
+        (operand.name.text == 'moveNext' || operand.name.text == 'cancel') &&
+        _isCore(operand.interfaceTarget, 'dart:async', '_StreamIterator')) {
+      return;
+    }
+    final context = staticTypes;
+    DartType? type;
+    if (context != null) {
+      try {
+        type = operand.getStaticType(context);
+      } on Object {
+        // Not knowing the type narrows nothing: the entry is still reported.
+        type = null;
+      }
+    }
+    final receivers = <Class>[];
+    if (context != null && type != null) {
+      if (type is RecordType ||
+          type is FunctionType ||
+          type is NullType ||
+          type is NeverType) {
+        return;
+      }
+      if (type is InterfaceType) {
+        final cls = type.classNode;
+        final env = context.typeEnvironment;
+        final futureClass = env.coreTypes.futureClass;
+        if (env.hierarchy.isSubInterfaceOf(cls, futureClass)) {
+          if (cls != futureClass) receivers.add(cls);
+        } else if (cls != env.coreTypes.objectClass) {
+          // Closed world: a value of this static type is a `Future` only if
+          // some class is a subtype of both (`class Slow implements Pingable,
+          // Future`). The classes are the patched component's and the
+          // release's (a class the patch deletes still runs there); none:
+          // it cannot be one. A world that cannot say reports unnarrowed.
+          final subs = futureWorld?.futureSubtypes(cls);
+          if (subs == null) {
+            _sdk('dart:async', 'Future', 'then');
+            return;
+          }
+          if (subs.isEmpty) return;
+          receivers.addAll(subs);
+        }
+      }
+    }
+    if (receivers.isEmpty) {
+      _sdk('dart:async', 'Future', 'then');
+    } else {
+      for (final r in receivers) {
+        _sdk('dart:async', 'Future', 'then', receiver: r);
+      }
+    }
+  }
+
+  @override
+  void visitAwaitExpression(AwaitExpression node) {
+    _thenOf(node.operand);
+    super.visitAwaitExpression(node);
+  }
+
+  @override
+  void visitReturnStatement(ReturnStatement node) {
+    final value = node.expression;
+    if (value != null &&
+        _asyncMarkers.isNotEmpty &&
+        _asyncMarkers.last == AsyncMarker.Async) {
+      _thenOf(value);
+    }
+    super.visitReturnStatement(node);
+  }
+
+  static bool _isCore(Member target, String library, String cls) =>
+      target.enclosingClass?.name == cls &&
+      target.enclosingLibrary.importUri.toString() == library;
+
+  /// The SDK calls that chain a `Future` argument with its `then` (analysis
+  /// version 24). `Future.wait` and `Future.any` take an iterable of futures
+  /// whose element type is not read, so they report the unnarrowed entry.
+  void _thenChains(Member target, Arguments arguments, Expression? receiver) {
+    final name = target.name.text;
+    // `[a, b].wait` and `(a, b).wait` are `dart:async` extension getters,
+    // which have no enclosing class.
+    if (target.enclosingClass == null &&
+        target.enclosingLibrary.importUri.toString() == 'dart:async' &&
+        RegExp(
+          r'^(FutureIterable|FutureRecord\d+)\|get#wait$',
+        ).hasMatch(name)) {
+      _sdk('dart:async', 'Future', 'then');
+      return;
+    }
+    // `ticker.ignore()` and `ticker.onError(...)`, and their tear-offs
+    // (`FutureExtensions|get#ignore`), call the receiver's `then` when it is
+    // not a `_Future`; the extension is a static call with the receiver as its
+    // first argument.
+    if (target.enclosingClass == null &&
+        target.enclosingLibrary.importUri.toString() == 'dart:async' &&
+        RegExp(r'^FutureExtensions\|(get#)?(ignore|onError)$').hasMatch(name) &&
+        arguments.positional.isNotEmpty) {
+      _thenOf(arguments.positional.first);
+      return;
+    }
+    if (_isCore(target, 'dart:async', 'Future')) {
+      if (name == 'wait' || name == 'any') {
+        _sdk('dart:async', 'Future', 'then');
+      } else if (name == 'value' && arguments.positional.isNotEmpty) {
+        _thenOf(arguments.positional.first);
+      } else if (name == 'asStream' && receiver != null) {
+        _thenOf(receiver);
+      }
+    } else if (_isCore(target, 'dart:async', 'Stream')) {
+      if (name == 'fromFuture' && arguments.positional.isNotEmpty) {
+        _thenOf(arguments.positional.first);
+      } else if (name == 'fromFutures') {
+        _sdk('dart:async', 'Future', 'then');
+      }
+    } else if (_isCore(target, 'dart:async', 'Completer') &&
+        name == 'complete' &&
+        arguments.positional.isNotEmpty) {
+      _thenOf(arguments.positional.first);
+    }
   }
 
   @override

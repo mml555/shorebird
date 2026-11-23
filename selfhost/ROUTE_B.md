@@ -581,7 +581,52 @@ parameter or an extension type names no receiver and is checked as before, and
 so is a class the release's snapshot does not hold. A refusal names the
 receiver ("`Iterable.iterator` over a `List`").
 
-A cell whose analyzer writes version 23 needs a CLI that knows 23: an older CLI
+**Awaits and other implicit `then` calls (analysis 24).** The VM awaits a `_Future`
+without calling `then`, but calls the `then` of any other `Future` by selector
+(`_SuspendState._awaitUserDefinedFuture`), so `await controller.forward()` (a
+`TickerFuture`) needs a `then` the release may never have compiled (#254). The same
+`source.then` is made by `_Future._chainForeignFuture`, which a `return e` in an
+`async` body, `Completer.complete(e)`, `Future.value(e)` and a callback that returns a
+foreign `Future` all reach, and by `Future.wait`, `Future.any`, `Stream.fromFuture`,
+`Stream.fromFutures` and `Future.asStream` (checked against the Dart SDK sources of the
+3.50 engine). From 24 the analyzer reports as `Future.then` (`dart:async`): each
+`await`; a `return e` in an `async` body; `Completer.complete`, `Future.value`,
+`Stream.fromFuture`, `asStream`, `ignore()` and `onError(...)` (called or torn off) with
+that operand; and `Future.wait`, `Future.any`, `Stream.fromFutures` and the `.wait`
+extensions of iterables and records (no receiver). `receiverClass` names the operand's
+static type when it is a `Future` subtype (`TickerFuture`). For a class or interface
+that is not one, the analyzer asks the patched component's classes and, when the
+release's kernel carries its platform, the release's too (a class the patch deletes or
+renames still runs in the release): it reports one entry per class that is a subtype of
+both it and `Future` (`Pingable`, with `class Slow implements Pingable, Future`, names
+`Slow`), and nothing when there is none (a `Model`). When the release's kernel cannot be
+asked, or holds a class of that name under another library URI, the entry is not
+narrowed. `Future`, `FutureOr`, `dynamic`, `Object?`, a type parameter or an extension
+type is asked of every `Future` the release allocates, the same as an explicit `.then`.
+An operand that cannot be a `Future` (`int`, `String`, `Null`, a record, a function)
+reports nothing, and the lowered `await for` (`_StreamIterator`) is skipped. A refusal
+is therefore possible for an `await` on a `Future` in a release that allocates a
+`TickerFuture` without a compiled `then`, and awaiting is no longer offered as a way
+around a refused `.then`. An `await` entry is asked like an explicit `.then`, which
+includes `_Future.then`, though awaiting a `_Future` never calls it; a release that
+compiled no `_Future.then` is not realistic (the framework calls `.then`), and the
+old-cell gate leaves `_Future` out only because it asks about the hazard alone.
+
+**Not covered (follow-up issue).** A `Future` returned by a callback (`then`,
+`whenComplete`, `catchError`, `Future.delayed`, `Future.doWhile`, `Future.forEach`,
+`Future.microtask`, `Future.sync`'s computation, `timeout(onTimeout:)`,
+`Stream.asyncMap`), `StreamController.addStream`, and any SDK or package code that calls
+`then` on a future it was given are not reported: the analyzer sees only the body's own
+spelling. A patch can still reach a missing `then` that way.
+
+A cell below 24 cannot see any of this, so the CLI refuses its patches (unless
+`--allow-unchecked-sdk-calls`, or when the release has no readable interface) only when
+the release's snapshot shows the hazard (a `Future` subtype other than `_Future` with
+no compiled `then`); otherwise they are unaffected. The analyzer is in the cell
+(`route_b_analyze.aot`), so analysis 24 reaches a release only through a re-cut cell;
+the engine and the rest of the compiler archive do not change.
+
+A cell whose analyzer writes version 24 needs a CLI that knows 24: an older CLI
 refuses an analysis version it does not know, so with such a cell it refuses
 every Route B patch until the CLI is upgraded. Ship the CLI first, then the
 cell.
