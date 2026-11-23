@@ -591,13 +591,15 @@ foreign `Future` all reach, and by `Future.wait`, `Future.any`, `Stream.fromFutu
 `Stream.fromFutures` and `Future.asStream` (checked against the Dart SDK sources of the
 3.50 engine). From 24 the analyzer reports as `Future.then` (`dart:async`): each
 `await`; a `return e` in an `async` body; `Completer.complete`, `Future.value`,
-`Stream.fromFuture` and `asStream` with that operand; and `Future.wait`, `Future.any`,
-`Stream.fromFutures` and the `.wait` extensions of iterables and records (no
-receiver). `receiverClass` names the operand's static type when it is a `Future`
-subtype (`TickerFuture`). For a class or interface that is not one, the analyzer asks the
-whole program (the release's and the patch's classes): it reports one entry per class
-that is a subtype of both it and `Future` (`Pingable`, with `class Slow implements
-Pingable, Future`, names `Slow`), and nothing when there is none (a `Model`). `Future`,
+`Stream.fromFuture`, `asStream`, `ignore()` and `onError(...)` with that operand; and
+`Future.wait`, `Future.any`, `Stream.fromFutures` and the `.wait` extensions of
+iterables and records (no receiver). `receiverClass` names the operand's static type when it is a `Future`
+subtype (`TickerFuture`). For a class or interface that is not one, the analyzer asks
+the patched component's classes and, when the release's kernel carries its platform, the
+release's too (a class the patch deletes or renames still runs in the release): it
+reports one entry per class that is a subtype of both it and `Future` (`Pingable`, with
+`class Slow implements Pingable, Future`, names `Slow`), and nothing when there is none
+(a `Model`). When the release's kernel cannot be asked, the entry is not narrowed. `Future`,
 `FutureOr`, `dynamic`, `Object?`, a type parameter or an extension type is asked of every
 `Future` the release allocates, the same as an explicit `.then`. An operand that cannot
 be a `Future` (`int`, `String`, `Null`, a record, a function) reports nothing, and the
@@ -611,9 +613,10 @@ about the hazard alone.
 
 **Not covered (follow-up issue).** A `Future` returned by a callback (`then`,
 `whenComplete`, `catchError`, `Future.delayed`, `Future.doWhile`, `Future.forEach`,
-`Future.microtask`, `Future.sync`'s computation, `timeout(onTimeout:)`, `Stream.asyncMap`), `StreamController.addStream`, and any SDK or package
-code that calls `then` on a future it was given are not reported: the analyzer sees
-only the body's own spelling. A patch can still reach a missing `then` that way.
+`Future.microtask`, `Future.sync`'s computation, `timeout(onTimeout:)`,
+`Stream.asyncMap`), `StreamController.addStream`, and any SDK or package code that calls
+`then` on a future it was given are not reported: the analyzer sees only the body's own
+spelling. A patch can still reach a missing `then` that way.
 
 A cell below 24 cannot see any of this, so the CLI refuses its patches (unless
 `--allow-unchecked-sdk-calls`, or when the release has no readable interface) only when

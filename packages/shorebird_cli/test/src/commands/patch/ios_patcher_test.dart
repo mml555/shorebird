@@ -2937,7 +2937,7 @@ callable:
                 expect(awaitErrors(), isEmpty);
               });
 
-              test('runs before the reject verdict is reported', () async {
+              test('a reject verdict adds no second error', () async {
                 release(snapshotProfile: profile(tickerThen: false));
                 coverageAt(23, reject: true);
                 await patchAndSwallow();

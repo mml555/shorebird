@@ -359,16 +359,20 @@ import 'package:kernel/type_environment.dart';
 /// `Future` subtype shares a subtype with, such as a `Model`) reports
 /// nothing. `dynamic`, `FutureOr`, `Object?`, a type parameter or an extension
 /// type reports the entry with no receiver. A class or interface reports one
-/// entry per class of the component that is a subtype of both it and `Future`
-/// (`Pingable` with `class Slow implements Pingable, Future` names `Slow`), and
-/// nothing when there is none. A document below 24 never has them.
+/// entry per class that is a subtype of both it and `Future`, taken from the
+/// patched component and from the release's (`Pingable` with `class Slow
+/// implements Pingable, Future` names `Slow`, even when the patch deletes
+/// `Slow`), and nothing when there is none. When the release's kernel cannot
+/// be asked (it carries no platform) the entry is not narrowed. A document
+/// below 24 never has them.
 ///
 /// The same entry is reported
 /// for the other places the VM calls `then` on a foreign future that the body
 /// spells: a `return e` in an `async` body, `Completer.complete(e)`,
 /// `Future.value(e)`, `Stream.fromFuture(e)`, `e.asStream()`, `Future.wait`,
-/// `Future.any`, `Stream.fromFutures` and the `.wait` extensions of iterables
-/// and records. NOT reported: a `Future` returned by
+/// `Future.any`, `Stream.fromFutures`, the `.wait` extensions of iterables and
+/// records, and `Future.ignore()` and `Future.onError(...)`. NOT reported: a
+/// `Future` returned by
 /// a callback (`then`, `whenComplete`, `catchError`, `Future.delayed`,
 /// `Future.doWhile`, `Future.forEach`, `Future.microtask`,
 /// `timeout(onTimeout:)`, `Stream.asyncMap`), `StreamController.addStream`, and any other
@@ -784,6 +788,12 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     }
   }
   final patchedTypes = TypeEnvironment(CoreTypes(patched), patchedHierarchy);
+  final futureWorld = FutureWorld(
+    patchedTypes,
+    base: base,
+    baseIsLinked: baseIsLinked,
+    baseHierarchy: () => baseHierarchy,
+  );
   final externalReferences = <String, List<Map<String, Object?>>>{
     for (final key in carriedBodies.keys.toList()..sort())
       key: _externalReferences(
@@ -791,6 +801,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
         carriedMembers,
         appMembersByName: appMembersByName,
         types: patchedTypes,
+        world: futureWorld,
       ),
   };
 
@@ -3379,6 +3390,76 @@ Map<String, Object?>? _privateKey(Member? target) {
   };
 }
 
+/// The classes that can be a `Future` at run time, for the closed-world check
+/// of `await` and its kin (analysis version 24): the patched component's, and
+/// the release's when its kernel can be asked. A class the patch deletes or
+/// renames still runs in the release, so the patched component alone is not
+/// the world.
+class FutureWorld {
+  /// [base] is the release's component, or null when there is none to ask.
+  /// With a [base] that [baseIsLinked] does not hold for (it carries no
+  /// platform, so no hierarchy can be built over it), nothing is narrowed.
+  /// [baseHierarchy] builds the release's hierarchy on first use.
+  FutureWorld(
+    this.patched, {
+    this.base,
+    this.baseIsLinked = true,
+    ClassHierarchy Function()? baseHierarchy,
+  }) : _baseHierarchy = baseHierarchy;
+
+  final TypeEnvironment patched;
+  final Component? base;
+  final bool baseIsLinked;
+  final ClassHierarchy Function()? _baseHierarchy;
+
+  late final ClassHierarchySubtypes? _patchedSubtypes = _subtypesOf(
+    patched.hierarchy,
+  );
+  late final ClassHierarchy _baseWorld =
+      _baseHierarchy?.call() ?? ClassHierarchy(base!, CoreTypes(base!));
+  late final CoreTypes _baseCore = CoreTypes(base!);
+  late final ClassHierarchySubtypes? _baseSubtypes = _subtypesOf(_baseWorld);
+  late final Map<String, Class> _baseClasses = {
+    for (final lib in base!.libraries)
+      for (final c in lib.classes) _key(c): c,
+  };
+
+  static String _key(Class c) => '${c.enclosingLibrary.importUri}#${c.name}';
+
+  static ClassHierarchySubtypes? _subtypesOf(ClassHierarchy h) =>
+      h is ClosedWorldClassHierarchy ? h.computeSubtypesInformation() : null;
+
+  /// The subtypes of [cls] (a class of the patched component) that are
+  /// `Future`s, from the patched component and the release, or null when the
+  /// world cannot say.
+  List<Class>? futureSubtypes(Class cls) {
+    final subtypes = _patchedSubtypes;
+    if (subtypes == null) return null;
+    final found = <String, Class>{};
+    final future = patched.coreTypes.futureClass;
+    for (final sub in subtypes.getSubtypesOf(cls)) {
+      if (patched.hierarchy.isSubInterfaceOf(sub, future)) {
+        found[_key(sub)] = sub;
+      }
+    }
+    if (base != null) {
+      if (!baseIsLinked) return null;
+      final baseSubtypes = _baseSubtypes;
+      if (baseSubtypes == null) return null;
+      final baseCls = _baseClasses[_key(cls)];
+      if (baseCls != null) {
+        final baseFuture = _baseCore.futureClass;
+        for (final sub in baseSubtypes.getSubtypesOf(baseCls)) {
+          if (_baseWorld.isSubInterfaceOf(sub, baseFuture)) {
+            found.putIfAbsent(_key(sub), () => sub);
+          }
+        }
+      }
+    }
+    return found.values.toList();
+  }
+}
+
 /// The external symbols [p]'s body names, as data (analysis version 18).
 ///
 /// A walk failure yields ONE `unanalyzed` entry and nothing else: a partial list
@@ -3392,11 +3473,13 @@ List<Map<String, Object?>> externalReferencesOf(
   Set<Member> carried, {
   Map<String, List<Member>> appMembersByName = const {},
   TypeEnvironment? types,
+  FutureWorld? world,
 }) => _externalReferences(
   p,
   carried,
   appMembersByName: appMembersByName,
   types: types,
+  world: world ?? (types == null ? null : FutureWorld(types)),
 );
 
 List<Map<String, Object?>> _externalReferences(
@@ -3404,6 +3487,7 @@ List<Map<String, Object?>> _externalReferences(
   Set<Member> carried, {
   Map<String, List<Member>> appMembersByName = const {},
   TypeEnvironment? types,
+  FutureWorld? world,
 }) {
   final context = types == null ? null : StaticTypeContext(p, types);
   final uses = _ExternalUses(
@@ -3413,6 +3497,7 @@ List<Map<String, Object?>> _externalReferences(
     appMembersByName,
     recognized: context == null ? null : RecognizedMethods(context),
     staticTypes: context,
+    futureWorld: world,
   );
   try {
     p.function.accept(uses);
@@ -3822,7 +3907,11 @@ class _ExternalUses extends RecursiveVisitor {
     this.appMembersByName, {
     this.recognized,
     this.staticTypes,
+    this.futureWorld,
   });
+
+  /// The classes that can be a `Future`, for [_thenOf]; null asks nothing.
+  final FutureWorld? futureWorld;
 
   /// The body's static types (analysis version 23): the receiver class of a
   /// `for-in`. Null when the caller has no type environment.
@@ -4216,8 +4305,6 @@ class _ExternalUses extends RecursiveVisitor {
   /// only a `return e` in an `async` body hands `e` to the completer.
   final _asyncMarkers = <AsyncMarker>[];
 
-  ClassHierarchySubtypes? _subtypes;
-
   /// Reports a call of `Future.then` the VM makes on the value of [operand]
   /// (analysis version 24): an `await` of it, a `return` of it from an
   /// `async` body, or an SDK API that chains it (`Completer.complete`,
@@ -4262,22 +4349,18 @@ class _ExternalUses extends RecursiveVisitor {
         if (env.hierarchy.isSubInterfaceOf(cls, futureClass)) {
           if (cls != futureClass) receivers.add(cls);
         } else if (cls != env.coreTypes.objectClass) {
-          // Closed world: the component holds every class the program has,
-          // the patch's own included, so a value of this static type is a
-          // `Future` only if some class is a subtype of both (`class Slow
-          // implements Pingable, Future`). None: it cannot be one.
-          final world = env.hierarchy;
-          if (world is! ClosedWorldClassHierarchy) {
-            // Not a whole-program hierarchy: cannot say none, so report.
+          // Closed world: a value of this static type is a `Future` only if
+          // some class is a subtype of both (`class Slow implements Pingable,
+          // Future`). The classes are the patched component's and the
+          // release's (a class the patch deletes still runs there); none:
+          // it cannot be one. A world that cannot say reports unnarrowed.
+          final subs = futureWorld?.futureSubtypes(cls);
+          if (subs == null) {
             _sdk('dart:async', 'Future', 'then');
             return;
           }
-          for (final sub
-              in (_subtypes ??= world.computeSubtypesInformation())
-                  .getSubtypesOf(cls)) {
-            if (world.isSubInterfaceOf(sub, futureClass)) receivers.add(sub);
-          }
-          if (receivers.isEmpty) return;
+          if (subs.isEmpty) return;
+          receivers.addAll(subs);
         }
       }
     }
@@ -4324,6 +4407,16 @@ class _ExternalUses extends RecursiveVisitor {
           r'^(FutureIterable|FutureRecord\d+)\|get#wait$',
         ).hasMatch(name)) {
       _sdk('dart:async', 'Future', 'then');
+      return;
+    }
+    // `ticker.ignore()` and `ticker.onError(...)` call the receiver's `then`
+    // when it is not a `_Future`; the extension is a static call with the
+    // receiver as its first argument.
+    if (target.enclosingClass == null &&
+        target.enclosingLibrary.importUri.toString() == 'dart:async' &&
+        RegExp(r'^FutureExtensions\|(ignore|onError)$').hasMatch(name) &&
+        arguments.positional.isNotEmpty) {
+      _thenOf(arguments.positional.first);
       return;
     }
     if (_isCore(target, 'dart:async', 'Future')) {

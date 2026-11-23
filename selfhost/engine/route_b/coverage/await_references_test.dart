@@ -33,6 +33,15 @@ const _source = '''
 abstract class Ticker implements Future<int> {}
 abstract class Pingable {}
 abstract class Slow implements Pingable, Future<void> {}
+mixin Mix {}
+abstract class MixSlow extends Object with Mix implements Future<void> {}
+abstract class Grand {}
+abstract class Parent extends Grand {}
+abstract class Leaf extends Parent implements Future<void> {}
+abstract class Gen<T> {}
+abstract class GenSlow implements Gen<int>, Future<void> {}
+abstract class CmpSlow implements Comparable<int>, Future<void> {}
+abstract class ForeignSlow implements Foreign, Future<void> {}
 class Model {}
 Future<Model> retModel() async { return Model(); }
 Future<void> awaitModel(Model m) async { await m; }
@@ -65,10 +74,47 @@ void value(Ticker t) { Future<int>.value(t); }
 void wait(Ticker t) { Future.wait([t]); Future.any([t]); }
 void stream(Ticker t) { Stream.fromFuture(t); t.asStream(); }
 void unrelated() { Completer<int>().complete(1); Future<int>.value(1); }
+Future<void> viaMix(Mix m) async { await m; }
+Future<void> viaChain(Grand g) async { await g; }
+Future<void> viaParent(Parent g) async { await g; }
+Future<void> nullableIface(Pingable? p) async { await p; }
+Future<void> nullableModel(Model? m) async { await m; }
+Future<void> generic(Gen<int> g) async { await g; }
+Future<void> genericOther(Gen<String> g) async { await g; }
+Future<void> sdkIface(Comparable<int> c) async { await c; }
+Future<void> sdkNone(Iterable<Model> i) async { await i; }
+Future<void> foreign(Foreign f) async { await f; }
+void ign(Ticker t) { t.ignore(); }
+void ignPlain(Future<int> f) { f.ignore(); }
+void onErr(Ticker t) { t.onError<Object>((e, s) => 1); }
 void main() {}
 ''';
 
-List<Map<String, Object?>> _then(Component c, TypeEnvironment env, String n) {
+const _other = '''
+abstract class Foreign {}
+''';
+
+/// The release: `Gone` is a Future the patch no longer has.
+const _baseSource = '''
+abstract class Pingable {}
+abstract class Gone implements Pingable, Future<void> {}
+Future<void> iface(Pingable p) async { await p; }
+void main() {}
+''';
+
+/// The patch: the same body, `Gone` deleted.
+const _patchedSource = '''
+abstract class Pingable {}
+Future<void> iface(Pingable p) async { await p; }
+void main() {}
+''';
+
+List<Map<String, Object?>> _then(
+  Component c,
+  TypeEnvironment env,
+  String n, {
+  FutureWorld? world,
+}) {
   for (final lib in c.libraries) {
     if (!lib.importUri.toString().endsWith('app.dart')) continue;
     for (final p in [
@@ -77,12 +123,35 @@ List<Map<String, Object?>> _then(Component c, TypeEnvironment env, String n) {
     ]) {
       if (p.name.text != n) continue;
       return [
-        for (final r in externalReferencesOf(p, {}, types: env))
+        for (final r in externalReferencesOf(p, {}, types: env, world: world))
           if (r['member'] == 'then') r,
       ];
     }
   }
   throw StateError('no $n');
+}
+
+Component _compile(String host, Directory dir, String name, String source) {
+  // Always `app.dart`, so the release and the patch hold the same library URI.
+  File(
+    '${dir.path}/app.dart',
+  ).writeAsStringSync("import 'dart:async';\nimport 'other.dart';\n$source");
+  final r = Process.runSync(host, [
+    'compile',
+    'kernel',
+    '${dir.path}/app.dart',
+    '-o',
+    '${dir.path}/$name.dill',
+  ]);
+  if (r.exitCode != 0) {
+    stderr.writeln(r.stderr);
+    exit(2);
+  }
+  final c = Component();
+  BinaryBuilder(
+    File('${dir.path}/$name.dill').readAsBytesSync(),
+  ).readComponent(c);
+  return c;
 }
 
 void main() {
@@ -93,24 +162,8 @@ void main() {
   }
   final dir = Directory.systemTemp.createTempSync('await_refs_test');
   try {
-    File(
-      '${dir.path}/app.dart',
-    ).writeAsStringSync("import 'dart:async';\n$_source");
-    final r = Process.runSync(host, [
-      'compile',
-      'kernel',
-      '${dir.path}/app.dart',
-      '-o',
-      '${dir.path}/app.dill',
-    ]);
-    if (r.exitCode != 0) {
-      stderr.writeln(r.stderr);
-      exit(2);
-    }
-    final c = Component();
-    BinaryBuilder(
-      File('${dir.path}/app.dill').readAsBytesSync(),
-    ).readComponent(c);
+    File('${dir.path}/other.dart').writeAsStringSync(_other);
+    final c = _compile(host, dir, 'app', _source);
     final core = CoreTypes(c);
     final env = TypeEnvironment(core, ClassHierarchy(c, core));
 
@@ -122,6 +175,14 @@ void main() {
     bool unnarrowed(String n) =>
         then(n).length == 1 && !then(n).single.containsKey('receiverClass');
     bool nothing(String n) => then(n).isEmpty;
+    // Exactly these receiver classes, no other entry.
+    bool exactly(String n, Set<String> classes) {
+      final entries = then(n);
+      return entries.length == classes.length &&
+          entries.every((e) => classes.contains(e['receiverClass'])) &&
+          entries.map((e) => e['receiverClass']).toSet().length ==
+              classes.length;
+    }
 
     check(narrowed('ticker', 'Ticker'), 'await on a Future subtype names it');
     check(unnarrowed('plain'), 'await on a Future<int> is unnarrowed');
@@ -160,6 +221,65 @@ void main() {
     check(unnarrowed('wait'), 'Future.wait and Future.any are unnarrowed');
     check(narrowed('stream', 'Ticker'), 'Stream.fromFuture and asStream');
     check(nothing('unrelated'), 'Completer.complete(1), Future.value(1)');
+    check(exactly('iface', {'Slow'}), 'an interface: exactly [Slow]');
+    check(exactly('viaMix', {'MixSlow'}), 'a mixin application subtype');
+    check(
+      exactly('viaChain', {'Leaf'}),
+      'an extends chain, from the grandparent',
+    );
+    check(exactly('viaParent', {'Leaf'}), 'an extends chain, from the parent');
+    check(
+      exactly('nullableIface', {'Slow'}),
+      'a nullable interface names Slow',
+    );
+    check(nothing('nullableModel'), 'a nullable Model reports nothing');
+    check(exactly('generic', {'GenSlow'}), 'a generic instantiation');
+    check(
+      exactly('genericOther', {'GenSlow'}),
+      'Gen<String> is asked like Gen<int>: the class decides',
+    );
+    check(
+      exactly('sdkIface', {'CmpSlow'}),
+      'an SDK interface, Comparable<int>',
+    );
+    check(nothing('sdkNone'), 'an SDK interface no Future implements');
+    check(
+      exactly('foreign', {'ForeignSlow'}),
+      'an interface of another library',
+    );
+    check(exactly('ign', {'Ticker'}), 'Future.ignore() names the receiver');
+    check(unnarrowed('ignPlain'), 'Future<int>.ignore() is unnarrowed');
+    check(exactly('onErr', {'Ticker'}), 'Future.onError() names the receiver');
+
+    // The release's classes count: `Gone` is only in the base.
+    final base = _compile(host, dir, 'base', _baseSource);
+    final patched = _compile(host, dir, 'patched', _patchedSource);
+    final pCore = CoreTypes(patched);
+    final pEnv = TypeEnvironment(pCore, ClassHierarchy(patched, pCore));
+    List<Map<String, Object?>> ifaceWith(FutureWorld w) =>
+        _then(patched, pEnv, 'iface', world: w);
+    check(
+      ifaceWith(FutureWorld(pEnv)).isEmpty,
+      'patched component alone: a deleted Future subtype is invisible',
+    );
+    final withBase = ifaceWith(
+      FutureWorld(
+        pEnv,
+        base: base,
+        baseHierarchy: () => ClassHierarchy(base, CoreTypes(base)),
+      ),
+    );
+    check(
+      withBase.length == 1 && withBase.single['receiverClass'] == 'Gone',
+      'a Future subtype only in the release is named: exactly [Gone]',
+    );
+    final unlinked = ifaceWith(
+      FutureWorld(pEnv, base: base, baseIsLinked: false),
+    );
+    check(
+      unlinked.length == 1 && !unlinked.single.containsKey('receiverClass'),
+      'a release kernel that cannot be asked leaves the entry unnarrowed',
+    );
     final boxMember = then('f');
     check(
       boxMember.length == 1 && !boxMember.single.containsKey('receiverClass'),
