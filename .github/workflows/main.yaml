@@ -224,6 +224,7 @@ jobs:
             /tool/
             /selfhost/engine/route_b/SUPPORTED_STATE.yaml
             /selfhost/engine/route_b/lib/
+            /selfhost/compatibility.yaml
 
       - name: 🧭 The record's CLI, selector and cell agree
         run: tool/check_supported_state_record.sh

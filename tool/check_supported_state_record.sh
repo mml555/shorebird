@@ -21,27 +21,40 @@
 #      recorded product trees.
 #   6. bin/internal/engine.version at the recorded selector, read from the
 #      Flutter fork, is the recorded cell_address. This one needs the network.
+#   7. selfhost/compatibility.yaml's shorebird.cli_revision and
+#      flutter_revision are the record's cli_revision and flutter_selector.
+#
+# Check 5 reads the trees at cli_revision, not at HEAD as
+# verify_supported_state.sh does. That one asks whether a deployed checkout is
+# the qualified CLI; here HEAD is any PR, and most PRs change
+# packages/shorebird_cli without being a new supported CLI.
+#
+# The reader takes the first `key:` line, as verify_supported_state.sh does.
+# cell_address appears twice in the record (the top-level one first); keep it so.
 #
 # It does not check artifacts (compiler archive, analyzer, cell members, engine
 # revisions); verify_supported_state.sh does, on a host that has them.
 #
 # Usage: tool/check_supported_state_record.sh [checkout-root]
 #   STATE=<file>        check another copy of the record (for tests)
+#   COMPAT=<file>       check another copy of selfhost/compatibility.yaml
 #   FLUTTER_REPO=<url>  the Flutter fork (default mml555/shorebird-flutter)
 # Exit: 0 all hold, 1 one or more failed, 2 a file, key or fetch is missing.
 set -euo pipefail
 
 root=${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 state=${STATE:-$root/selfhost/engine/route_b/SUPPORTED_STATE.yaml}
+compat=${COMPAT:-$root/selfhost/compatibility.yaml}
 lint="$root/selfhost/engine/route_b/lib/record_lint.py"
 flutter_repo=${FLUTTER_REPO:-https://github.com/mml555/shorebird-flutter.git}
 
-for f in "$state" "$lint"; do
+for f in "$state" "$compat" "$lint"; do
   [ -f "$f" ] || { echo "check_supported_state_record: missing $f" >&2; exit 2; }
 done
 
 # The same reader verify_supported_state.sh uses: the first `key: value` line.
-val() { sed -nE "s/^[[:space:]]*$1:[[:space:]]*([^[:space:]#]+).*/\1/p" "$state" | head -1; }
+# `|| true`: under pipefail a SIGPIPE in sed would otherwise end the script silently.
+val() { sed -nE "s/^[[:space:]]*$1:[[:space:]]*([^[:space:]#]+).*/\1/p" "${2:-$state}" | head -1 || true; }
 
 SELECTOR=$(val flutter_selector)
 CLIREV=$(val cli_revision)
@@ -85,21 +98,32 @@ else
   bad "cli_revision $CLIREV is not a commit in this repository (a shallow clone has too little history)"
 fi
 
+same "compatibility.yaml shorebird.cli_revision is the record's" "$CLIREV" "$(val cli_revision "$compat")"
+same "compatibility.yaml shorebird.flutter_revision is the record's flutter_selector" "$SELECTOR" "$(val flutter_revision "$compat")"
+
 # The selector's own engine.version, from the fork: one commit, its trees, and
-# the one blob `git show` asks for.
+# the one blob `git show` asks for. Three tries each, so a network blip is not a
+# red ci for an unrelated PR; still failing, it is exit 2 with git's error, never
+# a FAILED line.
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 git init -q "$tmp/flutter"
-if ! git -C "$tmp/flutter" fetch -q --depth=1 --filter=blob:none "$flutter_repo" "$SELECTOR" 2>"$tmp/fetch.err"; then
-  echo "check_supported_state_record: cannot fetch flutter_selector $SELECTOR from $flutter_repo:" >&2
-  cat "$tmp/fetch.err" >&2
-  exit 2
-fi
-git -C "$tmp/flutter" config remote.origin.url "$flutter_repo"
+git -C "$tmp/flutter" remote add origin "$flutter_repo"
 git -C "$tmp/flutter" config remote.origin.promisor true
 git -C "$tmp/flutter" config remote.origin.partialclonefilter blob:none
-same "engine.version at the recorded selector is the recorded cell_address" \
-  "$CELL" "$(git -C "$tmp/flutter" show "$SELECTOR:bin/internal/engine.version" 2>/dev/null | tr -d '[:space:]')"
+try3() { # <what> <command...>; stdout to $tmp/out
+  local i
+  for i in 1 2 3; do
+    "${@:2}" >"$tmp/out" 2>"$tmp/err" && return 0
+    [ "$i" = 3 ] || sleep $((i * 5))
+  done
+  echo "check_supported_state_record: cannot $1 from $flutter_repo after 3 tries:" >&2
+  cat "$tmp/err" >&2
+  exit 2
+}
+try3 "fetch flutter_selector $SELECTOR" git -C "$tmp/flutter" fetch -q --depth=1 --filter=blob:none origin "$SELECTOR"
+try3 "read bin/internal/engine.version at $SELECTOR" git -C "$tmp/flutter" show "$SELECTOR:bin/internal/engine.version"
+same "engine.version at the recorded selector is the recorded cell_address" "$CELL" "$(tr -d '[:space:]' <"$tmp/out")"
 
 if [ "$fail" -ne 0 ]; then
   echo "check_supported_state_record: FAILED" >&2
