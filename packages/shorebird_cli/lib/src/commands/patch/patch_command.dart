@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:archive/archive.dart' show ArchiveException;
+import 'package:archive/archive.dart'
+    show ArchiveException, InputFileStream, ZipDecoder;
 import 'package:collection/collection.dart';
 import 'package:crypto/crypto.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -55,6 +56,7 @@ import 'package:shorebird_cli/src/third_party/flutter_tools/lib/flutter_tools.da
 import 'package:shorebird_cli/src/toolchain_coherence.dart';
 import 'package:shorebird_cli/src/version.dart';
 import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
+import 'package:yaml/yaml.dart';
 
 /// Signature for a function that returns a [Patcher] for a given [ReleaseType].
 typedef ResolvePatcher = Patcher Function(ReleaseType releaseType);
@@ -900,6 +902,12 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
           patcher: patcher,
           release: release,
           releaseArtifact: downloaded.releaseArtifact,
+        );
+        await _assertPublicKeyMatchesRelease(
+          patcher: patcher,
+          release: release,
+          releaseArtifact: downloaded.releaseArtifact,
+          releaseArchive: downloaded.releaseArchive,
         );
         await _configureObfuscation(
           patcher: patcher,
@@ -2060,6 +2068,91 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
       '--$publicKeyPath and --$privateKeyPath, or --$publicKeyCmd and '
       '--$signCmd.',
     );
+  }
+
+  /// Exits before building if [release] embeds the customer's own key and the
+  /// public key this patch will use is a different one: devices running the
+  /// release only accept patches signed with its key. Compares the key in the
+  /// release's generated (bundled) shorebird.yaml (`patch_public_key`) with
+  /// the patch's. Unlike an asset change, `--allow-asset-diffs` can't bypass
+  /// this. A release archive that can't be read, or that embeds no key, can't
+  /// be checked: that is warned about, not refused.
+  Future<void> _assertPublicKeyMatchesRelease({
+    required Patcher patcher,
+    required Release release,
+    required ReleaseArtifact releaseArtifact,
+    required File releaseArchive,
+  }) async {
+    final platform = patcher.releaseType.releasePlatform;
+    final signingMode =
+        releaseArtifact.signing?.mode ??
+        release.platforms[platform]?.signingMode;
+    if (signingMode != ReleaseSigningMode.customer.value) return;
+    final patchKey = await patcher.getEncodedPublicKey();
+    if (patchKey == null) return;
+    final releaseKey = _bundledPublicKey(releaseArchive);
+    if (releaseKey == null) {
+      logger.warn(
+        'Skipped checking that the patch key matches release '
+        '${release.version} (${platform.displayName}): its archive is '
+        'unreadable or embeds no patch_public_key. Devices reject a patch '
+        "signed with a different key than the release's.",
+      );
+      return;
+    }
+    if (releaseKey == patchKey) return;
+
+    String fingerprint(String key) {
+      try {
+        return sha256.convert(base64.decode(key)).toString();
+      } on FormatException {
+        return 'unreadable';
+      }
+    }
+
+    _failRuns(BuildRunFailureReason.releaseIncompatible);
+    throw CommandError(
+      message:
+          "The public key for this patch doesn't match release "
+          '${release.version} (${platform.displayName}): devices running it '
+          "only accept patches signed with the release's key, and would "
+          'reject this one.\n'
+          '  SHA-256 of the RSA public key (PKCS#1 DER):\n'
+          '  release key: ${fingerprint(releaseKey)}\n'
+          '  patch key:   ${fingerprint(patchKey)}',
+      hint:
+          'Pass the same public and private key the release was made with. '
+          '--allow-asset-diffs does not bypass this. To use a different key, '
+          'ship a new release.',
+      exitCode: ExitCode.software,
+    );
+  }
+
+  /// The `patch_public_key` of the first generated (bundled) shorebird.yaml
+  /// inside [archive] that has one, or null if none does or the archive can't
+  /// be read.
+  String? _bundledPublicKey(File archive) {
+    InputFileStream? stream;
+    try {
+      stream = InputFileStream(archive.path);
+      for (final file in ZipDecoder().decodeStream(stream).files) {
+        final parts = p.posix.split(file.name);
+        if (!file.isFile ||
+            parts.length < 2 ||
+            parts.last != 'shorebird.yaml' ||
+            parts[parts.length - 2] != 'flutter_assets') {
+          continue;
+        }
+        final yaml = loadYaml(utf8.decode(file.readBytes() ?? const []));
+        final key = yaml is Map ? yaml['patch_public_key'] : null;
+        if (key is String) return key.replaceAll(RegExp(r'\s'), '');
+      }
+    } on Object catch (error) {
+      logger.detail('[public-key] could not read the release archive: $error');
+    } finally {
+      stream?.closeSync();
+    }
+    return null;
   }
 
   /// Exits before building if [app]'s enterprise requires patch signing and

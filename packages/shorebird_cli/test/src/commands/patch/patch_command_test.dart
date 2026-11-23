@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:archive/archive.dart' show ArchiveException;
+import 'package:archive/archive.dart'
+    show Archive, ArchiveException, ArchiveFile, ZipEncoder;
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:collection/collection.dart';
@@ -21,6 +22,7 @@ import 'package:shorebird_cli/src/build_flags.dart';
 import 'package:shorebird_cli/src/build_history.dart';
 import 'package:shorebird_cli/src/cache.dart' hide PatchArtifact;
 import 'package:shorebird_cli/src/code_push_client_wrapper.dart';
+import 'package:shorebird_cli/src/code_signer.dart';
 import 'package:shorebird_cli/src/command_error.dart';
 import 'package:shorebird_cli/src/commands/patch/patch.dart';
 import 'package:shorebird_cli/src/commands/release/releaser.dart';
@@ -1966,6 +1968,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
               releaseVersion: any(named: 'releaseVersion'),
             ),
           ).thenAnswer((_) async => signedRelease);
+          when(patcher.getEncodedPublicKey).thenAnswer((_) async => null);
         });
 
         test('exits before building when no key is passed', () async {
@@ -2024,6 +2027,241 @@ A patch cannot change the Flutter version a release was built with. To fix this,
             ),
           ).called(1);
         });
+      });
+
+      group("when the patch's public key is checked against the release's", () {
+        const releaseKey = 'cmVsZWFzZQ==';
+        const otherKey = 'cGF0Y2g=';
+
+        final signedRelease = Release(
+          id: release.id,
+          appId: release.appId,
+          version: release.version,
+          flutterRevision: release.flutterRevision,
+          flutterVersion: release.flutterVersion,
+          displayName: release.displayName,
+          platforms: {
+            releasePlatform: ReleasePlatformDetails(
+              status: ReleaseStatus.active,
+              signingMode: ReleaseSigningMode.customer.value,
+            ),
+          },
+          createdAt: release.createdAt,
+          updatedAt: release.updatedAt,
+        );
+
+        File archiveWith(
+          String? yaml, {
+          String path = 'base/assets/flutter_assets/shorebird.yaml',
+          List<(String, String)> more = const [],
+        }) {
+          final archive = Archive();
+          for (final (name, content) in [
+            if (yaml != null) (path, yaml),
+            ...more,
+          ]) {
+            final bytes = utf8.encode(content);
+            archive.addFile(ArchiveFile(name, bytes.length, bytes));
+          }
+          return createTempFile('release.aab')
+            ..writeAsBytesSync(ZipEncoder().encode(archive));
+        }
+
+        void setUpKeys({required String? patchKey, required File archive}) {
+          when(
+            () => codePushClientWrapper.getRelease(
+              appId: any(named: 'appId'),
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          ).thenAnswer((_) async => signedRelease);
+          when(
+            () => artifactManager.downloadReleaseArtifact(
+              any(),
+              message: any(named: 'message'),
+            ),
+          ).thenAnswer((_) async => archive);
+          when(patcher.getEncodedPublicKey).thenAnswer((_) async => patchKey);
+          for (final name in [
+            CommonArguments.privateKeyArg.name,
+            CommonArguments.publicKeyArg.name,
+          ]) {
+            when(() => argResults.wasParsed(name)).thenReturn(true);
+          }
+        }
+
+        test('builds the patch when the keys match', () async {
+          setUpKeys(
+            patchKey: releaseKey,
+            archive: archiveWith('patch_public_key: $releaseKey\n'),
+          );
+          await runWithOverrides(() => command.createPatch([patcher]));
+          verify(
+            () => patcher.buildPatchArtifact(
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          ).called(1);
+        });
+
+        test('builds the patch when the release embeds no key', () async {
+          setUpKeys(patchKey: otherKey, archive: archiveWith('app_id: x\n'));
+          await runWithOverrides(() => command.createPatch([patcher]));
+          verify(
+            () => patcher.buildPatchArtifact(
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          ).called(1);
+        });
+
+        // Where each platform's release archive keeps the generated (bundled)
+        // shorebird.yaml. The aar layout is assumed, not checked against a
+        // real add-to-app aar: the match is on `flutter_assets/shorebird.yaml`
+        // at any depth.
+        const layouts = {
+          'aab': 'base/assets/flutter_assets/shorebird.yaml',
+          'apk': 'assets/flutter_assets/shorebird.yaml',
+          'aar': 'assets/flutter_assets/shorebird.yaml',
+          'ipa':
+              'Payload/Runner.app/Frameworks/App.framework/flutter_assets/'
+              'shorebird.yaml',
+          'xcarchive':
+              'Products/Applications/Runner.app/Frameworks/'
+              'App.framework/flutter_assets/shorebird.yaml',
+          'xcframework':
+              'App.xcframework/ios-arm64/App.framework/'
+              'flutter_assets/shorebird.yaml',
+          'macOS':
+              'Runner.app/Contents/Frameworks/App.framework/Versions/A/'
+              'Resources/flutter_assets/shorebird.yaml',
+          'Linux': 'data/flutter_assets/shorebird.yaml',
+          'Windows': 'data/flutter_assets/shorebird.yaml',
+        };
+        for (final MapEntry(key: name, value: path) in layouts.entries) {
+          test('finds the release key in a $name archive', () async {
+            setUpKeys(
+              patchKey: otherKey,
+              archive: archiveWith(
+                'patch_public_key: $releaseKey\n',
+                path: path,
+              ),
+            );
+            await expectLater(
+              runWithOverrides(() => command.createPatch([patcher])),
+              throwsA(isA<CommandError>()),
+            );
+          });
+        }
+
+        test(
+          'keeps looking when the first shorebird.yaml has no key',
+          () async {
+            setUpKeys(
+              patchKey: otherKey,
+              archive: archiveWith(
+                'app_id: x\n',
+                more: [
+                  (
+                    'assets/flutter_assets/shorebird.yaml',
+                    'patch_public_key: $releaseKey\n',
+                  ),
+                ],
+              ),
+            );
+            await expectLater(
+              runWithOverrides(() => command.createPatch([patcher])),
+              throwsA(isA<CommandError>()),
+            );
+          },
+        );
+
+        test('warns when the archive embeds no key', () async {
+          setUpKeys(patchKey: otherKey, archive: archiveWith('app_id: x\n'));
+          await runWithOverrides(() => command.createPatch([patcher]));
+          verify(
+            () => logger.warn(any(that: contains('Skipped checking'))),
+          ).called(1);
+        });
+
+        test('warns when the archive is unreadable', () async {
+          setUpKeys(
+            patchKey: otherKey,
+            archive: createTempFile('not-a-zip')..writeAsStringSync('nope'),
+          );
+          await runWithOverrides(() => command.createPatch([patcher]));
+          verify(
+            () => logger.warn(any(that: contains('Skipped checking'))),
+          ).called(1);
+        });
+
+        test('agrees with the key a release bundles from a real PEM', () async {
+          final pem = File(
+            p.join(fixturesDirectory, 'crypto', 'public.pem'),
+          ).readAsStringSync();
+          // What a release bakes in is `argResults.getEncodedPublicKey()`,
+          // which the patch uses too; here it runs for real.
+          final parser = ArgParser()
+            ..addOption(CommonArguments.publicKeyArg.name)
+            ..addOption(CommonArguments.publicKeyCmd.name);
+          final realResults = parser.parse([
+            '--${CommonArguments.publicKeyArg.name}',
+            p.join(fixturesDirectory, 'crypto', 'public.pem'),
+          ]);
+          final bundled = CodeSigner().base64PublicKeyFromPem(pem);
+          setUpKeys(
+            patchKey: null,
+            archive: archiveWith('patch_public_key: $bundled\n'),
+          );
+          when(patcher.getEncodedPublicKey).thenAnswer(
+            (_) => runScoped(
+              realResults.getEncodedPublicKey,
+              values: {codeSignerRef.overrideWith(CodeSigner.new)},
+            ),
+          );
+          await runWithOverrides(() => command.createPatch([patcher]));
+          verify(
+            () => patcher.buildPatchArtifact(
+              releaseVersion: any(named: 'releaseVersion'),
+            ),
+          ).called(1);
+          verifyNever(() => logger.warn(any(that: contains('Skipped'))));
+        });
+
+        for (final allowAssetDiffs in [false, true]) {
+          test('refuses a different key '
+              '(--allow-asset-diffs: $allowAssetDiffs)', () async {
+            setUpKeys(
+              patchKey: otherKey,
+              archive: archiveWith('patch_public_key: $releaseKey\n'),
+            );
+            when(
+              () => argResults['allow-asset-diffs'],
+            ).thenReturn(allowAssetDiffs);
+            await expectLater(
+              runWithOverrides(() => command.createPatch([patcher])),
+              throwsA(
+                isA<CommandError>()
+                    .having(
+                      (e) => e.message,
+                      'message',
+                      allOf(
+                        contains('only accept patches signed with'),
+                        contains(
+                          '${sha256.convert(base64.decode(releaseKey))}',
+                        ),
+                        contains(
+                          '${sha256.convert(base64.decode(otherKey))}',
+                        ),
+                      ),
+                    )
+                    .having((e) => e.hint, 'hint', contains('new release')),
+              ),
+            );
+            verifyNever(
+              () => patcher.buildPatchArtifact(
+                releaseVersion: any(named: 'releaseVersion'),
+              ),
+            );
+          });
+        }
       });
 
       group('when the release embeds a managed key', () {
