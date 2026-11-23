@@ -2,3 +2,24 @@
                                                             This flag cannot be combined with "--analyze-size".
                                                             This flag cannot be combined with "--split-debug-info".
 [  +96 ms] Tasks to be executed: [task ':app:validateCompileSdkVersion', task ':app:preBuild', task ':app:preReleaseBuild', task ':app:extractReleaseVersionControlInfo', task ':app:compileFlutterBuildRelease', task ':app:copyFlutterAssetsRelease', task ':app:generateReleaseAssets', task ':app:mergeR
+
+== patch_neg_keyb.log lines 1418-1437 (the asset-diff refusal)
+Your app contains asset changes, which will not be included in the patch.
+    Changed files:
+        base/assets/flutter_assets/shorebird.yaml
+
+If you don't know why you're seeing this, visit our troubleshooting page at https://docs.shorebird.dev/code-push/troubleshooting#your-app-contains-asset-changes-warning-when-creating-a-patch
+
+6 file(s) changed that are neither assets, Dart, nor recognized native code.
+    Changed files:
+        BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/libapp.so.sym
+        BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/libapp.so.sym
+        BUNDLE-METADATA/com.android.tools.build.debugsymbols/x86_64/libapp.so.sym
+        META-INF/ANDROIDD.RSA
+        META-INF/ANDROIDD.SF
+        META-INF/MANIFEST.MF
+Build trace summary written to ~/Developer/shorebird-wt/devrun/run-f2458551-android-signed/work/untab/build/shorebird/debug/build-trace-android-summary.json
+[HTTP] POST http://localhost:18290/api/v1/apps/486558c7-546a-1ba5-ae5e-759a28c0f4d3/runs
+Not publishing: assets changed since the release, and a patch can't include those changes.
+To ship these changes, create a new release. Run: shorebird release android
+To publish the patch without them, pass --allow-asset-diffs.
