@@ -679,21 +679,16 @@ class RouteBSnapshotKept {
       '`$selector` on one; a release built with the code that calls it '
       'keeps it',
     );
-    // `await` of a `_Future` (what `async` code and the SDK return) goes
-    // through `_Future._thenAwait`, never `then`; `await` of any other Future
-    // calls its `then` (`_SuspendState._awaitUserDefinedFuture` in
-    // `sdk/lib/_internal/vm/lib/async_patch.dart`), so it is no way out when
-    // the value can be the subtype.
-    const awaitable = {
-      'then': '`await` it',
-      'catchError': '`await` it in a `try`/`catch`',
-      'whenComplete': '`await` it in a `try`/`finally`',
-    };
-    if (declared == 'Future' && awaitable.containsKey(selector)) {
+    // `await` is no way out: awaiting a `_Future` (what `async` code and the
+    // SDK return) goes through `_Future._thenAwait`, but awaiting any other
+    // `Future` calls its `then` (`_SuspendState._awaitUserDefinedFuture` in
+    // `sdk/lib/_internal/vm/lib/async_patch.dart`), and the analysis cannot
+    // tell the two apart from the static type `Future`, so it is checked as a
+    // call of `then` (analysis 24).
+    if (declared == 'Future' && selector == 'then') {
       advice.write(
-        '. If the value is never a `$subtype`, ${awaitable[selector]} '
-        'instead: awaiting a `Future` from `async` code or the SDK does not '
-        'call `$selector` (awaiting a `$subtype` does)',
+        '. An `await` on a `Future` is checked the same way, since awaiting '
+        'a `$subtype` calls its `then`',
       );
     }
     return advice.toString();

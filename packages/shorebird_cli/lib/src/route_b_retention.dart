@@ -279,6 +279,24 @@ class RouteBRetention {
   /// measured list still applies.
   final bool skipKeptCheck;
 
+  /// Why a patch whose analysis cannot report an `await` (a document below
+  /// `routeBAwaitAnalysisVersion`) may still call a `then` this release never
+  /// compiled, or null when it cannot.
+  ///
+  /// Awaiting a `Future` that is not a `_Future` calls its `then` by selector,
+  /// and no source token names it, so an old analyzer cannot tell a patch that
+  /// awaits one from a patch that does not. What it can be asked is whether
+  /// the hazard exists at all: the same question a `.then` call is asked
+  /// (`Future.then` on every `Future` subtype the release allocates). A
+  /// release where it holds loses nothing by the old analyzer; one where it
+  /// fails (a `TickerFuture` with no compiled `then`) cannot be shown safe.
+  /// Null under [skipKeptCheck] (`--allow-unchecked-sdk-calls`).
+  String? awaitUnchecked() {
+    const key = 'dart:async#Future#then';
+    if (members.contains(key)) return null;
+    return _keptProblem(key);
+  }
+
   /// Why [reference] cannot be shown to be retained, or null when it can.
   ///
   /// [inlinedHolds] is asked for a reference the analysis marks `inlined`: true

@@ -295,6 +295,7 @@ Nothing was uploaded.''',
         // asks again, for the members it carries.
         final retention = _readRouteBRetention(releaseArtifacts, provenance);
         _refuseUnretained(coverage, retention);
+        _refuseUncheckedAwaits(coverage, retention);
         if (coverage.verdict == RouteBVerdict.reject) {
           _refuseCoverage(coverage);
         }
@@ -720,6 +721,31 @@ A patch is only interpretable against one whole contract, so these cannot be mix
       );
     }
     return retention;
+  }
+
+  /// Refuse a patch whose analyzer cannot see an `await` (a cell below
+  /// [routeBAwaitAnalysisVersion]) when this release allocates a `Future`
+  /// subtype with no compiled `then`: awaiting one calls that `then`, so the
+  /// patch might abort on the device. `--allow-unchecked-sdk-calls` skips it.
+  void _refuseUncheckedAwaits(
+    RouteBCoverage coverage,
+    RouteBRetention? retention,
+  ) {
+    if (coverage.analysisVersion >= routeBAwaitAnalysisVersion ||
+        retention == null) {
+      return;
+    }
+    final why = retention.awaitUnchecked();
+    if (why == null) return;
+    logger.err(
+      '''
+This patch cannot be checked: this release's compiler cell predates the `await` check (analysis version ${coverage.analysisVersion}, needs $routeBAwaitAnalysisVersion or later), and this release has a `Future` that cannot be awaited safely ($why). Awaiting any `Future` that is not from `async` code or the SDK calls its `then`, so a patch with an `await` could crash the app after it installs.
+
+Cut a new release with a cell of analysis $routeBAwaitAnalysisVersion+, or pass --allow-unchecked-sdk-calls to publish this patch unchecked. The choice is recorded in the patch's metadata.
+
+Nothing was uploaded.''',
+    );
+    throw ProcessExit(ExitCode.software.code);
   }
 
   /// Refuse the whole patch when its analysis names a symbol the release did

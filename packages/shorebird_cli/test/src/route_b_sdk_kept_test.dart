@@ -1356,15 +1356,15 @@ callable:
         );
       });
 
-      test('offers `await` for then, and says when it does not help', () {
+      test('says an `await` on a Future is checked the same way', () {
         expect(
           problem('then'),
           contains(
-            'If the value is never a `TickerFuture`, `await` it instead: '
-            'awaiting a `Future` from `async` code or the SDK does not call '
-            '`then` (awaiting a `TickerFuture` does)',
+            'An `await` on a `Future` is checked the same way, since '
+            'awaiting a `TickerFuture` calls its `then`',
           ),
         );
+        expect(problem('then'), isNot(contains('`await` it instead')));
       });
 
       test('offers no `await` for timeout', () {

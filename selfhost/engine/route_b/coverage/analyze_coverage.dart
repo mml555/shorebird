@@ -347,7 +347,18 @@ import 'package:kernel/type_environment.dart';
 /// for-in lowering leaves a synthetic `:sync-for-iterator` variable initialized
 /// with the iterable's `iterator`), so no version bump was needed to fill them:
 /// the CLI reads a version-23 document's fields the same way, whoever wrote it.
-const analysisVersion = 23;
+///
+/// Version 24 reports an `await` as a call of `Future.then`: the VM awaits a
+/// `_Future` without calling `then`, but any other `Future` (a Flutter
+/// `TickerFuture`, a user class) has its `then` called by selector
+/// (`_SuspendState._awaitUserDefinedFuture`), and no source token names it.
+/// The entry is `dart:async` `Future` `then`, with `receiverLibrary` and
+/// `receiverClass` when the operand's static type is a class other than
+/// `Future` (`await controller.forward()` names `TickerFuture`). An operand
+/// that cannot be a `Future` (`await 1`) reports nothing; one that might be
+/// (`dynamic`, `FutureOr`, `Object?`, a type parameter) reports the entry with
+/// no receiver. A document below 24 never has them.
+const analysisVersion = 24;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -4177,6 +4188,42 @@ class _ExternalUses extends RecursiveVisitor {
       return null;
     }
     return cls;
+  }
+
+  /// `await e` calls `then` on `e` unless `e` is a `_Future` (analysis
+  /// version 24). A static type that is a `Future` subtype names that class
+  /// as the receiver; one that cannot be a `Future` reports nothing.
+  @override
+  void visitAwaitExpression(AwaitExpression node) {
+    final context = staticTypes;
+    DartType? type;
+    if (context != null) {
+      try {
+        type = node.operand.getStaticType(context);
+      } on Object {
+        // Not knowing the type narrows nothing: the entry is still reported.
+        type = null;
+      }
+    }
+    Class? receiver;
+    var mayBeFuture = true;
+    if (context != null && type is InterfaceType) {
+      final cls = type.classNode;
+      final futureClass = context.typeEnvironment.coreTypes.futureClass;
+      final isFuture = context.typeEnvironment.hierarchy.isSubInterfaceOf(
+        cls,
+        futureClass,
+      );
+      if (isFuture) {
+        receiver = cls == futureClass ? null : cls;
+      } else {
+        // Only `Object` (and `dynamic`, `FutureOr`, ...) can hold a Future
+        // without being one; any other class cannot.
+        mayBeFuture = cls == context.typeEnvironment.coreTypes.objectClass;
+      }
+    }
+    if (mayBeFuture) _sdk('dart:async', 'Future', 'then', receiver: receiver);
+    super.visitAwaitExpression(node);
   }
 
   @override

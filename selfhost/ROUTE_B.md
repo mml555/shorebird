@@ -581,6 +581,23 @@ parameter or an extension type names no receiver and is checked as before, and
 so is a class the release's snapshot does not hold. A refusal names the
 receiver ("`Iterable.iterator` over a `List`").
 
+**Awaits (analysis 24).** The VM awaits a `_Future` without calling `then`, but
+calls the `then` of any other `Future` by selector
+(`_SuspendState._awaitUserDefinedFuture`), so `await controller.forward()` (a
+`TickerFuture`) needs a `then` the release may never have compiled (#254). From 24
+the analyzer reports each `await` as `Future.then` (`dart:async`), with
+`receiverClass` when the operand's static type is a `Future` subtype (`TickerFuture`);
+a plain `Future`, `FutureOr`, `dynamic` or `Object?` operand names no receiver and is
+asked of every `Future` the release allocates, the same as an explicit `.then`; an
+operand that cannot be a `Future` (`await 1`) reports nothing. A refusal is therefore
+possible for an `await` on a `Future` in a release that allocates a `TickerFuture`
+without a compiled `then`, and awaiting is no longer offered as a way around a refused
+`.then`. A cell below 24 cannot see awaits, so the CLI refuses its patches (unless
+`--allow-unchecked-sdk-calls`) only when the release's snapshot shows the hazard (a
+`Future` subtype with no compiled `then`); otherwise they are unaffected. The
+analyzer is in the cell (`route_b_analyze.aot`), so analysis 24 reaches a release only
+through a re-cut cell; the engine and the rest of the compiler archive do not change.
+
 A cell whose analyzer writes version 23 needs a CLI that knows 23: an older CLI
 refuses an analysis version it does not know, so with such a cell it refuses
 every Route B patch until the CLI is upgraded. Ship the CLI first, then the
