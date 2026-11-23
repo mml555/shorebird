@@ -371,12 +371,12 @@ import 'package:kernel/type_environment.dart';
 /// spells: a `return e` in an `async` body, `Completer.complete(e)`,
 /// `Future.value(e)`, `Stream.fromFuture(e)`, `e.asStream()`, `Future.wait`,
 /// `Future.any`, `Stream.fromFutures`, the `.wait` extensions of iterables and
-/// records, and `Future.ignore()` and `Future.onError(...)`. NOT reported: a
-/// `Future` returned by
-/// a callback (`then`, `whenComplete`, `catchError`, `Future.delayed`,
-/// `Future.doWhile`, `Future.forEach`, `Future.microtask`,
-/// `timeout(onTimeout:)`, `Stream.asyncMap`), `StreamController.addStream`, and any other
-/// SDK or package code that calls `then` on a future it was given.
+/// records, and `Future.ignore()` and `Future.onError(...)`, called or torn
+/// off. NOT reported: a `Future` returned by a callback (`then`,
+/// `whenComplete`, `catchError`, `Future.delayed`, `Future.doWhile`,
+/// `Future.forEach`, `Future.microtask`, `timeout(onTimeout:)`,
+/// `Stream.asyncMap`), `StreamController.addStream`, and any other SDK or
+/// package code that calls `then` on a future it was given.
 const analysisVersion = 24;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
@@ -495,9 +495,7 @@ coverage/census_report.py, for what the numbers may and may not be read as.
   // Whether the BASE component carries its platform. A `--no-link-platform`
   // kernel names dart:core but binds no AST for it, so any hierarchy over it
   // throws. Measured, not assumed: the class list is what ClassHierarchy walks.
-  final baseIsLinked = base.libraries.any(
-    (l) => l.importUri.toString() == 'dart:core' && l.classes.isNotEmpty,
-  );
+  final baseIsLinked = componentIsLinked(base);
   late final baseHierarchy = ClassHierarchy(base, CoreTypes(base));
   late final patchedHierarchy = ClassHierarchy(patched, CoreTypes(patched));
 
@@ -788,10 +786,9 @@ coverage/census_report.py, for what the numbers may and may not be read as.
     }
   }
   final patchedTypes = TypeEnvironment(CoreTypes(patched), patchedHierarchy);
-  final futureWorld = FutureWorld(
+  final futureWorld = futureWorldFor(
     patchedTypes,
-    base: base,
-    baseIsLinked: baseIsLinked,
+    base,
     baseHierarchy: () => baseHierarchy,
   );
   final externalReferences = <String, List<Map<String, Object?>>>{
@@ -3390,6 +3387,26 @@ Map<String, Object?>? _privateKey(Member? target) {
   };
 }
 
+/// Whether [c] carries its platform. A `--no-link-platform` kernel names
+/// `dart:core` but binds no AST for it, so no hierarchy can be built over it.
+bool componentIsLinked(Component c) => c.libraries.any(
+  (l) => l.importUri.toString() == 'dart:core' && l.classes.isNotEmpty,
+);
+
+/// The world the patch is analyzed against: the patched component and the
+/// release's [base]. The one construction, called by the analyzer's `main` and
+/// by its tests. [baseHierarchy] reuses an already (lazily) built hierarchy.
+FutureWorld futureWorldFor(
+  TypeEnvironment patchedTypes,
+  Component base, {
+  ClassHierarchy Function()? baseHierarchy,
+}) => FutureWorld(
+  patchedTypes,
+  base: base,
+  baseIsLinked: componentIsLinked(base),
+  baseHierarchy: baseHierarchy,
+);
+
 /// The classes that can be a `Future` at run time, for the closed-world check
 /// of `await` and its kin (analysis version 24): the patched component's, and
 /// the release's when its kernel can be asked. A class the patch deletes or
@@ -3424,6 +3441,10 @@ class FutureWorld {
       for (final c in lib.classes) _key(c): c,
   };
 
+  late final Set<String> _baseClassNames = {
+    for (final c in _baseClasses.values) c.name,
+  };
+
   static String _key(Class c) => '${c.enclosingLibrary.importUri}#${c.name}';
 
   static ClassHierarchySubtypes? _subtypesOf(ClassHierarchy h) =>
@@ -3447,6 +3468,12 @@ class FutureWorld {
       final baseSubtypes = _baseSubtypes;
       if (baseSubtypes == null) return null;
       final baseCls = _baseClasses[_key(cls)];
+      // No class of that library and name in the release. A class the patch
+      // adds has no release subtype, so the patched ones are the answer; but
+      // a release class of the same name under another library URI is the
+      // same class seen under a moved URI, whose release subtypes cannot be
+      // found, so the world cannot say.
+      if (baseCls == null && _baseClassNames.contains(cls.name)) return null;
       if (baseCls != null) {
         final baseFuture = _baseCore.futureClass;
         for (final sub in baseSubtypes.getSubtypesOf(baseCls)) {
@@ -3468,6 +3495,10 @@ class FutureWorld {
 /// [types] is the type environment of the component [p] lives in. With it, an
 /// operator site the bytecode compiler turns into an opcode is marked
 /// `inlined` (analysis version 20); without it nothing is.
+///
+/// [world] answers which classes can be a `Future` (analysis version 24). With
+/// none, an `await` of a class or interface is not narrowed: the unnarrowed
+/// entry is reported.
 List<Map<String, Object?>> externalReferencesOf(
   Procedure p,
   Set<Member> carried, {
@@ -3479,7 +3510,7 @@ List<Map<String, Object?>> externalReferencesOf(
   carried,
   appMembersByName: appMembersByName,
   types: types,
-  world: world ?? (types == null ? null : FutureWorld(types)),
+  world: world,
 );
 
 List<Map<String, Object?>> _externalReferences(
@@ -4409,12 +4440,13 @@ class _ExternalUses extends RecursiveVisitor {
       _sdk('dart:async', 'Future', 'then');
       return;
     }
-    // `ticker.ignore()` and `ticker.onError(...)` call the receiver's `then`
-    // when it is not a `_Future`; the extension is a static call with the
-    // receiver as its first argument.
+    // `ticker.ignore()` and `ticker.onError(...)`, and their tear-offs
+    // (`FutureExtensions|get#ignore`), call the receiver's `then` when it is
+    // not a `_Future`; the extension is a static call with the receiver as its
+    // first argument.
     if (target.enclosingClass == null &&
         target.enclosingLibrary.importUri.toString() == 'dart:async' &&
-        RegExp(r'^FutureExtensions\|(ignore|onError)$').hasMatch(name) &&
+        RegExp(r'^FutureExtensions\|(get#)?(ignore|onError)$').hasMatch(name) &&
         arguments.positional.isNotEmpty) {
       _thenOf(arguments.positional.first);
       return;

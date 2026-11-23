@@ -1,10 +1,11 @@
 // Tests for the analysis version 24 report of an `await` as a call of
 // `Future.then` (`visitAwaitExpression`). Compiles `_source` with the host
 // Dart, then reads the kernel back with a real type environment. It needs the
-// engine's Dart, so CI does not run it.
+// engine's Dart (the `ddm` one below, which cannot compile kernel itself), and
+// a standalone Dart as HOST_DART to compile with. CI does not run it.
 //
 //   SRC=$HOME/shorebird-engine/flutter/engine/src
-//   HOST_DART=$SRC/out/host_release_arm64/dart-sdk/bin/dart \
+//   HOST_DART=$(which dart) \
 //   $SRC/out/host_release_arm64_ddm/dart-sdk/bin/dart \
 //     --packages=$SRC/flutter/third_party/dart/.dart_tool/package_config.json \
 //     selfhost/engine/route_b/coverage/await_references_test.dart
@@ -86,6 +87,8 @@ Future<void> sdkNone(Iterable<Model> i) async { await i; }
 Future<void> foreign(Foreign f) async { await f; }
 void ign(Ticker t) { t.ignore(); }
 void ignPlain(Future<int> f) { f.ignore(); }
+void tearIgn(Ticker t) { final f = t.ignore; f(); }
+void tearErr(Ticker t) { final f = t.onError<Object>; f((e, s) => 1); }
 void onErr(Ticker t) { t.onError<Object>((e, s) => 1); }
 void main() {}
 ''';
@@ -106,6 +109,9 @@ void main() {}
 const _patchedSource = '''
 abstract class Pingable {}
 Future<void> iface(Pingable p) async { await p; }
+abstract class Fresh {}
+abstract class FreshSlow implements Fresh, Future<void> {}
+Future<void> fresh(Fresh f) async { await f; }
 void main() {}
 ''';
 
@@ -169,13 +175,16 @@ void main() {
 
     check(analysisVersion == 24, 'analysis version is 24');
 
-    List<Map<String, Object?>> then(String n) => _then(c, env, n);
+    List<Map<String, Object?>> then(String n) =>
+        _then(c, env, n, world: FutureWorld(env));
     bool narrowed(String n, String cls) =>
         then(n).length == 1 && then(n).single['receiverClass'] == cls;
     bool unnarrowed(String n) =>
         then(n).length == 1 && !then(n).single.containsKey('receiverClass');
     bool nothing(String n) => then(n).isEmpty;
     // Exactly these receiver classes, no other entry.
+    // The duplicate check is the `toSet()` clause: equal length and every
+    // class in the set would also pass for the same class listed twice.
     bool exactly(String n, Set<String> classes) {
       final entries = then(n);
       return entries.length == classes.length &&
@@ -250,6 +259,13 @@ void main() {
     check(exactly('ign', {'Ticker'}), 'Future.ignore() names the receiver');
     check(unnarrowed('ignPlain'), 'Future<int>.ignore() is unnarrowed');
     check(exactly('onErr', {'Ticker'}), 'Future.onError() names the receiver');
+    check(exactly('tearIgn', {'Ticker'}), 'a tear-off of ignore names it');
+    check(exactly('tearErr', {'Ticker'}), 'a tear-off of onError names it');
+    check(
+      _then(c, env, 'iface').length == 1 &&
+          !_then(c, env, 'iface').single.containsKey('receiverClass'),
+      'no world: an interface is not narrowed',
+    );
 
     // The release's classes count: `Gone` is only in the base.
     final base = _compile(host, dir, 'base', _baseSource);
@@ -262,23 +278,50 @@ void main() {
       ifaceWith(FutureWorld(pEnv)).isEmpty,
       'patched component alone: a deleted Future subtype is invisible',
     );
-    final withBase = ifaceWith(
-      FutureWorld(
-        pEnv,
-        base: base,
-        baseHierarchy: () => ClassHierarchy(base, CoreTypes(base)),
-      ),
-    );
+    // The same construction the analyzer's main uses.
+    final withBase = ifaceWith(futureWorldFor(pEnv, base));
     check(
       withBase.length == 1 && withBase.single['receiverClass'] == 'Gone',
       'a Future subtype only in the release is named: exactly [Gone]',
     );
-    final unlinked = ifaceWith(
-      FutureWorld(pEnv, base: base, baseIsLinked: false),
+    // A kernel without its platform: dart:core names no classes.
+    final unlinkedBase = _compile(host, dir, 'base', _baseSource);
+    unlinkedBase.libraries
+        .firstWhere((l) => l.importUri.toString() == 'dart:core')
+        .classes
+        .clear();
+    check(
+      !componentIsLinked(unlinkedBase),
+      'a platformless kernel is unlinked',
     );
+    final unlinked = ifaceWith(futureWorldFor(pEnv, unlinkedBase));
     check(
       unlinked.length == 1 && !unlinked.single.containsKey('receiverClass'),
       'a release kernel that cannot be asked leaves the entry unnarrowed',
+    );
+    // A class the patch adds has no release counterpart: patched subtypes only.
+    final fresh = _then(
+      patched,
+      pEnv,
+      'fresh',
+      world: futureWorldFor(pEnv, base),
+    );
+    check(
+      fresh.length == 1 && fresh.single['receiverClass'] == 'FreshSlow',
+      'a class only the patch has is asked of the patched component: [FreshSlow]',
+    );
+    // The same class name under another library URI is not new: the release's
+    // subtypes cannot be found, so the entry is not narrowed.
+    final moved = _compile(host, dir, 'base', _baseSource);
+    moved.libraries
+        .firstWhere((l) => l.importUri.toString().endsWith('app.dart'))
+        .importUri = Uri.parse(
+      'file:///moved/app.dart',
+    );
+    final missed = ifaceWith(futureWorldFor(pEnv, moved));
+    check(
+      missed.length == 1 && !missed.single.containsKey('receiverClass'),
+      'a class whose library URI moved is not narrowed',
     );
     final boxMember = then('f');
     check(
