@@ -3472,7 +3472,9 @@ class FutureWorld {
       // adds has no release subtype, so the patched ones are the answer; but
       // a release class of the same name under another library URI is the
       // same class seen under a moved URI, whose release subtypes cannot be
-      // found, so the world cannot say.
+      // found, so the world cannot say. Matching by name alone is deliberately
+      // coarse: a new class that shares a name with an unrelated release class
+      // is refused too, which over-refuses but never drops a report.
       if (baseCls == null && _baseClassNames.contains(cls.name)) return null;
       if (baseCls != null) {
         final baseFuture = _baseCore.futureClass;

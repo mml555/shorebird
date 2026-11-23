@@ -4,6 +4,10 @@
 // engine's Dart (the `ddm` one below, which cannot compile kernel itself), and
 // a standalone Dart as HOST_DART to compile with. CI does not run it.
 //
+// HOST_DART must be a standalone Dart, not one bundled with a Flutter checkout
+// (`which -a dart` lists them in PATH order). A BinaryBuilder or kernel version
+// error means it named the wrong one.
+//
 //   SRC=$HOME/shorebird-engine/flutter/engine/src
 //   HOST_DART=$(which dart) \
 //   $SRC/out/host_release_arm64_ddm/dart-sdk/bin/dart \
