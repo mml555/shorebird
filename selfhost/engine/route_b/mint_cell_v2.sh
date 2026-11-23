@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime repack repacked mintcellv infolist getinfo outf cffaedfe notelf
+# cspell:words dartaotruntime repack repacked mintcellv infolist getinfo outf cffaedfe notelf cputype
 #
 # mint_cell_v2.sh -- mint a successor v2 cell (macos-ios-android) whose only
 # difference from a DONOR v2 cell is some Route B compiler-cell files, such as a
@@ -213,28 +213,33 @@ gate_replacements() {
     [[ " $MC_REPLACEABLE " == *" $name "* ]] \
       || die "$name cannot be replaced by this script: no capability check exists for it (replaceable: $MC_REPLACEABLE)"
     [[ -s "$file" ]] || die "replacement $name is empty: $file"
-    magic=$(head -c 4 "$file" | od -An -tx1 | tr -d ' \n')
+    magic=$(head -c 8 "$file" | od -An -tx1 | tr -d ' \n')
     if [[ "$name" == dartaotruntime ]]; then
-      [[ "$magic" == cffaedfe ]] || die "$name is not a 64-bit little-endian Mach-O executable: $file"
+      # MH_MAGIC_64 then cputype CPU_TYPE_ARM64 (0x0100000c), both little-endian.
+      [[ "$magic" == cffaedfe0c000001 ]] || die "$name is not an arm64 Mach-O executable: $file"
     else
-      [[ "$magic" == 7f454c46 ]] || die "$name is not an ELF AOT snapshot: $file"
+      [[ "${magic:0:8}" == 7f454c46 ]] || die "$name is not an ELF AOT snapshot: $file"
     fi
     cp "$file" "$g/$name" || die "cannot copy $file"
   done
   chmod +x "$g/dartaotruntime"
   # The combination that will ship must work: the (possibly new) runtime has to
   # run the (possibly new) gen_kernel and analyzer, which are version-locked.
-  help=$(mc_run "$g/dartaotruntime" "$g/route_b_gen_kernel.aot" --help 2>>"$log") || true
+  echo "== gen_kernel --help" >> "$log"
+  help=$(mc_run "$g/dartaotruntime" "$g/route_b_gen_kernel.aot" --help 2>>"$log" | tee -a "$log") || true
   [[ "$help" == *"Compiles Dart sources to a kernel binary"* && "$help" == *"--platform"* ]] \
     || die "route_b_gen_kernel.aot run with the archive's dartaotruntime is not gen_kernel (see $log)"
-  help=$(mc_run "$g/dartaotruntime" "$g/route_b_analyze.aot" --help 2>>"$log") || true
+  echo "== analyzer --help" >> "$log"
+  help=$(mc_run "$g/dartaotruntime" "$g/route_b_analyze.aot" --help 2>>"$log" | tee -a "$log") || true
   [[ "$help" == *"Route B coverage analyzer"* && "$help" == *"--patched-dill"* ]] \
     || die "route_b_analyze.aot run with the archive's dartaotruntime is not the Route B coverage analyzer (--help lacks its name or --patched-dill; see $log)"
   printf 'void main() {}\n' > "$g/tiny.dart"
+  echo "== gen_kernel tiny.dart" >> "$log"
   mc_run "$g/dartaotruntime" "$g/route_b_gen_kernel.aot" --aot --platform "$g/vm_platform.dill" -o "$g/tiny.dill" "$g/tiny.dart" >>"$log" 2>&1 \
     || die "route_b_gen_kernel.aot could not compile a tiny AOT dill (see $log)"
+  echo "== analyzer on tiny.dill" >> "$log"
   ver=$(mc_run "$g/dartaotruntime" "$g/route_b_analyze.aot" --base-dill "$g/tiny.dill" --patched-dill "$g/tiny.dill" 2>>"$log" \
-    | python3 -I -c 'import json,sys; print(int(json.load(sys.stdin)["analysisVersion"]))') \
+    | tee -a "$log" | python3 -I -c 'import json,sys; print(int(json.load(sys.stdin)["analysisVersion"]))') \
     || die "route_b_analyze.aot did not report an analysisVersion on a tiny dill (see $log)"
   printf '; analysisVersion %s as reported by the file when run with the carried dartaotruntime (self-report, not verified)' "$ver" >> "$outf"
   echo "gate: runtime, gen_kernel and analyzer run together; analyzer reports analysisVersion $ver (self-report)" >&2
@@ -387,7 +392,10 @@ MC_DO=$(resolve_path "$MC_DONOR_OVERLAY") || exit 1
 MC_OUT_NEW=0; [[ -e "$MC_OUT" ]] || MC_OUT_NEW=1
 mkdir -p "$MC_OUT" "$MC_EV" || die "cannot create --out / --evidence"
 MC_FINAL_DIR="$MC_EV/final"   # set here, in the parent, so the EXIT trap (also on SIGINT/SIGTERM) removes it
-trap 'rm -rf "$MC_TMP" "$MC_FINAL_DIR"; exit 130' INT TERM
+# An interrupt can land mid-publish, leaving partial address-named roots in --out
+# whose name the parent does not know yet. When this run created --out, remove it
+# whole; otherwise say what to check.
+trap 'rm -rf "$MC_TMP" "$MC_FINAL_DIR"; if [[ "$MC_OUT_NEW" == 1 ]]; then rm -rf "$MC_OUT"; else echo "interrupted: --out existed before this run; check it for a partial cell root" >&2; fi; exit 130' INT TERM
 # Remove what this run put in --out (the address-named roots), and the directories it created.
 cleanup_out() {
   [[ -z "${NEW:-}" ]] || find "$MC_OUT" -depth -type d -name "*$NEW*" -prune -exec rm -rf {} + 2>/dev/null
