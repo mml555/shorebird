@@ -1,3 +1,4 @@
+# cspell:words dumpsys getprop
 # Builds evidence/ from logs/: logcat excerpts, CLI verdict excerpts, origin summary, server request counts. Home paths -> ~, sig redacted.
 . "$(dirname "$0")/../env.sh"
 cd $R; E=$R/evidence; mkdir -p $E

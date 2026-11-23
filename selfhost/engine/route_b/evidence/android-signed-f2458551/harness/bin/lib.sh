@@ -1,4 +1,4 @@
-# cspell:words KEYGUARD keyguard verif
+# cspell:words KEYGUARD keyguard verif unlaunchable keyevent dumpsys
 # shared by steps.sh. The per-release SDK kept check is ON for every patch: no --allow-unchecked-sdk-calls anywhere.
 # cspell:words NUMS logcat pidof
 set -uo pipefail
