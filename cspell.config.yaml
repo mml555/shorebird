@@ -294,6 +294,11 @@ overrides:
   - filename: "selfhost/engine/route_b/evidence/android-cell-f2458551/**"
     ignoreWords: [Oplus, Supression, androi, debugsymbols, downloa, libappsdw, libappsl, libappspkae, libappsw, objcopy, scontext, vmfjjh, KEYGUARD, keyguard, dumpsys, keyevent, unlaunchable, getprop, Ptarget, Pverbose, bmgr, unredacted, pubadd, NUMS]
 
+  # The cell f2458551 signed Android run: the same captured logcat, Gradle and CLI
+  # lines as the run above, plus the step names (neg_keyb) and SPKI in key_fingerprints.txt.
+  - filename: "selfhost/engine/route_b/evidence/android-signed-f2458551/**"
+    ignoreWords: [Oplus, Ptarget, Pverbose, Supression, andr, debugsymbols, downloa, keyb, libappsar, objcopy, scontext, spki, vmfjjh]
+
   # Deliberate non-ASCII test input for the lowering matrix.
   - filename: "selfhost/engine/route_b/probes/lowering_matrix.sh"
     ignoreWords: ["Ünïcödé"]
