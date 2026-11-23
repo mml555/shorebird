@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# cspell:words repack repacked
+# cspell:words repack repacked compresslevel infolist
 """Repack a Route B compiler archive with some members replaced, deterministically.
 
     v2_repack_compiler.py <donor.zip> <out.zip> [NAME=FILE]... [--note TEXT]

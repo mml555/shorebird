@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words dartaotruntime repack repacked
+# cspell:words dartaotruntime repack repacked mintcellv infolist getinfo
 #
 # mint_cell_v2.sh -- mint a successor v2 cell (macos-ios-android) whose only
 # difference from a DONOR v2 cell is some Route B compiler-cell files, such as a
@@ -185,11 +185,12 @@ if [[ "$MC_CHECK" == 1 ]]; then
     n=$((n+1)); rel=${m//%H/$MC_DONOR}
     cmp -s "$MC_TMP/out-a/$rel" "$MC_DONOR_OVERLAY/$rel" || { diffs=$((diffs+1)); echo "    DIFFERS $rel"; }
   done < <(v2_members "$POLICY" "$MC_CELL")
-  [[ "$n" -gt 0 && "$diffs" == 0 ]] && ok "$n of $n members byte-identical to the donor overlay" || bad "$diffs of $n members differ"
+  if [[ "$n" -gt 0 && "$diffs" == 0 ]]; then ok "$n of $n members byte-identical to the donor overlay"; else bad "$diffs of $n members differ"; fi
   note "check b: repack keeps every other entry, and is deterministic"
   Z="$MC_DONOR_OVERLAY/${MC_ZIP//%H/$MC_DONOR}"
-  mkdir -p "$MC_TMP/zx" && unzip -q -o "$Z" -d "$MC_TMP/zx" || bad "cannot unzip the donor archive"
-  python3 -I - "$Z" "$MC_TMP/zx/route_b_analyze.aot" "$HERE/lib/v2_repack_compiler.py" "$MC_TMP/b1.zip" "$MC_TMP/b2.zip" "$MC_TMP/b3.zip" <<'PY' && ok "entry contents survive a repack; two repacks of a changed analyzer are byte-identical" || bad "repack check"
+  mkdir -p "$MC_TMP/zx"
+  unzip -q -o "$Z" -d "$MC_TMP/zx" || bad "cannot unzip the donor archive"
+  if python3 -I - "$Z" "$MC_TMP/zx/route_b_analyze.aot" "$HERE/lib/v2_repack_compiler.py" "$MC_TMP/b1.zip" "$MC_TMP/b2.zip" "$MC_TMP/b3.zip" <<'PY'
 import subprocess, sys, zipfile
 donor, an, tool, b1, b2, b3 = sys.argv[1:7]
 d = zipfile.ZipFile(donor)
@@ -208,6 +209,7 @@ for i in d.infolist():
     assert (i.date_time, i.external_attr, i.compress_type) == (j.date_time, j.external_attr, j.compress_type)
 assert [i.filename for i in d.infolist()] == [i.filename for i in x.infolist()]
 PY
+  then ok "entry contents survive a repack; two repacks of a changed analyzer are byte-identical"; else bad "repack check"; fi
   note "check c: the donor is not an accident; a changed analyzer must change the address"
   head -c 100 /dev/urandom > "$MC_TMP/fake.an"; cat "$MC_TMP/zx/route_b_analyze.aot" "$MC_TMP/fake.an" > "$MC_TMP/an2"
   C2=$(mint "$MC_TMP/out-c" "$MC_TMP/ev-c" "route_b_analyze.aot=$MC_TMP/an2") || { bad "mint with a replacement failed"; C2=""; }
