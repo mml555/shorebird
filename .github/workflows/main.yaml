@@ -262,6 +262,8 @@ jobs:
               - ./.github/workflows/main.yaml
               - ./tool/**
               - ./selfhost/ci/r12/check_rp_arms*
+              - ./selfhost/ci/r12/discover_release_closure.sh
+              - ./selfhost/scripts/ci_noninteractive.sh
               - ./selfhost/ci/r12/fixtures/**
 
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3

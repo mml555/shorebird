@@ -65,14 +65,24 @@ prompts, and exits 0 instead of 64. Do not gate on "NOTHING refused by the
 seal" alone; that also passes a run where arm 1, arm 2 or a detector self-test
 failed. Keep the log and check it:
 
+    set -o pipefail   # optional: keeps the script's own exit status through tee
     discover_release_closure.sh 2>&1 | tee rp.log
     selfhost/ci/r12/check_rp_arms.sh rp.log
 
 Exit 0 means the seal refused nothing, both self-tests fired, arm 1 and arm 2
 passed with no prompt reached, and arm 3's single-release exit 0 is the only
-failed check. 1 is a failed check; 2 is a log it cannot parse (no arms block,
-truncated, no verdict), which is not a pass. The step passes only on 0.
-`check_rp_arms_test.sh` covers it in CI.
+failed check. 1 is a failed check, including a run that stopped with something
+refused; a real arm 1 failure is 1 (the harness skips arm 1 patch after it). 2
+is a log it cannot parse (no arms block, truncated, no verdict, or two runs in
+one file), which is not a pass. The step passes only on 0, and the gate reads
+one run's log: write `rp.log` fresh, never `tee -a`.
+
+When it stops, the discovery script prints the last 120 lines of the harness
+output (`ci/r12/rp_iter.log`, the full output of the last iteration), enough
+for the whole arms block. The harness (`scripts/ci_noninteractive.sh`) is
+frozen and the gate matches its wording, so a reworded harness gives 2, not a
+pass. `check_rp_arms_test.sh` covers the gate in CI, and runs on edits to
+either script.
 
 ### SEALED **and** COLD, both
 
