@@ -590,21 +590,28 @@ without calling `then`, but calls the `then` of any other `Future` by selector
 foreign `Future` all reach, and by `Future.wait`, `Future.any`, `Stream.fromFuture`,
 `Stream.fromFutures` and `Future.asStream` (checked against the Dart SDK sources of the
 3.50 engine). From 24 the analyzer reports as `Future.then` (`dart:async`): each
-`await`; a `return e` in an `async` body; and `Completer.complete`, `Future.value`,
-`Stream.fromFuture` and `asStream` with that operand; and `Future.wait`, `Future.any`
-and `Stream.fromFutures` (no receiver). `receiverClass` names the operand's static type
-when it is a `Future` subtype (`TickerFuture`); every other operand that could hold a
-`Future` (`Future`, `FutureOr`, `dynamic`, `Object?`, an interface such as `Pingable`, a
-type parameter) is asked of every `Future` the release allocates, the same as an
-explicit `.then`. Only an operand that cannot be a `Future` (`int`, `String`, `Null`,
-a record, a function) reports nothing, and the lowered `await for` (`_StreamIterator`)
-is skipped. A refusal is therefore possible for an `await` on a `Future` in a release
-that allocates a `TickerFuture` without a compiled `then`, and awaiting is no longer
-offered as a way around a refused `.then`.
+`await`; a `return e` in an `async` body; `Completer.complete`, `Future.value`,
+`Stream.fromFuture` and `asStream` with that operand; and `Future.wait`, `Future.any`,
+`Stream.fromFutures` and the `.wait` extensions of iterables and records (no
+receiver). `receiverClass` names the operand's static type when it is a `Future`
+subtype (`TickerFuture`). For a class or interface that is not one, the analyzer asks the
+whole program (the release's and the patch's classes): it reports one entry per class
+that is a subtype of both it and `Future` (`Pingable`, with `class Slow implements
+Pingable, Future`, names `Slow`), and nothing when there is none (a `Model`). `Future`,
+`FutureOr`, `dynamic`, `Object?`, a type parameter or an extension type is asked of every
+`Future` the release allocates, the same as an explicit `.then`. An operand that cannot
+be a `Future` (`int`, `String`, `Null`, a record, a function) reports nothing, and the
+lowered `await for` (`_StreamIterator`) is skipped. A refusal is therefore possible for
+an `await` on a `Future` in a release that allocates a `TickerFuture` without a compiled
+`then`, and awaiting is no longer offered as a way around a refused `.then`. An `await`
+entry is asked like an explicit `.then`, which includes `_Future.then`, though awaiting a
+`_Future` never calls it; a release that compiled no `_Future.then` is not realistic (the
+framework calls `.then`), and the old-cell gate leaves `_Future` out only because it asks
+about the hazard alone.
 
 **Not covered (follow-up issue).** A `Future` returned by a callback (`then`,
 `whenComplete`, `catchError`, `Future.delayed`, `Future.doWhile`, `Future.forEach`,
-`Future.sync`'s computation), `StreamController.addStream`, and any SDK or package
+`Future.microtask`, `Future.sync`'s computation, `timeout(onTimeout:)`, `Stream.asyncMap`), `StreamController.addStream`, and any SDK or package
 code that calls `then` on a future it was given are not reported: the analyzer sees
 only the body's own spelling. A patch can still reach a missing `then` that way.
 

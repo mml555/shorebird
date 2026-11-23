@@ -2728,11 +2728,12 @@ callable:
                 int version, {
                 List<Map<String, Object?>> refs = const [],
                 bool noKeys = false,
+                bool reject = false,
               }) {
                 final coverage = RouteBCoverage.fromJson(
                   jsonEncode({
                     'analysisVersion': version,
-                    'verdict': 'accept',
+                    'verdict': reject ? 'reject' : 'accept',
                     'changed': ['package:app/main.dart#routeBValue'],
                     'carried': <String>[],
                     'callers': <String, Object>{},
@@ -2746,7 +2747,15 @@ callable:
                     'externalReferences': {
                       if (!noKeys) 'package:app/main.dart#routeBValue': refs,
                     },
-                    'rejections': <Object>[],
+                    'rejections': reject
+                        ? [
+                            {
+                              'target': 'package:app/main.dart#kValue',
+                              'category': 'declaration',
+                              'reason': 'a const changed',
+                            },
+                          ]
+                        : <Object>[],
                     'refusalSummary': null,
                   }),
                 );
@@ -2926,6 +2935,14 @@ callable:
                 coverageAt(23, noKeys: true);
                 await patchAndSwallow();
                 expect(awaitErrors(), isEmpty);
+              });
+
+              test('runs before the reject verdict is reported', () async {
+                release(snapshotProfile: profile(tickerThen: false));
+                coverageAt(23, reject: true);
+                await patchAndSwallow();
+                expect(awaitErrors(), hasLength(1));
+                expect(errors, hasLength(1));
               });
 
               test('runs after the retention check, not before', () async {

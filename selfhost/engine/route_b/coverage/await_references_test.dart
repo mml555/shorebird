@@ -33,6 +33,11 @@ const _source = '''
 abstract class Ticker implements Future<int> {}
 abstract class Pingable {}
 abstract class Slow implements Pingable, Future<void> {}
+class Model {}
+Future<Model> retModel() async { return Model(); }
+Future<void> awaitModel(Model m) async { await m; }
+Future<void> waits(Ticker t) async { await [t, t].wait; }
+Future<void> waitsRecord(Ticker t) async { await (t, t).wait; }
 class Box<T extends Future<int>> { Future<void> f(T t) async { await t; } }
 extension type Wrapped(Future<int> f) implements Future<int> {}
 Future<void> ticker(Ticker t) async { await t; }
@@ -126,8 +131,14 @@ void main() {
     check(unnarrowed('futureOr'), 'await on a FutureOr is unnarrowed');
     check(unnarrowed('object'), 'await on Object? is unnarrowed');
     check(
-      unnarrowed('iface'),
-      'await on an interface a Future could implement is unnarrowed (Slow)',
+      narrowed('iface', 'Slow'),
+      'await on an interface some Future subtype implements names that class',
+    );
+    check(nothing('retModel'), 'return of a Model reports nothing');
+    check(nothing('awaitModel'), 'await on a Model reports nothing');
+    check(
+      unnarrowed('waits') && unnarrowed('waitsRecord'),
+      '[a, b].wait and (a, b).wait are Future.then',
     );
     check(narrowed('twice', 'Ticker'), 'repeated awaits are one entry');
     check(nothing('none'), 'no await, no entry');

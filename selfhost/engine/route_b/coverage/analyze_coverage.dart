@@ -355,17 +355,23 @@ import 'package:kernel/type_environment.dart';
 /// The entry is `dart:async` `Future` `then`, with `receiverLibrary` and
 /// `receiverClass` when the operand's static type is a class other than
 /// `Future` (`await controller.forward()` names `TickerFuture`). An operand
-/// that cannot be a `Future` (`await 1`, a record, a function) reports
-/// nothing; any other (`dynamic`, `FutureOr`, `Object?`, a type parameter, an
-/// interface a `Future` could implement) reports the entry with no receiver. A document below 24 never has them.
+/// that cannot be a `Future` (`await 1`, a record, a function, or a class no
+/// `Future` subtype shares a subtype with, such as a `Model`) reports
+/// nothing. `dynamic`, `FutureOr`, `Object?`, a type parameter or an extension
+/// type reports the entry with no receiver. A class or interface reports one
+/// entry per class of the component that is a subtype of both it and `Future`
+/// (`Pingable` with `class Slow implements Pingable, Future` names `Slow`), and
+/// nothing when there is none. A document below 24 never has them.
 ///
 /// The same entry is reported
 /// for the other places the VM calls `then` on a foreign future that the body
 /// spells: a `return e` in an `async` body, `Completer.complete(e)`,
 /// `Future.value(e)`, `Stream.fromFuture(e)`, `e.asStream()`, `Future.wait`,
-/// `Future.any` and `Stream.fromFutures`. NOT reported: a `Future` returned by
+/// `Future.any`, `Stream.fromFutures` and the `.wait` extensions of iterables
+/// and records. NOT reported: a `Future` returned by
 /// a callback (`then`, `whenComplete`, `catchError`, `Future.delayed`,
-/// `Future.doWhile`, `forEach`), `StreamController.addStream`, and any other
+/// `Future.doWhile`, `Future.forEach`, `Future.microtask`,
+/// `timeout(onTimeout:)`, `Stream.asyncMap`), `StreamController.addStream`, and any other
 /// SDK or package code that calls `then` on a future it was given.
 const analysisVersion = 24;
 
@@ -4210,18 +4216,7 @@ class _ExternalUses extends RecursiveVisitor {
   /// only a `return e` in an `async` body hands `e` to the completer.
   final _asyncMarkers = <AsyncMarker>[];
 
-  /// Core classes no program can subclass, so a value of one is never a
-  /// `Future`. Everything else (an interface, a mixin, a user class, `Object`,
-  /// a type parameter) can hold one: `class Slow implements Pingable, Future`.
-  static const _neverFutureCoreClasses = {
-    'int',
-    'double',
-    'num',
-    'bool',
-    'String',
-    'Null',
-    'Symbol',
-  };
+  ClassHierarchySubtypes? _subtypes;
 
   /// Reports a call of `Future.then` the VM makes on the value of [operand]
   /// (analysis version 24): an `await` of it, a `return` of it from an
@@ -4252,7 +4247,7 @@ class _ExternalUses extends RecursiveVisitor {
         type = null;
       }
     }
-    Class? receiver;
+    final receivers = <Class>[];
     if (context != null && type != null) {
       if (type is RecordType ||
           type is FunctionType ||
@@ -4262,19 +4257,37 @@ class _ExternalUses extends RecursiveVisitor {
       }
       if (type is InterfaceType) {
         final cls = type.classNode;
-        final futureClass = context.typeEnvironment.coreTypes.futureClass;
-        if (context.typeEnvironment.hierarchy.isSubInterfaceOf(
-          cls,
-          futureClass,
-        )) {
-          receiver = cls == futureClass ? null : cls;
-        } else if (cls.enclosingLibrary.importUri.toString() == 'dart:core' &&
-            _neverFutureCoreClasses.contains(cls.name)) {
-          return;
+        final env = context.typeEnvironment;
+        final futureClass = env.coreTypes.futureClass;
+        if (env.hierarchy.isSubInterfaceOf(cls, futureClass)) {
+          if (cls != futureClass) receivers.add(cls);
+        } else if (cls != env.coreTypes.objectClass) {
+          // Closed world: the component holds every class the program has,
+          // the patch's own included, so a value of this static type is a
+          // `Future` only if some class is a subtype of both (`class Slow
+          // implements Pingable, Future`). None: it cannot be one.
+          final world = env.hierarchy;
+          if (world is! ClosedWorldClassHierarchy) {
+            // Not a whole-program hierarchy: cannot say none, so report.
+            _sdk('dart:async', 'Future', 'then');
+            return;
+          }
+          for (final sub
+              in (_subtypes ??= world.computeSubtypesInformation())
+                  .getSubtypesOf(cls)) {
+            if (world.isSubInterfaceOf(sub, futureClass)) receivers.add(sub);
+          }
+          if (receivers.isEmpty) return;
         }
       }
     }
-    _sdk('dart:async', 'Future', 'then', receiver: receiver);
+    if (receivers.isEmpty) {
+      _sdk('dart:async', 'Future', 'then');
+    } else {
+      for (final r in receivers) {
+        _sdk('dart:async', 'Future', 'then', receiver: r);
+      }
+    }
   }
 
   @override
@@ -4303,6 +4316,16 @@ class _ExternalUses extends RecursiveVisitor {
   /// whose element type is not read, so they report the unnarrowed entry.
   void _thenChains(Member target, Arguments arguments, Expression? receiver) {
     final name = target.name.text;
+    // `[a, b].wait` and `(a, b).wait` are `dart:async` extension getters,
+    // which have no enclosing class.
+    if (target.enclosingClass == null &&
+        target.enclosingLibrary.importUri.toString() == 'dart:async' &&
+        RegExp(
+          r'^(FutureIterable|FutureRecord\d+)\|get#wait$',
+        ).hasMatch(name)) {
+      _sdk('dart:async', 'Future', 'then');
+      return;
+    }
     if (_isCore(target, 'dart:async', 'Future')) {
       if (name == 'wait' || name == 'any') {
         _sdk('dart:async', 'Future', 'then');
