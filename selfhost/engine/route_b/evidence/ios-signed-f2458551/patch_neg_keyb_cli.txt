@@ -1,0 +1,48 @@
+## patch_neg_keyb.log (6237 lines; excerpt with original line numbers)
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+20:Exited with code 0
+40:Exited with code 0
+42:Exited with code 0
+46:Exited with code 0
+310:[        ] executing: [~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d7b8b88fbd2d4974/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+408:               /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -clonedSourcePackagesDirPath ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/ios/SourcePackages -skipPackagePluginValidation -skipPackageSignatureValidation -list
+432:[        ] executing: [~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/ios/Runner.xcodeproj/] /usr/bin/arch -arm64e xcrun xcodebuild -clonedSourcePackagesDirPath ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/ios/SourcePackages -skipPa
+434:               /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -clonedSourcePackagesDirPath ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/ios/SourcePackages -skipPackagePluginValidation -skipPackageSignatureValidation -project ~/Develo
+642:               ENTITLEMENTS_DESTINATION = Signature
+1076:           	<key>CFBundleSignature</key>
+1184:           	<key>CFBundleSignature</key>
+1809:                export ENTITLEMENTS_DESTINATION=Signature
+2559:                export SIGNATURE_METADATA_FOLDER_PATH=~/Library/Developer/Xcode/DerivedData/Runner-dibmtztcmptjfcaibsnerjcrnara/Build/Intermediates.noindex/ArchiveIntermediates/Runner/BuildProductsPath/Signatures
+2990:            [   +1 ms] executing: [~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d7b8b88fbd2d4974/] git -c log.showSignature=false log -n 1 --pretty=format:%H
+2991:            [  +11 ms] Exit code 0 from: git -c log.showSignature=false log -n 1 --pretty=format:%H
+3183:            [        ] executing: [~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d7b8b88fbd2d4974/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+3184:            [   +9 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+3239:            [        ] exiting with code 0
+3288:            Build description signature: 17f1f67ea12b8db58627be0d9a0ae8d2
+3725:                export ENTITLEMENTS_DESTINATION\=Signature
+4007:                export SIGNATURE_METADATA_FOLDER_PATH\=~/Library/Developer/Xcode/DerivedData/Runner-dibmtztcmptjfcaibsnerjcrnara/Build/Intermediates.noindex/ArchiveIntermediates/Runner/BuildProductsPath/Signatures
+4149:            [   +1 ms] executing: [~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d7b8b88fbd2d4974/] git -c log.showSignature=false log -n 1 --pretty=format:%H
+4150:            [   +8 ms] Exit code 0 from: git -c log.showSignature=false log -n 1 --pretty=format:%H
+4318:            [        ] executing: [~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d7b8b88fbd2d4974/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+4319:            [   +7 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+4424:            [        ] exiting with code 0
+4935:                export ENTITLEMENTS_DESTINATION\=Signature
+5218:                export SIGNATURE_METADATA_FOLDER_PATH\=~/Library/Developer/Xcode/DerivedData/Runner-dibmtztcmptjfcaibsnerjcrnara/Build/Intermediates.noindex/ArchiveIntermediates/Runner/BuildProductsPath/Signatures
+5479:           	<key>CFBundleSignature</key>
+5578:           	<key>CFBundleSignature</key>
+5708:           	<key>CFBundleSignature</key>
+5838:           	<key>CFBundleSignature</key>
+5968:           	<key>CFBundleSignature</key>
+6098:           	<key>CFBundleSignature</key>
+6195:[        ] exiting with code 0
+6198:Exited with code 0
+6205:Your app contains asset changes, which will not be included in the patch.
+6206:    Changed files:
+6207:        Products/Applications/Runner.app/Frameworks/App.framework/flutter_assets/shorebird.yaml
+6211:3 file(s) changed that are neither assets, Dart, nor recognized native code.
+6212:    Changed files:
+6214:        Products/Applications/Runner.app/Frameworks/App.framework/_CodeSignature/CodeResources
+6218:Exited with code 0
+6225:Not publishing: assets changed since the release, and a patch can't include those changes.
+6227:To publish the patch without them, pass --allow-asset-diffs.
+6229:Exited with code 128

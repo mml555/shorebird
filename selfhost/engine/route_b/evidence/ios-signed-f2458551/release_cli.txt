@@ -1,0 +1,8 @@
+16:COHERENT platform=ios engine=f2458551039ceb1a48a2ffb4a41dff35950fec5b | iOS engine identity: VERIFIED against the published cell
+30:[WARN] shorebird preview will not work for releases created with "--no-codesign". However, you can still preview your app by signing the generated .xcarchive in Xcode.
+31:[WARN] When you distribute the .xcarchive in Xcode, you MUST uncheck "Manage Version and Build Number" in the Distribute App dialog.
+34:This engine supports iOS Dart code push, so this release is being built with patchable call sites (~+4.5% app size). Without them a patch would install and change nothing.
+7194:This release is set up for Dart patches: verified 7156 patchable call sites (1796/MiB).
+7206:🕹️  Platform: ios
+7208:🔏 Patch Signing: your key
+7248:✅ Published Release 1.0.0+74!

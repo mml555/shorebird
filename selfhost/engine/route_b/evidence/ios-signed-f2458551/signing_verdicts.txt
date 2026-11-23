@@ -1,0 +1,39 @@
+# Every signature line from the device launches, and each CLI refusal, verbatim (home paths -> ~).
+combo_download: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 2, hash: "d6583d0502878a6e44d340012f3647b1b28e13f8c1ae65f1d0f6bd7ab4ba03c5", download_url: "http://10.0.0.242:18290/download/d4c90308542286e79d1ef92b083a34f4?exp=1795400845&sig=REDACTED", hash_signature: Some("Lx7q6wyerDLJ0NVUwcFaPTVptZrEyv8RU0QisenpTVHnxjtVa/uH9UL9t3q5zpNpMrizX7S1Dra0+NaPpMNIrf2Uh++AlytZSZ2oTYxwAEnZhxnoOQJUu6L1TvVQaWZW21eAdF/eJ8CGCB/rSQ9BAu1b7ahrxZpVR4AG5h1d6SNMFrGiyIQkSG2xP4g1x/pnrfZ9ZAGGF4oxifPfXF0MwDXZVrtg+jF/zvG9E7K+5jzfH8rwgpubABcF1aXvSqBlrDjPXU8XY45FrnW7vzwptkcnbwQUxP7G8oL4BdR7kEmPbrVY4TT5xsVg8zhi04GRp86c7GbXq2Rn3G8C/nQSBg=="), kind: Code }), rolled_back_patch_numbers: Some([]) }
+combo_download: [shorebird] Verifying patch signature...
+combo_download: [shorebird] Patch signature is valid
+combo2_download: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "d6583d0502878a6e44d340012f3647b1b28e13f8c1ae65f1d0f6bd7ab4ba03c5", download_url: "http://10.0.0.242:18290/download/79c230a651299b4ed101abe5c6bc8a6a?exp=1795401413&sig=REDACTED", hash_signature: Some("Lx7q6wyerDLJ0NVUwcFaPTVptZrEyv8RU0QisenpTVHnxjtVa/uH9UL9t3q5zpNpMrizX7S1Dra0+NaPpMNIrf2Uh++AlytZSZ2oTYxwAEnZhxnoOQJUu6L1TvVQaWZW21eAdF/eJ8CGCB/rSQ9BAu1b7ahrxZpVR4AG5h1d6SNMFrGiyIQkSG2xP4g1x/pnrfZ9ZAGGF4oxifPfXF0MwDXZVrtg+jF/zvG9E7K+5jzfH8rwgpubABcF1aXvSqBlrDjPXU8XY45FrnW7vzwptkcnbwQUxP7G8oL4BdR7kEmPbrVY4TT5xsVg8zhi04GRp86c7GbXq2Rn3G8C/nQSBg=="), kind: Code }), rolled_back_patch_numbers: Some([2]) }
+combo2_download: [shorebird] Verifying patch signature...
+combo2_download: [shorebird] Patch signature is valid
+neg_keyb_forced_boot: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 3, hash: "d6583d0502878a6e44d340012f3647b1b28e13f8c1ae65f1d0f6bd7ab4ba03c5", download_url: "http://10.0.0.242:18290/download/994356affaa13ac1772d2369465f85fd?exp=1795401273&sig=REDACTED", hash_signature: Some("gO+jJylYluwwvOrqjHQPtNyFdth6MJedfLU48MKxw5ra5YIhkhVHvhWxFELN8tchm0EpFylZaTQOshWXVwiBZiSZ7KPvvGXJTOk2flInUbiPUL5XPBTr3lufZn21wlGuY4xilSrLOkjXvekF6leecj94O4N/rIYKamno3jEQSf3SV3zCDB1bf0PFPeZ9szU/upSEUZ6bNEJVOXT32u23kghPRwL4yqxzBXtlgGwTFWoGrcFIJIH7GRMehhVvLX9cCTbkK5E4i/uwm4qHcFWoWdGDsTKLD+7R9gm7ES/aV8mmRRtAVuedXEPukxbF0ztyGt17E5YWx6EdT61T9CFPPg=="), kind: Code }), rolled_back_patch_numbers: Some([2]) }
+neg_keyb_forced_boot: [shorebird] Patch 3 is known bad, skipping.
+neg_keyb_forced_boot2: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 3, hash: "d6583d0502878a6e44d340012f3647b1b28e13f8c1ae65f1d0f6bd7ab4ba03c5", download_url: "http://10.0.0.242:18290/download/994356affaa13ac1772d2369465f85fd?exp=1795401317&sig=REDACTED", hash_signature: Some("gO+jJylYluwwvOrqjHQPtNyFdth6MJedfLU48MKxw5ra5YIhkhVHvhWxFELN8tchm0EpFylZaTQOshWXVwiBZiSZ7KPvvGXJTOk2flInUbiPUL5XPBTr3lufZn21wlGuY4xilSrLOkjXvekF6leecj94O4N/rIYKamno3jEQSf3SV3zCDB1bf0PFPeZ9szU/upSEUZ6bNEJVOXT32u23kghPRwL4yqxzBXtlgGwTFWoGrcFIJIH7GRMehhVvLX9cCTbkK5E4i/uwm4qHcFWoWdGDsTKLD+7R9gm7ES/aV8mmRRtAVuedXEPukxbF0ztyGt17E5YWx6EdT61T9CFPPg=="), kind: Code }), rolled_back_patch_numbers: Some([2]) }
+neg_keyb_forced_boot2: [shorebird] Patch 3 is known bad, skipping.
+neg_keyb_forced_download: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 3, hash: "d6583d0502878a6e44d340012f3647b1b28e13f8c1ae65f1d0f6bd7ab4ba03c5", download_url: "http://10.0.0.242:18290/download/994356affaa13ac1772d2369465f85fd?exp=1795401229&sig=REDACTED", hash_signature: Some("gO+jJylYluwwvOrqjHQPtNyFdth6MJedfLU48MKxw5ra5YIhkhVHvhWxFELN8tchm0EpFylZaTQOshWXVwiBZiSZ7KPvvGXJTOk2flInUbiPUL5XPBTr3lufZn21wlGuY4xilSrLOkjXvekF6leecj94O4N/rIYKamno3jEQSf3SV3zCDB1bf0PFPeZ9szU/upSEUZ6bNEJVOXT32u23kghPRwL4yqxzBXtlgGwTFWoGrcFIJIH7GRMehhVvLX9cCTbkK5E4i/uwm4qHcFWoWdGDsTKLD+7R9gm7ES/aV8mmRRtAVuedXEPukxbF0ztyGt17E5YWx6EdT61T9CFPPg=="), kind: Code }), rolled_back_patch_numbers: Some([2]) }
+neg_keyb_forced_download: [shorebird] Verifying patch signature...
+neg_keyb_forced_download: [shorebird] Patch signature is invalid
+neg_keyb_forced_download: [shorebird] Update failed: Patch signature could not be verified
+rb_learn: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "2f293f0cf9da6ed5c12de5a7edb2e9f5a1cfe88253838dc49839f842b78d55eb", download_url: "http://10.0.0.242:18290/download/2a873bc1201cf72db67d6f4315aa4c04?exp=1795400961&sig=REDACTED", hash_signature: Some("SpbpHRu4gfR2VmXrXjySPMde8v0qguOkAza2a4W2Ks7ScCZuPUR9U+65VXPjoGh87fjJ3dsrmmr2nvAF7PyrXGJBm30KWVChyvOdZbk7nCszsUFPidJQG2f9ytsmFa5rSEu52urWb7/SOi+YyFu+LGqUN8QEaD2qBrts5LePF5j4LPAXBiOxWkzLnCvK3UIRFu305llWDZot6ycgr+CeaN7HhXjmiWfq5rHe+CJyIKl0OKJ+tDQAJJKIe/M59tBilEu1FwvW8RX2KhfrOLsF08pnh0dMetbMIeLCHLoFjoYfgn28xprgxNGt0YlDU8b+gzdbvqDl+4xNftrCepFKBQ=="), kind: Code }), rolled_back_patch_numbers: Some([2]) }
+rb_learn: [shorebird] Verifying patch signature...
+rb_learn: [shorebird] Patch signature is valid
+trio_download: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "2f293f0cf9da6ed5c12de5a7edb2e9f5a1cfe88253838dc49839f842b78d55eb", download_url: "http://10.0.0.242:18290/download/2a873bc1201cf72db67d6f4315aa4c04?exp=1795400596&sig=REDACTED", hash_signature: Some("SpbpHRu4gfR2VmXrXjySPMde8v0qguOkAza2a4W2Ks7ScCZuPUR9U+65VXPjoGh87fjJ3dsrmmr2nvAF7PyrXGJBm30KWVChyvOdZbk7nCszsUFPidJQG2f9ytsmFa5rSEu52urWb7/SOi+YyFu+LGqUN8QEaD2qBrts5LePF5j4LPAXBiOxWkzLnCvK3UIRFu305llWDZot6ycgr+CeaN7HhXjmiWfq5rHe+CJyIKl0OKJ+tDQAJJKIe/M59tBilEu1FwvW8RX2KhfrOLsF08pnh0dMetbMIeLCHLoFjoYfgn28xprgxNGt0YlDU8b+gzdbvqDl+4xNftrCepFKBQ=="), kind: Code }), rolled_back_patch_numbers: Some([]) }
+trio_download: [shorebird] Verifying patch signature...
+trio_download: [shorebird] Patch signature is valid
+== patch_neg_unsigned.log (exit 64)
+Release 1.0.0+74 was signed with your own key, so its patches must be too. Pass the same public key as the release, with --public-key-path and --private-key-path, or --public-key-cmd and --sign-cmd.
+    --allow-asset-diffs            Patch even if asset diffs are detected.
+    --public-key-path              The path for a public key .pem file that will be used to validate patch signatures.
+    --public-key-cmd               Command that outputs a PEM-encoded public key to stdout for patch signature validation.
+== patch_neg_keyb.log (exit 70)
+Your app contains asset changes, which will not be included in the patch.
+        Products/Applications/Runner.app/Frameworks/App.framework/flutter_assets/shorebird.yaml
+Not publishing: assets changed since the release, and a patch can't include those changes.
+To publish the patch without them, pass --allow-asset-diffs.
+== patch_neg_mismatch.log (exit 70)
+Signature verification failed: the signature does not match the provided public key.
+Pass the public key of the key pair that signs the patch.
+== patch_neg_keyb_forced.log (exit 0)
+                export KEYS="--public-key-path=~/Developer/shorebird-wt/devrun/run-f2458551-signed/keys/b_public.pem --private-key-path=~/Developer/shorebird-wt/devrun/run-f2458551-signed/keys/b_private.pem --allow-asset-diffs"
+[WARN] Your app contains asset changes, which will not be included in the patch.
+        Products/Applications/Runner.app/Frameworks/App.framework/flutter_assets/shorebird.yaml
+✅ Published Patch 3!

@@ -1,0 +1,4 @@
+[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+                                                            This flag cannot be combined with "--analyze-size".
+                                                            This flag cannot be combined with "--split-debug-info".
+Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsZbIkc2/armeabi-v7a/libapp.so

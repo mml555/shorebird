@@ -1,0 +1,3 @@
+# SHA-256 of each public key, SPKI DER (openssl pkey -pubin -outform DER).
+a 90e7d47fec9c979416e83aeafb5c547a68db4c0c2efe7b33b89ecc09ff9f52cd
+b 9160874a8b9fe52e53b96b40793ae78e1756dd7b811db3dbd45067a2894e8eae

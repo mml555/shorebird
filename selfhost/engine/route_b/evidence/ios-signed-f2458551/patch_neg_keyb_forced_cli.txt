@@ -1,0 +1,72 @@
+## patch_neg_keyb_forced.log (6311 lines; excerpt with original line numbers)
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+20:Exited with code 0
+40:Exited with code 0
+42:Exited with code 0
+46:Exited with code 0
+310:[        ] executing: [~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d7b8b88fbd2d4974/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+408:               /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -clonedSourcePackagesDirPath ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/ios/SourcePackages -skipPackagePluginValidation -skipPackageSignatureValidation -list
+432:[        ] executing: [~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/ios/Runner.xcodeproj/] /usr/bin/arch -arm64e xcrun xcodebuild -clonedSourcePackagesDirPath ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/ios/SourcePackages -skipPa
+434:               /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -clonedSourcePackagesDirPath ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/ios/SourcePackages -skipPackagePluginValidation -skipPackageSignatureValidation -project ~/Develo
+642:               ENTITLEMENTS_DESTINATION = Signature
+1076:           	<key>CFBundleSignature</key>
+1184:           	<key>CFBundleSignature</key>
+1809:                export ENTITLEMENTS_DESTINATION=Signature
+2148:                export KEYS="--public-key-path=~/Developer/shorebird-wt/devrun/run-f2458551-signed/keys/b_public.pem --private-key-path=~/Developer/shorebird-wt/devrun/run-f2458551-signed/keys/b_private.pem --allow-asset-diffs"
+2559:                export SIGNATURE_METADATA_FOLDER_PATH=~/Library/Developer/Xcode/DerivedData/Runner-dibmtztcmptjfcaibsnerjcrnara/Build/Intermediates.noindex/ArchiveIntermediates/Runner/BuildProductsPath/Signatures
+2990:            [   +1 ms] executing: [~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d7b8b88fbd2d4974/] git -c log.showSignature=false log -n 1 --pretty=format:%H
+2991:            [  +10 ms] Exit code 0 from: git -c log.showSignature=false log -n 1 --pretty=format:%H
+3183:            [        ] executing: [~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d7b8b88fbd2d4974/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+3184:            [   +9 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+3239:            [        ] exiting with code 0
+3288:            Build description signature: ad799fcd047b65b776a7aaed29457889
+3725:                export ENTITLEMENTS_DESTINATION\=Signature
+4007:                export SIGNATURE_METADATA_FOLDER_PATH\=~/Library/Developer/Xcode/DerivedData/Runner-dibmtztcmptjfcaibsnerjcrnara/Build/Intermediates.noindex/ArchiveIntermediates/Runner/BuildProductsPath/Signatures
+4149:            [   +1 ms] executing: [~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d7b8b88fbd2d4974/] git -c log.showSignature=false log -n 1 --pretty=format:%H
+4150:            [   +8 ms] Exit code 0 from: git -c log.showSignature=false log -n 1 --pretty=format:%H
+4318:            [        ] executing: [~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/flutter/8f54cc7bc78915802fb29fa1d7b8b88fbd2d4974/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+4319:            [   +9 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+4424:            [        ] exiting with code 0
+4935:                export ENTITLEMENTS_DESTINATION\=Signature
+5218:                export SIGNATURE_METADATA_FOLDER_PATH\=~/Library/Developer/Xcode/DerivedData/Runner-dibmtztcmptjfcaibsnerjcrnara/Build/Intermediates.noindex/ArchiveIntermediates/Runner/BuildProductsPath/Signatures
+5479:           	<key>CFBundleSignature</key>
+5578:           	<key>CFBundleSignature</key>
+5708:           	<key>CFBundleSignature</key>
+5838:           	<key>CFBundleSignature</key>
+5968:           	<key>CFBundleSignature</key>
+6098:           	<key>CFBundleSignature</key>
+6195:[        ] exiting with code 0
+6198:Exited with code 0
+6205:[WARN] Your app contains asset changes, which will not be included in the patch.
+6206:    Changed files:
+6207:        Products/Applications/Runner.app/Frameworks/App.framework/flutter_assets/shorebird.yaml
+6211:3 file(s) changed that are neither assets, Dart, nor recognized native code.
+6212:    Changed files:
+6214:        Products/Applications/Runner.app/Frameworks/App.framework/_CodeSignature/CodeResources
+6218:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+6219:[route-b] P5-TARGET OPEN: release target lib/main.dart, this patch invoked with <default>. Recorded, not gated: no measurement has shown a target difference can admit a semantic mismatch that the release bindings accept.
+6221:[route-b] fetched cell descriptor from http://127.0.0.1:18185/download.shorebird.dev/shorebird/cell-manifests/f2458551039ceb1a48a2ffb4a41dff35950fec5b.v2
+6222:[route-b] using cached compiler bundle ~/Developer/shorebird-wt/devrun/run-f2458551/cli/bin/cache/artifacts/route-b-compiler/bundles/f2458551039ceb1a48a2ffb4a41dff35950fec5b-route-b-compiler-darwin-arm64.zip
+6223:[route-b] resolved compiler for engine f2458551039ceb1a48a2ffb4a41dff35950fec5b
+6244:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+6248:[route-b] compiled Circle.describe -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_0.bytecode
+6249:[route-b] compiled DetailPage.build -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_1.bytecode
+6250:[route-b] compiled Label.build -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_2.bytecode
+6251:[route-b] compiled Util.tag -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_3.bytecode
+6252:[route-b] compiled _HomeState._increment -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_4.bytecode
+6253:[route-b] compiled _HomeState._start -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_5.bytecode
+6254:[route-b] compiled _HomeState.build -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_6.bytecode
+6255:[route-b] compiled _HomeState.get:mood -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_7.bytecode
+6256:[route-b] compiled _HomeState.initState -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_8.bytecode
+6257:[route-b] compiled describeResult -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_9.bytecode
+6258:[route-b] compiled formatStamp -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_10.bytecode
+6259:[route-b] compiled levelName -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_11.bytecode
+6260:[route-b] compiled loadGreeting -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_12.bytecode
+6261:[route-b] compiled routeFor -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_13.bytecode
+6262:[route-b] compiled ticker -> ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/replacement_14.bytecode
+6263:[route-b] packed 27866 bytes for release b207a26f7fca990da4b4044161398baf at ~/Developer/shorebird-wt/devrun/run-f2458551-signed/work/untab/build/route_b/patch.sbrbptch
+6265:Exited with code 0
+6272:Exited with code 0
+6283:🕹️  Platform: iOS [arm64 (8.86 KB)]
+6300:✅ Published Patch 3!
+6303:Exited with code 128

@@ -1,0 +1,55 @@
+# neg_keyb_forced_boot: pid=30845 (alive after wait: yes)
+11-22 21:11:08.164 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+11-22 21:11:08.165 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode
+11-22 21:11:08.170 I flutter : updater::updater: [shorebird] Reporting launch start.
+11-22 21:11:08.174 I flutter : updater::updater: [shorebird] Reporting launch paused.
+11-22 21:11:08.179 I flutter : updater::updater: [shorebird] Reporting launch resumed.
+11-22 21:11:08.186 I flutter : updater::updater: [shorebird] Reporting successful launch.
+11-22 21:11:08.187 I flutter : updater::updater: [shorebird] Launch success for patch 2: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+11-22 21:11:08.188 I flutter : updater::network: [shorebird] Sending patch check request: app_id: 486558c7-546a-1ba5-ae5e-759a28c0f4d3, channel: stable, release_version: 1.0.0+1, host_bundle_id: dev.selfhost.untab.signed, platform: android, arch: arm, current_patch_number: Some(2)
+11-22 21:11:08.203 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "898763edd0c53fc86e8aa0a4266b5b1afe2cd001f21c7c7ad6b188c3fe1f8b61", download_url: "http://localhost:18290/download/17803a5974ec19abacb9a8136c4350de?exp=1795400167&sig=REDACTED", hash_signature: Some("ooTcxPfBubmIYQ+10lndOyaYORcm1CGTfXTf+IlkyaJboSqyrjJo9M2/xwezypNClvTisWhqHc9IlL7ALLgIfltpg4ovCOkCZnFR56mGtYsJCaqVCng4azcs39OHFZRlvhTGiadnwa4qSJQoTGS2w3sONbtbmTVHIiN5YsDOhv4iWd0OAou6N3m5DTg07EB0Jg5bknLqFLF/dRmgdUJnVku9SPlUKgBdWYRk1riTtb7Srb59J2oQRHiwbZfe0U0RPdhasFVlY3lw5Gl9GO34Zx9OFYBTNvRkPkLQcW4oIERVdPL+ZNC6JN3BwNaFW9M4v6EUKz0RPQucqMoUoXGbWQ=="), kind: Code }), rolled_back_patch_numbers: Some([3]) }
+11-22 21:11:08.203 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(74)] Using the Impeller rendering backend (Vulkan).
+11-22 21:11:08.205 I flutter : updater::updater: [shorebird] Patch 4 is known bad, skipping.
+11-22 21:11:08.205 I flutter : updater::updater: [shorebird] Update thread finished with status: Update available but previously failed to install. Not installing.
+11-22 21:11:08.216 I flutter : shape:init=I1
+11-22 21:11:08.216 I flutter : shape:home-build=H1 0
+11-22 21:11:08.216 I flutter : shape:future-builder=FB1 null
+11-22 21:11:08.216 I flutter : shape:label=L1
+11-22 21:11:08.424 I flutter : shape:future-builder=FB1 G1
+11-22 21:11:08.516 I flutter : shape:count=1
+11-22 21:11:08.524 I flutter : shape:home-build=H1 1
+11-22 21:11:08.525 I flutter : shape:future-builder=FB1 G1
+11-22 21:11:08.743 I flutter : shape:future-builder=FB1 G1
+11-22 21:11:08.817 I flutter : shape:count=2
+11-22 21:11:08.818 I flutter : shape:home-build=H1 2
+11-22 21:11:08.819 I flutter : shape:future-builder=FB1 G1
+11-22 21:11:09.036 I flutter : shape:future-builder=FB1 G1
+11-22 21:11:09.119 I flutter : shape:count=3
+11-22 21:11:09.135 I flutter : shape:home-build=H1 3
+11-22 21:11:09.136 I flutter : shape:future-builder=FB1 G1
+11-22 21:11:09.322 I flutter : shape:greeting=G1
+11-22 21:11:09.335 I flutter : shape:home-build=H1 3
+11-22 21:11:09.336 I flutter : shape:future-builder=FB1 G1
+11-22 21:11:09.373 I flutter : shape:stream=T0
+11-22 21:11:09.424 I flutter : shape:stream=T1
+11-22 21:11:09.477 I flutter : shape:stream=T2
+11-22 21:11:09.477 I flutter : shape:poly=circle1
+11-22 21:11:09.477 I flutter : shape:poly=square1
+11-22 21:11:09.477 I flutter : shape:mood=M1
+11-22 21:11:09.477 I flutter : shape:const=KT1
+11-22 21:11:09.477 I flutter : shape:level=hi1
+11-22 21:11:09.477 I flutter : shape:result=ok 7
+11-22 21:11:09.477 I flutter : shape:stars=***
+11-22 21:11:09.477 I flutter : shape:static=S1
+11-22 21:11:09.477 I flutter : shape:decorate=[P1:3]
+11-22 21:11:09.477 I flutter : shape:arith=2:false
+11-22 21:11:09.477 I flutter : shape:half=1.5
+11-22 21:11:09.477 I flutter : shape:box=T1
+11-22 21:11:09.477 I flutter : shape:generic=F1
+11-22 21:11:09.478 I flutter : shape:stamp=2026-11-15
+11-22 21:11:09.478 I flutter : shape:tally=K2 3 |||
+11-22 21:11:09.478 I flutter : shape:events=0
+11-22 21:11:09.478 I flutter : shape:done=START-DONE
+11-22 21:11:09.550 I flutter : shape:future-builder=FB1 G1
+11-22 21:11:09.550 I flutter : shape:route=R1 /detail
+11-22 21:11:09.569 I flutter : shape:detail=D1

@@ -82,13 +82,15 @@ The `a58774ab` launch and retention behaviour (#453, #454, #455) was not re-read
 
 Run on 2026-11-22 (later than this record's chain): an iPhone 7 release and Route B patch run through this cell, unsigned patches only, with limits ([`ios-cell-f2458551`](../../engine/route_b/evidence/ios-cell-f2458551/RESULT.md): iPhone 7, iOS 15.8.8, 12 published, 9 refused, 3 rollbacks, no launch failed). The earlier device-qualified cell is `a377ecb7`
 ([`ios-cell-a377ecb7`](../../engine/route_b/evidence/ios-cell-a377ecb7/RESULT.md)). This cell is over a different engine commit
-(the updater differs), and no device evidence of `a377ecb7` is claimed for it (the run above is this cell's own). The chain's Android release and patch were built and published under seal with the CLI arms passing; the harness itself frames that as "NOT self-certifying"
+(the updater differs), and no device evidence of `a377ecb7` is claimed for it (the run above is this cell's own). A second iPhone run applied signed patches and rejected a wrong-key patch on the phone
+([`ios-signed-f2458551`](../../engine/route_b/evidence/ios-signed-f2458551/RESULT.md)). The chain's Android release and patch were built and published under seal with the CLI arms passing; the harness itself frames that as "NOT self-certifying"
 (`armA.log:147-151`). A physical Android run (OnePlus CPH2551, Android 16) applied 9 patches and 2 rollbacks on this cell on 2026-11-22, unsigned patches only
-([`android-cell-f2458551`](../../engine/route_b/evidence/android-cell-f2458551/RESULT.md)).
+([`android-cell-f2458551`](../../engine/route_b/evidence/android-cell-f2458551/RESULT.md)); a second run there applied signed patches on arm64 and armeabi-v7a and rejected a wrong-key patch on the phone
+([`android-signed-f2458551`](../../engine/route_b/evidence/android-signed-f2458551/RESULT.md)).
 
 ## Not done
 
-- Signed-patch device run, and the on-device `state_diag.log` of the iPhone run (not read).
+- The on-device `state_diag.log` of the iPhone run (not read).
 - `selfhost/engine/route_b/verify_supported_state.sh` ran after the iPhone run (`VERIFY_f2458551.txt`): it failed one check on the record as #271 merged it (`cli_revision` still named 64a64473, which selects a377ecb7), and passed once #273 set it to `c212f715`.
 - Port the post-step-7 failure check (`arm 1 release FAILED|arm 2 FAILED`) from the `a377ecb7` resume script into `selfhost/ci`. In this run arms 1 and 2 exited 0, read from the log, not enforced by the chain.
 - shorebird-flutter's `selfhost-engine-mirror` action downloads a single `overlay-<engine>.tar`, but this engine's overlay is released in parts, so shorebird-flutter CI on a commit whose `engine.version` is `09c6f422` (or `e737ede3`)

@@ -1,0 +1,378 @@
+--- b_before: pid=30406 (alive after wait: yes); current_patch_number: Some(2);
+D WindowOnBackDispatcher:  predictive settings is disabled for dev.selfhost.untab.signed
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode
+W st.untab.signed: type=1400 audit(0.0:13842): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode" dev="dm-75" ino=579841 scontext=u:r:untrusted_app:s0
+W st.untab.signed: type=1400 audit(0.0:13843): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode" dev="dm-75" ino=579841 scontext=u:r:untrusted_app:s0
+I flutter : updater::updater: [shorebird] Reporting launch start.
+I flutter : updater::updater: [shorebird] Reporting launch paused.
+I flutter : updater::updater: [shorebird] Reporting launch resumed.
+I flutter : updater::updater: [shorebird] Reporting successful launch.
+I flutter : updater::updater: [shorebird] Launch success for patch 2: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+11-22 21:09:50.959 30406 30406 D OplusActivityThreadExtImpl: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.SupressionGC [int, int]
+11-22 21:09:50.971 30406 30418 D OplusAppHeapManager: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.updateProcessValue [int, int, int]
+11-22 21:09:51.002 30406 30406 E OplusPredictiveBackController:  NoSuchMethodException 
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K2 3 |||
+patch neg_keyb_forced exit=0
+1207:[        ] Starting process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''. Working directory: ~/Developer/shorebird-wt/devrun/run-f2458551-android-signed/work/untab/andr
+1209:[        ] Starting process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''. Working directory: ~/Developer/shorebird-wt/devrun/run-f2458551-android-signed/work/untab/andr
+1225:[        ]   Input property 'nativeDebugMetadataFiles' file ~/Developer/shorebird-wt/devrun/run-f2458551-android-signed/work/untab/build/app/intermediates/native_symbol_tables/release/extractReleaseNativeSymbolTables/out/arm64-v8a/libapp.so.sy
+1226:[        ]   Input property 'nativeDebugMetadataFiles' file ~/Developer/shorebird-wt/devrun/run-f2458551-android-signed/work/untab/build/app/intermediates/native_symbol_tables/release/extractReleaseNativeSymbolTables/out/armeabi-v7a/libapp.so.
+1350:           /base/lib/armeabi-v7a/
+1351:           /base/lib/armeabi-v7a/libflutter.so
+1352:           /base/lib/armeabi-v7a/libapp.so
+1353:           /base/lib/arm64-v8a/
+1354:           /base/lib/arm64-v8a/libflutter.so
+1355:           /base/lib/arm64-v8a/libapp.so
+1395:           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/
+1396:           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/libflutter.so.sym
+1397:           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/libapp.so.sym
+1398:           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/
+1399:           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/libflutter.so.sym
+1400:           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/libapp.so.sym
+1419:        BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/libapp.so.sym
+1420:        BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/libapp.so.sym
+1432:Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsarIBYz/armeabi-v7a/libapp.so
+1433:[Process.run] ~/Developer/shorebird-wt/devrun/run-f2458551-android/cli/bin/cache/artifacts/patch/patch ~/Developer/shorebird-wt/devrun/run-f2458551-android/cli/bin/cache/release_artifacts/1-27ee447fb73004666e622feaf0afcedc53f67e313
+1439:Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsarIBYz/arm64-v8a/libapp.so
+1440:[Process.run] ~/Developer/shorebird-wt/devrun/run-f2458551-android/cli/bin/cache/artifacts/patch/patch ~/Developer/shorebird-wt/devrun/run-f2458551-android/cli/bin/cache/release_artifacts/2-2a38433077ceee80c47203e571622b97e3eadae6f
+1460:🕹️  Platform: Android [arm32 (5.52 KB), arm64 (5.47 KB), x86_64 (5.54 KB)]
+1481:✅ Published Patch 4!
+neg_keyb_forced PUBLISHED (a refusal was expected; checking the device)
+--- neg_keyb_forced_download: pid=30620 (alive after wait: yes); current_patch_number: Some(2);
+D WindowOnBackDispatcher:  predictive settings is disabled for dev.selfhost.untab.signed
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode
+W st.untab.signed: type=1400 audit(0.0:13844): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode" dev="dm-75" ino=579841 scontext=u:r:untrusted_app:s0
+W st.untab.signed: type=1400 audit(0.0:13845): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode" dev="dm-75" ino=579841 scontext=u:r:untrusted_app:s0
+I flutter : updater::updater: [shorebird] Reporting launch start.
+I flutter : updater::updater: [shorebird] Reporting launch paused.
+I flutter : updater::updater: [shorebird] Reporting launch resumed.
+I flutter : updater::updater: [shorebird] Reporting successful launch.
+I flutter : updater::updater: [shorebird] Launch success for patch 2: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+11-22 21:10:39.070 30620 30620 D OplusActivityThreadExtImpl: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.SupressionGC [int, int]
+11-22 21:10:39.084 30620 30636 D OplusAppHeapManager: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.updateProcessValue [int, int, int]
+11-22 21:10:39.114 30620 30620 E OplusPredictiveBackController:  NoSuchMethodException 
+11-22 21:10:39.167 30620 30657 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "898763edd0c53fc86e8aa0a4266b5b1afe2cd001f21
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K2 3 |||
+--- neg_keyb_forced_boot: pid=30845 (alive after wait: yes); current_patch_number: Some(2);
+D WindowOnBackDispatcher:  predictive settings is disabled for dev.selfhost.untab.signed
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode
+W st.untab.signed: type=1400 audit(0.0:13846): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode" dev="dm-75" ino=579841 scontext=u:r:untrusted_app:s0
+W st.untab.signed: type=1400 audit(0.0:13847): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode" dev="dm-75" ino=579841 scontext=u:r:untrusted_app:s0
+I flutter : updater::updater: [shorebird] Reporting launch start.
+I flutter : updater::updater: [shorebird] Reporting launch paused.
+I flutter : updater::updater: [shorebird] Reporting launch resumed.
+I flutter : updater::updater: [shorebird] Reporting successful launch.
+I flutter : updater::updater: [shorebird] Launch success for patch 2: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+11-22 21:11:08.111 30845 30845 D OplusActivityThreadExtImpl: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.SupressionGC [int, int]
+11-22 21:11:08.126 30845 30869 D OplusAppHeapManager: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.updateProcessValue [int, int, int]
+11-22 21:11:08.157 30845 30845 E OplusPredictiveBackController:  NoSuchMethodException 
+11-22 21:11:08.203 30845 30900 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "898763edd0c53fc86e8aa0a4266b5b1afe2cd001f21
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K2 3 |||
+--- neg_keyb_forced_boot2: pid=31077 (alive after wait: yes); current_patch_number: Some(2);
+D WindowOnBackDispatcher:  predictive settings is disabled for dev.selfhost.untab.signed
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode
+W st.untab.signed: type=1400 audit(0.0:13848): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode" dev="dm-75" ino=579841 scontext=u:r:untrusted_app:s0
+W st.untab.signed: type=1400 audit(0.0:13849): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode" dev="dm-75" ino=579841 scontext=u:r:untrusted_app:s0
+I flutter : updater::updater: [shorebird] Reporting launch start.
+I flutter : updater::updater: [shorebird] Reporting launch paused.
+I flutter : updater::updater: [shorebird] Reporting launch resumed.
+I flutter : updater::updater: [shorebird] Reporting successful launch.
+I flutter : updater::updater: [shorebird] Launch success for patch 2: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+11-22 21:11:37.168 31077 31077 D OplusActivityThreadExtImpl: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.SupressionGC [int, int]
+11-22 21:11:37.183 31077 31091 D OplusAppHeapManager: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.updateProcessValue [int, int, int]
+11-22 21:11:37.233 31077 31077 E OplusPredictiveBackController:  NoSuchMethodException 
+11-22 21:11:37.282 31077 31113 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "898763edd0c53fc86e8aa0a4266b5b1afe2cd001f21
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K2 3 |||
+patch p20 exit=0
+811:[        ] [  +49 ms] android_aot_bundle_release_android-arm: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: ~/Developer/shorebird-wt/devrun/run-f2458551-android-signed/work/untab/.dart_tool/flu
+812:[        ] [   +3 ms] android_aot_bundle_release_android-arm: Complete
+1053:[        ] file or directory '~/Developer/shorebird-wt/devrun/run-f2458551-android-signed/work/untab/build/app/intermediates/flutter/release/native_assets/jniLibs/lib/armeabi-v7a', not found
+1054:[        ] file or directory '~/Developer/shorebird-wt/devrun/run-f2458551-android-signed/work/untab/build/app/intermediates/flutter/release/native_assets/jniLibs/lib/arm64-v8a', not found
+1289:           /base/lib/armeabi-v7a/
+1290:           /base/lib/armeabi-v7a/libflutter.so
+1291:           /base/lib/armeabi-v7a/libapp.so
+1292:           /base/lib/arm64-v8a/
+1293:           /base/lib/arm64-v8a/libflutter.so
+1294:           /base/lib/arm64-v8a/libapp.so
+1334:           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/
+1335:           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/libflutter.so.sym
+1336:           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/libapp.so.sym
+1337:           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/
+1338:           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/libflutter.so.sym
+1339:           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/libapp.so.sym
+1353:        BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/libapp.so.sym
+1354:        BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/libapp.so.sym
+1366:Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libapps0og125/armeabi-v7a/libapp.so
+1367:[Process.run] ~/Developer/shorebird-wt/devrun/run-f2458551-android/cli/bin/cache/artifacts/patch/patch ~/Developer/shorebird-wt/devrun/run-f2458551-android/cli/bin/cache/release_artifacts/1-27ee447fb73004666e622feaf0afcedc53f67e313
+1373:Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libapps0og125/arm64-v8a/libapp.so
+1374:[Process.run] ~/Developer/shorebird-wt/devrun/run-f2458551-android/cli/bin/cache/artifacts/patch/patch ~/Developer/shorebird-wt/devrun/run-f2458551-android/cli/bin/cache/release_artifacts/2-2a38433077ceee80c47203e571622b97e3eadae6f
+1394:🕹️  Platform: Android [arm32 (5.52 KB), arm64 (5.47 KB), x86_64 (5.54 KB)]
+1415:✅ Published Patch 5!
+p20 PUBLISHED
+--- p20_download: pid=31342 (alive after wait: yes); current_patch_number: Some(2);
+D WindowOnBackDispatcher:  predictive settings is disabled for dev.selfhost.untab.signed
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode
+W st.untab.signed: type=1400 audit(0.0:13850): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode" dev="dm-75" ino=579841 scontext=u:r:untrusted_app:s0
+W st.untab.signed: type=1400 audit(0.0:13851): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/2/dlc.vmcode" dev="dm-75" ino=579841 scontext=u:r:untrusted_app:s0
+I flutter : updater::updater: [shorebird] Reporting launch start.
+I flutter : updater::updater: [shorebird] Reporting launch paused.
+I flutter : updater::updater: [shorebird] Reporting launch resumed.
+I flutter : updater::updater: [shorebird] Reporting successful launch.
+I flutter : updater::updater: [shorebird] Launch success for patch 2: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+11-22 21:12:28.101 31342 31342 D OplusActivityThreadExtImpl: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.SupressionGC [int, int]
+11-22 21:12:28.112 31342 31352 D OplusAppHeapManager: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.updateProcessValue [int, int, int]
+11-22 21:12:28.147 31342 31342 E OplusPredictiveBackController:  NoSuchMethodException 
+11-22 21:12:28.197 31342 31375 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 5, hash: "898763edd0c53fc86e8aa0a4266b5b1afe2cd001f21
+shape:arith=2:false
+shape:box=T1
+shape:const=KT1
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K2 3 |||
+--- p20_boot: pid=31513 (alive after wait: yes); current_patch_number: Some(5);
+D WindowOnBackDispatcher:  predictive settings is disabled for dev.selfhost.untab.signed
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.signed/files/shorebird_updater/patches/5/dlc.vmcode
+W st.untab.signed: type=1400 audit(0.0:13852): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/5/dlc.vmcode" dev="dm-75" ino=629467 scontext=u:r:untrusted_app:s0
+W st.untab.signed: type=1400 audit(0.0:13853): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/5/dlc.vmcode" dev="dm-75" ino=629467 scontext=u:r:untrusted_app:s0
+I flutter : updater::updater: [shorebird] Reporting launch start.
+I flutter : updater::updater: [shorebird] Reporting launch paused.
+I flutter : updater::updater: [shorebird] Reporting launch resumed.
+I flutter : updater::updater: [shorebird] Reporting successful launch.
+I flutter : updater::updater: [shorebird] Launch success for patch 5: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+11-22 21:12:57.261 31513 31513 D OplusActivityThreadExtImpl: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.SupressionGC [int, int]
+11-22 21:12:57.276 31513 31526 D OplusAppHeapManager: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.updateProcessValue [int, int, int]
+11-22 21:12:57.312 31513 31513 E OplusPredictiveBackController:  NoSuchMethodException 
+shape:arith=2:false
+shape:box=T1
+shape:const=KT2
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+--- p20_boot2: pid=31820 (alive after wait: yes); current_patch_number: Some(5);
+D WindowOnBackDispatcher:  predictive settings is disabled for dev.selfhost.untab.signed
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.signed/files/shorebird_updater/patches/5/dlc.vmcode
+W st.untab.signed: type=1400 audit(0.0:13854): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/5/dlc.vmcode" dev="dm-75" ino=629467 scontext=u:r:untrusted_app:s0
+W st.untab.signed: type=1400 audit(0.0:13855): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.signed/files/shorebird_updater/patches/5/dlc.vmcode" dev="dm-75" ino=629467 scontext=u:r:untrusted_app:s0
+I flutter : updater::updater: [shorebird] Reporting launch start.
+I flutter : updater::updater: [shorebird] Reporting launch paused.
+I flutter : updater::updater: [shorebird] Reporting launch resumed.
+I flutter : updater::updater: [shorebird] Reporting successful launch.
+I flutter : updater::updater: [shorebird] Launch success for patch 5: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+11-22 21:13:27.036 31820 31820 D OplusActivityThreadExtImpl: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.SupressionGC [int, int]
+11-22 21:13:27.050 31820 31837 D OplusAppHeapManager: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.updateProcessValue [int, int, int]
+11-22 21:13:27.081 31820 31820 E OplusPredictiveBackController:  NoSuchMethodException 
+shape:arith=2:false
+shape:box=T1
+shape:const=KT2
+shape:count=1
+shape:count=2
+shape:count=3
+shape:decorate=[P1:3]
+shape:detail=D1
+shape:done=START-DONE
+shape:events=0
+shape:future-builder=FB1 G1
+shape:future-builder=FB1 null
+shape:generic=F1
+shape:greeting=G1
+shape:half=1.5
+shape:home-build=H1 0
+shape:home-build=H1 1
+shape:home-build=H1 2
+shape:home-build=H1 3
+shape:init=I1
+shape:label=L1
+shape:level=hi1
+shape:mood=M1
+shape:poly=circle1
+shape:poly=square1
+shape:result=ok 7
+shape:route=R1 /detail
+shape:stamp=2026-11-15
+shape:stars=***
+shape:static=S1
+shape:tally=K1 3 |||
+trio 1
+p15 2
+arm32_m2 3
+neg_keyb_forced 4
+p20 5
+STEPS_B_DONE
+steps_b exit=0
