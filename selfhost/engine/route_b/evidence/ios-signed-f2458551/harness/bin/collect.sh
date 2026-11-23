@@ -3,7 +3,7 @@
 # cspell:words NUMS
 . "$(dirname "$0")/../env.sh"
 cd $R; E=$R/evidence; rm -rf $E; mkdir -p $E/harness/bin $E/screenshots
-red() { sed -E "s#~#~#g; s#a\.k\.a\. '[^']*'#a.k.a. '<device name>'#g; s#(sig=)[A-Za-z0-9_%.-]+#\1REDACTED#g; s#(\"sig\":\")[^\"]+#\1REDACTED#g; s#(Bearer )[A-Za-z0-9_.-]+#\1REDACTED#g"; }
+red() { sed -E "s#$HOME#~#g; s#a\.k\.a\. '[^']*'#a.k.a. '<device name>'#g; s#(sig=)[A-Za-z0-9_%.-]+#\1REDACTED#g; s#(\"sig\":\")[^\"]+#\1REDACTED#g; s#(Bearer )[A-Za-z0-9_.-]+#\1REDACTED#g"; }
 for f in logs/*.dbg; do b=$(basename $f .dbg); red < logs/$b.txt > $E/$b.log; done
 for f in logs/patch_*.log; do b=$(basename $f .log); n=$(wc -l < $f | tr -d ' ')
   { echo "## $b.log ($n lines; excerpt with original line numbers)"
@@ -29,5 +29,5 @@ PY
 cp keys/a_public.pem keys/b_public.pem $E/
 for f in bin/*.sh bin/*.py; do red < $f > $E/harness/$f; done; red < env.sh > $E/harness/env.sh
 for s in trio_boot_8 combo_boot_8 combo2_boot_8; do [ -f shots/$s.png ] && sips -Z 700 shots/$s.png --out $E/screenshots/$s.png >/dev/null; done
-grep -rlE 'PRIVATE KEY|~' --exclude=collect.sh $E && echo "LEAK CHECK FAILED" || echo "leak check ok"
+grep -rlE "PRIVATE KEY|$HOME" $E && echo "LEAK CHECK FAILED" || echo "leak check ok"
 du -sh $E

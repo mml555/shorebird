@@ -1,6 +1,6 @@
 # iOS signed-patch run through cell f2458551 (2026-11-22)
 
-**Result: on the iPhone 7 (iOS 15.8.8), through cell `f2458551039ceb1a48a2ffb4a41dff35950fec5b` (Flutter 3.50, engine `09c6f422`, updater `64a458f0`) and CLI `c212f715`, a release built with `--public-key-path` (key A; `release_cli.txt`: `Patch Signing: your key`) took 3 key-A Route B patches. Each was verified on the phone (`Patch signature is valid`), applied (3/3 or 15/15 targets) and showed its values on the next launch. A rollback fell back to the earlier patch, which verified again.**
+**Result: on the iPhone 7 (iOS 15.8.8), through cell `f2458551039ceb1a48a2ffb4a41dff35950fec5b` (Flutter 3.50, engine `09c6f422`, updater `64a458f0`) and CLI `c212f715`, a release built with `--public-key-path` (key A; `release_cli.txt`: `Patch Signing: your key`) took the 3 key-A Route B patches published to it (1, 2 and 4). Each was verified on the phone (`Patch signature is valid`), applied (3/3 or 15/15 targets) and showed its values on the next launch. A rollback fell back to the earlier patch, which verified again.**
 
 **The CLI refused an unsigned patch (exit 64) and an A-public/B-private patch (exit 70) with clear messages. It refused a patch signed entirely with key B (exit 70) only through the asset-diff check, which names the bundled `shorebird.yaml` and not the key. Forced through with `--allow-asset-diffs`, that key-B patch was published, and the phone rejected it at the patch check, before downloading anything: `Patch signature is invalid`, `Update failed: Patch signature could not be verified`. The next two launches logged `Patch 3 is known bad, skipping` and stayed on patch 1. The same code signed with key A (patch 4, the same hash as patch 3) then applied, 15/15 targets.**
 
@@ -8,14 +8,15 @@
 
 ## Limits
 
-- **One CLI, one device, one release.** CLI `c212f715` (the unsigned run's worktree at `devrun/run-f2458551/cli`, reused read-only), release `1.0.0+74` upgrade-installed over the unsigned run's `+73` (same bundle `dev.selfhost.untab`). Each patch is built against the release.
+- **One CLI, one device, one release.** CLI `c212f715` (the unsigned run's worktree at `devrun/run-f2458551/cli`, reused read-only), release `1.0.0+74`, installed with `ios-deploy --bundle` over the same bundle id as the unsigned run's `+73` (`dev.selfhost.untab`; `harness/bin/release.sh`, no uninstall step). Each patch is built against the release. One rollback ran (2 back to 1), against three in the unsigned run.
 - **The CLI's refusal of the key-B patch is a side effect.** A key-B patch bundles key B's public key in its generated (bundled) shorebird.yaml, and the release bundled key A. So the CLI lists `Products/Applications/Runner.app/Frameworks/App.framework/flutter_assets/shorebird.yaml` as a changed asset and stops ("Not publishing: assets changed since the release"; `signing_verdicts.txt`). Nothing names the key. PR #279 adds a direct key check. The phone's refusal below holds either way.
 - **Signing paths not covered:** `--sign-cmd` and `--public-key-cmd` (the keys were files), a patch whose bytes changed after signing, and key rotation.
 - **Only the trio and combo variants.** This run covers signing, not Route B coverage. The variants are the unsigned run's (`../ios-cell-f2458551/variants.py`, `main.dart`, `tally.dart`, byte-identical), and their values match that run's trio and combo steps.
 - **Two server sessions.** `go_b.sh` restarted the server for the forced key-B step. The first session's log was copied before that, so `server_requests.log` covers both: 74 + 31 requests, all 2xx.
 - **Artifacts.** The CLI's caches were warm from the unsigned run, so it made only 7 artifact requests (`artifact_origin.jsonl`), all to ci-build's cdn-cache `10.0.0.41:8085`, none naming the fallback engine. 3 were the cell manifest (200). 4 were `aot-tools.dill` (404), which the iOS Route B patch does not use; every patch built. `outbound_connect.jsonl` has 54 CONNECTs, all to `pub.dev`.
 - **Keys** were generated with `openssl genrsa 2048` for the Android signed run and reused here: the same two key pairs, so the fingerprints in `key_fingerprints.txt` match that run's. Only the public keys are here.
-- **Device left as found, plus our app.** Nothing was uninstalled. The app was upgrade-installed, which keeps its Local Network permission, and is still on patch 4.
+- **Device state.** The harness has no uninstall step, and the app still reached the server over the local network on every launch (each launch logs a patch check response), so its Local Network permission held. It is left installed on patch 4. No device setting was changed.
+- **Device identifiers.** The UDID (`install.txt`, `harness/env.sh`) and the Apple team, certificate and profile identifiers used to re-sign (`harness/bin/release.sh`) are in the files, as in the earlier `ios-cell-*` records. The device name is redacted.
 
 ## What ran
 

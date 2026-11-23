@@ -525,8 +525,8 @@ selector all moved. The device evidence of `54117a2f` on Flutter 3.47 does not c
 [`PROMOTION_a377ecb7.md`](evidence/r12-linux-ci/PROMOTION_a377ecb7.md).
 
 The cell that replaced `a377ecb7`, `f2458551` (2026-11-22), is over engine `09c6f422`: the same Flutter 3.50 source and Dart `0cd04a77` as `e737ede3`, with
-the updater in `DEPS` moved to `64a458f0` (mirror #10 and #11). Its compiler archive is that engine's own (`1edabab1`). The iPhone 7 run on this cell (2026-11-22, unsigned patches only, with limits; 
-[`ios-cell-f2458551`](engine/route_b/evidence/ios-cell-f2458551/RESULT.md)) repeated the `a377ecb7` run step for step: 12 patches published, 9 refused, 3 rollbacks, no launch failed. The record lists the differences; no syslog line separates the new updater from the old, the installed binary does. The promotion chain is in
+the updater in `DEPS` moved to `64a458f0` (mirror #10 and #11). Its compiler archive is that engine's own (`1edabab1`). The unsigned iPhone 7 run on this cell (2026-11-22, with limits; 
+[`ios-cell-f2458551`](engine/route_b/evidence/ios-cell-f2458551/RESULT.md)) repeated the `a377ecb7` run step for step: 12 patches published, 9 refused, 3 rollbacks, no launch failed. The record lists the differences; no syslog line separates the new updater from the old, the installed binary does. A signed run followed the same day ([`ios-signed-f2458551`](engine/route_b/evidence/ios-signed-f2458551/RESULT.md)): signed patches verified and applied on the phone, and a wrong-key patch forced past the CLI was rejected on the phone. The promotion chain is in
 [`PROMOTION_f2458551.md`](evidence/r12-linux-ci/PROMOTION_f2458551.md).
 
 ### A class or extension member's own statics (class scope)
