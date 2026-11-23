@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words COPYFILE
+# cspell:words COPYFILE xattr xattrs
 # promo_clone.sh -- set up the promotion workspace for a new cell on ci-build by
 # cloning the last one that passed, so the chain and arm B run exactly as they
 # did for it (selfhost/TOOLCHAIN_PROMOTION.md).
@@ -107,7 +107,8 @@ remote check
 if ((DRY)); then echo "DRY RUN: nothing written"; exit 0; fi
 T=$(mktemp -d); trap 'rm -rf "${T:?}"' EXIT
 git -C "$REPO" archive "$RS" selfhost/ci | tar -x -C "$T"
-# Mac tar adds AppleDouble (._*) entries that GNU tar on ci-build extracts as files.
-COPYFILE_DISABLE=1 tar -cf "$T/ci.tar" -C "$T/selfhost/ci" .
+# Mac tar adds AppleDouble (._*) entries that GNU tar on ci-build extracts as
+# files, and xattr headers (com.apple.provenance) it warns about once per file.
+COPYFILE_DISABLE=1 tar --no-xattrs -cf "$T/ci.tar" -C "$T/selfhost/ci" .
 scp -q "$T/ci.tar" "$HOST:$ROOT/tmp/promo-$N8-ci.tar"
 remote build
