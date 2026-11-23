@@ -1,0 +1,4 @@
+trio 1
+combo 2
+neg_keyb_forced 3
+combo2 4

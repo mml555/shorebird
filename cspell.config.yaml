@@ -10,7 +10,7 @@ version: "0.2"
 # cspell:ignore delibrate mispelt Shoul shutil stdlib gskinner hlcl hlclpqwxzq hlclxeca hlclqjttgm hlclx hldxg wfyg VVFRF WRVJTSU UNRE Volemes Ünïcödé Iterab
 # The tokens this file lists as ignoreWords or inline-scoped vocabulary, which
 # would otherwise be reported here, in the one place that names them.
-# cspell:ignore Adev andr keyb libappsar spki SPKI appintentsmetadataprocessor ARMC awdd bahbzlnwbnzgandjhqdtvhetfbmz backouts cdsdjeqqrxklqbhflafznjfwvgwp xattr backportcheck baselined Closurization closurized coolify corevideo crashreports cryptexd cstring ctypes dontneed DTSDK flavoredprobe frontboard gsprobe HEISENBUG hlfr idevicebackup inspectable jarsigner jwtfix kinded libpostal LINKEDIT Metaspace metriclog NCPU nehelper nogncheck noindex nutsdb operationalization parsecd productionized readback rearchive Refena refetched refspec relauncher reminted remoteserver Rssi screentime SDKROOT sdkstatcache shidduchcard signprobe simarm Siri staticness subsys systemappservices SYSV twolib unbisected undeployed UNDOTTED unexcluded unflushed unphotographed Unscorable unshallowed usagetracking VJOA vmfjjh WWDR XCUI xctool xctoolchain ZEROFILL xctoo CRVI DSEFO eiabzakrxhogaaephtfvaxuyavts EQVJUX Oplus Supression androi debugsymbols downloa libappsdw libappsl libappspkae libappsw objcopy scontext KEYGUARD keyguard dumpsys keyevent unlaunchable getprop Ptarget Pverbose bmgr unredacted pubadd NUMS
+# cspell:ignore Adev Develo dibmtztcmptjfcaibsnerjcrnara ignature olled pkey verif andr keyb libappsar spki SPKI appintentsmetadataprocessor ARMC awdd bahbzlnwbnzgandjhqdtvhetfbmz backouts cdsdjeqqrxklqbhflafznjfwvgwp xattr backportcheck baselined Closurization closurized coolify corevideo crashreports cryptexd cstring ctypes dontneed DTSDK flavoredprobe frontboard gsprobe HEISENBUG hlfr idevicebackup inspectable jarsigner jwtfix kinded libpostal LINKEDIT Metaspace metriclog NCPU nehelper nogncheck noindex nutsdb operationalization parsecd productionized readback rearchive Refena refetched refspec relauncher reminted remoteserver Rssi screentime SDKROOT sdkstatcache shidduchcard signprobe simarm Siri staticness subsys systemappservices SYSV twolib unbisected undeployed UNDOTTED unexcluded unflushed unphotographed Unscorable unshallowed usagetracking VJOA vmfjjh WWDR XCUI xctool xctoolchain ZEROFILL xctoo CRVI DSEFO eiabzakrxhogaaephtfvaxuyavts EQVJUX Oplus Supression androi debugsymbols downloa libappsdw libappsl libappspkae libappsw objcopy scontext KEYGUARD keyguard dumpsys keyevent unlaunchable getprop Ptarget Pverbose bmgr unredacted pubadd NUMS
 # Step 1 §3, per evidence/cspell/classification_precommit.md.
 #
 # STANDARD BRITISH AND AMERICAN VARIANTS ARE BOTH ACCEPTED. This is NOT a house
@@ -298,6 +298,12 @@ overrides:
   # lines as the run above, plus the step names (neg_keyb) and SPKI in key_fingerprints.txt.
   - filename: "selfhost/engine/route_b/evidence/android-signed-f2458551/**"
     ignoreWords: [Oplus, Ptarget, Pverbose, Supression, andr, debugsymbols, downloa, keyb, libappsar, objcopy, scontext, spki, vmfjjh]
+
+  # The cell f2458551 signed iPhone run: the same captured Xcode and syslog lines as
+  # ios-cell-f2458551, a DerivedData hash, grep fragments in collect.sh (ignature, olled,
+  # Develo), and the step names (neg_keyb).
+  - filename: "selfhost/engine/route_b/evidence/ios-signed-f2458551/**"
+    ignoreWords: [DTSDK, Develo, NUMS, SDKROOT, SPKI, appintentsmetadataprocessor, cryptexd, dibmtztcmptjfcaibsnerjcrnara, ignature, keyb, noindex, olled, pkey, sdkstatcache, verif, xctool, xctoolchain]
 
   # Deliberate non-ASCII test input for the lowering matrix.
   - filename: "selfhost/engine/route_b/probes/lowering_matrix.sh"

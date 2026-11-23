@@ -1,0 +1,8 @@
+## patch_neg_unsigned.log (103 lines; excerpt with original line numbers)
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+18:Exited with code 0
+25:Release 1.0.0+74 was signed with your own key, so its patches must be too. Pass the same public key as the release, with --public-key-path and --private-key-path, or --public-key-cmd and --sign-cmd.
+57:    --allow-asset-diffs            Patch even if asset diffs are detected.
+86:    --public-key-path              The path for a public key .pem file that will be used to validate patch signatures.
+87:    --public-key-cmd               Command that outputs a PEM-encoded public key to stdout for patch signature validation.
+88:    --sign-cmd                     Command that reads data from stdin and outputs a base64 signature to stdout.
