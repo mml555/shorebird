@@ -55,6 +55,25 @@ question. `compatibility.yaml` had stated the intent all along — the pin exist
     only then:
     compatibility.yaml → SUPPORTED
 
+### Gating the release/patch discovery step
+
+`discover_release_closure.sh` runs the frozen harness
+(`scripts/ci_noninteractive.sh`) under the seal. With a single release on the
+control plane its verdict is FAIL by design: arm 3 (patch with no
+`--release-version`, the release chooser) has one release to pick, never
+prompts, and exits 0 instead of 64. Do not gate on "NOTHING refused by the
+seal" alone; that also passes a run where arm 1, arm 2 or a detector self-test
+failed. Keep the log and check it:
+
+    discover_release_closure.sh 2>&1 | tee rp.log
+    selfhost/ci/r12/check_rp_arms.sh rp.log
+
+Exit 0 means the seal refused nothing, both self-tests fired, arm 1 and arm 2
+passed with no prompt reached, and arm 3's single-release exit 0 is the only
+failed check. 1 is a failed check; 2 is a log it cannot parse (no arms block,
+truncated, no verdict), which is not a pass. The step passes only on 0.
+`check_rp_arms_test.sh` covers it in CI.
+
 ### SEALED **and** COLD, both
 
 `upstream/sealed.caddy` still serves **cache hits** — that is what the air-gap
@@ -81,6 +100,7 @@ produced it (`ci/r12/pair_refusals.py`).
     ci/r12/discover_release_closure.sh   sealed release/patch closure discovery
     ci/r12/mirror_bootstrap_artifact.sh  import one bootstrap artifact w/ provenance
     ci/r12/mirror_cdn_artifact.sh        import by (client_path, gcs_path)
+    ci/r12/check_rp_arms.sh              gate on the discovery log's arms block
     ci/r12/launch.sh                     one decisive arm; runs both guards first
 
 The guard runs on the self-hosted machine, beside
