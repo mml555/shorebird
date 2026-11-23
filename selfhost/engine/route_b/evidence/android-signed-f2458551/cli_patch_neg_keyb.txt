@@ -1,0 +1,4 @@
+[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+                                                            This flag cannot be combined with "--analyze-size".
+                                                            This flag cannot be combined with "--split-debug-info".
+[  +96 ms] Tasks to be executed: [task ':app:validateCompileSdkVersion', task ':app:preBuild', task ':app:preReleaseBuild', task ':app:extractReleaseVersionControlInfo', task ':app:compileFlutterBuildRelease', task ':app:copyFlutterAssetsRelease', task ':app:generateReleaseAssets', task ':app:mergeR

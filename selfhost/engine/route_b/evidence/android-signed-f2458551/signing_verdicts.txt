@@ -1,0 +1,47 @@
+== patch_neg_unsigned.log (exit 64)
+Release 1.0.0+1 was signed with your own key, so its patches must be too. Pass the same public key as the release, with --public-key-path and --private-key-path, or --public-key-cmd and --sign-cmd.
+== patch_neg_keyb.log (exit 70)
+6 file(s) changed that are neither assets, Dart, nor recognized native code.
+        BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/libapp.so.sym
+        BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/libapp.so.sym
+        BUNDLE-METADATA/com.android.tools.build.debugsymbols/x86_64/libapp.so.sym
+        META-INF/ANDROIDD.RSA
+        META-INF/ANDROIDD.SF
+        META-INF/MANIFEST.MF
+Not publishing: assets changed since the release, and a patch can't include those changes.
+To ship these changes, create a new release. Run: shorebird release android
+To publish the patch without them, pass --allow-asset-diffs.
+== patch_neg_mismatch.log (exit 70)
+6 file(s) changed that are neither assets, Dart, nor recognized native code.
+        BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/libapp.so.sym
+        BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/libapp.so.sym
+        BUNDLE-METADATA/com.android.tools.build.debugsymbols/x86_64/libapp.so.sym
+        META-INF/ANDROIDD.RSA
+        META-INF/ANDROIDD.SF
+        META-INF/MANIFEST.MF
+Signature verification failed: the signature does not match the provided public key.
+Pass the public key of the key pair that signs the patch.
+== patch_neg_keyb_forced.log (exit 0, --allow-asset-diffs)
+[WARN] Your app contains asset changes, which will not be included in the patch.
+✅ Published Patch 4!
+== device, logcat_neg_keyb_forced_*
+-- neg_keyb_forced_download
+11-22 21:10:39.167 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "898763edd0c53fc86e8aa0a4266b5b1afe2cd001f21c7c7ad6b188c3fe1f8b61", download
+11-22 21:10:39.167 I flutter : updater::cache::signing: [shorebird] Verifying patch signature...
+11-22 21:10:39.167 E flutter : updater::cache::signing: [shorebird] Patch signature is invalid
+11-22 21:10:39.172 E flutter : updater::updater: [shorebird] Update failed: Patch signature could not be verified
+11-22 21:10:39.172 I flutter : updater::updater: [shorebird] Update thread finished with status: Update had error
+-- neg_keyb_forced_boot
+11-22 21:11:08.203 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "898763edd0c53fc86e8aa0a4266b5b1afe2cd001f21c7c7ad6b188c3fe1f8b61", download
+11-22 21:11:08.205 I flutter : updater::updater: [shorebird] Patch 4 is known bad, skipping.
+11-22 21:11:08.205 I flutter : updater::updater: [shorebird] Update thread finished with status: Update available but previously failed to install. Not installing.
+-- neg_keyb_forced_boot2
+11-22 21:11:37.282 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "898763edd0c53fc86e8aa0a4266b5b1afe2cd001f21c7c7ad6b188c3fe1f8b61", download
+11-22 21:11:37.282 I flutter : updater::updater: [shorebird] Patch 4 is known bad, skipping.
+11-22 21:11:37.282 I flutter : updater::updater: [shorebird] Update thread finished with status: Update available but previously failed to install. Not installing.
+-- p20_download
+11-22 21:12:28.197 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 5, hash: "898763edd0c53fc86e8aa0a4266b5b1afe2cd001f21c7c7ad6b188c3fe1f8b61", download
+11-22 21:12:28.197 I flutter : updater::cache::signing: [shorebird] Verifying patch signature...
+11-22 21:12:28.197 I flutter : updater::cache::signing: [shorebird] Patch signature is valid
+11-22 21:12:28.272 I flutter : updater::updater: [shorebird] Patch successfully applied to "/data/user/0/dev.selfhost.untab.signed/files/shorebird_updater/patches/5/dlc.vmcode". patch_file=5653b base_size=3342920b decompressed=3342960b base
+11-22 21:12:28.296 I flutter : updater::updater: [shorebird] Update thread finished with status: Update installed

@@ -1,0 +1,19 @@
+total requests 45 {'2xx': 45}
+2 GET /api/v1/apps/<id> 200
+2 GET /api/v1/apps/<id>/channels 200
+2 GET /api/v1/apps/<id>/releases 200
+10 GET /api/v1/apps/<id>/releases/<n>/artifacts 200
+1 GET /download/44cbb6e5d45974697b325474f7801751 200
+2 POST /api/v1/apps/<id>/patches 200
+6 POST /api/v1/apps/<id>/patches/<n>/artifacts 200
+2 POST /api/v1/apps/<id>/patches/promote 204
+2 POST /api/v1/apps/<id>/runs 201
+7 POST /api/v1/patches/check 200
+3 POST /api/v1/patches/events 204
+1 POST /api/v1/uploads/17803a5974ec19abacb9a8136c4350de 204
+1 POST /api/v1/uploads/22ca63690e6554acfcdb3e10899193c2 204
+1 POST /api/v1/uploads/28bbccd06cbc36538c4face8031a69ac 204
+1 POST /api/v1/uploads/44cbb6e5d45974697b325474f7801751 204
+1 POST /api/v1/uploads/c7f79cdfbb05b87de15265336f000948 204
+1 POST /api/v1/uploads/e8d4a26c5040e2cad8e7b3a2d40972a2 204
+server.log lines: 78

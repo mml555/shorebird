@@ -1,0 +1,11 @@
+[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+                                                            This flag cannot be combined with "--analyze-size".
+                                                            This flag cannot be combined with "--split-debug-info".
+[  +96 ms] Resolve mutations for :gradle:checkKotlinGradlePluginConfigurationErrors (Thread[#1772,Execution worker,5,main]) started.
+Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsENr4vf/armeabi-v7a/libapp.so
+Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsENr4vf/arm64-v8a/libapp.so
+Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsENr4vf/x86_64/libapp.so
+🕹️  Platform: Android [arm32 (91.00 KB), arm64 (79.50 KB), x86_64 (84.12 KB)]
+Starting Uploading Android artifacts...
+Done Uploading Android artifacts
+✅ Published Patch 3!

@@ -1,0 +1,19 @@
+19:        applicationId = "dev.selfhost.untab"
+cleartext attrs: 1
+  added shorebird.yaml to flutter assets
+INTERNET manifest entries: 1
+release exit=0
+fatal: ref HEAD is not a symbolic ref
+
+Unable to check for updates.
+ProcessException: fatal: ref HEAD is not a symbolic ref
+
+  Command: git symbolic-ref HEAD
+APK=build/app/outputs/apk/release/app-release.apk
+-rw-------@ 1 mendel  staff  45072855 Nov 22 20:59 ~/Developer/shorebird-wt/devrun/run-f2458551-android-signed/release.apk
+e07446e4c84082177f4b3a2e4f711d06210bb2bbf9cbb37879e6bc5743cc447e  ~/Developer/shorebird-wt/devrun/run-f2458551-android-signed/release.apk
+Failure [DELETE_FAILED_INTERNAL_ERROR]
+Performing Streamed Install
+Success
+RELEASE_DONE
+release exit=0
