@@ -200,6 +200,35 @@ jobs:
       - name: 📌 Vendored updater matches the docs and the manifest
         run: tool/check_updater_pin.sh
 
+  # selfhost/engine/route_b/SUPPORTED_STATE.yaml names a CLI revision, the
+  # Flutter selector it pins and the cell that selector names. This checks that
+  # chain against git history and the Flutter fork, so a records PR that names
+  # the wrong CLI fails here, not after it merges (cell f2458551's record did).
+  supported_state:
+    name: 🧭 Supported State Record
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository || vars.HOSTED_RUNNERS == 'true') }}
+    timeout-minutes: 5
+    steps:
+      # Sparse checkout with full history (no blobs up front): the ancestry
+      # checks need every commit, and git fetches the few blobs read at
+      # cli_revision on demand.
+      - name: 📚 Git Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /tool/
+            /selfhost/engine/route_b/SUPPORTED_STATE.yaml
+            /selfhost/engine/route_b/lib/
+            /selfhost/compatibility.yaml
+
+      - name: 🧭 The record's CLI, selector and cell agree
+        run: tool/check_supported_state_record.sh
+
   changes:
     runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","linux","x64","shorebird"]') || 'ubuntu-latest' }}
     # A stalled checkout or network fetch (git, npx) fails here instead of
@@ -408,7 +437,7 @@ jobs:
 
   ci:
     needs:
-      [actionlint, agent_scripts_test, changes, cspell_full_tree, license_check, protocol_codegen, updater_pin, updater_rust, verify_packages, yaml_parses]
+      [actionlint, agent_scripts_test, changes, cspell_full_tree, license_check, protocol_codegen, supported_state, updater_pin, updater_rust, verify_packages, yaml_parses]
     # Not always(): that keeps this job alive through a run cancellation,
     # so a superseded push would report ci red on the stale commit. A
     # skipped required check reports success, which is the right answer
