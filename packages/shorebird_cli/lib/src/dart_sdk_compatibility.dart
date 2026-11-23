@@ -64,7 +64,8 @@ class DartSdkCompatibility {
     // (its #10 and #11 on branch route-b-91dbbdd).
     '09c6f422': '0cd04a77',
     'f2458551': '0cd04a77',
-    // f2458551 re-minted with the Route B analyzer v24 (#277); same engine.
+    // f2458551 re-minted with the Route B analyzer v24 (#277). Same engine
+    // and Dart SDK: the analyzer ships beside the SDK, not inside it.
     '9995f957': '0cd04a77',
   };
 

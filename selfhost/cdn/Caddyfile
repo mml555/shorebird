@@ -219,8 +219,9 @@
 	#                                      2c4b0718, 82fc78a8, d0714887, 5f6efd98,
 	#                                      aab9fd07, 2fc41d3f, a6a48cf6, 54117a2f,
 	#                                      e737ede3, a377ecb7, 09c6f422, f2458551,
-	#                                      9995f957 (the hashes that
-	#                                      publish OUR linux host toolchain)
+	#                                      9995f957
+	#                                      (the hashes that publish OUR linux
+	#                                      host toolchain)
 	#   darwin-x64/font-subset.zip         255fd850, 3a565f27, 7806e0fb, 2c4b0718,
 	#                                      82fc78a8, d0714887, 5f6efd98, aab9fd07,
 	#                                      2fc41d3f, a6a48cf6, 54117a2f, e737ede3,
