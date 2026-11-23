@@ -4,6 +4,13 @@
 #
 # mint_route_b_cell.sh -- give a changed compiler cell its own engine hash.
 #
+# THIS IS THE OLDER macos-ios SCHEME: an address over the compiler cell's eight
+# files plus a few engine digests. It cannot produce or reproduce the address of a
+# 30-member `route-b-cell-v2` cell (macos-ios-android, cells a377ecb7 and later).
+# For those, use mint_cell_v2.sh, which re-mints a donor v2 cell with replaced
+# compiler files and reproduces the donor's own address when nothing is replaced.
+# The v2 helper functions below (v2_members, v2_transaction, ...) are shared with it.
+#
 # The cell is immutable per engine hash (publish_route_b_compiler.sh explains
 # why), so every change to any of its seven files needs a new hash -- even when
 # the engine BINARY is byte-identical, which it usually is. This has now been
@@ -300,7 +307,7 @@ v2_members() { # <policy> <cell>
 # relaxed in the verifier and not here reports a drifted cell as intact).
 V2_CANON="$HERE/lib/v2_canonicalize.py"
 v2_canonicalize() { # <file> <hash>  -> canonical bytes on stdout
-  python3 "$V2_CANON" "${1:?}" "${2:?}"
+  python3 -I "$V2_CANON" "${1:?}" "${2:?}"
 }
 
 # The canonical manifest. Staged tree mirrors the overlay with a LITERAL `%H`
@@ -562,7 +569,7 @@ while [[ $# -gt 0 ]]; do
     # cannot express host-toolchain changes (measured 2026-09-01).
     --address-schema) ADDRESS_SCHEMA="${2:?}"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
-    -h|--help) sed -n '3,24p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help) awk 'NR>=3 { if ($0 ~ /^#/) print; else exit }' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
 done
@@ -579,6 +586,12 @@ still look new. Re-run with --dry-run to inspect a historical address, or use v2
 to publish." ;;
   *) die "--address-schema must be v1 or v2 (got $ADDRESS_SCHEMA)" ;;
 esac
+
+# publish_route_b_compiler.sh refuses a tree that is not a dart_dynamic_modules
+# build, after the address is minted. Ask the same question up front, so a dry run
+# fails where the real run would.
+grep -q 'dart_dynamic_modules = true' "$OUT/args.gn" 2>/dev/null \
+  || die "$OUT is not a dart_dynamic_modules build (no args.gn with dart_dynamic_modules = true) — wrong tree for Route B"
 
 # The same seven files publish_route_b_compiler.sh stages, named as they are
 # named inside the zip -- so the address is over what a consumer receives, not
@@ -812,7 +825,8 @@ fi
 # without it. Missing it fails late, at the diff step, long after the release.
 SB_SRC="$OVERLAY/download.shorebird.dev/shorebird/$DONOR"
 SB_DST="$OVERLAY/download.shorebird.dev/shorebird/$REV"
-mkdir -p "$SB_DST"
+# Not in a dry run: that would create an empty directory in the real overlay.
+[[ "$DRY" == 1 ]] || mkdir -p "$SB_DST"
 for tool in "$SB_SRC"/patch-*.zip; do
   [[ -f "$tool" ]] || continue
   base=$(basename "$tool")
