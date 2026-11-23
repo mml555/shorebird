@@ -906,6 +906,7 @@ ${styleBold.wrap('Experimental')}. Implies --assets. Nothing is linked or interp
         await _assertPublicKeyMatchesRelease(
           patcher: patcher,
           release: release,
+          releaseArtifact: downloaded.releaseArtifact,
           releaseArchive: downloaded.releaseArchive,
         );
         await _configureObfuscation(
@@ -2074,26 +2075,36 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
   /// release only accept patches signed with its key. Compares the key in the
   /// release's generated (bundled) shorebird.yaml (`patch_public_key`) with
   /// the patch's. Unlike an asset change, `--allow-asset-diffs` can't bypass
-  /// this. A release archive that can't be read, or that embeds no key, isn't
-  /// checked.
+  /// this. A release archive that can't be read, or that embeds no key, can't
+  /// be checked: that is warned about, not refused.
   Future<void> _assertPublicKeyMatchesRelease({
     required Patcher patcher,
     required Release release,
+    required ReleaseArtifact releaseArtifact,
     required File releaseArchive,
   }) async {
     final platform = patcher.releaseType.releasePlatform;
-    if (release.platforms[platform]?.signingMode !=
-        ReleaseSigningMode.customer.value) {
-      return;
-    }
+    final signingMode =
+        releaseArtifact.signing?.mode ??
+        release.platforms[platform]?.signingMode;
+    if (signingMode != ReleaseSigningMode.customer.value) return;
     final patchKey = await patcher.getEncodedPublicKey();
     if (patchKey == null) return;
     final releaseKey = _bundledPublicKey(releaseArchive);
-    if (releaseKey == null || releaseKey == patchKey) return;
+    if (releaseKey == null) {
+      logger.warn(
+        'Skipped checking that the patch key matches release '
+        '${release.version} (${platform.displayName}): its archive is '
+        'unreadable or embeds no patch_public_key. Devices reject a patch '
+        "signed with a different key than the release's.",
+      );
+      return;
+    }
+    if (releaseKey == patchKey) return;
 
     String fingerprint(String key) {
       try {
-        return 'sha256:${sha256.convert(base64.decode(key))}';
+        return sha256.convert(base64.decode(key)).toString();
       } on FormatException {
         return 'unreadable';
       }
@@ -2103,8 +2114,10 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
     throw CommandError(
       message:
           "The public key for this patch doesn't match release "
-          '${release.version}: devices running it only accept patches signed '
-          "with the release's key, and would reject this one.\n"
+          '${release.version} (${platform.displayName}): devices running it '
+          "only accept patches signed with the release's key, and would "
+          'reject this one.\n'
+          '  SHA-256 of the RSA public key (PKCS#1 DER):\n'
           '  release key: ${fingerprint(releaseKey)}\n'
           '  patch key:   ${fingerprint(patchKey)}',
       hint:
@@ -2115,8 +2128,9 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
     );
   }
 
-  /// The `patch_public_key` in the generated (bundled) shorebird.yaml inside
-  /// [archive], or null if it has none or the archive can't be read.
+  /// The `patch_public_key` of the first generated (bundled) shorebird.yaml
+  /// inside [archive] that has one, or null if none does or the archive can't
+  /// be read.
   String? _bundledPublicKey(File archive) {
     InputFileStream? stream;
     try {
@@ -2131,7 +2145,7 @@ To have signatures checked, remove `patch_verification` from shorebird.yaml (or 
         }
         final yaml = loadYaml(utf8.decode(file.readBytes() ?? const []));
         final key = yaml is Map ? yaml['patch_public_key'] : null;
-        return key is String ? key.replaceAll(RegExp(r'\s'), '') : null;
+        if (key is String) return key.replaceAll(RegExp(r'\s'), '');
       }
     } on Object catch (error) {
       logger.detail('[public-key] could not read the release archive: $error');
