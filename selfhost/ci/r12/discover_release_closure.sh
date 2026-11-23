@@ -162,7 +162,7 @@ for i in $(seq 1 "$MAXIT"); do
     fi
     say "STOP — harness failed with NOTHING refused by the seal"
     note "A different failure. Classify it; do not loop."
-    tail -40 "$HERE/rp_iter.log" | sed 's/^/     | /'
+    tail -120 "$HERE/rp_iter.log" | sed 's/^/     | /'
     exit 1
   fi
 
