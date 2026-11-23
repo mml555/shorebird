@@ -1364,7 +1364,6 @@ callable:
             'awaiting a `TickerFuture` calls its `then`',
           ),
         );
-        expect(problem('then'), isNot(contains('`await` it instead')));
       });
 
       test('offers no `await` for timeout', () {

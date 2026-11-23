@@ -290,11 +290,24 @@ class RouteBRetention {
   /// (`Future.then` on every `Future` subtype the release allocates). A
   /// release where it holds loses nothing by the old analyzer; one where it
   /// fails (a `TickerFuture` with no compiled `then`) cannot be shown safe.
-  /// Null under [skipKeptCheck] (`--allow-unchecked-sdk-calls`).
+  /// Null under [skipKeptCheck] (`--allow-unchecked-sdk-calls`). It does not
+  /// use the measured list: that is a call of `then` on a `_Future`.
   String? awaitUnchecked() {
-    const key = 'dart:async#Future#then';
-    if (members.contains(key)) return null;
-    return _keptProblem(key);
+    if (skipKeptCheck) return null;
+    final snapshot = kept;
+    if (snapshot == null) {
+      return '${keptProblem ?? 'its snapshot profile is not available'}, so '
+          'whether this release kept it cannot be checked';
+    }
+    // `_Future` is left out: awaiting one never calls `then`, so a release
+    // that never compiled `_Future.then` loses nothing here.
+    return snapshot.problemFor(
+      declaredLibrary: 'dart:async',
+      declaredClass: 'Future',
+      measured: const [],
+      selector: 'then',
+      excludeClasses: const {'_Future'},
+    );
   }
 
   /// Why [reference] cannot be shown to be retained, or null when it can.

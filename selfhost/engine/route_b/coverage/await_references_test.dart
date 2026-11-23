@@ -1,13 +1,13 @@
 // Tests for the analysis version 24 report of an `await` as a call of
 // `Future.then` (`visitAwaitExpression`). Compiles `_source` with the host
-// Dart, then reads the kernel back with a real type environment.
+// Dart, then reads the kernel back with a real type environment. It needs the
+// engine's Dart, so CI does not run it.
 //
 //   SRC=$HOME/shorebird-engine/flutter/engine/src
 //   HOST_DART=$SRC/out/host_release_arm64/dart-sdk/bin/dart \
 //   $SRC/out/host_release_arm64_ddm/dart-sdk/bin/dart \
 //     --packages=$SRC/flutter/third_party/dart/.dart_tool/package_config.json \
 //     selfhost/engine/route_b/coverage/await_references_test.dart
-// cspell:words
 import 'dart:io';
 
 import 'package:kernel/ast.dart';
@@ -31,22 +31,45 @@ void check(bool ok, String what) {
 
 const _source = '''
 abstract class Ticker implements Future<int> {}
+abstract class Pingable {}
+abstract class Slow implements Pingable, Future<void> {}
+class Box<T extends Future<int>> { Future<void> f(T t) async { await t; } }
+extension type Wrapped(Future<int> f) implements Future<int> {}
 Future<void> ticker(Ticker t) async { await t; }
 Future<void> plain(Future<int> f) async { await f; }
 Future<void> nullable(Future<int>? f) async { await f; }
-Future<void> nonFuture() async { await 1; }
+Future<void> nonFuture() async { await 1; await 'a'; await (1, 2); }
 Future<void> dyn(dynamic d) async { await d; }
 Future<void> futureOr(FutureOr<int> d) async { await d; }
 Future<void> object(Object? d) async { await d; }
+Future<void> iface(Pingable p) async { await p; }
 Future<void> twice(Ticker t, int i) async { await t; await i; await t; }
 Future<void> none() async {}
+Stream<int> gen(Ticker t) async* { await t; }
+Future<void> closure(Ticker t) async { final f = () async { await t; }; }
+Future<void> local(Ticker t) async { Future<void> g() async { await t; } }
+Future<void> awaitFor(Stream<int> s) async { await for (final x in s) {} }
+Future<void> ext(Wrapped w) async { await w.f; await w; }
+Future<int> ret(Ticker t) async { return t; }
+Future<int> retInt() async { return 1; }
+Future<int> retSync(Ticker t) { return t; }
+Stream<int> retGen(Ticker t) async* { yield 1; return; }
+Future<int> retClosure(Ticker t) async { final f = () { return t; }; return 1; }
+void completer(Ticker t) { Completer<int>().complete(t); }
+void value(Ticker t) { Future<int>.value(t); }
+void wait(Ticker t) { Future.wait([t]); Future.any([t]); }
+void stream(Ticker t) { Stream.fromFuture(t); t.asStream(); }
+void unrelated() { Completer<int>().complete(1); Future<int>.value(1); }
 void main() {}
 ''';
 
 List<Map<String, Object?>> _then(Component c, TypeEnvironment env, String n) {
   for (final lib in c.libraries) {
     if (!lib.importUri.toString().endsWith('app.dart')) continue;
-    for (final p in lib.procedures) {
+    for (final p in [
+      ...lib.procedures,
+      for (final cls in lib.classes) ...cls.procedures,
+    ]) {
       if (p.name.text != n) continue;
       return [
         for (final r in externalReferencesOf(p, {}, types: env))
@@ -88,42 +111,49 @@ void main() {
 
     check(analysisVersion == 24, 'analysis version is 24');
 
-    final t = _then(c, env, 'ticker');
+    List<Map<String, Object?>> then(String n) => _then(c, env, n);
+    bool narrowed(String n, String cls) =>
+        then(n).length == 1 && then(n).single['receiverClass'] == cls;
+    bool unnarrowed(String n) =>
+        then(n).length == 1 && !then(n).single.containsKey('receiverClass');
+    bool nothing(String n) => then(n).isEmpty;
+
+    check(narrowed('ticker', 'Ticker'), 'await on a Future subtype names it');
+    check(unnarrowed('plain'), 'await on a Future<int> is unnarrowed');
+    check(unnarrowed('nullable'), 'await on a nullable Future is unnarrowed');
+    check(nothing('nonFuture'), 'await on an int, a String, a record: nothing');
+    check(unnarrowed('dyn'), 'await on dynamic is unnarrowed');
+    check(unnarrowed('futureOr'), 'await on a FutureOr is unnarrowed');
+    check(unnarrowed('object'), 'await on Object? is unnarrowed');
     check(
-      t.length == 1 &&
-          t.single['library'] == 'dart:async' &&
-          t.single['class'] == 'Future' &&
-          t.single['receiverClass'] == 'Ticker',
-      'await on a Future subtype names it as the receiver',
+      unnarrowed('iface'),
+      'await on an interface a Future could implement is unnarrowed (Slow)',
     );
-    final p = _then(c, env, 'plain');
+    check(narrowed('twice', 'Ticker'), 'repeated awaits are one entry');
+    check(nothing('none'), 'no await, no entry');
+    check(narrowed('gen', 'Ticker'), 'an await in an async* body');
+    check(narrowed('closure', 'Ticker'), 'an await in a closure');
+    check(narrowed('local', 'Ticker'), 'an await in a local function');
+    check(nothing('awaitFor'), 'await for reports no then');
+    check(unnarrowed('ext'), 'await on an extension type implementing Future');
     check(
-      p.length == 1 && !p.single.containsKey('receiverClass'),
-      'await on a Future<int> is Future.then with no narrower receiver',
+      narrowed('ret', 'Ticker'),
+      'return of a Future subtype from an async body',
     );
+    check(nothing('retInt'), 'return of an int from an async body');
+    check(nothing('retSync'), 'return from a non-async body is not a chain');
+    check(nothing('retGen'), 'return in an async* body is not a chain');
+    check(nothing('retClosure'), 'a closure that is not async does not chain');
+    check(narrowed('completer', 'Ticker'), 'Completer.complete(future)');
+    check(narrowed('value', 'Ticker'), 'Future.value(future)');
+    check(unnarrowed('wait'), 'Future.wait and Future.any are unnarrowed');
+    check(narrowed('stream', 'Ticker'), 'Stream.fromFuture and asStream');
+    check(nothing('unrelated'), 'Completer.complete(1), Future.value(1)');
+    final boxMember = then('f');
     check(
-      _then(c, env, 'nullable').length == 1,
-      'await on a nullable Future is Future.then',
+      boxMember.length == 1 && !boxMember.single.containsKey('receiverClass'),
+      'await on a T extends Future<int> is Future.then',
     );
-    check(_then(c, env, 'nonFuture').isEmpty, 'await on an int reports nothing');
-    check(
-      _then(c, env, 'dyn').length == 1 &&
-          !_then(c, env, 'dyn').single.containsKey('receiverClass'),
-      'await on dynamic is Future.then, unnarrowed',
-    );
-    check(
-      _then(c, env, 'futureOr').length == 1,
-      'await on a FutureOr is Future.then',
-    );
-    check(
-      _then(c, env, 'object').length == 1,
-      'await on Object? is Future.then',
-    );
-    check(
-      _then(c, env, 'twice').length == 1,
-      'two awaits on one receiver class are one entry',
-    );
-    check(_then(c, env, 'none').isEmpty, 'no await, no entry');
   } finally {
     dir.deleteSync(recursive: true);
   }

@@ -580,6 +580,7 @@ class RouteBSnapshotKept {
     required String? declaredClass,
     required List<String> measured,
     required String selector,
+    Set<String> excludeClasses = const {},
   }) {
     // A class the device measured the member on, and this release's snapshot
     // does not hold at all, is skipped: the receiver cannot be one. The
@@ -642,6 +643,12 @@ class RouteBSnapshotKept {
     int? firstClass;
     var more = 0;
     for (final c in candidates) {
+      // A class the caller says is never the receiver (an `await` of a
+      // `_Future` never calls `then`), by name in the declared library.
+      if (excludeClasses.contains(_name[c]) &&
+          _library[c] == (declaredLibrary ?? _library[c])) {
+        continue;
+      }
       final why = _problemOn(
         c,
         selector,

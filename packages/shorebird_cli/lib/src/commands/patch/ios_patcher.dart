@@ -703,7 +703,8 @@ A patch is only interpretable against one whole contract, so these cannot be mix
         '--allow-unchecked-sdk-calls: this patch was not checked against what '
         "this release's snapshot kept of the dart: instance members it calls "
         '(or against the dynamic-call check, on a cell below analysis '
-        '$routeBSelectorCallsAnalysisVersion). This is recorded in the '
+        '$routeBSelectorCallsAnalysisVersion, or the `await` check, on a cell '
+        'below $routeBAwaitAnalysisVersion). This is recorded in the '
         "patch's metadata.",
       );
     }
@@ -732,16 +733,20 @@ A patch is only interpretable against one whole contract, so these cannot be mix
     RouteBRetention? retention,
   ) {
     if (coverage.analysisVersion >= routeBAwaitAnalysisVersion ||
-        retention == null) {
+        allowUncheckedSdkCalls) {
       return;
     }
-    final why = retention.awaitUnchecked();
+    // No readable interface also means no profile to ask: fail closed.
+    final why = retention == null
+        ? 'the release has no readable $routeBInterfaceFileName, so whether '
+              'it kept `Future.then` cannot be checked'
+        : retention.awaitUnchecked();
     if (why == null) return;
     logger.err(
       '''
-This patch cannot be checked: this release's compiler cell predates the `await` check (analysis version ${coverage.analysisVersion}, needs $routeBAwaitAnalysisVersion or later), and this release has a `Future` that cannot be awaited safely ($why). Awaiting any `Future` that is not from `async` code or the SDK calls its `then`, so a patch with an `await` could crash the app after it installs.
+This patch cannot be checked: this release's compiler cell predates the `await` check (analysis version ${coverage.analysisVersion}, needs $routeBAwaitAnalysisVersion or later), and this release has a `Future` that cannot be awaited safely ($why). Awaiting, returning or completing with a `Future` that is not from `async` code or the SDK calls its `then`, so a patch that does could crash the app after it installs.
 
-Cut a new release with a cell of analysis $routeBAwaitAnalysisVersion+, or pass --allow-unchecked-sdk-calls to publish this patch unchecked. The choice is recorded in the patch's metadata.
+The cell is chosen when the release is cut, so upgrading the CLI does not help: cut a new release with a cell of analysis $routeBAwaitAnalysisVersion+, or pass --allow-unchecked-sdk-calls to publish this patch unchecked. The choice is recorded in the patch's metadata.
 
 Nothing was uploaded.''',
     );

@@ -2718,6 +2718,239 @@ This may indicate that the patch contains native changes, which cannot be applie
               });
             });
 
+            group('the await gate (analysis 24)', () {
+              const interfaceYaml = """
+callable:
+  - library: 'package:app/main.dart'
+""";
+
+              void coverageAt(
+                int version, {
+                List<Map<String, Object?>> refs = const [],
+                bool noKeys = false,
+              }) {
+                final coverage = RouteBCoverage.fromJson(
+                  jsonEncode({
+                    'analysisVersion': version,
+                    'verdict': 'accept',
+                    'changed': ['package:app/main.dart#routeBValue'],
+                    'carried': <String>[],
+                    'callers': <String, Object>{},
+                    'added': <String>[],
+                    'helpers': <String>[],
+                    'unusedHelpers': <String>[],
+                    'removed': <String>[],
+                    'patchable': ['package:app/main.dart#routeBValue'],
+                    'conditional': <String>[],
+                    'sources': <String, Object?>{},
+                    'externalReferences': {
+                      if (!noKeys) 'package:app/main.dart#routeBValue': refs,
+                    },
+                    'rejections': <Object>[],
+                    'refusalSummary': null,
+                  }),
+                );
+                when(
+                  () => routeBCoverageAnalyzer.analyze(
+                    compiler: any(named: 'compiler'),
+                    baseDill: any(named: 'baseDill'),
+                    patchedDill: any(named: 'patchedDill'),
+                    includePrefixes: any(named: 'includePrefixes'),
+                  ),
+                ).thenReturn(coverage);
+              }
+
+              // A release that allocates a TickerFuture; [tickerThen] says
+              // whether it compiled that class's `then`.
+              String profile({
+                required bool tickerThen,
+                bool ticker = true,
+                bool futureThen = true,
+              }) => routeBProfile({
+                'Object': const RouteBProfileClass(
+                  'Object',
+                  routeBCoreLibrary,
+                  fns: {'==': '[Optimized] =='},
+                ),
+                'Future': const RouteBProfileClass(
+                  'Future',
+                  'dart:async',
+                  parent: 'Object',
+                ),
+                '_Future': RouteBProfileClass(
+                  '_Future',
+                  'dart:async',
+                  parent: 'Object',
+                  ifaces: const ['Future'],
+                  fns: {if (futureThen) 'then': '[Optimized] then'},
+                ),
+                if (ticker)
+                  'TickerFuture': RouteBProfileClass(
+                    'TickerFuture',
+                    'package:flutter/src/scheduler/ticker.dart',
+                    parent: 'Object',
+                    ifaces: const ['Future'],
+                    allocated: true,
+                    fns: {if (tickerThen) 'then': '[Optimized] then'},
+                  ),
+              });
+
+              void release({
+                String? snapshotProfile,
+                bool flag = false,
+                bool withInterface = true,
+              }) {
+                when(
+                  () => argResults['allow-unchecked-sdk-calls'],
+                ).thenReturn(flag);
+                writeReleaseProvenance(
+                  engineRevision: releaseEngineRevision,
+                  interfaceYaml: withInterface ? interfaceYaml : null,
+                  snapshotProfile: snapshotProfile,
+                );
+              }
+
+              Future<void> patchAndSwallow() => runWithOverrides(
+                () => patcher.createPatchArtifacts(
+                  appId: appId,
+                  releaseId: releaseId,
+                  releaseArtifact: releaseArtifactFile,
+                  supplementDirectory: supplementDirectory,
+                ),
+              ).then<void>((_) {}, onError: (Object _) {});
+
+              final errors = <String>[];
+              List<String> awaitErrors() =>
+                  errors.where((m) => m.contains('`await` check')).toList();
+              setUp(() {
+                errors.clear();
+                when(() => logger.err(any())).thenAnswer((invocation) {
+                  errors.add(invocation.positionalArguments.first as String);
+                });
+              });
+
+              test('refuses at 23 when the release has a Future with no '
+                  'compiled then', () async {
+                release(snapshotProfile: profile(tickerThen: false));
+                coverageAt(23);
+                await expectLater(
+                  runWithOverrides(
+                    () => patcher.createPatchArtifacts(
+                      appId: appId,
+                      releaseId: releaseId,
+                      releaseArtifact: releaseArtifactFile,
+                      supplementDirectory: supplementDirectory,
+                    ),
+                  ),
+                  throwsA(isA<ProcessExit>()),
+                );
+                expect(
+                  awaitErrors().single,
+                  allOf(
+                    contains('analysis version 23, needs 24 or later'),
+                    contains('TickerFuture'),
+                    contains('upgrading the CLI does not help'),
+                    contains('--allow-unchecked-sdk-calls'),
+                    contains('Nothing was uploaded.'),
+                  ),
+                );
+                expect(patcher.usedUncheckedSdkCalls, isFalse);
+              });
+
+              test('passes at 24 with the same release', () async {
+                release(snapshotProfile: profile(tickerThen: false));
+                coverageAt(routeBAwaitAnalysisVersion);
+                await patchAndSwallow();
+                expect(awaitErrors(), isEmpty);
+              });
+
+              test('passes at 23 when every Future has a then', () async {
+                release(snapshotProfile: profile(tickerThen: true));
+                coverageAt(23);
+                await patchAndSwallow();
+                expect(awaitErrors(), isEmpty);
+              });
+
+              test('passes at 23 with no Future subtype but _Future, even if '
+                  '_Future has no then', () async {
+                release(
+                  snapshotProfile: profile(
+                    tickerThen: false,
+                    ticker: false,
+                    futureThen: false,
+                  ),
+                );
+                coverageAt(23);
+                await patchAndSwallow();
+                expect(awaitErrors(), isEmpty);
+              });
+
+              test('the flag skips it and records the choice', () async {
+                release(
+                  snapshotProfile: profile(tickerThen: false),
+                  flag: true,
+                );
+                coverageAt(23);
+                await patchAndSwallow();
+                expect(awaitErrors(), isEmpty);
+                verify(
+                  () => logger.warn(any(that: contains('the `await` check'))),
+                ).called(1);
+                final metadata = await patcher.updatedPlatformMetadata(
+                  CreatePatchPlatformMetadata.forTest(),
+                );
+                expect(metadata.allowUncheckedSdkCalls, isTrue);
+              });
+
+              test('refuses at 23 when the release has no readable '
+                  'interface', () async {
+                release(
+                  snapshotProfile: profile(tickerThen: true),
+                  withInterface: false,
+                );
+                // No carried member names anything, so retention is not asked.
+                coverageAt(23, noKeys: true);
+                await patchAndSwallow();
+                expect(
+                  awaitErrors().single,
+                  contains('no readable $routeBInterfaceFileName'),
+                );
+              });
+
+              test('with no readable interface, the flag lets it by', () async {
+                release(
+                  snapshotProfile: profile(tickerThen: true),
+                  withInterface: false,
+                  flag: true,
+                );
+                coverageAt(23, noKeys: true);
+                await patchAndSwallow();
+                expect(awaitErrors(), isEmpty);
+              });
+
+              test('runs after the retention check, not before', () async {
+                release(snapshotProfile: profile(tickerThen: false));
+                coverageAt(
+                  23,
+                  refs: const [
+                    {
+                      'kind': 'class',
+                      'library': 'package:other/other.dart',
+                      'class': 'Unkept',
+                      'member': null,
+                      'private': false,
+                    },
+                  ],
+                );
+                await patchAndSwallow();
+                expect(awaitErrors(), isEmpty);
+                expect(
+                  errors.single,
+                  contains('uses code the release never used'),
+                );
+              });
+            });
+
             group('the per-release SDK-member check', () {
               // `String.split` is on the device list; whether THIS release
               // kept it is the snapshot profile's say.

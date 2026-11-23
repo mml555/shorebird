@@ -355,9 +355,18 @@ import 'package:kernel/type_environment.dart';
 /// The entry is `dart:async` `Future` `then`, with `receiverLibrary` and
 /// `receiverClass` when the operand's static type is a class other than
 /// `Future` (`await controller.forward()` names `TickerFuture`). An operand
-/// that cannot be a `Future` (`await 1`) reports nothing; one that might be
-/// (`dynamic`, `FutureOr`, `Object?`, a type parameter) reports the entry with
-/// no receiver. A document below 24 never has them.
+/// that cannot be a `Future` (`await 1`, a record, a function) reports
+/// nothing; any other (`dynamic`, `FutureOr`, `Object?`, a type parameter, an
+/// interface a `Future` could implement) reports the entry with no receiver. A document below 24 never has them.
+///
+/// The same entry is reported
+/// for the other places the VM calls `then` on a foreign future that the body
+/// spells: a `return e` in an `async` body, `Completer.complete(e)`,
+/// `Future.value(e)`, `Stream.fromFuture(e)`, `e.asStream()`, `Future.wait`,
+/// `Future.any` and `Stream.fromFutures`. NOT reported: a `Future` returned by
+/// a callback (`then`, `whenComplete`, `catchError`, `Future.delayed`,
+/// `Future.doWhile`, `forEach`), `StreamController.addStream`, and any other
+/// SDK or package code that calls `then` on a future it was given.
 const analysisVersion = 24;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
@@ -4006,12 +4015,18 @@ class _ExternalUses extends RecursiveVisitor {
     }
     node.returnType.accept(this);
     node.emittedValueType?.accept(this);
-    node.body?.accept(this);
+    _asyncMarkers.add(node.asyncMarker);
+    try {
+      node.body?.accept(this);
+    } finally {
+      _asyncMarkers.removeLast();
+    }
   }
 
   @override
   void visitStaticInvocation(StaticInvocation node) {
     _member(node.targetReference);
+    _thenChains(node.target, node.arguments, null);
     node.arguments.accept(this);
   }
 
@@ -4050,6 +4065,7 @@ class _ExternalUses extends RecursiveVisitor {
       node.interfaceTargetReference,
       inlined: opcode == null ? null : opcode.name.substring(1),
     );
+    _thenChains(node.interfaceTarget, node.arguments, node.receiver);
     node.receiver.accept(this);
     node.arguments.accept(this);
   }
@@ -4190,40 +4206,122 @@ class _ExternalUses extends RecursiveVisitor {
     return cls;
   }
 
-  /// `await e` calls `then` on `e` unless `e` is a `_Future` (analysis
-  /// version 24). A static type that is a `Future` subtype names that class
-  /// as the receiver; one that cannot be a `Future` reports nothing.
-  @override
-  void visitAwaitExpression(AwaitExpression node) {
+  /// The async markers of the function bodies being walked, innermost last:
+  /// only a `return e` in an `async` body hands `e` to the completer.
+  final _asyncMarkers = <AsyncMarker>[];
+
+  /// Core classes no program can subclass, so a value of one is never a
+  /// `Future`. Everything else (an interface, a mixin, a user class, `Object`,
+  /// a type parameter) can hold one: `class Slow implements Pingable, Future`.
+  static const _neverFutureCoreClasses = {
+    'int',
+    'double',
+    'num',
+    'bool',
+    'String',
+    'Null',
+    'Symbol',
+  };
+
+  /// Reports a call of `Future.then` the VM makes on the value of [operand]
+  /// (analysis version 24): an `await` of it, a `return` of it from an
+  /// `async` body, or an SDK API that chains it (`Completer.complete`,
+  /// `Future.value`, `Stream.fromFuture`, `asStream`). The VM does this by
+  /// selector for any `Future` that is not a `_Future`, and no source token
+  /// names it.
+  ///
+  /// A static type that is a `Future` subtype names that class as the
+  /// receiver. A type that cannot be a `Future` (a record, a function, `Null`,
+  /// `int`, `String`, ...) reports nothing; every other type reports the entry
+  /// with no receiver, which the CLI reads as every `Future` the release holds.
+  void _thenOf(Expression operand) {
+    // `await for` is lowered to `await it.moveNext()` and `await it.cancel()`
+    // on a `_StreamIterator`, whose futures are always `_Future`s.
+    if (operand is InstanceInvocation &&
+        (operand.name.text == 'moveNext' || operand.name.text == 'cancel') &&
+        _isCore(operand.interfaceTarget, 'dart:async', '_StreamIterator')) {
+      return;
+    }
     final context = staticTypes;
     DartType? type;
     if (context != null) {
       try {
-        type = node.operand.getStaticType(context);
+        type = operand.getStaticType(context);
       } on Object {
         // Not knowing the type narrows nothing: the entry is still reported.
         type = null;
       }
     }
     Class? receiver;
-    var mayBeFuture = true;
-    if (context != null && type is InterfaceType) {
-      final cls = type.classNode;
-      final futureClass = context.typeEnvironment.coreTypes.futureClass;
-      final isFuture = context.typeEnvironment.hierarchy.isSubInterfaceOf(
-        cls,
-        futureClass,
-      );
-      if (isFuture) {
-        receiver = cls == futureClass ? null : cls;
-      } else {
-        // Only `Object` (and `dynamic`, `FutureOr`, ...) can hold a Future
-        // without being one; any other class cannot.
-        mayBeFuture = cls == context.typeEnvironment.coreTypes.objectClass;
+    if (context != null && type != null) {
+      if (type is RecordType ||
+          type is FunctionType ||
+          type is NullType ||
+          type is NeverType) {
+        return;
+      }
+      if (type is InterfaceType) {
+        final cls = type.classNode;
+        final futureClass = context.typeEnvironment.coreTypes.futureClass;
+        if (context.typeEnvironment.hierarchy.isSubInterfaceOf(
+          cls,
+          futureClass,
+        )) {
+          receiver = cls == futureClass ? null : cls;
+        } else if (cls.enclosingLibrary.importUri.toString() == 'dart:core' &&
+            _neverFutureCoreClasses.contains(cls.name)) {
+          return;
+        }
       }
     }
-    if (mayBeFuture) _sdk('dart:async', 'Future', 'then', receiver: receiver);
+    _sdk('dart:async', 'Future', 'then', receiver: receiver);
+  }
+
+  @override
+  void visitAwaitExpression(AwaitExpression node) {
+    _thenOf(node.operand);
     super.visitAwaitExpression(node);
+  }
+
+  @override
+  void visitReturnStatement(ReturnStatement node) {
+    final value = node.expression;
+    if (value != null &&
+        _asyncMarkers.isNotEmpty &&
+        _asyncMarkers.last == AsyncMarker.Async) {
+      _thenOf(value);
+    }
+    super.visitReturnStatement(node);
+  }
+
+  static bool _isCore(Member target, String library, String cls) =>
+      target.enclosingClass?.name == cls &&
+      target.enclosingLibrary.importUri.toString() == library;
+
+  /// The SDK calls that chain a `Future` argument with its `then` (analysis
+  /// version 24). `Future.wait` and `Future.any` take an iterable of futures
+  /// whose element type is not read, so they report the unnarrowed entry.
+  void _thenChains(Member target, Arguments arguments, Expression? receiver) {
+    final name = target.name.text;
+    if (_isCore(target, 'dart:async', 'Future')) {
+      if (name == 'wait' || name == 'any') {
+        _sdk('dart:async', 'Future', 'then');
+      } else if (name == 'value' && arguments.positional.isNotEmpty) {
+        _thenOf(arguments.positional.first);
+      } else if (name == 'asStream' && receiver != null) {
+        _thenOf(receiver);
+      }
+    } else if (_isCore(target, 'dart:async', 'Stream')) {
+      if (name == 'fromFuture' && arguments.positional.isNotEmpty) {
+        _thenOf(arguments.positional.first);
+      } else if (name == 'fromFutures') {
+        _sdk('dart:async', 'Future', 'then');
+      }
+    } else if (_isCore(target, 'dart:async', 'Completer') &&
+        name == 'complete' &&
+        arguments.positional.isNotEmpty) {
+      _thenOf(arguments.positional.first);
+    }
   }
 
   @override
