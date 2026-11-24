@@ -847,7 +847,7 @@ void main() {
             'dart:core#identical',
           ],
         );
-        expect(routeBRetainedSdkMembers, hasLength(4 + 53 + 1));
+        expect(routeBRetainedSdkMembers, hasLength(4 + 53 + 4));
         expect(
           routeBRetainedSdkMembers.toSet(),
           hasLength(routeBRetainedSdkMembers.length),
@@ -863,6 +863,10 @@ void main() {
             // An `await` on a `Future` that is not a `_Future` calls `then`
             // (#289).
             'dart:async#Future.then',
+            // The other members `TickerFuture` overrides (#289).
+            'dart:async#Future.catchError',
+            'dart:async#Future.whenComplete',
+            'dart:async#Future.timeout',
           ]),
         );
         // The heavy set is opt-in, so none of it may be in the default.
@@ -927,8 +931,8 @@ void heavySdkMemberTests() {
 
     test('adds the heavy set with the opt-in', () {
       final members = routeBSdkMembersFor(keepCollectionMethods: true);
-      expect(members, hasLength(79));
-      expect(members.toSet(), hasLength(79));
+      expect(members, hasLength(82));
+      expect(members.toSet(), hasLength(82));
       expect(members, containsAll(routeBHeavySdkMembers));
       expect(members, containsAll(routeBRetainedSdkMembers));
     });

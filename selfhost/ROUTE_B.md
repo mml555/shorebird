@@ -65,9 +65,10 @@ largest group is `Future.then`, `catchError`, `timeout` and `whenComplete`
 app allocates `TickerFuture`, which keeps none of them, and a `Future` value
 can be one at runtime. The refusal names the class and says why. Since #291
 (#289), an iOS release names `dart:async#Future.then` in its interface so that
-it compiles `then` on the `Future` subtypes it allocates; the check still asks
-the release's snapshot, so `then` passes only where the release really has it,
-and `catchError`, `timeout` and `whenComplete` are unchanged. What to do:
+it compiles `then` on the `Future` subtypes it allocates, and releases cut since
+the follow-up name `catchError`, `whenComplete` and `timeout` too. The check
+still asks the release's snapshot, so each passes only where the release really
+has it. For a release cut before them, what to do:
 
 - If the value is never a `TickerFuture` (it comes from `async` code, `http`, a
   plugin), `await` it instead, with `try`/`catch` for `catchError` and
@@ -86,7 +87,8 @@ in two tiers:
   `DateTime.millisecondsSinceEpoch`, `identical`, plus 53 cheap members (`Map`,
   `Set`, `String`, `num`/`int`/`double`, `Iterable.isEmpty`/`isNotEmpty`/`join`,
   `List.clear`/`sublist`). Cost: +1.8 % of the AOT size (airgap app, baseline
-  6,560,960 B).
+  6,560,960 B). Since #291, also `Future.then`, `catchError`, `whenComplete`
+  and `timeout`, so a release compiles them on `TickerFuture` (#289).
 - **Opt-in, 21 heavy members:** `Iterable.any`/`where`/`map`/`toList`/
   `firstWhere`/... and `List.addAll`/`sort`/.... Each costs about +2 %, because
   the typed-data list mixins each get their own copy. All 74 members together
@@ -612,7 +614,8 @@ reports nothing, and the lowered `await for` (`_StreamIterator`) is skipped. A r
 is therefore possible for an `await` on a `Future` in a release that allocates a
 `TickerFuture` without a compiled `then`, and awaiting is no longer offered as a way
 around a refused `.then`. Releases built since #291 name `Future.then` so that they
-compile it on every `Future` subtype they allocate (#289); the snapshot is still asked. An `await` entry is asked like an explicit `.then`, which
+compile it on every `Future` subtype they allocate (#289), and later ones name
+`catchError`, `whenComplete` and `timeout` as well; the snapshot is still asked. An `await` entry is asked like an explicit `.then`, which
 includes `_Future.then`, though awaiting a `_Future` never calls it; a release that
 compiled no `_Future.then` is not realistic (the framework calls `.then`), and the
 old-cell gate leaves `_Future` out only because it asks about the hazard alone.

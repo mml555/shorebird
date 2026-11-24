@@ -139,6 +139,12 @@ const routeBRetainedSdkMembers = <String>[
   // nothing in it calls `TickerFuture.then`, so without this key the kept
   // check refused every patch that changes or carries an `await` (#289).
   'dart:async#Future.then',
+  // The other members `TickerFuture` overrides, for the same reason: a call
+  // on a `Future` value is checked against every `Future` subtype the release
+  // allocates, and `timeout` has no `await` form to fall back on (#289).
+  'dart:async#Future.catchError',
+  'dart:async#Future.whenComplete',
+  'dart:async#Future.timeout',
 ];
 
 /// The SDK members kept only when the app opts in with
