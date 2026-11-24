@@ -1,0 +1,11 @@
+3:[WARN] No patch public key was provided. Patches for this release will not be cryptographically verified on the device.
+586:[WARN] shorebird preview will not work for releases created with "--no-codesign". However, you can still preview your app by signing the generated .xcarchive in Xcode.
+587:[WARN] When you distribute the .xcarchive in Xcode, you MUST uncheck "Manage Version and Build Number" in the Distribute App dialog.
+590:This engine supports iOS Dart code push, so this release is being built with patchable call sites (~+4.5% app size). Without them a patch would install and change nothing.
+1595:Route B retention: 57 named SDK members kept (default set only; set keep_sdk_collection_methods: true in shorebird.yaml to also keep Iterable.where, map, toList, List.addAll, sort and the other heavy methods), interface 19735 bytes.
+4539:            ♦ ~/Developer/shorebird-wt/devrun/run-9995f957/cli/bin/cache/flutter/8e996caeeba7d826cc27397660a996c1e6194d07/bin/flutter --verbose assemble --no-version-check --output=~/Library/Developer/Xcode/DerivedData/Runner-ajfzjbuqdlruxhfbxmimodsyedkg/Build/Intermedia
+5698:            ♦ ~/Developer/shorebird-wt/devrun/run-9995f957/cli/bin/cache/flutter/8e996caeeba7d826cc27397660a996c1e6194d07/bin/flutter --verbose assemble --no-version-check --output=~/Library/Developer/Xcode/DerivedData/Runner-ajfzjbuqdlruxhfbxmimodsyedkg/Build/Intermedia
+5929:            [        ] Extra gen_snapshot options: [--patchable_static_calls, --route_b_untabled_overrides, --write-v8-snapshot-profile-to=~/Developer/shorebird-wt/devrun/run-9995f957/work/untab/build/route_b_snapshot_profile.json]
+7748:This release is set up for Dart patches: verified 7156 patchable call sites (1796/MiB).
+7760:🕹️  Platform: ios
+7802:✅ Published Release 1.0.0+75!

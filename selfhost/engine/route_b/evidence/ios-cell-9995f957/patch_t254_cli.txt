@@ -1,0 +1,21 @@
+## patch_t254.log (6267 lines; excerpt with original line numbers)
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+20:Exited with code 0
+44:Exited with code 0
+46:Exited with code 0
+50:Exited with code 0
+3240:            [        ] exiting with code 0
+4424:            [        ] exiting with code 0
+6194:[        ] exiting with code 0
+6197:Exited with code 0
+6211:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+6212:[route-b] P5-TARGET OPEN: release target lib/main.dart, this patch invoked with <default>. Recorded, not gated: no measurement has shown a target difference can admit a semantic mismatch that the release bindings accept.
+6214:[route-b] fetched cell descriptor from http://127.0.0.1:18185/download.shorebird.dev/shorebird/cell-manifests/9995f9571ec94b60eca64ec7eaae5fa190285b4d.v2
+6215:[route-b] using cached compiler bundle ~/Developer/shorebird-wt/devrun/run-9995f957/cli/bin/cache/artifacts/route-b-compiler/bundles/9995f9571ec94b60eca64ec7eaae5fa190285b4d-route-b-compiler-darwin-arm64.zip
+6216:[route-b] resolved compiler for engine 9995f9571ec94b60eca64ec7eaae5fa190285b4d
+6243:This patch cannot be built: it uses code the release never used in its own code.
+6245:  package:untab/main.dart#loadGreeting
+6246:      it uses the constructor `TickerFuture.complete`, which the release never used in its own code. A patch can only call what the release was built to keep, and the loader stops the app at launch when a class, constructor, static or top-level it names is not there. Cut a new release whose own code uses it (a call is enough), then patch that. it calls the dart: method `Future.then` (an SDK instance member, this release has no `then` on `TickerFuture` (in `package:flutter/src/scheduler/ticker.dart` that can be a `Future` here), and 1 more. A `Future` value can be a `TickerFuture` at runtime, and this release compiled no `then` for `TickerFuture` because nothing in it calls `then` on one; a release built with the code that calls it keeps it. An `await` on a `Future` is checked the same way, since awaiting a `TickerFuture` calls its `then`). An SDK instance method is looked up by name when it runs, and the app throws NoSuchMethodError at that call if the release never called it. Members marked "measured" failed on a device, and those on no list were never measured: no flag unlocks either, because the patcher only lets through members measured on a device. Only a refusal because 
+6248:The whole patch is refused, not the part that failed. Nothing was uploaded.
+6251:Exited with code 0
+6259:Exited with code 128

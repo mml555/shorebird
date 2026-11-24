@@ -1,0 +1,21 @@
+## patch_p07.log (6262 lines; excerpt with original line numbers)
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+20:Exited with code 0
+40:Exited with code 0
+42:Exited with code 0
+46:Exited with code 0
+3235:            [        ] exiting with code 0
+4419:            [        ] exiting with code 0
+6189:[        ] exiting with code 0
+6192:Exited with code 0
+6206:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+6207:[route-b] P5-TARGET OPEN: release target lib/main.dart, this patch invoked with <default>. Recorded, not gated: no measurement has shown a target difference can admit a semantic mismatch that the release bindings accept.
+6209:[route-b] fetched cell descriptor from http://127.0.0.1:18185/download.shorebird.dev/shorebird/cell-manifests/9995f9571ec94b60eca64ec7eaae5fa190285b4d.v2
+6210:[route-b] using cached compiler bundle ~/Developer/shorebird-wt/devrun/run-9995f957/cli/bin/cache/artifacts/route-b-compiler/bundles/9995f9571ec94b60eca64ec7eaae5fa190285b4d-route-b-compiler-darwin-arm64.zip
+6211:[route-b] resolved compiler for engine 9995f9571ec94b60eca64ec7eaae5fa190285b4d
+6238:This patch cannot be built: it uses code the release never used in its own code.
+6240:  package:untab/main.dart#_HomeState._start
+6241:      it calls the dart: method `Future.then` (an SDK instance member, this release has no `then` on `TickerFuture` (in `package:flutter/src/scheduler/ticker.dart` that can be a `Future` here), and 1 more. A `Future` value can be a `TickerFuture` at runtime, and this release compiled no `then` for `TickerFuture` because nothing in it calls `then` on one; a release built with the code that calls it keeps it. An `await` on a `Future` is checked the same way, since awaiting a `TickerFuture` calls its `then`). An SDK instance method is looked up by name when it runs, and the app throws NoSuchMethodError at that call if the release never called it. Members marked "measured" failed on a device, and those on no list were never measured: no flag unlocks either, because the patcher only lets through members measured on a device. Only a refusal because the snapshot of this release does not keep the member (or its snapshot profile could not be checked) is skipped by `--allow-unchecked-sdk-calls`. To use a refused member, call something else, or have it measured on a device and added to the patcher list
+6243:The whole patch is refused, not the part that failed. Nothing was uploaded.
+6246:Exited with code 0
+6254:Exited with code 128
