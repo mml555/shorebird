@@ -1,0 +1,52 @@
+--------- beginning of main
+--------- beginning of system
+11-24 11:46:24.553 26032 26032 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
+11-24 11:46:24.554 26032 26032 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(634)] Shorebird updater: no active patch.
+11-24 11:46:24.560 26032 26032 I flutter : updater::updater: [shorebird] Reporting launch start.
+11-24 11:46:24.570 26032 26032 I flutter : updater::updater: [shorebird] Reporting successful launch.
+11-24 11:46:24.570 26032 26082 I flutter : updater::network: [shorebird] Sending patch check request: app_id: 11f16eb5-ca0b-f54d-cf30-dd378a47c03c, channel: stable, release_version: 1.0.0+2, host_bundle_id: dev.selfhost.untab.android, platform: android, arch: aarch64, current_patch_number: None
+11-24 11:46:24.579 26032 26082 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+11-24 11:46:24.579 26032 26082 I flutter : updater::updater: [shorebird] Update thread finished with status: No update
+11-24 11:46:24.580 26032 26075 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(74)] Using the Impeller rendering backend (Vulkan).
+11-24 11:46:24.595 26032 26032 I flutter : shape:init=I1
+11-24 11:46:24.595 26032 26032 I flutter : shape:home-build=H1 0
+11-24 11:46:24.595 26032 26032 I flutter : shape:future-builder=FB1 null
+11-24 11:46:24.596 26032 26032 I flutter : shape:label=L1
+11-24 11:46:24.805 26032 26032 I flutter : shape:future-builder=FB1 G1
+11-24 11:46:24.898 26032 26032 I flutter : shape:count=1
+11-24 11:46:24.905 26032 26032 I flutter : shape:home-build=H1 1
+11-24 11:46:24.906 26032 26032 I flutter : shape:future-builder=FB1 G1
+11-24 11:46:25.113 26032 26032 I flutter : shape:future-builder=FB1 G1
+11-24 11:46:25.201 26032 26032 I flutter : shape:count=2
+11-24 11:46:25.213 26032 26032 I flutter : shape:home-build=H1 2
+11-24 11:46:25.214 26032 26032 I flutter : shape:future-builder=FB1 G1
+11-24 11:46:25.431 26032 26032 I flutter : shape:future-builder=FB1 G1
+11-24 11:46:25.502 26032 26032 I flutter : shape:count=3
+11-24 11:46:25.513 26032 26032 I flutter : shape:home-build=H1 3
+11-24 11:46:25.513 26032 26032 I flutter : shape:future-builder=FB1 G1
+11-24 11:46:25.705 26032 26032 I flutter : shape:greeting=G1
+11-24 11:46:25.713 26032 26032 I flutter : shape:home-build=H1 3
+11-24 11:46:25.713 26032 26032 I flutter : shape:future-builder=FB1 G1
+11-24 11:46:25.757 26032 26032 I flutter : shape:stream=T0
+11-24 11:46:25.809 26032 26032 I flutter : shape:stream=T1
+11-24 11:46:25.860 26032 26032 I flutter : shape:stream=T2
+11-24 11:46:25.861 26032 26032 I flutter : shape:poly=circle1
+11-24 11:46:25.861 26032 26032 I flutter : shape:poly=square1
+11-24 11:46:25.861 26032 26032 I flutter : shape:mood=M1
+11-24 11:46:25.861 26032 26032 I flutter : shape:const=KT1
+11-24 11:46:25.861 26032 26032 I flutter : shape:level=hi1
+11-24 11:46:25.861 26032 26032 I flutter : shape:result=ok 7
+11-24 11:46:25.861 26032 26032 I flutter : shape:stars=***
+11-24 11:46:25.861 26032 26032 I flutter : shape:static=S1
+11-24 11:46:25.861 26032 26032 I flutter : shape:decorate=[P1:3]
+11-24 11:46:25.861 26032 26032 I flutter : shape:arith=2:false
+11-24 11:46:25.861 26032 26032 I flutter : shape:half=1.5
+11-24 11:46:25.861 26032 26032 I flutter : shape:box=T1
+11-24 11:46:25.861 26032 26032 I flutter : shape:generic=F1
+11-24 11:46:25.862 26032 26032 I flutter : shape:stamp=2026-11-15
+11-24 11:46:25.862 26032 26032 I flutter : shape:tally=K1 3 |||
+11-24 11:46:25.862 26032 26032 I flutter : shape:events=0
+11-24 11:46:25.862 26032 26032 I flutter : shape:done=START-DONE
+11-24 11:46:25.928 26032 26032 I flutter : shape:future-builder=FB1 G1
+11-24 11:46:25.929 26032 26032 I flutter : shape:route=R1 /detail
+11-24 11:46:25.946 26032 26032 I flutter : shape:detail=D1

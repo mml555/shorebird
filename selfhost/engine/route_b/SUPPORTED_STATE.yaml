@@ -151,7 +151,7 @@ lineage:
   # differ in the route-b-compiler-darwin-arm64.zip line alone. Engine 09c6f422, Dart 0cd04a77, updater 64a458f0 and the fallback engine f0a7d291
   # did not move. Selected by PR #285 (merge 2f0b38a6), which also added '9995f957' -> '0cd04a77' to DartSdkCompatibility. iPhone-run on 2026-11-23
   # twice: with CLI 2f0b38a6 an await patch was refused in any app that allocates TickerFuture (#289); with CLI 668ce3f0 (the merge of #291) the same
-  # await patches published and ran (see cells.9995f957....physically_qualified). See PROMOTION_9995f957.md.
+  # await patches published and ran (see cells.9995f957....physically_qualified). Android-run on 2026-11-24 (unsigned; see the same field). See PROMOTION_9995f957.md.
   # The CLI pin: the merge of PR #291 (668ce3f0), which fixes #289's await case (#289 stays open for catchError, whenComplete and timeout). The chain ran #285's head a120bf7f. bin/internal (5fd95eb8) is the same at both;
   # packages/shorebird_cli differs in five files (route_b_release_kernels.dart, route_b_retention.dart and their tests, ios_releaser_test.dart): an iOS
   # release keeps Future.then, and the kept check still asks the snapshot for it. That is the iOS release and patch path, which the Linux chain's steps
@@ -479,7 +479,13 @@ cells:
       failed, no --allow-unchecked-sdk-calls. t254 is still refused before upload, now only for the constructor TickerFuture.complete, which the release never
       uses. Limits: catchError, whenComplete and timeout on a TickerFuture are still refused; p05_boot's device log lost its first lines (p05_boot2 shows
       applied 1/1, init=I2, Launch success for patch 5); one device, unsigned. The release snapshot grew by 1,488 B (+0.036 %); App.framework/App did not change size (release_comparison.txt in that directory).
-      Android: not yet run on this cell.
+      Android: run on the OnePlus CPH2551 (Android 16) on 2026-11-24, unsigned, release 1.0.0+2, built with CLI 2f0b38a6 (the merge of #285), not with the supported
+      668ce3f0: #291 changes the iOS release and patch path only, so Android behaviour is the same, but no run used 668ce3f0 (evidence/android-cell-9995f957-future-then/RESULT.md).
+      t254 (await TickerFuture.complete(), refused by the iPhone) published as patch 1 and ran (greeting=G4); the six-edit await patch (p06+p07+p08+p03+p16b+p29) published as patch 2
+      and ran (greeting=G2, count to 50, events=5); the rollback of patch 2 fell back to patch 1. 8 distinct launches (patch 1 five, patch 2 three), every boot alive, no launch failed,
+      no --allow-unchecked-sdk-calls. Limits: unsigned; arm64 only; two patches and one rollback; one CLI, one device, one app. Under patch 1 route=R1 /detail and detail=D1 are not logged
+      until a frame is drawn: the test app pushes /detail from a post-frame callback and the patch's await ends at once, so no later frame comes; a forced frame logged both
+      (t254_frame_check.txt). A harness limit (the app should call scheduleFrame()), not a patch defect.
     producer_lineage: 09c6f4225d3ddf276fe4f3473beca79e038360b6
     fallback_engine_revision: f0a7d29193ea6e077e02080a3511b405a4401b6f
     evidence: evidence/r12-linux-ci/PROMOTION_9995f957.md
@@ -1295,11 +1301,15 @@ product_surfaces:
   # constructs. Recorded because "unsupported construct" and "unsupported
   # surface" have different remediations and collapsing them hides the second.
   standalone_flutter_app:
-    ios: SUPPORTED — the supported cell 9995f957 has f2458551's device-bound bytes and a new analyzer (analysis 24); iPhone-run on 2026-11-23 with CLI 668ce3f0 (the merge of #291): await patches published and ran, with limits (cells.9995f957….physically_qualified); Android not yet run on it. f2458551 is device-qualified (iPhone 7, 2026-11-22, unsigned and signed patches, with limits, cells.f2458551….physically_qualified); the previous device-qualified cell is a377ecb7 (cells.a377ecb7….physically_qualified); earlier cells were physically qualified too, see physical_device_qualification
+    ios: SUPPORTED — the supported cell 9995f957 has f2458551's device-bound bytes and a new analyzer (analysis 24); iPhone-run on 2026-11-23 with CLI 668ce3f0 (the merge of #291): await patches published and ran, with limits (cells.9995f957….physically_qualified); Android-run on 2026-11-24 (unsigned, CLI 2f0b38a6; #291 is iOS-only), with limits (cells.9995f957….physically_qualified). f2458551 is device-qualified (iPhone 7, 2026-11-22, unsigned and signed patches, with limits, cells.f2458551….physically_qualified); the previous device-qualified cell is a377ecb7 (cells.a377ecb7….physically_qualified); earlier cells were physically qualified too, see physical_device_qualification
     android:
       status: SUPPORTED — physically qualified 2026-09-04 against cell f85251f3…
       qualified: 2026-09-04 (ANDROID-FINAL-STACK-2)
       cell: f85251f344600ae08196925a174e9cff8f0ff18e
+      # Since then: device-run on the supported cell 9995f957 on 2026-11-24
+      # (unsigned, CLI 2f0b38a6; t254 and the await patches published and ran,
+      # rollback worked): evidence/android-cell-9995f957-future-then/RESULT.md.
+      # The keys above stay the qualification of record.
       # WHAT WAS PROVEN, in one line each, because "SUPPORTED" is the strongest
       # word in this file and it should be readable without opening the lane
       # document:
