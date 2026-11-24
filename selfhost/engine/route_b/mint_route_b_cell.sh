@@ -917,7 +917,7 @@ echo
 echo "1. PROVE THE CONSUMER PATH SERVES THIS CELL, by digest, before anything"
 echo "   consumes it. Run:"
 echo
-echo "     verify_cell_delivery.sh --hash $REV"
+echo "     verify_cell_delivery.sh --hash $REV --donor $DONOR --overlay $OVERLAY"
 echo
 echo "   THE INVARIANT IS THE DIGEST, NOT A RELOAD. Before any release or client"
 echo "   may consume a newly published cell, the exact hash URL through the real"

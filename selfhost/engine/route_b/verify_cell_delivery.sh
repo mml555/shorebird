@@ -44,7 +44,7 @@ BASE=${FLUTTER_STORAGE_BASE_URL:-http://localhost:8085}
 PLAT=${PLAT:-darwin-arm64}
 HASH=""; DONOR=""
 
-usage() { sed -n '3,36p' "${BASH_SOURCE[0]}"; exit 2; }
+usage() { sed -n '3,37p' "${BASH_SOURCE[0]}"; exit 2; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --hash) HASH="${2:?}"; shift 2 ;;
@@ -167,7 +167,11 @@ done
 
 # And the members must match what the bundle says they are.
 note "delivered members against the delivered PROVENANCE.txt"
-unzip -q -o "$W/got.zip" -d "$W/x"
+if ! unzip -q -o "$W/got.zip" -d "$W/x"; then
+  echo
+  echo "REFUSE — the delivered bytes are not a readable zip. Nothing may consume $HASH."
+  exit 1
+fi
 PROV="$W/x/PROVENANCE.txt"
 recorded=0
 while IFS= read -r line; do
