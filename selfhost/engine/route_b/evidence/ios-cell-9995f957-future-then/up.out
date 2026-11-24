@@ -1,0 +1,10 @@
+Connection to 127.0.0.1 port 18185 [tcp/opsec-omi] succeeded!
+Connection to 127.0.0.1 port 18188 [tcp/*] succeeded!
+descriptor 200 4141
+bootstrap exit=0
+HEAD is now at 8e996caee chore: select the cell 9995f957 over engine 09c6f422 (Flutter 3.50, Route B iOS, analysis 24)
+Shorebird Engine • revision 9995f9571ec94b60eca64ec7eaae5fa190285b4d
+Flutter 3.50.1-0.0.pre-254 • channel [user-branch] • https://github.com/mml555/shorebird-flutter.git
+Engine • hash c4e647cd01c49d20fe1b5aab5ed80a5f27859d60 (revision 9995f9571e) (34 hours ago) • 2026-11-22 17:21:42.000Z
+UP_DONE
+up exit=0

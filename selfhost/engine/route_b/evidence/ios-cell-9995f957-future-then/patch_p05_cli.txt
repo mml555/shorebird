@@ -1,0 +1,22 @@
+## patch_p05.log (6287 lines; excerpt with original line numbers)
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+20:Exited with code 0
+40:Exited with code 0
+42:Exited with code 0
+46:Exited with code 0
+3235:            [        ] exiting with code 0
+4419:            [        ] exiting with code 0
+6189:[        ] exiting with code 0
+6192:Exited with code 0
+6206:[route-b] build configuration matches the release (fingerprint 494a8de866b142b6)
+6207:[route-b] P5-TARGET OPEN: release target lib/main.dart, this patch invoked with <default>. Recorded, not gated: no measurement has shown a target difference can admit a semantic mismatch that the release bindings accept.
+6209:[route-b] fetched cell descriptor from http://127.0.0.1:18185/download.shorebird.dev/shorebird/cell-manifests/9995f9571ec94b60eca64ec7eaae5fa190285b4d.v2
+6210:[route-b] using cached compiler bundle ~/Developer/shorebird-wt/devrun/run-9995f957-668c/cli/bin/cache/artifacts/route-b-compiler/bundles/9995f9571ec94b60eca64ec7eaae5fa190285b4d-route-b-compiler-darwin-arm64.zip
+6211:[route-b] resolved compiler for engine 9995f9571ec94b60eca64ec7eaae5fa190285b4d
+6238:[route-b] compiled _HomeState.initState -> ~/Developer/shorebird-wt/devrun/run-9995f957-668c/work/untab/build/route_b/replacement_0.bytecode
+6239:[route-b] packed 2317 bytes for release bc4bade7cf64377ad4e9cd501f6ab450 at ~/Developer/shorebird-wt/devrun/run-9995f957-668c/work/untab/build/route_b/patch.sbrbptch
+6241:Exited with code 0
+6248:Exited with code 0
+6259:🕹️  Platform: iOS [arm64 (1.36 KB)]
+6276:✅ Published Patch 5!
+6279:Exited with code 128

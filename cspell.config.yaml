@@ -309,6 +309,8 @@ overrides:
   # a refusal cut at its column limit, nc's name for port 18185, and grep fragments in collect.sh.
   - filename: "selfhost/engine/route_b/evidence/ios-cell-9995f957/**"
     ignoreWords: [DTSDK, NUMS, SDKROOT, ajfzjbuqdlruxhfbxmimodsyedkg, appintentsmetadataprocessor, cryptexd, noindex, olled, opsec, runti, sdkstatcache, xctool, xctoolchain]
+  - filename: "selfhost/engine/route_b/evidence/ios-cell-9995f957-future-then/**"
+    ignoreWords: [DTSDK, NUMS, SDKROOT, ajfzjbuqdlruxhfbxmimodsyedkg, bteqwfrdydlixwaiaplzlnjipczx, appintentsmetadataprocessor, cryptexd, noindex, olled, opsec, runti, sdkstatcache, xctool, xctoolchain]
 
   # Deliberate non-ASCII test input for the lowering matrix.
   - filename: "selfhost/engine/route_b/probes/lowering_matrix.sh"
