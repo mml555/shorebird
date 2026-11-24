@@ -847,7 +847,7 @@ void main() {
             'dart:core#identical',
           ],
         );
-        expect(routeBRetainedSdkMembers, hasLength(4 + 53));
+        expect(routeBRetainedSdkMembers, hasLength(4 + 53 + 1));
         expect(
           routeBRetainedSdkMembers.toSet(),
           hasLength(routeBRetainedSdkMembers.length),
@@ -860,6 +860,9 @@ void main() {
             'dart:core#String.substring',
             'dart:core#Iterable.get:isEmpty',
             'dart:core#List.sublist',
+            // An `await` on a `Future` that is not a `_Future` calls `then`
+            // (#289).
+            'dart:async#Future.then',
           ]),
         );
         // The heavy set is opt-in, so none of it may be in the default.
