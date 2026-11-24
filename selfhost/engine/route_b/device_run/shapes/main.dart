@@ -157,6 +157,11 @@ class _HomeState extends State<Home> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(navKey.currentState!.pushNamed('/detail'));
     });
+    // A post-frame callback does not ask for a frame. Without this, the push
+    // waits for something else to rebuild: a patch whose loadGreeting
+    // finishes at once (t254, `await TickerFuture.complete()`) never opened
+    // /detail on Android, though the patch itself was correct.
+    WidgetsBinding.instance.scheduleFrame();
   }
 
   void _increment() {
