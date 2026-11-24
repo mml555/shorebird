@@ -80,11 +80,13 @@ Neither moved, so `engine_updater_evidence_guard.sh` was not re-run. The `f24585
 
 ## Device run
 
-The iPhone 7 run of #254 is [`ios-cell-9995f957`](../../engine/route_b/evidence/ios-cell-9995f957/RESULT.md) (2026-11-23). The #254 patch was refused before upload. So was every edit that changes or carries a function with an `await` on a `Future` (`p06`, `p07`, `p08`, and a trio carrying `_start`), because the release has no `then` on `TickerFuture` (#289). Those edits published and ran under `f2458551`. An edit with no `await` (`p05`) published, ran and rolled back. The Android run is not done yet.
+The iPhone 7 run of #254 is [`ios-cell-9995f957`](../../engine/route_b/evidence/ios-cell-9995f957/RESULT.md) (2026-11-23). The #254 patch was refused before upload. So was every edit that changes or carries a function with an `await` on a `Future` (`p06`, `p07`, `p08`, and a trio carrying `_start`), because the release has no `then` on `TickerFuture` (#289). Those edits published and ran under `f2458551`. An edit with no `await` (`p05`) published, ran and rolled back.
+
+#291 (merge `668ce3f0`) fixed #289's `await` case: an iOS release keeps `Future.then`, and the kept check still asks the release snapshot for it. The re-run with that CLI is [`ios-cell-9995f957-future-then`](../../engine/route_b/evidence/ios-cell-9995f957-future-then/RESULT.md) (2026-11-23): `p06`, `p07`, `p08` and the trio published and showed their change, `p05` ran and rolled back, and the #254 patch was refused only for the constructor `TickerFuture.complete`. The supported CLI moved to `668ce3f0`. Its `bin/internal` equals the chain's `a120bf7f`; `packages/shorebird_cli` differs in five files of the iOS release and patch path, which this chain does not run. The Android run is not done yet.
 
 ## Not done
 
-- #289, then a re-run of the refused `await` edits on the iPhone.
+- `catchError`, `whenComplete` and `timeout` on a `TickerFuture` (#289's remainder).
 - The Android run.
 - `selfhost/engine/route_b/verify_supported_state.sh` was not run for this record.
 - The items still open from `PROMOTION_f2458551.md`:

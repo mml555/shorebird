@@ -1,0 +1,135 @@
+[....] Waiting for iOS device to be connected
+[....] Using 8cb4bc982ddf6437b1952520edee80f898196c74 (D10AP, iPhone 7, iphoneos, arm64, 15.8.8, 19H422) a.k.a. '<device name>'.
+------ Install phase ------
+[  0%] Found 8cb4bc982ddf6437b1952520edee80f898196c74 (D10AP, iPhone 7, iphoneos, arm64, 15.8.8, 19H422) a.k.a. '<device name>' connected through USB, beginning install
+[  5%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/META-INF/ to device
+[  5%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/META-INF/com.apple.ZipMetadata.plist to device
+[  5%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/_CodeSignature/ to device
+[  5%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/_CodeSignature/CodeResources to device
+[  6%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/_CodeSignature/CodeResources to device
+[  6%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/AppIcon60x60@2x.png to device
+[  6%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Runner to device
+[  6%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Base.lproj/ to device
+[  7%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Base.lproj/ to device
+[  7%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Base.lproj/Main.storyboardc/ to device
+[  7%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Base.lproj/Main.storyboardc/UIViewController-BYZ-38-t0r.nib to device
+[  7%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Base.lproj/Main.storyboardc/BYZ-38-t0r-view-8bC-Xf-vdC.nib to device
+[  8%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Base.lproj/Main.storyboardc/BYZ-38-t0r-view-8bC-Xf-vdC.nib to device
+[  8%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Base.lproj/Main.storyboardc/Info.plist to device
+[  8%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Base.lproj/LaunchScreen.storyboardc/ to device
+[  8%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Base.lproj/LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib to device
+[  9%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Base.lproj/LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib to device
+[  9%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Base.lproj/LaunchScreen.storyboardc/UIViewController-01J-lp-oVM.nib to device
+[  9%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Base.lproj/LaunchScreen.storyboardc/Info.plist to device
+[  9%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Assets.car to device
+[ 10%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Assets.car to device
+[ 10%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/AppFrameworkInfo.plist to device
+[ 10%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/AppIcon76x76@2x~ipad.png to device
+[ 10%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/ to device
+[ 11%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/ to device
+[ 11%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/ to device
+[ 11%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/_CodeSignature/ to device
+[ 11%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/_CodeSignature/CodeResources to device
+[ 11%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/icudtl.dat to device
+[ 12%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/icudtl.dat to device
+[ 13%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/icudtl.dat to device
+[ 13%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 14%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 15%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 16%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 17%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 18%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 19%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 20%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 21%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 22%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 23%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 24%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 25%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 26%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 27%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 28%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Flutter to device
+[ 28%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/ to device
+[ 28%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterSceneDelegate.h to device
+[ 29%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterSceneDelegate.h to device
+[ 29%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterEngine.h to device
+[ 29%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterChannels.h to device
+[ 29%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterPlugin.h to device
+[ 30%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterPlugin.h to device
+[ 30%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterAppDelegate.h to device
+[ 30%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterTexture.h to device
+[ 30%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterEngineGroup.h to device
+[ 31%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterEngineGroup.h to device
+[ 31%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterPlatformViews.h to device
+[ 31%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterHeadlessDartRunner.h to device
+[ 31%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterCodecs.h to device
+[ 31%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/Flutter.h to device
+[ 32%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/Flutter.h to device
+[ 32%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterViewController.h to device
+[ 32%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterMacros.h to device
+[ 32%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterDartProject.h to device
+[ 33%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterDartProject.h to device
+[ 33%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterHourFormat.h to device
+[ 33%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterPluginAppLifeCycleDelegate.h to device
+[ 33%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterBinaryMessenger.h to device
+[ 34%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterBinaryMessenger.h to device
+[ 34%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterCallbackCache.h to device
+[ 34%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Headers/FlutterSceneLifeCycle.h to device
+[ 34%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/PrivacyInfo.xcprivacy to device
+[ 35%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/PrivacyInfo.xcprivacy to device
+[ 35%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Modules/ to device
+[ 35%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Modules/module.modulemap to device
+[ 35%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/Flutter.framework/Info.plist to device
+[ 35%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/ to device
+[ 36%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/ to device
+[ 36%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/_CodeSignature/ to device
+[ 36%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/_CodeSignature/CodeResources to device
+[ 36%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/App to device
+[ 37%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/App to device
+[ 38%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/App to device
+[ 39%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/App to device
+[ 40%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/App to device
+[ 41%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/App to device
+[ 42%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/App to device
+[ 43%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/App to device
+[ 43%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/ to device
+[ 43%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/NOTICES.Z to device
+[ 43%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/NativeAssetsManifest.json to device
+[ 44%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/NativeAssetsManifest.json to device
+[ 44%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/shorebird.yaml to device
+[ 44%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/FontManifest.json to device
+[ 44%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/packages/ to device
+[ 45%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/packages/ to device
+[ 45%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/packages/cupertino_icons/ to device
+[ 45%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/packages/cupertino_icons/assets/ to device
+[ 45%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/packages/cupertino_icons/assets/CupertinoIcons.ttf to device
+[ 45%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/packages/material_ui/ to device
+[ 46%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/packages/material_ui/ to device
+[ 46%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/packages/material_ui/shaders/ to device
+[ 46%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/packages/material_ui/shaders/ink_sparkle.frag to device
+[ 46%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/shaders/ to device
+[ 47%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/shaders/ to device
+[ 47%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/shaders/ink_sparkle.frag to device
+[ 47%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/shaders/stretch_effect.frag to device
+[ 47%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/AssetManifest.bin to device
+[ 48%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/AssetManifest.bin to device
+[ 48%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/fonts/ to device
+[ 48%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/flutter_assets/fonts/MaterialIcons-Regular.otf to device
+[ 48%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/Info.plist to device
+[ 49%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Frameworks/App.framework/Info.plist to device
+[ 49%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/embedded.mobileprovision to device
+[ 49%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/Info.plist to device
+[ 49%] Copying ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app/PkgInfo to device
+[ 52%] CreatingStagingDirectory
+[ 57%] ExtractingPackage
+[ 60%] InspectingPackage
+[ 60%] TakingInstallLock
+[ 65%] PreflightingApplication
+[ 65%] InstallingEmbeddedProfile
+[ 70%] VerifyingApplication
+[ 75%] CreatingContainer
+[ 80%] InstallingApplication
+[ 85%] PostflightingApplication
+[ 90%] SandboxingApplication
+[ 95%] GeneratingApplicationMap
+[100%] Installed package ~/Developer/shorebird-wt/devrun/run-9995f957-668c/signed/Runner.app
