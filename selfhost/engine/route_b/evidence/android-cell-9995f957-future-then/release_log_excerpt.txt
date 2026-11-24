@@ -1,0 +1,5 @@
+5:[WARN] No patch public key was provided. Patches for this release will not be cryptographically verified on the device.
+535:COHERENT platform=android engine=9995f9571ec94b60eca64ec7eaae5fa190285b4d | iOS Route B capability: NOT EVALUATED | iOS engine identity: NOT EVALUATED
+5113:Starting Creating release...
+5118:Done Creating release
+5146:✅ Published Release 1.0.0+2!
