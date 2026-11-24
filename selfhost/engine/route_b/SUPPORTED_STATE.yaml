@@ -152,7 +152,7 @@ lineage:
   # did not move. Selected by PR #285 (merge 2f0b38a6), which also added '9995f957' -> '0cd04a77' to DartSdkCompatibility. iPhone-run on 2026-11-23
   # twice: with CLI 2f0b38a6 an await patch was refused in any app that allocates TickerFuture (#289); with CLI 668ce3f0 (the merge of #291) the same
   # await patches published and ran (see cells.9995f957....physically_qualified). See PROMOTION_9995f957.md.
-  # The CLI pin: the merge of PR #291 (668ce3f0), which fixes #289. The chain ran #285's head a120bf7f. bin/internal (5fd95eb8) is the same at both;
+  # The CLI pin: the merge of PR #291 (668ce3f0), which fixes #289's await case (#289 stays open for catchError, whenComplete and timeout). The chain ran #285's head a120bf7f. bin/internal (5fd95eb8) is the same at both;
   # packages/shorebird_cli differs in five files (route_b_release_kernels.dart, route_b_retention.dart and their tests, ios_releaser_test.dart): an iOS
   # release keeps Future.then, and the kept check still asks the snapshot for it. That is the iOS release and patch path, which the Linux chain's steps
   # do not run (the 37a0434b precedent, below). The iPhone run ios-cell-9995f957-future-then was made with this pin.
@@ -478,7 +478,7 @@ cells:
       published (patches 1-4) and each showed its change; p05 published (patch 5), ran (init=I2) and rolled back to patch 4. 16 Launch success lines, no launch
       failed, no --allow-unchecked-sdk-calls. t254 is still refused before upload, now only for the constructor TickerFuture.complete, which the release never
       uses. Limits: catchError, whenComplete and timeout on a TickerFuture are still refused; p05_boot's device log lost its first lines (p05_boot2 shows
-      applied 1/1, init=I2, Launch success for patch 5); one device, unsigned. The release snapshot grew by 1,488 B (+0.036 %); App.framework/App did not change size.
+      applied 1/1, init=I2, Launch success for patch 5); one device, unsigned. The release snapshot grew by 1,488 B (+0.036 %); App.framework/App did not change size (release_comparison.txt in that directory).
       Android: not yet run on this cell.
     producer_lineage: 09c6f4225d3ddf276fe4f3473beca79e038360b6
     fallback_engine_revision: f0a7d29193ea6e077e02080a3511b405a4401b6f
