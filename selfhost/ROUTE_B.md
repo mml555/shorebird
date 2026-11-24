@@ -63,7 +63,11 @@ leaves with code were. Patches the CLI used to accept can now be refused. The
 largest group is `Future.then`, `catchError`, `timeout` and `whenComplete`
 (called or torn off) in any Flutter app with an `AnimationController`: such an
 app allocates `TickerFuture`, which keeps none of them, and a `Future` value
-can be one at runtime. The refusal names the class and says why. What to do:
+can be one at runtime. The refusal names the class and says why. Since #291
+(#289), an iOS release names `dart:async#Future.then` in its interface so that
+it compiles `then` on the `Future` subtypes it allocates; the check still asks
+the release's snapshot, so `then` passes only where the release really has it,
+and `catchError`, `timeout` and `whenComplete` are unchanged. What to do:
 
 - If the value is never a `TickerFuture` (it comes from `async` code, `http`, a
   plugin), `await` it instead, with `try`/`catch` for `catchError` and
@@ -607,7 +611,8 @@ An operand that cannot be a `Future` (`int`, `String`, `Null`, a record, a funct
 reports nothing, and the lowered `await for` (`_StreamIterator`) is skipped. A refusal
 is therefore possible for an `await` on a `Future` in a release that allocates a
 `TickerFuture` without a compiled `then`, and awaiting is no longer offered as a way
-around a refused `.then`. An `await` entry is asked like an explicit `.then`, which
+around a refused `.then`. Releases built since #291 name `Future.then` so that they
+compile it on every `Future` subtype they allocate (#289); the snapshot is still asked. An `await` entry is asked like an explicit `.then`, which
 includes `_Future.then`, though awaiting a `_Future` never calls it; a release that
 compiled no `_Future.then` is not realistic (the framework calls `.then`), and the
 old-cell gate leaves `_Future` out only because it asks about the hazard alone.

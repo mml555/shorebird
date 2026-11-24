@@ -408,12 +408,24 @@ class RouteBRetention {
     // call, which the interface's own list does not vouch for.
     final torn = _tearoffRefusal(key);
     if (torn != null) return torn;
-    if (members.contains(key)) return null;
+    if (members.contains(key) && !_snapshotCheckedWhenNamed.contains(key)) {
+      return null;
+    }
     final failed = measuredFailing[key];
     if (failed != null) return 'measured: $failed';
     if (!measuredAccepted.contains(key)) return '';
     return _keptProblem(key, receiver: receiver);
   }
+
+  /// Members the release names in its interface and that are still checked
+  /// against its snapshot, because naming them is not shown to keep code on
+  /// every class that can be the receiver.
+  ///
+  /// `Future.then` is named so that a release compiles `then` on the `Future`
+  /// subtypes it allocates (`TickerFuture` in every Material app), which an
+  /// `await` on one calls (#289). Those subtypes live outside `dart:`, where
+  /// retention by name was never measured, so the snapshot still answers.
+  static const _snapshotCheckedWhenNamed = {'dart:async#Future#then'};
 
   static (String, String)? _receiverOf(RouteBExternalReference r) {
     final library = r.receiverLibrary;
