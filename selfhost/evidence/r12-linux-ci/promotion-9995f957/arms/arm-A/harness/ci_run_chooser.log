@@ -1,0 +1,9 @@
+[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+Starting Fetching app...
+Done Fetching app
+Starting Fetching releases...
+Done Fetching releases
+Input was required for the following prompt but the CLI is running in a non-interactive context:
+  Which release would you like to patch?
+
+Hint: Pass --release-version=<version> to patch a specific release without prompting.
