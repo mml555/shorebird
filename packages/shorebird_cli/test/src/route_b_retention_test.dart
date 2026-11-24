@@ -1536,6 +1536,32 @@ can-be-used-as-type:
       );
     });
 
+    test('is checked against the snapshot even when the release names '
+        'Future.then (#289)', () {
+      RouteBRetention named({required bool tickerThen}) =>
+          RouteBRetention.parse(
+            _interface.replaceFirst(
+              'callable:\n',
+              'callable:\n'
+                  "  - library: 'dart:async'\n"
+                  "    class: 'Future'\n"
+                  "    member: 'then'\n",
+            ),
+            kept: RouteBSnapshotKept.fromProfileJson(
+              routeBProfile(classes(tickerThen: tickerThen)),
+            ),
+          );
+      expect(
+        named(tickerThen: false).members,
+        contains('dart:async#Future#then'),
+      );
+      expect(
+        refusalOf(named(tickerThen: false), awaitRef()),
+        contains('TickerFuture'),
+      );
+      expect(refusalOf(named(tickerThen: true), awaitRef()), isNull);
+    });
+
     test('the measurement the old-cell gate relies on is still there', () {
       expect(routeBSdkMeasuredAccepted, contains('dart:async#Future#then'));
       expect(

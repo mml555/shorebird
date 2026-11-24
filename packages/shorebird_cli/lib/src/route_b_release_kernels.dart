@@ -131,6 +131,14 @@ const routeBRetainedSdkMembers = <String>[
   'dart:core#Iterable.join',
   'dart:core#List.clear',
   'dart:core#List.sublist',
+  // `then` on every allocated `Future` subtype, so a patch may `await` one.
+  // Awaiting a `_Future` goes through `_Future._thenAwait`, but awaiting any
+  // other `Future` calls its `then`, and the analysis cannot tell them apart
+  // from the static type, so it checks every `await` on a `Future` as a call
+  // of `then` (analysis 24). Every Material app allocates `TickerFuture`, and
+  // nothing in it calls `TickerFuture.then`, so without this key the kept
+  // check refused every patch that changes or carries an `await` (#289).
+  'dart:async#Future.then',
 ];
 
 /// The SDK members kept only when the app opts in with

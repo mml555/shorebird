@@ -1193,7 +1193,7 @@ $body
                       ).captured.single
                       as List<String>;
 
-              expect(members, hasLength(78));
+              expect(members, hasLength(79));
               expect(members, contains('dart:core#Iterable.where'));
               expect(members, containsAll(routeBRetainedSdkMembers));
               verify(
