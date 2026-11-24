@@ -1,3 +1,7 @@
+# Forced-frame check, 2026-11-24, patch 1 (t254) active, server stopped.
+# Captured with `adb logcat --pid=<app pid> -s flutter:I`. About 12 s after launch
+# (11:55:18), `adb shell cmd uimode night yes`, then 4 s later `night no` (restored).
+# The theme change rebuilds the app, which runs the queued /detail post-frame callback.
 --------- beginning of main
 11-24 11:55:05.215 29950 29950 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(616)] Checking for active patch
 11-24 11:55:05.215 29950 29950 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(632)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.android/files/shorebird_updater/patches/1/dlc.vmcode

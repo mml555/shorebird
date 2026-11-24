@@ -1306,6 +1306,10 @@ product_surfaces:
       status: SUPPORTED — physically qualified 2026-09-04 against cell f85251f3…
       qualified: 2026-09-04 (ANDROID-FINAL-STACK-2)
       cell: f85251f344600ae08196925a174e9cff8f0ff18e
+      # Since then: device-run on the supported cell 9995f957 on 2026-11-24
+      # (unsigned, CLI 2f0b38a6; t254 and the await patches published and ran,
+      # rollback worked): evidence/android-cell-9995f957-future-then/RESULT.md.
+      # The keys above stay the qualification of record.
       # WHAT WAS PROVEN, in one line each, because "SUPPORTED" is the strongest
       # word in this file and it should be readable without opening the lane
       # document:
