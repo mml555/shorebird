@@ -80,11 +80,12 @@ Neither moved, so `engine_updater_evidence_guard.sh` was not re-run. The `f24585
 
 ## Device run
 
-No device has run this cell yet. Its device-bound members have the same canonical digests as `f2458551`'s, apart from the seven rendered to the address. `f2458551` is device-qualified on iOS and Android, with limits (`PROMOTION_f2458551.md`, Device run). What this cell changes is the host-side analyzer, which decides which iOS patches the CLI accepts. The device run that exercises it is #254 (an await on a `TickerFuture`), on the iPhone 7 and the Android phone. It is PENDING, not run.
+The iPhone 7 run of #254 is [`ios-cell-9995f957`](../../engine/route_b/evidence/ios-cell-9995f957/RESULT.md) (2026-11-23). The #254 patch was refused before upload. So was every edit that changes or carries a function with an `await` on a `Future` (`p06`, `p07`, `p08`, and a trio carrying `_start`), because the release has no `then` on `TickerFuture` (#289). Those edits published and ran under `f2458551`. An edit with no `await` (`p05`) published, ran and rolled back. The Android run is not done yet.
 
 ## Not done
 
-- The device run above.
+- #289, then a re-run of the refused `await` edits on the iPhone.
+- The Android run.
 - `selfhost/engine/route_b/verify_supported_state.sh` was not run for this record.
 - The items still open from `PROMOTION_f2458551.md`:
   - port the post-step-7 failure check into `selfhost/ci`;

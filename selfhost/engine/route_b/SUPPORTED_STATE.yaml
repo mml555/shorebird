@@ -149,8 +149,8 @@ lineage:
   # What moved: the compiler archive alone. 9995f957 is f2458551 re-minted by mint_cell_v2.sh (#283); its archive carries the Route B analyzer
   # of #277 (analysis 24: an await is reported as Future.then, the #254 case; route_b_analyze.aot 24d20ed1...). The two canonical descriptors
   # differ in the route-b-compiler-darwin-arm64.zip line alone. Engine 09c6f422, Dart 0cd04a77, updater 64a458f0 and the fallback engine f0a7d291
-  # did not move. Selected by PR #285 (merge 2f0b38a6), which also added '9995f957' -> '0cd04a77' to DartSdkCompatibility. NOT device-run yet
-  # (see cells.9995f957....physically_qualified). See PROMOTION_9995f957.md.
+  # did not move. Selected by PR #285 (merge 2f0b38a6), which also added '9995f957' -> '0cd04a77' to DartSdkCompatibility. iPhone-run on 2026-11-23
+  # with limits: async patches are refused in any app that allocates TickerFuture, #289 (see cells.9995f957....physically_qualified). See PROMOTION_9995f957.md.
   # The CLI pin: the merge of PR #285. The chain ran #285's head a120bf7f; its packages/shorebird_cli (2ac28976) and bin/internal (5fd95eb8)
   # trees equal the merge's (git rev-parse on both), so the pin is the CLI the chain ran.
   # f2458551's lineage text, kept as written:
@@ -443,7 +443,7 @@ cells:
     status: >-
       SELECTED -- this is lineage.cell_address (moved here 2026-11-23). The promotion chain ran once, with no resume (CHAIN_DONE 2026-11-23T23:52:22Z), then R12 arm B;
       step 7's harness verdict was FAIL on one check by design (arm 3 exited 0 where 64 was expected: the discovery control plane has one release).
-      NOT device-run yet (see physically_qualified).
+      iPhone-run 2026-11-23 with limits (#289: an await refuses the patch in an app that allocates TickerFuture); see physically_qualified.
     # f2458551 re-minted by mint_cell_v2.sh (#283) with one member changed, route-b-compiler-darwin-arm64.zip (bf5aabae..., 19767236 B), whose route_b_analyze.aot is the
     # analyzer of #277 (analysis 24). The canonical descriptors (cell_manifests/*.v2) differ in that line alone; the seven members rendered to the address
     # (engine_stamp.json, the four POMs, artifacts_manifest.yaml and the descriptor) are re-rendered. The same 26 unaddressed host files as f2458551's ship as
@@ -459,9 +459,12 @@ cells:
       2026-11-23T23:52:22Z), then R12 arm B (exit 0, ARMB_DONE 2026-11-24T01:15:38Z). One run, no resume. The closure guard verified 2 of 2 ledger rows
       (size and sha256). See evidence/r12-linux-ci/PROMOTION_9995f957.md.
     physically_qualified: >-
-      PENDING, NOT RUN on this cell. Its device-bound members have the same canonical digests as f2458551's, which is device-qualified on iOS and Android with limits
-      (cells.f2458551….physically_qualified); that is a statement about bytes, not a device run of this cell. What changed is the host-side analyzer, which decides
-      which iOS patches the CLI accepts; the run that exercises it (#254, an await on a TickerFuture, on the iPhone 7 and the OnePlus) is next.
+      iOS: run on the iPhone 7 (iOS 15.8.8) on 2026-11-23 with CLI 2f0b38a6, release 1.0.0+75, unsigned, check on (evidence/ios-cell-9995f957/RESULT.md).
+      The #254 patch (await TickerFuture.complete()) was refused before upload. So were p06, p07 and p08 (each awaits Future<void>.delayed) and a trio that
+      carries the async _start, all of which published and ran under f2458551: analysis 24 checks each await on a Future as Future.then, and the release has
+      no then on TickerFuture "and 1 more" (#289). p05 (no await) published, ran (init=I2, applied 1/1, Launch success) and rolled back to the release (init=I1).
+      So this cell is NOT device-qualified for async iOS patches until #289. Its device-bound members have the same canonical digests as f2458551's.
+      Android: not yet run on this cell.
     producer_lineage: 09c6f4225d3ddf276fe4f3473beca79e038360b6
     fallback_engine_revision: f0a7d29193ea6e077e02080a3511b405a4401b6f
     evidence: evidence/r12-linux-ci/PROMOTION_9995f957.md
