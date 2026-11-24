@@ -26,6 +26,13 @@
 # fallback instead of surfacing as a vague mismatch.
 #
 #   verify_cell_delivery.sh --hash <cellHash> [--donor <hash>] [--base <url>]
+#                           [--overlay <dir>] [--plat <platform>]
+#
+# --overlay names the directory holding the PUBLISHED bytes (default
+# selfhost/cdn/overlay, or $OVERLAY), e.g. a cell hydrated from its release.
+# The donor defaults to the one the cell's own map comment names (a v1 mint's
+# ANCESTRY line). A route-b-cell-v2 cell's comment names none: pass --donor
+# with the cell it replaces, or the fallback control does not run.
 #
 # Exit codes: 0 delivered and verified · 1 mismatch (do not consume) · 2 usage.
 set -euo pipefail
@@ -37,13 +44,14 @@ BASE=${FLUTTER_STORAGE_BASE_URL:-http://localhost:8085}
 PLAT=${PLAT:-darwin-arm64}
 HASH=""; DONOR=""
 
-usage() { sed -n '3,29p' "${BASH_SOURCE[0]}"; exit 2; }
+usage() { sed -n '3,37p' "${BASH_SOURCE[0]}"; exit 2; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --hash) HASH="${2:?}"; shift 2 ;;
     --donor) DONOR="${2:?}"; shift 2 ;;
     --base) BASE="${2:?}"; shift 2 ;;
     --plat) PLAT="${2:?}"; shift 2 ;;
+    --overlay) OVERLAY="${2:?}"; shift 2 ;;
     -h|--help) usage ;;
     *) echo "unknown argument: $1" >&2; usage ;;
   esac
@@ -64,7 +72,11 @@ echo "  hash : $HASH"
 echo "  url  : $URL"
 echo
 
-[[ -f "$PUB" ]] || { echo "  FAIL    nothing published at $PUB"; exit 1; }
+if [[ ! -f "$PUB" ]]; then
+  echo "  FAIL    nothing published at $PUB"
+  echo "          (--overlay names the directory holding the published bytes)"
+  exit 1
+fi
 PUB_SHA=$(shasum -a 256 "$PUB" | cut -d' ' -f1)
 ok "published bundle exists (${PUB_SHA:0:16})"
 
@@ -94,11 +106,22 @@ fi
 
 # Name fallback as fallback. Without this a poisoned cache reads as a generic
 # mismatch, and the remediation for the two is different.
+# The donor is read from THIS cell's own comment block, the contiguous `#`
+# lines directly above its map line. The old `grep -B40 | sed | tail` read 40
+# lines up, so it could name an older cell's donor, and under pipefail a hash
+# not yet in the map ended the script with exit 1 and no message.
+MAP="$SELFHOST/cdn/experimental_hashes.map"
 if [[ -z "$DONOR" ]]; then
-  DONOR=$(sed -nE "s/^# Previous cell, kept for rollback:$//p" /dev/null; \
-    grep -B40 "^$HASH " "$SELFHOST/cdn/experimental_hashes.map" 2>/dev/null \
-    | sed -nE 's/^# ANCESTRY, MEASURED against donor ([0-9a-f]{40}).*/\1/p' \
-    | tail -1)
+  if [[ -f "$MAP" ]] && grep -q "^$HASH " "$MAP"; then
+    DONOR=$(awk -v h="$HASH" '
+      /^#/ { blk = blk $0 "\n"; next }
+      index($0, h " ") == 1 { printf "%s", blk; exit }
+      { blk = "" }' "$MAP" \
+      | sed -nE 's/^# ANCESTRY, MEASURED against donor ([0-9a-f]{40}).*/\1/p' \
+      | tail -1) || DONOR=""
+  else
+    echo "  --      $HASH is not in $MAP, so no donor can be read from it"
+  fi
 fi
 if [[ -n "$DONOR" ]]; then
   DPUB="$OVERLAY/download.shorebird.dev/shorebird/$DONOR/route-b-compiler-$PLAT.zip"
@@ -124,6 +147,7 @@ if [[ -n "$DONOR" ]]; then
   fi
 else
   echo "  --      no donor identified; the fallback control did not run"
+  echo "          (pass --donor with the cell this one replaces)"
 fi
 
 # Members, from the DELIVERED bytes. A bundle can match a digest and still be
@@ -143,7 +167,11 @@ done
 
 # And the members must match what the bundle says they are.
 note "delivered members against the delivered PROVENANCE.txt"
-unzip -q -o "$W/got.zip" -d "$W/x"
+if ! unzip -q -o "$W/got.zip" -d "$W/x"; then
+  echo
+  echo "REFUSE — the delivered bytes are not a readable zip. Nothing may consume $HASH."
+  exit 1
+fi
 PROV="$W/x/PROVENANCE.txt"
 recorded=0
 while IFS= read -r line; do
