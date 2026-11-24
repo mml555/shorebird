@@ -1,0 +1,10 @@
+run-9995f957-668c/work/untab/build/route_b_snapshot_profile.json
+  await on Future: OK, every allocated Future subtype has then
+  catchError: this release has no `catchError` on `TickerFuture` (in `package:flutter/src/scheduler/ticker.dart` that can be a `Future` here), and 1 more. (advice trimmed)
+  whenComplete: this release has no `whenComplete` on `TickerFuture` (in `package:flutter/src/scheduler/ticker.dart` that can be a `Future` here), and 1 more. (advice trimmed)
+  timeout: this release has no `timeout` on `TickerFuture` (in `package:flutter/src/scheduler/ticker.dart` that can be a `Future` here), and 1 more. (advice trimmed)
+run-9995f957-kfm/work/untab/build/route_b_snapshot_profile.json
+  await on Future: OK, every allocated Future subtype has then
+  catchError: OK
+  whenComplete: OK
+  timeout: OK

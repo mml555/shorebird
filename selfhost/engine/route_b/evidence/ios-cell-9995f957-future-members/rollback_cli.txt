@@ -1,0 +1,2 @@
+7:Patch 3 on release 1.0.0+78 has been rolled back.
+11:Rolled back: yes
