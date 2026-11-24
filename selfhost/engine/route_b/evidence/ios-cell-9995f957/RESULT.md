@@ -1,7 +1,7 @@
 <!-- cspell:words NUMS -->
 # iOS device run through cell 9995f957, for #254 (2026-11-23)
 
-**Result: the analysis 24 check works on a device run, and it refuses too much.** The #254 patch (`await TickerFuture.complete()`) was refused before upload. So were the three ordinary `await` edits (`p06`, `p07`, `p08`) and a trio that only carries an `async` function. All four of those published and ran under cell `f2458551`. Each refusal names the same cause: `this release has no then on TickerFuture ... and 1 more`. Every Material app allocates `TickerFuture`, so any iOS patch that changes or carries a function with an `await` is refused. That is #289. The one edit with no `await` (`p05`) published, ran on the iPhone, and rolled back cleanly. No launch failed. No patch was built with `--allow-unchecked-sdk-calls`.
+**Result: the analysis 24 check works on a device run, and it refuses too much.** The #254 patch (`await TickerFuture.complete()`) was refused before upload. So were the three ordinary `await` edits (`p06`, `p07`, `p08`) and a trio that only carries an `async` function. All four of those published and ran under cell `f2458551`. Each refusal names `this release has no then on TickerFuture ... and 1 more`; `t254` also names the constructor `TickerFuture.complete`, which the release never uses. Every Material app allocates `TickerFuture`, so any iOS patch that changes or carries a function with an `await` is refused. That is #289. The one edit with no `await` (`p05`) published, ran on the iPhone, and rolled back cleanly. No launch failed. No patch was built with `--allow-unchecked-sdk-calls`.
 
 This run makes cell `9995f957` **iOS-run with limits, not device-qualified for async patches** until #289 is fixed.
 
@@ -24,7 +24,7 @@ This run makes cell `9995f957` **iOS-run with limits, not device-qualified for a
 | App | the shapes app (`main.dart`, `tally.dart`, `intl`), display name `shapes-9995f957`, app id `d650f802-c2aa-da73-2c03-6b4557c559b7`, version `1.0.0+75`, `shorebird release ios --no-codesign`, re-signed with `ios_resign.sh`, upgrade-installed over the signed run's `1.0.0+74` (never uninstalled; the updater printed `release_version changed 1.0.0+74 -> 1.0.0+75, creating new state`) |
 | Release | `Route B retention: 57 named SDK members kept (default set only …)`, `verified 7156 patchable call sites` (`release_cli.txt`); Route B release hash `b207a26f7fca990da4b4044161398baf` (the `built-for` of the patched boots) |
 | Device | iPhone 7, iOS 15.8.8 (`install.txt`) |
-| Time | Mac clock 2026-11-23, release installed 20:45, last launch 20:55; `GO_DONE`, exit 0 for `up`, `release` and `steps254` |
+| Time | Mac clock 2026-11-23, release installed 20:45, last launch 20:54; `GO_DONE`, exit 0 for `up`, `release` and `steps254` |
 
 The harness is in `harness/`: `go.sh` runs `up.sh`, `release.sh`, `steps254.sh` and `down.sh`, and `lib.sh` and `env.sh` are beside them (`env.sh` sources `../secrets.sh`, which is not copied). `main.dart` and `variants.py` are the `f2458551` run's files, with one variant added, `t254_await_ticker`. The scripts are the `f2458551` run's scripts with the cell, selector and version changed. `up.sh` now waits up to 60 s for the proxies to listen; at load 21 Python took about 5 s, and the first attempt stopped at the old fixed 2 s wait, before any build. heavy.lock was held around the bootstrap, the release build and each patch build.
 
