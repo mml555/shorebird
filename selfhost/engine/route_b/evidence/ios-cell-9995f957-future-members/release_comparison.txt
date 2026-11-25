@@ -1,0 +1,2 @@
+1.0.0+77 CLI 668ce3f0: snapshot profile self_size 4092976 B; App.framework/App 3913680 B
+1.0.0+78 CLI a4f84392: snapshot profile self_size 4097392 B; App.framework/App 3913680 B

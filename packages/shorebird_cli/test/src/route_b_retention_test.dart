@@ -1562,6 +1562,57 @@ can-be-used-as-type:
       expect(refusalOf(named(tickerThen: true), awaitRef()), isNull);
     });
 
+    for (final member in ['catchError', 'whenComplete', 'timeout']) {
+      test('a call of $member on a Future is checked against the snapshot '
+          'even when the release names it (#289)', () {
+        RouteBRetention named({required bool tickerHas}) =>
+            RouteBRetention.parse(
+              _interface.replaceFirst(
+                'callable:\n',
+                'callable:\n'
+                    "  - library: 'dart:async'\n"
+                    "    class: 'Future'\n"
+                    "    member: '$member'\n",
+              ),
+              kept: RouteBSnapshotKept.fromProfileJson(
+                routeBProfile({
+                  ...classes(tickerThen: false),
+                  '_Future': RouteBProfileClass(
+                    '_Future',
+                    'dart:async',
+                    parent: 'Object',
+                    ifaces: const ['Future'],
+                    fns: {member: '[Optimized] $member'},
+                  ),
+                  'TickerFuture': RouteBProfileClass(
+                    'TickerFuture',
+                    'package:flutter/src/scheduler/ticker.dart',
+                    parent: 'Object',
+                    ifaces: const ['Future'],
+                    allocated: true,
+                    fns: {if (tickerHas) member: '[Optimized] $member'},
+                  ),
+                }),
+              ),
+            );
+        final call = _ref(
+          'instance',
+          'dart:async',
+          cls: 'Future',
+          member: member,
+        );
+        expect(
+          named(tickerHas: false).members,
+          contains('dart:async#Future#$member'),
+        );
+        expect(
+          refusalOf(named(tickerHas: false), call),
+          contains('TickerFuture'),
+        );
+        expect(refusalOf(named(tickerHas: true), call), isNull);
+      });
+    }
+
     test('the measurement the old-cell gate relies on is still there', () {
       expect(routeBSdkMeasuredAccepted, contains('dart:async#Future#then'));
       expect(

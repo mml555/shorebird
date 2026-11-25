@@ -421,11 +421,17 @@ class RouteBRetention {
   /// against its snapshot, because naming them is not shown to keep code on
   /// every class that can be the receiver.
   ///
-  /// `Future.then` is named so that a release compiles `then` on the `Future`
-  /// subtypes it allocates (`TickerFuture` in every Material app), which an
-  /// `await` on one calls (#289). Those subtypes live outside `dart:`, where
-  /// retention by name was never measured, so the snapshot still answers.
-  static const _snapshotCheckedWhenNamed = {'dart:async#Future#then'};
+  /// `Future.then`, `catchError`, `whenComplete` and `timeout` are named so
+  /// that a release compiles them on the `Future` subtypes it allocates
+  /// (`TickerFuture` in every Material app); an `await` on one calls its
+  /// `then` (#289). Those subtypes live outside `dart:`, where retention by
+  /// name was never measured, so the snapshot still answers.
+  static const _snapshotCheckedWhenNamed = {
+    'dart:async#Future#then',
+    'dart:async#Future#catchError',
+    'dart:async#Future#whenComplete',
+    'dart:async#Future#timeout',
+  };
 
   static (String, String)? _receiverOf(RouteBExternalReference r) {
     final library = r.receiverLibrary;

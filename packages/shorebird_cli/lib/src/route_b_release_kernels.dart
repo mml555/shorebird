@@ -139,6 +139,14 @@ const routeBRetainedSdkMembers = <String>[
   // nothing in it calls `TickerFuture.then`, so without this key the kept
   // check refused every patch that changes or carries an `await` (#289).
   'dart:async#Future.then',
+  // The other members `TickerFuture` overrides, for the same reason: a call
+  // on a `Future` value is checked against every `Future` subtype the release
+  // allocates, and `timeout` has no `await` form to fall back on (#289).
+  // Measured on the shapes app at cell 9995f957: +4,416 B of snapshot
+  // (+0.108 %) for the three (ios-cell-9995f957-future-members).
+  'dart:async#Future.catchError',
+  'dart:async#Future.whenComplete',
+  'dart:async#Future.timeout',
 ];
 
 /// The SDK members kept only when the app opts in with
@@ -147,7 +155,8 @@ const routeBRetainedSdkMembers = <String>[
 /// Each costs about +2 % of the AOT snapshot (all 21 together, +9 %), because
 /// the member is copied into every typed-data list class (the typed-data list
 /// mixins each get their own copy). Measured on the airgap app, whose baseline
-/// is 6,560,960 B; with the cheap set as well, all 74 keys are +10.7 %.
+/// is 6,560,960 B; with the cheap set as well, all 74 keys (before the
+/// `Future` members) are +10.7 %.
 const routeBHeavySdkMembers = <String>[
   'dart:core#Iterable.map',
   'dart:core#Iterable.any',
