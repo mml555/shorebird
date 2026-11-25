@@ -70,3 +70,59 @@ The variant names are the keys of `V` in `variants.py`, plus `combo` and `base`.
   `release.sh` before rerunning the steps.
 - `R` must be a dedicated directory. `release.sh` deletes `$R/work` and `$R/signed`.
 - `up.sh` leaves its processes running. Stop them with the pids in `$R/*.pid`.
+
+## Forced partial patch (all-or-nothing rollback)
+
+`packages/shorebird_cli/tool/route_b_forge_partial_patch.dart` is a selfhost
+test instrument, not part of the shipping CLI. It publishes a Route B patch
+that is built to fail, to show the engine rolling back every target the launch
+attached when one target fails. The CLI refuses such a patch before upload, so
+this tool is the only way one reaches the server.
+
+It takes the container a normal `shorebird patch` produced
+(`<app>/build/route_b/patch.sbrbptch`), keeps its real targets first, appends
+one target with a selector the release does not have (the first payload is
+copied), signs the new bytes with the release's patch private key, checks the
+signature against the public key, and publishes a NEW patch on the same
+release. It refuses to run without `--i-know-this-is-a-test-patch`.
+
+Limits to know first:
+
+- It only works for customer-signed releases (the device-run setup, built with
+  your own key). The server answers 400 to a client `hash_signature` on a
+  managed-signing release.
+- The container is re-serialized, so the additive `binding` header field a real
+  patch carries is dropped. The device ignores it.
+- The server does not record the release's build id, so the tool cannot check
+  that the container belongs to the release. It prints the container's build
+  id next to the release version before publishing; comparing them is the
+  operator's check.
+- `--channel` is required and must already exist; the tool never creates one.
+  A channel named `stable` also needs `--allow-stable`.
+
+```sh
+# after a normal `shorebird patch` (the good case: it applies)
+cd $CLI/packages/shorebird_cli
+dart run tool/route_b_forge_partial_patch.dart --i-know-this-is-a-test-patch \
+  --container <app>/build/route_b/patch.sbrbptch \
+  --private-key <private.pem> --public-key <public.pem> \
+  --app-id <app_id> --release-version "$VERSION" --channel <existing channel> \
+  --dry-run    # forges and verifies, publishes nothing
+```
+
+The forged container is always written to `<container>.partial` (or `--out`).
+Drop `--dry-run` to publish; it needs `SHOREBIRD_TOKEN` and
+`SHOREBIRD_HOSTED_URL` (what `env.sh` exports) and the engine `patch` tool
+(`$CLI/bin/cache/artifacts/patch/patch`, or `--patch-tool`). `--bogus-selector`
+overrides the fake name.
+
+Expected device log. The normal patch applies and the app shows the patched
+behaviour. The forced partial logs the bogus target as `REFUSED (...)` (the
+reason is `target-missing`), then
+
+```
+rolled back N/N attached targets, main runs the release code
+```
+
+where N is the number of real targets the patch attached: 1 for a one-target
+patch. The app shows release behaviour, not the patched one.
