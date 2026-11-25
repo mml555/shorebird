@@ -8,6 +8,7 @@ import 'package:shorebird_cli/src/route_b_container.dart';
 import 'package:test/test.dart';
 
 import '../../tool/route_b_forge_partial_patch.dart';
+import '../src/helpers.dart';
 
 // Throwaway 2048-bit RSA keys generated for these tests only. They protect
 // nothing and sign nothing outside this file.
@@ -24,6 +25,8 @@ Future<({File priv, String pub})> _keyPair(Directory dir, String name) async {
 }
 
 void main() {
+  useTempWorkingDirectory();
+
   group('forgePartialContainer', () {
     late Uint8List original;
     final payload = Uint8List.fromList([1, 2, 3, 4]);

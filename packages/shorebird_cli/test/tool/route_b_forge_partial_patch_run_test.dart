@@ -10,6 +10,7 @@ import 'package:shorebird_code_push_client/shorebird_code_push_client.dart';
 import 'package:test/test.dart';
 
 import '../../tool/route_b_forge_partial_patch.dart';
+import '../src/helpers.dart';
 
 String _release(int id, String version) => jsonEncode({
   'id': id,
@@ -22,6 +23,8 @@ String _release(int id, String version) => jsonEncode({
 });
 
 void main() {
+  useTempWorkingDirectory();
+
   group('runForge', () {
     late Directory dir;
     late File container;
