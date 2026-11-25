@@ -80,8 +80,8 @@ one run's log: write `rp.log` fresh, never `tee -a`.
 A workspace set up by `selfhost/engine/route_b/promo_clone.sh` runs this gate as step 7
 of its `bin/chain.sh`, and keeps the verdict as `evidence/rp_arms.txt`. Chains up to
 `9995f957` gated on "NOTHING refused by the seal" alone; `promo_clone.sh` replaces that
-line when it clones such a workspace, and refuses a donor whose step 7 gate it does not
-recognise.
+line when it clones such a workspace, keeps a donor that already has this gate as it is,
+and refuses a donor whose step 7 gate is neither.
 
 When it stops, the discovery script prints the last 120 lines of the harness
 output (`ci/r12/rp_iter.log`, the full output of the last iteration), enough

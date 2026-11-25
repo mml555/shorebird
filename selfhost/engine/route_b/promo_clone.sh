@@ -114,8 +114,8 @@ if [[ $(grep -cxF "$NEW_GATE" "$C") != 1 ]]; then
     '$0 == og { print ng; next } $0 == on { print nn; next } { print }' "$C" > "$C.new"
   cat "$C.new" > "$C"; rm -f "$C.new"
 fi
-[[ $(grep -cxF "$NEW_GATE" "$C") == 1 && $(grep -c 'NOTHING refused by the seal' "$C") == 0 ]] ||
-  { echo "$C: step 7 does not gate on check_rp_arms.sh"; exit 1; }
+[[ $(grep -cxF "$NEW_GATE" "$C") == 1 ]] || { echo "$C: step 7 does not gate on check_rp_arms.sh"; exit 1; }
+if grep -n 'NOTHING refused by the seal' "$C"; then echo "$C: the line above still gates on the seal alone"; exit 1; fi
 bash -n "$C"
 grep -qx "export R12_REPO_SHA=$RS" "$P/env.r12" || { echo "env.r12 has no R12_REPO_SHA=$RS"; exit 1; }
 mv "$P" "$N"
