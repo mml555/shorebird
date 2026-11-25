@@ -152,6 +152,12 @@ lineage:
   # did not move. Selected by PR #285 (merge 2f0b38a6), which also added '9995f957' -> '0cd04a77' to DartSdkCompatibility. iPhone-run on 2026-11-23
   # twice: with CLI 2f0b38a6 an await patch was refused in any app that allocates TickerFuture (#289); with CLI 668ce3f0 (the merge of #291) the same
   # await patches published and ran (see cells.9995f957....physically_qualified). Android-run on 2026-11-24 (unsigned; see the same field). See PROMOTION_9995f957.md.
+  # The CLI pin: the merge of PR #295 (bd050aea), which fixes #289's remainder: an iOS release also keeps Future.catchError, whenComplete and timeout,
+  # and the kept check still asks the snapshot for each. The chain ran #285's head a120bf7f. bin/internal (5fd95eb8) is the same at both; packages/shorebird_cli
+  # differs in the same five files as at 668ce3f0, the iOS release and patch path, which the Linux chain's steps do not run (the 37a0434b precedent, below).
+  # The iPhone run ios-cell-9995f957-future-members (2026-11-24) used #295's first head a4f84392; its packages/shorebird_cli (9b1d42c5) differs from this
+  # merge's in two comments in route_b_release_kernels.dart, no code.
+  # #291's pin note, kept as written:
   # The CLI pin: the merge of PR #291 (668ce3f0), which fixes #289's await case (#289 stays open for catchError, whenComplete and timeout). The chain ran #285's head a120bf7f. bin/internal (5fd95eb8) is the same at both;
   # packages/shorebird_cli differs in five files (route_b_release_kernels.dart, route_b_retention.dart and their tests, ios_releaser_test.dart): an iOS
   # release keeps Future.then, and the kept check still asks the snapshot for it. That is the iOS release and patch path, which the Linux chain's steps
@@ -219,7 +225,9 @@ lineage:
   # files (route_b_producer.dart, route_b_release_kernels.dart, the route_b_scope
   # fixture pair and route_b_producer_test.dart), the iOS release and patch path,
   # which the Linux chain's steps do not run.
-  cli_revision: 668ce3f0a68136e0192a55159fa75b2eb618e2d4   # the merge of PR #291 (#289: an iOS release keeps Future.then). bin/internal equals #285's head a120bf7f's, the CLI the chain ran; packages/shorebird_cli differs in five iOS-path files (see the note above). The iPhone run ios-cell-9995f957-future-then used this CLI
+  cli_revision: bd050aea42220221e2061eb565c33795e96c97a7   # the merge of PR #295 (#289's remainder: an iOS release also keeps Future.catchError, whenComplete and timeout). bin/internal equals #285's head a120bf7f's, the CLI the chain ran; packages/shorebird_cli differs in five iOS-path files (see the note above). The iPhone run ios-cell-9995f957-future-members used #295's first head a4f84392, two comments apart
+  # #291's line, kept as written:
+  # cli_revision: 668ce3f0a68136e0192a55159fa75b2eb618e2d4   # the merge of PR #291 (#289: an iOS release keeps Future.then). bin/internal equals #285's head a120bf7f's, the CLI the chain ran; packages/shorebird_cli differs in five iOS-path files (see the note above). The iPhone run ios-cell-9995f957-future-then used this CLI
   # 9995f957's first line, kept as written:
   # cli_revision: 2f0b38a6990b60549152e282c73a66e8ec0ed906   # the merge of PR #285, which selects 9995f957. Its packages/shorebird_cli and bin/internal trees equal those of #285's head a120bf7f, the CLI the chain ran
   # f2458551's line, kept as written:
@@ -403,8 +411,8 @@ lineage:
   # is a change to what "qualified" was established against. Re-qualifying is a
   # matter of re-running the verifier and updating two lines here.
   cli_product_tree:
-    packages_shorebird_cli: f01bbc543047144321ef796f47c822dd2d2674dc   # at 668ce3f0 (and #291's head 037e2975); was 2ac28976 at 2f0b38a6 and a120bf7f, the chain's CLI; was 368f4a2e at c212f715 and dfdc86cc, e8cc324c at 64a64473 and 3001a355, 26b63664 at 37a0434b, ae8bb363 at e7384444, 1c278a2c at 1ab7f5d3, 24de761d at 3f10d18e, was 01cf7cb6 at f9c56698, 2b6455b6 at dd93e875, d25369bc at 22f14441
-    bin_internal: 5fd95eb803e9b226c883f1dfbc84e7c140d2780a             # at 668ce3f0, 2f0b38a6 and a120bf7f (equal); was b891c868 at c212f715 and dfdc86cc, 7eab49a5 at 64a64473 and 3001a355, 06cce90c at 37a0434b and f66e3c21, 75d549a4 at e7384444, 1ab7f5d3 and 3f10d18e, 4330e357 at f9c56698, ca202b07 at dd93e875, 2ffb6e8b
+    packages_shorebird_cli: d3f8639e5ee8452b4c57f59315e5625077d7e13f   # at bd050aea (and #295's final head 9e1653f7; its first head a4f84392, the iPhone run's CLI, is 9b1d42c5, two comments apart); was f01bbc54 at 668ce3f0 (and #291's head 037e2975); was 2ac28976 at 2f0b38a6 and a120bf7f, the chain's CLI; was 368f4a2e at c212f715 and dfdc86cc, e8cc324c at 64a64473 and 3001a355, 26b63664 at 37a0434b, ae8bb363 at e7384444, 1c278a2c at 1ab7f5d3, 24de761d at 3f10d18e, was 01cf7cb6 at f9c56698, 2b6455b6 at dd93e875, d25369bc at 22f14441
+    bin_internal: 5fd95eb803e9b226c883f1dfbc84e7c140d2780a             # at bd050aea, 668ce3f0, 2f0b38a6 and a120bf7f (equal); was b891c868 at c212f715 and dfdc86cc, 7eab49a5 at 64a64473 and 3001a355, 06cce90c at 37a0434b and f66e3c21, 75d549a4 at e7384444, 1ab7f5d3 and 3f10d18e, 4330e357 at f9c56698, ca202b07 at dd93e875, 2ffb6e8b
   producer_engine_revision: 09c6f4225d3ddf276fe4f3473beca79e038360b6   # was e737ede3 for a377ecb7 and d0714887 until 3.50; built in; NOT the address. Read from the archive's PROVENANCE.txt
   fallback_engine_revision: f0a7d29193ea6e077e02080a3511b405a4401b6f   # Shorebird flutter_release/3.50.0 (was 38855c84 for d0714887); as e737ede3's and 09c6f422's own experimental_hashes.map entries
   dart_revision: 0cd04a7717f20d5f9ae64014cb2239a3f961f895   # DEPS dart_sdk_revision at the selector 8f54cc7b (and 52347b61) (was b4671ab7334caa33015d93a1501db974bdfb25f4 in mml555/dart-sdk-shorebird-lineage for d0714887)
@@ -452,7 +460,8 @@ cells:
       SELECTED -- this is lineage.cell_address (moved here 2026-11-23). The promotion chain ran once, with no resume (CHAIN_DONE 2026-11-23T23:52:22Z), then R12 arm B;
       step 7's harness verdict was FAIL on one check by design (arm 3 exited 0 where 64 was expected: the discovery control plane has one release).
       iPhone-run 2026-11-23 with limits. With CLI 2f0b38a6 an await refused the patch in an app that allocates TickerFuture (#289); with CLI 668ce3f0
-      (the merge of #291) those await patches published and ran on the iPhone; see physically_qualified.
+      (the merge of #291) those await patches published and ran on the iPhone. With #295 (CLI a4f84392, 2026-11-24) patches calling timeout, whenComplete
+      and catchError published and ran; see physically_qualified.
     # f2458551 re-minted by mint_cell_v2.sh (#283) with one member changed, route-b-compiler-darwin-arm64.zip (bf5aabae..., 19767236 B), whose route_b_analyze.aot is the
     # analyzer of #277 (analysis 24). The canonical descriptors (cell_manifests/*.v2) differ in that line alone; the seven members rendered to the address
     # (engine_stamp.json, the four POMs, artifacts_manifest.yaml and the descriptor) are re-rendered. The same 26 unaddressed host files as f2458551's ship as
@@ -479,8 +488,14 @@ cells:
       failed, no --allow-unchecked-sdk-calls. t254 is still refused before upload, now only for the constructor TickerFuture.complete, which the release never
       uses. Limits: catchError, whenComplete and timeout on a TickerFuture are still refused; p05_boot's device log lost its first lines (p05_boot2 shows
       applied 1/1, init=I2, Launch success for patch 5); one device, unsigned. The release snapshot grew by 1,488 B (+0.036 %); App.framework/App did not change size (release_comparison.txt in that directory).
+      Run again on 2026-11-24 with CLI a4f84392 (#295's first head; the supported bd050aea differs from it in two comments), release 1.0.0+78 upgrade-installed
+      over 1.0.0+77, unsigned, check on (evidence/ios-cell-9995f957-future-members/RESULT.md): f01 (.timeout), f02 (.whenComplete) and f03 (.catchError) on the
+      awaited Future published (patches 1-3), applied and showed their greeting; the rollback of patch 3 brought back patch 2. No launch failed, no
+      --allow-unchecked-sdk-calls. The release kept 61 named SDK members (58 with 668ce3f0); its snapshot grew by 4,416 B (+0.108 %) over 1.0.0+77, and
+      App.framework/App did not change size. Limits: no patch was run against 1.0.0+77 to show the refusal (its snapshot profile shows it, profile_check.txt);
+      one device, unsigned.
       Android: run on the OnePlus CPH2551 (Android 16) on 2026-11-24, unsigned, release 1.0.0+2, built with CLI 2f0b38a6 (the merge of #285), not with the supported
-      668ce3f0: #291 changes the iOS release and patch path only, so Android behaviour is the same, but no run used 668ce3f0 (evidence/android-cell-9995f957-future-then/RESULT.md).
+      668ce3f0 (now bd050aea): #291 and #295 change the iOS release and patch path only, so Android behaviour is the same, but no Android run used either (evidence/android-cell-9995f957-future-then/RESULT.md).
       t254 (await TickerFuture.complete(), refused by the iPhone) published as patch 1 and ran (greeting=G4); the six-edit await patch (p06+p07+p08+p03+p16b+p29) published as patch 2
       and ran (greeting=G2, count to 50, events=5); the rollback of patch 2 fell back to patch 1. 8 distinct launches (patch 1 five, patch 2 three), every boot alive, no launch failed,
       no --allow-unchecked-sdk-calls. Limits: unsigned; arm64 only; two patches and one rollback; one CLI, one device, one app. Under patch 1 route=R1 /detail and detail=D1 are not logged
@@ -1301,7 +1316,7 @@ product_surfaces:
   # constructs. Recorded because "unsupported construct" and "unsupported
   # surface" have different remediations and collapsing them hides the second.
   standalone_flutter_app:
-    ios: SUPPORTED — the supported cell 9995f957 has f2458551's device-bound bytes and a new analyzer (analysis 24); iPhone-run on 2026-11-23 with CLI 668ce3f0 (the merge of #291): await patches published and ran, with limits (cells.9995f957….physically_qualified); Android-run on 2026-11-24 (unsigned, CLI 2f0b38a6; #291 is iOS-only), with limits (cells.9995f957….physically_qualified). f2458551 is device-qualified (iPhone 7, 2026-11-22, unsigned and signed patches, with limits, cells.f2458551….physically_qualified); the previous device-qualified cell is a377ecb7 (cells.a377ecb7….physically_qualified); earlier cells were physically qualified too, see physical_device_qualification
+    ios: SUPPORTED — the supported cell 9995f957 has f2458551's device-bound bytes and a new analyzer (analysis 24); iPhone-run on 2026-11-23 with CLI 668ce3f0 (the merge of #291): await patches published and ran; on 2026-11-24 with #295 (supported CLI bd050aea): patches calling timeout, whenComplete and catchError published and ran, with limits (cells.9995f957….physically_qualified); Android-run on 2026-11-24 (unsigned, CLI 2f0b38a6; #291 and #295 are iOS-only), with limits (cells.9995f957….physically_qualified). f2458551 is device-qualified (iPhone 7, 2026-11-22, unsigned and signed patches, with limits, cells.f2458551….physically_qualified); the previous device-qualified cell is a377ecb7 (cells.a377ecb7….physically_qualified); earlier cells were physically qualified too, see physical_device_qualification
     android:
       status: SUPPORTED — physically qualified 2026-09-04 against cell f85251f3…
       qualified: 2026-09-04 (ANDROID-FINAL-STACK-2)
