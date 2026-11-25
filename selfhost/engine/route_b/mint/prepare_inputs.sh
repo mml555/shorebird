@@ -52,7 +52,7 @@ for f in analyze-snapshot-macos-arm64 analyze-snapshot-macos-x64; do
   [[ -f $MAC_STAGE/shorebird/$E/$f ]] || die "no $MAC_STAGE/shorebird/$E/$f: the Mac build has not staged the analyze snapshots"
   cp "$MAC_STAGE/shorebird/$E/$f" "$X/$f"
 done
-bash "$HERE/../../generate_manifest.sh" --hash "$E" --base-manifest "$BASE_MANIFEST" --flutter-revision "$E" \
+bash "$HELPERS/selfhost/engine/generate_manifest.sh" --hash "$E" --base-manifest "$BASE_MANIFEST" --flutter-revision "$E" \
   --dart-revision "$DART" --host darwin-arm64 --target "$CELL" --out "$X/artifacts_manifest.yaml"
 echo "Compare it with the previous engine's manifest: only the hash should differ."
 echo PREPARE_INPUTS_DONE

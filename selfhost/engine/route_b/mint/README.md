@@ -14,6 +14,10 @@ per mint (`mint.env.example` documents each variable).
 - **OWNER** marks a step only the repo owner runs. It publishes, uploads, tags, creates a release,
   or touches ci-build. An agent writes, lints and plans these. An agent does not run them with `--run`.
 - No script overwrites a file with different bytes. Installs on ci-build stop on a mismatch.
+  One exception: `repack.sh --run` uploads with `--clobber`. It replaces `MANIFEST.sha256` (which covered the full
+  tar) and the cell tar parts on the `cell-<A8>` release with the repacked ones.
+- `rsync --delete` is used in one place only: `publish_engine.sh --pull-linux` into `$LINUX_HALF`, which the script
+  owns (it refuses a non-empty directory without its `.mint-linux-half` marker). Nothing else deletes.
 - Mac tars are made with `COPYFILE_DISABLE=1` and checked for AppleDouble (`._*`) entries.
 - GitHub refuses release assets of 2 GiB or more. The release gets the big tar in 1900 MiB parts.
   ci-build gets the whole tar.
@@ -21,19 +25,19 @@ per mint (`mint.env.example` documents each variable).
 ## Where the selfhost helpers come from
 
 The scripts read `selfhost/` helpers (`route_b/mint_route_b_cell.sh`, `lib/v2_canonicalize.py`,
-`cdn/artifact_policy.conf`, `scripts/sd1_hydrate_cell.sh`, `generate_manifest.sh`) from
-the checkout they live in. That checkout must have no uncommitted change under `selfhost/`.
+`cdn/artifact_policy.conf`, `scripts/sd1_hydrate_cell.sh`, `generate_manifest.sh`) from one commit,
+`fork/main` by default. They export `selfhost/` at that commit into `$WORK/helpers-<sha>` and read it from there,
+every helper, including `generate_manifest.sh`. A dirty or old checkout cannot change the address.
 
-To use another version, set `HELPERS_REF=<ref>` in the env file, for example `fork/main`. The scripts
-then export `selfhost/` at that ref into `$WORK/helpers-<sha>` and read it from there.
-The sha used is written to `$OUT/helpers.sha` and into the engine PROVENANCE.txt.
-
-`ALLOW_DIRTY_HELPERS=1` skips the clean check. It makes the mint harder to reproduce.
+Run `git fetch fork` before a mint: `fork/main` is the local remote-tracking ref.
+To use another commit on purpose, set `HELPERS_REF=<ref>` in the env file. The scripts then print a NOTE.
+`stage_mint.sh` prints the helpers sha next to `DRY_ADDRESS` and the address. The sha is also written to
+`$OUT/helpers.sha` and into the engine PROVENANCE.txt. Check it is the commit you expect.
 
 ## The previous hash
 
 `PREV` is the last hash in the four Caddyfile protection groups. Leave it empty. The scripts read it
-from the Caddyfile of the helpers checkout (and, on ci-build, from the live Caddyfile).
+from the Caddyfile of the helpers commit (and, on ci-build, from the live Caddyfile).
 They stop when the four groups end in different hashes. Set `PREV` only to override that.
 
 ## Files
@@ -94,7 +98,9 @@ Set `MINT_ENV=<your env file>` in your shell first. Every script prints a plan w
     Then, in a new worktree off main, `bash repo_edits.sh --worktree <dir> --run`. See "Repo edits per cell" below.
     Commit, push to `fork` only, and open the PR. Put its head sha in `CLI` in the env file.
 11. **OWNER: publish the cell.** `bash publish_cell.sh` (plan), then `bash publish_cell.sh --run`.
-    It pushes the selector branch and an annotated tag to `$ENGINE_REPO`, creates the `cell-<A8>` release
+    Before it writes anything it runs a read-only ssh check on ci-build: the live Caddyfile groups must end in `E`
+    and the engine overlay for `E` must be installed. If not, it stops with nothing pushed. (`publish_cell.sh --check-ci`
+    runs just that check.) Then it pushes the selector branch and an annotated tag to `$ENGINE_REPO`, creates the `cell-<A8>` release
     on `$CELL_REPO` (targeting `CLI`), copies the bundle to ci-build, runs `install_on_ci.sh cell --run`, then `install_manifest.sh --run`.
 12. **OWNER: manifest only.** `bash install_manifest.sh --run` on its own, if step 11 stopped before it.
     It checks `sha256(cell_manifest.v2)[:40] == A` and installs the descriptor at
@@ -104,7 +110,7 @@ Set `MINT_ENV=<your env file>` in your shell first. Every script prints a plan w
     Run it with `--dry-run` first. See `selfhost/TOOLCHAIN_PROMOTION.md`.
 14. **OWNER: chain and arm B** on ci-build, as `selfhost/TOOLCHAIN_PROMOTION.md` describes.
 15. **OWNER: repack the release.** `bash repack.sh` (plan), `bash repack.sh --build` (local, with the hydrate check),
-    `bash repack.sh --run`. It uploads six files to the `cell-<A8>` release with `--clobber` and rewrites the notes.
+    `bash repack.sh --run`. It uploads six files to the `cell-<A8>` release with `--clobber` (this replaces `MANIFEST.sha256` and the tar parts) and rewrites the notes.
     The notes come from the env file (`CLI_PR`, `ENGINE_NOTE`, `PROMO_NOTE`, `NOTES_EXTRA`).
 16. **After the mint** (not here): the records PR (`compatibility.yaml`, the vendored updater pin), then the iPhone and Android runs.
 
@@ -129,7 +135,10 @@ The repo PR keeps the repo in step with ci-build.
 
 ## What a failure leaves behind
 
-- `install_on_ci.sh` keeps `.bak.<time>` copies of the Caddyfile, checker and map. If validation fails it restores all three.
+- `install_on_ci.sh` keeps `.bak.<time>` copies of the Caddyfile, checker and map. If validation fails it restores all three and restarts the container on them, also if the checker or the restart fails.
 - A stopped `publish_*.sh --run` can leave a GitHub release or tag behind. Both scripts refuse to start over an existing one.
   Delete or finish it by hand.
-- Stages in `$WORK` are never deleted by the scripts. Remove them when the mint is done.
+- `stage_mint.sh --run` deletes the earlier `dist`, `ci-stage` and `extras-tree` in `$OUT` and makes new ones. A dry run
+  deletes only its own scratch (`stage`, `ov-mint`, `evidence`), so it is safe between `--run` and `publish_cell.sh`.
+  Do not run `stage_mint.sh --run` again between `--run` and `publish_cell.sh --run` unless you mean to mint again.
+  Other stages in `$WORK` are never deleted. Remove them when the mint is done.

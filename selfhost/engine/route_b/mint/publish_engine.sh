@@ -18,8 +18,13 @@ EXTRAS=(analyze-snapshot-macos-arm64 analyze-snapshot-macos-x64 artifacts_manife
 if [[ $MODE == pull ]]; then
   say "pull the Linux half from $CI_HOST:$LINUX_STAGE_REMOTE"
   ssh "$CI_HOST" "cd $LINUX_STAGE_REMOTE && sha256sum -c --quiet SHA256SUMS && echo \"Linux: \$(wc -l < SHA256SUMS) files ok on $CI_HOST\""
-  mkdir -p "$LINUX_HALF"
-  rsync -a "$CI_HOST:$LINUX_STAGE_REMOTE/" "$LINUX_HALF/"
+  # --delete is safe only in a directory this script owns, so it needs the marker this script wrote.
+  # An existing directory without the marker is refused: it may hold something else.
+  if [[ -d $LINUX_HALF && ! -e $LINUX_HALF/.mint-linux-half && -n "$(ls -A "$LINUX_HALF")" ]]; then
+    die "$LINUX_HALF exists and is not a directory this script made (no .mint-linux-half). Use an empty LINUX_HALF."
+  fi
+  mkdir -p "$LINUX_HALF"; : > "$LINUX_HALF/.mint-linux-half"
+  rsync -a --delete --exclude=/.mint-linux-half "$CI_HOST:$LINUX_STAGE_REMOTE/" "$LINUX_HALF/"
   ( cd "$LINUX_HALF" && shasum -a 256 -c --quiet SHA256SUMS && echo "Linux half: $(wc -l < SHA256SUMS) files ok in $LINUX_HALF" )
   exit 0
 fi
@@ -46,7 +51,7 @@ else
   rm -rf "$OUT/engine"; mkdir -p "$OUT/engine/merged"
   say "merge (a path present in both halves must be byte-identical)"
   cp -Rp "$MAC_STAGE/." "$OUT/engine/merged/"; rm -f "$OUT/engine/merged/SHA256SUMS"
-  ( cd "$LINUX_HALF" && find . -type f ! -name SHA256SUMS | LC_ALL=C sort ) | while read -r p; do
+  ( cd "$LINUX_HALF" && find . -type f ! -name SHA256SUMS ! -name .mint-linux-half | LC_ALL=C sort ) | while read -r p; do
     if [[ -e "$OUT/engine/merged/$p" ]]; then cmp -s "$OUT/engine/merged/$p" "$LINUX_HALF/$p" || die "CONFLICT $p"
     else mkdir -p "$OUT/engine/merged/$(dirname "$p")"; cp -p "$LINUX_HALF/$p" "$OUT/engine/merged/$p"; fi
   done

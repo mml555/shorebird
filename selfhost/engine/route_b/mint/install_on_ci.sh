@@ -10,7 +10,9 @@
 #   bash install_on_ci.sh engine --run    # installs
 #
 # Never overwrites an overlay file with different bytes. Validates the Caddyfile in the container
-# before the restart, and restores the Caddyfile, checker and map if validation fails.
+# before the restart. A failure up to the mirror answering again (checker, validation, restart) restores the
+# Caddyfile, checker and map and restarts the container on them. A re-run is safe: it backs the files up
+# again and never adds a second map line.
 # The previous hash (the one each Caddyfile group ends with now) is PREV from remote.env (engine mode), or is derived
 # from the live Caddyfile. It refuses when the groups do not all end in the same hash.
 set -euo pipefail
@@ -55,8 +57,30 @@ echo "new $new, identical-present $kept"
 
 echo "== map and protection"
 cd "$CDN"; ts=$(date +%Y%m%d%H%M%S)
-if grep -q "$ID" Caddyfile; then
-  echo "Caddyfile already names $ID"
+BACKED=0
+restore() {
+  [[ $BACKED == 1 ]] || return 0
+  cat "Caddyfile.bak.$ts" > Caddyfile; cat "check_protection_matchers.py.bak.$ts" > check_protection_matchers.py
+  cat "experimental_hashes.map.bak.$ts" > experimental_hashes.map; echo "restored Caddyfile, checker and map"
+}
+# Until the mirror answers with the new config, any failure puts the three files back and restarts the
+# container on them, so a later restart never loads an unvalidated Caddyfile.
+on_exit() {
+  local rc=$?; trap - EXIT
+  if [[ $rc != 0 && $BACKED == 1 ]]; then
+    restore
+    docker restart "$CONTAINER" >/dev/null 2>&1 && echo "restarted $CONTAINER on the restored files" || echo "WARNING: could not restart $CONTAINER; restart it by hand"
+  fi
+  exit "$rc"
+}
+if [[ $RUN == 1 ]]; then
+  # Every --run, including a re-run that changes nothing, backs up all three files before any edit.
+  cp -p Caddyfile "Caddyfile.bak.$ts"; cp -p check_protection_matchers.py "check_protection_matchers.py.bak.$ts"
+  cp -p experimental_hashes.map "experimental_hashes.map.bak.$ts"; BACKED=1
+  trap on_exit EXIT
+fi
+if python3 -I "$HERE/cell_edits.py" has Caddyfile "$ID"; then
+  echo "Caddyfile already names $ID in its protection groups"
 else
   if [[ $MODE == engine && -n "${PREV:-}" ]]; then prev=$PREV; else prev=$(python3 -I "$HERE/cell_edits.py" derive Caddyfile); fi
   # A cell follows its engine in each group, so PREV does not apply to a cell.
@@ -64,7 +88,6 @@ else
   if [[ $MODE == engine ]]; then LABEL="Flutter $FLUTTER_LINE engine"; else LABEL="Flutter $FLUTTER_LINE: minted cell over engine ${E:0:8}"; fi
   echo "protect $ID after $prev"
   if [[ $RUN == 1 ]]; then
-    cp -p Caddyfile "Caddyfile.bak.$ts"; cp -p check_protection_matchers.py "check_protection_matchers.py.bak.$ts"; cp -p experimental_hashes.map "experimental_hashes.map.bak.$ts"
     python3 -I "$HERE/cell_edits.py" protect "$CDN" "$prev" "$ID=$LABEL"
   else
     python3 -I "$HERE/cell_edits.py" protect "$CDN" "$prev" "$ID=$LABEL" --dry-run
@@ -73,23 +96,23 @@ fi
 if grep -q "^$ID " experimental_hashes.map; then echo "map already has $ID"
 else
   echo "map line: $ID $FB"
-  [[ $RUN == 1 ]] && printf '%s %s\n' "$ID" "$FB" >> experimental_hashes.map
+  if [[ $RUN == 1 ]]; then
+    # A map without a final newline would glue the new line onto the last one.
+    [[ ! -s experimental_hashes.map || -z "$(tail -c1 experimental_hashes.map)" ]] || echo >> experimental_hashes.map
+    printf '%s %s\n' "$ID" "$FB" >> experimental_hashes.map
+  fi
 fi
 [[ $RUN == 1 ]] || { rm -rf "$HERE/x"; echo "PLAN ONLY. Add --run to install."; exit 0; }
 python3 check_protection_matchers.py | tail -1
 
 echo "== reload"
-restore() {
-  [[ -f Caddyfile.bak.$ts ]] || return 0
-  cat "Caddyfile.bak.$ts" > Caddyfile; cat "check_protection_matchers.py.bak.$ts" > check_protection_matchers.py
-  cat "experimental_hashes.map.bak.$ts" > experimental_hashes.map; echo "restored Caddyfile, checker and map"
-}
 if ! docker exec "$CONTAINER" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>"$HERE/validate.err"; then
-  tail -5 "$HERE/validate.err"; restore; exit 1
+  tail -5 "$HERE/validate.err"; exit 1
 fi
 docker restart "$CONTAINER" >/dev/null
 up=0; for _ in $(seq 1 180); do curl -s -o /dev/null --max-time 5 http://localhost:8085/ && { up=1; break; }; sleep 1; done
 [[ $up == 1 ]] || { echo "STOP: mirror not answering after restart"; exit 1; }
+trap - EXIT   # the new config is live; a serve-check failure below is reported, not rolled back
 
 echo "== serve check"
 ok=0; bad=0

@@ -47,26 +47,27 @@ load_env() {
 }
 
 # Find the selfhost/ helpers (route_b scripts, cdn files, hydrate script).
-# Default: the checkout these scripts live in. It must have no uncommitted change under selfhost/.
-# HELPERS_REF=<ref>: export selfhost/ at that ref into $WORK instead (read-only on the checkout).
+# They are always exported from a commit, never read from a working tree, so a dirty or stale checkout
+# cannot change the address. The default commit is fork/main (the local remote-tracking ref: run
+# `git fetch fork` first). HELPERS_REF=<ref> in the env file picks another commit on purpose.
 # Sets HELPERS, HELPERS_SHA, RB (route_b dir), CDN_SRC (selfhost/cdn), SCRIPTS (selfhost/scripts).
 resolve_helpers() {
-  local top; top=$(git -C "$MINT_DIR" rev-parse --show-toplevel) || die "$MINT_DIR is not in a git checkout"
-  if [[ -n ${HELPERS_REF:-} ]]; then
-    HELPERS_SHA=$(git -C "$top" rev-parse --verify -q "$HELPERS_REF^{commit}") || die "HELPERS_REF=$HELPERS_REF is not a commit in $top (fetch it first)"
-    HELPERS=$WORK/helpers-$HELPERS_SHA
-    if [[ ! -d $HELPERS/selfhost ]]; then
-      rm -rf "$HELPERS.tmp"; mkdir -p "$HELPERS.tmp"
-      git -C "$top" archive "$HELPERS_SHA" selfhost | tar -x -C "$HELPERS.tmp"
-      mv "$HELPERS.tmp" "$HELPERS"
-    fi
-  else
-    HELPERS=$top; HELPERS_SHA=$(git -C "$top" rev-parse HEAD)
-    [[ -z $(git -C "$top" status --porcelain --untracked-files=no -- selfhost) || ${ALLOW_DIRTY_HELPERS:-0} == 1 ]] \
-      || die "selfhost/ in $top has uncommitted changes, so the mint would not be reproducible. Commit them, set HELPERS_REF, or set ALLOW_DIRTY_HELPERS=1."
+  local top ref main_sha; top=$(git -C "$MINT_DIR" rev-parse --show-toplevel) || die "$MINT_DIR is not in a git checkout"
+  ref=${HELPERS_REF:-fork/main}
+  HELPERS_SHA=$(git -C "$top" rev-parse --verify -q "$ref^{commit}") \
+    || die "helper source $ref is not a commit in $top (run: git fetch fork), or set HELPERS_REF to another commit"
+  if [[ -n ${HELPERS_REF:-} && $ref != fork/main ]]; then
+    main_sha=$(git -C "$top" rev-parse --verify -q "fork/main^{commit}" || true)
+    [[ $HELPERS_SHA == "$main_sha" ]] || echo "NOTE: helpers come from HELPERS_REF=$ref ($HELPERS_SHA), not fork/main (${main_sha:-unknown})" >&2
+  fi
+  HELPERS=$WORK/helpers-$HELPERS_SHA
+  if [[ ! -d $HELPERS/selfhost ]]; then
+    rm -rf "$HELPERS.tmp"; mkdir -p "$HELPERS.tmp"
+    git -C "$top" archive "$HELPERS_SHA" selfhost | tar -x -C "$HELPERS.tmp"
+    mv "$HELPERS.tmp" "$HELPERS"
   fi
   RB=$HELPERS/selfhost/engine/route_b; CDN_SRC=$HELPERS/selfhost/cdn; SCRIPTS=$HELPERS/selfhost/scripts
-  [[ -f $RB/mint_route_b_cell.sh ]] || die "no selfhost/engine/route_b in $HELPERS"
+  [[ -f $RB/mint_route_b_cell.sh ]] || die "no selfhost/engine/route_b in $HELPERS ($ref)"
   export HELPERS HELPERS_SHA RB CDN_SRC SCRIPTS
 }
 

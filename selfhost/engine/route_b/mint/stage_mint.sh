@@ -8,7 +8,7 @@
 # Needs: $OUT/engine/merged (publish_engine.sh --build made it; or set ENGINE_OV to a copy of the merged
 # halves), $COMPILER_ZIP, $PATCH_ZIPS_DIR, and FLUTTER_PLATFORM (default $IN/flutter_platform_strong.dill,
 # from the same ddm out dir as the compiler zip; build_compiler.sh writes it).
-# Reads selfhost/ helpers from the checkout these scripts live in, or from HELPERS_REF (see README).
+# Reads selfhost/ helpers from the commit fork/main, or from HELPERS_REF (see README). MINT=1 is gone: no --run, no mint.
 set -uo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); . "$HERE/lib.sh"; load_env; resolve_helpers
 RUN=0; case "${1:-}" in --run) RUN=1;; "") ;; *) die "usage: $0 [--run]";; esac
@@ -17,10 +17,13 @@ ENGINE_OV=${ENGINE_OV:-$OUT/engine/merged}
 FLUTTER_PLATFORM=${FLUTTER_PLATFORM:-$IN/flutter_platform_strong.dill}
 EXPECT_MEMBERS=${EXPECT_MEMBERS:-30}
 [[ -d "$ENGINE_OV" ]] || die "no engine overlay at $ENGINE_OV (run publish_engine.sh --build first, or set ENGINE_OV)"
-for f in "$COMPILER_ZIP" "$FLUTTER_PLATFORM"; do [[ -f "$f" ]] || die "MISSING input $f"; done
+for f in "$COMPILER_ZIP" "$FLUTTER_PLATFORM" "$PSDK_ZIP"; do [[ -f "$f" ]] || die "MISSING input $f"; done
 RB=$HELPERS/selfhost/engine/route_b; POLICY=$HELPERS/selfhost/cdn/artifact_policy.conf
 STAGE=$OUT/stage; OV=$OUT/ov-mint; EV=$OUT/evidence
-for d in "$STAGE" "$OV" "$EV" "$OUT/dist" "$OUT/ci-stage" "$OUT/extras-tree"; do rm -rf "${d:?}"; done
+# A dry run clears only its own scratch. dist, ci-stage and extras-tree belong to the last --run:
+# publish_cell.sh reads them, so a dry run must not delete them.
+for d in "$STAGE" "$OV" "$EV"; do rm -rf "${d:?}"; done
+[[ $RUN == 1 ]] && for d in "$OUT/dist" "$OUT/ci-stage" "$OUT/extras-tree"; do rm -rf "${d:?}"; done
 mkdir -p "$OUT"
 echo "$HELPERS_SHA" > "$OUT/helpers.sha"
 export FLUTTER_PLATFORM
@@ -57,7 +60,7 @@ echo "members: $n, missing: $miss"
 MF=$OUT/cell_manifest.v2
 v2_manifest "$STAGE" "$POLICY" "$CELL" "$FB" > "$MF" || { echo "STOP: v2_manifest failed"; exit 1; }
 A=$(v2_address "$MF")
-echo "DRY_ADDRESS $A (fallback $FB, engine $E)"
+echo "DRY_ADDRESS $A (fallback $FB, engine $E, helpers $HELPERS_SHA)"
 [[ $RUN == 1 ]] || { echo "dry run only; --run to mint"; exit 0; }
 H=$(v2_transaction "$STAGE" "$POLICY" "$CELL" "$FB" "$OV" "$EV"); rc=$?
 echo "MINT rc=$rc address=$H"; [[ $rc == 0 && "$H" == "$A" ]] || { echo "STOP: mint failed or address drift"; exit 1; }
@@ -77,4 +80,4 @@ COPYFILE_DISABLE=1 tar --no-mac-metadata --no-xattrs -cf "$OUT/ci-stage/cell-$A.
 ( cd "$OUT/ci-stage" && shasum -a 256 "cell-$A.tar" > tar.sha )
 cp "$OUT/ci-stage/cell-$A.tar" "$D/"; cp "$MF" "$D/cell_manifest.v2"; cp "$OUT/ci-stage/files.sha256" "$D/"
 ( cd "$D" && shasum -a 256 -- * > MANIFEST.sha256 )
-echo "$A" > "$OUT/ADDRESS"; echo "BUNDLED: $D ($(wc -l < "$OUT/ci-stage/names" | tr -d ' ') files, $(wc -l < "$OUT/extras.names" | tr -d ' ') extras)"
+echo "$A" > "$OUT/ADDRESS"; echo "ADDRESS $A (helpers $HELPERS_SHA)"; echo "BUNDLED: $D ($(wc -l < "$OUT/ci-stage/names" | tr -d ' ') files, $(wc -l < "$OUT/extras.names" | tr -d ' ') extras)"
