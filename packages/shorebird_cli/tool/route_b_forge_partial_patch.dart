@@ -40,6 +40,9 @@ class ForgeException implements Exception {
 /// The acknowledgement flag. The tool refuses to run without it.
 const acknowledgeFlag = 'i-know-this-is-a-test-patch';
 
+/// Required, in addition to `--channel stable`, to promote to `stable`.
+const allowStableFlag = 'allow-stable';
+
 /// The selector of the appended target when none is given. Clearly fake, and
 /// absent from any release.
 const defaultBogusSelector = 'selfhost_forged_partial_patch_no_such_selector';
@@ -137,7 +140,15 @@ ArgParser _parser() => ArgParser()
   ..addOption('public-key', help: "The release's patch public key (PEM).")
   ..addOption('app-id', help: 'The app id (shorebird.yaml app_id).')
   ..addOption('release-version', help: 'Release version, e.g. 1.0.0+33.')
-  ..addOption('channel', defaultsTo: 'stable', help: 'Channel to promote to.')
+  ..addOption(
+    'channel',
+    help: 'Required. An EXISTING channel to promote to; never created.',
+  )
+  ..addFlag(
+    allowStableFlag,
+    negatable: false,
+    help: 'Required to promote to a channel named stable.',
+  )
   ..addOption(
     'patch-tool',
     help:
@@ -152,8 +163,8 @@ ArgParser _parser() => ArgParser()
   ..addOption(
     'out',
     help:
-        'Where --dry-run writes the forged container. Default: '
-        '<container>.partial',
+        'Where the forged container is written (always, also when '
+        'publishing). Default: <container>.partial',
   )
   ..addFlag(
     'dry-run',
@@ -176,112 +187,150 @@ class _BearerClient extends http.BaseClient {
   }
 }
 
-Never _fail(String message) {
-  stderr.writeln('error: $message');
-  exit(64);
-}
-
 String _need(ArgResults r, String name) {
   final v = r[name] as String?;
-  if (v == null || v.isEmpty) _fail('--$name is required.');
+  if (v == null || v.isEmpty) throw ForgeException('--$name is required.');
   return v;
 }
 
 Future<void> main(List<String> args) async {
-  final parser = _parser();
-  final ArgResults r;
-  try {
-    r = parser.parse(args);
-  } on FormatException catch (e) {
-    _fail('${e.message}\n${parser.usage}');
-  }
-  stdout.writeln(
-    'route_b_forge_partial_patch: SELFHOST TEST INSTRUMENT. It publishes a '
-    'patch that is built to fail.',
-  );
-  if (r['help'] as bool) {
-    stdout.writeln(parser.usage);
-    return;
-  }
-  if (!(r[acknowledgeFlag] as bool)) {
-    _fail('refusing to run without --$acknowledgeFlag.\n${parser.usage}');
-  }
+  exit(await runForge(args));
+}
 
+/// Runs the tool and returns the process exit code. Every failure is a
+/// one-line `error:` on [err] and a non-zero code, never a stack trace.
+///
+/// [clientFactory] builds the code push client from the hosted URL and token;
+/// tests pass a fake. [environment] defaults to the process environment.
+Future<int> runForge(
+  List<String> args, {
+  CodePushClient Function(Uri hosted, String token)? clientFactory,
+  Map<String, String>? environment,
+  StringSink? out,
+  StringSink? err,
+}) async {
+  final o = out ?? stdout;
+  final e = err ?? stderr;
+  final env = environment ?? Platform.environment;
+  final parser = _parser();
+  try {
+    final r = parser.parse(args);
+    o.writeln(
+      'route_b_forge_partial_patch: SELFHOST TEST INSTRUMENT. It publishes a '
+      'patch that is built to fail.',
+    );
+    if (r['help'] as bool) {
+      o.writeln(parser.usage);
+      return 0;
+    }
+    if (!(r[acknowledgeFlag] as bool)) {
+      throw ForgeException(
+        'refusing to run without --$acknowledgeFlag.\n${parser.usage}',
+      );
+    }
+    await _run(r, o, env, clientFactory);
+    return 0;
+  } on FormatException catch (x) {
+    e.writeln('error: ${x.message}');
+  } on ForgeException catch (x) {
+    e.writeln('error: ${x.message}');
+  } on CodePushException catch (x) {
+    e.writeln('error: the server refused: ${x.message}');
+  } on IOException catch (x) {
+    e.writeln('error: $x');
+  }
+  return 64;
+}
+
+Future<void> _run(
+  ArgResults r,
+  StringSink o,
+  Map<String, String> env,
+  CodePushClient Function(Uri hosted, String token)? clientFactory,
+) async {
   final containerPath = _need(r, 'container');
   final privateKey = File(_need(r, 'private-key'));
   final publicKeyFile = File(_need(r, 'public-key'));
+  final channelName = _need(r, 'channel');
   final dryRun = r['dry-run'] as bool;
-  final bogus = r['bogus-selector'] as String;
+  if (channelName == 'stable' && !(r[allowStableFlag] as bool)) {
+    throw ForgeException(
+      'refusing to promote a patch built to fail to stable without '
+      '--$allowStableFlag.',
+    );
+  }
   for (final f in [File(containerPath), privateKey, publicKeyFile]) {
-    if (!f.existsSync()) _fail('${f.path} does not exist.');
+    if (!f.existsSync()) throw ForgeException('${f.path} does not exist.');
   }
 
   final original = File(containerPath).readAsBytesSync();
-  final Uint8List forged;
-  final String signature;
-  try {
-    forged = forgePartialContainer(original, bogusSelector: bogus);
-    signature = signAndVerify(
-      forged,
-      privateKeyFile: privateKey,
-      publicKeyPem: publicKeyFile.readAsStringSync(),
-    );
-  } on FormatException catch (e) {
-    _fail('${File(containerPath).path}: ${e.message}');
-  } on ForgeException catch (e) {
-    _fail(e.message);
-  }
+  final forged = forgePartialContainer(
+    original,
+    bogusSelector: r['bogus-selector'] as String,
+  );
+  final signature = signAndVerify(
+    forged,
+    privateKeyFile: privateKey,
+    publicKeyPem: publicKeyFile.readAsStringSync(),
+  );
   final parsed = RouteBContainer.parse(forged);
   final hash = containerHash(forged);
-  const bogusMark = '   <- bogus, must fail';
-
   final out = (r['out'] as String?) ?? '$containerPath.partial';
   File(out).writeAsBytesSync(forged);
 
-  stdout
+  o
     ..writeln('container:   $containerPath (${original.length} bytes)')
     ..writeln('forged:      $out (${forged.length} bytes)')
     ..writeln('release id:  ${parsed.releaseBuildId}')
-    ..writeln('targets:')
-    ..writeln(
-      [
-        for (var i = 0; i < parsed.targets.length; i++)
-          _describe(i, parsed.targets, bogusMark),
-      ].join('\n'),
-    )
+    ..writeln('targets:');
+  for (var i = 0; i < parsed.targets.length; i++) {
+    final t = parsed.targets[i];
+    final mark = i == parsed.targets.length - 1 ? '   <- bogus, must fail' : '';
+    o.writeln('  ${i + 1}. ${t.library} :: ${t.selector}$mark');
+  }
+  o
     ..writeln('sha256:      $hash')
     ..writeln('signature:   verified against ${publicKeyFile.path}');
 
   if (dryRun) {
-    stdout.writeln('dry run: nothing published.');
+    o.writeln('dry run: nothing published.');
     return;
   }
 
   final appId = _need(r, 'app-id');
   final version = _need(r, 'release-version');
-  final channelName = r['channel'] as String;
-  final token = Platform.environment['SHOREBIRD_TOKEN'];
-  final hosted = Platform.environment['SHOREBIRD_HOSTED_URL'];
+  final token = env['SHOREBIRD_TOKEN'];
+  final hosted = env['SHOREBIRD_HOSTED_URL'];
   if (token == null || token.isEmpty || hosted == null || hosted.isEmpty) {
-    _fail('set SHOREBIRD_TOKEN and SHOREBIRD_HOSTED_URL (as for the CLI).');
+    throw ForgeException(
+      'set SHOREBIRD_TOKEN and SHOREBIRD_HOSTED_URL (as for the CLI).',
+    );
   }
-  final patchTool = _patchTool(r['patch-tool'] as String?);
+  final patchTool = _patchTool(r['patch-tool'] as String?, env);
   if (patchTool == null) {
-    _fail('no `patch` tool found; pass --patch-tool.');
+    throw ForgeException('no `patch` tool found; pass --patch-tool.');
   }
 
-  stdout
+  o
     ..writeln('will publish to $hosted:')
-    ..writeln('  app $appId, release $version, channel $channelName')
+    ..writeln(
+      '  app $appId, release version $version, channel $channelName '
+      '(must already exist)',
+    )
+    ..writeln(
+      '  The server does not record a release build id, so CHECK THAT '
+      '${parsed.releaseBuildId} is the build id of release $version: '
+      'the tool cannot.',
+    )
     ..writeln(
       '  1. create patch  2. create ios/aarch64 artifact (hash, '
       'hash_signature) and upload  3. promote to $channelName',
     );
 
-  final client = CodePushClient(
-    httpClient: _BearerClient(token),
-    hostedUri: Uri.parse(hosted),
-  );
+  final hostedUri = Uri.parse(hosted);
+  final client =
+      clientFactory?.call(hostedUri, token) ??
+      CodePushClient(httpClient: _BearerClient(token), hostedUri: hostedUri);
   final tmp = Directory.systemTemp.createTempSync('forge_partial_');
   try {
     final diff = _diffAgainstSyntheticBase(patchTool, out, tmp);
@@ -295,16 +344,16 @@ Future<void> main(List<String> args) async {
       hashSignature: signature,
       podfileLockHash: r['podfile-lock-hash'] as String?,
     );
-    stdout.writeln('published patch $id and promoted it to $channelName.');
+    o.writeln('published patch $id and promoted it to $channelName.');
   } finally {
     tmp.deleteSync(recursive: true);
   }
 }
 
-String? _patchTool(String? flag) {
+String? _patchTool(String? flag, Map<String, String> env) {
   if (flag != null) return flag;
-  final cli = Platform.environment['CLI'];
-  final home = Platform.environment['HOME'];
+  final cli = env['CLI'];
+  final home = env['HOME'];
   for (final base in [?cli, if (home != null) p.join(home, '.shorebird')]) {
     final f = p.join(base, 'bin', 'cache', 'artifacts', 'patch', 'patch');
     if (File(f).existsSync()) return f;
@@ -321,13 +370,17 @@ String _diffAgainstSyntheticBase(String tool, String container, Directory tmp) {
   final diff = p.join(tmp.path, 'diff.patch');
   final result = Process.runSync(tool, [base.path, container, diff]);
   if (result.exitCode != 0) {
-    _fail('patch tool failed (${result.exitCode}): ${result.stderr}');
+    throw ForgeException(
+      'patch tool failed (${result.exitCode}): ${result.stderr}',
+    );
   }
   return diff;
 }
 
-/// The thin, untested publish layer: the calls `shorebird patch` makes, in its
-/// order. Returns the new patch id.
+/// The calls `shorebird patch` makes, in its order. Returns the new patch id.
+/// The channel must already exist: it is never created. The patch metadata is
+/// a two-key stub (the CLI sends platforms and environment too); the server
+/// accepts any map and the updater ignores it.
 Future<int> publish(
   CodePushClient client, {
   required String appId,
@@ -346,9 +399,12 @@ Future<int> publish(
     throw ForgeException('no release $releaseVersion for $appId');
   }
   final channels = await client.getChannels(appId: appId);
-  final channel =
-      channels.where((c) => c.name == channelName).firstOrNull ??
-      await client.createChannel(appId: appId, channel: channelName);
+  final channel = channels.where((c) => c.name == channelName).firstOrNull;
+  if (channel == null) {
+    throw ForgeException(
+      'app $appId has no channel $channelName (this tool never creates one)',
+    );
+  }
 
   final patch = await client.createPatch(
     appId: appId,
@@ -371,10 +427,4 @@ Future<int> publish(
     channelId: channel.id,
   );
   return patch.id;
-}
-
-String _describe(int i, List<RouteBPatchTarget> targets, String mark) {
-  final t = targets[i];
-  final suffix = i == targets.length - 1 ? mark : '';
-  return '  ${i + 1}. ${t.library} :: ${t.selector}$suffix';
 }
