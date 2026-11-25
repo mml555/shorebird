@@ -84,10 +84,12 @@ The iPhone 7 run of #254 is [`ios-cell-9995f957`](../../engine/route_b/evidence/
 
 #291 (merge `668ce3f0`) fixed #289's `await` case: an iOS release keeps `Future.then`, and the kept check still asks the release snapshot for it. The re-run with that CLI is [`ios-cell-9995f957-future-then`](../../engine/route_b/evidence/ios-cell-9995f957-future-then/RESULT.md) (2026-11-23): `p06`, `p07`, `p08` and the trio published and showed their change, `p05` ran and rolled back, and the #254 patch was refused only for the constructor `TickerFuture.complete`. The supported CLI moved to `668ce3f0`. Its `bin/internal` equals the chain's `a120bf7f`; `packages/shorebird_cli` differs in five files of the iOS release and patch path, which this chain does not run. The Android run is not done yet.
 
+#295 (merge `bd050aea`) fixed the rest of #289: an iOS release also keeps `Future.catchError`, `whenComplete` and `timeout`. The run with #295's first head `a4f84392` is [`ios-cell-9995f957-future-members`](../../engine/route_b/evidence/ios-cell-9995f957-future-members/RESULT.md) (2026-11-24): patches calling `timeout`, `whenComplete` and `catchError` on an awaited `Future` published, applied and showed their change, and a rollback brought back the previous patch. The supported CLI moved to `bd050aea`, whose `packages/shorebird_cli` differs from `a4f84392`'s in two comments. Its `bin/internal` equals the chain's `a120bf7f`; `packages/shorebird_cli` differs in the same five iOS-path files.
+
+The Android run is [`android-cell-9995f957-future-then`](../../engine/route_b/evidence/android-cell-9995f957-future-then/RESULT.md) (2026-11-24, OnePlus CPH2551, unsigned, CLI `2f0b38a6`): the #254 patch and a patch with six `await` edits published and ran, and a rollback fell back to the first. #291 and #295 change only the iOS path, so no Android run used them.
+
 ## Not done
 
-- `catchError`, `whenComplete` and `timeout` on a `TickerFuture` (#289's remainder).
-- The Android run.
 - `selfhost/engine/route_b/verify_supported_state.sh` was not run for this record.
 - The items still open from `PROMOTION_f2458551.md`:
   - port the post-step-7 failure check into `selfhost/ci`;
