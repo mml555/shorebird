@@ -12,6 +12,13 @@
 # selfhost/ci comes from --repo-sha, the head of the PR that selects the cell:
 # the chain proves that PR, which merges only after the chain and arm B pass.
 #
+# Step 7's gate in the cloned bin/chain.sh is selfhost/ci/r12/check_rp_arms.sh
+# on the discovery log: the seal refused nothing, both detector self-tests
+# fired, arms 1 and 2 passed, and arm 3's single-release exit 0 is the only
+# failed check. Chains up to 9995f957 gated on "NOTHING refused by the seal"
+# alone and read the arms from the log by hand; a donor with that gate has it
+# replaced, and a donor whose gate is neither is refused.
+#
 # Preconditions it checks before writing anything: --repo-sha pins --selector
 # (bin/internal/flutter.version), the live mirror (port 8085) serves the new
 # cell's descriptor, the selector branch on shorebird-flutter points at
@@ -94,6 +101,22 @@ files=("$P/env.r12" "$P/compose.cold.yaml" "$P"/bin/*.sh)
 sed -i "s#$FROM#promo-$N8#g; s/$OA/$NA/g; s/$OS/$NS/g; s/$ORS/$RS/g; s#$OBR#$NBR#g" "${files[@]}"
 sed -i "s/${OA:0:8}/$N8/g" "${files[@]}"
 if grep -n -e "${OA:0:8}" -e "${OS:0:8}" -e "${ORS:0:8}" -e "$FROM" "${files[@]}"; then echo "old pins left above"; exit 1; fi
+# Step 7 gates on the arms block, not on the seal alone (check_rp_arms.sh).
+C=$P/bin/chain.sh
+OLD_GATE='tail -4 $L/rp.log; grep -q "NOTHING refused by the seal" $L/rp.log || die "release/patch discovery: closure not reached"'
+NEW_GATE='tail -4 $L/rp.log; bash $P/ci/r12/check_rp_arms.sh $L/rp.log > $L/rp_arms.txt 2>&1; rc=$?; cp $L/rp_arms.txt $E/rp_arms.txt; cat $L/rp_arms.txt; [ $rc = 0 ] || die "release/patch discovery: check_rp_arms.sh exit $rc (logs/rp_arms.txt)"'
+OLD_NOTE='# PROMOTION_d12e29ec.md). The gate is the closure: the last iteration refused nothing.'
+NEW_NOTE='# PROMOTION_d12e29ec.md). The gate is check_rp_arms.sh: the seal refused nothing, the self-tests fired, arms 1 and 2 passed, and arm 3 is the only failed check.'
+[[ -f $P/ci/r12/check_rp_arms.sh ]] || { echo "selfhost/ci at $RS has no r12/check_rp_arms.sh"; exit 1; }
+if [[ $(grep -cxF "$NEW_GATE" "$C") != 1 ]]; then
+  [[ $(grep -cxF "$OLD_GATE" "$C") == 1 ]] || { echo "$C: step 7's gate is not the known line, so check_rp_arms.sh cannot be put in"; exit 1; }
+  awk -v og="$OLD_GATE" -v ng="$NEW_GATE" -v on="$OLD_NOTE" -v nn="$NEW_NOTE" \
+    '$0 == og { print ng; next } $0 == on { print nn; next } { print }' "$C" > "$C.new"
+  cat "$C.new" > "$C"; rm -f "$C.new"
+fi
+[[ $(grep -cxF "$NEW_GATE" "$C") == 1 && $(grep -c 'NOTHING refused by the seal' "$C") == 0 ]] ||
+  { echo "$C: step 7 does not gate on check_rp_arms.sh"; exit 1; }
+bash -n "$C"
 grep -qx "export R12_REPO_SHA=$RS" "$P/env.r12" || { echo "env.r12 has no R12_REPO_SHA=$RS"; exit 1; }
 mv "$P" "$N"
 grep -E 'R12_(FLUTTER_REVISION|FLUTTER_REF|PRODUCER_REVISION|REPO_SHA)=' "$N/env.r12"

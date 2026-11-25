@@ -77,6 +77,12 @@ is a log it cannot parse (no arms block, truncated, no verdict, or two runs in
 one file), which is not a pass. The step passes only on 0, and the gate reads
 one run's log: write `rp.log` fresh, never `tee -a`.
 
+A workspace set up by `selfhost/engine/route_b/promo_clone.sh` runs this gate as step 7
+of its `bin/chain.sh`, and keeps the verdict as `evidence/rp_arms.txt`. Chains up to
+`9995f957` gated on "NOTHING refused by the seal" alone; `promo_clone.sh` replaces that
+line when it clones such a workspace, and refuses a donor whose step 7 gate it does not
+recognise.
+
 When it stops, the discovery script prints the last 120 lines of the harness
 output (`ci/r12/rp_iter.log`, the full output of the last iteration), enough
 for the whole arms block. The harness (`scripts/ci_noninteractive.sh`) is
